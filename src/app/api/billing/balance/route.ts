@@ -3,6 +3,11 @@ import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
 import { getBalance } from '@/lib/billing/billing';
 import { isBillingError } from '@/types/billing';
 
+const BALANCE_FETCH_MAX_ATTEMPTS = 2;
+const BALANCE_FETCH_RETRY_DELAY_MS = 250;
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /**
  * Returns the billing status for the active workspace's billing account.
  *
@@ -24,13 +29,21 @@ export async function GET(request: NextRequest) {
 
   try {
     const fetchBalance = await getBalance(apiKey);
-    const result = await fetchBalance();
+    let latestError = 'Failed to fetch billing details';
 
-    if (isBillingError(result)) {
-      return NextResponse.json({ error: result.detail }, { status: 500 });
+    for (let attempt = 1; attempt <= BALANCE_FETCH_MAX_ATTEMPTS; attempt += 1) {
+      const result = await fetchBalance();
+      if (!isBillingError(result)) {
+        return NextResponse.json(result);
+      }
+
+      latestError = result.detail;
+      if (attempt < BALANCE_FETCH_MAX_ATTEMPTS) {
+        await wait(BALANCE_FETCH_RETRY_DELAY_MS * attempt);
+      }
     }
 
-    return NextResponse.json(result);
+    return NextResponse.json({ error: latestError }, { status: 500 });
   } catch (error: any) {
     console.error('Error fetching billing balance:', error?.message || error);
     return NextResponse.json({ error: 'Error fetching billing details' }, { status: 500 });

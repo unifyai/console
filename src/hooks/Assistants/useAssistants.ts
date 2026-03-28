@@ -3,7 +3,12 @@ import { Assistant, AssistantActions, AssistantUpdatePayload } from '@/types/ass
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
-import { fetchAssistants, fetchMediaSignedUrls } from '@/lib/client/assistant';
+import {
+  fetchAssistants,
+  fetchMediaSignedUrls,
+  readCachedMediaSignedUrls,
+  seedMediaSignedUrls,
+} from '@/lib/client/assistant';
 
 export function useAssistants(allActions: AssistantActions, isOrgContext: boolean) {
   const { assistant: assistantActions } = allActions;
@@ -11,6 +16,11 @@ export function useAssistants(allActions: AssistantActions, isOrgContext: boolea
   const [assistants, setAssistants] = React.useState<Assistant[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const assistantsRef = React.useRef<Assistant[]>([]);
+
+  React.useEffect(() => {
+    assistantsRef.current = assistants;
+  }, [assistants]);
 
   const fetchAssistantsWithDetails = React.useCallback(
     async (shouldShowLoadingToast = true) => {
@@ -50,27 +60,81 @@ export function useAssistants(allActions: AssistantActions, isOrgContext: boolea
           /* no-op */
         }
 
-        // Step 2: Set the core data immediately for a fast UI render
-        setAssistants(validAssistants);
-        setIsLoading(false);
-        if (toastId) toast.dismiss(toastId);
+        // Seed the shared cache with any existing signed URLs we already hold
+        // locally so refreshes can immediately rehydrate unchanged media.
+        const existingSignedUrlsByPath: Record<string, string> = {};
+        assistantsRef.current.forEach((assistant) => {
+          if (assistant.profilePhoto && assistant.signedProfilePhotoUrl) {
+            existingSignedUrlsByPath[assistant.profilePhoto] = assistant.signedProfilePhotoUrl;
+          }
+          if (assistant.profileVideo && assistant.signedProfileVideoUrl) {
+            existingSignedUrlsByPath[assistant.profileVideo] = assistant.signedProfileVideoUrl;
+          }
+        });
+        if (Object.keys(existingSignedUrlsByPath).length > 0) {
+          seedMediaSignedUrls(existingSignedUrlsByPath);
+        }
 
-        // Step 3: Batch-resolve all GCS signed URLs in a single request,
-        // then apply them in one state update to avoid cascading re-renders.
-        const pathToAgentField: { path: string; agentId: string; field: 'signedProfilePhotoUrl' | 'signedProfileVideoUrl' }[] = [];
+        // Build media path references for URL resolution.
+        const pathToAgentField: {
+          path: string;
+          agentId: string;
+          field: 'signedProfilePhotoUrl' | 'signedProfileVideoUrl';
+        }[] = [];
 
         validAssistants.forEach((assistant) => {
           if (assistant.profilePhoto && isGcsPhoto(assistant.profilePhoto)) {
-            pathToAgentField.push({ path: assistant.profilePhoto, agentId: assistant.agentId, field: 'signedProfilePhotoUrl' });
+            pathToAgentField.push({
+              path: assistant.profilePhoto,
+              agentId: assistant.agentId,
+              field: 'signedProfilePhotoUrl',
+            });
           }
           if (assistant.profileVideo && isGcsPhoto(assistant.profileVideo)) {
-            pathToAgentField.push({ path: assistant.profileVideo, agentId: assistant.agentId, field: 'signedProfileVideoUrl' });
+            pathToAgentField.push({
+              path: assistant.profileVideo,
+              agentId: assistant.agentId,
+              field: 'signedProfileVideoUrl',
+            });
           }
         });
 
-        if (pathToAgentField.length > 0) {
-          const allPaths = pathToAgentField.map((e) => e.path);
-          fetchMediaSignedUrls(allPaths).then((signedUrlMap) => {
+        const allMediaPaths = Array.from(new Set(pathToAgentField.map((entry) => entry.path)));
+        const cachedSignedUrls = readCachedMediaSignedUrls(allMediaPaths);
+        const existingAssistantsById = new Map(
+          assistantsRef.current.map((assistant) => [assistant.agentId, assistant])
+        );
+
+        // Step 2: Set the core data immediately, but hydrate any signed URLs
+        // already available in cache so images render without delay.
+        const assistantsWithImmediateSignedUrls = validAssistants.map((assistant) => {
+          const existingAssistant = existingAssistantsById.get(assistant.agentId);
+          const signedProfilePhotoUrl =
+            (assistant.profilePhoto ? cachedSignedUrls[assistant.profilePhoto] : undefined) ||
+            (existingAssistant && existingAssistant.profilePhoto === assistant.profilePhoto
+              ? existingAssistant.signedProfilePhotoUrl
+              : undefined);
+          const signedProfileVideoUrl =
+            (assistant.profileVideo ? cachedSignedUrls[assistant.profileVideo] : undefined) ||
+            (existingAssistant && existingAssistant.profileVideo === assistant.profileVideo
+              ? existingAssistant.signedProfileVideoUrl
+              : undefined);
+
+          return {
+            ...assistant,
+            ...(signedProfilePhotoUrl ? { signedProfilePhotoUrl } : {}),
+            ...(signedProfileVideoUrl ? { signedProfileVideoUrl } : {}),
+          };
+        });
+
+        setAssistants(assistantsWithImmediateSignedUrls);
+        setIsLoading(false);
+        if (toastId) toast.dismiss(toastId);
+
+        // Step 3: Resolve only media paths still missing from cache.
+        const unresolvedPaths = allMediaPaths.filter((path) => !cachedSignedUrls[path]);
+        if (unresolvedPaths.length > 0) {
+          fetchMediaSignedUrls(unresolvedPaths).then((signedUrlMap) => {
             const urlUpdates = new Map<
               string,
               { signedProfilePhotoUrl?: string; signedProfileVideoUrl?: string }
@@ -78,18 +142,17 @@ export function useAssistants(allActions: AssistantActions, isOrgContext: boolea
 
             pathToAgentField.forEach(({ path, agentId, field }) => {
               const signedUrl = signedUrlMap[path];
-              if (signedUrl) {
-                const existing = urlUpdates.get(agentId) || {};
-                existing[field] = signedUrl;
-                urlUpdates.set(agentId, existing);
-              }
+              if (!signedUrl) return;
+              const existing = urlUpdates.get(agentId) || {};
+              existing[field] = signedUrl;
+              urlUpdates.set(agentId, existing);
             });
 
             if (urlUpdates.size > 0) {
               setAssistants((currentAssistants) =>
-                currentAssistants.map((a) => {
-                  const updates = urlUpdates.get(a.agentId);
-                  return updates ? { ...a, ...updates } : a;
+                currentAssistants.map((assistant) => {
+                  const updates = urlUpdates.get(assistant.agentId);
+                  return updates ? { ...assistant, ...updates } : assistant;
                 })
               );
             }
@@ -154,17 +217,36 @@ export function useAssistants(allActions: AssistantActions, isOrgContext: boolea
         // Immediately update non-URL fields
         setAssistants((prev) => prev.map((a) => (a.agentId === id ? { ...a, ...payload } : a)));
 
-        // If a photo was part of the payload, refresh its signed URL
-        if (payload.profilePhoto && isGcsPhoto(payload.profilePhoto)) {
-          fetchMediaSignedUrls([payload.profilePhoto]).then((urlMap) => {
-            const signedUrl = urlMap[payload.profilePhoto!];
-            if (signedUrl) {
-              setAssistants((current) =>
-                current.map((a) =>
-                  a.agentId === id ? { ...a, signedProfilePhotoUrl: signedUrl } : a
-                )
-              );
-            }
+        // If media paths changed, refresh signed URLs for the affected fields.
+        const updatedMediaPaths = [
+          ...(payload.profilePhoto && isGcsPhoto(payload.profilePhoto)
+            ? [payload.profilePhoto]
+            : []),
+          ...(payload.profileVideo && isGcsPhoto(payload.profileVideo)
+            ? [payload.profileVideo]
+            : []),
+        ];
+
+        if (updatedMediaPaths.length > 0) {
+          fetchMediaSignedUrls(updatedMediaPaths).then((urlMap) => {
+            setAssistants((current) =>
+              current.map((assistant) => {
+                if (assistant.agentId !== id) return assistant;
+
+                const signedProfilePhotoUrl = payload.profilePhoto
+                  ? urlMap[payload.profilePhoto]
+                  : undefined;
+                const signedProfileVideoUrl = payload.profileVideo
+                  ? urlMap[payload.profileVideo]
+                  : undefined;
+
+                return {
+                  ...assistant,
+                  ...(signedProfilePhotoUrl ? { signedProfilePhotoUrl } : {}),
+                  ...(signedProfileVideoUrl ? { signedProfileVideoUrl } : {}),
+                };
+              })
+            );
           });
         }
 

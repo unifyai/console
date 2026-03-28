@@ -155,8 +155,8 @@ describe('Gating billable actions', () => {
     it('lets user interact with button when they have credits', async () => {
       server.use(
         http.get('/api/billing/balance', () =>
-          HttpResponse.json({ balance: '25.00', fullBalance: 25, lastRechargeAt: '2025-01-01' }),
-        ),
+          HttpResponse.json({ balance: '25.00', fullBalance: 25, lastRechargeAt: '2025-01-01' })
+        )
       );
 
       const onClick = vi.fn();
@@ -164,7 +164,7 @@ describe('Gating billable actions', () => {
         <BillableActionGuard>
           <button onClick={onClick}>Hire</button>
         </BillableActionGuard>,
-        { wrapper: createQueryWrapper() },
+        { wrapper: createQueryWrapper() }
       );
 
       // Wait for billing status to load — button should stay enabled
@@ -179,15 +179,15 @@ describe('Gating billable actions', () => {
     it('disables button and shows guard wrapper when no credits', async () => {
       server.use(
         http.get('/api/billing/balance', () =>
-          HttpResponse.json({ balance: '0.00', fullBalance: 0, lastRechargeAt: null }),
-        ),
+          HttpResponse.json({ balance: '0.00', fullBalance: 0, lastRechargeAt: null })
+        )
       );
 
       render(
         <BillableActionGuard>
           <button>Hire</button>
         </BillableActionGuard>,
-        { wrapper: createQueryWrapper() },
+        { wrapper: createQueryWrapper() }
       );
 
       await waitFor(() => {
@@ -199,15 +199,15 @@ describe('Gating billable actions', () => {
     it('respects creditsRequired threshold', async () => {
       server.use(
         http.get('/api/billing/balance', () =>
-          HttpResponse.json({ balance: '3.00', fullBalance: 3, lastRechargeAt: '2025-01-01' }),
-        ),
+          HttpResponse.json({ balance: '3.00', fullBalance: 3, lastRechargeAt: '2025-01-01' })
+        )
       );
 
       render(
         <BillableActionGuard creditsRequired={5}>
           <button>Run Expensive Task</button>
         </BillableActionGuard>,
-        { wrapper: createQueryWrapper() },
+        { wrapper: createQueryWrapper() }
       );
 
       // User has $3 but needs $5 — should be blocked
@@ -226,7 +226,7 @@ describe('Gating billable actions', () => {
         <BillableActionGuard hasCredits={false} onAddPaymentMethod={onAdd}>
           <button>Hire</button>
         </BillableActionGuard>,
-        { wrapper: createQueryWrapper() },
+        { wrapper: createQueryWrapper() }
       );
 
       // Hover over guard to open tooltip
@@ -244,7 +244,7 @@ describe('Gating billable actions', () => {
         <BillableActionGuard hasCredits={false}>
           <div data-testid="custom-element">Custom Action</div>
         </BillableActionGuard>,
-        { wrapper: createQueryWrapper() },
+        { wrapper: createQueryWrapper() }
       );
 
       expect(screen.getByTestId('custom-element')).toHaveAttribute('aria-disabled', 'true');
@@ -294,17 +294,12 @@ describe('Balance display on billing page', () => {
   it('shows org-specific balance description when in org context', async () => {
     const actions = createMockActions();
     render(
-      <Main
-        actions={actions}
-        orgContext={{ orgId: 1, orgName: 'Acme Corp', canEdit: true }}
-      />,
+      <Main actions={actions} orgContext={{ orgId: 1, orgName: 'Acme Corp', canEdit: true }} />
     );
 
     await waitForMainLoaded();
 
-    expect(
-      screen.getByText('Credits and payment methods for Acme Corp'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Credits and payment methods for Acme Corp')).toBeInTheDocument();
   });
 
   it('shows personal balance description when no org context', async () => {
@@ -313,9 +308,7 @@ describe('Balance display on billing page', () => {
 
     await waitForMainLoaded();
 
-    expect(
-      screen.getByText('Manage your credits and payment methods'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Manage your credits and payment methods')).toBeInTheDocument();
   });
 });
 
@@ -333,8 +326,8 @@ describe('Post-checkout billing status polling', () => {
           fullBalance: balance,
           lastRechargeAt: balance > 0 ? '2025-01-01' : null,
           accountStatus: 'ACTIVE',
-        }),
-      ),
+        })
+      )
     );
 
     const { result } = renderHook(() => useBillingStatus(), {
@@ -361,7 +354,7 @@ describe('Post-checkout billing status polling', () => {
       () => {
         expect(result.current.hasCredits).toBe(true);
       },
-      { timeout: 10_000 },
+      { timeout: 10_000 }
     );
     expect(result.current.credits).toBe(25);
   });
@@ -375,8 +368,8 @@ describe('Post-checkout billing status polling', () => {
           fullBalance: balance,
           lastRechargeAt: null,
           accountStatus: 'ACTIVE',
-        }),
-      ),
+        })
+      )
     );
 
     // Render both the guard and the hook so they share the same QueryClient
@@ -395,7 +388,7 @@ describe('Post-checkout billing status polling', () => {
           <button>Hire</button>
         </BillableActionGuard>
       </>,
-      { wrapper },
+      { wrapper }
     );
 
     // Guard blocks the button initially
@@ -416,7 +409,7 @@ describe('Post-checkout billing status polling', () => {
       () => {
         expect(screen.getByRole('button', { name: 'Hire' })).not.toBeDisabled();
       },
-      { timeout: 10_000 },
+      { timeout: 10_000 }
     );
   });
 });
@@ -561,10 +554,7 @@ describe('Billing events SSE stream route', () => {
   const TEST_PROJECT_ID = 'my-gcp-project';
   const MOCK_CREDENTIALS = JSON.stringify({ project_id: TEST_PROJECT_ID });
 
-  function makeMockMessage(
-    payload: Record<string, unknown>,
-    opts: { id?: string } = {}
-  ) {
+  function makeMockMessage(payload: Record<string, unknown>, opts: { id?: string } = {}) {
     return {
       data: Buffer.from(JSON.stringify(payload)),
       id: opts.id || 'msg-1',
@@ -715,7 +705,7 @@ describe('Billing events SSE stream route', () => {
       { id: 'billing-msg-1' }
     );
 
-    const subEmitter = [...mockSubscriptionInstances.values()][0];
+    const subEmitter = Array.from(mockSubscriptionInstances.values())[0];
     subEmitter?.emit('message', msg);
 
     await new Promise((r) => setTimeout(r, 50));
@@ -756,4 +746,3 @@ describe('Billing events SSE stream route', () => {
     await drainStream(response);
   });
 });
-

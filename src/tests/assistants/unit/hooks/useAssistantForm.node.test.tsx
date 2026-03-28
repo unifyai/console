@@ -25,6 +25,11 @@ vi.mock('@/lib/assistants/preHireChat', () => ({
   generatePostHireGreeting: vi.fn().mockResolvedValue({ content: 'Hello! I am ready to work.' }),
 }));
 
+const mockFetchMediaSignedUrls = vi.fn();
+vi.mock('@/lib/client/assistant', () => ({
+  fetchMediaSignedUrls: (...args: any[]) => mockFetchMediaSignedUrls(...args),
+}));
+
 // Must import hook after mocking
 import { useAssistantForm } from '@/hooks/Assistants/useAssistantForm';
 
@@ -115,7 +120,9 @@ const createMockAssistantActions = (): AssistantActions => ({
   },
   desktop: {
     getLiveviewUrl: vi.fn(),
-    buildLiveviewUrl: vi.fn(async (rawUrl: string) => ({ liveviewUrl: `${rawUrl}?password=test-key` })),
+    buildLiveviewUrl: vi.fn(async (rawUrl: string) => ({
+      liveviewUrl: `${rawUrl}?password=test-key`,
+    })),
     checkLiveviewHealth: vi.fn().mockResolvedValue(true),
     sendSystemEvent: vi.fn(),
     listUserDesktops: vi.fn(),
@@ -161,6 +168,7 @@ describe('useAssistantForm', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFetchMediaSignedUrls.mockResolvedValue({});
     mockActions = createMockAssistantActions();
     mockVoices = createMockVoices();
     onHireSuccess = vi.fn();
@@ -421,9 +429,7 @@ describe('useAssistantForm', () => {
           expect(updatedValues.profilePhotoUrl).toBe(
             'gs://bucket/preset_assistants/photos/test.jpg'
           );
-          expect(updatedValues.photoPreviewUrl).toBe(
-            'https://signed.url/preset-photo.jpg'
-          );
+          expect(updatedValues.photoPreviewUrl).toBe('https://signed.url/preset-photo.jpg');
         });
       }
     );
@@ -1189,6 +1195,79 @@ describe('useAssistantForm', () => {
         // No photo upload or assistant update should have been called
         expect(mockActions.photo.uploadPhoto).not.toHaveBeenCalled();
         expect(mockActions.assistant.update).not.toHaveBeenCalled();
+      }
+    );
+
+    it(
+      'hire flow: passes uploaded media paths to onHireSuccess assistant payload',
+      {
+        meta: {
+          alias: 'HireForm-OnHireSuccessIncludesMediaPaths',
+          scenario: 'User hires with custom photo upload',
+          behavior:
+            'onHireSuccess receives assistant with profilePhoto/profileVideo paths after upload/update',
+        },
+      },
+      async () => {
+        mockActions.assistant.create = vi.fn().mockResolvedValue({
+          assistant: {
+            agentId: 'media-1',
+            firstName: 'Media',
+            surname: 'Tester',
+            profilePhoto: null,
+            profileVideo: null,
+          },
+        });
+        mockActions.photo.uploadPhoto = vi.fn().mockResolvedValue({
+          gcsUrl: 'gs://bucket/media-1/photos/photo.jpg',
+        });
+        mockActions.photo.uploadVideo = vi.fn().mockResolvedValue({
+          gcsUrl: 'gs://bucket/media-1/videos/video.mp4',
+        });
+        mockActions.assistant.update = vi.fn().mockResolvedValue({ info: 'Updated' });
+
+        const { result } = renderHook(() =>
+          useAssistantForm(mockActions, mockVoices, onHireSuccess, onUpdateSuccess, true)
+        );
+
+        await waitFor(() => {
+          expect(result.current.isSubmitting).toBe(false);
+        });
+
+        const mockPhotoFile = new File(['photo data'], 'photo.jpg', { type: 'image/jpeg' });
+        const mockVideoFile = new File(['video data'], 'video.mp4', { type: 'video/mp4' });
+
+        act(() => {
+          result.current.formMethods.setValue('firstName', 'Media');
+          result.current.formMethods.setValue('surname', 'Tester');
+          result.current.formMethods.setValue('age', 28);
+          result.current.formMethods.setValue('nationality', 'United States');
+          result.current.formMethods.setValue('about', 'Media coverage');
+          result.current.formMethods.setValue('voiceId', 'voice-1');
+          result.current.formMethods.setValue('voiceName', 'Test Voice');
+          result.current.formMethods.setValue('voiceGender', 'female');
+          result.current.formMethods.setValue('voiceLanguage', 'en');
+          result.current.formMethods.setValue('voiceExists', true);
+          result.current.formMethods.setValue('photoFile', mockPhotoFile);
+          result.current.formMethods.setValue('videoFile', mockVideoFile);
+        });
+
+        await act(async () => {
+          await result.current.initiateHireSequence();
+        });
+
+        await waitFor(() => {
+          expect(onHireSuccess).toHaveBeenCalled();
+        });
+
+        const [assistantPayload] = (onHireSuccess as any).mock.calls[0];
+        expect(assistantPayload).toEqual(
+          expect.objectContaining({
+            agentId: 'media-1',
+            profilePhoto: 'gs://bucket/media-1/photos/photo.jpg',
+            profileVideo: 'gs://bucket/media-1/videos/video.mp4',
+          })
+        );
       }
     );
 

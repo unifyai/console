@@ -20,6 +20,8 @@ import { ASSISTANT_ONBOARDING_FEE, PRIMARY_VOICE_PROVIDER } from '@/constants/as
 import { ChatMessage } from '@/types/assistants/chat';
 import { v4 as uuidv4 } from 'uuid';
 import { generatePostHireGreeting } from '@/lib/assistants/preHireChat';
+import { fetchMediaSignedUrls } from '@/lib/client/assistant';
+import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
 
 export function useAssistantForm(
   assistantActions: AssistantActions,
@@ -36,6 +38,8 @@ export function useAssistantForm(
   const isSubmittingRef = React.useRef(false);
   // Ref to track preset selection operations and ignore stale video downloads
   const presetOperationIdRef = React.useRef(0);
+  // Ref to ignore stale signed-URL refreshes when rapidly switching assistants
+  const editMediaRefreshRequestIdRef = React.useRef(0);
 
   const defaultVoice = getDefaultVoiceForProvider();
 
@@ -336,6 +340,7 @@ export function useAssistantForm(
     },
     [
       setValue,
+      getValues,
       handleMediaRemove,
       clearErrors,
       defaultVoice,
@@ -395,11 +400,24 @@ export function useAssistantForm(
        ---------------------------- */
   const loadAssistantForEdit = React.useCallback(
     (assistant: Assistant) => {
+      const thisRequestId = editMediaRefreshRequestIdRef.current + 1;
+      editMediaRefreshRequestIdRef.current = thisRequestId;
+
       setEditingAssistant(assistant);
 
       const assistantVoiceDetails = registeredVoices.find(
         (v) => v.voiceId === assistant.voiceId && v.provider === assistant.voiceProvider
       );
+      const profilePhotoPath = assistant.profilePhoto ?? null;
+      const profileVideoPath = assistant.profileVideo ?? null;
+      const photoRefreshPath = profilePhotoPath ?? assistant.signedProfilePhotoUrl ?? null;
+      const videoRefreshPath = profileVideoPath ?? assistant.signedProfileVideoUrl ?? null;
+      const shouldRefreshPhotoPreview = isGcsPhoto(photoRefreshPath);
+      const shouldRefreshVideoPreview = isGcsPhoto(videoRefreshPath);
+      const initialPhotoPreviewUrl =
+        assistant.signedProfilePhotoUrl || (shouldRefreshPhotoPreview ? null : photoRefreshPath);
+      const initialVideoPreviewUrl =
+        assistant.signedProfileVideoUrl || (shouldRefreshVideoPreview ? null : videoRefreshPath);
 
       reset({
         ...getValues(),
@@ -413,10 +431,10 @@ export function useAssistantForm(
         timezone: assistant.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 
         // Media
-        photoPreviewUrl: assistant.signedProfilePhotoUrl || assistant.profilePhoto,
-        videoPreviewUrl: assistant.signedProfileVideoUrl || assistant.profileVideo,
-        profilePhotoUrl: assistant.profilePhoto,
-        profileVideoUrl: assistant.profileVideo,
+        photoPreviewUrl: initialPhotoPreviewUrl,
+        videoPreviewUrl: initialVideoPreviewUrl,
+        profilePhotoUrl: profilePhotoPath ?? photoRefreshPath,
+        profileVideoUrl: profileVideoPath ?? videoRefreshPath,
         photoFile: null,
         videoFile: null,
 
@@ -435,8 +453,41 @@ export function useAssistantForm(
         operatingSystem: (assistant.desktopMode as DesktopMode | null) || 'ubuntu',
       });
       setShowInsufficientFundsHint(false);
+
+      const gcsMediaPaths: string[] = [
+        ...(shouldRefreshPhotoPreview && photoRefreshPath ? [photoRefreshPath] : []),
+        ...(shouldRefreshVideoPreview && videoRefreshPath ? [videoRefreshPath] : []),
+      ];
+
+      if (gcsMediaPaths.length === 0) {
+        return;
+      }
+
+      void (async () => {
+        const signedUrlMap = await fetchMediaSignedUrls(gcsMediaPaths);
+        if (editMediaRefreshRequestIdRef.current !== thisRequestId) {
+          return;
+        }
+
+        if (shouldRefreshPhotoPreview && photoRefreshPath) {
+          const refreshedPhotoPreviewUrl = signedUrlMap[photoRefreshPath];
+          if (refreshedPhotoPreviewUrl) {
+            setValue('photoPreviewUrl', refreshedPhotoPreviewUrl);
+          } else if (!initialPhotoPreviewUrl) {
+            setValue('photoPreviewUrl', null);
+          }
+        }
+        if (shouldRefreshVideoPreview && videoRefreshPath) {
+          const refreshedVideoPreviewUrl = signedUrlMap[videoRefreshPath];
+          if (refreshedVideoPreviewUrl) {
+            setValue('videoPreviewUrl', refreshedVideoPreviewUrl);
+          } else if (!initialVideoPreviewUrl) {
+            setValue('videoPreviewUrl', null);
+          }
+        }
+      })();
     },
-    [reset, getValues, registeredVoices]
+    [reset, getValues, registeredVoices, setValue]
   );
 
   const initiateUpdateSequence = reactHookFormHandleSubmit(async (data: AssistantFormData) => {
@@ -481,8 +532,7 @@ export function useAssistantForm(
       if (data.firstName !== editingAssistant.firstName) payload.firstName = data.firstName;
       if (data.surname !== editingAssistant.surname) payload.surname = data.surname;
       if (data.age !== editingAssistant.age) payload.age = data.age ?? undefined;
-      if (data.nationality !== editingAssistant.nationality)
-        payload.nationality = data.nationality;
+      if (data.nationality !== editingAssistant.nationality) payload.nationality = data.nationality;
       if (data.about !== editingAssistant.about) payload.about = data.about;
       if (data.timezone !== editingAssistant.timezone) payload.timezone = data.timezone;
       // Orchestra requires both voice_id and voice_provider together — always
@@ -729,9 +779,17 @@ export function useAssistantForm(
         }
       }
 
+      const assistantForSuccess: Assistant = {
+        ...createdAssistant,
+        ...(finalImageUrlToSend ? { profilePhoto: finalImageUrlToSend } : {}),
+        ...(finalVideoUrlToSend ? { profileVideo: finalVideoUrlToSend } : {}),
+        ...(mediaUpdate.profilePhoto ? { profilePhoto: mediaUpdate.profilePhoto } : {}),
+        ...(mediaUpdate.profileVideo ? { profileVideo: mediaUpdate.profileVideo } : {}),
+      };
+
       toast.success(`Assistant ${data.firstName} ${data.surname} hired!`);
       resetFormAndHints();
-      if (onHireSuccess) onHireSuccess(createdAssistant, data, finalChatHistory);
+      if (onHireSuccess) onHireSuccess(assistantForSuccess, data, finalChatHistory);
     } catch (error: any) {
       const isRHFError = !!(
         formMethods.formState.errors.age ||

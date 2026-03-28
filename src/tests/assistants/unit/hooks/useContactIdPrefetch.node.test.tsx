@@ -159,7 +159,10 @@ describe('getOrFetchContactId', () => {
   it('deduplicates concurrent calls — fetcher is called only once', async () => {
     let resolve!: (value: number | null) => void;
     const fetcher = vi.fn(
-      () => new Promise<number | null>((r) => { resolve = r; })
+      () =>
+        new Promise<number | null>((r) => {
+          resolve = r;
+        })
     );
 
     // Fire two concurrent calls
@@ -188,11 +191,13 @@ describe('getOrFetchContactId', () => {
   });
 
   it('cleans up the dedup map even when the fetcher rejects', async () => {
-    const fetcher = vi.fn(async () => { throw new Error('fail'); });
+    const fetcher = vi.fn(async () => {
+      throw new Error('fail');
+    });
 
-    await expect(
-      getOrFetchContactId(fetcher, 'user@x.com', 'owner-1', 'a-1')
-    ).rejects.toThrow('fail');
+    await expect(getOrFetchContactId(fetcher, 'user@x.com', 'owner-1', 'a-1')).rejects.toThrow(
+      'fail'
+    );
 
     // Should allow a fresh attempt
     const fetcher2 = vi.fn(async () => 5);
@@ -209,7 +214,10 @@ describe('getOrFetchTranscripts', () => {
   it('deduplicates concurrent calls — fetcher is called only once', async () => {
     let resolve!: (value: ChatMessage[]) => void;
     const fetcher = vi.fn(
-      () => new Promise<ChatMessage[]>((r) => { resolve = r; })
+      () =>
+        new Promise<ChatMessage[]>((r) => {
+          resolve = r;
+        })
     );
 
     const p1 = getOrFetchTranscripts(fetcher, 1, 'owner-1', 'a-1');
@@ -282,7 +290,9 @@ describe('useContactIdPrefetch', () => {
   }
 
   // Helper: mock a successful /api/logs transcripts response
-  function mockTranscriptsResponse(messages: Array<{ id: number; senderId: number; content: string }>) {
+  function mockTranscriptsResponse(
+    messages: Array<{ id: number; senderId: number; content: string }>
+  ) {
     return new Response(
       JSON.stringify({
         logs: messages.map((m) => ({
@@ -306,9 +316,7 @@ describe('useContactIdPrefetch', () => {
     const actions = createMockChatActions();
     const assistants = [createMockAssistant()];
 
-    renderHook(() =>
-      useContactIdPrefetch(assistants, actions, null)
-    );
+    renderHook(() => useContactIdPrefetch(assistants, actions, null));
 
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -316,9 +324,7 @@ describe('useContactIdPrefetch', () => {
   it('does nothing when assistants list is empty', () => {
     const actions = createMockChatActions();
 
-    renderHook(() =>
-      useContactIdPrefetch([], actions, 'user@x.com')
-    );
+    renderHook(() => useContactIdPrefetch([], actions, 'user@x.com'));
 
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -332,9 +338,7 @@ describe('useContactIdPrefetch', () => {
     ];
     const actions = createMockChatActions();
 
-    renderHook(() =>
-      useContactIdPrefetch(assistants, actions, 'user@x.com')
-    );
+    renderHook(() => useContactIdPrefetch(assistants, actions, 'user@x.com'));
 
     await waitFor(() => {
       // Two contact ID fetches (one per assistant)
@@ -342,8 +346,8 @@ describe('useContactIdPrefetch', () => {
     });
 
     // Both should include /api/logs with Contacts context
-    const urls = fetchSpy.mock.calls.map((c) => String(c[0]));
-    expect(urls.every((u) => u.includes('/api/logs') && u.includes('Contacts'))).toBe(true);
+    const urls = fetchSpy.mock.calls.map((c: any[]) => String(c[0]));
+    expect(urls.every((u: string) => u.includes('/api/logs') && u.includes('Contacts'))).toBe(true);
   });
 
   it('writes resolved contact IDs to sessionStorage', async () => {
@@ -352,9 +356,7 @@ describe('useContactIdPrefetch', () => {
     const assistants = [createMockAssistant({ agentId: 'a-1' })];
     const actions = createMockChatActions();
 
-    renderHook(() =>
-      useContactIdPrefetch(assistants, actions, 'user@x.com')
-    );
+    renderHook(() => useContactIdPrefetch(assistants, actions, 'user@x.com'));
 
     await waitFor(() => {
       expect(getSessionContactId('a-1', 'user@x.com')).toBe(5);
@@ -367,37 +369,31 @@ describe('useContactIdPrefetch', () => {
     const assistants = [createMockAssistant({ agentId: 'a-1' })];
     const actions = createMockChatActions();
 
-    renderHook(() =>
-      useContactIdPrefetch(assistants, actions, 'user@x.com')
-    );
+    renderHook(() => useContactIdPrefetch(assistants, actions, 'user@x.com'));
 
     // Should NOT call fetch for the contact ID (already cached)
     // but WILL call fetch for transcripts
     await waitFor(() => {
-      const urls = fetchSpy.mock.calls.map((c) => String(c[0]));
+      const urls = fetchSpy.mock.calls.map((c: any[]) => String(c[0]));
       // No Contacts fetch
-      expect(urls.filter((u) => u.includes('Contacts'))).toHaveLength(0);
+      expect(urls.filter((u: string) => u.includes('Contacts'))).toHaveLength(0);
     });
   });
 
   it('fetches transcripts after resolving contact IDs and writes to chatHistories', async () => {
     // First call = contact ID, second call = transcripts
-    fetchSpy
-      .mockResolvedValueOnce(mockContactIdResponse(1))
-      .mockResolvedValueOnce(
-        mockTranscriptsResponse([
-          { id: 100, senderId: 0, content: 'Hello!' },
-          { id: 101, senderId: 1, content: 'Hi there' },
-        ])
-      );
+    fetchSpy.mockResolvedValueOnce(mockContactIdResponse(1)).mockResolvedValueOnce(
+      mockTranscriptsResponse([
+        { id: 100, senderId: 0, content: 'Hello!' },
+        { id: 101, senderId: 1, content: 'Hi there' },
+      ])
+    );
 
     const assistants = [createMockAssistant({ agentId: 'a-1' })];
     const actions = createMockChatActions();
     const setChatHistories = vi.fn();
 
-    renderHook(() =>
-      useContactIdPrefetch(assistants, actions, 'user@x.com', setChatHistories)
-    );
+    renderHook(() => useContactIdPrefetch(assistants, actions, 'user@x.com', setChatHistories));
 
     await waitFor(() => {
       expect(setChatHistories).toHaveBeenCalled();
@@ -418,8 +414,8 @@ describe('useContactIdPrefetch', () => {
     const assistants = [createMockAssistant({ agentId: 'a-1' })];
     const actions = createMockChatActions();
 
-    renderHook(() =>
-      useContactIdPrefetch(assistants, actions, 'user@x.com')
+    renderHook(
+      () => useContactIdPrefetch(assistants, actions, 'user@x.com')
       // No setChatHistories argument
     );
 
@@ -444,9 +440,7 @@ describe('useContactIdPrefetch', () => {
     const actions = createMockChatActions();
     const setChatHistories = vi.fn();
 
-    renderHook(() =>
-      useContactIdPrefetch(assistants, actions, 'user@x.com', setChatHistories)
-    );
+    renderHook(() => useContactIdPrefetch(assistants, actions, 'user@x.com', setChatHistories));
 
     await waitFor(() => {
       expect(setChatHistories).toHaveBeenCalled();
@@ -516,9 +510,7 @@ describe('useContactIdPrefetch', () => {
     const setChatHistories = vi.fn();
 
     // Should not throw
-    renderHook(() =>
-      useContactIdPrefetch(assistants, actions, 'user@x.com', setChatHistories)
-    );
+    renderHook(() => useContactIdPrefetch(assistants, actions, 'user@x.com', setChatHistories));
 
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalled();
@@ -539,9 +531,7 @@ describe('useContactIdPrefetch', () => {
     const actions = createMockChatActions();
     const setChatHistories = vi.fn();
 
-    renderHook(() =>
-      useContactIdPrefetch(assistants, actions, 'user@x.com', setChatHistories)
-    );
+    renderHook(() => useContactIdPrefetch(assistants, actions, 'user@x.com', setChatHistories));
 
     await waitFor(() => {
       // Contact ID should still be cached even though transcripts failed
@@ -554,19 +544,17 @@ describe('useContactIdPrefetch', () => {
 
   it('skips transcript prefetch when contact ID resolves to null', async () => {
     fetchSpy.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({ logs: [], count: 0 }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )
+      new Response(JSON.stringify({ logs: [], count: 0 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
     );
 
     const assistants = [createMockAssistant({ agentId: 'a-1' })];
     const actions = createMockChatActions();
     const setChatHistories = vi.fn();
 
-    renderHook(() =>
-      useContactIdPrefetch(assistants, actions, 'user@x.com', setChatHistories)
-    );
+    renderHook(() => useContactIdPrefetch(assistants, actions, 'user@x.com', setChatHistories));
 
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -579,22 +567,18 @@ describe('useContactIdPrefetch', () => {
   });
 
   it('handles API error responses in transcripts gracefully', async () => {
-    fetchSpy
-      .mockResolvedValueOnce(mockContactIdResponse(1))
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ detail: 'Internal error' }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      );
+    fetchSpy.mockResolvedValueOnce(mockContactIdResponse(1)).mockResolvedValueOnce(
+      new Response(JSON.stringify({ detail: 'Internal error' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
 
     const assistants = [createMockAssistant({ agentId: 'a-1' })];
     const actions = createMockChatActions();
     const setChatHistories = vi.fn();
 
-    renderHook(() =>
-      useContactIdPrefetch(assistants, actions, 'user@x.com', setChatHistories)
-    );
+    renderHook(() => useContactIdPrefetch(assistants, actions, 'user@x.com', setChatHistories));
 
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledTimes(2);
@@ -605,22 +589,18 @@ describe('useContactIdPrefetch', () => {
   });
 
   it('correctly maps transcript fields from API response', async () => {
-    fetchSpy
-      .mockResolvedValueOnce(mockContactIdResponse(1))
-      .mockResolvedValueOnce(
-        mockTranscriptsResponse([
-          { id: 10, senderId: 0, content: 'Bot says hello' },
-          { id: 11, senderId: 1, content: 'User replies' },
-        ])
-      );
+    fetchSpy.mockResolvedValueOnce(mockContactIdResponse(1)).mockResolvedValueOnce(
+      mockTranscriptsResponse([
+        { id: 10, senderId: 0, content: 'Bot says hello' },
+        { id: 11, senderId: 1, content: 'User replies' },
+      ])
+    );
 
     const assistants = [createMockAssistant({ agentId: 'a-1' })];
     const actions = createMockChatActions();
     const setChatHistories = vi.fn();
 
-    renderHook(() =>
-      useContactIdPrefetch(assistants, actions, 'user@x.com', setChatHistories)
-    );
+    renderHook(() => useContactIdPrefetch(assistants, actions, 'user@x.com', setChatHistories));
 
     await waitFor(() => {
       expect(setChatHistories).toHaveBeenCalled();
@@ -650,9 +630,7 @@ describe('useContactIdPrefetch', () => {
     const actions = createMockChatActions();
     const setChatHistories = vi.fn();
 
-    renderHook(() =>
-      useContactIdPrefetch(assistants, actions, 'test@org.com', setChatHistories)
-    );
+    renderHook(() => useContactIdPrefetch(assistants, actions, 'test@org.com', setChatHistories));
 
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledTimes(2);
@@ -675,4 +653,3 @@ describe('useContactIdPrefetch', () => {
     expect(transcriptUrl).toContain("_assistant_id == 'a-99'");
   });
 });
-

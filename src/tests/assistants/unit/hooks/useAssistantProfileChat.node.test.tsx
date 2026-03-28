@@ -889,9 +889,9 @@ describe('useAssistantProfileChat - Polling Fallback', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     lastEventSource = null;
     sessionStorage.clear();
-    fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
-      Promise.resolve(new Response('{}', { status: 200 }))
-    );
+    fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(() => Promise.resolve(new Response('{}', { status: 200 })));
   });
 
   afterEach(() => {
@@ -976,7 +976,9 @@ describe('useAssistantProfileChat - Polling Fallback', () => {
     fetchSpy.mockImplementation((url: RequestInfo | URL) => {
       if (typeof url === 'string' && url.includes('/api/logs'))
         return Promise.resolve(
-          makeTranscriptResponse([{ id: 555, senderId: 0, content: 'Hello there', ts: orchestraTime }])
+          makeTranscriptResponse([
+            { id: 555, senderId: 0, content: 'Hello there', ts: orchestraTime },
+          ])
         );
       return Promise.resolve(new Response('{}', { status: 200 }));
     });
@@ -1002,9 +1004,24 @@ describe('useAssistantProfileChat - Polling Fallback', () => {
 
     const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
     const preHireMessages = [
-      { id: 'uuid-greeting', role: 'assistant' as const, content: 'Hi! Welcome aboard.', timestamp: new Date(fourHoursAgo) },
-      { id: 'uuid-user', role: 'user' as const, content: 'Hey, how are you?', timestamp: new Date(fourHoursAgo) },
-      { id: 'uuid-reply', role: 'assistant' as const, content: 'Doing great, thanks!', timestamp: new Date(fourHoursAgo) },
+      {
+        id: 'uuid-greeting',
+        role: 'assistant' as const,
+        content: 'Hi! Welcome aboard.',
+        timestamp: new Date(fourHoursAgo),
+      },
+      {
+        id: 'uuid-user',
+        role: 'user' as const,
+        content: 'Hey, how are you?',
+        timestamp: new Date(fourHoursAgo),
+      },
+      {
+        id: 'uuid-reply',
+        role: 'assistant' as const,
+        content: 'Doing great, thanks!',
+        timestamp: new Date(fourHoursAgo),
+      },
     ];
 
     await act(async () => {
@@ -1048,8 +1065,18 @@ describe('useAssistantProfileChat - Polling Fallback', () => {
     const { setChatHistories } = await renderReady();
 
     const optimisticMessages = [
-      { id: 'uuid-1', role: 'user' as const, content: 'Hello?', timestamp: new Date('2026-03-27T09:00:00Z') },
-      { id: 'uuid-2', role: 'user' as const, content: 'Hello?', timestamp: new Date('2026-03-27T09:01:00Z') },
+      {
+        id: 'uuid-1',
+        role: 'user' as const,
+        content: 'Hello?',
+        timestamp: new Date('2026-03-27T09:00:00Z'),
+      },
+      {
+        id: 'uuid-2',
+        role: 'user' as const,
+        content: 'Hello?',
+        timestamp: new Date('2026-03-27T09:01:00Z'),
+      },
     ];
 
     await act(async () => {
@@ -1126,7 +1153,10 @@ describe('useAssistantProfileChat - Polling Fallback', () => {
 
     const logsCalls = fetchSpy.mock.calls
       .slice(callsBefore)
-      .filter((c: [RequestInfo | URL, RequestInit?]) => typeof c[0] === 'string' && (c[0] as string).includes('/api/logs'));
+      .filter(
+        (c: [RequestInfo | URL, RequestInit?]) =>
+          typeof c[0] === 'string' && (c[0] as string).includes('/api/logs')
+      );
     expect(logsCalls.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -1188,7 +1218,12 @@ describe('useAssistantProfileChat - Timestamp Clamping', () => {
    * messages in chatHistories, then return everything needed to test sendMessage.
    */
   async function renderWithHistory(
-    existingMessages: Array<{ id: string; role: 'user' | 'assistant'; content: string; timestamp: Date }>,
+    existingMessages: Array<{
+      id: string;
+      role: 'user' | 'assistant';
+      content: string;
+      timestamp: Date;
+    }>,
     contactId: number = USER_CONTACT_ID
   ) {
     const assistant = createMockAssistant();
@@ -1252,9 +1287,24 @@ describe('useAssistantProfileChat - Timestamp Clamping', () => {
       const clientNow = new Date('2025-03-27T14:50:00.000Z');
 
       const existingMessages = [
-        { id: 'srv-1', role: 'assistant' as const, content: 'Hello!', timestamp: new Date('2025-03-27T14:58:00.000Z') },
-        { id: 'srv-2', role: 'user' as const, content: 'Hi', timestamp: new Date('2025-03-27T14:59:00.000Z') },
-        { id: 'srv-3', role: 'assistant' as const, content: 'How can I help?', timestamp: serverNow },
+        {
+          id: 'srv-1',
+          role: 'assistant' as const,
+          content: 'Hello!',
+          timestamp: new Date('2025-03-27T14:58:00.000Z'),
+        },
+        {
+          id: 'srv-2',
+          role: 'user' as const,
+          content: 'Hi',
+          timestamp: new Date('2025-03-27T14:59:00.000Z'),
+        },
+        {
+          id: 'srv-3',
+          role: 'assistant' as const,
+          content: 'How can I help?',
+          timestamp: serverNow,
+        },
       ];
 
       vi.setSystemTime(clientNow);
@@ -1498,26 +1548,21 @@ describe('useAssistantProfileChat - Timestamp Clamping', () => {
         }
         let finalMsg = messageWithDate;
         if (messageWithDate.role === 'user' && current.length > 0) {
-          const lastTs = Math.max(
-            ...current.map((m: any) => new Date(m.timestamp).getTime())
-          );
+          const lastTs = Math.max(...current.map((m: any) => new Date(m.timestamp).getTime()));
           const msgTs = new Date(messageWithDate.timestamp).getTime();
           if (msgTs <= lastTs) {
             finalMsg = { ...messageWithDate, timestamp: new Date(lastTs + 1) };
           }
         }
         const updated = [...current, finalMsg].sort(
-          (a: any, b: any) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          (a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
         return { ...prev, 'test-assistant-1': updated };
       };
 
       const result = updater({ 'test-assistant-1': existingMessages });
       const msgs = result['test-assistant-1'];
-      const broadcastMsg = msgs.find(
-        (m: any) => m.content === 'Message from other tab'
-      );
+      const broadcastMsg = msgs.find((m: any) => m.content === 'Message from other tab');
 
       expect(broadcastMsg).toBeDefined();
       const broadcastMsgTs = new Date(broadcastMsg.timestamp).getTime();
@@ -1538,7 +1583,12 @@ describe('useAssistantProfileChat - Timestamp Clamping', () => {
 
       // An assistant message with an older timestamp (from server backlog)
       const olderAssistantTs = new Date('2025-03-27T14:59:00.000Z');
-      const broadcastMessage = {
+      const broadcastMessage: {
+        id: string;
+        role: 'assistant' | 'user';
+        content: string;
+        timestamp: Date;
+      } = {
         id: 'broadcast-assistant-1',
         role: 'assistant' as const,
         content: 'Proactive greeting',
@@ -1556,32 +1606,25 @@ describe('useAssistantProfileChat - Timestamp Clamping', () => {
         }
         let finalMsg = messageWithDate;
         if (messageWithDate.role === 'user' && current.length > 0) {
-          const lastTs = Math.max(
-            ...current.map((m: any) => new Date(m.timestamp).getTime())
-          );
+          const lastTs = Math.max(...current.map((m: any) => new Date(m.timestamp).getTime()));
           const msgTs = new Date(messageWithDate.timestamp).getTime();
           if (msgTs <= lastTs) {
             finalMsg = { ...messageWithDate, timestamp: new Date(lastTs + 1) };
           }
         }
         const updated = [...current, finalMsg].sort(
-          (a: any, b: any) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          (a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
         return { ...prev, 'test-assistant-1': updated };
       };
 
       const result = updater({ 'test-assistant-1': existingMessages });
       const msgs = result['test-assistant-1'];
-      const assistantMsg = msgs.find(
-        (m: any) => m.content === 'Proactive greeting'
-      );
+      const assistantMsg = msgs.find((m: any) => m.content === 'Proactive greeting');
 
       expect(assistantMsg).toBeDefined();
       // Assistant message should keep its original timestamp (not clamped)
-      expect(new Date(assistantMsg.timestamp).getTime()).toBe(
-        olderAssistantTs.getTime()
-      );
+      expect(new Date(assistantMsg.timestamp).getTime()).toBe(olderAssistantTs.getTime());
       // It should sort before the user message (older timestamp)
       expect(msgs[0].content).toBe('Proactive greeting');
     });
@@ -1643,8 +1686,7 @@ describe('useAssistantProfileChat - Timestamp Clamping', () => {
 
       const msgs = finalState['test-assistant-1'];
       const sorted = [...msgs].sort(
-        (a: any, b: any) =>
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        (a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
 
       // Order should be: original → user question → assistant answer
