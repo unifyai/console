@@ -6,11 +6,12 @@ import { Label } from '@/components/UI/label';
 import { Textarea } from '@/components/UI/textarea';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Skeleton } from '@/components/UI/skeleton';
-import { Loader2, Trash2, AlertTriangle } from 'lucide-react';
+import { Loader2, Trash2, AlertTriangle, Upload, Info } from 'lucide-react';
 import { useAssistantSecrets } from '@/hooks/Assistants/useAssistantSecrets';
 import { Secret, SecretActions } from '@/types/assistants/secret';
 import { cn } from '@/lib/utils';
 import { FormProvider } from 'react-hook-form';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/UI/popover';
 
 interface AssistantSecretsManagerProps {
   isOpen: boolean;
@@ -30,6 +31,34 @@ const SecretsListSkeleton = () => (
   </div>
 );
 
+const JsonFormatInfo = () => (
+  <Popover>
+    <PopoverTrigger asChild>
+      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground">
+        <Info className="h-3.5 w-3.5" />
+      </Button>
+    </PopoverTrigger>
+    <PopoverContent side="top" className="w-80 text-xs">
+      <p className="mb-2 font-medium">Accepted JSON formats</p>
+      <p className="mb-1.5 text-muted-foreground">
+        Simple &mdash; keys are secret names, values are secret values:
+      </p>
+      <pre className="mb-3 rounded bg-muted p-2 text-[11px] leading-relaxed">
+        {`{\n  "API_KEY": "sk-abc123",\n  "DB_URL": "postgres://..."\n}`}
+      </pre>
+      <p className="mb-1.5 text-muted-foreground">
+        Rich &mdash; values are objects with <code className="rounded bg-muted px-1">value</code>{' '}
+        (required) and optional <code className="rounded bg-muted px-1">name</code>,{' '}
+        <code className="rounded bg-muted px-1">description</code>:
+      </p>
+      <pre className="rounded bg-muted p-2 text-[11px] leading-relaxed">
+        {`{\n  "API_KEY": {\n    "value": "sk-abc123",\n    "description": "Production key"\n  }\n}`}
+      </pre>
+      <p className="mt-2 text-muted-foreground">Both formats can be mixed in a single file.</p>
+    </PopoverContent>
+  </Popover>
+);
+
 export function AssistantSecretsManager({
   isOpen,
   onClose,
@@ -47,14 +76,26 @@ export function AssistantSecretsManager({
     handleSelectSecret,
     handleNewSecret,
     handleDeleteSecret,
+    handleUploadJson,
     onSubmit,
   } = useAssistantSecrets(assistantId, ownerId, secretActions);
 
   const [isCreating, setIsCreating] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const {
     register,
     formState: { errors, isDirty },
   } = formMethods;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleUploadJson(file);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleSelect = (secret: Secret) => {
     handleSelectSecret(secret);
@@ -88,9 +129,20 @@ export function AssistantSecretsManager({
     <div className="flex h-full flex-col items-center justify-center p-8 text-center">
       <h3 className="text-h2">No secret found</h3>
       {canWrite && (
-        <Button variant="outline" className="mt-4" onClick={handleStartCreate}>
-          Add a secret
-        </Button>
+        <div className="mt-4 flex items-center gap-2">
+          <Button variant="outline" onClick={handleStartCreate}>
+            Add a secret
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isSubmitting}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            Upload JSON
+          </Button>
+          <JsonFormatInfo />
+        </div>
       )}
     </div>
   );
@@ -136,15 +188,25 @@ export function AssistantSecretsManager({
           )}
         </ScrollArea>
         {canWrite && (
-          <div className="border-t p-2">
+          <div className="flex items-center gap-2 border-t p-2">
             <Button
               variant="outline"
-              className="w-full"
+              className="flex-1"
               onClick={handleStartCreate}
               disabled={isSubmitting}
             >
               New
             </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isSubmitting}
+              title="Upload secrets from JSON file"
+            >
+              <Upload className="h-4 w-4" />
+            </Button>
+            <JsonFormatInfo />
           </div>
         )}
       </div>
@@ -154,8 +216,7 @@ export function AssistantSecretsManager({
         {!canWrite ? (
           <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
             <p className="text-body">
-              Secret details are only visible to the assistant owner and organization
-              owners/admins.
+              Secret details are only visible to the assistant owner and organization owners/admins.
             </p>
           </div>
         ) : !selectedSecret && !isCreating ? (
@@ -263,6 +324,13 @@ export function AssistantSecretsManager({
             renderManager()
           )}
         </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          className="hidden"
+          onChange={handleFileChange}
+        />
       </DialogContent>
     </Dialog>
   );

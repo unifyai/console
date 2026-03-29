@@ -95,6 +95,69 @@ export function useAssistantSecrets(
     }
   };
 
+  const handleUploadJson = async (file: File) => {
+    if (!assistantId || !ownerId) return;
+
+    setIsSubmitting(true);
+    const toastId = toast.loading('Uploading secrets from JSON...');
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        throw new Error('JSON must be an object. See the (i) button for accepted formats.');
+      }
+
+      const entries = Object.entries(parsed);
+      if (entries.length === 0) {
+        throw new Error('JSON file contains no entries.');
+      }
+
+      const payloads: SecretPayload[] = [];
+      for (const [key, val] of entries) {
+        if (typeof val === 'string') {
+          payloads.push({ name: key, value: val });
+        } else if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+          const obj = val as Record<string, unknown>;
+          if (typeof obj.value !== 'string') {
+            throw new Error(`Entry "${key}": "value" must be a string.`);
+          }
+          payloads.push({
+            name: typeof obj.name === 'string' ? obj.name : key,
+            value: obj.value,
+            description: typeof obj.description === 'string' ? obj.description : undefined,
+          });
+        } else {
+          throw new Error(`Entry "${key}": expected a string or an object with "value".`);
+        }
+      }
+
+      let created = 0;
+      let failed = 0;
+      for (const payload of payloads) {
+        const result = await secretActions.create(assistantId, ownerId, payload);
+        if ('detail' in result) {
+          failed++;
+        } else {
+          created++;
+        }
+      }
+
+      if (failed === 0) {
+        toast.success(`Created ${created} secret${created === 1 ? '' : 's'}.`, { id: toastId });
+      } else {
+        toast.warning(`Created ${created}, failed ${failed}.`, { id: toastId });
+      }
+
+      await fetchSecrets();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to parse JSON file.', { id: toastId });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const onSubmit = async (data: SecretFormData) => {
     if (!assistantId || !ownerId) return;
 
@@ -157,6 +220,7 @@ export function useAssistantSecrets(
     handleSelectSecret,
     handleNewSecret,
     handleDeleteSecret,
+    handleUploadJson,
     onSubmit: formMethods.handleSubmit(onSubmit),
   };
 }
