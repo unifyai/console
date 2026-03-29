@@ -157,3 +157,21 @@ export function isToolLoopNoise(entries: Record<string, any>): boolean {
   if (msg?.role === 'tool' && msg?.name === 'send_notification') return true;
   return false;
 }
+
+// =============================================================================
+// Steering target extraction
+// =============================================================================
+
+const STEERING_PREFIXES = ['stop_', 'pause_', 'resume_', 'interject_'];
+
+/**
+ * Given a steering helper tool-call name (e.g. `stop_execute_code_cPPmyQGz`),
+ * returns the target tool-call-id suffix (`cPPmyQGz`).
+ * Returns `null` for non-steering tool names.
+ */
+export function extractSteeringTarget(toolName: string): string | null {
+  const lower = toolName.toLowerCase();
+  if (!STEERING_PREFIXES.some((p) => lower.startsWith(p))) return null;
+  const parts = toolName.split('_');
+  return parts.length >= 3 ? parts[parts.length - 1] : null;
+}
