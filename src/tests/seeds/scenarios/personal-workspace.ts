@@ -13,7 +13,13 @@
  */
 
 import type { SeededState } from '../types';
-import { createUser, createAssistant, createEmailLogin, seedChatInfrastructure } from '../client';
+import {
+  createUser,
+  createAssistant,
+  createEmailLogin,
+  seedChatInfrastructure,
+  seedSecretsViaOrchestra,
+} from '../client';
 
 export async function seedPersonalWorkspace(): Promise<SeededState> {
   const owner = createUser({ name: 'Personal', lastName: 'Owner' });
@@ -32,12 +38,39 @@ export async function seedPersonalWorkspace(): Promise<SeededState> {
     email: owner.email,
   });
 
+  const secrets = await seedSecretsViaOrchestra({
+    apiKey: owner.apiKey,
+    userId: owner.id,
+    assistantId: assistant.agentId,
+    secrets: [
+      { name: 'OPENAI_API_KEY', value: 'sk-test-openai-key-123' },
+      {
+        name: 'aws/prod/ACCESS_KEY',
+        value: 'AKIAIOSFODNN7EXAMPLE',
+        description: 'Production AWS access key',
+      },
+      { name: 'aws/prod/SECRET_KEY', value: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' },
+      { name: 'aws/staging/ACCESS_KEY', value: 'AKIAI44QH8DHBEXAMPLE' },
+      {
+        name: 'stripe/SECRET_KEY',
+        value: 'sk_test_4eC39HqLyjWDarjtT1zdp7dc',
+        description: 'Stripe test secret key',
+      },
+      { name: 'stripe/WEBHOOK_SECRET', value: 'whsec_test_secret_123' },
+    ],
+  });
+
   return {
     users: { owner },
     assistants: [assistant],
+    secrets,
     credentials: {
-      owner: { email: owner.email, password: 'testpass123', apiKey: owner.apiKey, userId: owner.id },
+      owner: {
+        email: owner.email,
+        password: 'testpass123',
+        apiKey: owner.apiKey,
+        userId: owner.id,
+      },
     },
   };
 }
-

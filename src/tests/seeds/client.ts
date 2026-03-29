@@ -554,6 +554,81 @@ export async function createSecret(opts: CreateSecretOpts): Promise<SeededSecret
 }
 
 // =============================================================================
+// Secret Seeding (direct to Orchestra, works before Console starts)
+// =============================================================================
+
+export interface SeedSecretEntry {
+  name: string;
+  value: string;
+  description?: string;
+}
+
+export interface SeedSecretsOpts {
+  apiKey: string;
+  userId: string;
+  assistantId: number;
+  secrets: SeedSecretEntry[];
+}
+
+/**
+ * Seed secrets directly via Orchestra's logs API (no Console needed).
+ *
+ * Unlike {@link createSecret} which goes through Console's `/api/logs`,
+ * this function talks to Orchestra directly so it works during the seed
+ * phase before Console is running.
+ */
+export async function seedSecretsViaOrchestra(opts: SeedSecretsOpts): Promise<SeededSecret[]> {
+  await ensureProject(opts.apiKey, 'Assistants');
+
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const allEntries = opts.secrets.map((s) => ({
+    name: s.name,
+    value: s.value,
+    ...(s.description ? { description: s.description } : {}),
+    _user_id: opts.userId,
+    _assistant_id: String(opts.assistantId),
+  }));
+  /* eslint-enable @typescript-eslint/naming-convention */
+
+  const contexts = [
+    `${opts.userId}/${opts.assistantId}/Secrets`,
+    `${opts.userId}/All/Secrets`,
+    'All/Secrets',
+  ];
+
+  let firstLogIds: number[] | undefined;
+
+  for (const context of contexts) {
+    const res = await orchestraFetch(
+      '/v0/logs',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          project_name: 'Assistants',
+          context,
+          entries: allEntries,
+        }),
+      },
+      opts.apiKey
+    );
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Failed to seed secrets in context '${context}': ${res.status} ${text}`);
+    }
+
+    const data = await res.json();
+    if (!firstLogIds) firstLogIds = data?.logEventIds;
+  }
+
+  return opts.secrets.map((s, i) => ({
+    name: s.name,
+    description: s.description,
+    logId: firstLogIds?.[i],
+  }));
+}
+
+// =============================================================================
 // Chat Infrastructure (Contacts + Transcripts contexts for assistant chat)
 // =============================================================================
 
@@ -586,12 +661,14 @@ export async function seedChatInfrastructure(opts: SeedChatOpts): Promise<void> 
       body: JSON.stringify({
         project_name: 'Assistants',
         context: 'All/Contacts',
-        entries: [{
-          email_address: opts.email,
-          contactId: 1,
-          _user_id: opts.userId,
-          _assistant_id: String(opts.assistantId),
-        }],
+        entries: [
+          {
+            email_address: opts.email,
+            contactId: 1,
+            _user_id: opts.userId,
+            _assistant_id: String(opts.assistantId),
+          },
+        ],
       }),
     },
     opts.apiKey
@@ -665,4 +742,3 @@ export function deleteUser(userId: string): void {
 export function deleteOrg(orgId: number): void {
   dbExec(`DELETE FROM organization WHERE id = ${orgId};`);
 }
-

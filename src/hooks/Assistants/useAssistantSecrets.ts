@@ -15,6 +15,20 @@ interface SecretFormData {
   description: string;
 }
 
+function checkNameFolderConflict(name: string, existingNames: string[]): string | null {
+  if (existingNames.some((n) => n.startsWith(name + '/'))) {
+    return `"${name}" conflicts with an existing folder path.`;
+  }
+  const parts = name.split('/');
+  for (let i = 1; i < parts.length; i++) {
+    const prefix = parts.slice(0, i).join('/');
+    if (existingNames.includes(prefix)) {
+      return `"${prefix}" already exists as a secret and cannot be used as a folder.`;
+    }
+  }
+  return null;
+}
+
 export function useAssistantSecrets(
   assistantId: string | null,
   ownerId: string | null,
@@ -95,6 +109,29 @@ export function useAssistantSecrets(
     }
   };
 
+  const handleDeleteFolder = async (prefix: string) => {
+    if (!assistantId || !ownerId) return;
+    const matching = secrets.filter((s) => s.name === prefix || s.name.startsWith(prefix + '/'));
+    if (matching.length === 0) return;
+
+    setIsSubmitting(true);
+    const toastId = toast.loading(`Deleting ${matching.length} secret(s)...`);
+    let deleted = 0;
+    let failed = 0;
+    for (const s of matching) {
+      const result = await secretActions.delete(s.logId, ownerId);
+      if ('detail' in result) failed++;
+      else deleted++;
+    }
+    if (failed === 0) {
+      toast.success(`Deleted ${deleted} secret(s).`, { id: toastId });
+    } else {
+      toast.warning(`Deleted ${deleted}, failed ${failed}.`, { id: toastId });
+    }
+    await fetchSecrets();
+    setIsSubmitting(false);
+  };
+
   const handleUploadJson = async (file: File) => {
     if (!assistantId || !ownerId) return;
 
@@ -133,9 +170,28 @@ export function useAssistantSecrets(
         }
       }
 
+      const existingNames = secrets.map((s) => s.name);
+      const validPayloads: SecretPayload[] = [];
+      let skipped = 0;
+      for (const payload of payloads) {
+        const conflict = checkNameFolderConflict(payload.name, [
+          ...existingNames,
+          ...validPayloads.map((p) => p.name),
+        ]);
+        if (conflict) {
+          skipped++;
+        } else {
+          validPayloads.push(payload);
+        }
+      }
+
+      if (validPayloads.length === 0 && skipped > 0) {
+        throw new Error(`All ${skipped} entries conflict with existing names/folders.`);
+      }
+
       let created = 0;
       let failed = 0;
-      for (const payload of payloads) {
+      for (const payload of validPayloads) {
         const result = await secretActions.create(assistantId, ownerId, payload);
         if ('detail' in result) {
           failed++;
@@ -144,10 +200,14 @@ export function useAssistantSecrets(
         }
       }
 
-      if (failed === 0) {
+      const parts: string[] = [];
+      if (created > 0) parts.push(`created ${created}`);
+      if (failed > 0) parts.push(`failed ${failed}`);
+      if (skipped > 0) parts.push(`skipped ${skipped} conflicts`);
+      if (failed === 0 && skipped === 0) {
         toast.success(`Created ${created} secret${created === 1 ? '' : 's'}.`, { id: toastId });
       } else {
-        toast.warning(`Created ${created}, failed ${failed}.`, { id: toastId });
+        toast.warning(parts.join(', ') + '.', { id: toastId });
       }
 
       await fetchSecrets();
@@ -191,6 +251,15 @@ export function useAssistantSecrets(
     } else {
       const toastId = toast.loading('Creating secret...');
       try {
+        const conflict = checkNameFolderConflict(
+          data.name,
+          secrets.map((s) => s.name)
+        );
+        if (conflict) {
+          toast.error(conflict, { id: toastId });
+          setIsSubmitting(false);
+          return;
+        }
         const payload: SecretPayload = {
           name: data.name,
           value: data.value,
@@ -220,6 +289,7 @@ export function useAssistantSecrets(
     handleSelectSecret,
     handleNewSecret,
     handleDeleteSecret,
+    handleDeleteFolder,
     handleUploadJson,
     onSubmit: formMethods.handleSubmit(onSubmit),
   };

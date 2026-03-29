@@ -705,6 +705,26 @@ run_seed_scenario() {
     log_error "Seed scenario '$scenario' failed"
     return 1
   fi
+
+  # Ensure the "Assistants" project exists in Orchestra. The seed should
+  # create it via seedChatInfrastructure, but we double-check here as a
+  # safety net (e.g. if Orchestra was restarted after a prior seed).
+  local seed_key
+  seed_key=$(docker exec orchestra-local-db \
+    psql -U orchestra -d orchestra -t -A \
+    -c "SELECT k.key FROM api_key k JOIN \"user\" u ON k.user_id = u.id ORDER BY k.id LIMIT 1;" 2>/dev/null | head -1 || echo "")
+  if [[ -n "$seed_key" ]]; then
+    local status
+    status=$(curl -s -o /dev/null -w "%{http_code}" \
+      -X POST -H "Authorization: Bearer $seed_key" -H "Content-Type: application/json" \
+      -d '{"name":"Assistants"}' \
+      "http://127.0.0.1:${ORCHESTRA_PORT}/v0/project" 2>/dev/null || echo "000")
+    if [[ "$status" == "200" || "$status" == "400" ]]; then
+      log_success "Assistants project ensured"
+    else
+      log_warn "Could not ensure Assistants project (HTTP $status)"
+    fi
+  fi
 }
 
 # =============================================================================
@@ -746,6 +766,11 @@ start_console() {
   log_info "Starting Console on port $CONSOLE_PORT ..."
 
   cd "$CONSOLE_REPO_PATH"
+
+  # Override NEXTAUTH_URL so server actions (which make server-to-server
+  # fetch calls to Console's own API routes) reach the correct port.
+  export NEXTAUTH_URL="http://localhost:${CONSOLE_PORT}"
+  export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
 
   # When --pubsub or --chat is active, inject the Pub/Sub emulator env vars
   # so Console connects to the local emulator for billing events (and chat).
