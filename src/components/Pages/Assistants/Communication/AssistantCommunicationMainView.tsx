@@ -47,20 +47,37 @@ export function AssistantCommunicationMainView({
     : 'A';
 
   if (isLoading) {
+    const spinnerSize = avatarContainerClassName || 'h-32 w-32';
     return (
       <div className={cn('flex flex-col items-center justify-center p-4 text-center', className)}>
         <div className="relative flex items-center justify-center">
-          <div
-            className={cn(
-              'absolute aspect-square animate-spin rounded-full border-4 border-transparent border-t-primary',
-              avatarContainerClassName || 'h-32 w-32',
-              'scale-[1.15]'
-            )}
-          />
+          <svg
+            className={cn('absolute text-primary', spinnerSize, 'scale-[1.15]')}
+            viewBox="0 0 100 100"
+          >
+            <circle
+              cx="50"
+              cy="50"
+              r="46"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeDasharray="72 217"
+            >
+              <animateTransform
+                attributeName="transform"
+                type="rotate"
+                values="0 50 50;360 50 50"
+                dur="1.5s"
+                repeatCount="indefinite"
+              />
+            </circle>
+          </svg>
           <div
             className={cn(
               'z-10 flex items-center justify-center overflow-hidden rounded-full border-4 border-background',
-              avatarContainerClassName || 'h-32 w-32'
+              spinnerSize
             )}
           >
             <Avatar className="h-full w-full">
