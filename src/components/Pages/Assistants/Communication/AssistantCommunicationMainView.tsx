@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { VideoTrack, TrackReference } from '@livekit/components-react';
 import { cn } from '@/lib/utils';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 
 interface AssistantCommunicationMainViewProps {
@@ -21,6 +21,8 @@ interface AssistantCommunicationMainViewProps {
   connectionError?: string | null;
   onRetry?: () => void;
   isInteractive?: boolean;
+  isRingMuted?: boolean;
+  onToggleRingMute?: () => void;
 }
 
 export function AssistantCommunicationMainView({
@@ -37,6 +39,8 @@ export function AssistantCommunicationMainView({
   connectionError,
   onRetry,
   isInteractive = false,
+  isRingMuted = false,
+  onToggleRingMute,
 }: AssistantCommunicationMainViewProps) {
   const fallback = assistantName
     ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
@@ -45,8 +49,38 @@ export function AssistantCommunicationMainView({
   if (isLoading) {
     return (
       <div className={cn('flex flex-col items-center justify-center p-4 text-center', className)}>
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="relative flex items-center justify-center">
+          <div
+            className={cn(
+              'absolute aspect-square animate-spin rounded-full border-4 border-transparent border-t-primary',
+              avatarContainerClassName || 'h-32 w-32',
+              'scale-[1.15]'
+            )}
+          />
+          <div
+            className={cn(
+              'z-10 flex items-center justify-center overflow-hidden rounded-full border-4 border-background',
+              avatarContainerClassName || 'h-32 w-32'
+            )}
+          >
+            <Avatar className="h-full w-full">
+              <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
+              <AvatarFallback className="bg-muted text-4xl text-muted-foreground">
+                {fallback}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+        </div>
         <p className="text-body-muted mt-4">{loadingMessage}</p>
+        {onToggleRingMute && (
+          <button
+            onClick={onToggleRingMute}
+            className="mt-3 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label={isRingMuted ? 'Unmute ring tone' : 'Mute ring tone'}
+          >
+            {isRingMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+          </button>
+        )}
       </div>
     );
   }

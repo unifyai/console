@@ -39,6 +39,10 @@ export function useCallSounds() {
     audio.currentTime = 0;
   }, []);
 
+  const setRingingMuted = React.useCallback((muted: boolean) => {
+    if (ringingRef.current) ringingRef.current.muted = muted;
+  }, []);
+
   const playHangup = React.useCallback(() => {
     const audio = getHangupAudio();
     audio.currentTime = 0;
@@ -58,5 +62,5 @@ export function useCallSounds() {
     };
   }, []);
 
-  return { startRinging, stopRinging, playHangup };
+  return { startRinging, stopRinging, setRingingMuted, playHangup };
 }

@@ -38,7 +38,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   const [isRemoteControlInteractiveLoading, setIsRemoteControlInteractiveLoading] =
     React.useState(false);
 
-  const { startRinging, stopRinging, playHangup } = useCallSounds();
+  const { startRinging, stopRinging, setRingingMuted, playHangup } = useCallSounds();
 
   // Track whether we were truly connected so we only play hangup when appropriate
   const wasConnectedRef = React.useRef(false);
@@ -46,6 +46,10 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   const toggleSpeakerMute = React.useCallback(() => {
     setIsSpeakerMuted((prev) => !prev);
   }, []);
+
+  React.useEffect(() => {
+    setRingingMuted(isSpeakerMuted);
+  }, [isSpeakerMuted, setRingingMuted]);
 
   const clearAssistantJoinTimeout = React.useCallback(() => {
     if (assistantJoinTimeoutRef.current) {
