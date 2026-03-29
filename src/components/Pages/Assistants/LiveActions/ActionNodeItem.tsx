@@ -54,7 +54,11 @@ import type {
   LoadChildrenFn,
   ToolLoopLog,
 } from '@/types/assistants/action';
-import { isToolLoopNoise, resolveToolLoopKind } from '@/lib/assistants/event-filters';
+import {
+  isToolLoopNoise,
+  resolveToolLoopKind,
+  extractSteeringTarget,
+} from '@/lib/assistants/event-filters';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/UI/tooltip';
 const SHOW_EXECUTE_CODE_CONTENT = true;
 
@@ -71,6 +75,62 @@ function buildResolvedToolCallIds(logs: ToolLoopLog[]): Set<string> {
       if (name.startsWith(CHECK_STATUS_PREFIX)) {
         ids.add(name.slice(CHECK_STATUS_PREFIX.length));
       }
+    }
+  }
+  return ids;
+}
+
+type SteeringEntry = {
+  log: ToolLoopLog;
+  toolCallName: string;
+  toolCallId: string;
+};
+
+/**
+ * Build a map from target-call-id suffix to the ToolLoop logs that steer it.
+ * The suffix is the trailing segment of `stop_execute_code_<suffix>` etc.
+ */
+function buildSteeringMap(logs: ToolLoopLog[]): Map<string, SteeringEntry[]> {
+  const map = new Map<string, SteeringEntry[]>();
+  for (const l of logs) {
+    const m = l.entries.message as Record<string, unknown>;
+    if (m.role !== 'assistant') continue;
+    const tcs = (m.toolCalls ?? m.tool_calls) as
+      | Array<{
+          id: string;
+          function: { name: string; arguments: string };
+        }>
+      | undefined;
+    if (!Array.isArray(tcs)) continue;
+    for (const tc of tcs) {
+      const name = tc.function?.name ?? '';
+      const suffix = extractSteeringTarget(name);
+      if (!suffix) continue;
+      const arr = map.get(suffix) ?? [];
+      arr.push({ log: l, toolCallName: name, toolCallId: tc.id });
+      map.set(suffix, arr);
+    }
+  }
+  return map;
+}
+
+/**
+ * Returns the set of log IDs whose *only* tool calls are steering helpers.
+ * These logs are rendered as sub-rows of their target rather than standalone.
+ */
+function buildSteeringLogIds(logs: ToolLoopLog[]): Set<number> {
+  const ids = new Set<number>();
+  for (const l of logs) {
+    const m = l.entries.message as Record<string, unknown>;
+    if (m.role !== 'assistant') continue;
+    const tcs = (m.toolCalls ?? m.tool_calls) as
+      | Array<{
+          function: { name: string };
+        }>
+      | undefined;
+    if (!Array.isArray(tcs) || tcs.length === 0) continue;
+    if (tcs.every((tc) => extractSteeringTarget(tc.function?.name ?? '') !== null)) {
+      ids.add(l.id);
     }
   }
   return ids;
@@ -133,25 +193,21 @@ function makeLogFingerprint(l: ToolLoopLog): string {
   const kind = l.entries.kind || '';
   const role = l.entries.message?.role || '';
   const raw = l.entries.message?.content;
-  const slice = typeof raw === 'string'
-    ? raw.slice(0, 80)
-    : Array.isArray(raw) && raw.length > 0
-      ? (raw[0]?.text || '').slice(0, 80)
-      : '';
+  const slice =
+    typeof raw === 'string'
+      ? raw.slice(0, 80)
+      : Array.isArray(raw) && raw.length > 0
+        ? (raw[0]?.text || '').slice(0, 80)
+        : '';
   return `${kind}|${role}|${ts}|${slice}`;
 }
 
-function deduplicateLiveLogs(
-  polled: ToolLoopLog[],
-  live: ToolLoopLog[]
-): ToolLoopLog[] {
+function deduplicateLiveLogs(polled: ToolLoopLog[], live: ToolLoopLog[]): ToolLoopLog[] {
   if (polled.length === 0) return live;
   if (live.length === 0) return polled;
 
   const polledIds = new Set(polled.map((l) => l.id));
-  const polledEventIds = new Set(
-    polled.map((l) => l.entries.eventId).filter(Boolean)
-  );
+  const polledEventIds = new Set(polled.map((l) => l.entries.eventId).filter(Boolean));
   const polledFingerprints = new Set(polled.map(makeLogFingerprint));
 
   const extra = live.filter((l) => {
@@ -1045,6 +1101,69 @@ function ContentArea({
   );
 }
 
+const STEERING_ICON_MAP: Record<string, { Icon: LucideIcon; color: string }> = {
+  stop: { Icon: Square, color: 'text-rose-600/80 dark:text-rose-400/70' },
+  pause: { Icon: Pause, color: 'text-amber-600/80 dark:text-amber-400/70' },
+  resume: { Icon: Play, color: 'text-teal-600/80 dark:text-teal-400/70' },
+  interject: { Icon: CornerDownLeft, color: 'text-violet-600/70 dark:text-violet-500/50' },
+};
+
+function SteeringSubRow({
+  entry,
+  resolvedToolCallIds,
+}: {
+  entry: SteeringEntry;
+  resolvedToolCallIds?: Set<string>;
+}) {
+  const prefix = entry.toolCallName.split('_')[0].toLowerCase();
+  const style = STEERING_ICON_MAP[prefix] ?? { Icon: Zap, color: 'text-orange-600/80' };
+  const pending = resolvedToolCallIds ? !resolvedToolCallIds.has(entry.toolCallId) : false;
+  const time = formatEventTime(entry.log.entries.eventTimestamp || entry.log.ts);
+
+  let label: string;
+  try {
+    const msg = entry.log.entries.message as Record<string, unknown>;
+    const tcs = (msg.toolCalls ?? msg.tool_calls) as
+      | Array<{ id: string; function: { arguments: string } }>
+      | undefined;
+    const argsJson = tcs?.find((tc) => tc.id === entry.toolCallId)?.function.arguments ?? '{}';
+    const args = JSON.parse(argsJson);
+    const reason = args.reason as string | undefined;
+    label = reason ? `${prefix} — ${reason}` : prefix;
+  } catch {
+    label = prefix;
+  }
+
+  return (
+    <div className="flex items-center gap-2 pl-4">
+      <span className={cn('shrink-0', style.color)}>
+        <style.Icon className="h-2.5 w-2.5" />
+      </span>
+      <span className={cn('min-w-0 truncate', style.color, pending && 'animate-shimmer')}>
+        {label}
+      </span>
+      <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+        {time}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Look up steering entries that target a given tool call ID.
+ */
+function getSteeringForToolCall(
+  toolCallId: string,
+  steeringMap?: Map<string, SteeringEntry[]>
+): SteeringEntry[] {
+  if (!steeringMap || steeringMap.size === 0) return [];
+  let result: SteeringEntry[] = [];
+  steeringMap.forEach((entries, suffix) => {
+    if (toolCallId.endsWith(suffix)) result = entries;
+  });
+  return result;
+}
+
 /**
  * A single tool-call row that expands to show the full JSON arguments on click.
  */
@@ -1411,6 +1530,7 @@ function ToolLoopMessage({
   isLatestLog,
   nodeCompleted,
   resolvedToolCallIds,
+  steeringMap,
   searchTerm,
   onTcHover,
   hoveredTcId,
@@ -1424,6 +1544,8 @@ function ToolLoopMessage({
   nodeCompleted?: boolean;
   /** Tool call IDs that already have a matching result in the logs. */
   resolvedToolCallIds?: Set<string>;
+  /** Map from target-call-id suffix to steering log entries that target it. */
+  steeringMap?: Map<string, SteeringEntry[]>;
   searchTerm?: string;
   onTcHover?: (tcId: string | null) => void;
   hoveredTcId?: string | null;
@@ -1801,18 +1923,27 @@ function ToolLoopMessage({
     for (let i = 0; i < toolEntries.length; i++) {
       const entry = toolEntries[i];
       const pending = resolvedToolCallIds ? !resolvedToolCallIds.has(entry.toolCallId) : false;
+      const steeringEntries = getSteeringForToolCall(entry.toolCallId, steeringMap);
       rows.push(
-        <ToolCallRow
-          key={`tool-${i}`}
-          entry={entry}
-          time={time}
-          actionIcon={actionIcon}
-          isPending={pending}
-          searchTerm={searchTerm}
-          onTcHover={onTcHover}
-          hoveredTcId={hoveredTcId}
-          onLayoutChange={onLayoutChange}
-        />
+        <React.Fragment key={`tool-${i}`}>
+          <ToolCallRow
+            entry={entry}
+            time={time}
+            actionIcon={actionIcon}
+            isPending={pending}
+            searchTerm={searchTerm}
+            onTcHover={onTcHover}
+            hoveredTcId={hoveredTcId}
+            onLayoutChange={onLayoutChange}
+          />
+          {steeringEntries.map((se, si) => (
+            <SteeringSubRow
+              key={`steer-${i}-${si}`}
+              entry={se}
+              resolvedToolCallIds={resolvedToolCallIds}
+            />
+          ))}
+        </React.Fragment>
       );
     }
 
@@ -1916,6 +2047,17 @@ function ToolLoopMessage({
             ))}
         </div>
       );
+
+      const codeSteeringEntries = getSteeringForToolCall(codeBlocks[0].toolCallId, steeringMap);
+      for (let si = 0; si < codeSteeringEntries.length; si++) {
+        rows.push(
+          <SteeringSubRow
+            key={`code-steer-${si}`}
+            entry={codeSteeringEntries[si]}
+            resolvedToolCallIds={resolvedToolCallIds}
+          />
+        );
+      }
     }
 
     if (rows.length === 0) return null;
@@ -1969,7 +2111,12 @@ function ToolLoopMessage({
     }
     content = thinkingText || textContent;
     if (message.toolCalls?.length) trailingCallLine = renderCallLine();
-    else if (!suppressTrailingResponse && thinkingText && textContent && textContent.replace(/^\s+/, '')) {
+    else if (
+      !suppressTrailingResponse &&
+      thinkingText &&
+      textContent &&
+      textContent.replace(/^\s+/, '')
+    ) {
       trailingResponseContent = textContent.replace(/^\s+/, '');
     }
   } else if (kind === 'tool_call') {
@@ -2191,6 +2338,9 @@ function ToolLoopConversation({
   const localResolvedIds = React.useMemo(() => buildResolvedToolCallIds(logs), [logs]);
   const resolvedToolCallIds = resolvedToolCallIdsProp ?? localResolvedIds;
 
+  const steeringMap = React.useMemo(() => buildSteeringMap(logs), [logs]);
+  const steeringLogIds = React.useMemo(() => buildSteeringLogIds(logs), [logs]);
+
   React.useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -2241,22 +2391,25 @@ function ToolLoopConversation({
         style={{ maxHeight: `${maxH}px`, paddingLeft: pad, paddingRight: nested ? 0 : '4px' }}
       >
         <div ref={contentRef} className={cn('relative space-y-0.5', nested ? 'pt-1' : 'py-3')}>
-          {logs.map((log, idx) => (
-            <ToolLoopMessage
-              key={log.id}
-              log={log}
-              isLatestLog={idx === logs.length - 1}
-              nodeCompleted={nodeCompleted}
-              resolvedToolCallIds={resolvedToolCallIds}
-              searchTerm={searchTerm}
-              onTcHover={setHoveredTcId}
-              hoveredTcId={hoveredTcId}
-              onLayoutChange={signalLayoutChange}
-              assistantId={assistantId}
-              getToolLoopEvents={getToolLoopEvents}
-              suppressTrailingResponse={suppressTrailingContentIds?.has(log.id)}
-            />
-          ))}
+          {logs
+            .filter((l) => !steeringLogIds.has(l.id))
+            .map((log, idx, filtered) => (
+              <ToolLoopMessage
+                key={log.id}
+                log={log}
+                isLatestLog={idx === filtered.length - 1}
+                nodeCompleted={nodeCompleted}
+                resolvedToolCallIds={resolvedToolCallIds}
+                steeringMap={steeringMap}
+                searchTerm={searchTerm}
+                onTcHover={setHoveredTcId}
+                hoveredTcId={hoveredTcId}
+                onLayoutChange={signalLayoutChange}
+                assistantId={assistantId}
+                getToolLoopEvents={getToolLoopEvents}
+                suppressTrailingResponse={suppressTrailingContentIds?.has(log.id)}
+              />
+            ))}
           {bracketGeom && <BracketLines geom={bracketGeom} />}
         </div>
       </div>
@@ -2300,6 +2453,9 @@ function LiveToolLoopTimeline({
 
   const localResolvedIds = React.useMemo(() => buildResolvedToolCallIds(logs), [logs]);
   const resolvedToolCallIds = resolvedToolCallIdsProp ?? localResolvedIds;
+
+  const steeringMap = React.useMemo(() => buildSteeringMap(logs), [logs]);
+  const steeringLogIds = React.useMemo(() => buildSteeringLogIds(logs), [logs]);
 
   const handleScroll = React.useCallback(() => {
     const el = scrollRef.current;
@@ -2360,21 +2516,24 @@ function LiveToolLoopTimeline({
         style={{ maxHeight: `${maxH}px`, paddingLeft: pad, paddingRight: '4px' }}
       >
         <div ref={contentRef} className="relative space-y-0.5 py-2">
-          {logs.map((log, idx) => (
-            <ToolLoopMessage
-              key={log.id}
-              log={log}
-              isLatestLog={idx === logs.length - 1}
-              resolvedToolCallIds={resolvedToolCallIds}
-              searchTerm={searchTerm}
-              onTcHover={setHoveredTcId}
-              hoveredTcId={hoveredTcId}
-              onLayoutChange={signalLayoutChange}
-              assistantId={assistantId}
-              getToolLoopEvents={getToolLoopEvents}
-              suppressTrailingResponse={suppressTrailingContentIds?.has(log.id)}
-            />
-          ))}
+          {logs
+            .filter((l) => !steeringLogIds.has(l.id))
+            .map((log, idx, filtered) => (
+              <ToolLoopMessage
+                key={log.id}
+                log={log}
+                isLatestLog={idx === filtered.length - 1}
+                resolvedToolCallIds={resolvedToolCallIds}
+                steeringMap={steeringMap}
+                searchTerm={searchTerm}
+                onTcHover={setHoveredTcId}
+                hoveredTcId={hoveredTcId}
+                onLayoutChange={signalLayoutChange}
+                assistantId={assistantId}
+                getToolLoopEvents={getToolLoopEvents}
+                suppressTrailingResponse={suppressTrailingContentIds?.has(log.id)}
+              />
+            ))}
           {bracketGeom && <BracketLines geom={bracketGeom} />}
         </div>
       </div>
@@ -2578,9 +2737,10 @@ function CollapsibleToolLoopSection({
     return ms > 0 ? formatCompactDuration(ms) : '';
   }, [logs, promotedDuration]);
 
-  const stepCount = suppressTrailingContentIds && suppressTrailingContentIds.size > 0
-    ? logs.length - logs.reduce((n, l) => n + (suppressTrailingContentIds.has(l.id) ? 1 : 0), 0)
-    : logs.length;
+  const stepCount =
+    suppressTrailingContentIds && suppressTrailingContentIds.size > 0
+      ? logs.length - logs.reduce((n, l) => n + (suppressTrailingContentIds.has(l.id) ? 1 : 0), 0)
+      : logs.length;
 
   return (
     <div className="min-w-0">
@@ -2631,7 +2791,6 @@ function CollapsibleToolLoopSection({
       </div>
     </div>
   );
-
 }
 
 export function ActionNodeItem({
@@ -2753,7 +2912,15 @@ export function ActionNodeItem({
   // timeline without a second search that might find a different entry.
   // Persistent actions skip this — they have no single privileged request/response.
   const promoted = React.useMemo(() => {
-    if (node.persist) return { request: null, response: null, requestId: null as number | null, responseId: null as number | null, responseFromDedicatedEntry: false, duration: '' };
+    if (node.persist)
+      return {
+        request: null,
+        response: null,
+        requestId: null as number | null,
+        responseId: null as number | null,
+        responseFromDedicatedEntry: false,
+        duration: '',
+      };
 
     let req: { content: string; time: string } | null = null;
     let requestId: number | null = null;
@@ -2820,7 +2987,14 @@ export function ActionNodeItem({
       if (ms > 0) duration = formatCompactDuration(ms);
     }
 
-    return { request: req, response: resp, requestId, responseId, responseFromDedicatedEntry, duration };
+    return {
+      request: req,
+      response: resp,
+      requestId,
+      responseId,
+      responseFromDedicatedEntry,
+      duration,
+    };
   }, [effectiveLogs, node.persist]);
 
   // IDs of the ToolLoop logs that are promoted (request + response) so they
@@ -2833,7 +3007,8 @@ export function ActionNodeItem({
 
     const ids = new Set<number>();
     if (promoted.requestId != null) ids.add(promoted.requestId);
-    if (promoted.responseId != null && promoted.responseFromDedicatedEntry) ids.add(promoted.responseId);
+    if (promoted.responseId != null && promoted.responseFromDedicatedEntry)
+      ids.add(promoted.responseId);
     return ids;
   }, [promoted, node.persist]);
 
@@ -2844,7 +3019,8 @@ export function ActionNodeItem({
   // in the timeline (for its thinking content) but its response tail is hidden.
   const suppressTrailingContentIds = React.useMemo(() => {
     const ids = new Set<number>();
-    if (promoted.responseId != null && !promoted.responseFromDedicatedEntry) ids.add(promoted.responseId);
+    if (promoted.responseId != null && !promoted.responseFromDedicatedEntry)
+      ids.add(promoted.responseId);
     return ids;
   }, [promoted]);
 
