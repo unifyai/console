@@ -1,4 +1,6 @@
 import * as React from 'react';
+import recordStartSrc from '@/public/sounds/record-start.mp3';
+import recordStopSrc from '@/public/sounds/record-stop.mp3';
 
 type RecorderState = 'idle' | 'recording' | 'transcribing';
 
@@ -12,6 +14,26 @@ export function useVoiceRecorder({ onTranscript }: UseVoiceRecorderOptions) {
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const chunksRef = React.useRef<Blob[]>([]);
   const streamRef = React.useRef<MediaStream | null>(null);
+  const recordStartAudioRef = React.useRef<HTMLAudioElement | null>(null);
+  const recordStopAudioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  const playRecordStart = React.useCallback(() => {
+    if (!recordStartAudioRef.current) {
+      recordStartAudioRef.current = new Audio(recordStartSrc);
+      recordStartAudioRef.current.volume = 0.5;
+    }
+    recordStartAudioRef.current.currentTime = 0;
+    recordStartAudioRef.current.play().catch(() => {});
+  }, []);
+
+  const playRecordStop = React.useCallback(() => {
+    if (!recordStopAudioRef.current) {
+      recordStopAudioRef.current = new Audio(recordStopSrc);
+      recordStopAudioRef.current.volume = 0.5;
+    }
+    recordStopAudioRef.current.currentTime = 0;
+    recordStopAudioRef.current.play().catch(() => {});
+  }, []);
 
   const cleanup = React.useCallback(() => {
     if (streamRef.current) {
@@ -81,19 +103,21 @@ export function useVoiceRecorder({ onTranscript }: UseVoiceRecorderOptions) {
 
       recorder.start();
       setState('recording');
+      playRecordStart();
     } catch {
       cleanup();
       setError('Microphone access denied');
       setState('idle');
     }
-  }, [cleanup, transcribe]);
+  }, [cleanup, transcribe, playRecordStart]);
 
   const stopRecording = React.useCallback(() => {
     const recorder = mediaRecorderRef.current;
     if (recorder && recorder.state === 'recording') {
       recorder.stop();
+      playRecordStop();
     }
-  }, []);
+  }, [playRecordStop]);
 
   const toggleRecording = React.useCallback(() => {
     if (state === 'recording') {

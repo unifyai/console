@@ -3,6 +3,8 @@
 import { useEffect } from 'react';
 import callRingingSrc from '@/public/sounds/call-ringing.mp3';
 import callEndSrc from '@/public/sounds/call-end.mp3';
+import recordStartSrc from '@/public/sounds/record-start.mp3';
+import recordStopSrc from '@/public/sounds/record-stop.mp3';
 
 const PRELOAD_FLAG_KEY = '__unify_call_sounds_preloaded__';
 const retainedAudioElements: HTMLAudioElement[] = [];
@@ -31,6 +33,8 @@ export default function CallSoundPreloader() {
 
     preloadAudio(callRingingSrc);
     preloadAudio(callEndSrc);
+    preloadAudio(recordStartSrc);
+    preloadAudio(recordStopSrc);
   }, []);
 
   return null;
