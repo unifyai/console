@@ -75,6 +75,15 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     }
     wasConnectedRef.current = false;
 
+    // Clear stale desktop-ready sessionStorage so the next call for this
+    // assistant doesn't immediately resolve isDesktopReady from old VM data.
+    const disconnectingId = activeCallAssistantRef.current?.agentId;
+    if (disconnectingId) {
+      try {
+        sessionStorage.removeItem(`desktop-ready-${disconnectingId}`);
+      } catch { /* SSR-safe */ }
+    }
+
     setIsConnected(false);
     setIsConnecting(false);
     setIsWaitingForAssistant(false);
