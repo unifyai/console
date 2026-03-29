@@ -51,6 +51,8 @@ interface AssistantCommunicationDialogContentProps {
   isCallConnected: boolean;
   isDesktopReady: boolean;
   callType: 'video' | 'audio' | null;
+  isSpeakerMuted: boolean;
+  onToggleSpeaker: () => void;
 }
 
 const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialogContentProps> = ({
@@ -79,6 +81,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   isCallConnected,
   isDesktopReady,
   callType,
+  isSpeakerMuted,
+  onToggleSpeaker,
 }) => {
   const room = React.useContext(RoomContext);
   if (!room)
@@ -282,6 +286,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 loadingMessage={loadingMessage}
                 connectionError={connectionError}
                 onRetry={onRetry}
+                isRingMuted={isSpeakerMuted}
+                onToggleRingMute={onToggleSpeaker}
               />
               <AnimatePresence>
                 {isUserViewVisible && !isConnecting && (
@@ -734,6 +740,8 @@ export function AssistantCommunicationDialog({
             isCallConnected={isCallConnected}
             isDesktopReady={isDesktopReady}
             callType={callType}
+            isSpeakerMuted={isSpeakerMuted}
+            onToggleSpeaker={onToggleSpeaker}
           />
         )}
 
@@ -771,11 +779,11 @@ export function AssistantCommunicationDialog({
               onDragEnd={handleResizeEnd}
               onPointerDown={(e) => e.stopPropagation()}
               className={cn(
-                'absolute z-10 opacity-0 hover:opacity-100 transition-opacity',
+                'absolute z-10 opacity-0 transition-opacity hover:opacity-100',
                 edge === 't' && 'left-3 right-3 top-0 h-1.5 cursor-ns-resize',
-                edge === 'b' && 'left-3 right-3 bottom-0 h-1.5 cursor-ns-resize',
-                edge === 'l' && 'top-3 bottom-3 left-0 w-1.5 cursor-ew-resize',
-                edge === 'r' && 'top-3 bottom-3 right-0 w-1.5 cursor-ew-resize'
+                edge === 'b' && 'bottom-0 left-3 right-3 h-1.5 cursor-ns-resize',
+                edge === 'l' && 'bottom-3 left-0 top-3 w-1.5 cursor-ew-resize',
+                edge === 'r' && 'bottom-3 right-0 top-3 w-1.5 cursor-ew-resize'
               )}
             />
           ))}

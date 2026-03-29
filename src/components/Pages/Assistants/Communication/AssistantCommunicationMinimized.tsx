@@ -154,6 +154,8 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
         videoTrack={agentVideoTrack}
         isLoading={showLoadingState}
         loadingMessage={loadingMessage}
+        isRingMuted={isSpeakerMuted}
+        onToggleRingMute={onToggleSpeaker}
       />
 
       {/* Controls */}
@@ -330,11 +332,11 @@ export function AssistantCommunicationMinimized(props: AssistantCommunicationMin
           onDragEnd={handleResizeEnd}
           onPointerDown={(e) => e.stopPropagation()}
           className={cn(
-            'absolute z-10 opacity-0 group-hover:opacity-100 transition-opacity',
+            'absolute z-10 opacity-0 transition-opacity group-hover:opacity-100',
             edge === 't' && 'left-3 right-3 top-0 h-1.5 cursor-ns-resize',
-            edge === 'b' && 'left-3 right-3 bottom-0 h-1.5 cursor-ns-resize',
-            edge === 'l' && 'top-3 bottom-3 left-0 w-1.5 cursor-ew-resize',
-            edge === 'r' && 'top-3 bottom-3 right-0 w-1.5 cursor-ew-resize'
+            edge === 'b' && 'bottom-0 left-3 right-3 h-1.5 cursor-ns-resize',
+            edge === 'l' && 'bottom-3 left-0 top-3 w-1.5 cursor-ew-resize',
+            edge === 'r' && 'bottom-3 right-0 top-3 w-1.5 cursor-ew-resize'
           )}
         />
       ))}
