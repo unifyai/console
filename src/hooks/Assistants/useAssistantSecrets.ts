@@ -161,7 +161,7 @@ export function useAssistantSecrets(
             throw new Error(`Entry "${key}": "value" must be a string.`);
           }
           payloads.push({
-            name: typeof obj.name === 'string' ? obj.name : key,
+            name: key,
             value: obj.value,
             description: typeof obj.description === 'string' ? obj.description : undefined,
           });

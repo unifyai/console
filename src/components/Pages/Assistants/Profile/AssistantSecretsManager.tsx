@@ -92,8 +92,7 @@ const JsonFormatInfo = () => (
       </pre>
       <p className="mb-1.5 text-muted-foreground">
         Rich &mdash; values are objects with <code className="rounded bg-muted px-1">value</code>{' '}
-        (required) and optional <code className="rounded bg-muted px-1">name</code>,{' '}
-        <code className="rounded bg-muted px-1">description</code>:
+        (required) and optional <code className="rounded bg-muted px-1">description</code>:
       </p>
       <pre className="rounded bg-muted p-2 text-[11px] leading-relaxed">
         {`{\n  "API_KEY": {\n    "value": "sk-abc123",\n    "description": "Production key"\n  }\n}`}
