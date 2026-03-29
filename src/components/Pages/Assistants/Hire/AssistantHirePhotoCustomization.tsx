@@ -31,8 +31,8 @@ interface PhotoCustomizationProps {
   firstName?: string | null;
   surname?: string | null;
   age?: number | null;
-  activeTab: 'upload' | 'create' | 'animate';
-  setActiveTab: (tab: 'upload' | 'create' | 'animate') => void;
+  activeTab: 'upload' | 'create' | 'edit' | 'animate';
+  setActiveTab: (tab: 'upload' | 'create' | 'edit' | 'animate') => void;
   showAnimatePing?: boolean;
   onProcessingStateChange?: (isProcessing: boolean) => void;
   /** Callback to open the Stripe side panel for payment setup */
@@ -70,6 +70,8 @@ export function PhotoCustomization({
     ttsPrompt,
     setTtsPrompt,
     isProcessing,
+    isGenerating,
+    isEditing,
     handleGenerate,
     handleEdit,
     handleAnimate,
@@ -105,6 +107,15 @@ export function PhotoCustomization({
       e.preventDefault();
       if (!isGenerateDisabled) {
         handleGenerate();
+      }
+    }
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!isEditDisabled) {
+        handleEdit(imageSourceForOperations!);
       }
     }
   };
@@ -210,12 +221,15 @@ export function PhotoCustomization({
         onValueChange={(v) => setActiveTab(v as any)}
         className="flex h-full w-full flex-col"
       >
-        <TabsList className="grid h-9 w-full grid-cols-3">
+        <TabsList className="grid h-9 w-full grid-cols-4">
           <TabsTrigger value="upload" disabled={disabled}>
             Upload
           </TabsTrigger>
           <TabsTrigger value="create" disabled={disabled}>
             Create
+          </TabsTrigger>
+          <TabsTrigger value="edit" disabled={disabled}>
+            Edit
           </TabsTrigger>
           <TabsTrigger value="animate" disabled={disabled}>
             Animate
@@ -264,7 +278,7 @@ export function PhotoCustomization({
         <TabsContent value="create" className="mt-2 flex-1">
           <div className="relative flex h-full w-full flex-col rounded-lg border bg-background p-2.5">
             <Textarea
-              id="photo-prompt"
+              id="photo-prompt-create"
               aria-label="Photo Prompt"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -277,52 +291,70 @@ export function PhotoCustomization({
               <p className="text-caption px-1 text-muted-foreground">
                 Cost: {PHOTO_OPERATION_COST.toFixed(2)} credits per image
               </p>
-              <div className="flex gap-1">
-                <BillableActionGuard
-                  onAddPaymentMethod={onAddPaymentMethod}
-                  creditsRequired={PHOTO_OPERATION_COST}
-                  tooltipSide="top"
-                  tooltipMessage='Edit photo'
+              <BillableActionGuard
+                onAddPaymentMethod={onAddPaymentMethod}
+                creditsRequired={PHOTO_OPERATION_COST}
+                tooltipSide="top"
+                tooltipMessage='Generate new photo'
+              >
+                <Button
+                  aria-label="Generate new photo"
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={handleGenerate}
+                  disabled={isGenerateDisabled}
                 >
-                  <Button
-                    aria-label="Edit photo"
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => handleEdit(imageSourceForOperations!)}
-                    disabled={isEditDisabled}
-                  >
-                    {isProcessing ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Pen className="h-4 w-4" />
-                    )}
-                  </Button>
-                </BillableActionGuard>
-                <BillableActionGuard
-                  onAddPaymentMethod={onAddPaymentMethod}
-                  creditsRequired={PHOTO_OPERATION_COST}
-                  tooltipSide="top"
-                  tooltipMessage='Generate new photo'
+                  {isGenerating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                </Button>
+              </BillableActionGuard>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="edit" className="mt-2 flex-1">
+          <div className="relative flex h-full w-full flex-col rounded-lg border bg-background p-2.5">
+            <Textarea
+              id="photo-prompt-edit"
+              aria-label="Photo Edit Prompt"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={handleEditKeyDown}
+              className="text-body h-auto flex-1 resize-none border-0 bg-transparent p-1 focus-visible:ring-0 focus-visible:ring-offset-0"
+              disabled={disabled || isProcessing}
+              maxLength={150}
+            />
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-caption px-1 text-muted-foreground">
+                Cost: {PHOTO_OPERATION_COST.toFixed(2)} credits per image
+              </p>
+              <BillableActionGuard
+                onAddPaymentMethod={onAddPaymentMethod}
+                creditsRequired={PHOTO_OPERATION_COST}
+                tooltipSide="top"
+                tooltipMessage='Edit photo'
+              >
+                <Button
+                  aria-label="Edit photo"
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => handleEdit(imageSourceForOperations!)}
+                  disabled={isEditDisabled}
                 >
-                  <Button
-                    aria-label="Generate new photo"
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={handleGenerate}
-                    disabled={isGenerateDisabled}
-                  >
-                    {isProcessing ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4" />
-                    )}
-                  </Button>
-                </BillableActionGuard>
-              </div>
+                  {isEditing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Pen className="h-4 w-4" />
+                  )}
+                </Button>
+              </BillableActionGuard>
             </div>
           </div>
         </TabsContent>

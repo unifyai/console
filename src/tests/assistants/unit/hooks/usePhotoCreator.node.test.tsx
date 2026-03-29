@@ -145,6 +145,8 @@ describe('usePhotoCreator', () => {
 
           // First operation should be in progress
           expect(result.current.isProcessing).toBe(true);
+          expect(result.current.isGenerating).toBe(true);
+          expect(result.current.isEditing).toBe(false);
 
           // Try to start second operation while first is processing
           act(() => {
@@ -207,6 +209,8 @@ describe('usePhotoCreator', () => {
           });
 
           expect(result.current.isProcessing).toBe(true);
+          expect(result.current.isEditing).toBe(true);
+          expect(result.current.isGenerating).toBe(false);
 
           // Try second edit
           act(() => {
@@ -270,6 +274,9 @@ describe('usePhotoCreator', () => {
           });
 
           expect(result.current.isProcessing).toBe(true);
+          expect(result.current.isAnimating).toBe(true);
+          expect(result.current.isGenerating).toBe(false);
+          expect(result.current.isEditing).toBe(false);
 
           // Try second animate while first is processing
           act(() => {
@@ -335,6 +342,7 @@ describe('usePhotoCreator', () => {
           });
 
           expect(result.current.isProcessing).toBe(true);
+          expect(result.current.isGenerating).toBe(true);
 
           // While first is processing, try second (should be blocked)
           act(() => {
@@ -487,6 +495,7 @@ describe('usePhotoCreator', () => {
           });
 
           expect(result.current.isProcessing).toBe(true);
+          expect(result.current.isAnimating).toBe(true);
 
           // Try second animate (should be blocked)
           act(() => {

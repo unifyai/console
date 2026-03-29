@@ -184,7 +184,13 @@ export function usePhotoCreator(
   }, [selectedVoice]);
 
   const [ttsPrompt, setTtsPrompt] = React.useState(initialTtsPrompt);
-  const [isProcessing, setIsProcessing] = React.useState(false);
+  const [processingType, setProcessingType] = React.useState<
+    'idle' | 'generating' | 'editing' | 'animating'
+  >('idle');
+  const isProcessing = processingType !== 'idle';
+  const isGenerating = processingType === 'generating';
+  const isEditing = processingType === 'editing';
+  const isAnimating = processingType === 'animating';
   const pollIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
   const toastIdRef = React.useRef<string | number | undefined>();
   const isProcessingRef = React.useRef(isProcessing);
@@ -251,7 +257,7 @@ export function usePhotoCreator(
     operationIdRef.current += 1;
     const thisOperationId = operationIdRef.current;
 
-    setIsProcessing(true);
+    setProcessingType('generating');
     const toastId = toast.loading('Checking your balance...');
 
     const balanceCheck = await fetchBalance();
@@ -265,14 +271,14 @@ export function usePhotoCreator(
     if (!balanceCheck.ok) {
       balanceCheckFailedToast();
       toast.dismiss(toastId);
-      setIsProcessing(false);
+      setProcessingType('idle');
       return;
     }
 
     if (balanceCheck.balance < photoOperationCost) {
       insufficientFundsToast('generation');
       toast.dismiss(toastId);
-      setIsProcessing(false);
+      setProcessingType('idle');
       return;
     }
 
@@ -328,7 +334,7 @@ export function usePhotoCreator(
     } finally {
       // Only update state if this operation is still current
       if (operationIdRef.current === thisOperationId) {
-        setIsProcessing(false);
+        setProcessingType('idle');
       }
     }
   };
@@ -352,7 +358,7 @@ export function usePhotoCreator(
     operationIdRef.current += 1;
     const thisOperationId = operationIdRef.current;
 
-    setIsProcessing(true);
+    setProcessingType('editing');
     const toastId = toast.loading('Checking your balance...');
 
     const balanceCheck = await fetchBalance();
@@ -366,14 +372,14 @@ export function usePhotoCreator(
     if (!balanceCheck.ok) {
       balanceCheckFailedToast();
       toast.dismiss(toastId);
-      setIsProcessing(false);
+      setProcessingType('idle');
       return;
     }
 
     if (balanceCheck.balance < photoOperationCost) {
       insufficientFundsToast('editing');
       toast.dismiss(toastId);
-      setIsProcessing(false);
+      setProcessingType('idle');
       return;
     }
 
@@ -436,7 +442,7 @@ export function usePhotoCreator(
     } finally {
       // Only update state if this operation is still current
       if (operationIdRef.current === thisOperationId) {
-        setIsProcessing(false);
+        setProcessingType('idle');
       }
     }
   };
@@ -475,7 +481,7 @@ export function usePhotoCreator(
     // Capture the voice ID at start time to avoid stale closure issues
     capturedVoiceIdRef.current = selectedVoice.voiceId;
 
-    setIsProcessing(true);
+    setProcessingType('animating');
     toastIdRef.current = toast.loading('Generating video speech...');
 
     try {
@@ -528,7 +534,7 @@ export function usePhotoCreator(
 
       if (!balanceCheck.ok) {
         balanceCheckFailedToast();
-        setIsProcessing(false);
+        setProcessingType('idle');
         toast.dismiss(toastIdRef.current);
         toastIdRef.current = undefined;
         return;
@@ -536,7 +542,7 @@ export function usePhotoCreator(
 
       if (balanceCheck.balance < videoAnimationCost * (audioDuration > 0 ? audioDuration : 1)) {
         insufficientFundsToast('animation');
-        setIsProcessing(false);
+        setProcessingType('idle');
         toast.dismiss(toastIdRef.current);
         toastIdRef.current = undefined;
         return;
@@ -582,7 +588,7 @@ export function usePhotoCreator(
         event.preventDefault();
         event.stopPropagation();
         stopPolling();
-        setIsProcessing(false);
+        setProcessingType('idle');
 
         if (toastIdRef.current) {
           toast.dismiss(toastIdRef.current);
@@ -654,7 +660,7 @@ export function usePhotoCreator(
                 id: toastIdRef.current,
               });
               toastIdRef.current = undefined;
-              setIsProcessing(false);
+              setProcessingType('idle');
               return;
             }
 
@@ -669,7 +675,7 @@ export function usePhotoCreator(
             if (!videoFetchResponse.ok) {
               toast.error('Failed to retrieve the final video.', { id: toastIdRef.current });
               toastIdRef.current = undefined;
-              setIsProcessing(false);
+              setProcessingType('idle');
               return;
             }
 
@@ -687,7 +693,7 @@ export function usePhotoCreator(
                 id: toastIdRef.current,
                 duration: 4000,
               });
-            setIsProcessing(false);
+            setProcessingType('idle');
             toastIdRef.current = undefined;
           } else if (currentStatus.status === 'failed' || currentStatus.status === 'canceled') {
             stopPolling();
@@ -702,7 +708,7 @@ export function usePhotoCreator(
               }
             }
             toastIdRef.current = undefined;
-            setIsProcessing(false);
+            setProcessingType('idle');
           } else {
             pollIntervalRef.current = setTimeout(poll, 20000);
           }
@@ -717,7 +723,7 @@ export function usePhotoCreator(
             toastIdRef.current = undefined;
           }
           if (operationIdRef.current === thisOperationId) {
-            setIsProcessing(false);
+            setProcessingType('idle');
           }
         }
       };
@@ -730,7 +736,7 @@ export function usePhotoCreator(
           toast.error('Failed to start animation. Please try again.', { id: toastIdRef.current });
         }
         toastIdRef.current = undefined;
-        setIsProcessing(false);
+        setProcessingType('idle');
       }
     }
   };
@@ -741,6 +747,9 @@ export function usePhotoCreator(
     ttsPrompt,
     setTtsPrompt,
     isProcessing,
+    isGenerating,
+    isEditing,
+    isAnimating,
     handleGenerate,
     handleEdit,
     handleAnimate,

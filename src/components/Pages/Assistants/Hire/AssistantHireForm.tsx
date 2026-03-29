@@ -87,7 +87,7 @@ export function HireForm({
   } = formMethods;
 
   const [photoCustomizationTab, setPhotoCustomizationTab] = React.useState<
-    'upload' | 'create' | 'animate'
+    'upload' | 'create' | 'edit' | 'animate'
   >('upload');
   const [voiceCustomizationTab, setVoiceCustomizationTab] = React.useState<
     'select' | 'clone' | 'design'
