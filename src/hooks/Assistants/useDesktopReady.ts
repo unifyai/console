@@ -14,7 +14,7 @@ function readStoredDesktopReady(assistantId: string | undefined): { url: string 
     const raw = sessionStorage.getItem(`desktop-ready-${assistantId}`);
     if (!raw) return null;
     const data = JSON.parse(raw);
-    const url = data?.liveview_url ?? data?.liveviewUrl ?? data?.desktop_url;
+    const url = data?.liveview_url ?? data?.liveviewUrl;
     return { url: typeof url === 'string' && url ? url : null };
   } catch {
     return null;
@@ -67,7 +67,7 @@ export function useDesktopReady(
     const channel = new BroadcastChannel(`assistant-desktop-ready-${assistantId}`);
     channel.onmessage = (e: MessageEvent) => {
       setIsDesktopReady(true);
-      const url = e.data?.liveview_url ?? e.data?.liveviewUrl ?? e.data?.desktop_url;
+      const url = e.data?.liveview_url ?? e.data?.liveviewUrl;
       if (typeof url === 'string' && url) {
         setEventLiveviewUrl(url);
       }
