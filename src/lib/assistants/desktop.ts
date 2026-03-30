@@ -58,6 +58,7 @@ export const getLiveviewUrl = async () => {
       url.searchParams.append('projectName', 'AssistantJobs');
       url.searchParams.append('context', 'startup_events');
       url.searchParams.append('filterExpr', filterExpr);
+      url.searchParams.append('limit', '10');
 
       const response = await fetch(url.toString(), {
         method: 'GET',
