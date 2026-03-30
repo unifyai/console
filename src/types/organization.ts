@@ -80,7 +80,7 @@ export interface OrganizationListResponse {
 
 export interface OrganizationInvite {
   id: string;
-  token: string;
+  token?: string | null;
   organizationId: number;
   organizationName: string;
   inviteeEmail: string;
