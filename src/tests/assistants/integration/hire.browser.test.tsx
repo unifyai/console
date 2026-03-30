@@ -898,8 +898,8 @@ describe('Assistant Hire Flow', () => {
           expect(window.URL.createObjectURL).toHaveBeenCalled();
         });
 
-        await user.click(screen.getByRole('tab', { name: /create/i }));
-        const promptInput = screen.getByLabelText(/photo prompt/i);
+        await user.click(screen.getByRole('tab', { name: /^edit$/i }));
+        const promptInput = screen.getByLabelText(/photo edit prompt/i);
         // Type additional prompt text (appends to default prompt)
         await user.type(promptInput, 'Make it cyberpunk');
 

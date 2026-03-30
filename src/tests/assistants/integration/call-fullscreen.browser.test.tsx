@@ -184,7 +184,7 @@ const createMockAssistantActions = () => ({
   },
   desktop: {
     getLiveviewUrl: vi.fn().mockResolvedValue({ liveviewUrl: 'https://liveview.example.com' }),
-    buildLiveviewUrl: vi.fn(async (rawUrl: string) => ({ liveviewUrl: `${rawUrl}?password=test-key` })),
+    buildLiveviewUrl: vi.fn(async (rawUrl: string, _ownerId: string, _organizationId: number | null) => ({ liveviewUrl: `${rawUrl}?password=test-key` })),
     checkLiveviewHealth: vi.fn().mockResolvedValue(true),
     sendSystemEvent: vi.fn().mockResolvedValue({ info: 'success' }),
   },
@@ -502,7 +502,7 @@ describe('AssistantCommunicationFullScreen', () => {
         await user.click(remoteControlButton);
 
         await waitFor(() => {
-          expect(mockAssistantActions.desktop.getLiveviewUrl).toHaveBeenCalledWith('123');
+          expect(mockAssistantActions.desktop.getLiveviewUrl).toHaveBeenCalledWith('123', 'user-1', 1);
         });
       }
     );

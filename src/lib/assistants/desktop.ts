@@ -5,6 +5,7 @@ import { UserDesktop } from '@/types/assistants/assistant';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 import { getAdaptersPrefix } from '@/utils/assistants/api-utils';
+import { resolveOwnerApiKeyForAssistant } from '@/lib/assistants/owner';
 
 const LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS = 5000;
 
@@ -30,8 +31,12 @@ async function isLiveviewReachable(liveviewUrl: string): Promise<boolean> {
   }
 }
 
-export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
-  return async (assistantId: string): Promise<{ liveviewUrl?: string } | ResponseProps> => {
+export const getLiveviewUrl = async () => {
+  return async (
+    assistantId: string,
+    ownerId: string,
+    organizationId: number | null
+  ): Promise<{ liveviewUrl?: string } | ResponseProps> => {
     'use server';
 
     try {
@@ -47,12 +52,13 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
         return { detail: 'Server configuration error: Application URL not found.' };
       }
 
-      const filterExpr = `user_id == '${userId}' and assistant_id == '${assistantId}'`;
+      const filterExpr = `user_id == '${ownerId}' and assistant_id == '${assistantId}'`;
 
       const url = new URL(`${nextAuthUrl}/api/logs`);
       url.searchParams.append('projectName', 'AssistantJobs');
       url.searchParams.append('context', 'startup_events');
       url.searchParams.append('filterExpr', filterExpr);
+      url.searchParams.append('limit', '10');
 
       const response = await fetch(url.toString(), {
         method: 'GET',
@@ -85,8 +91,9 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
       const liveviewUrlValue = latestLog?.entries?.liveviewUrl || latestLog?.entries?.liveview_url;
 
       if (latestLog && latestLog.entries && typeof liveviewUrlValue === 'string') {
+        const ownerKey = await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
         const urlObj = new URL(liveviewUrlValue);
-        urlObj.searchParams.set('password', userApiKey);
+        urlObj.searchParams.set('password', ownerKey);
         return { liveviewUrl: urlObj.toString() };
       }
 
@@ -105,11 +112,16 @@ export const getLiveviewUrl = async (userId: string, userApiKey: string) => {
   };
 };
 
-export const buildLiveviewUrl = async (userApiKey: string) => {
-  return async (rawUrl: string): Promise<{ liveviewUrl: string }> => {
+export const buildLiveviewUrl = async () => {
+  return async (
+    rawUrl: string,
+    ownerId: string,
+    organizationId: number | null
+  ): Promise<{ liveviewUrl: string }> => {
     'use server';
+    const ownerKey = await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
     const urlObj = new URL(rawUrl);
-    urlObj.searchParams.set('password', userApiKey);
+    urlObj.searchParams.set('password', ownerKey);
     return { liveviewUrl: urlObj.toString() };
   };
 };

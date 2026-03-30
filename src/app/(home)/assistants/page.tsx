@@ -150,8 +150,8 @@ const AssistantsPage = async ({
       deleteRoom: await deleteCallRoom(),
     },
     desktop: {
-      getLiveviewUrl: await getLiveviewUrl(user.id, user.apiKey),
-      buildLiveviewUrl: await buildLiveviewUrl(user.apiKey),
+      getLiveviewUrl: await getLiveviewUrl(),
+      buildLiveviewUrl: await buildLiveviewUrl(),
       checkLiveviewHealth: await checkLiveviewHealth(),
       sendSystemEvent: await sendSystemEvent(),
       listUserDesktops: await listUserDesktops(apiKey),

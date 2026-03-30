@@ -761,7 +761,9 @@ describe('Assistant Call', () => {
         // Verify API call
         await waitFor(() => {
           expect(mockAssistantActions.desktop.getLiveviewUrl).toHaveBeenCalledWith(
-            targetAssistant.agentId
+            targetAssistant.agentId,
+            targetAssistant.userId,
+            targetAssistant.organizationId ?? null
           );
         });
 

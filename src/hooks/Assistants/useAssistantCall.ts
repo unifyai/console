@@ -75,6 +75,13 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     }
     wasConnectedRef.current = false;
 
+    const disconnectingId = activeCallAssistantRef.current?.agentId;
+    if (disconnectingId) {
+      try {
+        sessionStorage.removeItem(`desktop-ready-${disconnectingId}`);
+      } catch { /* SSR-safe */ }
+    }
+
     setIsConnected(false);
     setIsConnecting(false);
     setIsWaitingForAssistant(false);
@@ -262,9 +269,19 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     assistantActions.call,
   ]);
 
+  const boundGetLiveviewUrl = React.useCallback(
+    (id: string) =>
+      assistantActions.desktop.getLiveviewUrl(
+        id,
+        activeCallAssistant?.userId ?? '',
+        activeCallAssistant?.organizationId ?? null
+      ),
+    [assistantActions.desktop, activeCallAssistant?.userId, activeCallAssistant?.organizationId]
+  );
+
   const { isDesktopReady, eventLiveviewUrl } = useDesktopReady(
     activeCallAssistant?.agentId,
-    assistantActions.desktop.getLiveviewUrl
+    boundGetLiveviewUrl
   );
 
   const toggleRemoteControl = React.useCallback(async () => {
@@ -300,10 +317,10 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       let resolvedUrl: string | undefined;
 
       if (eventLiveviewUrl) {
-        const built = await assistantActions.desktop.buildLiveviewUrl(eventLiveviewUrl);
+        const built = await assistantActions.desktop.buildLiveviewUrl(eventLiveviewUrl, activeCallAssistant.userId, activeCallAssistant.organizationId ?? null);
         resolvedUrl = built.liveviewUrl;
       } else {
-        const result = await assistantActions.desktop.getLiveviewUrl(activeCallAssistant.agentId);
+        const result = await assistantActions.desktop.getLiveviewUrl(activeCallAssistant.agentId, activeCallAssistant.userId, activeCallAssistant.organizationId ?? null);
         resolvedUrl = result.liveviewUrl;
       }
 

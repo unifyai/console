@@ -80,7 +80,7 @@ export interface OrganizationListResponse {
 
 export interface OrganizationInvite {
   id: string;
-  token: string;
+  token?: string | null;
   organizationId: number;
   organizationName: string;
   inviteeEmail: string;
@@ -127,7 +127,7 @@ export interface OrganizationActions {
 
 /**
  * Cumulative spend data for an organization in a given month.
- * Returned by GET /admin/organization/{id}/spend
+ * Returned by GET /organizations/{id}/spend
  */
 export interface OrgSpend {
   /** Organization ID */
@@ -218,7 +218,7 @@ export function calculateOrgSpendingDisplay(spend: OrgSpend): SpendingDisplayPro
 
 /**
  * Cumulative spend data for an organization member in a given month.
- * Returned by GET /admin/organization/{org_id}/members/{user_id}/spend
+ * Returned by GET /organizations/{org_id}/members/{user_id}/spend
  */
 export interface MemberSpend {
   /** Organization ID */

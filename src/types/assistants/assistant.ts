@@ -469,8 +469,8 @@ export interface AssistantActions {
     deleteRoom: (roomName: string) => Promise<ResponseProps>;
   };
   desktop: {
-    getLiveviewUrl: (assistantId: string) => Promise<{ liveviewUrl?: string } | ResponseProps>;
-    buildLiveviewUrl: (rawUrl: string) => Promise<{ liveviewUrl: string }>;
+    getLiveviewUrl: (assistantId: string, ownerId: string, organizationId: number | null) => Promise<{ liveviewUrl?: string } | ResponseProps>;
+    buildLiveviewUrl: (rawUrl: string, ownerId: string, organizationId: number | null) => Promise<{ liveviewUrl: string }>;
     checkLiveviewHealth: (liveviewUrl: string) => Promise<boolean>;
     sendSystemEvent: (
       assistantId: string,

@@ -8,7 +8,7 @@ import { ResponseProps } from '../common';
 
 /**
  * Cumulative spend data for an assistant in a given month.
- * Returned by GET /admin/assistant/{id}/spend
+ * Returned by GET /assistant/{id}/spend
  */
 export interface AssistantSpend {
   /** Assistant ID */

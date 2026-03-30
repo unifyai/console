@@ -413,9 +413,19 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
   const [error, setError] = React.useState<string | null>(null);
   const [chatHistories, setChatHistories] = React.useState<Record<string, ChatMessage[]>>({});
 
+  const boundGetLiveviewUrl = React.useCallback(
+    (id: string) =>
+      assistantActions.desktop.getLiveviewUrl(
+        id,
+        assistant?.userId ?? '',
+        assistant?.organizationId ?? null
+      ),
+    [assistantActions.desktop, assistant?.userId, assistant?.organizationId]
+  );
+
   const { isDesktopReady, eventLiveviewUrl } = useDesktopReady(
     assistant?.agentId,
-    assistantActions.desktop.getLiveviewUrl,
+    boundGetLiveviewUrl,
     callData?.handoffState?.isDesktopReady
   );
 
@@ -467,10 +477,10 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       let resolvedUrl: string | undefined;
 
       if (eventLiveviewUrl) {
-        const built = await assistantActions.desktop.buildLiveviewUrl(eventLiveviewUrl);
+        const built = await assistantActions.desktop.buildLiveviewUrl(eventLiveviewUrl, assistant.userId, assistant.organizationId ?? null);
         resolvedUrl = built.liveviewUrl;
       } else {
-        const result = await assistantActions.desktop.getLiveviewUrl(assistant.agentId);
+        const result = await assistantActions.desktop.getLiveviewUrl(assistant.agentId, assistant.userId, assistant.organizationId ?? null);
         if ('detail' in result) {
           console.error('[FullScreen] Failed to get liveview URL:', result.detail);
           toast.error(result.detail, { id: toastId });
