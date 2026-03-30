@@ -288,7 +288,7 @@ interface BracketGeom {
 }
 
 function BracketLines({ geom }: { geom: BracketGeom }) {
-  const bg = 'hsl(0 0% 100% / 0.18)';
+  const bg = 'var(--border)';
   const top = geom.topY - 1;
   const bot = geom.bottomY - 1;
   return (
