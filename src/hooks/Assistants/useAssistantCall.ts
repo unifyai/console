@@ -75,6 +75,13 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     }
     wasConnectedRef.current = false;
 
+    const disconnectingId = activeCallAssistantRef.current?.agentId;
+    if (disconnectingId) {
+      try {
+        sessionStorage.removeItem(`desktop-ready-${disconnectingId}`);
+      } catch { /* SSR-safe */ }
+    }
+
     setIsConnected(false);
     setIsConnecting(false);
     setIsWaitingForAssistant(false);
