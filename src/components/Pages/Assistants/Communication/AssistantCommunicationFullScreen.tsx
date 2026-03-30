@@ -477,10 +477,18 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       let resolvedUrl: string | undefined;
 
       if (eventLiveviewUrl) {
-        const built = await assistantActions.desktop.buildLiveviewUrl(eventLiveviewUrl, assistant.userId, assistant.organizationId ?? null);
+        const built = await assistantActions.desktop.buildLiveviewUrl(
+          eventLiveviewUrl,
+          assistant.userId,
+          assistant.organizationId ?? null
+        );
         resolvedUrl = built.liveviewUrl;
       } else {
-        const result = await assistantActions.desktop.getLiveviewUrl(assistant.agentId, assistant.userId, assistant.organizationId ?? null);
+        const result = await assistantActions.desktop.getLiveviewUrl(
+          assistant.agentId,
+          assistant.userId,
+          assistant.organizationId ?? null
+        );
         if ('detail' in result) {
           console.error('[FullScreen] Failed to get liveview URL:', result.detail);
           toast.error(result.detail, { id: toastId });
@@ -651,6 +659,9 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       console.error('Failed to connect to LiveKit room in new tab:', err);
       setError('Failed to connect to the call.');
       setIsConnecting(false);
+      if (room.state !== 'disconnected') {
+        room.disconnect().catch(console.error);
+      }
     }
   }, [room, callData, assistant, assistantActions.call]);
 
