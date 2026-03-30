@@ -2,12 +2,11 @@
  * Unit tests for member spending API routes
  * @vitest-environment node
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
 // Use vi.hoisted to define mock functions that will be available in vi.mock factories
-const { mockAdminGet, mockClientGET, mockClientPUT } = vi.hoisted(() => ({
-  mockAdminGet: vi.fn(),
+const { mockClientGET, mockClientPUT } = vi.hoisted(() => ({
   mockClientGET: vi.fn(),
   mockClientPUT: vi.fn(),
 }));
@@ -15,12 +14,6 @@ const { mockAdminGet, mockClientGET, mockClientPUT } = vi.hoisted(() => ({
 // Mock dependencies before imports
 vi.mock('@/lib/user/user', () => ({
   getCurrentUser: vi.fn().mockResolvedValue({ apiKey: 'test-api-key', id: 'test-user' }),
-}));
-
-vi.mock('@/lib/orchestra/orchestra-client', () => ({
-  OrchestraAdminClient: {
-    get: mockAdminGet,
-  },
 }));
 
 vi.mock('@/lib/orchestra/client', () => ({
@@ -43,18 +36,26 @@ describe('Member Spending API Routes', () => {
   });
 
   describe('GET /api/organizations/[orgId]/members/[userId]/spending', () => {
+    const originalFetch = globalThis.fetch;
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+    });
+
     it('should return member spending data successfully', async () => {
-      // Mock returns camelCase because OrchestraAdminClient has response interceptors
-      mockAdminGet.mockResolvedValue({
-        data: {
-          organizationId: 1,
-          userId: 'user-123',
-          month: '2026-01',
-          cumulativeSpend: 45.5,
-          limit: 100,
-          percentUsed: 45.5,
-        },
-      });
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            organization_id: 1,
+            user_id: 'user-123',
+            month: '2026-01',
+            cumulative_spend: 45.5,
+            limit: 100,
+            percent_used: 45.5,
+          }),
+          { status: 200 }
+        )
+      );
 
       const request = new NextRequest(
         'http://localhost/api/organizations/1/members/user-123/spending?month=2026-01',
@@ -108,9 +109,11 @@ describe('Member Spending API Routes', () => {
     });
 
     it('should return empty spend data for 404 (member not found)', async () => {
-      mockAdminGet.mockRejectedValue({
-        response: { status: 404, data: { detail: 'Member not found' } },
-      });
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ detail: 'Member not found' }), { status: 404 })
+        );
 
       const request = new NextRequest(
         'http://localhost/api/organizations/1/members/user-123/spending?month=2026-01',

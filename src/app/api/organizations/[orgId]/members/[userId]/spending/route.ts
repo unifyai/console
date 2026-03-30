@@ -1,7 +1,7 @@
 /**
  * API Route: GET /api/organizations/[orgId]/members/[userId]/spending
  *
- * Proxies to Orchestra's admin endpoint: GET /v0/admin/organization/{org_id}/members/{user_id}/spend
+ * Proxies to Orchestra: GET /v0/organizations/{org_id}/members/{user_id}/spend
  * Returns the member's cumulative spending within the organization for a given month.
  *
  * Query Parameters:
@@ -20,7 +20,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest } from '../../../../../_utils/auth';
-import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { snakeToCamelObject } from '@/utils/casing';
+
+const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
 
 /**
  * GET /api/organizations/[orgId]/members/[userId]/spending
@@ -38,18 +40,15 @@ export async function GET(
 
   const { orgId, userId } = await params;
 
-  // Validate org ID is a valid integer
   const organizationId = parseInt(orgId, 10);
   if (isNaN(organizationId)) {
     return badRequest('Invalid organization ID format. Must be an integer.');
   }
 
-  // Validate userId is present
   if (!userId || typeof userId !== 'string') {
     return badRequest('Invalid user ID format.');
   }
 
-  // Extract month from query params
   const url = new URL(request.url);
   const month = url.searchParams.get('month');
 
@@ -57,59 +56,31 @@ export async function GET(
     return badRequest('Missing required query parameter: month (format: YYYY-MM)');
   }
 
-  // Validate month format
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
     return badRequest('Invalid month format. Expected: YYYY-MM');
   }
 
   try {
-    // Use OrchestraAdminClient for admin endpoints
-    const response = await OrchestraAdminClient.get(
-      `/organization/${organizationId}/members/${encodeURIComponent(userId)}/spend`,
-      { params: { month } }
+    const response = await fetch(
+      `${ORCHESTRA_URL}/v0/organizations/${organizationId}/members/${encodeURIComponent(userId)}/spend?month=${month}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      }
     );
 
-    // Transform to our frontend types
-    // The admin client already handles casing transformation (snake_case → camelCase)
-    const data = response.data as {
-      organizationId?: number;
-      userId?: string;
-      month?: string;
-      cumulativeSpend?: number;
-      limit?: number | null;
-      percentUsed?: number;
-    };
+    const data = await response.json().catch(() => null);
 
-    // Normalize field names to match our types
-    const transformed = {
-      orgId: data.organizationId ?? organizationId,
-      userId: data.userId ?? userId,
-      month: data.month ?? month,
-      cumulativeSpend: data.cumulativeSpend ?? 0,
-      limit: data.limit ?? null,
-      percentUsed: data.limit === null ? 0 : (data.percentUsed ?? 0),
-    };
-
-    return NextResponse.json(transformed, { status: 200 });
-  } catch (e: unknown) {
-    console.error(
-      '[API /api/organizations/[orgId]/members/[userId]/spending GET] Error:',
-      e instanceof Error ? e.message : e
-    );
-
-    // Handle axios error responses
-    if (e && typeof e === 'object' && 'response' in e) {
-      const axiosError = e as { response?: { status?: number; data?: unknown } };
-      const status = axiosError.response?.status ?? 500;
-      const data = axiosError.response?.data;
-
-      // 404 for member not found - return empty spend data
-      if (status === 404) {
+    if (!response.ok) {
+      if (response.status === 404) {
         return NextResponse.json(
           {
             orgId: organizationId,
-            userId: userId,
-            month: month,
+            userId,
+            month,
             cumulativeSpend: 0,
             limit: null,
             percentUsed: 0,
@@ -117,12 +88,28 @@ export async function GET(
           { status: 200 }
         );
       }
-
       return NextResponse.json(data || { detail: 'Failed to fetch member spending data' }, {
-        status,
+        status: response.status,
       });
     }
 
+    const transformed = snakeToCamelObject(data) as Record<string, unknown>;
+
+    if ('organizationId' in transformed) {
+      transformed.orgId = transformed.organizationId;
+      delete transformed.organizationId;
+    }
+
+    if (transformed.percentUsed === null && transformed.limit === null) {
+      transformed.percentUsed = 0;
+    }
+
+    return NextResponse.json(transformed, { status: 200 });
+  } catch (e: unknown) {
+    console.error(
+      '[API /api/organizations/[orgId]/members/[userId]/spending GET] Error:',
+      e instanceof Error ? e.message : e
+    );
     const msg = e instanceof Error ? e.message : 'Request failed';
     const status = /AbortError|aborted|timeout/i.test(msg) ? 504 : 502;
     return NextResponse.json({ detail: `Upstream error: ${msg}` }, { status });

@@ -6,15 +6,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
-import { AxiosError } from 'axios';
-
-// Create mock for OrchestraAdminClient
-const mockAdminClientGet = vi.fn();
-vi.mock('@/lib/orchestra/orchestra-client', () => ({
-  OrchestraAdminClient: {
-    get: mockAdminClientGet,
-  },
-}));
 
 // Mock user module
 vi.mock('@/lib/user/user', () => ({
@@ -46,15 +37,15 @@ import { getApiKeyFromRequest } from '@/app/api/_utils/auth';
 import { createOrchestraClient } from '@/lib/orchestra/client';
 
 describe('GET /api/user/spending', () => {
+  const originalFetch = globalThis.fetch;
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    // Default: mock user client to return user info from /user/basic-info
-    // Note: response is transformed from snake_case to camelCase by middleware
-    mockUserClientGet.mockResolvedValue({
-      data: { userId: 'user-123', email: 'test@example.com' },
-      error: null,
-    });
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
   });
 
   it('returns 401 when API key is not provided', async () => {
@@ -94,16 +85,9 @@ describe('GET /api/user/spending', () => {
   it('returns zero spend for 404 from Orchestra', async () => {
     vi.mocked(getApiKeyFromRequest).mockResolvedValue('test-api-key');
 
-    // Mock AxiosError with 404 status
-    const axiosError = new AxiosError('Not Found');
-    axiosError.response = {
-      status: 404,
-      data: { detail: 'Not found' },
-      statusText: 'Not Found',
-      headers: {},
-      config: {} as any,
-    };
-    mockAdminClientGet.mockRejectedValue(axiosError);
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ detail: 'Not found' }), { status: 404 }));
 
     const { GET } = await import('@/app/api/user/spending/route');
     const request = new NextRequest('http://localhost/api/user/spending?month=2026-01');
@@ -112,22 +96,23 @@ describe('GET /api/user/spending', () => {
     expect(response.status).toBe(200);
     const data = await response.json();
     expect(data.cumulativeSpend).toBe(0);
-    expect(data.userId).toBe('user-123');
   });
 
-  it('returns spending data from OrchestraAdminClient (already camelCase)', async () => {
+  it('returns spending data from Orchestra', async () => {
     vi.mocked(getApiKeyFromRequest).mockResolvedValue('test-api-key');
 
-    // OrchestraAdminClient automatically transforms response to camelCase
-    mockAdminClientGet.mockResolvedValue({
-      data: {
-        userId: 'user-123',
-        month: '2026-01',
-        cumulativeSpend: 50.0,
-        limit: 100.0,
-        percentUsed: 50.0,
-      },
-    });
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          user_id: 'user-123',
+          month: '2026-01',
+          cumulative_spend: 50.0,
+          limit: 100.0,
+          percent_used: 50.0,
+        }),
+        { status: 200 }
+      )
+    );
 
     const { GET } = await import('@/app/api/user/spending/route');
     const request = new NextRequest('http://localhost/api/user/spending?month=2026-01');
@@ -139,10 +124,14 @@ describe('GET /api/user/spending', () => {
     expect(data.cumulativeSpend).toBe(50.0);
     expect(data.percentUsed).toBe(50.0);
 
-    // Verify the admin client was called with correct path and params
-    expect(mockAdminClientGet).toHaveBeenCalledWith('/user/user-123/spend', {
-      params: { month: '2026-01' },
-    });
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/v0/user/spend?month=2026-01'),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-api-key',
+        }),
+      })
+    );
   });
 });
 

@@ -1,7 +1,7 @@
 /**
  * API Route: GET /api/organizations/[orgId]/spending
  *
- * Proxies to Orchestra's admin endpoint: GET /v0/admin/organization/{id}/spend
+ * Proxies to Orchestra: GET /v0/organizations/{id}/spend
  * Returns the organization's cumulative spending for a given month.
  *
  * Query Parameters:
@@ -54,9 +54,8 @@ export async function GET(
   }
 
   try {
-    const orchestraUrl = `${ORCHESTRA_URL}/v0/admin/organization/${organizationId}/spend?month=${month}`;
+    const orchestraUrl = `${ORCHESTRA_URL}/v0/organizations/${organizationId}/spend?month=${month}`;
 
-    // Call Orchestra admin endpoint for organization spending data
     const response = await fetch(orchestraUrl, {
       method: 'GET',
       headers: {
