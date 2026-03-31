@@ -388,7 +388,10 @@ describe('Signup Journey', () => {
       mockCreateOrg = vi.fn();
       mockUpdateOnboarding = vi.fn().mockResolvedValue(undefined);
       mockPatchSession = vi.fn().mockResolvedValue(undefined);
-      server.use(http.post('/api/session/workspace', () => HttpResponse.json({ ok: true })));
+      server.use(
+        http.post('/api/session/workspace', () => HttpResponse.json({ ok: true })),
+        http.post('/api/user/update-profile', () => HttpResponse.json({ ok: true })),
+      );
     });
 
     afterEach(() => server.resetHandlers());
@@ -589,6 +592,102 @@ describe('Signup Journey', () => {
         expect(screen.getByTestId('workspace-personal')).toBeDisabled();
         expect(screen.getByTestId('workspace-organization')).toBeDisabled();
         expect(screen.getByTestId('workspace-continue')).toBeDisabled();
+      });
+    });
+
+    it('sends browser timezone to profile API when completing personal onboarding', async () => {
+      let timezoneSent: string | undefined;
+      server.use(
+        http.post('/api/user/update-profile', async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          timezoneSent = body.timezone as string;
+          return HttpResponse.json({ ok: true });
+        }),
+      );
+
+      const user = userEvent.setup();
+      renderOnboarding();
+
+      await user.click(screen.getByTestId('workspace-personal'));
+      await user.click(screen.getByTestId('workspace-continue'));
+
+      await waitFor(() => {
+        expect(timezoneSent).toBeTruthy();
+        expect(timezoneSent).toMatch(/^[A-Z]/); // IANA timezone (e.g. "America/New_York", "UTC")
+      });
+    });
+
+    it('sends browser timezone to profile API when completing org onboarding', async () => {
+      let timezoneSent: string | undefined;
+      server.use(
+        http.post('/api/user/update-profile', async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          timezoneSent = body.timezone as string;
+          return HttpResponse.json({ ok: true });
+        }),
+      );
+      mockCreateOrg.mockResolvedValue({ id: 10, name: 'TZ Corp' });
+
+      const user = userEvent.setup();
+      renderOnboarding();
+
+      await user.click(screen.getByTestId('workspace-organization'));
+      await waitFor(() => {
+        expect(screen.getByTestId('org-name-input')).toBeInTheDocument();
+      });
+      await user.type(screen.getByTestId('org-name-input'), 'TZ Corp');
+      await user.click(screen.getByTestId('workspace-continue'));
+
+      await waitFor(() => {
+        expect(timezoneSent).toBeTruthy();
+        expect(timezoneSent).toMatch(/^[A-Z]/);
+      });
+    });
+
+    it('sends browser timezone during auto-complete onboarding', async () => {
+      let timezoneSent: string | undefined;
+      server.use(
+        http.post('/api/user/update-profile', async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          timezoneSent = body.timezone as string;
+          return HttpResponse.json({ ok: true });
+        }),
+      );
+
+      render(
+        <WorkspaceContent
+          onCreateOrg={mockCreateOrg}
+          onUpdateOnboarding={mockUpdateOnboarding}
+          onPatchSession={mockPatchSession}
+          autoComplete
+        />,
+      );
+
+      await waitFor(() => {
+        expect(timezoneSent).toBeTruthy();
+        expect(timezoneSent).toMatch(/^[A-Z]/);
+      });
+    });
+
+    it('completes onboarding even when timezone API fails', async () => {
+      server.use(
+        http.post('/api/user/update-profile', () =>
+          HttpResponse.json({ error: 'server error' }, { status: 500 }),
+        ),
+      );
+
+      const user = userEvent.setup();
+      renderOnboarding();
+
+      await user.click(screen.getByTestId('workspace-personal'));
+      await user.click(screen.getByTestId('workspace-continue'));
+
+      await waitFor(() => {
+        expect(mockPatchSession).toHaveBeenCalledWith(
+          { onboardingStep: 'completed' },
+          '/assistants',
+          {},
+        );
       });
     });
 

@@ -58,13 +58,35 @@ const WorkspaceContent = ({
   const autoCompleteTriggered = useRef(false);
 
   /**
+   * Best-effort: detect the browser timezone and persist it so the user
+   * doesn't start with a blank timezone. The Profile page has a similar
+   * fallback for users who already completed onboarding without this.
+   */
+  const persistBrowserTimezone = useCallback(async () => {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (!tz) return;
+      await fetch('/api/user/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timezone: tz }),
+      });
+    } catch {
+      // Best-effort — the Profile page fallback will catch this.
+    }
+  }, []);
+
+  /**
    * Persist the onboarding step to the backend (best-effort) then call the
    * server action to patch the JWT cookie and redirect.
    */
   const completeAndRedirect = useCallback(
     async (stepData: Record<string, unknown>) => {
       try {
-        await onUpdateOnboarding({ currentStep: 'completed', stepData });
+        await Promise.all([
+          onUpdateOnboarding({ currentStep: 'completed', stepData }),
+          persistBrowserTimezone(),
+        ]);
       } catch {
         // Best-effort: the server-side idempotency check handles the gap.
         console.warn('[onboarding] Failed to persist step completion — will auto-complete on next visit');
@@ -77,7 +99,7 @@ const WorkspaceContent = ({
 
       await onPatchSession({ onboardingStep: 'completed' }, '/assistants', extraParams);
     },
-    [onUpdateOnboarding, onPatchSession],
+    [onUpdateOnboarding, onPatchSession, persistBrowserTimezone],
   );
 
   const handlePersonal = useCallback(async () => {
@@ -138,6 +160,9 @@ const WorkspaceContent = ({
     const current = new URLSearchParams(window.location.search);
     current.forEach((value, key) => { extraParams[key] = value; });
 
+    // Fire timezone detection alongside the session patch (best-effort).
+    persistBrowserTimezone();
+
     onPatchSession(
       { onboardingStep: 'completed' },
       '/assistants',
@@ -145,7 +170,7 @@ const WorkspaceContent = ({
     ).catch(() => {
       setIsLoading(false);
     });
-  }, [autoComplete, onPatchSession]);
+  }, [autoComplete, onPatchSession, persistBrowserTimezone]);
 
   // Show a loading state while auto-completing
   if (autoComplete && isLoading) {
