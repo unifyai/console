@@ -613,6 +613,8 @@ describe('useAssistantContactManager', () => {
         expect(mockActions.contact.create).toHaveBeenCalledWith(mockAssistant.agentId, {
           contactType: 'email',
           emailLocal: 'newassistant',
+          firstName: 'Test',
+          lastName: 'Assistant',
         });
       }
     );
@@ -641,16 +643,8 @@ describe('useAssistantContactManager', () => {
           await new Promise((r) => setTimeout(r, 50));
         });
 
-        // Set up phone data
         act(() => {
-          result.current.contactFormMethods.setValue('userPhone', '+15551234567');
-          result.current.contactFormMethods.setValue('userPhoneIsVerified', true);
-          result.current.contactFormMethods.setValue('isPhoneNumberAdded', true);
           result.current.contactFormMethods.setValue('phoneCountry', 'US');
-        });
-
-        // Switch to phone tab
-        act(() => {
           result.current.setActiveTab('phone');
         });
 
@@ -661,7 +655,6 @@ describe('useAssistantContactManager', () => {
         expect(mockActions.contact.create).toHaveBeenCalledWith(mockAssistant.agentId, {
           contactType: 'phone',
           phoneCountry: 'US',
-          userPhone: '+15551234567',
         });
       }
     );
@@ -747,24 +740,22 @@ describe('useAssistantContactManager', () => {
         });
 
         expect(toast.error).toHaveBeenCalledWith(
-          expect.stringContaining('Email already exists'),
+          'Email already exists in the system',
           expect.any(Object)
         );
       }
     );
 
     it(
-      'submitContact validates phone is verified before submission',
+      'submitContact uses default country when phone country not explicitly selected',
       {
         meta: {
-          alias: 'ContactManager-PhoneValidation',
-          scenario: 'User tries to submit unverified phone',
-          behavior: 'Should show error if phone is not verified',
+          alias: 'ContactManager-PhoneDefaultCountry',
+          scenario: 'User submits phone without explicitly selecting a country',
+          behavior: 'Should succeed using the fallback default country',
         },
       },
       async () => {
-        const { toast } = await import('sonner');
-
         const { result } = renderHook(() =>
           useAssistantContactManager({
             assistant: mockAssistant,
@@ -779,11 +770,7 @@ describe('useAssistantContactManager', () => {
           await new Promise((r) => setTimeout(r, 50));
         });
 
-        // Set phone but NOT verified
         act(() => {
-          result.current.contactFormMethods.setValue('userPhone', '+15551234567');
-          result.current.contactFormMethods.setValue('userPhoneIsVerified', false);
-          result.current.contactFormMethods.setValue('isPhoneNumberAdded', true);
           result.current.setActiveTab('phone');
         });
 
@@ -791,13 +778,10 @@ describe('useAssistantContactManager', () => {
           await result.current.submitContact();
         });
 
-        // Should show validation error
-        expect(toast.error).toHaveBeenCalledWith(
-          expect.stringContaining('verified'),
-          expect.any(Object)
-        );
-        // Should NOT call create
-        expect(mockActions.contact.create).not.toHaveBeenCalled();
+        expect(mockActions.contact.create).toHaveBeenCalledWith(mockAssistant.agentId, {
+          contactType: 'phone',
+          phoneCountry: expect.any(String),
+        });
       }
     );
 
@@ -1040,6 +1024,79 @@ describe('useAssistantContactManager', () => {
 
         expect(result.current.showDeleteButton).toBe(true);
         expect(result.current.showCreateButton).toBe(false);
+      }
+    );
+  });
+
+  // ===========================================================================
+  // Create Button Disabled Tests
+  // ===========================================================================
+
+  describe('Create Button Disabled', () => {
+    it(
+      'phone create button enabled once countries finish loading',
+      {
+        meta: {
+          alias: 'ContactManager-PhoneCreateEnabled',
+          scenario: 'Phone tab with default country loaded',
+          behavior: 'isCreateButtonDisabled should be false after countries load',
+        },
+      },
+      async () => {
+        const { result } = renderHook(() =>
+          useAssistantContactManager({
+            assistant: mockAssistant,
+            isOpen: true,
+            assistantActions: mockActions,
+            onSuccess,
+            initialTab: 'phone',
+          })
+        );
+
+        await waitFor(() => {
+          expect(result.current.isLoadingPhoneCountries).toBe(false);
+        });
+
+        expect(result.current.isCreateButtonDisabled).toBe(false);
+      }
+    );
+
+    it(
+      'phone create button disabled while countries are loading',
+      {
+        meta: {
+          alias: 'ContactManager-PhoneCreateDisabledLoading',
+          scenario: 'Phone tab while countries are still loading',
+          behavior: 'isCreateButtonDisabled should be true during loading',
+        },
+      },
+      async () => {
+        let resolveCountries!: (value: AvailablePhoneCountry[]) => void;
+        const slowCountries = new Promise<AvailablePhoneCountry[]>((resolve) => {
+          resolveCountries = resolve;
+        });
+        const slowActions = createMockAssistantActions();
+        slowActions.contact.listAvailablePhoneCountries = vi.fn().mockReturnValue(slowCountries);
+
+        const { result } = renderHook(() =>
+          useAssistantContactManager({
+            assistant: mockAssistant,
+            isOpen: true,
+            assistantActions: slowActions,
+            onSuccess,
+            initialTab: 'phone',
+          })
+        );
+
+        expect(result.current.isCreateButtonDisabled).toBe(true);
+
+        await act(async () => {
+          resolveCountries([{ code: 'US', name: 'United States', flag: '🇺🇸' }]);
+        });
+
+        await waitFor(() => {
+          expect(result.current.isCreateButtonDisabled).toBe(false);
+        });
       }
     );
   });

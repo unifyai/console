@@ -58,7 +58,7 @@ export async function POST(
  *
  * Proxies to: PUT /v0/assistant/{assistant_id}/contact
  *
- * Updates non-provisioned fields on an existing contact (e.g. user_value, metadata).
+ * Updates metadata on an existing contact.
  *
  * Uses getOrchestraUserClient which automatically handles snake_case ↔ camelCase.
  */

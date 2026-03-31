@@ -55,6 +55,8 @@ interface MainProps {
     image: string | null | undefined;
     timezone?: string | null;
     email?: string | null;
+    phoneNumber?: string | null;
+    whatsappNumber?: string | null;
     orgId?: number | null;
     isOrgContext?: boolean;
     mfaSetupRequired?: boolean;
@@ -1044,6 +1046,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             initialTab={contactManagerInitialTab}
             canWrite={canWrite(contactManagerAssistant)}
             onAddPaymentMethod={() => setIsStripePanelOpen(true)}
+            userPhoneNumber={userMeta.phoneNumber ?? null}
+            userWhatsappNumber={userMeta.whatsappNumber ?? null}
           />
         )}
       </FormProvider>

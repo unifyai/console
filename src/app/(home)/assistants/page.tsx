@@ -171,6 +171,8 @@ const AssistantsPage = async ({
     image: user.image,
     timezone: user.timezone,
     email: user.email,
+    phoneNumber: user.phoneNumber,
+    whatsappNumber: user.whatsappNumber,
     orgId,
     isOrgContext,
     mfaSetupRequired: !!user.mfaSetupRequired,

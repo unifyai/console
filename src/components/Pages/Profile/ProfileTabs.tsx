@@ -6,8 +6,10 @@ import { useSearchParams } from 'next/navigation';
 import ProfileForm from './Form';
 import SecurityTab from './SecurityTab';
 import PreferencesTab from './PreferencesTab';
+import ContactInfoTab from './ContactInfoTab';
+import AdvancedTab from './AdvancedTab';
 
-const VALID_TABS = ['profile', 'security', 'preferences'] as const;
+const VALID_TABS = ['profile', 'contact-info', 'preferences', 'security', 'advanced'] as const;
 type TabValue = (typeof VALID_TABS)[number];
 
 const ProfileTabs = ({
@@ -25,7 +27,9 @@ const ProfileTabs = ({
     <Tabs defaultValue={initialTab} className="mt-4">
       <TabsList className="w-full">
         <TabsTrigger value="profile" className="flex-1">Profile</TabsTrigger>
+        <TabsTrigger value="contact-info" className="flex-1">Contact Info</TabsTrigger>
         <TabsTrigger value="preferences" className="flex-1">Preferences</TabsTrigger>
+        <TabsTrigger value="advanced" className="flex-1">Advanced</TabsTrigger>
         <TabsTrigger value="security" className="flex-1">Security</TabsTrigger>
       </TabsList>
 
@@ -33,8 +37,16 @@ const ProfileTabs = ({
         <ProfileForm onPrem={onPrem} user={user} />
       </TabsContent>
 
+      <TabsContent value="contact-info" className="mt-4">
+        <ContactInfoTab user={user} />
+      </TabsContent>
+
       <TabsContent value="preferences" className="mt-4">
         <PreferencesTab />
+      </TabsContent>
+
+      <TabsContent value="advanced" className="mt-4">
+        <AdvancedTab apiKey={user.apiKey} />
       </TabsContent>
 
       <TabsContent value="security" className="mt-4">

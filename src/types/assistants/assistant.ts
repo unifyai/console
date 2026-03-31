@@ -139,19 +139,8 @@ export interface ContactFormData {
   emailManuallyEdited: boolean;
 
   // Phone fields
-  userPhone: string;
-  userPhoneIsVerified: boolean;
-  userPhoneIsVerifying: boolean;
-  userPhoneVerificationCodeSent: string | null;
-  userPhoneVerificationSentAt: Date | null;
-  userPhoneVerificationAttempts: number;
-  userPhoneVerificationError: string | null;
   phoneCountry: string;
   isPhoneNumberAdded: boolean;
-
-  // WhatsApp / Social fields
-  userWhatsappNumber: string | null;
-  socialAccounts: SocialAccount[];
 }
 
 /**

@@ -715,13 +715,11 @@ describe('contact.ts', () => {
         await createFn('a1', {
           contactType: 'phone',
           phoneCountry: 'US',
-          userPhone: '+15551234567',
         });
 
         // Assert - payload should be in snake_case
         expect(capturedBody).toHaveProperty('contact_type', 'phone');
         expect(capturedBody).toHaveProperty('phone_country', 'US');
-        expect(capturedBody).toHaveProperty('user_phone', '+15551234567');
       }
     );
 
@@ -832,8 +830,8 @@ describe('contact.ts', () => {
         const deleteFn = await deleteAssistantContact(TEST_API_KEY);
         await deleteFn('a1', 'email');
 
-        // Assert
-        expect(capturedBody).toHaveProperty('contactType', 'email');
+        // Assert - payload should be in snake_case
+        expect(capturedBody).toHaveProperty('contact_type', 'email');
       }
     );
 

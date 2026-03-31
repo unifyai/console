@@ -6,7 +6,6 @@ import {
   AvailablePhoneCountry,
   AssistantActions,
   ContactFormData,
-  SocialAccount,
 } from '@/types/assistants/assistant';
 import { ContactCosts, AssistantContactCreatePayload } from '@/types/assistants/contact';
 import { ResponseProps } from '@/types/common';
@@ -366,35 +365,12 @@ export function useAssistantContactManager({
         }
 
         case 'phone': {
-          const userPhone = getValues('userPhone');
-          const userPhoneIsVerified = getValues('userPhoneIsVerified');
-          const isPhoneNumberAdded = getValues('isPhoneNumberAdded');
           const phoneCountry = getValues('phoneCountry');
-
-          if (!isPhoneNumberAdded) {
-            throw new Error('No phone number to save.');
-          }
-
-          if (userPhone && !userPhoneIsVerified) {
-            throw new Error('Your phone number must be verified before saving.');
-          }
-
-          payload.phoneCountry = phoneCountry || 'US';
-          payload.userPhone = userPhone || undefined;
+          payload.phoneCountry = phoneCountry || FALLBACK_DEFAULT_COUNTRY_CODE;
           break;
         }
 
         case 'whatsapp': {
-          const socialAccountsValue = getValues('socialAccounts');
-          const whatsappAccount = socialAccountsValue?.find(
-            (acc) => acc.platform === 'whatsapp' && acc.isVerified
-          );
-
-          if (!whatsappAccount || !whatsappAccount.identifier) {
-            throw new Error('WhatsApp account must be verified before saving.');
-          }
-
-          payload.userWhatsappNumber = whatsappAccount.identifier;
           break;
         }
       }
@@ -410,10 +386,8 @@ export function useAssistantContactManager({
       toastIdRef.current = undefined;
       onSuccess();
     } catch (error: any) {
-      // Show specific error message if available
       const errorMessage = error?.message || 'An error occurred while creating contact.';
-      console.log(errorMessage);
-      toast.error('An error occurred while creating contact. Please try again.', { id: toastIdRef.current });
+      toast.error(errorMessage, { id: toastIdRef.current });
       toastIdRef.current = undefined;
     } finally {
       setIsSubmittingContact(false);
@@ -431,10 +405,6 @@ export function useAssistantContactManager({
 
   // Watch form values for reactive UI updates
   const isEmailAdded = watch('isEmailAdded');
-  const isPhoneNumberAdded = watch('isPhoneNumberAdded');
-  const userPhoneIsVerified = watch('userPhoneIsVerified');
-  const socialAccounts = watch('socialAccounts');
-  const whatsAppAccount = socialAccounts?.find((acc) => acc.platform === 'whatsapp');
 
   /**
    * One-time setup cost for the contact type on the active tab.
@@ -465,15 +435,11 @@ export function useAssistantContactManager({
 
     switch (activeTab) {
       case 'email':
-        // Button should be enabled if email is added and the local part is not empty
         return !isEmailAdded || !emailLocalPart;
       case 'phone':
-        // Button should be enabled if a phone number is being added AND it's verified.
-        const phoneValue = getValues('userPhone');
-        return !isPhoneNumberAdded || !userPhoneIsVerified || !phoneValue;
+        return isLoadingPhoneCountries;
       case 'whatsapp':
-        // Button should be enabled if the account exists, has an identifier, and is verified.
-        return !whatsAppAccount || !whatsAppAccount.identifier || !whatsAppAccount.isVerified;
+        return false;
       default:
         return true;
     }
@@ -482,19 +448,18 @@ export function useAssistantContactManager({
     activeTab,
     isEmailAdded,
     emailLocalPart,
-    isPhoneNumberAdded,
-    userPhoneIsVerified,
-    whatsAppAccount,
-    getValues,
+    isLoadingPhoneCountries,
   ]);
 
   const showCreateButton =
     (activeTab === 'email' && !assistant.email) ||
-    (activeTab === 'phone' && !assistant.phone);
+    (activeTab === 'phone' && !assistant.phone) ||
+    (activeTab === 'whatsapp' && !assistant.assistantWhatsappNumber);
 
   const showDeleteButton =
     (activeTab === 'email' && !!assistant.email) ||
-    (activeTab === 'phone' && !!assistant.phone);
+    (activeTab === 'phone' && !!assistant.phone) ||
+    (activeTab === 'whatsapp' && !!assistant.assistantWhatsappNumber);
 
   return {
     // Form methods for component bindings
@@ -537,40 +502,11 @@ export function useAssistantContactManager({
  * Helper to create default contact form values from an assistant object.
  */
 function getDefaultContactValues(assistant: Assistant): ContactFormData {
-  const socialAccounts: SocialAccount[] = [];
-  if (assistant.userWhatsappNumber) {
-    socialAccounts.push({
-      platform: 'whatsapp',
-      identifier: assistant.userWhatsappNumber,
-      isVerified: true,
-      isInitial: true,
-      isVerifying: false,
-      verificationCodeSent: null,
-      verificationSentAt: null,
-      verificationAttempts: 0,
-      verificationError: null,
-    });
-  }
-
   return {
-    // Email
     email: assistant.email || null,
     isEmailAdded: !!assistant.email,
     emailManuallyEdited: !!assistant.email,
-
-    // Phone
-    userPhone: assistant.userPhone || '',
-    userPhoneIsVerified: !!assistant.userPhone,
-    userPhoneIsVerifying: false,
-    userPhoneVerificationCodeSent: null,
-    userPhoneVerificationSentAt: null,
-    userPhoneVerificationAttempts: 0,
-    userPhoneVerificationError: null,
     phoneCountry: assistant.phoneCountry || FALLBACK_DEFAULT_COUNTRY_CODE,
     isPhoneNumberAdded: !!assistant.phone,
-
-    // WhatsApp / Social
-    userWhatsappNumber: assistant.userWhatsappNumber || null,
-    socialAccounts,
   };
 }

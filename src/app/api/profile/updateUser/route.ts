@@ -1,34 +1,25 @@
-import { updateUser } from '@/lib/user/user';
+import { updateUser, getCurrentUser } from '@/lib/user/user';
 import { UserUpdateRequest } from '@/types/user';
 import { NextRequest } from 'next/server';
 
 /**
  * Handles the form submission for updating a user's profile information.
  *
- * The request body should contain the following form fields:
- *
- * - `email`: The new email address of the user.
- * - `name`: The new first name of the user.
- * - `lastName`: The new last name of the user.
- * - `image`: The new profile image as a base64 encoded string.
- * - `jobTitle`: The new job title of the user.
- * - `bio`: The new user bio.
- *
- * @param request The request object.
- *
- * @returns A response object with the updated user information.
+ * The user ID is resolved from the authenticated session, not from the
+ * request, to prevent IDOR attacks.
  */
 export async function POST(request: NextRequest) {
-  const id = request.nextUrl.searchParams.get('userID');
-
-  if (!id) {
-    return new Response(JSON.stringify({ error: 'User ID is required' }), { status: 400 });
+  const sessionUser = await getCurrentUser();
+  if (!sessionUser) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
+  const id = sessionUser.id;
   const formData = await request.formData();
 
   // Update user properties in db
   const phoneNumber = formData.get('phoneNumber') as string | null;
+  const whatsappNumber = formData.get('whatsappNumber') as string | null;
   const userUpdateReq: UserUpdateRequest = {
     email: formData.get('email') as string,
     userId: id,
@@ -37,11 +28,28 @@ export async function POST(request: NextRequest) {
     lastName: formData.get('lastName') as string,
     jobTitle: formData.get('jobTitle') as string,
     bio: formData.get('bio') as string,
-    timezone: formData.get('timezone') as string | null,
+    timezone: (formData.get('timezone') as string) || null,
     phoneNumber: phoneNumber === '' ? null : phoneNumber,
+    whatsappNumber: whatsappNumber === '' ? null : whatsappNumber,
   };
 
-  const response = await updateUser(userUpdateReq);
+  try {
+    const response = await updateUser(userUpdateReq);
+    return new Response(JSON.stringify(response));
+  } catch (error: unknown) {
+    const axiosErr = error as { response?: { status?: number; data?: { detail?: unknown } } };
+    const statusCode = axiosErr?.response?.status || 500;
+    const rawDetail = axiosErr?.response?.data?.detail;
 
-  return new Response(JSON.stringify(response));
+    let detail: string;
+    if (typeof rawDetail === 'string') {
+      detail = rawDetail;
+    } else if (Array.isArray(rawDetail) && rawDetail.length > 0) {
+      detail = rawDetail.map((e: { msg?: string }) => e.msg || JSON.stringify(e)).join('; ');
+    } else {
+      detail = 'Failed to update user.';
+    }
+
+    return new Response(JSON.stringify({ error: detail }), { status: statusCode });
+  }
 }
