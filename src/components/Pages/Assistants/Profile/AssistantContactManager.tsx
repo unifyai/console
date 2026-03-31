@@ -380,50 +380,13 @@ export function AssistantContactManager({
                 )}
               </TabsContent>
               <TabsContent value="whatsapp" className="py-4">
-                {assistant.assistantWhatsappNumber ? (
-                  <div className="space-y-4">
-                    <DisplayContactField
-                      label="Assistant WhatsApp Number"
-                      value={assistant.assistantWhatsappNumber}
-                    />
-                    {userWhatsappNumber && (
-                      <div>
-                        <Label>Your WhatsApp</Label>
-                        <div className="mt-1 flex items-center gap-2">
-                          <Input value={userWhatsappNumber} readOnly disabled className="flex-1" />
-                          <CheckCircle2 className="h-5 w-5 text-green-500" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : canWrite ? (
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Your WhatsApp Number</Label>
-                      {userWhatsappNumber ? (
-                        <div className="mt-1 flex items-center gap-2">
-                          <Input value={userWhatsappNumber} readOnly disabled className="flex-1" />
-                          <CheckCircle2 className="h-5 w-5 text-green-500" />
-                        </div>
-                      ) : (
-                        <div className="mt-1 rounded-md border border-dashed border-muted-foreground/40 p-3">
-                          <p className="text-body text-muted-foreground">
-                            No WhatsApp number set in your profile.{' '}
-                            <a
-                              href="/account?tab=contact-info"
-                              className="text-primary underline hover:text-primary/80"
-                            >
-                              Add your WhatsApp number
-                            </a>{' '}
-                            to enable WhatsApp interactions with your assistant.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-body text-muted-foreground">No WhatsApp number configured.</p>
-                )}
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <WhatsApp sx={{ fontSize: '40px' }} className="mb-3 text-muted-foreground" />
+                  <p className="text-body text-strong text-foreground">Coming Soon</p>
+                  <p className="text-body text-muted-foreground mt-1 max-w-xs">
+                    WhatsApp integration is currently under development. Stay tuned!
+                  </p>
+                </div>
               </TabsContent>
             </Tabs>
           )}

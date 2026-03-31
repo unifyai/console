@@ -439,7 +439,7 @@ export function useAssistantContactManager({
       case 'phone':
         return isLoadingPhoneCountries;
       case 'whatsapp':
-        return false;
+        return true;
       default:
         return true;
     }
@@ -453,13 +453,11 @@ export function useAssistantContactManager({
 
   const showCreateButton =
     (activeTab === 'email' && !assistant.email) ||
-    (activeTab === 'phone' && !assistant.phone) ||
-    (activeTab === 'whatsapp' && !assistant.assistantWhatsappNumber);
+    (activeTab === 'phone' && !assistant.phone);
 
   const showDeleteButton =
     (activeTab === 'email' && !!assistant.email) ||
-    (activeTab === 'phone' && !!assistant.phone) ||
-    (activeTab === 'whatsapp' && !!assistant.assistantWhatsappNumber);
+    (activeTab === 'phone' && !!assistant.phone);
 
   return {
     // Form methods for component bindings
