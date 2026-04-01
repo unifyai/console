@@ -54,8 +54,18 @@ describe('Contact API Routes', () => {
             if (fromFields === 'email') {
               return HttpResponse.json({
                 info: [
-                  { agent_id: '1', user_id: 1, created_at: '2024-01-01', email: 'assistant1@example.com' },
-                  { agent_id: '2', user_id: 2, created_at: '2024-01-01', email: 'assistant2@example.com' },
+                  {
+                    agent_id: '1',
+                    user_id: 1,
+                    created_at: '2024-01-01',
+                    email: 'assistant1@example.com',
+                  },
+                  {
+                    agent_id: '2',
+                    user_id: 2,
+                    created_at: '2024-01-01',
+                    email: 'assistant2@example.com',
+                  },
                 ],
               });
             }
@@ -216,9 +226,30 @@ describe('Contact API Routes', () => {
         server.use(
           http.get(`${MOCK_ORCHESTRA_URL}/v0/admin/billing/contact-costs`, () => {
             return HttpResponse.json([
-              { id: 1, contact_type: 'phone', provider: null, country_code: null, monthly_cost: 1.5, one_time_cost: 5.0 },
-              { id: 2, contact_type: 'email', provider: null, country_code: null, monthly_cost: 14.0, one_time_cost: 5.0 },
-              { id: 3, contact_type: 'whatsapp', provider: null, country_code: null, monthly_cost: 5.0, one_time_cost: 5.0 },
+              {
+                id: 1,
+                contact_type: 'phone',
+                provider: null,
+                country_code: null,
+                monthly_cost: 1.5,
+                one_time_cost: 5.0,
+              },
+              {
+                id: 2,
+                contact_type: 'email',
+                provider: null,
+                country_code: null,
+                monthly_cost: 14.0,
+                one_time_cost: 5.0,
+              },
+              {
+                id: 3,
+                contact_type: 'whatsapp',
+                provider: null,
+                country_code: null,
+                monthly_cost: 5.0,
+                one_time_cost: 5.0,
+              },
             ]);
           })
         );

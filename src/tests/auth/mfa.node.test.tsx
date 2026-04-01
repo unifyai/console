@@ -96,7 +96,7 @@ describe('MFA Journey', () => {
             return HttpResponse.json({ success: true });
           }
           return HttpResponse.json({ message: 'Invalid code' }, { status: 400 });
-        }),
+        })
       );
 
       const user = userEvent.setup();
@@ -119,8 +119,8 @@ describe('MFA Journey', () => {
     it('shows error for invalid TOTP code', async () => {
       server.use(
         http.post('/api/auth/mfa/verify', () =>
-          HttpResponse.json({ message: 'Invalid code. Please try again.' }, { status: 400 }),
-        ),
+          HttpResponse.json({ message: 'Invalid code. Please try again.' }, { status: 400 })
+        )
       );
 
       const user = userEvent.setup();
@@ -164,8 +164,8 @@ describe('MFA Journey', () => {
     it('clears error when switching between TOTP and recovery views', async () => {
       server.use(
         http.post('/api/auth/mfa/verify', () =>
-          HttpResponse.json({ message: 'Invalid code.' }, { status: 400 }),
-        ),
+          HttpResponse.json({ message: 'Invalid code.' }, { status: 400 })
+        )
       );
 
       const user = userEvent.setup();
@@ -208,7 +208,7 @@ describe('MFA Journey', () => {
             return HttpResponse.json({ remainingCodes: 5 });
           }
           return HttpResponse.json({ message: 'Invalid recovery code' }, { status: 400 });
-        }),
+        })
       );
 
       const user = userEvent.setup();
@@ -235,9 +235,7 @@ describe('MFA Journey', () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
 
       server.use(
-        http.post('/api/auth/mfa/verify-recovery', () =>
-          HttpResponse.json({ remainingCodes: 2 }),
-        ),
+        http.post('/api/auth/mfa/verify-recovery', () => HttpResponse.json({ remainingCodes: 2 }))
       );
 
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
@@ -253,7 +251,7 @@ describe('MFA Journey', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('recovery-warning')).toHaveTextContent(
-          '2 recovery codes remaining',
+          '2 recovery codes remaining'
         );
       });
 
@@ -269,8 +267,8 @@ describe('MFA Journey', () => {
     it('shows error for invalid recovery code', async () => {
       server.use(
         http.post('/api/auth/mfa/verify-recovery', () =>
-          HttpResponse.json({ message: 'Invalid recovery code.' }, { status: 400 }),
-        ),
+          HttpResponse.json({ message: 'Invalid recovery code.' }, { status: 400 })
+        )
       );
 
       const user = userEvent.setup();
@@ -307,7 +305,7 @@ describe('MFA Journey', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('recovery-error')).toHaveTextContent(
-          'Recovery code verification failed',
+          'Recovery code verification failed'
         );
       });
     });
@@ -353,19 +351,23 @@ describe('MFA Journey', () => {
       server.use(
         http.post('/api/auth/mfa/setup', () =>
           HttpResponse.json({
-            qrCodeUri:
-              'otpauth://totp/Unify:user@test.com?secret=JBSWY3DPEHPK3PXP&issuer=Unify',
-          }),
+            qrCodeUri: 'otpauth://totp/Unify:user@test.com?secret=JBSWY3DPEHPK3PXP&issuer=Unify',
+          })
         ),
         http.post('/api/auth/mfa/confirm', async ({ request }) => {
           const body = (await request.json()) as Record<string, unknown>;
           if (body.code === '654321') {
             return HttpResponse.json({
-              recoveryCodes: ['CODE-1111-AAAA', 'CODE-2222-BBBB', 'CODE-3333-CCCC', 'CODE-4444-DDDD'],
+              recoveryCodes: [
+                'CODE-1111-AAAA',
+                'CODE-2222-BBBB',
+                'CODE-3333-CCCC',
+                'CODE-4444-DDDD',
+              ],
             });
           }
           return HttpResponse.json({ message: 'Invalid code' }, { status: 400 });
-        }),
+        })
       );
 
       const user = userEvent.setup();
@@ -412,13 +414,12 @@ describe('MFA Journey', () => {
       server.use(
         http.post('/api/auth/mfa/setup', () =>
           HttpResponse.json({
-            qrCodeUri:
-              'otpauth://totp/Unify:user@test.com?secret=JBSWY3DPEHPK3PXP&issuer=Unify',
-          }),
+            qrCodeUri: 'otpauth://totp/Unify:user@test.com?secret=JBSWY3DPEHPK3PXP&issuer=Unify',
+          })
         ),
         http.post('/api/auth/mfa/confirm', () =>
-          HttpResponse.json({ message: 'Invalid code.' }, { status: 400 }),
-        ),
+          HttpResponse.json({ message: 'Invalid code.' }, { status: 400 })
+        )
       );
 
       const user = userEvent.setup();
@@ -447,8 +448,8 @@ describe('MFA Journey', () => {
     it('shows error when setup API fails', async () => {
       server.use(
         http.post('/api/auth/mfa/setup', () =>
-          HttpResponse.json({ message: 'MFA setup failed' }, { status: 500 }),
-        ),
+          HttpResponse.json({ message: 'MFA setup failed' }, { status: 500 })
+        )
       );
 
       render(<MfaPage />);
@@ -479,13 +480,13 @@ describe('MFA Journey', () => {
         http.post('/api/auth/mfa/setup', () =>
           HttpResponse.json({
             qrCodeUri: 'otpauth://totp/Unify:user@test.com?secret=SECRET&issuer=Unify',
-          }),
+          })
         ),
         http.post('/api/auth/mfa/confirm', () =>
           HttpResponse.json({
             recoveryCodes: ['CODE-AAAA', 'CODE-BBBB', 'CODE-CCCC'],
-          }),
-        ),
+          })
+        )
       );
 
       const user = userEvent.setup();
@@ -535,11 +536,11 @@ describe('MFA Journey', () => {
         http.post('/api/auth/mfa/setup', () =>
           HttpResponse.json({
             qrCodeUri: 'otpauth://totp/Unify:user@test.com?secret=SECRET&issuer=Unify',
-          }),
+          })
         ),
         http.post('/api/auth/mfa/confirm', () =>
-          HttpResponse.json({ recoveryCodes: ['CODE-1111'] }),
-        ),
+          HttpResponse.json({ recoveryCodes: ['CODE-1111'] })
+        )
       );
 
       const user = userEvent.setup();
@@ -598,8 +599,8 @@ describe('MFA Journey', () => {
     it('defaults to verification flow when status check fails', async () => {
       server.use(
         http.get('/api/auth/mfa/status', () =>
-          HttpResponse.json({ error: 'Server error' }, { status: 500 }),
-        ),
+          HttpResponse.json({ error: 'Server error' }, { status: 500 })
+        )
       );
 
       render(<MfaPage />);
@@ -639,9 +640,7 @@ describe('MFA Journey', () => {
 
     it('forwards credit token to /assistants after TOTP verification', async () => {
       mockMfaSearchParams = { token: 'credit_abc' };
-      server.use(
-        http.post('/api/auth/mfa/verify', () => HttpResponse.json({ success: true })),
-      );
+      server.use(http.post('/api/auth/mfa/verify', () => HttpResponse.json({ success: true })));
 
       const user = userEvent.setup();
       render(<MfaPage />);
@@ -662,9 +661,7 @@ describe('MFA Journey', () => {
     it('forwards credit token after recovery code verification', async () => {
       mockMfaSearchParams = { token: 'credit_xyz' };
       server.use(
-        http.post('/api/auth/mfa/verify-recovery', () =>
-          HttpResponse.json({ remainingCodes: 5 }),
-        ),
+        http.post('/api/auth/mfa/verify-recovery', () => HttpResponse.json({ remainingCodes: 5 }))
       );
 
       const user = userEvent.setup();
@@ -684,9 +681,7 @@ describe('MFA Journey', () => {
     });
 
     it('redirects to bare /assistants when no credit token is present', async () => {
-      server.use(
-        http.post('/api/auth/mfa/verify', () => HttpResponse.json({ success: true })),
-      );
+      server.use(http.post('/api/auth/mfa/verify', () => HttpResponse.json({ success: true })));
 
       const user = userEvent.setup();
       render(<MfaPage />);
@@ -705,4 +700,3 @@ describe('MFA Journey', () => {
     });
   });
 });
-

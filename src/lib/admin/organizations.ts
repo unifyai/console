@@ -30,11 +30,7 @@ const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
 // Helper – identical to the one in lib/orchestra/api/organization.ts
 // ---------------------------------------------------------------------------
 
-const safeFetch = async (
-  url: string,
-  options: RequestInit,
-  context: string
-): Promise<unknown> => {
+const safeFetch = async (url: string, options: RequestInit, context: string): Promise<unknown> => {
   try {
     const response = await fetch(url, { ...options, cache: 'no-store' });
 
@@ -55,8 +51,7 @@ const safeFetch = async (
     return {};
   } catch (error) {
     console.error(`[admin/organizations ${context}] Error:`, error);
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown server error occurred.';
+    const errorMessage = error instanceof Error ? error.message : 'Unknown server error occurred.';
     return { detail: errorMessage, status: 500 };
   }
 };
@@ -169,10 +164,7 @@ export async function lookupUserByEmailAction() {
 }
 
 export async function createOrganizationForUserAction() {
-  return async (
-    name: string,
-    creatorUserId: string
-  ): Promise<ResponseProps> => {
+  return async (name: string, creatorUserId: string): Promise<ResponseProps> => {
     'use server';
     return safeFetch(
       `${backendUrl}/admin/organizations`,
@@ -192,7 +184,12 @@ export async function createOrganizationForUserAction() {
 // =============================================================================
 
 export async function inviteUserToOrgAction() {
-  return async (orgId: number, email: string, roleId?: number, roleName?: string): Promise<ResponseProps> => {
+  return async (
+    orgId: number,
+    email: string,
+    roleId?: number,
+    roleName?: string
+  ): Promise<ResponseProps> => {
     'use server';
     const body: Record<string, unknown> = { email };
     if (roleId !== undefined) {
@@ -291,11 +288,7 @@ export async function unverifyOrganizationAction() {
 // =============================================================================
 
 export async function addCreditsAction() {
-  return async (
-    orgId: number,
-    amount: number,
-    type: string
-  ): Promise<ResponseProps> => {
+  return async (orgId: number, amount: number, type: string): Promise<ResponseProps> => {
     'use server';
     return safeFetch(
       `${backendUrl}/admin/create_recharge`,
@@ -311,10 +304,7 @@ export async function addCreditsAction() {
 }
 
 export async function freezeAccountAction() {
-  return async (
-    orgId: number,
-    freeze: boolean
-  ): Promise<ResponseProps> => {
+  return async (orgId: number, freeze: boolean): Promise<ResponseProps> => {
     'use server';
     return safeFetch(
       `${backendUrl}/admin/billing/freeze?freeze=${freeze}&organization_id=${orgId}`,
@@ -323,4 +313,3 @@ export async function freezeAccountAction() {
     ) as Promise<ResponseProps>;
   };
 }
-

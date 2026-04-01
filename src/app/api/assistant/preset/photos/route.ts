@@ -20,10 +20,7 @@ export async function POST(request: NextRequest) {
   const bucketName = process.env.ORCHESTRA_GCP_ASSISTANT_MEDIA_PRESETS_BUCKET_NAME;
 
   if (!bucketName || !storage) {
-    return NextResponse.json(
-      { detail: 'Server configuration error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ detail: 'Server configuration error' }, { status: 500 });
   }
 
   let body: { presets?: { firstName: string; surname: string }[] };

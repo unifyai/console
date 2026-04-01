@@ -28,7 +28,7 @@ function hiddenStatusIcon(items: Attachment[]): React.ReactNode {
   const statuses = items.map((a) => a.uploadStatus).filter(Boolean);
   if (statuses.length === 0) return null;
   if (statuses.includes('queued'))
-    return <Clock className="h-3 w-3 flex-shrink-0 text-muted-foreground/50" />;
+    return <Clock className="text-muted-foreground/50 h-3 w-3 flex-shrink-0" />;
   if (statuses.includes('uploading'))
     return <Loader2 className="h-3 w-3 flex-shrink-0 animate-spin text-muted-foreground" />;
   if (statuses.includes('error'))
@@ -55,13 +55,20 @@ export interface AttachmentChipProps {
  * Clicking opens a preview dialog (if onPreview is provided).
  * During upload, shows a spinner/check/error indicator instead of remove.
  */
-export function AttachmentChip({ attachment, onRemove, onHover, onPreview, className }: AttachmentChipProps) {
+export function AttachmentChip({
+  attachment,
+  onRemove,
+  onHover,
+  onPreview,
+  className,
+}: AttachmentChipProps) {
   const type = getAttachmentType(attachment.filename);
   const Icon = getAttachmentIcon(type);
   const iconColor = getAttachmentColor(type);
   const truncatedName = truncateFilename(attachment.filename);
   const status = attachment.uploadStatus;
-  const isUploading = status === 'queued' || status === 'uploading' || status === 'done' || status === 'error';
+  const isUploading =
+    status === 'queued' || status === 'uploading' || status === 'done' || status === 'error';
   const tooLarge = isOversized(attachment.sizeBytes);
   const isClickable = !!onPreview;
 
@@ -85,13 +92,25 @@ export function AttachmentChip({ attachment, onRemove, onHover, onPreview, class
 
     switch (status) {
       case 'queued':
-        return iconWithTooltip(<Clock className="h-3 w-3 flex-shrink-0 text-muted-foreground/50" />, 'Queued');
+        return iconWithTooltip(
+          <Clock className="text-muted-foreground/50 h-3 w-3 flex-shrink-0" />,
+          'Queued'
+        );
       case 'uploading':
-        return iconWithTooltip(<Loader2 className="h-3 w-3 flex-shrink-0 animate-spin text-muted-foreground" />, 'Uploading');
+        return iconWithTooltip(
+          <Loader2 className="h-3 w-3 flex-shrink-0 animate-spin text-muted-foreground" />,
+          'Uploading'
+        );
       case 'done':
-        return iconWithTooltip(<Check className="h-3 w-3 flex-shrink-0 text-green-500" />, 'Uploaded');
+        return iconWithTooltip(
+          <Check className="h-3 w-3 flex-shrink-0 text-green-500" />,
+          'Uploaded'
+        );
       case 'error':
-        return iconWithTooltip(<AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />, 'Failed');
+        return iconWithTooltip(
+          <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />,
+          'Failed'
+        );
       default:
         return null;
     }
@@ -104,7 +123,7 @@ export function AttachmentChip({ attachment, onRemove, onHover, onPreview, class
         'text-body border-border/60 group flex items-center gap-1.5 border bg-transparent px-2.5 py-1',
         isClickable && 'hover:bg-muted/50 cursor-pointer',
         status === 'error' && 'border-destructive/40',
-        tooLarge && 'border-destructive bg-destructive/10',
+        tooLarge && 'bg-destructive/10 border-destructive',
         className
       )}
       data-testid="attachment-chip"
@@ -114,15 +133,24 @@ export function AttachmentChip({ attachment, onRemove, onHover, onPreview, class
       onMouseLeave={() => onHover?.(null)}
     >
       {tooLarge ? (
-        <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 text-destructive" data-testid="attachment-icon" />
+        <AlertCircle
+          className="h-3.5 w-3.5 flex-shrink-0 text-destructive"
+          data-testid="attachment-icon"
+        />
       ) : (
         <Icon
-          className={cn('h-3.5 w-3.5 flex-shrink-0', (status === 'uploading' || status === 'queued') && 'opacity-50')}
+          className={cn(
+            'h-3.5 w-3.5 flex-shrink-0',
+            (status === 'uploading' || status === 'queued') && 'opacity-50'
+          )}
           style={{ color: iconColor }}
           data-testid="attachment-icon"
         />
       )}
-      <span className={cn('truncate', (status === 'uploading' || status === 'queued') && 'opacity-50')} data-testid="attachment-name">
+      <span
+        className={cn('truncate', (status === 'uploading' || status === 'queued') && 'opacity-50')}
+        data-testid="attachment-name"
+      >
         {truncatedName}
       </span>
       {statusIndicator}
@@ -157,10 +185,12 @@ function HoverLabel({ attachment }: { attachment: Attachment | null }) {
   const sizeText = formatFileSize(attachment.sizeBytes ?? 0);
 
   return (
-    <span className={cn(
-      'text-caption absolute -top-5 left-0 whitespace-nowrap',
-      tooLarge ? 'text-destructive' : 'text-muted-foreground'
-    )}>
+    <span
+      className={cn(
+        'text-caption absolute -top-5 left-0 whitespace-nowrap',
+        tooLarge ? 'text-destructive' : 'text-muted-foreground'
+      )}
+    >
       {attachment.filename} [{sizeText}]{tooLarge && ' → Too large, will be dropped on send.'}
     </span>
   );
@@ -197,7 +227,8 @@ export function PendingAttachmentList({
   if (attachments.length === 0) return null;
 
   const needsCollapse = attachments.length > COLLAPSED_CHIP_LIMIT;
-  const visible = needsCollapse && !expanded ? attachments.slice(0, COLLAPSED_CHIP_LIMIT) : attachments;
+  const visible =
+    needsCollapse && !expanded ? attachments.slice(0, COLLAPSED_CHIP_LIMIT) : attachments;
   const hidden = needsCollapse && !expanded ? attachments.slice(COLLAPSED_CHIP_LIMIT) : [];
   const hiddenCount = attachments.length - COLLAPSED_CHIP_LIMIT;
   const hiddenHasWarning = hidden.some((a) => isOversized(a.sizeBytes));
@@ -208,7 +239,9 @@ export function PendingAttachmentList({
       <AttachmentPreviewDialog
         attachment={previewAttachment}
         open={!!previewAttachment}
-        onOpenChange={(open) => { if (!open) setPreviewAttachment(null); }}
+        onOpenChange={(open) => {
+          if (!open) setPreviewAttachment(null);
+        }}
       />
       <div className="relative flex flex-wrap items-center gap-2">
         <HoverLabel attachment={hovered} />
@@ -226,8 +259,8 @@ export function PendingAttachmentList({
           <Badge
             variant="secondary"
             className={cn(
-              'text-body flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 hover:bg-muted/50',
-              hiddenHasWarning ? 'border-destructive bg-destructive/10' : 'border-border/60'
+              'text-body hover:bg-muted/50 flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1',
+              hiddenHasWarning ? 'bg-destructive/10 border-destructive' : 'border-border/60'
             )}
             onClick={() => setExpanded((prev) => !prev)}
             data-testid="attachment-expand-toggle"
@@ -239,9 +272,10 @@ export function PendingAttachmentList({
               </>
             ) : (
               <>
-                {hiddenHasWarning && !hiddenStatus && <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />}
-                {hiddenStatus}
-                +{hiddenCount} more
+                {hiddenHasWarning && !hiddenStatus && (
+                  <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />
+                )}
+                {hiddenStatus}+{hiddenCount} more
                 <ChevronDown className="h-3 w-3" />
               </>
             )}
@@ -326,8 +360,10 @@ export function MessageAttachmentList({
     : attachments;
 
   const needsCollapse = otherAttachments.length > COLLAPSED_CHIP_LIMIT;
-  const visibleOther = needsCollapse && !expanded ? otherAttachments.slice(0, COLLAPSED_CHIP_LIMIT) : otherAttachments;
-  const hiddenOther = needsCollapse && !expanded ? otherAttachments.slice(COLLAPSED_CHIP_LIMIT) : [];
+  const visibleOther =
+    needsCollapse && !expanded ? otherAttachments.slice(0, COLLAPSED_CHIP_LIMIT) : otherAttachments;
+  const hiddenOther =
+    needsCollapse && !expanded ? otherAttachments.slice(COLLAPSED_CHIP_LIMIT) : [];
   const hiddenCount = otherAttachments.length - COLLAPSED_CHIP_LIMIT;
   const hiddenHasWarning = hiddenOther.some((a) => isOversized(a.sizeBytes));
   const hiddenStatus = hiddenStatusIcon(hiddenOther);
@@ -337,7 +373,9 @@ export function MessageAttachmentList({
       <AttachmentPreviewDialog
         attachment={previewAttachment}
         open={!!previewAttachment}
-        onOpenChange={(open) => { if (!open) setPreviewAttachment(null); }}
+        onOpenChange={(open) => {
+          if (!open) setPreviewAttachment(null);
+        }}
       />
       {htmlAttachments.map((attachment) => (
         <HtmlAttachmentEmbed key={attachment.id} attachment={attachment} />
@@ -345,36 +383,41 @@ export function MessageAttachmentList({
       {visibleOther.length > 0 && (
         <div className="relative flex flex-wrap items-center gap-2">
           <HoverLabel attachment={hovered} />
-            {visibleOther.map((attachment) => (
-              <div key={attachment.id} data-testid="message-attachment">
-                <AttachmentChip attachment={attachment} onHover={setHovered} onPreview={setPreviewAttachment} />
-              </div>
-            ))}
-            {needsCollapse && (
-              <Badge
-                variant="secondary"
-                className={cn(
-                  'text-body flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 hover:bg-muted/50',
-                  hiddenHasWarning ? 'border-destructive bg-destructive/10' : 'border-border/60'
-                )}
-                onClick={() => setExpanded((prev) => !prev)}
-                data-testid="attachment-expand-toggle"
-              >
-                {expanded ? (
-                  <>
-                    Show less
-                    <ChevronUp className="h-3 w-3" />
-                  </>
-                ) : (
-                  <>
-                    {hiddenHasWarning && !hiddenStatus && <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />}
-                    {hiddenStatus}
-                    +{hiddenCount} more
-                    <ChevronDown className="h-3 w-3" />
-                  </>
-                )}
-              </Badge>
-            )}
+          {visibleOther.map((attachment) => (
+            <div key={attachment.id} data-testid="message-attachment">
+              <AttachmentChip
+                attachment={attachment}
+                onHover={setHovered}
+                onPreview={setPreviewAttachment}
+              />
+            </div>
+          ))}
+          {needsCollapse && (
+            <Badge
+              variant="secondary"
+              className={cn(
+                'text-body hover:bg-muted/50 flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1',
+                hiddenHasWarning ? 'bg-destructive/10 border-destructive' : 'border-border/60'
+              )}
+              onClick={() => setExpanded((prev) => !prev)}
+              data-testid="attachment-expand-toggle"
+            >
+              {expanded ? (
+                <>
+                  Show less
+                  <ChevronUp className="h-3 w-3" />
+                </>
+              ) : (
+                <>
+                  {hiddenHasWarning && !hiddenStatus && (
+                    <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />
+                  )}
+                  {hiddenStatus}+{hiddenCount} more
+                  <ChevronDown className="h-3 w-3" />
+                </>
+              )}
+            </Badge>
+          )}
         </div>
       )}
     </div>

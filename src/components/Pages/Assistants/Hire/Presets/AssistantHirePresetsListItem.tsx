@@ -58,9 +58,7 @@ export function PresetListItem({
           onLoadingStatusChange={handleLoadingStatusChange}
           className={cn(loadingStatus !== 'loaded' && 'opacity-0')} // Hide image until loaded
         />
-        <AvatarFallback
-          className={cn(loadingStatus === 'loaded' ? 'opacity-0' : 'opacity-100')}
-        >
+        <AvatarFallback className={cn(loadingStatus === 'loaded' ? 'opacity-0' : 'opacity-100')}>
           {fallback}
         </AvatarFallback>
       </Avatar>

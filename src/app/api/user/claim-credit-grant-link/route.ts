@@ -28,10 +28,7 @@ export async function POST(request: NextRequest) {
     const responseData = await res.json().catch(() => null);
 
     if (!res.ok) {
-      console.error(
-        `Orchestra API Error (claim-credit-grant-link - ${res.status}):`,
-        responseData
-      );
+      console.error(`Orchestra API Error (claim-credit-grant-link - ${res.status}):`, responseData);
       return NextResponse.json(responseData ?? { detail: 'Unknown error' }, {
         status: res.status,
       });
@@ -49,4 +46,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

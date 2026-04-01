@@ -37,9 +37,7 @@ const MfaPage = () => {
 
   const assistantsUrl = useMemo(() => {
     const creditToken = searchParams?.get('token');
-    return creditToken
-      ? `/assistants?token=${encodeURIComponent(creditToken)}`
-      : '/assistants';
+    return creditToken ? `/assistants?token=${encodeURIComponent(creditToken)}` : '/assistants';
   }, [searchParams]);
 
   // MFA status detection

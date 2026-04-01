@@ -32,9 +32,7 @@ describe('classifySystemError', () => {
     },
     () => {
       expect(
-        classifySystemError(
-          'The assistant ran out of memory. Please wait a moment and try again.'
-        )
+        classifySystemError('The assistant ran out of memory. Please wait a moment and try again.')
       ).toBe('oom');
     }
   );
@@ -50,9 +48,7 @@ describe('classifySystemError', () => {
     },
     () => {
       expect(
-        classifySystemError(
-          'The assistant failed to start up. Please try again shortly.'
-        )
+        classifySystemError('The assistant failed to start up. Please try again shortly.')
       ).toBe('startup_failed');
     }
   );
@@ -104,9 +100,7 @@ describe('classifySystemError', () => {
     },
     () => {
       expect(
-        classifySystemError(
-          'An unexpected error occurred. The assistant is attempting to recover.'
-        )
+        classifySystemError('An unexpected error occurred. The assistant is attempting to recover.')
       ).toBe('recovering');
     }
   );

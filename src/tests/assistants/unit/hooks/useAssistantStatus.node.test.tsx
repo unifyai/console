@@ -131,10 +131,9 @@ describe('useAssistantStatus', () => {
       const assistant2 = createMockAssistant('2');
       const initialAssistants = [assistant1, assistant2];
 
-      const { result, rerender } = renderHook(
-        ({ assistants }) => useAssistantStatus(assistants),
-        { initialProps: { assistants: initialAssistants } }
-      );
+      const { result, rerender } = renderHook(({ assistants }) => useAssistantStatus(assistants), {
+        initialProps: { assistants: initialAssistants },
+      });
 
       await waitFor(() => {
         expect(result.current.statuses.size).toBe(2);
@@ -160,10 +159,9 @@ describe('useAssistantStatus', () => {
       const assistant1 = createMockAssistant('1');
       const initialAssistants = [assistant1];
 
-      const { result, rerender } = renderHook(
-        ({ assistants }) => useAssistantStatus(assistants),
-        { initialProps: { assistants: initialAssistants } }
-      );
+      const { result, rerender } = renderHook(({ assistants }) => useAssistantStatus(assistants), {
+        initialProps: { assistants: initialAssistants },
+      });
 
       await waitFor(() => {
         expect(result.current.statuses.size).toBe(1);
@@ -187,10 +185,9 @@ describe('useAssistantStatus', () => {
       const assistant2 = createMockAssistant('2');
       const initialAssistants = [assistant1, assistant2];
 
-      const { result, rerender } = renderHook(
-        ({ assistants }) => useAssistantStatus(assistants),
-        { initialProps: { assistants: initialAssistants } }
-      );
+      const { result, rerender } = renderHook(({ assistants }) => useAssistantStatus(assistants), {
+        initialProps: { assistants: initialAssistants },
+      });
 
       await waitFor(() => {
         expect(result.current.statuses.size).toBe(2);
@@ -212,10 +209,9 @@ describe('useAssistantStatus', () => {
       const assistant2 = createMockAssistant('2');
       const initialAssistants = [assistant1, assistant2];
 
-      const { result, rerender } = renderHook(
-        ({ assistants }) => useAssistantStatus(assistants),
-        { initialProps: { assistants: initialAssistants } }
-      );
+      const { result, rerender } = renderHook(({ assistants }) => useAssistantStatus(assistants), {
+        initialProps: { assistants: initialAssistants },
+      });
 
       await waitFor(() => {
         expect(result.current.statuses.size).toBe(2);
@@ -247,10 +243,9 @@ describe('useAssistantStatus', () => {
 
       const assistant1 = createMockAssistant('1');
 
-      const { result, rerender } = renderHook(
-        ({ assistants }) => useAssistantStatus(assistants),
-        { initialProps: { assistants: [assistant1] } }
-      );
+      const { result, rerender } = renderHook(({ assistants }) => useAssistantStatus(assistants), {
+        initialProps: { assistants: [assistant1] },
+      });
 
       await waitFor(() => {
         expect(result.current.statuses.get('1')?.running).toBe(true);
@@ -414,10 +409,9 @@ describe('useAssistantStatus', () => {
       const assistant2 = createMockAssistant('2');
       const assistant3 = createMockAssistant('3');
 
-      const { result, rerender } = renderHook(
-        ({ assistants }) => useAssistantStatus(assistants),
-        { initialProps: { assistants: [assistant1] } }
-      );
+      const { result, rerender } = renderHook(({ assistants }) => useAssistantStatus(assistants), {
+        initialProps: { assistants: [assistant1] },
+      });
 
       rerender({ assistants: [assistant1, assistant2] });
       rerender({ assistants: [assistant1, assistant2, assistant3] });
@@ -441,10 +435,9 @@ describe('useAssistantStatus', () => {
     });
 
     it('handles switching from empty to non-empty assistant list', async () => {
-      const { result, rerender } = renderHook(
-        ({ assistants }) => useAssistantStatus(assistants),
-        { initialProps: { assistants: [] as Assistant[] } }
-      );
+      const { result, rerender } = renderHook(({ assistants }) => useAssistantStatus(assistants), {
+        initialProps: { assistants: [] as Assistant[] },
+      });
 
       expect(result.current.statuses.size).toBe(0);
 
@@ -460,10 +453,9 @@ describe('useAssistantStatus', () => {
     it('handles switching from non-empty to empty assistant list', async () => {
       const assistant1 = createMockAssistant('1');
 
-      const { result, rerender } = renderHook(
-        ({ assistants }) => useAssistantStatus(assistants),
-        { initialProps: { assistants: [assistant1] } }
-      );
+      const { result, rerender } = renderHook(({ assistants }) => useAssistantStatus(assistants), {
+        initialProps: { assistants: [assistant1] },
+      });
 
       await waitFor(() => {
         expect(result.current.statuses.size).toBe(1);

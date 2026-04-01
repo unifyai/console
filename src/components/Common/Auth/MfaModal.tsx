@@ -69,7 +69,7 @@ const MfaModal = ({
         setIsLoading(false);
       }
     },
-    [onVerify],
+    [onVerify]
   );
 
   const handleRecoverySubmit = useCallback(async () => {
@@ -117,16 +117,14 @@ const MfaModal = ({
               <button
                 type="button"
                 onClick={() => switchMode('recovery')}
-                className="mt-4 w-full text-center text-caption text-muted-foreground hover:text-foreground transition-colors"
+                className="text-caption mt-4 w-full text-center text-muted-foreground transition-colors hover:text-foreground"
               >
                 Use a recovery code instead
               </button>
             </>
           ) : (
             <div className="flex flex-col items-center gap-4">
-              <p className="text-body text-muted-foreground">
-                Enter one of your recovery codes
-              </p>
+              <p className="text-body text-muted-foreground">Enter one of your recovery codes</p>
               <input
                 type="text"
                 value={recoveryCode}
@@ -134,9 +132,7 @@ const MfaModal = ({
                 placeholder="e.g. a3f8k2m9"
                 autoFocus
                 disabled={isLoading}
-                className="w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-center font-mono text-lg
-                           focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
-                           disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-center font-mono text-lg focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 data-testid="recovery-code-input"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleRecoverySubmit();
@@ -168,7 +164,7 @@ const MfaModal = ({
               <button
                 type="button"
                 onClick={() => switchMode('totp')}
-                className="text-caption text-muted-foreground hover:text-foreground transition-colors"
+                className="text-caption text-muted-foreground transition-colors hover:text-foreground"
               >
                 Use authenticator app instead
               </button>
@@ -220,8 +216,7 @@ export function useMfaProtection() {
         // Check if backend responded with mfa_required
         const isMfaRequired =
           err?.response?.status === 403 &&
-          (err?.response?.data?.error === 'mfa_required' ||
-            err?.message?.includes('mfa_required'));
+          (err?.response?.data?.error === 'mfa_required' || err?.message?.includes('mfa_required'));
 
         if (isMfaRequired) {
           setPendingAction(() => action);
@@ -231,7 +226,7 @@ export function useMfaProtection() {
         }
       }
     },
-    [],
+    []
   );
 
   const handleVerify = useCallback(
@@ -249,7 +244,7 @@ export function useMfaProtection() {
         return false;
       }
     },
-    [pendingAction],
+    [pendingAction]
   );
 
   const handleClose = useCallback(() => {

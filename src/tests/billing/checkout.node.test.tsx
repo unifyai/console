@@ -41,9 +41,7 @@ beforeEach(() => {
     writable: true,
     value: { ...window.location, assign: locationAssignSpy },
   });
-  historyReplaceSpy = vi
-    .spyOn(window.history, 'replaceState')
-    .mockImplementation(() => {});
+  historyReplaceSpy = vi.spyOn(window.history, 'replaceState').mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -69,17 +67,13 @@ describe('Buying credits', () => {
     await waitFor(() => {
       expect(actions.createCheckoutSession).toHaveBeenCalled();
     });
-    expect(locationAssignSpy).toHaveBeenCalledWith(
-      'https://checkout.stripe.com/test',
-    );
+    expect(locationAssignSpy).toHaveBeenCalledWith('https://checkout.stripe.com/test');
   });
 
   it('stays on page and logs error when checkout creation fails', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const actions = createMockActions({
-      createCheckoutSession: vi
-        .fn()
-        .mockResolvedValue({ detail: 'Stripe not configured' }),
+      createCheckoutSession: vi.fn().mockResolvedValue({ detail: 'Stripe not configured' }),
     });
     const user = userEvent.setup();
 
@@ -91,7 +85,7 @@ describe('Buying credits', () => {
     await waitFor(() => {
       expect(consoleSpy).toHaveBeenCalledWith(
         'Error creating checkout session:',
-        'Stripe not configured',
+        'Stripe not configured'
       );
     });
     // Should NOT navigate
@@ -111,38 +105,30 @@ describe('Managing payment methods', () => {
     render(<Main actions={actions} />);
     await waitForMainLoaded();
 
-    await user.click(
-      screen.getByRole('button', { name: 'Manage Payment Methods' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'Manage Payment Methods' }));
 
     await waitFor(() => {
       expect(actions.createPortalSession).toHaveBeenCalled();
     });
-    expect(locationAssignSpy).toHaveBeenCalledWith(
-      'https://billing.stripe.com/test',
-    );
+    expect(locationAssignSpy).toHaveBeenCalledWith('https://billing.stripe.com/test');
   });
 
   it('stays on page and logs error when portal creation fails', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const actions = createMockActions({
-      createPortalSession: vi
-        .fn()
-        .mockResolvedValue({ detail: 'No Stripe customer found' }),
+      createPortalSession: vi.fn().mockResolvedValue({ detail: 'No Stripe customer found' }),
     });
     const user = userEvent.setup();
 
     render(<Main actions={actions} />);
     await waitForMainLoaded();
 
-    await user.click(
-      screen.getByRole('button', { name: 'Manage Payment Methods' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'Manage Payment Methods' }));
 
     await waitFor(() => {
       expect(consoleSpy).toHaveBeenCalledWith(
         'Failed to open billing portal:',
-        'No Stripe customer found',
+        'No Stripe customer found'
       );
     });
     expect(locationAssignSpy).not.toHaveBeenCalled();
@@ -157,9 +143,7 @@ describe('Checkout return handling', () => {
   it('shows success alert when returning from a paid checkout', async () => {
     mockSearchParams.set('sessionId', 'cs_test_paid');
     const actions = createMockActions({
-      getCheckoutStatus: vi
-        .fn()
-        .mockResolvedValue({ paymentStatus: 'paid' }),
+      getCheckoutStatus: vi.fn().mockResolvedValue({ paymentStatus: 'paid' }),
     });
 
     render(<Main actions={actions} />);
@@ -168,18 +152,14 @@ describe('Checkout return handling', () => {
       expect(screen.getByText('Payment Successful')).toBeInTheDocument();
     });
     expect(
-      screen.getByText(
-        'Payment successful! Your new balance will be reflected shortly.',
-      ),
+      screen.getByText('Payment successful! Your new balance will be reflected shortly.')
     ).toBeInTheDocument();
   });
 
   it('shows error alert when returning from an unpaid checkout', async () => {
     mockSearchParams.set('sessionId', 'cs_test_unpaid');
     const actions = createMockActions({
-      getCheckoutStatus: vi
-        .fn()
-        .mockResolvedValue({ paymentStatus: 'unpaid' }),
+      getCheckoutStatus: vi.fn().mockResolvedValue({ paymentStatus: 'unpaid' }),
     });
 
     render(<Main actions={actions} />);
@@ -188,16 +168,14 @@ describe('Checkout return handling', () => {
       expect(screen.getByText('Payment Issue')).toBeInTheDocument();
     });
     expect(
-      screen.getByText('Your payment was not successful. Please try again.'),
+      screen.getByText('Your payment was not successful. Please try again.')
     ).toBeInTheDocument();
   });
 
   it('shows error alert when checkout status check itself fails', async () => {
     mockSearchParams.set('sessionId', 'cs_test_error');
     const actions = createMockActions({
-      getCheckoutStatus: vi
-        .fn()
-        .mockResolvedValue({ detail: 'Session expired' }),
+      getCheckoutStatus: vi.fn().mockResolvedValue({ detail: 'Session expired' }),
     });
 
     render(<Main actions={actions} />);
@@ -222,9 +200,7 @@ describe('Checkout return handling', () => {
   it('cleans the sessionId from the URL after processing', async () => {
     mockSearchParams.set('sessionId', 'cs_test_paid');
     const actions = createMockActions({
-      getCheckoutStatus: vi
-        .fn()
-        .mockResolvedValue({ paymentStatus: 'paid' }),
+      getCheckoutStatus: vi.fn().mockResolvedValue({ paymentStatus: 'paid' }),
     });
 
     render(<Main actions={actions} />);
@@ -247,8 +223,8 @@ describe('StripeSidePanel component', () => {
         HttpResponse.json({
           url: 'https://checkout.stripe.com/test',
           sessionId: 'cs_test_default',
-        }),
-      ),
+        })
+      )
     );
   });
 
@@ -258,37 +234,26 @@ describe('StripeSidePanel component', () => {
   });
 
   it('opens checkout in a new tab and shows waiting state', async () => {
-    const windowOpenSpy = vi
-      .spyOn(window, 'open')
-      .mockImplementation(() => null);
+    const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
 
     render(<StripeSidePanel open={true} onOpenChange={vi.fn()} />);
 
     await waitFor(() => {
-      expect(windowOpenSpy).toHaveBeenCalledWith(
-        'https://checkout.stripe.com/test',
-        '_blank',
-      );
+      expect(windowOpenSpy).toHaveBeenCalledWith('https://checkout.stripe.com/test', '_blank');
     });
 
-    expect(
-      screen.getByText(/Complete the checkout in the Stripe tab/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Complete the checkout in the Stripe tab/)).toBeInTheDocument();
   });
 
   it('shows error state when checkout session creation fails', async () => {
     server.use(
-      http.get('/api/stripe/checkoutSession', () =>
-        new HttpResponse(null, { status: 500 }),
-      ),
+      http.get('/api/stripe/checkoutSession', () => new HttpResponse(null, { status: 500 }))
     );
 
     render(<StripeSidePanel open={true} onOpenChange={vi.fn()} />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Something went wrong\. Please try again\./),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Something went wrong\. Please try again\./)).toBeInTheDocument();
     });
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
@@ -297,14 +262,10 @@ describe('StripeSidePanel component', () => {
     vi.spyOn(window, 'open').mockImplementation(() => null);
     const onOpenChange = vi.fn();
 
-    const { rerender } = render(
-      <StripeSidePanel open={true} onOpenChange={onOpenChange} />,
-    );
+    const { rerender } = render(<StripeSidePanel open={true} onOpenChange={onOpenChange} />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Complete the checkout in the Stripe tab/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Complete the checkout in the Stripe tab/)).toBeInTheDocument();
     });
 
     // Close
@@ -314,9 +275,7 @@ describe('StripeSidePanel component', () => {
 
     // Should show waiting state again after re-fetching checkout
     await waitFor(() => {
-      expect(
-        screen.getByText(/Complete the checkout in the Stripe tab/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Complete the checkout in the Stripe tab/)).toBeInTheDocument();
     });
   });
 
@@ -326,24 +285,12 @@ describe('StripeSidePanel component', () => {
     const onSuccess = vi.fn();
 
     let paymentStatus = 'unpaid';
-    server.use(
-      http.get('/api/stripe/session-status', () =>
-        HttpResponse.json({ paymentStatus }),
-      ),
-    );
+    server.use(http.get('/api/stripe/session-status', () => HttpResponse.json({ paymentStatus })));
 
-    render(
-      <StripeSidePanel
-        open={true}
-        onOpenChange={onOpenChange}
-        onSuccess={onSuccess}
-      />,
-    );
+    render(<StripeSidePanel open={true} onOpenChange={onOpenChange} onSuccess={onSuccess} />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Complete the checkout in the Stripe tab/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Complete the checkout in the Stripe tab/)).toBeInTheDocument();
     });
 
     // Simulate payment completing (e.g. user finishes in the other tab)
@@ -354,7 +301,7 @@ describe('StripeSidePanel component', () => {
       () => {
         expect(onSuccess).toHaveBeenCalledTimes(1);
       },
-      { timeout: 10_000 },
+      { timeout: 10_000 }
     );
 
     // Panel should auto-close
@@ -368,33 +315,19 @@ describe('StripeSidePanel component', () => {
     const latestOnSuccess = vi.fn();
 
     let paymentStatus = 'unpaid';
-    server.use(
-      http.get('/api/stripe/session-status', () =>
-        HttpResponse.json({ paymentStatus }),
-      ),
-    );
+    server.use(http.get('/api/stripe/session-status', () => HttpResponse.json({ paymentStatus })));
 
     const { rerender } = render(
-      <StripeSidePanel
-        open={true}
-        onOpenChange={onOpenChange}
-        onSuccess={firstOnSuccess}
-      />,
+      <StripeSidePanel open={true} onOpenChange={onOpenChange} onSuccess={firstOnSuccess} />
     );
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Complete the checkout in the Stripe tab/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Complete the checkout in the Stripe tab/)).toBeInTheDocument();
     });
 
     // Parent re-renders and passes a new onSuccess callback
     rerender(
-      <StripeSidePanel
-        open={true}
-        onOpenChange={onOpenChange}
-        onSuccess={latestOnSuccess}
-      />,
+      <StripeSidePanel open={true} onOpenChange={onOpenChange} onSuccess={latestOnSuccess} />
     );
 
     // Simulate payment completing
@@ -405,10 +338,9 @@ describe('StripeSidePanel component', () => {
       () => {
         expect(latestOnSuccess).toHaveBeenCalledTimes(1);
       },
-      { timeout: 10_000 },
+      { timeout: 10_000 }
     );
 
     expect(firstOnSuccess).not.toHaveBeenCalled();
   });
 });
-

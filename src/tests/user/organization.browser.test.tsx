@@ -190,7 +190,8 @@ describe('Organization Management System', () => {
       {
         meta: {
           alias: 'invite-member',
-          behavior: 'Inviting a user calls server action with default Member role and refreshes list',
+          behavior:
+            'Inviting a user calls server action with default Member role and refreshes list',
           scenario: 'Admin invites a new colleague via email',
         },
       },
@@ -306,7 +307,9 @@ describe('Organization Management System', () => {
 
         searchParamsRef.current = '';
         renderMain({ initialOrganizations: readOnlyOrgs });
-        await waitFor(() => expect(screen.getByRole('tab', { name: /members/i })).toBeInTheDocument());
+        await waitFor(() =>
+          expect(screen.getByRole('tab', { name: /members/i })).toBeInTheDocument()
+        );
 
         // The "Organization" and "Security" tabs should not appear for non-admin users
         expect(screen.queryByRole('tab', { name: /^organization$/i })).not.toBeInTheDocument();

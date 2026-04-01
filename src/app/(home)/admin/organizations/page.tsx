@@ -30,7 +30,6 @@ import {
 import type { AdminOnboardingActions } from '@/types/admin';
 
 const AdminOrganizationsPage = async () => {
-
   const actions: AdminOnboardingActions = {
     listOrganizations: await listOrganizationsAction(),
     getOrganizationDetail: await getOrganizationDetailAction(),
@@ -54,4 +53,3 @@ const AdminOrganizationsPage = async () => {
 };
 
 export default AdminOrganizationsPage;
-

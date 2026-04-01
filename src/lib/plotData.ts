@@ -538,7 +538,8 @@ export async function fetchPlotData(
         error: { error: 'User credentials not available', status: 500 },
       };
     }
-    if (__DEV__) console.log('[plotData] Step 2 SUCCESS - Got API key (length:', userApiKey.length, ')');
+    if (__DEV__)
+      console.log('[plotData] Step 2 SUCCESS - Got API key (length:', userApiKey.length, ')');
 
     // ========================================================================
     // Step 3: Extract project config and check chart type
@@ -628,7 +629,8 @@ export async function fetchPlotData(
         if (requiredFields.length > 0) {
           const fromFieldsStr = requiredFields.join('&');
           logsParams.append('from_fields', fromFieldsStr);
-          if (__DEV__) console.log('[plotData] Computed from_fields from plot config:', fromFieldsStr);
+          if (__DEV__)
+            console.log('[plotData] Computed from_fields from plot config:', fromFieldsStr);
         }
       }
       if (projectConfig.sorting) {
@@ -641,7 +643,10 @@ export async function fetchPlotData(
       const logsUrl = `${ORCHESTRA_URL}/v0/logs?${logsParams.toString()}`;
       if (__DEV__) {
         console.log('[plotData] Logs URL (full):', logsUrl);
-        console.log('[plotData] Logs query params:', JSON.stringify(Object.fromEntries(logsParams)));
+        console.log(
+          '[plotData] Logs query params:',
+          JSON.stringify(Object.fromEntries(logsParams))
+        );
       }
 
       const MAX_RETRIES = 1;
@@ -650,7 +655,9 @@ export async function fetchPlotData(
 
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
         if (attempt > 0 && __DEV__) {
-          console.log(`[plotData] Step 3b: Retry ${attempt}/${MAX_RETRIES} after transient failure...`);
+          console.log(
+            `[plotData] Step 3b: Retry ${attempt}/${MAX_RETRIES} after transient failure...`
+          );
         }
         const logsStartTime = Date.now();
         logsRes = await fetchWithTimeout(
@@ -709,7 +716,8 @@ export async function fetchPlotData(
 
       if (lastError) {
         if (preAggregatedBarData) {
-          if (__DEV__) console.log('[plotData] Continuing with pre-aggregated data only (raw logs failed)');
+          if (__DEV__)
+            console.log('[plotData] Continuing with pre-aggregated data only (raw logs failed)');
         } else {
           return {
             success: false,
@@ -750,9 +758,11 @@ export async function fetchPlotData(
     let rawFields: Record<string, unknown> = {};
     if (fieldsRes.ok) {
       rawFields = snakeToCamelObject(await fieldsRes.json());
-      if (__DEV__) console.log('[plotData] Step 4 SUCCESS - Got', Object.keys(rawFields).length, 'fields');
+      if (__DEV__)
+        console.log('[plotData] Step 4 SUCCESS - Got', Object.keys(rawFields).length, 'fields');
     } else {
-      if (__DEV__) console.warn('[plotData] Step 4 WARN - Failed to fetch fields, continuing without');
+      if (__DEV__)
+        console.warn('[plotData] Step 4 WARN - Failed to fetch fields, continuing without');
     }
 
     // ========================================================================

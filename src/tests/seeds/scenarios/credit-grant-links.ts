@@ -23,16 +23,9 @@
  */
 
 import type { SeededState } from '../types';
-import {
-  createUser,
-  createOrg,
-  createEmailLogin,
-  orchestraFetch,
-  dbExec,
-} from '../client';
+import { createUser, createOrg, createEmailLogin, orchestraFetch, dbExec } from '../client';
 
-const ADMIN_KEY =
-  process.env.ORCHESTRA_ADMIN_KEY || 'local-admin-key';
+const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY || 'local-admin-key';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -45,7 +38,7 @@ async function createLink(
   expiresInDays: number,
   creditAmount: number,
   maxClaims: number,
-  name?: string,
+  name?: string
 ): Promise<LinkCreateResponse> {
   const body: Record<string, unknown> = {
     expires_in_days: expiresInDays,
@@ -57,7 +50,7 @@ async function createLink(
   const res = await orchestraFetch(
     '/v0/admin/credit-grant-link',
     { method: 'POST', body: JSON.stringify(body) },
-    ADMIN_KEY,
+    ADMIN_KEY
   );
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -70,7 +63,7 @@ async function claimLink(token: string, userApiKey: string): Promise<void> {
   const res = await orchestraFetch(
     '/v0/user/claim-credit-grant-link',
     { method: 'POST', body: JSON.stringify({ token }) },
-    userApiKey,
+    userApiKey
   );
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -80,7 +73,7 @@ async function claimLink(token: string, userApiKey: string): Promise<void> {
 
 function expireLink(linkId: string): void {
   dbExec(
-    `UPDATE one_time_credit_grant_link SET expires_at = now() - interval '1 day' WHERE id = '${linkId}';`,
+    `UPDATE one_time_credit_grant_link SET expires_at = now() - interval '1 day' WHERE id = '${linkId}';`
   );
 }
 

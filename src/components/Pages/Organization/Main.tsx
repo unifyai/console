@@ -12,7 +12,6 @@ import { useTeams } from '@/hooks/Organizations/useTeams';
 import { useRoles } from '@/hooks/Organizations/useRoles';
 import { snakeToCamelObject } from '@/utils/casing';
 
-
 export interface MemberAssistantInfo {
   agentId: string;
   firstName: string;

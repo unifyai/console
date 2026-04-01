@@ -27,7 +27,8 @@ export async function getMailingLists(): Promise<MailingList[]> {
   }
 }
 
-const UNIFY_MAILING_LIST_ID = process.env.LOOPS_UNIFY_MAILING_LIST_ID || 'cmbyno1vk017b0jxs0qtqhmhs';
+const UNIFY_MAILING_LIST_ID =
+  process.env.LOOPS_UNIFY_MAILING_LIST_ID || 'cmbyno1vk017b0jxs0qtqhmhs';
 
 export const UNIFY_UPDATES_NEWSLETTER_ID =
   process.env.LOOPS_UNIFY_UPDATES_NEWSLETTER_ID || 'cmbyni4qq1tio0ivlfdfo3qj2';

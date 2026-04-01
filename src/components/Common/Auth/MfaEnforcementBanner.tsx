@@ -53,7 +53,7 @@ const MfaEnforcementBanner = ({ orgName }: MfaEnforcementBannerProps) => {
         hideClose
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
-        className="sm:max-w-lg z-[100]"
+        className="z-[100] sm:max-w-lg"
         overlayClassName="z-[100]"
         data-testid="mfa-enforcement-banner"
       >
@@ -81,8 +81,8 @@ const MfaEnforcementBanner = ({ orgName }: MfaEnforcementBannerProps) => {
               'Your account is now secured with two-factor authentication.'
             ) : (
               <>
-                <strong>{orgName}</strong> requires all members to enable two-factor
-                authentication. Set up 2FA to access this workspace.
+                <strong>{orgName}</strong> requires all members to enable two-factor authentication.
+                Set up 2FA to access this workspace.
               </>
             )}
           </DialogDescription>

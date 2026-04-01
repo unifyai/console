@@ -34,7 +34,9 @@ export async function fetchUserSpendingLimit(): Promise<UserSpendingLimitRespons
     if (!res.ok) return { detail: data?.detail || 'Failed to fetch user spending limit' };
     return data;
   } catch (error) {
-    return { detail: error instanceof Error ? error.message : 'Failed to fetch user spending limit' };
+    return {
+      detail: error instanceof Error ? error.message : 'Failed to fetch user spending limit',
+    };
   }
 }
 
@@ -68,7 +70,9 @@ export async function fetchOrgSpendingLimit(
     if (!res.ok) return { detail: data?.detail || 'Failed to fetch org spending limit' };
     return data;
   } catch (error) {
-    return { detail: error instanceof Error ? error.message : 'Failed to fetch org spending limit' };
+    return {
+      detail: error instanceof Error ? error.message : 'Failed to fetch org spending limit',
+    };
   }
 }
 
@@ -89,7 +93,9 @@ export async function fetchAssistantSpend(
     if (!res.ok) return { detail: data?.detail || 'Failed to fetch assistant spending' };
     return data;
   } catch (error) {
-    return { detail: error instanceof Error ? error.message : 'Failed to fetch assistant spending' };
+    return {
+      detail: error instanceof Error ? error.message : 'Failed to fetch assistant spending',
+    };
   }
 }
 
@@ -102,6 +108,8 @@ export async function fetchAssistantSpendingLimit(
     if (!res.ok) return { detail: data?.detail || 'Failed to fetch assistant spending limit' };
     return data;
   } catch (error) {
-    return { detail: error instanceof Error ? error.message : 'Failed to fetch assistant spending limit' };
+    return {
+      detail: error instanceof Error ? error.message : 'Failed to fetch assistant spending limit',
+    };
   }
 }

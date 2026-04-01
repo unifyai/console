@@ -128,11 +128,7 @@ describe('getApiKeyFromRequest', () => {
       );
 
       expect(result).toBe('cached-org-key');
-      expect(mockResolveApiKeyFromCache).toHaveBeenCalledWith(
-        'user@test.com',
-        '42',
-        null
-      );
+      expect(mockResolveApiKeyFromCache).toHaveBeenCalledWith('user@test.com', '42', null);
       expect(mockGetCurrentUser).not.toHaveBeenCalled();
     });
 

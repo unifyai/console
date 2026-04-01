@@ -41,8 +41,10 @@ import type { User } from '@/types/user';
 
 const MOCK_ORCHESTRA_URL = 'http://localhost:8000/v0';
 const MOCK_DISPATCH_URL = 'https://service.a.run.app/unify/meet';
-const MOCK_DISPATCH_URL_PREVIEW = 'https://service.a.run.app/unify/meet';
-const MOCK_DISPATCH_URL_STAGING = 'https://service.a.run.app/unify/meet';
+const MOCK_DISPATCH_URL_PREVIEW =
+  'https://service.a.run.app/unify/meet';
+const MOCK_DISPATCH_URL_STAGING =
+  'https://service.a.run.app/unify/meet';
 const MOCK_ADMIN_KEY = 'test-admin-key';
 
 describe('call.ts', () => {

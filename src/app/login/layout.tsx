@@ -26,9 +26,7 @@ export default function LoginLayout({ children }: { children: React.ReactNode })
   return (
     <SessionProvider>
       <EnvironmentProvider config={envConfig}>
-        <LoginCardShell>
-          {children}
-        </LoginCardShell>
+        <LoginCardShell>{children}</LoginCardShell>
       </EnvironmentProvider>
     </SessionProvider>
   );

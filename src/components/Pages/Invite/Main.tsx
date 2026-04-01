@@ -19,7 +19,7 @@ interface InviteContentProps {
   onPatchSession: (
     patch: { onboardingStep?: string; mfaPending?: boolean },
     redirectTo?: string,
-    extraParams?: Record<string, string>,
+    extraParams?: Record<string, string>
   ) => Promise<never>;
 }
 
@@ -40,7 +40,9 @@ interface InviteContentProps {
  */
 const InviteContent = ({ token, onAccept, onPatchSession }: InviteContentProps) => {
   const router = useRouter();
-  const [status, setStatus] = useState<'processing' | 'success' | 'mfa_required' | 'error'>('processing');
+  const [status, setStatus] = useState<'processing' | 'success' | 'mfa_required' | 'error'>(
+    'processing'
+  );
   const [message, setMessage] = useState('');
   const [orgName, setOrgName] = useState<string | undefined>();
   const processedRef = useRef(false);
@@ -57,7 +59,12 @@ const InviteContent = ({ token, onAccept, onPatchSession }: InviteContentProps) 
         if (result && typeof result === 'object' && 'detail' in result) {
           setStatus('error');
           setMessage(result.detail as string);
-        } else if (result && typeof result === 'object' && 'success' in result && result.mfaSetupRequired) {
+        } else if (
+          result &&
+          typeof result === 'object' &&
+          'success' in result &&
+          result.mfaSetupRequired
+        ) {
           // Org requires MFA and user doesn't have it — redirect to MFA setup
           setOrgName(result.organizationName);
           setStatus('mfa_required');
@@ -67,7 +74,9 @@ const InviteContent = ({ token, onAccept, onPatchSession }: InviteContentProps) 
           setTimeout(() => {
             const extraParams: Record<string, string> = {};
             const current = new URLSearchParams(window.location.search);
-            current.forEach((value, key) => { extraParams[key] = value; });
+            current.forEach((value, key) => {
+              extraParams[key] = value;
+            });
             onPatchSession({ onboardingStep: 'completed' }, '/login/mfa', extraParams);
           }, 2000);
         } else if (result && typeof result === 'object' && 'success' in result) {
@@ -99,14 +108,18 @@ const InviteContent = ({ token, onAccept, onPatchSession }: InviteContentProps) 
       transition={{ duration: 0.3 }}
       className="m-auto flex w-full max-w-md flex-col items-center gap-6 text-center"
     >
-      <div className="flex justify-center"><UnifyLogo /></div>
+      <div className="flex justify-center">
+        <UnifyLogo />
+      </div>
 
       {status === 'processing' && (
         <>
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <div className="space-y-2">
             <h2 className="text-h2 font-bold">Joining Organization...</h2>
-            <p className="text-body text-muted-foreground">Please wait while we process your invitation.</p>
+            <p className="text-body text-muted-foreground">
+              Please wait while we process your invitation.
+            </p>
           </div>
         </>
       )}
@@ -117,14 +130,25 @@ const InviteContent = ({ token, onAccept, onPatchSession }: InviteContentProps) 
           <div className="space-y-2">
             <h2 className="text-h2 font-bold">Welcome!</h2>
             <p className="text-body text-muted-foreground">
-              You have successfully joined{orgName ? <> <strong>{orgName}</strong></> : ' the organization'}.
+              You have successfully joined
+              {orgName ? (
+                <>
+                  {' '}
+                  <strong>{orgName}</strong>
+                </>
+              ) : (
+                ' the organization'
+              )}
+              .
             </p>
           </div>
           <Button
             onClick={() => {
               const extraParams: Record<string, string> = {};
               const current = new URLSearchParams(window.location.search);
-              current.forEach((value, key) => { extraParams[key] = value; });
+              current.forEach((value, key) => {
+                extraParams[key] = value;
+              });
               onPatchSession({ onboardingStep: 'completed' }, '/assistants', extraParams);
             }}
             className="w-full"
@@ -141,8 +165,17 @@ const InviteContent = ({ token, onAccept, onPatchSession }: InviteContentProps) 
           <div className="space-y-2">
             <h2 className="text-h2 font-bold">Welcome!</h2>
             <p className="text-body text-muted-foreground">
-              You&apos;ve successfully joined{orgName ? <> <strong>{orgName}</strong></> : ' the organization'}.
-              This organization requires two-factor authentication — redirecting you to set it up...
+              You&apos;ve successfully joined
+              {orgName ? (
+                <>
+                  {' '}
+                  <strong>{orgName}</strong>
+                </>
+              ) : (
+                ' the organization'
+              )}
+              . This organization requires two-factor authentication — redirecting you to set it
+              up...
             </p>
           </div>
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -158,10 +191,19 @@ const InviteContent = ({ token, onAccept, onPatchSession }: InviteContentProps) 
           </div>
           {isEmailMismatch ? (
             <div className="flex w-full flex-col gap-2">
-              <Button onClick={handleBackToLogin} className="w-full" data-testid="back-to-login-btn">
+              <Button
+                onClick={handleBackToLogin}
+                className="w-full"
+                data-testid="back-to-login-btn"
+              >
                 ← Back to Login
               </Button>
-              <Button variant="outline" onClick={() => router.push('/login/onboarding')} className="w-full" data-testid="continue-anyway-btn">
+              <Button
+                variant="outline"
+                onClick={() => router.push('/login/onboarding')}
+                className="w-full"
+                data-testid="continue-anyway-btn"
+              >
                 Continue anyway
               </Button>
             </div>
@@ -177,4 +219,3 @@ const InviteContent = ({ token, onAccept, onPatchSession }: InviteContentProps) 
 };
 
 export default InviteContent;
-

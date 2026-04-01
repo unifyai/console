@@ -234,11 +234,7 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
             </div>
           </div>
         </div>
-        <UserInfo
-          bio={formState.bio}
-          handleInputChange={handleInputChange}
-          onPrem={onPrem}
-        />
+        <UserInfo bio={formState.bio} handleInputChange={handleInputChange} onPrem={onPrem} />
         {changeMade && (
           <div className="mt-5 flex w-fit gap-2">
             <SecondaryButton onClick={handleCancel} disabled={!changeMade} label="Cancel" />

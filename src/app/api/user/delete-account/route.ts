@@ -14,7 +14,10 @@ import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 export async function DELETE(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user?.id) {
-    return NextResponse.json({ error: 'unauthorized', message: 'Not authenticated.' }, { status: 401 });
+    return NextResponse.json(
+      { error: 'unauthorized', message: 'Not authenticated.' },
+      { status: 401 }
+    );
   }
 
   try {
@@ -35,8 +38,8 @@ export async function DELETE(request: NextRequest) {
   } catch (error: any) {
     const status = error?.response?.status ?? 500;
     const rawData = error?.response?.data;
-    const detail = rawData?.detail ?? rawData ?? { error: 'delete_failed', message: 'Account deletion failed.' };
+    const detail = rawData?.detail ??
+      rawData ?? { error: 'delete_failed', message: 'Account deletion failed.' };
     return NextResponse.json(detail, { status });
   }
 }
-

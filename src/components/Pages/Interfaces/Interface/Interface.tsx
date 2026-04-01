@@ -96,7 +96,6 @@ const EditTileName = lazy(() => import('./Buttons/EditTileName'));
 const Tab = lazy(() => import('../Tab/Tab'));
 const InterfaceButtons = lazy(() => import('./Buttons/InterfaceButtons'));
 
-
 /**
  * Debug flag for tab prefetching indicators
  * Set NEXT_PUBLIC_DEBUG_TAB_PREFETCHING=true to enable streaming indicators

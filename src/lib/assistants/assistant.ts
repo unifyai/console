@@ -6,7 +6,6 @@ import {
   PreHireChatMessage,
   DesktopMode,
   VoiceProvider,
-
   AssistantHiringSufficientFunds,
 } from '@/types/assistants/assistant';
 import { ASSISTANT_ONBOARDING_FEE } from '@/constants/assistants/settings';

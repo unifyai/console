@@ -262,7 +262,9 @@ export const fetchContactCosts = async () => {
       if (error instanceof AxiosError && error.response?.data?.detail) {
         return { detail: error.response.data.detail };
       }
-      return { detail: error instanceof Error ? error.message : 'Unknown error fetching contact costs' };
+      return {
+        detail: error instanceof Error ? error.message : 'Unknown error fetching contact costs',
+      };
     }
   };
 };

@@ -81,11 +81,7 @@ describe('@real call.ts - Orchestra Integration', () => {
         const assistantId = assistant.agentId;
         const assistantName = assistant.firstName;
 
-        const res = await callApi.dispatch(
-          assistantId,
-          `test-room-${Date.now()}`,
-          API_KEY
-        );
+        const res = await callApi.dispatch(assistantId, `test-room-${Date.now()}`, API_KEY);
 
         if (isError(res)) {
           expect(res.detail).toBeDefined();

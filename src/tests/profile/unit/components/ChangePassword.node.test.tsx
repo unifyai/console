@@ -105,9 +105,7 @@ describe('ChangePasswordForm – validation', () => {
     await user.type(screen.getByTestId('confirm-password-input'), 'Different@1');
     await user.click(screen.getByTestId('change-password-btn'));
 
-    expect(screen.getByTestId('change-password-error').textContent).toBe(
-      'Passwords do not match'
-    );
+    expect(screen.getByTestId('change-password-error').textContent).toBe('Passwords do not match');
     // Validation fires before API call — spy should NOT have been called
     expect(changeSpy).not.toHaveBeenCalled();
   });
@@ -198,9 +196,7 @@ describe('ChangePasswordForm – API interaction', () => {
 
   it('clears form fields after successful change', async () => {
     server.use(
-      http.post('/api/auth/email/change-password', () =>
-        HttpResponse.json({ message: 'done' })
-      )
+      http.post('/api/auth/email/change-password', () => HttpResponse.json({ message: 'done' }))
     );
 
     const user = userEvent.setup();
@@ -221,10 +217,7 @@ describe('ChangePasswordForm – API interaction', () => {
   it('shows error from API on failure', async () => {
     server.use(
       http.post('/api/auth/email/change-password', () =>
-        HttpResponse.json(
-          { message: 'Current password is incorrect' },
-          { status: 401 }
-        )
+        HttpResponse.json({ message: 'Current password is incorrect' }, { status: 401 })
       )
     );
 
@@ -244,9 +237,7 @@ describe('ChangePasswordForm – API interaction', () => {
   });
 
   it('handles network error', async () => {
-    server.use(
-      http.post('/api/auth/email/change-password', () => HttpResponse.error())
-    );
+    server.use(http.post('/api/auth/email/change-password', () => HttpResponse.error()));
 
     const user = userEvent.setup();
     render(<ChangePasswordForm hasEmailAccount={true} />);
@@ -361,9 +352,7 @@ describe('ChangePasswordForm – Set Password mode – API interaction', () => {
 
   it('clears form fields after successful set', async () => {
     server.use(
-      http.post('/api/auth/email/set-password', () =>
-        HttpResponse.json({ message: 'done' })
-      )
+      http.post('/api/auth/email/set-password', () => HttpResponse.json({ message: 'done' }))
     );
 
     const user = userEvent.setup();
@@ -382,10 +371,7 @@ describe('ChangePasswordForm – Set Password mode – API interaction', () => {
   it('shows error from API on failure', async () => {
     server.use(
       http.post('/api/auth/email/set-password', () =>
-        HttpResponse.json(
-          { message: 'Email account linking failed' },
-          { status: 400 }
-        )
+        HttpResponse.json({ message: 'Email account linking failed' }, { status: 400 })
       )
     );
 
@@ -404,9 +390,7 @@ describe('ChangePasswordForm – Set Password mode – API interaction', () => {
   });
 
   it('handles network error', async () => {
-    server.use(
-      http.post('/api/auth/email/set-password', () => HttpResponse.error())
-    );
+    server.use(http.post('/api/auth/email/set-password', () => HttpResponse.error()));
 
     const user = userEvent.setup();
     render(<ChangePasswordForm hasEmailAccount={false} />);
@@ -464,9 +448,7 @@ describe('ChangePasswordForm – Set Password mode – validation', () => {
     await user.type(screen.getByTestId('confirm-password-input'), 'Different@1');
     await user.click(screen.getByTestId('set-password-btn'));
 
-    expect(screen.getByTestId('change-password-error').textContent).toBe(
-      'Passwords do not match'
-    );
+    expect(screen.getByTestId('change-password-error').textContent).toBe('Passwords do not match');
     expect(setSpy).not.toHaveBeenCalled();
   });
 

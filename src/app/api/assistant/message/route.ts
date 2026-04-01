@@ -62,7 +62,9 @@ export async function POST(request: NextRequest) {
   if (isLocal) {
     if (!localAdaptersUrl) {
       return NextResponse.json(
-        { info: 'Message accepted (local dev — dispatch skipped). Set LOCAL_ADAPTERS_URL to dispatch to local adapters.' },
+        {
+          info: 'Message accepted (local dev — dispatch skipped). Set LOCAL_ADAPTERS_URL to dispatch to local adapters.',
+        },
         { status: 202 }
       );
     }

@@ -67,11 +67,25 @@ export async function seedOrgMultiRole(): Promise<SeededState> {
     org,
     assistants: [assistant],
     credentials: {
-      owner: { email: owner.email, password: 'testpass123', apiKey: org.ownerOrgApiKey, userId: owner.id },
+      owner: {
+        email: owner.email,
+        password: 'testpass123',
+        apiKey: org.ownerOrgApiKey,
+        userId: owner.id,
+      },
       admin: { email: admin.email, password: 'testpass123', apiKey: adminOrgKey, userId: admin.id },
-      member: { email: member.email, password: 'testpass123', apiKey: memberOrgKey, userId: member.id },
-      viewer: { email: viewer.email, password: 'testpass123', apiKey: viewerOrgKey, userId: viewer.id },
+      member: {
+        email: member.email,
+        password: 'testpass123',
+        apiKey: memberOrgKey,
+        userId: member.id,
+      },
+      viewer: {
+        email: viewer.email,
+        password: 'testpass123',
+        apiKey: viewerOrgKey,
+        userId: viewer.id,
+      },
     },
   };
 }
-

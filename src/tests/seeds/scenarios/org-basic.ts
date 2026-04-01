@@ -58,9 +58,18 @@ export async function seedOrgBasic(): Promise<SeededState> {
     org,
     assistants: [assistant],
     credentials: {
-      owner: { email: owner.email, password: 'testpass123', apiKey: org.ownerOrgApiKey, userId: owner.id },
-      member: { email: member.email, password: 'testpass123', apiKey: memberOrgKey, userId: member.id },
+      owner: {
+        email: owner.email,
+        password: 'testpass123',
+        apiKey: org.ownerOrgApiKey,
+        userId: owner.id,
+      },
+      member: {
+        email: member.email,
+        password: 'testpass123',
+        apiKey: memberOrgKey,
+        userId: member.id,
+      },
     },
   };
 }
-

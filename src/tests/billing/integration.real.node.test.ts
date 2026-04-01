@@ -60,10 +60,7 @@ function getBillingApiKey(): string {
 
 const API_TIMEOUT = 30_000;
 
-async function apiFetch(
-  endpoint: string,
-  options: RequestInit = {},
-): Promise<Response> {
+async function apiFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const apiKey = getBillingApiKey();
   const controller = new AbortController();
   const tid = setTimeout(() => controller.abort(), API_TIMEOUT);
@@ -116,7 +113,7 @@ async function stripeDelete(path: string) {
 function dbExec(sql: string) {
   execSync(
     `docker exec ${DB_CONTAINER} psql -U orchestra -d orchestra -tAc "${sql.replace(/"/g, '\\"')}"`,
-    { encoding: 'utf-8', timeout: 5_000 },
+    { encoding: 'utf-8', timeout: 5_000 }
   );
 }
 
@@ -134,31 +131,21 @@ describe('@real Billing API', () => {
   // ─────────────────────────────────────────────────────────────────────────
 
   describe('Balance retrieval', () => {
-    it(
-      '@real returns a valid balance with expected shape',
-      realTestOptions,
-      async () => {
-        const data = await apiJson<any>('/api/billing/balance');
+    it('@real returns a valid balance with expected shape', realTestOptions, async () => {
+      const data = await apiJson<any>('/api/billing/balance');
 
-        expect(typeof data.balance).toBe('string');
-        expect(typeof data.fullBalance).toBe('number');
-        expect(data.fullBalance).toBeGreaterThanOrEqual(0);
-        expect(parseFloat(data.balance)).toBeCloseTo(data.fullBalance, 2);
-        expect(['ACTIVE', 'PAST_DUE', 'SUSPENDED', 'CLOSED']).toContain(
-          data.accountStatus,
-        );
-      },
-    );
+      expect(typeof data.balance).toBe('string');
+      expect(typeof data.fullBalance).toBe('number');
+      expect(data.fullBalance).toBeGreaterThanOrEqual(0);
+      expect(parseFloat(data.balance)).toBeCloseTo(data.fullBalance, 2);
+      expect(['ACTIVE', 'PAST_DUE', 'SUSPENDED', 'CLOSED']).toContain(data.accountStatus);
+    });
 
-    it(
-      '@real returns the same balance on consecutive calls',
-      realTestOptions,
-      async () => {
-        const first = await apiJson<any>('/api/billing/balance');
-        const second = await apiJson<any>('/api/billing/balance');
-        expect(first.fullBalance).toBe(second.fullBalance);
-      },
-    );
+    it('@real returns the same balance on consecutive calls', realTestOptions, async () => {
+      const first = await apiJson<any>('/api/billing/balance');
+      const second = await apiJson<any>('/api/billing/balance');
+      expect(first.fullBalance).toBe(second.fullBalance);
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -179,7 +166,8 @@ describe('@real Billing API', () => {
             billing_email: originalProfile.billing_email || originalProfile.billingEmail || '',
             tax_id: originalProfile.tax_id || originalProfile.taxId || '',
             tax_id_type: originalProfile.tax_id_type || originalProfile.taxIdType || '',
-            billing_address: originalProfile.billing_address || originalProfile.billingAddress || {},
+            billing_address:
+              originalProfile.billing_address || originalProfile.billingAddress || {},
           }),
         });
       } catch {
@@ -187,15 +175,11 @@ describe('@real Billing API', () => {
       }
     });
 
-    it(
-      '@real fetches the current profile without error',
-      realTestOptions,
-      async () => {
-        originalProfile = await apiJson<any>('/api/billing/profile');
-        // The profile route proxies directly — field names may be snake_case
-        expect(originalProfile).toBeDefined();
-      },
-    );
+    it('@real fetches the current profile without error', realTestOptions, async () => {
+      originalProfile = await apiJson<any>('/api/billing/profile');
+      // The profile route proxies directly — field names may be snake_case
+      expect(originalProfile).toBeDefined();
+    });
 
     it(
       '@real updates name and email, then verifies changes persisted',
@@ -218,10 +202,9 @@ describe('@real Billing API', () => {
         // Re-fetch to confirm persistence
         const refetched = await apiJson<any>('/api/billing/profile');
         expect(refetched.name).toBe(uniqueName);
-        const refetchedEmail =
-          refetched.billing_email ?? refetched.billingEmail;
+        const refetchedEmail = refetched.billing_email ?? refetched.billingEmail;
         expect(refetchedEmail).toBe(testEmail);
-      },
+      }
     );
   });
 
@@ -249,53 +232,42 @@ describe('@real Billing API', () => {
       }
     });
 
-    it(
-      '@real fetches settings with all expected fields',
-      realTestOptions,
-      async () => {
-        const data = await apiJson<any>('/api/billing/auto-recharge/settings');
-        originalSettings = data;
+    it('@real fetches settings with all expected fields', realTestOptions, async () => {
+      const data = await apiJson<any>('/api/billing/auto-recharge/settings');
+      originalSettings = data;
 
-        canWrite = data.canEnableAutoRecharge || data.autoRechargeEnabled;
+      canWrite = data.canEnableAutoRecharge || data.autoRechargeEnabled;
 
-        expect(typeof data.autoRechargeEnabled).toBe('boolean');
-        expect(typeof data.autoRechargeThreshold).toBe('number');
-        expect(typeof data.autoRechargeQty).toBe('number');
-        expect(typeof data.minRechargeAmount).toBe('number');
-        expect(typeof data.canEnableAutoRecharge).toBe('boolean');
-        expect(typeof data.totalSpending).toBe('number');
-        expect(typeof data.minimumSpendRequired).toBe('number');
-        expect(typeof data.remainingSpendNeeded).toBe('number');
-        expect(typeof data.hasPaymentMethod).toBe('boolean');
-      },
-    );
+      expect(typeof data.autoRechargeEnabled).toBe('boolean');
+      expect(typeof data.autoRechargeThreshold).toBe('number');
+      expect(typeof data.autoRechargeQty).toBe('number');
+      expect(typeof data.minRechargeAmount).toBe('number');
+      expect(typeof data.canEnableAutoRecharge).toBe('boolean');
+      expect(typeof data.totalSpending).toBe('number');
+      expect(typeof data.minimumSpendRequired).toBe('number');
+      expect(typeof data.remainingSpendNeeded).toBe('number');
+      expect(typeof data.hasPaymentMethod).toBe('boolean');
+    });
 
-    it(
-      '@real updates threshold and qty, then verifies via re-fetch',
-      realTestOptions,
-      async () => {
-        if (!canWrite) return;
+    it('@real updates threshold and qty, then verifies via re-fetch', realTestOptions, async () => {
+      if (!canWrite) return;
 
-        const newThreshold =
-          originalSettings.autoRechargeThreshold === 15 ? 20 : 15;
-        const newQty = Math.max(originalSettings.minRechargeAmount ?? 25, 30);
+      const newThreshold = originalSettings.autoRechargeThreshold === 15 ? 20 : 15;
+      const newQty = Math.max(originalSettings.minRechargeAmount ?? 25, 30);
 
-        await apiJson('/api/billing/auto-recharge/settings', {
-          method: 'POST',
-          body: JSON.stringify({
-            autoRechargeEnabled: originalSettings.autoRechargeEnabled,
-            autoRechargeThreshold: newThreshold,
-            autoRechargeQty: newQty,
-          }),
-        });
+      await apiJson('/api/billing/auto-recharge/settings', {
+        method: 'POST',
+        body: JSON.stringify({
+          autoRechargeEnabled: originalSettings.autoRechargeEnabled,
+          autoRechargeThreshold: newThreshold,
+          autoRechargeQty: newQty,
+        }),
+      });
 
-        const refetched = await apiJson<any>(
-          '/api/billing/auto-recharge/settings',
-        );
-        expect(refetched.autoRechargeThreshold).toBe(newThreshold);
-        expect(refetched.autoRechargeQty).toBe(newQty);
-      },
-    );
+      const refetched = await apiJson<any>('/api/billing/auto-recharge/settings');
+      expect(refetched.autoRechargeThreshold).toBe(newThreshold);
+      expect(refetched.autoRechargeQty).toBe(newQty);
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -310,14 +282,12 @@ describe('@real Billing API', () => {
       realTestOptionsExtended,
       async () => {
         try {
-          countries = await apiJson<any>(
-            '/api/billing/supported-tax-countries',
-          );
+          countries = await apiJson<any>('/api/billing/supported-tax-countries');
         } catch (e) {
           if (e instanceof ApiError && e.status === 500) {
             console.warn(
               'Skipping tax tests: supported-tax-countries returned 500 ' +
-                '(Stripe may not be configured on Orchestra)',
+                '(Stripe may not be configured on Orchestra)'
             );
             return;
           }
@@ -325,57 +295,42 @@ describe('@real Billing API', () => {
         }
 
         const countryKeys = Object.keys(
-          countries.supported_countries ??
-            countries.supportedCountries ??
-            {},
+          countries.supported_countries ?? countries.supportedCountries ?? {}
         );
-        const total =
-          countries.total_countries ?? countries.totalCountries ?? 0;
+        const total = countries.total_countries ?? countries.totalCountries ?? 0;
 
         expect(total).toBeGreaterThan(0);
         expect(countryKeys.length).toBeGreaterThan(0);
-      },
+      }
     );
 
-    it(
-      '@real validates a well-known tax ID format',
-      realTestOptions,
-      async () => {
-        if (!countries) return;
+    it('@real validates a well-known tax ID format', realTestOptions, async () => {
+      if (!countries) return;
 
-        const supported =
-          countries.supported_countries ?? countries.supportedCountries ?? {};
-        if (!supported['DE']) return;
+      const supported = countries.supported_countries ?? countries.supportedCountries ?? {};
+      if (!supported['DE']) return;
 
-        const result = await apiJson<any>('/api/billing/validate-tax-id', {
-          method: 'POST',
-          body: JSON.stringify({ country: 'DE', taxId: 'DE123456789' }),
-        });
-        const isValid =
-          result.valid ?? result.is_valid ?? result.isValid ?? false;
-        expect(typeof isValid).toBe('boolean');
-      },
-    );
+      const result = await apiJson<any>('/api/billing/validate-tax-id', {
+        method: 'POST',
+        body: JSON.stringify({ country: 'DE', taxId: 'DE123456789' }),
+      });
+      const isValid = result.valid ?? result.is_valid ?? result.isValid ?? false;
+      expect(typeof isValid).toBe('boolean');
+    });
 
-    it(
-      '@real rejects a clearly-invalid tax ID',
-      realTestOptions,
-      async () => {
-        if (!countries) return;
+    it('@real rejects a clearly-invalid tax ID', realTestOptions, async () => {
+      if (!countries) return;
 
-        const supported =
-          countries.supported_countries ?? countries.supportedCountries ?? {};
-        if (!supported['DE']) return;
+      const supported = countries.supported_countries ?? countries.supportedCountries ?? {};
+      if (!supported['DE']) return;
 
-        const result = await apiJson<any>('/api/billing/validate-tax-id', {
-          method: 'POST',
-          body: JSON.stringify({ country: 'DE', taxId: '123' }),
-        });
-        const isValid =
-          result.valid ?? result.is_valid ?? result.isValid ?? true;
-        expect(isValid).toBe(false);
-      },
-    );
+      const result = await apiJson<any>('/api/billing/validate-tax-id', {
+        method: 'POST',
+        body: JSON.stringify({ country: 'DE', taxId: '123' }),
+      });
+      const isValid = result.valid ?? result.is_valid ?? result.isValid ?? true;
+      expect(isValid).toBe(false);
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -401,9 +356,7 @@ describe('@real Billing API', () => {
       });
 
       if (!customer?.id?.startsWith('cus_')) {
-        console.warn(
-          'Failed to create Stripe customer — skipping Stripe session tests',
-        );
+        console.warn('Failed to create Stripe customer — skipping Stripe session tests');
         canTestStripe = false;
         return;
       }
@@ -413,12 +366,11 @@ describe('@real Billing API', () => {
       try {
         dbExec(
           `UPDATE billing_account SET stripe_customer_id = '${createdCustomerId}' ` +
-            `WHERE id = (SELECT billing_account_id FROM "user" WHERE id = '${TEST_USER_ID}')`,
+            `WHERE id = (SELECT billing_account_id FROM "user" WHERE id = '${TEST_USER_ID}')`
         );
       } catch (e: any) {
         console.warn(
-          `Cannot link Stripe customer to DB (${e.message}) — ` +
-            'skipping Stripe session tests',
+          `Cannot link Stripe customer to DB (${e.message}) — ` + 'skipping Stripe session tests'
         );
         await stripeDelete(`customers/${createdCustomerId}`);
         createdCustomerId = null;
@@ -432,7 +384,7 @@ describe('@real Billing API', () => {
         try {
           dbExec(
             `UPDATE billing_account SET stripe_customer_id = NULL ` +
-              `WHERE id = (SELECT billing_account_id FROM "user" WHERE id = '${TEST_USER_ID}')`,
+              `WHERE id = (SELECT billing_account_id FROM "user" WHERE id = '${TEST_USER_ID}')`
           );
         } catch {
           // Best effort
@@ -464,14 +416,14 @@ describe('@real Billing API', () => {
               console.warn(
                 `Skipping checkout test: ${detail}. ` +
                   'Ensure STRIPE_UNIFY_CREDITS_PRICE_ID_PERSONAL is set to ' +
-                  'an active price on Orchestra.',
+                  'an active price on Orchestra.'
               );
               return;
             }
           }
           throw e;
         }
-      },
+      }
     );
 
     it(
@@ -483,7 +435,7 @@ describe('@real Billing API', () => {
         const data = await apiJson<any>('/api/stripe/portalSession');
         expect(data.url).toBeTruthy();
         expect(data.url).toMatch(/^https:\/\/billing\.stripe\.com\//);
-      },
+      }
     );
   });
 });

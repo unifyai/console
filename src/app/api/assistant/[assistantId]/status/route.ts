@@ -56,9 +56,10 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
     }
 
     // Orchestra wraps responses in { info: ... }, unwrap for cleaner client API
-    const payload = responseData && typeof responseData === 'object' && 'info' in responseData
-      ? responseData.info
-      : responseData;
+    const payload =
+      responseData && typeof responseData === 'object' && 'info' in responseData
+        ? responseData.info
+        : responseData;
     const camelCaseResponse = snakeToCamelObject(payload);
 
     return NextResponse.json(camelCaseResponse, { status: response.status });

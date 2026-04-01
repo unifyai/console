@@ -109,9 +109,7 @@ const mockMfaStatus = (status: {
   confirmedAt?: string;
   recoveryCodesRemaining?: number;
 }) => {
-  server.use(
-    http.get('/api/auth/mfa/status', () => HttpResponse.json(status))
-  );
+  server.use(http.get('/api/auth/mfa/status', () => HttpResponse.json(status)));
 };
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
@@ -123,9 +121,7 @@ describe('SecuritySettings – loading & MFA disabled state', () => {
 
   it('shows loading spinner while fetching status', () => {
     // Never resolve the fetch so we stay in loading state
-    server.use(
-      http.get('/api/auth/mfa/status', () => new Promise(() => {}))
-    );
+    server.use(http.get('/api/auth/mfa/status', () => new Promise(() => {})));
 
     render(<SecuritySettings />);
     expect(screen.getByText('Loading 2FA status...')).toBeInTheDocument();
@@ -152,9 +148,7 @@ describe('SecuritySettings – loading & MFA disabled state', () => {
   });
 
   it('falls back to MFA disabled on status fetch error', async () => {
-    server.use(
-      http.get('/api/auth/mfa/status', () => HttpResponse.error())
-    );
+    server.use(http.get('/api/auth/mfa/status', () => HttpResponse.error()));
 
     render(<SecuritySettings />);
 
@@ -257,9 +251,7 @@ describe('SecuritySettings – disable MFA flow', () => {
     await user.click(screen.getByTestId('mock-submit-totp'));
 
     await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith(
-        'Two-factor authentication has been disabled.'
-      );
+      expect(toast.success).toHaveBeenCalledWith('Two-factor authentication has been disabled.');
     });
 
     // After disabling, reverts to setup state (10.5)
@@ -271,10 +263,7 @@ describe('SecuritySettings – disable MFA flow', () => {
   it('shows error for incorrect TOTP code (10.2)', async () => {
     server.use(
       http.delete('/api/auth/mfa/disable', () =>
-        HttpResponse.json(
-          { message: 'Invalid TOTP code' },
-          { status: 400 }
-        )
+        HttpResponse.json({ message: 'Invalid TOTP code' }, { status: 400 })
       )
     );
 
@@ -345,9 +334,7 @@ describe('SecuritySettings – disable MFA flow', () => {
     });
 
     await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith(
-        'Two-factor authentication has been disabled.'
-      );
+      expect(toast.success).toHaveBeenCalledWith('Two-factor authentication has been disabled.');
     });
   });
 
@@ -415,8 +402,18 @@ describe('SecuritySettings – regenerate recovery codes (11.2)', () => {
     server.use(
       http.post('/api/auth/mfa/recovery-codes', () =>
         HttpResponse.json({
-          recoveryCodes: ['code1', 'code2', 'code3', 'code4', 'code5',
-                          'code6', 'code7', 'code8', 'code9', 'code10'],
+          recoveryCodes: [
+            'code1',
+            'code2',
+            'code3',
+            'code4',
+            'code5',
+            'code6',
+            'code7',
+            'code8',
+            'code9',
+            'code10',
+          ],
         })
       )
     );
@@ -487,4 +484,3 @@ describe('SecuritySettings – regenerate recovery codes (11.2)', () => {
     });
   });
 });
-

@@ -519,9 +519,27 @@ describe('contact.ts', () => {
         // Arrange
         vi.mocked(OrchestraAdminClient.get).mockResolvedValueOnce({
           data: [
-            { contactType: 'phone', provider: null, countryCode: null, monthlyCost: 1.5, oneTimeCost: 5.0 },
-            { contactType: 'email', provider: null, countryCode: null, monthlyCost: 14.0, oneTimeCost: 5.0 },
-            { contactType: 'whatsapp', provider: null, countryCode: null, monthlyCost: 5.0, oneTimeCost: 5.0 },
+            {
+              contactType: 'phone',
+              provider: null,
+              countryCode: null,
+              monthlyCost: 1.5,
+              oneTimeCost: 5.0,
+            },
+            {
+              contactType: 'email',
+              provider: null,
+              countryCode: null,
+              monthlyCost: 14.0,
+              oneTimeCost: 5.0,
+            },
+            {
+              contactType: 'whatsapp',
+              provider: null,
+              countryCode: null,
+              monthlyCost: 5.0,
+              oneTimeCost: 5.0,
+            },
           ],
           status: 200,
           statusText: 'OK',
@@ -585,9 +603,7 @@ describe('contact.ts', () => {
       },
       async () => {
         // Arrange
-        vi.mocked(OrchestraAdminClient.get).mockRejectedValueOnce(
-          new Error('Network Error')
-        );
+        vi.mocked(OrchestraAdminClient.get).mockRejectedValueOnce(new Error('Network Error'));
 
         // Act
         const fetchFn = await fetchContactCosts();
@@ -639,10 +655,34 @@ describe('contact.ts', () => {
         // Arrange - two phone rows, one default, one US-specific
         vi.mocked(OrchestraAdminClient.get).mockResolvedValueOnce({
           data: [
-            { contactType: 'phone', provider: 'twilio', countryCode: 'US', monthlyCost: 2.0, oneTimeCost: 5.0 },
-            { contactType: 'phone', provider: null, countryCode: null, monthlyCost: 1.5, oneTimeCost: 5.0 },
-            { contactType: 'email', provider: null, countryCode: null, monthlyCost: 14.0, oneTimeCost: 5.0 },
-            { contactType: 'whatsapp', provider: null, countryCode: null, monthlyCost: 5.0, oneTimeCost: 5.0 },
+            {
+              contactType: 'phone',
+              provider: 'twilio',
+              countryCode: 'US',
+              monthlyCost: 2.0,
+              oneTimeCost: 5.0,
+            },
+            {
+              contactType: 'phone',
+              provider: null,
+              countryCode: null,
+              monthlyCost: 1.5,
+              oneTimeCost: 5.0,
+            },
+            {
+              contactType: 'email',
+              provider: null,
+              countryCode: null,
+              monthlyCost: 14.0,
+              oneTimeCost: 5.0,
+            },
+            {
+              contactType: 'whatsapp',
+              provider: null,
+              countryCode: null,
+              monthlyCost: 5.0,
+              oneTimeCost: 5.0,
+            },
           ],
           status: 200,
           statusText: 'OK',

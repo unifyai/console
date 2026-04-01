@@ -65,37 +65,34 @@ const TotpSetup = ({
     }
   }, [autoStart, step, handleSetup]);
 
-  const handleConfirm = useCallback(
-    async (code: string) => {
-      setError(undefined);
-      setIsLoading(true);
+  const handleConfirm = useCallback(async (code: string) => {
+    setError(undefined);
+    setIsLoading(true);
 
-      try {
-        const res = await fetch('/api/auth/mfa/confirm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code }),
-        });
+    try {
+      const res = await fetch('/api/auth/mfa/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
 
-        if (!res.ok) {
-          const data = await res.json();
-          setError(data.message ?? data.error ?? 'Invalid code.');
-          setIsLoading(false);
-          return;
-        }
-
+      if (!res.ok) {
         const data = await res.json();
-        setRecoveryCodes(data.recoveryCodes ?? []);
-        setStep('recovery');
-        toast.success('Two-factor authentication has been enabled!');
-      } catch {
-        setError('Confirmation failed. Please try again.');
-      } finally {
+        setError(data.message ?? data.error ?? 'Invalid code.');
         setIsLoading(false);
+        return;
       }
-    },
-    [],
-  );
+
+      const data = await res.json();
+      setRecoveryCodes(data.recoveryCodes ?? []);
+      setStep('recovery');
+      toast.success('Two-factor authentication has been enabled!');
+    } catch {
+      setError('Confirmation failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   const handleDone = useCallback(() => {
     setStep('idle');
@@ -130,13 +127,12 @@ const TotpSetup = ({
   if (step === 'qr') {
     return (
       <div className="flex flex-col items-center gap-4" data-testid="totp-qr-step">
-
         <p className="text-body text-center text-muted-foreground">
           Scan this code with your authenticator app.
         </p>
 
         {qrUri && (
-          <div className="flex flex-col items-center gap-3 rounded-lg border border-border p-4 bg-white">
+          <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-white p-4">
             <Image
               src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUri)}`}
               alt="TOTP QR Code"
@@ -149,7 +145,7 @@ const TotpSetup = ({
         )}
 
         <details className="w-full max-w-sm">
-          <summary className="text-caption text-muted-foreground text-center cursor-pointer hover:text-foreground transition-colors">
+          <summary className="text-caption cursor-pointer text-center text-muted-foreground transition-colors hover:text-foreground">
             Can&apos;t scan? Click to enter the key manually
           </summary>
           <div className="mt-2 flex flex-col gap-2">
@@ -157,7 +153,7 @@ const TotpSetup = ({
               Enter this secret key in your authenticator app:
             </p>
             <code
-              className="block break-all rounded bg-muted p-2 text-code tracking-widest select-all text-center"
+              className="text-code block select-all break-all rounded bg-muted p-2 text-center tracking-widest"
               data-testid="totp-secret"
             >
               {(() => {
@@ -169,8 +165,9 @@ const TotpSetup = ({
                 }
               })()}
             </code>
-            <p className="text-[11px] text-muted-foreground text-center">
-              Account: {(() => {
+            <p className="text-center text-[11px] text-muted-foreground">
+              Account:{' '}
+              {(() => {
                 try {
                   const url = new URL(qrUri!);
                   // Path is like /Unify:email@example.com
@@ -212,4 +209,3 @@ const TotpSetup = ({
 };
 
 export default TotpSetup;
-

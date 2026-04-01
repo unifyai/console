@@ -22,8 +22,8 @@ export async function GET(_request: NextRequest) {
   } catch (error: any) {
     const status = error?.response?.status ?? 500;
     const rawData = error?.response?.data;
-    const data = rawData?.detail ?? rawData ?? { error: 'lookup_failed', message: 'Credential lookup failed' };
+    const data = rawData?.detail ??
+      rawData ?? { error: 'lookup_failed', message: 'Credential lookup failed' };
     return NextResponse.json(data, { status });
   }
 }
-

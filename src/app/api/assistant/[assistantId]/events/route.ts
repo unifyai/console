@@ -145,7 +145,8 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
           const thread = payload.thread ?? message.attributes?.thread ?? 'unknown';
           const eventContactId = payload.event?.contact_id ?? payload.contact_id;
           const content = payload.event?.content ?? payload.event?.body ?? payload.content ?? '';
-          const contentPreview = typeof content === 'string' ? content.slice(0, 80) : String(content).slice(0, 80);
+          const contentPreview =
+            typeof content === 'string' ? content.slice(0, 80) : String(content).slice(0, 80);
           const publishTime = message.publishTime?.toISOString();
           const deliveryAttempt = message.deliveryAttempt;
           const ageMs = message.publishTime ? Date.now() - message.publishTime.getTime() : null;

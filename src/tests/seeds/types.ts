@@ -104,4 +104,3 @@ export interface SeededState {
  * a typed description of what was created.
  */
 export type SeedScenario = () => Promise<SeededState>;
-

@@ -16,10 +16,7 @@
 
 import * as React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  BILLING_STATUS_QUERY_KEY,
-  type BillingStatusData,
-} from '@/hooks/Billing/useBillingStatus';
+import { BILLING_STATUS_QUERY_KEY, type BillingStatusData } from '@/hooks/Billing/useBillingStatus';
 
 const SSE_MAX_RECONNECT_ATTEMPTS = 5;
 const SSE_RECONNECT_BASE_DELAY = 2_000;
@@ -29,9 +26,7 @@ type BillingEventType = 'credits_exhausted' | 'credits_restored';
 
 export function useBillingEvents(): void {
   const queryClient = useQueryClient();
-  const lastEventRef = React.useRef<{ type: string; time: number } | null>(
-    null
-  );
+  const lastEventRef = React.useRef<{ type: string; time: number } | null>(null);
 
   React.useEffect(() => {
     let reconnectAttempts = 0;
@@ -55,10 +50,7 @@ export function useBillingEvents(): void {
           const payload = JSON.parse(event.data);
           const eventType = payload.event_type as BillingEventType | undefined;
 
-          if (
-            eventType !== 'credits_exhausted' &&
-            eventType !== 'credits_restored'
-          ) {
+          if (eventType !== 'credits_exhausted' && eventType !== 'credits_restored') {
             return;
           }
 
@@ -79,15 +71,12 @@ export function useBillingEvents(): void {
                 ? -1
                 : 1;
 
-          queryClient.setQueryData<BillingStatusData>(
-            BILLING_STATUS_QUERY_KEY,
-            (old) => ({
-              hasBillingHistory: old?.hasBillingHistory ?? false,
-              credits: eventBalance,
-              hasCredits: eventBalance > 0,
-              accountStatus: old?.accountStatus ?? 'ACTIVE',
-            })
-          );
+          queryClient.setQueryData<BillingStatusData>(BILLING_STATUS_QUERY_KEY, (old) => ({
+            hasBillingHistory: old?.hasBillingHistory ?? false,
+            credits: eventBalance,
+            hasCredits: eventBalance > 0,
+            accountStatus: old?.accountStatus ?? 'ACTIVE',
+          }));
 
           queryClient.invalidateQueries({
             queryKey: BILLING_STATUS_QUERY_KEY,
@@ -108,8 +97,7 @@ export function useBillingEvents(): void {
         if (!hasEverConnected && reconnectAttempts === 0) return;
 
         if (reconnectAttempts < SSE_MAX_RECONNECT_ATTEMPTS) {
-          const delay =
-            SSE_RECONNECT_BASE_DELAY * Math.pow(2, reconnectAttempts);
+          const delay = SSE_RECONNECT_BASE_DELAY * Math.pow(2, reconnectAttempts);
           reconnectAttempts += 1;
           reconnectTimer = setTimeout(connect, delay);
         }

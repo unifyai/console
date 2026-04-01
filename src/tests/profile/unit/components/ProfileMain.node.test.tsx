@@ -14,7 +14,9 @@ import React from 'react';
 
 // Mock SinglePaneBody to just render its body prop
 vi.mock('@/components/Common/Body/SinglePaneBody', () => ({
-  default: ({ body }: { body: React.ReactNode }) => <div data-testid="single-pane-body">{body}</div>,
+  default: ({ body }: { body: React.ReactNode }) => (
+    <div data-testid="single-pane-body">{body}</div>
+  ),
 }));
 
 // Mock ProfileForm to render a simple identifiable element
@@ -70,4 +72,3 @@ describe('Profile Main component', () => {
     expect(profileForm.textContent).toContain('Jane Doe');
   });
 });
-

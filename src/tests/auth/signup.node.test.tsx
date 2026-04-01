@@ -94,7 +94,7 @@ describe('Signup Journey', () => {
             return HttpResponse.json({ id: 'user-new-1', email: body.email, name: 'Test' });
           }
           return HttpResponse.json({ message: 'Invalid code' }, { status: 400 });
-        }),
+        })
       );
       mockSignIn.mockResolvedValueOnce({ url: '/login/onboarding', error: null, ok: true });
 
@@ -140,7 +140,7 @@ describe('Signup Journey', () => {
             password: 'StrongP@ss1',
             redirect: false,
             callbackUrl: '/login/onboarding',
-          }),
+          })
         );
       });
     });
@@ -148,11 +148,11 @@ describe('Signup Journey', () => {
     it('shows error on invalid verification code', async () => {
       server.use(
         http.post('/api/auth/email/register', () =>
-          HttpResponse.json({ email: 'new@test.com', requiresVerification: true }),
+          HttpResponse.json({ email: 'new@test.com', requiresVerification: true })
         ),
         http.post('/api/auth/email/verify', () =>
-          HttpResponse.json({ message: 'Invalid or expired code' }, { status: 400 }),
-        ),
+          HttpResponse.json({ message: 'Invalid or expired code' }, { status: 400 })
+        )
       );
 
       const user = userEvent.setup();
@@ -173,7 +173,7 @@ describe('Signup Journey', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('verification-error')).toHaveTextContent(
-          'Invalid or expired code',
+          'Invalid or expired code'
         );
       });
     });
@@ -184,7 +184,7 @@ describe('Signup Journey', () => {
         http.post('/api/auth/email/register', async ({ request }) => {
           fetchSpy(await request.json());
           return HttpResponse.json({ email: 'x@x.com' });
-        }),
+        })
       );
 
       const user = userEvent.setup();
@@ -221,8 +221,8 @@ describe('Signup Journey', () => {
     it('shows backend error for existing email', async () => {
       server.use(
         http.post('/api/auth/email/register', () =>
-          HttpResponse.json({ message: 'Email already registered' }, { status: 409 }),
-        ),
+          HttpResponse.json({ message: 'Email already registered' }, { status: 409 })
+        )
       );
 
       const user = userEvent.setup();
@@ -234,7 +234,9 @@ describe('Signup Journey', () => {
       await user.click(screen.getByTestId('email-submit-btn'));
 
       await waitFor(() => {
-        expect(screen.getByTestId('email-auth-error')).toHaveTextContent('Email already registered');
+        expect(screen.getByTestId('email-auth-error')).toHaveTextContent(
+          'Email already registered'
+        );
       });
       expect(screen.getByTestId('email-register-form')).toBeInTheDocument();
     });
@@ -242,8 +244,8 @@ describe('Signup Journey', () => {
     it('shows provider conflict during registration', async () => {
       server.use(
         http.post('/api/auth/email/register', () =>
-          HttpResponse.json({ providers: ['google', 'azure-ad'] }, { status: 400 }),
-        ),
+          HttpResponse.json({ providers: ['google', 'azure-ad'] }, { status: 400 })
+        )
       );
 
       const user = userEvent.setup();
@@ -276,11 +278,11 @@ describe('Signup Journey', () => {
     it('redirects to callbackUrl instead of /login/onboarding when provided', async () => {
       server.use(
         http.post('/api/auth/email/register', () =>
-          HttpResponse.json({ email: 'new@test.com', requiresVerification: true }),
+          HttpResponse.json({ email: 'new@test.com', requiresVerification: true })
         ),
         http.post('/api/auth/email/verify', () =>
-          HttpResponse.json({ id: 'user-1', email: 'new@test.com' }),
-        ),
+          HttpResponse.json({ id: 'user-1', email: 'new@test.com' })
+        )
       );
       mockSignIn.mockResolvedValueOnce({ url: '/invite?token=abc', ok: true, error: null });
 
@@ -303,7 +305,7 @@ describe('Signup Journey', () => {
       await waitFor(() => {
         expect(mockSignIn).toHaveBeenCalledWith(
           'credentials',
-          expect.objectContaining({ callbackUrl: '/invite?token=abc' }),
+          expect.objectContaining({ callbackUrl: '/invite?token=abc' })
         );
       });
     });
@@ -311,9 +313,9 @@ describe('Signup Journey', () => {
     it('shows network error when verification API throws', async () => {
       server.use(
         http.post('/api/auth/email/register', () =>
-          HttpResponse.json({ email: 'new@test.com', requiresVerification: true }),
+          HttpResponse.json({ email: 'new@test.com', requiresVerification: true })
         ),
-        http.post('/api/auth/email/verify', () => HttpResponse.error()),
+        http.post('/api/auth/email/verify', () => HttpResponse.error())
       );
 
       const user = userEvent.setup();
@@ -341,12 +343,12 @@ describe('Signup Journey', () => {
       let resendCalled = false;
       server.use(
         http.post('/api/auth/email/register', () =>
-          HttpResponse.json({ email: 'new@test.com', requiresVerification: true }),
+          HttpResponse.json({ email: 'new@test.com', requiresVerification: true })
         ),
         http.post('/api/auth/email/resend-verification', () => {
           resendCalled = true;
           return HttpResponse.json({ message: 'sent' });
-        }),
+        })
       );
 
       const user = userEvent.setup();
@@ -390,7 +392,7 @@ describe('Signup Journey', () => {
       mockPatchSession = vi.fn().mockResolvedValue(undefined);
       server.use(
         http.post('/api/session/workspace', () => HttpResponse.json({ ok: true })),
-        http.post('/api/user/update-profile', () => HttpResponse.json({ ok: true })),
+        http.post('/api/user/update-profile', () => HttpResponse.json({ ok: true }))
       );
     });
 
@@ -402,7 +404,7 @@ describe('Signup Journey', () => {
           onCreateOrg={mockCreateOrg}
           onUpdateOnboarding={mockUpdateOnboarding}
           onPatchSession={mockPatchSession}
-        />,
+        />
       );
 
     it('selects personal workspace and completes onboarding', async () => {
@@ -428,7 +430,7 @@ describe('Signup Journey', () => {
       expect(mockPatchSession).toHaveBeenCalledWith(
         { onboardingStep: 'completed' },
         '/assistants',
-        {},
+        {}
       );
     });
 
@@ -469,7 +471,7 @@ describe('Signup Journey', () => {
       expect(mockPatchSession).toHaveBeenCalledWith(
         { onboardingStep: 'completed' },
         '/assistants',
-        {},
+        {}
       );
     });
 
@@ -489,7 +491,7 @@ describe('Signup Journey', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('workspace-error')).toHaveTextContent(
-          'Organization name already taken',
+          'Organization name already taken'
         );
       });
       expect(mockPatchSession).not.toHaveBeenCalled();
@@ -511,7 +513,7 @@ describe('Signup Journey', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('workspace-error')).toHaveTextContent(
-          'Failed to create organization',
+          'Failed to create organization'
         );
       });
     });
@@ -541,7 +543,7 @@ describe('Signup Journey', () => {
         http.post('/api/session/workspace', async ({ request }) => {
           cookieBody = (await request.json()) as Record<string, unknown>;
           return HttpResponse.json({ ok: true });
-        }),
+        })
       );
       mockCreateOrg.mockResolvedValue({ id: 55, name: 'New Corp' });
 
@@ -602,7 +604,7 @@ describe('Signup Journey', () => {
           const body = (await request.json()) as Record<string, unknown>;
           timezoneSent = body.timezone as string;
           return HttpResponse.json({ ok: true });
-        }),
+        })
       );
 
       const user = userEvent.setup();
@@ -624,7 +626,7 @@ describe('Signup Journey', () => {
           const body = (await request.json()) as Record<string, unknown>;
           timezoneSent = body.timezone as string;
           return HttpResponse.json({ ok: true });
-        }),
+        })
       );
       mockCreateOrg.mockResolvedValue({ id: 10, name: 'TZ Corp' });
 
@@ -651,7 +653,7 @@ describe('Signup Journey', () => {
           const body = (await request.json()) as Record<string, unknown>;
           timezoneSent = body.timezone as string;
           return HttpResponse.json({ ok: true });
-        }),
+        })
       );
 
       render(
@@ -660,7 +662,7 @@ describe('Signup Journey', () => {
           onUpdateOnboarding={mockUpdateOnboarding}
           onPatchSession={mockPatchSession}
           autoComplete
-        />,
+        />
       );
 
       await waitFor(() => {
@@ -672,8 +674,8 @@ describe('Signup Journey', () => {
     it('completes onboarding even when timezone API fails', async () => {
       server.use(
         http.post('/api/user/update-profile', () =>
-          HttpResponse.json({ error: 'server error' }, { status: 500 }),
-        ),
+          HttpResponse.json({ error: 'server error' }, { status: 500 })
+        )
       );
 
       const user = userEvent.setup();
@@ -686,7 +688,7 @@ describe('Signup Journey', () => {
         expect(mockPatchSession).toHaveBeenCalledWith(
           { onboardingStep: 'completed' },
           '/assistants',
-          {},
+          {}
         );
       });
     });
@@ -704,7 +706,7 @@ describe('Signup Journey', () => {
         expect(mockPatchSession).toHaveBeenCalledWith(
           { onboardingStep: 'completed' },
           '/assistants',
-          { token: 'credit_grant_123' },
+          { token: 'credit_grant_123' }
         );
       });
     });
@@ -718,14 +720,14 @@ describe('Signup Journey', () => {
           onUpdateOnboarding={mockUpdateOnboarding}
           onPatchSession={mockPatchSession}
           autoComplete
-        />,
+        />
       );
 
       await waitFor(() => {
         expect(mockPatchSession).toHaveBeenCalledWith(
           { onboardingStep: 'completed' },
           '/assistants',
-          { token: 'auto_credit' },
+          { token: 'auto_credit' }
         );
       });
     });
@@ -773,7 +775,7 @@ describe('Signup Journey', () => {
 
     const renderInvite = (token = 'test-invite-token') =>
       render(
-        <InviteContent token={token} onAccept={mockOnAccept} onPatchSession={mockPatchSession} />,
+        <InviteContent token={token} onAccept={mockOnAccept} onPatchSession={mockPatchSession} />
       );
 
     it('passes the correct token to onAccept', () => {
@@ -806,7 +808,7 @@ describe('Signup Journey', () => {
       expect(mockPatchSession).toHaveBeenCalledWith(
         { onboardingStep: 'completed' },
         '/assistants',
-        {},
+        {}
       );
     });
 
@@ -834,7 +836,7 @@ describe('Signup Journey', () => {
         expect(mockPatchSession).toHaveBeenCalledWith(
           { onboardingStep: 'completed' },
           '/login/mfa',
-          {},
+          {}
         );
       });
 
@@ -852,9 +854,7 @@ describe('Signup Journey', () => {
       await waitFor(() => {
         expect(screen.getByText('Invitation Failed')).toBeInTheDocument();
       });
-      expect(
-        screen.getByText('This invite is for a different email address'),
-      ).toBeInTheDocument();
+      expect(screen.getByText('This invite is for a different email address')).toBeInTheDocument();
 
       expect(screen.getByTestId('back-to-login-btn')).toBeInTheDocument();
       expect(screen.getByTestId('continue-anyway-btn')).toBeInTheDocument();
@@ -927,4 +927,3 @@ describe('Signup Journey', () => {
     });
   });
 });
-

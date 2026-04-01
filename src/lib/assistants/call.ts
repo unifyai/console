@@ -96,7 +96,11 @@ export const deleteCallRoom = async () => {
 };
 
 export const dispatchAssistantToCall = async (_apiKey: string) => {
-  return async (assistantId: string, roomName: string, deployEnv?: string | null): Promise<ResponseProps> => {
+  return async (
+    assistantId: string,
+    roomName: string,
+    deployEnv?: string | null
+  ): Promise<ResponseProps> => {
     'use server';
     try {
       const adminKey = process.env.ORCHESTRA_ADMIN_KEY;

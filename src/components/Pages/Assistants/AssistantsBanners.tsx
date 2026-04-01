@@ -44,21 +44,24 @@ export function AssistantsBanners({
         description: isOrgWorkspace
           ? 'Your organization has an outstanding payment. Please update your payment method to avoid service disruption.'
           : 'You have an outstanding payment. Please update your payment method to avoid service disruption.',
-        variant: 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-200',
+        variant:
+          'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-200',
       },
       SUSPENDED: {
         label: 'Account suspended',
         description: isOrgWorkspace
           ? 'Your organization has been suspended due to non-payment. Please resolve the outstanding balance to restore access.'
           : 'Your account has been suspended due to non-payment. Please resolve the outstanding balance to restore access.',
-        variant: 'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200',
+        variant:
+          'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200',
       },
       CLOSED: {
         label: 'Account closed',
         description: isOrgWorkspace
           ? 'Your organization account has been closed.'
           : 'Your account has been closed.',
-        variant: 'border-gray-200 bg-gray-50 text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200',
+        variant:
+          'border-gray-200 bg-gray-50 text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200',
       },
     };
 

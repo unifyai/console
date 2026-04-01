@@ -18,10 +18,7 @@ export function isEqual(a: unknown, b: unknown): boolean {
     for (const key of keysA) {
       if (
         !Object.prototype.hasOwnProperty.call(b, key) ||
-        !isEqual(
-          (a as Record<string, unknown>)[key],
-          (b as Record<string, unknown>)[key]
-        )
+        !isEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])
       )
         return false;
     }

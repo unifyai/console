@@ -158,8 +158,8 @@ describe('Login Journey', () => {
             email: 'user@test.com',
             name: 'Test User',
             preAuthToken: 'pre-auth-jwt-token',
-          }),
-        ),
+          })
+        )
       );
       mockSignIn.mockResolvedValueOnce({ url: '/assistants', error: null, ok: true });
 
@@ -179,7 +179,7 @@ describe('Login Journey', () => {
             preAuthToken: 'pre-auth-jwt-token',
             redirect: false,
             callbackUrl: '/assistants',
-          }),
+          })
         );
       });
 
@@ -191,8 +191,8 @@ describe('Login Journey', () => {
     it('shows error for invalid credentials', async () => {
       server.use(
         http.post('/api/auth/email/authenticate', () =>
-          HttpResponse.json({ error: 'invalid_credentials' }, { status: 401 }),
-        ),
+          HttpResponse.json({ error: 'invalid_credentials' }, { status: 401 })
+        )
       );
 
       const user = userEvent.setup();
@@ -204,7 +204,7 @@ describe('Login Journey', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('email-auth-error')).toHaveTextContent(
-          'Invalid email or password',
+          'Invalid email or password'
         );
       });
       expect(mockSignIn).not.toHaveBeenCalled();
@@ -213,8 +213,8 @@ describe('Login Journey', () => {
     it('shows provider error when email registered with different provider', async () => {
       server.use(
         http.post('/api/auth/email/authenticate', () =>
-          HttpResponse.json({ providers: ['google'] }, { status: 400 }),
-        ),
+          HttpResponse.json({ providers: ['google'] }, { status: 400 })
+        )
       );
 
       const user = userEvent.setup();
@@ -230,9 +230,7 @@ describe('Login Journey', () => {
     });
 
     it('shows network error when authenticate API throws', async () => {
-      server.use(
-        http.post('/api/auth/email/authenticate', () => HttpResponse.error()),
-      );
+      server.use(http.post('/api/auth/email/authenticate', () => HttpResponse.error()));
 
       const user = userEvent.setup();
       render(<EmailLoginForm />);
@@ -250,8 +248,8 @@ describe('Login Journey', () => {
     it('shows error when signIn returns an error after pre-auth succeeds', async () => {
       server.use(
         http.post('/api/auth/email/authenticate', () =>
-          HttpResponse.json({ id: 'user-1', email: 'user@test.com', preAuthToken: 'token' }),
-        ),
+          HttpResponse.json({ id: 'user-1', email: 'user@test.com', preAuthToken: 'token' })
+        )
       );
       mockSignIn.mockResolvedValueOnce({ error: 'CredentialsSignin', ok: false, url: null });
 
@@ -264,7 +262,7 @@ describe('Login Journey', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('email-auth-error')).toHaveTextContent(
-          'Invalid email or password',
+          'Invalid email or password'
         );
       });
       expect(window.location.href).toBe('http://localhost:3000/login');
@@ -273,8 +271,8 @@ describe('Login Journey', () => {
     it('uses generic message when authenticate returns non-specific error', async () => {
       server.use(
         http.post('/api/auth/email/authenticate', () =>
-          HttpResponse.json({ message: 'Account locked' }, { status: 403 }),
-        ),
+          HttpResponse.json({ message: 'Account locked' }, { status: 403 })
+        )
       );
 
       const user = userEvent.setup();
@@ -305,7 +303,7 @@ describe('Login Journey', () => {
     it('completes the full 3-step password reset flow', async () => {
       server.use(
         http.post('/api/auth/email/forgot-password', () =>
-          HttpResponse.json({ message: 'Code sent' }),
+          HttpResponse.json({ message: 'Code sent' })
         ),
         http.post('/api/auth/email/verify-reset-code', async ({ request }) => {
           const body = (await request.json()) as Record<string, unknown>;
@@ -320,7 +318,7 @@ describe('Login Journey', () => {
             return HttpResponse.json({ message: 'Password reset' });
           }
           return HttpResponse.json({ error: 'invalid_token' }, { status: 400 });
-        }),
+        })
       );
 
       const user = userEvent.setup();
@@ -366,14 +364,14 @@ describe('Login Journey', () => {
     it('shows error for wrong reset code', async () => {
       server.use(
         http.post('/api/auth/email/forgot-password', () =>
-          HttpResponse.json({ message: 'Code sent' }),
+          HttpResponse.json({ message: 'Code sent' })
         ),
         http.post('/api/auth/email/verify-reset-code', () =>
           HttpResponse.json(
             { message: 'Invalid or expired code. Please try again.' },
-            { status: 400 },
-          ),
-        ),
+            { status: 400 }
+          )
+        )
       );
 
       const user = userEvent.setup();
@@ -397,7 +395,7 @@ describe('Login Journey', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('verification-error')).toHaveTextContent(
-          'Invalid or expired code',
+          'Invalid or expired code'
         );
       });
       expect(screen.getByTestId('reset-code-view')).toBeInTheDocument();
@@ -407,8 +405,8 @@ describe('Login Journey', () => {
       server.use(
         http.post('/api/auth/email/forgot-password', () => HttpResponse.json({ message: 'ok' })),
         http.post('/api/auth/email/verify-reset-code', () =>
-          HttpResponse.json({ token: 'valid-token' }),
-        ),
+          HttpResponse.json({ token: 'valid-token' })
+        )
       );
 
       const user = userEvent.setup();
@@ -445,7 +443,7 @@ describe('Login Journey', () => {
       server.use(
         http.post('/api/auth/email/forgot-password', () => HttpResponse.json({ message: 'ok' })),
         http.post('/api/auth/email/verify-reset-code', () =>
-          HttpResponse.json({ token: 'expired-tok' }),
+          HttpResponse.json({ token: 'expired-tok' })
         ),
         http.post('/api/auth/email/reset-password', () =>
           HttpResponse.json(
@@ -453,9 +451,9 @@ describe('Login Journey', () => {
               error: 'token_expired',
               message: 'Verification expired. Please request a new code.',
             },
-            { status: 400 },
-          ),
-        ),
+            { status: 400 }
+          )
+        )
       );
 
       const user = userEvent.setup();
@@ -484,18 +482,14 @@ describe('Login Journey', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('reset-code-view')).toBeInTheDocument();
-        expect(screen.getByTestId('verification-error')).toHaveTextContent(
-          'Verification expired',
-        );
+        expect(screen.getByTestId('verification-error')).toHaveTextContent('Verification expired');
       });
     });
 
     it('rejects weak new password client-side', async () => {
       server.use(
         http.post('/api/auth/email/forgot-password', () => HttpResponse.json({ message: 'ok' })),
-        http.post('/api/auth/email/verify-reset-code', () =>
-          HttpResponse.json({ token: 'tok' }),
-        ),
+        http.post('/api/auth/email/verify-reset-code', () => HttpResponse.json({ token: 'tok' }))
       );
 
       const resetFetchSpy = vi.fn();
@@ -503,7 +497,7 @@ describe('Login Journey', () => {
         http.post('/api/auth/email/reset-password', async ({ request }) => {
           resetFetchSpy(await request.json());
           return HttpResponse.json({ message: 'ok' });
-        }),
+        })
       );
 
       const user = userEvent.setup();
@@ -551,7 +545,7 @@ describe('Login Journey', () => {
 
     it('allows returning to login from code view', async () => {
       server.use(
-        http.post('/api/auth/email/forgot-password', () => HttpResponse.json({ message: 'ok' })),
+        http.post('/api/auth/email/forgot-password', () => HttpResponse.json({ message: 'ok' }))
       );
 
       const user = userEvent.setup();
@@ -575,9 +569,7 @@ describe('Login Journey', () => {
     it('allows returning to login from new-password view', async () => {
       server.use(
         http.post('/api/auth/email/forgot-password', () => HttpResponse.json({ message: 'ok' })),
-        http.post('/api/auth/email/verify-reset-code', () =>
-          HttpResponse.json({ token: 'tok' }),
-        ),
+        http.post('/api/auth/email/verify-reset-code', () => HttpResponse.json({ token: 'tok' }))
       );
 
       const user = userEvent.setup();
@@ -607,10 +599,8 @@ describe('Login Journey', () => {
     it('returns to login from success view after full reset', async () => {
       server.use(
         http.post('/api/auth/email/forgot-password', () => HttpResponse.json({ message: 'ok' })),
-        http.post('/api/auth/email/verify-reset-code', () =>
-          HttpResponse.json({ token: 'tok' }),
-        ),
-        http.post('/api/auth/email/reset-password', () => HttpResponse.json({ message: 'ok' })),
+        http.post('/api/auth/email/verify-reset-code', () => HttpResponse.json({ token: 'tok' })),
+        http.post('/api/auth/email/reset-password', () => HttpResponse.json({ message: 'ok' }))
       );
 
       const user = userEvent.setup();
@@ -646,9 +636,7 @@ describe('Login Journey', () => {
     });
 
     it('shows network error when forgot-password API throws', async () => {
-      server.use(
-        http.post('/api/auth/email/forgot-password', () => HttpResponse.error()),
-      );
+      server.use(http.post('/api/auth/email/forgot-password', () => HttpResponse.error()));
 
       const user = userEvent.setup();
       render(<EmailLoginForm />);
@@ -670,10 +658,8 @@ describe('Login Journey', () => {
     it('shows network error when reset-password API throws', async () => {
       server.use(
         http.post('/api/auth/email/forgot-password', () => HttpResponse.json({ message: 'ok' })),
-        http.post('/api/auth/email/verify-reset-code', () =>
-          HttpResponse.json({ token: 'tok' }),
-        ),
-        http.post('/api/auth/email/reset-password', () => HttpResponse.error()),
+        http.post('/api/auth/email/verify-reset-code', () => HttpResponse.json({ token: 'tok' })),
+        http.post('/api/auth/email/reset-password', () => HttpResponse.error())
       );
 
       const user = userEvent.setup();
@@ -716,7 +702,7 @@ describe('Login Journey', () => {
             resendCalled = true;
           }
           return HttpResponse.json({ message: 'ok' });
-        }),
+        })
       );
 
       const user = userEvent.setup();
@@ -756,8 +742,8 @@ describe('Login Journey', () => {
     it('switches between login, register, verify, and forgot-password views', async () => {
       server.use(
         http.post('/api/auth/email/register', () =>
-          HttpResponse.json({ email: 'new@test.com', requiresVerification: true }),
-        ),
+          HttpResponse.json({ email: 'new@test.com', requiresVerification: true })
+        )
       );
 
       const user = userEvent.setup();
@@ -817,8 +803,8 @@ describe('Login Journey', () => {
     it('clears error when email field changes', async () => {
       server.use(
         http.post('/api/auth/email/authenticate', () =>
-          HttpResponse.json({ error: 'invalid_credentials' }, { status: 401 }),
-        ),
+          HttpResponse.json({ error: 'invalid_credentials' }, { status: 401 })
+        )
       );
 
       const user = userEvent.setup();
@@ -881,7 +867,7 @@ describe('Login Journey', () => {
         'google',
         expect.objectContaining({
           callbackUrl: expect.stringContaining('/login/invite'),
-        }),
+        })
       );
 
       const callbackUrl = mockSignIn.mock.calls[0][1].callbackUrl;
@@ -1104,4 +1090,3 @@ describe('Login Journey', () => {
     });
   });
 });
-

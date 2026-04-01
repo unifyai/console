@@ -75,9 +75,7 @@ describe('Profile display context', () => {
     render(<Main actions={createMockActions()} />);
     await waitForMainLoaded();
 
-    expect(
-      screen.getByText('Your billing details and tax information'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Your billing details and tax information')).toBeInTheDocument();
   });
 
   it('shows org name in billing description when in org context', async () => {
@@ -85,13 +83,11 @@ describe('Profile display context', () => {
       <Main
         actions={createMockActions()}
         orgContext={{ orgId: 1, orgName: 'Acme Corp', canEdit: true }}
-      />,
+      />
     );
     await waitForMainLoaded();
 
-    expect(
-      screen.getByText('Billing details for Acme Corp'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Billing details for Acme Corp')).toBeInTheDocument();
   });
 
   it('opens edit dialog when Edit button is clicked', async () => {
@@ -113,16 +109,14 @@ describe('Profile display context', () => {
       <Main
         actions={createMockActions()}
         orgContext={{ orgId: 2, orgName: 'Beta Inc', canEdit: true }}
-      />,
+      />
     );
     await waitForMainLoaded();
 
     await user.click(screen.getByRole('button', { name: 'Edit' }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText('Update billing details for Beta Inc'),
-      ).toBeInTheDocument();
+      expect(screen.getByText('Update billing details for Beta Inc')).toBeInTheDocument();
     });
   });
 });
@@ -203,9 +197,7 @@ describe('Form validation', () => {
     await user.type(screen.getByLabelText(/^Name/), 'John Doe');
 
     await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: /save changes/i }),
-      ).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: /save changes/i })).not.toBeDisabled();
     });
   });
 
@@ -243,9 +235,7 @@ describe('Form validation', () => {
 
     // Save should be disabled because tax ID is invalid
     await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: /save changes/i }),
-      ).toBeDisabled();
+      expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled();
     });
 
     // Error message should be visible
@@ -314,9 +304,7 @@ describe('Tax handling', () => {
 
     // Wait for debounced validation
     await waitFor(() => {
-      expect(validateFn).toHaveBeenCalledWith(
-        expect.objectContaining({ country: 'DE' }),
-      );
+      expect(validateFn).toHaveBeenCalledWith(expect.objectContaining({ country: 'DE' }));
     });
   });
 });
@@ -342,16 +330,14 @@ describe('Saving profile', () => {
 
     // Wait for Save to be enabled
     await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: /save changes/i }),
-      ).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: /save changes/i })).not.toBeDisabled();
     });
 
     await user.click(screen.getByRole('button', { name: /save changes/i }));
 
     await waitFor(() => {
       expect(actions.updateProfile).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'John Doe' }),
+        expect.objectContaining({ name: 'John Doe' })
       );
     });
 
@@ -365,9 +351,7 @@ describe('Saving profile', () => {
     const onClose = vi.fn();
     const actions = createMockActions({
       getProfile: vi.fn().mockResolvedValue({}),
-      updateProfile: vi
-        .fn()
-        .mockResolvedValue({ detail: 'Tax ID mismatch with Stripe' }),
+      updateProfile: vi.fn().mockResolvedValue({ detail: 'Tax ID mismatch with Stripe' }),
     });
     const user = userEvent.setup();
 
@@ -377,18 +361,14 @@ describe('Saving profile', () => {
     await user.type(screen.getByLabelText(/^Name/), 'Test');
 
     await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: /save changes/i }),
-      ).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: /save changes/i })).not.toBeDisabled();
     });
 
     await user.click(screen.getByRole('button', { name: /save changes/i }));
 
     // Error should appear in the form
     await waitFor(() => {
-      expect(
-        screen.getByText('Tax ID mismatch with Stripe'),
-      ).toBeInTheDocument();
+      expect(screen.getByText('Tax ID mismatch with Stripe')).toBeInTheDocument();
     });
 
     // Dialog should NOT close
@@ -412,9 +392,7 @@ describe('Saving profile', () => {
     await user.type(screen.getByLabelText(/^Name/), 'Saving Test');
 
     await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: /save changes/i }),
-      ).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: /save changes/i })).not.toBeDisabled();
     });
 
     await user.click(screen.getByRole('button', { name: /save changes/i }));

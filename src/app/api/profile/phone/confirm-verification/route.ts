@@ -13,14 +13,14 @@ export async function POST(request: NextRequest) {
     const { phoneNumber, phoneType, code } = body;
 
     if (!phoneNumber || !code) {
-      return NextResponse.json(
-        { detail: 'phoneNumber and code are required.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ detail: 'phoneNumber and code are required.' }, { status: 400 });
     }
 
     const result = await confirmPhoneVerification(
-      sessionUser.id, phoneNumber, code, phoneType || 'phone'
+      sessionUser.id,
+      phoneNumber,
+      code,
+      phoneType || 'phone'
     );
     return NextResponse.json(result);
   } catch {

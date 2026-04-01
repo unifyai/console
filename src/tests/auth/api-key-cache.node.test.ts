@@ -27,15 +27,36 @@ import {
 
 const EMAIL = 'user@example.com';
 const PERSONAL_KEY = 'key-personal-abc';
-const ORG_1 = { id: 10, name: 'Acme Corp', apiKey: 'key-org-10', ownerId: 'owner-1', roleId: 2, roleName: 'member' };
-const ORG_2 = { id: 20, name: 'Other Inc', apiKey: 'key-org-20', ownerId: 'owner-2', roleId: 2, roleName: 'member' };
-const ORG_UNIFY = { id: 99, name: 'Unify', apiKey: 'key-unify-99', ownerId: 'owner-u', roleId: 2, roleName: 'member' };
+const ORG_1 = {
+  id: 10,
+  name: 'Acme Corp',
+  apiKey: 'key-org-10',
+  ownerId: 'owner-1',
+  roleId: 2,
+  roleName: 'member',
+};
+const ORG_2 = {
+  id: 20,
+  name: 'Other Inc',
+  apiKey: 'key-org-20',
+  ownerId: 'owner-2',
+  roleId: 2,
+  roleName: 'member',
+};
+const ORG_UNIFY = {
+  id: 99,
+  name: 'Unify',
+  apiKey: 'key-unify-99',
+  ownerId: 'owner-u',
+  roleId: 2,
+  roleName: 'member',
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function populateWithOrgs(orgs: typeof ORG_1[]) {
+function populateWithOrgs(orgs: (typeof ORG_1)[]) {
   populateApiKeyCache(EMAIL, PERSONAL_KEY, orgs as any);
 }
 

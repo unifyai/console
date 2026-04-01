@@ -57,9 +57,7 @@ import {
   sendSystemEvent,
   listUserDesktops,
 } from '@/lib/assistants/desktop';
-import {
-  setAssistantSpendingLimit,
-} from '@/lib/assistants/spending';
+import { setAssistantSpendingLimit } from '@/lib/assistants/spending';
 import {
   getManagerMethodEvents,
   getToolLoopEvents,
@@ -180,10 +178,7 @@ const AssistantsPage = async ({
 
   return (
     <div className="h-full w-full">
-      <Main
-        assistantActions={assistantActions}
-        userMeta={userMeta}
-      />
+      <Main assistantActions={assistantActions} userMeta={userMeta} />
     </div>
   );
 };

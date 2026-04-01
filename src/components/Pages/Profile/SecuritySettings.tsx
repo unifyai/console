@@ -91,7 +91,7 @@ const SecuritySettings = () => {
         setIsDisabling(false);
       }
     },
-    [fetchStatus, router],
+    [fetchStatus, router]
   );
 
   const handleRegenerate = useCallback(async () => {
@@ -126,18 +126,20 @@ const SecuritySettings = () => {
 
   if (!mfaStatus?.enabled) {
     return (
-      <TotpSetup autoStart onEnabled={() => {
-        setMfaStatus({ enabled: true }); // Optimistic update to prevent button flash
-        fetchStatus(); // Confirm from server
-        router.refresh();
-      }} />
+      <TotpSetup
+        autoStart
+        onEnabled={() => {
+          setMfaStatus({ enabled: true }); // Optimistic update to prevent button flash
+          fetchStatus(); // Confirm from server
+          router.refresh();
+        }}
+      />
     );
   }
 
   // MFA is enabled
   return (
     <div className="flex flex-col gap-4" data-testid="mfa-enabled-section">
-
       {mfaStatus.recoveryCodesRemaining !== undefined && (
         <p
           className={`text-sm ${
@@ -183,12 +185,12 @@ const SecuritySettings = () => {
 
       {/* Disable 2FA */}
       {showDisable ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+        <div className="border-destructive/30 bg-destructive/5 rounded-lg border p-4">
           <h4 className="mb-3 font-medium text-destructive">Disable Two-Factor Authentication</h4>
 
           {!disableWithRecovery ? (
             <>
-              <p className="mb-3 text-caption text-muted-foreground">
+              <p className="text-caption mb-3 text-muted-foreground">
                 Enter your current TOTP code to disable 2FA.
               </p>
               <TotpInput
@@ -204,7 +206,7 @@ const SecuritySettings = () => {
                     setDisableWithRecovery(true);
                     setDisableError(undefined);
                   }}
-                  className="text-caption text-muted-foreground p-0 h-auto"
+                  className="text-caption h-auto p-0 text-muted-foreground"
                 >
                   Use a recovery code instead
                 </Button>
@@ -212,7 +214,7 @@ const SecuritySettings = () => {
             </>
           ) : (
             <>
-              <p className="mb-3 text-caption text-muted-foreground">
+              <p className="text-caption mb-3 text-muted-foreground">
                 Enter one of your recovery codes to disable 2FA.
               </p>
               <div className="flex flex-col gap-3">
@@ -221,14 +223,11 @@ const SecuritySettings = () => {
                   value={recoveryCode}
                   onChange={(e) => setRecoveryCode(e.target.value)}
                   placeholder="Enter recovery code"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-caption font-mono
-                             focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="text-caption w-full rounded-md border border-input bg-background px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-ring"
                   data-testid="disable-recovery-input"
                   autoFocus
                 />
-                {disableError && (
-                  <p className="text-caption text-destructive">{disableError}</p>
-                )}
+                {disableError && <p className="text-caption text-destructive">{disableError}</p>}
                 <Button
                   onClick={() => handleDisable(recoveryCode.trim(), true)}
                   disabled={isDisabling || !recoveryCode.trim()}
@@ -245,7 +244,7 @@ const SecuritySettings = () => {
                   setDisableError(undefined);
                   setRecoveryCode('');
                 }}
-                className="mt-2 text-caption text-muted-foreground p-0 h-auto"
+                className="text-caption mt-2 h-auto p-0 text-muted-foreground"
               >
                 Use authenticator app instead
               </Button>
@@ -261,7 +260,7 @@ const SecuritySettings = () => {
                 setDisableWithRecovery(false);
                 setRecoveryCode('');
               }}
-              className="text-caption text-muted-foreground p-0 h-auto"
+              className="text-caption h-auto p-0 text-muted-foreground"
             >
               Cancel
             </Button>
@@ -281,4 +280,3 @@ const SecuritySettings = () => {
 };
 
 export default SecuritySettings;
-

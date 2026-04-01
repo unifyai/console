@@ -221,11 +221,7 @@ export function createMockChatActions(
 
   return {
     getContactId: vi.fn(
-      async (
-        _userEmail: string,
-        _ownerId: string,
-        _assistantId: string
-      ) => contactId
+      async (_userEmail: string, _ownerId: string, _assistantId: string) => contactId
     ),
     getTranscripts: getTranscripts
       ? vi.fn(getTranscripts)

@@ -55,13 +55,8 @@ export async function POST(request: NextRequest) {
 
   const contentRes = await fetch(signed_url);
   if (!contentRes.ok) {
-    console.error(
-      `[API /api/storage/content] GCS fetch error (${contentRes.status})`
-    );
-    return NextResponse.json(
-      { detail: 'Failed to fetch content from storage' },
-      { status: 502 }
-    );
+    console.error(`[API /api/storage/content] GCS fetch error (${contentRes.status})`);
+    return NextResponse.json({ detail: 'Failed to fetch content from storage' }, { status: 502 });
   }
 
   const buffer = await contentRes.arrayBuffer();

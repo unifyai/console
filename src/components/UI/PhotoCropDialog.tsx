@@ -30,9 +30,7 @@ interface PhotoCropDialogProps {
 const TRANSPARENT_TYPES = new Set(['image/png', 'image/webp']);
 
 export function outputMime(sourceType?: string): string {
-  return sourceType && TRANSPARENT_TYPES.has(sourceType)
-    ? 'image/png'
-    : 'image/jpeg';
+  return sourceType && TRANSPARENT_TYPES.has(sourceType) ? 'image/png' : 'image/jpeg';
 }
 
 export function outputExtension(mime: string): string {
@@ -83,12 +81,18 @@ async function getCroppedBlob(
 
   cropCtx.drawImage(
     rotCanvas,
-    pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
-    0, 0, pixelCrop.width, pixelCrop.height
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    pixelCrop.width,
+    pixelCrop.height
   );
 
   // Canvas 3 (optional): apply horizontal/vertical flip
-  const outputCanvas = (flipH || flipV) ? document.createElement('canvas') : cropCanvas;
+  const outputCanvas = flipH || flipV ? document.createElement('canvas') : cropCanvas;
   if (flipH || flipV) {
     outputCanvas.width = cropCanvas.width;
     outputCanvas.height = cropCanvas.height;
@@ -160,7 +164,14 @@ export function PhotoCropDialog({
     if (!imageSrc || !croppedAreaPixels) return;
     setIsProcessing(true);
     try {
-      const blob = await getCroppedBlob(imageSrc, croppedAreaPixels, rotation, sourceType, flipH, flipV);
+      const blob = await getCroppedBlob(
+        imageSrc,
+        croppedAreaPixels,
+        rotation,
+        sourceType,
+        flipH,
+        flipV
+      );
       const mime = outputMime(sourceType);
       const ext = outputExtension(mime);
       const file = new File([blob], `cropped-photo${ext}`, { type: mime });
@@ -177,13 +188,17 @@ export function PhotoCropDialog({
   const handleFlipH = () => setFlipH((prev) => !prev);
   const handleFlipV = () => setFlipV((prev) => !prev);
 
-  const cropTransform =
-    `translate(${crop.x}px, ${crop.y}px) rotate(${rotation}deg) scale(${flipH ? -zoom : zoom}, ${flipV ? -zoom : zoom})`;
+  const cropTransform = `translate(${crop.x}px, ${crop.y}px) rotate(${rotation}deg) scale(${flipH ? -zoom : zoom}, ${flipV ? -zoom : zoom})`;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onCancel(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onCancel();
+      }}
+    >
       <DialogContent className="max-w-md gap-0 p-0">
-        <DialogHeader className="px-6 pt-6 pb-2">
+        <DialogHeader className="px-6 pb-2 pt-6">
           <DialogTitle>Adjust Photo</DialogTitle>
           <DialogDescription>Drag to reposition. Use the slider to zoom.</DialogDescription>
         </DialogHeader>
@@ -212,7 +227,7 @@ export function PhotoCropDialog({
         </div>
 
         {/* Zoom controls */}
-        <div className="flex items-center gap-3 px-6 pt-4 pb-1">
+        <div className="flex items-center gap-3 px-6 pb-1 pt-4">
           <ZoomOut className="h-4 w-4 shrink-0 text-muted-foreground" />
           <Slider
             value={[zoom]}
@@ -227,17 +242,45 @@ export function PhotoCropDialog({
 
         {/* Rotate & flip controls */}
         <div className="flex items-center justify-center gap-1 px-6 pb-2">
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRotateCcw} aria-label="Rotate counter-clockwise">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={handleRotateCcw}
+            aria-label="Rotate counter-clockwise"
+          >
             <RotateCcw className="h-4 w-4" />
           </Button>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRotateCw} aria-label="Rotate clockwise">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={handleRotateCw}
+            aria-label="Rotate clockwise"
+          >
             <RotateCw className="h-4 w-4" />
           </Button>
           <div className="mx-1 h-4 w-px bg-border" />
-          <Button type="button" variant={flipH ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8" onClick={handleFlipH} aria-label="Flip horizontal">
+          <Button
+            type="button"
+            variant={flipH ? 'secondary' : 'ghost'}
+            size="icon"
+            className="h-8 w-8"
+            onClick={handleFlipH}
+            aria-label="Flip horizontal"
+          >
             <FlipHorizontal className="h-4 w-4" />
           </Button>
-          <Button type="button" variant={flipV ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8" onClick={handleFlipV} aria-label="Flip vertical">
+          <Button
+            type="button"
+            variant={flipV ? 'secondary' : 'ghost'}
+            size="icon"
+            className="h-8 w-8"
+            onClick={handleFlipV}
+            aria-label="Flip vertical"
+          >
             <FlipVertical className="h-4 w-4" />
           </Button>
         </div>
@@ -254,4 +297,3 @@ export function PhotoCropDialog({
     </Dialog>
   );
 }
-

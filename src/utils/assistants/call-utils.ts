@@ -13,4 +13,3 @@
 export function makeRoomName(assistantId: string, medium: string): string {
   return `unity_${assistantId}_${medium}`;
 }
-

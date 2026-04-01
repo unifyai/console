@@ -20,4 +20,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to validate tax ID' }, { status: 500 });
   }
 }
-

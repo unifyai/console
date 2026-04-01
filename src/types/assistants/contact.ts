@@ -41,4 +41,3 @@ export interface AssistantContactCreatePayload {
   firstName?: string;
   lastName?: string;
 }
-

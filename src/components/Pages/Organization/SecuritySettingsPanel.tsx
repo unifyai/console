@@ -92,8 +92,8 @@ const SecuritySettingsPanel = ({
               Require two-factor authentication
             </Label>
             <p className="text-caption text-muted-foreground">
-              When enabled, all members must set up 2FA to access this organization.
-              Members without 2FA will be prompted to set it up before they can use the workspace.
+              When enabled, all members must set up 2FA to access this organization. Members without
+              2FA will be prompted to set it up before they can use the workspace.
             </p>
           </div>
           <Switch
@@ -110,4 +110,3 @@ const SecuritySettingsPanel = ({
 };
 
 export default SecuritySettingsPanel;
-

@@ -80,7 +80,13 @@
  */
 
 import type { SeededState } from '../types';
-import { createUser, createEmailLogin, createAssistant, dbExecBlock, seedChatInfrastructure } from '../client';
+import {
+  createUser,
+  createEmailLogin,
+  createAssistant,
+  dbExecBlock,
+  seedChatInfrastructure,
+} from '../client';
 
 export async function seedBillingBannerStates(): Promise<SeededState> {
   // --- User 1: Granted credits, fully depleted (no recharge record) ---
@@ -92,8 +98,10 @@ export async function seedBillingBannerStates(): Promise<SeededState> {
   createEmailLogin({ userId: grantDepleted.id });
   const a1 = createAssistant({ userId: grantDepleted.id, firstName: 'Ada', surname: 'One' });
   await seedChatInfrastructure({
-    apiKey: grantDepleted.apiKey, userId: grantDepleted.id,
-    assistantId: a1.agentId, email: grantDepleted.email,
+    apiKey: grantDepleted.apiKey,
+    userId: grantDepleted.id,
+    assistantId: a1.agentId,
+    email: grantDepleted.email,
   });
 
   // --- User 2: Paid recharge, fully depleted (has PAID recharge record) ---
@@ -105,8 +113,10 @@ export async function seedBillingBannerStates(): Promise<SeededState> {
   createEmailLogin({ userId: paidDepleted.id });
   const a2 = createAssistant({ userId: paidDepleted.id, firstName: 'Ada', surname: 'Two' });
   await seedChatInfrastructure({
-    apiKey: paidDepleted.apiKey, userId: paidDepleted.id,
-    assistantId: a2.agentId, email: paidDepleted.email,
+    apiKey: paidDepleted.apiKey,
+    userId: paidDepleted.id,
+    assistantId: a2.agentId,
+    email: paidDepleted.email,
   });
   addPaidRecharge(paidDepleted.id, 25);
 
@@ -119,8 +129,10 @@ export async function seedBillingBannerStates(): Promise<SeededState> {
   createEmailLogin({ userId: grantRemaining.id });
   const a3 = createAssistant({ userId: grantRemaining.id, firstName: 'Ada', surname: 'Three' });
   await seedChatInfrastructure({
-    apiKey: grantRemaining.apiKey, userId: grantRemaining.id,
-    assistantId: a3.agentId, email: grantRemaining.email,
+    apiKey: grantRemaining.apiKey,
+    userId: grantRemaining.id,
+    assistantId: a3.agentId,
+    email: grantRemaining.email,
   });
 
   // --- User 4: Paid recharge, still has balance ---
@@ -132,8 +144,10 @@ export async function seedBillingBannerStates(): Promise<SeededState> {
   createEmailLogin({ userId: paidRemaining.id });
   const a4 = createAssistant({ userId: paidRemaining.id, firstName: 'Ada', surname: 'Four' });
   await seedChatInfrastructure({
-    apiKey: paidRemaining.apiKey, userId: paidRemaining.id,
-    assistantId: a4.agentId, email: paidRemaining.email,
+    apiKey: paidRemaining.apiKey,
+    userId: paidRemaining.id,
+    assistantId: a4.agentId,
+    email: paidRemaining.email,
   });
   addPaidRecharge(paidRemaining.id, 100);
 
@@ -146,8 +160,10 @@ export async function seedBillingBannerStates(): Promise<SeededState> {
   createEmailLogin({ userId: brandNew.id });
   const a5 = createAssistant({ userId: brandNew.id, firstName: 'Ada', surname: 'Five' });
   await seedChatInfrastructure({
-    apiKey: brandNew.apiKey, userId: brandNew.id,
-    assistantId: a5.agentId, email: brandNew.email,
+    apiKey: brandNew.apiKey,
+    userId: brandNew.id,
+    assistantId: a5.agentId,
+    email: brandNew.email,
   });
 
   // --- User 6: Zero credits but has a paid recharge (spent exactly what they bought) ---
@@ -159,8 +175,10 @@ export async function seedBillingBannerStates(): Promise<SeededState> {
   createEmailLogin({ userId: zeroPaid.id });
   const a6 = createAssistant({ userId: zeroPaid.id, firstName: 'Ada', surname: 'Six' });
   await seedChatInfrastructure({
-    apiKey: zeroPaid.apiKey, userId: zeroPaid.id,
-    assistantId: a6.agentId, email: zeroPaid.email,
+    apiKey: zeroPaid.apiKey,
+    userId: zeroPaid.id,
+    assistantId: a6.agentId,
+    email: zeroPaid.email,
   });
   addPaidRecharge(zeroPaid.id, 25);
 

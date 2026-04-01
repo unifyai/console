@@ -53,9 +53,7 @@ export async function POST(request: NextRequest) {
 
   const htmlRes = await fetch(signed_url);
   if (!htmlRes.ok) {
-    console.error(
-      `[API /api/storage/html-content] GCS fetch error (${htmlRes.status})`
-    );
+    console.error(`[API /api/storage/html-content] GCS fetch error (${htmlRes.status})`);
     return NextResponse.json(
       { detail: 'Failed to fetch HTML content from storage' },
       { status: 502 }

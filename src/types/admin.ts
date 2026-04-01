@@ -114,13 +114,15 @@ export interface AdminOnboardingActions {
 
   // User lookup + org creation
   lookupUserByEmail: (email: string) => Promise<AdminUserLookup | ResponseProps>;
-  createOrganizationForUser: (
-    name: string,
-    creatorUserId: string
-  ) => Promise<ResponseProps>;
+  createOrganizationForUser: (name: string, creatorUserId: string) => Promise<ResponseProps>;
 
   // Invite user to org + list invites
-  inviteUserToOrg: (orgId: number, email: string, roleId?: number, roleName?: string) => Promise<ResponseProps>;
+  inviteUserToOrg: (
+    orgId: number,
+    email: string,
+    roleId?: number,
+    roleName?: string
+  ) => Promise<ResponseProps>;
   listOrgInvites: (orgId: number) => Promise<AdminOrgInvite[] | ResponseProps>;
 
   // Free trial
@@ -132,10 +134,6 @@ export interface AdminOnboardingActions {
   unverifyOrganization: (orgId: number) => Promise<ResponseProps>;
 
   // Billing management
-  addCredits: (
-    orgId: number,
-    amount: number,
-    type: string
-  ) => Promise<ResponseProps>;
+  addCredits: (orgId: number, amount: number, type: string) => Promise<ResponseProps>;
   freezeAccount: (orgId: number, freeze: boolean) => Promise<ResponseProps>;
 }

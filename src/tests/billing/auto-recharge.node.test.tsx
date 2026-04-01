@@ -16,11 +16,7 @@ import React from 'react';
 
 import Main from '@/components/Pages/Billing/Main';
 
-import {
-  createMockActions,
-  waitForMainLoaded,
-  DEFAULT_AUTO_RECHARGE,
-} from './mocks/actions';
+import { createMockActions, waitForMainLoaded, DEFAULT_AUTO_RECHARGE } from './mocks/actions';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
@@ -115,9 +111,7 @@ describe('Eligibility gating', () => {
       }),
     });
 
-    expect(
-      screen.getByText(/Spend \$30\.00 more to unlock automatic refills/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Spend \$30\.00 more to unlock automatic refills/)).toBeInTheDocument();
   });
 
   it('disables toggle when user has no default payment method', async () => {
@@ -141,7 +135,7 @@ describe('Eligibility gating', () => {
     });
 
     expect(
-      screen.getByText(/Add a default payment method to enable automatic refills/),
+      screen.getByText(/Add a default payment method to enable automatic refills/)
     ).toBeInTheDocument();
   });
 
@@ -186,9 +180,7 @@ describe('Toggling auto-recharge', () => {
     expect(screen.getByLabelText('Recharge Amount')).toBeInTheDocument();
 
     // Success alert
-    expect(
-      screen.getByText('Auto-recharge has been enabled.'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Auto-recharge has been enabled.')).toBeInTheDocument();
   });
 
   it('disables auto-recharge, calls API, and hides settings form', async () => {
@@ -214,9 +206,7 @@ describe('Toggling auto-recharge', () => {
     expect(screen.queryByLabelText('Minimum Balance')).not.toBeInTheDocument();
 
     // Success alert
-    expect(
-      screen.getByText('Auto-recharge has been disabled.'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Auto-recharge has been disabled.')).toBeInTheDocument();
   });
 
   it('shows error and does not call API when ineligible user tries to enable', async () => {
@@ -239,9 +229,7 @@ describe('Toggling auto-recharge', () => {
 
   it('reverts toggle and shows error when API call fails', async () => {
     const actions = await renderBillingPage({
-      toggleAutoRecharge: vi
-        .fn()
-        .mockResolvedValue({ detail: 'Server error' }),
+      toggleAutoRecharge: vi.fn().mockResolvedValue({ detail: 'Server error' }),
     });
     const user = userEvent.setup();
 
@@ -250,10 +238,7 @@ describe('Toggling auto-recharge', () => {
 
     // Should revert back to unchecked
     await waitFor(() => {
-      expect(screen.getByRole('switch')).toHaveAttribute(
-        'aria-checked',
-        'false',
-      );
+      expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
     });
 
     // Error alert
@@ -268,7 +253,7 @@ describe('Toggling auto-recharge', () => {
 describe('Saving auto-recharge settings', () => {
   /** Helper: renders billing page with auto-recharge already enabled. */
   async function renderWithAutoRechargeEnabled(
-    overrides?: Parameters<typeof createMockActions>[0],
+    overrides?: Parameters<typeof createMockActions>[0]
   ) {
     return renderBillingPage({
       getAutoRecharge: vi.fn().mockResolvedValue({
@@ -295,9 +280,7 @@ describe('Saving auto-recharge settings', () => {
     fireEvent.change(minInput, { target: { value: '20' } });
 
     await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: 'Save Changes' }),
-      ).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Save Changes' })).not.toBeDisabled();
     });
   });
 
@@ -312,9 +295,7 @@ describe('Saving auto-recharge settings', () => {
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText('Please enter valid amounts greater than zero.'),
-      ).toBeInTheDocument();
+      expect(screen.getByText('Please enter valid amounts greater than zero.')).toBeInTheDocument();
     });
   });
 
@@ -330,9 +311,7 @@ describe('Saving auto-recharge settings', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(
-          'Recharge amount must be at least $25 to save changes.',
-        ),
+        screen.getByText('Recharge amount must be at least $25 to save changes.')
       ).toBeInTheDocument();
     });
   });
@@ -359,21 +338,15 @@ describe('Saving auto-recharge settings', () => {
       });
     });
 
-    expect(
-      screen.getByText('Auto-recharge settings updated successfully.'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Auto-recharge settings updated successfully.')).toBeInTheDocument();
 
     // Save button should be disabled again (changes committed)
-    expect(
-      screen.getByRole('button', { name: 'Save Changes' }),
-    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled();
   });
 
   it('shows error alert when save API call fails', async () => {
     const actions = await renderWithAutoRechargeEnabled({
-      updateAutoRecharge: vi
-        .fn()
-        .mockResolvedValue({ detail: 'Database error' }),
+      updateAutoRecharge: vi.fn().mockResolvedValue({ detail: 'Database error' }),
     });
     const user = userEvent.setup();
 
@@ -393,8 +366,7 @@ describe('Saving auto-recharge settings', () => {
     await renderWithAutoRechargeEnabled();
 
     expect(
-      screen.getByText(`Minimum recharge amount: $${DEFAULT_AUTO_RECHARGE.minRechargeAmount}`),
+      screen.getByText(`Minimum recharge amount: $${DEFAULT_AUTO_RECHARGE.minRechargeAmount}`)
     ).toBeInTheDocument();
   });
 });
-

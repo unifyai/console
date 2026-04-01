@@ -27,7 +27,11 @@ import {
   ChatDateDivider,
   isSameDay,
 } from '@/components/Chat';
-import { validateFileType, isOversized, MAX_FILE_SIZE_BYTES } from '@/components/Chat/attachmentUtils';
+import {
+  validateFileType,
+  isOversized,
+  MAX_FILE_SIZE_BYTES,
+} from '@/components/Chat/attachmentUtils';
 import { USE_MOCK_EMBEDS, getMockEmbedMessages } from '@/utils/assistants/chat-embed-mock-data';
 import { CameraCapture } from '@/components/Chat/CameraCapture';
 import {
@@ -60,8 +64,7 @@ interface AssistantProfileChatPanelProps {
   onAssistantReply?: (assistantId: string) => void;
 }
 
-const IS_LOCAL_DEV =
-  typeof window !== 'undefined' && window.location.hostname === 'localhost';
+const IS_LOCAL_DEV = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
 export function AssistantProfileChatPanel({
   assistant,
@@ -206,16 +209,13 @@ export function AssistantProfileChatPanel({
     [pendingAttachments]
   );
 
-  const removeAttachment = React.useCallback(
-    (id: string) => {
-      setPendingAttachments((prev) => {
-        const target = prev.find((a) => a.id === id);
-        if (target?.uploadStatus === 'uploading') return prev;
-        return prev.filter((a) => a.id !== id);
-      });
-    },
-    []
-  );
+  const removeAttachment = React.useCallback((id: string) => {
+    setPendingAttachments((prev) => {
+      const target = prev.find((a) => a.id === id);
+      if (target?.uploadStatus === 'uploading') return prev;
+      return prev.filter((a) => a.id !== id);
+    });
+  }, []);
 
   const handleCameraCapture = React.useCallback(
     (file: File) => {
@@ -323,7 +323,12 @@ export function AssistantProfileChatPanel({
     if (scrollHeight !== prevScrollHeight && wasBottom && !isLoadingMore) {
       viewport.scrollTop = scrollHeight;
     } else if (scrollHeight !== prevScrollHeight && !wasBottom) {
-      clientLog('SCROLL_NOT_STICKY', { wasBottom, isLoadingMore, scrollHeightDelta: scrollHeight - (prevScrollHeight ?? 0), msgCount: messages.length });
+      clientLog('SCROLL_NOT_STICKY', {
+        wasBottom,
+        isLoadingMore,
+        scrollHeightDelta: scrollHeight - (prevScrollHeight ?? 0),
+        msgCount: messages.length,
+      });
     }
 
     prevScrollHeightRef.current = scrollHeight;
@@ -347,7 +352,8 @@ export function AssistantProfileChatPanel({
   }, []);
 
   const isUploading = pendingAttachments.some(
-    (a) => a.uploadStatus === 'queued' || a.uploadStatus === 'uploading' || a.uploadStatus === 'done'
+    (a) =>
+      a.uploadStatus === 'queued' || a.uploadStatus === 'uploading' || a.uploadStatus === 'done'
   );
 
   /* Handle send with attachments */
@@ -365,9 +371,7 @@ export function AssistantProfileChatPanel({
       // Drop oversized files from the pending list
       if (oversizedCount > 0) {
         setPendingAttachments(uploadable);
-        toast.error(
-          `${oversizedCount} file${oversizedCount > 1 ? 's' : ''} dropped (too large)`
-        );
+        toast.error(`${oversizedCount} file${oversizedCount > 1 ? 's' : ''} dropped (too large)`);
       }
 
       // Mark uploadable chips as pending upload
@@ -382,9 +386,7 @@ export function AssistantProfileChatPanel({
 
   const handleCancelSend = React.useCallback(() => {
     cancelSend();
-    setPendingAttachments((prev) =>
-      prev.map((a) => ({ ...a, uploadStatus: undefined }))
-    );
+    setPendingAttachments((prev) => prev.map((a) => ({ ...a, uploadStatus: undefined })));
   }, [cancelSend]);
 
   const sendMessageOnEnter = React.useCallback(
@@ -614,25 +616,21 @@ export function AssistantProfileChatPanel({
                 isRecording
                   ? 'Recording...'
                   : isTranscribing
-                      ? 'Transcribing...'
-                      : !canChat
-                        ? isRetryingContactId
-                          ? 'Chat unavailable, retrying connection...'
-                          : 'Chat unavailable'
-                        : isSpendingBlocked
-                          ? spendingGate.blockedMessage || 'Spending limit reached'
-                          : initialLoadError
-                            ? 'Connection failed'
-                            : 'Send a message...'
+                    ? 'Transcribing...'
+                    : !canChat
+                      ? isRetryingContactId
+                        ? 'Chat unavailable, retrying connection...'
+                        : 'Chat unavailable'
+                      : isSpendingBlocked
+                        ? spendingGate.blockedMessage || 'Spending limit reached'
+                        : initialLoadError
+                          ? 'Connection failed'
+                          : 'Send a message...'
               }
               value={inputValue}
               onChange={handleInputChange}
               disabled={
-                !canChat ||
-                isUploading ||
-                initialLoadError ||
-                sseBlocked ||
-                isSpendingBlocked
+                !canChat || isUploading || initialLoadError || sseBlocked || isSpendingBlocked
               }
               className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-16 pr-10"
               autoComplete="off"

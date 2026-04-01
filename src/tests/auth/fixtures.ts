@@ -66,10 +66,7 @@ export function mockWindowLocation(pathname = '/login', search = '') {
 /**
  * Fetch wrapper with timeout for integration tests against the Console dev server.
  */
-export async function apiFetch(
-  endpoint: string,
-  options: RequestInit = {},
-): Promise<Response> {
+export async function apiFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const controller = new AbortController();
   const tid = setTimeout(() => controller.abort(), API_TIMEOUT);
 
@@ -90,10 +87,7 @@ export async function apiFetch(
 /**
  * Fetch and parse JSON, throwing an ApiError on non-2xx responses.
  */
-export async function apiJson<T>(
-  endpoint: string,
-  options: RequestInit = {},
-): Promise<T> {
+export async function apiJson<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const res = await apiFetch(endpoint, options);
   const text = await res.text();
   const body = text ? JSON.parse(text) : {};
@@ -107,7 +101,7 @@ export async function apiJson<T>(
 export function dbExec(sql: string): string {
   return execSync(
     `docker exec ${DB_CONTAINER} psql -U orchestra -d orchestra -tAc "${sql.replace(/"/g, '\\"')}"`,
-    { encoding: 'utf-8', timeout: 5_000 },
+    { encoding: 'utf-8', timeout: 5_000 }
   ).trim();
 }
 
@@ -127,15 +121,12 @@ export async function registerUser(
   email: string,
   password: string,
   name = 'Test',
-  lastName = 'User',
+  lastName = 'User'
 ) {
-  return apiJson<{ email: string; requiresVerification: boolean }>(
-    '/api/auth/email/register',
-    {
-      method: 'POST',
-      body: JSON.stringify({ email, password, name, lastName }),
-    },
-  );
+  return apiJson<{ email: string; requiresVerification: boolean }>('/api/auth/email/register', {
+    method: 'POST',
+    body: JSON.stringify({ email, password, name, lastName }),
+  });
 }
 
 /**
@@ -151,7 +142,7 @@ export function setKnownVerificationCode(email: string, purpose = 'signup'): str
   // Orchestra normalises emails to lowercase
   const normEmail = email.toLowerCase().trim();
   dbExec(
-    `UPDATE email_verification SET code_hash = '${hash}', attempts = 0 WHERE email = '${normEmail}' AND purpose = '${purpose}'`,
+    `UPDATE email_verification SET code_hash = '${hash}', attempts = 0 WHERE email = '${normEmail}' AND purpose = '${purpose}'`
   );
   return knownCode;
 }
@@ -160,13 +151,10 @@ export function setKnownVerificationCode(email: string, purpose = 'signup'): str
  * Verify a user's email code via the Console API route.
  */
 export async function verifyEmail(email: string, code: string, purpose = 'signup') {
-  return apiJson<{ id: string; email: string }>(
-    '/api/auth/email/verify',
-    {
-      method: 'POST',
-      body: JSON.stringify({ email, code, purpose }),
-    },
-  );
+  return apiJson<{ id: string; email: string }>('/api/auth/email/verify', {
+    method: 'POST',
+    body: JSON.stringify({ email, code, purpose }),
+  });
 }
 
 /**
@@ -178,7 +166,7 @@ export async function authenticate(email: string, password: string) {
     {
       method: 'POST',
       body: JSON.stringify({ email, password }),
-    },
+    }
   );
 }
 
@@ -190,7 +178,7 @@ export async function registerAndVerify(
   email: string,
   password: string,
   name = 'Test',
-  lastName = 'User',
+  lastName = 'User'
 ) {
   await registerUser(email, password, name, lastName);
   const code = setKnownVerificationCode(email);
@@ -202,12 +190,8 @@ export async function registerAndVerify(
  * Request a forgot-password email via the Console API route.
  */
 export async function forgotPassword(email: string) {
-  return apiJson<Record<string, unknown>>(
-    '/api/auth/email/forgot-password',
-    {
-      method: 'POST',
-      body: JSON.stringify({ email, captchaToken: 'test' }),
-    },
-  );
+  return apiJson<Record<string, unknown>>('/api/auth/email/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email, captchaToken: 'test' }),
+  });
 }
-

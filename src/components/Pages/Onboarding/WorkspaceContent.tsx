@@ -20,7 +20,7 @@ interface WorkspaceContentProps {
   onPatchSession: (
     patch: { onboardingStep?: string; mfaPending?: boolean },
     redirectTo?: string,
-    extraParams?: Record<string, string>,
+    extraParams?: Record<string, string>
   ) => Promise<never>;
   /**
    * When true, the component auto-completes onboarding on mount
@@ -89,17 +89,21 @@ const WorkspaceContent = ({
         ]);
       } catch {
         // Best-effort: the server-side idempotency check handles the gap.
-        console.warn('[onboarding] Failed to persist step completion — will auto-complete on next visit');
+        console.warn(
+          '[onboarding] Failed to persist step completion — will auto-complete on next visit'
+        );
       }
 
       // Collect current URL params (e.g. credit tokens) to forward.
       const extraParams: Record<string, string> = {};
       const current = new URLSearchParams(window.location.search);
-      current.forEach((value, key) => { extraParams[key] = value; });
+      current.forEach((value, key) => {
+        extraParams[key] = value;
+      });
 
       await onPatchSession({ onboardingStep: 'completed' }, '/assistants', extraParams);
     },
-    [onUpdateOnboarding, onPatchSession, persistBrowserTimezone],
+    [onUpdateOnboarding, onPatchSession, persistBrowserTimezone]
   );
 
   const handlePersonal = useCallback(async () => {
@@ -158,7 +162,9 @@ const WorkspaceContent = ({
 
     const extraParams: Record<string, string> = {};
     const current = new URLSearchParams(window.location.search);
-    current.forEach((value, key) => { extraParams[key] = value; });
+    current.forEach((value, key) => {
+      extraParams[key] = value;
+    });
 
     // Fire timezone detection alongside the session patch (best-effort).
     persistBrowserTimezone();
@@ -166,7 +172,7 @@ const WorkspaceContent = ({
     onPatchSession(
       { onboardingStep: 'completed' },
       '/assistants',
-      Object.keys(extraParams).length > 0 ? extraParams : undefined,
+      Object.keys(extraParams).length > 0 ? extraParams : undefined
     ).catch(() => {
       setIsLoading(false);
     });
@@ -190,10 +196,12 @@ const WorkspaceContent = ({
     >
       {/* Header */}
       <div className="flex flex-col items-center gap-6">
-        <div className="flex justify-center"><UnifyLogo /></div>
+        <div className="flex justify-center">
+          <UnifyLogo />
+        </div>
         <div className="text-center">
           <h1 className="text-h1 font-semibold">Welcome to Unify</h1>
-          <p className="mt-2 text-body text-muted-foreground">
+          <p className="text-body mt-2 text-muted-foreground">
             How do you plan to use the platform?
           </p>
         </div>
@@ -208,18 +216,16 @@ const WorkspaceContent = ({
             setError(undefined);
           }}
           disabled={isLoading}
-          className={`group flex items-center gap-4 rounded-lg border p-4 text-left transition-all
-            ${choice === 'personal'
-              ? 'border-primary bg-primary/5 ring-1 ring-primary'
-              : 'border-border hover:border-primary/50 hover:bg-muted/50'
-            }
-            ${isLoading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}
-          `}
+          className={`group flex items-center gap-4 rounded-lg border p-4 text-left transition-all ${
+            choice === 'personal'
+              ? 'bg-primary/5 border-primary ring-1 ring-primary'
+              : 'hover:border-primary/50 hover:bg-muted/50 border-border'
+          } ${isLoading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} `}
           data-testid="workspace-personal"
         >
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full
-            ${choice === 'personal' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground group-hover:text-foreground'}
-          `}>
+          <div
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${choice === 'personal' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground group-hover:text-foreground'} `}
+          >
             <User className="h-5 w-5" />
           </div>
           <div className="flex-1">
@@ -237,18 +243,16 @@ const WorkspaceContent = ({
             setError(undefined);
           }}
           disabled={isLoading}
-          className={`group flex items-center gap-4 rounded-lg border p-4 text-left transition-all
-            ${choice === 'organization'
-              ? 'border-primary bg-primary/5 ring-1 ring-primary'
-              : 'border-border hover:border-primary/50 hover:bg-muted/50'
-            }
-            ${isLoading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}
-          `}
+          className={`group flex items-center gap-4 rounded-lg border p-4 text-left transition-all ${
+            choice === 'organization'
+              ? 'bg-primary/5 border-primary ring-1 ring-primary'
+              : 'hover:border-primary/50 hover:bg-muted/50 border-border'
+          } ${isLoading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} `}
           data-testid="workspace-organization"
         >
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full
-            ${choice === 'organization' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground group-hover:text-foreground'}
-          `}>
+          <div
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${choice === 'organization' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground group-hover:text-foreground'} `}
+          >
             <Users className="h-5 w-5" />
           </div>
           <div className="flex-1">
@@ -325,7 +329,7 @@ const WorkspaceContent = ({
       )}
 
       {/* Footer note */}
-      <p className="text-center text-caption text-muted-foreground">
+      <p className="text-caption text-center text-muted-foreground">
         You can always create an organization later, with separate billing and resources.
       </p>
     </motion.div>

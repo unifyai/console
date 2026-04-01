@@ -73,13 +73,7 @@ describe('SecuritySettingsPanel – loading', () => {
       getMfaSettings: vi.fn().mockReturnValue(new Promise(() => {})),
     });
 
-    render(
-      <SecuritySettingsPanel
-        organizationId={ORG_ID}
-        canEdit={true}
-        actions={actions}
-      />
-    );
+    render(<SecuritySettingsPanel organizationId={ORG_ID} canEdit={true} actions={actions} />);
 
     expect(screen.getByText('Loading security settings...')).toBeInTheDocument();
   });
@@ -87,13 +81,7 @@ describe('SecuritySettingsPanel – loading', () => {
   it('calls getMfaSettings with the organization ID on mount', async () => {
     const actions = createActions();
 
-    render(
-      <SecuritySettingsPanel
-        organizationId={ORG_ID}
-        canEdit={true}
-        actions={actions}
-      />
-    );
+    render(<SecuritySettingsPanel organizationId={ORG_ID} canEdit={true} actions={actions} />);
 
     await waitFor(() => {
       expect(actions.getMfaSettings).toHaveBeenCalledWith(ORG_ID);
@@ -111,13 +99,7 @@ describe('SecuritySettingsPanel – display state', () => {
       getMfaSettings: vi.fn().mockResolvedValue({ requireMfa: false }),
     });
 
-    render(
-      <SecuritySettingsPanel
-        organizationId={ORG_ID}
-        canEdit={true}
-        actions={actions}
-      />
-    );
+    render(<SecuritySettingsPanel organizationId={ORG_ID} canEdit={true} actions={actions} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('security-settings-panel')).toBeInTheDocument();
@@ -132,13 +114,7 @@ describe('SecuritySettingsPanel – display state', () => {
       getMfaSettings: vi.fn().mockResolvedValue({ requireMfa: true }),
     });
 
-    render(
-      <SecuritySettingsPanel
-        organizationId={ORG_ID}
-        canEdit={true}
-        actions={actions}
-      />
-    );
+    render(<SecuritySettingsPanel organizationId={ORG_ID} canEdit={true} actions={actions} />);
 
     await waitFor(() => {
       const toggle = screen.getByTestId('require-mfa-toggle');
@@ -149,13 +125,7 @@ describe('SecuritySettingsPanel – display state', () => {
   it('displays description text about MFA enforcement', async () => {
     const actions = createActions();
 
-    render(
-      <SecuritySettingsPanel
-        organizationId={ORG_ID}
-        canEdit={true}
-        actions={actions}
-      />
-    );
+    render(<SecuritySettingsPanel organizationId={ORG_ID} canEdit={true} actions={actions} />);
 
     await waitFor(() => {
       expect(
@@ -176,13 +146,7 @@ describe('SecuritySettingsPanel – admin actions (13.1, 13.2)', () => {
       updateMfaSettings: vi.fn().mockResolvedValue({ requireMfa: true }),
     });
 
-    render(
-      <SecuritySettingsPanel
-        organizationId={ORG_ID}
-        canEdit={true}
-        actions={actions}
-      />
-    );
+    render(<SecuritySettingsPanel organizationId={ORG_ID} canEdit={true} actions={actions} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('require-mfa-toggle')).toBeInTheDocument();
@@ -207,13 +171,7 @@ describe('SecuritySettingsPanel – admin actions (13.1, 13.2)', () => {
       updateMfaSettings: vi.fn().mockResolvedValue({ requireMfa: false }),
     });
 
-    render(
-      <SecuritySettingsPanel
-        organizationId={ORG_ID}
-        canEdit={true}
-        actions={actions}
-      />
-    );
+    render(<SecuritySettingsPanel organizationId={ORG_ID} canEdit={true} actions={actions} />);
 
     await waitFor(() => {
       const toggle = screen.getByTestId('require-mfa-toggle');
@@ -237,13 +195,7 @@ describe('SecuritySettingsPanel – admin actions (13.1, 13.2)', () => {
       updateMfaSettings: vi.fn().mockResolvedValue({ detail: 'Permission denied' }),
     });
 
-    render(
-      <SecuritySettingsPanel
-        organizationId={ORG_ID}
-        canEdit={true}
-        actions={actions}
-      />
-    );
+    render(<SecuritySettingsPanel organizationId={ORG_ID} canEdit={true} actions={actions} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('require-mfa-toggle')).toBeInTheDocument();
@@ -262,13 +214,7 @@ describe('SecuritySettingsPanel – admin actions (13.1, 13.2)', () => {
       updateMfaSettings: vi.fn().mockRejectedValue(new Error('Network error')),
     });
 
-    render(
-      <SecuritySettingsPanel
-        organizationId={ORG_ID}
-        canEdit={true}
-        actions={actions}
-      />
-    );
+    render(<SecuritySettingsPanel organizationId={ORG_ID} canEdit={true} actions={actions} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('require-mfa-toggle')).toBeInTheDocument();
@@ -292,13 +238,7 @@ describe('SecuritySettingsPanel – non-admin (13.3)', () => {
       getMfaSettings: vi.fn().mockResolvedValue({ requireMfa: false }),
     });
 
-    render(
-      <SecuritySettingsPanel
-        organizationId={ORG_ID}
-        canEdit={false}
-        actions={actions}
-      />
-    );
+    render(<SecuritySettingsPanel organizationId={ORG_ID} canEdit={false} actions={actions} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('require-mfa-toggle')).toBeDisabled();
@@ -310,13 +250,7 @@ describe('SecuritySettingsPanel – non-admin (13.3)', () => {
       getMfaSettings: vi.fn().mockResolvedValue({ requireMfa: false }),
     });
 
-    render(
-      <SecuritySettingsPanel
-        organizationId={ORG_ID}
-        canEdit={false}
-        actions={actions}
-      />
-    );
+    render(<SecuritySettingsPanel organizationId={ORG_ID} canEdit={false} actions={actions} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('require-mfa-toggle')).toBeInTheDocument();
@@ -330,4 +264,3 @@ describe('SecuritySettingsPanel – non-admin (13.3)', () => {
     expect(actions.updateMfaSettings).not.toHaveBeenCalled();
   });
 });
-

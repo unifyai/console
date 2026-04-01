@@ -696,7 +696,8 @@ describe('Transcript Display with Attachments', () => {
             {
               id: 'deleted-uuid',
               filename: 'deleted.pdf',
-              gsUrl: 'gs://bucket/deleted-user/deleted-uuid_deleted.pdf',
+              gsUrl:
+                'gs://bucket/deleted-user/deleted-uuid_deleted.pdf',
               contentType: 'application/pdf',
               sizeBytes: 5000,
             },

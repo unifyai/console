@@ -107,21 +107,16 @@ function useToast() {
   } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const show = useCallback(
-    (text: string, type: 'success' | 'error' = 'success') => {
-      if (timer.current) clearTimeout(timer.current);
-      setMessage({ text, type });
-      timer.current = setTimeout(() => setMessage(null), 4000);
-    },
-    []
-  );
+  const show = useCallback((text: string, type: 'success' | 'error' = 'success') => {
+    if (timer.current) clearTimeout(timer.current);
+    setMessage({ text, type });
+    timer.current = setTimeout(() => setMessage(null), 4000);
+  }, []);
 
   const Toast = message ? (
     <div
       className={`fixed bottom-4 right-4 z-[100] rounded-lg px-4 py-2 text-sm shadow-lg ${
-        message.type === 'success'
-          ? 'bg-green-600 text-white'
-          : 'bg-red-600 text-white'
+        message.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
       }`}
     >
       {message.text}
@@ -135,9 +130,7 @@ function useToast() {
 // Main Component
 // =============================================================================
 
-export default function OrganizationsAdminMain({
-  actions,
-}: OrganizationsAdminMainProps) {
+export default function OrganizationsAdminMain({ actions }: OrganizationsAdminMainProps) {
   const { show: toast, Toast } = useToast();
 
   // ── Organization list state ──────────────────────────────────────────
@@ -153,9 +146,7 @@ export default function OrganizationsAdminMain({
   // ── Create org dialog state ──────────────────────────────────────────
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [lookupEmail, setLookupEmail] = useState('');
-  const [lookupResult, setLookupResult] = useState<AdminUserLookup | null>(
-    null
-  );
+  const [lookupResult, setLookupResult] = useState<AdminUserLookup | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -273,10 +264,7 @@ export default function OrganizationsAdminMain({
   const handleCreateOrg = async () => {
     if (!lookupResult || !newOrgName.trim()) return;
     setIsCreating(true);
-    const result = await actions.createOrganizationForUser(
-      newOrgName.trim(),
-      lookupResult.id
-    );
+    const result = await actions.createOrganizationForUser(newOrgName.trim(), lookupResult.id);
     if (isError(result)) {
       toast(result.detail, 'error');
     } else {
@@ -312,7 +300,7 @@ export default function OrganizationsAdminMain({
       orgDetail.id,
       trimmed,
       undefined,
-      inviteRoleName !== 'Member' ? inviteRoleName : undefined,
+      inviteRoleName !== 'Member' ? inviteRoleName : undefined
     );
     if (isError(result)) {
       toast(result.detail, 'error');
@@ -422,10 +410,7 @@ export default function OrganizationsAdminMain({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h1 className="text-h1 text-semibold">Admin · Organizations</h1>
-          <Dialog
-            open={createDialogOpen}
-            onOpenChange={handleCreateDialogOpenChange}
-          >
+          <Dialog open={createDialogOpen} onOpenChange={handleCreateDialogOpenChange}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -439,9 +424,7 @@ export default function OrganizationsAdminMain({
               <div className="space-y-4 pt-2">
                 {/* Step 1: Look up user by email */}
                 <div>
-                  <Label className="text-label-muted">
-                    Step 1: Find user by email
-                  </Label>
+                  <Label className="text-label-muted">Step 1: Find user by email</Label>
                   <div className="mt-1.5 flex gap-2">
                     <Input
                       placeholder="User email…"
@@ -455,11 +438,7 @@ export default function OrganizationsAdminMain({
                       onClick={handleLookup}
                       disabled={isLookingUp || !lookupEmail.trim()}
                     >
-                      {isLookingUp ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        'Look up'
-                      )}
+                      {isLookingUp ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Look up'}
                     </Button>
                   </div>
                 </div>
@@ -467,43 +446,31 @@ export default function OrganizationsAdminMain({
                 {/* User found */}
                 {lookupResult && (
                   <>
-                    <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 p-2.5 text-sm">
+                    <div className="bg-muted/30 flex items-center gap-2 rounded-md border border-border p-2.5 text-sm">
                       <User className="h-4 w-4 shrink-0 text-muted-foreground" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">
                           {lookupResult.name}
-                          {lookupResult.lastName
-                            ? ` ${lookupResult.lastName}`
-                            : ''}
+                          {lookupResult.lastName ? ` ${lookupResult.lastName}` : ''}
                         </p>
-                        <p className="truncate text-caption">
-                          {lookupResult.email}
-                        </p>
-                        {lookupResult.organizations &&
-                          lookupResult.organizations.length > 0 && (
-                            <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
-                              Already in:{' '}
-                              {lookupResult.organizations
-                                .map((o) => o.name)
-                                .join(', ')}
-                            </p>
-                          )}
+                        <p className="text-caption truncate">{lookupResult.email}</p>
+                        {lookupResult.organizations && lookupResult.organizations.length > 0 && (
+                          <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
+                            Already in: {lookupResult.organizations.map((o) => o.name).join(', ')}
+                          </p>
+                        )}
                       </div>
                     </div>
 
                     {/* Step 2: Org name */}
                     <div>
-                      <Label className="text-label-muted">
-                        Step 2: Organization name
-                      </Label>
+                      <Label className="text-label-muted">Step 2: Organization name</Label>
                       <div className="mt-1.5 flex gap-2">
                         <Input
                           placeholder="Organization name…"
                           value={newOrgName}
                           onChange={(e) => setNewOrgName(e.target.value)}
-                          onKeyDown={(e) =>
-                            e.key === 'Enter' && handleCreateOrg()
-                          }
+                          onKeyDown={(e) => e.key === 'Enter' && handleCreateOrg()}
                           className="flex-1"
                         />
                         <Button
@@ -511,11 +478,7 @@ export default function OrganizationsAdminMain({
                           onClick={handleCreateOrg}
                           disabled={isCreating || !newOrgName.trim()}
                         >
-                          {isCreating ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            'Create'
-                          )}
+                          {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
                         </Button>
                       </div>
                     </div>
@@ -546,13 +509,11 @@ export default function OrganizationsAdminMain({
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : orgs.length === 0 ? (
-            <div className="py-12 text-center text-body-muted">
-              No organizations found
-            </div>
+            <div className="text-body-muted py-12 text-center">No organizations found</div>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border text-left text-caption">
+                <tr className="text-caption border-b border-border text-left">
                   <th className="px-4 py-2 font-medium">Name</th>
                   <th className="px-4 py-2 font-medium">Members</th>
                   <th className="px-4 py-2 font-medium">Created</th>
@@ -564,7 +525,7 @@ export default function OrganizationsAdminMain({
                   <tr
                     key={org.id}
                     onClick={() => selectOrg(org.id)}
-                    className={`cursor-pointer border-b border-border transition-colors hover:bg-muted/50 ${
+                    className={`hover:bg-muted/50 cursor-pointer border-b border-border transition-colors ${
                       selectedOrgId === org.id ? 'bg-muted/70' : ''
                     }`}
                   >
@@ -574,9 +535,7 @@ export default function OrganizationsAdminMain({
                         <span className="font-medium">{org.name}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 text-muted-foreground">
-                      {org.memberCount}
-                    </td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{org.memberCount}</td>
                     <td className="px-4 py-2.5 text-muted-foreground">
                       {formatDate(org.createdAt)}
                     </td>
@@ -596,9 +555,7 @@ export default function OrganizationsAdminMain({
         <div className="flex h-full w-2/3 flex-col overflow-auto">
           {/* Detail header */}
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <h2 className="text-h3 text-semibold">
-              {orgDetail?.name ?? 'Loading…'}
-            </h2>
+            <h2 className="text-h3 text-semibold">{orgDetail?.name ?? 'Loading…'}</h2>
             <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
@@ -610,11 +567,7 @@ export default function OrganizationsAdminMain({
                 }}
                 disabled={isLoadingDetail}
               >
-                <RefreshCw
-                  className={`h-3.5 w-3.5 ${
-                    isLoadingDetail ? 'animate-spin' : ''
-                  }`}
-                />
+                <RefreshCw className={`h-3.5 w-3.5 ${isLoadingDetail ? 'animate-spin' : ''}`} />
               </Button>
               <Button variant="ghost" size="sm" onClick={closeDetail}>
                 <X className="h-4 w-4" />
@@ -631,9 +584,7 @@ export default function OrganizationsAdminMain({
               {/* ── Info ──────────────────────────────────────────── */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-title">
-                    Organization Info
-                  </CardTitle>
+                  <CardTitle className="text-title">Organization Info</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-1.5 text-sm">
                   <div className="flex justify-between">
@@ -664,9 +615,7 @@ export default function OrganizationsAdminMain({
                     <FlaskConical className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <Label className="text-title">Free Trial</Label>
-                      <p className="text-caption">
-                        Hides billing & usage pages for org members
-                      </p>
+                      <p className="text-caption">Hides billing & usage pages for org members</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -711,10 +660,7 @@ export default function OrganizationsAdminMain({
                     {isTogglingVerified ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Switch
-                        checked={orgDetail.verified}
-                        onCheckedChange={handleVerifiedToggle}
-                      />
+                      <Switch checked={orgDetail.verified} onCheckedChange={handleVerifiedToggle} />
                     )}
                   </div>
                 </CardContent>
@@ -725,7 +671,7 @@ export default function OrganizationsAdminMain({
               {/* ── Invite User + Pending Invites ─────────────────── */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-title">
+                  <CardTitle className="text-title flex items-center gap-2">
                     <UserPlus className="h-4 w-4" />
                     Invite User
                   </CardTitle>
@@ -739,9 +685,7 @@ export default function OrganizationsAdminMain({
                         placeholder="user@example.com"
                         value={inviteEmail}
                         onChange={(e) => setInviteEmail(e.target.value)}
-                        onKeyDown={(e) =>
-                          e.key === 'Enter' && handleInviteUser()
-                        }
+                        onKeyDown={(e) => e.key === 'Enter' && handleInviteUser()}
                         className="pl-9"
                       />
                     </div>
@@ -760,11 +704,7 @@ export default function OrganizationsAdminMain({
                       onClick={handleInviteUser}
                       disabled={isInviting || !inviteEmail.trim()}
                     >
-                      {isInviting ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        'Send Invite'
-                      )}
+                      {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send Invite'}
                     </Button>
                   </div>
 
@@ -775,39 +715,29 @@ export default function OrganizationsAdminMain({
                     </div>
                   ) : invites.length > 0 ? (
                     <div className="space-y-1.5">
-                      <Label className="text-label-muted">
-                        Pending Invites
-                      </Label>
+                      <Label className="text-label-muted">Pending Invites</Label>
                       <div className="space-y-1">
                         {invites.map((inv) => (
                           <div
                             key={inv.id}
                             className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
                           >
-                            <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex min-w-0 items-center gap-2">
                               <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                               <span className="truncate">{inv.email}</span>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0 ml-2">
+                            <div className="ml-2 flex shrink-0 items-center gap-2">
                               {inv.status === 'expired' ? (
-                                <Badge
-                                  variant="destructive"
-                                  className="text-xs"
-                                >
+                                <Badge variant="destructive" className="text-xs">
                                   Expired
                                 </Badge>
                               ) : (
-                                <Badge
-                                  variant="secondary"
-                                  className="text-xs"
-                                >
+                                <Badge variant="secondary" className="text-xs">
                                   <Clock className="mr-1 h-3 w-3" />
                                   Pending
                                 </Badge>
                               )}
-                              <span className="text-caption">
-                                {formatDate(inv.createdAt)}
-                              </span>
+                              <span className="text-caption">{formatDate(inv.createdAt)}</span>
                             </div>
                           </div>
                         ))}
@@ -822,7 +752,7 @@ export default function OrganizationsAdminMain({
               {/* ── Billing (simplified 2-column layout) ──────────── */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-title">
+                  <CardTitle className="text-title flex items-center gap-2">
                     <CreditCard className="h-4 w-4" />
                     Billing
                   </CardTitle>
@@ -831,9 +761,7 @@ export default function OrganizationsAdminMain({
                   {/* Credits row */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-body-muted">
-                        Credits
-                      </span>
+                      <span className="text-body-muted">Credits</span>
                       <p
                         className={`text-h1 text-semibold ${
                           orgDetail.credits > 0
@@ -844,10 +772,7 @@ export default function OrganizationsAdminMain({
                         ${orgDetail.credits.toFixed(2)}
                       </p>
                     </div>
-                    <Dialog
-                      open={creditDialogOpen}
-                      onOpenChange={handleCreditDialogOpenChange}
-                    >
+                    <Dialog open={creditDialogOpen} onOpenChange={handleCreditDialogOpenChange}>
                       <DialogTrigger asChild>
                         <Button variant="outline" size="sm">
                           <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -863,18 +788,14 @@ export default function OrganizationsAdminMain({
                             <Label className="text-sm">Type</Label>
                             <Select
                               value={creditType}
-                              onValueChange={(v) =>
-                                setCreditType(v as 'promo' | 'payment')
-                              }
+                              onValueChange={(v) => setCreditType(v as 'promo' | 'payment')}
                             >
                               <SelectTrigger className="mt-1.5">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="promo">Promo</SelectItem>
-                                <SelectItem value="payment">
-                                  Payment
-                                </SelectItem>
+                                <SelectItem value="payment">Payment</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -885,9 +806,7 @@ export default function OrganizationsAdminMain({
                               placeholder="e.g. 100"
                               value={creditAmount}
                               onChange={(e) => setCreditAmount(e.target.value)}
-                              onKeyDown={(e) =>
-                                e.key === 'Enter' && handleAddCredits()
-                              }
+                              onKeyDown={(e) => e.key === 'Enter' && handleAddCredits()}
                               className="mt-1.5"
                               min="0"
                               step="1"
@@ -896,7 +815,7 @@ export default function OrganizationsAdminMain({
                             {creditAmount &&
                               (isNaN(parseFloat(creditAmount)) ||
                                 parseFloat(creditAmount) <= 0) && (
-                                <p className="mt-1 text-body-sm text-error">
+                                <p className="text-body-sm text-error mt-1">
                                   Enter a valid positive amount
                                 </p>
                               )}
@@ -927,26 +846,17 @@ export default function OrganizationsAdminMain({
                   {/* Status row */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-body-muted">
-                        Status
-                      </span>
+                      <span className="text-body-muted">Status</span>
                       <div className="mt-0.5">
                         <Badge
-                          variant={
-                            orgDetail.accountStatus === 'ACTIVE'
-                              ? 'default'
-                              : 'destructive'
-                          }
+                          variant={orgDetail.accountStatus === 'ACTIVE' ? 'default' : 'destructive'}
                           className="text-xs"
                         >
                           {orgDetail.accountStatus}
                         </Badge>
                       </div>
                     </div>
-                    <AlertDialog
-                      open={freezeDialogOpen}
-                      onOpenChange={setFreezeDialogOpen}
-                    >
+                    <AlertDialog open={freezeDialogOpen} onOpenChange={setFreezeDialogOpen}>
                       <Button
                         variant={isFrozen ? 'default' : 'destructive'}
                         size="sm"
@@ -959,9 +869,7 @@ export default function OrganizationsAdminMain({
                         <AlertDialogHeader>
                           <AlertDialogTitle className="flex items-center gap-2">
                             <AlertTriangle className="h-5 w-5 text-amber-500" />
-                            {isFrozen
-                              ? 'Unfreeze Account?'
-                              : 'Freeze Account?'}
+                            {isFrozen ? 'Unfreeze Account?' : 'Freeze Account?'}
                           </AlertDialogTitle>
                           <AlertDialogDescription>
                             {isFrozen
@@ -970,16 +878,14 @@ export default function OrganizationsAdminMain({
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel disabled={isTogglingFreeze}>
-                            Cancel
-                          </AlertDialogCancel>
+                          <AlertDialogCancel disabled={isTogglingFreeze}>Cancel</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={handleToggleFreeze}
                             disabled={isTogglingFreeze}
                             className={
                               isFrozen
                                 ? ''
-                                : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                                : 'hover:bg-destructive/90 bg-destructive text-destructive-foreground'
                             }
                           >
                             {isTogglingFreeze ? (

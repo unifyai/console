@@ -454,12 +454,24 @@ export interface AssistantActions {
       assistantId: string,
       assistantName: string
     ) => Promise<ConnectionDetails | ResponseProps>;
-    dispatchToCall: (assistantId: string, roomName: string, deployEnv?: string | null) => Promise<ResponseProps>;
+    dispatchToCall: (
+      assistantId: string,
+      roomName: string,
+      deployEnv?: string | null
+    ) => Promise<ResponseProps>;
     deleteRoom: (roomName: string) => Promise<ResponseProps>;
   };
   desktop: {
-    getLiveviewUrl: (assistantId: string, ownerId: string, organizationId: number | null) => Promise<{ liveviewUrl?: string } | ResponseProps>;
-    buildLiveviewUrl: (rawUrl: string, ownerId: string, organizationId: number | null) => Promise<{ liveviewUrl: string }>;
+    getLiveviewUrl: (
+      assistantId: string,
+      ownerId: string,
+      organizationId: number | null
+    ) => Promise<{ liveviewUrl?: string } | ResponseProps>;
+    buildLiveviewUrl: (
+      rawUrl: string,
+      ownerId: string,
+      organizationId: number | null
+    ) => Promise<{ liveviewUrl: string }>;
     checkLiveviewHealth: (liveviewUrl: string) => Promise<boolean>;
     sendSystemEvent: (
       assistantId: string,

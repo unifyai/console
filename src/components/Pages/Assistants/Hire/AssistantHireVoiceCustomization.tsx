@@ -586,38 +586,37 @@ export function VoiceCustomization({
       )}
     >
       <div className="h-[276px] rounded-md border">
-          <ScrollArea className="h-full w-full">
-            {isLoadingUserVoices ? (
-              <div className="space-y-1 p-2">
-                {[...Array(5)].map((_, i) => (
-                  <VoiceListItemSkeleton key={`voice-skeleton-${i}`} />
-                ))}
-              </div>
-            ) : (
-              <div>
-                {selectedVoice && (
-                  <div className="sticky top-0 z-10 border-b bg-background p-2">
-                    <VoiceListItem voice={selectedVoice} />
-                  </div>
-                )}
-                <div className="space-y-1 p-2">
-                  {otherVoices.length === 0 && !selectedVoice ? (
-                    <div className="flex flex-col items-center justify-center pt-10">
-                      <p className="text-body text-center text-muted-foreground">
-                        No voices available.
-                      </p>
-                    </div>
-                  ) : (
-                    otherVoices.map((v) => (
-                      <VoiceListItem key={(v.isPreset ? 'p-' : 'u-') + v.voiceId} voice={v} />
-                    ))
-                  )}
+        <ScrollArea className="h-full w-full">
+          {isLoadingUserVoices ? (
+            <div className="space-y-1 p-2">
+              {[...Array(5)].map((_, i) => (
+                <VoiceListItemSkeleton key={`voice-skeleton-${i}`} />
+              ))}
+            </div>
+          ) : (
+            <div>
+              {selectedVoice && (
+                <div className="sticky top-0 z-10 border-b bg-background p-2">
+                  <VoiceListItem voice={selectedVoice} />
                 </div>
+              )}
+              <div className="space-y-1 p-2">
+                {otherVoices.length === 0 && !selectedVoice ? (
+                  <div className="flex flex-col items-center justify-center pt-10">
+                    <p className="text-body text-center text-muted-foreground">
+                      No voices available.
+                    </p>
+                  </div>
+                ) : (
+                  otherVoices.map((v) => (
+                    <VoiceListItem key={(v.isPreset ? 'p-' : 'u-') + v.voiceId} voice={v} />
+                  ))
+                )}
               </div>
-            )}
-          </ScrollArea>
-        </div>
-
+            </div>
+          )}
+        </ScrollArea>
+      </div>
     </div>
   );
 }

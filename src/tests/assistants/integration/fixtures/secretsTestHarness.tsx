@@ -108,11 +108,13 @@ export function createMockSecretActions(options: MockSecretActionsOptions = {}):
   };
 
   return {
-    get: vi.fn(async (_assistantId: string, _ownerId: string): Promise<Secret[] | { detail: string }> => {
-      await maybeDelay();
-      if (!getSuccess) return { detail: errorMessage };
-      return secrets;
-    }),
+    get: vi.fn(
+      async (_assistantId: string, _ownerId: string): Promise<Secret[] | { detail: string }> => {
+        await maybeDelay();
+        if (!getSuccess) return { detail: errorMessage };
+        return secrets;
+      }
+    ),
     create: vi.fn(
       async (
         _assistantId: string,
@@ -134,11 +136,13 @@ export function createMockSecretActions(options: MockSecretActionsOptions = {}):
         return { info: 'Secret updated' };
       }
     ),
-    delete: vi.fn(async (_logId: number, _ownerId: string): Promise<{ info?: string; detail?: string }> => {
-      await maybeDelay();
-      if (!deleteSuccess) return { detail: errorMessage };
-      return { info: 'Secret deleted' };
-    }),
+    delete: vi.fn(
+      async (_logId: number, _ownerId: string): Promise<{ info?: string; detail?: string }> => {
+        await maybeDelay();
+        if (!deleteSuccess) return { detail: errorMessage };
+        return { info: 'Secret deleted' };
+      }
+    ),
   };
 }
 

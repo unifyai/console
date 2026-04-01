@@ -86,13 +86,11 @@ function setupCanvasAndImageMocks() {
       width: 0,
       height: 0,
       getContext: vi.fn(() => ctx),
-      toBlob: vi.fn(
-        (callback: BlobCallback, type?: string, quality?: number) => {
-          capturedToBlobMime = type;
-          capturedToBlobQuality = quality;
-          callback(new Blob(['test-image-data'], { type: type || 'image/png' }));
-        }
-      ),
+      toBlob: vi.fn((callback: BlobCallback, type?: string, quality?: number) => {
+        capturedToBlobMime = type;
+        capturedToBlobQuality = quality;
+        callback(new Blob(['test-image-data'], { type: type || 'image/png' }));
+      }),
     };
     return canvas;
   }

@@ -99,10 +99,7 @@ Options:
   }
 
   console.log('\n🎉 All seeds completed.\n');
-  console.log(
-    '💡 DevQuickLogin will discover these users automatically from the database.\n'
-  );
+  console.log('💡 DevQuickLogin will discover these users automatically from the database.\n');
 }
 
 main();
-

@@ -12,13 +12,7 @@ import AdvancedTab from './AdvancedTab';
 const VALID_TABS = ['profile', 'contact-info', 'preferences', 'security', 'advanced'] as const;
 type TabValue = (typeof VALID_TABS)[number];
 
-const ProfileTabs = ({
-  user,
-  onPrem,
-}: {
-  user: User;
-  onPrem: string | undefined;
-}) => {
+const ProfileTabs = ({ user, onPrem }: { user: User; onPrem: string | undefined }) => {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab') as TabValue | null;
   const initialTab: TabValue = tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'profile';
@@ -26,11 +20,21 @@ const ProfileTabs = ({
   return (
     <Tabs defaultValue={initialTab} className="mt-4">
       <TabsList className="w-full">
-        <TabsTrigger value="profile" className="flex-1">Profile</TabsTrigger>
-        <TabsTrigger value="contact-info" className="flex-1">Contact Info</TabsTrigger>
-        <TabsTrigger value="preferences" className="flex-1">Preferences</TabsTrigger>
-        <TabsTrigger value="advanced" className="flex-1">Advanced</TabsTrigger>
-        <TabsTrigger value="security" className="flex-1">Security</TabsTrigger>
+        <TabsTrigger value="profile" className="flex-1">
+          Profile
+        </TabsTrigger>
+        <TabsTrigger value="contact-info" className="flex-1">
+          Contact Info
+        </TabsTrigger>
+        <TabsTrigger value="preferences" className="flex-1">
+          Preferences
+        </TabsTrigger>
+        <TabsTrigger value="advanced" className="flex-1">
+          Advanced
+        </TabsTrigger>
+        <TabsTrigger value="security" className="flex-1">
+          Security
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="profile" className="mt-4">
@@ -57,4 +61,3 @@ const ProfileTabs = ({
 };
 
 export default ProfileTabs;
-

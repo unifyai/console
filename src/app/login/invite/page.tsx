@@ -35,7 +35,7 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
         <p className="text-body text-muted-foreground">The invitation link is missing a token.</p>
         <Link
           href="/"
-          className="mt-2 rounded-md bg-primary px-4 py-2 text-body text-primary-foreground hover:bg-primary/90"
+          className="text-body hover:bg-primary/90 mt-2 rounded-md bg-primary px-4 py-2 text-primary-foreground"
         >
           Go Home
         </Link>
@@ -50,7 +50,9 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
     // Redirect to login with invite token — login page persists it through OAuth.
     // The callbackUrl brings the user back here after authentication.
     const callbackUrl = `/login/invite?token=${token}`;
-    redirect(`/login?invite=${encodeURIComponent(token)}&callbackUrl=${encodeURIComponent(callbackUrl)}`);
+    redirect(
+      `/login?invite=${encodeURIComponent(token)}&callbackUrl=${encodeURIComponent(callbackUrl)}`
+    );
   }
 
   // 3. Initialize Server Action with API Key
@@ -58,11 +60,6 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
 
   // 4. Render Client View
   return (
-    <InviteContent
-      token={token}
-      onAccept={acceptAction}
-      onPatchSession={patchSessionAndRedirect}
-    />
+    <InviteContent token={token} onAccept={acceptAction} onPatchSession={patchSessionAndRedirect} />
   );
 }
-

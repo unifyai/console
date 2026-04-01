@@ -158,10 +158,7 @@ function resolveWorkspaceApiKey(
  * Non-Unify org members are locked to their first org's workspace.
  * Returns the forced org apiKey, or null if no lock applies.
  */
-function applyOrgLock(
-  entry: CachedUserKeys,
-  headerApiKey: string | null
-): string | null {
+function applyOrgLock(entry: CachedUserKeys, headerApiKey: string | null): string | null {
   if (headerApiKey) return null;
   const isUnifyMember = entry.organizations.some((org) => org.name === 'Unify');
   if (!isUnifyMember && entry.organizations.length > 0) {

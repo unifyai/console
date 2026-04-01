@@ -54,7 +54,12 @@ export function GenerateOneTimeLinkButton({
     }
     setIsGenerating(true);
     setGeneratedUrl(null);
-    const url = await onGenerateLink(expiresInDays, parsedAmount, unlimitedClaims ? null : maxClaims, linkName.trim() || null);
+    const url = await onGenerateLink(
+      expiresInDays,
+      parsedAmount,
+      unlimitedClaims ? null : maxClaims,
+      linkName.trim() || null
+    );
     if (url) {
       setGeneratedUrl(url);
     }
@@ -105,9 +110,9 @@ export function GenerateOneTimeLinkButton({
         <DialogHeader>
           <DialogTitle>Generate Credit Grant Link</DialogTitle>
           <DialogDescription>
-            Create a link that grants credits when claimed. Set max claims &gt; 1 or check
-            unlimited (∞) to allow multiple users to redeem the same link. Each user can only
-            ever claim one link.
+            Create a link that grants credits when claimed. Set max claims &gt; 1 or check unlimited
+            (∞) to allow multiple users to redeem the same link. Each user can only ever claim one
+            link.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">

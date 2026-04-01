@@ -395,7 +395,11 @@ const OrganizationWorkspaceView = ({
               <div className="no-scrollbar flex w-full items-center gap-2 overflow-x-auto xl:w-auto">
                 {/* Invite Button */}
                 {canManageMembers && (
-                  <InviteMemberDialog onInvite={onInvite} existingMembers={activeMembersForProps} roles={roles} />
+                  <InviteMemberDialog
+                    onInvite={onInvite}
+                    existingMembers={activeMembersForProps}
+                    roles={roles}
+                  />
                 )}
 
                 {/* Search */}

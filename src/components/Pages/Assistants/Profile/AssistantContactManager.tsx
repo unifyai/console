@@ -13,20 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import { Label } from '@/components/UI/label';
-import {
-  Loader2,
-  Mail,
-  Phone,
-  CheckCircle2,
-  AlertCircle,
-  Info,
-  Copy,
-  Check,
-} from 'lucide-react';
-import {
-  Assistant,
-  AssistantActions,
-} from '@/types/assistants/assistant';
+import { Loader2, Mail, Phone, CheckCircle2, AlertCircle, Info, Copy, Check } from 'lucide-react';
+import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { FormProvider, useWatch } from 'react-hook-form';
 import {
   EMAIL_DOMAIN_WITH_AT,
@@ -214,10 +202,7 @@ export function AssistantContactManager({
               </TabsList>
               <TabsContent value="email" className="py-4">
                 {assistant.email ? (
-                  <DisplayContactField
-                    label="Email Address"
-                    value={assistant.email}
-                  />
+                  <DisplayContactField label="Email Address" value={assistant.email} />
                 ) : canWrite ? (
                   <div className="space-y-2">
                     <Label htmlFor="email_local_part">Email address</Label>
@@ -265,10 +250,7 @@ export function AssistantContactManager({
               </TabsContent>
               <TabsContent value="phone" className="py-4">
                 {assistant.phone ? (
-                  <DisplayContactField
-                    label="Assistant Phone Number"
-                    value={assistant.phone}
-                  />
+                  <DisplayContactField label="Assistant Phone Number" value={assistant.phone} />
                 ) : canWrite ? (
                   <div className="space-y-4">
                     <div>
@@ -348,7 +330,9 @@ export function AssistantContactManager({
                               className="text-caption max-w-xs"
                             >
                               <p>
-                                {'This is the phone number you will contact the assistant with. Manage it in your profile.'}
+                                {
+                                  'This is the phone number you will contact the assistant with. Manage it in your profile.'
+                                }
                               </p>
                             </TooltipContent>
                           </Tooltip>
@@ -360,12 +344,12 @@ export function AssistantContactManager({
                           <CheckCircle2 className="h-5 w-5 text-green-500" />
                         </div>
                       ) : (
-                        <div className="rounded-md border border-dashed border-muted-foreground/40 p-3">
+                        <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
                           <p className="text-body text-muted-foreground">
                             No phone number set in your profile.{' '}
                             <a
                               href="/account?tab=contact-info"
-                              className="text-primary underline hover:text-primary/80"
+                              className="hover:text-primary/80 text-primary underline"
                             >
                               Add your phone number
                             </a>{' '}
@@ -383,7 +367,7 @@ export function AssistantContactManager({
                 <div className="flex flex-col items-center justify-center py-6 text-center">
                   <WhatsApp sx={{ fontSize: '40px' }} className="mb-3 text-muted-foreground" />
                   <p className="text-body text-strong text-foreground">Coming Soon</p>
-                  <p className="text-body text-muted-foreground mt-1 max-w-xs">
+                  <p className="text-body mt-1 max-w-xs text-muted-foreground">
                     WhatsApp integration is currently under development. Stay tuned!
                   </p>
                 </div>
@@ -441,9 +425,7 @@ export function AssistantContactManager({
                       </p>
                     ) : monthlyCost === null ? (
                       <p>
-                        <span className="text-strong text-foreground">
-                          Monthly fee applies
-                        </span>
+                        <span className="text-strong text-foreground">Monthly fee applies</span>
                       </p>
                     ) : null}
                   </div>

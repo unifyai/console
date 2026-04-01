@@ -637,9 +637,8 @@ export function uploadAttachmentBatch(
   }
 
   const promise = (async () => {
-    const workers = Array.from(
-      { length: Math.min(UPLOAD_CONCURRENCY, toUpload.length) },
-      () => runNext()
+    const workers = Array.from({ length: Math.min(UPLOAD_CONCURRENCY, toUpload.length) }, () =>
+      runNext()
     );
     await Promise.all(workers);
     return succeeded;
@@ -647,7 +646,9 @@ export function uploadAttachmentBatch(
 
   return {
     promise,
-    cancel: () => { cancelled = true; },
+    cancel: () => {
+      cancelled = true;
+    },
   };
 }
 

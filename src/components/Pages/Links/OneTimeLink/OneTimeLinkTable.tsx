@@ -229,7 +229,7 @@ export function OneTimeLinkTable({
           return (
             <>
               <TableCell
-                className={cn('truncate font-mono text-caption', dimmed && 'opacity-60')}
+                className={cn('text-caption truncate font-mono', dimmed && 'opacity-60')}
                 title={link.token}
               >
                 <div className="flex items-center gap-2">
@@ -266,14 +266,10 @@ export function OneTimeLinkTable({
                   <span className="italic text-muted-foreground">—</span>
                 )}
               </TableCell>
-              <TableCell
-                className={cn('text-label text-center font-mono', dimmed && 'opacity-60')}
-              >
+              <TableCell className={cn('text-label text-center font-mono', dimmed && 'opacity-60')}>
                 {formatCreditAmount(link.creditAmount)}
               </TableCell>
-              <TableCell
-                className={cn('text-label text-center font-mono', dimmed && 'opacity-60')}
-              >
+              <TableCell className={cn('text-label text-center font-mono', dimmed && 'opacity-60')}>
                 {link.claimCount}/{link.maxClaims ?? '∞'}
               </TableCell>
               <TableCell className={cn('text-label text-center', dimmed && 'opacity-60')}>
@@ -310,9 +306,7 @@ export function OneTimeLinkTable({
                   <div className="flex flex-col gap-0.5">
                     <button
                       className="flex items-center gap-1 text-left text-xs hover:underline"
-                      onClick={() =>
-                        setExpandedLinkId(expandedLinkId === link.id ? null : link.id)
-                      }
+                      onClick={() => setExpandedLinkId(expandedLinkId === link.id ? null : link.id)}
                     >
                       <ChevronDown
                         className={cn(
@@ -328,9 +322,7 @@ export function OneTimeLinkTable({
                           <div key={i} className="text-[11px]">
                             <span className="truncate">
                               {c.claimedByEmail || (
-                                <span className="text-muted-foreground/70 italic">
-                                  {c.userId}
-                                </span>
+                                <span className="text-muted-foreground/70 italic">{c.userId}</span>
                               )}
                             </span>
                             {c.claimedForOrg && (

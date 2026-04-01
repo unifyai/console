@@ -154,7 +154,6 @@ describe('@real User Favourites Routes', () => {
   });
 });
 
-
 describe('@real User Projects Routes', () => {
   beforeAll(async () => {
     await skipIfServerNotReachable();

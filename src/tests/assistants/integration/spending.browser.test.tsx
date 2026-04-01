@@ -166,7 +166,10 @@ describe('AssistantSpendingIntegration', () => {
         );
 
         await waitFor(() => {
-          expect(mockFetchAssistantSpend).toHaveBeenCalledWith('test-agent-123', expect.any(String));
+          expect(mockFetchAssistantSpend).toHaveBeenCalledWith(
+            'test-agent-123',
+            expect.any(String)
+          );
           expect(mockFetchAssistantSpendingLimit).toHaveBeenCalledWith('test-agent-123');
         });
       }

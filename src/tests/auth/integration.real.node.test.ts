@@ -58,17 +58,13 @@ describe('@real Auth API', () => {
   // ─── Registration ──────────────────────────────────────────────────────────
 
   describe('Registration', () => {
-    it(
-      '@real registers a new user and returns requiresVerification',
-      realTestOptions,
-      async () => {
-        const email = uniqueEmail();
-        const data = await registerUser(email, 'StrongP@ss1');
+    it('@real registers a new user and returns requiresVerification', realTestOptions, async () => {
+      const email = uniqueEmail();
+      const data = await registerUser(email, 'StrongP@ss1');
 
-        expect(data.requiresVerification).toBe(true);
-        expect(data.email).toBe(email);
-      },
-    );
+      expect(data.requiresVerification).toBe(true);
+      expect(data.email).toBe(email);
+    });
 
     it(
       '@real rejects registration with weak password (client-side validation)',
@@ -82,41 +78,33 @@ describe('@real Auth API', () => {
           expect(e.status).toBe(400);
           expect(e.body.error).toBe('weak_password');
         }
-      },
+      }
     );
   });
 
   // ─── Authentication ────────────────────────────────────────────────────────
 
   describe('Authentication', () => {
-    it(
-      '@real rejects invalid credentials',
-      realTestOptions,
-      async () => {
-        try {
-          await authenticate('nonexistent-user@example.com', 'WrongP@ss1');
-          expect.fail('Should have thrown');
-        } catch (e: any) {
-          expect(e).toBeInstanceOf(ApiError);
-          expect([400, 401]).toContain(e.status);
-        }
-      },
-    );
+    it('@real rejects invalid credentials', realTestOptions, async () => {
+      try {
+        await authenticate('nonexistent-user@example.com', 'WrongP@ss1');
+        expect.fail('Should have thrown');
+      } catch (e: any) {
+        expect(e).toBeInstanceOf(ApiError);
+        expect([400, 401]).toContain(e.status);
+      }
+    });
   });
 
   // ─── Forgot Password ──────────────────────────────────────────────────────
 
   describe('Forgot Password', () => {
-    it(
-      '@real accepts request without revealing email existence',
-      realTestOptions,
-      async () => {
-        // Forgot-password should always succeed (don't leak user existence)
-        const data = await forgotPassword('nonexistent@example.com');
-        // The response must be a valid JSON object (not null/undefined)
-        expect(data).toEqual(expect.any(Object));
-      },
-    );
+    it('@real accepts request without revealing email existence', realTestOptions, async () => {
+      // Forgot-password should always succeed (don't leak user existence)
+      const data = await forgotPassword('nonexistent@example.com');
+      // The response must be a valid JSON object (not null/undefined)
+      expect(data).toEqual(expect.any(Object));
+    });
   });
 
   // ─── Full Round-Trip ───────────────────────────────────────────────────────
@@ -153,7 +141,7 @@ describe('@real Auth API', () => {
           expect(e).toBeInstanceOf(ApiError);
           expect([400, 401]).toContain(e.status);
         }
-      },
+      }
     );
   });
 
@@ -182,13 +170,10 @@ describe('@real Auth API', () => {
         const code = setKnownVerificationCode(email, 'password_reset');
 
         // 5. Verify the reset code via the dedicated Console route
-        const verRes = await apiJson<{ token: string }>(
-          '/api/auth/email/verify-reset-code',
-          {
-            method: 'POST',
-            body: JSON.stringify({ email, code }),
-          },
-        );
+        const verRes = await apiJson<{ token: string }>('/api/auth/email/verify-reset-code', {
+          method: 'POST',
+          body: JSON.stringify({ email, code }),
+        });
         expect(verRes.token).toBeTruthy();
 
         // 6. Reset the password
@@ -210,7 +195,7 @@ describe('@real Auth API', () => {
           expect(e).toBeInstanceOf(ApiError);
           expect([400, 401]).toContain(e.status);
         }
-      },
+      }
     );
   });
 
@@ -231,7 +216,7 @@ describe('@real Auth API', () => {
         // Authenticate with lowercase should work
         const auth = await authenticate(base.toLowerCase(), password);
         expect(auth.preAuthToken).toBeTruthy();
-      },
+      }
     );
   });
 });

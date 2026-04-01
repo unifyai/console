@@ -15,11 +15,7 @@ const BIO_LINE_HEIGHT = 20;
 const BIO_PADDING = 16;
 const BIO_MAX_HEIGHT = BIO_MAX_ROWS * BIO_LINE_HEIGHT + BIO_PADDING;
 
-const UserInfo = React.memo(function UserInfo({
-  bio,
-  handleInputChange,
-  onPrem,
-}: UserInfoProps) {
+const UserInfo = React.memo(function UserInfo({ bio, handleInputChange, onPrem }: UserInfoProps) {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   React.useEffect(() => {
@@ -63,7 +59,7 @@ const UserInfo = React.memo(function UserInfo({
             name="bio"
             rows={1}
             value={bio}
-            className="styled-scrollbar w-full min-h-0 resize-none"
+            className="styled-scrollbar min-h-0 w-full resize-none"
             onChange={handleInputChange}
             readOnly={Boolean(onPrem)}
           />

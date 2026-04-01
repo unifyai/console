@@ -26,7 +26,6 @@ const PasswordStrengthIndicator = ({ password, className }: PasswordStrengthIndi
 
   return (
     <div className={cn('flex flex-col gap-1.5', className)} data-testid="password-strength">
-
       {/* Rule checklist */}
       <ul className="flex flex-col" data-testid="password-rules-list">
         {result.rules.map((rule) => (
@@ -52,4 +51,3 @@ const PasswordStrengthIndicator = ({ password, className }: PasswordStrengthIndi
 };
 
 export default PasswordStrengthIndicator;
-

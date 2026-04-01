@@ -151,7 +151,7 @@ describe('Auto-claiming', () => {
           });
         }
         return HttpResponse.json({ detail: 'Bad token' }, { status: 400 });
-      }),
+      })
     );
 
     const { result } = renderHook(() => useCreditGrantLink(), {
@@ -191,8 +191,8 @@ describe('Auto-claiming', () => {
         HttpResponse.json({
           message: 'Credits granted!',
           credits_granted: 10,
-        }),
-      ),
+        })
+      )
     );
 
     const { result } = renderHook(() => useCreditGrantLink(), {
@@ -215,8 +215,8 @@ describe('Auto-claiming', () => {
           message: '50.00 credits awarded to Acme Corp.',
           credits_granted: 50,
           credited_to: 'Acme Corp',
-        }),
-      ),
+        })
+      )
     );
 
     const { result } = renderHook(() => useCreditGrantLink(), {
@@ -227,9 +227,7 @@ describe('Auto-claiming', () => {
       expect(result.current.hasClaimed).toBe(true);
     });
 
-    expect(toast.success).toHaveBeenCalledWith(
-      '50.00 credits awarded to Acme Corp.',
-    );
+    expect(toast.success).toHaveBeenCalledWith('50.00 credits awarded to Acme Corp.');
   });
 });
 
@@ -247,8 +245,8 @@ describe('Manual claiming', () => {
         HttpResponse.json({
           message: 'Manual claim success!',
           credits_granted: 5,
-        }),
-      ),
+        })
+      )
     );
 
     const { result } = renderHook(() => useCreditGrantLink(), {
@@ -288,11 +286,8 @@ describe('Manual claiming', () => {
 
     server.use(
       http.post('/api/user/claim-credit-grant-link', () =>
-        HttpResponse.json(
-          { detail: 'Token has already been claimed' },
-          { status: 400 },
-        ),
-      ),
+        HttpResponse.json({ detail: 'Token has already been claimed' }, { status: 400 })
+      )
     );
 
     const { result } = renderHook(() => useCreditGrantLink(), {
@@ -314,8 +309,8 @@ describe('Manual claiming', () => {
 
     server.use(
       http.post('/api/user/claim-credit-grant-link', () =>
-        HttpResponse.json({ detail: 'Token expired' }, { status: 400 }),
-      ),
+        HttpResponse.json({ detail: 'Token expired' }, { status: 400 })
+      )
     );
 
     const { result } = renderHook(() => useCreditGrantLink(), {
@@ -355,4 +350,3 @@ describe('Token cleanup', () => {
     expect(result.current.error).toBeNull();
   });
 });
-

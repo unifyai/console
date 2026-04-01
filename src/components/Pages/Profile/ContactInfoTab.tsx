@@ -398,7 +398,8 @@ const ContactInfoTab = ({ user }: { user: User }) => {
         router.refresh();
       } else {
         const data = await response.json().catch(() => null);
-        const errMsg = typeof data?.error === 'string' ? data.error : 'Error updating contact info.';
+        const errMsg =
+          typeof data?.error === 'string' ? data.error : 'Error updating contact info.';
         toast.error(errMsg);
       }
     } catch {
@@ -426,7 +427,9 @@ const ContactInfoTab = ({ user }: { user: User }) => {
         onVerify={(isRetry) => handleVerify(setPhoneState, 'phone', phoneState, isRetry)}
         onCancel={() => handleCancel(setPhoneState)}
         onSubmitCode={() => handleSubmitCode(setPhoneState, phoneState, 'phone')}
-        onCodeChange={(v) => setPhoneState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))}
+        onCodeChange={(v) =>
+          setPhoneState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
+        }
         onEdit={() => handleEdit(setPhoneState)}
       />
 
@@ -438,7 +441,9 @@ const ContactInfoTab = ({ user }: { user: User }) => {
         onVerify={(isRetry) => handleVerify(setWhatsappState, 'whatsapp', whatsappState, isRetry)}
         onCancel={() => handleCancel(setWhatsappState)}
         onSubmitCode={() => handleSubmitCode(setWhatsappState, whatsappState, 'whatsapp')}
-        onCodeChange={(v) => setWhatsappState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))}
+        onCodeChange={(v) =>
+          setWhatsappState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
+        }
         onEdit={() => handleEdit(setWhatsappState)}
       />
 
@@ -450,9 +455,7 @@ const ContactInfoTab = ({ user }: { user: User }) => {
             disabled={!canSave || isSaving}
             isLoading={isSaving}
             label={
-              phoneNeedsVerification || whatsappNeedsVerification
-                ? 'Verify Numbers First'
-                : 'Save'
+              phoneNeedsVerification || whatsappNeedsVerification ? 'Verify Numbers First' : 'Save'
             }
           />
         </div>

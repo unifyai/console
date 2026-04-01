@@ -215,7 +215,10 @@ export function useAssistantContactManager({
 
         if ('detail' in result && typeof (result as ResponseProps).detail === 'string') {
           // Fetch failed; contactCosts stays null → fallback values will be used
-          console.warn('[useAssistantContactManager] Failed to fetch contact costs:', (result as ResponseProps).detail);
+          console.warn(
+            '[useAssistantContactManager] Failed to fetch contact costs:',
+            (result as ResponseProps).detail
+          );
         } else {
           setContactCosts(result as ContactCosts);
         }
@@ -443,21 +446,13 @@ export function useAssistantContactManager({
       default:
         return true;
     }
-  }, [
-    isSubmittingContact,
-    activeTab,
-    isEmailAdded,
-    emailLocalPart,
-    isLoadingPhoneCountries,
-  ]);
+  }, [isSubmittingContact, activeTab, isEmailAdded, emailLocalPart, isLoadingPhoneCountries]);
 
   const showCreateButton =
-    (activeTab === 'email' && !assistant.email) ||
-    (activeTab === 'phone' && !assistant.phone);
+    (activeTab === 'email' && !assistant.email) || (activeTab === 'phone' && !assistant.phone);
 
   const showDeleteButton =
-    (activeTab === 'email' && !!assistant.email) ||
-    (activeTab === 'phone' && !!assistant.phone);
+    (activeTab === 'email' && !!assistant.email) || (activeTab === 'phone' && !!assistant.phone);
 
   return {
     // Form methods for component bindings

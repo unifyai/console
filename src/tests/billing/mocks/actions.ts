@@ -125,4 +125,3 @@ export async function waitForMainLoaded() {
     expect(screen.getByText('Balance')).toBeInTheDocument();
   });
 }
-

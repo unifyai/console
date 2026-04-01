@@ -167,9 +167,7 @@ export const downloadMedia = async () => {
       return { detail: 'Server configuration error: Bucket name missing.' };
     }
     if (!storage) {
-      console.error(
-        '[photo.ts downloadMedia] Storage client is not available.'
-      );
+      console.error('[photo.ts downloadMedia] Storage client is not available.');
       return { detail: 'Server configuration error: Storage unavailable' };
     }
 

@@ -52,12 +52,12 @@ const RecoveryCodeDisplay = ({ codes, onDone }: RecoveryCodeDisplayProps) => {
 
   return (
     <div className="flex flex-col gap-4" data-testid="recovery-codes-display">
-
       <p className="text-body text-center text-muted-foreground">
-        Store these codes in a safe place. You can sign in with a code if you lose access to your authenticator app. Each code is usable once.
+        Store these codes in a safe place. You can sign in with a code if you lose access to your
+        authenticator app. Each code is usable once.
       </p>
 
-      <div className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-muted/50 p-4 font-mono text-caption">
+      <div className="bg-muted/50 text-caption grid grid-cols-2 gap-2 rounded-lg border border-border p-4 font-mono">
         {codes.map((code, i) => (
           <div key={i} className="flex items-center gap-2" data-testid={`recovery-code-${i}`}>
             <span className="text-muted-foreground">{i + 1}.</span>
@@ -97,7 +97,7 @@ const RecoveryCodeDisplay = ({ codes, onDone }: RecoveryCodeDisplayProps) => {
         </Button>
       </div>
 
-      <label className="flex items-center gap-2 text-sm cursor-pointer">
+      <label className="flex cursor-pointer items-center gap-2 text-sm">
         <input
           type="checkbox"
           checked={acknowledged}
@@ -108,11 +108,7 @@ const RecoveryCodeDisplay = ({ codes, onDone }: RecoveryCodeDisplayProps) => {
         I&apos;ve saved my recovery codes in a safe place
       </label>
 
-      <Button
-        onClick={onDone}
-        disabled={!acknowledged}
-        data-testid="codes-done-btn"
-      >
+      <Button onClick={onDone} disabled={!acknowledged} data-testid="codes-done-btn">
         Done
       </Button>
     </div>
@@ -120,4 +116,3 @@ const RecoveryCodeDisplay = ({ codes, onDone }: RecoveryCodeDisplayProps) => {
 };
 
 export default RecoveryCodeDisplay;
-

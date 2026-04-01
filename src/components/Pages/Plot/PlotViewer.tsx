@@ -121,7 +121,14 @@ function generateTitle(config: PlotViewerConfig): string {
  * Wraps PlotCanvas with a header, footer, and page-level layout.
  * Manages state for interactive plot configuration changes.
  */
-export function PlotViewer({ config, data, fields, title, preAggregatedBarData, embed = false }: PlotViewerProps) {
+export function PlotViewer({
+  config,
+  data,
+  fields,
+  title,
+  preAggregatedBarData,
+  embed = false,
+}: PlotViewerProps) {
   // State for user-adjustable plot settings
   const [scaleX, setScaleX] = useState(config.scaleX || 'linear');
   const [scaleY, setScaleY] = useState(config.scaleY || 'linear');

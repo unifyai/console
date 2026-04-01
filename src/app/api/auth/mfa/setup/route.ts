@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     const status = error?.response?.status ?? 500;
     const rawData = error?.response?.data;
-    const data = rawData?.detail ?? rawData ?? { error: 'setup_failed', message: 'MFA setup failed' };
+    const data = rawData?.detail ??
+      rawData ?? { error: 'setup_failed', message: 'MFA setup failed' };
     return NextResponse.json(data, { status });
   }
 }
-

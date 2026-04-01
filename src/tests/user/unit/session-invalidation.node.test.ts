@@ -269,7 +269,7 @@ describe('getCurrentUser – stale session handling', () => {
     const user = await getCurrentUser();
     expect(user).toBeNull();
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Failed to fetch user by email'),
+      expect.stringContaining('Failed to fetch user by email')
     );
     consoleSpy.mockRestore();
   });
@@ -356,10 +356,9 @@ describe('getCurrentUser – stale session handling', () => {
 
     // Verify email-credentials was never called
     const credentialsCalls = mockAdminClientGet.mock.calls.filter(
-      (call: any[]) => call[0] === '/auth/email-credentials',
+      (call: any[]) => call[0] === '/auth/email-credentials'
     );
     expect(credentialsCalls).toHaveLength(0);
     consoleSpy.mockRestore();
   });
 });
-

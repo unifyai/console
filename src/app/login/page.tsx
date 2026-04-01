@@ -16,8 +16,7 @@ const ERRORS: Record<string, string> = {
   OAuthCreateAccount: 'Try signing with a different account.',
   EmailCreateAccount: 'Try signing with a different account.',
   Callback: 'Try signing with a different account.',
-  OAuthAccountNotLinked:
-    'Please sign in with the same authentication method you used originally.',
+  OAuthAccountNotLinked: 'Please sign in with the same authentication method you used originally.',
   EmailSignin: 'Check your email address.',
   CredentialsSignin: 'Sign in failed. Check the details you provided are correct.',
   Verification: 'Error occured during verification.',
@@ -40,7 +39,11 @@ const Login = () => {
     const providerNames = linkedProviders
       .split(',')
       .map((p) => {
-        const names: Record<string, string> = { google: 'Google', 'azure-ad': 'Microsoft', email: 'Email/Password' };
+        const names: Record<string, string> = {
+          google: 'Google',
+          'azure-ad': 'Microsoft',
+          email: 'Email/Password',
+        };
         return names[p] ?? p;
       })
       .join(', ');
@@ -54,7 +57,8 @@ const Login = () => {
   const creditToken = searchParams?.get('credit');
 
   // Detect invite context from either explicit param or callbackUrl
-  const isInviteFlow = !!inviteToken || callbackUrl?.includes('/login/invite') || callbackUrl?.includes('/invite');
+  const isInviteFlow =
+    !!inviteToken || callbackUrl?.includes('/login/invite') || callbackUrl?.includes('/invite');
 
   // Track whether we are actively signing out a stale session
   // (e.g. user deleted their backend account but the JWT cookie persists).
@@ -154,13 +158,22 @@ const Login = () => {
       <LayoutGroup>
         {/* Banner for invite/credit token context */}
         {isInviteFlow && (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-center text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200" data-testid="invite-banner">
-            You&apos;ve been invited to join an organization. Please sign in with the email address you received the invitation at.
+          <div
+            className="rounded-lg border border-green-200 bg-green-50 p-3 text-center text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
+            data-testid="invite-banner"
+          >
+            You&apos;ve been invited to join an organization. Please sign in with the email address
+            you received the invitation at.
           </div>
         )}
         <div className="flex justify-center lg:container">
           <AnimatedTabs selected={tab}>
-            <LoginFragment onLogin={handleLogin} error={error} callbackUrl={callbackUrl ?? undefined} key="login" />
+            <LoginFragment
+              onLogin={handleLogin}
+              error={error}
+              callbackUrl={callbackUrl ?? undefined}
+              key="login"
+            />
             <LoadingElement key="loading" />
             <CheckElement key="check" />
           </AnimatedTabs>

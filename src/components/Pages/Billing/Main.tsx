@@ -164,25 +164,25 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
                         <TooltipContent className="max-w-xs">
                           {autoRechargeIneligibilityReason === 'account_status' ? (
                             <p>
-                              Auto-recharge is unavailable while your account has an
-                              outstanding billing issue. Please resolve it to re-enable.
+                              Auto-recharge is unavailable while your account has an outstanding
+                              billing issue. Please resolve it to re-enable.
                             </p>
                           ) : autoRechargeIneligibilityReason === 'unpaid_invoice' ? (
                             <p>
-                              Auto-recharge was disabled because a payment failed.
-                              It can be re-enabled once your outstanding invoice is paid.
+                              Auto-recharge was disabled because a payment failed. It can be
+                              re-enabled once your outstanding invoice is paid.
                             </p>
                           ) : autoRechargeIneligibilityReason === 'spending' ? (
                             <p>
-                              You need to spend ${autoRechargeData?.minimumSpendRequired} before enabling
-                              auto-recharge. You&apos;ve spent $
+                              You need to spend ${autoRechargeData?.minimumSpendRequired} before
+                              enabling auto-recharge. You&apos;ve spent $
                               {autoRechargeData?.totalSpending?.toFixed(2)}, spend $
                               {autoRechargeData?.remainingSpendNeeded?.toFixed(2)} more to unlock.
                             </p>
                           ) : (
                             <p>
-                              A default payment method is required to enable auto-recharge.
-                              Please add one via &quot;Manage Payment Methods&quot; below.
+                              A default payment method is required to enable auto-recharge. Please
+                              add one via &quot;Manage Payment Methods&quot; below.
                             </p>
                           )}
                         </TooltipContent>
@@ -246,9 +246,7 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
 
                   {autoRechargeAlert && (
                     <Alert
-                      variant={
-                        autoRechargeAlert.type === 'success' ? 'default' : 'destructive'
-                      }
+                      variant={autoRechargeAlert.type === 'success' ? 'default' : 'destructive'}
                     >
                       {autoRechargeAlert.type === 'success' ? (
                         <CheckCircle2 className="h-4 w-4" />
@@ -265,9 +263,7 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
 
               {!isAutoRechargeEnabled && autoRechargeAlert && (
                 <CardContent>
-                  <Alert
-                    variant={autoRechargeAlert.type === 'success' ? 'default' : 'destructive'}
-                  >
+                  <Alert variant={autoRechargeAlert.type === 'success' ? 'default' : 'destructive'}>
                     {autoRechargeAlert.type === 'success' ? (
                       <CheckCircle2 className="h-4 w-4" />
                     ) : (
@@ -301,8 +297,12 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
                   <p className="text-caption mt-2 flex items-start gap-1.5 text-muted-foreground">
                     <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     <span>
-                      Personal workspaces use individual tax treatment. If you need business
-                      tax invoicing, <a href="/organizations" className="underline text-primary">create an organization</a>.
+                      Personal workspaces use individual tax treatment. If you need business tax
+                      invoicing,{' '}
+                      <a href="/organizations" className="text-primary underline">
+                        create an organization
+                      </a>
+                      .
                     </span>
                   </p>
                 )}
@@ -329,10 +329,7 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
                       : 'Update your billing details and tax information'}
                   </DialogDescription>
                 </DialogHeader>
-                <BillingProfile
-                  actions={actions}
-                  onClose={() => setIsProfileDialogOpen(false)}
-                />
+                <BillingProfile actions={actions} onClose={() => setIsProfileDialogOpen(false)} />
               </DialogContent>
             </Dialog>
           </section>

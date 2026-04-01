@@ -224,5 +224,4 @@ describe('Assistant Permissions - Behavior Tests', () => {
       });
     });
   });
-
 });
