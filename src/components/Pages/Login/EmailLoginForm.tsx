@@ -261,7 +261,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
           <div className="flex gap-3">
             <div className="flex-1">
               <label htmlFor="email-first-name" className="text-caption font-medium text-foreground">
-                First name
+                First name*
               </label>
               <Input
                 id="email-first-name"
@@ -269,13 +269,14 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
                 placeholder="First name"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
+                required
                 disabled={isLoading}
                 data-testid="email-first-name-input"
               />
             </div>
             <div className="flex-1">
               <label htmlFor="email-last-name" className="text-caption font-medium text-foreground">
-                Last name
+                Last name*
               </label>
               <Input
                 id="email-last-name"
@@ -283,6 +284,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
                 placeholder="Last name"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
+                required
                 disabled={isLoading}
                 data-testid="email-last-name-input"
               />
@@ -292,7 +294,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
 
         <div>
           <label htmlFor="email-address" className="text-caption font-medium text-foreground">
-            Email
+            Email*
           </label>
           <Input
             id="email-address"
@@ -311,7 +313,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
 
         <div>
           <label htmlFor="email-password" className="text-caption font-medium text-foreground">
-            Password
+            Password*
           </label>
           <PasswordInput
             id="email-password"
@@ -359,7 +361,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
 
         <Button
           type="submit"
-          disabled={isLoading || !email || !password}
+          disabled={isLoading || !email || !password || (isRegister && (!firstName || !lastName))}
           className="w-full"
           data-testid="email-submit-btn"
         >

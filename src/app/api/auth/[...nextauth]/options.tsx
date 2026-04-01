@@ -47,11 +47,25 @@ const authOptions: AuthOptions = {
         },
       },
       profile(profile) {
+        let firstName = profile.given_name ?? null;
+        let lastName = profile.family_name ?? null;
+
+        if (!firstName && profile.name) {
+          const parts = profile.name.trim().split(/\s+/);
+          firstName = parts[0];
+          lastName = parts.length > 1 ? parts.slice(1).join(' ') : null;
+        } else if (firstName && !lastName && profile.name) {
+          const parts = profile.name.trim().split(/\s+/);
+          if (parts.length > 1) {
+            lastName = parts.slice(1).join(' ');
+          }
+        }
+
         return {
           id: profile.sub,
           email: profile.email,
-          name: profile.given_name ?? profile.name ?? null,
-          lastName: profile.family_name ?? null,
+          name: firstName,
+          lastName: lastName,
           image: profile.picture ?? null,
         };
       },
