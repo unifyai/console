@@ -721,3 +721,36 @@ jobs:
           CI: true
           NODE_OPTIONS: --max-old-space-size=8192
           PLOT_TEST_SAMPLE_RATE: '100'
+
+  # ===========================================================================
+  # SUMMARY - Single check to gate PRs
+  # ===========================================================================
+  test-summary:
+    name: Tests
+    if: always()
+    needs:
+      - should-run-tests
+      - unit
+      - node-matrix
+      - api
+      - browser-assistants
+      - browser-interfaces
+      - browser-plot
+      - browser-user
+      - browser-benchmarks
+      - browser-matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check test results
+        run: |
+          if [[ "${{ needs.should-run-tests.outputs.run_tests }}" != "true" ]]; then
+            echo "Tests were skipped (no [run-tests] tag)"
+            exit 0
+          fi
+
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "::error::One or more test jobs failed"
+            exit 1
+          fi
+
+          echo "All test jobs passed (or were skipped)"
