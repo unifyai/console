@@ -377,6 +377,77 @@ describe('useAssistantSpending', () => {
       expect(result.current.currentMonth).toMatch(/^\d{4}-(0[1-9]|1[0-2])$/);
     });
 
+    it('clears spend state when assistantId changes and new fetch fails', async () => {
+      // First render with assistant '123' - spend loads successfully with a limit
+      const { result, rerender } = renderHook(
+        (props: { assistantId: string }) =>
+          useAssistantSpending({
+            assistantId: props.assistantId,
+            setLimitAction: mockSetLimitAction,
+            enablePolling: false,
+          }),
+        { initialProps: { assistantId: '123' } }
+      );
+
+      await waitFor(() => {
+        expect(result.current.spend).toEqual(mockSpendData);
+        expect(result.current.display?.isOverLimit).toBe(false);
+      });
+
+      // Now switch to assistant '456' where the fetch fails (e.g., 404 for non-owner)
+      mockFetchAssistantSpend.mockResolvedValue({ detail: 'Assistant not found' });
+      mockFetchAssistantSpendingLimit.mockResolvedValue({ detail: 'Assistant not found' });
+
+      rerender({ assistantId: '456' });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // The stale spend data from assistant '123' should NOT persist
+      expect(result.current.spend).toBeNull();
+      expect(result.current.display).toBeNull();
+    });
+
+    it('clears spend state when fetch returns error response', async () => {
+      // First load succeeds with over-limit data
+      const overLimitSpend: AssistantSpend = {
+        ...mockSpendData,
+        cumulativeSpend: 150.0,
+        limit: 100.0,
+        percentUsed: 150.0,
+      };
+      mockFetchAssistantSpend.mockResolvedValue(overLimitSpend);
+
+      const { result, rerender } = renderHook(
+        (props: { assistantId: string }) =>
+          useAssistantSpending({
+            assistantId: props.assistantId,
+            setLimitAction: mockSetLimitAction,
+            enablePolling: false,
+          }),
+        { initialProps: { assistantId: '123' } }
+      );
+
+      await waitFor(() => {
+        expect(result.current.display?.isOverLimit).toBe(true);
+      });
+
+      // Switch to a different assistant where the fetch fails
+      mockFetchAssistantSpend.mockResolvedValue({ detail: 'Assistant not found' });
+      mockFetchAssistantSpendingLimit.mockResolvedValue({ detail: 'Not found' });
+
+      rerender({ assistantId: '999' });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // Must NOT show stale isOverLimit from assistant '123'
+      expect(result.current.display?.isOverLimit).toBeFalsy();
+      expect(result.current.spend).toBeNull();
+    });
+
     it('handles zero spend correctly', async () => {
       const zeroSpend: AssistantSpend = {
         ...mockSpendData,
