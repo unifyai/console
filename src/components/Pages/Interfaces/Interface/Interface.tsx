@@ -32,7 +32,7 @@ import {
 } from '@/types/interfaces/grid';
 import { ResourcesActions } from '@/types/resource';
 import { User } from '@/types/user';
-import { debounce } from 'lodash';
+import { debounce } from '@/utils/misc/debounce';
 import { useIsMobile } from '@/hooks/Common/useMobile';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import AutoComplete from '../../../Common/Misc/AutoComplete';

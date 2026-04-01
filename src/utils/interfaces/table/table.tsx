@@ -14,8 +14,6 @@ import { RowData, RowModel, createRow, getMemoOptions, memo } from '@tanstack/re
 import { DragMoveEvent, DragOverEvent, DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { Transform } from '@dnd-kit/utilities';
-import _ from 'lodash';
-
 import { toComputableValue, computeStatistic } from '../common';
 import {
   LogProps,

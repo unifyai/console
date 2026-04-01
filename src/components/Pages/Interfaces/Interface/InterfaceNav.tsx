@@ -112,7 +112,7 @@ import {
 import { withLoadingToastFn } from '@/components/Common/Toasts/notifications';
 import ColorPicker from '@/components/Common/Misc/ColorPicker';
 import ActionButton from '@/components/Common/Buttons/Action';
-import { debounce } from 'lodash';
+import { debounce } from '@/utils/misc/debounce';
 import { CSSProperties } from 'react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/UI/popover';
 import { useTheme } from 'next-themes';

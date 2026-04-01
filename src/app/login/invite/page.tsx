@@ -1,5 +1,6 @@
 import { getCurrentUser } from '@/lib/user/user';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { XCircle } from 'lucide-react';
 import InviteContent from '@/components/Pages/Invite/Main';
 import { acceptInviteAction } from '@/lib/user/organization';
@@ -32,12 +33,12 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
         <XCircle className="h-8 w-8 text-destructive" />
         <h2 className="text-h2 font-bold">Invalid Invitation</h2>
         <p className="text-body text-muted-foreground">The invitation link is missing a token.</p>
-        <a
+        <Link
           href="/"
           className="mt-2 rounded-md bg-primary px-4 py-2 text-body text-primary-foreground hover:bg-primary/90"
         >
           Go Home
-        </a>
+        </Link>
       </div>
     );
   }

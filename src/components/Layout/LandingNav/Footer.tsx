@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import { Logo } from '@/utils/landingNav/consts';
 
 const footerLinks: { [id: string]: { name: string; href: string }[] } = {
@@ -36,10 +37,10 @@ const Footer = () => {
     <footer className="bg-[var(--background-color)] px-[20px] pb-[40px] pt-16">
       <div className="container">
         <div className="flex flex-wrap items-start justify-between gap-4 md:mr-[100px]">
-          <a href="/" aria-label="Unify logo">
+          <Link href="/" aria-label="Unify logo">
             <Logo.light className="block dark:hidden" width={91} height={35} />
             <Logo.dark className="hidden dark:block" width={91} height={35} />
-          </a>
+          </Link>
           <div className="flex w-full flex-row flex-wrap items-start justify-start gap-6 gap-y-4 md:w-[60%] lg:justify-between lg:gap-6">
             {Object.keys(footerLinks).map((key) => (
               <div key={key} className="flex flex-col gap-2">

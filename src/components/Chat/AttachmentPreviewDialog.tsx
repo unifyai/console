@@ -20,12 +20,24 @@ import {
   fetchGcsContent,
 } from './attachmentUtils';
 import mammoth from 'mammoth';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { pptxToHtml } from '@jvmr/pptx-to-html';
 import { Badge } from '@/components/UI/badge';
 import type { Attachment, AttachmentType } from '@/types/assistants/chat';
 
 const PREVIEWABLE_TYPES = new Set<AttachmentType>(['image', 'pdf', 'text', 'code', 'word', 'excel', 'powerpoint']);
+
+function worksheetToHtml(ws: ExcelJS.Worksheet): string {
+  const rows: string[] = [];
+  ws.eachRow((row) => {
+    const cells = (row.values as (ExcelJS.CellValue)[])
+      .slice(1) // ExcelJS rows are 1-indexed; index 0 is empty
+      .map((v) => `<td>${v != null ? String(v) : ''}</td>`)
+      .join('');
+    rows.push(`<tr>${cells}</tr>`);
+  });
+  return `<table>${rows.join('')}</table>`;
+}
 const TEXT_PREVIEW_MAX_BYTES = 1024 * 1024; // 1MB
 
 interface ExcelSheet {
@@ -123,10 +135,11 @@ function usePreviewContent(attachment: Attachment | null): ContentState {
           return;
         }
 
-        const workbook = XLSX.read(arrayBuffer);
-        const sheets: ExcelSheet[] = workbook.SheetNames.map((name) => ({
-          name,
-          html: XLSX.utils.sheet_to_html(workbook.Sheets[name]),
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
+        const sheets: ExcelSheet[] = workbook.worksheets.map((ws) => ({
+          name: ws.name,
+          html: worksheetToHtml(ws),
         }));
 
         if (!cancelled) setState({ status: 'excel', sheets });

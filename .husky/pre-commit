@@ -7,5 +7,14 @@ npx tsc --noEmit || {
   exit 1
 }
 
+# Check for critical vulnerabilities when dependencies change
+if git diff --cached --name-only | grep -q 'package-lock.json'; then
+  echo "🔍 Checking for critical npm vulnerabilities..."
+  npm audit --audit-level=critical --omit=dev 2>/dev/null || {
+    echo "❌ Critical npm vulnerabilities detected. Run 'npm audit' for details."
+    exit 1
+  }
+fi
+
 # Run lint-staged (prettier, eslint, fonts, colors on staged files)
 npx lint-staged
