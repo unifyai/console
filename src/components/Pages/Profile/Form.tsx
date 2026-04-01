@@ -106,17 +106,10 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
     const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (!browserTimezone) return;
 
-    const formData = new FormData();
-    formData.append('name', user.name || '');
-    formData.append('lastName', user.lastName || '');
-    formData.append('jobTitle', user.jobTitle || '');
-    formData.append('bio', user.bio || '');
-    formData.append('email', user.email || '');
-    formData.append('timezone', browserTimezone);
-
-    fetch('/api/profile/updateUser', {
+    fetch('/api/user/update-profile', {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timezone: browserTimezone }),
     })
       .then((response) => {
         if (response.ok) {
