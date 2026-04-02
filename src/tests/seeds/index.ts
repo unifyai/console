@@ -39,6 +39,7 @@ export {
   dbExecBlock,
   dbExecStdin,
   apiFetch,
+  apiJson,
   orchestraFetch,
   uniqueUserId,
   uniqueEmail,
@@ -56,6 +57,12 @@ export {
   seedChatInfrastructure,
   deleteUser,
   deleteOrg,
+  // Real test helpers
+  isServerReachable,
+  skipIfServerNotReachable,
+  ApiError,
+  realTestOptions,
+  realTestOptionsExtended,
 } from './client';
 
 // Scenarios

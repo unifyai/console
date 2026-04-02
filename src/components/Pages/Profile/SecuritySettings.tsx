@@ -37,6 +37,8 @@ const SecuritySettings = () => {
   const [showRegenerate, setShowRegenerate] = useState(false);
   const [regeneratedCodes, setRegeneratedCodes] = useState<string[] | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
+  const [regenerateError, setRegenerateError] = useState<string | undefined>();
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -94,13 +96,19 @@ const SecuritySettings = () => {
     [fetchStatus, router]
   );
 
-  const handleRegenerate = useCallback(async () => {
+  const handleRegenerate = useCallback(async (code: string) => {
     setIsRegenerating(true);
+    setRegenerateError(undefined);
 
     try {
-      const res = await fetch('/api/auth/mfa/recovery-codes', { method: 'POST' });
+      const res = await fetch('/api/auth/mfa/recovery-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
       if (!res.ok) {
-        toast.error('Failed to regenerate recovery codes.');
+        const data = await res.json().catch(() => ({}));
+        setRegenerateError(data.message ?? data.error ?? 'Invalid TOTP code. Please try again.');
         setIsRegenerating(false);
         return;
       }
@@ -108,6 +116,7 @@ const SecuritySettings = () => {
       const data = await res.json();
       setRegeneratedCodes(data.recoveryCodes ?? []);
       setShowRegenerate(true);
+      setShowRegenerateConfirm(false);
     } catch {
       toast.error('Failed to regenerate recovery codes.');
     } finally {
@@ -165,21 +174,37 @@ const SecuritySettings = () => {
             fetchStatus();
           }}
         />
+      ) : showRegenerateConfirm ? (
+        <div className="bg-muted/30 rounded-lg border border-border p-4">
+          <h4 className="mb-2 font-medium">Confirm with TOTP Code</h4>
+          <p className="text-caption mb-3 text-muted-foreground">
+            Enter your current TOTP code to regenerate recovery codes.
+          </p>
+          <TotpInput
+            onSubmit={(code) => handleRegenerate(code)}
+            error={regenerateError}
+            isLoading={isRegenerating}
+            label=""
+          />
+          <Button
+            variant="link"
+            onClick={() => {
+              setShowRegenerateConfirm(false);
+              setRegenerateError(undefined);
+            }}
+            className="text-caption mt-2 h-auto p-0 text-muted-foreground"
+          >
+            Cancel
+          </Button>
+        </div>
       ) : (
         <Button
           variant="outline"
-          onClick={handleRegenerate}
+          onClick={() => setShowRegenerateConfirm(true)}
           disabled={isRegenerating}
           data-testid="regenerate-codes-btn"
         >
-          {isRegenerating ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Regenerating...
-            </>
-          ) : (
-            'Regenerate Recovery Codes'
-          )}
+          Regenerate Recovery Codes
         </Button>
       )}
 

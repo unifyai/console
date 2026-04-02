@@ -742,3 +742,80 @@ export function deleteUser(userId: string): void {
 export function deleteOrg(orgId: number): void {
   dbExec(`DELETE FROM organization WHERE id = ${orgId};`);
 }
+
+// =============================================================================
+// Real Test Helpers (shared by all integration tests)
+// =============================================================================
+
+/**
+ * Check if the Console dev server is reachable.
+ */
+export async function isServerReachable(): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const response = await fetch(CONSOLE_BASE_URL, {
+      method: 'HEAD',
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response.ok || response.status === 307;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Skip the test suite if the Console dev server is not reachable.
+ * Call in `beforeAll` for integration tests.
+ */
+export async function skipIfServerNotReachable(): Promise<void> {
+  const reachable = await isServerReachable();
+  if (!reachable) {
+    throw new Error(
+      `Server at ${CONSOLE_BASE_URL} is not reachable. ` +
+        'Start the dev server with `npm run dev` before running @real tests.'
+    );
+  }
+}
+
+/**
+ * API error with status code and response body.
+ */
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    public body: Record<string, unknown>,
+    message?: string
+  ) {
+    super(message || `API error ${status}: ${JSON.stringify(body)}`);
+    this.name = 'ApiError';
+  }
+}
+
+/**
+ * Authenticated fetch + JSON parse, throwing ApiError on non-2xx.
+ */
+export async function apiJson<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  apiKey?: string
+): Promise<T> {
+  const res = await apiFetch(endpoint, options, apiKey);
+  const text = await res.text();
+  const body = text ? JSON.parse(text) : {};
+  if (!res.ok) throw new ApiError(res.status, body);
+  return body as T;
+}
+
+/** Common test options for real API tests (disables MSW, 30s timeout). */
+export const realTestOptions = {
+  meta: { mock: false },
+  timeout: 30_000,
+} as const;
+
+/** Extended test options for slower operations (60s timeout). */
+export const realTestOptionsExtended = {
+  meta: { mock: false },
+  timeout: 60_000,
+} as const;
