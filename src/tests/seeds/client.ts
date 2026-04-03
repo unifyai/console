@@ -360,7 +360,7 @@ export function createAssistant(opts: CreateAssistantOpts): SeededAssistant {
   const orgClause = opts.orgId != null ? `${opts.orgId}` : 'NULL';
 
   dbExecBlock(`
-INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel, organization_id)
+INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel, organization_id, is_local)
 VALUES (
   '${opts.userId}',
   '${firstName}',
@@ -373,7 +373,8 @@ VALUES (
   'elevenlabs',
   40,
   10,
-  ${orgClause}
+  ${orgClause},
+  true
 );
 `);
 
@@ -414,6 +415,25 @@ export async function ensureProject(apiKey: string, projectName = 'Assistants'):
   if (!res.ok && res.status !== 400) {
     const text = await res.text().catch(() => '');
     throw new Error(`Failed to ensure project '${projectName}': ${res.status} ${text}`);
+  }
+}
+
+/**
+ * Synchronous version of {@link ensureProject} using curl + execSync.
+ * Safe to call at module scope or in synchronous setup code.
+ */
+export function ensureProjectSync(apiKey: string, projectName = 'Assistants'): void {
+  try {
+    execSync(
+      `curl -s -o /dev/null -w "%{http_code}" -X POST ` +
+        `-H "Authorization: Bearer ${apiKey}" ` +
+        `-H "Content-Type: application/json" ` +
+        `-d '{"name":"${projectName}"}' ` +
+        `"${ORCHESTRA_BASE_URL}/v0/project"`,
+      { encoding: 'utf-8', timeout: 10_000 }
+    );
+  } catch {
+    // Best effort — project may already exist
   }
 }
 

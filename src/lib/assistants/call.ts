@@ -17,12 +17,9 @@ export const getCallConnectionDetails = async (apiKey: string) => {
   ): Promise<ConnectionDetails | ResponseProps> => {
     'use server';
     try {
-      // Logic from the original API route is now here in the Server Action
       if (!LIVEKIT_URL || !API_KEY || !API_SECRET) {
-        console.error(
-          '[lib/assistants/call.ts] LiveKit server environment variables are not defined'
-        );
-        return { detail: 'Server configuration error.' };
+        const roomName = makeRoomName(assistantId, 'meet');
+        return { serverUrl: '', roomName, token: '', mode: 'dev' };
       }
 
       const user = await getCurrentUser();
@@ -82,7 +79,7 @@ export const deleteCallRoom = async () => {
       }
 
       if (!LIVEKIT_URL || !API_KEY || !API_SECRET) {
-        return { detail: 'Server configuration error.' };
+        return {};
       }
       const roomService = new RoomServiceClient(LIVEKIT_URL, API_KEY, API_SECRET);
       await roomService.deleteRoom(roomName);
@@ -104,8 +101,8 @@ export const dispatchAssistantToCall = async (_apiKey: string) => {
     'use server';
     try {
       const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
-      if (!adminKey) {
-        return { info: 'Dispatch accepted (no backend configured)' };
+      if (!adminKey || !LIVEKIT_URL) {
+        return { info: 'Dispatch skipped (no LiveKit or backend configured)' };
       }
 
       const baseUrl = process.env.ORCHESTRA_URL ?? '';

@@ -167,33 +167,42 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
 
         if (!connDetails) return;
 
-        await room.connect(connDetails.serverUrl, connDetails.token);
-        if (isStaleAttempt()) {
-          await room.disconnect();
-          return;
-        }
-
-        await Promise.all([
-          room.localParticipant.setMicrophoneEnabled(true),
-          room.localParticipant.setCameraEnabled(type === 'video'),
-        ]);
-        setIsConnected(true);
-        setIsConnecting(false);
-        wasConnectedRef.current = true;
-
-        if (room.remoteParticipants.size < 1) {
-          setIsWaitingForAssistant(true);
-          const timeoutDuration =
-            (typeof window !== 'undefined' && (window as any)._TEST_ASSISTANT_JOIN_TIMEOUT) ||
-            ASSISTANT_JOIN_TIMEOUT;
-          assistantJoinTimeoutRef.current = setTimeout(() => {
-            if (isStaleAttempt()) return;
-            setConnectionError(`${assistant.firstName} is taking too long to join.`);
-            setIsWaitingForAssistant(false);
-          }, timeoutDuration);
-        } else {
-          setIsWaitingForAssistant(false);
+        if (connDetails.mode === 'dev') {
+          setConnectionDetails(connDetails);
           stopRinging();
+          setIsConnected(true);
+          setIsConnecting(false);
+          wasConnectedRef.current = true;
+          setIsWaitingForAssistant(false);
+        } else {
+          await room.connect(connDetails.serverUrl, connDetails.token);
+          if (isStaleAttempt()) {
+            await room.disconnect();
+            return;
+          }
+
+          await Promise.all([
+            room.localParticipant.setMicrophoneEnabled(true),
+            room.localParticipant.setCameraEnabled(type === 'video'),
+          ]);
+          setIsConnected(true);
+          setIsConnecting(false);
+          wasConnectedRef.current = true;
+
+          if (room.remoteParticipants.size < 1) {
+            setIsWaitingForAssistant(true);
+            const timeoutDuration =
+              (typeof window !== 'undefined' && (window as any)._TEST_ASSISTANT_JOIN_TIMEOUT) ||
+              ASSISTANT_JOIN_TIMEOUT;
+            assistantJoinTimeoutRef.current = setTimeout(() => {
+              if (isStaleAttempt()) return;
+              setConnectionError(`${assistant.firstName} is taking too long to join.`);
+              setIsWaitingForAssistant(false);
+            }, timeoutDuration);
+          } else {
+            setIsWaitingForAssistant(false);
+            stopRinging();
+          }
         }
       } catch (e: any) {
         // Only handle error if this attempt is still the current one
