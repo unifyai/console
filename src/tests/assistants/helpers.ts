@@ -10,8 +10,8 @@ import { test as base, expect, type Page, type Browser } from '@playwright/test'
 import path from 'path';
 import os from 'os';
 
-export { createTestUser, cleanupUser, setUserCredits } from '../e2e-helpers';
-export type { TestUser } from '../e2e-helpers';
+export { createTestUser, cleanupUser, setUserCredits } from '../helpers/e2e-helpers';
+export type { TestUser } from '../helpers/e2e-helpers';
 
 export {
   uniqueEmail,
@@ -25,8 +25,8 @@ export {
   createAssistant,
   ensureVoicePreset,
   ensureProjectSync,
-} from '../seeds/client';
-export type { SeededOrg, SeededAssistant } from '../seeds/types';
+} from '../helpers/seeds/client';
+export type { SeededOrg, SeededAssistant } from '../helpers/seeds/types';
 
 export { login, switchToEmailTab } from '../auth/helpers';
 
@@ -282,7 +282,7 @@ export async function openContactManagerFromList(
 // DB Query Helpers
 // =============================================================================
 
-import { dbExec } from '../seeds/client';
+import { dbExec } from '../helpers/seeds/client';
 
 export function getAssistantFromDb(agentId: number) {
   const row = dbExec(

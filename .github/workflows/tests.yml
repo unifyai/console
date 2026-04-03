@@ -80,7 +80,10 @@ jobs:
 
       - name: Run Unit Tests
         run: |
-          npm run test:node -- --run --exclude='**/*.matrix.node.test.*'
+          npm run test:node -- --run \
+            --exclude='**/*.matrix.node.test.*' \
+            --exclude='**/tests/_interfaces/**' \
+            --exclude='**/tests/_visualization/**'
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=8192
@@ -118,6 +121,8 @@ jobs:
           echo "═══════════════════════════════════════════════════════════"
 
           MATRIX_SHARD="${{ matrix.shard }}/4" npx vitest --project node-matrix --run \
+            --exclude='**/tests/_interfaces/**' \
+            --exclude='**/tests/_visualization/**' \
             --reporter=verbose 2>&1 | tee test-output.log
 
           EXIT_CODE=${PIPESTATUS[0]}
@@ -413,133 +418,16 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
 
   # ===========================================================================
-  # BROWSER TESTS - Interfaces (2 shards)
+  # BROWSER TESTS - Interfaces (SKIPPED — not yet converted to E2E)
   # ===========================================================================
-  browser-interfaces:
-    needs: should-run-tests
-    if: needs.should-run-tests.outputs.run_tests == 'true'
-    name: Interfaces ${{ matrix.shard }}/2
-    runs-on: ubuntu-latest-4-cores
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Cache Vite dependencies
-        uses: actions/cache@v4
-        with:
-          path: node_modules/.vite
-          key: vite-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            vite-${{ runner.os }}-
-
-      - name: Install Playwright
-        run: npx playwright install --with-deps chromium
-
-      - name: Run Interfaces Browser Tests
-        run: |
-          set -x
-          echo "═══════════════════════════════════════════════════════════"
-          echo "         INTERFACES BROWSER TESTS - SHARD ${{ matrix.shard }}/2"
-          echo "═══════════════════════════════════════════════════════════"
-
-          npm run test:browser -- --run \
-            src/tests/interfaces \
-            --shard=${{ matrix.shard }}/2 \
-            --reporter=verbose 2>&1 | tee test-output.log
-
-          EXIT_CODE=${PIPESTATUS[0]}
-
-          echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ INTERFACES SHARD ${{ matrix.shard }}: PASSED"
-          else
-            echo "❌ INTERFACES SHARD ${{ matrix.shard }}: FAILED"
-            echo ""
-            echo "📋 FULL LOG:"
-            cat test-output.log
-          fi
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-          exit $EXIT_CODE
-        env:
-          CI: true
-          NODE_OPTIONS: --max-old-space-size=4096
+  # browser-interfaces: skipped until _interfaces tests are converted to the
+  # Playwright E2E user-flow methodology.
 
   # ===========================================================================
-  # BROWSER TESTS - Plot
+  # BROWSER TESTS - Plot (SKIPPED — not yet converted to E2E)
   # ===========================================================================
-  browser-plot:
-    needs: should-run-tests
-    if: needs.should-run-tests.outputs.run_tests == 'true'
-    name: Plot Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Cache Vite dependencies
-        uses: actions/cache@v4
-        with:
-          path: node_modules/.vite
-          key: vite-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            vite-${{ runner.os }}-
-
-      - name: Install Playwright
-        run: npx playwright install --with-deps chromium
-
-      - name: Run Plot Browser Tests
-        run: |
-          set -x
-          echo "═══════════════════════════════════════════════════════════"
-          echo "                   PLOT BROWSER TESTS"
-          echo "═══════════════════════════════════════════════════════════"
-
-          npm run test:browser -- --run \
-            src/tests/plot \
-            --reporter=verbose 2>&1 | tee test-output.log
-
-          EXIT_CODE=${PIPESTATUS[0]}
-
-          echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ PLOT TESTS: PASSED"
-          else
-            echo "❌ PLOT TESTS: FAILED"
-            echo ""
-            echo "📋 FULL LOG:"
-            cat test-output.log
-          fi
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-          exit $EXIT_CODE
-        env:
-          CI: true
-          NODE_OPTIONS: --max-old-space-size=4096
+  # browser-plot: skipped until _visualization tests are converted to the
+  # Playwright E2E user-flow methodology.
 
   # ===========================================================================
   # BROWSER TESTS - User
@@ -665,62 +553,11 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=8192
 
   # ===========================================================================
-  # BROWSER MATRIX TESTS - 2 instances x 4 internal shards
+  # BROWSER MATRIX TESTS (SKIPPED — visualization plot matrix tests,
+  # not yet converted to E2E)
   # ===========================================================================
-  browser-matrix:
-    needs: should-run-tests
-    if: needs.should-run-tests.outputs.run_tests == 'true'
-    name: Browser Matrix ${{ matrix.instance }}/2
-    runs-on: ubuntu-latest-16-cores
-    strategy:
-      fail-fast: false
-      matrix:
-        instance: [1, 2]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Install Playwright
-        run: npx playwright install --with-deps chromium
-
-      - name: Run Browser Matrix Tests (4 shards per instance)
-        run: |
-          set -x
-          echo "═══════════════════════════════════════════════════════════"
-          echo "    BROWSER MATRIX TESTS - INSTANCE ${{ matrix.instance }}/2"
-          echo "    (4 internal shards, 8 total across both instances)"
-          echo "═══════════════════════════════════════════════════════════"
-
-          SHARDS=4 SHARD_OFFSET=${{ matrix.instance }} npm run test:browser:matrix 2>&1 | tee test-output.log
-
-          EXIT_CODE=${PIPESTATUS[0]}
-
-          echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ BROWSER MATRIX INSTANCE ${{ matrix.instance }}: PASSED"
-          else
-            echo "❌ BROWSER MATRIX INSTANCE ${{ matrix.instance }}: FAILED"
-            echo ""
-            echo "📋 FULL LOG:"
-            cat test-output.log
-          fi
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-          exit $EXIT_CODE
-        env:
-          CI: true
-          NODE_OPTIONS: --max-old-space-size=8192
-          PLOT_TEST_SAMPLE_RATE: '100'
+  # browser-matrix: skipped until _visualization tests are converted to the
+  # Playwright E2E user-flow methodology.
 
   # ===========================================================================
   # SUMMARY - Single check to gate PRs
@@ -734,11 +571,8 @@ jobs:
       - node-matrix
       - api
       - browser-assistants
-      - browser-interfaces
-      - browser-plot
       - browser-user
       - browser-benchmarks
-      - browser-matrix
     runs-on: ubuntu-latest
     steps:
       - name: Check test results

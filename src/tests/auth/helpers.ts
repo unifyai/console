@@ -18,8 +18,8 @@ export {
   setKnownVerificationCode,
   generateTOTP,
   needsFreshTotpWindow,
-} from '../e2e-helpers';
-export type { TestUser } from '../e2e-helpers';
+} from '../helpers/e2e-helpers';
+export type { TestUser } from '../helpers/e2e-helpers';
 export {
   uniqueEmail,
   dbExec,
@@ -29,8 +29,8 @@ export {
   createOrg,
   createEmailLogin,
   deleteOrg,
-} from '../seeds/client';
-export type { SeededOrg } from '../seeds/types';
+} from '../helpers/seeds/client';
+export type { SeededOrg } from '../helpers/seeds/types';
 
 // =============================================================================
 // UI Helpers
@@ -100,8 +100,8 @@ export async function enterTOTP(page: Page, code: string) {
 export async function enableMfa(
   apiKey: string
 ): Promise<{ secret: string; recoveryCodes: string[] }> {
-  const { orchestraFetch: oFetch } = await import('../seeds/client');
-  const { generateTOTP: genTOTP } = await import('../e2e-helpers');
+  const { orchestraFetch: oFetch } = await import('../helpers/seeds/client');
+  const { generateTOTP: genTOTP } = await import('../helpers/e2e-helpers');
 
   const setupRes = await oFetch('/v0/auth/mfa/setup', { method: 'POST' }, apiKey);
   if (!setupRes.ok) throw new Error(`MFA setup failed: ${setupRes.status}`);
@@ -130,7 +130,7 @@ export async function enableMfa(
  * Disable MFA for a user via Orchestra's API.
  */
 export async function disableMfa(apiKey: string, totpCode: string): Promise<void> {
-  const { orchestraFetch: oFetch } = await import('../seeds/client');
+  const { orchestraFetch: oFetch } = await import('../helpers/seeds/client');
   const res = await oFetch(
     '/v0/auth/mfa',
     { method: 'DELETE', body: JSON.stringify({ code: totpCode }) },
@@ -147,7 +147,7 @@ export async function createInviteToken(
   orgId: number,
   email: string
 ): Promise<string> {
-  const { orchestraFetch: oFetch, dbExec: db } = await import('../seeds/client');
+  const { orchestraFetch: oFetch, dbExec: db } = await import('../helpers/seeds/client');
 
   const roleId = db(`SELECT id FROM role WHERE name = 'Member' AND is_system_role = true LIMIT 1`);
 
@@ -178,7 +178,7 @@ export async function loginWithMfaAndNavigateTo(
   totpSecret: string,
   targetUrl: string
 ) {
-  const { generateTOTP: genTOTP } = await import('../e2e-helpers');
+  const { generateTOTP: genTOTP } = await import('../helpers/e2e-helpers');
 
   await page.goto('/login');
   await login(page, email, password);
@@ -252,7 +252,7 @@ async function completeMfaChallenge(
  * (e.g., enough time elapsed between setup and the test action).
  */
 export async function ensureFreshTotp(page: Page, secret: string) {
-  const { needsFreshTotpWindow: needsWait } = await import('../e2e-helpers');
+  const { needsFreshTotpWindow: needsWait } = await import('../helpers/e2e-helpers');
   if (!needsWait(secret)) return;
   const msIntoWindow = Date.now() % 30_000;
   await page.waitForTimeout(30_000 - msIntoWindow + 500);
@@ -266,7 +266,7 @@ export const waitForNextTotpWindow = ensureFreshTotp;
  * Only waits when the current counter was already consumed by a prior operation.
  */
 export async function enterTOTPWithRetry(page: Page, totpSecret: string) {
-  const { generateTOTP: genTOTP } = await import('../e2e-helpers');
+  const { generateTOTP: genTOTP } = await import('../helpers/e2e-helpers');
   await ensureFreshTotp(page, totpSecret);
   const code = genTOTP(totpSecret);
   await enterTOTP(page, code);

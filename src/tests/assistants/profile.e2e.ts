@@ -96,7 +96,7 @@ test('profile for an assistant with no about shows fallback text', async ({ auth
   });
 
   // Clear the about field
-  const { dbExec } = await import('../seeds/client');
+  const { dbExec } = await import('../helpers/seeds/client');
   dbExec(`UPDATE assistants SET about = NULL WHERE agent_id = ${noAbout.agentId}`);
 
   await navigateToAssistants(page);

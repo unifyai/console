@@ -29,8 +29,8 @@ import {
   deleteOrg,
   ensureProjectSync,
   dbExec,
-} from '../seeds/client';
-import { createTestUser, cleanupUser } from '../e2e-helpers';
+} from '../helpers/seeds/client';
+import { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
 import { login } from '../auth/helpers';
 
 // =============================================================================

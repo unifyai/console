@@ -18,8 +18,8 @@ import { test as base, type Page, type Browser } from '@playwright/test';
 import path from 'path';
 import os from 'os';
 
-export { createTestUser, cleanupUser, setUserCredits } from '../e2e-helpers';
-export type { TestUser } from '../e2e-helpers';
+export { createTestUser, cleanupUser, setUserCredits } from '../helpers/e2e-helpers';
+export type { TestUser } from '../helpers/e2e-helpers';
 
 import {
   uniqueEmail,
@@ -31,7 +31,7 @@ import {
   deleteOrg,
   addMember,
   orchestraFetch,
-} from '../seeds/client';
+} from '../helpers/seeds/client';
 export {
   uniqueEmail,
   dbExec,
@@ -43,7 +43,7 @@ export {
   addMember,
   orchestraFetch,
 };
-export type { SeededOrg } from '../seeds/types';
+export type { SeededOrg } from '../helpers/seeds/types';
 
 import { login, switchToEmailTab } from '../auth/helpers';
 export { login, switchToEmailTab };

@@ -10,8 +10,8 @@ import { test as base, type Page, type Browser } from '@playwright/test';
 import path from 'path';
 import os from 'os';
 
-export { createTestUser, cleanupUser } from '../e2e-helpers';
-export type { TestUser } from '../e2e-helpers';
+export { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
+export type { TestUser } from '../helpers/e2e-helpers';
 
 export {
   uniqueEmail,
@@ -22,8 +22,8 @@ export {
   deleteOrg,
   addMember,
   orchestraFetch,
-} from '../seeds/client';
-export type { SeededOrg } from '../seeds/types';
+} from '../helpers/seeds/client';
+export type { SeededOrg } from '../helpers/seeds/types';
 
 export { login, switchToEmailTab } from '../auth/helpers';
 
@@ -92,7 +92,7 @@ export function createAccountTest(user: { email: string; password: string }) {
 // DB Query Helpers
 // =============================================================================
 
-import { dbExec } from '../seeds/client';
+import { dbExec } from '../helpers/seeds/client';
 
 export function getUserFromDb(userId: string) {
   const row = dbExec(
