@@ -385,8 +385,8 @@ export function AssistantContactManager({
                               className="text-caption max-w-xs"
                             >
                               <p>
-                                The WhatsApp number you will use to message your assistant. Manage it
-                                in your profile.
+                                The WhatsApp number you will use to message your assistant. Manage
+                                it in your profile.
                               </p>
                             </TooltipContent>
                           </Tooltip>
