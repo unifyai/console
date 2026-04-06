@@ -11,6 +11,7 @@ import * as React from 'react';
 import { GranularityFilter } from './GranularityFilter';
 import { TimeframeFilter } from './TimeframeFilter';
 import { AssistantFilter } from './AssistantFilter';
+import { CategoryFilter } from './CategoryFilter';
 import { UserScopeFilter } from './UserScopeFilter';
 import { TimeGranularity, UserScope } from '@/types/usage';
 import { Assistant } from '@/types/assistants/assistant';
@@ -37,6 +38,10 @@ interface UsageFiltersBarProps {
   onAssistantChange: (assistantId: string) => void;
   /** List of available assistants */
   assistants: Assistant[];
+  /** Selected category */
+  category: string;
+  /** Callback when category selection changes */
+  onCategoryChange: (category: string) => void;
   /** Start date in ISO format */
   startDate: string;
   /** End date in ISO format */
@@ -67,6 +72,8 @@ export function UsageFiltersBar({
   assistantId,
   onAssistantChange,
   assistants,
+  category,
+  onCategoryChange,
   startDate,
   endDate,
   onDateRangeChange,
@@ -112,6 +119,9 @@ export function UsageFiltersBar({
         onChange={onAssistantChange}
         disabled={disabled}
       />
+
+      {/* Category Filter */}
+      <CategoryFilter value={category} onChange={onCategoryChange} disabled={disabled} />
 
       {/* Timeframe Filter */}
       <TimeframeFilter

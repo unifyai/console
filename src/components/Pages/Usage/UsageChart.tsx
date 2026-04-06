@@ -1,34 +1,72 @@
 'use client';
 
-/**
- * UsageChart Component
- *
- * Bar chart wrapper for displaying usage data over time.
- * Wraps PlotCanvas with usage-specific configuration.
- * Includes PlotFooter and PlotDetailsDrawer for axes info.
- */
-
 import * as React from 'react';
-import { PlotCanvas } from '@/components/Common/Plot/PlotCanvas';
-import { PlotFooter } from '@/components/Common/Plot/PlotFooter/PlotFooter';
-import { PlotDetailsDrawer } from '@/components/Common/Plot/PlotFooter/PlotDetailsDrawer';
-import { usePlotDetails } from '@/hooks/Interfaces/Plot/usePlotDetails';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { UsageDataPoint, TimeGranularity } from '@/types/usage';
-import { useUsageChartConfig } from '@/hooks/Usage/useUsageChartConfig';
+import { formatTimestampForDisplay } from '@/utils/usage/dateUtils';
+import { formatCostForDisplay } from '@/utils/usage/formatters';
 import { BarChart3 } from 'lucide-react';
 
 interface UsageChartProps {
-  /** Usage data points to display */
   data: UsageDataPoint[];
-  /** Time granularity for axis formatting */
   granularity: TimeGranularity;
-  /** Whether data is loading */
   isLoading?: boolean;
 }
 
-/**
- * Empty state component when there's no data
- */
+interface ChartColors {
+  bar: string;
+  grid: string;
+  border: string;
+  tickText: string;
+  cursorFill: string;
+}
+
+const FALLBACK_COLORS: ChartColors = {
+  bar: 'var(--forest-green)',
+  grid: 'var(--chart-grid)',
+  border: 'var(--light-neutral-grey)',
+  tickText: 'var(--dark-slate-gray)',
+  cursorFill: 'rgba(176, 190, 197, 0.3)',
+};
+
+function useChartColors(): ChartColors {
+  const [colors, setColors] = React.useState<ChartColors>(FALLBACK_COLORS);
+
+  React.useEffect(() => {
+    const resolve = () => {
+      const s = getComputedStyle(document.documentElement);
+      const get = (v: string) => s.getPropertyValue(v).trim();
+
+      const primary = get('--primary') || get('--forest-green');
+      const border = get('--border') || get('--light-neutral-grey');
+      const muted = get('--muted') || border;
+      const mutedFg = get('--muted-foreground') || get('--dark-slate-gray');
+      const chartGrid = get('--chart-grid') || border;
+
+      setColors({
+        bar: primary || FALLBACK_COLORS.bar,
+        grid: chartGrid || FALLBACK_COLORS.grid,
+        border: border || FALLBACK_COLORS.border,
+        tickText: mutedFg || FALLBACK_COLORS.tickText,
+        cursorFill: muted
+          ? `color-mix(in srgb, ${muted} 30%, transparent)`
+          : FALLBACK_COLORS.cursorFill,
+      });
+    };
+
+    resolve();
+
+    const observer = new MutationObserver(resolve);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme'],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  return colors;
+}
+
 function EmptyState({ message }: { message: string }) {
   return (
     <div
@@ -41,9 +79,6 @@ function EmptyState({ message }: { message: string }) {
   );
 }
 
-/**
- * Loading state component
- */
 function LoadingState() {
   return (
     <div
@@ -58,50 +93,29 @@ function LoadingState() {
   );
 }
 
+function CustomTooltip({
+  active,
+  payload,
+  label,
+  granularity,
+}: {
+  active?: boolean;
+  payload?: Array<{ value: number }>;
+  label?: string;
+  granularity: TimeGranularity;
+}) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-md border border-border bg-card px-3 py-2 shadow-md">
+      <p className="text-caption">{formatTimestampForDisplay(String(label), granularity)}</p>
+      <p className="text-title text-card-foreground">{formatCostForDisplay(payload[0].value)}</p>
+    </div>
+  );
+}
+
 export function UsageChart({ data, granularity, isLoading = false }: UsageChartProps) {
-  const { barData, fields, config, xTickFormatter, yTickFormatter } = useUsageChartConfig({
-    data,
-    granularity,
-  });
+  const colors = useChartColors();
 
-  // Plot details state for footer and drawer
-  const plotDetails = usePlotDetails({
-    xAxis: 'timestamp',
-    xLabel: config.xAxisLabel,
-    xScale: 'linear',
-    yAxis: 'billed_cost',
-    yLabel: config.yAxisLabel,
-    yScale: 'linear',
-    metric: 'sum',
-  });
-
-  // Destructure stable methods from plotDetails to use in callbacks
-  const { setGroups, addPinnedDatapoint, openDrawer, isDrawerOpen } = plotDetails;
-
-  // Memoize callbacks to prevent infinite re-render loops
-  const handleGroupsChange = React.useCallback(
-    (groups: Array<{ key: string; color: string }>) => {
-      setGroups(groups.map((g) => ({ key: g.key, color: g.color })));
-    },
-    [setGroups]
-  );
-
-  const handleDatapointPin = React.useCallback(
-    (datapoint: {
-      id: string;
-      x: { label: string; value: string | number };
-      y: { label: string; value: string | number };
-      group?: { label: string; value: string };
-    }) => {
-      addPinnedDatapoint(datapoint);
-      if (!isDrawerOpen) {
-        openDrawer();
-      }
-    },
-    [addPinnedDatapoint, openDrawer, isDrawerOpen]
-  );
-
-  // Show loading state
   if (isLoading) {
     return (
       <div className="h-full" data-testid="usage-chart">
@@ -110,68 +124,51 @@ export function UsageChart({ data, granularity, isLoading = false }: UsageChartP
     );
   }
 
-  // Show empty state when no data
-  if (!config.showChart) {
+  if (!data || data.length === 0) {
     return (
       <div className="h-full" data-testid="usage-chart">
-        <EmptyState message={config.emptyMessage || 'No data available'} />
+        <EmptyState message="No usage data for the selected period" />
       </div>
     );
   }
 
   return (
     <div
-      className="flex h-full flex-col rounded-lg border border-border bg-card"
+      className="flex h-full flex-col rounded-lg border border-border bg-card [&_*]:outline-none"
       data-testid="usage-chart"
     >
-      {/* Chart - fills remaining space, no axis labels */}
-      <div className="min-h-0 flex-1">
-        <PlotCanvas
-          logs={[]}
-          fields={fields}
-          plotType="Bar Chart"
-          xAxis="timestamp"
-          yAxis="billed_cost"
-          aggregate="sum"
-          scaleX="linear"
-          scaleY="linear"
-          metric="sum"
-          binCount={10}
-          showRegression="false"
-          interactive={true}
-          zoomEnabled={false}
-          preAggregatedBarData={barData}
-          showXAxisLabel={false}
-          showYAxisLabel={false}
-          xAxisLabel={config.xAxisLabel}
-          yAxisLabel="Billed Cost"
-          aggregateLabel=""
-          xTickFormatter={xTickFormatter}
-          yTickFormatter={yTickFormatter}
-          hideSettingsOverlay={true}
-          onGroupsChange={handleGroupsChange}
-          onDatapointPin={handleDatapointPin}
-          highlightTarget={plotDetails.highlightTarget}
-        />
+      <div className="min-h-0 flex-1 p-4 pb-2 pr-2">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} barCategoryGap="20%">
+            <CartesianGrid
+              strokeDasharray="3 3"
+              vertical={false}
+              stroke={colors.grid}
+              strokeOpacity={0.5}
+            />
+            <XAxis
+              dataKey="timestamp"
+              tickFormatter={(v: string) => formatTimestampForDisplay(v, granularity)}
+              tick={{ fontSize: 11, fill: colors.tickText }}
+              axisLine={{ stroke: colors.border }}
+              tickLine={false}
+              minTickGap={24}
+            />
+            <YAxis
+              tickFormatter={(v: number) => formatCostForDisplay(v)}
+              tick={{ fontSize: 11, fill: colors.tickText }}
+              axisLine={false}
+              tickLine={false}
+              width={60}
+            />
+            <Tooltip
+              content={<CustomTooltip granularity={granularity} />}
+              cursor={{ fill: colors.cursorFill }}
+            />
+            <Bar dataKey="billedCost" fill={colors.bar} radius={[3, 3, 0, 0]} maxBarSize={48} />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
-
-      {/* Footer - compact with counts, toggles drawer */}
-      <PlotFooter
-        groupCount={plotDetails.groupCount}
-        pinnedCount={plotDetails.pinnedCount}
-        isOpen={plotDetails.isDrawerOpen}
-        onToggle={plotDetails.toggleDrawer}
-      />
-
-      {/* Details Drawer - slides up from footer with axes info */}
-      <PlotDetailsDrawer
-        isOpen={plotDetails.isDrawerOpen}
-        groups={plotDetails.groups}
-        pinnedDatapoints={plotDetails.pinnedDatapoints}
-        axesInfo={plotDetails.axesInfo}
-        onUnpinDatapoint={plotDetails.removePinnedDatapoint}
-        onHighlight={plotDetails.setHighlightTarget}
-      />
     </div>
   );
 }
