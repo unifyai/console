@@ -383,6 +383,16 @@ export function UsageMain({
               isLoading={isLoadingLimits || (isLoading && !hasInitiallyLoaded)}
             />
           </div>
+
+          {/* Chart appears here on mobile (between limits and ledger), hidden on desktop */}
+          <div className="min-h-[360px] lg:hidden">
+            <UsageChart
+              data={data}
+              granularity={filters.granularity}
+              isLoading={isLoading && !hasInitiallyLoaded}
+            />
+          </div>
+
           <div className="min-h-[300px] flex-1 overflow-hidden">
             <TransactionLedger
               transactions={ledger.transactions}
@@ -394,8 +404,8 @@ export function UsageMain({
           </div>
         </div>
 
-        {/* Right column — bar chart, same max-height as left column */}
-        <div className="min-h-[300px] flex-1 lg:max-h-[calc(100vh-140px)]">
+        {/* Right column — bar chart (desktop only, hidden on mobile) */}
+        <div className="hidden min-h-[360px] flex-1 lg:block lg:max-h-[calc(100vh-140px)]">
           <UsageChart
             data={data}
             granularity={filters.granularity}

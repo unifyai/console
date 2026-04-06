@@ -137,7 +137,7 @@ export function UsageChart({ data, granularity, isLoading = false }: UsageChartP
       className="flex h-full flex-col rounded-lg border border-border bg-card [&_*]:outline-none"
       data-testid="usage-chart"
     >
-      <div className="min-h-0 flex-1 p-4 pb-2 pr-2">
+      <div className="min-h-0 flex-1 p-2 sm:p-4 sm:pb-2 sm:pr-2">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} barCategoryGap="20%">
             <CartesianGrid
@@ -159,7 +159,7 @@ export function UsageChart({ data, granularity, isLoading = false }: UsageChartP
               tick={{ fontSize: 11, fill: colors.tickText }}
               axisLine={false}
               tickLine={false}
-              width={60}
+              width={45}
             />
             <Tooltip
               content={<CustomTooltip granularity={granularity} />}

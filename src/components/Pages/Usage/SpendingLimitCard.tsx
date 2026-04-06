@@ -17,7 +17,7 @@ import * as React from 'react';
 import { Card, CardContent } from '@/components/UI/card';
 import { Button } from '@/components/UI/button';
 import { formatCostForDisplay } from '@/utils/usage/formatters';
-import { Target, AlertTriangle, CheckCircle2, Pencil } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SpendingLimitDialog } from '@/components/Pages/Assistants/Profile/SpendingLimitDialog';
 
@@ -85,26 +85,6 @@ function getSpendingStatus(current: number, limit: number | null) {
 }
 
 /**
- * Get the most severe status from all limits
- */
-function getOverallStatus(limits: SpendingLimitData[]) {
-  const statuses = limits
-    .filter((l) => l.limit !== null)
-    .map((l) => getSpendingStatus(l.currentSpend, l.limit));
-
-  if (statuses.some((s) => s.status === 'exceeded')) {
-    return { status: 'exceeded', color: 'text-destructive', bgColor: 'bg-destructive/10' };
-  }
-  if (statuses.some((s) => s.status === 'warning')) {
-    return { status: 'warning', color: 'text-amber-500', bgColor: 'bg-amber-500/10' };
-  }
-  if (statuses.some((s) => s.status === 'ok')) {
-    return { status: 'ok', color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' };
-  }
-  return { status: 'unlimited', color: 'text-muted-foreground', bgColor: 'bg-muted' };
-}
-
-/**
  * Single limit row with mini progress bar and optional edit button
  */
 function LimitRow({ limit, onEditClick }: { limit: SpendingLimitData; onEditClick?: () => void }) {
@@ -160,11 +140,6 @@ export function SpendingLimitCard({ spendingLimits, isLoading = false }: Spendin
   const hasAnyLimit = limitsWithValues.length > 0;
   const hasAnyEditable = spendingLimits.some((l) => l.canEdit);
 
-  // Get overall status for the icon
-  const overall = getOverallStatus(spendingLimits);
-  const StatusIcon =
-    overall.status === 'exceeded' || overall.status === 'warning' ? AlertTriangle : CheckCircle2;
-
   // Don't render if no limits and not loading and none are editable
   if (spendingLimits.length === 0 && !isLoading && !hasAnyEditable) {
     return null;
@@ -173,55 +148,35 @@ export function SpendingLimitCard({ spendingLimits, isLoading = false }: Spendin
   return (
     <Card className="xl:flex-1" data-testid="spending-limit-card">
       <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            {/* Title */}
-            <p className="text-label text-muted-foreground">Current Month Limits</p>
+        <div>
+          {/* Title */}
+          <p className="text-label text-muted-foreground">Current Month Limits</p>
 
-            {isLoading ? (
-              <div className="mt-1 space-y-2">
-                <div className="h-6 w-20 animate-pulse rounded bg-muted" />
-                <div className="h-1.5 w-full animate-pulse rounded bg-muted" />
-              </div>
-            ) : hasAnyLimit || hasAnyEditable ? (
-              <div className="mt-1 space-y-2">
-                {/* Limit rows — each with its own edit button if editable */}
-                <div className="space-y-2">
-                  {spendingLimits.map((limit) => (
-                    <LimitRow
-                      key={limit.type}
-                      limit={limit}
-                      onEditClick={
-                        limit.canEdit && limit.onSave ? () => setEditingLimit(limit) : undefined
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="mt-1">
-                <p className="text-display text-bold text-foreground">
-                  {formatCostForDisplay(spendingLimits[0]?.currentSpend ?? 0)}
-                </p>
-                <p className="text-caption text-muted-foreground">No limits configured</p>
-              </div>
-            )}
-          </div>
-
-          {/* Icon */}
-          <div
-            className={cn(
-              'shrink-0 rounded-full p-2',
-              isLoading ? 'bg-muted text-muted-foreground' : overall.bgColor,
-              !isLoading && overall.color
-            )}
-          >
-            {hasAnyLimit && !isLoading ? (
-              <StatusIcon className="h-5 w-5" />
-            ) : (
-              <Target className="h-5 w-5" />
-            )}
-          </div>
+          {isLoading ? (
+            <div className="mt-1 space-y-2">
+              <div className="h-6 w-20 animate-pulse rounded bg-muted" />
+              <div className="h-1.5 w-full animate-pulse rounded bg-muted" />
+            </div>
+          ) : hasAnyLimit || hasAnyEditable ? (
+            <div className="mt-1 space-y-2">
+              {spendingLimits.map((limit) => (
+                <LimitRow
+                  key={limit.type}
+                  limit={limit}
+                  onEditClick={
+                    limit.canEdit && limit.onSave ? () => setEditingLimit(limit) : undefined
+                  }
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="mt-1">
+              <p className="text-display text-bold text-foreground">
+                {formatCostForDisplay(spendingLimits[0]?.currentSpend ?? 0)}
+              </p>
+              <p className="text-caption text-muted-foreground">No limits configured</p>
+            </div>
+          )}
         </div>
       </CardContent>
 

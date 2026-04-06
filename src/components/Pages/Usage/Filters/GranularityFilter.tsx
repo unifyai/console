@@ -37,9 +37,11 @@ const GRANULARITY_OPTIONS: TimeGranularity[] = [
 export function GranularityFilter({ value, onChange, disabled = false }: GranularityFilterProps) {
   return (
     <Select value={value} onValueChange={(v) => onChange(v as TimeGranularity)} disabled={disabled}>
-      <SelectTrigger className="h-8 w-[130px]" data-testid="granularity-filter">
-        <Clock className="mr-2 h-4 w-4" />
-        <SelectValue placeholder="Granularity" />
+      <SelectTrigger className="h-8 w-full sm:w-[140px]" data-testid="granularity-filter">
+        <Clock className="mr-2 h-4 w-4 shrink-0" />
+        <span className="flex-1 truncate text-left">
+          <SelectValue placeholder="Granularity" />
+        </span>
       </SelectTrigger>
       <SelectContent>
         {GRANULARITY_OPTIONS.map((option) => (

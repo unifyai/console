@@ -96,59 +96,53 @@ export function UsageFiltersBar({
   };
 
   return (
-    <div
-      className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3"
-      data-testid="usage-filters-bar"
-    >
-      {/* User Scope Filter - only visible for admins */}
-      <UserScopeFilter
-        value={userScope}
-        onChange={onUserScopeChange}
-        selectedMemberId={selectedMemberId}
-        onMemberChange={onMemberChange}
-        orgMembers={orgMembers}
-        currentUserId={currentUserId}
-        disabled={disabled}
-        visible={canViewOrg}
-      />
+    <div className="rounded-lg border border-border bg-card p-3" data-testid="usage-filters-bar">
+      {/* Mobile: stacked full-width — Desktop: inline flex */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+        <UserScopeFilter
+          value={userScope}
+          onChange={onUserScopeChange}
+          selectedMemberId={selectedMemberId}
+          onMemberChange={onMemberChange}
+          orgMembers={orgMembers}
+          currentUserId={currentUserId}
+          disabled={disabled}
+          visible={canViewOrg}
+        />
 
-      {/* Assistant Filter */}
-      <AssistantFilter
-        assistants={assistants}
-        value={assistantId}
-        onChange={onAssistantChange}
-        disabled={disabled}
-      />
+        <AssistantFilter
+          assistants={assistants}
+          value={assistantId}
+          onChange={onAssistantChange}
+          disabled={disabled}
+        />
 
-      {/* Category Filter */}
-      <CategoryFilter value={category} onChange={onCategoryChange} disabled={disabled} />
+        <CategoryFilter value={category} onChange={onCategoryChange} disabled={disabled} />
 
-      {/* Timeframe Filter */}
-      <TimeframeFilter
-        startDate={startDate}
-        endDate={endDate}
-        onDateRangeChange={onDateRangeChange}
-        disabled={disabled}
-      />
+        <TimeframeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onDateRangeChange={onDateRangeChange}
+          disabled={disabled}
+        />
 
-      {/* Granularity Filter */}
-      <GranularityFilter value={granularity} onChange={onGranularityChange} disabled={disabled} />
+        <GranularityFilter value={granularity} onChange={onGranularityChange} disabled={disabled} />
 
-      {/* Spacer to push refresh button to the right */}
-      <div className="flex-1" />
+        {/* Desktop spacer */}
+        <div className="hidden flex-1 sm:block" />
 
-      {/* Refresh Button - on far right */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleRefresh}
-        disabled={disabled || isRefreshing}
-        className="h-8"
-        data-testid="refresh-button"
-      >
-        <RefreshCw className={`mr-1 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-        Refresh
-      </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={disabled || isRefreshing}
+          className="h-8"
+          data-testid="refresh-button"
+        >
+          <RefreshCw className={`mr-1 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
     </div>
   );
 }

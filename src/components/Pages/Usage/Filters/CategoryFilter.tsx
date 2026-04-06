@@ -51,9 +51,9 @@ export function CategoryFilter({ value, onChange, disabled = false }: CategoryFi
 
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger className="h-8 w-[160px]" data-testid="category-filter">
+      <SelectTrigger className="h-8 w-full sm:w-[160px]" data-testid="category-filter">
         <Tag className="mr-2 h-4 w-4 shrink-0" />
-        <span className="truncate">{displayText}</span>
+        <span className="flex-1 truncate text-left">{displayText}</span>
       </SelectTrigger>
       <SelectContent>
         <CategoryItem value="all" label="All Spending" description="All usage categories" />
