@@ -442,17 +442,21 @@ export function useAssistantContactManager({
       case 'phone':
         return isLoadingPhoneCountries;
       case 'whatsapp':
-        return true;
+        return false;
       default:
         return true;
     }
   }, [isSubmittingContact, activeTab, isEmailAdded, emailLocalPart, isLoadingPhoneCountries]);
 
   const showCreateButton =
-    (activeTab === 'email' && !assistant.email) || (activeTab === 'phone' && !assistant.phone);
+    (activeTab === 'email' && !assistant.email) ||
+    (activeTab === 'phone' && !assistant.phone) ||
+    (activeTab === 'whatsapp' && !assistant.assistantWhatsappNumber);
 
   const showDeleteButton =
-    (activeTab === 'email' && !!assistant.email) || (activeTab === 'phone' && !!assistant.phone);
+    (activeTab === 'email' && !!assistant.email) ||
+    (activeTab === 'phone' && !!assistant.phone) ||
+    (activeTab === 'whatsapp' && !!assistant.assistantWhatsappNumber);
 
   return {
     // Form methods for component bindings
