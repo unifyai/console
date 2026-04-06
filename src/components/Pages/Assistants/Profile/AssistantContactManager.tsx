@@ -365,10 +365,16 @@ export function AssistantContactManager({
               </TabsContent>
               <TabsContent value="whatsapp" className="py-4">
                 {assistant.assistantWhatsappNumber ? (
-                  <DisplayContactField
-                    label="Assistant WhatsApp Number"
-                    value={assistant.assistantWhatsappNumber}
-                  />
+                  <div className="space-y-2">
+                    <DisplayContactField
+                      label="Assistant WhatsApp Number"
+                      value={assistant.assistantWhatsappNumber}
+                    />
+                    <p className="text-body text-muted-foreground">
+                      Send a message first — your assistant can only call you on WhatsApp after you
+                      start a conversation.
+                    </p>
+                  </div>
                 ) : canWrite ? (
                   <div className="space-y-4">
                     <div>
