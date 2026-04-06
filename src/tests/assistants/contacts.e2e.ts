@@ -19,6 +19,9 @@ import {
   deleteAssistantFromDb,
   getAssistantContact,
   setUserPhoneNumber,
+  clearUserPhoneNumber,
+  setUserWhatsappNumber,
+  clearUserWhatsappNumber,
   ensureProjectSync,
 } from './helpers';
 
@@ -266,4 +269,70 @@ test('full email lifecycle: create → verify in DB → delete → verify remove
 
   const emailAfterDelete = getAssistantContact(assistant.agentId, 'email');
   expect(emailAfterDelete).toBeFalsy();
+});
+
+test('phone create button is disabled when user has no phone number', async ({
+  authedPage: page,
+}) => {
+  clearUserPhoneNumber(user.id);
+
+  try {
+    await openContactManager(page);
+
+    await page.locator('[role="tab"]:has-text("Phone")').click();
+    await page.waitForTimeout(500);
+
+    // Should show the "no phone number" prompt
+    await expect(page.locator('text=No phone number set in your profile')).toBeVisible({
+      timeout: 5_000,
+    });
+
+    // Create button should be disabled
+    const createBtn = page.getByRole('button', { name: 'Create' });
+    await expect(createBtn).toBeDisabled({ timeout: 5_000 });
+  } finally {
+    setUserPhoneNumber(user.id, '+15551234567');
+  }
+});
+
+test('whatsapp create button is disabled when user has no whatsapp number', async ({
+  authedPage: page,
+}) => {
+  clearUserWhatsappNumber(user.id);
+
+  try {
+    await openContactManager(page);
+
+    await page.locator('[role="tab"]:has-text("WhatsApp")').click();
+    await page.waitForTimeout(500);
+
+    // Should show the "no WhatsApp number" prompt
+    await expect(page.locator('text=No WhatsApp number set in your profile')).toBeVisible({
+      timeout: 5_000,
+    });
+
+    // Create button should be disabled
+    const createBtn = page.getByRole('button', { name: 'Create' });
+    await expect(createBtn).toBeDisabled({ timeout: 5_000 });
+  } finally {
+    setUserWhatsappNumber(user.id, '+15559876543');
+  }
+});
+
+test('whatsapp create button is enabled when user has a whatsapp number', async ({
+  authedPage: page,
+}) => {
+  setUserWhatsappNumber(user.id, '+15559876543');
+
+  await openContactManager(page);
+
+  await page.locator('[role="tab"]:has-text("WhatsApp")').click();
+  await page.waitForTimeout(500);
+
+  // Should show the WhatsApp number with green check
+  await expect(page.locator('text=+15559876543')).toBeVisible({ timeout: 5_000 });
+
+  // Create button should be enabled
+  const createBtn = page.getByRole('button', { name: 'Create' });
+  await expect(createBtn).toBeEnabled({ timeout: 5_000 });
 });

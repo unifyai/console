@@ -23,6 +23,10 @@ interface UseAssistantContactManagerProps {
   assistantActions: AssistantActions;
   onSuccess: () => void;
   initialTab?: 'email' | 'phone' | 'whatsapp';
+  /** User's phone number from their profile — required to create a phone contact. */
+  userPhoneNumber?: string | null;
+  /** User's WhatsApp number from their profile — required to create a WhatsApp contact. */
+  userWhatsappNumber?: string | null;
 }
 
 /**
@@ -36,6 +40,8 @@ export function useAssistantContactManager({
   assistantActions,
   onSuccess,
   initialTab,
+  userPhoneNumber,
+  userWhatsappNumber,
 }: UseAssistantContactManagerProps) {
   // Create our own form for contact fields
   const contactFormMethods = useForm<ContactFormData>({
@@ -440,13 +446,21 @@ export function useAssistantContactManager({
       case 'email':
         return !isEmailAdded || !emailLocalPart;
       case 'phone':
-        return isLoadingPhoneCountries;
+        return isLoadingPhoneCountries || !userPhoneNumber;
       case 'whatsapp':
-        return false;
+        return !userWhatsappNumber;
       default:
         return true;
     }
-  }, [isSubmittingContact, activeTab, isEmailAdded, emailLocalPart, isLoadingPhoneCountries]);
+  }, [
+    isSubmittingContact,
+    activeTab,
+    isEmailAdded,
+    emailLocalPart,
+    isLoadingPhoneCountries,
+    userPhoneNumber,
+    userWhatsappNumber,
+  ]);
 
   const showCreateButton =
     (activeTab === 'email' && !assistant.email) ||

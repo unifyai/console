@@ -355,6 +355,18 @@ export function setUserPhoneNumber(userId: string, phone: string): void {
   dbExec(`UPDATE "user" SET phone_number = '${phone}' WHERE id = '${userId}'`);
 }
 
+export function clearUserPhoneNumber(userId: string): void {
+  dbExec(`UPDATE "user" SET phone_number = NULL WHERE id = '${userId}'`);
+}
+
+export function setUserWhatsappNumber(userId: string, whatsapp: string): void {
+  dbExec(`UPDATE "user" SET whatsapp_number = '${whatsapp}' WHERE id = '${userId}'`);
+}
+
+export function clearUserWhatsappNumber(userId: string): void {
+  dbExec(`UPDATE "user" SET whatsapp_number = NULL WHERE id = '${userId}'`);
+}
+
 export function getAssistantContact(
   agentId: number,
   contactType: 'email' | 'phone' | 'whatsapp'

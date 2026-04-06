@@ -135,6 +135,8 @@ export function AssistantContactManager({
     assistantActions,
     onSuccess,
     initialTab,
+    userPhoneNumber,
+    userWhatsappNumber,
   });
 
   const {
