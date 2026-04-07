@@ -478,6 +478,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     const clearWaitingState = () => {
       setIsWaitingForAssistant(false);
       setWaitingMessage(null);
+      setConnectionError(null);
       isRedispatchingRef.current = false;
       clearAssistantJoinTimeout();
       stopRinging();
@@ -505,9 +506,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     };
 
     const onParticipantConnected = () => {
-      // Don't clear waiting state immediately — wait for the agent's
-      // "ready_to_speak" data message so the avatar appears right before
-      // speech.  Start a safety fallback in case the message never arrives.
+      clearAssistantJoinTimeout();
       if (readyFallbackTimer) clearTimeout(readyFallbackTimer);
       readyFallbackTimer = setTimeout(clearWaitingState, READY_FALLBACK_TIMEOUT);
     };
