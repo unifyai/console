@@ -270,7 +270,11 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
               isCameraOn={camToggle.enabled || screenShareToggle.enabled}
               participant={localParticipant}
               onMinimize={() => setIsUserViewMaximized(false)}
-              onTurnOffCamera={() => localParticipant.setCameraEnabled(false)}
+              onTurnOffCamera={() => {
+                localParticipant.setCameraEnabled(false);
+                setIsUserViewVisible(false);
+                setIsUserViewMaximized(false);
+              }}
               maximized
             />
           ) : (
@@ -310,7 +314,11 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                         setIsUserViewMaximized(false);
                       }}
                       onMaximize={userTrackRef ? () => setIsUserViewMaximized(true) : undefined}
-                      onTurnOffCamera={() => localParticipant.setCameraEnabled(false)}
+                      onTurnOffCamera={() => {
+                        localParticipant.setCameraEnabled(false);
+                        setIsUserViewVisible(false);
+                        setIsUserViewMaximized(false);
+                      }}
                     />
                   </motion.div>
                 )}

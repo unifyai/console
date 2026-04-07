@@ -230,7 +230,11 @@ const FullScreenCallUI: React.FC<{
               isCameraOn={camToggle.enabled || screenShareToggle.enabled}
               participant={localParticipant}
               onMinimize={() => setIsUserViewMaximized(false)}
-              onTurnOffCamera={() => localParticipant.setCameraEnabled(false)}
+              onTurnOffCamera={() => {
+                localParticipant.setCameraEnabled(false);
+                setIsUserViewVisible(false);
+                setIsUserViewMaximized(false);
+              }}
               maximized
             />
           ) : (
@@ -265,7 +269,11 @@ const FullScreenCallUI: React.FC<{
                       participant={localParticipant}
                       onMinimize={() => setIsUserViewVisible(false)}
                       onMaximize={() => setIsUserViewMaximized(true)}
-                      onTurnOffCamera={() => localParticipant.setCameraEnabled(false)}
+                      onTurnOffCamera={() => {
+                        localParticipant.setCameraEnabled(false);
+                        setIsUserViewVisible(false);
+                        setIsUserViewMaximized(false);
+                      }}
                     />
                   </motion.div>
                 )}
