@@ -7,7 +7,7 @@ import { makeRoomName } from '@/utils/assistants/call-utils';
 import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
 import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 
-const ASSISTANT_JOIN_TIMEOUT = 60000; // 60 seconds
+const ASSISTANT_JOIN_SLOW_THRESHOLD = 90000; // 90 seconds — soft warning, not an error
 const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
@@ -193,11 +193,10 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
             setIsWaitingForAssistant(true);
             const timeoutDuration =
               (typeof window !== 'undefined' && (window as any)._TEST_ASSISTANT_JOIN_TIMEOUT) ||
-              ASSISTANT_JOIN_TIMEOUT;
+              ASSISTANT_JOIN_SLOW_THRESHOLD;
             assistantJoinTimeoutRef.current = setTimeout(() => {
               if (isStaleAttempt()) return;
-              setConnectionError(`${assistant.firstName} is taking too long to join.`);
-              setIsWaitingForAssistant(false);
+              setWaitingMessage(`${assistant.firstName} is taking a bit longer than expected…`);
             }, timeoutDuration);
           } else {
             setIsWaitingForAssistant(false);
