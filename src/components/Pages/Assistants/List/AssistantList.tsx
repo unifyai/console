@@ -21,6 +21,8 @@ interface AssistantListProps {
   onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
   onEditAssistant: (assistant: Assistant) => void;
   onOpenSecretsManager: (assistant: Assistant) => void;
+  onEndContract?: (assistant: Assistant) => Promise<void>;
+  canEndContract?: (assistant: Assistant) => boolean;
   isFolded: boolean;
   activeCallAssistantId: string | null;
   onHangUp: () => void;
@@ -40,6 +42,8 @@ export function AssistantList({
   onOpenContactManager,
   onEditAssistant,
   onOpenSecretsManager,
+  onEndContract,
+  canEndContract,
   isFolded,
   activeCallAssistantId,
   onHangUp,
@@ -154,6 +158,7 @@ export function AssistantList({
                 onOpenContactManager={onOpenContactManager}
                 onEditAssistant={onEditAssistant}
                 onOpenSecretsManager={onOpenSecretsManager}
+                onEndContract={canEndContract?.(assistant) ? onEndContract : undefined}
                 isFolded={isFolded}
                 isCallActive={activeCallAssistantId === assistant.agentId}
               />

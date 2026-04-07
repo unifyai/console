@@ -10,6 +10,9 @@ import {
   KeyRound,
   Copy,
   Check,
+  Trash2,
+  Loader2,
+  AlertTriangle,
 } from 'lucide-react';
 import { WhatsApp } from '@mui/icons-material';
 import { cn } from '@/lib/utils';
@@ -20,10 +23,21 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
 import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/UI/alert-dialog';
 
 interface AssistantListItemProps {
   assistant: Assistant;
@@ -33,6 +47,7 @@ interface AssistantListItemProps {
   onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
   onEditAssistant: (assistant: Assistant) => void;
   onOpenSecretsManager: (assistant: Assistant) => void;
+  onEndContract?: (assistant: Assistant) => Promise<void>;
   isFolded: boolean;
   isCallActive: boolean;
 }
@@ -45,14 +60,28 @@ export function AssistantListItem({
   onOpenContactManager,
   onEditAssistant,
   onOpenSecretsManager,
+  onEndContract,
   isFolded,
   isCallActive,
 }: AssistantListItemProps) {
   const [isIdCopied, setIsIdCopied] = React.useState(false);
+  const [isEndContractAlertOpen, setIsEndContractAlertOpen] = React.useState(false);
+  const [isEndingContract, setIsEndingContract] = React.useState(false);
 
   const handleProfileClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onShowProfile(assistant.agentId);
+  };
+
+  const handleEndContractConfirm = async () => {
+    if (!onEndContract || isEndingContract) return;
+    setIsEndingContract(true);
+    try {
+      await onEndContract(assistant);
+      setIsEndContractAlertOpen(false);
+    } finally {
+      setIsEndingContract(false);
+    }
   };
 
   const displayName = `${assistant.firstName} ${assistant.surname}`;
@@ -316,8 +345,52 @@ export function AssistantListItem({
               <KeyRound className="mr-2 h-4 w-4" />
               Secrets
             </DropdownMenuItem>
+            {onEndContract && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setIsEndContractAlertOpen(true)}
+                  data-testid="menu-end-contract"
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  End contract
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
+        <AlertDialog open={isEndContractAlertOpen} onOpenChange={setIsEndContractAlertOpen}>
+          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center">
+                <AlertTriangle className="mr-2 h-5 w-5 text-destructive" />
+                Confirm End Contract
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                You are about to remove{' '}
+                <strong>
+                  {assistant.firstName} {assistant.surname}
+                </strong>{' '}
+                from your team. This action cannot be undone. Are you sure?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isEndingContract}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleEndContractConfirm}
+                disabled={isEndingContract}
+                className={cn(
+                  'hover:bg-destructive/90 bg-destructive',
+                  isEndingContract && 'cursor-not-allowed opacity-70'
+                )}
+              >
+                {isEndingContract ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Proceed
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

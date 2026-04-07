@@ -871,6 +871,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             onOpenContactManager={handleOpenContactManager}
             onEditAssistant={handleOpenEditDialog}
             onOpenSecretsManager={setSecretsManagerAssistant}
+            onEndContract={onDeleteAssistantSubmit}
+            canEndContract={canDelete}
             isFolded={isAssistantListFolded}
             activeCallAssistantId={activeCallId}
             onHangUp={handleHangUp}
