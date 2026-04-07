@@ -149,7 +149,7 @@ async function openAssistantChat(page: import('@playwright/test').Page) {
   await listItem.click();
   await page.waitForTimeout(2_000);
 
-  // The "Chat" accordion section is open by default — wait for the chat area
+  // The chat panel is the only content in the profile panel
   const chatArea = page.getByTestId('chat-scroll-area');
   await expect(chatArea).toBeVisible({ timeout: 10_000 });
 }

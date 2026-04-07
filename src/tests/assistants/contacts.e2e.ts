@@ -47,9 +47,7 @@ test.afterAll(() => {
 });
 
 /**
- * Open the contact manager for our seeded assistant.
- * Uses the profile panel → Resources → "Contact Details" path since
- * the hover card "Add X" links are unreliable across all states.
+ * Open the contact manager via the list item dropdown menu.
  */
 async function openContactManager(page: import('@playwright/test').Page) {
   await navigateToAssistants(page);
@@ -57,19 +55,18 @@ async function openContactManager(page: import('@playwright/test').Page) {
 
   const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
-  await page.waitForTimeout(1_000);
 
-  // Open Resources accordion
-  const resourcesTrigger = page.locator('text=Resources').first();
-  await expect(resourcesTrigger).toBeVisible({ timeout: 5_000 });
-  await resourcesTrigger.click();
+  // Open the dropdown menu on the list item
+  const menuBtn = page.getByTestId(`assistant-menu-${assistant.agentId}`);
+  await listItem.hover();
+  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
+  await menuBtn.click();
   await page.waitForTimeout(500);
 
-  // Click "Contact Details" to open the contact manager dialog
-  const contactDetails = page.locator('text=Contact Details');
-  await expect(contactDetails).toBeVisible({ timeout: 5_000 });
-  await contactDetails.click();
+  // Click "Update contacts" in the dropdown
+  const contactsItem = page.getByTestId('menu-update-contacts');
+  await expect(contactsItem).toBeVisible({ timeout: 5_000 });
+  await contactsItem.click();
   await page.waitForTimeout(1_000);
 
   await expect(page.locator('text=Update Contact')).toBeVisible({ timeout: 5_000 });

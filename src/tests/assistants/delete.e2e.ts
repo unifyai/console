@@ -31,7 +31,7 @@ test.afterAll(() => {
 });
 
 /**
- * Open the edit dialog for a given assistant from the profile panel.
+ * Open the edit dialog for a given assistant via the list item dropdown menu.
  */
 async function openEditDialogForAssistant(
   page: import('@playwright/test').Page,
@@ -43,26 +43,20 @@ async function openEditDialogForAssistant(
 
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
+
+  // Open the dropdown menu on the list item
+  const menuBtn = page.getByTestId(`assistant-menu-${agentId}`);
+  await listItem.hover();
+  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
+  await menuBtn.click();
+  await page.waitForTimeout(500);
+
+  // Click "Edit profile" in the dropdown
+  const editItem = page.getByTestId('menu-edit-profile');
+  await expect(editItem).toBeVisible({ timeout: 5_000 });
+  await editItem.click();
   await page.waitForTimeout(1_500);
 
-  // Expand the Profile accordion section (collapsed by default)
-  const profileHeading = page.getByRole('heading', { name: 'Profile' });
-  await expect(profileHeading).toBeVisible({ timeout: 5_000 });
-  const profileButton = profileHeading.getByRole('button', { name: 'Profile' });
-  await profileButton.click();
-  await page.waitForTimeout(1_000);
-
-  await expect(page.locator('text=First Name').first()).toBeVisible({ timeout: 5_000 });
-  await expect(page.locator('text=About Me').first()).toBeVisible({ timeout: 5_000 });
-
-  const aboutContent = page
-    .locator('h3:has-text("About Me")')
-    .locator('..')
-    .locator('div.prose')
-    .first();
-  await aboutContent.click();
-  await page.waitForTimeout(1_500);
   await expect(
     page.locator('[role="dialog"]').locator('text=Modify your assistant details.')
   ).toBeVisible({ timeout: 10_000 });

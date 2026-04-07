@@ -5,11 +5,11 @@
  * Verifies:
  *  - Org Owner can see the "New" hire button
  *  - Org Member cannot see the "New" hire button
- *  - Org Owner can see the edit (pen) icon on an assistant
- *  - Org Member cannot see the edit icon on another member's assistant
- *  - Org Owner can see the "End contract" (delete) option in the edit dialog
- *  - Org Member cannot access the edit dialog for another member's assistant
+ *  - Org Owner can open the edit dialog via dropdown and see "End contract"
+ *  - Org Member can open the dropdown on another's assistant but edit dialog
+ *    does not show "End contract"
  *  - Org Member CAN view secrets but CANNOT add/delete them on another's assistant
+ *  - Org Member CAN see and edit their own assistant in the org
  *
  * Setup:
  *  - Creates an org with an Owner and a Member
@@ -174,15 +174,6 @@ async function navigateToAssistants(page: Page) {
   await page.waitForTimeout(2_000);
 }
 
-async function expandProfileAccordion(page: Page) {
-  const profileTrigger = page.locator('button[data-state]').filter({ hasText: 'Profile' }).first();
-  const state = await profileTrigger.getAttribute('data-state');
-  if (state !== 'open') {
-    await profileTrigger.click();
-    await page.waitForTimeout(500);
-  }
-}
-
 async function closeHireDialogIfOpen(page: Page) {
   const dialog = page.locator('[role="dialog"]');
   if (await dialog.isVisible({ timeout: 5_000 }).catch(() => false)) {
@@ -198,6 +189,44 @@ async function closeHireDialogIfOpen(page: Page) {
   }
 }
 
+/**
+ * Open the dropdown menu on a list item and click "Edit profile".
+ */
+async function openEditViaDropdown(page: Page, agentId: number) {
+  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
+  await expect(listItem).toBeVisible({ timeout: 15_000 });
+
+  const menuBtn = page.getByTestId(`assistant-menu-${agentId}`);
+  await listItem.hover();
+  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
+  await menuBtn.click();
+  await page.waitForTimeout(500);
+
+  const editItem = page.getByTestId('menu-edit-profile');
+  await expect(editItem).toBeVisible({ timeout: 5_000 });
+  await editItem.click();
+  await page.waitForTimeout(1_500);
+}
+
+/**
+ * Open the dropdown menu on a list item and click "Manage secrets".
+ */
+async function openSecretsViaDropdown(page: Page, agentId: number) {
+  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
+  await expect(listItem).toBeVisible({ timeout: 15_000 });
+
+  const menuBtn = page.getByTestId(`assistant-menu-${agentId}`);
+  await listItem.hover();
+  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
+  await menuBtn.click();
+  await page.waitForTimeout(500);
+
+  const secretsItem = page.getByTestId('menu-manage-secrets');
+  await expect(secretsItem).toBeVisible({ timeout: 5_000 });
+  await secretsItem.click();
+  await page.waitForTimeout(1_000);
+}
+
 // =============================================================================
 // Tests — Owner Permissions (baseline: everything visible)
 // =============================================================================
@@ -211,36 +240,23 @@ test('owner can see the "New" hire button in the assistant list', async ({ owner
   await expect(newBtn).toBeEnabled();
 });
 
-test('owner can see the edit icon on their assistant', async ({ ownerPage: page }) => {
+test('owner can open the edit dialog via dropdown menu', async ({ ownerPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${ownerAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
-  await page.waitForTimeout(2_000);
+  await openEditViaDropdown(page, ownerAssistant.agentId);
 
-  await expandProfileAccordion(page);
+  const editDialog = page.locator('[role="dialog"]');
+  await expect(editDialog).toBeVisible({ timeout: 10_000 });
 
-  const editIcon = page.locator('.lucide-pen-line');
-  await expect(editIcon).toBeVisible({ timeout: 10_000 });
+  await page.keyboard.press('Escape');
 });
 
 test('owner can access the edit dialog and see the delete button', async ({ ownerPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${ownerAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
-  await page.waitForTimeout(2_000);
-
-  await expandProfileAccordion(page);
-
-  const editIcon = page.locator('.lucide-pen-line');
-  await expect(editIcon).toBeVisible({ timeout: 10_000 });
-  await editIcon.click();
-  await page.waitForTimeout(1_000);
+  await openEditViaDropdown(page, ownerAssistant.agentId);
 
   const editDialog = page.locator('[role="dialog"]');
   await expect(editDialog).toBeVisible({ timeout: 10_000 });
@@ -275,39 +291,23 @@ test('member cannot see the "New" hire button in the assistant list', async ({
   expect(isUserPlusVisible).toBe(false);
 });
 
-test("member cannot see the edit icon on the owner's assistant", async ({ memberPage: page }) => {
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-
-  // The owner's assistant should be visible in the list
-  const listItem = page.getByTestId(`assistant-list-item-${ownerAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
-  await page.waitForTimeout(2_000);
-
-  // The edit icon should NOT be visible
-  const editIcon = page.locator('.lucide-pen-line');
-  const isEditVisible = await editIcon.isVisible({ timeout: 5_000 }).catch(() => false);
-  expect(isEditVisible).toBe(false);
-});
-
-test("member cannot click About text to open edit on the owner's assistant", async ({
+test("member can open edit dialog on owner's assistant but cannot see delete button", async ({
   memberPage: page,
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${ownerAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
-  await page.waitForTimeout(2_000);
+  await openEditViaDropdown(page, ownerAssistant.agentId);
 
-  // The about section should NOT have cursor-pointer class (not clickable)
-  const aboutSection = page.locator('.prose:has-text("Seed test assistant")');
-  if (await aboutSection.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    const className = (await aboutSection.getAttribute('class')) ?? '';
-    expect(className).not.toContain('cursor-pointer');
-  }
+  const editDialog = page.locator('[role="dialog"]');
+  await expect(editDialog).toBeVisible({ timeout: 10_000 });
+
+  // The "End contract" button should NOT be visible for members on others' assistants
+  const endContractBtn = page.getByRole('button', { name: /end contract/i });
+  const isDeleteVisible = await endContractBtn.isVisible({ timeout: 5_000 }).catch(() => false);
+  expect(isDeleteVisible).toBe(false);
+
+  await page.keyboard.press('Escape');
 });
 
 test('member can view the secrets manager but cannot add secrets on owner assistant', async ({
@@ -316,39 +316,25 @@ test('member can view the secrets manager but cannot add secrets on owner assist
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${ownerAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
-  await page.waitForTimeout(2_000);
+  await openSecretsViaDropdown(page, ownerAssistant.agentId);
 
-  // Open the "Resources" accordion section
-  const resourcesTrigger = page.locator('button[data-state]:has-text("Resources")').first();
-  if (await resourcesTrigger.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    const state = await resourcesTrigger.getAttribute('data-state');
-    if (state !== 'open') {
-      await resourcesTrigger.click();
-      await page.waitForTimeout(500);
-    }
-  }
+  // The secrets dialog should be visible
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible({ timeout: 5_000 });
 
-  // Click on Secrets to open the secrets manager
-  const secretsItem = page.locator('text=Secrets').first();
-  if (await secretsItem.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await secretsItem.click();
-    await page.waitForTimeout(1_000);
+  // The "Add a secret" button should not be visible
+  const addSecretBtn = page.locator('button:has-text("Add a secret")');
+  const isAddVisible = await addSecretBtn.isVisible({ timeout: 5_000 }).catch(() => false);
+  expect(isAddVisible).toBe(false);
 
-    // The secrets panel should show but "Add a secret" button should not be visible
-    const addSecretBtn = page.locator('button:has-text("Add a secret")');
-    const isAddVisible = await addSecretBtn.isVisible({ timeout: 5_000 }).catch(() => false);
-    expect(isAddVisible).toBe(false);
+  // The "New" button in the secrets footer should not be visible
+  const secretNewBtn = page.locator(
+    '[data-testid="secret-new-button"], button:has-text("New"):near(.lucide-key-round)'
+  );
+  const isSecretNewVisible = await secretNewBtn.isVisible({ timeout: 3_000 }).catch(() => false);
+  expect(isSecretNewVisible).toBe(false);
 
-    // The "New" button in the secrets footer should not be visible
-    const secretNewBtn = page.locator(
-      '[data-testid="secret-new-button"], button:has-text("New"):near(.lucide-key-round)'
-    );
-    const isSecretNewVisible = await secretNewBtn.isVisible({ timeout: 3_000 }).catch(() => false);
-    expect(isSecretNewVisible).toBe(false);
-  }
+  await page.keyboard.press('Escape');
 });
 
 test('member CAN see and edit their own assistant in the org', async ({ memberPage: page }) => {
@@ -363,15 +349,13 @@ test('member CAN see and edit their own assistant in the org', async ({ memberPa
     await navigateToAssistants(page);
     await closeHireDialogIfOpen(page);
 
-    const listItem = page.getByTestId(`assistant-list-item-${memberAssistant.agentId}`);
-    await expect(listItem).toBeVisible({ timeout: 15_000 });
-    await listItem.click();
-    await page.waitForTimeout(2_000);
+    // Open edit via dropdown on their own assistant
+    await openEditViaDropdown(page, memberAssistant.agentId);
 
-    await expandProfileAccordion(page);
+    const editDialog = page.locator('[role="dialog"]');
+    await expect(editDialog).toBeVisible({ timeout: 10_000 });
 
-    const editIcon = page.locator('.lucide-pen-line');
-    await expect(editIcon).toBeVisible({ timeout: 10_000 });
+    await page.keyboard.press('Escape');
   } finally {
     try {
       dbExec(`DELETE FROM assistant_contacts WHERE assistant_id = ${memberAssistant.agentId}`);

@@ -1,6 +1,6 @@
 /**
- * Edit Assistant E2E — open the edit dialog from the profile panel,
- * modify fields (name, about, age), save, and verify both the UI
+ * Edit Assistant E2E — open the edit dialog from the list item dropdown
+ * menu, modify fields (name, about, age), save, and verify both the UI
  * updates and the database persistence.
  *
  * Run: npx playwright test src/tests/assistants/edit.e2e.ts
@@ -37,9 +37,7 @@ test.afterAll(() => {
 });
 
 /**
- * Open the edit dialog for the seeded assistant.
- * Navigates to assistants page → clicks list item → clicks the edit
- * button (pen icon) in the profile panel header.
+ * Open the edit dialog for the seeded assistant via the list item dropdown menu.
  */
 async function openEditDialog(page: import('@playwright/test').Page) {
   await navigateToAssistants(page);
@@ -47,29 +45,18 @@ async function openEditDialog(page: import('@playwright/test').Page) {
 
   const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
-  await page.waitForTimeout(1_500);
 
-  // The Profile accordion section is collapsed by default (only Chat is open).
-  // Click the heading button labelled "Profile" to expand it.
-  const profileHeading = page.getByRole('heading', { name: 'Profile' });
-  await expect(profileHeading).toBeVisible({ timeout: 5_000 });
-  const profileButton = profileHeading.getByRole('button', { name: 'Profile' });
-  await profileButton.click();
-  await page.waitForTimeout(1_000);
+  // Open the dropdown menu on the list item
+  const menuBtn = page.getByTestId(`assistant-menu-${assistant.agentId}`);
+  await listItem.hover();
+  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
+  await menuBtn.click();
+  await page.waitForTimeout(500);
 
-  // Wait for profile content to render
-  await expect(page.locator('text=First Name').first()).toBeVisible({ timeout: 5_000 });
-  await expect(page.locator('text=About Me').first()).toBeVisible({ timeout: 5_000 });
-
-  // Click the About Me prose area to trigger the edit dialog
-  // The prose div has onClick={canWrite ? onEdit : undefined}
-  const aboutContent = page
-    .locator('h3:has-text("About Me")')
-    .locator('..')
-    .locator('div.prose')
-    .first();
-  await aboutContent.click();
+  // Click "Edit profile" in the dropdown
+  const editItem = page.getByTestId('menu-edit-profile');
+  await expect(editItem).toBeVisible({ timeout: 5_000 });
+  await editItem.click();
   await page.waitForTimeout(1_500);
 
   // Verify the edit dialog opened

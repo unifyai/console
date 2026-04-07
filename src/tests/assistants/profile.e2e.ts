@@ -1,7 +1,7 @@
 /**
  * Assistant Profile E2E — verify that clicking an assistant in the list
- * opens a profile panel with all the correct data fields, and that the
- * deep link via ?profile=<agentId> works.
+ * opens the chat panel with the assistant name header, that the deep link
+ * via ?profile=<agentId> works, and that the hover card shows key info.
  *
  * Run: npx playwright test src/tests/assistants/profile.e2e.ts
  */
@@ -35,7 +35,7 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-test('profile panel shows all assistant data fields from the database', async ({
+test('clicking an assistant shows the chat panel with assistant name in header', async ({
   authedPage: page,
 }) => {
   const db = getAssistantFromDb(assistant.agentId);
@@ -48,28 +48,17 @@ test('profile panel shows all assistant data fields from the database', async ({
   await listItem.click();
   await page.waitForTimeout(1_500);
 
-  // The Profile accordion is collapsed by default — expand it
-  const profileHeading = page.getByRole('heading', { name: 'Profile' });
-  await expect(profileHeading).toBeVisible({ timeout: 5_000 });
-  const profileButton = profileHeading.getByRole('button', { name: 'Profile' });
-  await profileButton.click();
-  await page.waitForTimeout(1_000);
+  // The panel header shows the assistant's full name
+  await expect(page.locator(`text=${db.firstName}`).first()).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator(`text=${db.surname}`).first()).toBeVisible({ timeout: 5_000 });
 
-  // Now the profile info panel shows fields in a grid
-  await expect(page.locator('text=First Name').first()).toBeVisible({ timeout: 5_000 });
-  await expect(page.locator(`text=${db.firstName}`).first()).toBeVisible({ timeout: 3_000 });
-  await expect(page.locator(`text=${db.surname}`).first()).toBeVisible({ timeout: 3_000 });
+  // Chat area should be visible (it's now the only content in the panel)
+  const chatArea = page.getByTestId('chat-scroll-area');
+  await expect(chatArea).toBeVisible({ timeout: 5_000 });
 
-  if (db.age) {
-    await expect(page.locator(`text=${db.age}`).first()).toBeVisible({ timeout: 3_000 });
-  }
-  if (db.nationality) {
-    await expect(page.locator(`text=${db.nationality}`).first()).toBeVisible({ timeout: 3_000 });
-  }
-
-  if (db.about && db.about !== '') {
-    await expect(page.locator('text=About Me').first()).toBeVisible({ timeout: 3_000 });
-  }
+  // Call buttons should be visible in the panel header
+  await expect(page.getByTestId('call-audio-button')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('call-video-button')).toBeVisible({ timeout: 5_000 });
 });
 
 test('deep link ?profile=agentId opens the correct assistant profile', async ({
@@ -82,39 +71,29 @@ test('deep link ?profile=agentId opens the correct assistant profile', async ({
   await page.waitForTimeout(2_000);
   await closeHireDialogIfOpen(page);
 
-  // The profile panel should already be open with the correct assistant
+  // The panel header should show the assistant name
   await expect(page.locator(`text=${db.firstName}`).first()).toBeVisible({ timeout: 10_000 });
   await expect(page.locator(`text=${db.surname}`).first()).toBeVisible({ timeout: 5_000 });
 });
 
-test('profile for an assistant with no about shows fallback text', async ({ authedPage: page }) => {
-  // Create an assistant with empty about
-  const noAbout = createAssistant({
-    userId: user.id,
-    firstName: 'NoAbout',
-    surname: 'Bot',
-  });
-
-  // Clear the about field
-  const { dbExec } = await import('../helpers/seeds/client');
-  dbExec(`UPDATE assistants SET about = NULL WHERE agent_id = ${noAbout.agentId}`);
-
+test('assistant list item dropdown menu has edit, contacts, and secrets options', async ({
+  authedPage: page,
+}) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${noAbout.agentId}`);
+  const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
-  await page.waitForTimeout(1_500);
 
-  // Expand the Profile accordion
-  const profileHeading = page.getByRole('heading', { name: 'Profile' });
-  await expect(profileHeading).toBeVisible({ timeout: 5_000 });
-  await profileHeading.getByRole('button', { name: 'Profile' }).click();
-  await page.waitForTimeout(1_000);
+  // Open the dropdown menu
+  const menuBtn = page.getByTestId(`assistant-menu-${assistant.agentId}`);
+  await listItem.hover();
+  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
+  await menuBtn.click();
+  await page.waitForTimeout(500);
 
-  // Should show "No description provided." fallback
-  await expect(page.locator('text=No description provided.').first()).toBeVisible({
-    timeout: 5_000,
-  });
+  // Verify all three menu items are visible
+  await expect(page.getByTestId('menu-edit-profile')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('menu-update-contacts')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('menu-manage-secrets')).toBeVisible({ timeout: 5_000 });
 });

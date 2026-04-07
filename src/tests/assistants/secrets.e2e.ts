@@ -106,26 +106,27 @@ function getSecretCountForAssistant(userId: string, assistantId: number): number
 // Navigation helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Open the secrets manager via the list item dropdown menu.
+ */
 async function openSecretsManager(page: import('@playwright/test').Page) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
   const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
-  await page.waitForTimeout(1_500);
 
-  // Expand the Resources accordion section by clicking the trigger button
-  // The trigger contains <span>Resources</span> — click it directly
-  const resourcesTrigger = page.locator('button:has(span:text-is("Resources"))');
-  await expect(resourcesTrigger).toBeVisible({ timeout: 5_000 });
-  await resourcesTrigger.click();
+  // Open the dropdown menu on the list item
+  const menuBtn = page.getByTestId(`assistant-menu-${assistant.agentId}`);
+  await listItem.hover();
+  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
+  await menuBtn.click();
   await page.waitForTimeout(500);
 
-  // Click "Secrets" text to open the secrets manager dialog
-  const secretsLink = page.locator('span:text-is("Secrets")');
-  await expect(secretsLink).toBeVisible({ timeout: 5_000 });
-  await secretsLink.click();
+  // Click "Manage secrets" in the dropdown
+  const secretsItem = page.getByTestId('menu-manage-secrets');
+  await expect(secretsItem).toBeVisible({ timeout: 5_000 });
+  await secretsItem.click();
   await page.waitForTimeout(1_000);
 
   // Verify the dialog opened
@@ -290,8 +291,6 @@ test('deleting a secret removes it from the database', async ({ authedPage: page
   expect(getSecretFromDb(user.id, assistant.agentId, secretName)).toBe(secretName);
 
   // Click the secret row to select it, then find the trash button
-  // Each leaf row is a div with: <KeyRound icon> <span>name</span> <Button (trash)>
-  // The row div containing the secret name text
   const secretSpan = page.locator(`span:text-is("${secretName}")`);
   await expect(secretSpan).toBeVisible({ timeout: 5_000 });
 
