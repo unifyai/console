@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Minus, User, Maximize, Minimize } from 'lucide-react';
+import { Minus, User, Maximize, Minimize, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
@@ -16,6 +16,7 @@ interface AssistantCommunicationUserViewProps {
   participant: Participant;
   onMinimize: () => void;
   onMaximize?: () => void;
+  onTurnOffCamera?: () => void;
   maximized?: boolean;
 }
 
@@ -26,6 +27,7 @@ export function AssistantCommunicationUserView({
   participant,
   onMinimize,
   onMaximize,
+  onTurnOffCamera,
   maximized = false,
 }: AssistantCommunicationUserViewProps) {
   const isSpeaking = useIsSpeaking(participant);
@@ -40,23 +42,43 @@ export function AssistantCommunicationUserView({
             No video feed available.
           </div>
         )}
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-2 top-2 h-7 w-7 bg-black/30 text-white hover:bg-black/60"
-                onClick={onMinimize}
-              >
-                <Minimize className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p>Minimize view</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div className="absolute right-2 top-2 flex items-center gap-1">
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 bg-black/30 text-white hover:bg-black/60"
+                  onClick={onMinimize}
+                >
+                  <Minimize className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Minimize view</p>
+              </TooltipContent>
+            </Tooltip>
+            {onTurnOffCamera && isCameraOn && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="hover:bg-destructive/10 h-7 w-7 bg-black/30 text-destructive hover:text-destructive"
+                    onClick={onTurnOffCamera}
+                    aria-label="Turn off camera"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Turn off camera</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </TooltipProvider>
+        </div>
       </div>
     );
   }
@@ -118,6 +140,24 @@ export function AssistantCommunicationUserView({
               <p>Minimize self-view</p>
             </TooltipContent>
           </Tooltip>
+          {onTurnOffCamera && isCameraOn && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hover:bg-destructive/10 h-6 w-6 text-destructive hover:text-destructive"
+                  onClick={onTurnOffCamera}
+                  aria-label="Turn off camera"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>Turn off camera</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
         </TooltipProvider>
       </div>
     </div>
