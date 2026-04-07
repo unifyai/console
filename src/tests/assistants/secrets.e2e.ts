@@ -123,7 +123,7 @@ async function openSecretsManager(page: import('@playwright/test').Page) {
   await menuBtn.click();
   await page.waitForTimeout(500);
 
-  // Click "Manage secrets" in the dropdown
+  // Click "Secrets" in the dropdown
   const secretsItem = page.getByTestId('menu-manage-secrets');
   await expect(secretsItem).toBeVisible({ timeout: 5_000 });
   await secretsItem.click();
@@ -132,7 +132,7 @@ async function openSecretsManager(page: import('@playwright/test').Page) {
   // Verify the dialog opened
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: 5_000 });
-  await expect(dialog.locator('text=Manage secrets')).toBeVisible({ timeout: 5_000 });
+  await expect(dialog.locator('text=Secrets')).toBeVisible({ timeout: 5_000 });
 }
 
 // ---------------------------------------------------------------------------

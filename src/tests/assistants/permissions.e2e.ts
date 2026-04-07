@@ -190,7 +190,7 @@ async function closeHireDialogIfOpen(page: Page) {
 }
 
 /**
- * Open the dropdown menu on a list item and click "Edit profile".
+ * Open the dropdown menu on a list item and click "Profile".
  */
 async function openEditViaDropdown(page: Page, agentId: number) {
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
@@ -209,7 +209,7 @@ async function openEditViaDropdown(page: Page, agentId: number) {
 }
 
 /**
- * Open the dropdown menu on a list item and click "Manage secrets".
+ * Open the dropdown menu on a list item and click "Secrets".
  */
 async function openSecretsViaDropdown(page: Page, agentId: number) {
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);

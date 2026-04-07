@@ -63,7 +63,7 @@ async function openContactManager(page: import('@playwright/test').Page) {
   await menuBtn.click();
   await page.waitForTimeout(500);
 
-  // Click "Update contacts" in the dropdown
+  // Click "Contact Details" in the dropdown
   const contactsItem = page.getByTestId('menu-update-contacts');
   await expect(contactsItem).toBeVisible({ timeout: 5_000 });
   await contactsItem.click();

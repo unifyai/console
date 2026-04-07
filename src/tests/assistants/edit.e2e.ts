@@ -53,7 +53,7 @@ async function openEditDialog(page: import('@playwright/test').Page) {
   await menuBtn.click();
   await page.waitForTimeout(500);
 
-  // Click "Edit profile" in the dropdown
+  // Click "Profile" in the dropdown
   const editItem = page.getByTestId('menu-edit-profile');
   await expect(editItem).toBeVisible({ timeout: 5_000 });
   await editItem.click();

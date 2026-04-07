@@ -300,21 +300,21 @@ export function AssistantListItem({
               data-testid="menu-edit-profile"
             >
               <PenLine className="mr-2 h-4 w-4" />
-              Edit profile
+              Profile
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => onOpenContactManager(assistant)}
               data-testid="menu-update-contacts"
             >
               <Contact className="mr-2 h-4 w-4" />
-              Update contacts
+              Contact Details
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => onOpenSecretsManager(assistant)}
               data-testid="menu-manage-secrets"
             >
               <KeyRound className="mr-2 h-4 w-4" />
-              Manage secrets
+              Secrets
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

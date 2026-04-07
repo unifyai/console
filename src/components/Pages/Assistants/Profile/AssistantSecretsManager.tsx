@@ -593,7 +593,7 @@ export function AssistantSecretsManager({
     >
       <DialogContent className="flex h-[90vh] max-w-4xl flex-col gap-0 p-0">
         <DialogHeader className="flex-shrink-0 border-b px-6 py-4">
-          <DialogTitle>Manage secrets</DialogTitle>
+          <DialogTitle>Secrets</DialogTitle>
         </DialogHeader>
 
         <div className="min-h-0 flex-1">
