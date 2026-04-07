@@ -175,6 +175,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [isResizingList, setIsResizingList] = React.useState(false);
   const preSnapWidthRef = React.useRef(LIST_DEFAULT_WIDTH);
 
+  const handleToggleListFold = React.useCallback(() => {
+    if (isAssistantListFolded) {
+      setIsAssistantListFolded(false);
+      setAssistantListWidth(preSnapWidthRef.current || LIST_DEFAULT_WIDTH);
+    } else {
+      preSnapWidthRef.current = assistantListWidth;
+      setIsAssistantListFolded(true);
+      setAssistantListWidth(LIST_MIN_WIDTH);
+    }
+  }, [isAssistantListFolded, assistantListWidth]);
+
   const handleListResizeStart = React.useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
@@ -877,6 +888,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             activeCallAssistantId={activeCallId}
             onHangUp={handleHangUp}
             canHire={canHire}
+            onToggleFold={handleToggleListFold}
           />
         </div>
         {/* List resize handle */}

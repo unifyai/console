@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Input } from '@/components/UI/input';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { Search, WifiOff, UserPlus } from 'lucide-react';
+import { Search, WifiOff, UserPlus, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
 import { AssistantListItem } from './AssistantListItem';
 import { AssistantListItemSkeleton } from './AssistantListItemSkeleton';
@@ -28,6 +28,7 @@ interface AssistantListProps {
   onHangUp: () => void;
   /** Whether the current user can hire new assistants (org Owner in org context, anyone in personal workspace) */
   canHire?: boolean;
+  onToggleFold?: () => void;
 }
 
 export function AssistantList({
@@ -48,6 +49,7 @@ export function AssistantList({
   activeCallAssistantId,
   onHangUp,
   canHire = true,
+  onToggleFold,
 }: AssistantListProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
 
@@ -172,6 +174,24 @@ export function AssistantList({
           ) : null}
         </div>
       </ScrollArea>
+
+      {onToggleFold && (
+        <div className="flex flex-shrink-0 items-center justify-end border-t px-2 py-1.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground"
+            onClick={onToggleFold}
+            title={isFolded ? 'Expand panel' : 'Collapse panel'}
+          >
+            {isFolded ? (
+              <PanelLeftOpen className="h-4 w-4" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
