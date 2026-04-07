@@ -285,6 +285,38 @@ export function AssistantSecretsManager({
   const [expandedFolders, setExpandedFolders] = React.useState<string[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const DEFAULT_LEFT_FRACTION = 1 / 3;
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [leftFraction, setLeftFraction] = React.useState(DEFAULT_LEFT_FRACTION);
+  const draggingRef = React.useRef(false);
+
+  React.useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!draggingRef.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const fraction = (e.clientX - rect.left) / rect.width;
+      setLeftFraction(Math.min(0.8, Math.max(0.15, fraction)));
+    };
+    const onMouseUp = () => {
+      draggingRef.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
+
+  const handleDividerMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
   const {
     register,
     formState: { errors, isDirty },
@@ -401,7 +433,10 @@ export function AssistantSecretsManager({
   );
 
   const renderLeftPane = () => (
-    <div className={cn('flex h-full flex-col', detailOpen ? 'w-1/3 border-r' : 'w-full')}>
+    <div
+      className="flex h-full flex-col"
+      style={detailOpen ? { width: `${leftFraction * 100}%` } : { width: '100%' }}
+    >
       <div className="border-b p-2">
         <Input
           placeholder="Search secrets..."
@@ -467,7 +502,10 @@ export function AssistantSecretsManager({
           variant="ghost"
           size="icon"
           className={cn('h-7 w-7 text-muted-foreground', !canWrite && 'ml-auto')}
-          onClick={() => setDetailOpen((prev) => !prev)}
+          onClick={() => {
+            setDetailOpen((prev) => !prev);
+            setLeftFraction(DEFAULT_LEFT_FRACTION);
+          }}
           title={detailOpen ? 'Hide detail pane' : 'Show detail pane'}
         >
           {detailOpen ? (
@@ -483,7 +521,7 @@ export function AssistantSecretsManager({
   const renderRightPane = () => {
     if (!detailOpen) return null;
     return (
-      <div className="flex w-2/3 flex-col p-6">
+      <div className="flex flex-col p-6" style={{ width: `${(1 - leftFraction) * 100}%` }}>
         {!canWrite ? (
           <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
             <p className="text-body">
@@ -572,8 +610,15 @@ export function AssistantSecretsManager({
   };
 
   const renderManager = () => (
-    <div className="flex h-full">
+    <div ref={containerRef} className="flex h-full">
       {renderLeftPane()}
+      {detailOpen && (
+        <div
+          className="hover:bg-primary/30 shrink-0 cursor-col-resize bg-border transition-colors"
+          style={{ width: 4 }}
+          onMouseDown={handleDividerMouseDown}
+        />
+      )}
       {renderRightPane()}
     </div>
   );
