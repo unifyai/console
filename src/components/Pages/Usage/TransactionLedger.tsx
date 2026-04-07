@@ -3,9 +3,12 @@
 /**
  * TransactionLedger Component
  *
- * Displays a scrollable list of credit transactions from the ledger.
- * Shows timestamp, description, category badge, and amount for each entry.
- * Supports infinite scroll via "Load more" button.
+ * Displays credit transactions from the ledger in two modes:
+ *   - Aggregated (default): time-bucketed rows grouped by category, driven
+ *     by the periodicity filter. Each row shows a time bucket, category,
+ *     total spend, and transaction count.
+ *   - Individual: raw transaction rows with timestamp, description, badge,
+ *     and amount. Supports infinite scroll via "Load more" button.
  */
 
 import * as React from 'react';
@@ -18,10 +21,13 @@ import { cn } from '@/lib/utils';
 import { formatCostForDisplay } from '@/utils/usage/formatters';
 import {
   CreditTransaction,
+  AggregatedTransaction,
   CATEGORY_LABELS,
+  CATEGORY_DESCRIPTIONS,
   TransactionCategory,
   SPENDING_CATEGORY_SET,
 } from '@/types/usage/transactions';
+import { TimeGranularity } from '@/types/usage';
 
 const CATEGORY_COLORS: Record<string, string> = {
   llm: 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
@@ -36,6 +42,10 @@ const CATEGORY_COLORS: Record<string, string> = {
   other: 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-400',
 };
 
+// ---------------------------------------------------------------------------
+// Timestamp formatting
+// ---------------------------------------------------------------------------
+
 function formatTimestamp(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
@@ -48,11 +58,41 @@ function formatTimestamp(iso: string): string {
   return `${date}, ${time}`;
 }
 
-interface TransactionRowProps {
-  transaction: CreditTransaction;
+function formatBucketLabel(iso: string, granularity: TimeGranularity): string {
+  const d = new Date(iso);
+  switch (granularity) {
+    case 'minute':
+      return d.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    case 'hour':
+      return d.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    case 'day':
+      return d.toLocaleDateString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
+    case 'month':
+      return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    case 'year':
+      return d.toLocaleDateString(undefined, { year: 'numeric' });
+  }
 }
 
-function TransactionRow({ transaction }: TransactionRowProps) {
+// ---------------------------------------------------------------------------
+// Individual transaction row
+// ---------------------------------------------------------------------------
+
+function TransactionRow({ transaction }: { transaction: CreditTransaction }) {
   const isCredit = transaction.amount > 0;
   const label =
     CATEGORY_LABELS[transaction.category as TransactionCategory] ?? transaction.category;
@@ -97,6 +137,51 @@ function TransactionRow({ transaction }: TransactionRowProps) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Aggregated transaction row
+// ---------------------------------------------------------------------------
+
+function AggregatedRow({
+  row,
+  granularity,
+}: {
+  row: AggregatedTransaction;
+  granularity: TimeGranularity;
+}) {
+  const label = CATEGORY_LABELS[row.category as TransactionCategory] ?? row.category;
+  const description = CATEGORY_DESCRIPTIONS[row.category as TransactionCategory];
+  const colorClass = CATEGORY_COLORS[row.category] ?? CATEGORY_COLORS.other;
+  const bucketLabel = formatBucketLabel(row.bucket, granularity);
+
+  return (
+    <div
+      className="flex items-center gap-3 border-b border-border px-3 py-2.5 last:border-b-0"
+      data-testid="aggregated-row"
+    >
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-500/10">
+        <ArrowDownRight className="h-3.5 w-3.5 text-zinc-500" />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-body truncate text-sm">{description || label}</p>
+        <div className="flex items-center gap-1.5">
+          <span className="text-body-muted text-xs">{bucketLabel}</span>
+          <Badge className={cn('border-0 text-[10px] leading-tight', colorClass)}>{label}</Badge>
+          <span className="text-body-muted text-xs">({row.count})</span>
+        </div>
+      </div>
+
+      <span className="text-body text-caption shrink-0 font-medium tabular-nums">
+        {formatCostForDisplay(-row.total)}
+      </span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Skeleton loader
+// ---------------------------------------------------------------------------
+
 const SKELETON_WIDTHS = [
   { desc: 'w-28', time: 'w-16', badge: 'w-10', amount: 'w-12' },
   { desc: 'w-36', time: 'w-20', badge: 'w-14', amount: 'w-10' },
@@ -138,27 +223,39 @@ function LedgerSkeleton({ count = 8 }: { count?: number }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
 export interface TransactionLedgerProps {
   transactions: CreditTransaction[];
+  aggregated: AggregatedTransaction[];
+  isAggregated: boolean;
   isLoading: boolean;
   error: string | null;
   hasMore: boolean;
   onLoadMore: () => void;
+  granularity: TimeGranularity;
 }
 
 export function TransactionLedger({
   transactions,
+  aggregated,
+  isAggregated,
   isLoading,
   error,
   hasMore,
   onLoadMore,
+  granularity,
 }: TransactionLedgerProps) {
   const spendingTxns = React.useMemo(
     () => transactions.filter((tx) => SPENDING_CATEGORY_SET.has(tx.category)),
     [transactions]
   );
-  const showSkeleton = isLoading && spendingTxns.length === 0;
-  const isEmpty = !isLoading && spendingTxns.length === 0 && !error;
+
+  const rowCount = isAggregated ? aggregated.length : spendingTxns.length;
+  const showSkeleton = isLoading && rowCount === 0;
+  const isEmpty = !isLoading && rowCount === 0 && !error;
 
   return (
     <Card className="flex h-full flex-col" data-testid="transaction-ledger">
@@ -176,12 +273,18 @@ export function TransactionLedger({
           </p>
         )}
 
-        {spendingTxns.length > 0 && (
+        {rowCount > 0 && (
           <ScrollArea className="flex-1">
             <div>
-              {spendingTxns.map((tx) => (
-                <TransactionRow key={tx.id} transaction={tx} />
-              ))}
+              {isAggregated
+                ? aggregated.map((row, i) => (
+                    <AggregatedRow
+                      key={`${row.bucket}-${row.category}-${i}`}
+                      row={row}
+                      granularity={granularity}
+                    />
+                  ))
+                : spendingTxns.map((tx) => <TransactionRow key={tx.id} transaction={tx} />)}
 
               {isLoading && <LedgerSkeleton count={3} />}
 

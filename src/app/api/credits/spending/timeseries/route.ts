@@ -11,7 +11,7 @@
  * Query params:
  *   - startDate: YYYY-MM-DD (required)
  *   - endDate: YYYY-MM-DD (required)
- *   - groupBy: time_day | time_hour | time_month | time_year (default: time_day)
+ *   - groupBy: day | hour | month | year (default: day)
  *   - category: Filter by category (optional)
  *   - assistantId: Filter by assistant (optional)
  *   - userId: Filter by user (optional)
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
   const startDate = url.searchParams.get('startDate');
   const endDate = url.searchParams.get('endDate');
-  const groupBy = url.searchParams.get('groupBy') || 'time_day';
+  const groupBy = url.searchParams.get('groupBy') || 'day';
   const category = url.searchParams.get('category');
   const assistantId = url.searchParams.get('assistantId');
   const userId = url.searchParams.get('userId');

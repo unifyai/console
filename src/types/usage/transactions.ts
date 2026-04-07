@@ -73,10 +73,28 @@ export interface CreditTransaction {
 }
 
 /**
- * Response from GET /v0/credits/transactions
+ * A time-bucketed aggregation of transactions by category.
+ * Returned when group_by is specified on the transactions endpoint.
+ */
+export interface AggregatedTransaction {
+  bucket: string;
+  category: string;
+  total: number;
+  count: number;
+}
+
+/**
+ * Response from GET /v0/credits/transactions (individual rows)
  */
 export interface TransactionHistoryResponse {
   transactions: CreditTransaction[];
+}
+
+/**
+ * Response from GET /v0/credits/transactions?group_by=... (aggregated rows)
+ */
+export interface AggregatedTransactionHistoryResponse {
+  transactions: AggregatedTransaction[];
 }
 
 /**
@@ -90,4 +108,5 @@ export interface TransactionQueryParams {
   userId?: string;
   startDate?: string;
   endDate?: string;
+  groupBy?: string;
 }

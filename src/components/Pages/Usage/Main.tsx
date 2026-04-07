@@ -127,6 +127,7 @@ export function UsageMain({
     userId: ledgerUserId,
     startDate: filters.startDate,
     endDate: filters.endDate,
+    groupBy: filters.granularity,
     enabled: true,
   });
 
@@ -396,10 +397,13 @@ export function UsageMain({
           <div className="min-h-[300px] flex-1 overflow-hidden">
             <TransactionLedger
               transactions={ledger.transactions}
+              aggregated={ledger.aggregated}
+              isAggregated={ledger.isAggregated}
               isLoading={ledger.isLoading}
               error={ledger.error}
               hasMore={ledger.hasMore}
               onLoadMore={ledger.loadMore}
+              granularity={filters.granularity}
             />
           </div>
         </div>

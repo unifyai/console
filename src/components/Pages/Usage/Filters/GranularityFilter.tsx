@@ -26,13 +26,7 @@ interface GranularityFilterProps {
   disabled?: boolean;
 }
 
-const GRANULARITY_OPTIONS: TimeGranularity[] = [
-  'time_minute',
-  'time_hour',
-  'time_day',
-  'time_month',
-  'time_year',
-];
+const GRANULARITY_OPTIONS: TimeGranularity[] = ['minute', 'hour', 'day', 'month', 'year'];
 
 export function GranularityFilter({ value, onChange, disabled = false }: GranularityFilterProps) {
   return (

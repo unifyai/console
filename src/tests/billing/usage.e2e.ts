@@ -25,6 +25,7 @@ function getBillingAccountId(userId: string): number {
 
 function seedTransaction(opts: {
   baId: number;
+  userId: string;
   amount: number;
   category: string;
   description: string;
@@ -35,9 +36,9 @@ function seedTransaction(opts: {
 DO \\$\\$
 BEGIN
   INSERT INTO credit_transaction
-    (billing_account_id, amount, category, description, at)
+    (billing_account_id, user_id, amount, category, description, at)
   VALUES
-    (${opts.baId}, ${opts.amount}, '${opts.category}', '${opts.description}',
+    (${opts.baId}, '${opts.userId}', ${opts.amount}, '${opts.category}', '${opts.description}',
      NOW() - INTERVAL '${ago} minutes');
 END
 \\$\\$;
@@ -67,6 +68,7 @@ test.beforeAll(() => {
 
   seedTransaction({
     baId,
+    userId: user.id,
     amount: -0.12,
     category: 'llm',
     description: 'Assistant work',
@@ -74,6 +76,7 @@ test.beforeAll(() => {
   });
   seedTransaction({
     baId,
+    userId: user.id,
     amount: -0.08,
     category: 'llm',
     description: 'Assistant work',
@@ -81,6 +84,7 @@ test.beforeAll(() => {
   });
   seedTransaction({
     baId,
+    userId: user.id,
     amount: -10,
     category: 'hire',
     description: 'Assistant creation',
@@ -88,6 +92,7 @@ test.beforeAll(() => {
   });
   seedTransaction({
     baId,
+    userId: user.id,
     amount: -2,
     category: 'resources',
     description: 'Contact provisioning',
@@ -95,6 +100,7 @@ test.beforeAll(() => {
   });
   seedTransaction({
     baId,
+    userId: user.id,
     amount: -0.5,
     category: 'media',
     description: 'Photo generation',
@@ -121,29 +127,29 @@ test('loads usage page with all key components visible', async ({ authedPage: pa
   await expect(page.getByTestId('timeframe-filter')).toBeVisible();
   await expect(page.getByTestId('spending-limit-card')).toBeVisible();
   await expect(page.getByTestId('transaction-ledger')).toBeVisible();
-  await expect(page.getByTestId('usage-chart')).toBeVisible();
+  await expect(page.locator('[data-testid="usage-chart"]:visible')).toBeVisible();
 });
 
-test('ledger displays seeded transactions with correct descriptions', async ({
+test('ledger displays seeded transactions with correct category descriptions', async ({
   authedPage: page,
 }) => {
   await page.goto('/usage');
   await expect(page.getByTestId('transaction-ledger')).toBeVisible({ timeout: 15_000 });
 
-  // Wait for data to load (rows appear)
-  await expect(page.getByTestId('transaction-row').first()).toBeVisible({ timeout: 10_000 });
+  // Wait for aggregated data to load
+  await expect(page.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 10_000 });
 
-  // Verify seeded descriptions are present
+  // Aggregated rows show CATEGORY_DESCRIPTIONS values
   const ledger = page.getByTestId('transaction-ledger');
   await expect(ledger.getByText('Assistant work').first()).toBeVisible();
   await expect(ledger.getByText('Assistant creation')).toBeVisible();
-  await expect(ledger.getByText('Contact provisioning')).toBeVisible();
-  await expect(ledger.getByText('Photo generation')).toBeVisible();
+  await expect(ledger.getByText('Created and provisioned contacts')).toBeVisible();
+  await expect(ledger.getByText('Generated photos and videos')).toBeVisible();
 });
 
 test('ledger shows category badges matching each transaction', async ({ authedPage: page }) => {
   await page.goto('/usage');
-  await expect(page.getByTestId('transaction-row').first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 15_000 });
 
   const ledger = page.getByTestId('transaction-ledger');
 
@@ -155,26 +161,26 @@ test('ledger shows category badges matching each transaction', async ({ authedPa
 
 test('category filter narrows ledger to selected category', async ({ authedPage: page }) => {
   await page.goto('/usage');
-  await expect(page.getByTestId('transaction-row').first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 15_000 });
 
   // Open category dropdown and select "LLM"
   await page.getByTestId('category-filter').click();
   await page.getByRole('option', { name: 'LLM' }).click();
 
   // Wait for the ledger to re-render
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(1500);
 
   const ledger = page.getByTestId('transaction-ledger');
   await expect(ledger.getByText('Assistant work').first()).toBeVisible();
 
   // Non-LLM rows should not be visible
   await expect(ledger.getByText('Assistant creation')).not.toBeVisible();
-  await expect(ledger.getByText('Photo generation')).not.toBeVisible();
+  await expect(ledger.getByText('Generated photos and videos')).not.toBeVisible();
 
   // Switch to "Hiring" category
   await page.getByTestId('category-filter').click();
   await page.getByRole('option', { name: 'Hiring' }).click();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(1500);
 
   await expect(ledger.getByText('Assistant creation')).toBeVisible();
   await expect(ledger.getByText('Assistant work')).not.toBeVisible();
@@ -182,37 +188,96 @@ test('category filter narrows ledger to selected category', async ({ authedPage:
   // Reset to "All Spending"
   await page.getByTestId('category-filter').click();
   await page.getByRole('option', { name: 'All Spending' }).click();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(1500);
 
   // All categories visible again
   await expect(ledger.getByText('Assistant work').first()).toBeVisible();
   await expect(ledger.getByText('Assistant creation')).toBeVisible();
 });
 
-test('granularity filter changes chart without errors', async ({ authedPage: page }) => {
+test('granularity filter changes chart and ledger without errors', async ({ authedPage: page }) => {
   await page.goto('/usage');
   await expect(page.getByTestId('usage-page-main')).toBeVisible({ timeout: 15_000 });
 
-  const granFilter = page.getByTestId('granularity-filter');
-  await granFilter.click();
+  // Wait for initial ledger data to load
+  const ledger = page.getByTestId('transaction-ledger');
+  await expect(ledger.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 10_000 });
 
-  const option = page.getByRole('option').first();
-  await expect(option).toBeVisible({ timeout: 5_000 });
-  await option.click();
+  const granFilter = page.getByTestId('granularity-filter');
+
+  // Switch to Monthly
+  await granFilter.click();
+  await page.getByRole('option', { name: 'Monthly' }).click();
+  await page.waitForTimeout(1500);
 
   await expect(page.getByTestId('usage-error-alert')).not.toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('usage-chart')).toBeVisible();
+  await expect(page.locator('[data-testid="usage-chart"]:visible')).toBeVisible();
+  await expect(ledger).toBeVisible();
+
+  // Switch to Daily
+  await granFilter.click();
+  await page.getByRole('option', { name: 'Daily' }).click();
+  await page.waitForTimeout(1500);
+
+  await expect(page.getByTestId('usage-error-alert')).not.toBeVisible({ timeout: 5_000 });
+  await expect(ledger).toBeVisible();
+});
+
+test('ledger shows aggregated rows with category and count', async ({ authedPage: page }) => {
+  await page.goto('/usage');
+  await expect(page.getByTestId('transaction-ledger')).toBeVisible({ timeout: 15_000 });
+
+  // Wait for aggregated rows to load (default granularity is Minutely)
+  await expect(page.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 10_000 });
+
+  const ledger = page.getByTestId('transaction-ledger');
+
+  // Aggregated rows should contain category badges
+  await expect(ledger.getByText('LLM').first()).toBeVisible();
+
+  // Aggregated rows should contain transaction counts
+  await expect(ledger.getByText(/\d+ txns?\)/).first()).toBeVisible();
+});
+
+test('switching granularity changes ledger grouping', async ({ authedPage: page }) => {
+  await page.goto('/usage');
+  await expect(page.getByTestId('transaction-ledger')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 10_000 });
+
+  const ledger = page.getByTestId('transaction-ledger');
+  const granFilter = page.getByTestId('granularity-filter');
+
+  // Switch to Monthly — should show month-level labels (e.g. "April 2026")
+  await granFilter.click();
+  await page.getByRole('option', { name: 'Monthly' }).click();
+  await page.waitForTimeout(1500);
+
+  const monthlyRows = ledger.getByTestId('aggregated-row');
+  await expect(monthlyRows.first()).toBeVisible({ timeout: 10_000 });
+  const monthlyCount = await monthlyRows.count();
+
+  // Switch to Hourly — should produce more rows (finer granularity)
+  await granFilter.click();
+  await page.getByRole('option', { name: 'Hourly' }).click();
+  await page.waitForTimeout(1500);
+
+  const hourlyRows = ledger.getByTestId('aggregated-row');
+  await expect(hourlyRows.first()).toBeVisible({ timeout: 10_000 });
+  const hourlyCount = await hourlyRows.count();
+
+  // Finer granularity should produce at least as many rows
+  expect(hourlyCount).toBeGreaterThanOrEqual(monthlyCount);
 });
 
 test('refresh button reloads chart and ledger without errors', async ({ authedPage: page }) => {
   await page.goto('/usage');
-  await expect(page.getByTestId('transaction-row').first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('aggregated-row').first()).toBeVisible({ timeout: 15_000 });
 
   await page.getByTestId('refresh-button').click();
 
   await expect(page.getByTestId('usage-error-alert')).not.toBeVisible({ timeout: 5_000 });
   await expect(page.getByTestId('transaction-ledger')).toBeVisible();
-  await expect(page.getByTestId('usage-chart')).toBeVisible();
+  await expect(page.locator('[data-testid="usage-chart"]:visible')).toBeVisible();
 });
 
 test('chart shows empty state when date range has no data', async ({ authedPage: page }) => {
@@ -225,8 +290,8 @@ test('chart shows empty state when date range has no data', async ({ authedPage:
 
   // Type a far-future range into the date inputs if available,
   // otherwise just verify the chart handles empty gracefully
-  const chartEmpty = page.getByTestId('usage-chart-empty');
-  const chart = page.getByTestId('usage-chart');
+  const chartEmpty = page.locator('[data-testid="usage-chart-empty"]:visible');
+  const chart = page.locator('[data-testid="usage-chart"]:visible');
   const chartVisible = await chart.isVisible().catch(() => false);
   const emptyVisible = await chartEmpty.isVisible({ timeout: 3_000 }).catch(() => false);
   expect(chartVisible || emptyVisible).toBe(true);

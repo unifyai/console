@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
   const userId = url.searchParams.get('userId');
   const startDate = url.searchParams.get('startDate');
   const endDate = url.searchParams.get('endDate');
+  const groupBy = url.searchParams.get('groupBy');
 
   if (limit) params.set('limit', limit);
   if (offset) params.set('offset', offset);
@@ -44,6 +45,7 @@ export async function GET(request: NextRequest) {
   if (userId) params.set('user_id', userId);
   if (startDate) params.set('start_date', startDate);
   if (endDate) params.set('end_date', endDate);
+  if (groupBy) params.set('group_by', groupBy);
 
   try {
     const response = await fetch(`${ORCHESTRA_URL}/v0/credits/transactions?${params.toString()}`, {

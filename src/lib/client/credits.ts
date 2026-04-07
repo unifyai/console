@@ -12,7 +12,11 @@
  */
 
 import { ResponseProps } from '@/types/common';
-import { TransactionHistoryResponse, TransactionQueryParams } from '@/types/usage/transactions';
+import {
+  AggregatedTransactionHistoryResponse,
+  TransactionHistoryResponse,
+  TransactionQueryParams,
+} from '@/types/usage/transactions';
 import { UsageMetricsResponse } from '@/types/usage/api';
 
 // ---------------------------------------------------------------------------
@@ -21,7 +25,7 @@ import { UsageMetricsResponse } from '@/types/usage/api';
 
 export async function fetchTransactions(
   query?: TransactionQueryParams
-): Promise<TransactionHistoryResponse | ResponseProps> {
+): Promise<TransactionHistoryResponse | AggregatedTransactionHistoryResponse | ResponseProps> {
   try {
     const params = new URLSearchParams();
     if (query?.limit) params.set('limit', String(query.limit));
@@ -31,6 +35,7 @@ export async function fetchTransactions(
     if (query?.userId) params.set('userId', query.userId);
     if (query?.startDate) params.set('startDate', query.startDate);
     if (query?.endDate) params.set('endDate', query.endDate);
+    if (query?.groupBy) params.set('groupBy', query.groupBy);
 
     const res = await fetch(`/api/credits/transactions?${params}`);
     const data = await res.json();

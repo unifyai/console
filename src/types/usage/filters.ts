@@ -44,7 +44,7 @@ export const DEFAULT_FILTERS: UsageFiltersState = {
   category: 'all',
   startDate: '', // Will be computed dynamically (30 days ago)
   endDate: '', // Will be computed dynamically (today)
-  granularity: 'time_day',
+  granularity: 'day',
 };
 
 /**

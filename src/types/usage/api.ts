@@ -5,17 +5,17 @@
 /**
  * Time granularity options for grouping usage data.
  */
-export type TimeGranularity = 'time_minute' | 'time_hour' | 'time_day' | 'time_month' | 'time_year';
+export type TimeGranularity = 'minute' | 'hour' | 'day' | 'month' | 'year';
 
 /**
  * Human-readable labels for granularity options
  */
 export const GRANULARITY_LABELS: Record<TimeGranularity, string> = {
-  time_minute: 'Minutely',
-  time_hour: 'Hourly',
-  time_day: 'Daily',
-  time_month: 'Monthly',
-  time_year: 'Yearly',
+  minute: 'Minutely',
+  hour: 'Hourly',
+  day: 'Daily',
+  month: 'Monthly',
+  year: 'Yearly',
 };
 
 /**
