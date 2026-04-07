@@ -407,7 +407,11 @@ export function AssistantProfileChatPanel({
   return (
     <div className="flex h-full w-full flex-col bg-background">
       {/* Chat Area */}
-      <ScrollArea className="flex-1 px-14 py-4" ref={scrollAreaRef} data-testid="chat-scroll-area">
+      <ScrollArea
+        className="flex-1 px-4 py-4 md:px-14"
+        ref={scrollAreaRef}
+        data-testid="chat-scroll-area"
+      >
         {initialLoadError ? (
           <div className="animate-fade-in flex h-full min-h-[200px] flex-col items-center justify-center gap-3 text-muted-foreground">
             <div className="space-y-1 text-center">
@@ -422,7 +426,7 @@ export function AssistantProfileChatPanel({
         ) : isLoading && messages.length === 0 ? (
           <ChatMessageSkeletons />
         ) : (
-          <div className="mx-auto max-w-[720px] space-y-6">
+          <div className="mx-auto min-w-0 max-w-[720px] space-y-6">
             {hasFetchedHistory && !hasMoreMessages && (
               <div className="text-caption animate-fade-in w-full py-1 text-center text-muted-foreground">
                 No more messages

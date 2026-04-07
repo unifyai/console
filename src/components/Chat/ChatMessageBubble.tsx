@@ -112,12 +112,14 @@ export function ChatMessageBubble({
   if (isUser) {
     return (
       <div
-        className="flex justify-end"
+        className="flex min-w-0 justify-end"
         data-testid={isProfile ? 'message-bubble' : undefined}
         data-role={isProfile ? 'user' : undefined}
         data-index={isProfile ? index : undefined}
       >
-        <div className={cn('flex flex-col gap-2', isProfile ? 'max-w-[75%]' : 'max-w-[85%]')}>
+        <div
+          className={cn('flex min-w-0 flex-col gap-2', isProfile ? 'max-w-[75%]' : 'max-w-[85%]')}
+        >
           {attachments && attachments.length > 0 && (
             <MessageAttachmentList attachments={attachments} />
           )}
@@ -149,6 +151,7 @@ export function ChatMessageBubble({
       data-testid={isProfile ? 'message-bubble' : undefined}
       data-role={isProfile ? 'assistant' : undefined}
       data-index={isProfile ? index : undefined}
+      className="min-w-0"
     >
       <div className="mb-2.5 flex items-center gap-2">
         <Avatar className="h-6 w-6 flex-shrink-0 border">
@@ -180,7 +183,7 @@ export function ChatMessageBubble({
       {attachments && attachments.length > 0 && (
         <MessageAttachmentList attachments={attachments} isAssistant />
       )}
-      <div className="break-words font-sans text-sm leading-relaxed">{bubbleContent()}</div>
+      <div className="min-w-0 break-words font-sans text-sm leading-relaxed">{bubbleContent()}</div>
     </div>
   );
 }
