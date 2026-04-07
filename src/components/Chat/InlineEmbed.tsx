@@ -8,7 +8,16 @@
 'use client';
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { ExternalLink, Table2, BarChart3, Maximize2, X, Loader2 } from 'lucide-react';
+import {
+  ExternalLink,
+  Table2,
+  BarChart3,
+  LayoutDashboard,
+  Code2,
+  Maximize2,
+  X,
+  Loader2,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 
@@ -16,14 +25,16 @@ import { Button } from '@/components/UI/button';
 // Types
 // =============================================================================
 
+type EmbedType = 'table' | 'plot' | 'tile' | 'dashboard';
+
 interface EmbedProps {
   url: string;
   token: string;
-  type: 'table' | 'plot';
+  type: EmbedType;
 }
 
 interface ParsedEmbed {
-  type: 'table' | 'plot';
+  type: EmbedType;
   token: string;
   url: string;
 }
@@ -32,40 +43,28 @@ interface ParsedEmbed {
 // URL Parsing
 // =============================================================================
 
-/**
- * Pattern to match table view URLs
- * Matches: /table/view/{token} or full URLs
- */
 const TABLE_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/table\/view\/([a-zA-Z0-9_-]+)/;
-
-/**
- * Pattern to match plot view URLs
- * Matches: /plot/view/{token} or full URLs
- */
 const PLOT_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/plot\/view\/([a-zA-Z0-9_-]+)/;
+const TILE_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/tile\/view\/([a-zA-Z0-9_-]+)/;
+const DASHBOARD_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/dashboard\/view\/([a-zA-Z0-9_-]+)/;
+
+const EMBED_PATTERNS: { type: EmbedType; pattern: RegExp }[] = [
+  { type: 'dashboard', pattern: DASHBOARD_URL_PATTERN },
+  { type: 'tile', pattern: TILE_URL_PATTERN },
+  { type: 'table', pattern: TABLE_URL_PATTERN },
+  { type: 'plot', pattern: PLOT_URL_PATTERN },
+];
 
 /**
- * Parse a URL to check if it's an embeddable table or plot
+ * Parse a URL to check if it's an embeddable resource
  */
 export function parseEmbedUrl(url: string): ParsedEmbed | null {
-  const tableMatch = url.match(TABLE_URL_PATTERN);
-  if (tableMatch) {
-    return {
-      type: 'table',
-      token: tableMatch[1],
-      url,
-    };
+  for (const { type, pattern } of EMBED_PATTERNS) {
+    const match = url.match(pattern);
+    if (match) {
+      return { type, token: match[1], url };
+    }
   }
-
-  const plotMatch = url.match(PLOT_URL_PATTERN);
-  if (plotMatch) {
-    return {
-      type: 'plot',
-      token: plotMatch[1],
-      url,
-    };
-  }
-
   return null;
 }
 
@@ -73,7 +72,7 @@ export function parseEmbedUrl(url: string): ParsedEmbed | null {
  * Check if a string contains embeddable URLs
  */
 export function containsEmbedUrl(text: string): boolean {
-  return TABLE_URL_PATTERN.test(text) || PLOT_URL_PATTERN.test(text);
+  return EMBED_PATTERNS.some(({ pattern }) => pattern.test(text));
 }
 
 // =============================================================================
@@ -90,9 +89,15 @@ interface InlineEmbedPreviewProps {
  * Compact inline preview card for embeds
  * Shows a mini preview with expand option
  */
+const EMBED_META: Record<EmbedType, { icon: typeof Table2; label: string }> = {
+  table: { icon: Table2, label: 'Interactive Table' },
+  plot: { icon: BarChart3, label: 'Interactive Chart' },
+  tile: { icon: Code2, label: 'Interactive Tile' },
+  dashboard: { icon: LayoutDashboard, label: 'Interactive Dashboard' },
+};
+
 export function InlineEmbedPreview({ embed, onExpand, className }: InlineEmbedPreviewProps) {
-  const Icon = embed.type === 'table' ? Table2 : BarChart3;
-  const label = embed.type === 'table' ? 'Interactive Table' : 'Interactive Chart';
+  const { icon: Icon, label } = EMBED_META[embed.type];
 
   return (
     <div
@@ -153,8 +158,7 @@ export function InlineEmbedExpanded({
   height = 420,
   className,
 }: InlineEmbedExpandedProps) {
-  const Icon = embed.type === 'table' ? Table2 : BarChart3;
-  const label = embed.type === 'table' ? 'Interactive Table' : 'Interactive Chart';
+  const { icon: Icon, label } = EMBED_META[embed.type];
   const [isLoading, setIsLoading] = useState(true);
 
   const handleIframeLoad = useCallback(() => setIsLoading(false), []);
@@ -251,17 +255,18 @@ interface InlineEmbedProps {
 export function InlineEmbed({
   embed,
   defaultExpanded = false,
-  expandedHeight = 420,
+  expandedHeight,
   className,
 }: InlineEmbedProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const resolvedHeight = expandedHeight ?? (embed.type === 'dashboard' ? 600 : 420);
 
   if (isExpanded) {
     return (
       <InlineEmbedExpanded
         embed={embed}
         onCollapse={() => setIsExpanded(false)}
-        height={expandedHeight}
+        height={resolvedHeight}
         className={className}
       />
     );
@@ -340,4 +345,4 @@ export function RenderContentWithEmbeds({
 // Exports
 // =============================================================================
 
-export type { ParsedEmbed, EmbedProps };
+export type { ParsedEmbed, EmbedProps, EmbedType };
