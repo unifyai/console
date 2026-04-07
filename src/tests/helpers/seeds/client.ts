@@ -501,25 +501,24 @@ export interface CreateSecretOpts {
  * Create a secret via the Console API (logs/context system).
  *
  * This mirrors how the actual `createSecret` server action works — posting
- * a log entry to the Assistants project with the appropriate context.
+ * a log entry to the Assistants project with the per-assistant context.
  *
  * Automatically ensures the "Assistants" project exists first.
  * Requires Console + Orchestra to be running.
  */
 export async function createSecret(opts: CreateSecretOpts): Promise<SeededSecret> {
-  // Ensure the "Assistants" project exists (idempotent)
   await ensureProject(opts.apiKey, 'Assistants');
 
   const context = `${opts.userId}/${opts.assistantId}/Secrets`;
-  /* eslint-disable @typescript-eslint/naming-convention */
   const entries = {
     name: opts.name,
     value: opts.value,
     ...(opts.description ? { description: opts.description } : {}),
+    _user: opts.userId,
     _user_id: opts.userId,
+    _assistant: String(opts.assistantId),
     _assistant_id: String(opts.assistantId),
   };
-  /* eslint-enable @typescript-eslint/naming-convention */
 
   const body = {
     projectName: 'Assistants',
@@ -543,28 +542,6 @@ export async function createSecret(opts: CreateSecretOpts): Promise<SeededSecret
 
   const data = await res.json();
   const logIds: number[] | undefined = data?.logEventIds;
-
-  // Mirror to All contexts (same as the real createSecret action)
-  if (logIds?.length) {
-    const allContexts = [`${opts.userId}/All/Secrets`, 'All/Secrets'];
-    await Promise.all(
-      allContexts.map((ctx) =>
-        orchestraFetch(
-          `/v0/project/Assistants/contexts/add_logs`,
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              /* eslint-disable @typescript-eslint/naming-convention */
-              context_name: ctx,
-              log_ids: logIds,
-              /* eslint-enable @typescript-eslint/naming-convention */
-            }),
-          },
-          opts.apiKey
-        )
-      )
-    );
-  }
 
   return {
     name: opts.name,
@@ -600,51 +577,43 @@ export interface SeedSecretsOpts {
 export async function seedSecretsViaOrchestra(opts: SeedSecretsOpts): Promise<SeededSecret[]> {
   await ensureProject(opts.apiKey, 'Assistants');
 
-  /* eslint-disable @typescript-eslint/naming-convention */
   const allEntries = opts.secrets.map((s) => ({
     name: s.name,
     value: s.value,
     ...(s.description ? { description: s.description } : {}),
+    _user: opts.userId,
     _user_id: opts.userId,
+    _assistant: String(opts.assistantId),
     _assistant_id: String(opts.assistantId),
   }));
-  /* eslint-enable @typescript-eslint/naming-convention */
 
-  const contexts = [
-    `${opts.userId}/${opts.assistantId}/Secrets`,
-    `${opts.userId}/All/Secrets`,
-    'All/Secrets',
-  ];
+  const context = `${opts.userId}/${opts.assistantId}/Secrets`;
 
-  let firstLogIds: number[] | undefined;
+  const res = await orchestraFetch(
+    '/v0/logs',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        project_name: 'Assistants',
+        context,
+        entries: allEntries,
+      }),
+    },
+    opts.apiKey
+  );
 
-  for (const context of contexts) {
-    const res = await orchestraFetch(
-      '/v0/logs',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          project_name: 'Assistants',
-          context,
-          entries: allEntries,
-        }),
-      },
-      opts.apiKey
-    );
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`Failed to seed secrets in context '${context}': ${res.status} ${text}`);
-    }
-
-    const data = await res.json();
-    if (!firstLogIds) firstLogIds = data?.logEventIds;
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Failed to seed secrets in context '${context}': ${res.status} ${text}`);
   }
+
+  const data = await res.json();
+  const logIds: number[] | undefined = data?.logEventIds;
 
   return opts.secrets.map((s, i) => ({
     name: s.name,
     description: s.description,
-    logId: firstLogIds?.[i],
+    logId: logIds?.[i],
   }));
 }
 
@@ -664,8 +633,7 @@ export interface SeedChatOpts {
  *
  * Creates:
  *   - "Assistants" project (idempotent)
- *   - "All/Contacts" context with a contact log entry (contactId=1 for owner)
- *   - "All/Transcripts" context (empty — ready for messages)
+ *   - "{userId}/{assistantId}/Contacts" context with a contact log entry (contactId=1 for owner)
  *
  * Without this, the chat panel shows "Chat unavailable" because
  * getContactIdByEmail can't find the contact record.
@@ -673,27 +641,23 @@ export interface SeedChatOpts {
 export async function seedChatInfrastructure(opts: SeedChatOpts): Promise<void> {
   await ensureProject(opts.apiKey, 'Assistants');
 
-  /* eslint-disable @typescript-eslint/naming-convention */
   const contactRes = await orchestraFetch(
     '/v0/logs',
     {
       method: 'POST',
       body: JSON.stringify({
         project_name: 'Assistants',
-        context: 'All/Contacts',
+        context: `${opts.userId}/${opts.assistantId}/Contacts`,
         entries: [
           {
             email_address: opts.email,
             contactId: 1,
-            _user_id: opts.userId,
-            _assistant_id: String(opts.assistantId),
           },
         ],
       }),
     },
     opts.apiKey
   );
-  /* eslint-enable @typescript-eslint/naming-convention */
 
   if (!contactRes.ok) {
     const text = await contactRes.text().catch(() => '');

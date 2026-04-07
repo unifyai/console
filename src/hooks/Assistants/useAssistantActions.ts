@@ -92,6 +92,7 @@ const SSE_ERROR_WINDOW_MS = 60_000;
 // =============================================================================
 
 export function useAssistantActions(
+  ownerId: string,
   assistantId: string,
   actions: AssistantActionActions,
   options: UseAssistantActionsOptions = {}
@@ -364,6 +365,7 @@ export function useAssistantActions(
       // + action). Includes action events so interactions (interject, stop, ask)
       // are captured for root nodes.
       const rootResponse = await actions.getManagerMethodEvents(
+        ownerId,
         assistantId,
         startTime,
         null,
@@ -431,7 +433,7 @@ export function useAssistantActions(
         setIsLoading(false);
       }
     }
-  }, [actions, assistantId, lookbackMs]);
+  }, [actions, ownerId, assistantId, lookbackMs]);
 
   // ===========================================================================
   // SSE Connection
@@ -583,6 +585,7 @@ export function useAssistantActions(
       // Fetch only root-level events for the extended time window.
       // Children are lazy-loaded on expand, same as current roots.
       const response = await actions.getManagerMethodEvents(
+        ownerId,
         assistantId,
         startTime,
         DEFAULT_EVENT_LIMIT,
@@ -623,7 +626,7 @@ export function useAssistantActions(
         setIsLoading(false);
       }
     }
-  }, [actions, assistantId, hasMore]);
+  }, [actions, ownerId, assistantId, hasMore]);
 
   // ===========================================================================
   // Lazy children loading
@@ -645,10 +648,14 @@ export function useAssistantActions(
         );
 
       try {
-        const response = await actions.getManagerMethodEvents(assistantId, null, null, undefined, [
-          `hierarchy[0] == '${rootSegment}'`,
-          `len(hierarchy) > 1`,
-        ]);
+        const response = await actions.getManagerMethodEvents(
+          ownerId,
+          assistantId,
+          null,
+          null,
+          undefined,
+          [`hierarchy[0] == '${rootSegment}'`, `len(hierarchy) > 1`]
+        );
 
         if (!isMountedRef.current) return;
 
@@ -701,7 +708,7 @@ export function useAssistantActions(
         console.warn('[useAssistantActions] Load children error:', err);
       }
     },
-    [actions, assistantId]
+    [actions, ownerId, assistantId]
   );
 
   // ===========================================================================

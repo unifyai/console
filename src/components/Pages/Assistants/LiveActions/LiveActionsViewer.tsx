@@ -115,6 +115,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
     hasMore,
     connectionStatus,
   } = useAssistantActions(
+    hasAssistant ? assistant.userId : '',
     hasAssistant ? assistant.agentId : '',
     actions || { getManagerMethodEvents: async () => ({ logs: [], count: 0 }) },
     {
@@ -331,6 +332,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
         hasActiveSearch={searchTerm.trim() !== ''}
         matchedIds={searchTerm.trim() !== '' ? matchedIds : undefined}
         searchTerm={searchTerm.trim() !== '' ? searchTerm : undefined}
+        ownerId={assistant?.userId || null}
         assistantId={assistant?.agentId || null}
         getToolLoopEvents={actions?.getToolLoopEvents}
         loadChildren={loadChildren}

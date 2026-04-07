@@ -3,11 +3,6 @@ import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ChatMessage, Attachment } from '@/types/assistants/chat';
 import { ResponseProps } from '@/types/common';
 import { clientLog } from '@/lib/logging/client-log-buffer';
-import {
-  buildUserIdFilter,
-  buildAssistantIdFilter,
-  combineFilters,
-} from '@/utils/assistants/filterExpressions';
 
 const CONTACT_ID_SESSION_PREFIX = 'assistant_contact_id:';
 const TRANSCRIPT_LIMIT = 50;
@@ -143,15 +138,10 @@ async function fetchContactIdDirect(
   assistantId: string
 ): Promise<number | null> {
   try {
-    const emailFilter = `email_address == "${email}"`;
-    const securityFilter = combineFilters([
-      buildUserIdFilter(ownerId),
-      buildAssistantIdFilter(assistantId),
-    ]);
-    const filterExpr = combineFilters([emailFilter, securityFilter]);
+    const filterExpr = `email_address == "${email}"`;
     const params = new URLSearchParams({
       projectName: 'Assistants',
-      context: 'All/Contacts',
+      context: `${ownerId}/${assistantId}/Contacts`,
       filterExpr,
       limit: '1',
     });
@@ -180,15 +170,10 @@ export async function fetchTranscriptsDirect(
   limit: number = TRANSCRIPT_LIMIT
 ): Promise<ChatMessage[] | ResponseProps> {
   try {
-    const messageFilter = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
-    const securityFilter = combineFilters([
-      buildUserIdFilter(ownerId),
-      buildAssistantIdFilter(assistantId),
-    ]);
-    const filterExpr = combineFilters([messageFilter, securityFilter]);
+    const filterExpr = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
     const params = new URLSearchParams({
       projectName: 'Assistants',
-      context: 'All/Transcripts',
+      context: `${ownerId}/${assistantId}/Transcripts`,
       limit: String(limit),
       filterExpr,
     });

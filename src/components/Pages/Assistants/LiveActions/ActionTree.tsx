@@ -28,6 +28,8 @@ export interface ActionTreeProps {
   expandedNodeIds?: Set<string>;
   /** Controlled: callback when expansion state changes */
   onExpandedChange?: (nodeId: string, expanded: boolean) => void;
+  /** Owner user ID for constructing context paths */
+  ownerId?: string;
   /** Assistant ID for fetching ToolLoop events */
   assistantId?: string;
   /** Function to fetch ToolLoop events (optional) */
@@ -58,6 +60,7 @@ export function ActionTree({
   matchedIds,
   searchTerm,
   className,
+  ownerId,
 }: ActionTreeProps) {
   if (roots.length === 0 && showEmptyState) {
     return (
@@ -86,6 +89,7 @@ export function ActionTree({
           <ActionNodeItem
             key={node.id}
             node={node}
+            ownerId={ownerId}
             depth={0}
             defaultExpanded={defaultExpanded}
             expandedNodeIds={expandedNodeIds}

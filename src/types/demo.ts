@@ -119,7 +119,7 @@ export interface DemoActions {
   /** List available phone countries for provisioning */
   listAvailablePhoneCountries: () => Promise<AvailablePhoneCountry[]>;
   /** Get contacts for a demo assistant from logs */
-  getContacts: (assistantId: string) => Promise<DemoContact[] | ResponseProps>;
+  getContacts: (ownerId: string, assistantId: string) => Promise<DemoContact[] | ResponseProps>;
   /** Get spending data for a demo assistant */
   getSpending: (assistantId: string) => Promise<AssistantSpend | ResponseProps>;
   /** Delete a demo assistant */

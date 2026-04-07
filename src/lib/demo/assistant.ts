@@ -15,7 +15,6 @@ import {
 import { AssistantSpend } from '@/types/assistants/spending';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
-import { buildAssistantIdFilter } from '@/utils/assistants/filterExpressions';
 
 /**
  * Factory for listDemoAssistants server action.
@@ -273,25 +272,20 @@ const mapLogToContact = (log: LogProps): DemoContact | null => {
 /**
  * Factory for getDemoContacts server action.
  *
- * Gets contacts for a demo assistant from the All/Contacts log context.
- * Uses _assistant_id filtering to scope to the specific assistant.
+ * Gets contacts for a demo assistant from the per-assistant Contacts context.
  *
  * @param apiKey - API key for authentication
  * @returns Async function to get demo contacts
  */
 export const getDemoContacts = async (apiKey: string) => {
-  return async (assistantId: string): Promise<DemoContact[] | ResponseProps> => {
+  return async (ownerId: string, assistantId: string): Promise<DemoContact[] | ResponseProps> => {
     'use server';
 
     try {
       const project = 'Assistants';
-      // Use All/Contacts context with _assistant_id filter
-      const context = 'All/Contacts';
+      const context = `${ownerId}/${assistantId}/Contacts`;
 
-      // Build filter for this specific assistant
-      const filter = buildAssistantIdFilter(assistantId);
-
-      const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${context}&filterExpr=${encodeURIComponent(filter)}`;
+      const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${context}`;
 
       const response = await fetch(url, {
         method: 'GET',

@@ -80,18 +80,20 @@ const AssistantsPage = async ({
   }
   const apiKey = user.apiKey;
   const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
-  const isOrgContext = user.organizations?.some((org) => org.apiKey === apiKey) ?? false;
 
-  // Determine org ID from workspace cookie (same pattern as usage page)
+  // Determine org context from workspace cookie (not API key matching)
   const cookieStore = cookies();
   const workspaceId = cookieStore.get('unify_workspace_id')?.value;
   let orgId: number | null = null;
+  let orgName: string | null = null;
   if (workspaceId && workspaceId !== 'personal') {
     const activeOrg = user.organizations?.find((o) => o.id.toString() === workspaceId);
     if (activeOrg) {
       orgId = activeOrg.id;
+      orgName = activeOrg.name;
     }
   }
+  const isOrgContext = orgId !== null;
 
   const assistantActions: AssistantActions = {
     assistant: {
@@ -137,10 +139,10 @@ const AssistantsPage = async ({
       fetchContactCosts: await fetchContactCosts(),
     },
     secret: {
-      get: await getSecrets(apiKey, user.id, isOrgContext, orgId),
-      create: await createSecret(apiKey, user.id, isOrgContext, orgId),
-      update: await updateSecret(apiKey, isOrgContext, orgId),
-      delete: await deleteSecret(apiKey, isOrgContext, orgId),
+      get: await getSecrets(apiKey, orgId),
+      create: await createSecret(apiKey, orgId, orgName),
+      update: await updateSecret(apiKey, orgId),
+      delete: await deleteSecret(apiKey, orgId),
     },
     call: {
       getConnectionDetails: await getCallConnectionDetails(apiKey),

@@ -11,11 +11,11 @@ export type TimeGranularity = 'time_minute' | 'time_hour' | 'time_day' | 'time_m
  * Human-readable labels for granularity options
  */
 export const GRANULARITY_LABELS: Record<TimeGranularity, string> = {
-  time_minute: 'Minute',
-  time_hour: 'Hour',
-  time_day: 'Day',
-  time_month: 'Month',
-  time_year: 'Year',
+  time_minute: 'Minutely',
+  time_hour: 'Hourly',
+  time_day: 'Daily',
+  time_month: 'Monthly',
+  time_year: 'Yearly',
 };
 
 /**

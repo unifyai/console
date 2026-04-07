@@ -294,7 +294,7 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
         }
 
         // Load contacts
-        const contactsResult = await actions.getContacts(demo.agentId);
+        const contactsResult = await actions.getContacts(demo.userId, demo.agentId);
         if (!isMountedRef.current) return;
 
         if (isResponseError(contactsResult)) {
@@ -389,7 +389,7 @@ export function useDemoAssistants(actions: DemoActions): UseDemoAssistantsResult
     setIsRefreshingContacts(true);
 
     try {
-      const contactsResult = await actions.getContacts(selectedDemo.agentId);
+      const contactsResult = await actions.getContacts(selectedDemo.userId, selectedDemo.agentId);
       if (!isMountedRef.current) return;
 
       if (isResponseError(contactsResult)) {

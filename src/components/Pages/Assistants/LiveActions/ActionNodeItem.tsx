@@ -438,6 +438,8 @@ export type SectionToggleSignal = { open: boolean; gen: number };
 export interface ActionNodeItemProps {
   /** The action node to display */
   node: ActionNode;
+  /** Owner user ID for constructing context paths */
+  ownerId?: string;
   /** Depth level for indentation (0 = root) */
   depth?: number;
   /** Default expanded state (defaults to true for running nodes) */
@@ -1535,6 +1537,7 @@ function ToolLoopMessage({
   onTcHover,
   hoveredTcId,
   onLayoutChange,
+  ownerId,
   assistantId,
   getToolLoopEvents,
   suppressTrailingResponse,
@@ -1550,6 +1553,7 @@ function ToolLoopMessage({
   onTcHover?: (tcId: string | null) => void;
   hoveredTcId?: string | null;
   onLayoutChange?: () => void;
+  ownerId?: string;
   assistantId?: string;
   getToolLoopEvents?: GetToolLoopEventsFn;
   suppressTrailingResponse?: boolean;
@@ -1631,7 +1635,7 @@ function ToolLoopMessage({
       child.children.length === 1 && child.children[0].displayLabel ? child.children[0] : null;
     const childLabel = innerChild?.displayLabel ?? child.displayLabel ?? child.label;
     const childTime = formatEventTime(child.startTime);
-    const canExpand = !!(getToolLoopEvents && assistantId) || descendantLiveLogCount > 0;
+    const canExpand = !!(getToolLoopEvents && ownerId && assistantId) || descendantLiveLogCount > 0;
 
     const handleChildToggle = () => {
       if (!canExpand) return;
@@ -1639,10 +1643,11 @@ function ToolLoopMessage({
       setChildLogsOpen(opening);
       onLayoutChange?.();
 
-      if (opening && !childFetchedRef.current && getToolLoopEvents && assistantId) {
+      if (opening && !childFetchedRef.current && getToolLoopEvents && assistantId && ownerId) {
         childFetchedRef.current = true;
         setChildLoading(true);
         getToolLoopEvents(
+          ownerId,
           assistantId,
           child.hierarchy,
           null,
@@ -1722,6 +1727,7 @@ function ToolLoopMessage({
               logs={effectiveChildLogs}
               depth={0}
               searchTerm={searchTerm}
+              ownerId={ownerId}
               assistantId={assistantId}
               getToolLoopEvents={getToolLoopEvents}
               nested
@@ -2305,6 +2311,7 @@ function ToolLoopConversation({
   depth,
   nodeCompleted,
   searchTerm,
+  ownerId,
   assistantId,
   getToolLoopEvents,
   nested,
@@ -2316,6 +2323,7 @@ function ToolLoopConversation({
   depth: number;
   nodeCompleted?: boolean;
   searchTerm?: string;
+  ownerId?: string;
   assistantId?: string;
   getToolLoopEvents?: GetToolLoopEventsFn;
   nested?: boolean;
@@ -2405,6 +2413,7 @@ function ToolLoopConversation({
                 onTcHover={setHoveredTcId}
                 hoveredTcId={hoveredTcId}
                 onLayoutChange={signalLayoutChange}
+                ownerId={ownerId}
                 assistantId={assistantId}
                 getToolLoopEvents={getToolLoopEvents}
                 suppressTrailingResponse={suppressTrailingContentIds?.has(log.id)}
@@ -2428,6 +2437,7 @@ function LiveToolLoopTimeline({
   logs,
   depth,
   searchTerm,
+  ownerId,
   assistantId,
   getToolLoopEvents,
   resolvedToolCallIds: resolvedToolCallIdsProp,
@@ -2436,6 +2446,7 @@ function LiveToolLoopTimeline({
   logs: ToolLoopLog[];
   depth: number;
   searchTerm?: string;
+  ownerId?: string;
   assistantId?: string;
   getToolLoopEvents?: GetToolLoopEventsFn;
   resolvedToolCallIds?: Set<string>;
@@ -2529,6 +2540,7 @@ function LiveToolLoopTimeline({
                 onTcHover={setHoveredTcId}
                 hoveredTcId={hoveredTcId}
                 onLayoutChange={signalLayoutChange}
+                ownerId={ownerId}
                 assistantId={assistantId}
                 getToolLoopEvents={getToolLoopEvents}
                 suppressTrailingResponse={suppressTrailingContentIds?.has(log.id)}
@@ -2692,6 +2704,7 @@ function CollapsibleToolLoopSection({
   defaultOpen = false,
   sectionToggleSignal,
   searchTerm,
+  ownerId,
   assistantId,
   getToolLoopEvents,
   onLayoutChange,
@@ -2705,6 +2718,7 @@ function CollapsibleToolLoopSection({
   defaultOpen?: boolean;
   sectionToggleSignal?: SectionToggleSignal;
   searchTerm?: string;
+  ownerId?: string;
   assistantId?: string;
   getToolLoopEvents?: GetToolLoopEventsFn;
   onLayoutChange?: () => void;
@@ -2782,6 +2796,7 @@ function CollapsibleToolLoopSection({
           depth={depth}
           nodeCompleted={nodeCompleted}
           searchTerm={searchTerm}
+          ownerId={ownerId}
           assistantId={assistantId}
           getToolLoopEvents={getToolLoopEvents}
           onLayoutChange={onLayoutChange}
@@ -2795,6 +2810,7 @@ function CollapsibleToolLoopSection({
 
 export function ActionNodeItem({
   node,
+  ownerId,
   depth = 0,
   defaultExpanded,
   expandedNodeIds,
@@ -2844,7 +2860,8 @@ export function ActionNodeItem({
   }, [rawToolLoopLogs, childCount]);
 
   const hasChildren = node.children && node.children.length > 0;
-  const canLoadToolLoop = !!getToolLoopEvents && !!assistantId && node.type === 'manager';
+  const canLoadToolLoop =
+    !!getToolLoopEvents && !!ownerId && !!assistantId && node.type === 'manager';
   const isExpandable = hasChildren || canLoadToolLoop;
 
   // Live ToolLoop logs from SSE, filtered identically to completedToolLoopLogs:
@@ -3068,6 +3085,7 @@ export function ActionNodeItem({
     const load = async () => {
       try {
         const response = await getToolLoopEvents(
+          ownerId!,
           assistantId!,
           node.hierarchy,
           null,
@@ -3092,6 +3110,7 @@ export function ActionNodeItem({
   }, [
     canLoadToolLoop,
     isExpanded,
+    ownerId,
     assistantId,
     getToolLoopEvents,
     node.startTime,
@@ -3321,6 +3340,7 @@ export function ActionNodeItem({
                 logs={filtered}
                 depth={depth}
                 searchTerm={searchTerm}
+                ownerId={ownerId}
                 assistantId={assistantId}
                 getToolLoopEvents={getToolLoopEvents}
                 resolvedToolCallIds={resolvedToolCallIds}
@@ -3336,6 +3356,7 @@ export function ActionNodeItem({
                 depth={depth}
                 nodeCompleted
                 searchTerm={searchTerm}
+                ownerId={ownerId}
                 assistantId={assistantId}
                 getToolLoopEvents={getToolLoopEvents}
                 resolvedToolCallIds={resolvedToolCallIds}
@@ -3351,6 +3372,7 @@ export function ActionNodeItem({
               nodeCompleted
               sectionToggleSignal={sectionToggleSignal}
               searchTerm={searchTerm}
+              ownerId={ownerId}
               assistantId={assistantId}
               getToolLoopEvents={getToolLoopEvents}
               resolvedToolCallIds={resolvedToolCallIds}

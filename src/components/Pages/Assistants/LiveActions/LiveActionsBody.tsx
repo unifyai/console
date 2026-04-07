@@ -30,6 +30,8 @@ export interface LiveActionsBodyProps {
   matchedIds?: Set<string>;
   /** Current search term (for text highlighting) */
   searchTerm?: string;
+  /** Owner user ID for constructing context paths */
+  ownerId: string | null;
   /** Assistant ID for ToolLoop queries */
   assistantId: string | null;
   /** Function to fetch ToolLoop events */
@@ -65,6 +67,7 @@ export function LiveActionsBody({
   hasActiveSearch,
   matchedIds,
   searchTerm,
+  ownerId,
   assistantId,
   getToolLoopEvents,
   loadChildren,
@@ -251,6 +254,7 @@ export function LiveActionsBody({
       >
         <ActionTree
           roots={filteredRoots}
+          ownerId={ownerId || ''}
           assistantId={assistantId || ''}
           getToolLoopEvents={getToolLoopEvents}
           loadChildren={loadChildren}

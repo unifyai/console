@@ -74,8 +74,6 @@ async function seedContact(apiKey: string, userId: string, assistantId: number, 
   const entries = {
     email_address: email,
     contact_id: CONTACT_ID,
-    _user_id: userId,
-    _assistant_id: String(assistantId),
   };
   /* eslint-enable @typescript-eslint/naming-convention */
 
@@ -85,7 +83,7 @@ async function seedContact(apiKey: string, userId: string, assistantId: number, 
       method: 'POST',
       body: JSON.stringify({
         project_name: 'Assistants',
-        context: 'All/Contacts',
+        context: `${userId}/${assistantId}/Contacts`,
         entries: [entries],
       }),
     },
@@ -119,8 +117,6 @@ async function seedTranscript(
     content: opts.content,
     message_id: msgId,
     timestamp: ts,
-    _user_id: userId,
-    _assistant_id: String(assistantId),
   };
   /* eslint-enable @typescript-eslint/naming-convention */
 
@@ -130,7 +126,7 @@ async function seedTranscript(
       method: 'POST',
       body: JSON.stringify({
         project_name: 'Assistants',
-        context: 'All/Transcripts',
+        context: `${userId}/${assistantId}/Transcripts`,
         entries: [entries],
       }),
     },

@@ -97,6 +97,7 @@ async function pushEvent(assistantId: number | string, event: ReturnType<typeof 
  */
 async function seedHistoricalEvent(
   apiKey: string,
+  userId: string,
   assistantId: number | string,
   opts: {
     callingId: string;
@@ -124,11 +125,10 @@ async function seedHistoricalEvent(
     question: opts.question,
     answer: opts.answer,
     event_timestamp: new Date().toISOString(),
-    _assistant_id: String(assistantId),
   };
   /* eslint-enable @typescript-eslint/naming-convention */
 
-  const contexts = [`All/Events/ManagerMethod`];
+  const contexts = [`${userId}/${assistantId}/Events/ManagerMethod`];
   for (const context of contexts) {
     const res = await orchestraFetch(
       '/v0/logs',
@@ -184,7 +184,7 @@ test('historical events seeded in Orchestra appear on initial load', async ({
   const questionText = `Find John ${callingId}`;
 
   // Seed an incoming + outgoing pair so the tree has a completed node
-  await seedHistoricalEvent(user.apiKey, assistant.agentId, {
+  await seedHistoricalEvent(user.apiKey, user.id, assistant.agentId, {
     callingId,
     phase: 'incoming',
     manager: 'ContactManager',
@@ -193,7 +193,7 @@ test('historical events seeded in Orchestra appear on initial load', async ({
     displayLabel: 'Looking Up Contact',
     question: questionText,
   });
-  await seedHistoricalEvent(user.apiKey, assistant.agentId, {
+  await seedHistoricalEvent(user.apiKey, user.id, assistant.agentId, {
     callingId,
     phase: 'outgoing',
     manager: 'ContactManager',
@@ -268,7 +268,7 @@ test('search filters action nodes and shows match count', async ({ authedPage: p
   const calendarQuestion = `Schedule standup meeting ${ts}`;
 
   // Seed two distinct events with unique question text
-  await seedHistoricalEvent(user.apiKey, assistant.agentId, {
+  await seedHistoricalEvent(user.apiKey, user.id, assistant.agentId, {
     callingId: callingId1,
     phase: 'incoming',
     manager: 'EmailManager',
@@ -277,7 +277,7 @@ test('search filters action nodes and shows match count', async ({ authedPage: p
     displayLabel: 'Sending Email',
     question: emailQuestion,
   });
-  await seedHistoricalEvent(user.apiKey, assistant.agentId, {
+  await seedHistoricalEvent(user.apiKey, user.id, assistant.agentId, {
     callingId: callingId2,
     phase: 'incoming',
     manager: 'CalendarManager',
@@ -325,7 +325,7 @@ test('manual refresh re-fetches events from Orchestra', async ({ authedPage: pag
   await expect(viewer).toBeVisible({ timeout: 10_000 });
 
   // Seed an event after the viewer has loaded
-  await seedHistoricalEvent(user.apiKey, assistant.agentId, {
+  await seedHistoricalEvent(user.apiKey, user.id, assistant.agentId, {
     callingId,
     phase: 'incoming',
     manager: 'RefreshManager',

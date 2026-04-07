@@ -99,7 +99,7 @@ export function useAssistantSecrets(
     if (!assistantId || !ownerId) return;
     const toastId = toast.loading(`Deleting secret "${secretToDelete.name}"...`);
     try {
-      const result = await secretActions.delete(secretToDelete.logId, ownerId);
+      const result = await secretActions.delete(secretToDelete.logId, ownerId, assistantId);
       if ('detail' in result) throw new Error((result as ResponseProps).detail);
 
       toast.success('Secret deleted.', { id: toastId });
@@ -119,7 +119,7 @@ export function useAssistantSecrets(
     let deleted = 0;
     let failed = 0;
     for (const s of matching) {
-      const result = await secretActions.delete(s.logId, ownerId);
+      const result = await secretActions.delete(s.logId, ownerId, assistantId);
       if ('detail' in result) failed++;
       else deleted++;
     }

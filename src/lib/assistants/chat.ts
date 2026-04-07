@@ -13,11 +13,6 @@ import { ResponseProps } from '@/types/common';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
 import { camelToSnakeObject } from '@/utils/casing';
-import {
-  buildUserIdFilter,
-  buildAssistantIdFilter,
-  combineFilters,
-} from '@/utils/assistants/filterExpressions';
 
 /** Message payload with optional attachments */
 export interface UnifyMessageWithAttachments extends UnifyMessage {
@@ -42,14 +37,8 @@ export const getContactIdByEmail = async (apiKey: string) => {
     'use server';
     try {
       const project = 'Assistants';
-      const context = 'All/Contacts';
-      // Combine email filter with security filters (_user_id and _assistant_id)
-      const emailFilter = `email_address == "${userEmail}"`;
-      const securityFilter = combineFilters([
-        buildUserIdFilter(ownerId),
-        buildAssistantIdFilter(assistantId),
-      ]);
-      const filterExpr = combineFilters([emailFilter, securityFilter]);
+      const context = `${ownerId}/${assistantId}/Contacts`;
+      const filterExpr = `email_address == "${userEmail}"`;
       const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${context}&filterExpr=${encodeURIComponent(filterExpr)}&limit=1`;
 
       const response = await fetch(url, {
@@ -115,19 +104,12 @@ export const getTranscripts = async (apiKey: string) => {
     'use server';
     try {
       const project = 'Assistants';
-      const context = 'All/Transcripts';
+      const context = `${ownerId}/${assistantId}/Transcripts`;
       const limit = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
-      // Filter: messages sent BY this contact OR assistant responses TO this contact
-      let messageFilter = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
+      let filterExpr = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
       if (beforeMessageId !== undefined) {
-        messageFilter += ` and message_id < ${beforeMessageId}`;
+        filterExpr += ` and message_id < ${beforeMessageId}`;
       }
-      // Add security filters (_user_id and _assistant_id) to prevent data leaks
-      const securityFilter = combineFilters([
-        buildUserIdFilter(ownerId),
-        buildAssistantIdFilter(assistantId),
-      ]);
-      const filterExpr = combineFilters([messageFilter, securityFilter]);
       let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${context}&limit=${limit}&filterExpr=${encodeURIComponent(filterExpr)}`;
 
       const response = await fetch(url, {

@@ -40,8 +40,7 @@ test.afterAll(() => {
 // ---------------------------------------------------------------------------
 
 /**
- * Queries from the All/Secrets context (the read context the app actually uses),
- * filtering by _assistant_id inside the JSONB data.
+ * Queries from the per-assistant Secrets context.
  */
 function getSecretFromDb(userId: string, assistantId: number, secretName: string): string | null {
   try {
@@ -49,11 +48,41 @@ function getSecretFromDb(userId: string, assistantId: number, secretName: string
       `SELECT le.data->>'name' FROM log_event le ` +
         `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
         `JOIN context c ON lec.context_id = c.id ` +
-        `WHERE c.name = 'All/Secrets' ` +
-        `AND le.data->>'_assistant_id' = '${assistantId}' ` +
+        `WHERE c.name = '${userId}/${assistantId}/Secrets' ` +
         `AND le.data->>'name' = '${secretName}' LIMIT 1`
     );
     return result || null;
+  } catch {
+    return null;
+  }
+}
+
+function getSecretPrivateFields(
+  userId: string,
+  assistantId: number,
+  secretName: string
+): Record<string, string | null> | null {
+  try {
+    const result = dbExec(
+      `SELECT le.data->>'_user' AS u, le.data->>'_user_id' AS uid, ` +
+        `le.data->>'_assistant' AS a, le.data->>'_assistant_id' AS aid, ` +
+        `le.data->>'_org_id' AS oid, le.data->>'_org' AS o ` +
+        `FROM log_event le ` +
+        `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
+        `JOIN context c ON lec.context_id = c.id ` +
+        `WHERE c.name = '${userId}/${assistantId}/Secrets' ` +
+        `AND le.data->>'name' = '${secretName}' LIMIT 1`
+    );
+    if (!result) return null;
+    const parts = result.split('|').map((s: string) => s.trim() || null);
+    return {
+      _user: parts[0],
+      _user_id: parts[1],
+      _assistant: parts[2],
+      _assistant_id: parts[3],
+      _org_id: parts[4],
+      _org: parts[5],
+    };
   } catch {
     return null;
   }
@@ -65,8 +94,7 @@ function getSecretCountForAssistant(userId: string, assistantId: number): number
       `SELECT count(*) FROM log_event le ` +
         `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
         `JOIN context c ON lec.context_id = c.id ` +
-        `WHERE c.name = 'All/Secrets' ` +
-        `AND le.data->>'_assistant_id' = '${assistantId}'`
+        `WHERE c.name = '${userId}/${assistantId}/Secrets'`
     );
     return parseInt(result, 10) || 0;
   } catch {
@@ -152,6 +180,14 @@ test('creating a secret persists it to the database', async ({ authedPage: page 
   // Verify in DB
   const dbSecret = getSecretFromDb(user.id, assistant.agentId, secretName);
   expect(dbSecret).toBe(secretName);
+
+  // Verify private fields were injected
+  const fields = getSecretPrivateFields(user.id, assistant.agentId, secretName);
+  expect(fields).not.toBeNull();
+  expect(fields!._user).toBe(user.id);
+  expect(fields!._user_id).toBe(user.id);
+  expect(fields!._assistant).toBe(String(assistant.agentId));
+  expect(fields!._assistant_id).toBe(String(assistant.agentId));
 });
 
 test('creating a secret with a hierarchical name shows folder structure', async ({

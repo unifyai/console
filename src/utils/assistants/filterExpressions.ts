@@ -1,8 +1,8 @@
 /**
- * Filter Expression Builders for Assistants Pages
+ * Filter Expression Utilities for Assistants Pages
  *
- * Pure functions for building security filter expressions for the Assistants logging API.
- * These are used to filter by _user_id and _assistant_id to prevent data leaks.
+ * Pure functions for building and combining filter expressions
+ * for the Assistants logging API.
  */
 
 /**
@@ -14,30 +14,6 @@ export function escapeFilterValue(value: string): string {
   return value
     .replace(/\\/g, '\\\\') // Escape backslashes first
     .replace(/'/g, "\\'"); // Escape single quotes
-}
-
-/**
- * Build a filter expression for a specific user ID.
- * Uses the _user_id field injected by Unity's log_utils.
- *
- * @param userId User ID to filter by
- * @returns Filter expression string
- */
-export function buildUserIdFilter(userId: string): string {
-  const escaped = escapeFilterValue(userId);
-  return `_user_id == '${escaped}'`;
-}
-
-/**
- * Build a filter expression for a specific assistant ID.
- * Uses the _assistant_id field injected by Unity's log_utils.
- *
- * @param assistantId Assistant ID (agent_id) to filter by
- * @returns Filter expression string
- */
-export function buildAssistantIdFilter(assistantId: string): string {
-  const escaped = escapeFilterValue(assistantId);
-  return `_assistant_id == '${escaped}'`;
 }
 
 /**
