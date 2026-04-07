@@ -1399,7 +1399,7 @@ function ThoughtLabel({ text, time }: { text: string; time: string }) {
   return (
     <div
       ref={ref}
-      className="flex cursor-pointer items-center gap-2"
+      className="flex cursor-pointer items-start gap-2"
       onClick={() => {
         const el = ref.current;
         if (el) {
@@ -1411,7 +1411,7 @@ function ThoughtLabel({ text, time }: { text: string; time: string }) {
     >
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="shrink-0 text-slate-500/80 dark:text-slate-400/50">
+          <span className="mt-0.5 shrink-0 text-slate-500/80 dark:text-slate-400/50">
             <Brain className="h-2.5 w-2.5" />
           </span>
         </TooltipTrigger>
@@ -1419,7 +1419,7 @@ function ThoughtLabel({ text, time }: { text: string; time: string }) {
           thought
         </TooltipContent>
       </Tooltip>
-      <span className="min-w-0 truncate text-muted-foreground">{text}</span>
+      <span className="min-w-0 break-words text-muted-foreground">{text}</span>
       <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
         {time}
       </span>
@@ -2232,10 +2232,7 @@ function ToolLoopMessage({
           )}
           {isOpen && (
             <span
-              className={cn(
-                'min-w-0 text-muted-foreground',
-                hasMoreLines || isJson ? 'truncate' : 'break-words'
-              )}
+              className={cn('min-w-0 text-muted-foreground', isJson ? 'truncate' : 'break-words')}
             >
               {isJson ? content!.trim()[0] : <TruncatedMarkdown content={firstLine} />}
             </span>
