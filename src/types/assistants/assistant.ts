@@ -491,4 +491,16 @@ export interface AssistantActions {
   };
   /** Actions panel - live action events */
   actions?: import('@/types/assistants/action').AssistantActionActions;
+  /** Dashboards pane - dashboard and tile data */
+  dashboards?: {
+    getMetadata: (
+      ownerId: string,
+      assistantId: string
+    ) => Promise<import('@/types/assistants/dashboard').DashboardPaneData>;
+    getTileContent: (
+      ownerId: string,
+      assistantId: string,
+      tileToken: string
+    ) => Promise<string | null>;
+  };
 }
