@@ -9,7 +9,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/UI/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
+
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import { Label } from '@/components/UI/label';
@@ -186,246 +186,276 @@ export function AssistantContactManager({
               </p>
             </div>
           ) : (
-            <Tabs
-              value={activeTab}
-              className="w-full pt-4"
-              onValueChange={(value) => setActiveTab(value as any)}
-            >
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="email">
-                  <Mail className="mr-2 h-4 w-4" /> Email
-                </TabsTrigger>
-                <TabsTrigger value="phone">
-                  <Phone className="mr-2 h-4 w-4" /> Phone
-                </TabsTrigger>
-                <TabsTrigger value="whatsapp">
-                  <WhatsApp sx={{ fontSize: '18px', marginRight: '8px' }} /> WhatsApp
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="email" className="py-4">
-                {assistant.email ? (
-                  <DisplayContactField label="Email Address" value={assistant.email} />
-                ) : canWrite ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="email_local_part">Email address</Label>
-                    <div className="flex items-center rounded-md">
-                      <Input
-                        id="email_local_part"
-                        type="text"
-                        value={emailLocalPart}
-                        onChange={handleLocalPartChange}
-                        placeholder="new-assistant"
-                        className="h-9 max-w-[250px] flex-1 rounded-r-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                        disabled={isSubmitting}
-                      />
-                      <span className="text-caption flex h-9 select-none items-center rounded-r-md border-l border-input bg-muted px-3 py-2 text-muted-foreground">
-                        {EMAIL_DOMAIN_WITH_AT}
-                      </span>
-                    </div>
-                    <input
-                      type="hidden"
-                      {...register('email', {
-                        validate: (value) => {
-                          if (getValues('isEmailAdded')) {
-                            if (
-                              !value ||
-                              !value.endsWith(EMAIL_DOMAIN_WITH_AT) ||
-                              value.startsWith('@')
-                            )
-                              return 'A valid email is required.';
-                            if (allAssistantEmails.includes(value) && value !== assistant.email)
-                              return 'This email is already taken.';
-                          }
-                          return true;
-                        },
-                      })}
-                    />
-                    {errors.email && (
-                      <p className="text-body text-strong mt-1 text-destructive">
-                        {errors.email.message}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-body text-muted-foreground">No email configured.</p>
-                )}
-              </TabsContent>
-              <TabsContent value="phone" className="py-4">
-                {assistant.phone ? (
-                  <DisplayContactField label="Assistant Phone Number" value={assistant.phone} />
-                ) : canWrite ? (
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex flex-row items-center gap-2 pb-1">
-                        <Label htmlFor="phoneCountry">Assistant Phone Country</Label>
-                        <TooltipProvider delayDuration={100}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-4 w-4 cursor-help text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="right"
-                              align="end"
-                              className="text-caption max-w-xs"
-                            >
-                              <p>
-                                {"The country where your assistant's phone number will be based."}
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      <Select
-                        value={rhfPhoneCountry || FALLBACK_DEFAULT_COUNTRY_CODE}
-                        onValueChange={(value) => {
-                          setValue('phoneCountry', value, {
-                            shouldDirty: true,
-                            shouldValidate: true,
-                          });
-                        }}
-                        disabled={isSubmitting || isLoadingPhoneCountries}
-                      >
-                        <SelectTrigger
-                          id="phoneCountry"
-                          {...register('phoneCountry', {
-                            required: 'Country is required.',
-                          })}
-                        >
-                          <SelectValue
-                            placeholder={
-                              isLoadingPhoneCountries ? 'Loading countries...' : 'Select country...'
-                            }
+            <div className="w-full pt-4">
+              <Select
+                value={activeTab}
+                onValueChange={(value) => setActiveTab(value as 'email' | 'phone' | 'whatsapp')}
+              >
+                <SelectTrigger data-testid="contact-type-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="email">
+                    <span className="flex items-center">
+                      <Mail className="mr-2 h-4 w-4" /> Email
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="phone">
+                    <span className="flex items-center">
+                      <Phone className="mr-2 h-4 w-4" /> Phone
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="whatsapp">
+                    <span className="flex items-center">
+                      <WhatsApp sx={{ fontSize: '18px', marginRight: '8px' }} /> WhatsApp
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div className="py-4 pt-8">
+                {activeTab === 'email' && (
+                  <>
+                    {assistant.email ? (
+                      <DisplayContactField label="Email Address" value={assistant.email} />
+                    ) : canWrite ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="email_local_part">Email address</Label>
+                        <div className="flex items-center rounded-md">
+                          <Input
+                            id="email_local_part"
+                            type="text"
+                            value={emailLocalPart}
+                            onChange={handleLocalPartChange}
+                            placeholder="new-assistant"
+                            className="h-9 max-w-[250px] flex-1 rounded-r-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                            disabled={isSubmitting}
                           />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {isLoadingPhoneCountries ? (
-                            <SelectItem value="loading" disabled>
-                              Loading...
-                            </SelectItem>
-                          ) : (
-                            availablePhoneCountries.map((country) => (
-                              <SelectItem key={country.code} value={country.code}>
-                                <span className="mr-2">{getCountryFlag(country.code)}</span>{' '}
-                                {country.name} ({country.code})
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      {errors.phoneCountry && (
-                        <p className="text-body text-strong mt-1 text-destructive">
-                          {errors.phoneCountry.message}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex flex-row items-center gap-2 pb-1">
-                        <Label>Your Phone</Label>
-                        <TooltipProvider delayDuration={100}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-4 w-4 cursor-help text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="right"
-                              align="end"
-                              className="text-caption max-w-xs"
+                          <span className="text-caption flex h-9 select-none items-center rounded-r-md border-l border-input bg-muted px-3 py-2 text-muted-foreground">
+                            {EMAIL_DOMAIN_WITH_AT}
+                          </span>
+                        </div>
+                        <input
+                          type="hidden"
+                          {...register('email', {
+                            validate: (value) => {
+                              if (getValues('isEmailAdded')) {
+                                if (
+                                  !value ||
+                                  !value.endsWith(EMAIL_DOMAIN_WITH_AT) ||
+                                  value.startsWith('@')
+                                )
+                                  return 'A valid email is required.';
+                                if (allAssistantEmails.includes(value) && value !== assistant.email)
+                                  return 'This email is already taken.';
+                              }
+                              return true;
+                            },
+                          })}
+                        />
+                        {errors.email && (
+                          <p className="text-body text-strong mt-1 text-destructive">
+                            {errors.email.message}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-body text-muted-foreground">No email configured.</p>
+                    )}
+                  </>
+                )}
+
+                {activeTab === 'phone' && (
+                  <>
+                    {assistant.phone ? (
+                      <DisplayContactField label="Assistant Phone Number" value={assistant.phone} />
+                    ) : canWrite ? (
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex flex-row items-center gap-2 pb-1">
+                            <Label htmlFor="phoneCountry">Assistant Phone Country</Label>
+                            <TooltipProvider delayDuration={100}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  side="right"
+                                  align="end"
+                                  className="text-caption max-w-xs"
+                                >
+                                  <p>
+                                    {
+                                      "The country where your assistant's phone number will be based."
+                                    }
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          <Select
+                            value={rhfPhoneCountry || FALLBACK_DEFAULT_COUNTRY_CODE}
+                            onValueChange={(value) => {
+                              setValue('phoneCountry', value, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              });
+                            }}
+                            disabled={isSubmitting || isLoadingPhoneCountries}
+                          >
+                            <SelectTrigger
+                              id="phoneCountry"
+                              {...register('phoneCountry', {
+                                required: 'Country is required.',
+                              })}
                             >
-                              <p>
-                                {
-                                  'This is the phone number you will contact the assistant with. Manage it in your profile.'
+                              <SelectValue
+                                placeholder={
+                                  isLoadingPhoneCountries
+                                    ? 'Loading countries...'
+                                    : 'Select country...'
                                 }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {isLoadingPhoneCountries ? (
+                                <SelectItem value="loading" disabled>
+                                  Loading...
+                                </SelectItem>
+                              ) : (
+                                availablePhoneCountries.map((country) => (
+                                  <SelectItem key={country.code} value={country.code}>
+                                    <span className="mr-2">{getCountryFlag(country.code)}</span>{' '}
+                                    {country.name} ({country.code})
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          {errors.phoneCountry && (
+                            <p className="text-body text-strong mt-1 text-destructive">
+                              {errors.phoneCountry.message}
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex flex-row items-center gap-2 pb-1">
+                            <Label>Your Phone</Label>
+                            <TooltipProvider delayDuration={100}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  side="right"
+                                  align="end"
+                                  className="text-caption max-w-xs"
+                                >
+                                  <p>
+                                    {
+                                      'This is the phone number you will contact the assistant with. Manage it in your profile.'
+                                    }
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          {userPhoneNumber ? (
+                            <div className="flex items-center gap-2">
+                              <Input value={userPhoneNumber} readOnly disabled className="flex-1" />
+                              <CheckCircle2 className="h-5 w-5 text-green-500" />
+                            </div>
+                          ) : (
+                            <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
+                              <p className="text-body text-muted-foreground">
+                                No phone number set in your profile.{' '}
+                                <a
+                                  href="/account?tab=contact-info"
+                                  className="hover:text-primary/80 text-primary underline"
+                                >
+                                  Add your phone number
+                                </a>{' '}
+                                to enable phone interactions with your assistant.
                               </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      {userPhoneNumber ? (
-                        <div className="flex items-center gap-2">
-                          <Input value={userPhoneNumber} readOnly disabled className="flex-1" />
-                          <CheckCircle2 className="h-5 w-5 text-green-500" />
-                        </div>
-                      ) : (
-                        <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
-                          <p className="text-body text-muted-foreground">
-                            No phone number set in your profile.{' '}
-                            <a
-                              href="/account?tab=contact-info"
-                              className="hover:text-primary/80 text-primary underline"
-                            >
-                              Add your phone number
-                            </a>{' '}
-                            to enable phone interactions with your assistant.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-body text-muted-foreground">No phone number configured.</p>
+                    ) : (
+                      <p className="text-body text-muted-foreground">No phone number configured.</p>
+                    )}
+                  </>
                 )}
-              </TabsContent>
-              <TabsContent value="whatsapp" className="py-4">
-                {assistant.assistantWhatsappNumber ? (
-                  <div className="space-y-2">
-                    <DisplayContactField
-                      label="Assistant WhatsApp Number"
-                      value={assistant.assistantWhatsappNumber}
-                    />
-                    <p className="text-body text-muted-foreground">
-                      Send a message first — your assistant can only call you on WhatsApp after you
-                      start a conversation.
-                    </p>
-                  </div>
-                ) : canWrite ? (
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex flex-row items-center gap-2 pb-1">
-                        <Label>Your WhatsApp</Label>
-                        <TooltipProvider delayDuration={100}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-4 w-4 cursor-help text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="right"
-                              align="end"
-                              className="text-caption max-w-xs"
-                            >
-                              <p>
-                                The WhatsApp number you will use to message your assistant. Manage
-                                it in your profile.
+
+                {activeTab === 'whatsapp' && (
+                  <>
+                    {assistant.assistantWhatsappNumber ? (
+                      <div className="space-y-2">
+                        <DisplayContactField
+                          label="Assistant WhatsApp Number"
+                          value={assistant.assistantWhatsappNumber}
+                        />
+                        <p className="text-body text-muted-foreground">
+                          Send a message first — your assistant can only call you on WhatsApp after
+                          you start a conversation.
+                        </p>
+                      </div>
+                    ) : canWrite ? (
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex flex-row items-center gap-2 pb-1">
+                            <Label>Your WhatsApp</Label>
+                            <TooltipProvider delayDuration={100}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  side="right"
+                                  align="end"
+                                  className="text-caption max-w-xs"
+                                >
+                                  <p>
+                                    The WhatsApp number you will use to message your assistant.
+                                    Manage it in your profile.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          {userWhatsappNumber ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={userWhatsappNumber}
+                                readOnly
+                                disabled
+                                className="flex-1"
+                              />
+                              <CheckCircle2 className="h-5 w-5 text-green-500" />
+                            </div>
+                          ) : (
+                            <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
+                              <p className="text-body text-muted-foreground">
+                                No WhatsApp number set in your profile.{' '}
+                                <a
+                                  href="/account?tab=contact-info"
+                                  className="hover:text-primary/80 text-primary underline"
+                                >
+                                  Add your WhatsApp number
+                                </a>{' '}
+                                to enable WhatsApp messaging with your assistant.
                               </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      {userWhatsappNumber ? (
-                        <div className="flex items-center gap-2">
-                          <Input value={userWhatsappNumber} readOnly disabled className="flex-1" />
-                          <CheckCircle2 className="h-5 w-5 text-green-500" />
-                        </div>
-                      ) : (
-                        <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
-                          <p className="text-body text-muted-foreground">
-                            No WhatsApp number set in your profile.{' '}
-                            <a
-                              href="/account?tab=contact-info"
-                              className="hover:text-primary/80 text-primary underline"
-                            >
-                              Add your WhatsApp number
-                            </a>{' '}
-                            to enable WhatsApp messaging with your assistant.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-body text-muted-foreground">No WhatsApp configured.</p>
+                    ) : (
+                      <p className="text-body text-muted-foreground">No WhatsApp configured.</p>
+                    )}
+                  </>
                 )}
-              </TabsContent>
-            </Tabs>
+              </div>
+            </div>
           )}
 
           <DialogFooter>

@@ -47,6 +47,21 @@ test.afterAll(() => {
 });
 
 /**
+ * Select a contact type from the dropdown in the contact manager dialog.
+ */
+async function selectContactType(
+  page: import('@playwright/test').Page,
+  type: 'email' | 'phone' | 'whatsapp'
+) {
+  const trigger = page.getByTestId('contact-type-select');
+  await trigger.click();
+  await page.waitForTimeout(300);
+  const label = type === 'email' ? 'Email' : type === 'phone' ? 'Phone' : 'WhatsApp';
+  await page.getByRole('option', { name: label }).click();
+  await page.waitForTimeout(300);
+}
+
+/**
  * Open the contact manager via the list item dropdown menu.
  */
 async function openContactManager(page: import('@playwright/test').Page) {
@@ -146,9 +161,8 @@ test('deleting an email contact removes it from the database', async ({ authedPa
 test('adding a phone contact persists it to the database', async ({ authedPage: page }) => {
   await openContactManager(page);
 
-  // Switch to Phone tab
-  await page.locator('[role="tab"]:has-text("Phone")').click();
-  await page.waitForTimeout(500);
+  // Switch to Phone via dropdown
+  await selectContactType(page, 'phone');
 
   // Country selector should be visible with a default
   const phoneCountry = page.locator('#phoneCountry');
@@ -184,9 +198,8 @@ test('deleting a phone contact removes it from the database', async ({ authedPag
 
   await openContactManager(page);
 
-  // Switch to Phone tab
-  await page.locator('[role="tab"]:has-text("Phone")').click();
-  await page.waitForTimeout(500);
+  // Switch to Phone via dropdown
+  await selectContactType(page, 'phone');
 
   // Phone should be displayed as read-only
   await expect(page.locator('text=Assistant Phone Number')).toBeVisible({ timeout: 5_000 });
@@ -276,8 +289,7 @@ test('phone create button is disabled when user has no phone number', async ({
   try {
     await openContactManager(page);
 
-    await page.locator('[role="tab"]:has-text("Phone")').click();
-    await page.waitForTimeout(500);
+    await selectContactType(page, 'phone');
 
     // Should show the "no phone number" prompt
     await expect(page.locator('text=No phone number set in your profile')).toBeVisible({
@@ -300,8 +312,7 @@ test('whatsapp create button is disabled when user has no whatsapp number', asyn
   try {
     await openContactManager(page);
 
-    await page.locator('[role="tab"]:has-text("WhatsApp")').click();
-    await page.waitForTimeout(500);
+    await selectContactType(page, 'whatsapp');
 
     // Should show the "no WhatsApp number" prompt
     await expect(page.locator('text=No WhatsApp number set in your profile')).toBeVisible({
@@ -323,8 +334,7 @@ test('whatsapp create button is enabled when user has a whatsapp number', async 
 
   await openContactManager(page);
 
-  await page.locator('[role="tab"]:has-text("WhatsApp")').click();
-  await page.waitForTimeout(500);
+  await selectContactType(page, 'whatsapp');
 
   // Should show the WhatsApp number with green check
   await expect(page.locator('text=+15559876543')).toBeVisible({ timeout: 5_000 });
