@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useCallback } from 'react';
+import { Loader2 } from 'lucide-react';
 import { useDashboards } from '@/hooks/Assistants/useDashboards';
 import { DashboardsPaneHeader } from './DashboardsPaneHeader';
 import { DashboardsPaneFooter } from './DashboardsPaneFooter';
@@ -123,6 +124,18 @@ export function DashboardsPane({
       setIsRefreshing(false);
     }
   }, [refetch]);
+
+  if (isLoading && dashboards.length === 0 && tiles.length === 0) {
+    return (
+      <div
+        className="flex h-full flex-1 items-center justify-center text-muted-foreground"
+        data-testid="dashboards-loading"
+      >
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        <span className="text-body-muted">Loading dashboards...</span>
+      </div>
+    );
+  }
 
   if (!isLoading && dashboards.length === 0 && tiles.length === 0) {
     return <DashboardEmptyState />;
