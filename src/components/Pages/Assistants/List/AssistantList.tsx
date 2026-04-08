@@ -176,7 +176,12 @@ export function AssistantList({
       </ScrollArea>
 
       {onToggleFold && (
-        <div className="flex flex-shrink-0 items-center justify-end border-t px-2 py-1.5">
+        <div
+          className={cn(
+            'flex flex-shrink-0 items-center border-t px-2 py-1.5',
+            isFolded ? 'justify-center' : 'justify-end'
+          )}
+        >
           <Button
             variant="ghost"
             size="icon"

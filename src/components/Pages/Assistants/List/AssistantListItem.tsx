@@ -351,7 +351,7 @@ export function AssistantListItem({
                 <DropdownMenuItem
                   onClick={() => setIsEndContractAlertOpen(true)}
                   data-testid="menu-end-contract"
-                  className="text-destructive focus:text-destructive"
+                  className="text-destructive hover:bg-destructive hover:text-destructive-foreground focus:bg-destructive focus:text-destructive-foreground"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   End contract

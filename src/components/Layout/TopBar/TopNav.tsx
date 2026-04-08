@@ -436,7 +436,7 @@ export default function TopNav() {
                   e.preventDefault();
                   handleSignOut();
                 }}
-                className="text-body cursor-pointer text-[color:var(--destructive)] hover:bg-[color:var(--destructive)] hover:text-[color:var(--destructive-foreground)]"
+                className="cursor-pointer text-destructive hover:bg-destructive hover:text-destructive-foreground focus:bg-destructive focus:text-destructive-foreground"
               >
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Sign out</span>
