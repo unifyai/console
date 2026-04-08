@@ -349,7 +349,6 @@ const FullScreenCallUI: React.FC<{
                 audioOutputDevices={audioOutputDevices}
                 selectedAudioOutputDevice={activeAudioOutputDeviceId}
                 onAudioOutputDeviceChange={setActiveAudioOutputDevice}
-                callType={callType}
                 assistant={assistant}
                 assistantActions={{ chat: assistantActions.chat, voice: assistantActions.voice }}
                 chatHistories={chatHistories}

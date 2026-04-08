@@ -4,7 +4,7 @@ import { Loader2, Phone, Video } from 'lucide-react';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 
-import { ChatMessage } from '@/types/assistants/chat';
+import { ChatMessage, CallPill } from '@/types/assistants/chat';
 import { AssistantProfileChatPanel } from './AssistantProfileChatPanel';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 
@@ -14,6 +14,8 @@ interface AssistantProfilePanelProps {
   onClose: () => void;
   chatHistories: Record<string, ChatMessage[]>;
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
+  callPillHistories?: Record<string, CallPill[]>;
+  setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
   userEmail: string | null | undefined;
   isFirstView?: boolean;
   preHireChat?: ChatMessage[];
@@ -36,6 +38,8 @@ export function AssistantProfilePanel({
   onClose,
   chatHistories,
   setChatHistories,
+  callPillHistories,
+  setCallPillHistories,
   userEmail,
   isFirstView = false,
   preHireChat,
@@ -131,6 +135,8 @@ export function AssistantProfilePanel({
           assistantActions={assistantActions}
           chatHistories={chatHistories}
           setChatHistories={setChatHistories}
+          callPillHistories={callPillHistories}
+          setCallPillHistories={setCallPillHistories}
           userEmail={userEmail}
           userTimezone={userTimezone}
           isFirstView={isFirstView}
@@ -138,6 +144,7 @@ export function AssistantProfilePanel({
           onFirstViewCompleted={onFirstViewCompleted}
           spendingGate={spendingGate}
           onAssistantReply={onAssistantReply}
+          isCallConnected={isInThisCall && isCallConnected}
         />
       </div>
     </div>

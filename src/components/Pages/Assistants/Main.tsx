@@ -33,7 +33,7 @@ import { FormProvider } from 'react-hook-form';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
-import { ChatMessage } from '@/types/assistants/chat';
+import { ChatMessage, CallPill } from '@/types/assistants/chat';
 import { AssistantHireLocalSetupInstructionsDialog } from './Hire/AssistantHireLocalSetupInstructions';
 import { AssistantContactManager } from './Profile/AssistantContactManager';
 import { AssistantSecretsManager } from './Profile/AssistantSecretsManager';
@@ -294,14 +294,22 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [profileChatHistories, setProfileChatHistories] = React.useState<
     Record<string, ChatMessage[]>
   >({});
+  const [callPillHistories, setCallPillHistories] = React.useState<Record<string, CallPill[]>>({});
 
-  // --- Prefetch contact IDs AND transcripts for all loaded assistants ---
-  // Resolves contact IDs and fetches transcript history in the background as
-  // soon as the assistant list is available. Contact IDs go into sessionStorage;
-  // transcripts go directly into profileChatHistories (write-if-absent).
-  // When the user opens a chat, both are already cached — the chat loads
+  // --- Prefetch contact IDs, transcripts, AND call pills for all loaded assistants ---
+  // Resolves contact IDs and fetches transcript history + meet call pills in
+  // the background as soon as the assistant list is available.
+  // Contact IDs go into sessionStorage; transcripts and call pills go directly
+  // into their respective state maps (write-if-absent).
+  // When the user opens a chat, all data is already cached — the chat loads
   // instantly with zero loading/skeleton state.
-  useContactIdPrefetch(assistants, assistantActions, userMeta.email, setProfileChatHistories);
+  useContactIdPrefetch(
+    assistants,
+    assistantActions,
+    userMeta.email,
+    setProfileChatHistories,
+    setCallPillHistories
+  );
 
   const [setupInstructions, setSetupInstructions] = React.useState<{
     os: string;
@@ -920,6 +928,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   onClose={handleProfileClose}
                   chatHistories={profileChatHistories}
                   setChatHistories={setProfileChatHistories}
+                  callPillHistories={callPillHistories}
+                  setCallPillHistories={setCallPillHistories}
                   userEmail={userMeta.email}
                   isFirstView={isFirstViewAfterHire}
                   preHireChat={isFirstViewAfterHire ? newlyHiredInfo.preHireChat : undefined}
@@ -1091,6 +1101,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             room={room}
             chatHistories={profileChatHistories}
             setChatHistories={setProfileChatHistories}
+            callPillHistories={callPillHistories}
+            setCallPillHistories={setCallPillHistories}
             isConnecting={isConnectingCall}
             userEmail={userMeta.email}
             userImage={userMeta.image}

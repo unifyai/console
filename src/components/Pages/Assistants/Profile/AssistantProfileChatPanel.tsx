@@ -19,14 +19,23 @@ import { toast } from 'sonner';
 import { useAssistantProfileChat } from '@/hooks/Assistants/useAssistantProfileChat';
 import { clientLog } from '@/lib/logging/client-log-buffer';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
-import { ChatMessage, Attachment } from '@/types/assistants/chat';
+import {
+  ChatMessage,
+  Attachment,
+  CallPill,
+  TimelineItem,
+  isCallPill,
+} from '@/types/assistants/chat';
 import {
   PendingAttachmentList,
   createAttachment,
   ChatMessageBubble,
   ChatDateDivider,
   isSameDay,
+  CallPillBubble,
+  CallTranscriptDialog,
 } from '@/components/Chat';
+import { useCallPills } from '@/hooks/Assistants/useCallPills';
 import {
   validateFileType,
   isOversized,
@@ -54,6 +63,8 @@ interface AssistantProfileChatPanelProps {
   assistantActions: Pick<AssistantActions, 'chat'> & Partial<Pick<AssistantActions, 'voice'>>;
   chatHistories: Record<string, ChatMessage[]>;
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
+  callPillHistories?: Record<string, CallPill[]>;
+  setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
   userEmail: string | null | undefined;
   userTimezone?: string | null;
   isFirstView?: boolean;
@@ -62,6 +73,8 @@ interface AssistantProfileChatPanelProps {
   /** Spending gate status for blocking new messages */
   spendingGate?: SpendingGateStatus;
   onAssistantReply?: (assistantId: string) => void;
+  /** Whether this assistant's call is currently connected */
+  isCallConnected?: boolean;
 }
 
 const IS_LOCAL_DEV = typeof window !== 'undefined' && window.location.hostname === 'localhost';
@@ -71,6 +84,8 @@ export function AssistantProfileChatPanel({
   assistantActions,
   chatHistories,
   setChatHistories,
+  callPillHistories,
+  setCallPillHistories,
   userEmail,
   userTimezone,
   isFirstView,
@@ -78,6 +93,7 @@ export function AssistantProfileChatPanel({
   onFirstViewCompleted,
   spendingGate = DEFAULT_SPENDING_GATE_STATUS,
   onAssistantReply,
+  isCallConnected = false,
 }: AssistantProfileChatPanelProps) {
   const displayName = `${assistant.firstName} ${assistant.surname}`;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
@@ -111,6 +127,7 @@ export function AssistantProfileChatPanel({
     canChat,
     isRetryingContactId,
     reconnectSSE,
+    currentContactId,
   } = useAssistantProfileChat(
     assistant,
     assistantActions,
@@ -122,6 +139,22 @@ export function AssistantProfileChatPanel({
     onFirstViewCompleted,
     onAssistantReply
   );
+
+  const {
+    callPills,
+    transcriptDialogOpen,
+    activeTranscript,
+    activeTranscriptLoading,
+    activeTranscriptPill,
+    openTranscript,
+    closeTranscript,
+  } = useCallPills({
+    assistant,
+    contactId: currentContactId,
+    isCallConnected,
+    callPillHistories,
+    setCallPillHistories,
+  });
 
   const sseBlocked = connectionStatus === 'error' && !IS_LOCAL_DEV;
 
@@ -457,11 +490,34 @@ export function AssistantProfileChatPanel({
                 </Button>
               </div>
             )}
-            {(USE_MOCK_EMBEDS ? [...messages, ...getMockEmbedMessages()] : messages).map(
-              (msg, i, arr) => {
-                const prevMsg = arr[i - 1];
+            {(() => {
+              const baseMessages: ChatMessage[] = USE_MOCK_EMBEDS
+                ? [...messages, ...getMockEmbedMessages()]
+                : messages;
+              const timeline: TimelineItem[] = [...baseMessages, ...callPills].sort(
+                (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
+              );
+              return timeline.map((item, i, arr) => {
+                const prevItem = arr[i - 1];
                 const showDivider =
-                  !prevMsg || !isSameDay(prevMsg.timestamp, msg.timestamp, userTimezone);
+                  !prevItem || !isSameDay(prevItem.timestamp, item.timestamp, userTimezone);
+
+                if (isCallPill(item)) {
+                  return (
+                    <React.Fragment key={item.id}>
+                      {showDivider && (
+                        <ChatDateDivider date={item.timestamp} timezone={userTimezone} />
+                      )}
+                      <CallPillBubble
+                        pill={item}
+                        timezone={userTimezone}
+                        onClick={openTranscript}
+                      />
+                    </React.Fragment>
+                  );
+                }
+
+                const msg = item;
                 return (
                   <React.Fragment key={msg.id}>
                     {showDivider && (
@@ -486,8 +542,8 @@ export function AssistantProfileChatPanel({
                     />
                   </React.Fragment>
                 );
-              }
-            )}
+              });
+            })()}
             {isAssistantReplying && (
               <ChatMessageBubble
                 message=""
@@ -693,6 +749,15 @@ export function AssistantProfileChatPanel({
         open={isCameraOpen}
         onOpenChange={setIsCameraOpen}
         onCapture={handleCameraCapture}
+      />
+
+      <CallTranscriptDialog
+        open={transcriptDialogOpen}
+        onOpenChange={closeTranscript}
+        pill={activeTranscriptPill}
+        utterances={activeTranscript}
+        loading={activeTranscriptLoading}
+        assistantName={displayName}
       />
     </div>
   );

@@ -42,3 +42,7 @@ export { ChatMessageBubble } from './ChatMessageBubble';
 export { ChatDateDivider, isSameDay } from './ChatDateDivider';
 
 export { CameraCapture } from './CameraCapture';
+
+export { CallPillBubble } from './CallPill';
+
+export { CallTranscriptDialog } from './CallTranscriptDialog';

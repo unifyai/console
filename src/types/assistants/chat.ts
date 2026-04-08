@@ -103,6 +103,29 @@ export interface ChatCompletionRequest {
   stop?: string | string[] | null;
 }
 
+export interface CallPill {
+  id: string;
+  type: 'call_pill';
+  timestamp: Date;
+  durationSeconds: number;
+  exchangeId?: number;
+  recordingUrl?: string;
+}
+
+export type TimelineItem = ChatMessage | CallPill;
+
+export function isCallPill(item: TimelineItem): item is CallPill {
+  return 'type' in item && item.type === 'call_pill';
+}
+
+export interface CallTranscriptUtterance {
+  id: string;
+  role: 'assistant' | 'user';
+  content: string;
+  timestamp: Date;
+  callUtteranceTimestamp?: string;
+}
+
 export interface UnifyMessage {
   assistantId: number;
   contactId: number;

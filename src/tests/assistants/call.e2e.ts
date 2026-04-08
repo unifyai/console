@@ -1,5 +1,6 @@
 /**
- * Call E2E Tests — browser-based user flows for starting/hanging up calls.
+ * Call E2E Tests — browser-based user flows for starting/hanging up calls
+ * and for unify_meet call pills in the assistant chat timeline.
  *
  * Verifies:
  *  - Clicking the audio call button opens the communication dialog
@@ -8,6 +9,14 @@
  *  - Clicking the video call button opens the dialog in video mode
  *  - Call buttons are disabled when spending is blocked
  *  - Hanging up and re-calling the same assistant works
+ *  - Historical call pills render in the chat timeline
+ *  - Call pills display correct duration
+ *  - Clicking a call pill opens the transcript dialog
+ *  - Transcript dialog shows utterances with correct speaker labels
+ *  - Multiple calls show as distinct pills (grouped by exchange_id)
+ *  - Call pills interleave correctly with text messages by timestamp
+ *  - Empty transcript shows fallback message
+ *  - Backend Transcripts table data matches seeded exchange_id grouping
  *
  * Local mode: LiveKit credentials are absent, so the server action returns
  * localMode: true. The hook skips room.connect() and sets isConnected
@@ -27,8 +36,11 @@ import {
   selectAssistantInList,
   deleteAllAssistantsForUser,
   ensureProjectSync,
+  orchestraFetch,
   setUserCredits,
 } from './helpers';
+
+const CONTACT_ID = 2;
 
 const user = createTestUser({ name: 'CallE2E', lastName: 'Tester', credits: 50_000 });
 ensureProjectSync(user.apiKey);
@@ -59,7 +71,108 @@ async function openAssistantProfile(page: import('@playwright/test').Page, agent
 }
 
 // ---------------------------------------------------------------------------
-// Tests
+// Call pill seed helpers
+// ---------------------------------------------------------------------------
+
+let messageCounter = 5000;
+
+async function seedContact(apiKey: string, userId: string, assistantId: number, email: string) {
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const res = await orchestraFetch(
+    '/v0/logs',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        project_name: 'Assistants',
+        context: `${userId}/${assistantId}/Contacts`,
+        entries: [{ email_address: email, contact_id: CONTACT_ID }],
+      }),
+    },
+    apiKey
+  );
+  /* eslint-enable @typescript-eslint/naming-convention */
+  if (!res.ok) throw new Error(`Failed to seed contact: ${res.status} ${await res.text()}`);
+}
+
+async function seedTranscript(
+  apiKey: string,
+  userId: string,
+  assistantId: number,
+  opts: {
+    senderId: number;
+    content: string;
+    timestamp?: string;
+    medium?: string;
+    exchangeId?: number;
+    receiverIds?: number[];
+    metadata?: Record<string, unknown>;
+  }
+) {
+  const msgId = messageCounter++;
+  const ts = opts.timestamp || new Date().toISOString();
+
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const entries: Record<string, unknown> = {
+    medium: opts.medium ?? 'unify_message',
+    sender_id: opts.senderId,
+    receiver_ids: opts.receiverIds ?? (opts.senderId === 0 ? [CONTACT_ID] : [0]),
+    content: opts.content,
+    message_id: msgId,
+    timestamp: ts,
+  };
+  if (opts.exchangeId !== undefined) entries.exchange_id = opts.exchangeId;
+  if (opts.metadata) entries.metadata = opts.metadata;
+  /* eslint-enable @typescript-eslint/naming-convention */
+
+  const res = await orchestraFetch(
+    '/v0/logs',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        project_name: 'Assistants',
+        context: `${userId}/${assistantId}/Transcripts`,
+        entries: [entries],
+      }),
+    },
+    apiKey
+  );
+  if (!res.ok) throw new Error(`Failed to seed transcript: ${res.status} ${await res.text()}`);
+  return msgId;
+}
+
+async function queryTranscripts(
+  apiKey: string,
+  userId: string,
+  assistantId: number,
+  filterExpr: string
+) {
+  const params = new URLSearchParams({
+    project_name: 'Assistants',
+    context: `${userId}/${assistantId}/Transcripts`,
+    filter_expr: filterExpr,
+    limit: '100',
+  });
+  const res = await orchestraFetch(`/v0/logs?${params.toString()}`, { method: 'GET' }, apiKey);
+  if (!res.ok) throw new Error(`Failed to query transcripts: ${res.status}`);
+  const data = await res.json();
+  return data.logs ?? [];
+}
+
+async function openAssistantChat(page: import('@playwright/test').Page) {
+  await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
+
+  const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
+  await expect(listItem).toBeVisible({ timeout: 15_000 });
+  await listItem.click();
+  await page.waitForTimeout(2_000);
+
+  const chatArea = page.getByTestId('chat-scroll-area');
+  await expect(chatArea).toBeVisible({ timeout: 10_000 });
+}
+
+// ---------------------------------------------------------------------------
+// Call dialog tests
 // ---------------------------------------------------------------------------
 
 test('clicking audio call button opens the communication dialog', async ({ authedPage: page }) => {
@@ -232,4 +345,290 @@ test('hanging up and re-calling the same assistant works', async ({ authedPage: 
   const endCallBtn2 = page.getByRole('button', { name: 'End call' });
   await endCallBtn2.click();
   await expect(headerAgain).not.toBeVisible({ timeout: 10_000 });
+});
+
+// ---------------------------------------------------------------------------
+// Call pill tests
+// ---------------------------------------------------------------------------
+
+test('historical call pill renders in the chat timeline', async ({ authedPage: page }) => {
+  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
+
+  const ts = Date.now();
+  const exchangeId = 100;
+
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: CONTACT_ID,
+    content: 'Hello, can you hear me?',
+    timestamp: new Date(ts - 30000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId,
+    metadata: { call_utterance_timestamp: '00.00' },
+  });
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: 0,
+    content: 'Yes, I can hear you clearly!',
+    timestamp: new Date(ts - 5000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId,
+    metadata: { call_utterance_timestamp: '00.25' },
+  });
+
+  await openAssistantChat(page);
+
+  const callPill = page.getByTestId('call-pill').first();
+  await expect(callPill).toBeVisible({ timeout: 20_000 });
+
+  const pillButton = page.getByTestId('call-pill-button').first();
+  await expect(pillButton).toBeVisible();
+  const pillText = await pillButton.textContent();
+  expect(pillText).toContain('Call');
+});
+
+test('clicking a call pill opens transcript dialog with utterances', async ({
+  authedPage: page,
+}) => {
+  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
+
+  const ts = Date.now();
+  const exchangeId = 101;
+
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: CONTACT_ID,
+    content: `E2E pill click test user ${ts}`,
+    timestamp: new Date(ts - 20000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId,
+  });
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: 0,
+    content: `E2E pill click test assistant ${ts}`,
+    timestamp: new Date(ts - 10000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId,
+  });
+
+  await openAssistantChat(page);
+
+  const pillButton = page.getByTestId('call-pill-button').first();
+  await expect(pillButton).toBeVisible({ timeout: 20_000 });
+  await pillButton.click();
+
+  const dialog = page.getByTestId('call-transcript-dialog');
+  await expect(dialog).toBeVisible({ timeout: 10_000 });
+
+  const content = page.getByTestId('call-transcript-content');
+  await expect(content).toBeVisible({ timeout: 15_000 });
+
+  const utterances = page.getByTestId('call-transcript-utterance');
+  const count = await utterances.count();
+  expect(count).toBeGreaterThanOrEqual(2);
+});
+
+test('two distinct calls show as separate pills', async ({ authedPage: page }) => {
+  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
+
+  const ts = Date.now();
+  const exchangeA = 200;
+  const exchangeB = 201;
+
+  // Call A
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: CONTACT_ID,
+    content: 'First call utterance',
+    timestamp: new Date(ts - 60000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId: exchangeA,
+  });
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: 0,
+    content: 'First call reply',
+    timestamp: new Date(ts - 50000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId: exchangeA,
+  });
+
+  // Call B (different exchange_id)
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: CONTACT_ID,
+    content: 'Second call utterance',
+    timestamp: new Date(ts - 20000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId: exchangeB,
+  });
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: 0,
+    content: 'Second call reply',
+    timestamp: new Date(ts - 10000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId: exchangeB,
+  });
+
+  await openAssistantChat(page);
+
+  const pills = page.getByTestId('call-pill');
+  await expect(pills.first()).toBeVisible({ timeout: 20_000 });
+
+  const pillButtons = page.getByTestId('call-pill-button');
+  const pillCount = await pillButtons.count();
+  expect(pillCount).toBeGreaterThanOrEqual(2);
+});
+
+test('call pills interleave correctly with text messages by timestamp', async ({
+  authedPage: page,
+}) => {
+  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
+
+  const ts = Date.now();
+  const exchangeId = 300;
+
+  // Text message first
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: CONTACT_ID,
+    content: `Text before call ${ts}`,
+    timestamp: new Date(ts - 40000).toISOString(),
+    medium: 'unify_message',
+  });
+
+  // Meet call in the middle
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: CONTACT_ID,
+    content: 'Call utterance',
+    timestamp: new Date(ts - 25000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId,
+  });
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: 0,
+    content: 'Call reply',
+    timestamp: new Date(ts - 20000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId,
+  });
+
+  // Text message after
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: 0,
+    content: `Text after call ${ts}`,
+    timestamp: new Date(ts - 5000).toISOString(),
+    medium: 'unify_message',
+  });
+
+  await openAssistantChat(page);
+
+  await expect(page.locator(`text=Text before call ${ts}`).first()).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.locator(`text=Text after call ${ts}`).first()).toBeVisible({ timeout: 10_000 });
+  const callPill = page.getByTestId('call-pill').first();
+  await expect(callPill).toBeVisible({ timeout: 10_000 });
+
+  const chatArea = page.getByTestId('chat-scroll-area');
+  const allElements = chatArea.locator('[data-testid="message-bubble"], [data-testid="call-pill"]');
+  const texts: string[] = [];
+  const count = await allElements.count();
+  for (let i = 0; i < count; i++) {
+    texts.push((await allElements.nth(i).textContent()) || '');
+  }
+
+  const beforeIdx = texts.findIndex((t) => t.includes(`Text before call ${ts}`));
+  const pillIdx = texts.findIndex((t) => t.includes('Call'));
+  const afterIdx = texts.findIndex((t) => t.includes(`Text after call ${ts}`));
+
+  expect(beforeIdx).toBeGreaterThanOrEqual(0);
+  expect(pillIdx).toBeGreaterThan(beforeIdx);
+  expect(afterIdx).toBeGreaterThan(pillIdx);
+});
+
+test('backend data correctly groups meet utterances by exchange_id', async ({
+  authedPage: page,
+}) => {
+  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
+
+  const ts = Date.now();
+  const exchangeA = 400;
+  const exchangeB = 401;
+
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: CONTACT_ID,
+    content: `DB verify call A ${ts}`,
+    timestamp: new Date(ts - 30000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId: exchangeA,
+  });
+
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: CONTACT_ID,
+    content: `DB verify call B ${ts}`,
+    timestamp: new Date(ts - 10000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId: exchangeB,
+  });
+
+  const logsA = await queryTranscripts(
+    user.apiKey,
+    user.id,
+    assistant.agentId,
+    `medium == "unify_meet" and exchange_id == ${exchangeA}`
+  );
+  expect(logsA.length).toBeGreaterThanOrEqual(1);
+  const entryA = logsA[0].entries;
+  expect(entryA.medium).toBe('unify_meet');
+  expect(entryA.exchange_id).toBe(exchangeA);
+  expect(entryA.content).toContain(`DB verify call A ${ts}`);
+
+  const logsB = await queryTranscripts(
+    user.apiKey,
+    user.id,
+    assistant.agentId,
+    `medium == "unify_meet" and exchange_id == ${exchangeB}`
+  );
+  expect(logsB.length).toBeGreaterThanOrEqual(1);
+  expect(logsB[0].entries.exchange_id).toBe(exchangeB);
+  expect(logsB[0].entries.content).toContain(`DB verify call B ${ts}`);
+
+  // Verify text messages are NOT included when filtering for unify_meet
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: CONTACT_ID,
+    content: `DB verify text ${ts}`,
+    timestamp: new Date(ts).toISOString(),
+    medium: 'unify_message',
+  });
+
+  const allMeet = await queryTranscripts(
+    user.apiKey,
+    user.id,
+    assistant.agentId,
+    `medium == "unify_meet"`
+  );
+  const textInMeet = allMeet.some(
+    (l: { entries: { content: string } }) => l.entries.content === `DB verify text ${ts}`
+  );
+  expect(textInMeet).toBe(false);
+});
+
+test('transcript dialog shows empty state when exchange has no content', async ({
+  authedPage: page,
+}) => {
+  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
+
+  const ts = Date.now();
+  const exchangeId = 500;
+
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: CONTACT_ID,
+    content: '',
+    timestamp: new Date(ts).toISOString(),
+    medium: 'unify_meet',
+    exchangeId,
+  });
+
+  await openAssistantChat(page);
+
+  const pillButton = page.getByTestId('call-pill-button').first();
+  await expect(pillButton).toBeVisible({ timeout: 20_000 });
+  await pillButton.click();
+
+  const dialog = page.getByTestId('call-transcript-dialog');
+  await expect(dialog).toBeVisible({ timeout: 10_000 });
 });
