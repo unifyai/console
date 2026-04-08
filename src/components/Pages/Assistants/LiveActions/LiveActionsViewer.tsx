@@ -42,9 +42,16 @@ export interface LiveActionsViewerProps {
   actions: AssistantActionActions | null;
   /** Additional class names */
   className?: string;
+  /** Notifies parent when hasActiveAction changes (for dashboard polling) */
+  onHasActiveActionChange?: (active: boolean) => void;
 }
 
-export function LiveActionsViewer({ assistant, actions, className }: LiveActionsViewerProps) {
+export function LiveActionsViewer({
+  assistant,
+  actions,
+  className,
+  onHasActiveActionChange,
+}: LiveActionsViewerProps) {
   // ==========================================================================
   // State
   // ==========================================================================
@@ -123,6 +130,10 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
       initialLookbackMs: lookbackMs,
     }
   );
+
+  React.useEffect(() => {
+    onHasActiveActionChange?.(hasActiveAction);
+  }, [hasActiveAction, onHasActiveActionChange]);
 
   // Track loading more state separately for UI
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);

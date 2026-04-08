@@ -63,6 +63,7 @@ import {
   getToolLoopEvents,
   backfillByCallingIds,
 } from '@/lib/assistants/action';
+import { getDashboardMetadata, getDashboardTileContent } from '@/lib/assistants/dashboard';
 import { cookies } from 'next/headers';
 
 const AssistantsPage = async ({
@@ -164,6 +165,11 @@ const AssistantsPage = async ({
       getManagerMethodEvents: await getManagerMethodEvents(apiKey),
       getToolLoopEvents: await getToolLoopEvents(apiKey),
       backfillByCallingIds: await backfillByCallingIds(apiKey),
+    },
+    // Dashboards pane - dashboard and tile data
+    dashboards: {
+      getMetadata: await getDashboardMetadata(apiKey),
+      getTileContent: await getDashboardTileContent(apiKey),
     },
   };
 

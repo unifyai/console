@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
-import { LiveActionsViewer } from '@/components/Pages/Assistants/LiveActions';
+import { RightPaneContainer } from '@/components/Pages/Assistants/RightPaneContainer';
 import {
   Assistant,
   AssistantActions,
@@ -947,11 +947,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             ]}
         </AnimatePresence>
 
-        {/* Live Actions Viewer */}
+        {/* Right Pane: Actions + Dashboards */}
         <div className="relative h-full min-w-0 flex-1 overflow-hidden bg-background">
-          <LiveActionsViewer
+          <RightPaneContainer
             assistant={profileAssistant}
             actions={assistantActions.actions || null}
+            dashboardActions={assistantActions.dashboards || null}
           />
         </div>
       </div>
