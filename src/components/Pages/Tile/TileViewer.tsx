@@ -19,6 +19,8 @@ interface TileViewerProps {
   title: string;
   htmlContent: string;
   hasDataBindings: boolean;
+  dataBindingsJson?: string | null;
+  onDataScript?: string | null;
   embed?: boolean;
 }
 
@@ -26,23 +28,41 @@ const BRIDGE_SCRIPT = `
 <script>
 (function() {
   var pending = {};
+  var ready = false;
+  var queued = [];
+
+  function _flush() {
+    ready = true;
+    var q = queued.splice(0);
+    for (var i = 0; i < q.length; i++) parent.postMessage(q[i], '*');
+  }
+
+  function _send(msg) {
+    if (ready) { parent.postMessage(msg, '*'); }
+    else { queued.push(msg); }
+  }
+
   function _bridge(operation, opts) {
     return new Promise(function(resolve, reject) {
       var id = Math.random().toString(36).substr(2, 12);
       pending[id] = { resolve: resolve, reject: reject };
       var msg = { type: 'unify-data-request', id: id, operation: operation };
       for (var k in opts) { if (opts.hasOwnProperty(k)) msg[k] = opts[k]; }
-      parent.postMessage(msg, '*');
+      _send(msg);
     });
   }
+
   window.UnifyData = {
     filter: function(opts)     { return _bridge('filter', opts); },
     reduce: function(opts)     { return _bridge('reduce', opts); },
     join: function(opts)       { return _bridge('join', opts); },
     joinReduce: function(opts) { return _bridge('join_reduce', opts); }
   };
+
   window.addEventListener('message', function(event) {
-    if (event.data && event.data.type === 'unify-data-response') {
+    if (!event.data) return;
+    if (event.data.type === 'unify-bridge-ready') { _flush(); return; }
+    if (event.data.type === 'unify-data-response') {
       var handler = pending[event.data.id];
       if (handler) {
         delete pending[event.data.id];
@@ -54,6 +74,8 @@ const BRIDGE_SCRIPT = `
       }
     }
   });
+
+  parent.postMessage({ type: 'unify-bridge-init' }, '*');
 })();
 </script>
 `;
@@ -71,6 +93,51 @@ function injectBridge(html: string): string {
     }
   }
   return BRIDGE_SCRIPT + html;
+}
+
+const OPERATION_METHOD: Record<string, string> = {
+  filter: 'filter',
+  reduce: 'reduce',
+  join: 'join',
+  ['join_reduce' as const]: 'joinReduce',
+};
+
+/**
+ * Build a self-executing `<script>` that calls UnifyData for each binding,
+ * collects results into `{ alias: data }`, and runs the on_data callback.
+ */
+function buildAutoExecScript(bindingsJson: string, onDataScript: string): string {
+  const bindings: Array<Record<string, unknown>> = JSON.parse(bindingsJson);
+  const calls = bindings.map((b) => {
+    const method = OPERATION_METHOD[b.operation as string] || 'filter';
+    const alias = b.alias as string;
+    const params = { ...b };
+    delete params.operation;
+    delete params.alias;
+    return `  promises.push(window.UnifyData.${method}(${JSON.stringify(params)}).then(function(r){ results[${JSON.stringify(alias)}] = r; }));`;
+  });
+
+  return `
+<script>
+(function() {
+  var results = {};
+  var promises = [];
+${calls.join('\n')}
+  Promise.all(promises).then(function() {
+    (function(data) { ${onDataScript} })(results);
+  }).catch(function(err) { console.error('[UnifyData auto-exec]', err); });
+})();
+</script>`;
+}
+
+function injectAutoExec(html: string, bindingsJson: string, onDataScript: string): string {
+  const bridgeHtml = injectBridge(html);
+  const autoScript = buildAutoExecScript(bindingsJson, onDataScript);
+  const bodyClose = bridgeHtml.lastIndexOf('</body>');
+  if (bodyClose !== -1) {
+    return bridgeHtml.slice(0, bodyClose) + autoScript + bridgeHtml.slice(bodyClose);
+  }
+  return bridgeHtml + autoScript;
 }
 
 /**
@@ -142,7 +209,15 @@ function buildProxyBody(
 const BRIDGE_FETCH_MS = 30_000;
 const IFRAME_LOAD_FALLBACK_MS = 100_000;
 
-export function TileViewer({ token, title, htmlContent, hasDataBindings, embed }: TileViewerProps) {
+export function TileViewer({
+  token,
+  title,
+  htmlContent,
+  hasDataBindings,
+  dataBindingsJson,
+  onDataScript,
+  embed,
+}: TileViewerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -152,10 +227,21 @@ export function TileViewer({ token, title, htmlContent, hasDataBindings, embed }
     return () => window.clearTimeout(t);
   }, [htmlContent, hasDataBindings]);
 
+  const sendBridgeReady = useCallback(() => {
+    iframeRef.current?.contentWindow?.postMessage({ type: 'unify-bridge-ready' }, '*');
+  }, []);
+
   const handleMessage = useCallback(
     async (event: MessageEvent) => {
-      if (event.data?.type !== 'unify-data-request') return;
+      if (!event.data?.type) return;
       if (iframeRef.current && event.source !== iframeRef.current.contentWindow) return;
+
+      if (event.data.type === 'unify-bridge-init') {
+        sendBridgeReady();
+        return;
+      }
+
+      if (event.data.type !== 'unify-data-request') return;
 
       const { id, operation, ...payload } = event.data as {
         id: string;
@@ -210,18 +296,27 @@ export function TileViewer({ token, title, htmlContent, hasDataBindings, embed }
         window.clearTimeout(to);
       }
     },
-    [token]
+    [token, sendBridgeReady]
   );
 
   useEffect(() => {
     if (!hasDataBindings) return;
     window.addEventListener('message', handleMessage);
+    sendBridgeReady();
     return () => window.removeEventListener('message', handleMessage);
-  }, [hasDataBindings, handleMessage]);
+  }, [hasDataBindings, handleMessage, sendBridgeReady]);
 
   const handleIframeLoad = useCallback(() => setIsLoading(false), []);
 
-  const processedHtml = hasDataBindings ? injectBridge(htmlContent) : htmlContent;
+  const processedHtml = (() => {
+    if (dataBindingsJson && onDataScript) {
+      return injectAutoExec(htmlContent, dataBindingsJson, onDataScript);
+    }
+    if (hasDataBindings) {
+      return injectBridge(htmlContent);
+    }
+    return htmlContent;
+  })();
 
   if (embed) {
     return (

@@ -20,6 +20,8 @@ export interface TileData {
   htmlContent: string;
   hasDataBindings: boolean;
   dataBindingContexts: string | null;
+  dataBindingsJson: string | null;
+  onDataScript: string | null;
   description: string | null;
 }
 
@@ -159,6 +161,8 @@ export async function fetchTileData(token: string): Promise<FetchTileDataResult>
         htmlContent: (record.htmlContent as string) || '',
         hasDataBindings: (record.hasDataBindings as boolean) || false,
         dataBindingContexts: (record.dataBindingContexts as string) || null,
+        dataBindingsJson: (record.dataBindingsJson as string) || null,
+        onDataScript: (record.onDataScript as string) || null,
         description: (record.description as string) || null,
       },
     };

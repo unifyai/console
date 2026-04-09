@@ -119,6 +119,8 @@ export default async function TileViewPage({ params, searchParams }: PageProps) 
         title={data.title}
         htmlContent={data.htmlContent}
         hasDataBindings={data.hasDataBindings}
+        dataBindingsJson={data.dataBindingsJson}
+        onDataScript={data.onDataScript}
         embed={embed}
       />
     </main>
