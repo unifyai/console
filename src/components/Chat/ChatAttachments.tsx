@@ -120,7 +120,7 @@ export function AttachmentChip({
     <Badge
       variant="secondary"
       className={cn(
-        'text-body border-border/60 group flex items-center gap-1.5 border bg-transparent px-2.5 py-1',
+        'text-body border-border/60 group flex items-center gap-1.5 border bg-transparent px-2.5 py-1 text-foreground',
         isClickable && 'hover:bg-muted/50 cursor-pointer',
         status === 'error' && 'border-destructive/40',
         tooLarge && 'bg-destructive/10 border-destructive',
@@ -259,7 +259,7 @@ export function PendingAttachmentList({
           <Badge
             variant="secondary"
             className={cn(
-              'text-body hover:bg-muted/50 flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1',
+              'text-body hover:bg-muted/50 flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 text-foreground',
               hiddenHasWarning ? 'bg-destructive/10 border-destructive' : 'border-border/60'
             )}
             onClick={() => setExpanded((prev) => !prev)}
@@ -396,7 +396,7 @@ export function MessageAttachmentList({
             <Badge
               variant="secondary"
               className={cn(
-                'text-body hover:bg-muted/50 flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1',
+                'text-body hover:bg-muted/50 flex cursor-pointer items-center gap-1 border bg-transparent px-2.5 py-1 text-foreground',
                 hiddenHasWarning ? 'bg-destructive/10 border-destructive' : 'border-border/60'
               )}
               onClick={() => setExpanded((prev) => !prev)}

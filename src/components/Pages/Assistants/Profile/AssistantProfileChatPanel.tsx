@@ -34,8 +34,12 @@ import {
   isSameDay,
   CallPillBubble,
   CallTranscriptDialog,
+  ChatSearchDialog,
+  OlderMessagesBanner,
 } from '@/components/Chat';
 import { useCallPills } from '@/hooks/Assistants/useCallPills';
+import { useChatSearch } from '@/hooks/Assistants/useChatSearch';
+import { useHistoricalView } from '@/hooks/Assistants/useHistoricalView';
 import {
   validateFileType,
   isOversized,
@@ -75,6 +79,9 @@ interface AssistantProfileChatPanelProps {
   onAssistantReply?: (assistantId: string) => void;
   /** Whether this assistant's call is currently connected */
   isCallConnected?: boolean;
+  /** Externally controlled search dialog open state */
+  searchOpen?: boolean;
+  onSearchOpenChange?: (open: boolean) => void;
 }
 
 const IS_LOCAL_DEV = typeof window !== 'undefined' && window.location.hostname === 'localhost';
@@ -94,6 +101,8 @@ export function AssistantProfileChatPanel({
   spendingGate = DEFAULT_SPENDING_GATE_STATUS,
   onAssistantReply,
   isCallConnected = false,
+  searchOpen: externalSearchOpen,
+  onSearchOpenChange,
 }: AssistantProfileChatPanelProps) {
   const displayName = `${assistant.firstName} ${assistant.surname}`;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
@@ -155,6 +164,68 @@ export function AssistantProfileChatPanel({
     callPillHistories,
     setCallPillHistories,
   });
+
+  // Chat search
+  const searchState = useChatSearch({
+    ownerId: assistant.userId,
+    assistantId: assistant.agentId,
+    contactId: currentContactId,
+  });
+
+  // Historical view (jump-to-message)
+  const {
+    historicalView,
+    isHistoricalMode,
+    navigateToMessage,
+    jumpToPresent,
+    loadOlderHistorical,
+    loadNewerHistorical,
+  } = useHistoricalView({
+    ownerId: assistant.userId,
+    assistantId: assistant.agentId,
+    contactId: currentContactId,
+  });
+
+  const [internalSearchOpen, setInternalSearchOpen] = React.useState(false);
+  const searchDialogOpen = externalSearchOpen ?? internalSearchOpen;
+  const setSearchDialogOpen = React.useCallback(
+    (open: boolean) => {
+      setInternalSearchOpen(open);
+      onSearchOpenChange?.(open);
+    },
+    [onSearchOpenChange]
+  );
+
+  const handleGoToMessage = React.useCallback(
+    (result: import('@/types/assistants/chat').ChatSearchResult) => {
+      if (result.medium === 'unify_meet' && result.exchangeId != null) {
+        requestAnimationFrame(() => {
+          const el = scrollAreaRef.current?.querySelector<HTMLElement>(
+            `[data-exchange-id="${result.exchangeId}"]`
+          );
+          if (el) {
+            el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            el.classList.add('bg-muted');
+            setTimeout(() => el.classList.remove('bg-muted'), 2000);
+          }
+        });
+        return;
+      }
+      navigateToMessage(result);
+    },
+    [navigateToMessage]
+  );
+
+  const handleJumpToPresent = React.useCallback(() => {
+    jumpToPresent();
+    // Scroll to bottom after React renders present messages
+    requestAnimationFrame(() => {
+      const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>(
+        '[data-radix-scroll-area-viewport]'
+      );
+      if (viewport) viewport.scrollTop = viewport.scrollHeight;
+    });
+  }, [jumpToPresent]);
 
   const sseBlocked = connectionStatus === 'error' && !IS_LOCAL_DEV;
 
@@ -299,6 +370,27 @@ export function AssistantProfileChatPanel({
       const { scrollTop, scrollHeight, clientHeight } = viewport;
       isAtBottomRef.current = scrollHeight - scrollTop - clientHeight <= 20;
 
+      if (isHistoricalMode) {
+        if (scrollTop < 10 && historicalView?.hasOlder && !historicalView.isLoadingOlder) {
+          preserveScrollRef.current = scrollHeight;
+          loadOlderHistorical();
+        }
+        const atBottom = scrollHeight - scrollTop - clientHeight < 10;
+        if (atBottom && historicalView?.hasNewer && !historicalView.isLoadingNewer) {
+          loadNewerHistorical();
+        }
+        if (
+          atBottom &&
+          !historicalView?.hasNewer &&
+          !historicalView?.isLoadingNewer &&
+          !historicalView?.isLoadingOlder &&
+          (historicalView?.messages.length ?? 0) > 0
+        ) {
+          handleJumpToPresent();
+        }
+        return;
+      }
+
       if (
         scrollTop < 10 &&
         hasMoreMessages &&
@@ -320,6 +412,11 @@ export function AssistantProfileChatPanel({
     loadMoreMessages,
     loadMoreError,
     initialLoadError,
+    isHistoricalMode,
+    historicalView,
+    loadOlderHistorical,
+    loadNewerHistorical,
+    handleJumpToPresent,
   ]);
 
   /* Scroll position preservation when loading older messages */
@@ -349,9 +446,14 @@ export function AssistantProfileChatPanel({
     const prevScrollHeight = prevScrollHeightRef.current;
     const { scrollTop, scrollHeight, clientHeight } = viewport;
 
-    const wasBottom =
-      prevScrollHeight === null || prevScrollHeight - scrollTop - clientHeight <= 20;
-    isAtBottomRef.current = wasBottom;
+    // Use *current* scrollHeight to decide if we're at the bottom, not the
+    // stale prevScrollHeight. After the useLayoutEffect preserves scroll
+    // position for "load older", scrollTop has already been adjusted, so
+    // comparing with prevScrollHeight gives a false-positive "was at bottom"
+    // when the first batch of older messages roughly doubles content height.
+    const isBottom = scrollHeight - scrollTop - clientHeight <= 20;
+    const wasBottom = prevScrollHeight === null || isBottom;
+    isAtBottomRef.current = isBottom;
 
     if (scrollHeight !== prevScrollHeight && wasBottom && !isLoadingMore) {
       viewport.scrollTop = scrollHeight;
@@ -366,6 +468,29 @@ export function AssistantProfileChatPanel({
 
     prevScrollHeightRef.current = scrollHeight;
   }, [messages, isAssistantReplying, isLoadingMore]);
+
+  /* Scroll to anchor message when historical view loads */
+  const prevAnchorRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    if (!historicalView) {
+      prevAnchorRef.current = null;
+      return;
+    }
+    if (historicalView.messages.length === 0) return;
+    if (prevAnchorRef.current === historicalView.anchorMessageId) return;
+    prevAnchorRef.current = historicalView.anchorMessageId;
+
+    requestAnimationFrame(() => {
+      const el = scrollAreaRef.current?.querySelector(
+        `[data-message-id="${historicalView.anchorMessageId}"]`
+      );
+      if (el) {
+        el.scrollIntoView({ block: 'center' });
+        el.classList.add('bg-muted');
+        setTimeout(() => el.classList.remove('bg-muted'), 2000);
+      }
+    });
+  }, [historicalView]);
 
   /* Maintain bottom stickiness on viewport resize (e.g. window resize causing
    * text reflow or container height change). */
@@ -460,103 +585,176 @@ export function AssistantProfileChatPanel({
           <ChatMessageSkeletons />
         ) : (
           <div className="mx-auto min-w-0 max-w-[720px] space-y-6">
-            {hasFetchedHistory && !hasMoreMessages && (
-              <div className="text-caption animate-fade-in w-full py-1 text-center text-muted-foreground">
-                No more messages
-              </div>
-            )}
-            {isLoadingMore && (
-              <div className="text-caption flex w-full flex-row justify-center gap-2 py-1 text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Loading messages
-              </div>
-            )}
-            {loadMoreError && (
-              <div className="animate-fade-in flex w-full flex-col items-center gap-2 py-1">
-                <Button
-                  role="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>(
-                      '[data-radix-scroll-area-viewport]'
+            {isHistoricalMode ? (
+              <>
+                {historicalView?.isLoadingOlder && <ChatMessageSkeletons />}
+                {!historicalView?.hasOlder &&
+                  !historicalView?.isLoadingOlder &&
+                  historicalView &&
+                  historicalView.messages.length > 0 && (
+                    <div className="text-caption animate-fade-in w-full py-1 text-center text-muted-foreground">
+                      No more messages
+                    </div>
+                  )}
+                {historicalView?.messages.length === 0 && historicalView?.isLoadingOlder && (
+                  <ChatMessageSkeletons />
+                )}
+                {(() => {
+                  if (!historicalView) return null;
+                  const timeline: TimelineItem[] = [
+                    ...historicalView.messages,
+                    ...historicalView.callPills,
+                  ].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+                  return timeline.map((item, i, arr) => {
+                    const prevItem = arr[i - 1];
+                    const showDivider =
+                      !prevItem || !isSameDay(prevItem.timestamp, item.timestamp, userTimezone);
+
+                    if (isCallPill(item)) {
+                      return (
+                        <React.Fragment key={item.id}>
+                          {showDivider && (
+                            <ChatDateDivider date={item.timestamp} timezone={userTimezone} />
+                          )}
+                          <CallPillBubble
+                            pill={item}
+                            timezone={userTimezone}
+                            onClick={openTranscript}
+                          />
+                        </React.Fragment>
+                      );
+                    }
+
+                    return (
+                      <React.Fragment key={item.id}>
+                        {showDivider && (
+                          <ChatDateDivider date={item.timestamp} timezone={userTimezone} />
+                        )}
+                        <div
+                          data-message-id={item.messageId}
+                          className="transition-colors duration-1000"
+                        >
+                          <ChatMessageBubble
+                            message={item.content}
+                            isUser={item.role === 'user'}
+                            assistantPhoto={photoSrc}
+                            assistantName={displayName}
+                            timestamp={item.timestamp}
+                            timezone={userTimezone}
+                            index={i}
+                            attachments={item.attachments}
+                          />
+                        </div>
+                      </React.Fragment>
                     );
-                    if (viewport) preserveScrollRef.current = viewport.scrollHeight;
-                    loadMoreMessages();
-                  }}
-                  className="text-caption h-3"
-                >
-                  Failed to load more. Retry
-                </Button>
-              </div>
-            )}
-            {(() => {
-              const baseMessages: ChatMessage[] = USE_MOCK_EMBEDS
-                ? [...messages, ...getMockEmbedMessages()]
-                : messages;
-              const timeline: TimelineItem[] = [...baseMessages, ...callPills].sort(
-                (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
-              );
-              return timeline.map((item, i, arr) => {
-                const prevItem = arr[i - 1];
-                const showDivider =
-                  !prevItem || !isSameDay(prevItem.timestamp, item.timestamp, userTimezone);
-
-                if (isCallPill(item)) {
-                  return (
-                    <React.Fragment key={item.id}>
-                      {showDivider && (
-                        <ChatDateDivider date={item.timestamp} timezone={userTimezone} />
-                      )}
-                      <CallPillBubble
-                        pill={item}
-                        timezone={userTimezone}
-                        onClick={openTranscript}
-                      />
-                    </React.Fragment>
+                  });
+                })()}
+                {historicalView?.isLoadingNewer && <ChatMessageSkeletons />}
+              </>
+            ) : (
+              <>
+                {hasFetchedHistory && !hasMoreMessages && (
+                  <div className="text-caption animate-fade-in w-full py-1 text-center text-muted-foreground">
+                    No more messages
+                  </div>
+                )}
+                {isLoadingMore && (
+                  <div className="text-caption flex w-full flex-row justify-center gap-2 py-1 text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading messages
+                  </div>
+                )}
+                {loadMoreError && (
+                  <div className="animate-fade-in flex w-full flex-col items-center gap-2 py-1">
+                    <Button
+                      role="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>(
+                          '[data-radix-scroll-area-viewport]'
+                        );
+                        if (viewport) preserveScrollRef.current = viewport.scrollHeight;
+                        loadMoreMessages();
+                      }}
+                      className="text-caption h-3"
+                    >
+                      Failed to load more. Retry
+                    </Button>
+                  </div>
+                )}
+                {(() => {
+                  const baseMessages: ChatMessage[] = USE_MOCK_EMBEDS
+                    ? [...messages, ...getMockEmbedMessages()]
+                    : messages;
+                  const timeline: TimelineItem[] = [...baseMessages, ...callPills].sort(
+                    (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
                   );
-                }
+                  return timeline.map((item, i, arr) => {
+                    const prevItem = arr[i - 1];
+                    const showDivider =
+                      !prevItem || !isSameDay(prevItem.timestamp, item.timestamp, userTimezone);
 
-                const msg = item;
-                return (
-                  <React.Fragment key={msg.id}>
-                    {showDivider && (
-                      <ChatDateDivider date={msg.timestamp} timezone={userTimezone} />
-                    )}
-                    <ChatMessageBubble
-                      message={msg.content}
-                      isUser={msg.role === 'user'}
-                      assistantPhoto={photoSrc}
-                      assistantName={displayName}
-                      timestamp={msg.timestamp}
-                      timezone={userTimezone}
-                      index={i}
-                      attachments={msg.attachments}
-                      {...(hasVoice && msg.role === 'assistant' && msg.content
-                        ? {
-                            onPlayAudio: () => playMessage(msg.id, msg.content),
-                            onStopAudio: stopPlayback,
-                            audioState: getAudioState(msg.id),
-                          }
-                        : {})}
-                    />
-                  </React.Fragment>
-                );
-              });
-            })()}
-            {isAssistantReplying && (
-              <ChatMessageBubble
-                message=""
-                isUser={false}
-                assistantPhoto={photoSrc}
-                assistantName={displayName}
-                isLoading={true}
-                index={messages.length}
-              />
+                    if (isCallPill(item)) {
+                      return (
+                        <React.Fragment key={item.id}>
+                          {showDivider && (
+                            <ChatDateDivider date={item.timestamp} timezone={userTimezone} />
+                          )}
+                          <CallPillBubble
+                            pill={item}
+                            timezone={userTimezone}
+                            onClick={openTranscript}
+                          />
+                        </React.Fragment>
+                      );
+                    }
+
+                    const msg = item;
+                    return (
+                      <React.Fragment key={msg.id}>
+                        {showDivider && (
+                          <ChatDateDivider date={msg.timestamp} timezone={userTimezone} />
+                        )}
+                        <ChatMessageBubble
+                          message={msg.content}
+                          isUser={msg.role === 'user'}
+                          assistantPhoto={photoSrc}
+                          assistantName={displayName}
+                          timestamp={msg.timestamp}
+                          timezone={userTimezone}
+                          index={i}
+                          attachments={msg.attachments}
+                          {...(hasVoice && msg.role === 'assistant' && msg.content
+                            ? {
+                                onPlayAudio: () => playMessage(msg.id, msg.content),
+                                onStopAudio: stopPlayback,
+                                audioState: getAudioState(msg.id),
+                              }
+                            : {})}
+                        />
+                      </React.Fragment>
+                    );
+                  });
+                })()}
+                {isAssistantReplying && (
+                  <ChatMessageBubble
+                    message=""
+                    isUser={false}
+                    assistantPhoto={photoSrc}
+                    assistantName={displayName}
+                    isLoading={true}
+                    index={messages.length}
+                  />
+                )}
+              </>
             )}
           </div>
         )}
       </ScrollArea>
+
+      {/* Historical view banner */}
+      {isHistoricalMode && <OlderMessagesBanner onJumpToPresent={handleJumpToPresent} />}
 
       {/* Connection error — only shown when all SSE retry attempts are
          exhausted (permanent failure). Transient connecting/reconnecting
@@ -758,6 +956,14 @@ export function AssistantProfileChatPanel({
         utterances={activeTranscript}
         loading={activeTranscriptLoading}
         assistantName={displayName}
+      />
+
+      <ChatSearchDialog
+        open={searchDialogOpen}
+        onOpenChange={setSearchDialogOpen}
+        searchState={searchState}
+        assistantName={displayName}
+        onGoToMessage={handleGoToMessage}
       />
     </div>
   );

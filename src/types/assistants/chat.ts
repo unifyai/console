@@ -126,6 +126,47 @@ export interface CallTranscriptUtterance {
   callUtteranceTimestamp?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Chat search
+// ---------------------------------------------------------------------------
+
+export type ChatSearchMedium = 'all' | 'chat' | 'call';
+export type ChatSearchSender = 'everyone' | 'assistant' | 'me';
+
+export interface ChatSearchFilters {
+  query: string;
+  medium: ChatSearchMedium;
+  sender: ChatSearchSender;
+  attachmentType: AttachmentType | null;
+  startDate: Date | null;
+  endDate: Date | null;
+}
+
+export interface ChatSearchResult {
+  id: string;
+  role: 'assistant' | 'user';
+  content: string;
+  timestamp: Date;
+  messageId?: number;
+  medium: string;
+  exchangeId?: number;
+  attachments?: Attachment[];
+}
+
+// ---------------------------------------------------------------------------
+// Historical view (jump-to-message)
+// ---------------------------------------------------------------------------
+
+export interface HistoricalViewState {
+  anchorMessageId: number;
+  messages: ChatMessage[];
+  callPills: CallPill[];
+  hasOlder: boolean;
+  hasNewer: boolean;
+  isLoadingOlder: boolean;
+  isLoadingNewer: boolean;
+}
+
 export interface UnifyMessage {
   assistantId: number;
   contactId: number;

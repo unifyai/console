@@ -47,3 +47,7 @@ export { CameraCapture } from './CameraCapture';
 export { CallPillBubble } from './CallPill';
 
 export { CallTranscriptDialog } from './CallTranscriptDialog';
+
+export { ChatSearchDialog } from './ChatSearchDialog';
+
+export { OlderMessagesBanner } from './OlderMessagesBanner';

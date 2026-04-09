@@ -660,7 +660,7 @@ ensure_npm_deps() {
 # =============================================================================
 
 # Valid seed scenario names — must match SCENARIOS in src/tests/helpers/seeds/run.ts.
-VALID_SEED_SCENARIOS=(personal-workspace org-basic org-multi-role org-unify credit-grant-links billing-banner-states usage-ledger all)
+VALID_SEED_SCENARIOS=(personal-workspace org-basic org-multi-role org-unify credit-grant-links billing-banner-states usage-ledger chat-search all)
 
 validate_seed_scenario() {
   local scenario="$1"

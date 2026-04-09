@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
-import { Loader2, Phone, Video } from 'lucide-react';
+import { Loader2, Phone, Video, Search } from 'lucide-react';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 
@@ -71,6 +71,8 @@ export function AssistantProfilePanel({
               ? 'Start audio call'
               : 'Start video call';
 
+  const [searchOpen, setSearchOpen] = React.useState(false);
+
   if (!assistant) return null;
 
   return (
@@ -81,6 +83,25 @@ export function AssistantProfilePanel({
           {assistant.firstName} {assistant.surname}
         </span>
         <div className="flex items-center gap-0.5">
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setSearchOpen(true)}
+                  data-testid="chat-search-trigger"
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>Search conversation</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -145,6 +166,8 @@ export function AssistantProfilePanel({
           spendingGate={spendingGate}
           onAssistantReply={onAssistantReply}
           isCallConnected={isInThisCall && isCallConnected}
+          searchOpen={searchOpen}
+          onSearchOpenChange={setSearchOpen}
         />
       </div>
     </div>

@@ -73,3 +73,4 @@ export { seedOrgAndOutsider } from './scenarios/org-unify';
 export { seedCreditGrantLinks } from './scenarios/credit-grant-links';
 export { seedBillingBannerStates } from './scenarios/billing-banner-states';
 export { seedUsageLedger } from './scenarios/usage-ledger';
+export { seedChatSearch } from './scenarios/chat-search';
