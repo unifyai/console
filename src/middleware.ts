@@ -20,7 +20,12 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
   const { pathname, searchParams } = request.nextUrl;
 
   // Allow public access to shareable view pages (no auth required)
-  if (pathname.startsWith('/plot/view/') || pathname.startsWith('/table/view/')) {
+  if (
+    pathname.startsWith('/plot/view/') ||
+    pathname.startsWith('/table/view/') ||
+    pathname.startsWith('/tile/view/') ||
+    pathname.startsWith('/dashboard/view/')
+  ) {
     return NextResponse.next();
   }
 
