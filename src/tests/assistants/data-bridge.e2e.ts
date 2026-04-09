@@ -40,7 +40,10 @@ const bridgeAssistant = createAssistant({
 });
 
 // Token must be <=12 chars for Orchestra's RegisterTokenRequest
-const BRIDGE_TOKEN = `br${Date.now().toString(36).slice(-8)}`;
+const TS_SUFFIX = Date.now().toString(36).slice(-6);
+const BRIDGE_TOKEN = `br${TS_SUFFIX}aa`;
+const AUTOEXEC_TOKEN = `ax${TS_SUFFIX}bb`;
+const STATIC_TOKEN = `st${TS_SUFFIX}cc`;
 const TILE_CONTEXT = `${user.id}/${bridgeAssistant.agentId}/Dashboards/Tiles`;
 const TILE_TITLE = 'Bridge Test Tile';
 
@@ -54,46 +57,69 @@ const TILE_HTML = [
   '</body></html>',
 ].join('');
 
+const AUTOEXEC_HTML = [
+  '<!DOCTYPE html><html><head></head><body>',
+  '<div id="status">loading</div>',
+  '<div id="sales-result"></div>',
+  '<div id="total-result"></div>',
+  '</body></html>',
+].join('');
+
+const AUTOEXEC_BINDINGS = JSON.stringify([
+  { operation: 'filter', alias: 'sales', context: 'Data/Sales', columns: ['month', 'revenue'] },
+  {
+    operation: 'reduce',
+    alias: 'total',
+    context: 'Data/Sales',
+    metric: 'sum',
+    columns: ['revenue'],
+  },
+]);
+
+const AUTOEXEC_ON_DATA = [
+  'document.getElementById("sales-result").textContent = JSON.stringify(data.sales);',
+  'document.getElementById("total-result").textContent = JSON.stringify(data.total);',
+  'document.getElementById("status").textContent = "data-loaded";',
+].join('\n');
+
+const STATIC_HTML = [
+  '<!DOCTYPE html><html><head></head><body>',
+  '<div id="status">static-ready</div>',
+  '<div id="bridge-check"></div>',
+  '<script>',
+  'document.getElementById("bridge-check").textContent = window.UnifyData ? "has-bridge" : "no-bridge";',
+  '</script>',
+  '</body></html>',
+].join('');
+
 test.setTimeout(120_000);
 
 // ---------------------------------------------------------------------------
 // Seed helpers
 // ---------------------------------------------------------------------------
 
-async function seedTile() {
-  const res = await orchestraFetch(
+async function seedAndRegister(token: string, entries: Record<string, unknown>) {
+  const seedRes = await orchestraFetch(
     '/v0/logs',
     {
       method: 'POST',
       body: JSON.stringify({
         project_name: 'Assistants',
         context: TILE_CONTEXT,
-        entries: [
-          {
-            token: BRIDGE_TOKEN,
-            title: TILE_TITLE,
-            description: 'Tile for bridge e2e tests',
-            html_content: TILE_HTML,
-            has_data_bindings: true,
-            data_binding_contexts: null,
-            created_at: '2025-01-01T00:00:00Z',
-            updated_at: '2025-01-02T00:00:00Z',
-          },
-        ],
+        entries: [entries],
       }),
     },
     user.apiKey
   );
-  if (!res.ok) throw new Error(`Failed to seed tile: ${res.status} ${await res.text()}`);
-}
+  if (!seedRes.ok)
+    throw new Error(`Failed to seed tile ${token}: ${seedRes.status} ${await seedRes.text()}`);
 
-async function registerToken() {
-  const res = await orchestraFetch(
+  const regRes = await orchestraFetch(
     '/v0/dashboards/tokens',
     {
       method: 'POST',
       body: JSON.stringify({
-        token: BRIDGE_TOKEN,
+        token,
         entity_type: 'tile',
         context_name: TILE_CONTEXT,
         project_name: 'Assistants',
@@ -101,16 +127,50 @@ async function registerToken() {
     },
     user.apiKey
   );
-  if (!res.ok && res.status !== 409) {
-    throw new Error(`Failed to register token: ${res.status} ${await res.text()}`);
+  if (!regRes.ok && regRes.status !== 409) {
+    throw new Error(`Failed to register token ${token}: ${regRes.status} ${await regRes.text()}`);
   }
 }
 
 let seeded = false;
 async function ensureSeeded() {
   if (seeded) return;
-  await seedTile();
-  await registerToken();
+
+  await seedAndRegister(BRIDGE_TOKEN, {
+    token: BRIDGE_TOKEN,
+    title: TILE_TITLE,
+    description: 'Tile for bridge e2e tests',
+    html_content: TILE_HTML,
+    has_data_bindings: true,
+    data_binding_contexts: null,
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-02T00:00:00Z',
+  });
+
+  await seedAndRegister(AUTOEXEC_TOKEN, {
+    token: AUTOEXEC_TOKEN,
+    title: 'Auto-exec Test Tile',
+    description: 'Tile with data_bindings_json and on_data_script',
+    html_content: AUTOEXEC_HTML,
+    has_data_bindings: true,
+    data_binding_contexts: null,
+    data_bindings_json: AUTOEXEC_BINDINGS,
+    on_data_script: AUTOEXEC_ON_DATA,
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-02T00:00:00Z',
+  });
+
+  await seedAndRegister(STATIC_TOKEN, {
+    token: STATIC_TOKEN,
+    title: 'Static Test Tile',
+    description: 'Tile with no bindings',
+    html_content: STATIC_HTML,
+    has_data_bindings: false,
+    data_binding_contexts: null,
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-02T00:00:00Z',
+  });
+
   seeded = true;
 }
 
@@ -385,4 +445,137 @@ test('join-reduce proxy returns 400 when metric is missing', async ({ request })
   expect(res.status()).toBe(400);
   const body = await res.json();
   expect(body.error).toContain('metric');
+});
+
+// ===========================================================================
+// Auto-exec path — data_bindings_json + on_data_script
+// ===========================================================================
+
+test('auto-exec tile injects bridge and executes on_data with resolved bindings', async ({
+  page,
+}) => {
+  await ensureSeeded();
+
+  await page.route('**/api/dashboards/tiles/*/filter', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        { month: 'Jan', revenue: 100 },
+        { month: 'Feb', revenue: 200 },
+      ]),
+    });
+  });
+
+  await page.route('**/api/dashboards/tiles/*/reduce', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(300),
+    });
+  });
+
+  await page.goto(`/tile/view/${AUTOEXEC_TOKEN}`);
+  const iframe = page.frameLocator('iframe');
+
+  await expect(iframe.locator('#status')).toHaveText('data-loaded', { timeout: 15_000 });
+
+  const salesResult = await iframe.locator('#sales-result').textContent();
+  const parsedSales = JSON.parse(salesResult!);
+  expect(parsedSales).toEqual([
+    { month: 'Jan', revenue: 100 },
+    { month: 'Feb', revenue: 200 },
+  ]);
+
+  const totalResult = await iframe.locator('#total-result').textContent();
+  expect(JSON.parse(totalResult!)).toBe(300);
+});
+
+test('auto-exec tile sends correct params per binding (mixed filter + reduce)', async ({
+  page,
+}) => {
+  await ensureSeeded();
+
+  const filterCalls: Record<string, unknown>[] = [];
+  const reduceCalls: Record<string, unknown>[] = [];
+
+  await page.route('**/api/dashboards/tiles/*/filter', async (route) => {
+    filterCalls.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([]),
+    });
+  });
+
+  await page.route('**/api/dashboards/tiles/*/reduce', async (route) => {
+    reduceCalls.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(0),
+    });
+  });
+
+  await page.goto(`/tile/view/${AUTOEXEC_TOKEN}`);
+  const iframe = page.frameLocator('iframe');
+  await expect(iframe.locator('#status')).toHaveText('data-loaded', { timeout: 15_000 });
+
+  expect(filterCalls).toHaveLength(1);
+  expect(filterCalls[0].context).toBe('Data/Sales');
+  expect(filterCalls[0].columns).toEqual(['month', 'revenue']);
+
+  expect(reduceCalls).toHaveLength(1);
+  expect(reduceCalls[0].context).toBe('Data/Sales');
+  expect(reduceCalls[0].metric).toBe('sum');
+  expect(reduceCalls[0].columns).toEqual(['revenue']);
+});
+
+// ===========================================================================
+// Static tile — no bindings, no bridge injection
+// ===========================================================================
+
+test('static tile renders HTML as-is without bridge script', async ({ page }) => {
+  await ensureSeeded();
+
+  await page.goto(`/tile/view/${STATIC_TOKEN}`);
+  const iframe = page.frameLocator('iframe');
+
+  await expect(iframe.locator('#status')).toHaveText('static-ready', { timeout: 15_000 });
+  await expect(iframe.locator('#bridge-check')).toHaveText('no-bridge');
+});
+
+// ===========================================================================
+// Auto-exec error handling — one binding fails, on_data still runs
+// ===========================================================================
+
+test('auto-exec tile handles binding failure gracefully', async ({ page }) => {
+  await ensureSeeded();
+
+  await page.route('**/api/dashboards/tiles/*/filter', async (route) => {
+    await route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'DB connection failed' }),
+    });
+  });
+
+  await page.route('**/api/dashboards/tiles/*/reduce', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(42),
+    });
+  });
+
+  await page.goto(`/tile/view/${AUTOEXEC_TOKEN}`);
+  const iframe = page.frameLocator('iframe');
+
+  // Promise.all rejects when any binding fails, so on_data never runs
+  // and status stays "loading". The page should not crash.
+  await page.waitForTimeout(8_000);
+
+  const status = await iframe.locator('#status').textContent();
+  expect(status).not.toBe('data-loaded');
+  expect(status).toBe('loading');
 });
