@@ -6,6 +6,10 @@
  */
 
 import { snakeToCamelObject } from '@/utils/casing';
+import {
+  normalizeDashboardTilePositions,
+  parseDashboardLayout,
+} from '@/utils/assistants/parse-dashboard-layout';
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'http://localhost:8000';
 const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
@@ -145,13 +149,11 @@ export async function fetchDashboardData(token: string): Promise<FetchDashboardD
     }
 
     const record = { ...logs[0].entries, ...logs[0].derivedEntries } as Record<string, unknown>;
-    let tiles: TilePosition[] = [];
-    try {
-      const parsed = JSON.parse((record.layout as string) || '[]');
-      tiles = snakeToCamelObject<TilePosition[]>(parsed);
-    } catch {
-      tiles = [];
-    }
+    const layoutRaw = record.layout;
+    const tiles: TilePosition[] =
+      typeof layoutRaw === 'string'
+        ? parseDashboardLayout(layoutRaw)
+        : normalizeDashboardTilePositions(layoutRaw);
 
     return {
       success: true,

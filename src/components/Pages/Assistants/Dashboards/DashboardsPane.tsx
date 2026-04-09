@@ -20,14 +20,7 @@ import type {
   DashboardRecord,
   TileRecord,
 } from '@/types/assistants/dashboard';
-
-function parseLayout(layoutJson: string): DashboardTilePosition[] {
-  try {
-    return JSON.parse(layoutJson) as DashboardTilePosition[];
-  } catch {
-    return [];
-  }
-}
+import { parseDashboardLayout } from '@/utils/assistants/parse-dashboard-layout';
 
 interface DashboardsPaneProps {
   ownerId: string;
@@ -105,7 +98,7 @@ export function DashboardsPane({
   }, [activeKey, standaloneTiles]);
 
   const positions = useMemo<DashboardTilePosition[]>(
-    () => (activeDashboard ? parseLayout(activeDashboard.layout) : []),
+    () => (activeDashboard ? parseDashboardLayout(activeDashboard.layout) : []),
     [activeDashboard]
   );
 

@@ -6,6 +6,7 @@ import type {
   TileRecord,
   DashboardTilePosition,
 } from '@/types/assistants/dashboard';
+import { parseDashboardLayout } from '@/utils/assistants/parse-dashboard-layout';
 
 interface UseDashboardsOptions {
   ownerId: string;
@@ -34,14 +35,6 @@ interface UseDashboardsResult {
   getTileHtml: (token: string) => Promise<string | null>;
 }
 
-function parseLayout(layoutJson: string): DashboardTilePosition[] {
-  try {
-    return JSON.parse(layoutJson) as DashboardTilePosition[];
-  } catch {
-    return [];
-  }
-}
-
 export function useDashboards({
   ownerId,
   assistantId,
@@ -63,7 +56,7 @@ export function useDashboards({
     const claimedTokens = new Set<string>();
     for (const d of dashboards) {
       if (!d.layout) continue;
-      for (const pos of parseLayout(d.layout)) {
+      for (const pos of parseDashboardLayout(d.layout)) {
         claimedTokens.add(pos.tileToken);
       }
     }
@@ -90,6 +83,8 @@ export function useDashboards({
 
   const getTileHtml = React.useCallback(
     async (token: string): Promise<string | null> => {
+      if (!token || token === 'undefined') return null;
+
       const cached = htmlCacheRef.current.get(token);
       if (cached !== undefined) return cached;
 

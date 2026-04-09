@@ -93,6 +93,10 @@ export const getDashboardTileContent = async (apiKey: string) => {
   ): Promise<string | null> => {
     'use server';
 
+    if (!tileToken || tileToken === 'undefined') {
+      return null;
+    }
+
     try {
       const rows = await fetchContext(apiKey, `${ownerId}/${assistantId}/Dashboards/Tiles`, {
         fromFields: 'token&html_content',

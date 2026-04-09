@@ -5,6 +5,7 @@ import { ExternalLink, Download, LayoutGrid, Calendar, Loader2 } from 'lucide-re
 import { Button } from '@/components/UI/button';
 import { USE_MOCK_DASHBOARDS } from '@/utils/assistants/dashboard-mock-data';
 import type { DashboardRecord, DashboardTilePosition } from '@/types/assistants/dashboard';
+import { parseDashboardLayout } from '@/utils/assistants/parse-dashboard-layout';
 
 interface DashboardSummaryCardProps {
   dashboard: DashboardRecord;
@@ -12,14 +13,6 @@ interface DashboardSummaryCardProps {
   getTileHtml: (token: string) => Promise<string | null>;
   /** Rendered inside the card below the metadata/actions — typically the tile list */
   children?: React.ReactNode;
-}
-
-function parseLayout(layoutJson: string): DashboardTilePosition[] {
-  try {
-    return JSON.parse(layoutJson) as DashboardTilePosition[];
-  } catch {
-    return [];
-  }
 }
 
 function formatDate(iso: string | null | undefined): string | null {
@@ -117,7 +110,7 @@ export function DashboardSummaryCard({
   const [isDownloading, setIsDownloading] = useState(false);
   const [isOpeningTab, setIsOpeningTab] = useState(false);
 
-  const positions = parseLayout(dashboard.layout);
+  const positions = parseDashboardLayout(dashboard.layout);
   const tileCount = dashboard.tileCount || positions.length;
   const updatedLabel = formatDate(dashboard.updatedAt);
   const createdLabel = formatDate(dashboard.createdAt);
