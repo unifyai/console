@@ -502,24 +502,23 @@ function getNodeIcon(displayLabel?: string): LucideIcon {
 
 function getNodeTooltip(displayLabel?: string): string {
   if (!displayLabel) return 'event';
-  if (displayLabel === 'Session') return 'persistent session';
-  if (displayLabel === 'Taking Action') return 'action';
-  if (displayLabel === 'Running Code') return 'code execution';
-  if (displayLabel.startsWith('Running:')) return 'function execution';
-  if (displayLabel === 'Storing Reusable Skills') return 'skill storage';
-  if (displayLabel === 'Reading File') return 'file read';
-  if (displayLabel === 'Processing Memory Chunk') return 'memory processing';
-  if (displayLabel === 'Working on Task') return 'task';
-  if (displayLabel === 'Reorganizing Notes') return 'note reorganization';
-  if (displayLabel === 'Searching the Web') return 'web search';
-  if (displayLabel === 'Answering Question') return 'question answering';
-  if (displayLabel.includes('Contact')) return 'contact lookup';
-  if (displayLabel.includes('Notes') || displayLabel.includes('Knowledge')) return 'knowledge base';
-  if (displayLabel.includes('Credential') || displayLabel.includes('Secret'))
-    return 'credential access';
-  if (displayLabel.includes('Task')) return 'task management';
-  if (displayLabel.includes('Conversation') || displayLabel.includes('Transcript'))
-    return 'conversation';
+  const dl = displayLabel.toLowerCase();
+  if (dl === 'session') return 'persistent session';
+  if (dl === 'taking action') return 'action';
+  if (dl === 'running code') return 'code execution';
+  if (dl.startsWith('running:')) return 'function execution';
+  if (dl === 'storing reusable skills') return 'storage';
+  if (dl === 'reading file') return 'file read';
+  if (dl === 'processing memory chunk') return 'memory processing';
+  if (dl === 'working on task') return 'task';
+  if (dl === 'reorganizing notes') return 'note reorganization';
+  if (dl === 'searching the web') return 'web search';
+  if (dl === 'answering question') return 'question answering';
+  if (dl.includes('contact')) return 'contact lookup';
+  if (dl.includes('notes') || dl.includes('knowledge')) return 'knowledge base';
+  if (dl.includes('credential') || dl.includes('secret')) return 'credential access';
+  if (dl.includes('task')) return 'task management';
+  if (dl.includes('conversation') || dl.includes('transcript')) return 'conversation';
   return 'event';
 }
 
