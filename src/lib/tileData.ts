@@ -38,6 +38,7 @@ interface TokenResolution {
   userId: string;
   organizationId: number | null;
   projectId: number;
+  projectName: string;
 }
 
 interface AdminUserResponse {
@@ -122,6 +123,7 @@ export async function fetchTileData(token: string): Promise<FetchTileDataResult>
 
     // Step 3: Fetch tile record from Unify context
     const logsUrl = new URL(`${ORCHESTRA_URL}/v0/logs`);
+    logsUrl.searchParams.set('project_name', resolution.projectName);
     logsUrl.searchParams.set('context', resolution.contextName);
     logsUrl.searchParams.set('filter_expr', `token == '${token}'`);
     logsUrl.searchParams.set('limit', '1');

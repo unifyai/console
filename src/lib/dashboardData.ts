@@ -79,6 +79,7 @@ export async function fetchDashboardData(token: string): Promise<FetchDashboardD
       contextName: string;
       userId: string;
       organizationId: number | null;
+      projectName: string;
     }>(await resolveRes.json());
 
     // Step 2: Get creator's API key
@@ -117,6 +118,7 @@ export async function fetchDashboardData(token: string): Promise<FetchDashboardD
 
     // Step 3: Fetch dashboard record
     const logsUrl = new URL(`${ORCHESTRA_URL}/v0/logs`);
+    logsUrl.searchParams.set('project_name', resolution.projectName);
     logsUrl.searchParams.set('context', resolution.contextName);
     logsUrl.searchParams.set('filter_expr', `token == '${token}'`);
     logsUrl.searchParams.set('limit', '1');
