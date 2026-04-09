@@ -7,7 +7,7 @@
 
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   ExternalLink,
   Table2,
@@ -36,7 +36,15 @@ interface EmbedProps {
 interface ParsedEmbed {
   type: EmbedType;
   token: string;
+  /** Original URL substring from the message (may point at another host). */
   url: string;
+  /** Markdown link text from [label](url), when applicable. */
+  linkLabel?: string;
+}
+
+/** Same-origin path for opening the full view in a new tab (ignores embed.url host). */
+export function getEmbedViewPath(embed: Pick<ParsedEmbed, 'type' | 'token'>): string {
+  return `/${embed.type}/view/${embed.token}`;
 }
 
 // =============================================================================
@@ -96,8 +104,62 @@ const EMBED_META: Record<EmbedType, { icon: typeof Table2; label: string }> = {
   dashboard: { icon: LayoutDashboard, label: 'Interactive Dashboard' },
 };
 
+function useEmbedMeta(embed: ParsedEmbed): {
+  title: string | null;
+  description: string | null;
+  isLoading: boolean;
+} {
+  const [meta, setMeta] = useState<{ title: string | null; description: string | null }>({
+    title: null,
+    description: null,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    fetch(`/api/embed/${encodeURIComponent(embed.type)}/${encodeURIComponent(embed.token)}/meta`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { title?: string; description?: string } | null) => {
+        if (!cancelled && data) {
+          setMeta({ title: data.title ?? null, description: data.description ?? null });
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [embed.type, embed.token]);
+
+  return { ...meta, isLoading };
+}
+
+function CaptionSkeleton() {
+  return (
+    <div className="flex items-center">
+      <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+    </div>
+  );
+}
+
+function EmbedPreviewCaption({ embed }: { embed: ParsedEmbed }) {
+  const { title, isLoading } = useEmbedMeta(embed);
+
+  if (isLoading && !embed.linkLabel) {
+    return <CaptionSkeleton />;
+  }
+
+  const text = title ?? embed.linkLabel ?? embed.token;
+
+  return <div className="text-caption truncate text-muted-foreground">{text}</div>;
+}
+
 export function InlineEmbedPreview({ embed, onExpand, className }: InlineEmbedPreviewProps) {
   const { icon: Icon, label } = EMBED_META[embed.type];
+  const openHref = getEmbedViewPath(embed);
 
   return (
     <div
@@ -112,7 +174,7 @@ export function InlineEmbedPreview({ embed, onExpand, className }: InlineEmbedPr
 
       <div className="min-w-0 flex-1">
         <div className="font-medium text-foreground">{label}</div>
-        <div className="text-caption truncate">{embed.token}</div>
+        <EmbedPreviewCaption embed={embed} />
       </div>
 
       <div className="flex shrink-0 gap-1">
@@ -128,7 +190,7 @@ export function InlineEmbedPreview({ embed, onExpand, className }: InlineEmbedPr
           </Button>
         )}
         <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0" title="Open in new tab">
-          <a href={embed.url} target="_blank" rel="noopener noreferrer">
+          <a href={openHref} target="_blank" rel="noopener noreferrer">
             <ExternalLink className="h-4 w-4" />
           </a>
         </Button>
@@ -160,6 +222,7 @@ export function InlineEmbedExpanded({
 }: InlineEmbedExpandedProps) {
   const { icon: Icon, label } = EMBED_META[embed.type];
   const [isLoading, setIsLoading] = useState(true);
+  const { title: metaTitle, isLoading: titleLoading } = useEmbedMeta(embed);
 
   const handleIframeLoad = useCallback(() => setIsLoading(false), []);
 
@@ -171,6 +234,8 @@ export function InlineEmbedExpanded({
     () => `/${embed.type}/view/${embed.token}?embed=true`,
     [embed.type, embed.token]
   );
+
+  const openHref = getEmbedViewPath(embed);
 
   const iframeScale = embed.type === 'table' ? 0.92 : 1;
   const scaledHeight = Math.round(height / iframeScale);
@@ -185,13 +250,22 @@ export function InlineEmbedExpanded({
     >
       {/* Header */}
       <div className="bg-muted/30 flex items-center justify-between border-b border-border px-3 py-2">
-        <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-primary" />
-          <span className="text-title">{label}</span>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <Icon className="h-4 w-4 shrink-0 text-primary" />
+            <span className="text-title">{label}</span>
+          </div>
+          <span className="text-caption truncate pl-6 text-muted-foreground">
+            {titleLoading && !embed.linkLabel ? (
+              <span className="inline-block h-3 w-32 animate-pulse rounded bg-muted" />
+            ) : (
+              (metaTitle ?? embed.linkLabel ?? embed.token)
+            )}
+          </span>
         </div>
-        <div className="flex gap-1">
+        <div className="flex shrink-0 gap-1">
           <Button variant="ghost" size="sm" asChild className="h-7 w-7 p-0" title="Open in new tab">
-            <a href={embed.url} target="_blank" rel="noopener noreferrer">
+            <a href={openHref} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </Button>

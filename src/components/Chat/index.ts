@@ -5,6 +5,7 @@ export {
   RenderContentWithEmbeds,
   parseEmbedUrl,
   containsEmbedUrl,
+  getEmbedViewPath,
   type ParsedEmbed,
 } from './InlineEmbed';
 
