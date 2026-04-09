@@ -7,7 +7,7 @@
 
 'use client';
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
 import { Loader2 } from 'lucide-react';
 
@@ -38,6 +38,20 @@ const GRID_MARGIN: [number, number] = [12, 12];
 function TileFrame({ token }: { token: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const handleLoad = useCallback(() => setIsLoading(false), []);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const maxWait = window.setTimeout(() => setIsLoading(false), 100_000);
+    return () => window.clearTimeout(maxWait);
+  }, [token]);
+
+  if (!token || token === 'undefined') {
+    return (
+      <div className="bg-muted/30 text-body-muted flex h-full min-h-[120px] items-center justify-center rounded-lg border border-border px-2 text-center text-sm">
+        Invalid tile reference in layout
+      </div>
+    );
+  }
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg border border-border bg-background shadow-sm">

@@ -139,9 +139,18 @@ function buildProxyBody(
   };
 }
 
+const BRIDGE_FETCH_MS = 30_000;
+const IFRAME_LOAD_FALLBACK_MS = 100_000;
+
 export function TileViewer({ token, title, htmlContent, hasDataBindings, embed }: TileViewerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const t = window.setTimeout(() => setIsLoading(false), IFRAME_LOAD_FALLBACK_MS);
+    return () => window.clearTimeout(t);
+  }, [htmlContent, hasDataBindings]);
 
   const handleMessage = useCallback(
     async (event: MessageEvent) => {
@@ -167,11 +176,14 @@ export function TileViewer({ token, title, htmlContent, hasDataBindings, embed }
       const url = `/api/dashboards/tiles/${token}/${routeSegment[op]}`;
       const body = buildProxyBody(op, payload);
 
+      const ac = new AbortController();
+      const to = window.setTimeout(() => ac.abort(), BRIDGE_FETCH_MS);
       try {
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
+          signal: ac.signal,
         });
 
         const responseData = await res.json();
@@ -194,6 +206,8 @@ export function TileViewer({ token, title, htmlContent, hasDataBindings, embed }
           },
           '*'
         );
+      } finally {
+        window.clearTimeout(to);
       }
     },
     [token]
