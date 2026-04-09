@@ -24,7 +24,8 @@ import type { DashboardRecord, TileRecord } from '@/types/assistants/dashboard';
 
 interface DashboardsPaneHeaderProps {
   dashboards: DashboardRecord[];
-  standaloneTiles: TileRecord[];
+  /** All assistant tiles (searchable); not limited to tiles outside dashboards */
+  tiles: TileRecord[];
   selectedKey: string | null;
   onSelect: (key: string) => void;
   allCollapsed: boolean;
@@ -35,7 +36,7 @@ interface DashboardsPaneHeaderProps {
 
 export function DashboardsPaneHeader({
   dashboards,
-  standaloneTiles,
+  tiles,
   selectedKey,
   onSelect,
   allCollapsed,
@@ -44,7 +45,7 @@ export function DashboardsPaneHeader({
   isRefreshing = false,
 }: DashboardsPaneHeaderProps) {
   const [open, setOpen] = useState(false);
-  const hasItems = dashboards.length > 0 || standaloneTiles.length > 0;
+  const hasItems = dashboards.length > 0 || tiles.length > 0;
 
   const selectedLabel = useMemo(() => {
     if (!selectedKey) return null;
@@ -54,10 +55,10 @@ export function DashboardsPaneHeader({
     }
     if (selectedKey.startsWith('tile:')) {
       const token = selectedKey.slice(5);
-      return standaloneTiles.find((t) => t.token === token)?.title ?? null;
+      return tiles.find((t) => t.token === token)?.title ?? null;
     }
     return null;
-  }, [selectedKey, dashboards, standaloneTiles]);
+  }, [selectedKey, dashboards, tiles]);
 
   if (!hasItems) return null;
 
@@ -92,17 +93,21 @@ export function DashboardsPaneHeader({
             <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-          <Command>
+        <PopoverContent
+          data-dashboard-combobox-popover
+          className="flex max-h-[min(70vh,28rem)] w-[var(--radix-popover-trigger-width)] flex-col overflow-hidden p-0"
+          align="start"
+        >
+          <Command className="min-h-0 flex-1">
             <CommandInput
-              className="h-8 text-xs"
+              className="h-8 shrink-0 text-xs"
               placeholder="Search dashboards & tiles…"
               onKeyDown={(e) => {
                 e.stopPropagation();
                 e.nativeEvent.stopImmediatePropagation();
               }}
             />
-            <CommandList>
+            <CommandList className="min-h-0 flex-1">
               <CommandEmpty className="py-3 text-xs">No results found.</CommandEmpty>
               {dashboards.length > 0 && (
                 <CommandGroup
@@ -134,12 +139,12 @@ export function DashboardsPaneHeader({
                   })}
                 </CommandGroup>
               )}
-              {standaloneTiles.length > 0 && (
+              {tiles.length > 0 && (
                 <CommandGroup
                   heading="Tiles"
                   className="[&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
                 >
-                  {standaloneTiles.map((t) => {
+                  {tiles.map((t) => {
                     const key = `tile:${t.token}`;
                     return (
                       <CommandItem

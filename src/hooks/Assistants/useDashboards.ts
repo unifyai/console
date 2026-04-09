@@ -1,12 +1,6 @@
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type {
-  DashboardPaneData,
-  DashboardRecord,
-  TileRecord,
-  DashboardTilePosition,
-} from '@/types/assistants/dashboard';
-import { parseDashboardLayout } from '@/utils/assistants/parse-dashboard-layout';
+import type { DashboardPaneData, DashboardRecord, TileRecord } from '@/types/assistants/dashboard';
 
 interface UseDashboardsOptions {
   ownerId: string;
@@ -23,7 +17,6 @@ interface UseDashboardsOptions {
 interface UseDashboardsResult {
   dashboards: DashboardRecord[];
   tiles: TileRecord[];
-  standaloneTiles: TileRecord[];
   isLoading: boolean;
   error: Error | null;
   refetch: () => void;
@@ -51,17 +44,6 @@ export function useDashboards({
 
   const dashboards = React.useMemo(() => data?.dashboards ?? [], [data?.dashboards]);
   const tiles = React.useMemo(() => data?.tiles ?? [], [data?.tiles]);
-
-  const standaloneTiles = React.useMemo(() => {
-    const claimedTokens = new Set<string>();
-    for (const d of dashboards) {
-      if (!d.layout) continue;
-      for (const pos of parseDashboardLayout(d.layout)) {
-        claimedTokens.add(pos.tileToken);
-      }
-    }
-    return tiles.filter((t) => !claimedTokens.has(t.token));
-  }, [dashboards, tiles]);
 
   // HTML content cache: token -> htmlContent
   const htmlCacheRef = React.useRef<Map<string, string>>(new Map());
@@ -106,7 +88,6 @@ export function useDashboards({
   return {
     dashboards,
     tiles,
-    standaloneTiles,
     isLoading,
     error: error as Error | null,
     refetch,

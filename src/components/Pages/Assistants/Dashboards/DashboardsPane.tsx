@@ -57,14 +57,13 @@ export function DashboardsPane({
     [getTileContent]
   );
 
-  const { dashboards, tiles, standaloneTiles, isLoading, refetch, dataUpdatedAt, getTileHtml } =
-    useDashboards({
-      ownerId,
-      assistantId,
-      getMetadata: effectiveGetMetadata,
-      getTileContent: effectiveGetTileContent,
-      shouldPoll,
-    });
+  const { dashboards, tiles, isLoading, refetch, dataUpdatedAt, getTileHtml } = useDashboards({
+    ownerId,
+    assistantId,
+    getMetadata: effectiveGetMetadata,
+    getTileContent: effectiveGetTileContent,
+    shouldPoll,
+  });
 
   const sortedDashboards = useMemo(
     () =>
@@ -80,8 +79,8 @@ export function DashboardsPane({
 
   const defaultKey = sortedDashboards[0]
     ? `dash:${sortedDashboards[0].token}`
-    : standaloneTiles[0]
-      ? `tile:${standaloneTiles[0].token}`
+    : tiles[0]
+      ? `tile:${tiles[0].token}`
       : null;
   const activeKey = selectedKey ?? defaultKey;
 
@@ -94,8 +93,8 @@ export function DashboardsPane({
   const activeTile = useMemo<TileRecord | null>(() => {
     if (!activeKey?.startsWith('tile:')) return null;
     const token = activeKey.slice(5);
-    return standaloneTiles.find((t) => t.token === token) ?? null;
-  }, [activeKey, standaloneTiles]);
+    return tiles.find((t) => t.token === token) ?? null;
+  }, [activeKey, tiles]);
 
   const positions = useMemo<DashboardTilePosition[]>(
     () => (activeDashboard ? parseDashboardLayout(activeDashboard.layout) : []),
@@ -139,7 +138,7 @@ export function DashboardsPane({
       {/* Header — refresh, searchable combobox, collapse/expand */}
       <DashboardsPaneHeader
         dashboards={sortedDashboards}
-        standaloneTiles={standaloneTiles}
+        tiles={tiles}
         selectedKey={activeKey}
         onSelect={setSelectedKey}
         allCollapsed={allCollapsed === true}
