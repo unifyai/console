@@ -12,6 +12,7 @@
 
 import { execSync } from 'child_process';
 import { createHash, randomUUID } from 'crypto';
+import path from 'path';
 import type { OrgRole, SeededUser, SeededOrg, SeededAssistant, SeededSecret } from './types';
 
 // =============================================================================
@@ -686,7 +687,8 @@ export interface CreateEmailLoginOpts {
 export function createEmailLogin(opts: CreateEmailLoginOpts): void {
   const password = opts.password ?? 'testpass123';
 
-  const orchestraPath = process.env.ORCHESTRA_REPO_PATH || '/workspaces/orchestra';
+  const orchestraPath =
+    process.env.ORCHESTRA_REPO_PATH || path.resolve(__dirname, '../../../../..', 'orchestra');
   let pwHash: string;
 
   try {
