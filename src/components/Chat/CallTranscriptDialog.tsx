@@ -50,7 +50,7 @@ export function CallTranscriptDialog({
           )}
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh] flex-1">
+        <ScrollArea className="min-h-0 flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
