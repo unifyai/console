@@ -3,14 +3,16 @@
  *
  * Renders a self-contained HTML tile in a sandboxed iframe using srcdoc.
  * For tiles with data bindings, injects a bridge script that provides
- * UnifyData.query() inside the iframe. The parent listens for postMessage
- * requests and proxies them through the Console's data bridge API route.
+ * UnifyData.filter/reduce/join/joinReduce inside the iframe. The parent
+ * listens for postMessage requests and proxies them through the Console's
+ * bridge API routes, one per operation type.
  */
 
 'use client';
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import type { BridgeOperation } from '@/types/assistants/bridge';
 
 interface TileViewerProps {
   token: string;
@@ -24,29 +26,20 @@ const BRIDGE_SCRIPT = `
 <script>
 (function() {
   var pending = {};
+  function _bridge(operation, opts) {
+    return new Promise(function(resolve, reject) {
+      var id = Math.random().toString(36).substr(2, 12);
+      pending[id] = { resolve: resolve, reject: reject };
+      var msg = { type: 'unify-data-request', id: id, operation: operation };
+      for (var k in opts) { if (opts.hasOwnProperty(k)) msg[k] = opts[k]; }
+      parent.postMessage(msg, '*');
+    });
+  }
   window.UnifyData = {
-    query: function(opts) {
-      return new Promise(function(resolve, reject) {
-        var id = Math.random().toString(36).substr(2, 12);
-        pending[id] = { resolve: resolve, reject: reject };
-        parent.postMessage({
-          type: 'unify-data-request',
-          id: id,
-          context: opts.context,
-          filter: opts.filter,
-          columns: opts.columns,
-          exclude_columns: opts.exclude_columns,
-          order_by: opts.order_by,
-          descending: opts.descending,
-          sorting: opts.sorting,
-          limit: opts.limit,
-          offset: opts.offset,
-          group_by: opts.group_by,
-          column_context: opts.column_context,
-          randomize: opts.randomize
-        }, '*');
-      });
-    }
+    filter: function(opts)     { return _bridge('filter', opts); },
+    reduce: function(opts)     { return _bridge('reduce', opts); },
+    join: function(opts)       { return _bridge('join', opts); },
+    joinReduce: function(opts) { return _bridge('join_reduce', opts); }
   };
   window.addEventListener('message', function(event) {
     if (event.data && event.data.type === 'unify-data-response') {
@@ -80,6 +73,72 @@ function injectBridge(html: string): string {
   return BRIDGE_SCRIPT + html;
 }
 
+/**
+ * Map snake_case iframe payload fields to camelCase for the Console proxy.
+ * Filter operation retains the legacy field mapping; new operations pass
+ * through with camelCase keys the proxy routes expect.
+ */
+function buildProxyBody(
+  op: BridgeOperation,
+  payload: Record<string, unknown>
+): Record<string, unknown> {
+  if (op === 'filter') {
+    return {
+      context: payload.context,
+      filter: payload.filter,
+      columns: payload.columns,
+      excludeColumns: payload.exclude_columns,
+      orderBy: payload.order_by,
+      descending: payload.descending,
+      sorting: payload.sorting,
+      limit: payload.limit,
+      offset: payload.offset,
+      groupBy: payload.group_by,
+      columnContext: payload.column_context,
+      randomize: payload.randomize,
+    };
+  }
+
+  if (op === 'reduce') {
+    return {
+      context: payload.context,
+      metric: payload.metric,
+      columns: payload.columns,
+      filter: payload.filter,
+      groupBy: payload.group_by,
+      resultWhere: payload.result_where,
+    };
+  }
+
+  if (op === 'join') {
+    return {
+      tables: payload.tables,
+      joinExpr: payload.join_expr,
+      select: payload.select,
+      mode: payload.mode,
+      leftWhere: payload.left_where,
+      rightWhere: payload.right_where,
+      resultWhere: payload.result_where,
+      resultLimit: payload.result_limit,
+      resultOffset: payload.result_offset,
+    };
+  }
+
+  // join_reduce
+  return {
+    tables: payload.tables,
+    joinExpr: payload.join_expr,
+    select: payload.select,
+    mode: payload.mode,
+    leftWhere: payload.left_where,
+    rightWhere: payload.right_where,
+    metric: payload.metric,
+    columns: payload.columns,
+    groupBy: payload.group_by,
+    resultWhere: payload.result_where,
+  };
+}
+
 export function TileViewer({ token, title, htmlContent, hasDataBindings, embed }: TileViewerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -89,40 +148,30 @@ export function TileViewer({ token, title, htmlContent, hasDataBindings, embed }
       if (event.data?.type !== 'unify-data-request') return;
       if (iframeRef.current && event.source !== iframeRef.current.contentWindow) return;
 
-      const {
-        id,
-        context,
-        filter,
-        columns,
-        exclude_columns: excludeColumns,
-        order_by: orderBy,
-        descending,
-        sorting,
-        limit,
-        offset,
-        group_by: groupBy,
-        column_context: columnContext,
-        randomize,
-      } = event.data;
+      const { id, operation, ...payload } = event.data as {
+        id: string;
+        operation: BridgeOperation;
+        [key: string]: unknown;
+      };
+      delete (payload as Record<string, unknown>).type;
+
+      const op: BridgeOperation = operation || 'filter';
+
+      const routeSegment: Record<BridgeOperation, string> = {
+        filter: 'filter',
+        reduce: 'reduce',
+        join: 'join',
+        ['join_reduce' as const]: 'join-reduce',
+      };
+
+      const url = `/api/dashboards/tiles/${token}/${routeSegment[op]}`;
+      const body = buildProxyBody(op, payload);
 
       try {
-        const res = await fetch(`/api/dashboards/tiles/${token}/data`, {
+        const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            context,
-            filter,
-            columns,
-            excludeColumns,
-            orderBy,
-            descending,
-            sorting,
-            limit,
-            offset,
-            groupBy,
-            columnContext,
-            randomize,
-          }),
+          body: JSON.stringify(body),
         });
 
         const responseData = await res.json();

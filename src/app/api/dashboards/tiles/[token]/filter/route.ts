@@ -1,9 +1,8 @@
 /**
- * Data Bridge Proxy Route
+ * Filter Bridge Proxy Route
  *
- * Proxies data requests from tile iframes to Orchestra's admin data bridge.
- * Accepts camelCase param names from TileViewer and maps them to Orchestra's
- * snake_case /v0/logs query param names before forwarding.
+ * Proxies filter (row-level query) requests from tile iframes to Orchestra's
+ * admin filter bridge. Maps to UnifyData.filter() -> DM.filter().
  *
  * Mapping (same as tableData.ts / plotData.ts):
  *   filter       -> filter_expr
@@ -14,35 +13,23 @@
  *   groupBy      -> group_by
  *   columnContext -> column_context
  *   randomize    -> randomize
+ *
+ * Orchestra endpoint: POST /v0/admin/dashboards/tiles/{token}/filter
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { camelToSnakeObject } from '@/utils/casing';
+import type { FilterBridgeBody } from '@/types/assistants/bridge';
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'http://localhost:8000';
 const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
-
-interface BridgeRequestBody {
-  context?: string;
-  filter?: string;
-  columns?: string[];
-  excludeColumns?: string[];
-  orderBy?: string;
-  descending?: boolean;
-  sorting?: Record<string, string>;
-  limit?: number;
-  offset?: number;
-  groupBy?: string[];
-  columnContext?: string;
-  randomize?: boolean;
-}
 
 export async function POST(request: NextRequest, { params }: { params: { token: string } }) {
   if (!ORCHESTRA_ADMIN_KEY) {
     return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
   }
 
-  let body: BridgeRequestBody;
+  let body: FilterBridgeBody;
   try {
     body = await request.json();
   } catch {
@@ -75,7 +62,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   const orchestraBody = camelToSnakeObject(orchestraParams);
 
   try {
-    const res = await fetch(`${ORCHESTRA_URL}/v0/admin/dashboards/tiles/${params.token}/data`, {
+    const res = await fetch(`${ORCHESTRA_URL}/v0/admin/dashboards/tiles/${params.token}/filter`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${ORCHESTRA_ADMIN_KEY}`,
@@ -85,9 +72,9 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     });
 
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ detail: 'Bridge request failed' }));
+      const errorData = await res.json().catch(() => ({ detail: 'Filter bridge request failed' }));
       return NextResponse.json(
-        { error: errorData.detail || 'Data bridge request failed' },
+        { error: errorData.detail || 'Filter bridge request failed' },
         { status: res.status }
       );
     }
