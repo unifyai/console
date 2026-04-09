@@ -15,6 +15,7 @@ import {
   mergeNewEvents,
   hasActiveRootAction,
   ACTION_LOOKBACK_MS,
+  compareLogsByTime,
 } from '@/utils/assistants/assistant-actions';
 import type {
   ActionNode,
@@ -217,7 +218,7 @@ export function useAssistantActions(
               (pl: ToolLoopLog) => !existing.some((e) => e.id === pl.id)
             );
             if (deduped.length > 0) {
-              targetNode.liveToolLoopLogs = [...existing, ...deduped].sort((a, b) => a.id - b.id);
+              targetNode.liveToolLoopLogs = [...existing, ...deduped].sort(compareLogsByTime);
             }
             replayedKeys.push(key);
             if (__DEV__)
@@ -307,7 +308,7 @@ export function useAssistantActions(
         const existing = targetNode.liveToolLoopLogs ?? [];
         if (existing.some((l) => l.id === log.id)) continue;
 
-        targetNode.liveToolLoopLogs = [...existing, log].sort((a, b) => a.id - b.id);
+        targetNode.liveToolLoopLogs = [...existing, log].sort(compareLogsByTime);
         changed = true;
       }
 

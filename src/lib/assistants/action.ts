@@ -10,7 +10,7 @@
 
 import { ResponseProps } from '@/types/common';
 import { combineFilters, escapeFilterValue } from '@/utils/assistants/filterExpressions';
-import { buildTimestampFilter } from '@/utils/assistants/assistant-actions';
+import { buildTimestampFilter, compareLogsByTime } from '@/utils/assistants/assistant-actions';
 import { snakeToCamelObject } from '@/utils/casing';
 import type { ActionsLogsResponse } from '@/types/assistants/action';
 import { buildExcludedManagerFilters } from './event-filters';
@@ -144,7 +144,7 @@ async function fetchAllPages(
       ...log,
       entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
     }))
-    .sort((a: any, b: any) => a.id - b.id);
+    .sort(compareLogsByTime);
 
   return { logs: processedLogs, count: totalCount } as ActionsLogsResponse;
 }
@@ -212,7 +212,7 @@ export const getManagerMethodEvents = async (apiKey: string) => {
             ...log,
             entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
           }))
-          .sort((a: any, b: any) => a.id - b.id);
+          .sort(compareLogsByTime);
       }
 
       return result.data as ActionsLogsResponse;
@@ -283,7 +283,7 @@ export const getToolLoopEvents = async (apiKey: string) => {
             ...log,
             entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
           }))
-          .sort((a: any, b: any) => a.id - b.id);
+          .sort(compareLogsByTime);
       }
 
       return result.data as ActionsLogsResponse;
@@ -373,7 +373,7 @@ export const backfillByCallingIds = async (apiKey: string) => {
             ...log,
             entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
           }))
-          .sort((a: any, b: any) => a.id - b.id);
+          .sort(compareLogsByTime);
       }
 
       if (__DEV__)

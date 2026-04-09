@@ -24,6 +24,24 @@ import type {
 export const ACTION_LOOKBACK_MS = 3 * 60 * 60 * 1000;
 
 // =============================================================================
+// Log Sorting
+// =============================================================================
+
+/**
+ * Sort comparator for log entries (ManagerMethod or ToolLoop).
+ * Sorts chronologically by eventTimestamp (falling back to ts), with database
+ * id as a tiebreaker for entries that share the same timestamp.
+ */
+export function compareLogsByTime(
+  a: { id: number; ts: string; entries: { eventTimestamp?: string } },
+  b: { id: number; ts: string; entries: { eventTimestamp?: string } }
+): number {
+  const ta = new Date(a.entries.eventTimestamp || a.ts).getTime();
+  const tb = new Date(b.entries.eventTimestamp || b.ts).getTime();
+  return ta - tb || a.id - b.id;
+}
+
+// =============================================================================
 // Event Parsing
 // =============================================================================
 

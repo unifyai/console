@@ -59,6 +59,7 @@ import {
   resolveToolLoopKind,
   extractSteeringTarget,
 } from '@/lib/assistants/event-filters';
+import { compareLogsByTime } from '@/utils/assistants/assistant-actions';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/UI/tooltip';
 const SHOW_EXECUTE_CODE_CONTENT = true;
 
@@ -218,7 +219,7 @@ function deduplicateLiveLogs(polled: ToolLoopLog[], live: ToolLoopLog[]): ToolLo
   });
 
   if (extra.length === 0) return polled;
-  return [...polled, ...extra].sort((a, b) => a.id - b.id);
+  return [...polled, ...extra].sort(compareLogsByTime);
 }
 
 // ---------------------------------------------------------------------------
@@ -1594,7 +1595,7 @@ function ToolLoopMessage({
     if (!child || descendantLiveLogCount === 0) return [];
     const allLogs = collectDescendantLiveLogs(child);
     const rewritten = rewriteCheckStatusResults(allLogs);
-    return rewritten.filter((l) => !isToolLoopNoise(l.entries)).sort((a, b) => a.id - b.id);
+    return rewritten.filter((l) => !isToolLoopNoise(l.entries)).sort(compareLogsByTime);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- descendantLiveLogCount is a primitive proxy for deep liveToolLoopLogs mutations
   }, [child, descendantLiveLogCount]);
 
