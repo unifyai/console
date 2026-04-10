@@ -6,6 +6,11 @@ import { Button } from '@/components/UI/button';
 import { USE_MOCK_DASHBOARDS } from '@/utils/assistants/dashboard-mock-data';
 import type { DashboardRecord, DashboardTilePosition } from '@/types/assistants/dashboard';
 import { parseDashboardLayout } from '@/utils/assistants/parse-dashboard-layout';
+import {
+  requestTileExport,
+  downloadBlob,
+  buildFilename,
+} from '@/utils/assistants/capture-tile-html';
 
 interface DashboardSummaryCardProps {
   dashboard: DashboardRecord;
@@ -28,8 +33,28 @@ function formatDate(iso: string | null | undefined): string | null {
   }
 }
 
-function sanitiseFilename(name: string): string {
-  return name.replace(/[^a-zA-Z0-9\-_ ]/g, '').trim() || 'tile';
+/**
+ * Try to capture rendered HTML + title from a live tile iframe in the DOM
+ * via postMessage, falling back to the raw API HTML if not available.
+ */
+async function captureOrFetch(
+  tileToken: string,
+  getTileHtml: (token: string) => Promise<string | null>
+): Promise<{ html: string; title: string } | null> {
+  const iframe = document.querySelector(
+    `iframe[src*="/tile/view/${tileToken}"]`
+  ) as HTMLIFrameElement | null;
+
+  if (iframe) {
+    try {
+      return await requestTileExport(iframe);
+    } catch {
+      /* fall through to raw HTML */
+    }
+  }
+
+  const html = await getTileHtml(tileToken);
+  return html ? { html, title: '' } : null;
 }
 
 async function downloadTilesAsZip(
@@ -40,28 +65,18 @@ async function downloadTilesAsZip(
   const JSZip = (await import('jszip')).default;
   const zip = new JSZip();
 
-  const results = await Promise.all(
-    positions.map(async (pos, idx) => {
-      const html = await getTileHtml(pos.tileToken);
-      return { token: pos.tileToken, html, idx };
-    })
-  );
-
-  for (const { token, html, idx } of results) {
-    if (html) {
-      zip.file(`${sanitiseFilename(token)}-${idx + 1}.html`, html);
+  for (const pos of positions) {
+    const captured = await captureOrFetch(pos.tileToken, getTileHtml);
+    if (captured) {
+      zip.file(
+        buildFilename(captured.title || pos.tileToken, pos.tileToken, 'html'),
+        captured.html
+      );
     }
   }
 
   const blob = await zip.generateAsync({ type: 'blob' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${sanitiseFilename(dashboard.title)}.zip`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, buildFilename(dashboard.title, dashboard.token, 'zip'));
 }
 
 function buildDashboardHtml(
@@ -199,17 +214,17 @@ export function DashboardSummaryCard({
           variant="outline"
           size="sm"
           className="h-7 gap-1.5 text-xs"
-          onClick={handleDownloadZip}
           disabled={isDownloading || positions.length === 0}
-          title="Download all tiles as a ZIP archive"
-          data-testid="dashboard-download-zip"
+          onClick={handleDownloadZip}
+          title="Download all tiles as ZIP"
+          data-testid="dashboard-download"
         >
           {isDownloading ? (
             <Loader2 className="h-3 w-3 animate-spin" />
           ) : (
             <Download className="h-3 w-3" />
           )}
-          {isDownloading ? 'Downloading…' : 'Download all tiles'}
+          {isDownloading ? 'Downloading…' : 'Download'}
         </Button>
       </div>
 
