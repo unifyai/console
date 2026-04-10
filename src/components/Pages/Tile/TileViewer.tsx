@@ -31,15 +31,21 @@ const BRIDGE_SCRIPT = `
   var ready = false;
   var queued = [];
 
+  console.log('[Bridge DEBUG] bridge script initializing');
+
   function _flush() {
     ready = true;
     var q = queued.splice(0);
+    console.log('[Bridge DEBUG] flushing', q.length, 'queued messages');
     for (var i = 0; i < q.length; i++) parent.postMessage(q[i], '*');
   }
 
   function _send(msg) {
     if (ready) { parent.postMessage(msg, '*'); }
-    else { queued.push(msg); }
+    else {
+      console.log('[Bridge DEBUG] queuing message:', msg.operation || msg.type);
+      queued.push(msg);
+    }
   }
 
   function _bridge(operation, opts) {
@@ -61,8 +67,13 @@ const BRIDGE_SCRIPT = `
 
   window.addEventListener('message', function(event) {
     if (!event.data) return;
-    if (event.data.type === 'unify-bridge-ready') { _flush(); return; }
+    if (event.data.type === 'unify-bridge-ready') {
+      console.log('[Bridge DEBUG] received bridge-ready, flushing');
+      _flush();
+      return;
+    }
     if (event.data.type === 'unify-data-response') {
+      console.log('[Bridge DEBUG] received response for id:', event.data.id, 'error:', !!event.data.error);
       var handler = pending[event.data.id];
       if (handler) {
         delete pending[event.data.id];
@@ -75,6 +86,7 @@ const BRIDGE_SCRIPT = `
     }
   });
 
+  console.log('[Bridge DEBUG] sending bridge-init to parent');
   parent.postMessage({ type: 'unify-bridge-init' }, '*');
 })();
 </script>
@@ -120,12 +132,20 @@ function buildAutoExecScript(bindingsJson: string, onDataScript: string): string
   return `
 <script>
 (function() {
+  console.log('[AutoExec DEBUG] auto-exec script starting, ${bindings.length} bindings');
   var results = {};
   var promises = [];
 ${calls.join('\n')}
+  console.log('[AutoExec DEBUG] waiting for', promises.length, 'promises');
   Promise.all(promises).then(function() {
+    console.log('[AutoExec DEBUG] all bindings resolved, keys:', Object.keys(results));
+    try { console.log('[AutoExec DEBUG] data snapshot:', JSON.stringify(results).slice(0, 3000)); } catch(e) {}
     (function(data) { ${onDataScript} })(results);
-  }).catch(function(err) { console.error('[UnifyData auto-exec]', err); });
+    parent.postMessage({ type: 'unify-data-complete' }, '*');
+  }).catch(function(err) {
+    console.error('[UnifyData auto-exec]', err);
+    parent.postMessage({ type: 'unify-data-complete' }, '*');
+  });
 })();
 </script>`;
 }
@@ -206,6 +226,36 @@ function buildProxyBody(
   };
 }
 
+/**
+ * Orchestra grouped reduce/join-reduce results return objects like
+ * `{ "Central": { "shared_value": null, "sum": 1886031.39 }, ... }`.
+ * Tile on_data_scripts expect flat values: `{ "Central": 1886031.39, ... }`.
+ *
+ * Resolution order matches the Interfaces plot logic in lib/plotData.ts:
+ *   sharedValue ?? values[metric] ?? shared_value ?? 0
+ */
+function flattenGroupedResult(result: unknown, metric?: string): unknown {
+  if (result == null || typeof result !== 'object' || Array.isArray(result)) return result;
+  const obj = result as Record<string, unknown>;
+  const keys = Object.keys(obj);
+  if (keys.length === 0) return result;
+
+  const first = obj[keys[0]];
+  if (first == null || typeof first !== 'object' || Array.isArray(first)) return result;
+
+  const flat: Record<string, number> = {};
+  for (const [groupKey, groupVal] of Object.entries(obj)) {
+    if (groupVal != null && typeof groupVal === 'object' && !Array.isArray(groupVal)) {
+      const v = groupVal as Record<string, unknown>;
+      const resolved = v.sharedValue ?? (metric ? v[metric] : undefined) ?? v.shared_value ?? 0;
+      flat[groupKey] = typeof resolved === 'number' ? resolved : 0;
+    } else {
+      flat[groupKey] = typeof groupVal === 'number' ? groupVal : 0;
+    }
+  }
+  return flat;
+}
+
 const BRIDGE_FETCH_MS = 30_000;
 const IFRAME_LOAD_FALLBACK_MS = 100_000;
 
@@ -221,22 +271,56 @@ export function TileViewer({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // DEBUG: log props on mount and when they change
+  useEffect(() => {
+    console.log('[TileViewer DEBUG] props:', {
+      token,
+      hasDataBindings,
+      hasBindingsJson: !!dataBindingsJson,
+      bindingsJsonLen: dataBindingsJson?.length,
+      hasOnDataScript: !!onDataScript,
+      onDataScriptLen: onDataScript?.length,
+      htmlLen: htmlContent?.length,
+      embed,
+    });
+  }, [token, hasDataBindings, dataBindingsJson, onDataScript, htmlContent, embed]);
+
   useEffect(() => {
     setIsLoading(true);
     const t = window.setTimeout(() => setIsLoading(false), IFRAME_LOAD_FALLBACK_MS);
+    const iframe = iframeRef.current;
+    if (iframe) {
+      const onLoad = () => setIsLoading(false);
+      iframe.addEventListener('load', onLoad);
+      return () => {
+        window.clearTimeout(t);
+        iframe.removeEventListener('load', onLoad);
+      };
+    }
     return () => window.clearTimeout(t);
   }, [htmlContent, hasDataBindings]);
 
   const sendBridgeReady = useCallback(() => {
+    console.log('[TileViewer DEBUG] sendBridgeReady called, iframeRef:', !!iframeRef.current);
     iframeRef.current?.contentWindow?.postMessage({ type: 'unify-bridge-ready' }, '*');
   }, []);
+
+  const isAutoExec = !!(dataBindingsJson && onDataScript);
 
   const handleMessage = useCallback(
     async (event: MessageEvent) => {
       if (!event.data?.type) return;
       if (iframeRef.current && event.source !== iframeRef.current.contentWindow) return;
 
+      console.log('[TileViewer DEBUG] message received:', event.data.type, event.data.id || '');
+
+      if (event.data.type === 'unify-data-complete') {
+        setIsLoading(false);
+        return;
+      }
+
       if (event.data.type === 'unify-bridge-init') {
+        if (!isAutoExec) setIsLoading(false);
         sendBridgeReady();
         return;
       }
@@ -262,6 +346,13 @@ export function TileViewer({
       const url = `/api/dashboards/tiles/${token}/${routeSegment[op]}`;
       const body = buildProxyBody(op, payload);
 
+      console.log('[TileViewer DEBUG] proxying bridge request:', {
+        url,
+        op,
+        id,
+        bodyKeys: Object.keys(body),
+      });
+
       const ac = new AbortController();
       const to = window.setTimeout(() => ac.abort(), BRIDGE_FETCH_MS);
       try {
@@ -274,11 +365,21 @@ export function TileViewer({
 
         const responseData = await res.json();
 
+        let unwrapped = responseData;
+        if (res.ok) {
+          if (op === 'reduce' || op === 'join_reduce') {
+            const metric = (payload.metric ?? body.metric) as string | undefined;
+            unwrapped = flattenGroupedResult(responseData.result, metric);
+          } else if (op === 'filter' || op === 'join') {
+            unwrapped = responseData.rows;
+          }
+        }
+
         iframeRef.current?.contentWindow?.postMessage(
           {
             type: 'unify-data-response',
             id,
-            data: res.ok ? responseData : undefined,
+            data: res.ok ? unwrapped : undefined,
             error: res.ok ? undefined : responseData.error || 'Data fetch failed',
           },
           '*'
@@ -296,25 +397,34 @@ export function TileViewer({
         window.clearTimeout(to);
       }
     },
-    [token, sendBridgeReady]
+    [token, sendBridgeReady, isAutoExec]
   );
 
   useEffect(() => {
+    console.log('[TileViewer DEBUG] message listener effect, hasDataBindings:', hasDataBindings);
     if (!hasDataBindings) return;
+    console.log('[TileViewer DEBUG] registering message listener for token:', token);
     window.addEventListener('message', handleMessage);
     sendBridgeReady();
-    return () => window.removeEventListener('message', handleMessage);
-  }, [hasDataBindings, handleMessage, sendBridgeReady]);
+    if (!isAutoExec) setIsLoading(false);
+    return () => {
+      console.log('[TileViewer DEBUG] removing message listener for token:', token);
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [hasDataBindings, handleMessage, sendBridgeReady, token, isAutoExec]);
 
   const handleIframeLoad = useCallback(() => setIsLoading(false), []);
 
   const processedHtml = (() => {
     if (dataBindingsJson && onDataScript) {
+      console.log('[TileViewer DEBUG] using AUTO-EXEC path for', token);
       return injectAutoExec(htmlContent, dataBindingsJson, onDataScript);
     }
     if (hasDataBindings) {
+      console.log('[TileViewer DEBUG] using BRIDGE-ONLY path for', token);
       return injectBridge(htmlContent);
     }
+    console.log('[TileViewer DEBUG] using RAW HTML path for', token);
     return htmlContent;
   })();
 
