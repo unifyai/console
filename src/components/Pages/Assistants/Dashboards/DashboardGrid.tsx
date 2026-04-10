@@ -9,8 +9,6 @@ const ROW_HEIGHT = 120;
 interface DashboardGridProps {
   positions: DashboardTilePosition[];
   tiles: TileRecord[];
-  /** Lazy loader for tile HTML content */
-  getTileHtml?: (token: string) => Promise<string | null>;
   /** Called when a data-bound tile's refresh button is clicked */
   onTileRefresh?: () => void;
   /** Parent-driven collapse signal forwarded to all tile cards */
@@ -20,7 +18,6 @@ interface DashboardGridProps {
 export function DashboardGrid({
   positions,
   tiles,
-  getTileHtml,
   onTileRefresh,
   defaultCollapsed,
 }: DashboardGridProps) {
@@ -51,7 +48,6 @@ export function DashboardGrid({
             token={pos.tileToken}
             title={tile?.title ?? pos.tileToken}
             htmlContent={tile?.htmlContent}
-            getTileHtml={getTileHtml}
             description={tile?.description}
             createdAt={tile?.createdAt}
             updatedAt={tile?.updatedAt}
