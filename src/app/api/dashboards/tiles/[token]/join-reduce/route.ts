@@ -9,8 +9,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { camelToSnakeObject } from '@/utils/casing';
 import type { JoinReduceBridgeBody } from '@/types/assistants/bridge';
+import { aliasJoinPaths } from '@/utils/assistants/join-alias';
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'http://localhost:8000';
 const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
@@ -46,20 +46,32 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     return NextResponse.json({ error: 'columns is required' }, { status: 400 });
   }
 
-  const orchestraParams: Record<string, unknown> = {
+  const aliased = aliasJoinPaths(
+    body.tables as [string, string],
+    body.joinExpr,
+    body.select,
+    body.resultWhere
+  );
+
+  const orchestraBody: Record<string, unknown> = {
     tables: body.tables,
-    joinExpr: body.joinExpr,
-    select: body.select,
+    join_expr: aliased.joinExpr,
+    select: aliased.select,
     metric: body.metric,
     columns: body.columns,
   };
-  if (body.mode) orchestraParams.mode = body.mode;
-  if (body.leftWhere) orchestraParams.leftWhere = body.leftWhere;
-  if (body.rightWhere) orchestraParams.rightWhere = body.rightWhere;
-  if (body.groupBy?.length) orchestraParams.groupBy = body.groupBy;
-  if (body.resultWhere) orchestraParams.resultWhere = body.resultWhere;
+  if (body.mode) orchestraBody.mode = body.mode;
+  if (body.leftWhere) orchestraBody.left_where = body.leftWhere;
+  if (body.rightWhere) orchestraBody.right_where = body.rightWhere;
+  if (body.groupBy?.length) orchestraBody.group_by = body.groupBy;
+  if (aliased.resultWhere) orchestraBody.result_where = aliased.resultWhere;
 
-  const orchestraBody = camelToSnakeObject(orchestraParams);
+  console.log(
+    '[DEBUG][bridge/join-reduce] token:',
+    params.token,
+    'body:',
+    JSON.stringify(orchestraBody).slice(0, 1000)
+  );
 
   try {
     const res = await fetch(
@@ -75,9 +87,18 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     );
 
     if (!res.ok) {
-      const errorData = await res
-        .json()
-        .catch(() => ({ detail: 'Join-reduce bridge request failed' }));
+      const errorText = await res.text();
+      console.error(
+        '[DEBUG][bridge/join-reduce] Orchestra error:',
+        res.status,
+        errorText.slice(0, 2000)
+      );
+      let errorData: Record<string, unknown>;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { detail: errorText.slice(0, 500) };
+      }
       return NextResponse.json(
         { error: errorData.detail || 'Join-reduce bridge request failed' },
         { status: res.status }

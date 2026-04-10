@@ -8,8 +8,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { camelToSnakeObject } from '@/utils/casing';
 import type { JoinBridgeBody } from '@/types/assistants/bridge';
+import { aliasJoinPaths } from '@/utils/assistants/join-alias';
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'http://localhost:8000';
 const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
@@ -39,19 +39,31 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     return NextResponse.json({ error: 'select is required' }, { status: 400 });
   }
 
-  const orchestraParams: Record<string, unknown> = {
-    tables: body.tables,
-    joinExpr: body.joinExpr,
-    select: body.select,
-  };
-  if (body.mode) orchestraParams.mode = body.mode;
-  if (body.leftWhere) orchestraParams.leftWhere = body.leftWhere;
-  if (body.rightWhere) orchestraParams.rightWhere = body.rightWhere;
-  if (body.resultWhere) orchestraParams.resultWhere = body.resultWhere;
-  if (body.resultLimit != null) orchestraParams.resultLimit = body.resultLimit;
-  if (body.resultOffset != null) orchestraParams.resultOffset = body.resultOffset;
+  const aliased = aliasJoinPaths(
+    body.tables as [string, string],
+    body.joinExpr,
+    body.select,
+    body.resultWhere
+  );
 
-  const orchestraBody = camelToSnakeObject(orchestraParams);
+  const orchestraBody: Record<string, unknown> = {
+    tables: body.tables,
+    join_expr: aliased.joinExpr,
+    select: aliased.select,
+  };
+  if (body.mode) orchestraBody.mode = body.mode;
+  if (body.leftWhere) orchestraBody.left_where = body.leftWhere;
+  if (body.rightWhere) orchestraBody.right_where = body.rightWhere;
+  if (aliased.resultWhere) orchestraBody.result_where = aliased.resultWhere;
+  if (body.resultLimit != null) orchestraBody.result_limit = body.resultLimit;
+  if (body.resultOffset != null) orchestraBody.result_offset = body.resultOffset;
+
+  console.log(
+    '[DEBUG][bridge/join] token:',
+    params.token,
+    'body:',
+    JSON.stringify(orchestraBody).slice(0, 1000)
+  );
 
   try {
     const res = await fetch(`${ORCHESTRA_URL}/v0/admin/dashboards/tiles/${params.token}/join`, {
@@ -64,7 +76,14 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     });
 
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ detail: 'Join bridge request failed' }));
+      const errorText = await res.text();
+      console.error('[DEBUG][bridge/join] Orchestra error:', res.status, errorText.slice(0, 2000));
+      let errorData: Record<string, unknown>;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { detail: errorText.slice(0, 500) };
+      }
       return NextResponse.json(
         { error: errorData.detail || 'Join bridge request failed' },
         { status: res.status }
