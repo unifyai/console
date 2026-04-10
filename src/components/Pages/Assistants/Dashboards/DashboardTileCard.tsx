@@ -117,8 +117,12 @@ export function DashboardTileCard({
   }, [htmlContent, title]);
 
   const handleOpenTab = useCallback(() => {
-    if (htmlContent) openTileInNewTab(htmlContent);
-  }, [htmlContent]);
+    if (hasDataBindings) {
+      window.open(`/tile/view/${token}`, '_blank');
+    } else if (htmlContent) {
+      openTileInNewTab(htmlContent);
+    }
+  }, [htmlContent, hasDataBindings, token]);
 
   const handleRefresh = useCallback(async () => {
     if (!onRefresh) return;
@@ -192,7 +196,7 @@ export function DashboardTileCard({
           size="icon"
           className="h-5 w-5 shrink-0"
           onClick={handleOpenTab}
-          disabled={!hasContent}
+          disabled={!hasContent && !hasDataBindings}
           title="Open in new tab"
           data-testid="tile-open-tab"
         >
@@ -214,7 +218,19 @@ export function DashboardTileCard({
 
       {/* Expanded content */}
       {!collapsed &&
-        (hasContent ? (
+        (hasDataBindings ? (
+          <div
+            className={cn(fillHeight ? 'min-h-0 flex-1' : '')}
+            style={fillHeight ? undefined : { height: contentHeight }}
+          >
+            <iframe
+              src={`/tile/view/${token}?embed=true`}
+              className="h-full w-full border-0"
+              title={title}
+              sandbox="allow-scripts allow-same-origin"
+            />
+          </div>
+        ) : hasContent ? (
           fillHeight ? (
             <div className="min-h-0 flex-1">
               <ScaledIframe
