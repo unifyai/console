@@ -1,5 +1,6 @@
 import { getCurrentUser } from '@/lib/user/user';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { XCircle } from 'lucide-react';
 import InviteContent from '@/components/Pages/Invite/Main';
 import { acceptInviteAction } from '@/lib/user/organization';
@@ -32,12 +33,12 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
         <XCircle className="h-8 w-8 text-destructive" />
         <h2 className="text-h2 font-bold">Invalid Invitation</h2>
         <p className="text-body text-muted-foreground">The invitation link is missing a token.</p>
-        <a
+        <Link
           href="/"
-          className="mt-2 rounded-md bg-primary px-4 py-2 text-body text-primary-foreground hover:bg-primary/90"
+          className="text-body hover:bg-primary/90 mt-2 rounded-md bg-primary px-4 py-2 text-primary-foreground"
         >
           Go Home
-        </a>
+        </Link>
       </div>
     );
   }
@@ -49,7 +50,9 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
     // Redirect to login with invite token — login page persists it through OAuth.
     // The callbackUrl brings the user back here after authentication.
     const callbackUrl = `/login/invite?token=${token}`;
-    redirect(`/login?invite=${encodeURIComponent(token)}&callbackUrl=${encodeURIComponent(callbackUrl)}`);
+    redirect(
+      `/login?invite=${encodeURIComponent(token)}&callbackUrl=${encodeURIComponent(callbackUrl)}`
+    );
   }
 
   // 3. Initialize Server Action with API Key
@@ -57,11 +60,6 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
 
   // 4. Render Client View
   return (
-    <InviteContent
-      token={token}
-      onAccept={acceptAction}
-      onPatchSession={patchSessionAndRedirect}
-    />
+    <InviteContent token={token} onAccept={acceptAction} onPatchSession={patchSessionAndRedirect} />
   );
 }
-

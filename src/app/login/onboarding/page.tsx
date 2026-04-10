@@ -2,10 +2,7 @@ import { getCurrentUser } from '@/lib/user/user';
 import { redirect } from 'next/navigation';
 import WorkspaceContent from '@/components/Pages/Onboarding/WorkspaceContent';
 import { createOrganizationAction } from '@/lib/orchestra/api/organization';
-import {
-  updateOnboardingAction,
-  patchSessionAndRedirect,
-} from '@/lib/user/onboarding';
+import { updateOnboardingAction, patchSessionAndRedirect } from '@/lib/user/onboarding';
 
 /**
  * /login/onboarding — Onboarding flow for new users.

@@ -8,9 +8,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   const isUnifyAdmin = user.organizations?.some(
-    (o) =>
-      o.name === 'Unify' &&
-      ['owner', 'admin'].includes(o.roleName?.toLowerCase() ?? '')
+    (o) => o.name === 'Unify' && ['owner', 'admin'].includes(o.roleName?.toLowerCase() ?? '')
   );
 
   if (!isUnifyAdmin) {

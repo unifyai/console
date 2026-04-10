@@ -1,13 +1,8 @@
 import * as React from 'react';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
-import { ChatMessage, Attachment } from '@/types/assistants/chat';
+import { ChatMessage, Attachment, CallPill } from '@/types/assistants/chat';
 import { ResponseProps } from '@/types/common';
 import { clientLog } from '@/lib/logging/client-log-buffer';
-import {
-  buildUserIdFilter,
-  buildAssistantIdFilter,
-  combineFilters,
-} from '@/utils/assistants/filterExpressions';
 
 const CONTACT_ID_SESSION_PREFIX = 'assistant_contact_id:';
 const TRANSCRIPT_LIMIT = 50;
@@ -143,15 +138,10 @@ async function fetchContactIdDirect(
   assistantId: string
 ): Promise<number | null> {
   try {
-    const emailFilter = `email_address == "${email}"`;
-    const securityFilter = combineFilters([
-      buildUserIdFilter(ownerId),
-      buildAssistantIdFilter(assistantId),
-    ]);
-    const filterExpr = combineFilters([emailFilter, securityFilter]);
+    const filterExpr = `email_address == "${email}"`;
     const params = new URLSearchParams({
       projectName: 'Assistants',
-      context: 'All/Contacts',
+      context: `${ownerId}/${assistantId}/Contacts`,
       filterExpr,
       limit: '1',
     });
@@ -180,15 +170,10 @@ export async function fetchTranscriptsDirect(
   limit: number = TRANSCRIPT_LIMIT
 ): Promise<ChatMessage[] | ResponseProps> {
   try {
-    const messageFilter = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
-    const securityFilter = combineFilters([
-      buildUserIdFilter(ownerId),
-      buildAssistantIdFilter(assistantId),
-    ]);
-    const filterExpr = combineFilters([messageFilter, securityFilter]);
+    const filterExpr = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
     const params = new URLSearchParams({
       projectName: 'Assistants',
-      context: 'All/Transcripts',
+      context: `${ownerId}/${assistantId}/Transcripts`,
       limit: String(limit),
       filterExpr,
     });
@@ -243,9 +228,70 @@ export async function fetchTranscriptsDirect(
   }
 }
 
+export async function fetchMeetExchangesDirect(
+  contactId: number,
+  ownerId: string,
+  assistantId: string
+): Promise<CallPill[]> {
+  try {
+    const filterExpr = `medium == "unify_meet" and (sender_id == ${contactId} or sender_id == 0) and (${contactId} in receiver_ids or receiver_ids == [0])`;
+    const params = new URLSearchParams({
+      projectName: 'Assistants',
+      context: `${ownerId}/${assistantId}/Transcripts`,
+      limit: '500',
+      filterExpr,
+    });
+
+    const response = await fetch(`/api/logs?${params.toString()}`, {
+      cache: 'no-store',
+    });
+
+    if (response.status === 404 || !response.ok) return [];
+
+    const data = await response.json();
+    const logs = data?.logs;
+    if (!Array.isArray(logs) || logs.length === 0) return [];
+
+    const exchangeGroups = new Map<number, { minTs: Date; maxTs: Date; count: number }>();
+    for (const log of logs) {
+      const entries = log.entries;
+      if (!entries) continue;
+      const xid = typeof entries.exchangeId === 'number' ? entries.exchangeId : undefined;
+      if (xid === undefined) continue;
+      const ts = new Date(entries.timestamp as string);
+      if (isNaN(ts.getTime())) continue;
+
+      const existing = exchangeGroups.get(xid);
+      if (existing) {
+        if (ts < existing.minTs) existing.minTs = ts;
+        if (ts > existing.maxTs) existing.maxTs = ts;
+        existing.count++;
+      } else {
+        exchangeGroups.set(xid, { minTs: ts, maxTs: ts, count: 1 });
+      }
+    }
+
+    return Array.from(exchangeGroups.entries())
+      .map(([exchangeId, group]) => {
+        const durationSeconds = Math.round((group.maxTs.getTime() - group.minTs.getTime()) / 1000);
+        return {
+          id: `call-pill-${exchangeId}`,
+          type: 'call_pill' as const,
+          timestamp: group.maxTs,
+          durationSeconds: Math.max(durationSeconds, 0),
+          exchangeId,
+        };
+      })
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  } catch {
+    return [];
+  }
+}
+
 /**
- * Prefetches contact IDs **and transcripts** for all loaded assistants in
- * the background, on page load — before the user opens any chat panel.
+ * Prefetches contact IDs, transcripts, **and call pills** for all loaded
+ * assistants in the background, on page load — before the user opens any
+ * chat panel.
  *
  * Uses direct fetch() to /api/logs instead of server actions to bypass
  * Next.js 14's server action serialization queue. Server actions on a page
@@ -253,9 +299,9 @@ export async function fetchTranscriptsDirect(
  * delays the prefetch by seconds. Direct fetch uses session cookie auth
  * and runs concurrently with server actions.
  *
- * Contact IDs are stored in sessionStorage; transcripts are written
- * directly into `chatHistories` (write-if-absent, so the chat hook's own
- * writes always win).
+ * Contact IDs are stored in sessionStorage; transcripts and call pills are
+ * written directly into their respective state maps (write-if-absent, so
+ * hooks' own writes always win).
  *
  * When the user eventually opens a chat, the chat hook sees
  * `chatHistories[assistantId] !== undefined` and takes the fast
@@ -267,7 +313,8 @@ export function useContactIdPrefetch(
   assistants: Assistant[],
   chatActions: Pick<AssistantActions, 'chat'>,
   userEmail: string | null | undefined,
-  setChatHistories?: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>
+  setChatHistories?: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>,
+  setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>
 ) {
   // Track which assistants we've already attempted to prefetch
   const attemptedRef = React.useRef<Set<string>>(new Set());
@@ -309,38 +356,57 @@ export function useContactIdPrefetch(
 
       contactIdPromise
         .then((contactId) => {
-          if (contactId === null || !setChatHistories) return;
+          if (contactId === null) return;
 
-          return fetchTranscriptsDirect(contactId, assistant.userId, assistant.agentId).then(
-            (result) => {
-              if ('detail' in result) {
+          // Prefetch transcripts
+          if (setChatHistories) {
+            fetchTranscriptsDirect(contactId, assistant.userId, assistant.agentId).then(
+              (result) => {
+                if ('detail' in result) {
+                  clientLog('PREFETCH_TRANSCRIPTS', {
+                    assistant: assistant.agentId,
+                    error: (result as any).detail,
+                  });
+                  return;
+                }
+                const history = [...(result as ChatMessage[])].reverse();
                 clientLog('PREFETCH_TRANSCRIPTS', {
                   assistant: assistant.agentId,
-                  error: (result as any).detail,
+                  count: history.length,
                 });
-                return;
+                setChatHistories((prev) => {
+                  if (prev[assistant.agentId] !== undefined) {
+                    clientLog('PREFETCH_SKIP', {
+                      assistant: assistant.agentId,
+                      reason: 'already_exists',
+                    });
+                    return prev;
+                  }
+                  return { ...prev, [assistant.agentId]: history };
+                });
               }
-              const history = [...(result as ChatMessage[])].reverse();
-              clientLog('PREFETCH_TRANSCRIPTS', {
-                assistant: assistant.agentId,
-                count: history.length,
-              });
-              setChatHistories((prev) => {
-                if (prev[assistant.agentId] !== undefined) {
-                  clientLog('PREFETCH_SKIP', {
-                    assistant: assistant.agentId,
-                    reason: 'already_exists',
-                  });
-                  return prev;
-                }
-                return { ...prev, [assistant.agentId]: history };
-              });
-            }
-          );
+            );
+          }
+
+          // Prefetch call pills
+          if (setCallPillHistories) {
+            fetchMeetExchangesDirect(contactId, assistant.userId, assistant.agentId).then(
+              (pills) => {
+                clientLog('PREFETCH_CALL_PILLS', {
+                  assistant: assistant.agentId,
+                  count: pills.length,
+                });
+                setCallPillHistories((prev) => {
+                  if (prev[assistant.agentId] !== undefined) return prev;
+                  return { ...prev, [assistant.agentId]: pills };
+                });
+              }
+            );
+          }
         })
         .catch((err) => {
           clientLog('PREFETCH_ERROR', { assistant: assistant.agentId, error: String(err) });
         });
     }
-  }, [assistants, chatActions, userEmail, setChatHistories]);
+  }, [assistants, chatActions, userEmail, setChatHistories, setCallPillHistories]);
 }

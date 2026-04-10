@@ -16,7 +16,11 @@ interface ChangePasswordFormProps {
   onSuccess?: () => void;
 }
 
-const ChangePasswordForm = ({ hasEmailAccount, onPasswordSet, onSuccess }: ChangePasswordFormProps) => {
+const ChangePasswordForm = ({
+  hasEmailAccount,
+  onPasswordSet,
+  onSuccess,
+}: ChangePasswordFormProps) => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -52,9 +56,7 @@ const ChangePasswordForm = ({ hasEmailAccount, onPasswordSet, onSuccess }: Chang
         ? '/api/auth/email/set-password'
         : '/api/auth/email/change-password';
 
-      const body = isSetMode
-        ? { newPassword }
-        : { currentPassword, newPassword };
+      const body = isSetMode ? { newPassword } : { currentPassword, newPassword };
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -156,13 +158,19 @@ const ChangePasswordForm = ({ hasEmailAccount, onPasswordSet, onSuccess }: Chang
 
         <Button
           type="submit"
-          disabled={isLoading || (!isSetMode && !currentPassword) || !newPassword || !confirmPassword}
+          disabled={
+            isLoading || (!isSetMode && !currentPassword) || !newPassword || !confirmPassword
+          }
           className="w-fit"
           data-testid={isSetMode ? 'set-password-btn' : 'change-password-btn'}
         >
           {isLoading
-            ? (isSetMode ? 'Setting...' : 'Changing...')
-            : (isSetMode ? 'Set password' : 'Change password')}
+            ? isSetMode
+              ? 'Setting...'
+              : 'Changing...'
+            : isSetMode
+              ? 'Set password'
+              : 'Change password'}
         </Button>
       </form>
     </div>

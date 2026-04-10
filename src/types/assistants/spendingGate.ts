@@ -16,7 +16,12 @@
  * The reason why spending is blocked.
  * Used for UI messaging and logging.
  */
-export type SpendingBlockReason = 'no_credits' | 'assistant_limit' | 'user_limit' | 'org_limit' | null;
+export type SpendingBlockReason =
+  | 'no_credits'
+  | 'assistant_limit'
+  | 'user_limit'
+  | 'org_limit'
+  | null;
 
 /**
  * Status of the spending gate for a given context.

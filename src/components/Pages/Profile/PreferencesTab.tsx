@@ -95,4 +95,3 @@ const PreferencesTab = () => {
 };
 
 export default PreferencesTab;
-

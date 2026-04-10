@@ -63,9 +63,12 @@ export async function validateTaxId(
 ): Promise<TaxIdValidationResponse> {
   const client = createOrchestraClient(apiKey);
   // Body is auto-transformed camelCase → snake_case by the bodySerializer
-  const { data: responseData, error } = await client.POST('/v0/billing/validate-tax-id' as never, {
-    body: { taxId: data.taxId, country: data.country },
-  } as never);
+  const { data: responseData, error } = await client.POST(
+    '/v0/billing/validate-tax-id' as never,
+    {
+      body: { taxId: data.taxId, country: data.country },
+    } as never
+  );
 
   if (error) {
     throw new Error(

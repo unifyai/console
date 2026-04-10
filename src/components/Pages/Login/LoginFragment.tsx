@@ -33,20 +33,22 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
   return (
     <div className="flex flex-wrap">
       <div className="flex flex-1 flex-col gap-14">
-
         {/* Header — tagline */}
         <div className="flex flex-col gap-4">
-          <div className="flex justify-center"><UnifyLogo /></div>
+          <div className="flex justify-center">
+            <UnifyLogo />
+          </div>
           <h1 className="text-center text-4xl leading-[1] tracking-[-0.02em] text-gray-800 dark:text-white sm:text-5xl">
-            Hire AI{' '}
-            <span className="font-serif italic">— Not APIs</span>
+            Hire AI <span className="font-serif italic">— Not APIs</span>
           </h1>
         </div>
 
         {/* Content — auth buttons / email form */}
         <div className="flex flex-col gap-3">
           {error && authTab === 'oauth' && (
-            <div className="text-red-500" data-testid="oauth-error">{error}</div>
+            <div className="text-red-500" data-testid="oauth-error">
+              {error}
+            </div>
           )}
 
           {authTab === 'oauth' ? (
@@ -64,7 +66,7 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
                 </div>
               </HallowButton>
 
-              <div className="flex items-center gap-3 my-1">
+              <div className="my-1 flex items-center gap-3">
                 <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
                 <span className="text-caption text-muted-foreground">or</span>
                 <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
@@ -80,7 +82,7 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
           ) : (
             <>
               <EmailLoginForm callbackUrl={callbackUrl} externalError={error} />
-              <div className="flex items-center gap-3 my-1">
+              <div className="my-1 flex items-center gap-3">
                 <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
                 <span className="text-caption text-muted-foreground">or</span>
                 <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
@@ -88,7 +90,7 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
               <button
                 type="button"
                 onClick={() => setAuthTab('oauth')}
-                className="text-caption text-muted-foreground hover:text-foreground transition-colors text-center"
+                className="text-caption text-center text-muted-foreground transition-colors hover:text-foreground"
                 data-testid="switch-to-oauth"
               >
                 Sign in with Google or Microsoft
@@ -103,11 +105,17 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
         {/* Footer — disclaimer */}
         <div className="text-branding-grey text-body">
           {'By signing up you agree to our '}
-          <a href="https://unify.ai/privacy-policy" className="font-semibold underline text-primary">
+          <a
+            href="https://unify.ai/privacy-policy"
+            className="font-semibold text-primary underline"
+          >
             Privacy Policy
           </a>
           {' and '}
-          <a href="https://unify.ai/terms-of-service" className="font-semibold underline text-primary">
+          <a
+            href="https://unify.ai/terms-of-service"
+            className="font-semibold text-primary underline"
+          >
             Terms Of Service
           </a>
           {'.'}
@@ -118,4 +126,3 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
 };
 
 export default LoginFragment;
-

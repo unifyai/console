@@ -103,6 +103,70 @@ export interface ChatCompletionRequest {
   stop?: string | string[] | null;
 }
 
+export interface CallPill {
+  id: string;
+  type: 'call_pill';
+  timestamp: Date;
+  durationSeconds: number;
+  exchangeId?: number;
+  recordingUrl?: string;
+}
+
+export type TimelineItem = ChatMessage | CallPill;
+
+export function isCallPill(item: TimelineItem): item is CallPill {
+  return 'type' in item && item.type === 'call_pill';
+}
+
+export interface CallTranscriptUtterance {
+  id: string;
+  role: 'assistant' | 'user';
+  content: string;
+  timestamp: Date;
+  callUtteranceTimestamp?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Chat search
+// ---------------------------------------------------------------------------
+
+export type ChatSearchMedium = 'all' | 'chat' | 'call';
+export type ChatSearchSender = 'everyone' | 'assistant' | 'me';
+
+export interface ChatSearchFilters {
+  query: string;
+  medium: ChatSearchMedium;
+  sender: ChatSearchSender;
+  attachmentType: AttachmentType | null;
+  startDate: Date | null;
+  endDate: Date | null;
+}
+
+export interface ChatSearchResult {
+  id: string;
+  role: 'assistant' | 'user';
+  content: string;
+  timestamp: Date;
+  messageId?: number;
+  medium: string;
+  exchangeId?: number;
+  attachments?: Attachment[];
+}
+
+// ---------------------------------------------------------------------------
+// Historical view (jump-to-message)
+// ---------------------------------------------------------------------------
+
+export interface HistoricalViewState {
+  anchorMessageId: number;
+  messages: ChatMessage[];
+  callPills: CallPill[];
+  hasOlder: boolean;
+  hasNewer: boolean;
+  isLoadingOlder: boolean;
+  isLoadingNewer: boolean;
+}
+
 export interface UnifyMessage {
   assistantId: number;
   contactId: number;

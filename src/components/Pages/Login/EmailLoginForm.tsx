@@ -25,7 +25,8 @@ interface EmailLoginFormProps {
 const formatProviderError = (providers: string[]): string => {
   if (providers.length === 0) return '';
   const names = providers.map((p) => p.charAt(0).toUpperCase() + p.slice(1));
-  const joined = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];
+  const joined =
+    names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];
   return `This email is registered with ${joined}. Please sign in with ${joined}.`;
 };
 
@@ -241,7 +242,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
             setView('register');
             setVerificationError(undefined);
           }}
-          className="text-caption text-muted-foreground hover:text-foreground transition-colors text-center"
+          className="text-caption text-center text-muted-foreground transition-colors hover:text-foreground"
           data-testid="back-to-register"
         >
           ← Back to registration
@@ -255,13 +256,19 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
   const isRegister = view === 'register';
 
   return (
-    <div className="flex flex-col gap-4" data-testid={isRegister ? 'email-register-form' : 'email-login-form'}>
+    <div
+      className="flex flex-col gap-4"
+      data-testid={isRegister ? 'email-register-form' : 'email-login-form'}
+    >
       <form onSubmit={isRegister ? handleRegister : handleLogin} className="flex flex-col gap-3">
         {isRegister && (
           <div className="flex gap-3">
             <div className="flex-1">
-              <label htmlFor="email-first-name" className="text-caption font-medium text-foreground">
-                First name
+              <label
+                htmlFor="email-first-name"
+                className="text-caption font-medium text-foreground"
+              >
+                First name*
               </label>
               <Input
                 id="email-first-name"
@@ -269,13 +276,14 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
                 placeholder="First name"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
+                required
                 disabled={isLoading}
                 data-testid="email-first-name-input"
               />
             </div>
             <div className="flex-1">
               <label htmlFor="email-last-name" className="text-caption font-medium text-foreground">
-                Last name
+                Last name*
               </label>
               <Input
                 id="email-last-name"
@@ -283,6 +291,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
                 placeholder="Last name"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
+                required
                 disabled={isLoading}
                 data-testid="email-last-name-input"
               />
@@ -292,7 +301,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
 
         <div>
           <label htmlFor="email-address" className="text-caption font-medium text-foreground">
-            Email
+            Email*
           </label>
           <Input
             id="email-address"
@@ -311,7 +320,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
 
         <div>
           <label htmlFor="email-password" className="text-caption font-medium text-foreground">
-            Password
+            Password*
           </label>
           <PasswordInput
             id="email-password"
@@ -333,7 +342,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
                 setView('forgot-password');
                 setError(undefined);
               }}
-              className="text-caption text-muted-foreground hover:text-foreground transition-colors text-center"
+              className="text-caption text-center text-muted-foreground transition-colors hover:text-foreground"
               data-testid="forgot-password-link"
             >
               Forgot password?
@@ -359,7 +368,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
 
         <Button
           type="submit"
-          disabled={isLoading || !email || !password}
+          disabled={isLoading || !email || !password || (isRegister && (!firstName || !lastName))}
           className="w-full"
           data-testid="email-submit-btn"
         >
@@ -373,7 +382,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
         </Button>
       </form>
 
-      <div className="text-center text-caption text-muted-foreground">
+      <div className="text-caption text-center text-muted-foreground">
         {isRegister ? (
           <>
             Already have an account?{' '}
@@ -383,7 +392,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
                 setView('login');
                 setError(undefined);
               }}
-              className="font-semibold hover:text-foreground transition-colors"
+              className="font-semibold transition-colors hover:text-foreground"
               data-testid="switch-to-login"
             >
               Sign in
@@ -398,7 +407,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
                 setView('register');
                 setError(undefined);
               }}
-              className="font-semibold hover:text-foreground transition-colors"
+              className="font-semibold transition-colors hover:text-foreground"
               data-testid="switch-to-register"
             >
               Create one
@@ -411,4 +420,3 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
 };
 
 export default EmailLoginForm;
-

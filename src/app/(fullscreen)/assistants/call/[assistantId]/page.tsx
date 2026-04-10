@@ -23,6 +23,7 @@ import { listAssistants, updateAssistant } from '@/lib/assistants/assistant';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import AssistantCommunicationFullScreen from '@/components/Pages/Assistants/Communication/AssistantCommunicationFullScreen';
 import { notFound } from 'next/navigation';
+import { cookies } from 'next/headers';
 
 const CallPage = async ({ params }: { params: { assistantId: string } }) => {
   const user = await getCurrentUser();
@@ -30,7 +31,12 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
     redirect('/login');
   }
   const apiKey = user.apiKey;
-  const isOrgContext = user.organizations?.some((org) => org.apiKey === apiKey) ?? false;
+  const cookieStore = cookies();
+  const workspaceId = cookieStore.get('unify_workspace_id')?.value;
+  const isOrgContext =
+    !!workspaceId &&
+    workspaceId !== 'personal' &&
+    !!user.organizations?.some((o) => o.id.toString() === workspaceId);
 
   const assistantActions: Pick<AssistantActions, 'chat' | 'call' | 'desktop'> & {
     assistant: Pick<AssistantActions['assistant'], 'update'>;

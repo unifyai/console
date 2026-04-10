@@ -17,11 +17,12 @@ import {
   PanelRightOpen,
   ChevronRight,
 } from 'lucide-react';
-import { useAssistantSecrets } from '@/hooks/Assistants/useAssistantSecrets';
+import { useAssistantSecrets, PendingUpload } from '@/hooks/Assistants/useAssistantSecrets';
 import { Secret, SecretActions } from '@/types/assistants/secret';
 import { cn } from '@/lib/utils';
 import { FormProvider } from 'react-hook-form';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/UI/popover';
+import { Checkbox } from '@/components/UI/checkbox';
 import {
   Accordion,
   AccordionItem,
@@ -105,6 +106,111 @@ const JsonFormatInfo = () => (
     </PopoverContent>
   </Popover>
 );
+
+function JsonUploadPreviewDialog({
+  pendingUpload,
+  isSubmitting,
+  onConfirm,
+  onCancel,
+}: {
+  pendingUpload: PendingUpload;
+  isSubmitting: boolean;
+  onConfirm: (options: { splitKeys: boolean; baseFolder: string; secretName: string }) => void;
+  onCancel: () => void;
+}) {
+  const [splitKeys, setSplitKeys] = React.useState(false);
+  const [baseFolder, setBaseFolder] = React.useState('');
+  const [secretName, setSecretName] = React.useState(pendingUpload.fileName);
+
+  const topLevelKeys = Object.keys(pendingUpload.parsed);
+  const trimmedFolder = baseFolder.replace(/\/+$/, '').replace(/^\/+/, '');
+  const addPrefix = (name: string) => (trimmedFolder ? `${trimmedFolder}/${name}` : name);
+
+  const previewNames = splitKeys
+    ? topLevelKeys.map((k) => addPrefix(k))
+    : [addPrefix(secretName || pendingUpload.fileName)];
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onCancel()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Upload JSON</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 pt-2">
+          <div>
+            <Label className="text-caption mb-2 block">Base folder (optional)</Label>
+            <Input
+              value={baseFolder}
+              onChange={(e) => setBaseFolder(e.target.value)}
+              placeholder="e.g. gcp/prod"
+              className="h-8 text-sm"
+              disabled={isSubmitting}
+            />
+          </div>
+
+          {!splitKeys && (
+            <div>
+              <Label className="text-caption mb-2 block">Secret name</Label>
+              <Input
+                value={secretName}
+                onChange={(e) => setSecretName(e.target.value)}
+                placeholder={pendingUpload.fileName}
+                className="h-8 text-sm"
+                disabled={isSubmitting}
+              />
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="split-keys"
+              checked={splitKeys}
+              onCheckedChange={(checked) => setSplitKeys(checked === true)}
+              disabled={isSubmitting}
+            />
+            <label htmlFor="split-keys" className="cursor-pointer text-sm">
+              Split into {topLevelKeys.length} separate secret{topLevelKeys.length === 1 ? '' : 's'}
+            </label>
+          </div>
+
+          <div>
+            <Label className="text-caption mb-2 block">
+              {splitKeys ? 'Secrets to create' : 'Secret to create'}
+            </Label>
+            <div className="bg-muted/50 max-h-48 overflow-auto rounded border p-2">
+              {previewNames.map((name) => (
+                <div key={name} className="flex items-center gap-1.5 py-0.5">
+                  <KeyRound className="h-3 w-3 shrink-0 text-muted-foreground" />
+                  <span className="text-code-sm">{name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() =>
+              onConfirm({
+                splitKeys,
+                baseFolder: trimmedFolder,
+                secretName: secretName || pendingUpload.fileName,
+              })
+            }
+            disabled={isSubmitting || (!splitKeys && !secretName.trim())}
+          >
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Upload
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function SecretTreeRow({
   node,
@@ -274,7 +380,10 @@ export function AssistantSecretsManager({
     handleNewSecret,
     handleDeleteSecret,
     handleDeleteFolder,
-    handleUploadJson,
+    pendingUpload,
+    handleFileSelected,
+    confirmUploadJson,
+    cancelUploadJson,
     onSubmit,
   } = useAssistantSecrets(assistantId, ownerId, secretActions);
 
@@ -284,6 +393,38 @@ export function AssistantSecretsManager({
   const [pendingDelete, setPendingDelete] = React.useState<PendingDelete | null>(null);
   const [expandedFolders, setExpandedFolders] = React.useState<string[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const DEFAULT_LEFT_FRACTION = 1 / 3;
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [leftFraction, setLeftFraction] = React.useState(DEFAULT_LEFT_FRACTION);
+  const draggingRef = React.useRef(false);
+
+  React.useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!draggingRef.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const fraction = (e.clientX - rect.left) / rect.width;
+      setLeftFraction(Math.min(0.8, Math.max(0.15, fraction)));
+    };
+    const onMouseUp = () => {
+      draggingRef.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
+
+  const handleDividerMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
 
   const {
     register,
@@ -324,7 +465,7 @@ export function AssistantSecretsManager({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) handleUploadJson(file);
+    if (file) handleFileSelected(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -401,7 +542,10 @@ export function AssistantSecretsManager({
   );
 
   const renderLeftPane = () => (
-    <div className={cn('flex h-full flex-col', detailOpen ? 'w-1/3 border-r' : 'w-full')}>
+    <div
+      className="flex h-full flex-col"
+      style={detailOpen ? { width: `${leftFraction * 100}%` } : { width: '100%' }}
+    >
       <div className="border-b p-2">
         <Input
           placeholder="Search secrets..."
@@ -467,7 +611,10 @@ export function AssistantSecretsManager({
           variant="ghost"
           size="icon"
           className={cn('h-7 w-7 text-muted-foreground', !canWrite && 'ml-auto')}
-          onClick={() => setDetailOpen((prev) => !prev)}
+          onClick={() => {
+            setDetailOpen((prev) => !prev);
+            setLeftFraction(DEFAULT_LEFT_FRACTION);
+          }}
           title={detailOpen ? 'Hide detail pane' : 'Show detail pane'}
         >
           {detailOpen ? (
@@ -483,7 +630,7 @@ export function AssistantSecretsManager({
   const renderRightPane = () => {
     if (!detailOpen) return null;
     return (
-      <div className="flex w-2/3 flex-col p-6">
+      <div className="flex flex-col p-6" style={{ width: `${(1 - leftFraction) * 100}%` }}>
         {!canWrite ? (
           <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
             <p className="text-body">
@@ -572,8 +719,15 @@ export function AssistantSecretsManager({
   };
 
   const renderManager = () => (
-    <div className="flex h-full">
+    <div ref={containerRef} className="flex h-full">
       {renderLeftPane()}
+      {detailOpen && (
+        <div
+          className="hover:bg-primary/30 shrink-0 cursor-col-resize bg-border transition-colors"
+          style={{ width: 4 }}
+          onMouseDown={handleDividerMouseDown}
+        />
+      )}
       {renderRightPane()}
     </div>
   );
@@ -593,7 +747,7 @@ export function AssistantSecretsManager({
     >
       <DialogContent className="flex h-[90vh] max-w-4xl flex-col gap-0 p-0">
         <DialogHeader className="flex-shrink-0 border-b px-6 py-4">
-          <DialogTitle>Manage secrets</DialogTitle>
+          <DialogTitle>Secrets</DialogTitle>
         </DialogHeader>
 
         <div className="min-h-0 flex-1">
@@ -633,6 +787,15 @@ export function AssistantSecretsManager({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {pendingUpload && (
+        <JsonUploadPreviewDialog
+          pendingUpload={pendingUpload}
+          isSubmitting={isSubmitting}
+          onConfirm={confirmUploadJson}
+          onCancel={cancelUploadJson}
+        />
+      )}
     </Dialog>
   );
 }

@@ -734,7 +734,6 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
           )}
         </div>
       </div>
-
     </div>
   );
 }

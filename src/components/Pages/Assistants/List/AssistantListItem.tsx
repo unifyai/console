@@ -1,20 +1,53 @@
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
-import { Phone, Mail, PhoneCall } from 'lucide-react';
+import {
+  Phone,
+  Mail,
+  PhoneCall,
+  MoreVertical,
+  PenLine,
+  Contact,
+  KeyRound,
+  Copy,
+  Check,
+  Trash2,
+  Loader2,
+  AlertTriangle,
+} from 'lucide-react';
 import { WhatsApp } from '@mui/icons-material';
 import { cn } from '@/lib/utils';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/UI/hover-card';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/UI/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/UI/dropdown-menu';
 import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/UI/alert-dialog';
 
 interface AssistantListItemProps {
   assistant: Assistant;
   status: AssistantStatus | null;
   isSelected: boolean;
   onShowProfile: (id: string) => void;
-  onOpenContactManager: (assistant: Assistant, tab: 'email' | 'phone' | 'whatsapp') => void;
+  onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
+  onEditAssistant: (assistant: Assistant) => void;
+  onOpenSecretsManager: (assistant: Assistant) => void;
+  onEndContract?: (assistant: Assistant) => Promise<void>;
   isFolded: boolean;
   isCallActive: boolean;
 }
@@ -25,17 +58,39 @@ export function AssistantListItem({
   isSelected,
   onShowProfile,
   onOpenContactManager,
+  onEditAssistant,
+  onOpenSecretsManager,
+  onEndContract,
   isFolded,
   isCallActive,
 }: AssistantListItemProps) {
+  const [isIdCopied, setIsIdCopied] = React.useState(false);
+  const [isEndContractAlertOpen, setIsEndContractAlertOpen] = React.useState(false);
+  const [isEndingContract, setIsEndingContract] = React.useState(false);
+
   const handleProfileClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onShowProfile(assistant.agentId);
   };
 
+  const handleEndContractConfirm = async () => {
+    if (!onEndContract || isEndingContract) return;
+    setIsEndingContract(true);
+    try {
+      await onEndContract(assistant);
+      setIsEndContractAlertOpen(false);
+    } finally {
+      setIsEndingContract(false);
+    }
+  };
+
   const displayName = `${assistant.firstName} ${assistant.surname}`;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
   const isOnline = status?.running === true;
+
+  const supervisorName = [assistant.userFirstName, assistant.userLastName]
+    .filter(Boolean)
+    .join(' ');
 
   const hoverCardContent = (
     <div className="flex justify-between space-x-4">
@@ -45,10 +100,31 @@ export function AssistantListItem({
           {`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
         </AvatarFallback>
       </Avatar>
-      <div className="flex-1 space-y-1">
+      <div className="flex-1 space-y-0.5">
         <h4 className="text-title">{displayName}</h4>
+        <div
+          className="group/id text-caption flex cursor-pointer items-center gap-1 text-muted-foreground"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigator.clipboard.writeText(assistant.agentId);
+            setIsIdCopied(true);
+            setTimeout(() => setIsIdCopied(false), 2000);
+          }}
+        >
+          <span className="opacity-70">Assistant ID:</span>
+          {isIdCopied ? (
+            <Check className="h-3 w-3 text-green-500" />
+          ) : (
+            <Copy className="h-3 w-3 opacity-70 transition-colors group-hover/id:opacity-100" />
+          )}
+        </div>
+        {supervisorName && (
+          <div className="text-caption flex items-center text-muted-foreground">
+            <span className="mr-1 opacity-70">Supervisor:</span> {supervisorName}
+          </div>
+        )}
         <div className="text-caption flex items-center pt-1 text-muted-foreground">
-          <Mail className="mr-2 h-4 w-4 opacity-70" />{' '}
+          <Mail className="mr-1.5 h-3 w-3 opacity-70" />
           {assistant.email ? (
             <a
               href={`mailto:${assistant.email}`}
@@ -70,8 +146,8 @@ export function AssistantListItem({
             </Button>
           )}
         </div>
-        <div className="text-caption flex items-center pt-1 text-muted-foreground">
-          <Phone className="mr-2 h-4 w-4 opacity-70" />{' '}
+        <div className="text-caption flex items-center pt-0.5 text-muted-foreground">
+          <Phone className="mr-1.5 h-3 w-3 opacity-70" />
           {assistant.phone ? (
             <span className="truncate">{assistant.phone}</span>
           ) : (
@@ -87,8 +163,8 @@ export function AssistantListItem({
             </Button>
           )}
         </div>
-        <div className="text-caption flex items-center pt-1 text-muted-foreground">
-          <WhatsApp sx={{ fontSize: '16px', marginRight: '8px', opacity: 0.7 }} />
+        <div className="text-caption flex items-center pt-0.5 text-muted-foreground">
+          <WhatsApp sx={{ fontSize: '12px', marginRight: '6px', opacity: 0.7 }} />
           {assistant.assistantWhatsappNumber ? (
             <span className="truncate">{assistant.assistantWhatsappNumber}</span>
           ) : (
@@ -194,43 +270,128 @@ export function AssistantListItem({
         </HoverCard>
         <span className="text-body text-strong truncate">{displayName}</span>
       </div>
-      {assistant.deployEnv === 'preview' && (
-        <span
-          className={cn(
-            `text-caption`,
-            isSelected ? 'text-primary-foreground' : 'text-muted-foreground'
-          )}
-        >
-          <Badge variant="outline">Preview</Badge>
-        </span>
-      )}
-      {assistant.demoId && (
-        <span
-          className={cn(
-            `text-caption`,
-            isSelected ? 'text-primary-foreground' : 'text-muted-foreground'
-          )}
-        >
-          <Badge variant="outline">Demo</Badge>
-        </span>
-      )}
-      {isCallActive && (
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <PhoneCall
+      <div className="flex items-center gap-1">
+        {assistant.deployEnv === 'preview' && (
+          <span
+            className={cn(
+              `text-caption`,
+              isSelected ? 'text-primary-foreground' : 'text-muted-foreground'
+            )}
+          >
+            <Badge variant="outline">Preview</Badge>
+          </span>
+        )}
+        {assistant.demoId && (
+          <span
+            className={cn(
+              `text-caption`,
+              isSelected ? 'text-primary-foreground' : 'text-muted-foreground'
+            )}
+          >
+            <Badge variant="outline">Demo</Badge>
+          </span>
+        )}
+        {isCallActive && (
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PhoneCall
+                  className={cn(
+                    'h-4 w-4 flex-shrink-0 animate-pulse',
+                    isSelected ? 'text-primary-foreground' : 'text-primary'
+                  )}
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>In a call</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100',
+                isSelected && 'text-primary-foreground opacity-100 hover:text-primary-foreground'
+              )}
+              onClick={(e) => e.stopPropagation()}
+              data-testid={`assistant-menu-${assistant.agentId}`}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem
+              onClick={() => onEditAssistant(assistant)}
+              data-testid="menu-edit-profile"
+            >
+              <PenLine className="mr-2 h-4 w-4" />
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onOpenContactManager(assistant)}
+              data-testid="menu-update-contacts"
+            >
+              <Contact className="mr-2 h-4 w-4" />
+              Contact Details
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onOpenSecretsManager(assistant)}
+              data-testid="menu-manage-secrets"
+            >
+              <KeyRound className="mr-2 h-4 w-4" />
+              Secrets
+            </DropdownMenuItem>
+            {onEndContract && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setIsEndContractAlertOpen(true)}
+                  data-testid="menu-end-contract"
+                  className="text-destructive hover:bg-destructive hover:text-destructive-foreground focus:bg-destructive focus:text-destructive-foreground"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  End contract
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <AlertDialog open={isEndContractAlertOpen} onOpenChange={setIsEndContractAlertOpen}>
+          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center">
+                <AlertTriangle className="mr-2 h-5 w-5 text-destructive" />
+                Confirm End Contract
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                You are about to remove{' '}
+                <strong>
+                  {assistant.firstName} {assistant.surname}
+                </strong>{' '}
+                from your team. This action cannot be undone. Are you sure?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isEndingContract}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleEndContractConfirm}
+                disabled={isEndingContract}
                 className={cn(
-                  'mr-2 h-4 w-4 flex-shrink-0 animate-pulse',
-                  isSelected ? 'text-primary-foreground' : 'text-primary'
+                  'hover:bg-destructive/90 bg-destructive',
+                  isEndingContract && 'cursor-not-allowed opacity-70'
                 )}
-              />
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>In a call</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
+              >
+                {isEndingContract ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Proceed
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </div>
   );
 }

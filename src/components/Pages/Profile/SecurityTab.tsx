@@ -124,7 +124,7 @@ const SecurityTab = ({ user }: { user: User }) => {
         setIsDeleting(false);
       }
     },
-    [router],
+    [router]
   );
 
   const handleMfaVerify = useCallback(
@@ -148,7 +148,7 @@ const SecurityTab = ({ user }: { user: User }) => {
         return false;
       }
     },
-    [router],
+    [router]
   );
 
   const hasEmailAccount = credentials?.hasEmailAccount ?? false;
@@ -203,9 +203,9 @@ const SecurityTab = ({ user }: { user: User }) => {
       </div>
 
       {/* Danger Zone */}
-      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+      <div className="border-destructive/30 bg-destructive/5 rounded-lg border p-4">
         <h3 className="text-h3 text-destructive">Danger Zone</h3>
-        <p className="mt-1 text-caption">
+        <p className="text-caption mt-1">
           Deleting your account is irreversible. All your data will be permanently removed.
         </p>
         <div className="mt-4">
@@ -226,18 +226,13 @@ const SecurityTab = ({ user }: { user: User }) => {
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete Account</AlertDialogTitle>
                 <AlertDialogDescription>
-                  You are about to delete your account. This is an irreversible action.
-                  All your data will be permanently removed.
+                  You are about to delete your account. This is an irreversible action. All your
+                  data will be permanently removed.
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              {deleteError && (
-                <p className="text-caption text-destructive">{deleteError}</p>
-              )}
+              {deleteError && <p className="text-caption text-destructive">{deleteError}</p>}
               <AlertDialogFooter>
-                <AlertDialogCancel
-                  onClick={() => setDeleteError(undefined)}
-                  disabled={isDeleting}
-                >
+                <AlertDialogCancel onClick={() => setDeleteError(undefined)} disabled={isDeleting}>
                   Cancel
                 </AlertDialogCancel>
                 <AlertDialogAction
@@ -275,7 +270,7 @@ const SecurityTab = ({ user }: { user: User }) => {
           <ChangePasswordForm
             hasEmailAccount={hasEmailAccount}
             onPasswordSet={() => {
-              setCredentials((prev) => prev ? { ...prev, hasEmailAccount: true } : prev);
+              setCredentials((prev) => (prev ? { ...prev, hasEmailAccount: true } : prev));
               setShowPasswordModal(false);
             }}
             onSuccess={() => setShowPasswordModal(false)}

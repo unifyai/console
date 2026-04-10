@@ -59,6 +59,7 @@ import {
   resolveToolLoopKind,
   extractSteeringTarget,
 } from '@/lib/assistants/event-filters';
+import { compareLogsByTime } from '@/utils/assistants/assistant-actions';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/UI/tooltip';
 const SHOW_EXECUTE_CODE_CONTENT = true;
 
@@ -218,7 +219,7 @@ function deduplicateLiveLogs(polled: ToolLoopLog[], live: ToolLoopLog[]): ToolLo
   });
 
   if (extra.length === 0) return polled;
-  return [...polled, ...extra].sort((a, b) => a.id - b.id);
+  return [...polled, ...extra].sort(compareLogsByTime);
 }
 
 // ---------------------------------------------------------------------------
@@ -288,7 +289,7 @@ interface BracketGeom {
 }
 
 function BracketLines({ geom }: { geom: BracketGeom }) {
-  const bg = 'hsl(0 0% 100% / 0.18)';
+  const bg = 'var(--border)';
   const top = geom.topY - 1;
   const bot = geom.bottomY - 1;
   return (
@@ -438,6 +439,8 @@ export type SectionToggleSignal = { open: boolean; gen: number };
 export interface ActionNodeItemProps {
   /** The action node to display */
   node: ActionNode;
+  /** Owner user ID for constructing context paths */
+  ownerId?: string;
   /** Depth level for indentation (0 = root) */
   depth?: number;
   /** Default expanded state (defaults to true for running nodes) */
@@ -500,24 +503,23 @@ function getNodeIcon(displayLabel?: string): LucideIcon {
 
 function getNodeTooltip(displayLabel?: string): string {
   if (!displayLabel) return 'event';
-  if (displayLabel === 'Session') return 'persistent session';
-  if (displayLabel === 'Taking Action') return 'action';
-  if (displayLabel === 'Running Code') return 'code execution';
-  if (displayLabel.startsWith('Running:')) return 'function execution';
-  if (displayLabel === 'Storing Reusable Skills') return 'skill storage';
-  if (displayLabel === 'Reading File') return 'file read';
-  if (displayLabel === 'Processing Memory Chunk') return 'memory processing';
-  if (displayLabel === 'Working on Task') return 'task';
-  if (displayLabel === 'Reorganizing Notes') return 'note reorganization';
-  if (displayLabel === 'Searching the Web') return 'web search';
-  if (displayLabel === 'Answering Question') return 'question answering';
-  if (displayLabel.includes('Contact')) return 'contact lookup';
-  if (displayLabel.includes('Notes') || displayLabel.includes('Knowledge')) return 'knowledge base';
-  if (displayLabel.includes('Credential') || displayLabel.includes('Secret'))
-    return 'credential access';
-  if (displayLabel.includes('Task')) return 'task management';
-  if (displayLabel.includes('Conversation') || displayLabel.includes('Transcript'))
-    return 'conversation';
+  const dl = displayLabel.toLowerCase();
+  if (dl === 'session') return 'persistent session';
+  if (dl === 'taking action') return 'action';
+  if (dl === 'running code') return 'code execution';
+  if (dl.startsWith('running:')) return 'function execution';
+  if (dl === 'storing reusable skills') return 'storage';
+  if (dl === 'reading file') return 'file read';
+  if (dl === 'processing memory chunk') return 'memory processing';
+  if (dl === 'working on task') return 'task';
+  if (dl === 'reorganizing notes') return 'note reorganization';
+  if (dl === 'searching the web') return 'web search';
+  if (dl === 'answering question') return 'question answering';
+  if (dl.includes('contact')) return 'contact lookup';
+  if (dl.includes('notes') || dl.includes('knowledge')) return 'knowledge base';
+  if (dl.includes('credential') || dl.includes('secret')) return 'credential access';
+  if (dl.includes('task')) return 'task management';
+  if (dl.includes('conversation') || dl.includes('transcript')) return 'conversation';
   return 'event';
 }
 
@@ -1397,7 +1399,7 @@ function ThoughtLabel({ text, time }: { text: string; time: string }) {
   return (
     <div
       ref={ref}
-      className="flex cursor-pointer items-center gap-2"
+      className="flex cursor-pointer items-start gap-2"
       onClick={() => {
         const el = ref.current;
         if (el) {
@@ -1409,7 +1411,7 @@ function ThoughtLabel({ text, time }: { text: string; time: string }) {
     >
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="shrink-0 text-slate-500/80 dark:text-slate-400/50">
+          <span className="mt-0.5 shrink-0 text-slate-500/80 dark:text-slate-400/50">
             <Brain className="h-2.5 w-2.5" />
           </span>
         </TooltipTrigger>
@@ -1417,7 +1419,7 @@ function ThoughtLabel({ text, time }: { text: string; time: string }) {
           thought
         </TooltipContent>
       </Tooltip>
-      <span className="min-w-0 truncate text-muted-foreground">{text}</span>
+      <span className="min-w-0 break-words text-muted-foreground">{text}</span>
       <span className="text-muted-foreground/30 ml-auto shrink-0 pl-1 text-[10px] tabular-nums">
         {time}
       </span>
@@ -1535,6 +1537,7 @@ function ToolLoopMessage({
   onTcHover,
   hoveredTcId,
   onLayoutChange,
+  ownerId,
   assistantId,
   getToolLoopEvents,
   suppressTrailingResponse,
@@ -1550,6 +1553,7 @@ function ToolLoopMessage({
   onTcHover?: (tcId: string | null) => void;
   hoveredTcId?: string | null;
   onLayoutChange?: () => void;
+  ownerId?: string;
   assistantId?: string;
   getToolLoopEvents?: GetToolLoopEventsFn;
   suppressTrailingResponse?: boolean;
@@ -1591,7 +1595,7 @@ function ToolLoopMessage({
     if (!child || descendantLiveLogCount === 0) return [];
     const allLogs = collectDescendantLiveLogs(child);
     const rewritten = rewriteCheckStatusResults(allLogs);
-    return rewritten.filter((l) => !isToolLoopNoise(l.entries)).sort((a, b) => a.id - b.id);
+    return rewritten.filter((l) => !isToolLoopNoise(l.entries)).sort(compareLogsByTime);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- descendantLiveLogCount is a primitive proxy for deep liveToolLoopLogs mutations
   }, [child, descendantLiveLogCount]);
 
@@ -1631,7 +1635,7 @@ function ToolLoopMessage({
       child.children.length === 1 && child.children[0].displayLabel ? child.children[0] : null;
     const childLabel = innerChild?.displayLabel ?? child.displayLabel ?? child.label;
     const childTime = formatEventTime(child.startTime);
-    const canExpand = !!(getToolLoopEvents && assistantId) || descendantLiveLogCount > 0;
+    const canExpand = !!(getToolLoopEvents && ownerId && assistantId) || descendantLiveLogCount > 0;
 
     const handleChildToggle = () => {
       if (!canExpand) return;
@@ -1639,10 +1643,11 @@ function ToolLoopMessage({
       setChildLogsOpen(opening);
       onLayoutChange?.();
 
-      if (opening && !childFetchedRef.current && getToolLoopEvents && assistantId) {
+      if (opening && !childFetchedRef.current && getToolLoopEvents && assistantId && ownerId) {
         childFetchedRef.current = true;
         setChildLoading(true);
         getToolLoopEvents(
+          ownerId,
           assistantId,
           child.hierarchy,
           null,
@@ -1722,6 +1727,7 @@ function ToolLoopMessage({
               logs={effectiveChildLogs}
               depth={0}
               searchTerm={searchTerm}
+              ownerId={ownerId}
               assistantId={assistantId}
               getToolLoopEvents={getToolLoopEvents}
               nested
@@ -2226,10 +2232,7 @@ function ToolLoopMessage({
           )}
           {isOpen && (
             <span
-              className={cn(
-                'min-w-0 text-muted-foreground',
-                hasMoreLines || isJson ? 'truncate' : 'break-words'
-              )}
+              className={cn('min-w-0 text-muted-foreground', isJson ? 'truncate' : 'break-words')}
             >
               {isJson ? content!.trim()[0] : <TruncatedMarkdown content={firstLine} />}
             </span>
@@ -2305,6 +2308,7 @@ function ToolLoopConversation({
   depth,
   nodeCompleted,
   searchTerm,
+  ownerId,
   assistantId,
   getToolLoopEvents,
   nested,
@@ -2316,6 +2320,7 @@ function ToolLoopConversation({
   depth: number;
   nodeCompleted?: boolean;
   searchTerm?: string;
+  ownerId?: string;
   assistantId?: string;
   getToolLoopEvents?: GetToolLoopEventsFn;
   nested?: boolean;
@@ -2405,6 +2410,7 @@ function ToolLoopConversation({
                 onTcHover={setHoveredTcId}
                 hoveredTcId={hoveredTcId}
                 onLayoutChange={signalLayoutChange}
+                ownerId={ownerId}
                 assistantId={assistantId}
                 getToolLoopEvents={getToolLoopEvents}
                 suppressTrailingResponse={suppressTrailingContentIds?.has(log.id)}
@@ -2428,6 +2434,7 @@ function LiveToolLoopTimeline({
   logs,
   depth,
   searchTerm,
+  ownerId,
   assistantId,
   getToolLoopEvents,
   resolvedToolCallIds: resolvedToolCallIdsProp,
@@ -2436,6 +2443,7 @@ function LiveToolLoopTimeline({
   logs: ToolLoopLog[];
   depth: number;
   searchTerm?: string;
+  ownerId?: string;
   assistantId?: string;
   getToolLoopEvents?: GetToolLoopEventsFn;
   resolvedToolCallIds?: Set<string>;
@@ -2529,6 +2537,7 @@ function LiveToolLoopTimeline({
                 onTcHover={setHoveredTcId}
                 hoveredTcId={hoveredTcId}
                 onLayoutChange={signalLayoutChange}
+                ownerId={ownerId}
                 assistantId={assistantId}
                 getToolLoopEvents={getToolLoopEvents}
                 suppressTrailingResponse={suppressTrailingContentIds?.has(log.id)}
@@ -2692,6 +2701,7 @@ function CollapsibleToolLoopSection({
   defaultOpen = false,
   sectionToggleSignal,
   searchTerm,
+  ownerId,
   assistantId,
   getToolLoopEvents,
   onLayoutChange,
@@ -2705,6 +2715,7 @@ function CollapsibleToolLoopSection({
   defaultOpen?: boolean;
   sectionToggleSignal?: SectionToggleSignal;
   searchTerm?: string;
+  ownerId?: string;
   assistantId?: string;
   getToolLoopEvents?: GetToolLoopEventsFn;
   onLayoutChange?: () => void;
@@ -2782,6 +2793,7 @@ function CollapsibleToolLoopSection({
           depth={depth}
           nodeCompleted={nodeCompleted}
           searchTerm={searchTerm}
+          ownerId={ownerId}
           assistantId={assistantId}
           getToolLoopEvents={getToolLoopEvents}
           onLayoutChange={onLayoutChange}
@@ -2795,6 +2807,7 @@ function CollapsibleToolLoopSection({
 
 export function ActionNodeItem({
   node,
+  ownerId,
   depth = 0,
   defaultExpanded,
   expandedNodeIds,
@@ -2844,7 +2857,8 @@ export function ActionNodeItem({
   }, [rawToolLoopLogs, childCount]);
 
   const hasChildren = node.children && node.children.length > 0;
-  const canLoadToolLoop = !!getToolLoopEvents && !!assistantId && node.type === 'manager';
+  const canLoadToolLoop =
+    !!getToolLoopEvents && !!ownerId && !!assistantId && node.type === 'manager';
   const isExpandable = hasChildren || canLoadToolLoop;
 
   // Live ToolLoop logs from SSE, filtered identically to completedToolLoopLogs:
@@ -3068,6 +3082,7 @@ export function ActionNodeItem({
     const load = async () => {
       try {
         const response = await getToolLoopEvents(
+          ownerId!,
           assistantId!,
           node.hierarchy,
           null,
@@ -3092,6 +3107,7 @@ export function ActionNodeItem({
   }, [
     canLoadToolLoop,
     isExpanded,
+    ownerId,
     assistantId,
     getToolLoopEvents,
     node.startTime,
@@ -3321,6 +3337,7 @@ export function ActionNodeItem({
                 logs={filtered}
                 depth={depth}
                 searchTerm={searchTerm}
+                ownerId={ownerId}
                 assistantId={assistantId}
                 getToolLoopEvents={getToolLoopEvents}
                 resolvedToolCallIds={resolvedToolCallIds}
@@ -3336,6 +3353,7 @@ export function ActionNodeItem({
                 depth={depth}
                 nodeCompleted
                 searchTerm={searchTerm}
+                ownerId={ownerId}
                 assistantId={assistantId}
                 getToolLoopEvents={getToolLoopEvents}
                 resolvedToolCallIds={resolvedToolCallIds}
@@ -3351,6 +3369,7 @@ export function ActionNodeItem({
               nodeCompleted
               sectionToggleSignal={sectionToggleSignal}
               searchTerm={searchTerm}
+              ownerId={ownerId}
               assistantId={assistantId}
               getToolLoopEvents={getToolLoopEvents}
               resolvedToolCallIds={resolvedToolCallIds}

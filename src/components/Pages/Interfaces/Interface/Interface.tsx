@@ -32,7 +32,7 @@ import {
 } from '@/types/interfaces/grid';
 import { ResourcesActions } from '@/types/resource';
 import { User } from '@/types/user';
-import { debounce } from 'lodash';
+import { debounce } from '@/utils/misc/debounce';
 import { useIsMobile } from '@/hooks/Common/useMobile';
 import { useTabData, useTabUI } from '@/contexts/hooks/tab';
 import AutoComplete from '../../../Common/Misc/AutoComplete';
@@ -95,7 +95,6 @@ const FocusDialog = lazy(() => import('./Buttons/FocusDialog'));
 const EditTileName = lazy(() => import('./Buttons/EditTileName'));
 const Tab = lazy(() => import('../Tab/Tab'));
 const InterfaceButtons = lazy(() => import('./Buttons/InterfaceButtons'));
-
 
 /**
  * Debug flag for tab prefetching indicators

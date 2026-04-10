@@ -57,7 +57,10 @@ export async function POST(request: NextRequest) {
 
   // Build the URL for the Communication Adapters
   const orchestraUrl = process.env.ORCHESTRA_URL || '';
-  const isStaging = orchestraUrl.includes('staging') || orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1');
+  const isStaging =
+    orchestraUrl.includes('staging') ||
+    orchestraUrl.includes('localhost') ||
+    orchestraUrl.includes('127.0.0.1');
   const prefix = getAdaptersPrefix(deployEnv, isStaging);
   const webhookUrl = `https://unity-adapters-${prefix}ky4ja5fxna-uc.a.run.app/unify/attachment`;
 

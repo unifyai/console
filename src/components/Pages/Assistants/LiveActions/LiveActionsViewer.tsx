@@ -42,9 +42,16 @@ export interface LiveActionsViewerProps {
   actions: AssistantActionActions | null;
   /** Additional class names */
   className?: string;
+  /** Notifies parent when hasActiveAction changes (for dashboard polling) */
+  onHasActiveActionChange?: (active: boolean) => void;
 }
 
-export function LiveActionsViewer({ assistant, actions, className }: LiveActionsViewerProps) {
+export function LiveActionsViewer({
+  assistant,
+  actions,
+  className,
+  onHasActiveActionChange,
+}: LiveActionsViewerProps) {
   // ==========================================================================
   // State
   // ==========================================================================
@@ -115,6 +122,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
     hasMore,
     connectionStatus,
   } = useAssistantActions(
+    hasAssistant ? assistant.userId : '',
     hasAssistant ? assistant.agentId : '',
     actions || { getManagerMethodEvents: async () => ({ logs: [], count: 0 }) },
     {
@@ -122,6 +130,10 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
       initialLookbackMs: lookbackMs,
     }
   );
+
+  React.useEffect(() => {
+    onHasActiveActionChange?.(hasActiveAction);
+  }, [hasActiveAction, onHasActiveActionChange]);
 
   // Track loading more state separately for UI
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
@@ -331,6 +343,7 @@ export function LiveActionsViewer({ assistant, actions, className }: LiveActions
         hasActiveSearch={searchTerm.trim() !== ''}
         matchedIds={searchTerm.trim() !== '' ? matchedIds : undefined}
         searchTerm={searchTerm.trim() !== '' ? searchTerm : undefined}
+        ownerId={assistant?.userId || null}
         assistantId={assistant?.agentId || null}
         getToolLoopEvents={actions?.getToolLoopEvents}
         loadChildren={loadChildren}

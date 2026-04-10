@@ -24,21 +24,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, lastName, jobTitle, bio, timezone } = body;
 
-    // Update user properties in db
-    const userUpdateRequest: UserUpdateRequest = {
+    // Only include fields that were explicitly provided in the request body
+    // to avoid overwriting existing values with null/undefined.
+    const userUpdateRequest: Partial<UserUpdateRequest> & { email: string; userId: string } = {
       email: user.email,
       userId: user.id,
-      name,
-      lastName,
-      jobTitle,
-      bio: bio,
-      timezone: timezone || null,
-      image: null, // We don't update image in onboarding
     };
+    if ('name' in body) userUpdateRequest.name = body.name;
+    if ('lastName' in body) userUpdateRequest.lastName = body.lastName;
+    if ('jobTitle' in body) userUpdateRequest.jobTitle = body.jobTitle;
+    if ('bio' in body) userUpdateRequest.bio = body.bio;
+    if ('timezone' in body) userUpdateRequest.timezone = body.timezone || null;
+    if ('image' in body) userUpdateRequest.image = body.image;
 
-    const response = await updateUser(userUpdateRequest);
+    const response = await updateUser(userUpdateRequest as UserUpdateRequest);
 
     return NextResponse.json(response);
   } catch (error) {

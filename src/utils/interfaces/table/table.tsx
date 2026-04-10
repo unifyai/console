@@ -14,8 +14,6 @@ import { RowData, RowModel, createRow, getMemoOptions, memo } from '@tanstack/re
 import { DragMoveEvent, DragOverEvent, DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { Transform } from '@dnd-kit/utilities';
-import _ from 'lodash';
-
 import { toComputableValue, computeStatistic } from '../common';
 import {
   LogProps,
@@ -1248,11 +1246,11 @@ export function isHiddenByDefault(
     return false; // Not underscore-prefixed, don't hide
   }
 
-  // Exception: Assistants project with "All" in context - keep _assistant and _user visible
-  if (projectId === 'Assistants' && context?.includes('All')) {
-    const columnName = id.split('/').pop(); // Get the last segment
+  // Exception: Assistants project - keep _assistant and _user visible
+  if (projectId === 'Assistants') {
+    const columnName = id.split('/').pop();
     if (columnName === '_assistant' || columnName === '_user') {
-      return false; // Don't hide _assistant or _user columns
+      return false;
     }
   }
 

@@ -77,10 +77,11 @@ export async function getDevUsers(): Promise<DevUser[]> {
 
     // Use stdin piping to avoid shell-escaping issues with double-quoted
     // table names (e.g. "user").
-    const raw = execSync(
-      `docker exec -i ${dbContainer} psql -U orchestra -d orchestra -tA`,
-      { input: sql, encoding: 'utf-8', timeout: 5_000 }
-    ).trim();
+    const raw = execSync(`docker exec -i ${dbContainer} psql -U orchestra -d orchestra -tA`, {
+      input: sql,
+      encoding: 'utf-8',
+      timeout: 5_000,
+    }).trim();
 
     if (!raw) return [];
 
@@ -123,9 +124,7 @@ export async function getDevUsers(): Promise<DevUser[]> {
  *
  * Returns `{ ok: true }` on success, `{ ok: false, error: string }` on failure.
  */
-export async function switchDevUser(
-  email: string
-): Promise<{ ok: boolean; error?: string }> {
+export async function switchDevUser(email: string): Promise<{ ok: boolean; error?: string }> {
   if (!isDev()) {
     return { ok: false, error: 'Not available in production' };
   }
@@ -189,4 +188,3 @@ export async function switchDevUser(
     return { ok: false, error: `Failed to switch user: ${message}` };
   }
 }
-

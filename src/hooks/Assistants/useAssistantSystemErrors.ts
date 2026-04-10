@@ -25,9 +25,7 @@ const SSE_RECONNECT_BASE_DELAY = 2000;
 
 export function useAssistantSystemErrors(assistant: Assistant | null): void {
   const assistantId = assistant?.agentId || null;
-  const assistantName = assistant
-    ? `${assistant.firstName} ${assistant.surname}`
-    : '';
+  const assistantName = assistant ? `${assistant.firstName} ${assistant.surname}` : '';
 
   const lastErrorRef = React.useRef<{ type: string; time: number } | null>(null);
 
@@ -50,9 +48,7 @@ export function useAssistantSystemErrors(assistant: Assistant | null): void {
     const connect = () => {
       if (cancelled) return;
 
-      eventSource = new EventSource(
-        `/api/assistant/${assistantId}/system-errors/stream`
-      );
+      eventSource = new EventSource(`/api/assistant/${assistantId}/system-errors/stream`);
 
       eventSource.onopen = () => {
         reconnectAttempts = 0;
@@ -92,8 +88,7 @@ export function useAssistantSystemErrors(assistant: Assistant | null): void {
         if (!hasEverConnected && reconnectAttempts === 0) return;
 
         if (reconnectAttempts < SSE_MAX_RECONNECT_ATTEMPTS) {
-          const delay =
-            SSE_RECONNECT_BASE_DELAY * Math.pow(2, reconnectAttempts);
+          const delay = SSE_RECONNECT_BASE_DELAY * Math.pow(2, reconnectAttempts);
           reconnectAttempts += 1;
           reconnectTimer = setTimeout(connect, delay);
         }
@@ -110,7 +105,7 @@ export function useAssistantSystemErrors(assistant: Assistant | null): void {
         clearTimeout(reconnectTimer);
       }
     };
-  // assistantName is derived from the assistant object which changes with assistantId
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // assistantName is derived from the assistant object which changes with assistantId
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assistantId]);
 }

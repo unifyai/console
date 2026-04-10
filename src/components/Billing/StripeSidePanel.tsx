@@ -23,16 +23,10 @@
  */
 
 import * as React from 'react';
-import {
-  Sheet,
-  SheetContent,
-} from '@/components/UI/sheet';
+import { Sheet, SheetContent } from '@/components/UI/sheet';
 import { ExternalLink, Loader2 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
-import {
-  showErrorToast,
-  showSuccessToast,
-} from '@/components/Common/Toasts/notifications';
+import { showErrorToast, showSuccessToast } from '@/components/Common/Toasts/notifications';
 
 // =============================================================================
 // Types
@@ -157,15 +151,18 @@ export function StripeSidePanel({
   }, [stopPolling]);
 
   // ── Start polling the specific session ──────────────────────────────
-  const startSessionPolling = React.useCallback((sessionId: string) => {
-    if (pollingRef.current) return;
-    pollingRef.current = setInterval(async () => {
-      const isPaid = await checkSessionStatus(sessionId);
-      if (isPaid) {
-        await handleSuccess();
-      }
-    }, 3000);
-  }, [handleSuccess]);
+  const startSessionPolling = React.useCallback(
+    (sessionId: string) => {
+      if (pollingRef.current) return;
+      pollingRef.current = setInterval(async () => {
+        const isPaid = await checkSessionStatus(sessionId);
+        if (isPaid) {
+          await handleSuccess();
+        }
+      }, 3000);
+    },
+    [handleSuccess]
+  );
 
   // ── Open checkout in new tab ────────────────────────────────────────
   const openCheckout = React.useCallback(async () => {
@@ -224,7 +221,7 @@ export function StripeSidePanel({
           'flex h-full w-[520px] flex-col overflow-hidden p-0 sm:w-[600px]',
           '[&>button]:z-20 [&>button]:rounded-full [&>button]:bg-white/90 [&>button]:p-1.5',
           '[&>button]:opacity-100 [&>button]:shadow-md [&>button]:backdrop-blur',
-          '[&>button]:hover:bg-white [&>button]:right-3 [&>button]:top-3',
+          '[&>button]:right-3 [&>button]:top-3 [&>button]:hover:bg-white',
           '[&>button>svg]:h-4 [&>button>svg]:w-4 [&>button>svg]:text-gray-700',
         ].join(' ')}
         data-testid="stripe-side-panel"
@@ -243,9 +240,7 @@ export function StripeSidePanel({
           <div className="flex flex-1 flex-col items-center justify-center gap-5 px-8">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
             <div className="space-y-2 text-center">
-              <p className="text-body">
-                Complete the checkout in the Stripe tab
-              </p>
+              <p className="text-body">Complete the checkout in the Stripe tab</p>
               <p className="text-caption">
                 This panel will close automatically once the payment is confirmed.
               </p>
@@ -265,9 +260,7 @@ export function StripeSidePanel({
         {/* Error state */}
         {step === 'error' && (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8">
-            <p className="text-body-sm text-destructive">
-              Something went wrong. Please try again.
-            </p>
+            <p className="text-body-sm text-destructive">Something went wrong. Please try again.</p>
             <Button variant="outline" size="sm" onClick={openCheckout}>
               Retry
             </Button>

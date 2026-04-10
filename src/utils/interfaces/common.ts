@@ -9,7 +9,6 @@ import {
   LogFieldsResponseProps,
   GroupedLogPropsRaw,
 } from '../../types/interfaces/logs';
-import _ from 'lodash';
 import { formatNumber } from './formatNumber';
 import { processContext } from './table/columnOperations';
 import { LogsActions, TableGroupedMetrics } from '@/types/interfaces/grid';
@@ -70,7 +69,7 @@ export function toComputableValue(value: any) {
 export function computeStatistic(statistic: string, data: number[]): string {
   switch (statistic) {
     case 'mean':
-      return formatNumber(_.mean(data));
+      return formatNumber(data.reduce((a, b) => a + b, 0) / data.length);
     case 'var': {
       const variance =
         data.reduce(
@@ -93,7 +92,7 @@ export function computeStatistic(statistic: string, data: number[]): string {
     case 'count':
       return formatNumber(data.length);
     case 'sum':
-      return formatNumber(_.sum(data));
+      return formatNumber(data.reduce((a, b) => a + b, 0));
     case 'min':
       return formatNumber(Math.min(...data));
     case 'max':

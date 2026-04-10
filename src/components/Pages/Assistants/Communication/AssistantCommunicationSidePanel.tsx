@@ -13,7 +13,7 @@ import {
 import { Label } from '@/components/UI/label';
 import { AssistantProfileChatPanel } from '../Profile/AssistantProfileChatPanel';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
-import { ChatMessage } from '@/types/assistants/chat';
+import { ChatMessage, CallPill } from '@/types/assistants/chat';
 
 interface AssistantCommunicationSidePanelProps {
   panelType: 'chat' | 'settings' | null;
@@ -31,10 +31,11 @@ interface AssistantCommunicationSidePanelProps {
   assistantActions?: Pick<AssistantActions, 'chat'> & Partial<Pick<AssistantActions, 'voice'>>;
   chatHistories?: Record<string, ChatMessage[]>;
   setChatHistories?: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
+  callPillHistories?: Record<string, CallPill[]>;
+  setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
   userEmail?: string | null;
   userImage?: string | null;
   assistantPhoto?: string | null;
-  callType?: 'video' | 'audio' | null;
 }
 
 export function AssistantCommunicationSidePanel({
@@ -53,10 +54,11 @@ export function AssistantCommunicationSidePanel({
   assistantActions,
   chatHistories,
   setChatHistories,
+  callPillHistories,
+  setCallPillHistories,
   userEmail,
   userImage,
   assistantPhoto,
-  callType,
 }: AssistantCommunicationSidePanelProps) {
   const renderSettings = () => (
     <div className="space-y-4">
@@ -181,6 +183,8 @@ export function AssistantCommunicationSidePanel({
               assistantActions={assistantActions}
               chatHistories={chatHistories}
               setChatHistories={setChatHistories}
+              callPillHistories={callPillHistories}
+              setCallPillHistories={setCallPillHistories}
               userEmail={userEmail}
             />
           )}

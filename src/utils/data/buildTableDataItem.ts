@@ -13,7 +13,7 @@ import { LogsActions } from '@/types/interfaces/grid';
 import { processContext, sanitizeId } from '@/utils/interfaces/table/columnOperations';
 import { isGroupedLogs, maybeFlattenGroupedLogs } from '../interfaces/table/grouping';
 import { QueryClient } from '@tanstack/react-query';
-import { isEqual } from 'lodash';
+import { isEqual } from '@/utils/misc/isEqual';
 import { perfStart, perfEnd } from '@/lib/perf';
 
 // Global semaphore to cap concurrent logs fetches

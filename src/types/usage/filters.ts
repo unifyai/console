@@ -24,6 +24,8 @@ export interface UsageFiltersState {
   selectedUserId: string | null;
   /** Selected assistant ID or 'all' for aggregate */
   assistantId: string | 'all';
+  /** Selected transaction category or 'all' for aggregate */
+  category: string | 'all';
   /** Start date in ISO format (YYYY-MM-DD) */
   startDate: string;
   /** End date in ISO format (YYYY-MM-DD) */
@@ -39,9 +41,10 @@ export const DEFAULT_FILTERS: UsageFiltersState = {
   userScope: 'self',
   selectedUserId: null,
   assistantId: 'all',
+  category: 'all',
   startDate: '', // Will be computed dynamically (30 days ago)
   endDate: '', // Will be computed dynamically (today)
-  granularity: 'time_day',
+  granularity: 'day',
 };
 
 /**

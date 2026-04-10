@@ -36,12 +36,8 @@ export interface AssistantContactCreatePayload {
   contactType: 'phone' | 'email' | 'whatsapp';
   // Phone-specific
   phoneCountry?: string;
-  userPhone?: string;
   // Email-specific
   emailLocal?: string;
   firstName?: string;
   lastName?: string;
-  // WhatsApp-specific
-  userWhatsappNumber?: string;
 }
-

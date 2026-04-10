@@ -113,4 +113,3 @@ export function badRequest(message: string): NextResponse {
 export function internalError(message = 'Internal server error'): NextResponse {
   return NextResponse.json({ error: message }, { status: 500 });
 }
-

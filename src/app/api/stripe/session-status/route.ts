@@ -30,7 +30,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(response.data);
   } catch (error: any) {
-    console.error(`Error retrieving checkout session ${sessionId}:`, error?.response?.data || error);
+    console.error(
+      `Error retrieving checkout session ${sessionId}:`,
+      error?.response?.data || error
+    );
     const status = error?.response?.status || 500;
     const detail = error?.response?.data?.detail || error?.message || 'Error retrieving session';
     return NextResponse.json({ error: detail }, { status });

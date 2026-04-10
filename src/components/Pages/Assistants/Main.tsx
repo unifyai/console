@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
-import { LiveActionsViewer } from '@/components/Pages/Assistants/LiveActions';
+import { RightPaneContainer } from '@/components/Pages/Assistants/RightPaneContainer';
 import {
   Assistant,
   AssistantActions,
@@ -33,9 +33,10 @@ import { FormProvider } from 'react-hook-form';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
-import { ChatMessage } from '@/types/assistants/chat';
+import { ChatMessage, CallPill } from '@/types/assistants/chat';
 import { AssistantHireLocalSetupInstructionsDialog } from './Hire/AssistantHireLocalSetupInstructions';
 import { AssistantContactManager } from './Profile/AssistantContactManager';
+import { AssistantSecretsManager } from './Profile/AssistantSecretsManager';
 import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
 import { useContactIdPrefetch } from '@/hooks/Assistants/useContactIdPrefetch';
 import { LogLevel, Room, setLogLevel } from 'livekit-client';
@@ -55,6 +56,8 @@ interface MainProps {
     image: string | null | undefined;
     timezone?: string | null;
     email?: string | null;
+    phoneNumber?: string | null;
+    whatsappNumber?: string | null;
     orgId?: number | null;
     isOrgContext?: boolean;
     mfaSetupRequired?: boolean;
@@ -172,6 +175,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [isResizingList, setIsResizingList] = React.useState(false);
   const preSnapWidthRef = React.useRef(LIST_DEFAULT_WIDTH);
 
+  const handleToggleListFold = React.useCallback(() => {
+    if (isAssistantListFolded) {
+      setIsAssistantListFolded(false);
+      setAssistantListWidth(preSnapWidthRef.current || LIST_DEFAULT_WIDTH);
+    } else {
+      preSnapWidthRef.current = assistantListWidth;
+      setIsAssistantListFolded(true);
+      setAssistantListWidth(LIST_MIN_WIDTH);
+    }
+  }, [isAssistantListFolded, assistantListWidth]);
+
   const handleListResizeStart = React.useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
@@ -267,6 +281,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [contactManagerInitialTab, setContactManagerInitialTab] = React.useState<
     'email' | 'phone' | 'whatsapp'
   >('email');
+  const [secretsManagerAssistant, setSecretsManagerAssistant] = React.useState<Assistant | null>(
+    null
+  );
   const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
   const [isDialogBusyProcessingPhoto, setIsDialogBusyProcessingPhoto] = React.useState(false);
   const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false);
@@ -277,14 +294,22 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [profileChatHistories, setProfileChatHistories] = React.useState<
     Record<string, ChatMessage[]>
   >({});
+  const [callPillHistories, setCallPillHistories] = React.useState<Record<string, CallPill[]>>({});
 
-  // --- Prefetch contact IDs AND transcripts for all loaded assistants ---
-  // Resolves contact IDs and fetches transcript history in the background as
-  // soon as the assistant list is available. Contact IDs go into sessionStorage;
-  // transcripts go directly into profileChatHistories (write-if-absent).
-  // When the user opens a chat, both are already cached — the chat loads
+  // --- Prefetch contact IDs, transcripts, AND call pills for all loaded assistants ---
+  // Resolves contact IDs and fetches transcript history + meet call pills in
+  // the background as soon as the assistant list is available.
+  // Contact IDs go into sessionStorage; transcripts and call pills go directly
+  // into their respective state maps (write-if-absent).
+  // When the user opens a chat, all data is already cached — the chat loads
   // instantly with zero loading/skeleton state.
-  useContactIdPrefetch(assistants, assistantActions, userMeta.email, setProfileChatHistories);
+  useContactIdPrefetch(
+    assistants,
+    assistantActions,
+    userMeta.email,
+    setProfileChatHistories,
+    setCallPillHistories
+  );
 
   const [setupInstructions, setSetupInstructions] = React.useState<{
     os: string;
@@ -863,10 +888,15 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             onShowProfile={handleShowProfile}
             onOpenHireDialog={handleOpenHireDialog}
             onOpenContactManager={handleOpenContactManager}
+            onEditAssistant={handleOpenEditDialog}
+            onOpenSecretsManager={setSecretsManagerAssistant}
+            onEndContract={onDeleteAssistantSubmit}
+            canEndContract={canDelete}
             isFolded={isAssistantListFolded}
             activeCallAssistantId={activeCallId}
             onHangUp={handleHangUp}
             canHire={canHire}
+            onToggleFold={handleToggleListFold}
           />
         </div>
         {/* List resize handle */}
@@ -896,10 +926,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   assistant={profileAssistant}
                   assistantActions={assistantActions}
                   onClose={handleProfileClose}
-                  onEdit={handleOpenEditDialog}
-                  onOpenContactManager={handleOpenContactManager}
                   chatHistories={profileChatHistories}
                   setChatHistories={setProfileChatHistories}
+                  callPillHistories={callPillHistories}
+                  setCallPillHistories={setCallPillHistories}
                   userEmail={userMeta.email}
                   isFirstView={isFirstViewAfterHire}
                   preHireChat={isFirstViewAfterHire ? newlyHiredInfo.preHireChat : undefined}
@@ -911,13 +941,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   userTimezone={userMeta.timezone}
                   canWrite={canWrite(profileAssistant)}
                   spendingGate={spendingGateStatus}
-                  onAssistantSpendingChange={setProfileAssistantSpending}
                   onAssistantReply={markAssistantOnline}
-                  onAssistantUpdated={(id, patch) => {
-                    setAssistants((prev) =>
-                      prev.map((a) => (a.agentId === id ? { ...a, ...patch } : a))
-                    );
-                  }}
                 />
               </motion.div>,
               <motion.div
@@ -933,11 +957,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             ]}
         </AnimatePresence>
 
-        {/* Live Actions Viewer */}
+        {/* Right Pane: Actions + Dashboards */}
         <div className="relative h-full min-w-0 flex-1 overflow-hidden bg-background">
-          <LiveActionsViewer
+          <RightPaneContainer
             assistant={profileAssistant}
             actions={assistantActions.actions || null}
+            dashboardActions={assistantActions.dashboards || null}
           />
         </div>
       </div>
@@ -1034,6 +1059,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             />
           </AssistantEdit>
         )}
+        {secretsManagerAssistant && (
+          <AssistantSecretsManager
+            isOpen={!!secretsManagerAssistant}
+            onClose={() => setSecretsManagerAssistant(null)}
+            assistantId={secretsManagerAssistant.agentId}
+            ownerId={secretsManagerAssistant.userId}
+            secretActions={assistantActions.secret}
+            canWrite={canWrite(secretsManagerAssistant)}
+          />
+        )}
         {contactManagerAssistant && (
           <AssistantContactManager
             isOpen={!!contactManagerAssistant}
@@ -1044,6 +1079,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             initialTab={contactManagerInitialTab}
             canWrite={canWrite(contactManagerAssistant)}
             onAddPaymentMethod={() => setIsStripePanelOpen(true)}
+            userPhoneNumber={userMeta.phoneNumber ?? null}
+            userWhatsappNumber={userMeta.whatsappNumber ?? null}
           />
         )}
       </FormProvider>
@@ -1064,6 +1101,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             room={room}
             chatHistories={profileChatHistories}
             setChatHistories={setProfileChatHistories}
+            callPillHistories={callPillHistories}
+            setCallPillHistories={setCallPillHistories}
             isConnecting={isConnectingCall}
             userEmail={userMeta.email}
             userImage={userMeta.image}

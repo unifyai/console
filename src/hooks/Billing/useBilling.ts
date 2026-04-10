@@ -230,10 +230,22 @@ export function useBilling(
     if (!isAutoRechargeEnabled && autoRechargeData?.blockedReason) {
       const reason = autoRechargeData.blockedReason;
       const blockedMessages = new Map<AutoRechargeBlockedReason, string>([
-        ['account_status', 'Auto-recharge cannot be enabled while your account has an outstanding billing issue. Please resolve it first.'],
-        ['unpaid_invoice', 'Auto-recharge cannot be enabled while you have an unpaid invoice. It will be available once your invoice is paid.'],
-        ['spending', `You need to spend $${autoRechargeData.minimumSpendRequired ?? 1000} to access automated top-ups. ${autoRechargeData.totalSpending ? `You've spent $${autoRechargeData.totalSpending.toFixed(2)}` : ''}`],
-        ['payment_method', 'A default payment method is required to enable auto-recharge. Please add one via "Manage Payment Methods".'],
+        [
+          'account_status',
+          'Auto-recharge cannot be enabled while your account has an outstanding billing issue. Please resolve it first.',
+        ],
+        [
+          'unpaid_invoice',
+          'Auto-recharge cannot be enabled while you have an unpaid invoice. It will be available once your invoice is paid.',
+        ],
+        [
+          'spending',
+          `You need to spend $${autoRechargeData.minimumSpendRequired ?? 1000} to access automated top-ups. ${autoRechargeData.totalSpending ? `You've spent $${autoRechargeData.totalSpending.toFixed(2)}` : ''}`,
+        ],
+        [
+          'payment_method',
+          'A default payment method is required to enable auto-recharge. Please add one via "Manage Payment Methods".',
+        ],
       ]);
       setAutoRechargeAlert({
         type: 'error',
@@ -334,4 +346,3 @@ export function useBilling(
     setIsProfileDialogOpen,
   };
 }
-

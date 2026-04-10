@@ -9,12 +9,8 @@
  */
 
 import { ResponseProps } from '@/types/common';
-import {
-  buildAssistantIdFilter,
-  combineFilters,
-  escapeFilterValue,
-} from '@/utils/assistants/filterExpressions';
-import { buildTimestampFilter } from '@/utils/assistants/assistant-actions';
+import { combineFilters, escapeFilterValue } from '@/utils/assistants/filterExpressions';
+import { buildTimestampFilter, compareLogsByTime } from '@/utils/assistants/assistant-actions';
 import { snakeToCamelObject } from '@/utils/casing';
 import type { ActionsLogsResponse } from '@/types/assistants/action';
 import { buildExcludedManagerFilters } from './event-filters';
@@ -148,7 +144,7 @@ async function fetchAllPages(
       ...log,
       entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
     }))
-    .sort((a: any, b: any) => a.id - b.id);
+    .sort(compareLogsByTime);
 
   return { logs: processedLogs, count: totalCount } as ActionsLogsResponse;
 }
@@ -160,7 +156,7 @@ async function fetchAllPages(
 /**
  * Factory for getManagerMethodEvents server action.
  *
- * Fetches ManagerMethod events for an assistant from the All/Events/ManagerMethod context.
+ * Fetches ManagerMethod events for an assistant from the per-assistant Events/ManagerMethod context.
  * When limit is null, paginates internally to fetch all matching logs safely.
  * When limit is provided, fetches a single page (used by loadMore).
  *
@@ -169,6 +165,7 @@ async function fetchAllPages(
  */
 export const getManagerMethodEvents = async (apiKey: string) => {
   return async (
+    ownerId: string,
     assistantId: string,
     startTime: string | null,
     limit: number | null,
@@ -178,13 +175,10 @@ export const getManagerMethodEvents = async (apiKey: string) => {
     'use server';
 
     try {
-      const context = 'All/Events/ManagerMethod';
+      const context = `${ownerId}/${assistantId}/Events/ManagerMethod`;
       let baseUrl = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${context}`;
 
-      const filters: string[] = [
-        buildAssistantIdFilter(assistantId),
-        ...buildExcludedManagerFilters(),
-      ];
+      const filters: string[] = [...buildExcludedManagerFilters()];
       if (startTime) {
         filters.push(buildTimestampFilter(startTime));
       }
@@ -218,7 +212,7 @@ export const getManagerMethodEvents = async (apiKey: string) => {
             ...log,
             entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
           }))
-          .sort((a: any, b: any) => a.id - b.id);
+          .sort(compareLogsByTime);
       }
 
       return result.data as ActionsLogsResponse;
@@ -234,7 +228,7 @@ export const getManagerMethodEvents = async (apiKey: string) => {
 /**
  * Factory for getToolLoopEvents server action.
  *
- * Fetches ToolLoop events for an assistant from the All/Events/ToolLoop context.
+ * Fetches ToolLoop events for an assistant from the per-assistant Events/ToolLoop context.
  * Filters by hierarchy (array joined with "->") to get events for a specific
  * node and its un-noded descendants (e.g. StorageCheck inner hierarchy).
  * Client-side filtering is then applied to exclude events that belong to
@@ -247,6 +241,7 @@ export const getManagerMethodEvents = async (apiKey: string) => {
  */
 export const getToolLoopEvents = async (apiKey: string) => {
   return async (
+    ownerId: string,
     assistantId: string,
     hierarchy: string[],
     limit: number | null,
@@ -256,12 +251,11 @@ export const getToolLoopEvents = async (apiKey: string) => {
     'use server';
 
     try {
-      const context = 'All/Events/ToolLoop';
+      const context = `${ownerId}/${assistantId}/Events/ToolLoop`;
       let baseUrl = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${context}`;
 
       const joinedHierarchy = hierarchy.join('->');
       const filters: string[] = [
-        buildAssistantIdFilter(assistantId),
         `hierarchy_label.startswith('${escapeFilterValue(joinedHierarchy)}')`,
       ];
       if (startTime) {
@@ -289,7 +283,7 @@ export const getToolLoopEvents = async (apiKey: string) => {
             ...log,
             entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
           }))
-          .sort((a: any, b: any) => a.id - b.id);
+          .sort(compareLogsByTime);
       }
 
       return result.data as ActionsLogsResponse;
@@ -316,6 +310,7 @@ export const getToolLoopEvents = async (apiKey: string) => {
  */
 export const backfillByCallingIds = async (apiKey: string) => {
   return async (
+    ownerId: string,
     assistantId: string,
     callingIds: string[]
   ): Promise<ActionsLogsResponse | ResponseProps> => {
@@ -326,21 +321,16 @@ export const backfillByCallingIds = async (apiKey: string) => {
     }
 
     try {
-      const context = 'All/Events/ManagerMethod';
+      const context = `${ownerId}/${assistantId}/Events/ManagerMethod`;
       let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${context}`;
 
-      // Build filter: _assistant_id AND calling_id IN (...) AND phase == 'incoming'
       const callingIdConditions = callingIds
         .map((id) => `calling_id == '${escapeFilterValue(id)}'`)
         .join(' or ');
       const callingIdFilter =
         callingIds.length === 1 ? callingIdConditions : `(${callingIdConditions})`;
 
-      const filters: string[] = [
-        buildAssistantIdFilter(assistantId),
-        callingIdFilter,
-        `phase == 'incoming'`,
-      ];
+      const filters: string[] = [callingIdFilter, `phase == 'incoming'`];
 
       const filterExpr = combineFilters(filters);
       if (filterExpr) {
@@ -383,7 +373,7 @@ export const backfillByCallingIds = async (apiKey: string) => {
             ...log,
             entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
           }))
-          .sort((a: any, b: any) => a.id - b.id);
+          .sort(compareLogsByTime);
       }
 
       if (__DEV__)

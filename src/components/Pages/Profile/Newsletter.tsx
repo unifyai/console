@@ -26,7 +26,7 @@ const NewsletterPreferences = ({
   if (newsletters.length === 0) return null;
 
   return (
-    <div className="text-body w-full mt-4 grid grid-cols-1 gap-6">
+    <div className="text-body mt-4 grid w-full grid-cols-1 gap-6">
       {newsletters.map((newsletter) => (
         <div
           key={newsletter.id}

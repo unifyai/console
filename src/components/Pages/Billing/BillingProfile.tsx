@@ -18,10 +18,7 @@ const BillingProfile = ({ actions, onClose }: BillingProfileProps) => {
   const [isFormValid, setIsFormValid] = useState(false);
   const formRef = useRef<{ submit: () => void } | null>(null);
 
-  const { initialData, loading, saving, alert, handleSave } = useBillingProfile(
-    actions,
-    onClose
-  );
+  const { initialData, loading, saving, alert, handleSave } = useBillingProfile(actions, onClose);
 
   const onFormSubmit = async (data: BillingProfileData) => {
     await handleSave(data);
@@ -38,7 +35,7 @@ const BillingProfile = ({ actions, onClose }: BillingProfileProps) => {
   }
 
   return (
-    <div className="w-full flex flex-col gap-2">
+    <div className="flex w-full flex-col gap-2">
       <BillingProfileForm
         actions={actions}
         onSubmit={onFormSubmit}
@@ -55,10 +52,7 @@ const BillingProfile = ({ actions, onClose }: BillingProfileProps) => {
             Cancel
           </Button>
         )}
-        <Button
-          onClick={() => formRef.current?.submit()}
-          disabled={!isFormValid || saving}
-        >
+        <Button onClick={() => formRef.current?.submit()} disabled={!isFormValid || saving}>
           {saving ? 'Saving...' : 'Save Changes'}
         </Button>
       </div>

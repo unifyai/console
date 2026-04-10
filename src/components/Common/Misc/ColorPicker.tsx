@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover
 import { Dialog, DialogContent, DialogTrigger } from '@/components/UI/dialog';
 import { Pipette, Plus, RotateCcw } from 'lucide-react';
 import { RgbaColorPicker } from 'react-colorful';
-import { debounce } from 'lodash';
+import { debounce } from '@/utils/misc/debounce';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 

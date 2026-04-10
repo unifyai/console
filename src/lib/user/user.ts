@@ -294,53 +294,50 @@ export const getUserApiKey = async (apiKey: string) => {
 
 /**
  * Sends a verification code to the user's phone number via SMS.
- * Uses admin authentication to call the communication service.
- *
- * @param phoneNumber The phone number to verify (international format, e.g., +15551234567)
- * @returns The verification code and sent timestamp, or an error response.
+ * Calls the orchestra backend which handles code generation, storage,
+ * and dispatching the SMS via the communication service.
  */
-export async function verifyUserPhone(
-  phoneNumber: string
-): Promise<{ verificationCode: string; sentAt: string } | { detail: string }> {
-  const COMMUNICATION_URL = process.env.COMMUNICATION_URL;
-  const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
-
-  if (!COMMUNICATION_URL || !ADMIN_KEY) {
-    console.error(
-      '[verifyUserPhone] Missing COMMUNICATION_URL or ORCHESTRA_ADMIN_KEY environment variable'
-    );
-    return { detail: 'Server configuration error' };
-  }
-
+export async function sendPhoneVerification(
+  userId: string,
+  phoneNumber: string,
+  phoneType: 'phone' | 'whatsapp' = 'phone'
+): Promise<{ detail: string; expiresInSeconds?: number }> {
   try {
-    const response = await fetch(`${COMMUNICATION_URL}/social/verify`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${ADMIN_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        platform: 'phone',
-        accountIdentifier: phoneNumber,
-      }),
+    const response = await OrchestraAdminClient.post('/user/phone/send-verification', {
+      user_id: userId,
+      phone_number: phoneNumber,
+      phone_type: phoneType,
     });
+    return (response as { data: { detail: string; expiresInSeconds?: number } }).data;
+  } catch (error: unknown) {
+    const axiosErr = error as { response?: { data?: { detail?: string } } };
+    const detail = axiosErr?.response?.data?.detail || 'Failed to send verification code.';
+    return { detail };
+  }
+}
 
-    const data = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      console.error(`[verifyUserPhone] Backend error (${response.status}):`, data);
-      return { detail: data?.detail || `Failed to send verification code: ${response.statusText}` };
-    }
-
-    if (data?.verificationCode && data?.sentAt) {
-      return { verificationCode: data.verificationCode, sentAt: data.sentAt };
-    }
-
-    return { detail: 'Verification succeeded but response format was unexpected.' };
-  } catch (error) {
-    console.error('[verifyUserPhone] Fetch error:', error);
-    return {
-      detail: error instanceof Error ? error.message : 'Unknown error during phone verification.',
-    };
+/**
+ * Confirms a phone verification code against the orchestra backend.
+ * On success, the number is marked as verified so that a subsequent
+ * profile update will be accepted.
+ */
+export async function confirmPhoneVerification(
+  userId: string,
+  phoneNumber: string,
+  code: string,
+  phoneType: 'phone' | 'whatsapp' = 'phone'
+): Promise<{ detail: string; success: boolean }> {
+  try {
+    const response = await OrchestraAdminClient.post('/user/phone/confirm-verification', {
+      user_id: userId,
+      phone_number: phoneNumber,
+      phone_type: phoneType,
+      code,
+    });
+    return { ...(response as { data: { detail: string } }).data, success: true };
+  } catch (error: unknown) {
+    const axiosErr = error as { response?: { data?: { detail?: string } } };
+    const detail = axiosErr?.response?.data?.detail || 'Verification failed.';
+    return { detail, success: false };
   }
 }

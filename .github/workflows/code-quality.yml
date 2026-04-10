@@ -1,0 +1,101 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [main, staging, development]
+  pull_request:
+    branches: [main, staging, development]
+  workflow_dispatch:
+
+concurrency:
+  group: code-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run ESLint
+        run: |
+          # Run lint and capture output
+          npm run lint 2>&1 | tee lint-output.txt
+
+          # Count warnings
+          WARNING_COUNT=$(grep -c "Warning:" lint-output.txt || echo "0")
+
+          if [ "$WARNING_COUNT" -gt 0 ]; then
+            echo "::warning::Found $WARNING_COUNT ESLint warnings - these should be fixed"
+          fi
+
+  typecheck:
+    name: TypeScript Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run TypeScript compiler
+        run: npx tsc --noEmit
+
+  format:
+    name: Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Check formatting
+        run: npm run format:check
+
+  styles:
+    name: Style Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Check font class compliance
+        run: npm run check:fonts:all
+
+      - name: Check color compliance
+        run: npm run check:colors:all

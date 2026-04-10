@@ -96,8 +96,7 @@ export function useSpendingGate({
     const orgLimit = toLimitStatus(orgSpending);
 
     // Credit exhaustion takes priority over spending limits
-    const creditsExhausted =
-      credits !== undefined && !isBillingLoading && credits < 0;
+    const creditsExhausted = credits !== undefined && !isBillingLoading && credits < 0;
 
     const blockReason: SpendingBlockReason = creditsExhausted
       ? 'no_credits'
@@ -117,7 +116,15 @@ export function useSpendingGate({
         org: orgLimit,
       },
     };
-  }, [assistantSpending, userSpending, orgSpending, isLoading, isRefreshing, credits, isBillingLoading]);
+  }, [
+    assistantSpending,
+    userSpending,
+    orgSpending,
+    isLoading,
+    isRefreshing,
+    credits,
+    isBillingLoading,
+  ]);
 }
 
 /**

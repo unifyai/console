@@ -1,10 +1,6 @@
 import { AxiosError } from 'axios';
 import { ResponseProps } from '@/types/common';
-import {
-  OneTimeLinkResponse,
-  OneTimeLinkEntry,
-  ADMIN_TABLE_PAGE_SIZE,
-} from '@/types/admin';
+import { OneTimeLinkResponse, OneTimeLinkEntry, ADMIN_TABLE_PAGE_SIZE } from '@/types/admin';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 
 export const generateOneTimeCreditGrantLink = async () => {
@@ -48,7 +44,8 @@ export const listOneTimeCreditGrantLinks = async () => {
         return { detail: error.response.data.detail };
       }
       return {
-        detail: error instanceof Error ? error.message : 'Unknown error listing credit grant links.',
+        detail:
+          error instanceof Error ? error.message : 'Unknown error listing credit grant links.',
       };
     }
   };

@@ -9,13 +9,13 @@
 
 import * as React from 'react';
 import { UsageFiltersBar } from './Filters';
-import { UsageSummaryCards } from './UsageSummaryCards';
 import { UsageChart } from './UsageChart';
+import { TransactionLedger } from './TransactionLedger';
 import { SpendingLimitCard } from './SpendingLimitCard';
 import type { SpendingLimitData } from './SpendingLimitCard';
 import { useUsageFilters } from '@/hooks/Usage/useUsageFilters';
-import { useUsageData } from '@/hooks/Usage/useUsageData';
-import { useUsageSummary } from '@/hooks/Usage/useUsageSummary';
+import { useUsageLedgerChart } from '@/hooks/Usage/useUsageLedgerChart';
+import { useTransactionHistory } from '@/hooks/Usage/useTransactionHistory';
 import { Assistant } from '@/types/assistants/assistant';
 import { UsageActions, SpendingLimitInfo } from '@/lib/usage/actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/UI/alert';
@@ -73,16 +73,12 @@ export function UsageMain({
     setUserScope,
     setSelectedMember,
     setAssistantId,
+    setCategory,
     setDateRange,
     setGranularity,
     resetFilters,
-    contextPath,
-    filterExpression,
     canViewOrg,
   } = useUsageFilters({
-    currentUserId,
-    assistants,
-    orgMembers,
     isAdmin,
     initialFilters,
   });
@@ -97,17 +93,43 @@ export function UsageMain({
     }
   }, [assistants, filters.assistantId, setAssistantId]);
 
-  // Data fetching using bound server actions
-  const { data, isLoading, error, hasInitiallyLoaded, refetch } = useUsageData({
-    usageActions,
-    contextPath,
+  // Chart data from the credit ledger
+  const chartAssistantId = filters.assistantId !== 'all' ? filters.assistantId : undefined;
+  const chartCategory = filters.category !== 'all' ? filters.category : undefined;
+  const chartUserId =
+    filters.userScope === 'member' && filters.selectedUserId
+      ? filters.selectedUserId
+      : filters.userScope === 'self'
+        ? currentUserId
+        : undefined;
+
+  const { data, isLoading, error, hasInitiallyLoaded, refetch } = useUsageLedgerChart({
+    startDate: filters.startDate,
+    endDate: filters.endDate,
     granularity: filters.granularity,
-    filterExpression,
-    enabled: !!contextPath,
+    assistantId: chartAssistantId,
+    category: chartCategory,
+    userId: chartUserId,
+    enabled: true,
   });
 
-  // Summary calculations
-  const { summary } = useUsageSummary({ data });
+  // Transaction ledger — scoped to the active user/member selection
+  const ledgerUserId =
+    filters.userScope === 'member' && filters.selectedUserId
+      ? filters.selectedUserId
+      : filters.userScope === 'self'
+        ? currentUserId
+        : undefined;
+
+  const ledger = useTransactionHistory({
+    assistantId: filters.assistantId !== 'all' ? filters.assistantId : undefined,
+    category: chartCategory,
+    userId: ledgerUserId,
+    startDate: filters.startDate,
+    endDate: filters.endDate,
+    groupBy: filters.granularity,
+    enabled: true,
+  });
 
   // Spending limits state (can have multiple: scope limit + assistant limit)
   const [spendingLimits, setSpendingLimits] = React.useState<SpendingLimitData[]>([]);
@@ -335,38 +357,59 @@ export function UsageMain({
           assistantId={filters.assistantId}
           onAssistantChange={setAssistantId}
           assistants={assistants}
+          category={filters.category}
+          onCategoryChange={setCategory}
           startDate={filters.startDate}
           endDate={filters.endDate}
           onDateRangeChange={setDateRange}
           granularity={filters.granularity}
           onGranularityChange={setGranularity}
           onReset={resetFilters}
-          onRefresh={refetch}
+          onRefresh={() => {
+            refetch();
+            ledger.refetch();
+          }}
           canViewOrg={canViewOrg}
           disabled={isLoading}
         />
       </div>
 
-      {/* Main content area - responsive layout */}
-      {/* At xl+: cards in row above chart (standard layout) */}
-      {/* Below xl (high zoom / narrow): cards stacked left, chart on right */}
-      <div className="flex min-h-0 flex-1 flex-row gap-4 p-4 pt-2 xl:flex-col">
-        {/* Cards sidebar (narrow viewports) / Cards row (wide viewports) */}
-        <div className="flex w-64 shrink-0 flex-col gap-3 xl:w-full xl:flex-row xl:gap-4">
-          <UsageSummaryCards
-            summary={summary}
-            isLoading={isLoading && !hasInitiallyLoaded}
-            granularity={filters.granularity}
-            inline={true}
-          />
-          <SpendingLimitCard
-            spendingLimits={spendingLimits}
-            isLoading={isLoadingLimits || (isLoading && !hasInitiallyLoaded)}
-          />
+      {/* Main content area — desktop: two-column, mobile: stacked */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 pt-2 lg:flex-row">
+        {/* Left column — spending limits (compact) + transaction ledger (fills remaining) */}
+        <div className="flex w-full flex-col gap-3 lg:max-h-[calc(100vh-140px)] lg:w-80 xl:w-96">
+          <div className="shrink-0">
+            <SpendingLimitCard
+              spendingLimits={spendingLimits}
+              isLoading={isLoadingLimits || (isLoading && !hasInitiallyLoaded)}
+            />
+          </div>
+
+          {/* Chart appears here on mobile (between limits and ledger), hidden on desktop */}
+          <div className="min-h-[360px] lg:hidden">
+            <UsageChart
+              data={data}
+              granularity={filters.granularity}
+              isLoading={isLoading && !hasInitiallyLoaded}
+            />
+          </div>
+
+          <div className="min-h-[300px] flex-1 overflow-hidden">
+            <TransactionLedger
+              transactions={ledger.transactions}
+              aggregated={ledger.aggregated}
+              isAggregated={ledger.isAggregated}
+              isLoading={ledger.isLoading}
+              error={ledger.error}
+              hasMore={ledger.hasMore}
+              onLoadMore={ledger.loadMore}
+              granularity={filters.granularity}
+            />
+          </div>
         </div>
 
-        {/* Chart - fills remaining space */}
-        <div className="min-h-[300px] flex-1">
+        {/* Right column — bar chart (desktop only, hidden on mobile) */}
+        <div className="hidden min-h-[360px] flex-1 lg:block lg:max-h-[calc(100vh-140px)]">
           <UsageChart
             data={data}
             granularity={filters.granularity}

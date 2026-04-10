@@ -30,11 +30,7 @@ export function EnvironmentProvider({
   config: EnvironmentConfig;
   children: React.ReactNode;
 }) {
-    return (
-        <EnvironmentContext.Provider value={config}>
-        {children}
-        </EnvironmentContext.Provider>
-    );
+  return <EnvironmentContext.Provider value={config}>{children}</EnvironmentContext.Provider>;
 }
 
 /**
@@ -49,4 +45,3 @@ export function useEnvironment(): EnvironmentConfig {
   }
   return ctx;
 }
-

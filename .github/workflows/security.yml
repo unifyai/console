@@ -31,7 +31,7 @@ jobs:
           echo ""
 
           # Run human-readable audit first (shows full details)
-          npm audit --audit-level=moderate 2>&1 || true
+          npm audit 2>&1 || true
 
           echo ""
           echo "=========================================="
@@ -44,14 +44,18 @@ jobs:
           CRITICAL=$(cat audit-results.json | jq '.metadata.vulnerabilities.critical // 0')
           HIGH=$(cat audit-results.json | jq '.metadata.vulnerabilities.high // 0')
           MODERATE=$(cat audit-results.json | jq '.metadata.vulnerabilities.moderate // 0')
+          LOW=$(cat audit-results.json | jq '.metadata.vulnerabilities.low // 0')
+          TOTAL=$(cat audit-results.json | jq '.metadata.vulnerabilities.total // 0')
 
           echo "=== Summary ==="
           echo "Critical: $CRITICAL"
-          echo "High: $HIGH"
+          echo "High:     $HIGH"
           echo "Moderate: $MODERATE"
+          echo "Low:      $LOW"
+          echo "Total:    $TOTAL"
           echo ""
 
-          # Fail on critical vulnerabilities
+          # Fail only on critical vulnerabilities
           if [ "$CRITICAL" -gt 0 ]; then
             echo "::error::Found $CRITICAL critical vulnerabilities - see audit output above for details"
             exit 1
@@ -62,28 +66,7 @@ jobs:
             echo "::warning::Found $HIGH high vulnerabilities - see audit output above for details"
           fi
 
-  codeql:
-    name: CodeQL
-    runs-on: ubuntu-latest
-    # Requires Code Security to be enabled in repo settings first
-    if: false
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: javascript-typescript
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: '/language:javascript-typescript'
+          # Warn on moderate
+          if [ "$MODERATE" -gt 0 ]; then
+            echo "::warning::Found $MODERATE moderate vulnerabilities - see audit output above for details"
+          fi

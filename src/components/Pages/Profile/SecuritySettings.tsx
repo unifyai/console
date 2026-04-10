@@ -37,6 +37,8 @@ const SecuritySettings = () => {
   const [showRegenerate, setShowRegenerate] = useState(false);
   const [regeneratedCodes, setRegeneratedCodes] = useState<string[] | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
+  const [regenerateError, setRegenerateError] = useState<string | undefined>();
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -91,16 +93,22 @@ const SecuritySettings = () => {
         setIsDisabling(false);
       }
     },
-    [fetchStatus, router],
+    [fetchStatus, router]
   );
 
-  const handleRegenerate = useCallback(async () => {
+  const handleRegenerate = useCallback(async (code: string) => {
     setIsRegenerating(true);
+    setRegenerateError(undefined);
 
     try {
-      const res = await fetch('/api/auth/mfa/recovery-codes', { method: 'POST' });
+      const res = await fetch('/api/auth/mfa/recovery-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
       if (!res.ok) {
-        toast.error('Failed to regenerate recovery codes.');
+        const data = await res.json().catch(() => ({}));
+        setRegenerateError(data.message ?? data.error ?? 'Invalid TOTP code. Please try again.');
         setIsRegenerating(false);
         return;
       }
@@ -108,6 +116,7 @@ const SecuritySettings = () => {
       const data = await res.json();
       setRegeneratedCodes(data.recoveryCodes ?? []);
       setShowRegenerate(true);
+      setShowRegenerateConfirm(false);
     } catch {
       toast.error('Failed to regenerate recovery codes.');
     } finally {
@@ -126,18 +135,20 @@ const SecuritySettings = () => {
 
   if (!mfaStatus?.enabled) {
     return (
-      <TotpSetup autoStart onEnabled={() => {
-        setMfaStatus({ enabled: true }); // Optimistic update to prevent button flash
-        fetchStatus(); // Confirm from server
-        router.refresh();
-      }} />
+      <TotpSetup
+        autoStart
+        onEnabled={() => {
+          setMfaStatus({ enabled: true }); // Optimistic update to prevent button flash
+          fetchStatus(); // Confirm from server
+          router.refresh();
+        }}
+      />
     );
   }
 
   // MFA is enabled
   return (
     <div className="flex flex-col gap-4" data-testid="mfa-enabled-section">
-
       {mfaStatus.recoveryCodesRemaining !== undefined && (
         <p
           className={`text-sm ${
@@ -163,32 +174,48 @@ const SecuritySettings = () => {
             fetchStatus();
           }}
         />
+      ) : showRegenerateConfirm ? (
+        <div className="bg-muted/30 rounded-lg border border-border p-4">
+          <h4 className="mb-2 font-medium">Confirm with TOTP Code</h4>
+          <p className="text-caption mb-3 text-muted-foreground">
+            Enter your current TOTP code to regenerate recovery codes.
+          </p>
+          <TotpInput
+            onSubmit={(code) => handleRegenerate(code)}
+            error={regenerateError}
+            isLoading={isRegenerating}
+            label=""
+          />
+          <Button
+            variant="link"
+            onClick={() => {
+              setShowRegenerateConfirm(false);
+              setRegenerateError(undefined);
+            }}
+            className="text-caption mt-2 h-auto p-0 text-muted-foreground"
+          >
+            Cancel
+          </Button>
+        </div>
       ) : (
         <Button
           variant="outline"
-          onClick={handleRegenerate}
+          onClick={() => setShowRegenerateConfirm(true)}
           disabled={isRegenerating}
           data-testid="regenerate-codes-btn"
         >
-          {isRegenerating ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Regenerating...
-            </>
-          ) : (
-            'Regenerate Recovery Codes'
-          )}
+          Regenerate Recovery Codes
         </Button>
       )}
 
       {/* Disable 2FA */}
       {showDisable ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+        <div className="border-destructive/30 bg-destructive/5 rounded-lg border p-4">
           <h4 className="mb-3 font-medium text-destructive">Disable Two-Factor Authentication</h4>
 
           {!disableWithRecovery ? (
             <>
-              <p className="mb-3 text-caption text-muted-foreground">
+              <p className="text-caption mb-3 text-muted-foreground">
                 Enter your current TOTP code to disable 2FA.
               </p>
               <TotpInput
@@ -204,7 +231,7 @@ const SecuritySettings = () => {
                     setDisableWithRecovery(true);
                     setDisableError(undefined);
                   }}
-                  className="text-caption text-muted-foreground p-0 h-auto"
+                  className="text-caption h-auto p-0 text-muted-foreground"
                 >
                   Use a recovery code instead
                 </Button>
@@ -212,7 +239,7 @@ const SecuritySettings = () => {
             </>
           ) : (
             <>
-              <p className="mb-3 text-caption text-muted-foreground">
+              <p className="text-caption mb-3 text-muted-foreground">
                 Enter one of your recovery codes to disable 2FA.
               </p>
               <div className="flex flex-col gap-3">
@@ -221,14 +248,11 @@ const SecuritySettings = () => {
                   value={recoveryCode}
                   onChange={(e) => setRecoveryCode(e.target.value)}
                   placeholder="Enter recovery code"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-caption font-mono
-                             focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="text-caption w-full rounded-md border border-input bg-background px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-ring"
                   data-testid="disable-recovery-input"
                   autoFocus
                 />
-                {disableError && (
-                  <p className="text-caption text-destructive">{disableError}</p>
-                )}
+                {disableError && <p className="text-caption text-destructive">{disableError}</p>}
                 <Button
                   onClick={() => handleDisable(recoveryCode.trim(), true)}
                   disabled={isDisabling || !recoveryCode.trim()}
@@ -245,7 +269,7 @@ const SecuritySettings = () => {
                   setDisableError(undefined);
                   setRecoveryCode('');
                 }}
-                className="mt-2 text-caption text-muted-foreground p-0 h-auto"
+                className="text-caption mt-2 h-auto p-0 text-muted-foreground"
               >
                 Use authenticator app instead
               </Button>
@@ -261,7 +285,7 @@ const SecuritySettings = () => {
                 setDisableWithRecovery(false);
                 setRecoveryCode('');
               }}
-              className="text-caption text-muted-foreground p-0 h-auto"
+              className="text-caption h-auto p-0 text-muted-foreground"
             >
               Cancel
             </Button>
@@ -281,4 +305,3 @@ const SecuritySettings = () => {
 };
 
 export default SecuritySettings;
-

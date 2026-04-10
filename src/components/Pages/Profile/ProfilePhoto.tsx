@@ -51,32 +51,29 @@ const ProfilePhoto = ({ user, onFileSelect, previewUrl }: ProfilePhotoProps) => 
 
   const displayUrl = previewUrl ?? savedPhotoUrl;
 
-  const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-      const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        toast.error('Please select a JPEG, PNG, WebP, or GIF image.');
-        return;
-      }
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error('Please select a JPEG, PNG, WebP, or GIF image.');
+      return;
+    }
 
-      const MAX_SIZE = 5 * 1024 * 1024;
-      if (file.size > MAX_SIZE) {
-        toast.error('Image must be under 5MB.');
-        return;
-      }
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      toast.error('Image must be under 5MB.');
+      return;
+    }
 
-      // Open the crop dialog instead of directly calling onFileSelect
-      const objectUrl = URL.createObjectURL(file);
-      setCropSrc(objectUrl);
-      setCropSourceType(file.type);
-      setIsCropOpen(true);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    },
-    []
-  );
+    // Open the crop dialog instead of directly calling onFileSelect
+    const objectUrl = URL.createObjectURL(file);
+    setCropSrc(objectUrl);
+    setCropSourceType(file.type);
+    setIsCropOpen(true);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, []);
 
   const handleCropConfirm = useCallback(
     (croppedFile: File) => {

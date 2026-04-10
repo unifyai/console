@@ -14,10 +14,7 @@ import { camelToSnakeObject } from '@/utils/casing';
  *
  * Uses getOrchestraUserClient which automatically handles snake_case ↔ camelCase.
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { assistantId: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { assistantId: string } }) {
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
@@ -58,14 +55,11 @@ export async function POST(
  *
  * Proxies to: PUT /v0/assistant/{assistant_id}/contact
  *
- * Updates non-provisioned fields on an existing contact (e.g. user_value, metadata).
+ * Updates metadata on an existing contact.
  *
  * Uses getOrchestraUserClient which automatically handles snake_case ↔ camelCase.
  */
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { assistantId: string } }
-) {
+export async function PUT(request: NextRequest, { params }: { params: { assistantId: string } }) {
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();

@@ -9,7 +9,11 @@ import { cn } from '@/lib/utils';
 import { usePhotoCreator } from '@/hooks/Assistants/usePhotoCreator';
 import { AssistantActions, VoiceOption } from '@/types/assistants/assistant';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { PHOTO_OPERATION_COST, VIDEO_ANIMATION_COST, MIN_TTS_PROMPT_LENGTH } from '@/constants/assistants/settings';
+import {
+  PHOTO_OPERATION_COST,
+  VIDEO_ANIMATION_COST,
+  MIN_TTS_PROMPT_LENGTH,
+} from '@/constants/assistants/settings';
 import { toast } from 'sonner';
 import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
 import {
@@ -99,7 +103,12 @@ export function PhotoCustomization({
   const isGenerateDisabled = !prompt.trim() || isProcessing || disabled;
   const isEditDisabled = !currentImageUrl || !prompt.trim() || isProcessing || disabled;
   const isAnimateDisabled =
-    !currentImageUrl || !ttsPrompt.trim() || ttsPrompt.trim().length < MIN_TTS_PROMPT_LENGTH || !selectedVoice || isProcessing || disabled;
+    !currentImageUrl ||
+    !ttsPrompt.trim() ||
+    ttsPrompt.trim().length < MIN_TTS_PROMPT_LENGTH ||
+    !selectedVoice ||
+    isProcessing ||
+    disabled;
   const imageSourceForOperations = currentImageFile || currentImageUrl;
 
   const handleCreateKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -295,7 +304,7 @@ export function PhotoCustomization({
                 onAddPaymentMethod={onAddPaymentMethod}
                 creditsRequired={PHOTO_OPERATION_COST}
                 tooltipSide="top"
-                tooltipMessage='Generate new photo'
+                tooltipMessage="Generate new photo"
               >
                 <Button
                   aria-label="Generate new photo"
@@ -337,7 +346,7 @@ export function PhotoCustomization({
                 onAddPaymentMethod={onAddPaymentMethod}
                 creditsRequired={PHOTO_OPERATION_COST}
                 tooltipSide="top"
-                tooltipMessage='Edit photo'
+                tooltipMessage="Edit photo"
               >
                 <Button
                   aria-label="Edit photo"
@@ -379,7 +388,7 @@ export function PhotoCustomization({
                 onAddPaymentMethod={onAddPaymentMethod}
                 creditsRequired={VIDEO_ANIMATION_COST}
                 tooltipSide="top"
-                tooltipMessage='Animate photo'
+                tooltipMessage="Animate photo"
               >
                 <span tabIndex={0} className="relative inline-flex">
                   <Button

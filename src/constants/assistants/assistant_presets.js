@@ -13,7 +13,7 @@ const assistantPresets = [
       elevenlabs: 'flq6f7yk4E4fJM5XTYuZ', // Michael (en->pt, old, male, calm)
       openai: 'onyx',
     },
-    videoTranscript: "Estou aqui para ajudar no que precisar."
+    videoTranscript: 'Estou aqui para ajudar no que precisar.',
   },
   {
     firstName: 'Anna',
@@ -29,7 +29,7 @@ const assistantPresets = [
       elevenlabs: 'pFZP5JQG7iQjIQuC4Bku', // Lily (en->pl, female, confident, warm)
       openai: 'alloy',
     },
-    videoTranscript: "Cześć! W czym mogę pomóc?"
+    videoTranscript: 'Cześć! W czym mogę pomóc?',
   },
   {
     firstName: 'Akiko',
@@ -45,7 +45,7 @@ const assistantPresets = [
       elevenlabs: 'Xb7hH8MSUJpSbSDYk0k2', // Alice (en->ja, female, professional)
       openai: 'shimmer',
     },
-    videoTranscript: "こんにちは。どうぞよろしくお願いいたします。"
+    videoTranscript: 'こんにちは。どうぞよろしくお願いいたします。',
   },
   {
     firstName: 'Ayush',
@@ -61,7 +61,7 @@ const assistantPresets = [
       elevenlabs: 'pqHfZKP75CvOlQylNhV4', // Bill (en -> hi) male friendly and comforting voice
       openai: 'ballad',
     },
-    videoTranscript: "नमस्ते! चलिए, शुरू करते हैं।"
+    videoTranscript: 'नमस्ते! चलिए, शुरू करते हैं।',
   },
   {
     firstName: 'Kwame',
@@ -77,7 +77,7 @@ const assistantPresets = [
       elevenlabs: 'SOYHLrjzK2X1ezoPC6cr', // Harry (en, male, young, rough, animated)
       openai: 'verse',
     },
-    videoTranscript: "Hello! What can I help you with today?"
+    videoTranscript: 'Hello! What can I help you with today?',
   },
   {
     firstName: 'Brooke',
@@ -93,7 +93,7 @@ const assistantPresets = [
       elevenlabs: 'cgSgspJ2msm6clMCkdW9', // Jessica (en, female, young, cute, playful)
       openai: 'marin',
     },
-    videoTranscript: "Hi there! It's great to connect with you."
+    videoTranscript: "Hi there! It's great to connect with you.",
   },
   {
     firstName: 'Layla',
@@ -109,7 +109,7 @@ const assistantPresets = [
       elevenlabs: '9BWtsMINqrJLrRacOk9x', // Aria (en, female, middle-aged, husky, calm)
       openai: 'fable',
     },
-    videoTranscript: "Hello. How may I be of help?"
+    videoTranscript: 'Hello. How may I be of help?',
   },
   {
     firstName: 'Deborah',
@@ -125,7 +125,7 @@ const assistantPresets = [
       elevenlabs: 'FGY2WhTYpPnrIDTdsKH5', // Laura (en, female, young, sassy, sunny enthusiasm)
       openai: 'sage',
     },
-    videoTranscript: "Hello! I'm here and happy to help."
+    videoTranscript: "Hello! I'm here and happy to help.",
   },
   {
     firstName: 'Khalid',
@@ -141,7 +141,7 @@ const assistantPresets = [
       elevenlabs: 'JBFqnCBsd6RMkjVDRZzb', // George (en, male, middle-aged, mature, warm resonance)
       openai: 'onyx',
     },
-    videoTranscript: "Hello. Can I help with anything?"
+    videoTranscript: 'Hello. Can I help with anything?',
   },
   {
     firstName: 'David',
@@ -157,7 +157,7 @@ const assistantPresets = [
       elevenlabs: 'iP95p4xoKVk53GoZ742B', // Chris (en, male, middle-aged, casual, down-to-earth)
       openai: 'cedar',
     },
-    videoTranscript: "Hello. Let me know how I can be of use."
+    videoTranscript: 'Hello. Let me know how I can be of use.',
   },
   {
     firstName: 'John',
@@ -173,7 +173,7 @@ const assistantPresets = [
       elevenlabs: 'bIHbv24MWmeRgasZH58o', // Will (en, male, young, chill, laid back)
       openai: 'ash',
     },
-    videoTranscript: "Hi. I'm here to listen and help."
+    videoTranscript: "Hi. I'm here to listen and help.",
   },
   {
     firstName: 'Parvati',
@@ -189,7 +189,7 @@ const assistantPresets = [
       elevenlabs: 'jsCqWAovK2LkecY7zXl4', // Freya (en, female, young, expressive) -> Mapped to hi
       openai: 'sage',
     },
-    videoTranscript: "नमस्ते! मैं आपकी कैसे मदद कर सकती हूँ?"
+    videoTranscript: 'नमस्ते! मैं आपकी कैसे मदद कर सकती हूँ?',
   },
   {
     firstName: 'Tuala',
@@ -205,7 +205,7 @@ const assistantPresets = [
       elevenlabs: '9BWtsMINqrJLrRacOk9x', // English Female Husky 1 (en, female, middle aged female voice with African-American accent)
       openai: 'alloy',
     },
-    videoTranscript: "Talofa! It's a pleasure to meet you."
+    videoTranscript: "Talofa! It's a pleasure to meet you.",
   },
   {
     firstName: 'Jordan',
@@ -221,7 +221,7 @@ const assistantPresets = [
       elevenlabs: 'ErXwobaYiN019PkySvjV', // Antoni (en, male, young, well-rounded)
       openai: 'verse',
     },
-    videoTranscript: "Hey! What can I help you with today?"
+    videoTranscript: 'Hey! What can I help you with today?',
   },
   {
     firstName: 'Lucio',
@@ -237,7 +237,7 @@ const assistantPresets = [
       elevenlabs: 'zcAOhNBS3c14rBihAFp1', // Giovanni (en, male, foreigner, italian accent) -> Mapped to it
       openai: 'ash',
     },
-    videoTranscript: "Ciao! Come posso aiutarti oggi?"
+    videoTranscript: 'Ciao! Come posso aiutarti oggi?',
   },
   {
     firstName: 'Ethan',
@@ -253,7 +253,7 @@ const assistantPresets = [
       elevenlabs: '29vD33N1CtxCmqQRPOHJ', // Drew (en, male, middle-aged, well-rounded)
       openai: 'echo',
     },
-    videoTranscript: "Hello! I'm here whenever you're ready."
+    videoTranscript: "Hello! I'm here whenever you're ready.",
   },
   {
     firstName: 'Mateo',
@@ -269,7 +269,7 @@ const assistantPresets = [
       elevenlabs: 'bVMeCyTHy58xNoL34h3p', // Jeremy (en, male, young, excited) -> Mapped to es
       openai: 'verse',
     },
-    videoTranscript: "Listo para ayudarte en lo que necesites."
+    videoTranscript: 'Listo para ayudarte en lo que necesites.',
   },
   {
     firstName: 'Carson',
@@ -285,7 +285,7 @@ const assistantPresets = [
       elevenlabs: 'yoZ06aMxZJJ28mfd3POQ', // Sam (en, male, young, raspy)
       openai: 'ballad',
     },
-    videoTranscript: "Hey! Shall we get started?"
+    videoTranscript: 'Hey! Shall we get started?',
   },
   {
     firstName: 'Peter',
@@ -301,7 +301,7 @@ const assistantPresets = [
       elevenlabs: 'ZQe5CZNOzWyzPSCn5a3c', // James (en, male, old, calm, australian accent)
       openai: 'ash',
     },
-    videoTranscript: "G'day! How can I lend a hand?"
+    videoTranscript: "G'day! How can I lend a hand?",
   },
   {
     firstName: 'Faisal',
@@ -317,7 +317,7 @@ const assistantPresets = [
       elevenlabs: 'cjVigY5qzO86Huf0OWal', // Eric (en, male, middle-aged, classy, smooth tenor)
       openai: 'cedar',
     },
-    videoTranscript: "Hello. I'm here and ready to help."
+    videoTranscript: "Hello. I'm here and ready to help.",
   },
   {
     firstName: 'Aisha',
@@ -333,7 +333,7 @@ const assistantPresets = [
       elevenlabs: 'z9fAnlkpzviPz146aGWa', // Glinda (en, female, middle-aged). Characterful choice for a proactive professional.
       openai: 'nova',
     },
-    videoTranscript: "Hello. How can I support you today?"
+    videoTranscript: 'Hello. How can I support you today?',
   },
   {
     firstName: 'Kwabena',
@@ -349,7 +349,7 @@ const assistantPresets = [
       elevenlabs: '5Q0t7uMcjvnagumLfvZi', // Paul (en, male, middle-aged, authoritative)
       openai: 'ash',
     },
-    videoTranscript: "Hello! How may I help?"
+    videoTranscript: 'Hello! How may I help?',
   },
   {
     firstName: 'Rafael',
@@ -365,7 +365,7 @@ const assistantPresets = [
       elevenlabs: 'bVMeCyTHy58xNoL34h3p', // Jeremy (en, male, young, excited) -> Mapped to es
       openai: 'verse',
     },
-    videoTranscript: "Listo para ayudarte con lo que necesites."
+    videoTranscript: 'Listo para ayudarte con lo que necesites.',
   },
   {
     firstName: 'Mark',
@@ -381,7 +381,7 @@ const assistantPresets = [
       elevenlabs: 'VR6AewLTigWG4xSOukaG', // Arnold (en, male, middle-aged, crisp)
       openai: 'onyx',
     },
-    videoTranscript: "Hello. Let's get down to business."
+    videoTranscript: "Hello. Let's get down to business.",
   },
   {
     firstName: 'Kojo',
@@ -397,7 +397,7 @@ const assistantPresets = [
       elevenlabs: 'nPczCjzI2devNBz1zQrb', // Brian (en, male, middle aged man with resonant tone)
       openai: 'onyx',
     },
-    videoTranscript: "Hi there! You can count on me anytime."
+    videoTranscript: 'Hi there! You can count on me anytime.',
   },
   {
     firstName: 'Mi-sun',
@@ -413,7 +413,7 @@ const assistantPresets = [
       elevenlabs: 'LcfcDJNUP1GQjkzn1xUU', // Emily (ko, female, Middle aged female calm voice.
       openai: 'nova',
     },
-    videoTranscript: "안녕하세요. 무엇을 도와드릴까요?"
+    videoTranscript: '안녕하세요. 무엇을 도와드릴까요?',
   },
   {
     firstName: 'Juan',
@@ -429,7 +429,7 @@ const assistantPresets = [
       elevenlabs: 't0jbNlBVZ17f02VDIeMI', // Jessie (en, male, old, raspy) -> Mapped to es. Age mismatch, but good for experienced/characterful profile.
       openai: 'ash',
     },
-    videoTranscript: "¡Hola! ¿En qué te puedo ayudar?"
+    videoTranscript: '¡Hola! ¿En qué te puedo ayudar?',
   },
   {
     firstName: 'Grace',
@@ -445,7 +445,7 @@ const assistantPresets = [
       elevenlabs: 'AZnzlk1XvdvUeBnXmlld', // Domi (en, female, young, strong)
       openai: 'coral',
     },
-    videoTranscript: "Hello! I'm delighted to meet you."
+    videoTranscript: "Hello! I'm delighted to meet you.",
   },
   {
     firstName: 'Vishnu',
@@ -461,7 +461,7 @@ const assistantPresets = [
       elevenlabs: 'Zlb1dXrM653N07WRdFW3', // Joseph (en, male, middle-aged, articulate) -> Mapped to hi
       openai: 'echo',
     },
-    videoTranscript: "Hello! What can I do for you today?"
+    videoTranscript: 'Hello! What can I do for you today?',
   },
   {
     firstName: 'Elena',
@@ -477,7 +477,7 @@ const assistantPresets = [
       elevenlabs: 'oWAxZDx7w5VEj9dCyTzz', // Grace (en, female, young, pleasant) -> Mapped to es
       openai: 'alloy',
     },
-    videoTranscript: "Es un placer saludarte."
+    videoTranscript: 'Es un placer saludarte.',
   },
   {
     firstName: 'Amanda',
@@ -493,7 +493,7 @@ const assistantPresets = [
       elevenlabs: 'MF3mGyEYCl7XYWbV9V6O', // Elli (en, female, young, emotional, expressive) -> Mapped to pt
       openai: 'marin',
     },
-    videoTranscript: "Como posso te ajudar hoje?"
+    videoTranscript: 'Como posso te ajudar hoje?',
   },
   {
     firstName: 'Alice',
@@ -509,7 +509,7 @@ const assistantPresets = [
       elevenlabs: 'ThT5KcBeYPX3keUQqHPh', // Dorothy (en, female, young, pleasant, british accent)
       openai: 'nova',
     },
-    videoTranscript: "Hello. How can I help you get organized?"
+    videoTranscript: 'Hello. How can I help you get organized?',
   },
   {
     firstName: 'Kofi',
@@ -525,7 +525,7 @@ const assistantPresets = [
       elevenlabs: 'pNInz6obpgDQGcFmaJgB', // Adam (en, male)
       openai: 'ash',
     },
-    videoTranscript: "Hey! I'm here to help however I can."
+    videoTranscript: "Hey! I'm here to help however I can.",
   },
   {
     firstName: 'Alejandro',
@@ -541,7 +541,7 @@ const assistantPresets = [
       elevenlabs: '2EiwWnXFnvU5JabPnv8n', // Clyde (en, male, middle-aged, war veteran) -> Mapped to es. Fits "seasoned" profile.
       openai: 'onyx',
     },
-    videoTranscript: "¡Qué tal! Estoy a tus órdenes."
+    videoTranscript: '¡Qué tal! Estoy a tus órdenes.',
   },
   {
     firstName: 'Orion',
@@ -557,7 +557,7 @@ const assistantPresets = [
       elevenlabs: 'iP95p4xoKVk53GoZ742B', // Chris (en, male, middle-aged, casual, down-to-earth)
       openai: 'onyx',
     },
-    videoTranscript: "Hello. Let's get right to it."
+    videoTranscript: "Hello. Let's get right to it.",
   },
   {
     firstName: 'Rachel',
@@ -573,7 +573,7 @@ const assistantPresets = [
       elevenlabs: 'cgSgspJ2msm6clMCkdW9', // Jessica (en, female, young and playful American voice)
       openai: 'marin',
     },
-    videoTranscript: "Hi! I'm happy to help however I can."
+    videoTranscript: "Hi! I'm happy to help however I can.",
   },
   {
     firstName: 'Lin',
@@ -589,7 +589,7 @@ const assistantPresets = [
       elevenlabs: 'zrHiDhphv9ZnVXBqCLjz', // Mimi (en, female, young, childish, swedish accent) -> Mapped to zh.
       openai: 'fable',
     },
-    videoTranscript: "你好！有什么可以帮你的吗？"
+    videoTranscript: '你好！有什么可以帮你的吗？',
   },
   {
     firstName: 'Liu',
@@ -605,7 +605,7 @@ const assistantPresets = [
       elevenlabs: 'ODq5zmih8GrVes37Dizd', // Patrick (en, male, middle-aged, shouty) -> Mapped to zh. A characterful choice for a motivated professional.
       openai: 'ash',
     },
-    videoTranscript: "你好！有什么我可以帮忙的吗？"
+    videoTranscript: '你好！有什么我可以帮忙的吗？',
   },
   {
     firstName: 'Devansh',
@@ -621,7 +621,7 @@ const assistantPresets = [
       elevenlabs: 'D38z5RcWu1voky8WS1ja', // Fin (en, male, old, sailor, irish accent) -> Mapped to hi. Character voice for industrious profile.
       openai: 'onyx',
     },
-    videoTranscript: "Hello. How may I assist you?"
+    videoTranscript: 'Hello. How may I assist you?',
   },
   {
     firstName: 'Precious',
@@ -637,7 +637,7 @@ const assistantPresets = [
       elevenlabs: 'pMsXgVXv3BLzUgSXRplE', // Serana (en, female, "middle aged with american accent")
       openai: 'fable',
     },
-    videoTranscript: "Hi there! Let me know how I can support you."
+    videoTranscript: 'Hi there! Let me know how I can support you.',
   },
   {
     firstName: 'Rosa',
@@ -653,7 +653,7 @@ const assistantPresets = [
       elevenlabs: 'oWAxZDx7w5VEj9dCyTzz', // Grace (en -> es, female, young pleasant voice with southern us accent)
       openai: 'marin',
     },
-    videoTranscript: "Hey there. I'm really excited to get started!"
+    videoTranscript: "Hey there. I'm really excited to get started!",
   },
   {
     firstName: 'Jian',
@@ -669,7 +669,7 @@ const assistantPresets = [
       elevenlabs: 'TxGEqnHWrfWFTfGW9XjX', // Josh (en, male, young, deep) -> Mapped to zh.
       openai: 'cedar',
     },
-    videoTranscript: "你好！有什么需要帮忙的吗？"
+    videoTranscript: '你好！有什么需要帮忙的吗？',
   },
   {
     firstName: 'Olivia',
@@ -685,7 +685,7 @@ const assistantPresets = [
       elevenlabs: 'z9fAnlkpzviPz146aGWa', // Glinda (en, female, middle-aged). Characterful choice for a proactive professional.
       openai: 'alloy',
     },
-    videoTranscript: "Hello. It would be my pleasure to assist."
+    videoTranscript: 'Hello. It would be my pleasure to assist.',
   },
   {
     firstName: 'Devon',
@@ -701,7 +701,7 @@ const assistantPresets = [
       elevenlabs: 'pNInz6obpgDQGcFmaJgB', // Adam (en, male)
       openai: 'ballad',
     },
-    videoTranscript: "Hey. Ready to help your sort things out!"
+    videoTranscript: 'Hey. Ready to help your sort things out!',
   },
   {
     firstName: 'Oliver',
@@ -717,7 +717,7 @@ const assistantPresets = [
       elevenlabs: 'CYw3kZ02Hs0563khs1Fj', // Dave (en, male, young, conversational, british accent)
       openai: 'onyx',
     },
-    videoTranscript: "Hello. Ready to begin when you are."
+    videoTranscript: 'Hello. Ready to begin when you are.',
   },
   {
     firstName: 'Rahul',
@@ -733,7 +733,7 @@ const assistantPresets = [
       elevenlabs: 'Zlb1dXrM653N07WRdFW3', // Joseph (en->hi, male, middle-aged, male articulate)
       openai: 'cedar',
     },
-    videoTranscript: "नमस्कार। आइए, मिलकर काम करते हैं।"
+    videoTranscript: 'नमस्कार। आइए, मिलकर काम करते हैं।',
   },
   {
     firstName: 'Karen',
@@ -749,7 +749,7 @@ const assistantPresets = [
       elevenlabs: 'ThT5KcBeYPX3keUQqHPh', // Dorothy (en, female, young, pleasant, british accent)
       openai: 'nova',
     },
-    videoTranscript: "Hello. I'd love to help you work through anything."
+    videoTranscript: "Hello. I'd love to help you work through anything.",
   },
   {
     firstName: 'Julio',
@@ -765,7 +765,7 @@ const assistantPresets = [
       elevenlabs: 'N2lVS1w4EtoT3dr4eOWO', // Callum (en, male, middle-aged, gravelly) -> Mapped to es
       openai: 'echo',
     },
-    videoTranscript: "¿Qué tal? Estoy aquí para ayudar."
+    videoTranscript: '¿Qué tal? Estoy aquí para ayudar.',
   },
   {
     firstName: 'Grant',
@@ -781,7 +781,7 @@ const assistantPresets = [
       elevenlabs: 'GBv7mTt0atIp3Br8iCZE', // Thomas (en, male, young, calm)
       openai: 'ash',
     },
-    videoTranscript: "Hello. I'm ready to assist you."
+    videoTranscript: "Hello. I'm ready to assist you.",
   },
   {
     firstName: 'Trevor',
@@ -797,7 +797,7 @@ const assistantPresets = [
       elevenlabs: 'onwK4e9ZLuTAKqWW03F9', // Daniel (en, male, strong male voice)
       openai: 'verse',
     },
-    videoTranscript: "Hello. I'm here to guide you through your work."
+    videoTranscript: "Hello. I'm here to guide you through your work.",
   },
   {
     firstName: 'Isabella',
@@ -813,7 +813,7 @@ const assistantPresets = [
       elevenlabs: 'XB0fDUnXU5powFXDhCwa', // Charlotte (en->pt, female, young, relaxed, swedish accent) -> Mapped to pt
       openai: 'marin',
     },
-    videoTranscript: "Olá. É um prazer te conhecer."
+    videoTranscript: 'Olá. É um prazer te conhecer.',
   },
   {
     firstName: 'Alina',
@@ -829,7 +829,7 @@ const assistantPresets = [
       elevenlabs: 'SAz9YHcvj6GT2YYXdXww', // River (en -> de, female relaxed neutral voice)
       openai: 'sage',
     },
-    videoTranscript: "Hallo! Wie kann ich Ihnen helfen?"
+    videoTranscript: 'Hallo! Wie kann ich Ihnen helfen?',
   },
   {
     firstName: 'Samuel',
@@ -845,7 +845,7 @@ const assistantPresets = [
       elevenlabs: 'bIHbv24MWmeRgasZH58o', // Reusing Will (en) as his laid-back tone can fit a resourceful professional.
       openai: 'cedar',
     },
-    videoTranscript: "Hello. Let me know how I can help you today."
+    videoTranscript: 'Hello. Let me know how I can help you today.',
   },
   {
     firstName: 'Anna',
@@ -861,7 +861,7 @@ const assistantPresets = [
       elevenlabs: 'XrExE9yKIg1WjnnlVkGX', // Matilda (en, female, professional woman with pleasing alto pitch)
       openai: 'marin',
     },
-    videoTranscript: "Hi! How can I help you today?"
+    videoTranscript: 'Hi! How can I help you today?',
   },
   {
     firstName: 'Ji-Yeon',
@@ -877,7 +877,7 @@ const assistantPresets = [
       elevenlabs: '21m00Tcm4TlvDq8ikWAM', // Rachel (en -> ko), Young female calm voice with american accent.
       openai: 'marin',
     },
-    videoTranscript: "안녕하세요. 정성을 다해 돕겠습니다."
+    videoTranscript: '안녕하세요. 정성을 다해 돕겠습니다.',
   },
   {
     firstName: 'Joseph',
@@ -893,7 +893,7 @@ const assistantPresets = [
       elevenlabs: 'onwK4e9ZLuTAKqWW03F9', // Daniel (en, male, middle-aged, formal, strong voice)
       openai: 'onyx',
     },
-    videoTranscript: "Hello there! It's a pleasure to meet you."
+    videoTranscript: "Hello there! It's a pleasure to meet you.",
   },
   {
     firstName: 'Adanna',
@@ -909,7 +909,7 @@ const assistantPresets = [
       elevenlabs: 'pMsXgVXv3BLzUgSXRplE', // Serena (en, female, middle aged pleasant female voice with American accent)
       openai: 'marin',
     },
-    videoTranscript: "Hi! It's so nice to meet you!"
+    videoTranscript: "Hi! It's so nice to meet you!",
   },
   {
     firstName: 'Amira',
@@ -925,7 +925,7 @@ const assistantPresets = [
       elevenlabs: 'XrExE9yKIg1WjnnlVkGX', //English Female Upbeat 1 (en, female, Professional woman with plaesing alto)
       openai: 'fable',
     },
-    videoTranscript: "Hello. I'm here whenever you need support."
+    videoTranscript: "Hello. I'm here whenever you need support.",
   },
   {
     firstName: 'Rajesh',
@@ -941,7 +941,7 @@ const assistantPresets = [
       elevenlabs: 'pqHfZKP75CvOlQylNhV4', // Bill (en -> hi) male friendly and comforting voice
       openai: 'onyx',
     },
-    videoTranscript: "नमस्कार। मैं आपकी सहायता के लिए यहाँ हूँ।"
+    videoTranscript: 'नमस्कार। मैं आपकी सहायता के लिए यहाँ हूँ।',
   },
   {
     firstName: 'Viola',
@@ -957,7 +957,7 @@ const assistantPresets = [
       elevenlabs: 'EXAVITQu4vr4xnSDxMaL', // Sarah (en-> it, female, young adult woman with confident and warm voice)
       openai: 'alloy',
     },
-    videoTranscript: "Ciao! Sono qui per aiutarti con tutto ciò di cui hai bisogno."
+    videoTranscript: 'Ciao! Sono qui per aiutarti con tutto ciò di cui hai bisogno.',
   },
   {
     firstName: 'Catherine',
@@ -973,7 +973,7 @@ const assistantPresets = [
       elevenlabs: 'FGY2WhTYpPnrIDTdsKH5', // Laura (en, female, young adult female voice with sunny enthusiasm and quirky attitude)
       openai: 'alloy',
     },
-    videoTranscript: "Nice to meet you. Hope you're having a great day."
+    videoTranscript: "Nice to meet you. Hope you're having a great day.",
   },
   {
     firstName: 'Jaques',
@@ -988,7 +988,7 @@ const assistantPresets = [
       elevenlabs: 'Yko7PKHZNXotIFUBG7I9', // George (en->fr, male, Middle aged male calm voice)
       openai: 'onyx',
     },
-    videoTranscript: "Bonjour. Au plaisir de collaborer avec vous."
+    videoTranscript: 'Bonjour. Au plaisir de collaborer avec vous.',
   },
   {
     firstName: 'Lucas',
@@ -1003,7 +1003,7 @@ const assistantPresets = [
       elevenlabs: 'IKne3meq5aSn9XLyUdCD', // Charlie (en->fr, male, young male energetic voice)
       openai: 'cedar',
     },
-    videoTranscript: "Salut. Je suis à votre disposition."
+    videoTranscript: 'Salut. Je suis à votre disposition.',
   },
   {
     firstName: 'Patrick',
@@ -1019,7 +1019,7 @@ const assistantPresets = [
       elevenlabs: 'iP95p4xoKVk53GoZ742B', // Chris (en, male, natural down-to-earth voice
       openai: 'echo',
     },
-    videoTranscript: "Hey, happy to help with whatever you need."
+    videoTranscript: 'Hey, happy to help with whatever you need.',
   },
   {
     firstName: 'Mustafa',
@@ -1035,7 +1035,8 @@ const assistantPresets = [
       elevenlabs: 'CwhRBWXzGAHq8TQ4Fs17', // Roger (en->tr, male, neutral adult voice)
       openai: 'onyx',
     },
-    videoTranscript: "Merhaba. Size yardımcı olmak için buradayım, elimden gelenin en iyisini yapacağım."
+    videoTranscript:
+      'Merhaba. Size yardımcı olmak için buradayım, elimden gelenin en iyisini yapacağım.',
   },
   {
     firstName: 'Ito',
@@ -1051,7 +1052,7 @@ const assistantPresets = [
       elevenlabs: 'TX3LPaxmHKxFdv7VOQHJ', // Liam (en -> ja, young male adult voice with energy and warmth)
       openai: 'ash',
     },
-    videoTranscript: "こんにちは！お手伝いできることがあれば、何でもおっしゃってください。"
+    videoTranscript: 'こんにちは！お手伝いできることがあれば、何でもおっしゃってください。',
   },
   {
     firstName: 'Simon',
@@ -1065,7 +1066,7 @@ const assistantPresets = [
     voiceIds: {
       elevenlabs: 'ZQe5CZNOzWyzPSCn5a3c', // James (en, male, old, calm, australian accent)
     },
-    videoTranscript: "Hello. I'm here whenever you need me."
+    videoTranscript: "Hello. I'm here whenever you need me.",
   },
   {
     firstName: 'Paul',
@@ -1079,7 +1080,7 @@ const assistantPresets = [
     voiceIds: {
       elevenlabs: '29vD33N1CtxCmqQRPOHJ', // Drew (en, male, middle-aged, well-rounded)
     },
-    videoTranscript: "Hello. Shall we get some work done?"
+    videoTranscript: 'Hello. Shall we get some work done?',
   },
   {
     firstName: 'Andrew',
@@ -1093,7 +1094,7 @@ const assistantPresets = [
     voiceIds: {
       elevenlabs: 'ErXwobaYiN019PkySvjV', // Antoni (en, male, young, well-rounded)
     },
-    videoTranscript: "Hey there. Would you like me to start with anything?"
+    videoTranscript: 'Hey there. Would you like me to start with anything?',
   },
   {
     firstName: 'Anthony',
@@ -1107,7 +1108,7 @@ const assistantPresets = [
     voiceIds: {
       elevenlabs: 'cjVigY5qzO86Huf0OWal', // Eric (en, male, middle-aged, classy, smooth tenor)
     },
-    videoTranscript: "Hi. Looking forward to working together."
+    videoTranscript: 'Hi. Looking forward to working together.',
   },
   {
     firstName: 'Megan',
@@ -1121,7 +1122,7 @@ const assistantPresets = [
     voiceIds: {
       elevenlabs: 'cgSgspJ2msm6clMCkdW9', // Jessica (en, female, young and playful American voice)
     },
-    videoTranscript: "Hi. Is there anything I can help with?"
+    videoTranscript: 'Hi. Is there anything I can help with?',
   },
   {
     firstName: 'Emily',
@@ -1135,7 +1136,7 @@ const assistantPresets = [
     voiceIds: {
       elevenlabs: 'AZnzlk1XvdvUeBnXmlld', // Domi (en, female, young, strong)
     },
-    videoTranscript: "Pleased to meet you. Let me know when you need me."
+    videoTranscript: 'Pleased to meet you. Let me know when you need me.',
   },
 ];
 

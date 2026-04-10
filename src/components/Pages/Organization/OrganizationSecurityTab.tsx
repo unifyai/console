@@ -34,7 +34,6 @@ const OrganizationSecurityTab = ({
 }: OrganizationSecurityTabProps) => {
   return (
     <div className="flex flex-col gap-6 p-6" data-testid="organization-security-tab">
-
       {/* MFA Enforcement */}
       {mfaSettingsActions && (
         <SecuritySettingsPanel
@@ -47,20 +46,16 @@ const OrganizationSecurityTab = ({
       {/* Danger Zone */}
       {canDelete && (
         <div className="space-y-4">
-          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+          <div className="border-destructive/30 bg-destructive/5 rounded-lg border p-4">
             <h3 className="text-h3 text-destructive">Danger Zone</h3>
-            <p className="mt-1 text-caption">
+            <p className="text-caption mt-1">
               Deleting the organization is irreversible. All data and members associated with this
               organization will be permanently removed.
             </p>
             <div className="mt-4">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="gap-2"
-                  >
+                  <Button variant="destructive" size="sm" className="gap-2">
                     <Trash2 className="h-4 w-4" />
                     Delete Organization
                   </Button>
@@ -95,4 +90,3 @@ const OrganizationSecurityTab = ({
 };
 
 export default OrganizationSecurityTab;
-

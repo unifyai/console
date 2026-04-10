@@ -21,6 +21,7 @@ export interface User {
   timezone: string | null;
   email: string;
   phoneNumber: string | null;
+  whatsappNumber: string | null;
   createdAt: string;
   apiKey: string;
   stripeCustomerId: string;
@@ -65,6 +66,7 @@ export interface UserUpdateRequest {
   bio: string;
   timezone?: string | null;
   phoneNumber?: string | null;
+  whatsappNumber?: string | null;
 }
 
 export type BalanceDetails = {

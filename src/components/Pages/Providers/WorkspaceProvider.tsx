@@ -1,6 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from 'react';
 import { useRouter } from 'next/navigation';
 import { User, UserOrganization, UserWorkspace } from '@/types/user';
 
@@ -84,21 +91,30 @@ export function WorkspaceProvider({
 
   // 3. Switcher Logic
   const [isSwitchingWorkspace, setIsSwitchingWorkspace] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    setIsSwitchingWorkspace(false);
-  }, [activeWorkspace?.id]);
+    if (!isPending) {
+      setIsSwitchingWorkspace(false);
+    }
+  }, [isPending]);
 
   const switchWorkspace = async (workspaceId: string) => {
     if (activeWorkspace?.id === workspaceId) return;
     setIsSwitchingWorkspace(true);
 
-    await fetch('/api/session/workspace', {
-      method: 'POST',
-      body: JSON.stringify({ workspaceId }),
-    });
+    try {
+      await fetch('/api/session/workspace', {
+        method: 'POST',
+        body: JSON.stringify({ workspaceId }),
+      });
 
-    router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch {
+      setIsSwitchingWorkspace(false);
+    }
   };
 
   return (

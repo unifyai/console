@@ -103,12 +103,11 @@ const VerificationCodeInput = ({
     }
   };
 
-  const purposeText =
-    purpose === 'signup' ? 'verify your email' : 'reset your password';
+  const purposeText = purpose === 'signup' ? 'verify your email' : 'reset your password';
 
   return (
     <div className="flex flex-col items-center gap-4" data-testid="verification-code-input">
-      <p className="text-center text-body text-muted-foreground">
+      <p className="text-body text-center text-muted-foreground">
         We sent a 6-digit code to <strong>{email}</strong> to {purposeText}.
       </p>
 
@@ -126,7 +125,7 @@ const VerificationCodeInput = ({
             onChange={(e) => handleChange(index, e.target.value)}
             onKeyDown={(e) => handleKeyDown(index, e)}
             onPaste={index === 0 ? handlePaste : undefined}
-            className="h-12 w-12 text-center text-lg font-mono"
+            className="h-12 w-12 text-center font-mono text-lg"
             disabled={isLoading}
             aria-label={`Digit ${index + 1}`}
             data-testid={`code-digit-${index}`}
@@ -154,7 +153,7 @@ const VerificationCodeInput = ({
         type="button"
         onClick={handleResend}
         disabled={resendCooldown > 0}
-        className="text-caption text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+        className="text-caption text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
         data-testid="resend-code-btn"
       >
         {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
@@ -164,4 +163,3 @@ const VerificationCodeInput = ({
 };
 
 export default VerificationCodeInput;
-

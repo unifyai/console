@@ -54,7 +54,7 @@ const TotpInput = ({
         }
       }
     },
-    [digits, focusInput, onSubmit],
+    [digits, focusInput, onSubmit]
   );
 
   const handleKeyDown = useCallback(
@@ -63,7 +63,7 @@ const TotpInput = ({
         focusInput(index - 1);
       }
     },
-    [digits, focusInput],
+    [digits, focusInput]
   );
 
   const handlePaste = useCallback(
@@ -87,7 +87,7 @@ const TotpInput = ({
         onSubmit(pasted);
       }
     },
-    [focusInput, onSubmit],
+    [focusInput, onSubmit]
   );
 
   const handleSubmit = useCallback(() => {
@@ -117,9 +117,7 @@ const TotpInput = ({
             onPaste={i === 0 ? handlePaste : undefined}
             autoFocus={autoFocus && i === 0}
             disabled={isLoading}
-            className="h-12 w-10 rounded-md border border-input bg-background text-center text-lg font-mono
-                       focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
-                       disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-12 w-10 rounded-md border border-input bg-background text-center font-mono text-lg focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             data-testid={`totp-digit-${i}`}
           />
         ))}
@@ -151,4 +149,3 @@ const TotpInput = ({
 };
 
 export default TotpInput;
-

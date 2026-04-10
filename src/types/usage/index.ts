@@ -3,3 +3,4 @@ export * from './chart';
 export * from './filters';
 export * from './plots';
 export * from './queries';
+export * from './transactions';

@@ -7,7 +7,7 @@ import { makeRoomName } from '@/utils/assistants/call-utils';
 import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
 import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 
-const ASSISTANT_JOIN_TIMEOUT = 60000; // 60 seconds
+const ASSISTANT_JOIN_SLOW_THRESHOLD = 90000; // 90 seconds — soft warning, not an error
 const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
@@ -79,7 +79,9 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     if (disconnectingId) {
       try {
         sessionStorage.removeItem(`desktop-ready-${disconnectingId}`);
-      } catch { /* SSR-safe */ }
+      } catch {
+        /* SSR-safe */
+      }
     }
 
     setIsConnected(false);
@@ -165,33 +167,41 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
 
         if (!connDetails) return;
 
-        await room.connect(connDetails.serverUrl, connDetails.token);
-        if (isStaleAttempt()) {
-          await room.disconnect();
-          return;
-        }
-
-        await Promise.all([
-          room.localParticipant.setMicrophoneEnabled(true),
-          room.localParticipant.setCameraEnabled(type === 'video'),
-        ]);
-        setIsConnected(true);
-        setIsConnecting(false);
-        wasConnectedRef.current = true;
-
-        if (room.remoteParticipants.size < 1) {
-          setIsWaitingForAssistant(true);
-          const timeoutDuration =
-            (typeof window !== 'undefined' && (window as any)._TEST_ASSISTANT_JOIN_TIMEOUT) ||
-            ASSISTANT_JOIN_TIMEOUT;
-          assistantJoinTimeoutRef.current = setTimeout(() => {
-            if (isStaleAttempt()) return;
-            setConnectionError(`${assistant.firstName} is taking too long to join.`);
-            setIsWaitingForAssistant(false);
-          }, timeoutDuration);
-        } else {
-          setIsWaitingForAssistant(false);
+        if (connDetails.mode === 'dev') {
+          setConnectionDetails(connDetails);
           stopRinging();
+          setIsConnected(true);
+          setIsConnecting(false);
+          wasConnectedRef.current = true;
+          setIsWaitingForAssistant(false);
+        } else {
+          await room.connect(connDetails.serverUrl, connDetails.token);
+          if (isStaleAttempt()) {
+            await room.disconnect();
+            return;
+          }
+
+          await Promise.all([
+            room.localParticipant.setMicrophoneEnabled(true),
+            room.localParticipant.setCameraEnabled(type === 'video'),
+          ]);
+          setIsConnected(true);
+          setIsConnecting(false);
+          wasConnectedRef.current = true;
+
+          if (room.remoteParticipants.size < 1) {
+            setIsWaitingForAssistant(true);
+            const timeoutDuration =
+              (typeof window !== 'undefined' && (window as any)._TEST_ASSISTANT_JOIN_TIMEOUT) ||
+              ASSISTANT_JOIN_SLOW_THRESHOLD;
+            assistantJoinTimeoutRef.current = setTimeout(() => {
+              if (isStaleAttempt()) return;
+              setWaitingMessage(`${assistant.firstName} is taking a bit longer than expected…`);
+            }, timeoutDuration);
+          } else {
+            setIsWaitingForAssistant(false);
+            stopRinging();
+          }
         }
       } catch (e: any) {
         // Only handle error if this attempt is still the current one
@@ -317,10 +327,18 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       let resolvedUrl: string | undefined;
 
       if (eventLiveviewUrl) {
-        const built = await assistantActions.desktop.buildLiveviewUrl(eventLiveviewUrl, activeCallAssistant.userId, activeCallAssistant.organizationId ?? null);
+        const built = await assistantActions.desktop.buildLiveviewUrl(
+          eventLiveviewUrl,
+          activeCallAssistant.userId,
+          activeCallAssistant.organizationId ?? null
+        );
         resolvedUrl = built.liveviewUrl;
       } else {
-        const result = await assistantActions.desktop.getLiveviewUrl(activeCallAssistant.agentId, activeCallAssistant.userId, activeCallAssistant.organizationId ?? null);
+        const result = await assistantActions.desktop.getLiveviewUrl(
+          activeCallAssistant.agentId,
+          activeCallAssistant.userId,
+          activeCallAssistant.organizationId ?? null
+        );
         resolvedUrl = result.liveviewUrl;
       }
 
@@ -459,6 +477,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     const clearWaitingState = () => {
       setIsWaitingForAssistant(false);
       setWaitingMessage(null);
+      setConnectionError(null);
       isRedispatchingRef.current = false;
       clearAssistantJoinTimeout();
       stopRinging();
@@ -486,9 +505,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     };
 
     const onParticipantConnected = () => {
-      // Don't clear waiting state immediately — wait for the agent's
-      // "ready_to_speak" data message so the avatar appears right before
-      // speech.  Start a safety fallback in case the message never arrives.
+      clearAssistantJoinTimeout();
       if (readyFallbackTimer) clearTimeout(readyFallbackTimer);
       readyFallbackTimer = setTimeout(clearWaitingState, READY_FALLBACK_TIMEOUT);
     };

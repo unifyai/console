@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  should-run-tests:
+  should-run:
     runs-on: ubuntu-latest
     outputs:
       run_tests: ${{ steps.check.outputs.run_tests }}
@@ -57,439 +57,117 @@ jobs:
           echo "run_tests=false" >> "$GITHUB_OUTPUT"
           echo "Skipping tests - unknown event type"
 
-  # ===========================================================================
-  # UNIT TESTS (non-matrix)
-  # ===========================================================================
-  unit:
-    needs: should-run-tests
-    if: needs.should-run-tests.outputs.run_tests == 'true'
-    name: Unit
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Run Unit Tests
-        run: |
-          npm run test:node -- --run --exclude='**/*.matrix.node.test.*'
-        env:
-          CI: true
-          NODE_OPTIONS: --max-old-space-size=8192
-
-  # ===========================================================================
-  # UNIT MATRIX TESTS - Sharded across 4 parallel jobs
-  # ===========================================================================
-  node-matrix:
-    needs: should-run-tests
-    if: needs.should-run-tests.outputs.run_tests == 'true'
-    name: Node Matrix ${{ matrix.shard }}/4
+  assistants:
+    needs: should-run
+    if: needs.should-run.outputs.run_tests == 'true'
+    name: Assistants
     runs-on: ubuntu-latest-4-cores
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Run Node Matrix Tests
-        run: |
-          set -x
-          echo "═══════════════════════════════════════════════════════════"
-          echo "         NODE MATRIX TESTS - SHARD ${{ matrix.shard }}/4"
-          echo "═══════════════════════════════════════════════════════════"
-
-          MATRIX_SHARD="${{ matrix.shard }}/4" npx vitest --project node-matrix --run \
-            --reporter=verbose 2>&1 | tee test-output.log
-
-          EXIT_CODE=${PIPESTATUS[0]}
-
-          echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ NODE MATRIX SHARD ${{ matrix.shard }}: PASSED"
-          else
-            echo "❌ NODE MATRIX SHARD ${{ matrix.shard }}: FAILED"
-            echo ""
-            echo "📋 FULL LOG:"
-            cat test-output.log
-          fi
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-          exit $EXIT_CODE
-        env:
-          CI: true
-          NODE_OPTIONS: --max-old-space-size=8192
-          PLOT_TEST_SAMPLE_RATE: '50'
-
-  # ===========================================================================
-  # API INTEGRATION TESTS
-  # ===========================================================================
-  api:
-    needs: should-run-tests
-    if: needs.should-run-tests.outputs.run_tests == 'true'
-    name: API
-    runs-on: ubuntu-latest
-    environment: Preview
-
-    services:
-      orchestra-db:
-        image: pgvector/pgvector:pg15
-        env:
-          POSTGRES_PASSWORD: orchestra
-          POSTGRES_USER: orchestra
-          POSTGRES_DB: orchestra
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
+    timeout-minutes: 30
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
 
-      - name: Auth into Google Cloud
-        uses: google-github-actions/auth@v2
+      - name: Checkout Orchestra
+        uses: actions/checkout@v4
         with:
-          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}
+          repository: ${{ github.repository_owner }}/orchestra
+          path: orchestra
+          token: ${{ secrets.ORCHESTRA_PAT }}
 
-      - name: Setup Python for Orchestra
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: Install Poetry
-        run: pip install poetry
+        run: pip install "poetry>=2.1.0"
 
-      - name: Clone Orchestra
-        run: |
-          git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
-          ORCHESTRA_BRANCH=${{ github.ref_name == 'main' && 'main' || 'staging' }}
-          git clone --depth 1 --branch $ORCHESTRA_BRANCH https://github.com/unifyai/orchestra.git orchestra
-        env:
-          GH_TOKEN: ${{ secrets.CLONE_TOKEN }}
-
-      - name: Install Orchestra dependencies
-        run: |
-          cd orchestra
-          poetry install --no-interaction
-        env:
-          POETRY_VIRTUALENVS_CREATE: 'false'
-
-      - name: Run Orchestra migrations
-        run: |
-          cd orchestra
-          poetry run alembic upgrade head
-        env:
-          POETRY_VIRTUALENVS_CREATE: 'false'
-          ORCHESTRA_DB_HOST: localhost
-          ORCHESTRA_DB_PORT: 5432
-          ORCHESTRA_DB_USER: orchestra
-          ORCHESTRA_DB_PASS: orchestra
-          ORCHESTRA_DB_BASE: orchestra
-
-      - name: Install postgresql-client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
-      - name: Seed Orchestra test data
-        run: |
-          PGPASSWORD=orchestra psql -h localhost -p 5432 -U orchestra -d orchestra -c "
-          INSERT INTO users (id, credits, stripe_customer_id, autorecharge, autorecharge_threshold, autorecharge_qty, store_prompts, frozen)
-          VALUES ('test-user-001', 10000, null, false, -1, 0, true, false)
-          ON CONFLICT (id) DO NOTHING;
-
-          INSERT INTO auth_user (id, email)
-          VALUES ('test-user-001', 'test@debug.local')
-          ON CONFLICT (id) DO NOTHING;
-
-          INSERT INTO api_key (user_id, key)
-          VALUES ('test-user-001', 'local-test-api-key')
-          ON CONFLICT (key) DO NOTHING;
-
-          -- Seed test voices (required before assistants due to FK)
-          INSERT INTO voices (voice_id, user_id, provider, name, description, gender, language, is_preset) VALUES
-            ('test-voice-preset-001', 'test-user-001', 'cartesia', 'Test Voice Preset', 'A preset test voice for CI', 'female', 'en', true),
-            ('test-voice-custom-001', 'test-user-001', 'cartesia', 'Test Voice Custom', 'A custom test voice for CI delete tests', 'male', 'en', false)
-          ON CONFLICT (user_id, voice_id, provider) DO NOTHING;
-
-          -- Seed test assistants (multiple so delete tests don't break other tests)
-          INSERT INTO assistants (agent_id, user_id, first_name, surname, age, nationality, profile_photo, profile_video, about, phone_country, timezone, weekly_limit, voice_id, voice_provider, voice_mode, created_at, updated_at) VALUES
-            (1001, 'test-user-001', 'Test', 'Assistant', 30, 'United States', 'https://example.com/photo.jpg', 'https://example.com/video.mp4', 'Test assistant for CI integration tests', 'US', 'America/New_York', 40, 'test-voice-preset-001', 'cartesia', 'tts', NOW(), NOW()),
-            (1002, 'test-user-001', 'Test', 'Deletable', 30, 'United States', 'https://example.com/photo.jpg', 'https://example.com/video.mp4', 'Test assistant that can be deleted', 'US', 'America/New_York', 40, 'test-voice-preset-001', 'cartesia', 'tts', NOW(), NOW())
-          ON CONFLICT (agent_id) DO NOTHING;
-
-          -- Update sequence to avoid conflicts when creating new assistants
-          SELECT setval('assistants_agent_id_seq', (SELECT COALESCE(MAX(agent_id), 0) + 1 FROM assistants), false);
-
-          -- Seed test organization (id=1) owned by test-user-001
-          INSERT INTO organization (id, owner_id, name, credits, autorecharge, account_status)
-          VALUES (1, 'test-user-001', 'Test Organization', 10000, false, 'ACTIVE')
-          ON CONFLICT (id) DO NOTHING;
-
-          -- Update organization sequence
-          SELECT setval('organization_id_seq', (SELECT COALESCE(MAX(id), 0) + 1 FROM organization), false);
-
-          -- Add test user as Owner member of the organization
-          -- First get the Owner role ID (system role with organization_id IS NULL)
-          INSERT INTO organization_member (organization_id, user_id, role_id)
-          SELECT 1, 'test-user-001', r.id
-          FROM role r
-          WHERE r.name = 'Owner' AND r.organization_id IS NULL AND r.is_system_role = true
-          ON CONFLICT DO NOTHING;
-
-          -- Seed a test team in the organization
-          INSERT INTO team (id, name, description, organization_id)
-          VALUES (1, 'Engineering', 'Test engineering team', 1)
-          ON CONFLICT (id) DO NOTHING;
-
-          -- Update team sequence
-          SELECT setval('team_id_seq', (SELECT COALESCE(MAX(id), 0) + 1 FROM team), false);
-
-          -- Seed 'Assistants' project for logs/secrets functionality
-          -- Required by secret.ts which stores secrets as logs in this project
-          INSERT INTO project (id, user_id, name, description, icon)
-          VALUES (1, 'test-user-001', 'Assistants', 'Project for assistant secrets', 'folder')
-          ON CONFLICT (user_id, name) DO NOTHING;
-
-          -- Update project sequence
-          SELECT setval('project_id_seq', (SELECT COALESCE(MAX(id), 0) + 1 FROM project), false);
-          "
-          echo "✓ Orchestra test data seeded (users, voices, assistants, organization, team, project)"
-
-      - name: Start Orchestra API
-        run: |
-          cd orchestra
-          nohup poetry run python -m orchestra &
-          sleep 10
-          curl --retry 10 --retry-delay 2 --retry-connrefused http://localhost:8000/v0/health || exit 1
-        env:
-          POETRY_VIRTUALENVS_CREATE: 'false'
-          ORCHESTRA_HOST: '0.0.0.0'
-          ORCHESTRA_PORT: '8000'
-          ORCHESTRA_DB_HOST: localhost
-          ORCHESTRA_DB_PORT: 5432
-          ORCHESTRA_DB_USER: orchestra
-          ORCHESTRA_DB_PASS: orchestra
-          ORCHESTRA_DB_BASE: orchestra
-          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-          GCP_LOCATION: ${{ vars.GCP_LOCATION }}
-          ORCHESTRA_GCP_BUCKET_NAME: ${{ vars.GCP_BUCKET_LOGS }}
-          ORCHESTRA_GCP_ASSISTANT_MEDIA_BUCKET_NAME: ${{ vars.GCP_BUCKET_ASSISTANT_IMAGES }}
-          ORCHESTRA_GCP_ASSISTANT_CALL_RECORDINGS_BUCKET_NAME: ${{ vars.GCP_BUCKET_RECORDINGS }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ORCHESTRA_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ORCHESTRA_ADMIN_KEY: ${{ secrets.ORCHESTRA_ADMIN_KEY }}
-          UNITY_COMMS_URL: ${{ secrets.UNITY_COMMS_URL }}
-          UNITY_ADAPTERS_URL: ${{ secrets.UNITY_ADAPTERS_URL }}
-          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
-          ORCHESTRA_ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
-          REPLICATE_API_KEY: ${{ secrets.REPLICATE_API_KEY }}
-          ORCHESTRA_REPLICATE_API_KEY: ${{ secrets.REPLICATE_API_KEY }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Build Console
-        run: npm run build
-        env:
-          NEXTAUTH_SECRET: ci-secret-placeholder
-          NEXTAUTH_URL: http://localhost:3000
-          NEXT_PUBLIC_ORCHESTRA_URL: http://localhost:8000
-          ORCHESTRA_ADMIN_KEY: ${{ secrets.ORCHESTRA_ADMIN_KEY }}
-
-      - name: Start Console
-        run: |
-          npm run start &
-          sleep 5
-          curl --retry 10 --retry-delay 2 --retry-connrefused http://localhost:3000 || exit 1
-        env:
-          NEXTAUTH_SECRET: ci-secret-placeholder
-          NEXTAUTH_URL: http://localhost:3000
-          ORCHESTRA_URL: http://localhost:8000
-          ORCHESTRA_ADMIN_KEY: ${{ secrets.ORCHESTRA_ADMIN_KEY }}
-
-      - name: Run API Tests
-        run: npm run test:real -- --run
-        env:
-          CI: true
-          NODE_OPTIONS: --max-old-space-size=8192
-          ORCHESTRA_URL: http://localhost:8000
-          NEXT_PUBLIC_ORCHESTRA_URL: http://localhost:8000
-          VITE_TEST_API_KEY: local-test-api-key
-
-  # ===========================================================================
-  # BROWSER TESTS - Assistants (4 shards)
-  # ===========================================================================
-  browser-assistants:
-    needs: should-run-tests
-    if: needs.should-run-tests.outputs.run_tests == 'true'
-    name: Assistants ${{ matrix.shard }}/4
-    runs-on: ubuntu-latest-4-cores
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Cache Vite dependencies
+      - name: Cache Orchestra virtualenv
         uses: actions/cache@v4
         with:
-          path: node_modules/.vite
-          key: vite-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            vite-${{ runner.os }}-
+          path: orchestra/.venv
+          key: orchestra-venv-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci --legacy-peer-deps
 
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Run Assistants Browser Tests
-        run: |
-          set -x
-          echo "═══════════════════════════════════════════════════════════"
-          echo "         ASSISTANTS BROWSER TESTS - SHARD ${{ matrix.shard }}/4"
-          echo "═══════════════════════════════════════════════════════════"
+      - name: Start test environment
+        run: bash scripts/ci-test-setup.sh --no-seed
+        env:
+          ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
 
-          npm run test:browser -- --run \
-            src/tests/assistants \
-            --shard=${{ matrix.shard }}/4 \
-            --reporter=verbose 2>&1 | tee test-output.log
+      - name: Run Assistants E2E tests
+        run: |
+          npx playwright test src/tests/assistants/ \
+            --reporter=list 2>&1 | tee test-output.log
 
           EXIT_CODE=${PIPESTATUS[0]}
-
-          echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ ASSISTANTS SHARD ${{ matrix.shard }}: PASSED"
-          else
-            echo "❌ ASSISTANTS SHARD ${{ matrix.shard }}: FAILED"
-            echo ""
-            echo "📋 FULL LOG:"
-            cat test-output.log
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::Assistants E2E tests failed"
           fi
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
           exit $EXIT_CODE
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
 
-  # ===========================================================================
-  # BROWSER TESTS - Interfaces (2 shards)
-  # ===========================================================================
-  browser-interfaces:
-    needs: should-run-tests
-    if: needs.should-run-tests.outputs.run_tests == 'true'
-    name: Interfaces ${{ matrix.shard }}/2
-    runs-on: ubuntu-latest-4-cores
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
         with:
-          node-version: '20'
-          cache: 'npm'
+          name: playwright-report-assistants
+          path: playwright-report/
+          retention-days: 7
 
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Cache Vite dependencies
-        uses: actions/cache@v4
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
         with:
-          path: node_modules/.vite
-          key: vite-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            vite-${{ runner.os }}-
+          name: test-logs-assistants
+          path: |
+            test-output.log
+            /tmp/console-ci.log
+            /tmp/orchestra-local-server.log
+          retention-days: 7
 
-      - name: Install Playwright
-        run: npx playwright install --with-deps chromium
-
-      - name: Run Interfaces Browser Tests
-        run: |
-          set -x
-          echo "═══════════════════════════════════════════════════════════"
-          echo "         INTERFACES BROWSER TESTS - SHARD ${{ matrix.shard }}/2"
-          echo "═══════════════════════════════════════════════════════════"
-
-          npm run test:browser -- --run \
-            src/tests/interfaces \
-            --shard=${{ matrix.shard }}/2 \
-            --reporter=verbose 2>&1 | tee test-output.log
-
-          EXIT_CODE=${PIPESTATUS[0]}
-
-          echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ INTERFACES SHARD ${{ matrix.shard }}: PASSED"
-          else
-            echo "❌ INTERFACES SHARD ${{ matrix.shard }}: FAILED"
-            echo ""
-            echo "📋 FULL LOG:"
-            cat test-output.log
-          fi
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-          exit $EXIT_CODE
-        env:
-          CI: true
-          NODE_OPTIONS: --max-old-space-size=4096
-
-  # ===========================================================================
-  # BROWSER TESTS - Plot
-  # ===========================================================================
-  browser-plot:
-    needs: should-run-tests
-    if: needs.should-run-tests.outputs.run_tests == 'true'
-    name: Plot Tests
+  account:
+    needs: should-run
+    if: needs.should-run.outputs.run_tests == 'true'
+    name: Account
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - name: Checkout
+      - name: Checkout Console
         uses: actions/checkout@v4
+
+      - name: Checkout Orchestra
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/orchestra
+          path: orchestra
+          token: ${{ secrets.ORCHESTRA_PAT }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: pip install "poetry>=2.1.0"
+
+      - name: Cache Orchestra virtualenv
+        uses: actions/cache@v4
+        with:
+          path: orchestra/.venv
+          key: orchestra-venv-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -497,61 +175,80 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install npm dependencies
         run: npm ci --legacy-peer-deps
-
-      - name: Cache Vite dependencies
-        uses: actions/cache@v4
-        with:
-          path: node_modules/.vite
-          key: vite-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            vite-${{ runner.os }}-
 
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Run Plot Browser Tests
-        run: |
-          set -x
-          echo "═══════════════════════════════════════════════════════════"
-          echo "                   PLOT BROWSER TESTS"
-          echo "═══════════════════════════════════════════════════════════"
+      - name: Start test environment
+        run: bash scripts/ci-test-setup.sh --no-seed
+        env:
+          ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
 
-          npm run test:browser -- --run \
-            src/tests/plot \
-            --reporter=verbose 2>&1 | tee test-output.log
+      - name: Run Account E2E tests
+        run: |
+          npx playwright test src/tests/account/ \
+            --reporter=list 2>&1 | tee test-output.log
 
           EXIT_CODE=${PIPESTATUS[0]}
-
-          echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ PLOT TESTS: PASSED"
-          else
-            echo "❌ PLOT TESTS: FAILED"
-            echo ""
-            echo "📋 FULL LOG:"
-            cat test-output.log
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::Account E2E tests failed"
           fi
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
           exit $EXIT_CODE
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
 
-  # ===========================================================================
-  # BROWSER TESTS - User
-  # ===========================================================================
-  browser-user:
-    needs: should-run-tests
-    if: needs.should-run-tests.outputs.run_tests == 'true'
-    name: User Tests
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-account
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-logs-account
+          path: |
+            test-output.log
+            /tmp/console-ci.log
+            /tmp/orchestra-local-server.log
+          retention-days: 7
+
+  billing:
+    needs: should-run
+    if: needs.should-run.outputs.run_tests == 'true'
+    name: Billing
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - name: Checkout
+      - name: Checkout Console
         uses: actions/checkout@v4
+
+      - name: Checkout Orchestra
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/orchestra
+          path: orchestra
+          token: ${{ secrets.ORCHESTRA_PAT }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: pip install "poetry>=2.1.0"
+
+      - name: Cache Orchestra virtualenv
+        uses: actions/cache@v4
+        with:
+          path: orchestra/.venv
+          key: orchestra-venv-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -559,126 +256,80 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install npm dependencies
         run: npm ci --legacy-peer-deps
-
-      - name: Cache Vite dependencies
-        uses: actions/cache@v4
-        with:
-          path: node_modules/.vite
-          key: vite-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            vite-${{ runner.os }}-
 
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Run User Browser Tests
-        run: |
-          set -x
-          echo "═══════════════════════════════════════════════════════════"
-          echo "                   USER BROWSER TESTS"
-          echo "═══════════════════════════════════════════════════════════"
+      - name: Start test environment
+        run: bash scripts/ci-test-setup.sh --no-seed
+        env:
+          ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
 
-          npm run test:browser -- --run \
-            src/tests/user \
-            --reporter=verbose 2>&1 | tee test-output.log
+      - name: Run Billing E2E tests
+        run: |
+          npx playwright test src/tests/billing/ \
+            --reporter=list 2>&1 | tee test-output.log
 
           EXIT_CODE=${PIPESTATUS[0]}
-
-          echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ USER TESTS: PASSED"
-          else
-            echo "❌ USER TESTS: FAILED"
-            echo ""
-            echo "📋 FULL LOG:"
-            cat test-output.log
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::Billing E2E tests failed"
           fi
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
           exit $EXIT_CODE
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
 
-  # ===========================================================================
-  # BROWSER TESTS - Benchmarks (staging only)
-  # ===========================================================================
-  browser-benchmarks:
-    needs: should-run-tests
-    if: needs.should-run-tests.outputs.run_tests == 'true' && github.ref == 'refs/heads/staging'
-    name: Benchmarks
-    runs-on: ubuntu-latest-4-cores
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-billing
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-logs-billing
+          path: |
+            test-output.log
+            /tmp/console-ci.log
+            /tmp/orchestra-local-server.log
+          retention-days: 7
+
+  auth:
+    needs: should-run
+    if: needs.should-run.outputs.run_tests == 'true'
+    name: Auth
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - name: Checkout
+      - name: Checkout Console
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Checkout Orchestra
+        uses: actions/checkout@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          repository: ${{ github.repository_owner }}/orchestra
+          path: orchestra
+          token: ${{ secrets.ORCHESTRA_PAT }}
 
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
-      - name: Cache Vite dependencies
+      - name: Install Poetry
+        run: pip install "poetry>=2.1.0"
+
+      - name: Cache Orchestra virtualenv
         uses: actions/cache@v4
         with:
-          path: node_modules/.vite
-          key: vite-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            vite-${{ runner.os }}-
-
-      - name: Install Playwright
-        run: npx playwright install --with-deps chromium
-
-      - name: Run Benchmark Tests
-        run: |
-          set -x
-          echo "═══════════════════════════════════════════════════════════"
-          echo "              BROWSER BENCHMARK TESTS (STAGING ONLY)"
-          echo "═══════════════════════════════════════════════════════════"
-
-          npx vitest --project browser-benchmarks --run \
-            --reporter=verbose 2>&1 | tee test-output.log
-
-          EXIT_CODE=${PIPESTATUS[0]}
-
-          echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ BENCHMARKS: PASSED"
-          else
-            echo "❌ BENCHMARKS: FAILED"
-            echo ""
-            echo "📋 FULL LOG:"
-            cat test-output.log
-          fi
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-          exit $EXIT_CODE
-        env:
-          CI: true
-          NODE_OPTIONS: --max-old-space-size=8192
-
-  # ===========================================================================
-  # BROWSER MATRIX TESTS - 2 instances x 4 internal shards
-  # ===========================================================================
-  browser-matrix:
-    needs: should-run-tests
-    if: needs.should-run-tests.outputs.run_tests == 'true'
-    name: Browser Matrix ${{ matrix.instance }}/2
-    runs-on: ubuntu-latest-16-cores
-    strategy:
-      fail-fast: false
-      matrix:
-        instance: [1, 2]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+          path: orchestra/.venv
+          key: orchestra-venv-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -686,38 +337,46 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install npm dependencies
         run: npm ci --legacy-peer-deps
 
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Run Browser Matrix Tests (4 shards per instance)
-        run: |
-          set -x
-          echo "═══════════════════════════════════════════════════════════"
-          echo "    BROWSER MATRIX TESTS - INSTANCE ${{ matrix.instance }}/2"
-          echo "    (4 internal shards, 8 total across both instances)"
-          echo "═══════════════════════════════════════════════════════════"
+      - name: Start test environment
+        run: bash scripts/ci-test-setup.sh --no-seed
+        env:
+          ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
 
-          SHARDS=4 SHARD_OFFSET=${{ matrix.instance }} npm run test:browser:matrix 2>&1 | tee test-output.log
+      - name: Run Auth E2E tests
+        run: |
+          npx playwright test src/tests/auth/ \
+            --reporter=list 2>&1 | tee test-output.log
 
           EXIT_CODE=${PIPESTATUS[0]}
-
-          echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          if [ $EXIT_CODE -eq 0 ]; then
-            echo "✅ BROWSER MATRIX INSTANCE ${{ matrix.instance }}: PASSED"
-          else
-            echo "❌ BROWSER MATRIX INSTANCE ${{ matrix.instance }}: FAILED"
-            echo ""
-            echo "📋 FULL LOG:"
-            cat test-output.log
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::Auth E2E tests failed"
           fi
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
           exit $EXIT_CODE
         env:
           CI: true
-          NODE_OPTIONS: --max-old-space-size=8192
-          PLOT_TEST_SAMPLE_RATE: '100'
+          NODE_OPTIONS: --max-old-space-size=4096
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-auth
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-logs-auth
+          path: |
+            test-output.log
+            /tmp/console-ci.log
+            /tmp/orchestra-local-server.log
+          retention-days: 7

@@ -86,8 +86,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error updating auto-recharge settings:', error?.response?.data || error);
     const status = error?.response?.status || 500;
-    const detail =
-      error?.response?.data?.detail || 'Error updating auto-recharge settings';
+    const detail = error?.response?.data?.detail || 'Error updating auto-recharge settings';
     return NextResponse.json({ error: detail }, { status });
   }
 }

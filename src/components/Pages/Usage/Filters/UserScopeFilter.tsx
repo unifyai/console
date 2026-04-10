@@ -104,9 +104,9 @@ export function UserScopeFilter({
 
   return (
     <Select value={selectValue} onValueChange={handleValueChange} disabled={disabled}>
-      <SelectTrigger className="h-8 w-[180px]" data-testid="user-scope-filter">
+      <SelectTrigger className="h-8 w-full sm:w-[180px]" data-testid="user-scope-filter">
         <User className="mr-2 h-4 w-4 shrink-0" />
-        <span className="truncate">{displayText}</span>
+        <span className="flex-1 truncate text-left">{displayText}</span>
       </SelectTrigger>
       <SelectContent>
         {/* My Usage (self) */}

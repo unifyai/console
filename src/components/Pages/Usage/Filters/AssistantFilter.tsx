@@ -42,9 +42,9 @@ export function AssistantFilter({
 
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled || assistants.length === 0}>
-      <SelectTrigger className="h-8 w-[180px]" data-testid="assistant-filter">
+      <SelectTrigger className="h-8 w-full sm:w-[180px]" data-testid="assistant-filter">
         <Users className="mr-2 h-4 w-4 shrink-0" />
-        <span className="truncate">{displayText}</span>
+        <span className="flex-1 truncate text-left">{displayText}</span>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="all">All Assistants</SelectItem>

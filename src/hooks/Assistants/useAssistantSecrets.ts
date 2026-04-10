@@ -15,6 +15,12 @@ interface SecretFormData {
   description: string;
 }
 
+export interface PendingUpload {
+  fileName: string;
+  rawText: string;
+  parsed: Record<string, unknown>;
+}
+
 function checkNameFolderConflict(name: string, existingNames: string[]): string | null {
   if (existingNames.some((n) => n.startsWith(name + '/'))) {
     return `"${name}" conflicts with an existing folder path.`;
@@ -39,6 +45,7 @@ export function useAssistantSecrets(
   const [isLoading, setIsLoading] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [pendingUpload, setPendingUpload] = React.useState<PendingUpload | null>(null);
 
   const formMethods = useForm<SecretFormData>({
     defaultValues: { name: '', value: '', description: '' },
@@ -99,7 +106,7 @@ export function useAssistantSecrets(
     if (!assistantId || !ownerId) return;
     const toastId = toast.loading(`Deleting secret "${secretToDelete.name}"...`);
     try {
-      const result = await secretActions.delete(secretToDelete.logId, ownerId);
+      const result = await secretActions.delete(secretToDelete.logId, ownerId, assistantId);
       if ('detail' in result) throw new Error((result as ResponseProps).detail);
 
       toast.success('Secret deleted.', { id: toastId });
@@ -119,7 +126,7 @@ export function useAssistantSecrets(
     let deleted = 0;
     let failed = 0;
     for (const s of matching) {
-      const result = await secretActions.delete(s.logId, ownerId);
+      const result = await secretActions.delete(s.logId, ownerId, assistantId);
       if ('detail' in result) failed++;
       else deleted++;
     }
@@ -132,42 +139,67 @@ export function useAssistantSecrets(
     setIsSubmitting(false);
   };
 
-  const handleUploadJson = async (file: File) => {
-    if (!assistantId || !ownerId) return;
-
-    setIsSubmitting(true);
-    const toastId = toast.loading('Uploading secrets from JSON...');
-
+  const handleFileSelected = async (file: File) => {
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
 
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-        throw new Error('JSON must be an object. See the (i) button for accepted formats.');
+        throw new Error('JSON must be an object.');
       }
 
-      const entries = Object.entries(parsed);
-      if (entries.length === 0) {
+      if (Object.keys(parsed).length === 0) {
         throw new Error('JSON file contains no entries.');
       }
 
-      const payloads: SecretPayload[] = [];
-      for (const [key, val] of entries) {
-        if (typeof val === 'string') {
-          payloads.push({ name: key, value: val });
-        } else if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
-          const obj = val as Record<string, unknown>;
-          if (typeof obj.value !== 'string') {
-            throw new Error(`Entry "${key}": "value" must be a string.`);
+      const fileName = file.name.replace(/\.json$/i, '');
+      setPendingUpload({ fileName, rawText: text, parsed });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to parse JSON file.');
+    }
+  };
+
+  const cancelUploadJson = () => {
+    setPendingUpload(null);
+  };
+
+  const confirmUploadJson = async (options: {
+    splitKeys: boolean;
+    baseFolder: string;
+    secretName: string;
+  }) => {
+    if (!assistantId || !ownerId || !pendingUpload) return;
+
+    setIsSubmitting(true);
+    const toastId = toast.loading('Uploading secrets from JSON...');
+
+    try {
+      const prefix = options.baseFolder.replace(/\/+$/, '');
+      const addPrefix = (name: string) => (prefix ? `${prefix}/${name}` : name);
+
+      let payloads: SecretPayload[];
+
+      if (options.splitKeys) {
+        payloads = [];
+        for (const [key, val] of Object.entries(pendingUpload.parsed)) {
+          if (typeof val === 'string') {
+            payloads.push({ name: addPrefix(key), value: val });
+          } else if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+            const obj = val as Record<string, unknown>;
+            if (typeof obj.value !== 'string') {
+              throw new Error(`Entry "${key}": "value" must be a string.`);
+            }
+            payloads.push({
+              name: addPrefix(key),
+              value: obj.value,
+              description: typeof obj.description === 'string' ? obj.description : undefined,
+            });
+          } else {
+            throw new Error(`Entry "${key}": expected a string or an object with "value".`);
           }
-          payloads.push({
-            name: key,
-            value: obj.value,
-            description: typeof obj.description === 'string' ? obj.description : undefined,
-          });
-        } else {
-          throw new Error(`Entry "${key}": expected a string or an object with "value".`);
         }
+      } else {
+        payloads = [{ name: addPrefix(options.secretName), value: pendingUpload.rawText }];
       }
 
       const existingNames = secrets.map((s) => s.name);
@@ -210,9 +242,10 @@ export function useAssistantSecrets(
         toast.warning(parts.join(', ') + '.', { id: toastId });
       }
 
+      setPendingUpload(null);
       await fetchSecrets();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to parse JSON file.', { id: toastId });
+      toast.error(err.message || 'Failed to upload secrets.', { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
@@ -290,7 +323,10 @@ export function useAssistantSecrets(
     handleNewSecret,
     handleDeleteSecret,
     handleDeleteFolder,
-    handleUploadJson,
+    pendingUpload,
+    handleFileSelected,
+    confirmUploadJson,
+    cancelUploadJson,
     onSubmit: formMethods.handleSubmit(onSubmit),
   };
 }

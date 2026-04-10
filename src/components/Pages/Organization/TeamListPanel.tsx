@@ -117,10 +117,7 @@ const TeamListPanel = ({
   });
 
   return (
-    <div
-      className="flex w-full flex-1 flex-col bg-background"
-      data-testid="team-list-panel"
-    >
+    <div className="flex w-full flex-1 flex-col bg-background" data-testid="team-list-panel">
       {/* Header */}
       <div className="flex flex-shrink-0 flex-col gap-4 border-b p-4">
         <div className="flex items-center gap-2">

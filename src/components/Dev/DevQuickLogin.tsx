@@ -37,7 +37,9 @@ export default function DevQuickLogin() {
   const [switchingEmail, setSwitchingEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    getDevUsers().then(setUsers).catch(() => setUsers([]));
+    getDevUsers()
+      .then(setUsers)
+      .catch(() => setUsers([]));
   }, []);
 
   if (users.length === 0) return null;
@@ -58,9 +60,9 @@ export default function DevQuickLogin() {
   return (
     <div className="w-full" data-testid="dev-quick-login">
       {/* Separator */}
-      <div className="flex items-center gap-3 my-2">
+      <div className="my-2 flex items-center gap-3">
         <div className="h-[1px] flex-1 bg-amber-300/40 dark:bg-amber-700/40" />
-        <span className="flex items-center gap-1.5 text-label text-amber-600 dark:text-amber-400">
+        <span className="text-label flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
           <FlaskConical className="h-3 w-3" />
           Dev Quick Login
         </span>
@@ -81,12 +83,8 @@ export default function DevQuickLogin() {
               data-testid={`dev-login-${u.label}`}
             >
               <div className="flex flex-col gap-0.5">
-                <span className="text-title text-foreground">
-                  {u.name}
-                </span>
-                <span className="text-caption">
-                  {u.email}
-                </span>
+                <span className="text-title text-foreground">{u.name}</span>
+                <span className="text-caption">{u.email}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span
@@ -107,4 +105,3 @@ export default function DevQuickLogin() {
     </div>
   );
 }
-

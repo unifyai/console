@@ -7,7 +7,9 @@ import {
 } from '@/lib/communication/client';
 
 const isStaging = (process.env.ORCHESTRA_URL ?? '').includes('staging');
-const isLocal = (process.env.ORCHESTRA_URL ?? '').includes('localhost') || (process.env.ORCHESTRA_URL ?? '').includes('127.0.0.1');
+const isLocal =
+  (process.env.ORCHESTRA_URL ?? '').includes('localhost') ||
+  (process.env.ORCHESTRA_URL ?? '').includes('127.0.0.1');
 
 export async function POST(request: NextRequest) {
   if (!isStaging && !isLocal) {

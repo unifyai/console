@@ -23,7 +23,7 @@ import {
   useMediaDeviceSelect,
 } from '@livekit/components-react';
 import { Room, Track } from 'livekit-client';
-import { ChatMessage } from '@/types/assistants/chat';
+import { ChatMessage, CallPill } from '@/types/assistants/chat';
 
 interface AssistantCommunicationDialogContentProps {
   assistant: Assistant;
@@ -33,6 +33,8 @@ interface AssistantCommunicationDialogContentProps {
   onMinimize?: () => void;
   chatHistories: Record<string, ChatMessage[]>;
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
+  callPillHistories?: Record<string, CallPill[]>;
+  setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
   assistantActions: AssistantActions;
   isConnecting: boolean;
   userEmail: string | null | undefined;
@@ -63,6 +65,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   onMinimize,
   chatHistories,
   setChatHistories,
+  callPillHistories,
+  setCallPillHistories,
   assistantActions,
   isConnecting,
   userEmail,
@@ -270,6 +274,11 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
               isCameraOn={camToggle.enabled || screenShareToggle.enabled}
               participant={localParticipant}
               onMinimize={() => setIsUserViewMaximized(false)}
+              onTurnOffCamera={() => {
+                localParticipant.setCameraEnabled(false);
+                setIsUserViewVisible(false);
+                setIsUserViewMaximized(false);
+              }}
               maximized
             />
           ) : (
@@ -309,6 +318,11 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                         setIsUserViewMaximized(false);
                       }}
                       onMaximize={userTrackRef ? () => setIsUserViewMaximized(true) : undefined}
+                      onTurnOffCamera={() => {
+                        localParticipant.setCameraEnabled(false);
+                        setIsUserViewVisible(false);
+                        setIsUserViewMaximized(false);
+                      }}
                     />
                   </motion.div>
                 )}
@@ -388,10 +402,11 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 assistantActions={{ chat: assistantActions.chat, voice: assistantActions.voice }}
                 chatHistories={chatHistories}
                 setChatHistories={setChatHistories}
+                callPillHistories={callPillHistories}
+                setCallPillHistories={setCallPillHistories}
                 userEmail={userEmail}
                 userImage={userImage}
                 assistantPhoto={assistantPhoto}
-                callType={callType}
               />
             </motion.div>,
           ]}
@@ -436,6 +451,8 @@ interface AssistantCommunicationDialogProps {
   room: Room;
   chatHistories: Record<string, ChatMessage[]>;
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
+  callPillHistories?: Record<string, CallPill[]>;
+  setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
   isConnecting: boolean;
   userEmail: string | null | undefined;
   userImage: string | null | undefined;
@@ -465,6 +482,8 @@ export function AssistantCommunicationDialog({
   room,
   chatHistories,
   setChatHistories,
+  callPillHistories,
+  setCallPillHistories,
   isConnecting,
   userEmail,
   userImage,
@@ -722,6 +741,8 @@ export function AssistantCommunicationDialog({
             onMinimize={isModal ? transitionToFloating : undefined}
             chatHistories={chatHistories}
             setChatHistories={setChatHistories}
+            callPillHistories={callPillHistories}
+            setCallPillHistories={setCallPillHistories}
             assistantActions={assistantActions}
             isConnecting={isConnecting}
             userEmail={userEmail}

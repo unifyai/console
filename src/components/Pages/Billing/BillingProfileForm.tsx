@@ -223,9 +223,7 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
             required
             className="h-10"
           />
-          <p className="text-caption">
-            This name will appear on invoices and receipts.
-          </p>
+          <p className="text-caption">This name will appear on invoices and receipts.</p>
         </div>
 
         {/* Billing Email */}
@@ -241,9 +239,7 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
             placeholder="billing@example.com"
             className="h-10"
           />
-          <p className="text-caption">
-            Invoices and payment receipts will be sent to this email.
-          </p>
+          <p className="text-caption">Invoices and payment receipts will be sent to this email.</p>
         </div>
 
         {/* Tax Country */}

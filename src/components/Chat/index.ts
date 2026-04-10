@@ -5,6 +5,7 @@ export {
   RenderContentWithEmbeds,
   parseEmbedUrl,
   containsEmbedUrl,
+  getEmbedViewPath,
   type ParsedEmbed,
 } from './InlineEmbed';
 
@@ -42,3 +43,11 @@ export { ChatMessageBubble } from './ChatMessageBubble';
 export { ChatDateDivider, isSameDay } from './ChatDateDivider';
 
 export { CameraCapture } from './CameraCapture';
+
+export { CallPillBubble } from './CallPill';
+
+export { CallTranscriptDialog } from './CallTranscriptDialog';
+
+export { ChatSearchDialog } from './ChatSearchDialog';
+
+export { OlderMessagesBanner } from './OlderMessagesBanner';

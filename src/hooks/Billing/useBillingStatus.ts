@@ -65,9 +65,7 @@ export async function fetchBillingStatus(): Promise<BillingStatusData> {
 
   const data = await res.json();
   const credits =
-    typeof data.fullBalance === 'number'
-      ? data.fullBalance
-      : parseFloat(data.balance) || 0;
+    typeof data.fullBalance === 'number' ? data.fullBalance : parseFloat(data.balance) || 0;
 
   return {
     hasBillingHistory: data.lastRechargeAt != null,

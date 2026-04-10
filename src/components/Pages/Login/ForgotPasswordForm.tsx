@@ -166,7 +166,7 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
   if (view === 'success') {
     return (
       <div className="flex flex-col items-center gap-4" data-testid="reset-success">
-        <p className="text-center text-body text-muted-foreground">
+        <p className="text-body text-center text-muted-foreground">
           Your password has been reset. You can now sign in with your new password.
         </p>
         <Button onClick={onBack} className="w-full" data-testid="back-to-login-btn">
@@ -181,7 +181,7 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
   if (view === 'new-password') {
     return (
       <div className="flex flex-col gap-4" data-testid="reset-new-password-view">
-        <p className="text-center text-body text-muted-foreground">
+        <p className="text-body text-center text-muted-foreground">
           Code verified. Enter your new password below.
         </p>
 
@@ -244,7 +244,7 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
         <button
           type="button"
           onClick={onBack}
-          className="text-caption text-muted-foreground hover:text-foreground transition-colors text-center"
+          className="text-caption text-center text-muted-foreground transition-colors hover:text-foreground"
           data-testid="back-to-login-link"
         >
           ← Back to login
@@ -258,7 +258,6 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
   if (view === 'code') {
     return (
       <div className="flex flex-col gap-4" data-testid="reset-code-view">
-
         <VerificationCodeInput
           email={email}
           purpose="password_reset"
@@ -271,7 +270,7 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
         <button
           type="button"
           onClick={onBack}
-          className="text-caption text-muted-foreground hover:text-foreground transition-colors text-center"
+          className="text-caption text-center text-muted-foreground transition-colors hover:text-foreground"
           data-testid="back-to-login-link"
         >
           ← Back to login
@@ -284,7 +283,7 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
 
   return (
     <div className="flex flex-col gap-4" data-testid="forgot-password-form">
-      <p className="text-center text-body text-muted-foreground">
+      <p className="text-body text-center text-muted-foreground">
         Enter your email and we&apos;ll send you a code to reset your password.
       </p>
 
@@ -328,7 +327,7 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
       <button
         type="button"
         onClick={onBack}
-        className="text-caption text-muted-foreground hover:text-foreground transition-colors text-center"
+        className="text-caption text-center text-muted-foreground transition-colors hover:text-foreground"
         data-testid="back-to-login-link"
       >
         ← Back to login
@@ -338,4 +337,3 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
 };
 
 export default ForgotPasswordForm;
-

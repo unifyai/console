@@ -115,7 +115,12 @@ export function useApprovalLinks(adminActions: AdminCreditGrantActions) {
     setGeneratedLinkData(null);
     const toastId = showLoadingToast('Generating credit grant link...');
 
-    const result = await adminActions.generateOneTimeLink(expiresInDays, creditAmount, maxClaims, name);
+    const result = await adminActions.generateOneTimeLink(
+      expiresInDays,
+      creditAmount,
+      maxClaims,
+      name
+    );
 
     if ('detail' in result) {
       const errorMsg = (result as ResponseProps).detail;

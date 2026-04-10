@@ -1,260 +1,172 @@
-# **Testing with Vitest**
+# E2E Testing
 
-This project uses **Vitest** with a **multi-project setup**, allowing tests to run in two environments:
+Browser-based end-to-end tests that validate **complete user flows** through the real application. They launch Chromium, log in as a seeded user, interact with the UI exactly as a human would, and verify outcomes in both the **UI and the database**.
 
-1. **Node.js (`jsdom`)** — Fast unit tests, utilities, API tests.
-2. **Real Browser (`playwright` + Chromium)** — Component tests, UI interactions, Integration tests.
+## Principles
 
-Vitest automatically chooses which environment to use based on the test file naming convention.
+- **User-flow oriented.** Each test file covers a feature area (hire, chat, edit, delete, permissions, etc.) and tests the flows a real user would perform — not individual components or API endpoints.
+- **Real stack, no mocks.** Tests run against the local Console, Orchestra, and PostgreSQL. Server actions, API routes, and database writes execute for real. External services are stubbed at the infrastructure layer (see below), not in the test harness.
+- **Seed before, verify after.** Test data (users, orgs, assistants) is created synchronously via direct SQL inserts and API calls _before_ the browser opens. After UI actions, assertions query the database to confirm persistence — not just that the UI updated.
+- **One login per file.** Each test file creates a seeded user at module scope, logs in once via the browser, saves the session to a `storageState` file, and reuses it for every test in the file. This keeps tests fast without sacrificing realism.
+- **Isolated and self-cleaning.** Each file's `afterAll` deletes all data it created (assistants, contacts, users, orgs). Tests within a file run serially and share state intentionally; different files are fully independent.
 
-## 📁 **Configuration Overview**
+## Local Setup
 
-- **1. `vitest.config.ts`**: A single unified config that defines configuration settings for both node and browser based projects.
-- **2. `vitest.setup.node.ts`**: Setup file for node-based tests. Includes node testing utilities, and a server worker.
-- **3. `vitest.setup.browser.ts`**: Setup file for browser-based tests. Includes browser testing utilities, and a browser worker.
-- **4. `src/tests/handlers.ts`**: Central registry for all MSW request handlers. All handlers across subfolders should be imported here.
-- **5. `src/tests/render.ts`** Replicates app rendering structure. Includes providers and context wrappers, global styling import, and a unified RTL `render()` used by both environments.
+E2E tests run against the full local stack. No cloud credentials, external API keys, or third-party services are required — the system automatically stubs everything that isn't available locally.
 
-## ▶️ **Running Tests**
+### Prerequisites
 
-### **Node Tests**
+1. **Orchestra + PostgreSQL** — start via `scripts/local.sh` in the Orchestra repo. This sets `ORCHESTRA_ENVIRONMENT=dev`, which activates server-side stubs for all external services.
+2. **Console** — start via `npm run dev` in this repo.
+3. **Docker** — required for PostgreSQL access (seed helpers use `docker exec psql`).
 
-For fast-running unit tests and API tests.
+### How services are stubbed locally
 
-Before running:
+The local setup uses a **credential-absence** pattern: when credentials or URLs for an external service are missing, the code falls back to a local stub automatically. No special flags or test-mode switches are needed.
 
-1. Create `.env.test`
-2. Add a Unify API Key for the test account:
+| Service                                                  | What's missing locally                                 | What happens                                                                                                                                      |
+| -------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **GCS (file storage)**                                   | `GOOGLE_APPLICATION_CREDENTIALS`                       | Orchestra saves files to `/tmp/orchestra-media` and returns `localhost` URLs                                                                      |
+| **Pub/Sub (live actions)**                               | `COMMS_SERVICE_ACCOUNT_CREDENTIALS`                    | Console uses an in-memory event bus (`local-event-bus.ts`) instead of GCP Pub/Sub. Actions are pushed via `POST /api/assistant/[id]/actions/push` |
+| **LiveKit (calls)**                                      | `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` | Console returns `mode: "dev"` connection details; the call hook simulates a connected call without a real WebRTC connection                       |
+| **Replicate (photo/video)**                              | `REPLICATE_API_KEY`                                    | Orchestra returns placeholder image/video URLs                                                                                                    |
+| **Cartesia / ElevenLabs (voice)**                        | API keys                                               | Orchestra returns stub voice IDs and silent WAV audio                                                                                             |
+| **Deepgram (transcription)**                             | `DEEPGRAM_API_KEY`                                     | Orchestra returns empty transcription results                                                                                                     |
+| **OpenAI (TTS)**                                         | —                                                      | Orchestra returns silent WAV for TTS calls in dev mode                                                                                            |
+| **Infrastructure (phone, email, pubsub topics, wakeup)** | Adapters/Comms URLs                                    | Orchestra returns stub responses for all provisioning operations                                                                                  |
 
-   ```
-   VITE_TEST_API_KEY=xxxxxxx
-   ```
+All Orchestra-side stubs are controlled by `settings.is_dev` (True when `ORCHESTRA_ENVIRONMENT=dev`). Console-side stubs are controlled by the absence of the relevant environment variables.
 
-Run **`*.node.test.ts(x)`** files with:
+### Assistant test data
+
+When creating test assistants via `createAssistant()`, the helper sets `is_local = true` in the database. This bypasses infrastructure provisioning (phone numbers, email accounts, pubsub topics, wakeup calls) that would otherwise fail or be unnecessary in a local environment.
+
+## Architecture
+
+```
+src/tests/
+  helpers/
+    seeds/client.ts       Direct DB & API primitives (dbExec, createUser, createAssistant, ...)
+    seeds/types.ts        TypeScript types for seeded entities
+    e2e-helpers.ts        Playwright-specific helpers (createTestUser, cleanupUser, setUserCredits)
+  auth/
+    helpers.ts            Login flow helpers (fill email/password, handle onboarding)
+  assistants/
+    helpers.ts            Assistant-specific fixtures (createAssistantTest, openHireDialog, ...)
+    hire.e2e.ts           Hire flow + pre-hire chat tests
+    chat.e2e.ts           Chat messaging + attachment tests
+    edit.e2e.ts           Edit assistant profile tests
+    delete.e2e.ts         Delete assistant tests
+    list.e2e.ts           Assistant list display tests
+    profile.e2e.ts        Profile panel tests
+    call.e2e.ts           Voice/video call tests (dev-stubbed LiveKit)
+    permissions.e2e.ts    Org role permission boundary tests
+    contacts.e2e.ts       Contact management tests
+    secrets.e2e.ts        Secrets manager tests
+    voice.e2e.ts          Voice selection/cloning tests
+    presets.e2e.ts        Preset assistant tests
+    photo-video.e2e.ts    Photo/video generation tests
+    live-actions.e2e.ts   Live actions viewer tests
+  auth/
+    login.e2e.ts          Login flow tests
+    signup.e2e.ts         Signup flow tests
+    session.e2e.ts        Session management tests
+    ...                   MFA, password reset, account deletion, invites
+```
+
+### Quick start (local)
 
 ```bash
-npm run test:node
+# One command — starts PostgreSQL, Orchestra, seeds, and Console:
+./scripts/local.sh start
+
+# Or with chat support (Pub/Sub emulator + Communication adapters):
+./scripts/local.sh start --chat
 ```
 
-### **Browser Tests**
+The `local.sh` script automatically:
 
-For visual-based tests using a real Chromium instance and DOM behavior.
+- Starts PostgreSQL (Docker) and Orchestra with `ORCHESTRA_ENVIRONMENT=dev`
+- Generates seed data (users, assistants, orgs)
+- Starts the Console dev server without cloud credentials (stubs activate)
 
-Run **`*.browser.test.ts(x)`** files with:
+See `./scripts/local.sh help` for all options.
+
+## Running Tests
 
 ```bash
-npm run test:browser
+# All assistant E2E tests
+npx playwright test src/tests/assistants/
+
+# All auth E2E tests
+npx playwright test src/tests/auth/
+
+# Single file
+npx playwright test src/tests/assistants/hire.e2e.ts
+
+# Single test by name
+npx playwright test src/tests/assistants/hire.e2e.ts -g "hiring an assistant persists"
+
+# With UI mode (interactive debugging)
+npx playwright test src/tests/assistants/ --ui
 ```
 
-You can run browser tests with automatic screenshots after each event with
+## CI Pipeline
 
-```bash
-npm run test:browser:screenshots
-```
+E2E tests run in GitHub Actions via `.github/workflows/tests.yml`. The pipeline is triggered by `[run-tests]` in the commit message or PR title, or by `workflow_dispatch`.
 
-Screenshots appear in the **`./screenshots`** directory. Screenshot filnames are derived from:
+### How CI works
 
-- `meta.alias`, if provided in a test
-- Otherwise the test name + describe block
+Each test job (Assistants, Account, Billing, Auth) independently:
 
-## 🧪 **Writing Tests**
+1. **Checks out both repos** — Console + Orchestra (via `ORCHESTRA_PAT` secret)
+2. **Generates a minimal `.env.local`** — intentionally omits all cloud credentials so the credential-absence stubs activate. Only essential vars are set: `NEXTAUTH_SECRET`, `JWT_SECRET`, `ORCHESTRA_URL`, `ORCHESTRA_ADMIN_KEY`.
+3. **Starts the full stack** via `scripts/ci-test-setup.sh`:
+   - PostgreSQL (Docker container `orchestra-local-db`)
+   - Orchestra FastAPI server (`ORCHESTRA_ENVIRONMENT=dev` → all backend stubs active)
+   - Console dev server (no LiveKit/GCS/Pub/Sub/Replicate creds → all frontend stubs active)
+4. **Runs Playwright tests** against the live local stack
+5. **Uploads artifacts** on failure (Playwright report + server logs)
 
-### **Testing Structure**
+### Required GitHub secrets
 
-Test modules (e.g. `assistants`) contains:
+| Secret          | Purpose                                           |
+| --------------- | ------------------------------------------------- |
+| `ORCHESTRA_PAT` | GitHub PAT with read access to the Orchestra repo |
 
-```
-src/tests/assistants/
-  ├── mocks/
-  │    ├── data.ts:           Defines mock data and utilities
-  │    ├── actions.ts         Defines mock server actions
-  │    ├── handlers.ts        Defines mock api routes
-  ├── list.browser.test.tsx   Browser-based tests
-  ├── list.node.test.ts       Node-based tests
-```
+### What gets stubbed in CI
 
-### **Naming Convention**
+Exactly the same stubs as local development (see table above). The `.env.local` generated by `ci-test-setup.sh` deliberately omits:
 
-| Purpose              | File Pattern                   | Runs In        |
-| -------------------- | ------------------------------ | -------------- |
-| Node-only tests      | `*.node.test.ts?(x)`           | Node (`jsdom`) |
-| Node matrix tests    | `*.matrix.node.test.ts?(x)`    | Node (`jsdom`) |
-| Browser UI tests     | `*.browser.test.ts?(x)`        | Real browser   |
-| Browser matrix tests | `*.matrix.browser.test.ts?(x)` | Real browser   |
+- `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`
+- `GOOGLE_APPLICATION_CREDENTIALS`
+- `COMMS_SERVICE_ACCOUNT_CREDENTIALS`
+- `REPLICATE_API_KEY`, `DEEPGRAM_API_KEY`
+- `STRIPE_SECRET_KEY`
 
-**Matrix tests** are test files that iterate over large configuration matrices. They support sharding for parallel CI execution. Use the `.matrix.` suffix to easily identify and target these files.
+This means calls simulate a connected session, file uploads go to `/tmp`, and all external API calls return stub responses.
 
-### **Test Blocks**
+### Debugging CI failures
 
-Tests should be wrapped in a block containing:
+1. Download the `playwright-report-<suite>` artifact from the failed run
+2. Open `index.html` locally — it contains screenshots, traces, and step-by-step logs
+3. Check `test-logs-<suite>` for Console and Orchestra server logs
 
-- `description`: Explaining the intended behavior that is tested
-- `options`: A dict containing test settings including:
-  - `meta`: A dict with test metadata used to control some testing parameters.
-    - `alias` defines the name of screenshots in browser tests.
-    - `mock` determines whether api calls should be mocked or not.
-  - `...`: Other Vitest specific options like `timeout` for e.g.
-- `function`: The test function used to run the test.
+### Communication & Unity in CI
 
-## 📘 **Test Examples**
+Communication adapters and Unity (the conversation manager) are **not** started in CI. Chat tests verify the sending side (message appears in UI) and database persistence. Assistant responses that would come through Unity are not expected in CI.
 
-### **Node Test**
+To test full round-trip chat locally, use `./scripts/local.sh start --chat`.
 
-```tsx
-// src/tests/my_tests/Counter.node.test.tsx
-import { render, screen } from '@/tests/render';
-import userEvent from '@testing-library/user-event';
-import { describe, it, expect } from 'vitest';
-import { Counter } from './Counter';
+## Writing a New E2E Test
 
-describe('Counter', () => {
-  it('increments on click', async () => {
-    const user = userEvent.setup();
-    render(<Counter />);
+1. **Seed data** at module scope using `createTestUser`, `createAssistant`, etc.
+2. **Create a test instance** with `createAssistantTest(user)` — this gives you an `authedPage` fixture pre-logged-in as that user.
+3. **Navigate and interact** using Playwright's locator API. Prefer `getByTestId`, `getByRole`, and `getByText` over CSS selectors.
+4. **Assert UI state** with `expect(locator).toBeVisible()`, `toHaveText()`, etc.
+5. **Assert database state** with `dbExec("SELECT ... FROM ...")` to confirm persistence.
+6. **Clean up** in `afterAll` — delete assistants, users, orgs.
 
-    const btn = screen.getByRole('button', { name: /count is/i });
-    expect(btn).toHaveTextContent('count is 0');
+## Coverage Status
 
-    await user.click(btn);
-    expect(btn).toHaveTextContent('count is 1');
-  });
-});
-```
-
-### **Browser Test with Screenshots**
-
-```tsx
-// src/tests/my_tests/login-flow.browser.test.tsx
-import { render, screen } from '@/tests/render';
-import userEvent from '@testing-library/user-event';
-import { describe, it, expect } from 'vitest';
-import { LoginForm } from '@/components/LoginForm';
-
-describe('Login Flow', () => {
-  it(
-    'shows an error for invalid credentials',
-    { meta: { alias: 'Login-Invalid-Credentials' } },
-    async () => {
-      const user = userEvent.setup();
-      render(<LoginForm />);
-
-      await user.type(screen.getByLabelText('Email'), 'wrong@email.com');
-      await user.type(screen.getByLabelText('Password'), 'password');
-      await user.click(screen.getByRole('button', { name: 'Log In' }));
-
-      expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
-    }
-  );
-});
-```
-
-## 🎭 **Mocking API Requests (MSW)**
-
-```ts
-// src/tests/handlers.ts
-import { http, HttpResponse } from 'msw';
-
-export const handlers = [
-  http.get('/api/user/:userId', ({ params }) => {
-    return HttpResponse.json({
-      id: params.userId,
-      firstName: 'John',
-      lastName: 'Maverick',
-    });
-  }),
-
-  // Add your API mocks here...
-];
-```
-
-`vitest.setup.browser.ts` automatically loads and starts the MSW worker.
-
-## 🔢 **Matrix Testing**
-
-Matrix tests run the same test logic across many configuration combinations (e.g., plot types × data types × scales). Two utilities support this pattern:
-
-### **Browser Matrix Tests** (`matrixTestRunnerBrowser.ts`)
-
-For browser-based integration tests with React components. Supports file chunking for CI parallelization.
-
-```typescript
-import { defineMatrixTests } from '@/tests/utils/matrixTestRunnerBrowser';
-
-export const matrixTests = defineMatrixTests({
-  name: 'Bar Chart - Matrix Tests',
-
-  // Function returning all test configurations
-  getMatrix: () => generateAllConfigs(),
-
-  // Tests to run for each config
-  defineTests: (config, { it, expect }) => {
-    it('renders correctly', async () => {
-      // Test logic using config
-    });
-  },
-
-  // Configs per chunk file (for parallel CI)
-  chunkSize: 25,
-
-  // Generate readable test names
-  getConfigAlias: (config, index) => `${config.type}-${config.scale}`,
-});
-```
-
-**CI Parallelization:**
-
-Browser matrix tests are expensive (each needs a Chromium instance). Use the unified command that handles generate → run → cleanup:
-
-```bash
-# Run with 8 parallel shards (auto-generates chunk files, runs, then cleans up)
-npm run test:browser:matrix 8
-
-# Via environment variable
-SHARDS=8 npm run test:browser:matrix
-```
-
-The script automatically:
-
-1. Generates chunk files for parallel execution
-2. Runs tests across multiple shards
-3. Cleans up generated files on success
-
-### **Node Matrix Tests** (`matrixTestRunnerNode.ts`)
-
-For Node.js API tests. Uses `describe.concurrent` for in-process parallelism. Same `getMatrix` API as browser tests.
-
-```typescript
-import { defineNodeMatrixTests } from '@/tests/utils/matrixTestRunnerNode';
-
-defineNodeMatrixTests<MyConfig>({
-  name: 'Plot API - Matrix Tests',
-  concurrent: true, // Use describe.concurrent
-
-  // Function returning all test configurations (same as browser)
-  getMatrix: () => generateAllConfigs(),
-
-  // Tests to run for each config
-  defineTests: (config, { it, expect }) => {
-    it('returns valid response', async () => {
-      // Test logic using config
-    });
-  },
-
-  // Generate readable test names
-  getConfigAlias: (config) => `${config.type}-${config.scale}`,
-});
-```
-
-**CI Parallelization for Node Matrix Tests:**
-
-Node matrix tests support sharding via the `MATRIX_SHARD` environment variable:
-
-```bash
-# Run in parallel with custom shard count
-npm run test:node:matrix 8
-
-# Via environment variable
-SHARDS=8 npm run test:node:matrix
-```
-
-The script launches multiple Node.js processes, each with a different `MATRIX_SHARD` value (e.g., `1/4`, `2/4`, etc.).
+The `_interfaces` and `_visualization` test suites have not been converted to E2E and are excluded from CI.

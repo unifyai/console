@@ -34,10 +34,7 @@ export async function POST(request: NextRequest) {
   const billingAccountId = body.billing_account_id;
 
   if (!billingAccountId) {
-    return NextResponse.json(
-      { detail: 'billing_account_id is required.' },
-      { status: 400 }
-    );
+    return NextResponse.json({ detail: 'billing_account_id is required.' }, { status: 400 });
   }
 
   const busKey = `billing-${billingAccountId}`;

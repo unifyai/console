@@ -70,14 +70,9 @@ async function fetchBillingAccountId(apiKey: string): Promise<number | null> {
 // Local Development Mode
 // =============================================================================
 
-function createLocalStream(
-  request: NextRequest,
-  billingAccountId: number
-): Response {
+function createLocalStream(request: NextRequest, billingAccountId: number): Response {
   if (__DEV__)
-    console.log(
-      `[BillingEvents SSE] Local mode for billing_account=${billingAccountId}`
-    );
+    console.log(`[BillingEvents SSE] Local mode for billing_account=${billingAccountId}`);
 
   const busKey = `billing-${billingAccountId}`;
   const stream = new ReadableStream({
@@ -99,9 +94,7 @@ function createLocalStream(
       const unsubscribe = subscribe(busKey, (rawEvent) => {
         if (request.signal.aborted) return;
         try {
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(rawEvent)}\n\n`)
-          );
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(rawEvent)}\n\n`));
         } catch {
           /* stream closed */
         }
@@ -135,9 +128,7 @@ function createPubSubStream(
   const stream = new ReadableStream({
     start(controller) {
       if (__DEV__)
-        console.log(
-          `[BillingEvents SSE] Stream started for billing_account=${billingAccountId}`
-        );
+        console.log(`[BillingEvents SSE] Stream started for billing_account=${billingAccountId}`);
 
       controller.enqueue(encoder.encode(': connected\n\n'));
 
@@ -175,9 +166,7 @@ function createPubSubStream(
           payload.publishTime = message.publishTime?.toISOString();
 
           try {
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify(payload)}\n\n`)
-            );
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
           } catch {
             message.nack();
             return;
@@ -192,10 +181,7 @@ function createPubSubStream(
 
       const errorHandler = (err: Error) => {
         if (!request.signal.aborted) {
-          console.error(
-            '[BillingEvents SSE] Subscriber error:',
-            err.message
-          );
+          console.error('[BillingEvents SSE] Subscriber error:', err.message);
         }
       };
 
@@ -209,9 +195,7 @@ function createPubSubStream(
         subscription.close();
         deleteOnClose();
         if (__DEV__)
-          console.log(
-            `[BillingEvents SSE] Stream ended for billing_account=${billingAccountId}`
-          );
+          console.log(`[BillingEvents SSE] Stream ended for billing_account=${billingAccountId}`);
         try {
           controller.close();
         } catch {
@@ -236,10 +220,9 @@ export async function GET(request: NextRequest) {
 
   const billingAccountId = await fetchBillingAccountId(apiKey);
   if (!billingAccountId) {
-    return new NextResponse(
-      JSON.stringify({ detail: 'Billing account not found.' }),
-      { status: 404 }
-    );
+    return new NextResponse(JSON.stringify({ detail: 'Billing account not found.' }), {
+      status: 404,
+    });
   }
 
   if (!hasCredentials()) {
@@ -275,16 +258,14 @@ export async function GET(request: NextRequest) {
         console.log(
           `[BillingEvents SSE] Topic not found for billing_account=${billingAccountId} — skipping`
         );
-      return new NextResponse(
-        JSON.stringify({ detail: 'Billing topic not found.' }),
-        { status: 404 }
-      );
+      return new NextResponse(JSON.stringify({ detail: 'Billing topic not found.' }), {
+        status: 404,
+      });
     }
     console.error('[BillingEvents SSE] Setup error:', error.message);
-    return new NextResponse(
-      JSON.stringify({ detail: 'Server configuration error.' }),
-      { status: 500 }
-    );
+    return new NextResponse(JSON.stringify({ detail: 'Server configuration error.' }), {
+      status: 500,
+    });
   }
 
   const deleteOnClose = () => {
@@ -299,10 +280,5 @@ export async function GET(request: NextRequest) {
     deleteOnClose();
   });
 
-  return createPubSubStream(
-    request,
-    billingAccountId,
-    subscriptionName,
-    deleteOnClose
-  );
+  return createPubSubStream(request, billingAccountId, subscriptionName, deleteOnClose);
 }

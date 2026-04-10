@@ -20,8 +20,8 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     const status = error?.response?.status ?? 500;
     const rawData = error?.response?.data;
-    const data = rawData?.detail ?? rawData ?? { error: 'status_failed', message: 'MFA status check failed' };
+    const data = rawData?.detail ??
+      rawData ?? { error: 'status_failed', message: 'MFA status check failed' };
     return NextResponse.json(data, { status });
   }
 }
-

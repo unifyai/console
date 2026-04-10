@@ -659,8 +659,8 @@ ensure_npm_deps() {
 # Modular Seed Scenarios (TypeScript-based)
 # =============================================================================
 
-# Valid seed scenario names — must match SCENARIOS in src/tests/seeds/run.ts.
-VALID_SEED_SCENARIOS=(personal-workspace org-basic org-multi-role org-unify credit-grant-links billing-banner-states all)
+# Valid seed scenario names — must match SCENARIOS in src/tests/helpers/seeds/run.ts.
+VALID_SEED_SCENARIOS=(personal-workspace org-basic org-multi-role org-unify credit-grant-links billing-banner-states usage-ledger chat-search all)
 
 validate_seed_scenario() {
   local scenario="$1"
@@ -676,7 +676,7 @@ validate_seed_scenario() {
 
   log_error "Unknown seed scenario: '$scenario'"
   log_info "Valid scenarios: ${VALID_SEED_SCENARIOS[*]}"
-  log_info "Run: npx tsx src/tests/seeds/run.ts --list"
+  log_info "Run: npx tsx src/tests/helpers/seeds/run.ts --list"
   return 1
 }
 
@@ -699,7 +699,7 @@ run_seed_scenario() {
   export ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH"
   export ORCHESTRA_ADMIN_KEY="${ADMIN_KEY:-local-admin-key}"
 
-  if npx tsx src/tests/seeds/run.ts "$scenario"; then
+  if npx tsx src/tests/helpers/seeds/run.ts "$scenario"; then
     log_success "Seed scenario '$scenario' completed"
   else
     log_error "Seed scenario '$scenario' failed"
@@ -1220,7 +1220,7 @@ main() {
       echo "                     Scenarios: personal-workspace, org-basic, org-multi-role,"
       echo "                               org-unify, credit-grant-links,"
       echo "                               billing-banner-states, all"
-      echo "                     See: src/tests/seeds/run.ts --list"
+      echo "                     See: src/tests/helpers/seeds/run.ts --list"
       echo "  --org              Shorthand for --seed org-basic"
       echo "  --stripe           Start Stripe webhook forwarding for E2E billing flows"
       echo "                     Requires Stripe CLI: brew install stripe/stripe-cli/stripe"

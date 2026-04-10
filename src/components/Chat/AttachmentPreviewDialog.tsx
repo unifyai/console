@@ -20,12 +20,32 @@ import {
   fetchGcsContent,
 } from './attachmentUtils';
 import mammoth from 'mammoth';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { pptxToHtml } from '@jvmr/pptx-to-html';
 import { Badge } from '@/components/UI/badge';
 import type { Attachment, AttachmentType } from '@/types/assistants/chat';
 
-const PREVIEWABLE_TYPES = new Set<AttachmentType>(['image', 'pdf', 'text', 'code', 'word', 'excel', 'powerpoint']);
+const PREVIEWABLE_TYPES = new Set<AttachmentType>([
+  'image',
+  'pdf',
+  'text',
+  'code',
+  'word',
+  'excel',
+  'powerpoint',
+]);
+
+function worksheetToHtml(ws: ExcelJS.Worksheet): string {
+  const rows: string[] = [];
+  ws.eachRow((row) => {
+    const cells = (row.values as ExcelJS.CellValue[])
+      .slice(1) // ExcelJS rows are 1-indexed; index 0 is empty
+      .map((v) => `<td>${v != null ? String(v) : ''}</td>`)
+      .join('');
+    rows.push(`<tr>${cells}</tr>`);
+  });
+  return `<table>${rows.join('')}</table>`;
+}
 const TEXT_PREVIEW_MAX_BYTES = 1024 * 1024; // 1MB
 
 interface ExcelSheet {
@@ -123,10 +143,11 @@ function usePreviewContent(attachment: Attachment | null): ContentState {
           return;
         }
 
-        const workbook = XLSX.read(arrayBuffer);
-        const sheets: ExcelSheet[] = workbook.SheetNames.map((name) => ({
-          name,
-          html: XLSX.utils.sheet_to_html(workbook.Sheets[name]),
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
+        const sheets: ExcelSheet[] = workbook.worksheets.map((ws) => ({
+          name: ws.name,
+          html: worksheetToHtml(ws),
         }));
 
         if (!cancelled) setState({ status: 'excel', sheets });
@@ -177,7 +198,10 @@ function usePreviewContent(attachment: Attachment | null): ContentState {
 
     resolve().catch((err) => {
       if (!cancelled) {
-        setState({ status: 'error', message: err instanceof Error ? err.message : 'Failed to load preview' });
+        setState({
+          status: 'error',
+          message: err instanceof Error ? err.message : 'Failed to load preview',
+        });
       }
     });
 
@@ -196,14 +220,16 @@ function ExcelViewer({ sheets }: { sheets: ExcelSheet[] }) {
   return (
     <div className="flex max-h-[75vh] min-w-0 flex-col">
       {sheets.length > 1 && (
-        <div className="flex gap-1 border-b border-border pb-2 mb-2">
+        <div className="mb-2 flex gap-1 border-b border-border pb-2">
           {sheets.map((sheet, i) => (
             <Badge
               key={sheet.name}
               variant={i === activeIndex ? 'default' : 'secondary'}
               className={cn(
                 'cursor-pointer text-xs',
-                i === activeIndex ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
+                i === activeIndex
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-muted/80 bg-muted'
               )}
               onClick={() => setActiveIndex(i)}
             >
@@ -307,7 +333,7 @@ function PreviewViewer({ attachment, content }: { attachment: Attachment; conten
 
   if (content.status === 'text') {
     return (
-      <pre className="styled-scrollbar max-h-[75vh] overflow-auto rounded-md bg-muted/50 p-4 font-mono text-caption leading-relaxed">
+      <pre className="styled-scrollbar bg-muted/50 text-caption max-h-[75vh] overflow-auto rounded-md p-4 font-mono leading-relaxed">
         {content.content}
       </pre>
     );
@@ -316,7 +342,7 @@ function PreviewViewer({ attachment, content }: { attachment: Attachment; conten
   if (content.status === 'html') {
     return (
       <div
-        className="styled-scrollbar attachment-prose max-h-[75vh] overflow-auto rounded-md bg-muted/50 p-6"
+        className="styled-scrollbar attachment-prose bg-muted/50 max-h-[75vh] overflow-auto rounded-md p-6"
         dangerouslySetInnerHTML={{ __html: content.content }}
       />
     );
@@ -398,9 +424,7 @@ export function AttachmentPreviewDialog({
           <div className="flex items-center justify-between pr-8">
             <div className="min-w-0">
               <DialogTitle className="truncate">{attachment.filename}</DialogTitle>
-              <DialogDescription>
-                {formatFileSize(attachment.sizeBytes ?? 0)}
-              </DialogDescription>
+              <DialogDescription>{formatFileSize(attachment.sizeBytes ?? 0)}</DialogDescription>
             </div>
             <Button
               variant="ghost"
@@ -413,8 +437,10 @@ export function AttachmentPreviewDialog({
             </Button>
           </div>
         </DialogHeader>
-        {(content.status === 'html' || content.status === 'excel' || content.status === 'slides') && (
-          <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-1.5 text-caption text-muted-foreground">
+        {(content.status === 'html' ||
+          content.status === 'excel' ||
+          content.status === 'slides') && (
+          <div className="bg-muted/50 text-caption flex items-center gap-2 rounded-md px-3 py-1.5 text-muted-foreground">
             <Info className="h-3.5 w-3.5 flex-shrink-0" />
             Simplified preview — download and open in native application for full quality.
           </div>

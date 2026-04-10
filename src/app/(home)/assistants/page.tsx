@@ -57,14 +57,13 @@ import {
   sendSystemEvent,
   listUserDesktops,
 } from '@/lib/assistants/desktop';
-import {
-  setAssistantSpendingLimit,
-} from '@/lib/assistants/spending';
+import { setAssistantSpendingLimit } from '@/lib/assistants/spending';
 import {
   getManagerMethodEvents,
   getToolLoopEvents,
   backfillByCallingIds,
 } from '@/lib/assistants/action';
+import { getDashboardMetadata, getDashboardTileContent } from '@/lib/assistants/dashboard';
 import { cookies } from 'next/headers';
 
 const AssistantsPage = async ({
@@ -82,18 +81,20 @@ const AssistantsPage = async ({
   }
   const apiKey = user.apiKey;
   const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
-  const isOrgContext = user.organizations?.some((org) => org.apiKey === apiKey) ?? false;
 
-  // Determine org ID from workspace cookie (same pattern as usage page)
+  // Determine org context from workspace cookie (not API key matching)
   const cookieStore = cookies();
   const workspaceId = cookieStore.get('unify_workspace_id')?.value;
   let orgId: number | null = null;
+  let orgName: string | null = null;
   if (workspaceId && workspaceId !== 'personal') {
     const activeOrg = user.organizations?.find((o) => o.id.toString() === workspaceId);
     if (activeOrg) {
       orgId = activeOrg.id;
+      orgName = activeOrg.name;
     }
   }
+  const isOrgContext = orgId !== null;
 
   const assistantActions: AssistantActions = {
     assistant: {
@@ -139,10 +140,10 @@ const AssistantsPage = async ({
       fetchContactCosts: await fetchContactCosts(),
     },
     secret: {
-      get: await getSecrets(apiKey, user.id, isOrgContext, orgId),
-      create: await createSecret(apiKey, user.id, isOrgContext, orgId),
-      update: await updateSecret(apiKey, isOrgContext, orgId),
-      delete: await deleteSecret(apiKey, isOrgContext, orgId),
+      get: await getSecrets(apiKey, orgId),
+      create: await createSecret(apiKey, orgId, orgName),
+      update: await updateSecret(apiKey, orgId),
+      delete: await deleteSecret(apiKey, orgId),
     },
     call: {
       getConnectionDetails: await getCallConnectionDetails(apiKey),
@@ -165,12 +166,19 @@ const AssistantsPage = async ({
       getToolLoopEvents: await getToolLoopEvents(apiKey),
       backfillByCallingIds: await backfillByCallingIds(apiKey),
     },
+    // Dashboards pane - dashboard and tile data
+    dashboards: {
+      getMetadata: await getDashboardMetadata(apiKey),
+      getTileContent: await getDashboardTileContent(apiKey),
+    },
   };
 
   const userMeta = {
     image: user.image,
     timezone: user.timezone,
     email: user.email,
+    phoneNumber: user.phoneNumber,
+    whatsappNumber: user.whatsappNumber,
     orgId,
     isOrgContext,
     mfaSetupRequired: !!user.mfaSetupRequired,
@@ -178,10 +186,7 @@ const AssistantsPage = async ({
 
   return (
     <div className="h-full w-full">
-      <Main
-        assistantActions={assistantActions}
-        userMeta={userMeta}
-      />
+      <Main assistantActions={assistantActions} userMeta={userMeta} />
     </div>
   );
 };

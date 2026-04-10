@@ -256,5 +256,3 @@ export const validateTaxId = async (apiKey: string) => {
     }
   };
 };
-
-

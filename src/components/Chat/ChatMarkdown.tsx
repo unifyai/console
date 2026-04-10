@@ -1,9 +1,20 @@
 'use client';
 
+import * as React from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CodeBlock } from '@/components/Pages/Interfaces/Blocks/Selection/Views/Markdown/MarkdownRenderer';
-import { parseEmbedUrl, InlineEmbed } from './InlineEmbed';
+import { parseEmbedUrl, escapeEmbedTokens, InlineEmbed } from './InlineEmbed';
+
+function markdownChildrenToPlainText(node: React.ReactNode): string {
+  if (node == null || node === false) return '';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(markdownChildrenToPlainText).join('');
+  if (React.isValidElement(node)) {
+    return markdownChildrenToPlainText(node.props.children as React.ReactNode);
+  }
+  return '';
+}
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const chatMarkdownComponents = {
@@ -15,7 +26,9 @@ const chatMarkdownComponents = {
     if (href) {
       const embed = parseEmbedUrl(href);
       if (embed) {
-        return <InlineEmbed embed={embed} expandedHeight={420} />;
+        const plain = markdownChildrenToPlainText(children).trim();
+        const linkLabel = plain && !/^https?:\/\//i.test(plain) ? plain : undefined;
+        return <InlineEmbed embed={{ ...embed, linkLabel }} expandedHeight={420} />;
       }
     }
     return (
@@ -66,10 +79,11 @@ const remarkPlugins = [remarkGfm];
  * injecting global CSS, so it fits naturally alongside chat styling.
  */
 export function ChatMarkdown({ content }: { content: string }) {
+  const safeContent = escapeEmbedTokens(content);
   return (
     <div className="max-w-full break-words [&_img]:max-w-full">
       <Markdown remarkPlugins={remarkPlugins} components={chatMarkdownComponents}>
-        {content}
+        {safeContent}
       </Markdown>
     </div>
   );

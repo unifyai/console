@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  getAuthClient,
-  getTopicName,
-  getPubSubApiBase,
-} from '@/lib/pubsub/ephemeral-subscription';
+import { getAuthClient, getTopicName, getPubSubApiBase } from '@/lib/pubsub/ephemeral-subscription';
 
 export async function POST(request: NextRequest, { params }: { params: { assistantId: string } }) {
   const { assistantId } = params;
@@ -20,7 +16,9 @@ export async function POST(request: NextRequest, { params }: { params: { assista
 
   const { ackId, contactId } = body;
   if (!ackId || !contactId) {
-    console.log(`[Chat ACK] BAD_REQUEST assistant=${assistantId} missing=${!ackId ? 'ackId' : 'contactId'}`);
+    console.log(
+      `[Chat ACK] BAD_REQUEST assistant=${assistantId} missing=${!ackId ? 'ackId' : 'contactId'}`
+    );
     return NextResponse.json({ error: 'ackId and contactId required' }, { status: 400 });
   }
 
@@ -39,7 +37,9 @@ export async function POST(request: NextRequest, { params }: { params: { assista
     console.log(`[Chat ACK] OK assistant=${assistantId} contact=${contactId}`);
     return NextResponse.json({ ok: true });
   } catch (err: any) {
-    console.error(`[Chat ACK] FAIL assistant=${assistantId} contact=${contactId} error=${err?.message || err}`);
+    console.error(
+      `[Chat ACK] FAIL assistant=${assistantId} contact=${contactId} error=${err?.message || err}`
+    );
     return NextResponse.json({ error: 'ACK failed' }, { status: 500 });
   }
 }

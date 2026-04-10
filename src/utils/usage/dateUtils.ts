@@ -80,15 +80,15 @@ export function formatTimestampForDisplay(timestamp: string, granularity: TimeGr
   }
 
   switch (granularity) {
-    case 'time_minute':
+    case 'minute':
       return formatDateTime(date, 'MMM D, HH:mm');
-    case 'time_hour':
+    case 'hour':
       return formatDateTime(date, 'MMM D, HH:00');
-    case 'time_day':
+    case 'day':
       return formatDateTime(date, 'MMM D');
-    case 'time_month':
+    case 'month':
       return formatDateTime(date, 'MMM YYYY');
-    case 'time_year':
+    case 'year':
       return formatDateTime(date, 'YYYY');
     default:
       return timestamp;
@@ -148,20 +148,20 @@ export function getStartOfPeriod(date: Date, granularity: TimeGranularity): Date
   const result = new Date(date);
 
   switch (granularity) {
-    case 'time_minute':
+    case 'minute':
       result.setSeconds(0, 0);
       break;
-    case 'time_hour':
+    case 'hour':
       result.setMinutes(0, 0, 0);
       break;
-    case 'time_day':
+    case 'day':
       result.setHours(0, 0, 0, 0);
       break;
-    case 'time_month':
+    case 'month':
       result.setDate(1);
       result.setHours(0, 0, 0, 0);
       break;
-    case 'time_year':
+    case 'year':
       result.setMonth(0, 1);
       result.setHours(0, 0, 0, 0);
       break;

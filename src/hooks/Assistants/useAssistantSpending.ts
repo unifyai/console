@@ -128,13 +128,14 @@ export function useAssistantSpending({
           setSpend(result);
           setError(null);
         } else if ('detail' in result) {
-          // Only set error if not a background refresh
           if (!isBackground) {
+            setSpend(null);
             setError(result.detail as string);
           }
         }
       } catch (err) {
         if (!isBackground) {
+          setSpend(null);
           setError(err instanceof Error ? err.message : 'Failed to fetch spending data');
         }
       } finally {
@@ -162,6 +163,13 @@ export function useAssistantSpending({
     } catch (err) {
       console.warn('[useAssistantSpending] Failed to fetch limit:', err);
     }
+  }, [assistantId]);
+
+  // Reset state when assistantId changes
+  React.useEffect(() => {
+    setSpend(null);
+    setLimit(null);
+    setError(null);
   }, [assistantId]);
 
   // Initial data fetch

@@ -6,7 +6,7 @@ import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
  * POST /api/auth/mfa/recovery-codes
  *
  * Regenerates recovery codes for the authenticated user.
- * Deletes existing codes and generates a fresh set.
+ * Requires a valid TOTP code for confirmation.
  */
 export async function POST(request: NextRequest) {
   const apiKey = await getApiKeyFromRequest(request);
@@ -17,6 +17,12 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { code } = body;
+    if (!code) {
+      return NextResponse.json(
+        { error: 'code_required', message: 'A valid TOTP code is required.' },
+        { status: 400 }
+      );
+    }
     const client = await getOrchestraUserClient(apiKey);
     const res = await client.post('/auth/mfa/recovery-codes', { code });
     return NextResponse.json(res.data, { status: 200 });

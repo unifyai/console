@@ -16,4 +16,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Error fetching supported tax countries' }, { status: 500 });
   }
 }
-

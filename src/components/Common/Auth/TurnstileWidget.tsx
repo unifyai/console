@@ -119,8 +119,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
       window.onTurnstileLoad = renderWidget;
       const script = document.createElement('script');
       script.id = TURNSTILE_SCRIPT_ID;
-      script.src =
-        'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad';
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad';
       script.async = true;
       script.defer = true;
       document.head.appendChild(script);
@@ -142,10 +141,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
     if (!turnstileSiteKey) return null;
 
     return (
-      <div
-        className="flex justify-center overflow-hidden"
-        data-testid="turnstile-widget-wrapper"
-      >
+      <div className="flex justify-center overflow-hidden" data-testid="turnstile-widget-wrapper">
         <div
           ref={containerRef}
           data-testid="turnstile-widget"

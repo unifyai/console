@@ -72,7 +72,7 @@ const FRIENDLY_COPY: Record<SystemErrorType, { title: string; detail: string }> 
     detail: 'This usually resolves in a few moments.',
   },
   init_failed: {
-    title: '{name} didn\'t start correctly',
+    title: "{name} didn't start correctly",
     detail: 'Try refreshing in a moment.',
   },
   oom: {
@@ -81,7 +81,7 @@ const FRIENDLY_COPY: Record<SystemErrorType, { title: string; detail: string }> 
   },
   unknown: {
     title: '{name} encountered an issue',
-    detail: 'If it doesn\'t respond, try refreshing.',
+    detail: "If it doesn't respond, try refreshing.",
   },
 };
 /* eslint-enable @typescript-eslint/naming-convention */
@@ -124,9 +124,7 @@ const VALID_ERROR_TYPES = new Set<SystemErrorType>([
  *
  * Returns null if the payload shape is unexpected.
  */
-export function parseSystemErrorPayload(
-  payload: Record<string, unknown>
-): SystemError | null {
+export function parseSystemErrorPayload(payload: Record<string, unknown>): SystemError | null {
   if (payload.thread !== 'system_error') return null;
 
   const event = payload.event as Record<string, unknown> | undefined;

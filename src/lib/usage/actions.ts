@@ -9,7 +9,6 @@
  * This follows the same pattern as lib/interfaces/tiles.ts
  */
 
-import { UsageMetricsResponse, UsageApiError, TimeGranularity } from '@/types/usage';
 import { ResponseProps } from '@/types/common';
 import { getCurrentMonth } from '@/types/assistants/spending';
 
@@ -28,59 +27,6 @@ export interface SpendingLimitInfo {
   /** Actual cumulative spend for the current billing month */
   currentSpend: number;
 }
-
-/**
- * Create a bound server action to fetch usage metrics.
- * The API key is captured in the closure and never sent to the client.
- *
- * @param apiKey User's API key (only accessed on server)
- * @returns Bound server action function
- */
-export const getUsageMetrics = async (apiKey: string) => {
-  return async (
-    context: string,
-    groupBy: TimeGranularity,
-    filterExpr: string
-  ): Promise<UsageMetricsResponse | UsageApiError> => {
-    'use server';
-
-    try {
-      const params = new URLSearchParams({
-        projectName: 'Assistants',
-        context,
-        key: 'billed_cost',
-        groupBy,
-        filterExpr,
-      });
-
-      const url = `${process.env.NEXTAUTH_URL}/api/logs/sum?${params.toString()}`;
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          apiKey,
-          'Content-Type': 'application/json',
-        },
-        cache: 'no-store',
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        return {
-          detail: data.detail || `Failed to fetch usage metrics: ${response.statusText}`,
-        };
-      }
-
-      return data as UsageMetricsResponse;
-    } catch (error) {
-      console.error('[usage/actions] Error fetching usage metrics:', error);
-      return {
-        detail: error instanceof Error ? error.message : 'Unknown error occurred',
-      };
-    }
-  };
-};
 
 /**
  * Fetch user spending limit for personal workspace.
@@ -441,11 +387,6 @@ export const setAssistantSpendingLimitAction = async (apiKey: string) => {
  * Type for the usage actions object passed to client components
  */
 export interface UsageActions {
-  getMetrics: (
-    context: string,
-    groupBy: TimeGranularity,
-    filterExpr: string
-  ) => Promise<UsageMetricsResponse | UsageApiError>;
   getUserSpendingLimit: () => Promise<SpendingLimitInfo | ResponseProps>;
   getOrgSpendingLimit: (orgId: number) => Promise<SpendingLimitInfo | ResponseProps>;
   getMemberSpendingLimit: (
@@ -477,7 +418,6 @@ export interface UsageActions {
  */
 export async function createUsageActions(apiKey: string): Promise<UsageActions> {
   return {
-    getMetrics: await getUsageMetrics(apiKey),
     getUserSpendingLimit: await getUserSpendingLimitAction(apiKey),
     getOrgSpendingLimit: await getOrgSpendingLimitAction(apiKey),
     getMemberSpendingLimit: await getMemberSpendingLimitAction(apiKey),

@@ -185,9 +185,7 @@ export interface BillingActions {
   getAutoRecharge: () => Promise<AutoRechargeData | BillingErrorResponse>;
 
   /** Update auto-recharge settings */
-  updateAutoRecharge: (
-    payload: AutoRechargeUpdatePayload
-  ) => Promise<void | BillingErrorResponse>;
+  updateAutoRecharge: (payload: AutoRechargeUpdatePayload) => Promise<void | BillingErrorResponse>;
 
   /** Toggle auto-recharge enabled/disabled */
   toggleAutoRecharge: (enabled: boolean) => Promise<void | BillingErrorResponse>;
@@ -207,9 +205,7 @@ export interface BillingActions {
   createPortalSession: () => Promise<PortalSessionResponse | BillingErrorResponse>;
 
   /** Check Stripe checkout session status */
-  getCheckoutStatus: (
-    sessionId: string
-  ) => Promise<CheckoutStatusResponse | BillingErrorResponse>;
+  getCheckoutStatus: (sessionId: string) => Promise<CheckoutStatusResponse | BillingErrorResponse>;
 
   /** Fetch supported tax countries */
   getSupportedTaxCountries: () => Promise<SupportedTaxCountriesResponse | BillingErrorResponse>;
@@ -237,5 +233,3 @@ export interface BillingOrgContext {
 export function isBillingError(response: unknown): response is BillingErrorResponse {
   return typeof response === 'object' && response !== null && 'detail' in response;
 }
-
-

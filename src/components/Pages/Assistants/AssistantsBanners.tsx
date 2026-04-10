@@ -44,21 +44,24 @@ export function AssistantsBanners({
         description: isOrgWorkspace
           ? 'Your organization has an outstanding payment. Please update your payment method to avoid service disruption.'
           : 'You have an outstanding payment. Please update your payment method to avoid service disruption.',
-        variant: 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-200',
+        variant:
+          'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-200',
       },
       SUSPENDED: {
         label: 'Account suspended',
         description: isOrgWorkspace
           ? 'Your organization has been suspended due to non-payment. Please resolve the outstanding balance to restore access.'
           : 'Your account has been suspended due to non-payment. Please resolve the outstanding balance to restore access.',
-        variant: 'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200',
+        variant:
+          'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200',
       },
       CLOSED: {
         label: 'Account closed',
         description: isOrgWorkspace
           ? 'Your organization account has been closed.'
           : 'Your account has been closed.',
-        variant: 'border-gray-200 bg-gray-50 text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200',
+        variant:
+          'border-gray-200 bg-gray-50 text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200',
       },
     };
 
@@ -83,8 +86,12 @@ export function AssistantsBanners({
     }
   }
 
-  // Out of credits — shown when balance has gone negative (excludes brand-new users at 0)
-  if (credits < 0 && !isBillingLoading && !spendingGateStatus.isBlocked) {
+  // Out of credits — shown when balance has gone negative (excludes brand-new users at 0).
+  // The spending gate also detects credit exhaustion ('no_credits'), but the OOC banner
+  // is the correct UI for this case, so we only suppress when a *spending limit* blocks.
+  const blockedBySpendingLimit =
+    spendingGateStatus.isBlocked && spendingGateStatus.blockReason !== 'no_credits';
+  if (credits < 0 && !isBillingLoading && !blockedBySpendingLimit) {
     return (
       <div
         className="flex items-center justify-center gap-3 border-b border-orange-200 bg-orange-50 px-4 py-2.5 dark:border-orange-800 dark:bg-orange-950"

@@ -33,4 +33,3 @@ const FreeTrialUsageLock = () => {
 };
 
 export default FreeTrialUsageLock;
-

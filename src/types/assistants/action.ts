@@ -231,6 +231,7 @@ export interface ActionsLogsResponse {
  * Optional extraFilters adds arbitrary filter expressions (e.g. phase, hierarchy length).
  */
 export type GetManagerMethodEventsFn = (
+  ownerId: string,
   assistantId: string,
   startTime: string | null,
   limit: number | null,
@@ -244,6 +245,7 @@ export type GetManagerMethodEventsFn = (
  * so events from other invocations with the same hierarchy don't bleed in.
  */
 export type GetToolLoopEventsFn = (
+  ownerId: string,
   assistantId: string,
   hierarchy: string[],
   limit: number | null,
@@ -263,6 +265,7 @@ export type LoadChildrenFn = (nodeId: string, hierarchy: string[]) => Promise<vo
  * retrieve root incoming events that fell outside the initial time window.
  */
 export type BackfillByCallingIdsFn = (
+  ownerId: string,
   assistantId: string,
   callingIds: string[]
 ) => Promise<ActionsLogsResponse | ResponseProps>;

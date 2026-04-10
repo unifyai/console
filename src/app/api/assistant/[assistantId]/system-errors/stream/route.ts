@@ -105,8 +105,7 @@ function createPubSubStream(
 ): Response {
   const stream = new ReadableStream({
     start(controller) {
-      if (__DEV__)
-        console.log(`[SystemErrors SSE] Stream started for assistant=${assistantId}`);
+      if (__DEV__) console.log(`[SystemErrors SSE] Stream started for assistant=${assistantId}`);
 
       controller.enqueue(encoder.encode(': connected\n\n'));
 
@@ -172,8 +171,7 @@ function createPubSubStream(
         subscription.removeListener('error', errorHandler);
         subscription.close();
         deleteOnClose();
-        if (__DEV__)
-          console.log(`[SystemErrors SSE] Stream ended for assistant=${assistantId}`);
+        if (__DEV__) console.log(`[SystemErrors SSE] Stream ended for assistant=${assistantId}`);
         try {
           controller.close();
         } catch {
@@ -190,10 +188,7 @@ function createPubSubStream(
 // Route Handler
 // =============================================================================
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { assistantId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { assistantId: string } }) {
   const { assistantId } = params;
 
   if (!assistantId) {
@@ -231,13 +226,10 @@ export async function GET(
     // was set up. Return 404 so the hook stops retrying.
     if (error.code === 5) {
       if (__DEV__)
-        console.log(
-          `[SystemErrors SSE] Topic not found for assistant=${assistantId} — skipping`
-        );
-      return new NextResponse(
-        JSON.stringify({ detail: 'Assistant topic not found.' }),
-        { status: 404 }
-      );
+        console.log(`[SystemErrors SSE] Topic not found for assistant=${assistantId} — skipping`);
+      return new NextResponse(JSON.stringify({ detail: 'Assistant topic not found.' }), {
+        status: 404,
+      });
     }
     console.error('[SystemErrors SSE] Setup error:', error.message);
     return new NextResponse(JSON.stringify({ detail: 'Server configuration error.' }), {
