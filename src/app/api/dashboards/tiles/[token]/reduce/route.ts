@@ -58,7 +58,13 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     });
 
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ detail: 'Reduce bridge request failed' }));
+      const errorText = await res.text();
+      let errorData: Record<string, unknown>;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { detail: errorText.slice(0, 200) };
+      }
       return NextResponse.json(
         { error: errorData.detail || 'Reduce bridge request failed' },
         { status: res.status }

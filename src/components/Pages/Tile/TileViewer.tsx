@@ -31,21 +31,15 @@ const BRIDGE_SCRIPT = `
   var ready = false;
   var queued = [];
 
-  console.log('[Bridge DEBUG] bridge script initializing');
-
   function _flush() {
     ready = true;
     var q = queued.splice(0);
-    console.log('[Bridge DEBUG] flushing', q.length, 'queued messages');
     for (var i = 0; i < q.length; i++) parent.postMessage(q[i], '*');
   }
 
   function _send(msg) {
     if (ready) { parent.postMessage(msg, '*'); }
-    else {
-      console.log('[Bridge DEBUG] queuing message:', msg.operation || msg.type);
-      queued.push(msg);
-    }
+    else { queued.push(msg); }
   }
 
   function _bridge(operation, opts) {
@@ -68,12 +62,10 @@ const BRIDGE_SCRIPT = `
   window.addEventListener('message', function(event) {
     if (!event.data) return;
     if (event.data.type === 'unify-bridge-ready') {
-      console.log('[Bridge DEBUG] received bridge-ready, flushing');
       _flush();
       return;
     }
     if (event.data.type === 'unify-data-response') {
-      console.log('[Bridge DEBUG] received response for id:', event.data.id, 'error:', !!event.data.error);
       var handler = pending[event.data.id];
       if (handler) {
         delete pending[event.data.id];
@@ -86,7 +78,6 @@ const BRIDGE_SCRIPT = `
     }
   });
 
-  console.log('[Bridge DEBUG] sending bridge-init to parent');
   parent.postMessage({ type: 'unify-bridge-init' }, '*');
 })();
 </script>
@@ -132,14 +123,10 @@ function buildAutoExecScript(bindingsJson: string, onDataScript: string): string
   return `
 <script>
 (function() {
-  console.log('[AutoExec DEBUG] auto-exec script starting, ${bindings.length} bindings');
   var results = {};
   var promises = [];
 ${calls.join('\n')}
-  console.log('[AutoExec DEBUG] waiting for', promises.length, 'promises');
   Promise.all(promises).then(function() {
-    console.log('[AutoExec DEBUG] all bindings resolved, keys:', Object.keys(results));
-    try { console.log('[AutoExec DEBUG] data snapshot:', JSON.stringify(results).slice(0, 3000)); } catch(e) {}
     (function(data) { ${onDataScript} })(results);
     parent.postMessage({ type: 'unify-data-complete' }, '*');
   }).catch(function(err) {
@@ -271,20 +258,6 @@ export function TileViewer({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // DEBUG: log props on mount and when they change
-  useEffect(() => {
-    console.log('[TileViewer DEBUG] props:', {
-      token,
-      hasDataBindings,
-      hasBindingsJson: !!dataBindingsJson,
-      bindingsJsonLen: dataBindingsJson?.length,
-      hasOnDataScript: !!onDataScript,
-      onDataScriptLen: onDataScript?.length,
-      htmlLen: htmlContent?.length,
-      embed,
-    });
-  }, [token, hasDataBindings, dataBindingsJson, onDataScript, htmlContent, embed]);
-
   useEffect(() => {
     setIsLoading(true);
     const t = window.setTimeout(() => setIsLoading(false), IFRAME_LOAD_FALLBACK_MS);
@@ -301,7 +274,6 @@ export function TileViewer({
   }, [htmlContent, hasDataBindings]);
 
   const sendBridgeReady = useCallback(() => {
-    console.log('[TileViewer DEBUG] sendBridgeReady called, iframeRef:', !!iframeRef.current);
     iframeRef.current?.contentWindow?.postMessage({ type: 'unify-bridge-ready' }, '*');
   }, []);
 
@@ -311,8 +283,6 @@ export function TileViewer({
     async (event: MessageEvent) => {
       if (!event.data?.type) return;
       if (iframeRef.current && event.source !== iframeRef.current.contentWindow) return;
-
-      console.log('[TileViewer DEBUG] message received:', event.data.type, event.data.id || '');
 
       if (event.data.type === 'unify-data-complete') {
         setIsLoading(false);
@@ -345,13 +315,6 @@ export function TileViewer({
 
       const url = `/api/dashboards/tiles/${token}/${routeSegment[op]}`;
       const body = buildProxyBody(op, payload);
-
-      console.log('[TileViewer DEBUG] proxying bridge request:', {
-        url,
-        op,
-        id,
-        bodyKeys: Object.keys(body),
-      });
 
       const ac = new AbortController();
       const to = window.setTimeout(() => ac.abort(), BRIDGE_FETCH_MS);
@@ -401,14 +364,11 @@ export function TileViewer({
   );
 
   useEffect(() => {
-    console.log('[TileViewer DEBUG] message listener effect, hasDataBindings:', hasDataBindings);
     if (!hasDataBindings) return;
-    console.log('[TileViewer DEBUG] registering message listener for token:', token);
     window.addEventListener('message', handleMessage);
     sendBridgeReady();
     if (!isAutoExec) setIsLoading(false);
     return () => {
-      console.log('[TileViewer DEBUG] removing message listener for token:', token);
       window.removeEventListener('message', handleMessage);
     };
   }, [hasDataBindings, handleMessage, sendBridgeReady, token, isAutoExec]);
@@ -417,14 +377,11 @@ export function TileViewer({
 
   const processedHtml = (() => {
     if (dataBindingsJson && onDataScript) {
-      console.log('[TileViewer DEBUG] using AUTO-EXEC path for', token);
       return injectAutoExec(htmlContent, dataBindingsJson, onDataScript);
     }
     if (hasDataBindings) {
-      console.log('[TileViewer DEBUG] using BRIDGE-ONLY path for', token);
       return injectBridge(htmlContent);
     }
-    console.log('[TileViewer DEBUG] using RAW HTML path for', token);
     return htmlContent;
   })();
 

@@ -66,13 +66,6 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   if (body.groupBy?.length) orchestraBody.group_by = body.groupBy;
   if (aliased.resultWhere) orchestraBody.result_where = aliased.resultWhere;
 
-  console.log(
-    '[DEBUG][bridge/join-reduce] token:',
-    params.token,
-    'body:',
-    JSON.stringify(orchestraBody).slice(0, 1000)
-  );
-
   try {
     const res = await fetch(
       `${ORCHESTRA_URL}/v0/admin/dashboards/tiles/${params.token}/join-reduce`,
@@ -88,11 +81,6 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
 
     if (!res.ok) {
       const errorText = await res.text();
-      console.error(
-        '[DEBUG][bridge/join-reduce] Orchestra error:',
-        res.status,
-        errorText.slice(0, 2000)
-      );
       let errorData: Record<string, unknown>;
       try {
         errorData = JSON.parse(errorText);

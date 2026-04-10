@@ -58,13 +58,6 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   if (body.resultLimit != null) orchestraBody.result_limit = body.resultLimit;
   if (body.resultOffset != null) orchestraBody.result_offset = body.resultOffset;
 
-  console.log(
-    '[DEBUG][bridge/join] token:',
-    params.token,
-    'body:',
-    JSON.stringify(orchestraBody).slice(0, 1000)
-  );
-
   try {
     const res = await fetch(`${ORCHESTRA_URL}/v0/admin/dashboards/tiles/${params.token}/join`, {
       method: 'POST',
@@ -77,7 +70,6 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
 
     if (!res.ok) {
       const errorText = await res.text();
-      console.error('[DEBUG][bridge/join] Orchestra error:', res.status, errorText.slice(0, 2000));
       let errorData: Record<string, unknown>;
       try {
         errorData = JSON.parse(errorText);
