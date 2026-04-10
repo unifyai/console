@@ -27,6 +27,8 @@ import { Button } from '@/components/UI/button';
 
 type EmbedType = 'table' | 'plot' | 'tile' | 'dashboard';
 
+const EMBED_TYPES: readonly EmbedType[] = ['table', 'plot', 'tile', 'dashboard'];
+
 interface EmbedProps {
   url: string;
   token: string;
@@ -51,10 +53,10 @@ export function getEmbedViewPath(embed: Pick<ParsedEmbed, 'type' | 'token'>): st
 // URL Parsing
 // =============================================================================
 
-const TABLE_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/table\/view\/([a-zA-Z0-9_-]+)/;
-const PLOT_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/plot\/view\/([a-zA-Z0-9_-]+)/;
-const TILE_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/tile\/view\/([a-zA-Z0-9_-]+)/;
-const DASHBOARD_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/dashboard\/view\/([a-zA-Z0-9_-]+)/;
+const TABLE_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/table\/view\/([a-zA-Z0-9_%.-]+)/;
+const PLOT_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/plot\/view\/([a-zA-Z0-9_%.-]+)/;
+const TILE_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/tile\/view\/([a-zA-Z0-9_%.-]+)/;
+const DASHBOARD_URL_PATTERN = /(?:https?:\/\/[^/]+)?\/dashboard\/view\/([a-zA-Z0-9_%.-]+)/;
 
 const EMBED_PATTERNS: { type: EmbedType; pattern: RegExp }[] = [
   { type: 'dashboard', pattern: DASHBOARD_URL_PATTERN },
@@ -70,7 +72,8 @@ export function parseEmbedUrl(url: string): ParsedEmbed | null {
   for (const { type, pattern } of EMBED_PATTERNS) {
     const match = url.match(pattern);
     if (match) {
-      return { type, token: match[1], url };
+      const token = decodeURIComponent(match[1]);
+      return { type, token, url };
     }
   }
   return null;
@@ -81,6 +84,18 @@ export function parseEmbedUrl(url: string): ParsedEmbed | null {
  */
 export function containsEmbedUrl(text: string): boolean {
   return EMBED_PATTERNS.some(({ pattern }) => pattern.test(text));
+}
+
+const EMBED_TOKEN_RE = new RegExp(`(\\/(${EMBED_TYPES.join('|')})\\/view\\/)([a-zA-Z0-9_-]+)`, 'g');
+
+/**
+ * Percent-encode underscores inside embed-path tokens so markdown parsers
+ * don't consume them as emphasis delimiters. Only touches known embed types.
+ */
+export function escapeEmbedTokens(md: string): string {
+  return md.replace(EMBED_TOKEN_RE, (_match, prefix, _type, token) => {
+    return prefix + token.replace(/_/g, '%5F');
+  });
 }
 
 // =============================================================================

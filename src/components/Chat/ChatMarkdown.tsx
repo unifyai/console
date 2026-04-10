@@ -4,7 +4,7 @@ import * as React from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CodeBlock } from '@/components/Pages/Interfaces/Blocks/Selection/Views/Markdown/MarkdownRenderer';
-import { parseEmbedUrl, InlineEmbed } from './InlineEmbed';
+import { parseEmbedUrl, escapeEmbedTokens, InlineEmbed } from './InlineEmbed';
 
 function markdownChildrenToPlainText(node: React.ReactNode): string {
   if (node == null || node === false) return '';
@@ -79,10 +79,11 @@ const remarkPlugins = [remarkGfm];
  * injecting global CSS, so it fits naturally alongside chat styling.
  */
 export function ChatMarkdown({ content }: { content: string }) {
+  const safeContent = escapeEmbedTokens(content);
   return (
     <div className="max-w-full break-words [&_img]:max-w-full">
       <Markdown remarkPlugins={remarkPlugins} components={chatMarkdownComponents}>
-        {content}
+        {safeContent}
       </Markdown>
     </div>
   );
