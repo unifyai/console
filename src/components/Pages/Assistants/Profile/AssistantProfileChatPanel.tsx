@@ -566,7 +566,7 @@ export function AssistantProfileChatPanel({
     <div className="flex h-full w-full flex-col bg-background">
       {/* Chat Area */}
       <ScrollArea
-        className="flex-1 px-4 py-4 md:px-14"
+        className="flex-1 px-3 py-4 md:px-6"
         ref={scrollAreaRef}
         data-testid="chat-scroll-area"
       >
@@ -584,7 +584,7 @@ export function AssistantProfileChatPanel({
         ) : isLoading && messages.length === 0 ? (
           <ChatMessageSkeletons />
         ) : (
-          <div className="mx-auto min-w-0 max-w-[720px] space-y-6">
+          <div className="mx-auto min-w-0 max-w-[1080px] space-y-6">
             {isHistoricalMode ? (
               <>
                 {historicalView?.isLoadingOlder && <ChatMessageSkeletons />}

@@ -144,7 +144,8 @@ export async function openHireDialog(page: Page) {
 }
 
 /**
- * Click on an assistant in the list to open its profile panel.
+ * Click on an assistant in the list to select it and show its details
+ * in the right pane (Chat tab by default).
  */
 export async function selectAssistantInList(page: Page, agentId: number) {
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);

@@ -178,7 +178,7 @@ export function AssistantList({
       {onToggleFold && (
         <div
           className={cn(
-            'flex flex-shrink-0 items-center border-t px-2 py-1.5',
+            'hidden flex-shrink-0 items-center border-t px-2 py-1.5 md:flex',
             isFolded ? 'justify-center' : 'justify-end'
           )}
         >

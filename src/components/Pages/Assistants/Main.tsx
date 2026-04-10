@@ -12,8 +12,6 @@ import {
   VoiceOption,
 } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
-import { AssistantProfilePanel } from './Profile/AssistantProfile';
-import { AnimatePresence, motion } from 'framer-motion';
 import { AssistantHire } from './Hire/AssistantHire';
 import { AssistantEdit } from './Edit/AssistantEdit';
 import { HireForm } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
@@ -70,105 +68,13 @@ function isSignedMediaUrl(url: string | null | undefined): url is string {
 
 export default function Main({ assistantActions, userMeta }: MainProps) {
   // --- UI Panel Management ---
-  const { profileAssistantId, isProfileOpen, handleShowProfile, handleProfileClose } =
-    usePanelManager();
+  const { profileAssistantId, handleShowProfile, handleProfileClose } = usePanelManager();
 
   // --- Assistant List Fold / Resize State ---
   const LIST_SNAP_THRESHOLD = 150;
   const LIST_DEFAULT_WIDTH = 240;
   const LIST_MIN_WIDTH = 56;
   const LIST_MAX_WIDTH = 500;
-
-  // --- Profile Panel Sizing (60:40 default split with Actions) ---
-  const PROFILE_PANEL_RATIO = 0.5;
-  const PROFILE_MIN_WIDTH = 300;
-  const PROFILE_MAX_RATIO = 0.8;
-  const RESIZE_HANDLE_WIDTH = 3;
-
-  const contentContainerRef = React.useRef<HTMLDivElement>(null);
-
-  const getAvailableContentWidth = React.useCallback(() => {
-    const container = contentContainerRef.current;
-    if (!container) return 0;
-    const listEl = container.firstElementChild as HTMLElement | null;
-    const listW = listEl ? listEl.offsetWidth : 0;
-    return container.offsetWidth - listW - RESIZE_HANDLE_WIDTH * 2;
-  }, []);
-
-  const [profilePanelWidth, setProfilePanelWidth] = React.useState(500);
-  const [isResizingProfile, setIsResizingProfile] = React.useState(false);
-  const profileRatioRef = React.useRef(PROFILE_PANEL_RATIO);
-  const hasSetInitialProfileWidth = React.useRef(false);
-
-  React.useEffect(() => {
-    if (!isProfileOpen || hasSetInitialProfileWidth.current) return;
-    const available = getAvailableContentWidth();
-    if (available > 0) {
-      const target = Math.round(available * PROFILE_PANEL_RATIO);
-      setProfilePanelWidth(Math.max(PROFILE_MIN_WIDTH, target));
-      profileRatioRef.current = PROFILE_PANEL_RATIO;
-      hasSetInitialProfileWidth.current = true;
-    }
-  }, [isProfileOpen, getAvailableContentWidth]);
-
-  React.useEffect(() => {
-    if (!isProfileOpen) {
-      hasSetInitialProfileWidth.current = false;
-    }
-  }, [isProfileOpen]);
-
-  React.useEffect(() => {
-    if (!isProfileOpen || isResizingProfile) return;
-    const container = contentContainerRef.current;
-    if (!container) return;
-
-    const observer = new ResizeObserver(() => {
-      const available = getAvailableContentWidth();
-      if (available > 0) {
-        const target = Math.round(available * profileRatioRef.current);
-        setProfilePanelWidth(
-          Math.max(PROFILE_MIN_WIDTH, Math.min(target, Math.round(available * PROFILE_MAX_RATIO)))
-        );
-      }
-    });
-
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [isProfileOpen, isResizingProfile, getAvailableContentWidth]);
-
-  const handleProfileResizeStart = React.useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      setIsResizingProfile(true);
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-
-      const startWidth = profilePanelWidth;
-      const startX = e.clientX;
-      const available = getAvailableContentWidth();
-      const maxWidth = Math.round(available * PROFILE_MAX_RATIO);
-
-      const handleMouseMove = (moveEvent: MouseEvent) => {
-        const newWidth = startWidth + (moveEvent.clientX - startX);
-        if (newWidth >= PROFILE_MIN_WIDTH && newWidth <= maxWidth) {
-          setProfilePanelWidth(newWidth);
-          if (available > 0) profileRatioRef.current = newWidth / available;
-        }
-      };
-
-      const handleMouseUp = () => {
-        setIsResizingProfile(false);
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-      };
-
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-    },
-    [profilePanelWidth, getAvailableContentWidth]
-  );
 
   const [assistantListWidth, setAssistantListWidth] = React.useState(LIST_DEFAULT_WIDTH);
   const [isAssistantListFolded, setIsAssistantListFolded] = React.useState(false);
@@ -869,7 +775,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         pendingCreditToken={pendingToken}
       />
 
-      <div ref={contentContainerRef} className="flex min-h-0 flex-1 overflow-hidden bg-background">
+      <div className="flex min-h-0 flex-1 overflow-hidden bg-background">
         {/* Assistant List */}
         <div
           className="relative h-full flex-shrink-0 border-r"
@@ -906,63 +812,29 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           style={{ zIndex: 20 }}
         />
 
-        {/* Assistant Profile Panel */}
-        <AnimatePresence initial={false}>
-          {isProfileOpen &&
-            profileAssistant && [
-              <motion.div
-                key="assistant-profile"
-                initial={{ width: 0, opacity: 0 }}
-                animate={{ width: profilePanelWidth, opacity: 1 }}
-                exit={{ width: 0, opacity: 0 }}
-                transition={{
-                  type: 'tween',
-                  ease: 'easeInOut',
-                  duration: isResizingProfile ? 0 : 0.3,
-                }}
-                className="h-full flex-shrink-0 overflow-hidden border-r bg-background"
-              >
-                <AssistantProfilePanel
-                  assistant={profileAssistant}
-                  assistantActions={assistantActions}
-                  onClose={handleProfileClose}
-                  chatHistories={profileChatHistories}
-                  setChatHistories={setProfileChatHistories}
-                  callPillHistories={callPillHistories}
-                  setCallPillHistories={setCallPillHistories}
-                  userEmail={userMeta.email}
-                  isFirstView={isFirstViewAfterHire}
-                  preHireChat={isFirstViewAfterHire ? newlyHiredInfo.preHireChat : undefined}
-                  onFirstViewCompleted={handleFirstViewCompleted}
-                  onStartCall={handleStartCall}
-                  activeCallAssistantId={activeCallId}
-                  isCallConnected={isCallConnected}
-                  isConnectingCall={isConnectingCall}
-                  userTimezone={userMeta.timezone}
-                  canWrite={canWrite(profileAssistant)}
-                  spendingGate={spendingGateStatus}
-                  onAssistantReply={markAssistantOnline}
-                />
-              </motion.div>,
-              <motion.div
-                key="profile-resize-handle"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                onMouseDown={handleProfileResizeStart}
-                className="hover:bg-primary/20 active:bg-primary/40 -ml-1.5 h-full w-1.5 flex-shrink-0 cursor-col-resize bg-transparent transition-colors duration-200"
-                style={{ zIndex: 20 }}
-              />,
-            ]}
-        </AnimatePresence>
-
-        {/* Right Pane: Actions + Dashboards */}
+        {/* Right Pane: Chat + Actions + Dashboards */}
         <div className="relative h-full min-w-0 flex-1 overflow-hidden bg-background">
           <RightPaneContainer
             assistant={profileAssistant}
             actions={assistantActions.actions || null}
             dashboardActions={assistantActions.dashboards || null}
+            assistantActions={assistantActions}
+            chatHistories={profileChatHistories}
+            setChatHistories={setProfileChatHistories}
+            callPillHistories={callPillHistories}
+            setCallPillHistories={setCallPillHistories}
+            userEmail={userMeta.email}
+            isFirstView={isFirstViewAfterHire}
+            preHireChat={isFirstViewAfterHire ? newlyHiredInfo?.preHireChat : undefined}
+            onFirstViewCompleted={handleFirstViewCompleted}
+            onStartCall={handleStartCall}
+            activeCallAssistantId={activeCallId}
+            isCallConnected={isCallConnected}
+            isConnectingCall={isConnectingCall}
+            userTimezone={userMeta.timezone}
+            canWrite={profileAssistant ? canWrite(profileAssistant) : undefined}
+            spendingGate={spendingGateStatus}
+            onAssistantReply={markAssistantOnline}
           />
         </div>
       </div>

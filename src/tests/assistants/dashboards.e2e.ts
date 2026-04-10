@@ -202,7 +202,7 @@ async function selectAssistantAndOpenDashboards(
 // Tab Switching
 // ===========================================================================
 
-test('defaults to the Actions tab when an assistant is selected', async ({ authedPage: page }) => {
+test('defaults to the Chat tab when an assistant is selected', async ({ authedPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
@@ -211,12 +211,12 @@ test('defaults to the Actions tab when an assistant is selected', async ({ authe
   await listItem.click();
   await page.waitForTimeout(1_500);
 
-  const actionsTab = page.getByTestId('right-pane-tab-actions');
-  await expect(actionsTab).toBeVisible({ timeout: 5_000 });
-  await expect(actionsTab).toHaveAttribute('data-state', 'active');
+  const chatTab = page.getByTestId('right-pane-tab-chat');
+  await expect(chatTab).toBeVisible({ timeout: 5_000 });
+  await expect(chatTab).toHaveAttribute('data-state', 'active');
 });
 
-test('switches to Dashboards tab and back to Actions', async ({ authedPage: page }) => {
+test('switches between Chat, Actions, and Dashboards tabs', async ({ authedPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
@@ -224,16 +224,23 @@ test('switches to Dashboards tab and back to Actions', async ({ authedPage: page
   await expect(listItem).toBeVisible({ timeout: 15_000 });
   await listItem.click();
   await page.waitForTimeout(1_500);
+
+  const chatTab = page.getByTestId('right-pane-tab-chat');
+  await expect(chatTab).toHaveAttribute('data-state', 'active');
+
+  const actionsTab = page.getByTestId('right-pane-tab-actions');
+  await actionsTab.click();
+  await page.waitForTimeout(500);
+  await expect(actionsTab).toHaveAttribute('data-state', 'active');
 
   const dashTab = page.getByTestId('right-pane-tab-dashboards');
   await dashTab.click();
   await page.waitForTimeout(500);
   await expect(dashTab).toHaveAttribute('data-state', 'active');
 
-  const actionsTab = page.getByTestId('right-pane-tab-actions');
-  await actionsTab.click();
+  await chatTab.click();
   await page.waitForTimeout(500);
-  await expect(actionsTab).toHaveAttribute('data-state', 'active');
+  await expect(chatTab).toHaveAttribute('data-state', 'active');
 });
 
 // ===========================================================================
@@ -258,6 +265,7 @@ test('no tabs visible and shows placeholder when no assistant is selected', asyn
   await closeHireDialogIfOpen(page);
   await page.waitForTimeout(1_000);
 
+  await expect(page.getByTestId('right-pane-tab-chat')).not.toBeVisible({ timeout: 3_000 });
   await expect(page.getByTestId('right-pane-tab-actions')).not.toBeVisible({ timeout: 3_000 });
   await expect(page.getByTestId('right-pane-tab-dashboards')).not.toBeVisible({ timeout: 3_000 });
   await expect(page.locator('text=Select an assistant to watch them work')).toBeVisible({
