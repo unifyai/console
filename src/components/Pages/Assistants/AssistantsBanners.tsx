@@ -101,17 +101,23 @@ export function AssistantsBanners({
         <p className="text-sm text-orange-800 dark:text-orange-200">
           <span className="font-medium">
             {isOrgWorkspace
-              ? "Your organization's credit balance has been depleted"
-              : 'Your credit balance has been depleted'}
+              ? "Your organization's trial credits have been used"
+              : 'Your trial credits have been used'}
           </span>
           {' — '}
-          {isOrgWorkspace
-            ? 'An organization owner or admin can add credits on the '
-            : 'You can add credits on the '}
-          <a href="/billing" className="font-medium underline underline-offset-2">
-            Billing page
+          <a
+            href="https://cal.com/danlenton/chat"
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium underline underline-offset-2"
+          >
+            Talk to us about deploying across your portfolio
           </a>
-          .
+          {' or '}
+          <a href="/billing" className="font-medium underline underline-offset-2">
+            add credits
+          </a>
+          {' to keep exploring.'}
         </p>
       </div>
     );

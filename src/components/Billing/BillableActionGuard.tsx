@@ -150,16 +150,26 @@ export function BillableActionGuard({
         </TooltipTrigger>
         <TooltipContent side={tooltipSide} className="max-w-xs p-3">
           <p className="text-caption leading-relaxed">
-            You need to{' '}
+            Your trial credits have been used.{' '}
+            <a
+              href="https://cal.com/danlenton/chat"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-primary/80 inline font-medium text-primary underline underline-offset-2"
+              data-testid="talk-to-us-link"
+            >
+              Talk to us
+            </a>{' '}
+            about deployment, or{' '}
             <button
               type="button"
               onClick={onAddPaymentMethod}
               className="hover:text-primary/80 inline cursor-pointer font-medium text-primary underline underline-offset-2"
               data-testid="buy-credits-link"
             >
-              purchase credits
+              add credits
             </button>{' '}
-            to use this feature.
+            to keep exploring.
           </p>
         </TooltipContent>
       </Tooltip>

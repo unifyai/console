@@ -99,7 +99,7 @@ export const DEFAULT_SPENDING_GATE_STATUS: SpendingGateStatus = {
 export function getBlockedMessage(reason: SpendingBlockReason): string | null {
   switch (reason) {
     case 'no_credits':
-      return 'You have run out of credits.';
+      return 'Your trial credits have been used. Talk to us about deployment.';
     case 'assistant_limit':
       return "This assistant's monthly spending limit has been reached.";
     case 'user_limit':
