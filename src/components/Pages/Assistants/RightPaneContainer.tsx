@@ -5,6 +5,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/UI/tabs';
 import { LiveActionsViewer } from './LiveActions';
 import { DashboardsPane } from './Dashboards';
 import { AssistantProfileChatPanel } from './Profile/AssistantProfileChatPanel';
+import { MemoryPane } from './Memory';
 import { Button } from '@/components/UI/button';
 import { Loader2, Phone, Video, Search } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
@@ -133,6 +134,13 @@ export function RightPaneContainer({
             data-testid="right-pane-tab-dashboards"
           >
             Dashboards
+          </TabsTrigger>
+          <TabsTrigger
+            value="memory"
+            className={TAB_TRIGGER_CLASS}
+            data-testid="right-pane-tab-memory"
+          >
+            Memory
           </TabsTrigger>
         </TabsList>
       </div>
@@ -268,6 +276,14 @@ export function RightPaneContainer({
             <p className="text-body-muted">Select an assistant to view dashboards.</p>
           </div>
         )}
+      </TabsContent>
+
+      <TabsContent
+        value="memory"
+        className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+        forceMount
+      >
+        <MemoryPane ownerId={assistant.userId} assistantId={assistant.agentId} />
       </TabsContent>
     </Tabs>
   );
