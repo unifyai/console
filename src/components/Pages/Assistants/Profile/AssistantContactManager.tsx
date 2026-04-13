@@ -469,10 +469,24 @@ export function AssistantContactManager({
                 {activeTab === 'discord' && (
                   <>
                     {assistant.assistantDiscordBotId ? (
-                      <DisplayContactField
-                        label="Discord Bot ID"
-                        value={assistant.assistantDiscordBotId}
-                      />
+                      <div className="space-y-2">
+                        <DisplayContactField
+                          label="Discord Bot ID"
+                          value={assistant.assistantDiscordBotId}
+                        />
+                        <p className="text-body text-muted-foreground">
+                          Join the{' '}
+                          <a
+                            href="https://discord.gg/kRtBDmBA"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-primary/80 text-primary underline"
+                          >
+                            Unify server
+                          </a>{' '}
+                          on Discord to start talking to your assistant.
+                        </p>
+                      </div>
                     ) : canWrite ? (
                       <div className="space-y-4">
                         <div>
@@ -515,6 +529,10 @@ export function AssistantContactManager({
                               </p>
                             </div>
                           )}
+                          <p className="text-body-muted">
+                            To find your Discord user ID, enable Developer Mode in Discord settings,
+                            then right-click your profile and select Copy User ID.
+                          </p>
                         </div>
                       </div>
                     ) : (
