@@ -489,51 +489,45 @@ export function AssistantContactManager({
                       </div>
                     ) : canWrite ? (
                       <div className="space-y-4">
-                        <div>
-                          <div className="flex flex-row items-center gap-2 pb-1">
-                            <Label>Your Discord</Label>
-                            <TooltipProvider delayDuration={100}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Info className="h-4 w-4 cursor-help text-muted-foreground" />
-                                </TooltipTrigger>
-                                <TooltipContent
-                                  side="right"
-                                  align="end"
-                                  className="text-caption max-w-xs"
-                                >
-                                  <p>
-                                    Your Discord user ID, used to route DMs from the assigned bot.
-                                    Manage it in your profile.
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
-                          {userDiscordId ? (
-                            <div className="flex items-center gap-2">
-                              <Input value={userDiscordId} readOnly disabled className="flex-1" />
-                              <CheckCircle2 className="h-5 w-5 text-green-500" />
-                            </div>
-                          ) : (
-                            <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
-                              <p className="text-body text-muted-foreground">
-                                No Discord ID set in your profile.{' '}
-                                <a
-                                  href="/account?tab=contact-info"
-                                  className="hover:text-primary/80 text-primary underline"
-                                >
-                                  Link your Discord account
-                                </a>{' '}
-                                to enable Discord messaging with your assistant.
-                              </p>
-                            </div>
-                          )}
-                          <p className="text-body-muted">
-                            To find your Discord user ID, enable Developer Mode in Discord settings,
-                            then right-click your profile and select Copy User ID.
-                          </p>
+                        <div className="flex flex-row items-center gap-2 pb-1">
+                          <Label>Your Discord</Label>
+                          <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+                              </TooltipTrigger>
+                              <TooltipContent
+                                side="right"
+                                align="end"
+                                className="text-caption max-w-xs"
+                              >
+                                <p>
+                                  Your Discord user ID, used to route DMs from the assigned bot.
+                                  Manage it in your profile.
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
+                        {userDiscordId ? (
+                          <div className="flex items-center gap-2">
+                            <Input value={userDiscordId} readOnly disabled className="flex-1" />
+                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          </div>
+                        ) : (
+                          <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
+                            <p className="text-body text-muted-foreground">
+                              No Discord ID set in your profile.{' '}
+                              <a
+                                href="/account?tab=contact-info"
+                                className="hover:text-primary/80 text-primary underline"
+                              >
+                                Link your Discord account
+                              </a>{' '}
+                              to enable Discord messaging with your assistant.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <p className="text-body text-muted-foreground">No Discord configured.</p>
