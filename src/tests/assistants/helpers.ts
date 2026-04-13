@@ -144,7 +144,8 @@ export async function openHireDialog(page: Page) {
 }
 
 /**
- * Click on an assistant in the list to open its profile panel.
+ * Click on an assistant in the list to select it and show its details
+ * in the right pane (Chat tab by default).
  */
 export async function selectAssistantInList(page: Page, agentId: number) {
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
@@ -267,13 +268,19 @@ export async function clickHireButton(page: Page) {
 export async function openContactManagerFromList(
   page: Page,
   agentId: number,
-  tab: 'email' | 'phone' | 'whatsapp'
+  tab: 'email' | 'phone' | 'whatsapp' | 'discord'
 ) {
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
   await listItem.hover();
   await page.waitForTimeout(500);
 
-  const label = tab === 'email' ? 'Add Email' : tab === 'phone' ? 'Add Phone' : 'Add WhatsApp';
+  const labelMap = {
+    email: 'Add Email',
+    phone: 'Add Phone',
+    whatsapp: 'Add WhatsApp',
+    discord: 'Add Discord',
+  };
+  const label = labelMap[tab];
   await page.getByRole('button', { name: label }).click();
   await page.waitForTimeout(500);
 }
@@ -369,7 +376,7 @@ export function clearUserWhatsappNumber(userId: string): void {
 
 export function getAssistantContact(
   agentId: number,
-  contactType: 'email' | 'phone' | 'whatsapp'
+  contactType: 'email' | 'phone' | 'whatsapp' | 'discord'
 ): string | null {
   try {
     const result = dbExec(

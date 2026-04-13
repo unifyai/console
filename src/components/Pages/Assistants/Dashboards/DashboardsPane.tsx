@@ -156,7 +156,6 @@ export function DashboardsPane({
               <DashboardGrid
                 positions={positions}
                 tiles={tiles}
-                getTileHtml={getTileHtml}
                 onTileRefresh={handleRefresh}
                 defaultCollapsed={allCollapsed}
               />
@@ -172,7 +171,6 @@ export function DashboardsPane({
               token={activeTile.token}
               title={activeTile.title}
               htmlContent={activeTile.htmlContent}
-              getTileHtml={getTileHtml}
               description={activeTile.description}
               createdAt={activeTile.createdAt}
               updatedAt={activeTile.updatedAt}

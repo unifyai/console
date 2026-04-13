@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { KeyRound, Check, Contact, Monitor } from 'lucide-react';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
+import type { ContactType } from '@/types/assistants/contact';
 import { AssistantSecretsManager } from './AssistantSecretsManager';
 import { AssistantDesktopLinker } from './AssistantDesktopLinker';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
@@ -8,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 interface AssistantResourcesManagerProps {
   assistant: Assistant;
   assistantActions: AssistantActions;
-  onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
+  onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onAssistantUpdated?: (assistantId: string, patch: Partial<Assistant>) => void;
   /** Whether the current user can edit this assistant's resources */
   canWrite?: boolean;
@@ -84,7 +85,7 @@ export function AssistantResourcesManager({
       <div className="flex w-full flex-wrap gap-x-4 gap-y-2">
         <ContactItem
           value="Contact Details"
-          tooltip="Manage email, phone, and WhatsApp contacts"
+          tooltip="Manage email, phone, WhatsApp, and Discord contacts"
           icon={<Contact className="h-4 w-4 flex-shrink-0" />}
           handleClick={() => onOpenContactManager(assistant)}
         />

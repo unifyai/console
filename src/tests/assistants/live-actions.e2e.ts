@@ -156,6 +156,10 @@ async function selectAssistant(page: import('@playwright/test').Page) {
   await expect(listItem).toBeVisible({ timeout: 15_000 });
   await listItem.click();
   await page.waitForTimeout(1_500);
+
+  const actionsTab = page.getByTestId('right-pane-tab-actions');
+  await actionsTab.click();
+  await page.waitForTimeout(500);
 }
 
 // ---------------------------------------------------------------------------

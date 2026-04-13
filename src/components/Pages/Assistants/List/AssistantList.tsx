@@ -3,6 +3,7 @@ import { Input } from '@/components/UI/input';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Search, WifiOff, UserPlus, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
+import type { ContactType } from '@/types/assistants/contact';
 import { AssistantListItem } from './AssistantListItem';
 import { AssistantListItemSkeleton } from './AssistantListItemSkeleton';
 import { Button } from '@/components/UI/button';
@@ -18,7 +19,7 @@ interface AssistantListProps {
   profileAssistantId: string | null;
   onShowProfile: (id: string) => void;
   onOpenHireDialog: () => void;
-  onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
+  onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onEditAssistant: (assistant: Assistant) => void;
   onOpenSecretsManager: (assistant: Assistant) => void;
   onEndContract?: (assistant: Assistant) => Promise<void>;
@@ -77,25 +78,27 @@ export function AssistantList({
         {isFolded ? (
           <div className="flex min-h-7 items-center justify-center">
             {showHireButton && (
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={isFolded ? 'ghost' : 'outline'}
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={onOpenHireDialog}
-                      disabled={isHireButtonDisabled}
-                      aria-disabled={isHireButtonDisabled}
-                    >
-                      <UserPlus className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    <p>Hire new assistant</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <div className="hidden md:flex">
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={isFolded ? 'ghost' : 'outline'}
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={onOpenHireDialog}
+                        disabled={isHireButtonDisabled}
+                        aria-disabled={isHireButtonDisabled}
+                      >
+                        <UserPlus className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p>Hire new assistant</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             )}
           </div>
         ) : (
@@ -115,7 +118,7 @@ export function AssistantList({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 items-center text-xs"
+                className="hidden h-7 items-center text-xs md:inline-flex"
                 onClick={onOpenHireDialog}
                 disabled={isHireButtonDisabled}
                 aria-disabled={isHireButtonDisabled}
@@ -178,7 +181,7 @@ export function AssistantList({
       {onToggleFold && (
         <div
           className={cn(
-            'flex flex-shrink-0 items-center border-t px-2 py-1.5',
+            'hidden flex-shrink-0 items-center border-t px-2 py-1.5 md:flex',
             isFolded ? 'justify-center' : 'justify-end'
           )}
         >

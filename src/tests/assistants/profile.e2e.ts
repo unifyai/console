@@ -1,7 +1,8 @@
 /**
  * Assistant Profile E2E — verify that clicking an assistant in the list
- * opens the chat panel with the assistant name header, that the deep link
- * via ?profile=<agentId> works, and that the hover card shows key info.
+ * selects it and shows the Chat tab with the assistant name header, that
+ * the deep link via ?profile=<agentId> works, and that the dropdown menu
+ * shows key options.
  *
  * Run: npx playwright test src/tests/assistants/profile.e2e.ts
  */
@@ -35,7 +36,7 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-test('clicking an assistant shows the chat panel with assistant name in header', async ({
+test('clicking an assistant shows the Chat tab with assistant name in header', async ({
   authedPage: page,
 }) => {
   const db = getAssistantFromDb(assistant.agentId);
@@ -48,15 +49,19 @@ test('clicking an assistant shows the chat panel with assistant name in header',
   await listItem.click();
   await page.waitForTimeout(1_500);
 
-  // The panel header shows the assistant's full name
+  // The Chat tab should be active by default
+  const chatTab = page.getByTestId('right-pane-tab-chat');
+  await expect(chatTab).toHaveAttribute('data-state', 'active');
+
+  // The chat header shows the assistant's full name
   await expect(page.locator(`text=${db.firstName}`).first()).toBeVisible({ timeout: 5_000 });
   await expect(page.locator(`text=${db.surname}`).first()).toBeVisible({ timeout: 5_000 });
 
-  // Chat area should be visible (it's now the only content in the panel)
+  // Chat area should be visible
   const chatArea = page.getByTestId('chat-scroll-area');
   await expect(chatArea).toBeVisible({ timeout: 5_000 });
 
-  // Call buttons should be visible in the panel header
+  // Call buttons should be visible in the chat header
   await expect(page.getByTestId('call-audio-button')).toBeVisible({ timeout: 5_000 });
   await expect(page.getByTestId('call-video-button')).toBeVisible({ timeout: 5_000 });
 });
@@ -71,7 +76,7 @@ test('deep link ?profile=agentId opens the correct assistant profile', async ({
   await page.waitForTimeout(2_000);
   await closeHireDialogIfOpen(page);
 
-  // The panel header should show the assistant name
+  // The chat header should show the assistant name
   await expect(page.locator(`text=${db.firstName}`).first()).toBeVisible({ timeout: 10_000 });
   await expect(page.locator(`text=${db.surname}`).first()).toBeVisible({ timeout: 5_000 });
 });

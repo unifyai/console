@@ -95,11 +95,14 @@ export const DEFAULT_SPENDING_GATE_STATUS: SpendingGateStatus = {
 
 /**
  * Get user-friendly message for a block reason.
+ * @param isFreeTrial — when true, uses trial-specific wording for credit exhaustion.
  */
-export function getBlockedMessage(reason: SpendingBlockReason): string | null {
+export function getBlockedMessage(reason: SpendingBlockReason, isFreeTrial = false): string | null {
   switch (reason) {
     case 'no_credits':
-      return 'You have run out of credits.';
+      return isFreeTrial
+        ? 'Your trial credits have been used. Talk to us about deployment.'
+        : 'You have run out of credits.';
     case 'assistant_limit':
       return "This assistant's monthly spending limit has been reached.";
     case 'user_limit':

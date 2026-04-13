@@ -13,6 +13,8 @@ interface AssistantsBannersProps {
   spendingGateStatus: SpendingGateStatus;
   /** Whether the current workspace is an organization */
   isOrgWorkspace: boolean;
+  /** Whether the active org is in free-trial mode */
+  isFreeTrial: boolean;
   /** Account status (ACTIVE, PAST_DUE, SUSPENDED, CLOSED) */
   accountStatus?: string;
 }
@@ -34,6 +36,7 @@ export function AssistantsBanners({
   isBillingLoading,
   spendingGateStatus,
   isOrgWorkspace,
+  isFreeTrial,
   accountStatus,
 }: AssistantsBannersProps) {
   // Account status banners — highest priority
@@ -100,18 +103,42 @@ export function AssistantsBanners({
         <AlertTriangle className="h-4 w-4 flex-shrink-0 text-orange-600 dark:text-orange-400" />
         <p className="text-sm text-orange-800 dark:text-orange-200">
           <span className="font-medium">
-            {isOrgWorkspace
-              ? "Your organization's credit balance has been depleted"
-              : 'Your credit balance has been depleted'}
+            {isFreeTrial
+              ? isOrgWorkspace
+                ? "Your organization's trial credits have been used"
+                : 'Your trial credits have been used'
+              : isOrgWorkspace
+                ? "Your organization's credit balance has been depleted"
+                : 'Your credit balance has been depleted'}
           </span>
           {' — '}
-          {isOrgWorkspace
-            ? 'An organization owner or admin can add credits on the '
-            : 'You can add credits on the '}
-          <a href="/billing" className="font-medium underline underline-offset-2">
-            Billing page
-          </a>
-          .
+          {isFreeTrial ? (
+            <>
+              <a
+                href="https://cal.com/danlenton/chat"
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium underline underline-offset-2"
+              >
+                Talk to us about deploying across your portfolio
+              </a>
+              {' or '}
+              <a href="/billing" className="font-medium underline underline-offset-2">
+                add credits
+              </a>
+              {' to keep exploring.'}
+            </>
+          ) : (
+            <>
+              {isOrgWorkspace
+                ? 'An organization owner or admin can add credits on the '
+                : 'You can add credits on the '}
+              <a href="/billing" className="font-medium underline underline-offset-2">
+                Billing page
+              </a>
+              .
+            </>
+          )}
         </p>
       </div>
     );

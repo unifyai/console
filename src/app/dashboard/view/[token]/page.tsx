@@ -115,6 +115,7 @@ export default async function DashboardViewPage({ params, searchParams }: PagePr
   return (
     <main className="min-h-screen bg-background">
       <DashboardViewer
+        token={params.token}
         title={data.title}
         description={data.description}
         tiles={data.tiles}

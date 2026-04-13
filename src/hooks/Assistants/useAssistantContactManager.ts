@@ -7,7 +7,11 @@ import {
   AssistantActions,
   ContactFormData,
 } from '@/types/assistants/assistant';
-import { ContactCosts, AssistantContactCreatePayload } from '@/types/assistants/contact';
+import {
+  ContactCosts,
+  AssistantContactCreatePayload,
+  ContactType,
+} from '@/types/assistants/contact';
 import { ResponseProps } from '@/types/common';
 import {
   EMAIL_DOMAIN_WITH_AT,
@@ -22,11 +26,13 @@ interface UseAssistantContactManagerProps {
   isOpen: boolean;
   assistantActions: AssistantActions;
   onSuccess: () => void;
-  initialTab?: 'email' | 'phone' | 'whatsapp';
+  initialTab?: ContactType;
   /** User's phone number from their profile — required to create a phone contact. */
   userPhoneNumber?: string | null;
   /** User's WhatsApp number from their profile — required to create a WhatsApp contact. */
   userWhatsappNumber?: string | null;
+  /** User's Discord ID from their profile — required to create a Discord contact. */
+  userDiscordId?: string | null;
 }
 
 /**
@@ -42,6 +48,7 @@ export function useAssistantContactManager({
   initialTab,
   userPhoneNumber,
   userWhatsappNumber,
+  userDiscordId,
 }: UseAssistantContactManagerProps) {
   // Create our own form for contact fields
   const contactFormMethods = useForm<ContactFormData>({
@@ -245,13 +252,9 @@ export function useAssistantContactManager({
     };
   }, [isOpen, assistantActions.contact]);
 
-  const [activeTab, setActiveTab] = React.useState<'email' | 'phone' | 'whatsapp'>(
-    initialTab || 'email'
-  );
+  const [activeTab, setActiveTab] = React.useState<ContactType>(initialTab || 'email');
   const [emailLocalPart, setEmailLocalPart] = React.useState('');
-  const [confirmDelete, setConfirmDelete] = React.useState<'email' | 'phone' | 'whatsapp' | null>(
-    null
-  );
+  const [confirmDelete, setConfirmDelete] = React.useState<ContactType | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   // Self-contained submission state
@@ -382,6 +385,10 @@ export function useAssistantContactManager({
         case 'whatsapp': {
           break;
         }
+
+        case 'discord': {
+          break;
+        }
       }
 
       // Call the dedicated contact creation endpoint
@@ -449,6 +456,8 @@ export function useAssistantContactManager({
         return isLoadingPhoneCountries || !userPhoneNumber;
       case 'whatsapp':
         return !userWhatsappNumber;
+      case 'discord':
+        return !userDiscordId;
       default:
         return true;
     }
@@ -460,17 +469,20 @@ export function useAssistantContactManager({
     isLoadingPhoneCountries,
     userPhoneNumber,
     userWhatsappNumber,
+    userDiscordId,
   ]);
 
   const showCreateButton =
     (activeTab === 'email' && !assistant.email) ||
     (activeTab === 'phone' && !assistant.phone) ||
-    (activeTab === 'whatsapp' && !assistant.assistantWhatsappNumber);
+    (activeTab === 'whatsapp' && !assistant.assistantWhatsappNumber) ||
+    (activeTab === 'discord' && !assistant.assistantDiscordBotId);
 
   const showDeleteButton =
     (activeTab === 'email' && !!assistant.email) ||
     (activeTab === 'phone' && !!assistant.phone) ||
-    (activeTab === 'whatsapp' && !!assistant.assistantWhatsappNumber);
+    (activeTab === 'whatsapp' && !!assistant.assistantWhatsappNumber) ||
+    (activeTab === 'discord' && !!assistant.assistantDiscordBotId);
 
   return {
     // Form methods for component bindings

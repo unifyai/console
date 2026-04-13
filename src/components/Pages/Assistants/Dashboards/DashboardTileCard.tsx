@@ -12,15 +12,17 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
-import { ScaledIframe } from './ScaledIframe';
+import {
+  requestTileExport,
+  downloadBlob,
+  buildFilename,
+} from '@/utils/assistants/capture-tile-html';
 
 interface DashboardTileCardProps {
   token: string;
   title: string;
-  /** Full HTML — may be undefined when content hasn't been lazily loaded yet */
+  /** Raw HTML fallback for download if export postMessage fails */
   htmlContent?: string;
-  /** Lazy loader: called when the card is first expanded to fetch htmlContent */
-  getTileHtml?: (token: string) => Promise<string | null>;
   description?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -33,23 +35,6 @@ interface DashboardTileCardProps {
   onRefresh?: () => void;
   /** Parent-driven collapse signal — syncs local state when it changes */
   defaultCollapsed?: boolean;
-}
-
-export function downloadTileHtml(htmlContent: string, title: string) {
-  const blob = new Blob([htmlContent], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${title.replace(/[^a-zA-Z0-9\-_ ]/g, '')}.html`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-export function openTileInNewTab(htmlContent: string) {
-  const blob = new Blob([htmlContent], { type: 'text/html' });
-  window.open(URL.createObjectURL(blob), '_blank');
 }
 
 function formatShortDate(iso: string | null | undefined): string | null {
@@ -68,8 +53,7 @@ function formatShortDate(iso: string | null | undefined): string | null {
 export function DashboardTileCard({
   token,
   title,
-  htmlContent: htmlContentProp,
-  getTileHtml,
+  htmlContent,
   description,
   createdAt,
   updatedAt,
@@ -81,48 +65,36 @@ export function DashboardTileCard({
 }: DashboardTileCardProps) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed ?? false);
   const [refreshing, setRefreshing] = useState(false);
-  const [loadedHtml, setLoadedHtml] = useState<string | null>(null);
-  const [isLoadingContent, setIsLoadingContent] = useState(false);
-  const fetchingRef = useRef(false);
-
-  const htmlContent = htmlContentProp ?? loadedHtml;
 
   useEffect(() => {
     if (defaultCollapsed !== undefined) setCollapsed(defaultCollapsed);
   }, [defaultCollapsed]);
 
-  // Lazily fetch content when expanded and no HTML is available
-  useEffect(() => {
-    if (collapsed || htmlContent || fetchingRef.current || !getTileHtml) return;
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
-    fetchingRef.current = true;
-    setIsLoadingContent(true);
-
-    let cancelled = false;
-    getTileHtml(token).then((html) => {
-      if (!cancelled) {
-        setLoadedHtml(html);
-        setIsLoadingContent(false);
-        fetchingRef.current = false;
+  const handleDownloadHtml = useCallback(async () => {
+    const filename = buildFilename(title, token, 'html');
+    if (iframeRef.current) {
+      setIsExporting(true);
+      try {
+        const capture = await requestTileExport(iframeRef.current);
+        downloadBlob(new Blob([capture.html], { type: 'text/html' }), filename);
+        return;
+      } catch {
+        /* fall through to raw htmlContent fallback */
+      } finally {
+        setIsExporting(false);
       }
-    });
-    return () => {
-      cancelled = true;
-      fetchingRef.current = false;
-    };
-  }, [collapsed, htmlContent, getTileHtml, token]);
-
-  const handleDownload = useCallback(() => {
-    if (htmlContent) downloadTileHtml(htmlContent, title);
-  }, [htmlContent, title]);
+    }
+    if (htmlContent) {
+      downloadBlob(new Blob([htmlContent], { type: 'text/html' }), filename);
+    }
+  }, [htmlContent, title, token]);
 
   const handleOpenTab = useCallback(() => {
-    if (hasDataBindings) {
-      window.open(`/tile/view/${token}`, '_blank');
-    } else if (htmlContent) {
-      openTileInNewTab(htmlContent);
-    }
-  }, [htmlContent, hasDataBindings, token]);
+    window.open(`/tile/view/${token}`, '_blank');
+  }, [token]);
 
   const handleRefresh = useCallback(async () => {
     if (!onRefresh) return;
@@ -136,7 +108,6 @@ export function DashboardTileCard({
 
   const updatedLabel = formatShortDate(updatedAt);
   const createdLabel = formatShortDate(createdAt);
-  const hasContent = !!htmlContent;
 
   return (
     <div
@@ -184,19 +155,22 @@ export function DashboardTileCard({
           variant="ghost"
           size="icon"
           className="h-5 w-5 shrink-0"
-          onClick={handleDownload}
-          disabled={!hasContent}
-          title="Download HTML"
+          disabled={isExporting}
+          onClick={handleDownloadHtml}
+          title="Download"
           data-testid="tile-download"
         >
-          <Download className="h-2.5 w-2.5" />
+          {isExporting ? (
+            <Loader2 className="h-2.5 w-2.5 animate-spin" />
+          ) : (
+            <Download className="h-2.5 w-2.5" />
+          )}
         </Button>
         <Button
           variant="ghost"
           size="icon"
           className="h-5 w-5 shrink-0"
           onClick={handleOpenTab}
-          disabled={!hasContent && !hasDataBindings}
           title="Open in new tab"
           data-testid="tile-open-tab"
         >
@@ -216,53 +190,21 @@ export function DashboardTileCard({
         </div>
       )}
 
-      {/* Expanded content */}
-      {!collapsed &&
-        (hasDataBindings ? (
-          <div
-            className={cn(fillHeight ? 'min-h-0 flex-1' : '')}
-            style={fillHeight ? undefined : { height: contentHeight }}
-          >
-            <iframe
-              src={`/tile/view/${token}?embed=true`}
-              className="h-full w-full border-0"
-              title={title}
-              sandbox="allow-scripts allow-same-origin"
-            />
-          </div>
-        ) : hasContent ? (
-          fillHeight ? (
-            <div className="min-h-0 flex-1">
-              <ScaledIframe
-                htmlContent={htmlContent}
-                title={title}
-                initialZoom={1}
-                showZoomControls
-                className="h-full"
-              />
-            </div>
-          ) : (
-            <div style={{ height: contentHeight }}>
-              <ScaledIframe
-                htmlContent={htmlContent}
-                title={title}
-                initialZoom={1}
-                showZoomControls
-                className="h-full"
-              />
-            </div>
-          )
-        ) : (
-          <div
-            className={cn('flex items-center justify-center', fillHeight ? 'min-h-0 flex-1' : '')}
-            style={fillHeight ? undefined : { height: contentHeight }}
-          >
-            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <span className="text-xs">Loading tile…</span>
-            </div>
-          </div>
-        ))}
+      {/* Expanded content — all tiles render via the /tile/view route for CSP isolation */}
+      {!collapsed && (
+        <div
+          className={cn(fillHeight ? 'min-h-0 flex-1' : '')}
+          style={fillHeight ? undefined : { height: contentHeight }}
+        >
+          <iframe
+            ref={iframeRef}
+            src={`/tile/view/${token}?embed=true`}
+            className="h-full w-full border-0"
+            title={title}
+            sandbox="allow-scripts allow-same-origin"
+          />
+        </div>
+      )}
     </div>
   );
 }

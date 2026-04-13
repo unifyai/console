@@ -68,7 +68,9 @@ test('seeded assistants appear in the list with correct names', async ({ authedP
   await expect(item2).toContainText('Beta');
 });
 
-test('clicking an assistant in the list opens its profile panel', async ({ authedPage: page }) => {
+test('clicking an assistant in the list selects it and shows the Chat tab', async ({
+  authedPage: page,
+}) => {
   const agentIds = getAssistantAgentIds(user.id);
   expect(agentIds.length).toBeGreaterThan(0);
   const agentId = agentIds[0];
@@ -82,7 +84,8 @@ test('clicking an assistant in the list opens its profile panel', async ({ authe
   await listItem.click();
   await page.waitForTimeout(1_000);
 
-  // Profile panel should show the assistant's first and last name
+  // Chat tab should be active and show the assistant's name
+  await expect(page.getByTestId('right-pane-tab-chat')).toHaveAttribute('data-state', 'active');
   await expect(page.locator(`text=${dbAssistant.firstName}`).first()).toBeVisible({
     timeout: 5_000,
   });

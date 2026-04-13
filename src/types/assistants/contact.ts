@@ -5,13 +5,15 @@
  * `orchestra/web/api/admin/schema.py` and support the contact creation flow.
  */
 
+export type ContactType = 'email' | 'phone' | 'whatsapp' | 'discord';
+
 /**
  * A single contact cost row from the `contact_type_costs` table.
  * Returned by GET /v0/admin/billing/contact-costs.
  */
 export interface AssistantContactCost {
   id: number;
-  contactType: 'phone' | 'email' | 'whatsapp';
+  contactType: ContactType;
   provider: string | null;
   countryCode: string | null;
   monthlyCost: number;
@@ -26,6 +28,7 @@ export interface ContactCosts {
   phone: { monthlyCost: number; oneTimeCost: number };
   email: { monthlyCost: number; oneTimeCost: number };
   whatsapp: { monthlyCost: number; oneTimeCost: number };
+  discord: { monthlyCost: number; oneTimeCost: number };
 }
 
 /**
@@ -33,7 +36,7 @@ export interface ContactCosts {
  * Mirrors the backend `AssistantContactCreate` schema.
  */
 export interface AssistantContactCreatePayload {
-  contactType: 'phone' | 'email' | 'whatsapp';
+  contactType: ContactType;
   // Phone-specific
   phoneCountry?: string;
   // Email-specific

@@ -109,7 +109,7 @@ test('the hired assistant is visible in the DB with correct fields', async ({
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
 
-  // Click the assistant to open its profile panel
+  // Click the assistant to select it and view the Chat tab
   await listItem.click();
   await page.waitForTimeout(1_000);
 

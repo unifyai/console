@@ -235,7 +235,7 @@ test('communication dialog shows control buttons when connected', async ({ authe
   await expect(header).not.toBeVisible({ timeout: 10_000 });
 });
 
-test('hanging up closes the dialog and returns to the profile', async ({ authedPage: page }) => {
+test('hanging up closes the dialog and returns to the chat view', async ({ authedPage: page }) => {
   await openAssistantProfile(page, assistant.agentId);
 
   const audioBtn = page.getByTestId('call-audio-button');
@@ -251,7 +251,7 @@ test('hanging up closes the dialog and returns to the profile', async ({ authedP
   // Dialog should close
   await expect(header).not.toBeVisible({ timeout: 10_000 });
 
-  // The profile panel should still be visible with the assistant name
+  // The assistant should still be selected in the list
   const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
   await expect(listItem).toBeVisible();
 });

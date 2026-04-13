@@ -15,8 +15,10 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { WhatsApp } from '@mui/icons-material';
+import { FaDiscord } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
+import type { ContactType } from '@/types/assistants/contact';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/UI/hover-card';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/UI/tooltip';
 import {
@@ -44,7 +46,7 @@ interface AssistantListItemProps {
   status: AssistantStatus | null;
   isSelected: boolean;
   onShowProfile: (id: string) => void;
-  onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
+  onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onEditAssistant: (assistant: Assistant) => void;
   onOpenSecretsManager: (assistant: Assistant) => void;
   onEndContract?: (assistant: Assistant) => Promise<void>;
@@ -177,6 +179,23 @@ export function AssistantListItem({
               }}
             >
               Add WhatsApp
+            </Button>
+          )}
+        </div>
+        <div className="text-caption flex items-center pt-0.5 text-muted-foreground">
+          <FaDiscord className="mr-1.5 h-3 w-3 opacity-70" />
+          {assistant.assistantDiscordBotId ? (
+            <span className="truncate">{assistant.assistantDiscordBotId}</span>
+          ) : (
+            <Button
+              variant="link"
+              className="text-caption text-link h-auto p-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenContactManager(assistant, 'discord');
+              }}
+            >
+              Add Discord
             </Button>
           )}
         </div>

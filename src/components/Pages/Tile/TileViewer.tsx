@@ -11,8 +11,14 @@
 'use client';
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
+import { Button } from '@/components/UI/button';
 import type { BridgeOperation } from '@/types/assistants/bridge';
+import {
+  requestTileExport,
+  downloadBlob,
+  buildFilename,
+} from '@/utils/assistants/capture-tile-html';
 
 interface TileViewerProps {
   token: string;
@@ -75,6 +81,33 @@ const BRIDGE_SCRIPT = `
           handler.resolve(event.data.data);
         }
       }
+    }
+    if (event.data.type === 'unify-export-request') {
+      var clone = document.documentElement.cloneNode(true);
+      var scripts = clone.querySelectorAll('script');
+      for (var s = 0; s < scripts.length; s++) {
+        var txt = scripts[s].textContent || '';
+        if (txt.indexOf('UnifyData') !== -1 || txt.indexOf('unify-bridge') !== -1 || txt.indexOf('unify-data-complete') !== -1) {
+          scripts[s].parentNode.removeChild(scripts[s]);
+        }
+      }
+      var origCvs = document.querySelectorAll('canvas');
+      var cloneCvs = clone.querySelectorAll('canvas');
+      for (var c = 0; c < cloneCvs.length; c++) {
+        try {
+          var im = document.createElement('img');
+          im.src = origCvs[c].toDataURL('image/png');
+          im.width = origCvs[c].width;
+          im.height = origCvs[c].height;
+          cloneCvs[c].parentNode.replaceChild(im, cloneCvs[c]);
+        } catch(e) {}
+      }
+      parent.postMessage({
+        type: 'unify-export-response',
+        exportId: event.data.exportId || '',
+        html: '<!DOCTYPE html>\\n' + clone.outerHTML,
+        title: document.title || ''
+      }, '*');
     }
   });
 
@@ -282,6 +315,30 @@ export function TileViewer({
   const handleMessage = useCallback(
     async (event: MessageEvent) => {
       if (!event.data?.type) return;
+
+      // Relay: parent sends export request down to inner srcdoc iframe
+      if (
+        embed &&
+        event.data.type === 'unify-export-request' &&
+        event.source !== iframeRef.current?.contentWindow
+      ) {
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: 'unify-export-request', exportId: event.data.exportId || '' },
+          '*'
+        );
+        return;
+      }
+
+      // Relay: inner iframe sends export response back up to parent, injecting the real tile title
+      if (
+        embed &&
+        event.data.type === 'unify-export-response' &&
+        event.source === iframeRef.current?.contentWindow
+      ) {
+        window.parent.postMessage({ ...event.data, title }, '*');
+        return;
+      }
+
       if (iframeRef.current && event.source !== iframeRef.current.contentWindow) return;
 
       if (event.data.type === 'unify-data-complete') {
@@ -360,18 +417,35 @@ export function TileViewer({
         window.clearTimeout(to);
       }
     },
-    [token, sendBridgeReady, isAutoExec]
+    [token, sendBridgeReady, isAutoExec, embed, title]
   );
 
   useEffect(() => {
-    if (!hasDataBindings) return;
     window.addEventListener('message', handleMessage);
     sendBridgeReady();
-    if (!isAutoExec) setIsLoading(false);
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [hasDataBindings, handleMessage, sendBridgeReady, token, isAutoExec]);
+  }, [handleMessage, sendBridgeReady]);
+
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleDownloadHtml = useCallback(async () => {
+    const filename = buildFilename(title, token, 'html');
+    if (iframeRef.current) {
+      setIsExporting(true);
+      try {
+        const capture = await requestTileExport(iframeRef.current);
+        downloadBlob(new Blob([capture.html], { type: 'text/html' }), filename);
+        return;
+      } catch {
+        /* fall through to raw htmlContent */
+      } finally {
+        setIsExporting(false);
+      }
+    }
+    downloadBlob(new Blob([htmlContent], { type: 'text/html' }), filename);
+  }, [title, token, htmlContent]);
 
   const handleIframeLoad = useCallback(() => setIsLoading(false), []);
 
@@ -379,10 +453,7 @@ export function TileViewer({
     if (dataBindingsJson && onDataScript) {
       return injectAutoExec(htmlContent, dataBindingsJson, onDataScript);
     }
-    if (hasDataBindings) {
-      return injectBridge(htmlContent);
-    }
-    return htmlContent;
+    return injectBridge(htmlContent);
   })();
 
   if (embed) {
@@ -409,6 +480,20 @@ export function TileViewer({
     <div className="flex h-screen flex-col bg-background">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <h1 className="text-title text-semibold text-foreground">{title}</h1>
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-4 h-7 shrink-0 gap-1.5 text-xs"
+          disabled={isExporting}
+          onClick={handleDownloadHtml}
+        >
+          {isExporting ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Download className="h-3 w-3" />
+          )}
+          Download
+        </Button>
       </header>
       <div className="relative flex-1">
         {isLoading && (

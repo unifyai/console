@@ -57,6 +57,9 @@ export interface UseSpendingGateConfig {
 
   /** Whether credit balance is still loading */
   isBillingLoading?: boolean;
+
+  /** Whether the active org is in free-trial mode (affects blocked messages) */
+  isFreeTrial?: boolean;
 }
 
 /**
@@ -88,6 +91,7 @@ export function useSpendingGate({
   isRefreshing = false,
   credits,
   isBillingLoading = false,
+  isFreeTrial = false,
 }: UseSpendingGateConfig): SpendingGateStatus {
   return React.useMemo(() => {
     // Convert to limit status objects
@@ -102,7 +106,7 @@ export function useSpendingGate({
       ? 'no_credits'
       : determineBlockReason(assistantLimit, userLimit, orgLimit);
     const isBlocked = blockReason !== null;
-    const blockedMessage = getBlockedMessage(blockReason);
+    const blockedMessage = getBlockedMessage(blockReason, isFreeTrial);
 
     return {
       isBlocked,
@@ -124,6 +128,7 @@ export function useSpendingGate({
     isRefreshing,
     credits,
     isBillingLoading,
+    isFreeTrial,
   ]);
 }
 
