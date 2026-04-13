@@ -79,10 +79,28 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const LIST_MIN_WIDTH = 56;
   const LIST_MAX_WIDTH = 500;
 
-  const [assistantListWidth, setAssistantListWidth] = React.useState(LIST_DEFAULT_WIDTH);
-  const [isAssistantListFolded, setIsAssistantListFolded] = React.useState(false);
+  const isMobileRef = React.useRef(
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+  );
+  const [assistantListWidth, setAssistantListWidth] = React.useState(
+    isMobileRef.current ? LIST_MIN_WIDTH : LIST_DEFAULT_WIDTH
+  );
+  const [isAssistantListFolded, setIsAssistantListFolded] = React.useState(isMobileRef.current);
   const [isResizingList, setIsResizingList] = React.useState(false);
   const preSnapWidthRef = React.useRef(LIST_DEFAULT_WIDTH);
+
+  React.useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent) => {
+      isMobileRef.current = e.matches;
+      if (e.matches) {
+        setIsAssistantListFolded(true);
+        setAssistantListWidth(LIST_MIN_WIDTH);
+      }
+    };
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
 
   const handleToggleListFold = React.useCallback(() => {
     if (isAssistantListFolded) {

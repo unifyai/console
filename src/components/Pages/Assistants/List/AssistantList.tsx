@@ -78,25 +78,27 @@ export function AssistantList({
         {isFolded ? (
           <div className="flex min-h-7 items-center justify-center">
             {showHireButton && (
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={isFolded ? 'ghost' : 'outline'}
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={onOpenHireDialog}
-                      disabled={isHireButtonDisabled}
-                      aria-disabled={isHireButtonDisabled}
-                    >
-                      <UserPlus className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    <p>Hire new assistant</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <div className="hidden md:flex">
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant={isFolded ? 'ghost' : 'outline'}
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={onOpenHireDialog}
+                        disabled={isHireButtonDisabled}
+                        aria-disabled={isHireButtonDisabled}
+                      >
+                        <UserPlus className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p>Hire new assistant</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             )}
           </div>
         ) : (
@@ -116,7 +118,7 @@ export function AssistantList({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 items-center text-xs"
+                className="hidden h-7 items-center text-xs md:inline-flex"
                 onClick={onOpenHireDialog}
                 disabled={isHireButtonDisabled}
                 aria-disabled={isHireButtonDisabled}
