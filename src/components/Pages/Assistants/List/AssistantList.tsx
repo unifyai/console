@@ -3,6 +3,7 @@ import { Input } from '@/components/UI/input';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Search, WifiOff, UserPlus, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
+import type { ContactType } from '@/types/assistants/contact';
 import { AssistantListItem } from './AssistantListItem';
 import { AssistantListItemSkeleton } from './AssistantListItemSkeleton';
 import { Button } from '@/components/UI/button';
@@ -18,7 +19,7 @@ interface AssistantListProps {
   profileAssistantId: string | null;
   onShowProfile: (id: string) => void;
   onOpenHireDialog: () => void;
-  onOpenContactManager: (assistant: Assistant, tab?: 'email' | 'phone' | 'whatsapp') => void;
+  onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onEditAssistant: (assistant: Assistant) => void;
   onOpenSecretsManager: (assistant: Assistant) => void;
   onEndContract?: (assistant: Assistant) => Promise<void>;

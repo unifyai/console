@@ -179,6 +179,7 @@ const AssistantsPage = async ({
     email: user.email,
     phoneNumber: user.phoneNumber,
     whatsappNumber: user.whatsappNumber,
+    discordId: user.discordId,
     orgId,
     isOrgContext,
     mfaSetupRequired: !!user.mfaSetupRequired,

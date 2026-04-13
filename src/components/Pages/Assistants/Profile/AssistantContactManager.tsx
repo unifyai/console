@@ -15,6 +15,7 @@ import { Input } from '@/components/UI/input';
 import { Label } from '@/components/UI/label';
 import { Loader2, Mail, Phone, CheckCircle2, AlertCircle, Info, Copy, Check } from 'lucide-react';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
+import { ContactType } from '@/types/assistants/contact';
 import { FormProvider, useWatch } from 'react-hook-form';
 import {
   EMAIL_DOMAIN_WITH_AT,
@@ -30,6 +31,7 @@ import {
 import { getCountryFlag } from '@/utils/assistants/country-utils';
 import { toast } from 'sonner';
 import { WhatsApp } from '@mui/icons-material';
+import { FaDiscord } from 'react-icons/fa';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/UI/tooltip';
 import { useAssistantContactManager } from '@/hooks/Assistants/useAssistantContactManager';
 import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
@@ -40,7 +42,7 @@ interface AssistantContactManagerProps {
   assistant: Assistant;
   assistantActions: AssistantActions;
   onSuccess: () => void;
-  initialTab?: 'email' | 'phone' | 'whatsapp';
+  initialTab?: ContactType;
   /** Whether the current user can edit contact details */
   canWrite?: boolean;
   /** Callback to open the Stripe payment panel when credits are insufficient */
@@ -49,6 +51,8 @@ interface AssistantContactManagerProps {
   userPhoneNumber?: string | null;
   /** User's WhatsApp number from their profile */
   userWhatsappNumber?: string | null;
+  /** User's Discord ID from their profile */
+  userDiscordId?: string | null;
 }
 
 const DisplayContactField: React.FC<{
@@ -107,6 +111,7 @@ export function AssistantContactManager({
   onAddPaymentMethod,
   userPhoneNumber,
   userWhatsappNumber,
+  userDiscordId,
 }: AssistantContactManagerProps) {
   const {
     // Self-contained form methods from the hook
@@ -137,6 +142,7 @@ export function AssistantContactManager({
     initialTab,
     userPhoneNumber,
     userWhatsappNumber,
+    userDiscordId,
   });
 
   const {
@@ -189,7 +195,7 @@ export function AssistantContactManager({
             <div className="w-full pt-4">
               <Select
                 value={activeTab}
-                onValueChange={(value) => setActiveTab(value as 'email' | 'phone' | 'whatsapp')}
+                onValueChange={(value) => setActiveTab(value as ContactType)}
               >
                 <SelectTrigger data-testid="contact-type-select">
                   <SelectValue />
@@ -208,6 +214,11 @@ export function AssistantContactManager({
                   <SelectItem value="whatsapp">
                     <span className="flex items-center">
                       <WhatsApp sx={{ fontSize: '18px', marginRight: '8px' }} /> WhatsApp
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="discord">
+                    <span className="flex items-center">
+                      <FaDiscord className="mr-2 h-4 w-4" /> Discord
                     </span>
                   </SelectItem>
                 </SelectContent>
@@ -451,6 +462,63 @@ export function AssistantContactManager({
                       </div>
                     ) : (
                       <p className="text-body text-muted-foreground">No WhatsApp configured.</p>
+                    )}
+                  </>
+                )}
+
+                {activeTab === 'discord' && (
+                  <>
+                    {assistant.assistantDiscordBotId ? (
+                      <DisplayContactField
+                        label="Discord Bot ID"
+                        value={assistant.assistantDiscordBotId}
+                      />
+                    ) : canWrite ? (
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex flex-row items-center gap-2 pb-1">
+                            <Label>Your Discord</Label>
+                            <TooltipProvider delayDuration={100}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  side="right"
+                                  align="end"
+                                  className="text-caption max-w-xs"
+                                >
+                                  <p>
+                                    Your Discord user ID, used to route DMs from the assigned bot.
+                                    Manage it in your profile.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          {userDiscordId ? (
+                            <div className="flex items-center gap-2">
+                              <Input value={userDiscordId} readOnly disabled className="flex-1" />
+                              <CheckCircle2 className="h-5 w-5 text-green-500" />
+                            </div>
+                          ) : (
+                            <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
+                              <p className="text-body text-muted-foreground">
+                                No Discord ID set in your profile.{' '}
+                                <a
+                                  href="/account?tab=contact-info"
+                                  className="hover:text-primary/80 text-primary underline"
+                                >
+                                  Link your Discord account
+                                </a>{' '}
+                                to enable Discord messaging with your assistant.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-body text-muted-foreground">No Discord configured.</p>
                     )}
                   </>
                 )}

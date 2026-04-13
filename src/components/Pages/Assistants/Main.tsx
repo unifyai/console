@@ -11,6 +11,7 @@ import {
   AssistantUpdatePayload,
   VoiceOption,
 } from '@/types/assistants/assistant';
+import { ContactType } from '@/types/assistants/contact';
 import { toast } from 'sonner';
 import { AssistantHire } from './Hire/AssistantHire';
 import { AssistantEdit } from './Edit/AssistantEdit';
@@ -56,6 +57,7 @@ interface MainProps {
     email?: string | null;
     phoneNumber?: string | null;
     whatsappNumber?: string | null;
+    discordId?: string | null;
     orgId?: number | null;
     isOrgContext?: boolean;
     mfaSetupRequired?: boolean;
@@ -184,9 +186,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [contactManagerAssistant, setContactManagerAssistant] = React.useState<Assistant | null>(
     null
   );
-  const [contactManagerInitialTab, setContactManagerInitialTab] = React.useState<
-    'email' | 'phone' | 'whatsapp'
-  >('email');
+  const [contactManagerInitialTab, setContactManagerInitialTab] =
+    React.useState<ContactType>('email');
   const [secretsManagerAssistant, setSecretsManagerAssistant] = React.useState<Assistant | null>(
     null
   );
@@ -644,10 +645,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [loadAssistantForEdit]
   );
 
-  const handleOpenContactManager = (
-    assistant: Assistant,
-    tab: 'email' | 'phone' | 'whatsapp' = 'email'
-  ) => {
+  const handleOpenContactManager = (assistant: Assistant, tab: ContactType = 'email') => {
     loadAssistantForEdit(assistant);
     setContactManagerInitialTab(tab);
     setContactManagerAssistant(assistant);
@@ -953,6 +951,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             onAddPaymentMethod={() => setIsStripePanelOpen(true)}
             userPhoneNumber={userMeta.phoneNumber ?? null}
             userWhatsappNumber={userMeta.whatsappNumber ?? null}
+            userDiscordId={userMeta.discordId ?? null}
           />
         )}
       </FormProvider>

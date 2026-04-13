@@ -3,7 +3,7 @@ import { SupportedLanguage, Gender as CartesiaGender, Gender } from '@cartesia/c
 import { ChatMessage, UnifyMessage, AttachmentUploadResponse } from './chat';
 import { SecretActions } from './secret';
 import { ConnectionDetails } from './call';
-import { ContactCosts, AssistantContactCreatePayload } from './contact';
+import { ContactCosts, AssistantContactCreatePayload, ContactType } from './contact';
 
 export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
 
@@ -49,8 +49,10 @@ export interface Assistant {
   email: string | null;
   phone: string | null;
   assistantWhatsappNumber: string | null;
+  assistantDiscordBotId: string | null;
   userPhone: string | null;
   userWhatsappNumber: string | null;
+  userDiscordId: string | null;
   // Advanced fields
   isUserDesktop?: boolean;
   desktopMode?: DesktopMode | null;
@@ -92,7 +94,9 @@ export type AssistantPreset = Omit<
   | 'phone'
   | 'userPhone'
   | 'userWhatsappNumber'
+  | 'userDiscordId'
   | 'assistantWhatsappNumber'
+  | 'assistantDiscordBotId'
   | 'weeklyLimit'
   | 'maxParallel'
   | 'voiceId'
@@ -160,7 +164,9 @@ export type AssistantFormData = Omit<
   | 'profileVideo'
   | 'phone'
   | 'assistantWhatsappNumber'
+  | 'assistantDiscordBotId'
   | 'userWhatsappNumber'
+  | 'userDiscordId'
   | 'userPhone'
   | 'phoneCountry'
   | 'weeklyLimit'
@@ -433,7 +439,7 @@ export interface AssistantActions {
   contact: {
     delete: (
       assistantId: string,
-      contactType: 'phone' | 'email' | 'whatsapp'
+      contactType: ContactType
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
     create: (
       assistantId: string,

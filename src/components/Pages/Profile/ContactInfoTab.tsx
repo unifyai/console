@@ -8,6 +8,7 @@ import { Label } from '@/components/UI/label';
 import { Button } from '@/components/UI/button';
 import { Loader2, CheckCircle2, AlertCircle, Send, Mail } from 'lucide-react';
 import { WhatsApp } from '@mui/icons-material';
+import { FaDiscord } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 // Verification is handled server-side via orchestra endpoints
 import { toast } from 'sonner';
@@ -176,6 +177,8 @@ const ContactInfoTab = ({ user }: { user: User }) => {
   const [whatsappState, setWhatsappState] = useState<VerificationState>(
     createVerificationState(user.whatsappNumber)
   );
+  const [discordId, setDiscordId] = useState(user.discordId || '');
+  const [initialDiscordId] = useState(user.discordId || '');
   const [isSaving, setIsSaving] = useState(false);
   const [changeMade, setChangeMade] = useState(false);
 
@@ -360,6 +363,7 @@ const ContactInfoTab = ({ user }: { user: User }) => {
   const handleReset = () => {
     setPhoneState(createVerificationState(initialPhone || null));
     setWhatsappState(createVerificationState(initialWhatsapp || null));
+    setDiscordId(initialDiscordId);
     setChangeMade(false);
   };
 
@@ -384,6 +388,7 @@ const ContactInfoTab = ({ user }: { user: User }) => {
       formData.append('timezone', user.timezone || '');
       formData.append('phoneNumber', phoneState.value.trim() || '');
       formData.append('whatsappNumber', whatsappState.value.trim() || '');
+      formData.append('discordId', discordId.trim() || '');
 
       const response = await fetch('/api/profile/updateUser', {
         method: 'POST',
@@ -446,6 +451,26 @@ const ContactInfoTab = ({ user }: { user: User }) => {
         }
         onEdit={() => handleEdit(setWhatsappState)}
       />
+
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <FaDiscord className="h-4 w-4 text-muted-foreground" />
+          <Label>Discord User ID</Label>
+        </div>
+        <Input
+          type="text"
+          placeholder="e.g., 123456789012345678"
+          value={discordId}
+          onChange={(e) => {
+            setDiscordId(e.target.value);
+            setChangeMade(true);
+          }}
+        />
+        <p className="text-body-muted">
+          Your Discord user ID (numeric snowflake). Enable Developer Mode in Discord settings, then
+          right-click your profile to copy it.
+        </p>
+      </div>
 
       {changeMade && (
         <div className="flex w-fit gap-2">

@@ -11,6 +11,7 @@ import {
   AssistantContactCost,
   AssistantContactCreatePayload,
   ContactCosts,
+  ContactType,
 } from '@/types/assistants/contact';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 
@@ -144,7 +145,7 @@ export const verifySocialAccount = async (apiKey: string) => {
 export const deleteAssistantContact = async (apiKey: string) => {
   return async (
     assistantId: string,
-    contactType: 'phone' | 'email' | 'whatsapp'
+    contactType: ContactType
   ): Promise<ResponseProps & { assistant?: Assistant }> => {
     'use server';
 
@@ -280,9 +281,10 @@ function buildCostsFromRows(rows: AssistantContactCost[]): ContactCosts {
     phone: { monthlyCost: 0, oneTimeCost: 0 },
     email: { monthlyCost: 0, oneTimeCost: 0 },
     whatsapp: { monthlyCost: 0, oneTimeCost: 0 },
+    discord: { monthlyCost: 0, oneTimeCost: 0 },
   };
 
-  for (const type of ['phone', 'email', 'whatsapp'] as const) {
+  for (const type of ['phone', 'email', 'whatsapp', 'discord'] as const) {
     const typeRows = rows.filter((r) => r.contactType === type);
     if (typeRows.length === 0) continue;
 

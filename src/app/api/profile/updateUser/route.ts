@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
   // Update user properties in db
   const phoneNumber = formData.get('phoneNumber') as string | null;
   const whatsappNumber = formData.get('whatsappNumber') as string | null;
+  const discordId = formData.get('discordId') as string | null;
   const userUpdateReq: UserUpdateRequest = {
     email: formData.get('email') as string,
     userId: id,
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
     timezone: (formData.get('timezone') as string) || null,
     phoneNumber: phoneNumber === '' ? null : phoneNumber,
     whatsappNumber: whatsappNumber === '' ? null : whatsappNumber,
+    discordId: discordId === '' ? null : discordId,
   };
 
   try {
