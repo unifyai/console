@@ -87,11 +87,13 @@ const AssistantsPage = async ({
   const workspaceId = cookieStore.get('unify_workspace_id')?.value;
   let orgId: number | null = null;
   let orgName: string | null = null;
+  let isFreeTrial = false;
   if (workspaceId && workspaceId !== 'personal') {
     const activeOrg = user.organizations?.find((o) => o.id.toString() === workspaceId);
     if (activeOrg) {
       orgId = activeOrg.id;
       orgName = activeOrg.name;
+      isFreeTrial = !!activeOrg.freeTrial;
     }
   }
   const isOrgContext = orgId !== null;
@@ -182,6 +184,7 @@ const AssistantsPage = async ({
     discordId: user.discordId,
     orgId,
     isOrgContext,
+    isFreeTrial,
     mfaSetupRequired: !!user.mfaSetupRequired,
   };
 

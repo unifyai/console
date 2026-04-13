@@ -60,6 +60,7 @@ interface MainProps {
     discordId?: string | null;
     orgId?: number | null;
     isOrgContext?: boolean;
+    isFreeTrial?: boolean;
     mfaSetupRequired?: boolean;
   };
 }
@@ -366,6 +367,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       (isOrgSpendingEnabled ? orgSpendingData.isRefreshing : false),
     credits,
     isBillingLoading,
+    isFreeTrial: !!userMeta.isFreeTrial,
   });
 
   // Reset assistant spending when profile changes
@@ -751,6 +753,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         isBillingLoading={isBillingLoading}
         spendingGateStatus={spendingGateStatus}
         isOrgWorkspace={!!userMeta.orgId}
+        isFreeTrial={!!userMeta.isFreeTrial}
         accountStatus={accountStatus}
       />
 
