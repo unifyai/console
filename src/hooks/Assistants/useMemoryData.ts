@@ -15,10 +15,17 @@ import type {
   TranscriptRow,
   KnowledgeRow,
   TaskRow,
+  GuidanceRow,
+  FunctionRow,
   MemoryRow,
 } from '@/types/assistants/memory';
 import { MEMORY_CONTEXTS } from '@/types/assistants/memory';
-import { fetchMemoryContext, fetchKnowledgeTables, buildSortingParam } from '@/lib/client/memory';
+import {
+  fetchMemoryContext,
+  fetchKnowledgeTables,
+  fetchFunctionsTables,
+  buildSortingParam,
+} from '@/lib/client/memory';
 
 const PAGE_SIZE = 50;
 
@@ -45,6 +52,8 @@ export interface UseMemoryDataResult {
   transcripts: ContextState<TranscriptRow>;
   knowledge: ContextState<KnowledgeRow>;
   tasks: ContextState<TaskRow>;
+  guidance: ContextState<GuidanceRow>;
+  functions: ContextState<FunctionRow>;
   isLoading: boolean;
   error: string | null;
   activeContext: MemoryContext;
@@ -75,6 +84,8 @@ type ContextStates = {
   Transcripts: ContextState<TranscriptRow>;
   Knowledge: ContextState<KnowledgeRow>;
   Tasks: ContextState<TaskRow>;
+  Guidance: ContextState<GuidanceRow>;
+  Functions: ContextState<FunctionRow>;
 };
 
 function fetchForContext(
@@ -90,6 +101,10 @@ function fetchForContext(
     return fetchKnowledgeTables(ownerId, assistantId);
   }
 
+  if (context === 'Functions') {
+    return fetchFunctionsTables(ownerId, assistantId);
+  }
+
   return fetchMemoryContext(ownerId, assistantId, context, {
     limit: PAGE_SIZE,
     offset,
@@ -103,6 +118,8 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     Transcripts: emptyState(),
     Knowledge: emptyState(),
     Tasks: emptyState(),
+    Guidance: emptyState(),
+    Functions: emptyState(),
   });
   const [isLoading, setIsLoading] = React.useState(true);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
@@ -116,7 +133,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     setError(null);
 
     try {
-      const [c, t, k, ta] = await Promise.all(
+      const [c, t, k, ta, g, f] = await Promise.all(
         MEMORY_CONTEXTS.map((ctx) => fetchForContext(ownerId, assistantId, ctx, null))
       );
 
@@ -125,6 +142,8 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
         Transcripts: contextStateFromData(t as MemoryContextData<TranscriptRow>, null),
         Knowledge: contextStateFromData(k as MemoryContextData<KnowledgeRow>, null),
         Tasks: contextStateFromData(ta as MemoryContextData<TaskRow>, null),
+        Guidance: contextStateFromData(g as MemoryContextData<GuidanceRow>, null),
+        Functions: contextStateFromData(f as MemoryContextData<FunctionRow>, null),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load memory data');
@@ -139,6 +158,8 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
       Transcripts: emptyState(),
       Knowledge: emptyState(),
       Tasks: emptyState(),
+      Guidance: emptyState(),
+      Functions: emptyState(),
     });
     setActiveContext('Contacts');
     fetchAll();
@@ -177,8 +198,8 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     const current = states[activeContext];
     if (!current.hasMore || isLoadingMore) return;
 
-    // Knowledge is merged from sub-contexts and doesn't support offset-based paging
-    if (activeContext === 'Knowledge') return;
+    // Sub-context merges don't support offset-based paging
+    if (activeContext === 'Knowledge' || activeContext === 'Functions') return;
 
     setIsLoadingMore(true);
 
@@ -218,6 +239,8 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     transcripts: states.Transcripts,
     knowledge: states.Knowledge,
     tasks: states.Tasks,
+    guidance: states.Guidance,
+    functions: states.Functions,
     isLoading,
     isLoadingMore,
     error,

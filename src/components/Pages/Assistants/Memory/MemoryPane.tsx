@@ -1,7 +1,16 @@
 'use client';
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { Loader2, RefreshCw, Users, MessageSquare, BookOpen, ListTodo } from 'lucide-react';
+import {
+  Loader2,
+  RefreshCw,
+  Users,
+  MessageSquare,
+  BookOpen,
+  ListTodo,
+  Compass,
+  Code,
+} from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
 import { useMemoryData } from '@/hooks/Assistants/useMemoryData';
@@ -25,6 +34,8 @@ const CONTEXT_ICONS: Record<MemoryContext, React.ElementType> = {
   Transcripts: MessageSquare,
   Knowledge: BookOpen,
   Tasks: ListTodo,
+  Guidance: Compass,
+  Functions: Code,
 };
 
 const SUB_TAB_CLASS = [
@@ -39,6 +50,8 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
     transcripts,
     knowledge,
     tasks,
+    guidance,
+    functions,
     isLoading,
     isLoadingMore,
     error,
@@ -71,8 +84,12 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
         return knowledge;
       case 'Tasks':
         return tasks;
+      case 'Guidance':
+        return guidance;
+      case 'Functions':
+        return functions;
     }
-  }, [activeContext, contacts, transcripts, knowledge, tasks]);
+  }, [activeContext, contacts, transcripts, knowledge, tasks, guidance, functions]);
 
   const contactMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -93,6 +110,8 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
     Transcripts: transcripts.count,
     Knowledge: knowledge.count,
     Tasks: tasks.count,
+    Guidance: guidance.count,
+    Functions: functions.count,
   };
 
   if (isLoading && !contacts.rows.length && !transcripts.rows.length) {

@@ -22,6 +22,7 @@ import { seedCreditGrantLinks } from './scenarios/credit-grant-links';
 import { seedBillingBannerStates } from './scenarios/billing-banner-states';
 import { seedUsageLedger } from './scenarios/usage-ledger';
 import { seedChatSearch } from './scenarios/chat-search';
+import { seedMemoryRich } from './scenarios/memory-rich';
 
 const SCENARIOS: Record<string, SeedScenario> = {
   'personal-workspace': seedPersonalWorkspace,
@@ -32,6 +33,7 @@ const SCENARIOS: Record<string, SeedScenario> = {
   'billing-banner-states': seedBillingBannerStates,
   'usage-ledger': seedUsageLedger,
   'chat-search': seedChatSearch,
+  'memory-rich': seedMemoryRich,
 };
 
 async function main(): Promise<void> {

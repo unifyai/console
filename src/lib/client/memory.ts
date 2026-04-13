@@ -12,6 +12,7 @@ import type {
   MemoryContextData,
   MemoryRow,
   KnowledgeRow,
+  FunctionRow,
 } from '@/types/assistants/memory';
 import { camelToSnake } from '@/utils/casing';
 
@@ -79,17 +80,19 @@ export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
 }
 
 /**
- * Knowledge is stored in sub-contexts (e.g. Knowledge/Products, Knowledge/FAQ).
- * This discovers them via the contexts API and merges rows from all tables.
+ * Generic fetcher for contexts that use sub-contexts (e.g. Knowledge/Products,
+ * Functions/Compositional). Discovers sub-contexts via the contexts API and
+ * merges rows from all tables, tagging each row with a `_table` field.
  */
-export async function fetchKnowledgeTables(
+async function fetchSubContextTables<T extends MemoryRow>(
   ownerId: string,
-  assistantId: string
-): Promise<MemoryContextData<KnowledgeRow>> {
-  const empty: MemoryContextData<KnowledgeRow> = { rows: [], count: 0, fields: [] };
+  assistantId: string,
+  parentContext: string
+): Promise<MemoryContextData<T>> {
+  const empty: MemoryContextData<T> = { rows: [], count: 0, fields: [] };
 
   try {
-    const prefix = `${ownerId}/${assistantId}/Knowledge`;
+    const prefix = `${ownerId}/${assistantId}/${parentContext}`;
     const ctxRes = await fetch(`/api/context/Assistants`, { cache: 'no-store' });
 
     if (!ctxRes.ok) return empty;
@@ -97,12 +100,12 @@ export async function fetchKnowledgeTables(
     const allContexts: string[] = await ctxRes.json();
     if (!Array.isArray(allContexts)) return empty;
 
-    const knowledgeContexts = allContexts.filter((c) => c.startsWith(prefix + '/') && c !== prefix);
+    const subContexts = allContexts.filter((c) => c.startsWith(prefix + '/') && c !== prefix);
 
-    if (knowledgeContexts.length === 0) return empty;
+    if (subContexts.length === 0) return empty;
 
     const results = await Promise.all(
-      knowledgeContexts.map(async (fullCtx) => {
+      subContexts.map(async (fullCtx) => {
         const tableName = fullCtx.slice(prefix.length + 1);
         const params = new URLSearchParams({
           projectName: 'Assistants',
@@ -114,16 +117,16 @@ export async function fetchKnowledgeTables(
         if (!res.ok) return null;
 
         const data = await res.json();
-        const parsed = parseLogsResponse<KnowledgeRow>(data);
+        const parsed = parseLogsResponse<T>(data);
         return {
           ...parsed,
           // eslint-disable-next-line @typescript-eslint/naming-convention
-          rows: parsed.rows.map((row) => ({ _table: tableName, ...row })),
+          rows: parsed.rows.map((row) => ({ _table: tableName, ...row }) as T),
         };
       })
     );
 
-    const allRows: KnowledgeRow[] = [];
+    const allRows: T[] = [];
     const allFields = new Set<string>();
     allFields.add('_table');
     let totalCount = 0;
@@ -139,4 +142,18 @@ export async function fetchKnowledgeTables(
   } catch {
     return empty;
   }
+}
+
+export function fetchKnowledgeTables(
+  ownerId: string,
+  assistantId: string
+): Promise<MemoryContextData<KnowledgeRow>> {
+  return fetchSubContextTables<KnowledgeRow>(ownerId, assistantId, 'Knowledge');
+}
+
+export function fetchFunctionsTables(
+  ownerId: string,
+  assistantId: string
+): Promise<MemoryContextData<FunctionRow>> {
+  return fetchSubContextTables<FunctionRow>(ownerId, assistantId, 'Functions');
 }

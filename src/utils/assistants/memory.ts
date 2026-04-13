@@ -12,6 +12,8 @@ import type {
   TranscriptRow,
   KnowledgeRow,
   TaskRow,
+  GuidanceRow,
+  FunctionRow,
 } from '@/types/assistants/memory';
 
 function truncate(value: unknown, max = 120): string {
@@ -98,6 +100,18 @@ export const TASK_COLUMNS: ColumnDef<TaskRow>[] = [
   col<TaskRow>('createdAt', 'Created', { formatter: formatTimestamp }),
 ];
 
+export const GUIDANCE_COLUMNS: ColumnDef<GuidanceRow>[] = [
+  col<GuidanceRow>('title', 'Title'),
+  col<GuidanceRow>('content', 'Content', { formatter: (v) => truncate(v, 200) }),
+];
+
+export const FUNCTION_COLUMNS: ColumnDef<FunctionRow>[] = [
+  col<FunctionRow>('name', 'Name'),
+  col<FunctionRow>('language', 'Language'),
+  col<FunctionRow>('argspec', 'Args', { formatter: (v) => truncate(v, 80) }),
+  col<FunctionRow>('docstring', 'Description', { formatter: (v) => truncate(v, 120) }),
+];
+
 /**
  * Builds dynamic columns for Knowledge rows (schema varies per assistant).
  * Uses the discovered field names from the API response.
@@ -117,6 +131,10 @@ export function getColumnsForContext(context: MemoryContext, fields?: string[]) 
       return buildKnowledgeColumns(fields ?? []);
     case 'Tasks':
       return TASK_COLUMNS;
+    case 'Guidance':
+      return GUIDANCE_COLUMNS;
+    case 'Functions':
+      return buildKnowledgeColumns(fields ?? []);
   }
 }
 
@@ -125,6 +143,8 @@ export const MEMORY_CONTEXT_LABELS: Record<MemoryContext, string> = {
   Transcripts: 'Transcripts',
   Knowledge: 'Knowledge',
   Tasks: 'Tasks',
+  Guidance: 'Guidance',
+  Functions: 'Functions',
 };
 
 const TIMESTAMP_KEYS = new Set([
