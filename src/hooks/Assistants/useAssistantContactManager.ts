@@ -7,7 +7,11 @@ import {
   AssistantActions,
   ContactFormData,
 } from '@/types/assistants/assistant';
-import { ContactCosts, AssistantContactCreatePayload, ContactType } from '@/types/assistants/contact';
+import {
+  ContactCosts,
+  AssistantContactCreatePayload,
+  ContactType,
+} from '@/types/assistants/contact';
 import { ResponseProps } from '@/types/common';
 import {
   EMAIL_DOMAIN_WITH_AT,

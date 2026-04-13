@@ -274,7 +274,12 @@ export async function openContactManagerFromList(
   await listItem.hover();
   await page.waitForTimeout(500);
 
-  const labelMap = { email: 'Add Email', phone: 'Add Phone', whatsapp: 'Add WhatsApp', discord: 'Add Discord' };
+  const labelMap = {
+    email: 'Add Email',
+    phone: 'Add Phone',
+    whatsapp: 'Add WhatsApp',
+    discord: 'Add Discord',
+  };
   const label = labelMap[tab];
   await page.getByRole('button', { name: label }).click();
   await page.waitForTimeout(500);
