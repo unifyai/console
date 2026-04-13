@@ -118,7 +118,9 @@ export const FUNCTION_COLUMNS: ColumnDef<FunctionRow>[] = [
  */
 export function buildKnowledgeColumns(fields: string[]): ColumnDef<KnowledgeRow>[] {
   if (fields.length === 0) return [];
-  return fields.map((field) => col<KnowledgeRow>(field as string & keyof KnowledgeRow, field));
+  return fields
+    .filter((f) => !f.startsWith('_'))
+    .map((field) => col<KnowledgeRow>(field as string & keyof KnowledgeRow, field));
 }
 
 export function getColumnsForContext(context: MemoryContext, fields?: string[]) {

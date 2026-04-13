@@ -28,12 +28,7 @@ export function MemoryRowDetail({ row, context, onClose }: MemoryRowDetailProps)
   const displayRow = row ?? snapshot;
 
   const entries = React.useMemo(
-    () =>
-      displayRow
-        ? Object.entries(displayRow).filter(
-            ([k, v]) => v !== null && v !== undefined && v !== '' && !k.startsWith('_')
-          )
-        : [],
+    () => (displayRow ? Object.entries(displayRow).filter(([k]) => !k.startsWith('_')) : []),
     [displayRow]
   );
 

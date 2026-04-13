@@ -97,10 +97,19 @@ async function fetchSubContextTables<T extends MemoryRow>(
 
     if (!ctxRes.ok) return empty;
 
-    const allContexts: string[] = await ctxRes.json();
-    if (!Array.isArray(allContexts)) return empty;
+    const raw: unknown = await ctxRes.json();
 
-    const subContexts = allContexts.filter((c) => c.startsWith(prefix + '/') && c !== prefix);
+    // Orchestra returns contexts as { name, description }[] — extract names.
+    let allContextNames: string[];
+    if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'object' && raw[0] !== null) {
+      allContextNames = raw.map((c: any) => c.name as string).filter(Boolean);
+    } else if (Array.isArray(raw)) {
+      allContextNames = raw as string[];
+    } else {
+      return empty;
+    }
+
+    const subContexts = allContextNames.filter((c) => c.startsWith(prefix + '/') && c !== prefix);
 
     if (subContexts.length === 0) return empty;
 
