@@ -194,7 +194,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
 
       setStates((prev) => ({
         ...prev,
-        [activeContext]: { ...prev[activeContext], sorting: newSorting },
+        [activeContext]: { ...prev[activeContext], rows: [], sorting: newSorting },
       }));
       setIsLoading(true);
 
@@ -236,7 +236,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
 
       setStates((prev) => ({
         ...prev,
-        [activeContext]: { ...prev[activeContext], filterExpr, searchQuery: trimmed },
+        [activeContext]: { ...prev[activeContext], rows: [], filterExpr, searchQuery: trimmed },
       }));
       setIsLoading(true);
 
@@ -269,7 +269,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
 
     setStates((prev) => ({
       ...prev,
-      [activeContext]: { ...prev[activeContext], filterExpr: null, searchQuery: '' },
+      [activeContext]: { ...prev[activeContext], rows: [], filterExpr: null, searchQuery: '' },
     }));
     setIsLoading(true);
 
