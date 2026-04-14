@@ -22,6 +22,37 @@ import { ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const SKELETON_ROW_WIDTHS = [
+  ['40%', '60%', '30%', '55%', '45%', '35%'],
+  ['55%', '45%', '50%', '40%', '60%', '30%'],
+  ['35%', '50%', '65%', '45%', '35%', '55%'],
+  ['60%', '35%', '45%', '50%', '40%', '65%'],
+  ['45%', '55%', '35%', '60%', '50%', '40%'],
+  ['50%', '40%', '55%', '35%', '65%', '45%'],
+  ['30%', '65%', '40%', '55%', '45%', '50%'],
+  ['65%', '30%', '50%', '45%', '55%', '35%'],
+];
+
+function SkeletonBar({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return <div className={cn('animate-pulse rounded-md bg-muted', className)} style={style} />;
+}
+
+function SkeletonRows({ columns }: { columns: number }) {
+  return (
+    <>
+      {SKELETON_ROW_WIDTHS.map((widths, i) => (
+        <TableRow key={i}>
+          {Array.from({ length: columns }, (_, j) => (
+            <TableCell key={j} className="px-3 py-1.5">
+              <SkeletonBar className="h-4" style={{ width: widths[j % widths.length] }} />
+            </TableCell>
+          ))}
+        </TableRow>
+      ))}
+    </>
+  );
+}
+
 interface MemoryTableProps<TData> {
   data: TData[];
   columns: ColumnDef<TData, any>[];
@@ -142,7 +173,9 @@ export function MemoryTable<TData>({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.length > 0 ? (
+            {isLoading && table.getRowModel().rows.length === 0 ? (
+              <SkeletonRows columns={columns.length} />
+            ) : table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
@@ -163,9 +196,7 @@ export function MemoryTable<TData>({
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  <span className="text-body-muted text-sm">
-                    {isLoading ? 'Loading…' : emptyMessage}
-                  </span>
+                  <span className="text-body-muted text-sm">{emptyMessage}</span>
                 </TableCell>
               </TableRow>
             )}

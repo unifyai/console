@@ -1,16 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useCallback } from 'react';
-import {
-  Loader2,
-  RefreshCw,
-  Users,
-  MessageSquare,
-  BookOpen,
-  ListTodo,
-  Compass,
-  Code,
-} from 'lucide-react';
+import { RefreshCw, Users, MessageSquare, BookOpen, ListTodo, Compass, Code } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
 import { useMemoryData } from '@/hooks/Assistants/useMemoryData';
@@ -113,18 +104,6 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
     Guidance: guidance.count,
     Functions: functions.count,
   };
-
-  if (isLoading && !contacts.rows.length && !transcripts.rows.length) {
-    return (
-      <div
-        className="flex h-full flex-1 items-center justify-center text-muted-foreground"
-        data-testid="memory-loading"
-      >
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-        <span className="text-body-muted">Loading memory…</span>
-      </div>
-    );
-  }
 
   if (error) {
     return (

@@ -173,7 +173,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
 
       setStates((prev) => ({
         ...prev,
-        [activeContext]: { ...prev[activeContext], rows: [], hasMore: false, sorting: newSorting },
+        [activeContext]: { ...prev[activeContext], sorting: newSorting },
       }));
       setIsLoading(true);
 
