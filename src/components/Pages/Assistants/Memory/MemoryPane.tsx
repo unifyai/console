@@ -1,7 +1,17 @@
 'use client';
 
-import React, { useMemo, useState, useCallback } from 'react';
-import { RefreshCw, Users, MessageSquare, BookOpen, ListTodo, Compass, Code } from 'lucide-react';
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
+import {
+  RefreshCw,
+  Users,
+  MessageSquare,
+  BookOpen,
+  ListTodo,
+  Compass,
+  Code,
+  Search,
+  X,
+} from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
 import { useMemoryData } from '@/hooks/Assistants/useMemoryData';
@@ -29,10 +39,10 @@ const CONTEXT_ICONS: Record<MemoryContext, React.ElementType> = {
   Functions: Code,
 };
 
-const SUB_TAB_CLASS = [
-  'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium',
+const TAB_CLASS = [
+  'inline-flex items-center gap-1.5 border-t-2 px-3 py-1.5 text-xs font-medium',
   'text-muted-foreground transition-colors hover:text-foreground',
-  'data-[active=true]:bg-muted data-[active=true]:text-foreground',
+  'border-transparent data-[active=true]:border-foreground data-[active=true]:text-foreground',
 ].join(' ');
 
 export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
@@ -49,21 +59,16 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
     activeContext,
     setActiveContext,
     sort,
+    search,
+    clearSearch,
     loadMore,
     refetch,
   } = useMemoryData({ ownerId, assistantId });
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedRow, setSelectedRow] = useState<Record<string, unknown> | null>(null);
-
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      await refetch();
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [refetch]);
+  const [searchValue, setSearchValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const activeState = useMemo(() => {
     switch (activeContext) {
@@ -81,6 +86,41 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
         return functions;
     }
   }, [activeContext, contacts, transcripts, knowledge, tasks, guidance, functions]);
+
+  // Sync search input with the active context's stored query
+  useEffect(() => {
+    setSearchValue(activeState.searchQuery);
+  }, [activeContext]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+      setSearchValue('');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refetch]);
+
+  const handleSearchSubmit = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        const val = searchValue.trim();
+        if (val) {
+          search(val);
+        } else {
+          clearSearch();
+        }
+      }
+    },
+    [searchValue, search, clearSearch]
+  );
+
+  const handleClearSearch = useCallback(() => {
+    setSearchValue('');
+    clearSearch();
+    inputRef.current?.focus();
+  }, [clearSearch]);
 
   const contactMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -105,6 +145,8 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
     Functions: functions.count,
   };
 
+  const isFiltered = !!activeState.filterExpr;
+
   if (error) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
@@ -118,36 +160,40 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
 
   return (
     <div className="flex h-full flex-col" data-testid="memory-pane">
-      {/* Header — sub-tabs + refresh */}
+      {/* Header — search + refresh */}
       <div
-        className="flex shrink-0 items-center justify-between border-b px-3 py-1.5"
+        className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5"
         data-testid="memory-header"
       >
-        <div className="flex items-center gap-1" data-testid="memory-sub-tabs">
-          {(Object.keys(MEMORY_CONTEXT_LABELS) as MemoryContext[]).map((ctx) => {
-            const Icon = CONTEXT_ICONS[ctx];
-            return (
-              <button
-                key={ctx}
-                className={SUB_TAB_CLASS}
-                data-active={activeContext === ctx}
-                data-testid={`memory-tab-${ctx.toLowerCase()}`}
-                onClick={() => setActiveContext(ctx)}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{MEMORY_CONTEXT_LABELS[ctx]}</span>
-                {counts[ctx] > 0 && (
-                  <span className="tabular-nums text-muted-foreground">({counts[ctx]})</span>
-                )}
-              </button>
-            );
-          })}
+        <div className="relative max-w-xs flex-1">
+          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            ref={inputRef}
+            type="text"
+            className="h-7 w-full rounded-md border bg-transparent pl-7 pr-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            placeholder="Search…"
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            onKeyDown={handleSearchSubmit}
+            data-testid="memory-search"
+          />
+          {isFiltered && (
+            <button
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
+              onClick={handleClearSearch}
+              data-testid="memory-search-clear"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
+
+        <div className="flex-1" />
 
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7"
+          className="h-7 w-7 shrink-0"
           onClick={handleRefresh}
           disabled={isRefreshing}
           data-testid="memory-refresh"
@@ -161,17 +207,58 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
         <MemoryTable<MemoryRow>
           data={activeState.rows}
           columns={columns as ColumnDef<MemoryRow, any>[]}
-          totalCount={activeState.count}
           isLoading={isLoading}
           isLoadingMore={isLoadingMore}
           hasMore={activeState.hasMore}
-          emptyMessage={`No ${MEMORY_CONTEXT_LABELS[activeContext].toLowerCase()} found.`}
+          emptyMessage={
+            isFiltered
+              ? 'No results match your search.'
+              : `No ${MEMORY_CONTEXT_LABELS[activeContext].toLowerCase()} found.`
+          }
           onRowClick={(row) => setSelectedRow(row as Record<string, unknown>)}
           onSort={sort}
           onLoadMore={loadMore}
           serverSorting={activeState.sorting}
           testId={`memory-table-${activeContext.toLowerCase()}`}
         />
+      </div>
+
+      {/* Footer — sub-tabs (left) + row count (right) */}
+      <div
+        className="flex shrink-0 items-center justify-between border-t"
+        data-testid="memory-footer"
+      >
+        <div className="flex items-center overflow-x-auto" data-testid="memory-sub-tabs">
+          {(Object.keys(MEMORY_CONTEXT_LABELS) as MemoryContext[]).map((ctx) => {
+            const Icon = CONTEXT_ICONS[ctx];
+            return (
+              <button
+                key={ctx}
+                className={TAB_CLASS}
+                data-active={activeContext === ctx}
+                data-testid={`memory-tab-${ctx.toLowerCase()}`}
+                onClick={() => setActiveContext(ctx)}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{MEMORY_CONTEXT_LABELS[ctx]}</span>
+                <span className="tabular-nums text-muted-foreground sm:hidden">
+                  {counts[ctx] > 0 ? counts[ctx] : ''}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {activeState.rows.length > 0 && (
+          <span
+            className="text-caption hidden shrink-0 px-3 py-1.5 sm:inline"
+            data-testid="memory-table-footer"
+          >
+            {activeState.rows.length} of {activeState.count}{' '}
+            {activeState.count === 1 ? 'row' : 'rows'}
+            {activeState.hasMore && ' · scroll for more'}
+          </span>
+        )}
       </div>
 
       <MemoryRowDetail

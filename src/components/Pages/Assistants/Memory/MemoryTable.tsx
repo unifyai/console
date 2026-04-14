@@ -56,7 +56,6 @@ function SkeletonRows({ columns }: { columns: number }) {
 interface MemoryTableProps<TData> {
   data: TData[];
   columns: ColumnDef<TData, any>[];
-  totalCount: number;
   isLoading?: boolean;
   isLoadingMore?: boolean;
   hasMore?: boolean;
@@ -77,7 +76,6 @@ function SortIcon({ direction }: { direction: false | SortDirection }) {
 export function MemoryTable<TData>({
   data,
   columns,
-  totalCount,
   isLoading,
   isLoadingMore,
   hasMore,
@@ -140,8 +138,6 @@ export function MemoryTable<TData>({
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [onLoadMore, hasMore, isLoadingMore]);
-
-  const rowCount = data.length;
 
   return (
     <div className="flex h-full flex-col" data-testid={testId}>
@@ -215,19 +211,6 @@ export function MemoryTable<TData>({
 
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
-
-      {/* Footer — count */}
-      {rowCount > 0 && (
-        <div
-          className="flex shrink-0 items-center justify-between border-t px-3 py-1.5"
-          data-testid="memory-table-footer"
-        >
-          <span className="text-caption">
-            {rowCount} of {totalCount} {totalCount === 1 ? 'row' : 'rows'}
-          </span>
-          {hasMore && <span className="text-caption">Scroll for more</span>}
-        </div>
-      )}
     </div>
   );
 }

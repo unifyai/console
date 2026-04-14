@@ -41,6 +41,19 @@ export function buildSortingParam(field: string, direction: 'asc' | 'desc'): str
   return JSON.stringify({ [snakeField]: direction === 'asc' ? 'ascending' : 'descending' });
 }
 
+/**
+ * Build an Orchestra filter expression for a text search across all known
+ * fields. Uses `"value" in str(field)` per field joined with `or`,
+ * matching the Interfaces common filter pattern.
+ */
+export function buildSearchFilterExpr(query: string, fields: string[]): string {
+  const escaped = query.replace(/"/g, '\\"');
+  const value = `"${escaped}"`;
+  if (fields.length === 0) return `${value} in str(entries)`;
+  const snakeFields = fields.filter((f) => !f.startsWith('_')).map(camelToSnake);
+  return snakeFields.map((f) => `${value} in str(${f})`).join(' or ');
+}
+
 export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
   ownerId: string,
   assistantId: string,

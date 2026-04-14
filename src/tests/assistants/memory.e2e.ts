@@ -614,6 +614,117 @@ test('footer shows loaded count vs total count', async ({ authedPage: page }) =>
 });
 
 // ===========================================================================
+// Search / Filtering
+// ===========================================================================
+
+test('searching contacts filters results server-side', async ({ authedPage: page }) => {
+  await ensureSeeded();
+  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+
+  const searchInput = page.getByTestId('memory-search');
+  await expect(searchInput).toBeVisible({ timeout: 5_000 });
+
+  // Wait for data to load
+  const footer = page.getByTestId('memory-table-footer');
+  await expect(footer).toBeVisible({ timeout: 10_000 });
+  await expect(footer).toContainText('3 of 3');
+
+  // Search for "Alice" — should match 1 contact
+  await searchInput.fill('Alice');
+  await searchInput.press('Enter');
+
+  // Wait for filtered results
+  await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
+
+  // Should see Alice's row
+  const rows = page.getByTestId('memory-table-row');
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText('Alice');
+});
+
+test('clear button removes search filter', async ({ authedPage: page }) => {
+  await ensureSeeded();
+  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+
+  const searchInput = page.getByTestId('memory-search');
+  const footer = page.getByTestId('memory-table-footer');
+  await expect(footer).toBeVisible({ timeout: 10_000 });
+
+  // Apply a filter
+  await searchInput.fill('Alice');
+  await searchInput.press('Enter');
+  await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
+
+  // Clear button should be visible
+  const clearBtn = page.getByTestId('memory-search-clear');
+  await expect(clearBtn).toBeVisible({ timeout: 3_000 });
+
+  // Click clear — all rows should return
+  await clearBtn.click();
+  await expect(footer).toContainText('3 of 3', { timeout: 10_000 });
+  await expect(clearBtn).not.toBeVisible();
+});
+
+test('search is case-insensitive', async ({ authedPage: page }) => {
+  await ensureSeeded();
+  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+
+  const searchInput = page.getByTestId('memory-search');
+  const footer = page.getByTestId('memory-table-footer');
+  await expect(footer).toBeVisible({ timeout: 10_000 });
+
+  // Search lowercase "alice" should still match "Alice"
+  await searchInput.fill('alice');
+  await searchInput.press('Enter');
+  await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
+});
+
+test('search with no results shows empty message', async ({ authedPage: page }) => {
+  await ensureSeeded();
+  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+
+  const searchInput = page.getByTestId('memory-search');
+  const footer = page.getByTestId('memory-table-footer');
+  await expect(footer).toBeVisible({ timeout: 10_000 });
+
+  // Search for a term that doesn't match anything
+  await searchInput.fill('xyznonexistent');
+  await searchInput.press('Enter');
+
+  // Footer should disappear (no rows), empty message should show
+  await expect(footer).not.toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('text=No results match your search.')).toBeVisible({ timeout: 5_000 });
+});
+
+test('search query persists when switching tabs and back', async ({ authedPage: page }) => {
+  await ensureSeeded();
+  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+
+  const searchInput = page.getByTestId('memory-search');
+  const footer = page.getByTestId('memory-table-footer');
+  await expect(footer).toBeVisible({ timeout: 10_000 });
+
+  // Search for "Alice" in Contacts
+  await searchInput.fill('Alice');
+  await searchInput.press('Enter');
+  await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
+
+  // Switch to Transcripts
+  await page.getByTestId('memory-tab-transcripts').click();
+  await page.waitForTimeout(1_000);
+
+  // Search input should be empty (Transcripts has no filter)
+  await expect(searchInput).toHaveValue('');
+
+  // Switch back to Contacts — query should be restored
+  await page.getByTestId('memory-tab-contacts').click();
+  await expect(searchInput).toHaveValue('Alice', { timeout: 3_000 });
+
+  // Filtered results should still be showing
+  await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
+});
+
+// ===========================================================================
 // Backend Data Verification
 // ===========================================================================
 
