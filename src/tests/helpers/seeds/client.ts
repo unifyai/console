@@ -21,7 +21,24 @@ import type { OrgRole, SeededUser, SeededOrg, SeededAssistant, SeededSecret } fr
 
 const DB_CONTAINER = process.env.ORCHESTRA_DB_CONTAINER || 'orchestra-local-db';
 const CONSOLE_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-const ORCHESTRA_BASE_URL = process.env.ORCHESTRA_URL || 'http://127.0.0.1:8000';
+
+/**
+ * Orchestra base URL must be the API **origin** only (no `/v0` suffix).
+ * Call sites append paths like `/v0/logs`. Local `scripts/local.sh` exports
+ * `UNIFY_BASE_URL=…/v0`; if that is copied into `ORCHESTRA_URL`, naive
+ * concatenation becomes `/v0/v0/...` and FastAPI returns 404 `{"detail":"Not Found"}`.
+ */
+function normalizeOrchestraBaseUrl(raw: string): string {
+  let base = raw.trim().replace(/\/+$/, '');
+  if (base.endsWith('/v0')) {
+    base = base.slice(0, -3);
+  }
+  return base;
+}
+
+const ORCHESTRA_BASE_URL = normalizeOrchestraBaseUrl(
+  process.env.ORCHESTRA_URL || 'http://127.0.0.1:8000'
+);
 const API_TIMEOUT = 30_000;
 
 // =============================================================================

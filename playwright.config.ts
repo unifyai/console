@@ -1,4 +1,60 @@
+/// <reference types="node" />
+
 import { defineConfig, devices } from '@playwright/test';
+import { loadEnvConfig } from '@next/env';
+
+/**
+ * Parse one dotenv-style file into key/value pairs.
+ *
+ * We only need the subset used by the local test harness, so a minimal parser is
+ * enough here and avoids adding more runtime dependencies to the Playwright boot
+ * path.
+ */
+function parseEnvFileContents(contents: string): Record<string, string> {
+  const parsed: Record<string, string> = {};
+  for (const rawLine of contents.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+
+    const normalized = line.startsWith('export ') ? line.slice('export '.length) : line;
+    const separatorIndex = normalized.indexOf('=');
+    if (separatorIndex <= 0) continue;
+
+    const key = normalized.slice(0, separatorIndex).trim();
+    let value = normalized.slice(separatorIndex + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    parsed[key] = value;
+  }
+  return parsed;
+}
+
+/**
+ * Resolve the same env files as `next dev` (.env.local, .env.development, .env).
+ *
+ * Cursor shells often already export cloud/staging vars such as `ORCHESTRA_URL`.
+ * `@next/env` intentionally preserves those existing values, but the local
+ * Playwright harness needs repo env files to win so it seeds the same local
+ * Orchestra instance that `next dev` is using.
+ */
+const nodeEnvBefore = process.env.NODE_ENV;
+process.env.NODE_ENV = 'development';
+const { loadedEnvFiles } = loadEnvConfig(process.cwd(), true, console, true);
+for (const envFile of [...loadedEnvFiles].reverse()) {
+  const parsed = parseEnvFileContents(envFile.contents);
+  for (const [key, value] of Object.entries(parsed)) {
+    process.env[key] = value;
+  }
+}
+if (nodeEnvBefore !== undefined) {
+  process.env.NODE_ENV = nodeEnvBefore;
+} else {
+  delete process.env.NODE_ENV;
+}
 
 /**
  * Playwright E2E test configuration

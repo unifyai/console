@@ -62,7 +62,7 @@ export interface UseMemoryDataResult {
   taskActivations: ContextState<TaskActivationRow>;
   taskRuns: ContextState<TaskRunRow>;
   tasksSnapshotLastLoadedAt: number | null;
-  tasksSnapshotHasRunningLiveRun: boolean;
+  tasksSnapshotHasRunningTaskRun: boolean;
   guidance: ContextState<GuidanceRow>;
   functions: ContextState<FunctionRow>;
   isLoading: boolean;
@@ -109,8 +109,8 @@ function contextStateFromData<T extends MemoryRow>(
   };
 }
 
-function hasRunningLiveTaskRun(data: MemoryContextData<TaskRunRow>): boolean {
-  return data.rows.some((row) => row.state === 'running' && row.executionMode === 'live');
+function hasRunningTaskRun(data: MemoryContextData<TaskRunRow>): boolean {
+  return data.rows.some((row) => row.state === 'running');
 }
 
 type TaskActivationKey = 'Tasks/Activations';
@@ -183,7 +183,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
   const [tasksSnapshotLastLoadedAt, setTasksSnapshotLastLoadedAt] = React.useState<number | null>(
     null
   );
-  const [tasksSnapshotHasRunningLiveRun, setTasksSnapshotHasRunningLiveRun] = React.useState(false);
+  const [tasksSnapshotHasRunningTaskRun, setTasksSnapshotHasRunningTaskRun] = React.useState(false);
 
   const activeKey = React.useMemo(
     () => getActiveKey(activeContext, taskView),
@@ -241,8 +241,8 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
       ),
     }));
     setTasksSnapshotLastLoadedAt(loadedAt);
-    setTasksSnapshotHasRunningLiveRun(
-      hasRunningLiveTaskRun(taskRunsData as MemoryContextData<TaskRunRow>)
+    setTasksSnapshotHasRunningTaskRun(
+      hasRunningTaskRun(taskRunsData as MemoryContextData<TaskRunRow>)
     );
   }, [assistantId, ownerId, states]);
 
@@ -318,7 +318,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
         ),
       });
       setTasksSnapshotLastLoadedAt(loadedAt);
-      setTasksSnapshotHasRunningLiveRun(hasRunningLiveTaskRun(tr as MemoryContextData<TaskRunRow>));
+      setTasksSnapshotHasRunningTaskRun(hasRunningTaskRun(tr as MemoryContextData<TaskRunRow>));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load memory data');
     } finally {
@@ -340,7 +340,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     setActiveContext('Contacts');
     setTaskView('Definitions');
     setTasksSnapshotLastLoadedAt(null);
-    setTasksSnapshotHasRunningLiveRun(false);
+    setTasksSnapshotHasRunningTaskRun(false);
     fetchAll();
   }, [fetchAll]);
 
@@ -534,7 +534,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     taskActivations: states['Tasks/Activations'],
     taskRuns: states['Tasks/Runs'],
     tasksSnapshotLastLoadedAt,
-    tasksSnapshotHasRunningLiveRun,
+    tasksSnapshotHasRunningTaskRun,
     guidance: states.Guidance,
     functions: states.Functions,
     isLoading,

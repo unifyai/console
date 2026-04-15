@@ -66,10 +66,10 @@ function formatSnapshotAge(timestamp: number | null, now: number): string {
 function formatTaskSnapshotStatus(
   timestamp: number | null,
   now: number,
-  hasRunningLiveRun: boolean
+  hasRunningTaskRun: boolean
 ): string {
   const freshness = formatSnapshotAge(timestamp, now);
-  return hasRunningLiveRun ? `Working, ${freshness}` : freshness;
+  return hasRunningTaskRun ? `Working, ${freshness}` : freshness;
 }
 
 function getTaskEmptyState(
@@ -113,7 +113,7 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
     taskActivations,
     taskRuns,
     tasksSnapshotLastLoadedAt,
-    tasksSnapshotHasRunningLiveRun,
+    tasksSnapshotHasRunningTaskRun,
     guidance,
     functions,
     isLoading,
@@ -269,8 +269,9 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
   const snapshotStatus = formatTaskSnapshotStatus(
     tasksSnapshotLastLoadedAt,
     now,
-    tasksSnapshotHasRunningLiveRun
+    tasksSnapshotHasRunningTaskRun
   );
+  const showTaskWorkingIndicator = tasksSnapshotHasRunningTaskRun;
   const getRowEmphasis = useCallback(
     (row: MemoryRow) => {
       if (activeContext !== 'Tasks' || taskView !== 'Runs') return undefined;
@@ -361,10 +362,16 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
           </div>
 
           <span
-            className="hidden shrink-0 text-[11px] text-muted-foreground sm:inline"
+            className="text-caption hidden shrink-0 items-center gap-1.5 text-muted-foreground sm:inline-flex"
             data-testid="memory-task-snapshot-status"
           >
-            {snapshotStatus}
+            {showTaskWorkingIndicator ? (
+              <span
+                className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500/80"
+                data-testid="memory-task-snapshot-working-indicator"
+              />
+            ) : null}
+            <span>{snapshotStatus}</span>
           </span>
         </div>
       )}

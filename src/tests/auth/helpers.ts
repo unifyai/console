@@ -5,8 +5,9 @@
  *   - Console running at http://localhost:3000
  *   - Orchestra running at http://localhost:8000
  *   - PostgreSQL (orchestra-local-db container)
- *   - Console must have ORCHESTRA_URL=http://127.0.0.1:8000
- *     (local.sh sets this automatically)
+ *   - Console and Playwright seeds must use ORCHESTRA_URL as the API **origin**
+ *     only, e.g. http://127.0.0.1:8000 — not …/v0 (local.sh’s UNIFY_BASE_URL includes /v0;
+ *     do not copy that value into ORCHESTRA_URL).
  */
 
 import { expect, type Page } from '@playwright/test';
