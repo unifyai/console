@@ -15,10 +15,11 @@ import type { MemoryContext } from '@/types/assistants/memory';
 interface MemoryRowDetailProps {
   row: Record<string, unknown> | null;
   context: MemoryContext;
+  title?: string;
   onClose: () => void;
 }
 
-export function MemoryRowDetail({ row, context, onClose }: MemoryRowDetailProps) {
+export function MemoryRowDetail({ row, context, title, onClose }: MemoryRowDetailProps) {
   const [snapshot, setSnapshot] = React.useState<Record<string, unknown> | null>(null);
 
   React.useEffect(() => {
@@ -48,7 +49,7 @@ export function MemoryRowDetail({ row, context, onClose }: MemoryRowDetailProps)
         }}
       >
         <SheetHeader className="shrink-0">
-          <SheetTitle>{MEMORY_CONTEXT_LABELS[context]} Detail</SheetTitle>
+          <SheetTitle>{title ?? `${MEMORY_CONTEXT_LABELS[context]} Detail`}</SheetTitle>
           <SheetDescription>
             {entries.length} {entries.length === 1 ? 'field' : 'fields'}
           </SheetDescription>

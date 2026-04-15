@@ -22,6 +22,8 @@ export type MemoryContext =
   | 'Guidance'
   | 'Functions';
 
+export type TaskMemoryView = 'Definitions' | 'Activations' | 'Runs';
+
 export interface ContactRow {
   contactId: number;
   firstName: string | null;
@@ -59,6 +61,43 @@ export interface TaskRow {
   triggerType: string | null;
   nextDueAt: string | null;
   createdAt: string | null;
+  [key: string]: unknown;
+}
+
+export interface TaskActivationRow {
+  activationKey: string | null;
+  taskId: number | null;
+  assistantId: string | null;
+  activationKind: string | null;
+  executionMode: string | null;
+  status: string | null;
+  taskName: string | null;
+  taskDescription: string | null;
+  nextDueAt: string | null;
+  triggerMedium: string | null;
+  activationRevision: string | null;
+  lastMaterializedAt: string | null;
+  [key: string]: unknown;
+}
+
+export interface TaskRunRow {
+  runId: number | null;
+  runKey: string | null;
+  taskId: number | null;
+  assistantId: string | null;
+  sourceType: string | null;
+  executionMode: string | null;
+  state: string | null;
+  scheduledFor: string | null;
+  sourceMedium: string | null;
+  sourceRef: string | null;
+  sourceContactId: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  jobName: string | null;
+  resultSummary: string | null;
+  error: string | null;
+  [key: string]: unknown;
 }
 
 export interface GuidanceRow {
@@ -82,6 +121,8 @@ export type MemoryRow =
   | TranscriptRow
   | KnowledgeRow
   | TaskRow
+  | TaskActivationRow
+  | TaskRunRow
   | GuidanceRow
   | FunctionRow;
 
@@ -96,6 +137,8 @@ export interface MemoryPaneData {
   transcripts: MemoryContextData<TranscriptRow>;
   knowledge: MemoryContextData<KnowledgeRow>;
   tasks: MemoryContextData<TaskRow>;
+  taskActivations: MemoryContextData<TaskActivationRow>;
+  taskRuns: MemoryContextData<TaskRunRow>;
   guidance: MemoryContextData<GuidanceRow>;
   functions: MemoryContextData<FunctionRow>;
 }

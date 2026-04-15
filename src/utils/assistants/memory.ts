@@ -5,13 +5,17 @@
  * visible columns with display labels and optional value formatters.
  */
 
+import React from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import type {
   MemoryContext,
+  TaskMemoryView,
   ContactRow,
   TranscriptRow,
   KnowledgeRow,
   TaskRow,
+  TaskActivationRow,
+  TaskRunRow,
   GuidanceRow,
   FunctionRow,
 } from '@/types/assistants/memory';
@@ -41,7 +45,7 @@ export function formatTimestamp(value: unknown): string {
 function col<T>(
   accessorKey: string & keyof T,
   header: string,
-  opts?: { formatter?: (v: unknown) => string; minWidth?: number }
+  opts?: { formatter?: (v: unknown) => React.ReactNode; minWidth?: number }
 ): ColumnDef<T> {
   return {
     accessorKey,
@@ -52,6 +56,33 @@ function col<T>(
     },
     size: opts?.minWidth,
   };
+}
+
+function badgeTone(
+  value: string,
+  tones: Record<string, string>,
+  fallback = 'bg-muted text-muted-foreground'
+): string {
+  return tones[value.toLowerCase()] ?? fallback;
+}
+
+function badgeCell(
+  value: unknown,
+  tones: Record<string, string>,
+  fallback = 'bg-muted text-muted-foreground'
+) {
+  if (value === null || value === undefined || value === '') return '—';
+  const label = String(value);
+  return React.createElement(
+    'span',
+    {
+      className: [
+        'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
+        badgeTone(label, tones, fallback),
+      ].join(' '),
+    },
+    label
+  );
 }
 
 export const CONTACT_COLUMNS: ColumnDef<ContactRow>[] = [
@@ -100,6 +131,62 @@ export const TASK_COLUMNS: ColumnDef<TaskRow>[] = [
   col<TaskRow>('createdAt', 'Created', { formatter: formatTimestamp }),
 ];
 
+export const TASK_ACTIVATION_COLUMNS: ColumnDef<TaskActivationRow>[] = [
+  col<TaskActivationRow>('taskId', 'Task'),
+  col<TaskActivationRow>('activationKind', 'Kind', {
+    formatter: (value) =>
+      badgeCell(value, {
+        scheduled: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
+        triggered: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
+      }),
+  }),
+  col<TaskActivationRow>('executionMode', 'Mode', {
+    formatter: (value) =>
+      badgeCell(value, {
+        live: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+        offline: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+      }),
+  }),
+  col<TaskActivationRow>('status', 'Status'),
+  col<TaskActivationRow>('taskName', 'Task'),
+  col<TaskActivationRow>('nextDueAt', 'Next Due', { formatter: formatTimestamp }),
+  col<TaskActivationRow>('triggerMedium', 'Trigger'),
+  col<TaskActivationRow>('lastMaterializedAt', 'Updated', { formatter: formatTimestamp }),
+];
+
+export const TASK_RUN_COLUMNS: ColumnDef<TaskRunRow>[] = [
+  col<TaskRunRow>('taskId', 'Task'),
+  col<TaskRunRow>('state', 'State', {
+    formatter: (value) =>
+      badgeCell(value, {
+        running: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+        completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+        failed: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
+        cancelled: 'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-300',
+      }),
+  }),
+  col<TaskRunRow>('executionMode', 'Mode', {
+    formatter: (value) =>
+      badgeCell(value, {
+        live: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+        offline: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+      }),
+  }),
+  col<TaskRunRow>('sourceType', 'Source', {
+    formatter: (value) =>
+      badgeCell(value, {
+        scheduled: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
+        triggered: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
+        explicit: 'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-300',
+        queue: 'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-300',
+      }),
+  }),
+  col<TaskRunRow>('scheduledFor', 'Scheduled', { formatter: formatTimestamp }),
+  col<TaskRunRow>('sourceMedium', 'Medium'),
+  col<TaskRunRow>('startedAt', 'Started', { formatter: formatTimestamp }),
+  col<TaskRunRow>('completedAt', 'Completed', { formatter: formatTimestamp }),
+];
+
 export const GUIDANCE_COLUMNS: ColumnDef<GuidanceRow>[] = [
   col<GuidanceRow>('title', 'Title'),
   col<GuidanceRow>('content', 'Content', { formatter: (v) => truncate(v, 200) }),
@@ -137,6 +224,17 @@ export function getColumnsForContext(context: MemoryContext, fields?: string[]) 
       return GUIDANCE_COLUMNS;
     case 'Functions':
       return buildKnowledgeColumns(fields ?? []);
+  }
+}
+
+export function getColumnsForTaskView(view: TaskMemoryView, _fields?: string[]) {
+  switch (view) {
+    case 'Definitions':
+      return TASK_COLUMNS;
+    case 'Activations':
+      return TASK_ACTIVATION_COLUMNS;
+    case 'Runs':
+      return TASK_RUN_COLUMNS;
   }
 }
 

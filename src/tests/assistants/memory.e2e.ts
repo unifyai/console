@@ -140,6 +140,54 @@ async function seedTasks(
   }
 }
 
+async function seedTaskActivations(
+  apiKey: string,
+  userId: string,
+  assistantId: number,
+  activations: Record<string, unknown>[]
+) {
+  for (const activation of activations) {
+    const res = await orchestraFetch(
+      '/v0/logs',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          project_name: 'Assistants',
+          context: `${userId}/${assistantId}/Tasks/Activations`,
+          entries: [activation],
+        }),
+      },
+      apiKey
+    );
+    if (!res.ok) {
+      throw new Error(`Failed to seed task activation: ${res.status} ${await res.text()}`);
+    }
+  }
+}
+
+async function seedTaskRuns(
+  apiKey: string,
+  userId: string,
+  assistantId: number,
+  runs: Record<string, unknown>[]
+) {
+  for (const run of runs) {
+    const res = await orchestraFetch(
+      '/v0/logs',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          project_name: 'Assistants',
+          context: `${userId}/${assistantId}/Tasks/Runs`,
+          entries: [run],
+        }),
+      },
+      apiKey
+    );
+    if (!res.ok) throw new Error(`Failed to seed task run: ${res.status} ${await res.text()}`);
+  }
+}
+
 /* eslint-enable @typescript-eslint/naming-convention */
 
 let seeded = false;
@@ -216,6 +264,62 @@ async function ensureSeeded() {
       entrypoint: 'send_report',
       trigger_type: 'scheduled',
       created_at: '2025-06-02T12:00:00Z',
+    },
+  ]);
+
+  await seedTaskActivations(user.apiKey, user.id, dataAssistant.agentId, [
+    {
+      assistant_id: String(dataAssistant.agentId),
+      activation_key: `${dataAssistant.agentId}:2`,
+      task_id: 2,
+      activation_kind: 'scheduled',
+      execution_mode: 'live',
+      status: 'scheduled',
+      task_name: 'Send report',
+      next_due_at: '2025-06-02T12:30:00Z',
+      activation_revision: 'rev-task-2',
+      last_materialized_at: '2025-06-02T12:05:00Z',
+    },
+    {
+      assistant_id: String(dataAssistant.agentId),
+      activation_key: `${dataAssistant.agentId}:3`,
+      task_id: 3,
+      activation_kind: 'triggered',
+      execution_mode: 'offline',
+      status: 'triggerable',
+      task_name: 'Follow up with Alice',
+      trigger_medium: 'email',
+      activation_revision: 'rev-task-3',
+      last_materialized_at: '2025-06-03T09:15:00Z',
+    },
+  ]);
+
+  await seedTaskRuns(user.apiKey, user.id, dataAssistant.agentId, [
+    {
+      run_id: 9001,
+      run_key: 'live:scheduled:run-9001',
+      assistant_id: String(dataAssistant.agentId),
+      task_id: 2,
+      source_type: 'scheduled',
+      execution_mode: 'live',
+      state: 'running',
+      scheduled_for: '2025-06-02T12:30:00Z',
+      started_at: '2025-06-02T12:30:05Z',
+      source_medium: 'calendar',
+      job_name: 'unity-live-9001',
+    },
+    {
+      run_id: 9002,
+      run_key: 'offline:triggered:run-9002',
+      assistant_id: String(dataAssistant.agentId),
+      task_id: 3,
+      source_type: 'triggered',
+      execution_mode: 'offline',
+      state: 'completed',
+      source_medium: 'email',
+      source_contact_id: '1',
+      started_at: '2025-06-03T09:20:00Z',
+      completed_at: '2025-06-03T09:21:00Z',
     },
   ]);
 
@@ -332,9 +436,15 @@ test('displays seeded contacts in the Contacts sub-tab', async ({ authedPage: pa
   const table = page.getByTestId('memory-table-contacts');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
-  await expect(table.locator('text=Alice')).toBeVisible({ timeout: 5_000 });
-  await expect(table.locator('text=Bob')).toBeVisible({ timeout: 5_000 });
-  await expect(table.locator('text=alice@example.com')).toBeVisible({ timeout: 5_000 });
+  await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(table.getByRole('cell', { name: 'Bob', exact: true })).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(table.getByRole('cell', { name: 'alice@example.com', exact: true })).toBeVisible({
+    timeout: 5_000,
+  });
 });
 
 test('contacts sub-tab shows correct row count', async ({ authedPage: page }) => {
@@ -386,13 +496,45 @@ test('displays seeded tasks in the Tasks sub-tab', async ({ authedPage: page }) 
   await page.waitForTimeout(1_000);
 
   await expect(tasksTab).toHaveAttribute('data-active', 'true');
-  const table = page.getByTestId('memory-table-tasks');
+  await expect(page.getByTestId('memory-task-view-definitions')).toHaveAttribute(
+    'class',
+    /bg-muted/
+  );
+  const table = page.getByTestId('memory-table-tasks-definitions');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
   await expect(table.locator('text=check_calendar')).toBeVisible({ timeout: 5_000 });
   await expect(table.locator('text=send_report')).toBeVisible({ timeout: 5_000 });
-  await expect(table.locator('text=completed')).toBeVisible({ timeout: 5_000 });
-  await expect(table.locator('text=pending')).toBeVisible({ timeout: 5_000 });
+  await expect(table.getByText(/^completed$/)).toBeVisible({ timeout: 5_000 });
+  await expect(table.getByText(/^pending$/)).toBeVisible({ timeout: 5_000 });
+});
+
+test('Tasks nested views show definitions activations and runs', async ({ authedPage: page }) => {
+  await ensureSeeded();
+  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+
+  await page.getByTestId('memory-tab-tasks').click();
+  await page.waitForTimeout(1_000);
+
+  await expect(page.getByTestId('memory-task-views')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('memory-task-view-definitions')).toBeVisible();
+  await expect(page.getByTestId('memory-task-view-activations')).toBeVisible();
+  await expect(page.getByTestId('memory-task-view-runs')).toBeVisible();
+
+  await page.getByTestId('memory-task-view-activations').click();
+  await page.waitForTimeout(500);
+  const activationsTable = page.getByTestId('memory-table-tasks-activations');
+  await expect(activationsTable).toBeVisible({ timeout: 10_000 });
+  await expect(activationsTable.locator('text=Send report')).toBeVisible({ timeout: 5_000 });
+  await expect(activationsTable.getByText(/^triggered$/)).toBeVisible({ timeout: 5_000 });
+
+  await page.getByTestId('memory-task-view-runs').click();
+  await page.waitForTimeout(500);
+  const runsTable = page.getByTestId('memory-table-tasks-runs');
+  await expect(runsTable).toBeVisible({ timeout: 10_000 });
+  await expect(runsTable.getByText(/^running$/)).toBeVisible({ timeout: 5_000 });
+  await expect(runsTable.getByText(/^completed$/)).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('memory-task-snapshot-status')).toBeVisible({ timeout: 5_000 });
 });
 
 // ===========================================================================
@@ -421,14 +563,18 @@ test('switching between sub-tabs preserves data and shows correct tables', async
   // Switch to Tasks
   await page.getByTestId('memory-tab-tasks').click();
   await page.waitForTimeout(500);
-  await expect(page.getByTestId('memory-table-tasks')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('memory-table-tasks-definitions')).toBeVisible({
+    timeout: 5_000,
+  });
 
   // Switch back to Contacts — data should still be there
   await page.getByTestId('memory-tab-contacts').click();
   await page.waitForTimeout(500);
   const table = page.getByTestId('memory-table-contacts');
   await expect(table).toBeVisible({ timeout: 5_000 });
-  await expect(table.locator('text=Alice')).toBeVisible({ timeout: 3_000 });
+  await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
+    timeout: 3_000,
+  });
 });
 
 // ===========================================================================
@@ -449,7 +595,9 @@ test('refresh button triggers data refetch without errors', async ({ authedPage:
   await expect(refreshBtn).toBeVisible({ timeout: 5_000 });
   await expect(refreshBtn).toBeEnabled();
   const table = page.getByTestId('memory-table-contacts');
-  await expect(table.locator('text=Alice')).toBeVisible({ timeout: 5_000 });
+  await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
+    timeout: 5_000,
+  });
 });
 
 // ===========================================================================
@@ -497,8 +645,8 @@ test('clicking a row opens the detail panel with full field values', async ({
 
   // Should show full field values
   const fields = page.getByTestId('memory-row-detail-fields');
-  await expect(fields.locator('text=Alice')).toBeVisible({ timeout: 3_000 });
-  await expect(fields.locator('text=alice@example.com')).toBeVisible({ timeout: 3_000 });
+  await expect(fields.getByText(/^Alice$/)).toBeVisible({ timeout: 3_000 });
+  await expect(fields.getByText(/^alice@example\.com$/)).toBeVisible({ timeout: 3_000 });
   await expect(fields.locator('text=America/New_York')).toBeVisible({ timeout: 3_000 });
 });
 
@@ -761,18 +909,53 @@ test('memory tab data matches what was seeded via Orchestra API', async ({ authe
   const tasksData = await tasksRes.json();
   expect(tasksData.logs.length).toBe(2);
 
+  const activationsRes = await orchestraFetch(
+    `/v0/logs?project_name=Assistants&context=${user.id}/${dataAssistant.agentId}/Tasks/Activations`,
+    { method: 'GET' },
+    user.apiKey
+  );
+  expect(activationsRes.ok).toBeTruthy();
+  const activationsData = await activationsRes.json();
+  expect(activationsData.logs.length).toBe(2);
+
+  const runsRes = await orchestraFetch(
+    `/v0/logs?project_name=Assistants&context=${user.id}/${dataAssistant.agentId}/Tasks/Runs`,
+    { method: 'GET' },
+    user.apiKey
+  );
+  expect(runsRes.ok).toBeTruthy();
+  const runsData = await runsRes.json();
+  expect(runsData.logs.length).toBe(2);
+
   // Now verify the UI renders the same counts
   await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
 
   // Contacts count
   const contactsTabBtn = page.getByTestId('memory-tab-contacts');
-  await expect(contactsTabBtn).toContainText('(3)', { timeout: 10_000 });
+  await expect(contactsTabBtn).toHaveText(/Contacts\s*\(?3\)?/, { timeout: 10_000 });
 
   // Transcripts count
   const transcriptsTabBtn = page.getByTestId('memory-tab-transcripts');
-  await expect(transcriptsTabBtn).toContainText('(3)', { timeout: 5_000 });
+  await expect(transcriptsTabBtn).toHaveText(/Transcripts\s*\(?3\)?/, { timeout: 5_000 });
 
   // Tasks count
   const tasksTabBtn = page.getByTestId('memory-tab-tasks');
-  await expect(tasksTabBtn).toContainText('(2)', { timeout: 5_000 });
+  await expect(tasksTabBtn).toHaveText(/Tasks\s*\(?2\)?/, { timeout: 5_000 });
+
+  await tasksTabBtn.click();
+  await expect(page.getByTestId('memory-task-view-definitions')).toHaveText(
+    /Definitions\s*\(?2\)?/,
+    {
+      timeout: 5_000,
+    }
+  );
+  await expect(page.getByTestId('memory-task-view-activations')).toHaveText(
+    /Activations\s*\(?2\)?/,
+    {
+      timeout: 5_000,
+    }
+  );
+  await expect(page.getByTestId('memory-task-view-runs')).toHaveText(/Runs\s*\(?2\)?/, {
+    timeout: 5_000,
+  });
 });
