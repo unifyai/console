@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sterling Chartered Surveyors — Valuation Report v1</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
+      max-width: 820px; margin: 0 auto; padding: 48px 40px;
+      color: #1a1a2e; line-height: 1.65; font-size: 14px;
+    }
+    .letterhead {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      border-bottom: 3px solid #1a1a2e; padding-bottom: 20px; margin-bottom: 36px;
+    }
+    .letterhead .firm { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; color: #1a1a2e; }
+    .letterhead .firm-sub { font-size: 11px; color: #666; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+    .letterhead .meta { text-align: right; font-size: 11px; color: #666; line-height: 1.8; }
+    .report-title {
+      text-align: center; margin: 40px 0 32px; padding: 24px 0;
+      border-top: 1px solid #ccc; border-bottom: 1px solid #ccc;
+    }
+    .report-title h1 { font-size: 20px; font-weight: 600; letter-spacing: 1px; color: #1a1a2e; }
+    .report-title .subtitle { font-size: 13px; color: #666; margin-top: 8px; }
+    .section { margin-top: 32px; }
+    h2 { font-size: 15px; font-weight: 600; color: #1a1a2e; margin-bottom: 12px;
+         border-bottom: 1px solid #ddd; padding-bottom: 6px; }
+    .kv { display: grid; grid-template-columns: 180px 1fr; gap: 4px 20px; margin: 12px 0 20px; }
+    .kv dt { font-weight: 600; color: #444; font-size: 13px; }
+    .kv dd { margin: 0; font-size: 13px; }
+    p { margin-bottom: 12px; text-align: justify; }
+    table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12.5px; }
+    th, td { border: 1px solid #d0d0d0; padding: 8px 10px; text-align: left; }
+    th { background: #f0f0f0; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .highlight { background: #fffde7; }
+    .green { color: #2e7d32; }
+    .red { color: #c62828; }
+    .note { font-size: 12px; color: #666; font-style: italic; margin-top: 8px; }
+    .disclaimer {
+      font-size: 11px; color: #777; margin-top: 40px;
+      border-top: 2px solid #1a1a2e; padding-top: 16px; line-height: 1.7;
+    }
+    .disclaimer strong { color: #1a1a2e; }
+    .page-break { page-break-before: always; margin-top: 48px; }
+  </style>
+</head>
+<body>
+  <div class="letterhead">
+    <div>
+      <div class="firm">Sterling Chartered Surveyors</div>
+      <div class="firm-sub">Chartered Surveyors &amp; Valuers • Est. 1987</div>
+    </div>
+    <div class="meta">
+      Draft v1<br/>
+      Ref: SCS/VAL/2026/0147<br/>
+      15 April 2026
+    </div>
+  </div>
+
+  <div class="report-title">
+    <h1>VALUATION REPORT</h1>
+    <div class="subtitle">45 Moorgate, London EC2R &bull; Prepared for Meridian Capital Partners LLP</div>
+  </div>
+
+  <div class="section">
+    <h2>1&ensp;Executive Summary</h2>
+    <dl class="kv">
+      <dt>Property</dt><dd>45 Moorgate, London EC2R</dd>
+      <dt>Description</dt><dd>Grade A Office — Full refurbishment 2023</dd>
+      <dt>Net Internal Area</dt><dd>12,500 sq ft (1,161 sq m)</dd>
+      <dt>Tenure</dt><dd>Leasehold — 125 years from 2020</dd>
+      <dt>Tenancy</dt><dd>Single-let to NexaPoint Technologies Ltd</dd>
+      <dt>Lease Terms</dt><dd>10yr from Mar 2024, tenant break yr 5, FRI</dd>
+      <dt>Passing Rent</dt><dd>£87.50/sq ft (£1,093,750 pa)</dd>
+      <dt>Market Rent</dt><dd>£90.00/sq ft (£1,125,000 pa)</dd>
+      <dt>Valuation Basis</dt><dd>Market Value (RICS Red Book Global Standards)</dd>
+      <dt>Valuation Date</dt><dd>15 April 2026</dd>
+    </dl>
+  </div>
+
+  <div class="section">
+    <h2>2&ensp;Market Commentary</h2>
+    <p>The City of London office market has demonstrated resilience through Q1 2026. The MSCI UK Monthly Property Index for City offices recorded a total return of 1.8%, comprising capital growth of +0.3% and rental growth of +1.2%. Prime equivalent yields stand at 5.15%, broadly stable over the last two quarters.</p>
+    <p>Grade A vacancy in the City has fallen to 4.3%, the lowest level since 2019, underpinned by persistent occupier demand for quality, well-located space. The Bank of England base rate holds at 4.25%, with interest rate swap markets pricing two 25bp cuts by year-end — a supportive backdrop for investment yields.</p>
+  </div>
+
+  <div class="section">
+    <h2>3&ensp;Comparable Evidence</h2>
+    <table>
+      <thead>
+        <tr><th>Address</th><th>NIA (sqft)</th><th>£/sqft</th><th>NIY</th><th>Lease Term</th><th>Txn Date</th><th>Source</th></tr>
+      </thead>
+      <tbody>
+        <tr class="highlight"><td><strong>12 Moorgate, EC2R</strong></td><td>14,200</td><td>£700</td><td>5.25%</td><td>10yr, no break</td><td>Nov 2025</td><td>CoStar</td></tr>
+        <tr><td>55 Gresham Street, EC2V</td><td>18,500</td><td>£780</td><td>4.85%</td><td>15yr</td><td>Sep 2025</td><td>CoStar</td></tr>
+        <tr class="highlight"><td><strong>25 Copthall Avenue, EC2R</strong></td><td>13,400</td><td>£700</td><td>5.30%</td><td>10yr</td><td>Dec 2025</td><td>Land Registry</td></tr>
+        <tr><td>30 Coleman Street, EC2R</td><td>9,200</td><td>£600</td><td>5.90%</td><td>5yr</td><td>Oct 2025</td><td>Internal</td></tr>
+        <tr><td>60 London Wall, EC2M</td><td>16,700</td><td>£750</td><td>4.95%</td><td>12yr</td><td>Feb 2026</td><td>CoStar</td></tr>
+        <tr><td>88 Wood Street, EC2V</td><td>15,100</td><td>£700</td><td>5.15%</td><td>10yr</td><td>Jan 2026</td><td>Land Registry</td></tr>
+      </tbody>
+    </table>
+    <p class="note">Primary comparables (★) highlighted. Subject property adjusted upward for 2023 refurbishment (+2%) and downward for break clause exposure (+40bps yield premium).</p>
+  </div>
+
+  <div class="section">
+    <h2>4&ensp;Valuation — Investment Method</h2>
+    <dl class="kv">
+      <dt>Passing Rent</dt><dd>£1,093,750 pa</dd>
+      <dt>Estimated Market Rent</dt><dd>£1,125,000 pa (£90.00/sq ft)</dd>
+      <dt>Net Initial Yield</dt><dd>5.65%</dd>
+      <dt>Equivalent Yield</dt><dd>5.45%</dd>
+      <dt>Reversionary Yield</dt><dd>5.80%</dd>
+      <dt>Capital Value</dt><dd>£8,875,000 (£710/sq ft)</dd>
+    </dl>
+    <p>The adopted NIY of 5.65% reflects a 40bps premium to the primary comparable at 12 Moorgate (5.25%, 10yr no break) to account for the tenant break at year 5 which introduces income uncertainty. This is consistent with market evidence for break-clause-adjusted transactions in the EC2 corridor.</p>
+  </div>
+
+  
+
+  <div class="section">
+    <h2>5&ensp;Special Assumptions</h2>
+    <ol style="padding-left: 20px; font-size: 13px; line-height: 2;">
+      <li>The property is assumed to be free from structural defects and environmental contamination.</li>
+      <li>All floor areas have been taken from the client's briefing and have not been independently measured.</li>
+      <li>The break clause at year 5 is a tenant-only break, exercisable on 6 months' written notice, subject to no outstanding rent arrears.</li>
+      <li>No allowance has been made for any rights, easements or encumbrances not apparent from the title documents.</li>
+      
+    </ol>
+  </div>
+
+  <div class="disclaimer">
+    <p><strong>Important Notice</strong></p>
+    <p>This valuation has been prepared in accordance with the RICS Valuation — Global Standards (the "Red Book"). The valuation represents the valuer's objective opinion of Market Value as at the valuation date and is not a guarantee of the price achievable in the open market.</p>
+    <p>This report is addressed to Meridian Capital Partners LLP and should not be relied upon by any third party without the express written consent of Sterling Chartered Surveyors.</p>
+    <p style="margin-top: 24px; font-size: 12px; color: #1a1a2e;">
+      <strong>Valuer:</strong> James Whitfield BSc (Hons) MRICS<br/>
+      Senior Director — Valuation &amp; Advisory Services<br/>
+      RICS Registered Valuer No. 7284159
+    </p>
+  </div>
+</body>
+</html>

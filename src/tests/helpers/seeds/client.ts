@@ -345,6 +345,7 @@ export interface CreateAssistantOpts {
   orgId?: number;
   firstName?: string;
   surname?: string;
+  profilePhoto?: string;
 }
 
 /**
@@ -359,9 +360,10 @@ export function createAssistant(opts: CreateAssistantOpts): SeededAssistant {
   ensureVoicePreset(opts.userId);
 
   const orgClause = opts.orgId != null ? `${opts.orgId}` : 'NULL';
+  const photoClause = opts.profilePhoto ? `'${opts.profilePhoto}'` : 'NULL';
 
   dbExecBlock(`
-INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel, organization_id, is_local)
+INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel, organization_id, is_local, profile_photo)
 VALUES (
   '${opts.userId}',
   '${firstName}',
@@ -375,7 +377,8 @@ VALUES (
   40,
   10,
   ${orgClause},
-  true
+  true,
+  ${photoClause}
 );
 `);
 
@@ -663,6 +666,84 @@ export async function seedChatInfrastructure(opts: SeedChatOpts): Promise<void> 
   if (!contactRes.ok) {
     const text = await contactRes.text().catch(() => '');
     throw new Error(`Failed to seed contact: ${contactRes.status} ${text}`);
+  }
+}
+
+// =============================================================================
+// Action Events (ManagerMethod + ToolLoop for Live Actions panel)
+// =============================================================================
+
+export interface SeedActionEventsOpts {
+  apiKey: string;
+  userId: string;
+  assistantId: number;
+}
+
+/**
+ * Seed ManagerMethod events directly via Orchestra's logs API.
+ *
+ * These log entries populate the Live Actions panel's action tree.
+ * Each entry represents one phase (incoming or outgoing) of a manager
+ * method invocation. The console reads them from the context
+ * `{userId}/{assistantId}/Events/ManagerMethod`.
+ *
+ * Entries must use **snake_case** keys (Orchestra stores them as JSONB;
+ * the console converts to camelCase at read time).
+ */
+export async function seedManagerMethodEvents(
+  opts: SeedActionEventsOpts,
+  entries: Record<string, unknown>[]
+): Promise<void> {
+  await ensureProject(opts.apiKey, 'Assistants');
+
+  const res = await orchestraFetch(
+    '/v0/logs',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        project_name: 'Assistants',
+        context: `${opts.userId}/${opts.assistantId}/Events/ManagerMethod`,
+        entries,
+      }),
+    },
+    opts.apiKey
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Failed to seed ManagerMethod events: ${res.status} ${text}`);
+  }
+}
+
+/**
+ * Seed ToolLoop events directly via Orchestra's logs API.
+ *
+ * These log entries populate the tool-loop detail view inside each
+ * action node (LLM messages, tool calls, tool results). The console
+ * reads them from `{userId}/{assistantId}/Events/ToolLoop`.
+ *
+ * Entries must use **snake_case** keys.
+ */
+export async function seedToolLoopEvents(
+  opts: SeedActionEventsOpts,
+  entries: Record<string, unknown>[]
+): Promise<void> {
+  await ensureProject(opts.apiKey, 'Assistants');
+
+  const res = await orchestraFetch(
+    '/v0/logs',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        project_name: 'Assistants',
+        context: `${opts.userId}/${opts.assistantId}/Events/ToolLoop`,
+        entries,
+      }),
+    },
+    opts.apiKey
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Failed to seed ToolLoop events: ${res.status} ${text}`);
   }
 }
 

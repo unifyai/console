@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="380" viewBox="0 0 800 380">
+    <rect width="800" height="380" fill="#fff"/>
+    <!-- GOV.UK header -->
+    <rect width="800" height="10" fill="#0b0c0c"/>
+    <rect y="10" width="800" height="50" fill="#0b0c0c"/>
+    <rect x="16" y="18" width="100" height="32" rx="0" fill="#0b0c0c"/>
+    <text x="16" y="30" font-family="Arial" font-size="14" font-weight="bold" fill="white">GOV.UK</text>
+    <text x="16" y="48" font-family="Arial" font-size="10" fill="#a0a0a0">Official government website</text>
+    <!-- Green service banner -->
+    <rect y="60" width="800" height="44" fill="#00703c"/>
+    <text x="24" y="88" font-family="Arial" font-size="18" font-weight="bold" fill="white">Search property information – HM Land Registry</text>
+    <!-- Breadcrumb -->
+    <text x="24" y="120" font-family="Arial" font-size="11" fill="#1d70b8">Home</text>
+    <text x="56" y="120" font-family="Arial" font-size="11" fill="#505a5f">›</text>
+    <text x="66" y="120" font-family="Arial" font-size="11" fill="#1d70b8">Price paid data</text>
+    <text x="148" y="120" font-family="Arial" font-size="11" fill="#505a5f">›</text>
+    <text x="158" y="120" font-family="Arial" font-size="11" fill="#505a5f">Search results</text>
+    <!-- Search summary -->
+    <text x="24" y="150" font-family="Arial" font-size="20" font-weight="bold" fill="#0b0c0c">Price paid search results</text>
+    <rect x="24" y="160" width="740" height="28" rx="0" fill="#f3f2f1"/>
+    <text x="32" y="179" font-family="Arial" font-size="12" fill="#505a5f">EC2R • Commercial • £5,000,000+ • 2 transactions found</text>
+    <!-- Result 1 -->
+    <rect x="24" y="200" width="740" height="1" fill="#b1b4b6"/>
+    <text x="24" y="224" font-family="Arial" font-size="14" fill="#0b0c0c" font-weight="bold">25 Copthall Avenue, London EC2R 7BP</text>
+    <text x="24" y="244" font-family="Arial" font-size="13" fill="#0b0c0c">Price paid: </text>
+    <text x="104" y="244" font-family="Arial" font-size="13" fill="#0b0c0c" font-weight="bold">£9,380,000</text>
+    <text x="24" y="262" font-family="Arial" font-size="12" fill="#505a5f">Date: 12 December 2025 • Title number: NGL892451</text>
+    <text x="24" y="278" font-family="Arial" font-size="12" fill="#505a5f">Property type: Commercial • Estate type: Leasehold</text>
+    <!-- Result 2 -->
+    <rect x="24" y="296" width="740" height="1" fill="#b1b4b6"/>
+    <text x="24" y="318" font-family="Arial" font-size="14" fill="#0b0c0c" font-weight="bold">88 Wood Street, London EC2V 7RS</text>
+    <text x="24" y="338" font-family="Arial" font-size="13" fill="#0b0c0c">Price paid: </text>
+    <text x="104" y="338" font-family="Arial" font-size="13" fill="#0b0c0c" font-weight="bold">£10,570,000</text>
+    <text x="24" y="356" font-family="Arial" font-size="12" fill="#505a5f">Date: 22 January 2026 • Title number: NGL910834</text>
+    <text x="24" y="372" font-family="Arial" font-size="12" fill="#505a5f">Property type: Commercial • Estate type: Leasehold</text>
+  </svg>

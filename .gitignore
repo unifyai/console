@@ -60,3 +60,6 @@ plans/
 # ON_PREM sandbox mock files (contain API keys)
 public/sessionInfo.json
 public/userInfo.json
+
+# Workflow recording outputs
+src/workflows/recordings/

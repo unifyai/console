@@ -55,6 +55,8 @@ export {
   ensureProject,
   grantProjectAccessForOrg,
   seedChatInfrastructure,
+  seedManagerMethodEvents,
+  seedToolLoopEvents,
   deleteUser,
   deleteOrg,
   // Real test helpers
@@ -75,3 +77,4 @@ export { seedBillingBannerStates } from './scenarios/billing-banner-states';
 export { seedUsageLedger } from './scenarios/usage-ledger';
 export { seedChatSearch } from './scenarios/chat-search';
 export { seedMemoryRich } from './scenarios/memory-rich';
+export { seedReAppraisal } from './scenarios/re-appraisal';

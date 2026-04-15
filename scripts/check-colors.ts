@@ -38,6 +38,8 @@ const SKIP_PATTERNS = [
   /fixtures\//,
   /\.test\./,
   /\.spec\./,
+  // Demo recordings generate SVG content with inline colors
+  /src\/demos\//,
 ];
 
 // Patterns that are acceptable (non-color hex codes)
