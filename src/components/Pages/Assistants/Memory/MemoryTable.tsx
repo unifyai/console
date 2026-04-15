@@ -60,11 +60,13 @@ interface MemoryTableProps<TData> {
   isLoadingMore?: boolean;
   hasMore?: boolean;
   emptyMessage?: string;
+  emptyHelperText?: string;
   onRowClick?: (row: TData) => void;
   onSort?: (field: string, direction: 'asc' | 'desc') => void;
   onLoadMore?: () => void;
   serverSorting?: { field: string; direction: 'asc' | 'desc' } | null;
   testId?: string;
+  getRowEmphasis?: (row: TData) => 'running' | undefined;
 }
 
 function SortIcon({ direction }: { direction: false | SortDirection }) {
@@ -80,11 +82,13 @@ export function MemoryTable<TData>({
   isLoadingMore,
   hasMore,
   emptyMessage = 'No data.',
+  emptyHelperText,
   onRowClick,
   onSort,
   onLoadMore,
   serverSorting,
   testId,
+  getRowEmphasis,
 }: MemoryTableProps<TData>) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
@@ -172,27 +176,47 @@ export function MemoryTable<TData>({
             {isLoading && table.getRowModel().rows.length === 0 ? (
               <SkeletonRows columns={columns.length} />
             ) : table.getRowModel().rows.length > 0 ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  className={onRowClick ? 'cursor-pointer hover:bg-muted' : undefined}
-                  onClick={() => onRowClick?.(row.original)}
-                  data-testid="memory-table-row"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className="max-w-[300px] truncate whitespace-nowrap px-3 py-1.5 text-xs"
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              table.getRowModel().rows.map((row) => {
+                const rowEmphasis = getRowEmphasis?.(row.original);
+                return (
+                  <TableRow
+                    key={row.id}
+                    className={cn(
+                      'transition-colors',
+                      onRowClick && 'cursor-pointer',
+                      rowEmphasis === 'running'
+                        ? 'bg-emerald-50/40 hover:bg-emerald-50 dark:bg-emerald-950/10 dark:hover:bg-emerald-950/20'
+                        : onRowClick && 'hover:bg-muted'
+                    )}
+                    onClick={() => onRowClick?.(row.original)}
+                    data-testid="memory-table-row"
+                    data-row-emphasis={rowEmphasis}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className="max-w-[300px] truncate whitespace-nowrap px-3 py-1.5 text-xs"
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  <span className="text-body-muted text-sm">{emptyMessage}</span>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-body-muted text-sm">{emptyMessage}</span>
+                    {emptyHelperText ? (
+                      <span
+                        className="text-caption max-w-md text-center"
+                        data-testid="memory-table-empty-helper"
+                      >
+                        {emptyHelperText}
+                      </span>
+                    ) : null}
+                  </div>
                 </TableCell>
               </TableRow>
             )}

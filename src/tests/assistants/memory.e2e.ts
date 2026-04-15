@@ -424,6 +424,22 @@ test('shows empty state when assistant has no data', async ({ authedPage: page }
   await expect(page.locator('text=No contacts found.')).toBeVisible({ timeout: 10_000 });
 });
 
+test('Tasks runs empty state shows contextual helper text', async ({ authedPage: page }) => {
+  await selectAssistantAndOpenMemory(page, emptyAssistant.agentId);
+
+  await page.getByTestId('memory-tab-tasks').click();
+  await page.waitForTimeout(500);
+  await page.getByTestId('memory-task-view-runs').click();
+  await page.waitForTimeout(500);
+
+  await expect(page.getByText('No task runs in this snapshot.')).toBeVisible({ timeout: 5_000 });
+  await expect(
+    page.getByText(
+      'The assistant may still be working on non-task actions elsewhere on the Assistants page. Use Refresh to check for recent task activity.'
+    )
+  ).toBeVisible({ timeout: 5_000 });
+});
+
 // ===========================================================================
 // Seeded Data — Contacts
 // ===========================================================================
@@ -534,7 +550,13 @@ test('Tasks nested views show definitions activations and runs', async ({ authed
   await expect(runsTable).toBeVisible({ timeout: 10_000 });
   await expect(runsTable.getByText(/^running$/)).toBeVisible({ timeout: 5_000 });
   await expect(runsTable.getByText(/^completed$/)).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('memory-task-snapshot-status')).toBeVisible({ timeout: 5_000 });
+  const snapshotStatus = page.getByTestId('memory-task-snapshot-status');
+  await expect(snapshotStatus).toBeVisible({ timeout: 5_000 });
+  await expect(snapshotStatus).toContainText('Working');
+  await expect(snapshotStatus).toContainText('Updated');
+  await expect(
+    runsTable.locator('[data-testid="memory-table-row"][data-row-emphasis="running"]')
+  ).toBeVisible({ timeout: 5_000 });
 });
 
 // ===========================================================================
@@ -596,6 +618,85 @@ test('refresh button triggers data refetch without errors', async ({ authedPage:
   await expect(refreshBtn).toBeEnabled();
   const table = page.getByTestId('memory-table-contacts');
   await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
+    timeout: 5_000,
+  });
+});
+
+test('Tasks refresh updates definitions activations and runs together', async ({
+  authedPage: page,
+}) => {
+  await ensureSeeded();
+  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+
+  await page.getByTestId('memory-tab-tasks').click();
+  await page.waitForTimeout(500);
+  await page.getByTestId('memory-task-view-runs').click();
+  await page.waitForTimeout(500);
+
+  const taskId = Date.now();
+
+  await seedTasks(user.apiKey, user.id, dataAssistant.agentId, [
+    {
+      task_id: taskId,
+      status: 'pending',
+      priority: 3,
+      entrypoint: 'follow_up_customer',
+      trigger_type: 'manual',
+      created_at: '2025-06-04T12:00:00Z',
+    },
+  ]);
+  await seedTaskActivations(user.apiKey, user.id, dataAssistant.agentId, [
+    {
+      assistant_id: String(dataAssistant.agentId),
+      activation_key: `${dataAssistant.agentId}:${taskId}`,
+      task_id: taskId,
+      activation_kind: 'scheduled',
+      execution_mode: 'live',
+      status: 'scheduled',
+      task_name: 'Follow up customer',
+      next_due_at: '2025-06-04T12:30:00Z',
+      activation_revision: `rev-${taskId}`,
+      last_materialized_at: '2025-06-04T12:05:00Z',
+    },
+  ]);
+  await seedTaskRuns(user.apiKey, user.id, dataAssistant.agentId, [
+    {
+      run_id: taskId,
+      run_key: `live:scheduled:run-${taskId}`,
+      assistant_id: String(dataAssistant.agentId),
+      task_id: taskId,
+      source_type: 'scheduled',
+      execution_mode: 'live',
+      state: 'completed',
+      scheduled_for: '2025-06-04T12:30:00Z',
+      started_at: '2025-06-04T12:30:05Z',
+      completed_at: '2025-06-04T12:31:00Z',
+      source_medium: 'calendar',
+      job_name: `unity-live-${taskId}`,
+    },
+  ]);
+
+  await page.getByTestId('memory-refresh').click();
+
+  await expect(page.getByTestId('memory-tab-tasks')).toHaveText(/Tasks\s*\(?3\)?/, {
+    timeout: 10_000,
+  });
+  await expect(page.getByTestId('memory-task-view-definitions')).toHaveText(
+    /Definitions\s*\(?3\)?/,
+    {
+      timeout: 5_000,
+    }
+  );
+  await expect(page.getByTestId('memory-task-view-activations')).toHaveText(
+    /Activations\s*\(?3\)?/,
+    {
+      timeout: 5_000,
+    }
+  );
+  await expect(page.getByTestId('memory-task-view-runs')).toHaveText(/Runs\s*\(?3\)?/, {
+    timeout: 5_000,
+  });
+  await expect(page.getByTestId('memory-table-tasks-runs').getByText(String(taskId))).toBeVisible({
     timeout: 5_000,
   });
 });

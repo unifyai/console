@@ -63,6 +63,47 @@ function formatSnapshotAge(timestamp: number | null, now: number): string {
   return `Updated ${hours}h ago`;
 }
 
+function formatTaskSnapshotStatus(
+  timestamp: number | null,
+  now: number,
+  hasRunningLiveRun: boolean
+): string {
+  const freshness = formatSnapshotAge(timestamp, now);
+  return hasRunningLiveRun ? `Working, ${freshness}` : freshness;
+}
+
+function getTaskEmptyState(
+  taskView: TaskMemoryView,
+  isFiltered: boolean
+): { title: string; helperText?: string } {
+  if (isFiltered) {
+    return {
+      title: 'No results match your search.',
+      helperText: 'Try clearing search or switching task views to look for related task activity.',
+    };
+  }
+
+  switch (taskView) {
+    case 'Definitions':
+      return {
+        title: 'No task definitions found.',
+        helperText: 'Create a task to give the assistant structured work to own.',
+      };
+    case 'Activations':
+      return {
+        title: 'No task activations in this snapshot.',
+        helperText:
+          'A task only appears here when it currently has a live or offline activation. Use Refresh after changing a task.',
+      };
+    case 'Runs':
+      return {
+        title: 'No task runs in this snapshot.',
+        helperText:
+          'The assistant may still be working on non-task actions elsewhere on the Assistants page. Use Refresh to check for recent task activity.',
+      };
+  }
+}
+
 export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
   const {
     contacts,
@@ -71,6 +112,8 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
     tasks,
     taskActivations,
     taskRuns,
+    tasksSnapshotLastLoadedAt,
+    tasksSnapshotHasRunningLiveRun,
     guidance,
     functions,
     isLoading,
@@ -215,13 +258,26 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
         : taskView === 'Activations'
           ? 'Task Activation Detail'
           : 'Task Run Detail';
-  const emptyMessage = isFiltered
-    ? 'No results match your search.'
-    : activeContext === 'Tasks'
-      ? `No ${TASK_VIEW_LABELS[taskView].toLowerCase()} found.`
-      : `No ${MEMORY_CONTEXT_LABELS[activeContext].toLowerCase()} found.`;
-  const snapshotStatus =
-    isRefreshing || isLoading ? 'Working...' : formatSnapshotAge(activeState.lastLoadedAt, now);
+  const taskEmptyState = activeContext === 'Tasks' ? getTaskEmptyState(taskView, isFiltered) : null;
+  const emptyMessage =
+    activeContext === 'Tasks'
+      ? (taskEmptyState?.title ?? 'No task data found.')
+      : isFiltered
+        ? 'No results match your search.'
+        : `No ${MEMORY_CONTEXT_LABELS[activeContext].toLowerCase()} found.`;
+  const emptyHelperText = activeContext === 'Tasks' ? taskEmptyState?.helperText : undefined;
+  const snapshotStatus = formatTaskSnapshotStatus(
+    tasksSnapshotLastLoadedAt,
+    now,
+    tasksSnapshotHasRunningLiveRun
+  );
+  const getRowEmphasis = useCallback(
+    (row: MemoryRow) => {
+      if (activeContext !== 'Tasks' || taskView !== 'Runs') return undefined;
+      return 'state' in row && row.state === 'running' ? 'running' : undefined;
+    },
+    [activeContext, taskView]
+  );
 
   if (error) {
     return (
@@ -322,10 +378,12 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
           isLoadingMore={isLoadingMore}
           hasMore={activeState.hasMore}
           emptyMessage={emptyMessage}
+          emptyHelperText={emptyHelperText}
           onRowClick={(row) => setSelectedRow(row as Record<string, unknown>)}
           onSort={sort}
           onLoadMore={loadMore}
           serverSorting={activeState.sorting}
+          getRowEmphasis={getRowEmphasis}
           testId={
             activeContext === 'Tasks'
               ? taskTableTestId

@@ -23,7 +23,6 @@ import type {
   FunctionRow,
   MemoryRow,
 } from '@/types/assistants/memory';
-import { MEMORY_CONTEXTS } from '@/types/assistants/memory';
 import {
   fetchMemoryContext,
   fetchKnowledgeTables,
@@ -62,6 +61,8 @@ export interface UseMemoryDataResult {
   tasks: ContextState<TaskRow>;
   taskActivations: ContextState<TaskActivationRow>;
   taskRuns: ContextState<TaskRunRow>;
+  tasksSnapshotLastLoadedAt: number | null;
+  tasksSnapshotHasRunningLiveRun: boolean;
   guidance: ContextState<GuidanceRow>;
   functions: ContextState<FunctionRow>;
   isLoading: boolean;
@@ -95,7 +96,8 @@ function contextStateFromData<T extends MemoryRow>(
   data: MemoryContextData<T>,
   sorting: SortState | null,
   filterExpr: string | null,
-  searchQuery: string
+  searchQuery: string,
+  loadedAt = Date.now()
 ): ContextState<T> {
   return {
     ...data,
@@ -103,8 +105,12 @@ function contextStateFromData<T extends MemoryRow>(
     sorting,
     filterExpr,
     searchQuery,
-    lastLoadedAt: Date.now(),
+    lastLoadedAt: loadedAt,
   };
+}
+
+function hasRunningLiveTaskRun(data: MemoryContextData<TaskRunRow>): boolean {
+  return data.rows.some((row) => row.state === 'running' && row.executionMode === 'live');
 }
 
 type TaskActivationKey = 'Tasks/Activations';
@@ -174,11 +180,71 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
   const [error, setError] = React.useState<string | null>(null);
   const [activeContext, setActiveContext] = React.useState<MemoryContext>('Contacts');
   const [taskView, setTaskView] = React.useState<TaskMemoryView>('Definitions');
+  const [tasksSnapshotLastLoadedAt, setTasksSnapshotLastLoadedAt] = React.useState<number | null>(
+    null
+  );
+  const [tasksSnapshotHasRunningLiveRun, setTasksSnapshotHasRunningLiveRun] = React.useState(false);
 
   const activeKey = React.useMemo(
     () => getActiveKey(activeContext, taskView),
     [activeContext, taskView]
   );
+
+  const refetchTasksSnapshot = React.useCallback(async () => {
+    const taskState = states.Tasks;
+    const taskActivationsState = states['Tasks/Activations'];
+    const taskRunsState = states['Tasks/Runs'];
+
+    const [tasksData, taskActivationsData, taskRunsData] = await Promise.all([
+      fetchForKey(ownerId, assistantId, 'Tasks', taskState.sorting, 0, taskState.filterExpr),
+      fetchForKey(
+        ownerId,
+        assistantId,
+        'Tasks/Activations',
+        taskActivationsState.sorting,
+        0,
+        taskActivationsState.filterExpr
+      ),
+      fetchForKey(
+        ownerId,
+        assistantId,
+        'Tasks/Runs',
+        taskRunsState.sorting,
+        0,
+        taskRunsState.filterExpr
+      ),
+    ]);
+
+    const loadedAt = Date.now();
+    setStates((prev) => ({
+      ...prev,
+      Tasks: contextStateFromData(
+        tasksData as MemoryContextData<TaskRow>,
+        taskState.sorting,
+        taskState.filterExpr,
+        taskState.searchQuery,
+        loadedAt
+      ),
+      'Tasks/Activations': contextStateFromData(
+        taskActivationsData as MemoryContextData<TaskActivationRow>,
+        taskActivationsState.sorting,
+        taskActivationsState.filterExpr,
+        taskActivationsState.searchQuery,
+        loadedAt
+      ),
+      'Tasks/Runs': contextStateFromData(
+        taskRunsData as MemoryContextData<TaskRunRow>,
+        taskRunsState.sorting,
+        taskRunsState.filterExpr,
+        taskRunsState.searchQuery,
+        loadedAt
+      ),
+    }));
+    setTasksSnapshotLastLoadedAt(loadedAt);
+    setTasksSnapshotHasRunningLiveRun(
+      hasRunningLiveTaskRun(taskRunsData as MemoryContextData<TaskRunRow>)
+    );
+  }, [assistantId, ownerId, states]);
 
   const fetchAll = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
@@ -197,22 +263,62 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
         fetchForKey(ownerId, assistantId, 'Guidance', null),
         fetchForKey(ownerId, assistantId, 'Functions', null),
       ]);
+      const loadedAt = Date.now();
 
       setStates({
-        Contacts: contextStateFromData(c as MemoryContextData<ContactRow>, null, null, ''),
-        Transcripts: contextStateFromData(t as MemoryContextData<TranscriptRow>, null, null, ''),
-        Knowledge: contextStateFromData(k as MemoryContextData<KnowledgeRow>, null, null, ''),
-        Tasks: contextStateFromData(td as MemoryContextData<TaskRow>, null, null, ''),
+        Contacts: contextStateFromData(
+          c as MemoryContextData<ContactRow>,
+          null,
+          null,
+          '',
+          loadedAt
+        ),
+        Transcripts: contextStateFromData(
+          t as MemoryContextData<TranscriptRow>,
+          null,
+          null,
+          '',
+          loadedAt
+        ),
+        Knowledge: contextStateFromData(
+          k as MemoryContextData<KnowledgeRow>,
+          null,
+          null,
+          '',
+          loadedAt
+        ),
+        Tasks: contextStateFromData(td as MemoryContextData<TaskRow>, null, null, '', loadedAt),
         'Tasks/Activations': contextStateFromData(
           ta as MemoryContextData<TaskActivationRow>,
           null,
           null,
-          ''
+          '',
+          loadedAt
         ),
-        'Tasks/Runs': contextStateFromData(tr as MemoryContextData<TaskRunRow>, null, null, ''),
-        Guidance: contextStateFromData(g as MemoryContextData<GuidanceRow>, null, null, ''),
-        Functions: contextStateFromData(f as MemoryContextData<FunctionRow>, null, null, ''),
+        'Tasks/Runs': contextStateFromData(
+          tr as MemoryContextData<TaskRunRow>,
+          null,
+          null,
+          '',
+          loadedAt
+        ),
+        Guidance: contextStateFromData(
+          g as MemoryContextData<GuidanceRow>,
+          null,
+          null,
+          '',
+          loadedAt
+        ),
+        Functions: contextStateFromData(
+          f as MemoryContextData<FunctionRow>,
+          null,
+          null,
+          '',
+          loadedAt
+        ),
       });
+      setTasksSnapshotLastLoadedAt(loadedAt);
+      setTasksSnapshotHasRunningLiveRun(hasRunningLiveTaskRun(tr as MemoryContextData<TaskRunRow>));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load memory data');
     } finally {
@@ -233,6 +339,8 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     });
     setActiveContext('Contacts');
     setTaskView('Definitions');
+    setTasksSnapshotLastLoadedAt(null);
+    setTasksSnapshotHasRunningLiveRun(false);
     fetchAll();
   }, [fetchAll]);
 
@@ -384,11 +492,16 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
   const refetch = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
 
-    const current = states[activeKey];
     setIsLoading(true);
     setError(null);
 
     try {
+      if (activeContext === 'Tasks') {
+        await refetchTasksSnapshot();
+        return;
+      }
+
+      const current = states[activeKey];
       const data = await fetchForKey(
         ownerId,
         assistantId,
@@ -411,7 +524,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     } finally {
       setIsLoading(false);
     }
-  }, [ownerId, assistantId, activeKey, states]);
+  }, [ownerId, assistantId, activeContext, activeKey, refetchTasksSnapshot, states]);
 
   return {
     contacts: states.Contacts,
@@ -420,6 +533,8 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     tasks: states.Tasks,
     taskActivations: states['Tasks/Activations'],
     taskRuns: states['Tasks/Runs'],
+    tasksSnapshotLastLoadedAt,
+    tasksSnapshotHasRunningLiveRun,
     guidance: states.Guidance,
     functions: states.Functions,
     isLoading,
