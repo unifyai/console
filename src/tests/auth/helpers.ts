@@ -40,17 +40,48 @@ export type { SeededOrg } from '../helpers/seeds/types';
 export async function switchToEmailTab(page: Page) {
   const emailTab = page.getByTestId('email-auth-tab');
   if (await emailTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await emailTab.click();
+    try {
+      await emailTab.click();
+    } catch {
+      await emailTab.click({ force: true });
+    }
     await expect(page.getByTestId('email-login-form')).toBeVisible({ timeout: 3000 });
   }
 }
 
-/** Fill the email login form and submit. */
-export async function login(page: Page, email: string, password: string) {
+async function fillLoginForm(page: Page, email: string, password: string) {
   await switchToEmailTab(page);
   await page.getByTestId('email-input').fill(email);
   await page.getByTestId('email-password-input').fill(password);
+}
+
+/** Fill the email login form and submit. */
+export async function login(page: Page, email: string, password: string) {
+  await fillLoginForm(page, email, password);
   await page.getByTestId('email-submit-btn').click();
+}
+
+/**
+ * Submit the email login form and wait for the post-login redirect.
+ *
+ * Use this in fixtures that expect authentication to succeed. It starts
+ * waiting before clicking submit so fast client-side redirects cannot race
+ * past the assertion.
+ */
+export async function loginAndWaitForRedirect(
+  page: Page,
+  email: string,
+  password: string,
+  timeout = 30_000
+) {
+  await fillLoginForm(page, email, password);
+  await Promise.all([
+    page.waitForURL((url) => url.pathname !== '/login', {
+      timeout,
+      waitUntil: 'domcontentloaded',
+    }),
+    page.getByTestId('email-submit-btn').click(),
+  ]);
 }
 
 /** Fill the registration form and submit. */
@@ -181,9 +212,7 @@ export async function loginWithMfaAndNavigateTo(
   const { generateTOTP: genTOTP } = await import('../helpers/e2e-helpers');
 
   await page.goto('/login');
-  await login(page, email, password);
-
-  await page.waitForURL((url) => url.pathname !== '/login', { timeout: 20000 });
+  await loginAndWaitForRedirect(page, email, password, 20_000);
 
   if (page.url().includes('/login/mfa')) {
     await completeMfaChallenge(page, totpSecret, genTOTP);
@@ -198,11 +227,11 @@ export async function loginWithMfaAndNavigateTo(
     }
   }
 
-  await page.goto(targetUrl);
+  await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
 
   if (page.url().includes('/login/mfa')) {
     await completeMfaChallenge(page, totpSecret, genTOTP);
-    await page.goto(targetUrl);
+    await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
   }
 }
 
@@ -220,12 +249,16 @@ async function completeMfaChallenge(
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     await ensureFreshTotp(page, totpSecret);
     const code = genTOTP(totpSecret);
-    await enterTOTP(page, code);
-
-    const navigated = await page
-      .waitForURL((url) => !url.pathname.includes('/login/mfa'), { timeout: 5000 })
+    const navigation = page
+      .waitForURL((url) => !url.pathname.includes('/login/mfa'), {
+        timeout: 5_000,
+        waitUntil: 'domcontentloaded',
+      })
       .then(() => true)
       .catch(() => false);
+    await enterTOTP(page, code);
+
+    const navigated = await navigation;
 
     if (navigated) return;
 
@@ -241,7 +274,10 @@ async function completeMfaChallenge(
       continue;
     }
 
-    await page.waitForURL((url) => !url.pathname.includes('/login/mfa'), { timeout: 20000 });
+    await page.waitForURL((url) => !url.pathname.includes('/login/mfa'), {
+      timeout: 20_000,
+      waitUntil: 'domcontentloaded',
+    });
     return;
   }
 }
@@ -279,11 +315,7 @@ export async function loginAndNavigateTo(
   targetUrl: string
 ) {
   await page.goto('/login');
-  await login(page, email, password);
-
-  // After credentials submit, wait for the URL to leave the bare /login page.
-  // Valid destinations: /assistants, /, /login/onboarding, /login/mfa
-  await page.waitForURL((url) => url.pathname !== '/login', { timeout: 20000 });
+  await loginAndWaitForRedirect(page, email, password, 20_000);
 
   if (page.url().includes('/login/onboarding')) {
     const personalBtn = page.getByTestId('workspace-personal');
@@ -294,5 +326,5 @@ export async function loginAndNavigateTo(
     }
   }
 
-  await page.goto(targetUrl);
+  await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
 }

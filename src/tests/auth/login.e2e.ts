@@ -12,6 +12,7 @@ import {
   createOAuthOnlyUser,
   switchToEmailTab,
   login,
+  loginAndWaitForRedirect,
   uniqueEmail,
   dbExec,
   type TestUser,
@@ -38,12 +39,7 @@ test.describe('Email Login', () => {
 
   test('completes login with valid credentials and redirects', async ({ page }) => {
     await page.goto('/login');
-    await login(page, validUser.email, validUser.password);
-
-    await page.waitForURL(
-      (url) => !url.pathname.startsWith('/login') || url.pathname.includes('onboarding'),
-      { timeout: 15000 }
-    );
+    await loginAndWaitForRedirect(page, validUser.email, validUser.password, 15_000);
 
     const row = dbExec(`SELECT email, id FROM "user" WHERE id = '${validUser.id}'`);
     expect(row).toContain(validUser.email.toLowerCase());

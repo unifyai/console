@@ -11,6 +11,7 @@ import {
   cleanupUser,
   loginAndNavigateTo,
   login,
+  loginAndWaitForRedirect,
   switchToEmailTab,
   dbExec,
   type TestUser,
@@ -58,8 +59,7 @@ test.describe('Change Password', () => {
       timeout: 15000,
     });
 
-    await login(page, user.email, newPassword);
-    await page.waitForURL((url) => url.pathname !== '/login', { timeout: 20000 });
+    await loginAndWaitForRedirect(page, user.email, newPassword, 20_000);
   });
 
   test('shows error for wrong current password', async ({ page }) => {

@@ -9,6 +9,7 @@
 import { test as base, type Page, type Browser } from '@playwright/test';
 import path from 'path';
 import os from 'os';
+import { login, loginAndWaitForRedirect, switchToEmailTab } from '../auth/helpers';
 
 export { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
 export type { TestUser } from '../helpers/e2e-helpers';
@@ -25,7 +26,7 @@ export {
 } from '../helpers/seeds/client';
 export type { SeededOrg } from '../helpers/seeds/types';
 
-export { login, switchToEmailTab } from '../auth/helpers';
+export { login, switchToEmailTab };
 
 // =============================================================================
 // Shared Auth — storageState
@@ -42,9 +43,7 @@ export async function loginAndSaveState(
   const page = await ctx.newPage();
 
   await page.goto('/login');
-  const { login: doLogin } = await import('../auth/helpers');
-  await doLogin(page, email, password);
-  await page.waitForURL((url) => url.pathname !== '/login', { timeout: 45_000 });
+  await loginAndWaitForRedirect(page, email, password, 45_000);
 
   if (page.url().includes('/login/onboarding')) {
     const personalBtn = page.getByTestId('workspace-personal');

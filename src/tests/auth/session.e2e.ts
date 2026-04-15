@@ -10,6 +10,7 @@ import {
   createTestUser,
   cleanupUser,
   login,
+  loginAndWaitForRedirect,
   loginAndNavigateTo,
   switchToEmailTab,
   type TestUser,
@@ -68,12 +69,7 @@ test.describe('Stale Session Signout', () => {
   }) => {
     // Login first
     await page.goto('/login');
-    await login(page, user.email, user.password);
-
-    await page.waitForURL(
-      (url) => !url.pathname.startsWith('/login') || url.pathname.includes('onboarding'),
-      { timeout: 15000 }
-    );
+    await loginAndWaitForRedirect(page, user.email, user.password, 15_000);
 
     // Now visit /login?signout=true to simulate a stale session clear
     await page.goto('/login?signout=true');
@@ -89,12 +85,7 @@ test.describe('Stale Session Signout', () => {
 
   test('preserves credit token through signout redirect', async ({ page }) => {
     await page.goto('/login');
-    await login(page, user.email, user.password);
-
-    await page.waitForURL(
-      (url) => !url.pathname.startsWith('/login') || url.pathname.includes('onboarding'),
-      { timeout: 15000 }
-    );
+    await loginAndWaitForRedirect(page, user.email, user.password, 15_000);
 
     // Simulate stale session with a credit token
     await page.goto('/login?signout=true&credit=test-credit-token');

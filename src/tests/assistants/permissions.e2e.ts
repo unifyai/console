@@ -31,7 +31,7 @@ import {
   dbExec,
 } from '../helpers/seeds/client';
 import { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
-import { login } from '../auth/helpers';
+import { loginAndWaitForRedirect } from '../auth/helpers';
 
 // =============================================================================
 // Test Users & Org Setup
@@ -68,8 +68,7 @@ async function loginAndSaveOrgState(
   const page = await ctx.newPage();
 
   await page.goto('/login');
-  await login(page, email, password);
-  await page.waitForURL((url) => url.pathname !== '/login', { timeout: 45_000 });
+  await loginAndWaitForRedirect(page, email, password, 45_000);
 
   // Handle onboarding
   if (page.url().includes('/login/onboarding')) {

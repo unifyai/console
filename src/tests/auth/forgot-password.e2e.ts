@@ -12,6 +12,7 @@ import {
   setKnownVerificationCode,
   switchToEmailTab,
   login,
+  loginAndWaitForRedirect,
   enterVerificationCode,
   dbExec,
   type TestUser,
@@ -59,8 +60,7 @@ test.describe('Forgot Password', () => {
     await page.getByTestId('back-to-login-btn').click();
     await expect(page.getByTestId('email-login-form')).toBeVisible({ timeout: 5000 });
 
-    await login(page, user.email, newPassword);
-    await page.waitForURL((url) => url.pathname !== '/login', { timeout: 20000 });
+    await loginAndWaitForRedirect(page, user.email, newPassword, 20_000);
 
     const changedAt = dbExec(
       `SELECT password_changed_at IS NOT NULL FROM email_account WHERE user_id = '${user.id}'`
