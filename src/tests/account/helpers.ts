@@ -9,7 +9,12 @@
 import { test as base, type Page, type Browser } from '@playwright/test';
 import path from 'path';
 import os from 'os';
-import { login, loginAndWaitForRedirect, switchToEmailTab } from '../auth/helpers';
+import {
+  login,
+  loginAndWaitForRedirect,
+  loginAndNavigateTo,
+  switchToEmailTab,
+} from '../auth/helpers';
 
 export { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
 export type { TestUser } from '../helpers/e2e-helpers';
@@ -26,7 +31,7 @@ export {
 } from '../helpers/seeds/client';
 export type { SeededOrg } from '../helpers/seeds/types';
 
-export { login, switchToEmailTab };
+export { login, loginAndNavigateTo, switchToEmailTab };
 
 // =============================================================================
 // Shared Auth — storageState
