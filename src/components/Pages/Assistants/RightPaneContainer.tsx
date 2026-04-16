@@ -159,30 +159,24 @@ export function RightPaneContainer({
         forceMount
       >
         <div className="flex h-full w-full flex-col">
-          <div className="flex items-center justify-between border-b px-5 py-2">
-            <span className="text-body text-strong truncate">
-              Chat with {assistant.firstName} {assistant.surname}
-            </span>
+          <div className="flex items-center justify-between gap-2 border-b px-3 py-1.5">
+            <div className="relative max-w-xs flex-1">
+              <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                readOnly
+                className="h-7 w-full cursor-text rounded-md border bg-transparent pl-7 pr-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                placeholder={`Search chat with ${assistant.firstName}…`}
+                onFocus={(e) => {
+                  e.currentTarget.blur();
+                  setSearchOpen(true);
+                }}
+                onClick={() => setSearchOpen(true)}
+                data-testid="chat-search-trigger"
+                aria-label="Search conversation"
+              />
+            </div>
             <div className="flex items-center gap-0.5">
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => setSearchOpen(true)}
-                      data-testid="chat-search-trigger"
-                    >
-                      <Search className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    <p>Search conversation</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
               <TooltipProvider delayDuration={100}>
                 <Tooltip>
                   <TooltipTrigger asChild>

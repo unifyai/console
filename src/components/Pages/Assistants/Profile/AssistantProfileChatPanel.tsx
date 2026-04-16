@@ -1,17 +1,7 @@
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import {
-  Send,
-  Loader2,
-  MessageSquareMore,
-  Paperclip,
-  Mic,
-  Square,
-  Camera,
-  File,
-  X,
-} from 'lucide-react';
+import { Send, Loader2, Paperclip, Mic, Square, Camera, File, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/UI/textarea';
 import { useDropzone } from 'react-dropzone';
@@ -83,8 +73,6 @@ interface AssistantProfileChatPanelProps {
   searchOpen?: boolean;
   onSearchOpenChange?: (open: boolean) => void;
 }
-
-const IS_LOCAL_DEV = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
 export function AssistantProfileChatPanel({
   assistant,
@@ -227,7 +215,7 @@ export function AssistantProfileChatPanel({
     });
   }, [jumpToPresent]);
 
-  const sseBlocked = connectionStatus === 'error' && !IS_LOCAL_DEV;
+  const sseBlocked = connectionStatus === 'error';
 
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = React.useRef<number | null>(null);
@@ -537,6 +525,16 @@ export function AssistantProfileChatPanel({
         prev.map((a) => ({ ...a, uploadStatus: 'pending' as const }))
       );
 
+      // Force scroll-to-bottom on send so the user always sees their new
+      // message land, even if they had scrolled up to read older context.
+      isAtBottomRef.current = true;
+      requestAnimationFrame(() => {
+        const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>(
+          '[data-radix-scroll-area-viewport]'
+        );
+        if (viewport) viewport.scrollTop = viewport.scrollHeight;
+      });
+
       sendMessage(e, uploadable, setPendingAttachments);
     },
     [inputValue, pendingAttachments, sendMessage, isLoading, isUploading]
@@ -566,7 +564,7 @@ export function AssistantProfileChatPanel({
     <div className="flex h-full w-full flex-col bg-background">
       {/* Chat Area */}
       <ScrollArea
-        className="flex-1 px-3 pb-4 md:px-6"
+        className="flex-1 px-3 md:px-6"
         ref={scrollAreaRef}
         data-testid="chat-scroll-area"
       >
@@ -584,7 +582,7 @@ export function AssistantProfileChatPanel({
         ) : isLoading && messages.length === 0 ? (
           <ChatMessageSkeletons />
         ) : (
-          <div className="space-y-6 py-4" style={{ width: '100%' }}>
+          <div className="space-y-6 pt-4" style={{ width: '100%' }}>
             {isHistoricalMode ? (
               <>
                 {historicalView?.isLoadingOlder && <ChatMessageSkeletons />}
@@ -756,19 +754,8 @@ export function AssistantProfileChatPanel({
       {/* Historical view banner */}
       {isHistoricalMode && <OlderMessagesBanner onJumpToPresent={handleJumpToPresent} />}
 
-      {/* Connection error — only shown when all SSE retry attempts are
-         exhausted (permanent failure). Transient connecting/reconnecting
-         states are silent — SSE is self-healing plumbing the user doesn't
-         need to know about. */}
-      {!initialLoadError && connectionStatus === 'error' && (
-        <div className="text-caption flex animate-pulse flex-row gap-2 px-5 text-muted-foreground">
-          <MessageSquareMore className="h-4 w-4" />
-          Connection failed. Please refresh.
-        </div>
-      )}
-
       {/* Input Area */}
-      <form onSubmit={handleSendWithAttachments} className="bg-background p-4">
+      <form onSubmit={handleSendWithAttachments} className="bg-background px-4 pb-4 pt-2">
         {/* Pending attachments — outside dropzone so tooltips work */}
         {pendingAttachments.length > 0 && (
           <PendingAttachmentList
@@ -883,7 +870,9 @@ export function AssistantProfileChatPanel({
                         ? spendingGate.blockedMessage || 'Spending limit reached'
                         : initialLoadError
                           ? 'Connection failed'
-                          : 'Send a message...'
+                          : connectionStatus === 'error'
+                            ? 'Connection failed. Please refresh.'
+                            : 'Send a message...'
               }
               value={inputValue}
               onChange={handleInputChange}

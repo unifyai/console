@@ -118,7 +118,10 @@ export function ChatMessageBubble({
         data-index={isProfile ? index : undefined}
       >
         <div
-          className={cn('flex min-w-0 flex-col gap-2', isProfile ? 'max-w-[75%]' : 'max-w-[85%]')}
+          className={cn(
+            'flex min-w-0 flex-col gap-2',
+            isProfile ? 'max-w-[85%] md:max-w-[55%]' : 'max-w-[85%]'
+          )}
         >
           {attachments && attachments.length > 0 && (
             <MessageAttachmentList attachments={attachments} />
@@ -151,7 +154,7 @@ export function ChatMessageBubble({
       data-testid={isProfile ? 'message-bubble' : undefined}
       data-role={isProfile ? 'assistant' : undefined}
       data-index={isProfile ? index : undefined}
-      className="min-w-0"
+      className={cn('min-w-0', isProfile && 'md:max-w-[55%]')}
     >
       <div className="mb-2.5 flex items-center gap-2">
         <Avatar className="h-6 w-6 flex-shrink-0 border">
