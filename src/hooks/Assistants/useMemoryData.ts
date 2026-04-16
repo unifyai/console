@@ -31,6 +31,7 @@ import {
 } from '@/lib/client/memory';
 
 const PAGE_SIZE = 50;
+const RUNNING_TASK_RUN_FILTER_EXPR = 'state == "running"';
 
 interface UseMemoryDataOptions {
   ownerId: string;
@@ -159,6 +160,21 @@ function fetchForKey(
   });
 }
 
+async function fetchHasRunningTaskRunSnapshot(
+  ownerId: string,
+  assistantId: string
+): Promise<boolean> {
+  const data = (await fetchForKey(
+    ownerId,
+    assistantId,
+    'Tasks/Runs',
+    null,
+    0,
+    RUNNING_TASK_RUN_FILTER_EXPR
+  )) as MemoryContextData<TaskRunRow>;
+  return data.count > 0 || hasRunningTaskRun(data);
+}
+
 export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): UseMemoryDataResult {
   const [states, setStates] = React.useState<ContextStates>({
     Contacts: emptyState(),
@@ -188,7 +204,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     const taskState = states.Tasks;
     const taskRunsState = states['Tasks/Runs'];
 
-    const [tasksData, taskRunsData] = await Promise.all([
+    const [tasksData, taskRunsData, hasRunningTaskRunInSnapshot] = await Promise.all([
       fetchForKey(ownerId, assistantId, 'Tasks', taskState.sorting, 0, taskState.filterExpr),
       fetchForKey(
         ownerId,
@@ -198,6 +214,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
         0,
         taskRunsState.filterExpr
       ),
+      fetchHasRunningTaskRunSnapshot(ownerId, assistantId),
     ]);
 
     const loadedAt = Date.now();
@@ -219,9 +236,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
       ),
     }));
     setTasksSnapshotLastLoadedAt(loadedAt);
-    setTasksSnapshotHasRunningTaskRun(
-      hasRunningTaskRun(taskRunsData as MemoryContextData<TaskRunRow>)
-    );
+    setTasksSnapshotHasRunningTaskRun(hasRunningTaskRunInSnapshot);
   }, [assistantId, ownerId, states]);
 
   const fetchAll = React.useCallback(async () => {
@@ -231,7 +246,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     setError(null);
 
     try {
-      const [c, t, k, td, tr, g, f] = await Promise.all([
+      const [c, t, k, td, tr, g, f, hasRunningTaskRunInSnapshot] = await Promise.all([
         fetchForKey(ownerId, assistantId, 'Contacts', null),
         fetchForKey(ownerId, assistantId, 'Transcripts', null),
         fetchForKey(ownerId, assistantId, 'Knowledge', null),
@@ -239,6 +254,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
         fetchForKey(ownerId, assistantId, 'Tasks/Runs', null),
         fetchForKey(ownerId, assistantId, 'Guidance', null),
         fetchForKey(ownerId, assistantId, 'Functions', null),
+        fetchHasRunningTaskRunSnapshot(ownerId, assistantId),
       ]);
       const loadedAt = Date.now();
 
@@ -288,7 +304,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
         ),
       });
       setTasksSnapshotLastLoadedAt(loadedAt);
-      setTasksSnapshotHasRunningTaskRun(hasRunningTaskRun(tr as MemoryContextData<TaskRunRow>));
+      setTasksSnapshotHasRunningTaskRun(hasRunningTaskRunInSnapshot);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load memory data');
     } finally {

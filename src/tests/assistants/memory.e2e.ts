@@ -703,6 +703,41 @@ test('Tasks refresh updates tasks and activity together', async ({ authedPage: p
   ).toBeVisible({ timeout: 5_000 });
 });
 
+test('Tasks refresh keeps the snapshot Working state when Activity is filtered', async ({
+  authedPage: page,
+}) => {
+  await ensureSeeded();
+  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+
+  await page.getByTestId('memory-tab-tasks').click();
+  await page.waitForTimeout(500);
+  await page.getByTestId('memory-task-view-activity').click();
+  await page.waitForTimeout(500);
+
+  const searchInput = page.getByTestId('memory-search');
+  const footer = page.getByTestId('memory-table-footer');
+  const activityTable = page.getByTestId('memory-table-tasks-activity');
+  const snapshotStatus = page.getByTestId('memory-task-snapshot-status');
+
+  await expect(snapshotStatus).toContainText('Working');
+  await expect(page.getByTestId('memory-task-snapshot-working-indicator')).toBeVisible({
+    timeout: 5_000,
+  });
+
+  await searchInput.fill('Send report');
+  await searchInput.press('Enter');
+
+  await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
+  await expect(activityTable.getByText('Send report')).toBeVisible({ timeout: 5_000 });
+
+  await page.getByTestId('memory-refresh').click();
+
+  await expect(snapshotStatus).toContainText('Working', { timeout: 10_000 });
+  await expect(page.getByTestId('memory-task-snapshot-working-indicator')).toBeVisible({
+    timeout: 5_000,
+  });
+});
+
 // ===========================================================================
 // Data is read-only (no edit controls)
 // ===========================================================================
