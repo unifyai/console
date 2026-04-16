@@ -62,7 +62,7 @@ interface MemoryTableProps<TData> {
   emptyMessage?: string;
   emptyHelperText?: string;
   onRowClick?: (row: TData) => void;
-  onSort?: (field: string, direction: 'asc' | 'desc') => void;
+  onSort?: (field: string, direction: 'asc' | 'desc' | null) => void;
   onLoadMore?: () => void;
   serverSorting?: { field: string; direction: 'asc' | 'desc' } | null;
   testId?: string;
@@ -112,15 +112,16 @@ export function MemoryTable<TData>({
       if (!canSort || !onSort) return;
 
       const currentSort = serverSorting;
-      let newDirection: 'asc' | 'desc';
 
       if (currentSort?.field === columnId) {
-        newDirection = currentSort.direction === 'asc' ? 'desc' : 'asc';
+        if (currentSort.direction === 'asc') {
+          onSort(columnId, 'desc');
+        } else {
+          onSort(columnId, null);
+        }
       } else {
-        newDirection = 'asc';
+        onSort(columnId, 'asc');
       }
-
-      onSort(columnId, newDirection);
     },
     [onSort, serverSorting]
   );

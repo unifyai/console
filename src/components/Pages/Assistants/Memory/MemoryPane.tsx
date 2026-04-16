@@ -267,11 +267,23 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
     setSearchValue(activeState.searchQuery);
   }, [activeContext, taskView, activeState.searchQuery]);
 
-  const columns = useMemo(() => {
+  const allColumns = useMemo(() => {
     if (activeContext === 'Transcripts') return buildTranscriptColumns(contactMap);
     if (activeContext === 'Tasks') return getColumnsForTaskView(taskView, activeState.fields);
     return getColumnsForContext(activeContext, activeState.fields);
   }, [activeContext, activeState.fields, contactMap, taskView]);
+
+  const columns = useMemo(() => {
+    if (activeState.rows.length === 0) return allColumns;
+    return allColumns.filter((col) => {
+      const key = (col as any).accessorKey as string | undefined;
+      if (!key) return true;
+      return activeState.rows.some((row) => {
+        const val = (row as Record<string, unknown>)[key];
+        return val !== null && val !== undefined && val !== '';
+      });
+    });
+  }, [allColumns, activeState.rows]);
 
   const counts: Record<MemoryContext, number> = {
     Contacts: contacts.count,

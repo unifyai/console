@@ -70,7 +70,7 @@ export interface UseMemoryDataResult {
   setActiveContext: (ctx: MemoryContext) => void;
   taskView: TaskMemoryView;
   setTaskView: (view: TaskMemoryView) => void;
-  sort: (field: string, direction: 'asc' | 'desc') => void;
+  sort: (field: string, direction: 'asc' | 'desc' | null) => void;
   search: (query: string) => void;
   clearSearch: () => void;
   loadMore: () => void;
@@ -330,10 +330,10 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
   }, [fetchAll]);
 
   const sort = React.useCallback(
-    async (field: string, direction: 'asc' | 'desc') => {
+    async (field: string, direction: 'asc' | 'desc' | null) => {
       if (!ownerId || !assistantId) return;
 
-      const newSorting: SortState = { field, direction };
+      const newSorting: SortState | null = direction ? { field, direction } : null;
       const current = states[activeKey];
 
       setStates((prev) => ({
