@@ -25,6 +25,7 @@ const user = createTestUser({ name: 'MemoryE2E', lastName: 'Tester', credits: 50
 ensureProjectSync(user.apiKey);
 const test = createAssistantTest(user);
 test.setTimeout(120_000);
+test.describe.configure({ mode: 'serial' });
 
 const emptyAssistant = createAssistant({
   userId: user.id,
@@ -116,11 +117,15 @@ async function seedTasks(
   assistantId: number,
   tasks: {
     task_id: number;
+    name: string;
+    description: string;
     status: string;
     priority: number;
     entrypoint: string;
     trigger_type: string;
+    next_due_at?: string;
     created_at: string;
+    updated_at?: string;
   }[]
 ) {
   for (const task of tasks) {
@@ -251,19 +256,26 @@ async function ensureSeeded() {
   await seedTasks(user.apiKey, user.id, dataAssistant.agentId, [
     {
       task_id: 1,
+      name: 'Calendar check-in',
+      description: 'Review upcoming events and confirm the schedule.',
       status: 'completed',
       priority: 1,
       entrypoint: 'check_calendar',
       trigger_type: 'manual',
       created_at: '2025-06-01T09:00:00Z',
+      updated_at: '2025-06-01T09:10:00Z',
     },
     {
       task_id: 2,
+      name: 'Send report',
+      description: 'Compile and send the weekly report to Alice.',
       status: 'pending',
       priority: 2,
       entrypoint: 'send_report',
       trigger_type: 'scheduled',
+      next_due_at: '2025-06-02T12:30:00Z',
       created_at: '2025-06-02T12:00:00Z',
+      updated_at: '2025-06-02T12:05:00Z',
     },
   ]);
 
@@ -276,6 +288,7 @@ async function ensureSeeded() {
       execution_mode: 'live',
       status: 'scheduled',
       task_name: 'Send report',
+      task_description: 'Compile and send the weekly report to Alice.',
       next_due_at: '2025-06-02T12:30:00Z',
       activation_revision: 'rev-task-2',
       last_materialized_at: '2025-06-02T12:05:00Z',
@@ -288,6 +301,7 @@ async function ensureSeeded() {
       execution_mode: 'offline',
       status: 'triggerable',
       task_name: 'Follow up with Alice',
+      task_description: 'Reply when Alice emails about the project status.',
       trigger_medium: 'email',
       activation_revision: 'rev-task-3',
       last_materialized_at: '2025-06-03T09:15:00Z',
@@ -300,6 +314,8 @@ async function ensureSeeded() {
       run_key: 'live:scheduled:run-9001',
       assistant_id: String(dataAssistant.agentId),
       task_id: 2,
+      task_name: 'Send report',
+      task_description: 'Compile and send the weekly report to Alice.',
       source_type: 'scheduled',
       execution_mode: 'live',
       state: 'completed',
@@ -314,11 +330,14 @@ async function ensureSeeded() {
       run_key: 'offline:triggered:run-9002',
       assistant_id: String(dataAssistant.agentId),
       task_id: 3,
+      task_name: 'Follow up with Alice',
+      task_description: 'Reply when Alice emails about the project status.',
       source_type: 'triggered',
       execution_mode: 'offline',
       state: 'running',
       source_medium: 'email',
       source_contact_id: '1',
+      source_contact_display_name: 'Alice Owner',
       started_at: '2025-06-03T09:20:00Z',
       job_name: 'unity-offline-9002',
     },
@@ -520,10 +539,16 @@ test('displays seeded tasks in the Tasks sub-tab', async ({ authedPage: page }) 
   const table = page.getByTestId('memory-table-tasks-definitions');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
-  await expect(table.locator('text=check_calendar')).toBeVisible({ timeout: 5_000 });
-  await expect(table.locator('text=send_report')).toBeVisible({ timeout: 5_000 });
-  await expect(table.getByText(/^completed$/)).toBeVisible({ timeout: 5_000 });
-  await expect(table.getByText(/^pending$/)).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('memory-task-view-helper')).toContainText(
+    'Configured work the assistant owns'
+  );
+  await expect(table.locator('text=Calendar check-in')).toBeVisible({ timeout: 5_000 });
+  await expect(table.locator('text=Send report')).toBeVisible({ timeout: 5_000 });
+  await expect(table.locator('text=Compile and send the weekly report to Alice.')).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(table.getByText(/^Completed$/)).toBeVisible({ timeout: 5_000 });
+  await expect(table.getByText(/^Pending$/)).toBeVisible({ timeout: 5_000 });
 });
 
 test('Tasks nested views show definitions activations and runs', async ({ authedPage: page }) => {
@@ -542,15 +567,26 @@ test('Tasks nested views show definitions activations and runs', async ({ authed
   await page.waitForTimeout(500);
   const activationsTable = page.getByTestId('memory-table-tasks-activations');
   await expect(activationsTable).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('memory-task-view-helper')).toContainText(
+    'Queued or armed task instances'
+  );
   await expect(activationsTable.locator('text=Send report')).toBeVisible({ timeout: 5_000 });
-  await expect(activationsTable.getByText(/^triggered$/)).toBeVisible({ timeout: 5_000 });
+  await expect(activationsTable.locator('text=Follow up with Alice')).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(activationsTable.getByText(/^Triggered$/)).toBeVisible({ timeout: 5_000 });
 
   await page.getByTestId('memory-task-view-runs').click();
   await page.waitForTimeout(500);
   const runsTable = page.getByTestId('memory-table-tasks-runs');
   await expect(runsTable).toBeVisible({ timeout: 10_000 });
-  await expect(runsTable.getByText(/^running$/)).toBeVisible({ timeout: 5_000 });
-  await expect(runsTable.getByText(/^completed$/)).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('memory-task-view-helper')).toContainText(
+    'Current and past task executions'
+  );
+  await expect(runsTable.locator('text=Follow up with Alice')).toBeVisible({ timeout: 5_000 });
+  await expect(runsTable.locator('text=Alice Owner via Email')).toBeVisible({ timeout: 5_000 });
+  await expect(runsTable.getByText(/^Running$/)).toBeVisible({ timeout: 5_000 });
+  await expect(runsTable.getByText(/^Completed$/)).toBeVisible({ timeout: 5_000 });
   const snapshotStatus = page.getByTestId('memory-task-snapshot-status');
   await expect(snapshotStatus).toBeVisible({ timeout: 5_000 });
   await expect(snapshotStatus).toContainText('Working');
@@ -642,11 +678,15 @@ test('Tasks refresh updates definitions activations and runs together', async ({
   await seedTasks(user.apiKey, user.id, dataAssistant.agentId, [
     {
       task_id: taskId,
+      name: `Follow up customer ${taskId}`,
+      description: 'Reach out to the customer with the updated delivery timeline.',
       status: 'pending',
       priority: 3,
       entrypoint: 'follow_up_customer',
       trigger_type: 'manual',
+      next_due_at: '2025-06-04T12:30:00Z',
       created_at: '2025-06-04T12:00:00Z',
+      updated_at: '2025-06-04T12:05:00Z',
     },
   ]);
   await seedTaskActivations(user.apiKey, user.id, dataAssistant.agentId, [
@@ -657,7 +697,8 @@ test('Tasks refresh updates definitions activations and runs together', async ({
       activation_kind: 'scheduled',
       execution_mode: 'live',
       status: 'scheduled',
-      task_name: 'Follow up customer',
+      task_name: `Follow up customer ${taskId}`,
+      task_description: 'Reach out to the customer with the updated delivery timeline.',
       next_due_at: '2025-06-04T12:30:00Z',
       activation_revision: `rev-${taskId}`,
       last_materialized_at: '2025-06-04T12:05:00Z',
@@ -669,6 +710,8 @@ test('Tasks refresh updates definitions activations and runs together', async ({
       run_key: `live:scheduled:run-${taskId}`,
       assistant_id: String(dataAssistant.agentId),
       task_id: taskId,
+      task_name: `Follow up customer ${taskId}`,
+      task_description: 'Reach out to the customer with the updated delivery timeline.',
       source_type: 'scheduled',
       execution_mode: 'live',
       state: 'completed',
@@ -700,9 +743,9 @@ test('Tasks refresh updates definitions activations and runs together', async ({
   await expect(page.getByTestId('memory-task-view-runs')).toHaveText(/Runs\s*\(?3\)?/, {
     timeout: 5_000,
   });
-  await expect(page.getByTestId('memory-table-tasks-runs').getByText(String(taskId))).toBeVisible({
-    timeout: 5_000,
-  });
+  await expect(
+    page.getByTestId('memory-table-tasks-runs').getByText(`Follow up customer ${taskId}`)
+  ).toBeVisible({ timeout: 5_000 });
 });
 
 // ===========================================================================
@@ -753,6 +796,42 @@ test('clicking a row opens the detail panel with full field values', async ({
   await expect(fields.getByText(/^Alice$/)).toBeVisible({ timeout: 3_000 });
   await expect(fields.getByText(/^alice@example\.com$/)).toBeVisible({ timeout: 3_000 });
   await expect(fields.locator('text=America/New_York')).toBeVisible({ timeout: 3_000 });
+});
+
+test('task detail panel groups human-first task information', async ({ authedPage: page }) => {
+  await ensureSeeded();
+  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+
+  await page.getByTestId('memory-tab-tasks').click();
+  await page.waitForTimeout(500);
+  await page.getByTestId('memory-task-view-runs').click();
+  await page.waitForTimeout(500);
+
+  const table = page.getByTestId('memory-table-tasks-runs');
+  await expect(table).toBeVisible({ timeout: 10_000 });
+
+  const runRow = table.locator('[data-testid="memory-table-row"]', {
+    hasText: 'Follow up with Alice',
+  });
+  await expect(runRow).toBeVisible({ timeout: 5_000 });
+  await runRow.click();
+  await page.waitForTimeout(500);
+
+  const detail = page.getByTestId('memory-row-detail');
+  await expect(detail).toBeVisible({ timeout: 5_000 });
+  await expect(
+    detail.getByText('Execution details, source context, and supporting run metadata.')
+  ).toBeVisible({
+    timeout: 3_000,
+  });
+
+  const fields = page.getByTestId('memory-row-detail-fields');
+  await expect(fields.getByRole('heading', { name: 'Source' })).toBeVisible({ timeout: 3_000 });
+  await expect(fields.getByRole('heading', { name: 'Timing' })).toBeVisible({ timeout: 3_000 });
+  await expect(fields.getByText('Alice Owner (contact 1)')).toBeVisible({ timeout: 3_000 });
+  await expect(fields.getByText('Reply when Alice emails about the project status.')).toBeVisible({
+    timeout: 3_000,
+  });
 });
 
 test('detail panel shows full untruncated content for transcripts', async ({

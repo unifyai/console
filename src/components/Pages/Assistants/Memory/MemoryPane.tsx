@@ -24,7 +24,12 @@ import {
 } from '@/utils/assistants/memory';
 import { MemoryTable } from './MemoryTable';
 import { MemoryRowDetail } from './MemoryRowDetail';
-import type { MemoryContext, MemoryRow, TaskMemoryView } from '@/types/assistants/memory';
+import type {
+  MemoryContext,
+  MemoryRow,
+  TaskMemoryView,
+  TaskRunRow,
+} from '@/types/assistants/memory';
 
 interface MemoryPaneProps {
   ownerId: string;
@@ -50,6 +55,12 @@ const TASK_VIEW_LABELS: Record<TaskMemoryView, string> = {
   Definitions: 'Definitions',
   Activations: 'Activations',
   Runs: 'Runs',
+};
+
+const TASK_VIEW_HELPER_COPY: Record<TaskMemoryView, string> = {
+  Definitions: 'Configured work the assistant owns, including intent and schedule.',
+  Activations: 'Queued or armed task instances that can wake live or offline work.',
+  Runs: 'Current and past task executions, including what triggered them and when they ran.',
 };
 
 function formatSnapshotAge(timestamp: number | null, now: number): string {
@@ -141,46 +152,6 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
     return () => window.clearInterval(interval);
   }, []);
 
-  const activeState = useMemo(() => {
-    switch (activeContext) {
-      case 'Contacts':
-        return contacts;
-      case 'Transcripts':
-        return transcripts;
-      case 'Knowledge':
-        return knowledge;
-      case 'Tasks':
-        switch (taskView) {
-          case 'Definitions':
-            return tasks;
-          case 'Activations':
-            return taskActivations;
-          case 'Runs':
-            return taskRuns;
-        }
-      case 'Guidance':
-        return guidance;
-      case 'Functions':
-        return functions;
-    }
-  }, [
-    activeContext,
-    contacts,
-    transcripts,
-    knowledge,
-    tasks,
-    taskActivations,
-    taskRuns,
-    guidance,
-    functions,
-    taskView,
-  ]);
-
-  // Sync search input with the active context's stored query
-  useEffect(() => {
-    setSearchValue(activeState.searchQuery);
-  }, [activeContext, taskView, activeState.searchQuery]);
-
   useEffect(() => {
     setSelectedRow(null);
   }, [activeContext, taskView]);
@@ -222,6 +193,93 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
     }
     return map;
   }, [contacts.rows]);
+
+  const taskDisplayById = useMemo(() => {
+    const map = new Map<number, { taskName: string | null; taskDescription: string | null }>();
+    for (const task of tasks.rows) {
+      if (task.taskId === null || task.taskId === undefined) continue;
+      map.set(task.taskId, {
+        taskName: task.name ?? null,
+        taskDescription: task.description ?? null,
+      });
+    }
+    for (const activation of taskActivations.rows) {
+      if (activation.taskId === null || activation.taskId === undefined) continue;
+      const existing = map.get(activation.taskId);
+      map.set(activation.taskId, {
+        taskName: activation.taskName ?? existing?.taskName ?? null,
+        taskDescription: activation.taskDescription ?? existing?.taskDescription ?? null,
+      });
+    }
+    return map;
+  }, [taskActivations.rows, tasks.rows]);
+
+  const resolvedTaskRuns = useMemo<TaskRunRow[]>(() => {
+    return taskRuns.rows.map((row) => {
+      const taskDisplay =
+        row.taskId !== null && row.taskId !== undefined
+          ? taskDisplayById.get(row.taskId)
+          : undefined;
+      const contactId = row.sourceContactId ? Number(row.sourceContactId) : NaN;
+      const sourceContactDisplayName =
+        row.sourceContactDisplayName ??
+        (Number.isFinite(contactId) ? (contactMap.get(contactId) ?? null) : null);
+      return {
+        ...row,
+        taskName: row.taskName ?? taskDisplay?.taskName ?? null,
+        taskDescription: row.taskDescription ?? taskDisplay?.taskDescription ?? null,
+        sourceContactDisplayName,
+      };
+    });
+  }, [contactMap, taskDisplayById, taskRuns.rows]);
+
+  const displayedTaskRuns = useMemo(
+    () => ({
+      ...taskRuns,
+      rows: resolvedTaskRuns,
+    }),
+    [resolvedTaskRuns, taskRuns]
+  );
+
+  const activeState = useMemo(() => {
+    switch (activeContext) {
+      case 'Contacts':
+        return contacts;
+      case 'Transcripts':
+        return transcripts;
+      case 'Knowledge':
+        return knowledge;
+      case 'Tasks':
+        switch (taskView) {
+          case 'Definitions':
+            return tasks;
+          case 'Activations':
+            return taskActivations;
+          case 'Runs':
+            return displayedTaskRuns;
+        }
+      case 'Guidance':
+        return guidance;
+      case 'Functions':
+        return functions;
+    }
+  }, [
+    activeContext,
+    contacts,
+    transcripts,
+    knowledge,
+    tasks,
+    taskActivations,
+    displayedTaskRuns,
+    guidance,
+    functions,
+    taskView,
+  ]);
+
+  // Sync search input with the active context's stored query
+  useEffect(() => {
+    setSearchValue(activeState.searchQuery);
+  }, [activeContext, taskView, activeState.searchQuery]);
 
   const columns = useMemo(() => {
     if (activeContext === 'Transcripts') return buildTranscriptColumns(contactMap);
@@ -272,6 +330,7 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
     tasksSnapshotHasRunningTaskRun
   );
   const showTaskWorkingIndicator = tasksSnapshotHasRunningTaskRun;
+  const taskViewHelperCopy = TASK_VIEW_HELPER_COPY[taskView];
   const getRowEmphasis = useCallback(
     (row: MemoryRow) => {
       if (activeContext !== 'Tasks' || taskView !== 'Runs') return undefined;
@@ -336,43 +395,48 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
       </div>
 
       {activeContext === 'Tasks' && (
-        <div
-          className="flex shrink-0 items-center justify-between border-b px-3 py-1.5"
-          data-testid="memory-task-views"
-        >
-          <div className="flex items-center gap-1">
-            {(Object.keys(TASK_VIEW_LABELS) as TaskMemoryView[]).map((view) => (
-              <button
-                key={view}
-                className={cn(
-                  'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground',
-                  taskView === view && 'bg-muted text-foreground'
-                )}
-                data-testid={`memory-task-view-${view.toLowerCase()}`}
-                onClick={() => setTaskView(view)}
-              >
-                <span>{TASK_VIEW_LABELS[view]}</span>
-                {taskViewCounts[view] > 0 && (
-                  <span className="text-[11px] tabular-nums text-muted-foreground">
-                    {taskViewCounts[view]}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+        <div className="shrink-0 border-b px-3 py-2" data-testid="memory-task-views">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1">
+              {(Object.keys(TASK_VIEW_LABELS) as TaskMemoryView[]).map((view) => (
+                <button
+                  key={view}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground',
+                    taskView === view && 'bg-muted text-foreground'
+                  )}
+                  data-testid={`memory-task-view-${view.toLowerCase()}`}
+                  onClick={() => setTaskView(view)}
+                >
+                  <span>{TASK_VIEW_LABELS[view]}</span>
+                  {taskViewCounts[view] > 0 && (
+                    <span className="text-[11px] tabular-nums text-muted-foreground">
+                      {taskViewCounts[view]}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
 
-          <span
-            className="text-caption hidden shrink-0 items-center gap-1.5 text-muted-foreground sm:inline-flex"
-            data-testid="memory-task-snapshot-status"
+            <span
+              className="text-caption inline-flex shrink-0 items-center gap-1.5 text-muted-foreground"
+              data-testid="memory-task-snapshot-status"
+            >
+              {showTaskWorkingIndicator ? (
+                <span
+                  className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"
+                  data-testid="memory-task-snapshot-working-indicator"
+                />
+              ) : null}
+              <span>{snapshotStatus}</span>
+            </span>
+          </div>
+          <p
+            className="mt-2 max-w-2xl text-[11px] leading-5 text-muted-foreground"
+            data-testid="memory-task-view-helper"
           >
-            {showTaskWorkingIndicator ? (
-              <span
-                className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500/80"
-                data-testid="memory-task-snapshot-working-indicator"
-              />
-            ) : null}
-            <span>{snapshotStatus}</span>
-          </span>
+            {taskViewHelperCopy}
+          </p>
         </div>
       )}
 
@@ -440,6 +504,7 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
       <MemoryRowDetail
         row={selectedRow}
         context={activeContext}
+        taskView={activeContext === 'Tasks' ? taskView : undefined}
         title={detailTitle}
         onClose={() => setSelectedRow(null)}
       />

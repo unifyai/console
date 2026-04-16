@@ -54,6 +54,8 @@ export interface KnowledgeRow {
 
 export interface TaskRow {
   taskId: number;
+  name: string | null;
+  description: string | null;
   instanceId: string | null;
   status: string | null;
   priority: number | null;
@@ -61,6 +63,7 @@ export interface TaskRow {
   triggerType: string | null;
   nextDueAt: string | null;
   createdAt: string | null;
+  updatedAt: string | null;
   [key: string]: unknown;
 }
 
@@ -85,6 +88,8 @@ export interface TaskRunRow {
   runKey: string | null;
   taskId: number | null;
   assistantId: string | null;
+  taskName: string | null;
+  taskDescription: string | null;
   sourceType: string | null;
   executionMode: string | null;
   state: string | null;
@@ -92,6 +97,9 @@ export interface TaskRunRow {
   sourceMedium: string | null;
   sourceRef: string | null;
   sourceContactId: string | null;
+  sourceContactDisplayName: string | null;
+  activationRevision: string | null;
+  sourceTaskLogId: number | null;
   startedAt: string | null;
   completedAt: string | null;
   jobName: string | null;
