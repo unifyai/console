@@ -15,6 +15,8 @@ import type {
   TranscriptRow,
   KnowledgeRow,
   TaskRow,
+  TaskScheduleRow,
+  TaskTriggerRow,
   TaskRunRow,
   GuidanceRow,
   FunctionRow,
@@ -34,7 +36,7 @@ const HUMANIZED_TASK_LABELS = new Map<string, string>([
   ['offline', 'Offline'],
   ['scheduled', 'Scheduled'],
   ['triggered', 'Triggered'],
-  ['explicit', 'Explicit'],
+  ['explicit', 'On demand'],
   ['queue', 'Queued'],
   ['running', 'Running'],
   ['completed', 'Completed'],
@@ -42,7 +44,7 @@ const HUMANIZED_TASK_LABELS = new Map<string, string>([
   ['cancelled', 'Cancelled'],
   ['pending', 'Pending'],
   ['triggerable', 'Ready'],
-  ['manual', 'Manual'],
+  ['manual', 'On demand'],
 ]);
 
 const TASK_STATUS_TONES: Record<string, string> = {
@@ -78,6 +80,115 @@ function isPresent(value: unknown): boolean {
   if (typeof value === 'string') return value.trim().length > 0;
   if (Array.isArray(value)) return value.length > 0;
   return true;
+}
+
+type TaskStartMode = 'scheduled' | 'triggered' | 'offline' | 'on_demand';
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (value === null || value === undefined || Array.isArray(value) || typeof value !== 'object') {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function readFirstPresentValue(record: Record<string, unknown> | null, keys: string[]): unknown {
+  if (!record) return undefined;
+  for (const key of keys) {
+    const value = record[key];
+    if (value !== undefined && value !== null) return value;
+  }
+  return undefined;
+}
+
+function readTaskSchedule(row: TaskRow): TaskScheduleRow | null {
+  return asRecord(row.schedule) as TaskScheduleRow | null;
+}
+
+function readTaskTrigger(row: TaskRow): TaskTriggerRow | null {
+  return asRecord(row.trigger) as TaskTriggerRow | null;
+}
+
+function isOfflineTask(row: TaskRow): boolean {
+  if (typeof row.offline === 'boolean') return row.offline;
+  return (
+    String(row.triggerType ?? '')
+      .trim()
+      .toLowerCase() === 'offline'
+  );
+}
+
+function hasTaskSchedule(row: TaskRow): boolean {
+  const schedule = readTaskSchedule(row);
+  if (schedule && Object.keys(schedule).length > 0) return true;
+  return (
+    String(row.triggerType ?? '')
+      .trim()
+      .toLowerCase() === 'scheduled'
+  );
+}
+
+function hasTaskTrigger(row: TaskRow): boolean {
+  const trigger = readTaskTrigger(row);
+  if (trigger && Object.keys(trigger).length > 0) return true;
+  return (
+    String(row.triggerType ?? '')
+      .trim()
+      .toLowerCase() === 'triggered'
+  );
+}
+
+function readTaskDueAt(row: TaskRow): string | null {
+  const schedule = readTaskSchedule(row);
+  const value = readFirstPresentValue(schedule, ['startAt', 'start_at']) ?? row.nextDueAt;
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readTaskTriggerMedium(row: TaskRow): string | null {
+  const trigger = readTaskTrigger(row);
+  const value = trigger?.medium;
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function resolveTaskStartMode(row: TaskRow): TaskStartMode {
+  if (isOfflineTask(row)) return 'offline';
+  if (hasTaskSchedule(row)) return 'scheduled';
+  if (hasTaskTrigger(row)) return 'triggered';
+  return 'on_demand';
+}
+
+function formatTaskStartLabel(row: TaskRow): string {
+  switch (resolveTaskStartMode(row)) {
+    case 'offline':
+      return 'Offline';
+    case 'scheduled':
+      return 'Scheduled';
+    case 'triggered':
+      return 'Triggered';
+    case 'on_demand':
+      return 'On demand';
+  }
+}
+
+function formatTaskStartDetail(row: TaskRow): string | undefined {
+  const triggerMedium = readTaskTriggerMedium(row);
+  switch (resolveTaskStartMode(row)) {
+    case 'offline':
+      if (hasTaskSchedule(row)) return 'Runs in the background on a schedule';
+      if (hasTaskTrigger(row)) {
+        return triggerMedium
+          ? `Runs in the background for matching ${humanizeTaskLabel(triggerMedium)} activity`
+          : 'Runs in the background when the matching event happens';
+      }
+      return 'Runs in the background without waking the assistant';
+    case 'scheduled':
+      return 'Runs on a schedule';
+    case 'triggered':
+      return triggerMedium
+        ? `Waits for matching ${humanizeTaskLabel(triggerMedium)} activity`
+        : 'Waits for the matching event to happen';
+    case 'on_demand':
+      return 'Starts only when explicitly requested';
+  }
 }
 
 function toTitleCase(value: string): string {
@@ -245,30 +356,16 @@ function taskIdentityCell({
 }
 
 function formatTaskStartContext(row: TaskRow): React.ReactNode {
-  const triggerValue = String(row.triggerType ?? '').toLowerCase();
-  let detail: string | undefined;
-  switch (triggerValue) {
-    case 'scheduled':
-      detail = 'Runs on a schedule';
-      break;
-    case 'triggered':
-      detail = 'Waits for the matching event to happen';
-      break;
-    case 'manual':
-      detail = 'Starts when it is launched manually';
-      break;
-    default:
-      detail = undefined;
-  }
   return stackedCell({
-    primary: humanizeTaskLabel(row.triggerType),
-    secondary: detail,
+    primary: formatTaskStartLabel(row),
+    secondary: formatTaskStartDetail(row),
   });
 }
 
 function formatTaskTimingCell(row: TaskRow): React.ReactNode {
+  const dueAt = readTaskDueAt(row);
   return stackedCell({
-    primary: row.nextDueAt ? `Next due ${formatTimestamp(row.nextDueAt)}` : 'No due time set',
+    primary: dueAt ? `Next due ${formatTimestamp(dueAt)}` : 'No due time set',
     secondary: row.createdAt ? `Created ${formatTimestamp(row.createdAt)}` : undefined,
     tertiary: row.updatedAt ? `Updated ${formatTimestamp(row.updatedAt)}` : undefined,
   });
@@ -284,7 +381,7 @@ function formatRunSourcePrimary(row: TaskRunRow): string {
         ? `Triggered by ${humanizeTaskLabel(row.sourceMedium)}`
         : 'Triggered by an event';
     case 'explicit':
-      return 'Started manually';
+      return 'Started on demand';
     case 'queue':
       return 'Started from the queue';
     default:
@@ -391,7 +488,7 @@ export const TASK_COLUMNS: ColumnDef<TaskRow>[] = [
     (_row, value) => badgeCell(value, TASK_STATUS_TONES),
     120
   ),
-  accessorCell<TaskRow>('triggerType', 'Starts', (row) => formatTaskStartContext(row), 240),
+  accessorCell<TaskRow>('triggerType', 'Type', (row) => formatTaskStartContext(row), 240),
   accessorCell<TaskRow>('nextDueAt', 'Timing', (row) => formatTaskTimingCell(row), 220),
 ];
 
@@ -549,18 +646,24 @@ export function buildTaskDetailSections(row: Record<string, unknown>): DetailSec
       ['completedAt', 'Completed at', row.completedAt],
     ]);
   } else {
+    const taskRow = row as Record<string, unknown> & TaskRow;
     addSection('Task', [
       ['name', 'Task', row.name],
       ['description', 'Description', row.description],
       ['status', 'Status', isPresent(row.status) ? humanizeTaskLabel(row.status) : undefined],
     ]);
-    addSection('Starts', [
+    addSection('Type', [
+      ['taskStartMode', 'Type', formatTaskStartLabel(taskRow)],
+      ['taskStartDetail', 'Behavior', formatTaskStartDetail(taskRow)],
       [
-        'triggerType',
-        'How it starts',
-        isPresent(row.triggerType) ? humanizeTaskLabel(row.triggerType) : undefined,
+        'triggerMedium',
+        'Channel',
+        readTaskTriggerMedium(taskRow)
+          ? humanizeTaskLabel(readTaskTriggerMedium(taskRow))
+          : undefined,
       ],
-      ['nextDueAt', 'Next due', row.nextDueAt],
+      ['offline', 'Execution', isOfflineTask(taskRow) ? 'Runs in the background' : undefined],
+      ['nextDueAt', 'Next due', readTaskDueAt(taskRow)],
     ]);
     addSection('Timing', [
       ['createdAt', 'Created at', row.createdAt],

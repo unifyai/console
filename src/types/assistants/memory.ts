@@ -53,6 +53,22 @@ export interface KnowledgeRow {
   [key: string]: unknown;
 }
 
+export interface TaskScheduleRow {
+  startAt?: string | null;
+  prevTask?: number | null;
+  nextTask?: number | null;
+  [key: string]: unknown;
+}
+
+export interface TaskTriggerRow {
+  medium?: string | null;
+  fromContactIds?: number[] | null;
+  omitContactIds?: number[] | null;
+  interrupt?: boolean | null;
+  recurring?: boolean | null;
+  [key: string]: unknown;
+}
+
 export interface TaskRow {
   taskId: number;
   name: string | null;
@@ -62,6 +78,11 @@ export interface TaskRow {
   nextDueAt: string | null;
   createdAt: string | null;
   updatedAt: string | null;
+  schedule?: TaskScheduleRow | null;
+  trigger?: TaskTriggerRow | null;
+  offline?: boolean | null;
+  entrypoint?: number | string | null;
+  repeat?: unknown[] | null;
   [key: string]: unknown;
 }
 

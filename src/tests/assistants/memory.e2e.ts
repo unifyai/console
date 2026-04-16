@@ -115,18 +115,7 @@ async function seedTasks(
   apiKey: string,
   userId: string,
   assistantId: number,
-  tasks: {
-    task_id: number;
-    name: string;
-    description: string;
-    status: string;
-    priority: number;
-    entrypoint: string;
-    trigger_type: string;
-    next_due_at?: string;
-    created_at: string;
-    updated_at?: string;
-  }[]
+  tasks: Record<string, unknown>[]
 ) {
   for (const task of tasks) {
     const res = await orchestraFetch(
@@ -231,26 +220,42 @@ async function ensureSeeded() {
   await seedTasks(user.apiKey, user.id, dataAssistant.agentId, [
     {
       task_id: 1,
-      name: 'Calendar check-in',
-      description: 'Review upcoming events and confirm the schedule.',
-      status: 'completed',
-      priority: 1,
-      entrypoint: 'check_calendar',
-      trigger_type: 'manual',
+      name: 'Send report',
+      description: 'Compile and send the weekly report to Alice.',
+      status: 'scheduled',
+      priority: 2,
+      schedule: {
+        start_at: '2025-06-02T12:30:00Z',
+      },
       created_at: '2025-06-01T09:00:00Z',
       updated_at: '2025-06-01T09:10:00Z',
     },
     {
       task_id: 2,
-      name: 'Send report',
-      description: 'Compile and send the weekly report to Alice.',
-      status: 'pending',
+      name: 'Escalate security emails',
+      description: 'Watch for urgent security emails and surface them to the boss.',
+      status: 'triggerable',
       priority: 2,
-      entrypoint: 'send_report',
-      trigger_type: 'scheduled',
-      next_due_at: '2025-06-02T12:30:00Z',
+      trigger: {
+        medium: 'email',
+      },
       created_at: '2025-06-02T12:00:00Z',
       updated_at: '2025-06-02T12:05:00Z',
+    },
+    {
+      task_id: 3,
+      name: 'Follow up with Alice',
+      description: 'Reply when Alice emails about the project status.',
+      status: 'triggerable',
+      priority: 2,
+      offline: true,
+      entrypoint: 101,
+      trigger: {
+        medium: 'email',
+        from_contact_ids: [1],
+      },
+      created_at: '2025-06-03T09:00:00Z',
+      updated_at: '2025-06-03T09:15:00Z',
     },
   ]);
 
@@ -482,13 +487,27 @@ test('displays seeded tasks in the Tasks sub-tab', async ({ authedPage: page }) 
   await expect(page.getByTestId('memory-task-view-helper')).toContainText(
     'What this assistant has been asked to do'
   );
-  await expect(table.locator('text=Calendar check-in')).toBeVisible({ timeout: 5_000 });
-  await expect(table.locator('text=Send report')).toBeVisible({ timeout: 5_000 });
+  const scheduledRow = table.locator('[data-testid="memory-table-row"]', {
+    hasText: 'Send report',
+  });
+  const triggeredRow = table.locator('[data-testid="memory-table-row"]', {
+    hasText: 'Escalate security emails',
+  });
+  const offlineRow = table.locator('[data-testid="memory-table-row"]', {
+    hasText: 'Follow up with Alice',
+  });
+
+  await expect(scheduledRow).toBeVisible({ timeout: 5_000 });
+  await expect(triggeredRow).toBeVisible({ timeout: 5_000 });
+  await expect(offlineRow).toBeVisible({ timeout: 5_000 });
+  await expect(scheduledRow).toContainText('Scheduled');
+  await expect(triggeredRow).toContainText('Triggered');
+  await expect(offlineRow).toContainText('Offline');
+  await expect(triggeredRow).toContainText('Ready');
   await expect(table.locator('text=Compile and send the weekly report to Alice.')).toBeVisible({
     timeout: 5_000,
   });
-  await expect(table.getByText(/^Completed$/)).toBeVisible({ timeout: 5_000 });
-  await expect(table.getByText(/^Pending$/)).toBeVisible({ timeout: 5_000 });
+  await expect(table.getByText(/^Manual$/)).not.toBeVisible();
   await expect(table.locator('text=/Task #|Entrypoint|Priority/')).not.toBeVisible();
 });
 
@@ -612,11 +631,11 @@ test('Tasks refresh updates tasks and activity together', async ({ authedPage: p
       task_id: taskId,
       name: `Follow up customer ${taskId}`,
       description: 'Reach out to the customer with the updated delivery timeline.',
-      status: 'pending',
+      status: 'scheduled',
       priority: 3,
-      entrypoint: 'follow_up_customer',
-      trigger_type: 'manual',
-      next_due_at: '2025-06-04T12:30:00Z',
+      schedule: {
+        start_at: '2025-06-04T12:30:00Z',
+      },
       created_at: '2025-06-04T12:00:00Z',
       updated_at: '2025-06-04T12:05:00Z',
     },
@@ -642,10 +661,10 @@ test('Tasks refresh updates tasks and activity together', async ({ authedPage: p
 
   await page.getByTestId('memory-refresh').click();
 
-  await expect(page.getByTestId('memory-tab-tasks')).toHaveText(/Tasks\s*\(?3\)?/, {
+  await expect(page.getByTestId('memory-tab-tasks')).toHaveText(/Tasks\s*\(?4\)?/, {
     timeout: 10_000,
   });
-  await expect(page.getByTestId('memory-task-view-tasks')).toHaveText(/Tasks\s*\(?3\)?/, {
+  await expect(page.getByTestId('memory-task-view-tasks')).toHaveText(/Tasks\s*\(?4\)?/, {
     timeout: 5_000,
   });
   await expect(page.getByTestId('memory-task-view-activity')).toHaveText(/Activity\s*\(?3\)?/, {
