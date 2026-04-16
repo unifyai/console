@@ -43,7 +43,7 @@ function UserMessageSkeleton({ width }: { width: string }) {
 
 export function ChatMessageSkeletons() {
   return (
-    <div className="mx-auto max-w-[720px] space-y-6" data-testid="chat-skeleton">
+    <div className="space-y-6 px-3 py-4" style={{ width: '100%' }} data-testid="chat-skeleton">
       {/* Simulate a short conversation: assistant → user → assistant */}
       <AssistantMessageSkeleton lineWidths={['85%', '70%']} />
       <UserMessageSkeleton width="40%" />
