@@ -17,6 +17,7 @@ import type {
   TaskRow,
   TaskScheduleRow,
   TaskTriggerRow,
+  TaskRepeatPatternRow,
   TaskRunRow,
   GuidanceRow,
   FunctionRow,
@@ -84,6 +85,16 @@ function isPresent(value: unknown): boolean {
 
 type TaskStartMode = 'scheduled' | 'triggered' | 'offline' | 'on_demand';
 
+const WEEKDAY_LABELS = new Map<string, string>([
+  ['MO', 'Mon'],
+  ['TU', 'Tue'],
+  ['WE', 'Wed'],
+  ['TH', 'Thu'],
+  ['FR', 'Fri'],
+  ['SA', 'Sat'],
+  ['SU', 'Sun'],
+]);
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (value === null || value === undefined || Array.isArray(value) || typeof value !== 'object') {
     return null;
@@ -106,6 +117,23 @@ function readTaskSchedule(row: TaskRow): TaskScheduleRow | null {
 
 function readTaskTrigger(row: TaskRow): TaskTriggerRow | null {
   return asRecord(row.trigger) as TaskTriggerRow | null;
+}
+
+function readTaskRepeatPatterns(row: TaskRow): TaskRepeatPatternRow[] {
+  if (!Array.isArray(row.repeat)) return [];
+  return row.repeat
+    .map((pattern) => asRecord(pattern) as TaskRepeatPatternRow | null)
+    .filter((pattern): pattern is TaskRepeatPatternRow => pattern !== null);
+}
+
+function coerceBoolean(value: unknown): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes';
+  }
+  if (typeof value === 'number') return value !== 0;
+  return false;
 }
 
 function isOfflineTask(row: TaskRow): boolean {
@@ -149,6 +177,16 @@ function readTaskTriggerMedium(row: TaskRow): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
+function isRecurringTriggeredTask(row: TaskRow): boolean {
+  const trigger = readTaskTrigger(row);
+  const recurring = readFirstPresentValue(trigger, ['recurring']);
+  return coerceBoolean(recurring);
+}
+
+function isRecurringTask(row: TaskRow): boolean {
+  return readTaskRepeatPatterns(row).length > 0 || isRecurringTriggeredTask(row);
+}
+
 function resolveTaskStartMode(row: TaskRow): TaskStartMode {
   if (isOfflineTask(row)) return 'offline';
   if (hasTaskSchedule(row)) return 'scheduled';
@@ -167,6 +205,84 @@ function formatTaskStartLabel(row: TaskRow): string {
     case 'on_demand':
       return 'On demand';
   }
+}
+
+function supportsTaskRecurrenceCue(row: TaskRow): boolean {
+  return resolveTaskStartMode(row) !== 'on_demand';
+}
+
+function readRepeatWeekdays(pattern: TaskRepeatPatternRow): string[] {
+  if (!Array.isArray(pattern.weekdays)) return [];
+  return pattern.weekdays.filter((weekday): weekday is string => typeof weekday === 'string');
+}
+
+function readRepeatTimeOfDay(pattern: TaskRepeatPatternRow): string | null {
+  const record = asRecord(pattern);
+  const value = readFirstPresentValue(record, ['timeOfDay', 'time_of_day']);
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function formatRepeatCadence(pattern: TaskRepeatPatternRow): string {
+  const frequency =
+    typeof pattern.frequency === 'string' ? pattern.frequency.trim().toLowerCase() : '';
+  const interval =
+    typeof pattern.interval === 'number' &&
+    Number.isFinite(pattern.interval) &&
+    pattern.interval > 0
+      ? pattern.interval
+      : 1;
+  const weekdays = readRepeatWeekdays(pattern).map(
+    (weekday) => WEEKDAY_LABELS.get(weekday.toUpperCase()) ?? weekday
+  );
+
+  let cadence: string;
+  switch (frequency) {
+    case 'daily':
+      cadence = interval === 1 ? 'Every day' : `Every ${interval} days`;
+      break;
+    case 'weekly':
+      if (weekdays.length > 0) {
+        cadence =
+          interval === 1
+            ? `Every week on ${weekdays.join(', ')}`
+            : `Every ${interval} weeks on ${weekdays.join(', ')}`;
+      } else {
+        cadence = interval === 1 ? 'Every week' : `Every ${interval} weeks`;
+      }
+      break;
+    case 'monthly':
+      cadence = interval === 1 ? 'Every month' : `Every ${interval} months`;
+      break;
+    case 'yearly':
+      cadence = interval === 1 ? 'Every year' : `Every ${interval} years`;
+      break;
+    default:
+      cadence = 'Repeats automatically';
+  }
+
+  const timeOfDay = readRepeatTimeOfDay(pattern);
+  if (timeOfDay) cadence += ` at ${timeOfDay}`;
+
+  if (typeof pattern.count === 'number' && Number.isFinite(pattern.count) && pattern.count > 0) {
+    cadence += ` for ${pattern.count} occurrences`;
+  } else if (typeof pattern.until === 'string' && pattern.until.trim().length > 0) {
+    cadence += ` until ${formatTimestamp(pattern.until)}`;
+  }
+
+  return cadence;
+}
+
+function formatTaskRecurrenceSummary(row: TaskRow): string | undefined {
+  if (!supportsTaskRecurrenceCue(row)) return undefined;
+  return isRecurringTask(row) ? 'Recurring' : 'One-time';
+}
+
+function formatTaskRecurrenceCadence(row: TaskRow): string | undefined {
+  const repeatPatterns = readTaskRepeatPatterns(row);
+  if (repeatPatterns.length > 1) return 'Multiple repeat schedules';
+  if (repeatPatterns.length === 1) return formatRepeatCadence(repeatPatterns[0]);
+  if (isRecurringTriggeredTask(row)) return 'Repeats after each matching trigger';
+  return undefined;
 }
 
 function formatTaskStartDetail(row: TaskRow): string | undefined {
@@ -356,9 +472,11 @@ function taskIdentityCell({
 }
 
 function formatTaskStartContext(row: TaskRow): React.ReactNode {
+  const recurrenceSummary = formatTaskRecurrenceSummary(row);
   return stackedCell({
     primary: formatTaskStartLabel(row),
-    secondary: formatTaskStartDetail(row),
+    secondary: recurrenceSummary ?? formatTaskStartDetail(row),
+    tertiary: recurrenceSummary ? formatTaskStartDetail(row) : undefined,
   });
 }
 
@@ -647,6 +765,7 @@ export function buildTaskDetailSections(row: Record<string, unknown>): DetailSec
     ]);
   } else {
     const taskRow = row as Record<string, unknown> & TaskRow;
+    const triggerMedium = readTaskTriggerMedium(taskRow);
     addSection('Task', [
       ['name', 'Task', row.name],
       ['description', 'Description', row.description],
@@ -654,14 +773,10 @@ export function buildTaskDetailSections(row: Record<string, unknown>): DetailSec
     ]);
     addSection('Type', [
       ['taskStartMode', 'Type', formatTaskStartLabel(taskRow)],
+      ['taskRecurrence', 'Recurrence', formatTaskRecurrenceSummary(taskRow)],
+      ['taskCadence', 'Cadence', formatTaskRecurrenceCadence(taskRow)],
       ['taskStartDetail', 'Behavior', formatTaskStartDetail(taskRow)],
-      [
-        'triggerMedium',
-        'Channel',
-        readTaskTriggerMedium(taskRow)
-          ? humanizeTaskLabel(readTaskTriggerMedium(taskRow))
-          : undefined,
-      ],
+      ['triggerMedium', 'Channel', triggerMedium ? humanizeTaskLabel(triggerMedium) : undefined],
       ['offline', 'Execution', isOfflineTask(taskRow) ? 'Runs in the background' : undefined],
       ['nextDueAt', 'Next due', readTaskDueAt(taskRow)],
     ]);

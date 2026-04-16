@@ -227,6 +227,13 @@ async function ensureSeeded() {
       schedule: {
         start_at: '2025-06-02T12:30:00Z',
       },
+      repeat: [
+        {
+          frequency: 'weekly',
+          interval: 1,
+          weekdays: ['MO'],
+        },
+      ],
       created_at: '2025-06-01T09:00:00Z',
       updated_at: '2025-06-01T09:10:00Z',
     },
@@ -238,6 +245,7 @@ async function ensureSeeded() {
       priority: 2,
       trigger: {
         medium: 'email',
+        recurring: true,
       },
       created_at: '2025-06-02T12:00:00Z',
       updated_at: '2025-06-02T12:05:00Z',
@@ -501,8 +509,11 @@ test('displays seeded tasks in the Tasks sub-tab', async ({ authedPage: page }) 
   await expect(triggeredRow).toBeVisible({ timeout: 5_000 });
   await expect(offlineRow).toBeVisible({ timeout: 5_000 });
   await expect(scheduledRow).toContainText('Scheduled');
+  await expect(scheduledRow).toContainText('Recurring');
   await expect(triggeredRow).toContainText('Triggered');
+  await expect(triggeredRow).toContainText('Recurring');
   await expect(offlineRow).toContainText('Offline');
+  await expect(offlineRow).toContainText('One-time');
   await expect(triggeredRow).toContainText('Ready');
   await expect(table.locator('text=Compile and send the weekly report to Alice.')).toBeVisible({
     timeout: 5_000,
@@ -761,6 +772,31 @@ test('task detail panel groups human-first task information', async ({ authedPag
   });
   await expect(detail.getByText('Identifiers & Debug')).not.toBeVisible();
   await expect(detail.getByText('Additional metadata')).not.toBeVisible();
+});
+
+test('task detail panel shows recurrence for recurring tasks', async ({ authedPage: page }) => {
+  await ensureSeeded();
+  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+
+  await page.getByTestId('memory-tab-tasks').click();
+  await page.waitForTimeout(500);
+
+  const table = page.getByTestId('memory-table-tasks-tasks');
+  await expect(table).toBeVisible({ timeout: 10_000 });
+
+  const scheduledRow = table.locator('[data-testid="memory-table-row"]', {
+    hasText: 'Send report',
+  });
+  await expect(scheduledRow).toBeVisible({ timeout: 5_000 });
+  await scheduledRow.click();
+  await page.waitForTimeout(500);
+
+  const detail = page.getByTestId('memory-row-detail');
+  await expect(detail).toBeVisible({ timeout: 5_000 });
+
+  const fields = page.getByTestId('memory-row-detail-fields');
+  await expect(fields.getByText('Recurring')).toBeVisible({ timeout: 3_000 });
+  await expect(fields.getByText('Every week on Mon')).toBeVisible({ timeout: 3_000 });
 });
 
 test('detail panel shows full untruncated content for transcripts', async ({

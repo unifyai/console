@@ -69,6 +69,16 @@ export interface TaskTriggerRow {
   [key: string]: unknown;
 }
 
+export interface TaskRepeatPatternRow {
+  frequency?: string | null;
+  interval?: number | null;
+  weekdays?: string[] | null;
+  count?: number | null;
+  until?: string | null;
+  timeOfDay?: string | null;
+  [key: string]: unknown;
+}
+
 export interface TaskRow {
   taskId: number;
   name: string | null;
@@ -82,7 +92,7 @@ export interface TaskRow {
   trigger?: TaskTriggerRow | null;
   offline?: boolean | null;
   entrypoint?: number | string | null;
-  repeat?: unknown[] | null;
+  repeat?: TaskRepeatPatternRow[] | null;
   [key: string]: unknown;
 }
 
