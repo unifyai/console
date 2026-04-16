@@ -7,6 +7,7 @@
 
 import React from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
 import type {
   MemoryContext,
@@ -52,6 +53,21 @@ const HUMANIZED_TASK_LABELS = new Map<string, string>([
   ['paused', 'Paused'],
   ['triggerable', 'Ready'],
   ['manual', 'On demand'],
+]);
+
+const TASK_STATUS_DESCRIPTIONS = new Map<string, string>([
+  ['scheduled', 'Will start automatically at its next scheduled time.'],
+  ['queued', 'Has been lined up and is waiting for its turn to start.'],
+  ['primed', 'Has been prepared so it can start quickly when its scheduled window opens.'],
+  ['triggerable', 'Is armed and waiting for a matching event to happen.'],
+  ['ready', 'Is armed and waiting for a matching event to happen.'],
+  ['active', 'Currently has live work underway.'],
+  ['running', 'Is actively executing right now.'],
+  ['completed', 'Finished successfully.'],
+  ['failed', 'Stopped because something went wrong during execution.'],
+  ['cancelled', 'Was stopped before it finished.'],
+  ['paused', 'Is intentionally on hold until someone resumes it.'],
+  ['pending', 'Has been created and is waiting to start.'],
 ]);
 
 // Keep task chips within a few semantic families so Memory feels brand-aligned
@@ -392,7 +408,8 @@ function displayCell(
   label: React.ReactNode,
   toneClass: string,
   dotClassName?: string,
-  dotTestId?: string
+  dotTestId?: string,
+  tooltipText?: string
 ): React.ReactNode {
   const children: React.ReactNode[] = [];
   if (dotClassName) {
@@ -405,12 +422,30 @@ function displayCell(
     );
   }
   children.push(React.createElement('span', { key: 'label' }, label));
-  return React.createElement(
+  const badge = React.createElement(
     'span',
     {
-      className: cn(BADGE_BASE_CLASS, toneClass),
+      className: cn(BADGE_BASE_CLASS, toneClass, tooltipText && 'cursor-help'),
     },
     children
+  );
+  if (!tooltipText) return badge;
+  const TooltipProviderComponent = TooltipProvider as React.JSXElementConstructor<
+    React.PropsWithChildren<{ delayDuration?: number }>
+  >;
+  return React.createElement(
+    TooltipProviderComponent,
+    { delayDuration: 100 },
+    React.createElement(
+      Tooltip,
+      null,
+      React.createElement(TooltipTrigger, { asChild: true }, badge),
+      React.createElement(
+        TooltipContent,
+        { side: 'top', className: 'max-w-xs p-2 text-caption' },
+        tooltipText
+      )
+    )
   );
 }
 
@@ -422,21 +457,26 @@ function badgeTone(
   return tones[value.toLowerCase()] ?? fallback;
 }
 
-function badgeCell(value: unknown, tones: Record<string, string>, fallback = BADGE_FALLBACK_CLASS) {
-  if (!isPresent(value)) return '—';
-  const raw = String(value);
-  return displayCell(humanizeTaskLabel(raw), badgeTone(raw, tones, fallback));
+function describeTaskStatus(value: string): string | undefined {
+  return TASK_STATUS_DESCRIPTIONS.get(value.toLowerCase());
 }
 
-function taskStateBadge(value: unknown): React.ReactNode {
+function taskStatusBadge(
+  value: unknown,
+  opts?: {
+    showRunningDot?: boolean;
+    dotTestId?: string;
+  }
+): React.ReactNode {
   if (!isPresent(value)) return '—';
   const raw = String(value);
-  const isRunning = raw.toLowerCase() === 'running';
+  const isRunning = Boolean(opts?.showRunningDot) && raw.toLowerCase() === 'running';
   return displayCell(
     humanizeTaskLabel(raw),
     badgeTone(raw, TASK_STATUS_TONES),
     isRunning ? MEMORY_LIVE_DOT_CLASS : undefined,
-    isRunning ? 'memory-running-state-indicator' : undefined
+    isRunning ? opts?.dotTestId : undefined,
+    describeTaskStatus(raw)
   );
 }
 
@@ -623,12 +663,7 @@ export const TASK_COLUMNS: ColumnDef<TaskRow>[] = [
       }),
     280
   ),
-  accessorCell<TaskRow>(
-    'status',
-    'Status',
-    (_row, value) => badgeCell(value, TASK_STATUS_TONES),
-    120
-  ),
+  accessorCell<TaskRow>('status', 'Status', (_row, value) => taskStatusBadge(value), 120),
   accessorCell<TaskRow>('triggerType', 'Type', (row) => formatTaskStartContext(row), 240),
   accessorCell<TaskRow>('nextDueAt', 'Timing', (row) => formatTaskTimingCell(row), 220),
 ];
@@ -645,7 +680,16 @@ export const TASK_RUN_COLUMNS: ColumnDef<TaskRunRow>[] = [
       }),
     280
   ),
-  accessorCell<TaskRunRow>('state', 'State', (_row, value) => taskStateBadge(value), 120),
+  accessorCell<TaskRunRow>(
+    'state',
+    'State',
+    (_row, value) =>
+      taskStatusBadge(value, {
+        showRunningDot: true,
+        dotTestId: 'memory-running-state-indicator',
+      }),
+    120
+  ),
   accessorCell<TaskRunRow>('sourceType', 'Why It Started', (row) => formatRunSourceCell(row), 260),
   accessorCell<TaskRunRow>('startedAt', 'Timing', (row) => formatRunTimingCell(row), 260),
 ];

@@ -533,6 +533,15 @@ test('Tasks nested views show tasks and activity', async ({ authedPage: page }) 
   await expect(page.getByTestId('memory-task-view-tasks')).toBeVisible();
   await expect(page.getByTestId('memory-task-view-activity')).toBeVisible();
   await expect(page.getByTestId('memory-task-view-activations')).not.toBeVisible();
+  const tasksTable = page.getByTestId('memory-table-tasks-tasks');
+  await expect(tasksTable).toBeVisible({ timeout: 10_000 });
+  await tasksTable
+    .getByText(/^Ready$/)
+    .first()
+    .hover();
+  await expect(page.getByRole('tooltip')).toContainText(
+    'Is armed and waiting for a matching event to happen.'
+  );
 
   await page.getByTestId('memory-task-view-activity').click();
   await page.waitForTimeout(500);
@@ -551,6 +560,8 @@ test('Tasks nested views show tasks and activity', async ({ authedPage: page }) 
   await expect(activityTable.getByText(/^Running$/)).toBeVisible({ timeout: 5_000 });
   await expect(activityTable.getByText(/^Completed$/)).toBeVisible({ timeout: 5_000 });
   await expect(activityTable.locator('text=/Run #|Job /')).not.toBeVisible();
+  await activityTable.getByText(/^Running$/).hover();
+  await expect(page.getByRole('tooltip')).toContainText('Is actively executing right now.');
   const snapshotStatus = page.getByTestId('memory-task-snapshot-status');
   await expect(snapshotStatus).toBeVisible({ timeout: 5_000 });
   await expect(snapshotStatus).toContainText('Working');
