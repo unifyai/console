@@ -566,7 +566,7 @@ export function AssistantProfileChatPanel({
     <div className="flex h-full w-full flex-col bg-background">
       {/* Chat Area */}
       <ScrollArea
-        className="flex-1 px-3 py-4 md:px-6"
+        className="flex-1 px-3 pb-4 md:px-6"
         ref={scrollAreaRef}
         data-testid="chat-scroll-area"
       >
@@ -584,7 +584,7 @@ export function AssistantProfileChatPanel({
         ) : isLoading && messages.length === 0 ? (
           <ChatMessageSkeletons />
         ) : (
-          <div className="mx-auto min-w-0 max-w-[1080px] space-y-6">
+          <div className="space-y-6 py-4" style={{ width: '100%' }}>
             {isHistoricalMode ? (
               <>
                 {historicalView?.isLoadingOlder && <ChatMessageSkeletons />}
@@ -761,7 +761,7 @@ export function AssistantProfileChatPanel({
          states are silent — SSE is self-healing plumbing the user doesn't
          need to know about. */}
       {!initialLoadError && connectionStatus === 'error' && (
-        <div className="text-caption flex animate-pulse flex-row gap-2 px-4 text-muted-foreground">
+        <div className="text-caption flex animate-pulse flex-row gap-2 px-5 text-muted-foreground">
           <MessageSquareMore className="h-4 w-4" />
           Connection failed. Please refresh.
         </div>

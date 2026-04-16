@@ -116,7 +116,7 @@ export function RightPaneContainer({
 
   return (
     <Tabs defaultValue="chat" className="flex h-full flex-col">
-      <div className="flex shrink-0 items-end justify-center gap-6 border-b border-border px-4 py-2">
+      <div className="flex shrink-0 items-end justify-start gap-2 border-b border-border px-4 py-2">
         <TabsList className="h-7 gap-6 rounded-none bg-transparent p-0">
           <TabsTrigger value="chat" className={TAB_TRIGGER_CLASS} data-testid="right-pane-tab-chat">
             Chat
@@ -151,7 +151,7 @@ export function RightPaneContainer({
         forceMount
       >
         <div className="flex h-full w-full flex-col">
-          <div className="flex items-center justify-between border-b px-3 py-2">
+          <div className="flex items-center justify-between border-b px-5 py-2">
             <span className="text-body text-strong truncate">
               Chat with {assistant.firstName} {assistant.surname}
             </span>

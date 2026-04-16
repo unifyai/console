@@ -181,7 +181,7 @@ export function AssistantList({
       {onToggleFold && (
         <div
           className={cn(
-            'hidden flex-shrink-0 items-center border-t px-2 py-1.5 md:flex',
+            'hidden flex-shrink-0 items-center px-2 py-1.5 md:flex',
             isFolded ? 'justify-center' : 'justify-end'
           )}
         >
@@ -191,7 +191,7 @@ export function AssistantList({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-4 w-4 text-muted-foreground"
+                  className="h-6 w-6 text-muted-foreground"
                   onClick={onToggleFold}
                 >
                   {isFolded ? (
