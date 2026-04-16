@@ -17,9 +17,8 @@ import {
 import type { MemoryContext, TaskMemoryView } from '@/types/assistants/memory';
 
 const TASK_DETAIL_DESCRIPTIONS: Record<TaskMemoryView, string> = {
-  Definitions: 'Configured task details first, with technical metadata kept secondary.',
-  Activations: 'Queued task state, trigger conditions, and projection metadata.',
-  Runs: 'Execution details, source context, and supporting run metadata.',
+  Tasks: 'What this task does, how it starts, and when it is due.',
+  Activity: 'What happened, why it started, and when it ran.',
 };
 
 interface MemoryRowDetailProps {

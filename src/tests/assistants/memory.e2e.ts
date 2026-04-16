@@ -145,31 +145,6 @@ async function seedTasks(
   }
 }
 
-async function seedTaskActivations(
-  apiKey: string,
-  userId: string,
-  assistantId: number,
-  activations: Record<string, unknown>[]
-) {
-  for (const activation of activations) {
-    const res = await orchestraFetch(
-      '/v0/logs',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          project_name: 'Assistants',
-          context: `${userId}/${assistantId}/Tasks/Activations`,
-          entries: [activation],
-        }),
-      },
-      apiKey
-    );
-    if (!res.ok) {
-      throw new Error(`Failed to seed task activation: ${res.status} ${await res.text()}`);
-    }
-  }
-}
-
 async function seedTaskRuns(
   apiKey: string,
   userId: string,
@@ -279,35 +254,6 @@ async function ensureSeeded() {
     },
   ]);
 
-  await seedTaskActivations(user.apiKey, user.id, dataAssistant.agentId, [
-    {
-      assistant_id: String(dataAssistant.agentId),
-      activation_key: `${dataAssistant.agentId}:2`,
-      task_id: 2,
-      activation_kind: 'scheduled',
-      execution_mode: 'live',
-      status: 'scheduled',
-      task_name: 'Send report',
-      task_description: 'Compile and send the weekly report to Alice.',
-      next_due_at: '2025-06-02T12:30:00Z',
-      activation_revision: 'rev-task-2',
-      last_materialized_at: '2025-06-02T12:05:00Z',
-    },
-    {
-      assistant_id: String(dataAssistant.agentId),
-      activation_key: `${dataAssistant.agentId}:3`,
-      task_id: 3,
-      activation_kind: 'triggered',
-      execution_mode: 'offline',
-      status: 'triggerable',
-      task_name: 'Follow up with Alice',
-      task_description: 'Reply when Alice emails about the project status.',
-      trigger_medium: 'email',
-      activation_revision: 'rev-task-3',
-      last_materialized_at: '2025-06-03T09:15:00Z',
-    },
-  ]);
-
   await seedTaskRuns(user.apiKey, user.id, dataAssistant.agentId, [
     {
       run_id: 9001,
@@ -354,12 +300,9 @@ async function selectAssistantAndOpenMemory(
   page: import('@playwright/test').Page,
   agentId: number
 ) {
-  await navigateToAssistants(page);
+  await page.goto(`/assistants?profile=${agentId}`);
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await closeHireDialogIfOpen(page);
-
-  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
   await page.waitForTimeout(1_500);
 
   const memoryTab = page.getByTestId('right-pane-tab-memory');
@@ -444,18 +387,18 @@ test('shows empty state when assistant has no data', async ({ authedPage: page }
   await expect(page.locator('text=No contacts found.')).toBeVisible({ timeout: 10_000 });
 });
 
-test('Tasks runs empty state shows contextual helper text', async ({ authedPage: page }) => {
+test('Tasks activity empty state shows contextual helper text', async ({ authedPage: page }) => {
   await selectAssistantAndOpenMemory(page, emptyAssistant.agentId);
 
   await page.getByTestId('memory-tab-tasks').click();
   await page.waitForTimeout(500);
-  await page.getByTestId('memory-task-view-runs').click();
+  await page.getByTestId('memory-task-view-activity').click();
   await page.waitForTimeout(500);
 
-  await expect(page.getByText('No task runs in this snapshot.')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText('No task activity yet.')).toBeVisible({ timeout: 5_000 });
   await expect(
     page.getByText(
-      'The assistant may still be working on non-task actions elsewhere on the Assistants page. Use Refresh to check for recent task activity.'
+      'Task activity appears here after a task starts or finishes running. Use Refresh to check for recent updates.'
     )
   ).toBeVisible({ timeout: 5_000 });
 });
@@ -532,15 +475,12 @@ test('displays seeded tasks in the Tasks sub-tab', async ({ authedPage: page }) 
   await page.waitForTimeout(1_000);
 
   await expect(tasksTab).toHaveAttribute('data-active', 'true');
-  await expect(page.getByTestId('memory-task-view-definitions')).toHaveAttribute(
-    'class',
-    /bg-muted/
-  );
-  const table = page.getByTestId('memory-table-tasks-definitions');
+  await expect(page.getByTestId('memory-task-view-tasks')).toHaveAttribute('class', /bg-muted/);
+  const table = page.getByTestId('memory-table-tasks-tasks');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
   await expect(page.getByTestId('memory-task-view-helper')).toContainText(
-    'Configured work the assistant owns'
+    'What this assistant has been asked to do'
   );
   await expect(table.locator('text=Calendar check-in')).toBeVisible({ timeout: 5_000 });
   await expect(table.locator('text=Send report')).toBeVisible({ timeout: 5_000 });
@@ -549,9 +489,10 @@ test('displays seeded tasks in the Tasks sub-tab', async ({ authedPage: page }) 
   });
   await expect(table.getByText(/^Completed$/)).toBeVisible({ timeout: 5_000 });
   await expect(table.getByText(/^Pending$/)).toBeVisible({ timeout: 5_000 });
+  await expect(table.locator('text=/Task #|Entrypoint|Priority/')).not.toBeVisible();
 });
 
-test('Tasks nested views show definitions activations and runs', async ({ authedPage: page }) => {
+test('Tasks nested views show tasks and activity', async ({ authedPage: page }) => {
   await ensureSeeded();
   await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
 
@@ -559,34 +500,27 @@ test('Tasks nested views show definitions activations and runs', async ({ authed
   await page.waitForTimeout(1_000);
 
   await expect(page.getByTestId('memory-task-views')).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('memory-task-view-definitions')).toBeVisible();
-  await expect(page.getByTestId('memory-task-view-activations')).toBeVisible();
-  await expect(page.getByTestId('memory-task-view-runs')).toBeVisible();
+  await expect(page.getByTestId('memory-task-view-tasks')).toBeVisible();
+  await expect(page.getByTestId('memory-task-view-activity')).toBeVisible();
+  await expect(page.getByTestId('memory-task-view-activations')).not.toBeVisible();
 
-  await page.getByTestId('memory-task-view-activations').click();
+  await page.getByTestId('memory-task-view-activity').click();
   await page.waitForTimeout(500);
-  const activationsTable = page.getByTestId('memory-table-tasks-activations');
-  await expect(activationsTable).toBeVisible({ timeout: 10_000 });
+  const activityTable = page.getByTestId('memory-table-tasks-activity');
+  await expect(activityTable).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId('memory-task-view-helper')).toContainText(
-    'Queued or armed task instances'
+    'What has actually run, why it started, and when it happened.'
   );
-  await expect(activationsTable.locator('text=Send report')).toBeVisible({ timeout: 5_000 });
-  await expect(activationsTable.locator('text=Follow up with Alice')).toBeVisible({
+  await expect(activityTable.locator('text=Follow up with Alice')).toBeVisible({
     timeout: 5_000,
   });
-  await expect(activationsTable.getByText(/^Triggered$/)).toBeVisible({ timeout: 5_000 });
-
-  await page.getByTestId('memory-task-view-runs').click();
-  await page.waitForTimeout(500);
-  const runsTable = page.getByTestId('memory-table-tasks-runs');
-  await expect(runsTable).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByTestId('memory-task-view-helper')).toContainText(
-    'Current and past task executions'
-  );
-  await expect(runsTable.locator('text=Follow up with Alice')).toBeVisible({ timeout: 5_000 });
-  await expect(runsTable.locator('text=Alice Owner via Email')).toBeVisible({ timeout: 5_000 });
-  await expect(runsTable.getByText(/^Running$/)).toBeVisible({ timeout: 5_000 });
-  await expect(runsTable.getByText(/^Completed$/)).toBeVisible({ timeout: 5_000 });
+  await expect(activityTable.locator('text=Triggered by Email')).toBeVisible({ timeout: 5_000 });
+  await expect(activityTable.locator('text=Alice Owner')).toBeVisible({ timeout: 5_000 });
+  await expect(activityTable.locator('text=On schedule')).toBeVisible({ timeout: 5_000 });
+  await expect(activityTable.locator('text=Calendar')).toBeVisible({ timeout: 5_000 });
+  await expect(activityTable.getByText(/^Running$/)).toBeVisible({ timeout: 5_000 });
+  await expect(activityTable.getByText(/^Completed$/)).toBeVisible({ timeout: 5_000 });
+  await expect(activityTable.locator('text=/Run #|Job /')).not.toBeVisible();
   const snapshotStatus = page.getByTestId('memory-task-snapshot-status');
   await expect(snapshotStatus).toBeVisible({ timeout: 5_000 });
   await expect(snapshotStatus).toContainText('Working');
@@ -595,7 +529,7 @@ test('Tasks nested views show definitions activations and runs', async ({ authed
     timeout: 5_000,
   });
   await expect(
-    runsTable.locator('[data-testid="memory-table-row"][data-row-emphasis="running"]')
+    activityTable.locator('[data-testid="memory-table-row"][data-row-emphasis="running"]')
   ).toBeVisible({ timeout: 5_000 });
 });
 
@@ -625,7 +559,7 @@ test('switching between sub-tabs preserves data and shows correct tables', async
   // Switch to Tasks
   await page.getByTestId('memory-tab-tasks').click();
   await page.waitForTimeout(500);
-  await expect(page.getByTestId('memory-table-tasks-definitions')).toBeVisible({
+  await expect(page.getByTestId('memory-table-tasks-tasks')).toBeVisible({
     timeout: 5_000,
   });
 
@@ -662,15 +596,13 @@ test('refresh button triggers data refetch without errors', async ({ authedPage:
   });
 });
 
-test('Tasks refresh updates definitions activations and runs together', async ({
-  authedPage: page,
-}) => {
+test('Tasks refresh updates tasks and activity together', async ({ authedPage: page }) => {
   await ensureSeeded();
   await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
 
   await page.getByTestId('memory-tab-tasks').click();
   await page.waitForTimeout(500);
-  await page.getByTestId('memory-task-view-runs').click();
+  await page.getByTestId('memory-task-view-activity').click();
   await page.waitForTimeout(500);
 
   const taskId = Date.now();
@@ -687,21 +619,6 @@ test('Tasks refresh updates definitions activations and runs together', async ({
       next_due_at: '2025-06-04T12:30:00Z',
       created_at: '2025-06-04T12:00:00Z',
       updated_at: '2025-06-04T12:05:00Z',
-    },
-  ]);
-  await seedTaskActivations(user.apiKey, user.id, dataAssistant.agentId, [
-    {
-      assistant_id: String(dataAssistant.agentId),
-      activation_key: `${dataAssistant.agentId}:${taskId}`,
-      task_id: taskId,
-      activation_kind: 'scheduled',
-      execution_mode: 'live',
-      status: 'scheduled',
-      task_name: `Follow up customer ${taskId}`,
-      task_description: 'Reach out to the customer with the updated delivery timeline.',
-      next_due_at: '2025-06-04T12:30:00Z',
-      activation_revision: `rev-${taskId}`,
-      last_materialized_at: '2025-06-04T12:05:00Z',
     },
   ]);
   await seedTaskRuns(user.apiKey, user.id, dataAssistant.agentId, [
@@ -728,23 +645,14 @@ test('Tasks refresh updates definitions activations and runs together', async ({
   await expect(page.getByTestId('memory-tab-tasks')).toHaveText(/Tasks\s*\(?3\)?/, {
     timeout: 10_000,
   });
-  await expect(page.getByTestId('memory-task-view-definitions')).toHaveText(
-    /Definitions\s*\(?3\)?/,
-    {
-      timeout: 5_000,
-    }
-  );
-  await expect(page.getByTestId('memory-task-view-activations')).toHaveText(
-    /Activations\s*\(?3\)?/,
-    {
-      timeout: 5_000,
-    }
-  );
-  await expect(page.getByTestId('memory-task-view-runs')).toHaveText(/Runs\s*\(?3\)?/, {
+  await expect(page.getByTestId('memory-task-view-tasks')).toHaveText(/Tasks\s*\(?3\)?/, {
+    timeout: 5_000,
+  });
+  await expect(page.getByTestId('memory-task-view-activity')).toHaveText(/Activity\s*\(?3\)?/, {
     timeout: 5_000,
   });
   await expect(
-    page.getByTestId('memory-table-tasks-runs').getByText(`Follow up customer ${taskId}`)
+    page.getByTestId('memory-table-tasks-activity').getByText(`Follow up customer ${taskId}`)
   ).toBeVisible({ timeout: 5_000 });
 });
 
@@ -804,10 +712,10 @@ test('task detail panel groups human-first task information', async ({ authedPag
 
   await page.getByTestId('memory-tab-tasks').click();
   await page.waitForTimeout(500);
-  await page.getByTestId('memory-task-view-runs').click();
+  await page.getByTestId('memory-task-view-activity').click();
   await page.waitForTimeout(500);
 
-  const table = page.getByTestId('memory-table-tasks-runs');
+  const table = page.getByTestId('memory-table-tasks-activity');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
   const runRow = table.locator('[data-testid="memory-table-row"]', {
@@ -819,19 +727,21 @@ test('task detail panel groups human-first task information', async ({ authedPag
 
   const detail = page.getByTestId('memory-row-detail');
   await expect(detail).toBeVisible({ timeout: 5_000 });
-  await expect(
-    detail.getByText('Execution details, source context, and supporting run metadata.')
-  ).toBeVisible({
+  await expect(detail.getByText('What happened, why it started, and when it ran.')).toBeVisible({
     timeout: 3_000,
   });
 
   const fields = page.getByTestId('memory-row-detail-fields');
-  await expect(fields.getByRole('heading', { name: 'Source' })).toBeVisible({ timeout: 3_000 });
+  await expect(fields.getByRole('heading', { name: 'Started by' })).toBeVisible({
+    timeout: 3_000,
+  });
   await expect(fields.getByRole('heading', { name: 'Timing' })).toBeVisible({ timeout: 3_000 });
-  await expect(fields.getByText('Alice Owner (contact 1)')).toBeVisible({ timeout: 3_000 });
+  await expect(fields.getByText('Alice Owner')).toBeVisible({ timeout: 3_000 });
   await expect(fields.getByText('Reply when Alice emails about the project status.')).toBeVisible({
     timeout: 3_000,
   });
+  await expect(detail.getByText('Identifiers & Debug')).not.toBeVisible();
+  await expect(detail.getByText('Additional metadata')).not.toBeVisible();
 });
 
 test('detail panel shows full untruncated content for transcripts', async ({
@@ -1094,16 +1004,6 @@ test('memory tab data matches what was seeded via Orchestra API', async ({ authe
   const taskCount = tasksData.logs.length;
   expect(taskCount).toBeGreaterThanOrEqual(2);
 
-  const activationsRes = await orchestraFetch(
-    `/v0/logs?project_name=Assistants&context=${user.id}/${dataAssistant.agentId}/Tasks/Activations`,
-    { method: 'GET' },
-    user.apiKey
-  );
-  expect(activationsRes.ok).toBeTruthy();
-  const activationsData = await activationsRes.json();
-  const activationCount = activationsData.logs.length;
-  expect(activationCount).toBeGreaterThanOrEqual(2);
-
   const runsRes = await orchestraFetch(
     `/v0/logs?project_name=Assistants&context=${user.id}/${dataAssistant.agentId}/Tasks/Runs`,
     { method: 'GET' },
@@ -1132,20 +1032,14 @@ test('memory tab data matches what was seeded via Orchestra API', async ({ authe
   });
 
   await tasksTabBtn.click();
-  await expect(page.getByTestId('memory-task-view-definitions')).toHaveText(
-    new RegExp(`Definitions\\s*\\(?${taskCount}\\)?`),
+  await expect(page.getByTestId('memory-task-view-tasks')).toHaveText(
+    new RegExp(`Tasks\\s*\\(?${taskCount}\\)?`),
     {
       timeout: 5_000,
     }
   );
-  await expect(page.getByTestId('memory-task-view-activations')).toHaveText(
-    new RegExp(`Activations\\s*\\(?${activationCount}\\)?`),
-    {
-      timeout: 5_000,
-    }
-  );
-  await expect(page.getByTestId('memory-task-view-runs')).toHaveText(
-    new RegExp(`Runs\\s*\\(?${runCount}\\)?`),
+  await expect(page.getByTestId('memory-task-view-activity')).toHaveText(
+    new RegExp(`Activity\\s*\\(?${runCount}\\)?`),
     {
       timeout: 5_000,
     }

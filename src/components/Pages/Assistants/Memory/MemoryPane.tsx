@@ -52,15 +52,14 @@ const TAB_CLASS = [
 ].join(' ');
 
 const TASK_VIEW_LABELS: Record<TaskMemoryView, string> = {
-  Definitions: 'Definitions',
-  Activations: 'Activations',
-  Runs: 'Runs',
+  Tasks: 'Tasks',
+  Activity: 'Activity',
 };
 
 const TASK_VIEW_HELPER_COPY: Record<TaskMemoryView, string> = {
-  Definitions: 'Configured work the assistant owns, including intent and schedule.',
-  Activations: 'Queued or armed task instances that can wake live or offline work.',
-  Runs: 'Current and past task executions, including what triggered them and when they ran.',
+  Tasks:
+    'What this assistant has been asked to do, including how each task starts and when it is due.',
+  Activity: 'What has actually run, why it started, and when it happened.',
 };
 
 function formatSnapshotAge(timestamp: number | null, now: number): string {
@@ -90,27 +89,21 @@ function getTaskEmptyState(
   if (isFiltered) {
     return {
       title: 'No results match your search.',
-      helperText: 'Try clearing search or switching task views to look for related task activity.',
+      helperText: 'Try clearing search or switching between Tasks and Activity.',
     };
   }
 
   switch (taskView) {
-    case 'Definitions':
+    case 'Tasks':
       return {
-        title: 'No task definitions found.',
+        title: 'No tasks found.',
         helperText: 'Create a task to give the assistant structured work to own.',
       };
-    case 'Activations':
+    case 'Activity':
       return {
-        title: 'No task activations in this snapshot.',
+        title: 'No task activity yet.',
         helperText:
-          'A task only appears here when it currently has a live or offline activation. Use Refresh after changing a task.',
-      };
-    case 'Runs':
-      return {
-        title: 'No task runs in this snapshot.',
-        helperText:
-          'The assistant may still be working on non-task actions elsewhere on the Assistants page. Use Refresh to check for recent task activity.',
+          'Task activity appears here after a task starts or finishes running. Use Refresh to check for recent updates.',
       };
   }
 }
@@ -121,7 +114,6 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
     transcripts,
     knowledge,
     tasks,
-    taskActivations,
     taskRuns,
     tasksSnapshotLastLoadedAt,
     tasksSnapshotHasRunningTaskRun,
@@ -203,16 +195,8 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
         taskDescription: task.description ?? null,
       });
     }
-    for (const activation of taskActivations.rows) {
-      if (activation.taskId === null || activation.taskId === undefined) continue;
-      const existing = map.get(activation.taskId);
-      map.set(activation.taskId, {
-        taskName: activation.taskName ?? existing?.taskName ?? null,
-        taskDescription: activation.taskDescription ?? existing?.taskDescription ?? null,
-      });
-    }
     return map;
-  }, [taskActivations.rows, tasks.rows]);
+  }, [tasks.rows]);
 
   const resolvedTaskRuns = useMemo<TaskRunRow[]>(() => {
     return taskRuns.rows.map((row) => {
@@ -220,7 +204,11 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
         row.taskId !== null && row.taskId !== undefined
           ? taskDisplayById.get(row.taskId)
           : undefined;
-      const contactId = row.sourceContactId ? Number(row.sourceContactId) : NaN;
+      const rawSourceContactId =
+        typeof row.sourceContactId === 'string' || typeof row.sourceContactId === 'number'
+          ? row.sourceContactId
+          : null;
+      const contactId = rawSourceContactId !== null ? Number(rawSourceContactId) : NaN;
       const sourceContactDisplayName =
         row.sourceContactDisplayName ??
         (Number.isFinite(contactId) ? (contactMap.get(contactId) ?? null) : null);
@@ -251,11 +239,9 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
         return knowledge;
       case 'Tasks':
         switch (taskView) {
-          case 'Definitions':
+          case 'Tasks':
             return tasks;
-          case 'Activations':
-            return taskActivations;
-          case 'Runs':
+          case 'Activity':
             return displayedTaskRuns;
         }
       case 'Guidance':
@@ -269,7 +255,6 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
     transcripts,
     knowledge,
     tasks,
-    taskActivations,
     displayedTaskRuns,
     guidance,
     functions,
@@ -298,24 +283,17 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
 
   const isFiltered = !!activeState.filterExpr;
   const taskViewCounts: Record<TaskMemoryView, number> = {
-    Definitions: tasks.count,
-    Activations: taskActivations.count,
-    Runs: taskRuns.count,
+    Tasks: tasks.count,
+    Activity: taskRuns.count,
   };
   const taskTableTestId =
-    taskView === 'Definitions'
-      ? 'memory-table-tasks-definitions'
-      : taskView === 'Activations'
-        ? 'memory-table-tasks-activations'
-        : 'memory-table-tasks-runs';
+    taskView === 'Tasks' ? 'memory-table-tasks-tasks' : 'memory-table-tasks-activity';
   const detailTitle =
     activeContext !== 'Tasks'
       ? `${MEMORY_CONTEXT_LABELS[activeContext]} Detail`
-      : taskView === 'Definitions'
-        ? 'Task Definition Detail'
-        : taskView === 'Activations'
-          ? 'Task Activation Detail'
-          : 'Task Run Detail';
+      : taskView === 'Tasks'
+        ? 'Task Detail'
+        : 'Activity Detail';
   const taskEmptyState = activeContext === 'Tasks' ? getTaskEmptyState(taskView, isFiltered) : null;
   const emptyMessage =
     activeContext === 'Tasks'
@@ -333,7 +311,7 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
   const taskViewHelperCopy = TASK_VIEW_HELPER_COPY[taskView];
   const getRowEmphasis = useCallback(
     (row: MemoryRow) => {
-      if (activeContext !== 'Tasks' || taskView !== 'Runs') return undefined;
+      if (activeContext !== 'Tasks' || taskView !== 'Activity') return undefined;
       return 'state' in row && row.state === 'running' ? 'running' : undefined;
     },
     [activeContext, taskView]

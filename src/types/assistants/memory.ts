@@ -10,6 +10,7 @@
  *   {userId}/{assistantId}/Transcripts
  *   {userId}/{assistantId}/Knowledge
  *   {userId}/{assistantId}/Tasks
+ *   {userId}/{assistantId}/Tasks/Runs
  *   {userId}/{assistantId}/Guidance
  *   {userId}/{assistantId}/Functions  (sub-contexts: Compositional, Primitives, VirtualEnvs, Meta)
  */
@@ -22,7 +23,7 @@ export type MemoryContext =
   | 'Guidance'
   | 'Functions';
 
-export type TaskMemoryView = 'Definitions' | 'Activations' | 'Runs';
+export type TaskMemoryView = 'Tasks' | 'Activity';
 
 export interface ContactRow {
   contactId: number;
@@ -56,10 +57,7 @@ export interface TaskRow {
   taskId: number;
   name: string | null;
   description: string | null;
-  instanceId: string | null;
   status: string | null;
-  priority: number | null;
-  entrypoint: string | null;
   triggerType: string | null;
   nextDueAt: string | null;
   createdAt: string | null;
@@ -67,44 +65,17 @@ export interface TaskRow {
   [key: string]: unknown;
 }
 
-export interface TaskActivationRow {
-  activationKey: string | null;
-  taskId: number | null;
-  assistantId: string | null;
-  activationKind: string | null;
-  executionMode: string | null;
-  status: string | null;
-  taskName: string | null;
-  taskDescription: string | null;
-  nextDueAt: string | null;
-  triggerMedium: string | null;
-  activationRevision: string | null;
-  lastMaterializedAt: string | null;
-  [key: string]: unknown;
-}
-
 export interface TaskRunRow {
-  runId: number | null;
-  runKey: string | null;
   taskId: number | null;
-  assistantId: string | null;
   taskName: string | null;
   taskDescription: string | null;
   sourceType: string | null;
-  executionMode: string | null;
   state: string | null;
   scheduledFor: string | null;
   sourceMedium: string | null;
-  sourceRef: string | null;
-  sourceContactId: string | null;
   sourceContactDisplayName: string | null;
-  activationRevision: string | null;
-  sourceTaskLogId: number | null;
   startedAt: string | null;
   completedAt: string | null;
-  jobName: string | null;
-  resultSummary: string | null;
-  error: string | null;
   [key: string]: unknown;
 }
 
@@ -129,7 +100,6 @@ export type MemoryRow =
   | TranscriptRow
   | KnowledgeRow
   | TaskRow
-  | TaskActivationRow
   | TaskRunRow
   | GuidanceRow
   | FunctionRow;
@@ -138,17 +108,6 @@ export interface MemoryContextData<T extends MemoryRow = MemoryRow> {
   rows: T[];
   count: number;
   fields: string[];
-}
-
-export interface MemoryPaneData {
-  contacts: MemoryContextData<ContactRow>;
-  transcripts: MemoryContextData<TranscriptRow>;
-  knowledge: MemoryContextData<KnowledgeRow>;
-  tasks: MemoryContextData<TaskRow>;
-  taskActivations: MemoryContextData<TaskActivationRow>;
-  taskRuns: MemoryContextData<TaskRunRow>;
-  guidance: MemoryContextData<GuidanceRow>;
-  functions: MemoryContextData<FunctionRow>;
 }
 
 export const MEMORY_CONTEXTS: MemoryContext[] = [

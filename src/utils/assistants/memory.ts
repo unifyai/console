@@ -15,7 +15,6 @@ import type {
   TranscriptRow,
   KnowledgeRow,
   TaskRow,
-  TaskActivationRow,
   TaskRunRow,
   GuidanceRow,
   FunctionRow,
@@ -61,30 +60,6 @@ const TASK_STATUS_TONES: Record<string, string> = {
     'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-400/45 dark:bg-slate-400/18 dark:text-slate-50',
   triggerable:
     'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-400/55 dark:bg-violet-400/20 dark:text-violet-50',
-};
-
-const TASK_KIND_TONES: Record<string, string> = {
-  scheduled:
-    'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-400/55 dark:bg-sky-400/20 dark:text-sky-50',
-  triggered:
-    'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-400/55 dark:bg-violet-400/20 dark:text-violet-50',
-};
-
-const TASK_MODE_TONES: Record<string, string> = {
-  live: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/55 dark:bg-emerald-400/20 dark:text-emerald-50',
-  offline:
-    'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/55 dark:bg-amber-400/20 dark:text-amber-50',
-};
-
-const TASK_SOURCE_TONES: Record<string, string> = {
-  scheduled:
-    'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-400/55 dark:bg-sky-400/20 dark:text-sky-50',
-  triggered:
-    'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-400/55 dark:bg-violet-400/20 dark:text-violet-50',
-  explicit:
-    'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-400/45 dark:bg-slate-400/18 dark:text-slate-50',
-  queue:
-    'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-400/45 dark:bg-slate-400/18 dark:text-slate-50',
 };
 
 const STACKED_PRIMARY_TEXT_CLASS = 'truncate font-medium text-foreground';
@@ -244,11 +219,11 @@ function stackedCell({
 
 function taskIdentityTitle(
   title: string | null | undefined,
-  taskId: number | null | undefined
+  _taskId: number | null | undefined
 ): string {
   const normalizedTitle = isPresent(title) ? String(title) : null;
   if (normalizedTitle) return normalizedTitle;
-  return taskId !== null && taskId !== undefined ? `Task ${taskId}` : 'Untitled task';
+  return 'Untitled task';
 }
 
 function taskIdentityCell({
@@ -265,22 +240,29 @@ function taskIdentityCell({
   return stackedCell({
     primary: taskIdentityTitle(title, taskId),
     secondary: isPresent(description) ? truncate(description, 120) : undefined,
-    tertiary: tertiary ?? (taskId !== null && taskId !== undefined ? `Task #${taskId}` : undefined),
+    tertiary,
   });
 }
 
 function formatTaskStartContext(row: TaskRow): React.ReactNode {
-  const triggerLabel = humanizeTaskLabel(row.triggerType);
-  const detail = row.nextDueAt
-    ? `Next due ${formatTimestamp(row.nextDueAt)}`
-    : isPresent(row.entrypoint)
-      ? `Entrypoint ${truncate(row.entrypoint, 48)}`
-      : undefined;
+  const triggerValue = String(row.triggerType ?? '').toLowerCase();
+  let detail: string | undefined;
+  switch (triggerValue) {
+    case 'scheduled':
+      detail = 'Runs on a schedule';
+      break;
+    case 'triggered':
+      detail = 'Waits for the matching event to happen';
+      break;
+    case 'manual':
+      detail = 'Starts when it is launched manually';
+      break;
+    default:
+      detail = undefined;
+  }
   return stackedCell({
-    primary: triggerLabel,
+    primary: humanizeTaskLabel(row.triggerType),
     secondary: detail,
-    tertiary:
-      row.priority !== null && row.priority !== undefined ? `Priority ${row.priority}` : undefined,
   });
 }
 
@@ -292,49 +274,45 @@ function formatTaskTimingCell(row: TaskRow): React.ReactNode {
   });
 }
 
-function formatActivationContextCell(row: TaskActivationRow): React.ReactNode {
-  return stackedCell({
-    primary: badgeCell(row.activationKind, TASK_KIND_TONES),
-    secondary:
-      row.activationKind === 'scheduled' && row.nextDueAt
-        ? `Due ${formatTimestamp(row.nextDueAt)}`
-        : row.triggerMedium
-          ? `Triggered by ${humanizeTaskLabel(row.triggerMedium)}`
-          : row.status
-            ? `Activation is ${humanizeTaskLabel(row.status)}`
-            : undefined,
-    tertiary: row.activationKey ? `Key ${row.activationKey}` : undefined,
-  });
-}
-
-function formatActivationTimingCell(row: TaskActivationRow): React.ReactNode {
-  return stackedCell({
-    primary: row.nextDueAt ? `Next due ${formatTimestamp(row.nextDueAt)}` : 'Waiting for a trigger',
-    secondary: row.lastMaterializedAt
-      ? `Projected ${formatTimestamp(row.lastMaterializedAt)}`
-      : undefined,
-  });
+function formatRunSourcePrimary(row: TaskRunRow): string {
+  const sourceType = String(row.sourceType ?? '').toLowerCase();
+  switch (sourceType) {
+    case 'scheduled':
+      return 'On schedule';
+    case 'triggered':
+      return row.sourceMedium
+        ? `Triggered by ${humanizeTaskLabel(row.sourceMedium)}`
+        : 'Triggered by an event';
+    case 'explicit':
+      return 'Started manually';
+    case 'queue':
+      return 'Started from the queue';
+    default:
+      return humanizeTaskLabel(row.sourceType);
+  }
 }
 
 function formatRunSourceSecondary(row: TaskRunRow): string | undefined {
   const contact = isPresent(row.sourceContactDisplayName)
     ? String(row.sourceContactDisplayName)
-    : isPresent(row.sourceContactId)
-      ? `Contact ${row.sourceContactId}`
-      : null;
+    : null;
   const medium = isPresent(row.sourceMedium) ? humanizeTaskLabel(row.sourceMedium) : null;
-  if (contact && medium) return `${contact} via ${medium}`;
-  if (contact) return contact;
-  if (medium) return medium;
-  if (row.scheduledFor) return `Due ${formatTimestamp(row.scheduledFor)}`;
-  return undefined;
+  const sourceType = String(row.sourceType ?? '').toLowerCase();
+
+  if (sourceType === 'triggered') return contact ?? undefined;
+  if (sourceType === 'scheduled') {
+    return (
+      medium ??
+      (row.scheduledFor ? `Scheduled for ${formatTimestamp(row.scheduledFor)}` : undefined)
+    );
+  }
+  return contact ?? medium ?? undefined;
 }
 
 function formatRunSourceCell(row: TaskRunRow): React.ReactNode {
   return stackedCell({
-    primary: badgeCell(row.sourceType, TASK_SOURCE_TONES),
+    primary: formatRunSourcePrimary(row),
     secondary: formatRunSourceSecondary(row),
-    tertiary: row.sourceRef ? `Ref ${truncate(row.sourceRef, 48)}` : undefined,
   });
 }
 
@@ -356,7 +334,6 @@ function formatRunTimingCell(row: TaskRunRow): React.ReactNode {
   return stackedCell({
     primary,
     secondary,
-    tertiary: row.jobName ? `Job ${row.jobName}` : undefined,
   });
 }
 
@@ -414,46 +391,8 @@ export const TASK_COLUMNS: ColumnDef<TaskRow>[] = [
     (_row, value) => badgeCell(value, TASK_STATUS_TONES),
     120
   ),
-  accessorCell<TaskRow>('triggerType', 'How It Starts', (row) => formatTaskStartContext(row), 220),
+  accessorCell<TaskRow>('triggerType', 'Starts', (row) => formatTaskStartContext(row), 240),
   accessorCell<TaskRow>('nextDueAt', 'Timing', (row) => formatTaskTimingCell(row), 220),
-];
-
-export const TASK_ACTIVATION_COLUMNS: ColumnDef<TaskActivationRow>[] = [
-  accessorCell<TaskActivationRow>(
-    'taskName',
-    'Task',
-    (row, value) =>
-      taskIdentityCell({
-        title: typeof value === 'string' ? value : null,
-        description: row.taskDescription,
-        taskId: row.taskId,
-      }),
-    280
-  ),
-  accessorCell<TaskActivationRow>(
-    'status',
-    'Activation',
-    (_row, value) => badgeCell(value, TASK_STATUS_TONES),
-    130
-  ),
-  accessorCell<TaskActivationRow>(
-    'activationKind',
-    'Trigger',
-    (row) => formatActivationContextCell(row),
-    220
-  ),
-  accessorCell<TaskActivationRow>(
-    'executionMode',
-    'Mode',
-    (_row, value) => badgeCell(value, TASK_MODE_TONES),
-    120
-  ),
-  accessorCell<TaskActivationRow>(
-    'lastMaterializedAt',
-    'Timing',
-    (row) => formatActivationTimingCell(row),
-    220
-  ),
 ];
 
 export const TASK_RUN_COLUMNS: ColumnDef<TaskRunRow>[] = [
@@ -465,19 +404,12 @@ export const TASK_RUN_COLUMNS: ColumnDef<TaskRunRow>[] = [
         title: typeof value === 'string' ? value : null,
         description: row.taskDescription,
         taskId: row.taskId,
-        tertiary: row.runId !== null && row.runId !== undefined ? `Run #${row.runId}` : undefined,
       }),
     280
   ),
   accessorCell<TaskRunRow>('state', 'State', (_row, value) => taskStateBadge(value), 120),
-  accessorCell<TaskRunRow>('sourceType', 'Source', (row) => formatRunSourceCell(row), 240),
-  accessorCell<TaskRunRow>('startedAt', 'Timing', (row) => formatRunTimingCell(row), 240),
-  accessorCell<TaskRunRow>(
-    'executionMode',
-    'Mode',
-    (_row, value) => badgeCell(value, TASK_MODE_TONES),
-    120
-  ),
+  accessorCell<TaskRunRow>('sourceType', 'Why It Started', (row) => formatRunSourceCell(row), 260),
+  accessorCell<TaskRunRow>('startedAt', 'Timing', (row) => formatRunTimingCell(row), 260),
 ];
 
 export const GUIDANCE_COLUMNS: ColumnDef<GuidanceRow>[] = [
@@ -522,11 +454,9 @@ export function getColumnsForContext(context: MemoryContext, fields?: string[]) 
 
 export function getColumnsForTaskView(view: TaskMemoryView, _fields?: string[]) {
   switch (view) {
-    case 'Definitions':
+    case 'Tasks':
       return TASK_COLUMNS;
-    case 'Activations':
-      return TASK_ACTIVATION_COLUMNS;
-    case 'Runs':
+    case 'Activity':
       return TASK_RUN_COLUMNS;
   }
 }
@@ -576,21 +506,21 @@ function detailSection(title: string, items: DetailSectionItem[]): DetailSection
 }
 
 function isTaskRunRow(row: Record<string, unknown>): boolean {
-  return isPresent(row.runKey) || isPresent(row.runId);
-}
-
-function isTaskActivationRow(row: Record<string, unknown>): boolean {
-  return isPresent(row.activationKey);
+  return (
+    isPresent(row.runKey) ||
+    isPresent(row.runId) ||
+    isPresent(row.sourceType) ||
+    isPresent(row.startedAt) ||
+    isPresent(row.completedAt)
+  );
 }
 
 export function buildTaskDetailSections(row: Record<string, unknown>): DetailSection[] {
   const sections: DetailSection[] = [];
-  const usedKeys = new Set<string>();
   const addSection = (title: string, definitions: Array<[string, string, unknown]>) => {
     const items: DetailSectionItem[] = [];
     definitions.forEach(([key, label, value]) => {
       if (!isPresent(value)) return;
-      usedKeys.add(key);
       detailItem(items, key, label, value);
     });
     const section = detailSection(title, items);
@@ -598,98 +528,45 @@ export function buildTaskDetailSections(row: Record<string, unknown>): DetailSec
   };
 
   if (isTaskRunRow(row)) {
-    const contactDisplay = isPresent(row.sourceContactDisplayName)
-      ? isPresent(row.sourceContactId)
-        ? `${row.sourceContactDisplayName} (contact ${row.sourceContactId})`
-        : row.sourceContactDisplayName
-      : row.sourceContactId;
+    const taskRunRow = row as Record<string, unknown> & TaskRunRow;
     addSection('Task', [
       ['taskName', 'Task', row.taskName],
       ['taskDescription', 'Description', row.taskDescription],
-      ['state', 'State', humanizeTaskLabel(row.state)],
-      ['executionMode', 'Mode', humanizeTaskLabel(row.executionMode)],
+      ['state', 'Status', isPresent(row.state) ? humanizeTaskLabel(row.state) : undefined],
     ]);
-    addSection('Source', [
-      ['sourceType', 'Source', humanizeTaskLabel(row.sourceType)],
-      ['sourceMedium', 'Medium', humanizeTaskLabel(row.sourceMedium)],
-      ['sourceContactDisplayName', 'Contact', contactDisplay],
-      ['sourceRef', 'Reference', row.sourceRef],
+    addSection('Started by', [
+      ['sourceType', 'How it started', formatRunSourcePrimary(taskRunRow)],
+      ['sourceContactDisplayName', 'Contact', row.sourceContactDisplayName],
+      [
+        'sourceMedium',
+        'Channel',
+        isPresent(row.sourceMedium) ? humanizeTaskLabel(row.sourceMedium) : undefined,
+      ],
     ]);
     addSection('Timing', [
       ['scheduledFor', 'Scheduled for', row.scheduledFor],
       ['startedAt', 'Started at', row.startedAt],
       ['completedAt', 'Completed at', row.completedAt],
     ]);
-    addSection('Identifiers & Debug', [
-      ['taskId', 'Task ID', row.taskId],
-      ['runId', 'Run ID', row.runId],
-      ['runKey', 'Run key', row.runKey],
-      ['sourceTaskLogId', 'Source task log ID', row.sourceTaskLogId],
-      ['activationRevision', 'Activation revision', row.activationRevision],
-      ['assistantId', 'Assistant ID', row.assistantId],
-      ['jobName', 'Job name', row.jobName],
-      ['resultSummary', 'Result summary', row.resultSummary],
-      ['error', 'Error', row.error],
-    ]);
-  } else if (isTaskActivationRow(row)) {
-    addSection('Task', [
-      ['taskName', 'Task', row.taskName],
-      ['taskDescription', 'Description', row.taskDescription],
-      ['status', 'Activation state', humanizeTaskLabel(row.status)],
-      ['executionMode', 'Mode', humanizeTaskLabel(row.executionMode)],
-    ]);
-    addSection('Trigger', [
-      ['activationKind', 'Activation kind', humanizeTaskLabel(row.activationKind)],
-      ['triggerMedium', 'Trigger medium', humanizeTaskLabel(row.triggerMedium)],
-      ['triggerFromContactIds', 'Allowed contacts', row.triggerFromContactIds],
-      ['triggerOmitContactIds', 'Excluded contacts', row.triggerOmitContactIds],
-      ['interrupt', 'Can interrupt', row.interrupt],
-      ['triggerRecurring', 'Recurring trigger', row.triggerRecurring],
-      ['entrypoint', 'Entrypoint', row.entrypoint],
-    ]);
-    addSection('Timing', [
-      ['nextDueAt', 'Next due', row.nextDueAt],
-      ['lastMaterializedAt', 'Projected at', row.lastMaterializedAt],
-      ['sourceTaskUpdatedAt', 'Source task updated', row.sourceTaskUpdatedAt],
-    ]);
-    addSection('Identifiers & Debug', [
-      ['taskId', 'Task ID', row.taskId],
-      ['activationKey', 'Activation key', row.activationKey],
-      ['activationRevision', 'Activation revision', row.activationRevision],
-      ['sourceTaskLogId', 'Source task log ID', row.sourceTaskLogId],
-      ['assistantId', 'Assistant ID', row.assistantId],
-      ['instanceId', 'Instance ID', row.instanceId],
-    ]);
   } else {
     addSection('Task', [
       ['name', 'Task', row.name],
       ['description', 'Description', row.description],
-      ['status', 'Status', humanizeTaskLabel(row.status)],
-      ['priority', 'Priority', row.priority],
+      ['status', 'Status', isPresent(row.status) ? humanizeTaskLabel(row.status) : undefined],
     ]);
-    addSection('Configuration', [
-      ['triggerType', 'How it starts', humanizeTaskLabel(row.triggerType)],
-      ['entrypoint', 'Entrypoint', row.entrypoint],
-      ['instanceId', 'Instance ID', row.instanceId],
-      ['offline', 'Offline execution', row.offline],
+    addSection('Starts', [
+      [
+        'triggerType',
+        'How it starts',
+        isPresent(row.triggerType) ? humanizeTaskLabel(row.triggerType) : undefined,
+      ],
+      ['nextDueAt', 'Next due', row.nextDueAt],
     ]);
     addSection('Timing', [
-      ['nextDueAt', 'Next due', row.nextDueAt],
       ['createdAt', 'Created at', row.createdAt],
       ['updatedAt', 'Updated at', row.updatedAt],
     ]);
-    addSection('Identifiers & Debug', [['taskId', 'Task ID', row.taskId]]);
   }
-
-  const additional: DetailSectionItem[] = Object.entries(row)
-    .filter(([key, value]) => !key.startsWith('_') && !usedKeys.has(key) && isPresent(value))
-    .map(([key, value]) => ({
-      key,
-      label: key,
-      value,
-    }));
-  const additionalSection = detailSection('Additional metadata', additional);
-  if (additionalSection) sections.push(additionalSection);
 
   return sections;
 }
