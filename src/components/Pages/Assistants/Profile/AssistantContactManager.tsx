@@ -705,7 +705,7 @@ export function AssistantContactManager({
                 </SelectContent>
               </Select>
 
-              <div className="py-4 pt-8">
+              <div className="max-h-[60vh] overflow-y-auto py-4 pt-8">
                 {activeTab === 'email' && renderEmailTab()}
 
                 {activeTab === 'phone' && (
@@ -920,7 +920,7 @@ const WhatsAppTabContent: React.FC<{
           label="Assistant WhatsApp Number"
           value={assistant.assistantWhatsappNumber}
         />
-        <p className="text-body text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           Send a message first — your assistant can only call you on WhatsApp after you start a
           conversation.
         </p>
@@ -982,7 +982,7 @@ const DiscordTabContent: React.FC<{
     return (
       <div className="space-y-2">
         <DisplayContactField label="Discord Bot ID" value={assistant.assistantDiscordBotId} />
-        <p className="text-body text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           Join the{' '}
           <a
             href="https://discord.gg/kRtBDmBA"
