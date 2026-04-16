@@ -20,7 +20,7 @@ import {
 } from '@/types/assistants/spendingGate';
 
 const TAB_TRIGGER_CLASS = [
-  'h-full rounded-none border-b-2 border-transparent bg-transparent',
+  'h-full shrink-0 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent',
   'px-1 text-xs font-medium text-muted-foreground',
   'shadow-none transition-colors hover:text-foreground',
   'data-[state=active]:border-primary data-[state=active]:bg-transparent',
@@ -117,8 +117,8 @@ export function RightPaneContainer({
 
   return (
     <Tabs defaultValue="chat" className="flex h-full flex-col">
-      <div className="flex shrink-0 items-end justify-start gap-2 border-b border-border px-4 py-2">
-        <TabsList className="h-7 gap-6 rounded-none bg-transparent p-0">
+      <div className="flex shrink-0 items-end justify-start gap-2 overflow-x-auto border-b border-border px-4 py-2">
+        <TabsList className="h-7 flex-nowrap gap-6 rounded-none bg-transparent p-0">
           <TabsTrigger value="chat" className={TAB_TRIGGER_CLASS} data-testid="right-pane-tab-chat">
             Chat
           </TabsTrigger>

@@ -31,9 +31,9 @@ const CONTEXT_ICONS: Record<MemoryTabContext, React.ElementType> = {
 };
 
 const TAB_CLASS = [
-  'inline-flex items-center gap-1.5 border-t-2 px-3 py-1.5 text-xs font-medium',
-  'text-muted-foreground transition-colors hover:text-foreground',
-  'border-transparent data-[active=true]:border-foreground data-[active=true]:text-foreground',
+  'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-medium',
+  'text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+  'data-[active=true]:bg-primary data-[active=true]:text-primary-foreground',
 ].join(' ');
 
 export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
@@ -226,10 +226,10 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
 
       {/* Footer — sub-tabs (left) + row count (right) */}
       <div
-        className="flex shrink-0 items-center justify-between border-t"
+        className="flex shrink-0 items-center justify-between border-t px-2 py-1.5"
         data-testid="memory-footer"
       >
-        <div className="flex items-center overflow-x-auto" data-testid="memory-sub-tabs">
+        <div className="flex items-center gap-1 overflow-x-auto" data-testid="memory-sub-tabs">
           {(Object.keys(MEMORY_CONTEXT_LABELS) as MemoryTabContext[]).map((ctx) => {
             const Icon = CONTEXT_ICONS[ctx];
             return (
@@ -242,7 +242,7 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
               >
                 <Icon className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">{MEMORY_CONTEXT_LABELS[ctx]}</span>
-                <span className="tabular-nums text-muted-foreground sm:hidden">
+                <span className="tabular-nums opacity-60 sm:hidden">
                   {counts[ctx] > 0 ? counts[ctx] : ''}
                 </span>
               </button>

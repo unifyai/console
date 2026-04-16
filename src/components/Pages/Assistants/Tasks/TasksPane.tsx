@@ -27,9 +27,9 @@ const TASK_VIEW_ICONS: Record<TaskMemoryView, React.ElementType> = {
 };
 
 const TAB_CLASS = [
-  'inline-flex items-center gap-1.5 border-t-2 px-3 py-1.5 text-xs font-medium',
-  'text-muted-foreground transition-colors hover:text-foreground',
-  'border-transparent data-[active=true]:border-foreground data-[active=true]:text-foreground',
+  'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-medium',
+  'text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+  'data-[active=true]:bg-primary data-[active=true]:text-primary-foreground',
 ].join(' ');
 
 function getTaskEmptyState(
@@ -274,10 +274,10 @@ export function TasksPane({ ownerId, assistantId }: TasksPaneProps) {
 
       {/* Footer — sub-tabs (left) + row count (right) */}
       <div
-        className="flex shrink-0 items-center justify-between border-t"
+        className="flex shrink-0 items-center justify-between border-t px-2 py-1.5"
         data-testid="tasks-footer"
       >
-        <div className="flex items-center overflow-x-auto" data-testid="tasks-views">
+        <div className="flex items-center gap-1 overflow-x-auto" data-testid="tasks-views">
           {(Object.keys(TASK_VIEW_LABELS) as TaskMemoryView[]).map((view) => {
             const Icon = TASK_VIEW_ICONS[view];
             return (
@@ -291,7 +291,7 @@ export function TasksPane({ ownerId, assistantId }: TasksPaneProps) {
                 <Icon className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">{TASK_VIEW_LABELS[view]}</span>
                 {taskViewCounts[view] > 0 && (
-                  <span className="tabular-nums text-muted-foreground">{taskViewCounts[view]}</span>
+                  <span className="tabular-nums opacity-60">{taskViewCounts[view]}</span>
                 )}
               </button>
             );
