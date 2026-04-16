@@ -41,6 +41,9 @@ import {
   deleteAssistantContact,
   fetchContactCosts,
   createAssistantContact,
+  connectAssistantAccount,
+  disconnectAssistantAccount,
+  getGrantedFeatures,
 } from '@/lib/assistants/contact';
 import { AssistantActions } from '@/types/assistants/assistant';
 import { redirect } from 'next/navigation';
@@ -135,6 +138,9 @@ const AssistantsPage = async ({
     contact: {
       delete: await deleteAssistantContact(apiKey),
       create: await createAssistantContact(apiKey),
+      connect: await connectAssistantAccount(apiKey),
+      disconnect: await disconnectAssistantAccount(apiKey),
+      getGrantedFeatures: await getGrantedFeatures(apiKey),
       listAllAssistantEmails: await listAllAssistantEmails(adminKey),
       listAvailablePhoneCountries: await listAvailablePhoneCountries(adminKey),
       listAvailableSocialPlatforms: await listAvailableSocialPlatforms(adminKey),

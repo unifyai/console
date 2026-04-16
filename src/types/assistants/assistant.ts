@@ -3,7 +3,13 @@ import { SupportedLanguage, Gender as CartesiaGender, Gender } from '@cartesia/c
 import { ChatMessage, UnifyMessage, AttachmentUploadResponse } from './chat';
 import { SecretActions } from './secret';
 import { ConnectionDetails } from './call';
-import { ContactCosts, AssistantContactCreatePayload, ContactType } from './contact';
+import {
+  ContactCosts,
+  AssistantContactCreatePayload,
+  ContactType,
+  OAuthProvider,
+  GrantedFeaturesResponse,
+} from './contact';
 
 export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
 
@@ -47,6 +53,8 @@ export interface Assistant {
   voiceProvider: VoiceProvider | null;
   // Contact fields (flat — populated from AssistantContact rows by the backend)
   email: string | null;
+  emailProvider?: string | null;
+  emailProvisionedBy?: 'platform' | 'user' | null;
   phone: string | null;
   assistantWhatsappNumber: string | null;
   assistantDiscordBotId: string | null;
@@ -445,6 +453,14 @@ export interface AssistantActions {
       assistantId: string,
       payload: AssistantContactCreatePayload
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
+    connect: (
+      assistantId: string,
+      provider: OAuthProvider,
+      features: string[],
+      redirectAfter?: string
+    ) => Promise<{ oauthUrl: string } | ResponseProps>;
+    disconnect: (assistantId: string) => Promise<ResponseProps>;
+    getGrantedFeatures: (assistantId: string) => Promise<GrantedFeaturesResponse | ResponseProps>;
     listAllAssistantEmails: () => Promise<string[] | ResponseProps>;
     listAvailablePhoneCountries: () => Promise<AvailablePhoneCountry[]>;
     listAvailableSocialPlatforms: () => Promise<AvailableSocialPlatform[] | ResponseProps>;

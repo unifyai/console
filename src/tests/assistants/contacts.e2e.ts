@@ -18,6 +18,8 @@ import {
   closeHireDialogIfOpen,
   deleteAssistantFromDb,
   getAssistantContact,
+  getAssistantContactProvider,
+  getAssistantContactProvisionedBy,
   setUserPhoneNumber,
   clearUserPhoneNumber,
   setUserWhatsappNumber,
@@ -342,4 +344,159 @@ test('whatsapp create button is enabled when user has a whatsapp number', async 
   // Create button should be enabled
   const createBtn = page.getByRole('button', { name: 'Create' });
   await expect(createBtn).toBeEnabled({ timeout: 5_000 });
+});
+
+// =============================================================================
+// Email Provider Selection Tests
+// =============================================================================
+
+test('email tab shows provider cards (Gmail / Outlook) when no email is configured', async ({
+  authedPage: page,
+}) => {
+  // Ensure no email contact exists
+  const existing = getAssistantContact(assistant.agentId, 'email');
+  if (existing) {
+    test.skip(true, 'Email exists — cannot test empty state');
+    return;
+  }
+
+  await openContactManager(page);
+
+  // Both provider cards should be visible
+  await expect(page.locator('text=Gmail')).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('text=Outlook')).toBeVisible({ timeout: 5_000 });
+
+  // Domain suffix should update when switching providers
+  await expect(page.locator('text=@unify.ai')).toBeVisible({ timeout: 5_000 });
+
+  // Click the Outlook card
+  const outlookCard = page.locator('button:has-text("Outlook")');
+  await outlookCard.click();
+  await page.waitForTimeout(300);
+
+  await expect(page.locator('text=@tenant.onmicrosoft.com')).toBeVisible({ timeout: 5_000 });
+});
+
+test('email tab shows "or" divider and BYOD provider cards when no email exists', async ({
+  authedPage: page,
+}) => {
+  const existing = getAssistantContact(assistant.agentId, 'email');
+  if (existing) {
+    test.skip(true, 'Email exists — cannot test empty state');
+    return;
+  }
+
+  await openContactManager(page);
+
+  // "or" divider
+  await expect(page.locator('text=or').first()).toBeVisible({ timeout: 5_000 });
+
+  // BYOD provider cards
+  await expect(page.locator('text=Connect your own account')).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('button:has-text("Google")')).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('button:has-text("Microsoft 365")')).toBeVisible({ timeout: 5_000 });
+});
+
+test('selecting a BYOD provider shows feature checkboxes and Connect button', async ({
+  authedPage: page,
+}) => {
+  const existing = getAssistantContact(assistant.agentId, 'email');
+  if (existing) {
+    test.skip(true, 'Email exists — cannot test BYOD flow');
+    return;
+  }
+
+  await openContactManager(page);
+
+  // Click the Google BYOD card
+  const googleCard = page.locator('button:has-text("Google")').last();
+  await googleCard.click();
+  await page.waitForTimeout(300);
+
+  // Feature checkboxes should appear
+  await expect(page.locator('text=Email')).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('text=Calendar')).toBeVisible({ timeout: 5_000 });
+
+  // "Email" should be checked and marked Required
+  await expect(page.locator('text=Required').first()).toBeVisible({ timeout: 5_000 });
+
+  // Connect button should appear
+  const connectBtn = page.getByRole('button', { name: 'Connect' });
+  await expect(connectBtn).toBeVisible({ timeout: 5_000 });
+  await expect(connectBtn).toBeEnabled();
+});
+
+test('selecting Microsoft BYOD provider shows Teams as a required feature', async ({
+  authedPage: page,
+}) => {
+  const existing = getAssistantContact(assistant.agentId, 'email');
+  if (existing) {
+    test.skip(true, 'Email exists — cannot test BYOD flow');
+    return;
+  }
+
+  await openContactManager(page);
+
+  // Click the Microsoft BYOD card
+  const msCard = page.locator('button:has-text("Microsoft 365")').last();
+  await msCard.click();
+  await page.waitForTimeout(300);
+
+  // Both Email and Teams should be present and marked Required
+  const requiredLabels = page.locator('text=Required');
+  await expect(requiredLabels.first()).toBeVisible({ timeout: 5_000 });
+  // There should be at least 2 required features (email + teams)
+  expect(await requiredLabels.count()).toBeGreaterThanOrEqual(2);
+});
+
+test('deselecting a BYOD provider hides the feature list and Connect button', async ({
+  authedPage: page,
+}) => {
+  const existing = getAssistantContact(assistant.agentId, 'email');
+  if (existing) {
+    test.skip(true, 'Email exists — cannot test BYOD flow');
+    return;
+  }
+
+  await openContactManager(page);
+
+  // Select Google
+  const googleCard = page.locator('button:has-text("Google")').last();
+  await googleCard.click();
+  await page.waitForTimeout(300);
+
+  const connectBtn = page.getByRole('button', { name: 'Connect' });
+  await expect(connectBtn).toBeVisible({ timeout: 5_000 });
+
+  // Deselect Google (click again)
+  await googleCard.click();
+  await page.waitForTimeout(300);
+
+  // Connect button should be gone
+  await expect(connectBtn).not.toBeVisible({ timeout: 3_000 });
+});
+
+test('Create button is hidden when a BYOD provider is selected (mutual exclusivity)', async ({
+  authedPage: page,
+}) => {
+  const existing = getAssistantContact(assistant.agentId, 'email');
+  if (existing) {
+    test.skip(true, 'Email exists — cannot test empty state');
+    return;
+  }
+
+  await openContactManager(page);
+
+  // The Create button should be visible initially (for platform provisioning)
+  const createBtn = page.getByRole('button', { name: 'Create' });
+  await expect(createBtn).toBeVisible({ timeout: 5_000 });
+
+  // Select a BYOD provider
+  const googleCard = page.locator('button:has-text("Google")').last();
+  await googleCard.click();
+  await page.waitForTimeout(300);
+
+  // Create should now be hidden — replaced by Connect
+  await expect(createBtn).not.toBeVisible({ timeout: 3_000 });
+  await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible({ timeout: 5_000 });
 });

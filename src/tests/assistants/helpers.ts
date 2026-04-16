@@ -386,3 +386,31 @@ export function getAssistantContact(
     return null;
   }
 }
+
+export function getAssistantContactProvider(
+  agentId: number,
+  contactType: 'email' | 'phone' | 'whatsapp' | 'discord'
+): string | null {
+  try {
+    const result = dbExec(
+      `SELECT provider FROM assistant_contacts WHERE assistant_id = ${agentId} AND contact_type = '${contactType}' AND status = 'active'`
+    );
+    return result || null;
+  } catch {
+    return null;
+  }
+}
+
+export function getAssistantContactProvisionedBy(
+  agentId: number,
+  contactType: 'email' | 'phone' | 'whatsapp' | 'discord'
+): string | null {
+  try {
+    const result = dbExec(
+      `SELECT provisioned_by FROM assistant_contacts WHERE assistant_id = ${agentId} AND contact_type = '${contactType}' AND status = 'active'`
+    );
+    return result || null;
+  } catch {
+    return null;
+  }
+}
