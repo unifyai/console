@@ -402,15 +402,16 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
                 <button
                   key={view}
                   className={cn(
-                    'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground',
-                    taskView === view && 'bg-muted text-foreground'
+                    'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground dark:text-slate-300 dark:hover:text-slate-50',
+                    taskView === view &&
+                      'dark:bg-muted/80 bg-muted text-foreground dark:text-slate-50'
                   )}
                   data-testid={`memory-task-view-${view.toLowerCase()}`}
                   onClick={() => setTaskView(view)}
                 >
                   <span>{TASK_VIEW_LABELS[view]}</span>
                   {taskViewCounts[view] > 0 && (
-                    <span className="text-[11px] tabular-nums text-muted-foreground">
+                    <span className="text-[11px] tabular-nums text-muted-foreground dark:text-slate-300">
                       {taskViewCounts[view]}
                     </span>
                   )}
@@ -419,7 +420,7 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
             </div>
 
             <span
-              className="text-caption inline-flex shrink-0 items-center gap-1.5 text-muted-foreground"
+              className="text-caption inline-flex shrink-0 items-center gap-1.5 text-muted-foreground dark:text-slate-300"
               data-testid="memory-task-snapshot-status"
             >
               {showTaskWorkingIndicator ? (
@@ -432,7 +433,7 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
             </span>
           </div>
           <p
-            className="mt-2 max-w-2xl text-[11px] leading-5 text-muted-foreground"
+            className="mt-2 max-w-2xl text-[11px] leading-5 text-muted-foreground dark:text-slate-300"
             data-testid="memory-task-view-helper"
           >
             {taskViewHelperCopy}

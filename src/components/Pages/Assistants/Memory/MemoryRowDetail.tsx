@@ -84,14 +84,14 @@ export function MemoryRowDetail({ row, context, taskView, title, onClose }: Memo
           <div className="space-y-5 pr-4" data-testid="memory-row-detail-fields">
             {sections.map((section) => (
               <section key={section.title} className="space-y-3">
-                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground dark:text-slate-300">
                   {section.title}
                 </h3>
                 <dl className="space-y-3">
                   {section.items.map((item) => (
                     <div key={item.key} className="group">
-                      <dt className="text-label-muted">{item.label}</dt>
-                      <dd className="mt-0.5 whitespace-pre-wrap break-words text-sm">
+                      <dt className="text-label-muted dark:text-slate-300">{item.label}</dt>
+                      <dd className="mt-0.5 whitespace-pre-wrap break-words text-sm dark:text-slate-100">
                         {formatDetailValue(item.key, item.value)}
                       </dd>
                     </div>

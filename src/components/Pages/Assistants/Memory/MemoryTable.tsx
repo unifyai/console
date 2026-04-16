@@ -154,7 +154,7 @@ export function MemoryTable<TData>({
                   <TableHead
                     key={header.id}
                     className={cn(
-                      'whitespace-nowrap border-b bg-background px-3 py-2',
+                      'text-foreground/80 whitespace-nowrap border-b bg-background px-3 py-2 dark:text-slate-200',
                       header.column.getCanSort() && onSort && 'cursor-pointer select-none'
                     )}
                     onClick={() => handleHeaderClick(header.column.id, header.column.getCanSort())}
@@ -207,10 +207,12 @@ export function MemoryTable<TData>({
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
                   <div className="flex flex-col items-center gap-1">
-                    <span className="text-body-muted text-sm">{emptyMessage}</span>
+                    <span className="text-body-muted text-sm dark:text-slate-300">
+                      {emptyMessage}
+                    </span>
                     {emptyHelperText ? (
                       <span
-                        className="text-caption max-w-md text-center"
+                        className="text-caption max-w-md text-center dark:text-slate-400"
                         data-testid="memory-table-empty-helper"
                       >
                         {emptyHelperText}
@@ -229,7 +231,7 @@ export function MemoryTable<TData>({
         {isLoadingMore && (
           <div className="flex items-center justify-center py-3" data-testid="memory-loading-more">
             <Loader2 className="mr-2 h-4 w-4 animate-spin text-muted-foreground" />
-            <span className="text-caption">Loading more…</span>
+            <span className="text-caption dark:text-slate-300">Loading more…</span>
           </div>
         )}
 

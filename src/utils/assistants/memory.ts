@@ -22,9 +22,9 @@ import type {
 } from '@/types/assistants/memory';
 
 const BADGE_BASE_CLASS =
-  'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium';
+  'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tracking-[0.01em]';
 const BADGE_FALLBACK_CLASS =
-  'border-border/70 bg-muted/70 text-foreground dark:border-border/70 dark:bg-muted/40 dark:text-foreground';
+  'border-border/70 bg-muted/70 text-foreground dark:border-slate-400/40 dark:bg-slate-400/15 dark:text-slate-50';
 
 const HUMANIZED_TASK_LABELS = new Map<string, string>([
   ['sms_message', 'SMS message'],
@@ -48,44 +48,49 @@ const HUMANIZED_TASK_LABELS = new Map<string, string>([
 
 const TASK_STATUS_TONES: Record<string, string> = {
   pending:
-    'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/45 dark:bg-amber-500/15 dark:text-amber-200',
+    'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/55 dark:bg-amber-400/20 dark:text-amber-50',
   scheduled:
-    'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-500/45 dark:bg-sky-500/15 dark:text-sky-200',
+    'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-400/55 dark:bg-sky-400/20 dark:text-sky-50',
   running:
-    'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/50 dark:bg-emerald-500/15 dark:text-emerald-200',
+    'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/55 dark:bg-emerald-400/20 dark:text-emerald-50',
   completed:
-    'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/45 dark:bg-emerald-500/15 dark:text-emerald-200',
+    'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/55 dark:bg-emerald-400/20 dark:text-emerald-50',
   failed:
-    'border-red-200 bg-red-50 text-red-800 dark:border-red-500/45 dark:bg-red-500/15 dark:text-red-200',
+    'border-red-200 bg-red-50 text-red-800 dark:border-red-400/55 dark:bg-red-400/20 dark:text-red-50',
   cancelled:
-    'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/45 dark:bg-slate-500/15 dark:text-slate-200',
+    'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-400/45 dark:bg-slate-400/18 dark:text-slate-50',
   triggerable:
-    'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-500/45 dark:bg-violet-500/15 dark:text-violet-200',
+    'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-400/55 dark:bg-violet-400/20 dark:text-violet-50',
 };
 
 const TASK_KIND_TONES: Record<string, string> = {
   scheduled:
-    'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-500/45 dark:bg-sky-500/15 dark:text-sky-200',
+    'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-400/55 dark:bg-sky-400/20 dark:text-sky-50',
   triggered:
-    'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-500/45 dark:bg-violet-500/15 dark:text-violet-200',
+    'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-400/55 dark:bg-violet-400/20 dark:text-violet-50',
 };
 
 const TASK_MODE_TONES: Record<string, string> = {
-  live: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/45 dark:bg-emerald-500/15 dark:text-emerald-200',
+  live: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/55 dark:bg-emerald-400/20 dark:text-emerald-50',
   offline:
-    'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/45 dark:bg-amber-500/15 dark:text-amber-200',
+    'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/55 dark:bg-amber-400/20 dark:text-amber-50',
 };
 
 const TASK_SOURCE_TONES: Record<string, string> = {
   scheduled:
-    'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-500/45 dark:bg-sky-500/15 dark:text-sky-200',
+    'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-400/55 dark:bg-sky-400/20 dark:text-sky-50',
   triggered:
-    'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-500/45 dark:bg-violet-500/15 dark:text-violet-200',
+    'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-400/55 dark:bg-violet-400/20 dark:text-violet-50',
   explicit:
-    'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/45 dark:bg-slate-500/15 dark:text-slate-200',
+    'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-400/45 dark:bg-slate-400/18 dark:text-slate-50',
   queue:
-    'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/45 dark:bg-slate-500/15 dark:text-slate-200',
+    'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-400/45 dark:bg-slate-400/18 dark:text-slate-50',
 };
+
+const STACKED_PRIMARY_TEXT_CLASS = 'truncate font-medium text-foreground';
+const STACKED_SECONDARY_TEXT_CLASS =
+  'line-clamp-2 whitespace-normal text-[11px] text-muted-foreground dark:text-slate-300';
+const STACKED_TERTIARY_TEXT_CLASS = 'text-[11px] text-muted-foreground/80 dark:text-slate-400';
 
 function truncate(value: unknown, max = 120): string {
   if (value === null || value === undefined) return '—';
@@ -223,20 +228,12 @@ function stackedCell({
   secondary?: React.ReactNode;
   tertiary?: React.ReactNode;
 }): React.ReactNode {
-  const children: React.ReactNode[] = [
-    textLine('primary', primary, 'truncate font-medium text-foreground'),
-  ];
+  const children: React.ReactNode[] = [textLine('primary', primary, STACKED_PRIMARY_TEXT_CLASS)];
   if (isPresent(secondary)) {
-    children.push(
-      textLine(
-        'secondary',
-        secondary,
-        'line-clamp-2 whitespace-normal text-[11px] text-muted-foreground'
-      )
-    );
+    children.push(textLine('secondary', secondary, STACKED_SECONDARY_TEXT_CLASS));
   }
   if (isPresent(tertiary)) {
-    children.push(textLine('tertiary', tertiary, 'text-[11px] text-muted-foreground/80'));
+    children.push(textLine('tertiary', tertiary, STACKED_TERTIARY_TEXT_CLASS));
   }
   return React.createElement(
     'div',
