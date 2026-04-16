@@ -1,39 +1,25 @@
 /**
- * React hook for the Memory tab — fetches Contacts, Transcripts,
- * Knowledge, Guidance, and Functions data from the logging API.
+ * React hook for the Tasks tab — fetches Tasks and Task Runs data
+ * from the logging API.
  *
- * Tasks data is managed by the dedicated useTasksData hook.
- *
- * Supports server-side sorting, filtering, and incremental loading
- * (infinite scroll). Uses client-side fetch with session cookie auth
- * (same pattern as useContactIdPrefetch) to bypass server action
- * serialization.
+ * Supports server-side sorting, filtering, incremental loading
+ * (infinite scroll), snapshot-based refresh, and running task detection.
  */
 
 import * as React from 'react';
 import type {
-  MemoryContext,
   MemoryContextData,
-  ContactRow,
-  TranscriptRow,
-  KnowledgeRow,
-  GuidanceRow,
-  FunctionRow,
+  TaskRow,
+  TaskRunRow,
+  TaskMemoryView,
   MemoryRow,
 } from '@/types/assistants/memory';
-import {
-  fetchMemoryContext,
-  fetchKnowledgeTables,
-  fetchFunctionsTables,
-  buildSortingParam,
-  buildSearchFilterExpr,
-} from '@/lib/client/memory';
+import { fetchMemoryContext, buildSortingParam, buildSearchFilterExpr } from '@/lib/client/memory';
 
 const PAGE_SIZE = 50;
+const RUNNING_TASK_RUN_FILTER_EXPR = 'state == "running"';
 
-type MemoryTabContext = Exclude<MemoryContext, 'Tasks'>;
-
-interface UseMemoryDataOptions {
+interface UseTasksDataOptions {
   ownerId: string;
   assistantId: string;
 }
@@ -54,16 +40,14 @@ interface ContextState<T extends MemoryRow = MemoryRow> {
   lastLoadedAt: number | null;
 }
 
-export interface UseMemoryDataResult {
-  contacts: ContextState<ContactRow>;
-  transcripts: ContextState<TranscriptRow>;
-  knowledge: ContextState<KnowledgeRow>;
-  guidance: ContextState<GuidanceRow>;
-  functions: ContextState<FunctionRow>;
+export interface UseTasksDataResult {
+  tasks: ContextState<TaskRow>;
+  taskRuns: ContextState<TaskRunRow>;
+  hasRunningTaskRun: boolean;
   isLoading: boolean;
   error: string | null;
-  activeContext: MemoryTabContext;
-  setActiveContext: (ctx: MemoryTabContext) => void;
+  taskView: TaskMemoryView;
+  setTaskView: (view: TaskMemoryView) => void;
   sort: (field: string, direction: 'asc' | 'desc' | null) => void;
   search: (query: string) => void;
   clearSearch: () => void;
@@ -102,33 +86,35 @@ function contextStateFromData<T extends MemoryRow>(
   };
 }
 
-type ContextStates = {
-  Contacts: ContextState<ContactRow>;
-  Transcripts: ContextState<TranscriptRow>;
-  Knowledge: ContextState<KnowledgeRow>;
-  Guidance: ContextState<GuidanceRow>;
-  Functions: ContextState<FunctionRow>;
+type ApiContext = 'Tasks' | 'Tasks/Runs';
+type StateKey = 'tasks' | 'taskRuns';
+
+const VIEW_TO_STATE_KEY: Record<TaskMemoryView, StateKey> = {
+  Tasks: 'tasks',
+  Activity: 'taskRuns',
 };
+
+const STATE_KEY_TO_API: Record<StateKey, ApiContext> = {
+  tasks: 'Tasks',
+  taskRuns: 'Tasks/Runs',
+};
+
+interface TaskStates {
+  tasks: ContextState<TaskRow>;
+  taskRuns: ContextState<TaskRunRow>;
+}
 
 function fetchForKey(
   ownerId: string,
   assistantId: string,
-  context: MemoryTabContext,
+  stateKey: StateKey,
   sorting: SortState | null,
   offset = 0,
   filterExpr?: string | null
 ) {
+  const apiContext = STATE_KEY_TO_API[stateKey];
   const sortingParam = sorting ? buildSortingParam(sorting.field, sorting.direction) : undefined;
-
-  if (context === 'Knowledge') {
-    return fetchKnowledgeTables(ownerId, assistantId);
-  }
-
-  if (context === 'Functions') {
-    return fetchFunctionsTables(ownerId, assistantId);
-  }
-
-  return fetchMemoryContext(ownerId, assistantId, context, {
+  return fetchMemoryContext(ownerId, assistantId, apiContext, {
     limit: PAGE_SIZE,
     offset,
     sorting: sortingParam,
@@ -136,18 +122,30 @@ function fetchForKey(
   });
 }
 
-export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): UseMemoryDataResult {
-  const [states, setStates] = React.useState<ContextStates>({
-    Contacts: emptyState(),
-    Transcripts: emptyState(),
-    Knowledge: emptyState(),
-    Guidance: emptyState(),
-    Functions: emptyState(),
+async function fetchHasRunningSnapshot(ownerId: string, assistantId: string): Promise<boolean> {
+  const data = (await fetchForKey(
+    ownerId,
+    assistantId,
+    'taskRuns',
+    null,
+    0,
+    RUNNING_TASK_RUN_FILTER_EXPR
+  )) as MemoryContextData<TaskRunRow>;
+  return data.count > 0 || data.rows.some((row) => row.state === 'running');
+}
+
+export function useTasksData({ ownerId, assistantId }: UseTasksDataOptions): UseTasksDataResult {
+  const [states, setStates] = React.useState<TaskStates>({
+    tasks: emptyState(),
+    taskRuns: emptyState(),
   });
   const [isLoading, setIsLoading] = React.useState(true);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [activeContext, setActiveContext] = React.useState<MemoryTabContext>('Contacts');
+  const [taskView, setTaskView] = React.useState<TaskMemoryView>('Tasks');
+  const [hasRunningTaskRun, setHasRunningTaskRun] = React.useState(false);
+
+  const activeKey = VIEW_TO_STATE_KEY[taskView];
 
   const fetchAll = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
@@ -156,54 +154,26 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     setError(null);
 
     try {
-      const [c, t, k, g, f] = await Promise.all([
-        fetchForKey(ownerId, assistantId, 'Contacts', null),
-        fetchForKey(ownerId, assistantId, 'Transcripts', null),
-        fetchForKey(ownerId, assistantId, 'Knowledge', null),
-        fetchForKey(ownerId, assistantId, 'Guidance', null),
-        fetchForKey(ownerId, assistantId, 'Functions', null),
+      const [td, tr, hasRunning] = await Promise.all([
+        fetchForKey(ownerId, assistantId, 'tasks', null),
+        fetchForKey(ownerId, assistantId, 'taskRuns', null),
+        fetchHasRunningSnapshot(ownerId, assistantId),
       ]);
       const loadedAt = Date.now();
 
       setStates({
-        Contacts: contextStateFromData(
-          c as MemoryContextData<ContactRow>,
-          null,
-          null,
-          '',
-          loadedAt
-        ),
-        Transcripts: contextStateFromData(
-          t as MemoryContextData<TranscriptRow>,
-          null,
-          null,
-          '',
-          loadedAt
-        ),
-        Knowledge: contextStateFromData(
-          k as MemoryContextData<KnowledgeRow>,
-          null,
-          null,
-          '',
-          loadedAt
-        ),
-        Guidance: contextStateFromData(
-          g as MemoryContextData<GuidanceRow>,
-          null,
-          null,
-          '',
-          loadedAt
-        ),
-        Functions: contextStateFromData(
-          f as MemoryContextData<FunctionRow>,
+        tasks: contextStateFromData(td as MemoryContextData<TaskRow>, null, null, '', loadedAt),
+        taskRuns: contextStateFromData(
+          tr as MemoryContextData<TaskRunRow>,
           null,
           null,
           '',
           loadedAt
         ),
       });
+      setHasRunningTaskRun(hasRunning);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load memory data');
+      setError(err instanceof Error ? err.message : 'Failed to load task data');
     } finally {
       setIsLoading(false);
     }
@@ -211,13 +181,11 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
 
   React.useEffect(() => {
     setStates({
-      Contacts: emptyState(),
-      Transcripts: emptyState(),
-      Knowledge: emptyState(),
-      Guidance: emptyState(),
-      Functions: emptyState(),
+      tasks: emptyState(),
+      taskRuns: emptyState(),
     });
-    setActiveContext('Contacts');
+    setTaskView('Tasks');
+    setHasRunningTaskRun(false);
     fetchAll();
   }, [fetchAll]);
 
@@ -226,11 +194,11 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
       if (!ownerId || !assistantId) return;
 
       const newSorting: SortState | null = direction ? { field, direction } : null;
-      const current = states[activeContext];
+      const current = states[activeKey];
 
       setStates((prev) => ({
         ...prev,
-        [activeContext]: { ...prev[activeContext], rows: [], sorting: newSorting },
+        [activeKey]: { ...prev[activeKey], rows: [], sorting: newSorting },
       }));
       setIsLoading(true);
 
@@ -238,14 +206,14 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
         const data = await fetchForKey(
           ownerId,
           assistantId,
-          activeContext,
+          activeKey,
           newSorting,
           0,
           current.filterExpr
         );
         setStates((prev) => ({
           ...prev,
-          [activeContext]: contextStateFromData(
+          [activeKey]: contextStateFromData(
             data as any,
             newSorting,
             current.filterExpr,
@@ -258,7 +226,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
         setIsLoading(false);
       }
     },
-    [ownerId, assistantId, activeContext, states]
+    [ownerId, assistantId, activeKey, states]
   );
 
   const search = React.useCallback(
@@ -266,13 +234,13 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
       if (!ownerId || !assistantId) return;
 
       const trimmed = query.trim();
-      const currentFields = states[activeContext].fields;
+      const currentFields = states[activeKey].fields;
       const filterExpr = trimmed ? buildSearchFilterExpr(trimmed, currentFields) : null;
-      const currentSorting = states[activeContext].sorting;
+      const currentSorting = states[activeKey].sorting;
 
       setStates((prev) => ({
         ...prev,
-        [activeContext]: { ...prev[activeContext], rows: [], filterExpr, searchQuery: trimmed },
+        [activeKey]: { ...prev[activeKey], rows: [], filterExpr, searchQuery: trimmed },
       }));
       setIsLoading(true);
 
@@ -280,14 +248,14 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
         const data = await fetchForKey(
           ownerId,
           assistantId,
-          activeContext,
+          activeKey,
           currentSorting,
           0,
           filterExpr
         );
         setStates((prev) => ({
           ...prev,
-          [activeContext]: contextStateFromData(data as any, currentSorting, filterExpr, trimmed),
+          [activeKey]: contextStateFromData(data as any, currentSorting, filterExpr, trimmed),
         }));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to search');
@@ -295,40 +263,38 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
         setIsLoading(false);
       }
     },
-    [ownerId, assistantId, activeContext, states]
+    [ownerId, assistantId, activeKey, states]
   );
 
   const clearSearch = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
 
-    const currentSorting = states[activeContext].sorting;
+    const currentSorting = states[activeKey].sorting;
 
     setStates((prev) => ({
       ...prev,
-      [activeContext]: { ...prev[activeContext], rows: [], filterExpr: null, searchQuery: '' },
+      [activeKey]: { ...prev[activeKey], rows: [], filterExpr: null, searchQuery: '' },
     }));
     setIsLoading(true);
 
     try {
-      const data = await fetchForKey(ownerId, assistantId, activeContext, currentSorting, 0, null);
+      const data = await fetchForKey(ownerId, assistantId, activeKey, currentSorting, 0, null);
       setStates((prev) => ({
         ...prev,
-        [activeContext]: contextStateFromData(data as any, currentSorting, null, ''),
+        [activeKey]: contextStateFromData(data as any, currentSorting, null, ''),
       }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to clear search');
     } finally {
       setIsLoading(false);
     }
-  }, [ownerId, assistantId, activeContext, states]);
+  }, [ownerId, assistantId, activeKey, states]);
 
   const loadMore = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
 
-    const current = states[activeContext];
+    const current = states[activeKey];
     if (!current.hasMore || isLoadingMore) return;
-
-    if (activeContext === 'Knowledge' || activeContext === 'Functions') return;
 
     setIsLoadingMore(true);
 
@@ -337,19 +303,19 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
       const data = await fetchForKey(
         ownerId,
         assistantId,
-        activeContext,
+        activeKey,
         current.sorting,
         offset,
         current.filterExpr
       );
 
       setStates((prev) => {
-        const prevCtx = prev[activeContext];
+        const prevCtx = prev[activeKey];
         const merged = [...prevCtx.rows, ...data.rows];
         const fields = new Set([...prevCtx.fields, ...data.fields]);
         return {
           ...prev,
-          [activeContext]: {
+          [activeKey]: {
             ...prevCtx,
             rows: merged,
             fields: Array.from(fields),
@@ -363,7 +329,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     } finally {
       setIsLoadingMore(false);
     }
-  }, [ownerId, assistantId, activeContext, states, isLoadingMore]);
+  }, [ownerId, assistantId, activeKey, states, isLoadingMore]);
 
   const refetch = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
@@ -372,42 +338,56 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     setError(null);
 
     try {
-      const current = states[activeContext];
-      const data = await fetchForKey(
-        ownerId,
-        assistantId,
-        activeContext,
-        current.sorting,
-        0,
-        current.filterExpr
-      );
-      setStates((prev) => ({
-        ...prev,
-        [activeContext]: contextStateFromData(
-          data as any,
-          current.sorting,
-          current.filterExpr,
-          current.searchQuery
+      const taskState = states.tasks;
+      const taskRunsState = states.taskRuns;
+
+      const [tasksData, taskRunsData, hasRunning] = await Promise.all([
+        fetchForKey(ownerId, assistantId, 'tasks', taskState.sorting, 0, taskState.filterExpr),
+        fetchForKey(
+          ownerId,
+          assistantId,
+          'taskRuns',
+          taskRunsState.sorting,
+          0,
+          taskRunsState.filterExpr
         ),
-      }));
+        fetchHasRunningSnapshot(ownerId, assistantId),
+      ]);
+
+      const loadedAt = Date.now();
+      setStates({
+        tasks: contextStateFromData(
+          tasksData as MemoryContextData<TaskRow>,
+          taskState.sorting,
+          taskState.filterExpr,
+          taskState.searchQuery,
+          loadedAt
+        ),
+        taskRuns: contextStateFromData(
+          taskRunsData as MemoryContextData<TaskRunRow>,
+          taskRunsState.sorting,
+          taskRunsState.filterExpr,
+          taskRunsState.searchQuery,
+          loadedAt
+        ),
+      });
+      setHasRunningTaskRun(hasRunning);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to refresh data');
     } finally {
       setIsLoading(false);
     }
-  }, [ownerId, assistantId, activeContext, states]);
+  }, [ownerId, assistantId, states]);
 
   return {
-    contacts: states.Contacts,
-    transcripts: states.Transcripts,
-    knowledge: states.Knowledge,
-    guidance: states.Guidance,
-    functions: states.Functions,
+    tasks: states.tasks,
+    taskRuns: states.taskRuns,
+    hasRunningTaskRun,
     isLoading,
     isLoadingMore,
     error,
-    activeContext,
-    setActiveContext,
+    taskView,
+    setTaskView,
     sort,
     search,
     clearSearch,

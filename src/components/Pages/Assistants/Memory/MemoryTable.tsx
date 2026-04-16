@@ -199,7 +199,7 @@ export function MemoryTable<TData>({
                         <TableCell
                           key={cell.id}
                           className={cn(
-                            'max-w-[320px] px-3 py-2 align-top text-xs',
+                            'max-w-[320px] truncate px-3 py-2 text-xs',
                             showRunningAccent && 'relative pl-5'
                           )}
                         >

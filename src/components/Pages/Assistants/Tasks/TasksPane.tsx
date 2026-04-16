@@ -1,33 +1,29 @@
 'use client';
 
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { RefreshCw, Users, MessageSquare, BookOpen, Compass, Code, Search, X } from 'lucide-react';
+import { RefreshCw, Search, X, ListChecks, Activity } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
-import { useMemoryData } from '@/hooks/Assistants/useMemoryData';
+import { useTasksData } from '@/hooks/Assistants/useTasksData';
 import type { ColumnDef } from '@tanstack/react-table';
-import {
-  getColumnsForContext,
-  buildTranscriptColumns,
-  MEMORY_CONTEXT_LABELS,
-} from '@/utils/assistants/memory';
-import { MemoryTable } from './MemoryTable';
-import { MemoryRowDetail } from './MemoryRowDetail';
-import type { MemoryContext, MemoryRow } from '@/types/assistants/memory';
+import { getColumnsForTaskView, TASK_LIVE_DOT_CLASS } from '@/utils/assistants/tasks';
+import { MemoryTable } from '../Memory/MemoryTable';
+import { MemoryRowDetail } from '../Memory/MemoryRowDetail';
+import type { MemoryRow, TaskMemoryView, TaskRunRow } from '@/types/assistants/memory';
 
-interface MemoryPaneProps {
+interface TasksPaneProps {
   ownerId: string;
   assistantId: string;
 }
 
-type MemoryTabContext = Exclude<MemoryContext, 'Tasks'>;
+const TASK_VIEW_LABELS: Record<TaskMemoryView, string> = {
+  Tasks: 'Tasks',
+  Activity: 'Activity',
+};
 
-const CONTEXT_ICONS: Record<MemoryTabContext, React.ElementType> = {
-  Contacts: Users,
-  Transcripts: MessageSquare,
-  Knowledge: BookOpen,
-  Guidance: Compass,
-  Functions: Code,
+const TASK_VIEW_ICONS: Record<TaskMemoryView, React.ElementType> = {
+  Tasks: ListChecks,
+  Activity: Activity,
 };
 
 const TAB_CLASS = [
@@ -36,24 +32,48 @@ const TAB_CLASS = [
   'border-transparent data-[active=true]:border-foreground data-[active=true]:text-foreground',
 ].join(' ');
 
-export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
+function getTaskEmptyState(
+  taskView: TaskMemoryView,
+  isFiltered: boolean
+): { title: string; helperText?: string } {
+  if (isFiltered) {
+    return {
+      title: 'No results match your search.',
+      helperText: 'Try clearing search or switching between Tasks and Activity.',
+    };
+  }
+
+  switch (taskView) {
+    case 'Tasks':
+      return {
+        title: 'No tasks found.',
+        helperText: 'Create a task to give the assistant structured work to own.',
+      };
+    case 'Activity':
+      return {
+        title: 'No task activity yet.',
+        helperText:
+          'Task activity appears here after a task starts or finishes running. Use Refresh to check for recent updates.',
+      };
+  }
+}
+
+export function TasksPane({ ownerId, assistantId }: TasksPaneProps) {
   const {
-    contacts,
-    transcripts,
-    knowledge,
-    guidance,
-    functions,
+    tasks,
+    taskRuns,
+    hasRunningTaskRun,
     isLoading,
     isLoadingMore,
     error,
-    activeContext,
-    setActiveContext,
+    taskView,
+    setTaskView,
     sort,
     search,
     clearSearch,
     loadMore,
     refetch,
-  } = useMemoryData({ ownerId, assistantId });
+  } = useTasksData({ ownerId, assistantId });
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedRow, setSelectedRow] = useState<Record<string, unknown> | null>(null);
@@ -62,7 +82,7 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
 
   useEffect(() => {
     setSelectedRow(null);
-  }, [activeContext]);
+  }, [taskView]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -93,38 +113,49 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
     inputRef.current?.focus();
   }, [clearSearch]);
 
-  const contactMap = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const c of contacts.rows) {
-      const name = [c.firstName, c.surname].filter(Boolean).join(' ');
-      if (name) map.set(c.contactId, name);
+  const taskDisplayById = useMemo(() => {
+    const map = new Map<number, { taskName: string | null; taskDescription: string | null }>();
+    for (const task of tasks.rows) {
+      if (task.taskId === null || task.taskId === undefined) continue;
+      map.set(task.taskId, {
+        taskName: task.name ?? null,
+        taskDescription: task.description ?? null,
+      });
     }
     return map;
-  }, [contacts.rows]);
+  }, [tasks.rows]);
+
+  const resolvedTaskRuns = useMemo<TaskRunRow[]>(() => {
+    return taskRuns.rows.map((row) => {
+      const taskDisplay =
+        row.taskId !== null && row.taskId !== undefined
+          ? taskDisplayById.get(row.taskId)
+          : undefined;
+      return {
+        ...row,
+        taskName: row.taskName ?? taskDisplay?.taskName ?? null,
+        taskDescription: row.taskDescription ?? taskDisplay?.taskDescription ?? null,
+      };
+    });
+  }, [taskDisplayById, taskRuns.rows]);
 
   const activeState = useMemo(() => {
-    switch (activeContext) {
-      case 'Contacts':
-        return contacts;
-      case 'Transcripts':
-        return transcripts;
-      case 'Knowledge':
-        return knowledge;
-      case 'Guidance':
-        return guidance;
-      case 'Functions':
-        return functions;
+    switch (taskView) {
+      case 'Tasks':
+        return tasks;
+      case 'Activity':
+        return { ...taskRuns, rows: resolvedTaskRuns };
     }
-  }, [activeContext, contacts, transcripts, knowledge, guidance, functions]);
+  }, [taskView, tasks, taskRuns, resolvedTaskRuns]);
 
   useEffect(() => {
     setSearchValue(activeState.searchQuery);
-  }, [activeContext, activeState.searchQuery]);
+  }, [taskView, activeState.searchQuery]);
 
-  const allColumns = useMemo(() => {
-    if (activeContext === 'Transcripts') return buildTranscriptColumns(contactMap);
-    return getColumnsForContext(activeContext, activeState.fields);
-  }, [activeContext, activeState.fields, contactMap]);
+  const allColumns = useMemo(
+    () => getColumnsForTaskView(taskView, activeState.fields),
+    [taskView, activeState.fields]
+  );
 
   const columns = useMemo(() => {
     if (activeState.rows.length === 0) return allColumns;
@@ -138,19 +169,21 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
     });
   }, [allColumns, activeState.rows]);
 
-  const counts: Record<MemoryTabContext, number> = {
-    Contacts: contacts.count,
-    Transcripts: transcripts.count,
-    Knowledge: knowledge.count,
-    Guidance: guidance.count,
-    Functions: functions.count,
-  };
-
   const isFiltered = !!activeState.filterExpr;
-  const detailTitle = `${MEMORY_CONTEXT_LABELS[activeContext]} Detail`;
-  const emptyMessage = isFiltered
-    ? 'No results match your search.'
-    : `No ${(MEMORY_CONTEXT_LABELS[activeContext] ?? activeContext).toLowerCase()} found.`;
+  const taskViewCounts: Record<TaskMemoryView, number> = {
+    Tasks: tasks.count,
+    Activity: taskRuns.count,
+  };
+  const tableTestId = taskView === 'Tasks' ? 'tasks-table-tasks' : 'tasks-table-activity';
+  const detailTitle = taskView === 'Tasks' ? 'Task Detail' : 'Activity Detail';
+  const emptyState = getTaskEmptyState(taskView, isFiltered);
+  const getRowEmphasis = useCallback(
+    (row: MemoryRow) => {
+      if (taskView !== 'Activity') return undefined;
+      return 'state' in row && row.state === 'running' ? 'running' : undefined;
+    },
+    [taskView]
+  );
 
   if (error) {
     return (
@@ -164,11 +197,11 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
   }
 
   return (
-    <div className="flex h-full flex-col" data-testid="memory-pane">
-      {/* Header — search + refresh */}
+    <div className="flex h-full flex-col" data-testid="tasks-pane">
+      {/* Header — search + working indicator + refresh */}
       <div
         className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5"
-        data-testid="memory-header"
+        data-testid="tasks-header"
       >
         <div className="relative max-w-xs flex-1">
           <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -180,13 +213,13 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             onKeyDown={handleSearchSubmit}
-            data-testid="memory-search"
+            data-testid="tasks-search"
           />
           {isFiltered && (
             <button
               className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
               onClick={handleClearSearch}
-              data-testid="memory-search-clear"
+              data-testid="tasks-search-clear"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -195,56 +228,71 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
 
         <div className="flex-1" />
 
+        {hasRunningTaskRun && (
+          <span
+            className="text-caption inline-flex shrink-0 items-center gap-1.5 text-muted-foreground"
+            data-testid="tasks-snapshot-status"
+          >
+            <span
+              className={cn('h-1.5 w-1.5 rounded-full', TASK_LIVE_DOT_CLASS)}
+              data-testid="tasks-snapshot-working-indicator"
+            />
+            <span>Working</span>
+          </span>
+        )}
+
         <Button
           variant="ghost"
           size="icon"
           className="h-7 w-7 shrink-0"
           onClick={handleRefresh}
           disabled={isRefreshing}
-          data-testid="memory-refresh"
+          data-testid="tasks-refresh"
         >
           <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
         </Button>
       </div>
 
       {/* Body — table */}
-      <div className="min-h-0 flex-1" data-testid="memory-body">
+      <div className="min-h-0 flex-1" data-testid="tasks-body">
         <MemoryTable<MemoryRow>
           data={activeState.rows}
           columns={columns as ColumnDef<MemoryRow, any>[]}
           isLoading={isLoading}
           isLoadingMore={isLoadingMore}
           hasMore={activeState.hasMore}
-          emptyMessage={emptyMessage}
+          emptyMessage={emptyState.title}
+          emptyHelperText={emptyState.helperText}
           onRowClick={(row) => setSelectedRow(row as Record<string, unknown>)}
           onSort={sort}
           onLoadMore={loadMore}
           serverSorting={activeState.sorting}
-          testId={`memory-table-${activeContext.toLowerCase()}`}
+          getRowEmphasis={getRowEmphasis}
+          testId={tableTestId}
         />
       </div>
 
       {/* Footer — sub-tabs (left) + row count (right) */}
       <div
         className="flex shrink-0 items-center justify-between border-t"
-        data-testid="memory-footer"
+        data-testid="tasks-footer"
       >
-        <div className="flex items-center overflow-x-auto" data-testid="memory-sub-tabs">
-          {(Object.keys(MEMORY_CONTEXT_LABELS) as MemoryTabContext[]).map((ctx) => {
-            const Icon = CONTEXT_ICONS[ctx];
+        <div className="flex items-center overflow-x-auto" data-testid="tasks-views">
+          {(Object.keys(TASK_VIEW_LABELS) as TaskMemoryView[]).map((view) => {
+            const Icon = TASK_VIEW_ICONS[view];
             return (
               <button
-                key={ctx}
+                key={view}
                 className={TAB_CLASS}
-                data-active={activeContext === ctx}
-                data-testid={`memory-tab-${ctx.toLowerCase()}`}
-                onClick={() => setActiveContext(ctx)}
+                data-active={taskView === view}
+                data-testid={`tasks-view-${view.toLowerCase()}`}
+                onClick={() => setTaskView(view)}
               >
                 <Icon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{MEMORY_CONTEXT_LABELS[ctx]}</span>
-                <span className="tabular-nums text-muted-foreground sm:hidden">
-                  {counts[ctx] > 0 ? counts[ctx] : ''}
-                </span>
+                <span className="hidden sm:inline">{TASK_VIEW_LABELS[view]}</span>
+                {taskViewCounts[view] > 0 && (
+                  <span className="tabular-nums text-muted-foreground">{taskViewCounts[view]}</span>
+                )}
               </button>
             );
           })}
@@ -253,7 +301,7 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
         {activeState.rows.length > 0 && (
           <span
             className="text-caption hidden shrink-0 px-3 py-1.5 sm:inline"
-            data-testid="memory-table-footer"
+            data-testid="tasks-table-footer"
           >
             {activeState.rows.length} of {activeState.count}{' '}
             {activeState.count === 1 ? 'row' : 'rows'}
@@ -264,7 +312,8 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
 
       <MemoryRowDetail
         row={selectedRow}
-        context={activeContext}
+        context="Tasks"
+        taskView={taskView}
         title={detailTitle}
         onClose={() => setSelectedRow(null)}
       />

@@ -23,6 +23,7 @@ import { seedBillingBannerStates } from './scenarios/billing-banner-states';
 import { seedUsageLedger } from './scenarios/usage-ledger';
 import { seedChatSearch } from './scenarios/chat-search';
 import { seedMemoryRich } from './scenarios/memory-rich';
+import { seedTasksRich } from './scenarios/tasks-rich';
 import { seedReAppraisal } from './scenarios/re-appraisal';
 
 const SCENARIOS: Record<string, SeedScenario> = {
@@ -35,6 +36,7 @@ const SCENARIOS: Record<string, SeedScenario> = {
   'usage-ledger': seedUsageLedger,
   'chat-search': seedChatSearch,
   'memory-rich': seedMemoryRich,
+  'tasks-rich': seedTasksRich,
   're-appraisal': seedReAppraisal,
 };
 

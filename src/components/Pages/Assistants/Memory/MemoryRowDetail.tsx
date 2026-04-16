@@ -16,11 +16,8 @@ import { useTheme } from 'next-themes';
 import oneLight from '@/components/Pages/Interfaces/Blocks/Selection/Views/Markdown/Themes/one-light';
 import oneDark from '@/components/Pages/Interfaces/Blocks/Selection/Views/Markdown/Themes/one-dark';
 import { CopyButton } from '@/components/Common/Buttons/Copy';
-import {
-  buildTaskDetailSections,
-  formatDetailValue,
-  MEMORY_CONTEXT_LABELS,
-} from '@/utils/assistants/memory';
+import { formatDetailValue, MEMORY_CONTEXT_LABELS } from '@/utils/assistants/memory';
+import { buildTaskDetailSections } from '@/utils/assistants/tasks';
 import type { MemoryContext, TaskMemoryView } from '@/types/assistants/memory';
 
 function MemoryCodeBlock({ className, children, inline: providedInline, ...props }: any) {
@@ -218,7 +215,7 @@ export function MemoryRowDetail({ row, context, taskView, title, onClose }: Memo
         )}
 
         <SheetHeader className="shrink-0">
-          <SheetTitle>{title ?? `${MEMORY_CONTEXT_LABELS[context]} Detail`}</SheetTitle>
+          <SheetTitle>{title ?? `${MEMORY_CONTEXT_LABELS[context] ?? context} Detail`}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
 

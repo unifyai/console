@@ -77,4 +77,5 @@ export { seedBillingBannerStates } from './scenarios/billing-banner-states';
 export { seedUsageLedger } from './scenarios/usage-ledger';
 export { seedChatSearch } from './scenarios/chat-search';
 export { seedMemoryRich } from './scenarios/memory-rich';
+export { seedTasksRich } from './scenarios/tasks-rich';
 export { seedReAppraisal } from './scenarios/re-appraisal';

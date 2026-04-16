@@ -6,6 +6,7 @@ import { LiveActionsViewer } from './LiveActions';
 import { DashboardsPane } from './Dashboards';
 import { AssistantProfileChatPanel } from './Profile/AssistantProfileChatPanel';
 import { MemoryPane } from './Memory';
+import { TasksPane } from './Tasks';
 import { Button } from '@/components/UI/button';
 import { Loader2, Phone, Video, Search } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
@@ -127,6 +128,13 @@ export function RightPaneContainer({
             data-testid="right-pane-tab-actions"
           >
             Actions
+          </TabsTrigger>
+          <TabsTrigger
+            value="tasks"
+            className={TAB_TRIGGER_CLASS}
+            data-testid="right-pane-tab-tasks"
+          >
+            Tasks
           </TabsTrigger>
           <TabsTrigger
             value="dashboards"
@@ -256,6 +264,14 @@ export function RightPaneContainer({
           className="h-full"
           onHasActiveActionChange={handleActiveActionChange}
         />
+      </TabsContent>
+
+      <TabsContent
+        value="tasks"
+        className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+        forceMount
+      >
+        <TasksPane ownerId={assistant.userId} assistantId={assistant.agentId} />
       </TabsContent>
 
       <TabsContent
