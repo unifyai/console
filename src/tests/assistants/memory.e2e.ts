@@ -558,9 +558,15 @@ test('Tasks nested views show tasks and activity', async ({ authedPage: page }) 
   await expect(page.getByTestId('memory-task-snapshot-working-indicator')).toBeVisible({
     timeout: 5_000,
   });
+  await expect(activityTable.getByTestId('memory-running-state-indicator')).toBeVisible({
+    timeout: 5_000,
+  });
   await expect(
     activityTable.locator('[data-testid="memory-table-row"][data-row-emphasis="running"]')
   ).toBeVisible({ timeout: 5_000 });
+  await expect(activityTable.getByTestId('memory-running-row-accent')).toBeVisible({
+    timeout: 5_000,
+  });
 });
 
 // ===========================================================================

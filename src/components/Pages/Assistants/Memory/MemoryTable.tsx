@@ -185,21 +185,34 @@ export function MemoryTable<TData>({
                       'transition-colors',
                       onRowClick && 'cursor-pointer',
                       rowEmphasis === 'running'
-                        ? 'bg-emerald-50/70 [box-shadow:inset_3px_0_0_0_rgba(16,185,129,0.55)] hover:bg-emerald-50 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/30'
+                        ? 'bg-emerald-50/85 hover:bg-emerald-50 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/35'
                         : onRowClick && 'hover:bg-muted'
                     )}
                     onClick={() => onRowClick?.(row.original)}
                     data-testid="memory-table-row"
                     data-row-emphasis={rowEmphasis}
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
-                        className="max-w-[320px] px-3 py-2 align-top text-xs"
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
+                    {row.getVisibleCells().map((cell, cellIdx) => {
+                      const showRunningAccent = rowEmphasis === 'running' && cellIdx === 0;
+                      return (
+                        <TableCell
+                          key={cell.id}
+                          className={cn(
+                            'max-w-[320px] px-3 py-2 align-top text-xs',
+                            showRunningAccent && 'relative pl-5'
+                          )}
+                        >
+                          {showRunningAccent ? (
+                            <span
+                              aria-hidden="true"
+                              className="pointer-events-none absolute bottom-2 left-0 top-2 w-1 animate-pulse rounded-r-full bg-emerald-500/75 motion-reduce:animate-none dark:bg-emerald-400/80"
+                              data-testid="memory-running-row-accent"
+                            />
+                          ) : null}
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      );
+                    })}
                   </TableRow>
                 );
               })

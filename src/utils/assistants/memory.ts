@@ -27,6 +27,8 @@ const BADGE_BASE_CLASS =
   'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tracking-[0.01em]';
 const BADGE_FALLBACK_CLASS =
   'border-border/70 bg-muted/70 text-foreground dark:border-slate-400/40 dark:bg-slate-400/15 dark:text-slate-50';
+export const MEMORY_LIVE_DOT_CLASS =
+  'animate-pulse motion-reduce:animate-none bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16)] dark:bg-emerald-400 dark:shadow-[0_0_0_3px_rgba(52,211,153,0.18)]';
 
 const HUMANIZED_TASK_LABELS = new Map<string, string>([
   ['sms_message', 'SMS message'],
@@ -39,30 +41,47 @@ const HUMANIZED_TASK_LABELS = new Map<string, string>([
   ['triggered', 'Triggered'],
   ['explicit', 'On demand'],
   ['queue', 'Queued'],
+  ['queued', 'Queued'],
+  ['primed', 'Primed'],
+  ['active', 'Active'],
   ['running', 'Running'],
   ['completed', 'Completed'],
   ['failed', 'Failed'],
   ['cancelled', 'Cancelled'],
   ['pending', 'Pending'],
+  ['paused', 'Paused'],
   ['triggerable', 'Ready'],
   ['manual', 'On demand'],
 ]);
 
+// Keep task chips within a few semantic families so Memory feels brand-aligned
+// instead of assigning a different hue to every adjacent machine state.
+const TASK_WAITING_TONE =
+  'border-emerald-300 bg-emerald-50/90 text-emerald-900 dark:border-emerald-400/40 dark:bg-emerald-500/15 dark:text-emerald-100';
+const TASK_LIVE_TONE =
+  'border-emerald-300 bg-emerald-200/85 text-emerald-950 dark:border-emerald-400/60 dark:bg-emerald-950/80 dark:text-emerald-50';
+const TASK_SUCCESS_TONE =
+  'border-emerald-300 bg-emerald-100/80 text-emerald-950 dark:border-emerald-500/45 dark:bg-emerald-950/65 dark:text-emerald-50';
+const TASK_ATTENTION_TONE =
+  'border-amber-300 bg-amber-100/80 text-amber-950 dark:border-amber-500/55 dark:bg-amber-950/65 dark:text-amber-100';
+const TASK_FAILURE_TONE =
+  'border-red-300 bg-red-200/75 text-red-950 dark:border-red-500/55 dark:bg-red-950/70 dark:text-red-100';
+const TASK_INACTIVE_TONE =
+  'border-slate-300 bg-slate-200/70 text-slate-900 dark:border-slate-500/45 dark:bg-slate-900/80 dark:text-slate-100';
+
 const TASK_STATUS_TONES: Record<string, string> = {
-  pending:
-    'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/55 dark:bg-amber-400/20 dark:text-amber-50',
-  scheduled:
-    'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-400/55 dark:bg-sky-400/20 dark:text-sky-50',
-  running:
-    'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/55 dark:bg-emerald-400/20 dark:text-emerald-50',
-  completed:
-    'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/55 dark:bg-emerald-400/20 dark:text-emerald-50',
-  failed:
-    'border-red-200 bg-red-50 text-red-800 dark:border-red-400/55 dark:bg-red-400/20 dark:text-red-50',
-  cancelled:
-    'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-400/45 dark:bg-slate-400/18 dark:text-slate-50',
-  triggerable:
-    'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-400/55 dark:bg-violet-400/20 dark:text-violet-50',
+  pending: TASK_ATTENTION_TONE,
+  paused: TASK_ATTENTION_TONE,
+  scheduled: TASK_WAITING_TONE,
+  queued: TASK_WAITING_TONE,
+  primed: TASK_WAITING_TONE,
+  triggerable: TASK_WAITING_TONE,
+  ready: TASK_WAITING_TONE,
+  active: TASK_LIVE_TONE,
+  running: TASK_LIVE_TONE,
+  completed: TASK_SUCCESS_TONE,
+  failed: TASK_FAILURE_TONE,
+  cancelled: TASK_INACTIVE_TONE,
 };
 
 const STACKED_PRIMARY_TEXT_CLASS = 'truncate font-medium text-foreground';
@@ -372,7 +391,8 @@ function accessorCell<T>(
 function displayCell(
   label: React.ReactNode,
   toneClass: string,
-  dotClassName?: string
+  dotClassName?: string,
+  dotTestId?: string
 ): React.ReactNode {
   const children: React.ReactNode[] = [];
   if (dotClassName) {
@@ -380,6 +400,7 @@ function displayCell(
       React.createElement('span', {
         key: 'dot',
         className: cn('h-1.5 w-1.5 rounded-full', dotClassName),
+        'data-testid': dotTestId,
       })
     );
   }
@@ -410,10 +431,12 @@ function badgeCell(value: unknown, tones: Record<string, string>, fallback = BAD
 function taskStateBadge(value: unknown): React.ReactNode {
   if (!isPresent(value)) return '—';
   const raw = String(value);
+  const isRunning = raw.toLowerCase() === 'running';
   return displayCell(
     humanizeTaskLabel(raw),
     badgeTone(raw, TASK_STATUS_TONES),
-    raw.toLowerCase() === 'running' ? 'animate-pulse bg-emerald-500/90' : undefined
+    isRunning ? MEMORY_LIVE_DOT_CLASS : undefined,
+    isRunning ? 'memory-running-state-indicator' : undefined
   );
 }
 

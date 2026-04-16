@@ -21,6 +21,7 @@ import {
   getColumnsForTaskView,
   buildTranscriptColumns,
   MEMORY_CONTEXT_LABELS,
+  MEMORY_LIVE_DOT_CLASS,
 } from '@/utils/assistants/memory';
 import { MemoryTable } from './MemoryTable';
 import { MemoryRowDetail } from './MemoryRowDetail';
@@ -403,7 +404,7 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
             >
               {showTaskWorkingIndicator ? (
                 <span
-                  className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"
+                  className={cn('h-1.5 w-1.5 rounded-full', MEMORY_LIVE_DOT_CLASS)}
                   data-testid="memory-task-snapshot-working-indicator"
                 />
               ) : null}
