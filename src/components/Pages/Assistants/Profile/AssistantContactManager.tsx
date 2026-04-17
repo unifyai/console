@@ -424,14 +424,12 @@ export function AssistantContactManager({
                   onSelect={() => setEmailProvider('google_workspace')}
                   disabled={isSubmitting}
                 />
-                {/* TODO: re-enable when Outlook provisioning is ready
                 <EmailProviderCard
                   provider="microsoft_365"
                   isSelected={emailProvider === 'microsoft_365'}
                   onSelect={() => setEmailProvider('microsoft_365')}
                   disabled={isSubmitting}
                 />
-                */}
               </div>
               <div className="flex items-center rounded-md">
                 <Input
@@ -481,14 +479,12 @@ export function AssistantContactManager({
         <div className="space-y-3">
           <Label className="text-strong">Connect your own account</Label>
           <div className="flex gap-2">
-            {/* TODO: re-enable when Google Workspace BYOD connect is ready
             <ByodProviderCard
               provider="google"
               isSelected={byodProvider === 'google'}
               onSelect={() => setByodProvider(byodProvider === 'google' ? null : 'google')}
               disabled={isConnecting}
             />
-            */}
             <ByodProviderCard
               provider="microsoft"
               isSelected={byodProvider === 'microsoft'}
