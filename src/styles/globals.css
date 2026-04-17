@@ -75,6 +75,10 @@
 
     --favourite: #ba8e23;
 
+    --code-bg: #eceef1;
+    --code-border: rgba(0, 0, 0, 0.08);
+    --code-fg: var(--primary);
+
     --radius: 0.5rem;
 
     --chart-1: #e8623c;
@@ -131,6 +135,10 @@
     --ring: var(--dark-slate-gray);
 
     --favourite: #ffd600;
+
+    --code-bg: #262626;
+    --code-border: rgba(255, 255, 255, 0.08);
+    --code-fg: var(--primary);
 
     --radius: 0.5rem;
 
