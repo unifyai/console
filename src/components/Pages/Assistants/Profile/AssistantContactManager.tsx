@@ -23,7 +23,6 @@ import {
   Copy,
   Check,
   Link2,
-  Unlink,
 } from 'lucide-react';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ContactType, EmailProvider, OAuthProvider } from '@/types/assistants/contact';
@@ -563,22 +562,20 @@ export function AssistantContactManager({
     // BYOD connected state — disconnect + optional update features
     if (activeTab === 'email' && isByodEmail && canWrite) {
       return (
-        <div className="flex w-full items-center justify-between">
-          <Button
-            variant="ghost"
-            className="text-destructive hover:text-destructive"
-            onClick={() => setConfirmDisconnect(true)}
-            disabled={isBusy}
-          >
-            <Unlink className="mr-2 h-4 w-4" />
-            Disconnect
-          </Button>
+        <div className="flex w-full items-center justify-end gap-2">
           {hasFeaturesChanged && (
             <Button onClick={updateFeatures} disabled={isConnecting}>
               {isConnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Update Features
             </Button>
           )}
+          <Button
+            variant="destructive"
+            onClick={() => setConfirmDisconnect(true)}
+            disabled={isBusy}
+          >
+            Disconnect
+          </Button>
         </div>
       );
     }
