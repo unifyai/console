@@ -81,7 +81,7 @@ test('deep link ?profile=agentId opens the correct assistant profile', async ({
   await expect(page.locator(`text=${db.surname}`).first()).toBeVisible({ timeout: 5_000 });
 });
 
-test('assistant list item dropdown menu has edit, contacts, and secrets options', async ({
+test('assistant list item dropdown menu has edit and contacts options', async ({
   authedPage: page,
 }) => {
   await navigateToAssistants(page);
@@ -97,8 +97,8 @@ test('assistant list item dropdown menu has edit, contacts, and secrets options'
   await menuBtn.click();
   await page.waitForTimeout(500);
 
-  // Verify all three menu items are visible
+  // Verify both remaining menu items are visible — secrets has moved to
+  // a dedicated tab in the right-hand pane.
   await expect(page.getByTestId('menu-edit-profile')).toBeVisible({ timeout: 5_000 });
   await expect(page.getByTestId('menu-update-contacts')).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('menu-manage-secrets')).toBeVisible({ timeout: 5_000 });
 });

@@ -24,6 +24,7 @@ import { seedUsageLedger } from './scenarios/usage-ledger';
 import { seedChatSearch } from './scenarios/chat-search';
 import { seedMemoryRich } from './scenarios/memory-rich';
 import { seedTasksRich } from './scenarios/tasks-rich';
+import { seedSecretsRich } from './scenarios/secrets-rich';
 import { seedReAppraisal } from './scenarios/re-appraisal';
 
 const SCENARIOS: Record<string, SeedScenario> = {
@@ -37,6 +38,7 @@ const SCENARIOS: Record<string, SeedScenario> = {
   'chat-search': seedChatSearch,
   'memory-rich': seedMemoryRich,
   'tasks-rich': seedTasksRich,
+  'secrets-rich': seedSecretsRich,
   're-appraisal': seedReAppraisal,
 };
 

@@ -22,7 +22,12 @@ const mapLogToSecret = (log: LogProps): Secret | null => {
 };
 
 export const getSecrets = async (apiKey: string, orgId: number | null = null) => {
-  return async (assistantId: string, ownerId: string): Promise<Secret[] | ResponseProps> => {
+  return async (
+    assistantId: string,
+    ownerId: string,
+    sorting?: string,
+    filterExpr?: string
+  ): Promise<Secret[] | ResponseProps> => {
     'use server';
     try {
       const effectiveKey =
@@ -31,7 +36,14 @@ export const getSecrets = async (apiKey: string, orgId: number | null = null) =>
           : apiKey;
 
       const context = `${ownerId}/${assistantId}${CONTEXT_SUFFIX}`;
-      const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${PROJECT}&context=${context}&excludeFields=value`;
+      const params = new URLSearchParams({
+        projectName: PROJECT,
+        context,
+        excludeFields: 'value',
+      });
+      if (sorting) params.set('sorting', sorting);
+      if (filterExpr) params.set('filterExpr', filterExpr);
+      const url = `${process.env.NEXTAUTH_URL}/api/logs?${params.toString()}`;
 
       const response = await fetch(url, { method: 'GET', headers: { apiKey: effectiveKey } });
 

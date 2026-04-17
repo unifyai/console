@@ -7,7 +7,6 @@ import {
   MoreVertical,
   PenLine,
   Contact,
-  KeyRound,
   Copy,
   Check,
   Trash2,
@@ -48,7 +47,6 @@ interface AssistantListItemProps {
   onShowProfile: (id: string) => void;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onEditAssistant: (assistant: Assistant) => void;
-  onOpenSecretsManager: (assistant: Assistant) => void;
   onEndContract?: (assistant: Assistant) => Promise<void>;
   isFolded: boolean;
   isCallActive: boolean;
@@ -61,7 +59,6 @@ export function AssistantListItem({
   onShowProfile,
   onOpenContactManager,
   onEditAssistant,
-  onOpenSecretsManager,
   onEndContract,
   isFolded,
   isCallActive,
@@ -357,13 +354,6 @@ export function AssistantListItem({
             >
               <Contact className="mr-2 h-4 w-4" />
               Contact Details
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onOpenSecretsManager(assistant)}
-              data-testid="menu-manage-secrets"
-            >
-              <KeyRound className="mr-2 h-4 w-4" />
-              Secrets
             </DropdownMenuItem>
             {onEndContract && (
               <>

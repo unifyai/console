@@ -21,7 +21,6 @@ interface AssistantListProps {
   onOpenHireDialog: () => void;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onEditAssistant: (assistant: Assistant) => void;
-  onOpenSecretsManager: (assistant: Assistant) => void;
   onEndContract?: (assistant: Assistant) => Promise<void>;
   canEndContract?: (assistant: Assistant) => boolean;
   isFolded: boolean;
@@ -43,7 +42,6 @@ export function AssistantList({
   onOpenHireDialog,
   onOpenContactManager,
   onEditAssistant,
-  onOpenSecretsManager,
   onEndContract,
   canEndContract,
   isFolded,
@@ -162,7 +160,6 @@ export function AssistantList({
                 onShowProfile={onShowProfile}
                 onOpenContactManager={onOpenContactManager}
                 onEditAssistant={onEditAssistant}
-                onOpenSecretsManager={onOpenSecretsManager}
                 onEndContract={canEndContract?.(assistant) ? onEndContract : undefined}
                 isFolded={isFolded}
                 isCallActive={activeCallAssistantId === assistant.agentId}
