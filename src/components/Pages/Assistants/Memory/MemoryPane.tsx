@@ -224,9 +224,10 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
         />
       </div>
 
-      {/* Footer — sub-tabs (left) + row count (right) */}
+      {/* Footer — sub-tabs (left) + row count (right). h-10 aligns this bar
+          with the assistant-list toggle and the chat input / other tab footers. */}
       <div
-        className="flex shrink-0 items-center justify-between border-t px-2 py-1.5"
+        className="flex h-10 shrink-0 items-center justify-between border-t px-2"
         data-testid="memory-footer"
       >
         <div className="flex items-center gap-1 overflow-x-auto" data-testid="memory-sub-tabs">

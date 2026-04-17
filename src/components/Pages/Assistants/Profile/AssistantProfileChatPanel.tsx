@@ -335,16 +335,19 @@ export function AssistantProfileChatPanel({
     textarea.style.overflowY = 'hidden';
     textarea.style.scrollbarWidth = 'none';
 
-    if (inputValue) {
-      const scrollHeight = textarea.scrollHeight;
+    // Always size to scrollHeight (not just when inputValue is non-empty) so
+    // the empty/placeholder state and the typed state render at the exact
+    // same height. Otherwise the empty state falls back to rows={1}
+    // intrinsic sizing which can differ from scrollHeight by a pixel or two
+    // and causes a visible height jump the moment the user starts typing.
+    const scrollHeight = textarea.scrollHeight;
 
-      if (scrollHeight > TEXTAREA_MAX_HEIGHT) {
-        textarea.style.height = `${TEXTAREA_MAX_HEIGHT}px`;
-        textarea.style.overflowY = 'auto';
-        textarea.style.scrollbarWidth = 'thin';
-      } else {
-        textarea.style.height = `${scrollHeight}px`;
-      }
+    if (scrollHeight > TEXTAREA_MAX_HEIGHT) {
+      textarea.style.height = `${TEXTAREA_MAX_HEIGHT}px`;
+      textarea.style.overflowY = 'auto';
+      textarea.style.scrollbarWidth = 'thin';
+    } else {
+      textarea.style.height = `${scrollHeight}px`;
     }
   }, [inputValue]);
 
@@ -755,7 +758,12 @@ export function AssistantProfileChatPanel({
       {isHistoricalMode && <OlderMessagesBanner onJumpToPresent={handleJumpToPresent} />}
 
       {/* Input Area */}
-      <form onSubmit={handleSendWithAttachments} className="bg-background px-4 pb-4 pt-2">
+      {/* Total vertical height of this row (textarea 32px + py-1 8px = 40px)
+          is kept in sync with the assistant-list toggle and the tab footers
+          so the bottom bars line up across the whole assistants page. The
+          4px top/bottom padding leaves the textarea visibly inset from the
+          form edges rather than flush against them. */}
+      <form onSubmit={handleSendWithAttachments} className="bg-background px-4 py-1">
         {/* Pending attachments — outside dropzone so tooltips work */}
         {pendingAttachments.length > 0 && (
           <PendingAttachmentList
@@ -792,7 +800,7 @@ export function AssistantProfileChatPanel({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute bottom-1 left-1 h-7 w-7"
+                  className="absolute inset-y-0 left-1 my-auto h-6 w-6"
                   disabled={
                     !canChat ||
                     isLoading ||
@@ -829,7 +837,7 @@ export function AssistantProfileChatPanel({
               variant="ghost"
               size="icon"
               className={cn(
-                'absolute bottom-1 left-8 h-7 w-7',
+                'absolute inset-y-0 left-7 my-auto h-6 w-6',
                 isRecording && 'animate-pulse text-red-500'
               )}
               onClick={toggleRecording}
@@ -879,7 +887,7 @@ export function AssistantProfileChatPanel({
               disabled={
                 !canChat || isUploading || initialLoadError || sseBlocked || isSpendingBlocked
               }
-              className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-16 pr-10"
+              className="styled-scrollbar text-body min-h-[32px] resize-none overflow-y-hidden py-1 pl-14 pr-9 leading-6"
               autoComplete="off"
               onKeyDown={sendMessageOnEnter}
             />
@@ -894,7 +902,7 @@ export function AssistantProfileChatPanel({
                       aria-label="Cancel send"
                       size="icon"
                       variant="outline"
-                      className="group/cancel absolute bottom-1 right-1 h-7 w-7 hover:bg-muted"
+                      className="group/cancel absolute inset-y-0 right-1 my-auto h-6 w-6 hover:bg-muted"
                       onClick={handleCancelSend}
                     >
                       <Loader2 className="h-4 w-4 animate-spin group-hover/cancel:hidden" />
@@ -911,7 +919,8 @@ export function AssistantProfileChatPanel({
                 type="submit"
                 aria-label="Send message"
                 size="icon"
-                className="absolute bottom-1 right-1 h-7 w-7"
+                variant="ghost"
+                className="absolute inset-y-0 right-1 my-auto h-6 w-6"
                 disabled={
                   !canChat ||
                   isLoading ||

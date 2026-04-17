@@ -81,7 +81,9 @@ export function LiveActionsFooter({
   return (
     <div
       className={cn(
-        'flex items-center justify-between border-t bg-background px-3 py-1.5 text-xs text-muted-foreground',
+        // h-10 aligns this bar with the chat input, memory/tasks footers, and
+        // the assistant-list toggle — see AssistantList's footer for details.
+        'flex h-10 items-center justify-between border-t bg-background px-3 text-xs text-muted-foreground',
         className
       )}
       data-testid="live-actions-footer"

@@ -178,7 +178,10 @@ export function AssistantList({
       {onToggleFold && (
         <div
           className={cn(
-            'hidden flex-shrink-0 items-center px-2 py-1.5 md:flex',
+            // h-10 keeps this bar aligned with the chat input and the memory /
+            // tasks / actions / dashboards tab footers at the bottom of the
+            // right pane.
+            'hidden h-10 flex-shrink-0 items-center px-2 md:flex',
             isFolded ? 'justify-center' : 'justify-end'
           )}
         >

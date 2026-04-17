@@ -45,7 +45,9 @@ export function DashboardsPaneFooter({
 
   return (
     <div
-      className="text-caption flex items-center justify-between border-t bg-background px-3 py-1.5"
+      // h-10 aligns this bar with the chat input, memory/tasks footers, and
+      // the assistant-list toggle — see AssistantList's footer for details.
+      className="text-caption flex h-10 items-center justify-between border-t bg-background px-3"
       data-testid="dashboards-footer"
     >
       {/* Left: counts + status */}

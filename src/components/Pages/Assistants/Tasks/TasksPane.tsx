@@ -272,9 +272,10 @@ export function TasksPane({ ownerId, assistantId }: TasksPaneProps) {
         />
       </div>
 
-      {/* Footer — sub-tabs (left) + row count (right) */}
+      {/* Footer — sub-tabs (left) + row count (right). h-10 aligns this bar
+          with the assistant-list toggle and the chat input / other tab footers. */}
       <div
-        className="flex shrink-0 items-center justify-between border-t px-2 py-1.5"
+        className="flex h-10 shrink-0 items-center justify-between border-t px-2"
         data-testid="tasks-footer"
       >
         <div className="flex items-center gap-1 overflow-x-auto" data-testid="tasks-views">
