@@ -4,13 +4,7 @@ import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/UI/dialog';
 import { Input } from '@/components/UI/input';
 import { Label } from '@/components/UI/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/UI/select';
+import { Combobox } from '@/components/UI/Combobox';
 import PrimaryButton from '@/components/Common/Buttons/Primary';
 import SecondaryButton from '@/components/Common/Buttons/Secondary';
 import { Pencil } from 'lucide-react';
@@ -29,7 +23,10 @@ const UpdateOrgDialog = ({ currentName, currentTimezone, onUpdate }: UpdateOrgDi
   const [orgName, setOrgName] = useState(currentName);
   const [timezone, setTimezone] = useState(currentTimezone || '');
 
-  const timezoneOptions = useMemo(() => generateTimezoneOptions(), []);
+  const timezoneOptions = useMemo(
+    () => generateTimezoneOptions().map(({ value: v, label }) => ({ value: v, label })),
+    []
+  );
 
   const hasChanges = orgName !== currentName || timezone !== (currentTimezone || '');
 
@@ -86,18 +83,16 @@ const UpdateOrgDialog = ({ currentName, currentTimezone, onUpdate }: UpdateOrgDi
 
           <div className="space-y-2">
             <Label htmlFor="timezone">Timezone</Label>
-            <Select value={timezone} onValueChange={setTimezone}>
-              <SelectTrigger id="timezone">
-                <SelectValue placeholder="Select a timezone..." />
-              </SelectTrigger>
-              <SelectContent>
-                {timezoneOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              items={timezoneOptions}
+              value={timezone}
+              onValueChange={setTimezone}
+              placeholder="Select a timezone…"
+              searchPlaceholder="Search timezones…"
+              emptyMessage="No timezones match your search."
+              className="w-full"
+              popoverClassName="w-[--radix-popover-trigger-width]"
+            />
             <p className="text-caption text-muted-foreground">
               This timezone will be used for organization-wide scheduling and reporting.
             </p>

@@ -9,13 +9,7 @@ import PrimaryButton from '../../Common/Buttons/Primary';
 import { toast } from 'sonner';
 import { Input } from '@/components/UI/input';
 import { Label } from '@/components/UI/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/UI/select';
+import { Combobox } from '@/components/UI/Combobox';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 import ProfilePhoto from './ProfilePhoto';
 
@@ -30,24 +24,27 @@ const TimezoneSelect = memo(function TimezoneSelect({
   onValueChange: (v: string) => void;
   disabled: boolean;
 }) {
-  const timezoneOptions = useMemo(() => generateTimezoneOptions(), []);
   const items = useMemo(
     () =>
-      timezoneOptions.map((option) => (
-        <SelectItem key={option.value} value={option.value}>
-          {option.label}
-        </SelectItem>
-      )),
-    [timezoneOptions]
+      generateTimezoneOptions().map(({ value: v, label }) => ({
+        value: v,
+        label,
+      })),
+    []
   );
 
   return (
-    <Select value={value} onValueChange={onValueChange} disabled={disabled}>
-      <SelectTrigger>
-        <SelectValue placeholder="Select a timezone..." />
-      </SelectTrigger>
-      <SelectContent>{items}</SelectContent>
-    </Select>
+    <Combobox
+      items={items}
+      value={value}
+      onValueChange={onValueChange}
+      placeholder="Select a timezone…"
+      searchPlaceholder="Search timezones…"
+      emptyMessage="No timezones match your search."
+      disabled={disabled}
+      className="w-full"
+      popoverClassName="w-[--radix-popover-trigger-width]"
+    />
   );
 });
 
@@ -97,27 +94,6 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
     const next = buildFormState(user);
     setInitialFormState(next);
     setFormState(next);
-  }, [user]);
-
-  // Automatically set timezone for new users
-  useEffect(() => {
-    if (user.timezone) return;
-
-    const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (!browserTimezone) return;
-
-    fetch('/api/user/update-profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ timezone: browserTimezone }),
-    })
-      .then((response) => {
-        if (response.ok) {
-          setFormState((prev) => ({ ...prev, timezone: browserTimezone }));
-          setInitialFormState((prev) => ({ ...prev, timezone: browserTimezone }));
-        }
-      })
-      .catch((error) => console.error('Failed to auto-update timezone:', error));
   }, [user]);
 
   const handleInputChange = useCallback(
