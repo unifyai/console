@@ -336,6 +336,16 @@ export function AssistantContactManager({
   // -------------------------------------------------------------------------
 
   const renderEmailTab = () => {
+    // Determining email type from granted-features fetch
+    if (assistant.email && isLoadingFeatures) {
+      return (
+        <div className="flex items-center justify-center py-8 text-muted-foreground">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <span className="text-caption">Loading email details...</span>
+        </div>
+      );
+    }
+
     // State 4: Read-only user
     if (!canWrite) {
       if (assistant.email) {
@@ -403,73 +413,83 @@ export function AssistantContactManager({
     // State 1: No email — provision or connect
     return (
       <div className="space-y-6">
-        {/* Sub-section A: Provision a platform email */}
-        <div className="space-y-3">
-          <Label className="text-strong">Provision a platform email</Label>
-          <div className="flex gap-2">
-            <EmailProviderCard
-              provider="google_workspace"
-              isSelected={emailProvider === 'google_workspace'}
-              onSelect={() => setEmailProvider('google_workspace')}
-              disabled={isSubmitting}
-            />
-            <EmailProviderCard
-              provider="microsoft_365"
-              isSelected={emailProvider === 'microsoft_365'}
-              onSelect={() => setEmailProvider('microsoft_365')}
-              disabled={isSubmitting}
-            />
-          </div>
-          <div className="flex items-center rounded-md">
-            <Input
-              id="email_local_part"
-              type="text"
-              value={emailLocalPart}
-              onChange={handleLocalPartChange}
-              placeholder="new-assistant"
-              className="h-9 max-w-[250px] flex-1 rounded-r-none focus-visible:ring-0 focus-visible:ring-offset-0"
-              disabled={isSubmitting}
-            />
-            <span className="text-caption flex h-9 select-none items-center rounded-r-md border-l border-input bg-muted px-3 py-2 text-muted-foreground">
-              {activeEmailDomain}
-            </span>
-          </div>
-          <input
-            type="hidden"
-            {...register('email', {
-              validate: (value) => {
-                if (getValues('isEmailAdded')) {
-                  if (!value || !value.endsWith(activeEmailDomain) || value.startsWith('@'))
-                    return 'A valid email is required.';
-                  if (allAssistantEmails.includes(value) && value !== assistant.email)
-                    return 'This email is already taken.';
-                }
-                return true;
-              },
-            })}
-          />
-          {errors.email && (
-            <p className="text-body text-strong mt-1 text-destructive">{errors.email.message}</p>
-          )}
-        </div>
+        {!byodProvider && (
+          <>
+            {/* Sub-section A: Provision a platform email */}
+            <div className="space-y-3">
+              <Label className="text-strong">Provision a platform email</Label>
+              <div className="flex gap-2">
+                <EmailProviderCard
+                  provider="google_workspace"
+                  isSelected={emailProvider === 'google_workspace'}
+                  onSelect={() => setEmailProvider('google_workspace')}
+                  disabled={isSubmitting}
+                />
+                {/* TODO: re-enable when Outlook provisioning is ready
+                <EmailProviderCard
+                  provider="microsoft_365"
+                  isSelected={emailProvider === 'microsoft_365'}
+                  onSelect={() => setEmailProvider('microsoft_365')}
+                  disabled={isSubmitting}
+                />
+                */}
+              </div>
+              <div className="flex items-center rounded-md">
+                <Input
+                  id="email_local_part"
+                  type="text"
+                  value={emailLocalPart}
+                  onChange={handleLocalPartChange}
+                  placeholder="new-assistant"
+                  className="h-9 max-w-[250px] flex-1 rounded-r-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  disabled={isSubmitting}
+                />
+                <span className="text-caption flex h-9 select-none items-center rounded-r-md border-l border-input bg-muted px-3 py-2 text-muted-foreground">
+                  {activeEmailDomain}
+                </span>
+              </div>
+              <input
+                type="hidden"
+                {...register('email', {
+                  validate: (value) => {
+                    if (getValues('isEmailAdded')) {
+                      if (!value || !value.endsWith(activeEmailDomain) || value.startsWith('@'))
+                        return 'A valid email is required.';
+                      if (allAssistantEmails.includes(value) && value !== assistant.email)
+                        return 'This email is already taken.';
+                    }
+                    return true;
+                  },
+                })}
+              />
+              {errors.email && (
+                <p className="text-body text-strong mt-1 text-destructive">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
 
-        {/* Divider */}
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-border" />
-          <span className="text-caption text-muted-foreground">or</span>
-          <div className="h-px flex-1 bg-border" />
-        </div>
+            {/* Divider */}
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-caption text-muted-foreground">or</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+          </>
+        )}
 
         {/* Sub-section B: Connect your own account */}
         <div className="space-y-3">
           <Label className="text-strong">Connect your own account</Label>
           <div className="flex gap-2">
+            {/* TODO: re-enable when Google Workspace BYOD connect is ready
             <ByodProviderCard
               provider="google"
               isSelected={byodProvider === 'google'}
               onSelect={() => setByodProvider(byodProvider === 'google' ? null : 'google')}
               disabled={isConnecting}
             />
+            */}
             <ByodProviderCard
               provider="microsoft"
               isSelected={byodProvider === 'microsoft'}

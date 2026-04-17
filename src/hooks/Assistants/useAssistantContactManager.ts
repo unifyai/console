@@ -110,8 +110,9 @@ export function useAssistantContactManager({
   const [isConnecting, setIsConnecting] = React.useState(false);
   const [isDisconnecting, setIsDisconnecting] = React.useState(false);
 
-  const isByodEmail = !!assistant.email && assistant.emailProvisionedBy === 'user';
-  const isPlatformEmail = !!assistant.email && !isByodEmail;
+  // Determined after granted-features fetch; both false while loading.
+  const isByodEmail = !!assistant.email && !!grantedFeatures?.provider;
+  const isPlatformEmail = !!assistant.email && !isByodEmail && !isLoadingFeatures;
 
   // ---------------------------------------------------------------------------
   // Reset form when dialog opens with new assistant data
@@ -291,9 +292,10 @@ export function useAssistantContactManager({
     };
   }, [isOpen, assistantActions.contact]);
 
-  // Fetch granted features when dialog opens and a BYOD email is connected
+  // Fetch granted features when dialog opens and an email exists.
+  // The response determines whether the email is BYOD (provider non-null) or platform.
   React.useEffect(() => {
-    if (!isOpen || !isByodEmail) return;
+    if (!isOpen || !assistant.email) return;
 
     let cancelled = false;
 
@@ -328,7 +330,7 @@ export function useAssistantContactManager({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, isByodEmail, assistant.agentId, assistantActions.contact]);
+  }, [isOpen, assistant.email, assistant.agentId, assistantActions.contact]);
 
   // ---------------------------------------------------------------------------
   // UI state
