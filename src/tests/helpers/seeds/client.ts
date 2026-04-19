@@ -363,6 +363,8 @@ export interface CreateAssistantOpts {
   firstName?: string;
   surname?: string;
   profilePhoto?: string;
+  /** Optional free-text job title / specialization. */
+  jobTitle?: string;
 }
 
 /**
@@ -378,9 +380,10 @@ export function createAssistant(opts: CreateAssistantOpts): SeededAssistant {
 
   const orgClause = opts.orgId != null ? `${opts.orgId}` : 'NULL';
   const photoClause = opts.profilePhoto ? `'${opts.profilePhoto}'` : 'NULL';
+  const jobTitleClause = opts.jobTitle ? `'${opts.jobTitle.replace(/'/g, "''")}'` : 'NULL';
 
   dbExecBlock(`
-INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel, organization_id, is_local, profile_photo)
+INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel, organization_id, is_local, profile_photo, job_title)
 VALUES (
   '${opts.userId}',
   '${firstName}',
@@ -395,7 +398,8 @@ VALUES (
   10,
   ${orgClause},
   true,
-  ${photoClause}
+  ${photoClause},
+  ${jobTitleClause}
 );
 `);
 

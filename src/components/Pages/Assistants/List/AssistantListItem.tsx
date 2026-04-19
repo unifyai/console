@@ -117,6 +117,15 @@ export function AssistantListItem({
             <Copy className="h-3 w-3 flex-shrink-0 opacity-70 transition-colors group-hover/id:opacity-100" />
           )}
         </div>
+        {assistant.jobTitle && (
+          <div
+            className="text-caption flex min-w-0 items-center text-muted-foreground"
+            data-testid={`assistant-job-title-${assistant.agentId}`}
+          >
+            <span className="mr-1 opacity-70">Job Title:</span>
+            <span className="truncate">{assistant.jobTitle}</span>
+          </div>
+        )}
         {supervisorName && (
           <div className="text-caption flex min-w-0 items-center text-muted-foreground">
             <span className="mr-1 opacity-70">Supervisor:</span>

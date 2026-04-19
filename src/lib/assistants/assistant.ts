@@ -211,6 +211,7 @@ export const createAssistant = async (apiKey: string) => {
   return async (
     firstName: string,
     surname: string,
+    jobTitle: string | null,
     age: number | null,
     nationality: string | null,
     timezone: string | null,
@@ -236,6 +237,7 @@ export const createAssistant = async (apiKey: string) => {
         body: JSON.stringify({
           firstName: firstName,
           surname,
+          jobTitle,
           age,
           nationality,
           profilePhoto: profilePhoto,

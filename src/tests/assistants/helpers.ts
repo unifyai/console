@@ -193,6 +193,8 @@ export async function fillProfileFields(
   opts: {
     firstName: string;
     lastName: string;
+    /** Optional free-text job title / specialization. Pass `''` to explicitly clear. */
+    jobTitle?: string;
     age?: number;
     nationality?: string;
     about?: string;
@@ -205,6 +207,11 @@ export async function fillProfileFields(
 
   const surnameInput = page.locator('#surname');
   await surnameInput.fill(opts.lastName);
+
+  if (opts.jobTitle !== undefined) {
+    const jobTitleInput = page.locator('#jobTitle');
+    await jobTitleInput.fill(opts.jobTitle);
+  }
 
   if (opts.age) {
     const ageInput = page.locator('#age');
@@ -292,7 +299,7 @@ import { dbExec } from '../helpers/seeds/client';
 
 export function getAssistantFromDb(agentId: number) {
   const row = dbExec(
-    `SELECT first_name, surname, voice_id, voice_provider, profile_photo, age, nationality, timezone, about, organization_id FROM assistants WHERE agent_id = ${agentId}`
+    `SELECT first_name, surname, voice_id, voice_provider, profile_photo, age, nationality, timezone, about, organization_id, COALESCE(job_title, '') FROM assistants WHERE agent_id = ${agentId}`
   );
   const [
     firstName,
@@ -305,6 +312,7 @@ export function getAssistantFromDb(agentId: number) {
     timezone,
     about,
     organizationId,
+    jobTitleRaw,
   ] = row.split('|');
   return {
     firstName,
@@ -317,6 +325,10 @@ export function getAssistantFromDb(agentId: number) {
     timezone,
     about,
     organizationId,
+    // Empty string sentinel means NULL in the database (we COALESCE so the
+    // pipe-split yields a stable column count). Map back to null so tests can
+    // explicitly assert "cleared" vs "set" without worrying about psql output.
+    jobTitle: jobTitleRaw === '' ? null : jobTitleRaw,
   };
 }
 

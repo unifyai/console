@@ -40,6 +40,13 @@ export interface Assistant {
   userImage?: string | null; // Owner's profile image URL
   firstName: string;
   surname: string;
+  /**
+   * Free-text job title / specialization (e.g. "Growth marketing",
+   * "QA engineer"). Surfaced in the UI as a per-assistant subtitle so users
+   * can remember at-a-glance what each assistant is for. Distinct from org
+   * RBAC roles (`organization.roleName`) and chat-message roles.
+   */
+  jobTitle: string | null;
   profilePhoto: string | null;
   profileVideo: string | null;
   age: number | null;
@@ -112,11 +119,13 @@ export type AssistantPreset = Omit<
   | 'timezone'
   | 'profileVideo'
   | 'phoneCountry'
+  | 'jobTitle'
 > & {
   gender?: 'male' | 'female';
   phoneCountry?: string | null;
   timezone?: string | null;
   profileVideo?: string | null;
+  jobTitle?: string | null;
   voiceIds: {
     cartesia?: string | null;
     elevenlabs?: string | null;
@@ -264,6 +273,7 @@ export interface ReplicatePredictionResponse {
 export interface AssistantUpdatePayload {
   firstName?: string;
   surname?: string;
+  jobTitle?: string | null;
   age?: number;
   nationality?: string;
   about?: string | null;
@@ -359,6 +369,7 @@ export interface AssistantActions {
     create: (
       firstName: string,
       surname: string,
+      jobTitle: string | null,
       age: number | null,
       nationality: string | null,
       timezone: string | null,
