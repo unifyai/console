@@ -235,9 +235,11 @@ export function AssistantListItem({
           />
         )}
         {isCallActive && (
-          <span className="absolute -right-1 -top-1 flex h-3 w-3">
+          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
-            <span className="relative inline-flex h-3 w-3 rounded-full bg-primary"></span>
+            <span className="relative inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary">
+              <PhoneCall className="h-2.5 w-2.5 text-primary-foreground" />
+            </span>
           </span>
         )}
       </div>
