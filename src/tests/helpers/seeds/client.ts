@@ -21,7 +21,24 @@ import type { OrgRole, SeededUser, SeededOrg, SeededAssistant, SeededSecret } fr
 
 const DB_CONTAINER = process.env.ORCHESTRA_DB_CONTAINER || 'orchestra-local-db';
 const CONSOLE_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-const ORCHESTRA_BASE_URL = process.env.ORCHESTRA_URL || 'http://127.0.0.1:8000';
+
+/**
+ * Orchestra base URL must be the API **origin** only (no `/v0` suffix).
+ * Call sites append paths like `/v0/logs`. Local `scripts/local.sh` exports
+ * `UNIFY_BASE_URL=…/v0`; if that is copied into `ORCHESTRA_URL`, naive
+ * concatenation becomes `/v0/v0/...` and FastAPI returns 404 `{"detail":"Not Found"}`.
+ */
+function normalizeOrchestraBaseUrl(raw: string): string {
+  let base = raw.trim().replace(/\/+$/, '');
+  if (base.endsWith('/v0')) {
+    base = base.slice(0, -3);
+  }
+  return base;
+}
+
+const ORCHESTRA_BASE_URL = normalizeOrchestraBaseUrl(
+  process.env.ORCHESTRA_URL || 'http://127.0.0.1:8000'
+);
 const API_TIMEOUT = 30_000;
 
 // =============================================================================
@@ -345,6 +362,9 @@ export interface CreateAssistantOpts {
   orgId?: number;
   firstName?: string;
   surname?: string;
+  profilePhoto?: string;
+  /** Optional free-text job title / specialization. */
+  jobTitle?: string;
 }
 
 /**
@@ -359,9 +379,11 @@ export function createAssistant(opts: CreateAssistantOpts): SeededAssistant {
   ensureVoicePreset(opts.userId);
 
   const orgClause = opts.orgId != null ? `${opts.orgId}` : 'NULL';
+  const photoClause = opts.profilePhoto ? `'${opts.profilePhoto}'` : 'NULL';
+  const jobTitleClause = opts.jobTitle ? `'${opts.jobTitle.replace(/'/g, "''")}'` : 'NULL';
 
   dbExecBlock(`
-INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel, organization_id, is_local)
+INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel, organization_id, is_local, profile_photo, job_title)
 VALUES (
   '${opts.userId}',
   '${firstName}',
@@ -375,7 +397,9 @@ VALUES (
   40,
   10,
   ${orgClause},
-  true
+  true,
+  ${photoClause},
+  ${jobTitleClause}
 );
 `);
 
@@ -663,6 +687,84 @@ export async function seedChatInfrastructure(opts: SeedChatOpts): Promise<void> 
   if (!contactRes.ok) {
     const text = await contactRes.text().catch(() => '');
     throw new Error(`Failed to seed contact: ${contactRes.status} ${text}`);
+  }
+}
+
+// =============================================================================
+// Action Events (ManagerMethod + ToolLoop for Live Actions panel)
+// =============================================================================
+
+export interface SeedActionEventsOpts {
+  apiKey: string;
+  userId: string;
+  assistantId: number;
+}
+
+/**
+ * Seed ManagerMethod events directly via Orchestra's logs API.
+ *
+ * These log entries populate the Live Actions panel's action tree.
+ * Each entry represents one phase (incoming or outgoing) of a manager
+ * method invocation. The console reads them from the context
+ * `{userId}/{assistantId}/Events/ManagerMethod`.
+ *
+ * Entries must use **snake_case** keys (Orchestra stores them as JSONB;
+ * the console converts to camelCase at read time).
+ */
+export async function seedManagerMethodEvents(
+  opts: SeedActionEventsOpts,
+  entries: Record<string, unknown>[]
+): Promise<void> {
+  await ensureProject(opts.apiKey, 'Assistants');
+
+  const res = await orchestraFetch(
+    '/v0/logs',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        project_name: 'Assistants',
+        context: `${opts.userId}/${opts.assistantId}/Events/ManagerMethod`,
+        entries,
+      }),
+    },
+    opts.apiKey
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Failed to seed ManagerMethod events: ${res.status} ${text}`);
+  }
+}
+
+/**
+ * Seed ToolLoop events directly via Orchestra's logs API.
+ *
+ * These log entries populate the tool-loop detail view inside each
+ * action node (LLM messages, tool calls, tool results). The console
+ * reads them from `{userId}/{assistantId}/Events/ToolLoop`.
+ *
+ * Entries must use **snake_case** keys.
+ */
+export async function seedToolLoopEvents(
+  opts: SeedActionEventsOpts,
+  entries: Record<string, unknown>[]
+): Promise<void> {
+  await ensureProject(opts.apiKey, 'Assistants');
+
+  const res = await orchestraFetch(
+    '/v0/logs',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        project_name: 'Assistants',
+        context: `${opts.userId}/${opts.assistantId}/Events/ToolLoop`,
+        entries,
+      }),
+    },
+    opts.apiKey
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Failed to seed ToolLoop events: ${res.status} ${text}`);
   }
 }
 

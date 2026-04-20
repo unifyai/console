@@ -8,6 +8,21 @@ import {
   SecretActions,
 } from '@/types/assistants/secret';
 import { ResponseProps } from '@/types/common';
+import { buildSortingParam, buildSearchFilterExpr } from '@/lib/client/memory';
+
+export type SecretsSortField = 'name' | 'description';
+export type SecretsSortDirection = 'asc' | 'desc';
+export type SecretsSortState = {
+  field: SecretsSortField;
+  direction: SecretsSortDirection;
+} | null;
+
+const DEFAULT_SORT: SecretsSortState = { field: 'name', direction: 'asc' };
+
+// Fields eligible for free-text search. Mirrors the columns exposed in the
+// Secrets table (name + description). The server turns this into an Orchestra
+// filter expression via `buildSearchFilterExpr`.
+const SEARCH_FIELDS = ['name', 'description'];
 
 interface SecretFormData {
   name: string;
@@ -42,10 +57,19 @@ export function useAssistantSecrets(
 ) {
   const [secrets, setSecrets] = React.useState<Secret[]>([]);
   const [selectedSecret, setSelectedSecret] = React.useState<Secret | null>(null);
-  const [isLoading, setIsLoading] = React.useState(false);
+  // Start as loading unconditionally so the skeleton is visible for the full
+  // duration of the first fetch. Consumers that never have an assistantId
+  // won't call the fetcher, but the skeleton stays up in that edge case which
+  // is fine — it's consistent with Memory/Tasks.
+  const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pendingUpload, setPendingUpload] = React.useState<PendingUpload | null>(null);
+  // Sort and search are driven by the server just like Memory/Tasks: changing
+  // either triggers a re-fetch. Sort defaults to name-asc so the initial view
+  // is alphabetic. Search defaults to empty (no filter).
+  const [sorting, setSorting] = React.useState<SecretsSortState>(DEFAULT_SORT);
+  const [searchQuery, setSearchQuery] = React.useState<string>('');
 
   const formMethods = useForm<SecretFormData>({
     defaultValues: { name: '', value: '', description: '' },
@@ -57,15 +81,22 @@ export function useAssistantSecrets(
     setIsLoading(true);
     setError(null);
     try {
-      const result = await secretActions.get(assistantId, ownerId);
+      const sortingParam = sorting
+        ? buildSortingParam(sorting.field, sorting.direction)
+        : undefined;
+      const trimmedQuery = searchQuery.trim();
+      const filterExprParam = trimmedQuery
+        ? buildSearchFilterExpr(trimmedQuery, SEARCH_FIELDS)
+        : undefined;
+      const result = await secretActions.get(assistantId, ownerId, sortingParam, filterExprParam);
       if ('detail' in result) throw new Error((result as ResponseProps).detail);
-      const sortedSecrets = (result as Secret[]).sort((a, b) => a.name.localeCompare(b.name));
-      setSecrets(sortedSecrets);
+      const fetched = result as Secret[];
+      setSecrets(fetched);
       // Re-select the currently selected secret if it still exists (e.g. after update),
       // otherwise clear the selection (e.g. after create or delete).
       setSelectedSecret((prev) => {
         if (!prev) return null;
-        return sortedSecrets.find((s) => s.logId === prev.logId) || null;
+        return fetched.find((s) => s.logId === prev.logId) || null;
       });
     } catch (err: any) {
       setError(err.message);
@@ -73,13 +104,52 @@ export function useAssistantSecrets(
     } finally {
       setIsLoading(false);
     }
-  }, [assistantId, ownerId, secretActions]);
+  }, [assistantId, ownerId, secretActions, sorting, searchQuery]);
 
   React.useEffect(() => {
     if (assistantId) {
       fetchSecrets();
     }
   }, [assistantId, fetchSecrets]);
+
+  // Clear the cached rows and flip loading on synchronously so there's no
+  // intermediate "No secrets yet" flash between the state change and the
+  // effect-driven re-fetch kicking in.
+  const beginRefetch = React.useCallback(() => {
+    setSecrets([]);
+    setIsLoading(true);
+  }, []);
+
+  // Tri-state cycle: asc → desc → null (default server order). Clicking a new
+  // column resets to asc on that column. The skeleton re-appears while the
+  // new ordering is fetched — mirrors Memory.
+  const handleSort = React.useCallback(
+    (field: SecretsSortField) => {
+      beginRefetch();
+      setSorting((prev) => {
+        if (!prev || prev.field !== field) return { field, direction: 'asc' };
+        if (prev.direction === 'asc') return { field, direction: 'desc' };
+        return null;
+      });
+    },
+    [beginRefetch]
+  );
+
+  // Search is triggered by the consumer (e.g. on Enter), not on every
+  // keystroke — matches the Memory/Tasks pattern. Empty/whitespace queries
+  // are treated as "clear".
+  const handleSearch = React.useCallback(
+    (query: string) => {
+      beginRefetch();
+      setSearchQuery(query.trim());
+    },
+    [beginRefetch]
+  );
+
+  const clearSearch = React.useCallback(() => {
+    beginRefetch();
+    setSearchQuery('');
+  }, [beginRefetch]);
 
   React.useEffect(() => {
     if (selectedSecret) {
@@ -327,6 +397,11 @@ export function useAssistantSecrets(
     handleFileSelected,
     confirmUploadJson,
     cancelUploadJson,
+    sorting,
+    handleSort,
+    searchQuery,
+    handleSearch,
+    clearSearch,
     onSubmit: formMethods.handleSubmit(onSubmit),
   };
 }

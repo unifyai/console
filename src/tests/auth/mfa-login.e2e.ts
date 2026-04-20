@@ -5,7 +5,7 @@
  * Run: npx playwright test src/tests/auth/mfa-login.e2e.ts
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import {
   createTestUser,
   cleanupUser,
@@ -13,13 +13,46 @@ import {
   generateTOTP,
   switchToEmailTab,
   login,
+  loginAndWaitForRedirect,
   enterTOTP,
   ensureFreshTotp,
   dbExec,
   type TestUser,
 } from './helpers';
 
+async function loginToMfa(page: Page, email: string, password: string) {
+  await page.goto('/login');
+  await loginAndWaitForRedirect(page, email, password, 15_000);
+  await expect(page).toHaveURL(/\/login\/mfa/, { timeout: 5_000 });
+}
+
+async function completeTotpAndWaitForRedirect(page: Page, totpSecret: string) {
+  await ensureFreshTotp(page, totpSecret);
+  const code = generateTOTP(totpSecret);
+  await Promise.all([
+    page.waitForURL(
+      (url) => !url.pathname.startsWith('/login') || url.pathname.includes('onboarding'),
+      { timeout: 15_000, waitUntil: 'domcontentloaded' }
+    ),
+    enterTOTP(page, code),
+  ]);
+}
+
+async function submitRecoveryCodeAndWaitForRedirect(page: Page, recoveryCode: string) {
+  await expect(page.getByTestId('recovery-code-input')).toBeVisible();
+  await page.getByTestId('recovery-code-input').fill(recoveryCode);
+  await Promise.all([
+    page.waitForURL(
+      (url) => !url.pathname.startsWith('/login') || url.pathname.includes('onboarding'),
+      { timeout: 15_000, waitUntil: 'domcontentloaded' }
+    ),
+    page.getByTestId('recovery-submit').click(),
+  ]);
+}
+
 test.describe('MFA Login Verification', () => {
+  test.describe.configure({ mode: 'serial' });
+
   let user: TestUser;
   let totpSecret: string;
   let recoveryCodes: string[];
@@ -36,19 +69,8 @@ test.describe('MFA Login Verification', () => {
   });
 
   test('completes TOTP verification and redirects after login', async ({ page }) => {
-    await page.goto('/login');
-    await login(page, user.email, user.password);
-
-    await page.waitForURL(/\/login\/mfa/, { timeout: 15000 });
-
-    await ensureFreshTotp(page, totpSecret);
-    const code = generateTOTP(totpSecret);
-    await enterTOTP(page, code);
-
-    await page.waitForURL(
-      (url) => !url.pathname.startsWith('/login') || url.pathname.includes('onboarding'),
-      { timeout: 15000 }
-    );
+    await loginToMfa(page, user.email, user.password);
+    await completeTotpAndWaitForRedirect(page, totpSecret);
 
     const mfaEnabled = dbExec(
       `SELECT enabled FROM mfa_credential WHERE user_id = '${user.id}' AND method_type = 'totp'`
@@ -57,10 +79,7 @@ test.describe('MFA Login Verification', () => {
   });
 
   test('shows error for invalid TOTP code', async ({ page }) => {
-    await page.goto('/login');
-    await login(page, user.email, user.password);
-
-    await page.waitForURL(/\/login\/mfa/, { timeout: 15000 });
+    await loginToMfa(page, user.email, user.password);
 
     await enterTOTP(page, '000000');
 
@@ -71,28 +90,14 @@ test.describe('MFA Login Verification', () => {
   test('completes recovery code verification after login', async ({ page }) => {
     test.skip(recoveryCodes.length === 0, 'No recovery codes available');
 
-    await page.goto('/login');
-    await login(page, user.email, user.password);
-
-    await page.waitForURL(/\/login\/mfa/, { timeout: 15000 });
+    await loginToMfa(page, user.email, user.password);
 
     await page.getByTestId('use-recovery-code').click();
-
-    await expect(page.getByTestId('recovery-code-input')).toBeVisible();
-    await page.getByTestId('recovery-code-input').fill(recoveryCodes[0]);
-    await page.getByTestId('recovery-submit').click();
-
-    await page.waitForURL(
-      (url) => !url.pathname.startsWith('/login') || url.pathname.includes('onboarding'),
-      { timeout: 15000 }
-    );
+    await submitRecoveryCodeAndWaitForRedirect(page, recoveryCodes[0]);
   });
 
   test('shows error for invalid recovery code', async ({ page }) => {
-    await page.goto('/login');
-    await login(page, user.email, user.password);
-
-    await page.waitForURL(/\/login\/mfa/, { timeout: 15000 });
+    await loginToMfa(page, user.email, user.password);
 
     await page.getByTestId('use-recovery-code').click();
     await page.getByTestId('recovery-code-input').fill('not-a-real-code');
@@ -103,10 +108,7 @@ test.describe('MFA Login Verification', () => {
   });
 
   test('switches between TOTP and recovery code views', async ({ page }) => {
-    await page.goto('/login');
-    await login(page, user.email, user.password);
-
-    await page.waitForURL(/\/login\/mfa/, { timeout: 15000 });
+    await loginToMfa(page, user.email, user.password);
 
     await expect(page.getByTestId('totp-input')).toBeVisible();
     await expect(page.getByTestId('recovery-code-input')).not.toBeVisible();
@@ -121,10 +123,7 @@ test.describe('MFA Login Verification', () => {
   });
 
   test('recovery submit button is disabled when input is empty', async ({ page }) => {
-    await page.goto('/login');
-    await login(page, user.email, user.password);
-
-    await page.waitForURL(/\/login\/mfa/, { timeout: 15000 });
+    await loginToMfa(page, user.email, user.password);
 
     await page.getByTestId('use-recovery-code').click();
     await expect(page.getByTestId('recovery-submit')).toBeDisabled();
@@ -134,10 +133,7 @@ test.describe('MFA Login Verification', () => {
   });
 
   test('back-to-login signs out and redirects to login page', async ({ page }) => {
-    await page.goto('/login');
-    await login(page, user.email, user.password);
-
-    await page.waitForURL(/\/login\/mfa/, { timeout: 15000 });
+    await loginToMfa(page, user.email, user.password);
 
     await page.getByTestId('back-to-login').click();
 
@@ -146,23 +142,13 @@ test.describe('MFA Login Verification', () => {
   });
 
   test('forwards credit token to destination after TOTP verification', async ({ page }) => {
-    await page.goto('/login');
-    await login(page, user.email, user.password);
-
-    await page.waitForURL(/\/login\/mfa/, { timeout: 15000 });
+    await loginToMfa(page, user.email, user.password);
 
     const mfaUrl = new URL(page.url());
     mfaUrl.searchParams.set('token', 'test-credit-e2e');
     await page.goto(mfaUrl.toString());
 
-    await ensureFreshTotp(page, totpSecret);
-    const code = generateTOTP(totpSecret);
-    await enterTOTP(page, code);
-
-    await page.waitForURL(
-      (url) => !url.pathname.startsWith('/login') || url.pathname.includes('onboarding'),
-      { timeout: 15000 }
-    );
+    await completeTotpAndWaitForRedirect(page, totpSecret);
 
     expect(page.url()).toContain('token=test-credit-e2e');
   });

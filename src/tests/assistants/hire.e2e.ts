@@ -152,6 +152,74 @@ test('hiring with all profile fields persists nationality, age and about to DB',
   expect(dbAssistant.voiceId).toBeTruthy();
 });
 
+test('hiring with a job title persists job_title to DB and shows it in the hover card', async ({
+  authedPage: page,
+}) => {
+  const firstName = `Job${Date.now()}`;
+  const lastName = 'Titled';
+  const jobTitle = 'Growth marketing';
+
+  await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
+  await openHireDialog(page);
+
+  await fillProfileFields(page, {
+    firstName,
+    lastName,
+    jobTitle,
+    age: 33,
+    about: 'Hire with job title.',
+  });
+
+  await selectVoice(page);
+  await clickHireButton(page);
+
+  const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
+  await expect(listItem).toBeVisible({ timeout: 60_000 });
+
+  const agentIds = getAssistantAgentIds(user.id);
+  const latestId = agentIds[agentIds.length - 1];
+  const dbAssistant = getAssistantFromDb(latestId);
+  expect(dbAssistant.firstName).toBe(firstName);
+  expect(dbAssistant.jobTitle).toBe(jobTitle);
+
+  // The hover card should include a "Job Title: <value>" row in its top
+  // section. Trigger the hover card by hovering the avatar.
+  await listItem.hover();
+  const subtitle = page.getByTestId(`assistant-job-title-${latestId}`);
+  await expect(subtitle).toBeVisible({ timeout: 5_000 });
+  await expect(subtitle).toContainText('Job Title:');
+  await expect(subtitle).toContainText(jobTitle);
+});
+
+test('hiring without filling Job Title leaves job_title NULL in DB', async ({
+  authedPage: page,
+}) => {
+  const firstName = `NoJob${Date.now()}`;
+
+  await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
+  await openHireDialog(page);
+
+  await fillProfileFields(page, {
+    firstName,
+    lastName: 'Untitled',
+    age: 30,
+    about: 'No job title.',
+  });
+
+  await selectVoice(page);
+  await clickHireButton(page);
+
+  const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
+  await expect(listItem).toBeVisible({ timeout: 60_000 });
+
+  const agentIds = getAssistantAgentIds(user.id);
+  const latestId = agentIds[agentIds.length - 1];
+  const dbAssistant = getAssistantFromDb(latestId);
+  expect(dbAssistant.jobTitle).toBeNull();
+});
+
 test('cancelling mid-hire does not create an assistant', async ({ authedPage: page }) => {
   const countBefore = getAssistantCount(user.id);
 

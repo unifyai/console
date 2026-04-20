@@ -19,7 +19,12 @@ export interface SecretUpdatePayload {
 }
 
 export interface SecretActions {
-  get: (assistantId: string, ownerId: string) => Promise<Secret[] | ResponseProps>;
+  get: (
+    assistantId: string,
+    ownerId: string,
+    sorting?: string,
+    filterExpr?: string
+  ) => Promise<Secret[] | ResponseProps>;
   create: (assistantId: string, ownerId: string, payload: SecretPayload) => Promise<ResponseProps>;
   update: (logId: number, ownerId: string, payload: SecretUpdatePayload) => Promise<ResponseProps>;
   delete: (logId: number, ownerId: string, assistantId: string) => Promise<ResponseProps>;

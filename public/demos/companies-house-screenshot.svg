@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
+    <rect width="800" height="400" fill="#fff"/>
+    <!-- GOV.UK header -->
+    <rect width="800" height="10" fill="#0b0c0c"/>
+    <rect y="10" width="800" height="50" fill="#0b0c0c"/>
+    <text x="16" y="30" font-family="Arial" font-size="14" font-weight="bold" fill="white">GOV.UK</text>
+    <text x="16" y="48" font-family="Arial" font-size="10" fill="#a0a0a0">Official government website</text>
+    <!-- Blue Companies House banner -->
+    <rect y="60" width="800" height="44" fill="#00557e"/>
+    <text x="24" y="88" font-family="Arial" font-size="18" font-weight="bold" fill="white">Find and update company information</text>
+    <!-- Breadcrumb -->
+    <text x="24" y="120" font-family="Arial" font-size="11" fill="#1d70b8">Companies House</text>
+    <text x="134" y="120" font-family="Arial" font-size="11" fill="#505a5f">›</text>
+    <text x="144" y="120" font-family="Arial" font-size="11" fill="#505a5f">NEXAPOINT TECHNOLOGIES LTD</text>
+    <!-- Company title -->
+    <text x="24" y="152" font-family="Arial" font-size="22" font-weight="bold" fill="#0b0c0c">NEXAPOINT TECHNOLOGIES LTD</text>
+    <text x="24" y="172" font-family="Arial" font-size="13" fill="#505a5f">Company number 14829371</text>
+    <!-- Status badge -->
+    <rect x="24" y="182" width="56" height="22" rx="3" fill="#00703c"/>
+    <text x="32" y="197" font-family="Arial" font-size="11" fill="white" font-weight="bold">Active</text>
+    <text x="90" y="197" font-family="Arial" font-size="12" fill="#505a5f">Incorporated on 15 March 2022</text>
+    <!-- Tabs -->
+    <g transform="translate(0,214)">
+      <rect width="800" height="1" fill="#b1b4b6"/>
+      <rect x="24" y="0" width="80" height="3" fill="#1d70b8"/>
+      <text x="34" y="20" font-family="Arial" font-size="12" fill="#1d70b8" font-weight="bold">Overview</text>
+      <text x="130" y="20" font-family="Arial" font-size="12" fill="#505a5f">Filing history</text>
+      <text x="230" y="20" font-family="Arial" font-size="12" fill="#505a5f">People</text>
+      <text x="300" y="20" font-family="Arial" font-size="12" fill="#505a5f">Charges</text>
+    </g>
+    <!-- Details -->
+    <g transform="translate(24,248)">
+      <text x="0" y="14" font-family="Arial" font-size="13" fill="#505a5f">Registered office address</text>
+      <text x="0" y="34" font-family="Arial" font-size="14" fill="#0b0c0c" font-weight="bold">45 Moorgate, London, EC2R 6AR</text>
+      <rect y="48" width="740" height="1" fill="#ddd"/>
+      <text x="0" y="68" font-family="Arial" font-size="13" fill="#505a5f">Company type</text>
+      <text x="200" y="68" font-family="Arial" font-size="13" fill="#0b0c0c">Private limited company</text>
+      <rect y="80" width="740" height="1" fill="#ddd"/>
+      <text x="0" y="100" font-family="Arial" font-size="13" fill="#505a5f">Last accounts</text>
+      <text x="200" y="100" font-family="Arial" font-size="13" fill="#0b0c0c">31 March 2025</text>
+      <rect y="112" width="740" height="1" fill="#ddd"/>
+      <text x="0" y="132" font-family="Arial" font-size="13" fill="#505a5f">Total assets</text>
+      <text x="200" y="132" font-family="Arial" font-size="13" fill="#0b0c0c" font-weight="bold">£28,450,000</text>
+      <text x="310" y="132" font-family="Arial" font-size="12" fill="#505a5f">Net assets: £12,680,000 • Employees: 185</text>
+    </g>
+  </svg>

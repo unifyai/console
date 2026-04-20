@@ -92,6 +92,32 @@ test('clicking an assistant in the list selects it and shows the Chat tab', asyn
   await expect(page.locator(`text=${dbAssistant.surname}`).first()).toBeVisible({ timeout: 5_000 });
 });
 
+test('a seeded assistant with a job title shows it as a subtitle in the hover card', async ({
+  authedPage: page,
+}) => {
+  deleteAllAssistantsForUser(user.id);
+
+  const titled = createAssistant({
+    userId: user.id,
+    firstName: 'Titled',
+    surname: 'HoverCard',
+    jobTitle: 'QA engineer',
+  });
+
+  await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
+
+  const listItem = page.getByTestId(`assistant-list-item-${titled.agentId}`);
+  await expect(listItem).toBeVisible({ timeout: 15_000 });
+
+  // Hover the avatar (the HoverCard trigger) to reveal the "Job Title:" row.
+  await listItem.hover();
+  const subtitle = page.getByTestId(`assistant-job-title-${titled.agentId}`);
+  await expect(subtitle).toBeVisible({ timeout: 5_000 });
+  await expect(subtitle).toContainText('Job Title:');
+  await expect(subtitle).toContainText('QA engineer');
+});
+
 test('list updates after hiring a new assistant without page reload', async ({
   authedPage: page,
 }) => {

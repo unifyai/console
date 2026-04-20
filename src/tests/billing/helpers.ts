@@ -45,7 +45,7 @@ export {
 };
 export type { SeededOrg } from '../helpers/seeds/types';
 
-import { login, switchToEmailTab } from '../auth/helpers';
+import { login, loginAndWaitForRedirect, switchToEmailTab } from '../auth/helpers';
 export { login, switchToEmailTab };
 
 // =============================================================================
@@ -76,8 +76,7 @@ export async function loginAndSaveState(
   const page = await ctx.newPage();
 
   await page.goto('/login');
-  await login(page, email, password);
-  await page.waitForURL((url) => url.pathname !== '/login', { timeout: 30_000 });
+  await loginAndWaitForRedirect(page, email, password, 30_000);
 
   if (page.url().includes('/login/onboarding')) {
     const personalBtn = page.getByTestId('workspace-personal');
@@ -106,9 +105,7 @@ export async function loginAndNavigateTo(
   targetUrl: string
 ) {
   await page.goto('/login');
-  await login(page, email, password);
-
-  await page.waitForURL((url) => url.pathname !== '/login', { timeout: 20_000 });
+  await loginAndWaitForRedirect(page, email, password, 20_000);
 
   if (page.url().includes('/login/onboarding')) {
     const personalBtn = page.getByTestId('workspace-personal');
@@ -121,7 +118,7 @@ export async function loginAndNavigateTo(
     }
   }
 
-  await page.goto(targetUrl);
+  await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('domcontentloaded');
 }
 

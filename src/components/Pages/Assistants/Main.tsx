@@ -35,7 +35,6 @@ import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
 import { AssistantHireLocalSetupInstructionsDialog } from './Hire/AssistantHireLocalSetupInstructions';
 import { AssistantContactManager } from './Profile/AssistantContactManager';
-import { AssistantSecretsManager } from './Profile/AssistantSecretsManager';
 import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
 import { useContactIdPrefetch } from '@/hooks/Assistants/useContactIdPrefetch';
 import { LogLevel, Room, setLogLevel } from 'livekit-client';
@@ -207,9 +206,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
   const [contactManagerInitialTab, setContactManagerInitialTab] =
     React.useState<ContactType>('email');
-  const [secretsManagerAssistant, setSecretsManagerAssistant] = React.useState<Assistant | null>(
-    null
-  );
   const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
   const [isDialogBusyProcessingPhoto, setIsDialogBusyProcessingPhoto] = React.useState(false);
   const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false);
@@ -814,7 +810,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             onOpenHireDialog={handleOpenHireDialog}
             onOpenContactManager={handleOpenContactManager}
             onEditAssistant={handleOpenEditDialog}
-            onOpenSecretsManager={setSecretsManagerAssistant}
             onEndContract={onDeleteAssistantSubmit}
             canEndContract={canDelete}
             isFolded={isAssistantListFolded}
@@ -949,16 +944,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               onAddPaymentMethod={() => setIsStripePanelOpen(true)}
             />
           </AssistantEdit>
-        )}
-        {secretsManagerAssistant && (
-          <AssistantSecretsManager
-            isOpen={!!secretsManagerAssistant}
-            onClose={() => setSecretsManagerAssistant(null)}
-            assistantId={secretsManagerAssistant.agentId}
-            ownerId={secretsManagerAssistant.userId}
-            secretActions={assistantActions.secret}
-            canWrite={canWrite(secretsManagerAssistant)}
-          />
         )}
         {contactManagerAssistant && (
           <AssistantContactManager

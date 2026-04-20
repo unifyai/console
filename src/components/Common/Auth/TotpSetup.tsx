@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
+import QRCode from 'qrcode';
 import { Button } from '@/components/UI/button';
 import TotpInput from './TotpInput';
 import RecoveryCodeDisplay from './RecoveryCodeDisplay';
@@ -30,9 +31,17 @@ const TotpSetup = ({
 }) => {
   const [step, setStep] = useState<SetupStep>('idle');
   const [qrUri, setQrUri] = useState<string | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [error, setError] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!qrUri) return;
+    QRCode.toDataURL(qrUri, { width: 200, margin: 2 })
+      .then(setQrDataUrl)
+      .catch(() => {});
+  }, [qrUri]);
 
   const handleSetup = useCallback(async () => {
     setError(undefined);
@@ -131,10 +140,10 @@ const TotpSetup = ({
           Scan this code with your authenticator app.
         </p>
 
-        {qrUri && (
+        {qrDataUrl && (
           <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-white p-4">
             <Image
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUri)}`}
+              src={qrDataUrl}
               alt="TOTP QR Code"
               width={200}
               height={200}

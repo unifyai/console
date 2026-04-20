@@ -21,7 +21,6 @@ interface AssistantListProps {
   onOpenHireDialog: () => void;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onEditAssistant: (assistant: Assistant) => void;
-  onOpenSecretsManager: (assistant: Assistant) => void;
   onEndContract?: (assistant: Assistant) => Promise<void>;
   canEndContract?: (assistant: Assistant) => boolean;
   isFolded: boolean;
@@ -43,7 +42,6 @@ export function AssistantList({
   onOpenHireDialog,
   onOpenContactManager,
   onEditAssistant,
-  onOpenSecretsManager,
   onEndContract,
   canEndContract,
   isFolded,
@@ -162,7 +160,6 @@ export function AssistantList({
                 onShowProfile={onShowProfile}
                 onOpenContactManager={onOpenContactManager}
                 onEditAssistant={onEditAssistant}
-                onOpenSecretsManager={onOpenSecretsManager}
                 onEndContract={canEndContract?.(assistant) ? onEndContract : undefined}
                 isFolded={isFolded}
                 isCallActive={activeCallAssistantId === assistant.agentId}
@@ -181,23 +178,34 @@ export function AssistantList({
       {onToggleFold && (
         <div
           className={cn(
-            'hidden flex-shrink-0 items-center border-t px-2 py-1.5 md:flex',
+            // h-10 keeps this bar aligned with the chat input and the memory /
+            // tasks / actions / dashboards tab footers at the bottom of the
+            // right pane.
+            'hidden h-10 flex-shrink-0 items-center px-2 md:flex',
             isFolded ? 'justify-center' : 'justify-end'
           )}
         >
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground"
-            onClick={onToggleFold}
-            title={isFolded ? 'Expand panel' : 'Collapse panel'}
-          >
-            {isFolded ? (
-              <PanelLeftOpen className="h-4 w-4" />
-            ) : (
-              <PanelLeftClose className="h-4 w-4" />
-            )}
-          </Button>
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground"
+                  onClick={onToggleFold}
+                >
+                  {isFolded ? (
+                    <PanelLeftOpen className="h-4 w-4" />
+                  ) : (
+                    <PanelLeftClose className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>{isFolded ? 'Expand panel' : 'Collapse panel'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       )}
     </div>

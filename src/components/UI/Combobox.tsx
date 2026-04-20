@@ -24,7 +24,13 @@ export interface ComboboxProps {
   value: string; // Currently selected value
   onValueChange: (newValue: string) => void;
   placeholder?: string;
+  searchPlaceholder?: string;
+  emptyMessage?: string;
   className?: string;
+  disabled?: boolean;
+  /** Tailwind classes applied to the popover. Defaults to a fixed 200px width;
+   *  pass e.g. "w-[--radix-popover-trigger-width]" to match the trigger width. */
+  popoverClassName?: string;
 }
 
 /**
@@ -41,7 +47,11 @@ export function Combobox({
   value,
   onValueChange,
   placeholder = 'Select an item…',
+  searchPlaceholder = 'Search…',
+  emptyMessage = 'No options found.',
   className = '',
+  disabled = false,
+  popoverClassName = 'w-[200px]',
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -54,28 +64,33 @@ export function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          disabled={disabled}
           className={cn('justify-between px-2 py-1', className)}
         >
-          {currentItem ? currentItem.label : placeholder}
-          <ChevronsUpDown className="ml-1 h-4 w-4 opacity-50" />
+          <span className="truncate">{currentItem ? currentItem.label : placeholder}</span>
+          <ChevronsUpDown className="ml-1 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0">
+      <PopoverContent className={cn('p-0', popoverClassName)}>
         <Command>
           <CommandInput
-            placeholder="Search…"
+            placeholder={searchPlaceholder}
             onKeyDown={(e) => {
               e.stopPropagation();
               e.nativeEvent.stopImmediatePropagation();
             }}
           />
           <CommandList>
-            <CommandEmpty>No options found.</CommandEmpty>
+            <CommandEmpty>{emptyMessage}</CommandEmpty>
             <CommandGroup>
               {items.map((item) => (
                 <CommandItem
                   key={item.value}
                   value={item.value}
+                  // Make the human-readable label searchable too — by default
+                  // cmdk only filters on the `value` (e.g. "America/New_York"),
+                  // so without this typing "London" or "UTC" wouldn't match.
+                  keywords={[item.label]}
                   onSelect={(selectedValue) => {
                     onValueChange(selectedValue === value ? '' : selectedValue);
                     setOpen(false);

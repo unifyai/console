@@ -31,7 +31,7 @@ import {
   dbExec,
 } from '../helpers/seeds/client';
 import { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
-import { login } from '../auth/helpers';
+import { loginAndWaitForRedirect } from '../auth/helpers';
 
 // =============================================================================
 // Test Users & Org Setup
@@ -68,8 +68,7 @@ async function loginAndSaveOrgState(
   const page = await ctx.newPage();
 
   await page.goto('/login');
-  await login(page, email, password);
-  await page.waitForURL((url) => url.pathname !== '/login', { timeout: 45_000 });
+  await loginAndWaitForRedirect(page, email, password, 45_000);
 
   // Handle onboarding
   if (page.url().includes('/login/onboarding')) {
@@ -209,22 +208,20 @@ async function openEditViaDropdown(page: Page, agentId: number) {
 }
 
 /**
- * Open the dropdown menu on a list item and click "Secrets".
+ * Navigate to an assistant's profile and open the Secrets tab in the right-hand pane.
  */
-async function openSecretsViaDropdown(page: Page, agentId: number) {
-  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
+async function openSecretsTab(page: Page, agentId: number) {
+  await page.goto(`/assistants?profile=${agentId}`);
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await closeHireDialogIfOpen(page);
+  await page.waitForTimeout(1_500);
 
-  const menuBtn = page.getByTestId(`assistant-menu-${agentId}`);
-  await listItem.hover();
-  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
-  await menuBtn.click();
-  await page.waitForTimeout(500);
-
-  const secretsItem = page.getByTestId('menu-manage-secrets');
-  await expect(secretsItem).toBeVisible({ timeout: 5_000 });
-  await secretsItem.click();
+  const tab = page.getByTestId('right-pane-tab-secrets');
+  await expect(tab).toBeVisible({ timeout: 10_000 });
+  await tab.click();
   await page.waitForTimeout(1_000);
+
+  await expect(page.getByTestId('secrets-pane')).toBeVisible({ timeout: 5_000 });
 }
 
 // =============================================================================
@@ -310,31 +307,20 @@ test("member can open edit dialog on owner's assistant but cannot see delete but
   await page.keyboard.press('Escape');
 });
 
-test('member can view the secrets manager but cannot add secrets on owner assistant', async ({
+test('member can view the secrets tab but cannot add secrets on owner assistant', async ({
   memberPage: page,
 }) => {
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
+  await openSecretsTab(page, ownerAssistant.agentId);
 
-  await openSecretsViaDropdown(page, ownerAssistant.agentId);
+  // The read-only primitives are present…
+  await expect(page.getByTestId('secrets-search')).toBeVisible({ timeout: 5_000 });
 
-  // The secrets dialog should be visible
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toBeVisible({ timeout: 5_000 });
-
-  // The "Add a secret" button should not be visible
-  const addSecretBtn = page.locator('button:has-text("Add a secret")');
-  const isAddVisible = await addSecretBtn.isVisible({ timeout: 5_000 }).catch(() => false);
-  expect(isAddVisible).toBe(false);
-
-  // The "New" button in the secrets footer should not be visible
-  const secretNewBtn = page.locator(
-    '[data-testid="secret-new-button"], button:has-text("New"):near(.lucide-key-round)'
-  );
-  const isSecretNewVisible = await secretNewBtn.isVisible({ timeout: 3_000 }).catch(() => false);
-  expect(isSecretNewVisible).toBe(false);
-
-  await page.keyboard.press('Escape');
+  // …but the write-action affordances must NOT be. The "New" and "Upload"
+  // buttons are gated on `canWrite`, and every row/folder 3-dots menu is too.
+  await expect(page.getByTestId('secrets-new-button')).toHaveCount(0);
+  await expect(page.getByTestId('secrets-upload-button')).toHaveCount(0);
+  await expect(page.locator('[data-testid^="secrets-row-menu-"]')).toHaveCount(0);
+  await expect(page.locator('[data-testid^="secrets-folder-menu-"]')).toHaveCount(0);
 });
 
 test('member CAN see and edit their own assistant in the org', async ({ memberPage: page }) => {

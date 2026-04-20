@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="300" viewBox="0 0 800 300">
+    <rect width="800" height="300" fill="#fafbfc"/>
+    <rect x="16" y="8" width="768" height="30" rx="4" fill="#1a237e"/>
+    <text x="28" y="28" font-family="Arial" font-size="13" font-weight="bold" fill="white">Adjustment Grid — 6 Comparables</text>
+    <g transform="translate(16,48)">
+      <rect width="768" height="1" fill="#ccc"/>
+      <text x="0" y="16" font-family="monospace" font-size="10" fill="#555" font-weight="bold">Comparable</text>
+      <text x="190" y="16" font-family="monospace" font-size="10" fill="#555" font-weight="bold">Base £/sqft</text>
+      <text x="290" y="16" font-family="monospace" font-size="10" fill="#555" font-weight="bold">Size adj</text>
+      <text x="365" y="16" font-family="monospace" font-size="10" fill="#555" font-weight="bold">Lease adj</text>
+      <text x="445" y="16" font-family="monospace" font-size="10" fill="#555" font-weight="bold">Refurb adj</text>
+      <text x="535" y="16" font-family="monospace" font-size="10" fill="#555" font-weight="bold">Adj £/sqft</text>
+      <text x="625" y="16" font-family="monospace" font-size="10" fill="#555" font-weight="bold">Adj NIY</text>
+      <text x="705" y="16" font-family="monospace" font-size="10" fill="#555" font-weight="bold">Weight</text>
+      <rect y="22" width="768" height="1" fill="#ccc"/>
+      <!-- Row 1: 12 Moorgate (primary) -->
+      <rect y="23" width="768" height="28" fill="#e8f5e9"/>
+      <text x="0" y="41" font-family="monospace" font-size="10" fill="#1b5e20">★ 12 Moorgate</text>
+      <text x="190" y="41" font-family="monospace" font-size="10" fill="#333">£700</text>
+      <text x="290" y="41" font-family="monospace" font-size="10" fill="#c62828">−1.5%</text>
+      <text x="365" y="41" font-family="monospace" font-size="10" fill="#c62828">+40bps</text>
+      <text x="445" y="41" font-family="monospace" font-size="10" fill="#2e7d32">+2.0%</text>
+      <text x="535" y="41" font-family="monospace" font-size="10" fill="#333">£710</text>
+      <text x="625" y="41" font-family="monospace" font-size="10" fill="#333">5.65%</text>
+      <text x="705" y="41" font-family="monospace" font-size="10" fill="#1a237e">30%</text>
+      <!-- Row 2: 55 Gresham St -->
+      <rect y="51" width="768" height="28" fill="white"/>
+      <text x="0" y="69" font-family="monospace" font-size="10" fill="#333">55 Gresham St</text>
+      <text x="190" y="69" font-family="monospace" font-size="10" fill="#333">£780</text>
+      <text x="290" y="69" font-family="monospace" font-size="10" fill="#c62828">−3.2%</text>
+      <text x="365" y="69" font-family="monospace" font-size="10" fill="#c62828">+55bps</text>
+      <text x="445" y="69" font-family="monospace" font-size="10" fill="#2e7d32">+1.0%</text>
+      <text x="535" y="69" font-family="monospace" font-size="10" fill="#333">£725</text>
+      <text x="625" y="69" font-family="monospace" font-size="10" fill="#333">5.60%</text>
+      <text x="705" y="69" font-family="monospace" font-size="10" fill="#555">15%</text>
+      <!-- Row 3: 25 Copthall Ave (primary) -->
+      <rect y="79" width="768" height="28" fill="#e8f5e9"/>
+      <text x="0" y="97" font-family="monospace" font-size="10" fill="#1b5e20">★ 25 Copthall Ave</text>
+      <text x="190" y="97" font-family="monospace" font-size="10" fill="#333">£700</text>
+      <text x="290" y="97" font-family="monospace" font-size="10" fill="#c62828">−0.8%</text>
+      <text x="365" y="97" font-family="monospace" font-size="10" fill="#c62828">+40bps</text>
+      <text x="445" y="97" font-family="monospace" font-size="10" fill="#2e7d32">+2.0%</text>
+      <text x="535" y="97" font-family="monospace" font-size="10" fill="#333">£708</text>
+      <text x="625" y="97" font-family="monospace" font-size="10" fill="#333">5.70%</text>
+      <text x="705" y="97" font-family="monospace" font-size="10" fill="#1a237e">25%</text>
+      <!-- Row 4: 30 Coleman St -->
+      <rect y="107" width="768" height="28" fill="white"/>
+      <text x="0" y="125" font-family="monospace" font-size="10" fill="#333">30 Coleman St</text>
+      <text x="190" y="125" font-family="monospace" font-size="10" fill="#333">£600</text>
+      <text x="290" y="125" font-family="monospace" font-size="10" fill="#2e7d32">+3.0%</text>
+      <text x="365" y="125" font-family="monospace" font-size="10" fill="#c62828">+60bps</text>
+      <text x="445" y="125" font-family="monospace" font-size="10" fill="#2e7d32">+3.5%</text>
+      <text x="535" y="125" font-family="monospace" font-size="10" fill="#333">£639</text>
+      <text x="625" y="125" font-family="monospace" font-size="10" fill="#333">6.50%</text>
+      <text x="705" y="125" font-family="monospace" font-size="10" fill="#555">5%</text>
+      <!-- Row 5: 60 London Wall -->
+      <rect y="135" width="768" height="28" fill="#f9f9fb"/>
+      <text x="0" y="153" font-family="monospace" font-size="10" fill="#333">60 London Wall</text>
+      <text x="190" y="153" font-family="monospace" font-size="10" fill="#333">£750</text>
+      <text x="290" y="153" font-family="monospace" font-size="10" fill="#c62828">−2.5%</text>
+      <text x="365" y="153" font-family="monospace" font-size="10" fill="#c62828">+50bps</text>
+      <text x="445" y="153" font-family="monospace" font-size="10" fill="#2e7d32">+1.5%</text>
+      <text x="535" y="153" font-family="monospace" font-size="10" fill="#333">£718</text>
+      <text x="625" y="153" font-family="monospace" font-size="10" fill="#333">5.45%</text>
+      <text x="705" y="153" font-family="monospace" font-size="10" fill="#555">10%</text>
+      <!-- Row 6: 88 Wood St -->
+      <rect y="163" width="768" height="28" fill="white"/>
+      <text x="0" y="181" font-family="monospace" font-size="10" fill="#333">88 Wood St</text>
+      <text x="190" y="181" font-family="monospace" font-size="10" fill="#333">£700</text>
+      <text x="290" y="181" font-family="monospace" font-size="10" fill="#c62828">−1.8%</text>
+      <text x="365" y="181" font-family="monospace" font-size="10" fill="#c62828">+45bps</text>
+      <text x="445" y="181" font-family="monospace" font-size="10" fill="#2e7d32">+1.5%</text>
+      <text x="535" y="181" font-family="monospace" font-size="10" fill="#333">£697</text>
+      <text x="625" y="181" font-family="monospace" font-size="10" fill="#333">5.60%</text>
+      <text x="705" y="181" font-family="monospace" font-size="10" fill="#555">15%</text>
+      <!-- Divider + adopted value -->
+      <rect y="195" width="768" height="1" fill="#1a237e"/>
+      <rect y="196" width="768" height="30" fill="#e3f2fd"/>
+      <text x="0" y="216" font-family="monospace" font-size="11" fill="#1a237e" font-weight="bold">ADOPTED VALUE</text>
+      <text x="535" y="216" font-family="monospace" font-size="11" fill="#1a237e" font-weight="bold">£710/sqft</text>
+      <text x="625" y="216" font-family="monospace" font-size="11" fill="#1a237e" font-weight="bold">5.65%</text>
+      <text x="170" y="250" font-family="Arial" font-size="12" fill="#555">Market Value: 12,500 sqft × £710/sqft = £8,875,000</text>
+    </g>
+  </svg>

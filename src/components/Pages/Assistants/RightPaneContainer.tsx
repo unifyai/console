@@ -5,6 +5,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/UI/tabs';
 import { LiveActionsViewer } from './LiveActions';
 import { DashboardsPane } from './Dashboards';
 import { AssistantProfileChatPanel } from './Profile/AssistantProfileChatPanel';
+import { MemoryPane } from './Memory';
+import { TasksPane } from './Tasks';
+import { SecretsPane } from './Secrets';
 import { Button } from '@/components/UI/button';
 import { Loader2, Phone, Video, Search } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
@@ -18,7 +21,7 @@ import {
 } from '@/types/assistants/spendingGate';
 
 const TAB_TRIGGER_CLASS = [
-  'h-full rounded-none border-b-2 border-transparent bg-transparent',
+  'h-full shrink-0 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent',
   'px-1 text-xs font-medium text-muted-foreground',
   'shadow-none transition-colors hover:text-foreground',
   'data-[state=active]:border-primary data-[state=active]:bg-transparent',
@@ -115,8 +118,8 @@ export function RightPaneContainer({
 
   return (
     <Tabs defaultValue="chat" className="flex h-full flex-col">
-      <div className="flex shrink-0 items-end justify-center gap-6 border-b border-border px-4 py-2">
-        <TabsList className="h-7 gap-6 rounded-none bg-transparent p-0">
+      <div className="flex shrink-0 items-end justify-start gap-2 overflow-x-auto border-b border-border px-4 py-2">
+        <TabsList className="h-7 flex-nowrap gap-6 rounded-none bg-transparent p-0">
           <TabsTrigger value="chat" className={TAB_TRIGGER_CLASS} data-testid="right-pane-tab-chat">
             Chat
           </TabsTrigger>
@@ -128,11 +131,32 @@ export function RightPaneContainer({
             Actions
           </TabsTrigger>
           <TabsTrigger
+            value="tasks"
+            className={TAB_TRIGGER_CLASS}
+            data-testid="right-pane-tab-tasks"
+          >
+            Tasks
+          </TabsTrigger>
+          <TabsTrigger
             value="dashboards"
             className={TAB_TRIGGER_CLASS}
             data-testid="right-pane-tab-dashboards"
           >
             Dashboards
+          </TabsTrigger>
+          <TabsTrigger
+            value="memory"
+            className={TAB_TRIGGER_CLASS}
+            data-testid="right-pane-tab-memory"
+          >
+            Memory
+          </TabsTrigger>
+          <TabsTrigger
+            value="secrets"
+            className={TAB_TRIGGER_CLASS}
+            data-testid="right-pane-tab-secrets"
+          >
+            Secrets
           </TabsTrigger>
         </TabsList>
       </div>
@@ -143,30 +167,24 @@ export function RightPaneContainer({
         forceMount
       >
         <div className="flex h-full w-full flex-col">
-          <div className="flex items-center justify-between border-b px-3 py-2">
-            <span className="text-body text-strong truncate">
-              Chat with {assistant.firstName} {assistant.surname}
-            </span>
+          <div className="flex items-center justify-between gap-2 border-b px-3 py-1.5">
+            <div className="relative max-w-xs flex-1">
+              <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                readOnly
+                className="h-7 w-full cursor-text rounded-md border bg-transparent pl-7 pr-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                placeholder={`Search chat with ${assistant.firstName}…`}
+                onFocus={(e) => {
+                  e.currentTarget.blur();
+                  setSearchOpen(true);
+                }}
+                onClick={() => setSearchOpen(true)}
+                data-testid="chat-search-trigger"
+                aria-label="Search conversation"
+              />
+            </div>
             <div className="flex items-center gap-0.5">
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => setSearchOpen(true)}
-                      data-testid="chat-search-trigger"
-                    >
-                      <Search className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    <p>Search conversation</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
               <TooltipProvider delayDuration={100}>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -251,6 +269,14 @@ export function RightPaneContainer({
       </TabsContent>
 
       <TabsContent
+        value="tasks"
+        className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+        forceMount
+      >
+        <TasksPane ownerId={assistant.userId} assistantId={assistant.agentId} />
+      </TabsContent>
+
+      <TabsContent
         value="dashboards"
         className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
         forceMount
@@ -268,6 +294,27 @@ export function RightPaneContainer({
             <p className="text-body-muted">Select an assistant to view dashboards.</p>
           </div>
         )}
+      </TabsContent>
+
+      <TabsContent
+        value="memory"
+        className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+        forceMount
+      >
+        <MemoryPane ownerId={assistant.userId} assistantId={assistant.agentId} />
+      </TabsContent>
+
+      <TabsContent
+        value="secrets"
+        className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
+        forceMount
+      >
+        <SecretsPane
+          ownerId={assistant.userId}
+          assistantId={assistant.agentId}
+          secretActions={assistantActions.secret}
+          canWrite={canWrite}
+        />
       </TabsContent>
     </Tabs>
   );

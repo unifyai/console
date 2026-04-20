@@ -44,6 +44,7 @@ import { getCurrentUser } from '@/lib/user/user';
 import Image from 'next/image';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import { UserOrganization } from '@/types/user';
+import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog';
 
 export default function TopNav() {
   const pathname = usePathname();
@@ -370,6 +371,9 @@ export default function TopNav() {
               Upgrade
             </Button>
           )/*}
+
+          {/* Support Ticket */}
+          <SupportTicketDialog />
 
           {/* Dark Mode Toggle */}
           <DarkModeToggle />

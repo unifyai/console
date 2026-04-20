@@ -330,6 +330,50 @@ export function HireForm({
                           </p>
                         )}
                       </div>
+                      <div className="col-span-2 flex flex-col space-y-2 pt-1">
+                        <div className="flex flex-row items-center gap-2">
+                          <Label htmlFor="jobTitle">Job Title</Label>
+                          <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+                              </TooltipTrigger>
+                              <TooltipContent
+                                side="right"
+                                align="end"
+                                className="text-caption max-w-xs"
+                              >
+                                <p>
+                                  Optional short label to remember what this assistant is for (e.g.
+                                  &quot;Growth marketing&quot;, &quot;QA engineer&quot;). Shown in
+                                  the assistants list hover card.
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <Input
+                          id="jobTitle"
+                          placeholder="e.g. Growth marketing"
+                          maxLength={120}
+                          {...register('jobTitle', {
+                            maxLength: {
+                              value: 120,
+                              message: 'Job title must be 120 characters or less',
+                            },
+                            setValueAs: (v) => {
+                              if (v === undefined || v === null) return null;
+                              const trimmed = String(v).trim();
+                              return trimmed.length > 0 ? trimmed : null;
+                            },
+                          })}
+                        />
+                        {errors.jobTitle && (
+                          <p className="text-body text-strong mt-1 text-destructive">
+                            {errors.jobTitle.message}
+                          </p>
+                        )}
+                      </div>
                       <div className="col-span-2 sm:col-span-1">
                         <Label htmlFor="age">Age</Label>
                         <Input

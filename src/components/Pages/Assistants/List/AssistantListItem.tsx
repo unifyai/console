@@ -7,7 +7,6 @@ import {
   MoreVertical,
   PenLine,
   Contact,
-  KeyRound,
   Copy,
   Check,
   Trash2,
@@ -48,7 +47,6 @@ interface AssistantListItemProps {
   onShowProfile: (id: string) => void;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onEditAssistant: (assistant: Assistant) => void;
-  onOpenSecretsManager: (assistant: Assistant) => void;
   onEndContract?: (assistant: Assistant) => Promise<void>;
   isFolded: boolean;
   isCallActive: boolean;
@@ -61,7 +59,6 @@ export function AssistantListItem({
   onShowProfile,
   onOpenContactManager,
   onEditAssistant,
-  onOpenSecretsManager,
   onEndContract,
   isFolded,
   isCallActive,
@@ -96,16 +93,16 @@ export function AssistantListItem({
 
   const hoverCardContent = (
     <div className="flex justify-between space-x-4">
-      <Avatar>
+      <Avatar className="flex-shrink-0">
         <AvatarImage src={photoSrc ?? undefined} />
         <AvatarFallback>
           {`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
         </AvatarFallback>
       </Avatar>
-      <div className="flex-1 space-y-0.5">
-        <h4 className="text-title">{displayName}</h4>
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <h4 className="text-title truncate">{displayName}</h4>
         <div
-          className="group/id text-caption flex cursor-pointer items-center gap-1 text-muted-foreground"
+          className="group/id text-caption flex min-w-0 cursor-pointer items-center gap-1 text-muted-foreground"
           onClick={(e) => {
             e.stopPropagation();
             navigator.clipboard.writeText(assistant.agentId);
@@ -115,23 +112,33 @@ export function AssistantListItem({
         >
           <span className="opacity-70">Assistant ID:</span>
           {isIdCopied ? (
-            <Check className="h-3 w-3 text-green-500" />
+            <Check className="h-3 w-3 flex-shrink-0 text-green-500" />
           ) : (
-            <Copy className="h-3 w-3 opacity-70 transition-colors group-hover/id:opacity-100" />
+            <Copy className="h-3 w-3 flex-shrink-0 opacity-70 transition-colors group-hover/id:opacity-100" />
           )}
         </div>
-        {supervisorName && (
-          <div className="text-caption flex items-center text-muted-foreground">
-            <span className="mr-1 opacity-70">Supervisor:</span> {supervisorName}
+        {assistant.jobTitle && (
+          <div
+            className="text-caption flex min-w-0 items-center text-muted-foreground"
+            data-testid={`assistant-job-title-${assistant.agentId}`}
+          >
+            <span className="mr-1 opacity-70">Job Title:</span>
+            <span className="truncate">{assistant.jobTitle}</span>
           </div>
         )}
-        <div className="text-caption flex items-center pt-1 text-muted-foreground">
-          <Mail className="mr-1.5 h-3 w-3 opacity-70" />
+        {supervisorName && (
+          <div className="text-caption flex min-w-0 items-center text-muted-foreground">
+            <span className="mr-1 opacity-70">Supervisor:</span>
+            <span className="truncate">{supervisorName}</span>
+          </div>
+        )}
+        <div className="text-caption flex min-w-0 items-center pt-1 text-muted-foreground">
+          <Mail className="mr-1.5 h-3 w-3 flex-shrink-0 opacity-70" />
           {assistant.email ? (
             <a
               href={`mailto:${assistant.email}`}
               onClick={(e) => e.stopPropagation()}
-              className="text-link truncate"
+              className="text-link min-w-0 truncate"
             >
               {assistant.email}
             </a>
@@ -148,10 +155,10 @@ export function AssistantListItem({
             </Button>
           )}
         </div>
-        <div className="text-caption flex items-center pt-0.5 text-muted-foreground">
-          <Phone className="mr-1.5 h-3 w-3 opacity-70" />
+        <div className="text-caption flex min-w-0 items-center pt-0.5 text-muted-foreground">
+          <Phone className="mr-1.5 h-3 w-3 flex-shrink-0 opacity-70" />
           {assistant.phone ? (
-            <span className="truncate">{assistant.phone}</span>
+            <span className="min-w-0 truncate">{assistant.phone}</span>
           ) : (
             <Button
               variant="link"
@@ -165,10 +172,10 @@ export function AssistantListItem({
             </Button>
           )}
         </div>
-        <div className="text-caption flex items-center pt-0.5 text-muted-foreground">
-          <WhatsApp sx={{ fontSize: '12px', marginRight: '6px', opacity: 0.7 }} />
+        <div className="text-caption flex min-w-0 items-center pt-0.5 text-muted-foreground">
+          <WhatsApp sx={{ fontSize: '12px', marginRight: '6px', opacity: 0.7, flexShrink: 0 }} />
           {assistant.assistantWhatsappNumber ? (
-            <span className="truncate">{assistant.assistantWhatsappNumber}</span>
+            <span className="min-w-0 truncate">{assistant.assistantWhatsappNumber}</span>
           ) : (
             <Button
               variant="link"
@@ -182,10 +189,10 @@ export function AssistantListItem({
             </Button>
           )}
         </div>
-        <div className="text-caption flex items-center pt-0.5 text-muted-foreground">
-          <FaDiscord className="mr-1.5 h-3 w-3 opacity-70" />
+        <div className="text-caption flex min-w-0 items-center pt-0.5 text-muted-foreground">
+          <FaDiscord className="mr-1.5 h-3 w-3 flex-shrink-0 opacity-70" />
           {assistant.assistantDiscordBotId ? (
-            <span className="truncate">{assistant.assistantDiscordBotId}</span>
+            <span className="min-w-0 truncate">{assistant.assistantDiscordBotId}</span>
           ) : (
             <Button
               variant="link"
@@ -228,9 +235,11 @@ export function AssistantListItem({
           />
         )}
         {isCallActive && (
-          <span className="absolute -right-1 -top-1 flex h-3 w-3">
+          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
-            <span className="relative inline-flex h-3 w-3 rounded-full bg-primary"></span>
+            <span className="relative inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary">
+              <PhoneCall className="h-2.5 w-2.5 text-primary-foreground" />
+            </span>
           </span>
         )}
       </div>
@@ -356,13 +365,6 @@ export function AssistantListItem({
             >
               <Contact className="mr-2 h-4 w-4" />
               Contact Details
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onOpenSecretsManager(assistant)}
-              data-testid="menu-manage-secrets"
-            >
-              <KeyRound className="mr-2 h-4 w-4" />
-              Secrets
             </DropdownMenuItem>
             {onEndContract && (
               <>

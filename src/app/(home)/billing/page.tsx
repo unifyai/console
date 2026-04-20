@@ -6,9 +6,9 @@ import FreeTrialBillingLock from '@/components/Pages/Billing/FreeTrialBillingLoc
 import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
 import { getCurrentUser } from '@/lib/user/user';
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 import * as BillingLib from '@/lib/billing/billing';
 import type { BillingActions, BillingOrgContext } from '@/types/billing';
+import { resolveWorkspaceContext } from '@/lib/user/workspace';
 
 export const metadata: Metadata = {
   title: 'Billing',
@@ -32,41 +32,22 @@ const BillingPage: React.FC = async () => {
   }
 
   const apiKey = user.apiKey;
-
-  // ── Determine organization context ──────────────────────────────────
-  const cookieStore = await cookies();
-  const workspaceId = cookieStore.get('unify_workspace_id')?.value;
-
+  const { activeOrganization, isUnifyMember } = resolveWorkspaceContext(user);
   let orgContext: BillingOrgContext | null = null;
 
-  let activeOrg =
-    workspaceId && workspaceId !== 'personal'
-      ? user.organizations?.find((o) => o.id.toString() === workspaceId)
-      : undefined;
-
-  // Non-Unify org members are locked to their org even without a cookie
-  if (!activeOrg) {
-    const isUnifyMember = user.organizations?.some((o) => o.name === 'Unify') ?? false;
-    if (!isUnifyMember && user.organizations && user.organizations.length > 0) {
-      activeOrg = user.organizations[0];
-    }
-  }
-
-  if (activeOrg) {
-    const roleName = activeOrg.roleName?.toLowerCase();
+  if (activeOrganization) {
+    const roleName = activeOrganization.roleName?.toLowerCase();
     if (roleName !== 'owner' && roleName !== 'admin') {
       redirect('/profile');
     }
     orgContext = {
-      orgId: activeOrg.id,
-      orgName: activeOrg.name,
+      orgId: activeOrganization.id,
+      orgName: activeOrganization.name,
       canEdit: roleName === 'owner' || roleName === 'admin',
     };
   }
 
-  // ── Free trial lock (skip for Unify org members) ───────────────────
-  const isUnifyOrgMember = user.organizations?.some((o) => o.name === 'Unify') ?? false;
-  if (activeOrg?.freeTrial && !isUnifyOrgMember) {
+  if (activeOrganization?.freeTrial && !isUnifyMember) {
     return (
       <div className="h-full w-full overflow-auto p-1">
         <FreeTrialBillingLock />

@@ -4,13 +4,7 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/UI/input';
 import { Label } from '@/components/UI/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/UI/select';
+import { Combobox } from '@/components/UI/Combobox';
 import PrimaryButton from '@/components/Common/Buttons/Primary';
 import SecondaryButton from '@/components/Common/Buttons/Secondary';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
@@ -40,7 +34,10 @@ const OrganizationSettingsTab = ({
   const [pendingPhotoPreview, setPendingPhotoPreview] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const timezoneOptions = useMemo(() => generateTimezoneOptions(), []);
+  const timezoneOptions = useMemo(
+    () => generateTimezoneOptions().map(({ value: v, label }) => ({ value: v, label })),
+    []
+  );
 
   const hasChanges =
     orgName !== currentName || timezone !== (currentTimezone || '') || pendingPhoto !== null;
@@ -113,18 +110,16 @@ const OrganizationSettingsTab = ({
             </div>
             <div>
               <Label htmlFor="org-timezone">Timezone</Label>
-              <Select value={timezone} onValueChange={setTimezone}>
-                <SelectTrigger id="org-timezone">
-                  <SelectValue placeholder="Select a timezone..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {timezoneOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                items={timezoneOptions}
+                value={timezone}
+                onValueChange={setTimezone}
+                placeholder="Select a timezone…"
+                searchPlaceholder="Search timezones…"
+                emptyMessage="No timezones match your search."
+                className="w-full"
+                popoverClassName="w-[--radix-popover-trigger-width]"
+              />
             </div>
           </div>
         </div>

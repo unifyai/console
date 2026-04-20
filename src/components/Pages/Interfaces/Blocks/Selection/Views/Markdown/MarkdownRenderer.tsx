@@ -60,8 +60,9 @@ function CodeBlock({
             overflow: 'auto',
             maxWidth: '100%',
             borderRadius: 'var(--radius)',
-            border: '1px solid var(--border)',
-            backgroundColor: 'var(--code-block-bg, var(--card))',
+            border: '1px solid var(--code-border)',
+            backgroundColor: 'var(--code-bg)',
+            color: 'var(--code-fg)',
           }}
           {...props}
         >
@@ -77,20 +78,18 @@ function CodeBlock({
     );
   }
 
-  // Use app color scheme for inline code
-  const isDark = theme === 'dark';
   return (
     <code
       className={(className ? className + ' ' : '') + 'font-mono'}
       style={{
         display: 'inline',
-        backgroundColor: isDark ? 'rgba(47, 49, 54, 0.6)' : 'rgba(240, 240, 240, 0.7)',
-        color: 'var(--primary)',
+        backgroundColor: 'var(--code-bg)',
+        color: 'var(--code-fg)',
         padding: '0.2em 0.4em',
         borderRadius: '3px',
         fontSize: '85%',
         whiteSpace: 'pre-wrap',
-        border: isDark ? '1px solid var(--border)' : 'none',
+        border: '1px solid var(--code-border)',
       }}
       {...props}
     >

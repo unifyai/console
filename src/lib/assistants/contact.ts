@@ -12,6 +12,8 @@ import {
   AssistantContactCreatePayload,
   ContactCosts,
   ContactType,
+  OAuthProvider,
+  GrantedFeaturesResponse,
 } from '@/types/assistants/contact';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 
@@ -238,6 +240,127 @@ export const createAssistantContact = async (apiKey: string) => {
 };
 
 /**
+ * Initiate a BYOD OAuth connection for an assistant.
+ *
+ * Calls POST /api/assistant/{assistantId}/connect which proxies to
+ * POST /v0/assistant/{assistant_id}/connect in Orchestra.
+ *
+ * Returns an OAuth URL the user should be redirected to.
+ */
+export const connectAssistantAccount = async (apiKey: string) => {
+  return async (
+    assistantId: string,
+    provider: OAuthProvider,
+    features: string[],
+    redirectAfter?: string
+  ): Promise<{ oauthUrl: string } | ResponseProps> => {
+    'use server';
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/connect`,
+        {
+          method: 'POST',
+          headers: {
+            apiKey: apiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(camelToSnakeObject({ provider, features, redirectAfter })),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { detail: data.detail || `Failed to initiate connection: ${response.statusText}` };
+      }
+
+      const info = data.info ?? data;
+      const oauthUrl = info.oauthUrl ?? info.oauth_url;
+      if (oauthUrl) {
+        return { oauthUrl };
+      }
+      return { detail: 'Connection succeeded but no OAuth URL was returned.' };
+    } catch (error) {
+      return {
+        detail: error instanceof Error ? error.message : 'Unknown error initiating connection.',
+      };
+    }
+  };
+};
+
+/**
+ * Fully disconnect a BYOD account from an assistant.
+ *
+ * Calls DELETE /api/assistant/{assistantId}/connect which proxies to
+ * DELETE /v0/assistant/{assistant_id}/connect in Orchestra.
+ */
+export const disconnectAssistantAccount = async (apiKey: string) => {
+  return async (assistantId: string): Promise<ResponseProps> => {
+    'use server';
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/connect`,
+        {
+          method: 'DELETE',
+          headers: { apiKey: apiKey },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { detail: data.detail || `Failed to disconnect: ${response.statusText}` };
+      }
+
+      return { info: data.info || 'Account disconnected successfully.' };
+    } catch (error) {
+      return {
+        detail: error instanceof Error ? error.message : 'Unknown error disconnecting account.',
+      };
+    }
+  };
+};
+
+/**
+ * Fetch the granted suite features for an assistant.
+ *
+ * Calls GET /api/assistant/{assistantId}/granted-features which proxies to
+ * GET /v0/assistant/{assistant_id}/granted-features in Orchestra.
+ */
+export const getGrantedFeatures = async (apiKey: string) => {
+  return async (assistantId: string): Promise<GrantedFeaturesResponse | ResponseProps> => {
+    'use server';
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/granted-features`,
+        {
+          method: 'GET',
+          headers: { apiKey: apiKey },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          detail: data.detail || `Failed to fetch granted features: ${response.statusText}`,
+        };
+      }
+
+      const info = data.info ?? data;
+      return snakeToCamelObject<GrantedFeaturesResponse>(info);
+    } catch (error) {
+      return {
+        detail: error instanceof Error ? error.message : 'Unknown error fetching granted features.',
+      };
+    }
+  };
+};
+
+/**
  * Fetch contact costs directly from Orchestra admin API.
  *
  * Calls GET /v0/admin/billing/contact-costs via OrchestraAdminClient.
@@ -282,13 +405,13 @@ function buildCostsFromRows(rows: AssistantContactCost[]): ContactCosts {
     email: { monthlyCost: 0, oneTimeCost: 0 },
     whatsapp: { monthlyCost: 0, oneTimeCost: 0 },
     discord: { monthlyCost: 0, oneTimeCost: 0 },
+    emailByProvider: {},
   };
 
   for (const type of ['phone', 'email', 'whatsapp', 'discord'] as const) {
     const typeRows = rows.filter((r) => r.contactType === type);
     if (typeRows.length === 0) continue;
 
-    // Prefer the default row (no specific provider/country)
     const defaultRow =
       typeRows.find((r) => r.provider === null && r.countryCode === null) || typeRows[0];
 
@@ -296,6 +419,17 @@ function buildCostsFromRows(rows: AssistantContactCost[]): ContactCosts {
       monthlyCost: defaultRow.monthlyCost,
       oneTimeCost: defaultRow.oneTimeCost,
     };
+
+    if (type === 'email') {
+      for (const row of typeRows) {
+        if (row.provider) {
+          costs.emailByProvider[row.provider] = {
+            monthlyCost: row.monthlyCost,
+            oneTimeCost: row.oneTimeCost,
+          };
+        }
+      }
+    }
   }
 
   return costs;

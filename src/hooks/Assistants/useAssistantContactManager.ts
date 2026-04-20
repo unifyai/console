@@ -11,11 +11,17 @@ import {
   ContactCosts,
   AssistantContactCreatePayload,
   ContactType,
+  EmailProvider,
+  OAuthProvider,
+  GrantedFeaturesResponse,
 } from '@/types/assistants/contact';
 import { ResponseProps } from '@/types/common';
 import {
+  EMAIL_DOMAINS,
   EMAIL_DOMAIN_WITH_AT,
   FALLBACK_DEFAULT_COUNTRY_CODE,
+  AVAILABLE_FEATURES,
+  REQUIRED_FEATURES,
 } from '@/constants/assistants/settings';
 import { getCountryName, getCountryFlag } from '@/utils/assistants/country-utils';
 import { fetchVisitorCountry } from '@/utils/geo';
@@ -84,12 +90,46 @@ export function useAssistantContactManager({
   const [contactCosts, setContactCosts] = React.useState<ContactCosts | null>(null);
   const [isLoadingContactCosts, setIsLoadingContactCosts] = React.useState(false);
 
+  // ---------------------------------------------------------------------------
+  // Email provider state (for platform provisioning)
+  // ---------------------------------------------------------------------------
+
+  const [emailProvider, setEmailProvider] = React.useState<EmailProvider>('google_workspace');
+  const activeEmailDomain = EMAIL_DOMAINS[emailProvider] ?? EMAIL_DOMAIN_WITH_AT;
+
+  // ---------------------------------------------------------------------------
+  // BYOD state (connect your own account)
+  // ---------------------------------------------------------------------------
+
+  const [byodProvider, setByodProvider] = React.useState<OAuthProvider | null>(null);
+  const [selectedFeatures, setSelectedFeatures] = React.useState<string[]>([]);
+  const [grantedFeatures, setGrantedFeatures] = React.useState<GrantedFeaturesResponse | null>(
+    null
+  );
+  const [isLoadingFeatures, setIsLoadingFeatures] = React.useState(false);
+  const [isConnecting, setIsConnecting] = React.useState(false);
+  const [isDisconnecting, setIsDisconnecting] = React.useState(false);
+
+  // Determined after granted-features fetch; both false while loading.
+  const isByodEmail = !!assistant.email && !!grantedFeatures?.provider;
+  const isPlatformEmail = !!assistant.email && !isByodEmail && !isLoadingFeatures;
+
+  // ---------------------------------------------------------------------------
   // Reset form when dialog opens with new assistant data
+  // ---------------------------------------------------------------------------
+
   React.useEffect(() => {
     if (isOpen) {
       reset(getDefaultContactValues(assistant));
+      setEmailProvider('google_workspace');
+      setByodProvider(null);
+      setSelectedFeatures([]);
     }
   }, [isOpen, assistant, reset]);
+
+  // ---------------------------------------------------------------------------
+  // Data fetching effects
+  // ---------------------------------------------------------------------------
 
   // Fetch phone countries when dialog opens
   React.useEffect(() => {
@@ -252,21 +292,67 @@ export function useAssistantContactManager({
     };
   }, [isOpen, assistantActions.contact]);
 
+  // Fetch granted features when dialog opens and an email exists.
+  // The response determines whether the email is BYOD (provider non-null) or platform.
+  React.useEffect(() => {
+    if (!isOpen || !assistant.email) return;
+
+    let cancelled = false;
+
+    async function loadGrantedFeatures() {
+      setIsLoadingFeatures(true);
+      try {
+        const result = await assistantActions.contact.getGrantedFeatures(assistant.agentId);
+        if (cancelled) return;
+
+        if ('detail' in result) {
+          console.warn(
+            '[useAssistantContactManager] Failed to fetch granted features:',
+            (result as ResponseProps).detail
+          );
+        } else {
+          const feats = result as GrantedFeaturesResponse;
+          setGrantedFeatures(feats);
+          setSelectedFeatures(feats.features);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        console.warn('[useAssistantContactManager] Error fetching granted features:', error);
+      } finally {
+        if (!cancelled) {
+          setIsLoadingFeatures(false);
+        }
+      }
+    }
+
+    loadGrantedFeatures();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, assistant.email, assistant.agentId, assistantActions.contact]);
+
+  // ---------------------------------------------------------------------------
+  // UI state
+  // ---------------------------------------------------------------------------
+
   const [activeTab, setActiveTab] = React.useState<ContactType>(initialTab || 'email');
   const [emailLocalPart, setEmailLocalPart] = React.useState('');
   const [confirmDelete, setConfirmDelete] = React.useState<ContactType | null>(null);
+  const [confirmDisconnect, setConfirmDisconnect] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   // Self-contained submission state
   const [isSubmittingContact, setIsSubmittingContact] = React.useState(false);
   const toastIdRef = React.useRef<string | number | undefined>(undefined);
 
-  // Initialize tab and reset confirmDelete when dialog opens
+  // Initialize tab and reset confirmDelete when dialog opens.
   // This effect only depends on isOpen and initialTab to avoid resetting the tab
-  // when other async data (like allAssistantEmails) loads
+  // when other async data (like allAssistantEmails) loads.
   React.useEffect(() => {
     if (isOpen) {
       setConfirmDelete(null);
+      setConfirmDisconnect(false);
       if (initialTab) {
         setActiveTab(initialTab);
       }
@@ -277,10 +363,9 @@ export function useAssistantContactManager({
   React.useEffect(() => {
     if (isOpen) {
       if (assistant.email) {
-        if (assistant.email.endsWith(EMAIL_DOMAIN_WITH_AT)) {
-          setEmailLocalPart(
-            assistant.email.substring(0, assistant.email.length - EMAIL_DOMAIN_WITH_AT.length)
-          );
+        const domain = EMAIL_DOMAINS[assistant.emailProvider ?? ''] ?? EMAIL_DOMAIN_WITH_AT;
+        if (assistant.email.endsWith(domain)) {
+          setEmailLocalPart(assistant.email.substring(0, assistant.email.length - domain.length));
         } else {
           setEmailLocalPart(assistant.email);
         }
@@ -292,12 +377,12 @@ export function useAssistantContactManager({
 
         let finalLocalPart = baseLocalPart;
         let counter = 1;
-        while (allAssistantEmails.includes(`${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`)) {
+        while (allAssistantEmails.includes(`${finalLocalPart}${activeEmailDomain}`)) {
           finalLocalPart = `${baseLocalPart}${counter}`;
           counter++;
         }
         setEmailLocalPart(finalLocalPart);
-        setValue('email', `${finalLocalPart}${EMAIL_DOMAIN_WITH_AT}`, {
+        setValue('email', `${finalLocalPart}${activeEmailDomain}`, {
           shouldValidate: true,
           shouldDirty: true,
         });
@@ -305,18 +390,170 @@ export function useAssistantContactManager({
         setValue('emailManuallyEdited', false);
       }
     }
-  }, [isOpen, assistant, allAssistantEmails, setValue]);
+  }, [isOpen, assistant, allAssistantEmails, setValue, activeEmailDomain]);
+
+  // ---------------------------------------------------------------------------
+  // Email local part handler (uses active domain based on selected provider)
+  // ---------------------------------------------------------------------------
 
   const handleLocalPartChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newLocalPart = event.target.value.replace(/[@\s]/g, '');
     setEmailLocalPart(newLocalPart);
-    setValue('email', `${newLocalPart}${EMAIL_DOMAIN_WITH_AT}`, {
+    setValue('email', `${newLocalPart}${activeEmailDomain}`, {
       shouldValidate: true,
       shouldDirty: true,
     });
     setValue('isEmailAdded', true, { shouldDirty: true });
     setValue('emailManuallyEdited', true);
   };
+
+  // Resync the hidden email field when the provider (and thus domain) changes
+  React.useEffect(() => {
+    if (!assistant.email && emailLocalPart) {
+      setValue('email', `${emailLocalPart}${activeEmailDomain}`, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+  }, [activeEmailDomain, emailLocalPart, assistant.email, setValue]);
+
+  // ---------------------------------------------------------------------------
+  // BYOD feature toggle
+  // ---------------------------------------------------------------------------
+
+  const toggleFeature = React.useCallback(
+    (feature: string) => {
+      const provider = byodProvider ?? (grantedFeatures?.provider as OAuthProvider | null);
+      const required = REQUIRED_FEATURES[provider ?? ''] ?? [];
+      if (required.includes(feature)) return;
+
+      setSelectedFeatures((prev) =>
+        prev.includes(feature) ? prev.filter((f) => f !== feature) : [...prev, feature]
+      );
+    },
+    [byodProvider, grantedFeatures]
+  );
+
+  const availableFeaturesForByod = React.useMemo(() => {
+    const provider = byodProvider ?? (grantedFeatures?.provider as OAuthProvider | null);
+    return AVAILABLE_FEATURES[provider ?? ''] ?? [];
+  }, [byodProvider, grantedFeatures]);
+
+  const requiredFeaturesForByod = React.useMemo(() => {
+    const provider = byodProvider ?? (grantedFeatures?.provider as OAuthProvider | null);
+    return grantedFeatures?.requiredFeatures ?? REQUIRED_FEATURES[provider ?? ''] ?? [];
+  }, [byodProvider, grantedFeatures]);
+
+  const hasFeaturesChanged = React.useMemo(() => {
+    if (!grantedFeatures) return false;
+    const granted = grantedFeatures.features;
+    if (granted.length !== selectedFeatures.length) return true;
+    const selectedSet = new Set(selectedFeatures);
+    return granted.some((f) => !selectedSet.has(f));
+  }, [grantedFeatures, selectedFeatures]);
+
+  // ---------------------------------------------------------------------------
+  // BYOD actions
+  // ---------------------------------------------------------------------------
+
+  const connectAccount = React.useCallback(async () => {
+    if (isConnecting || !byodProvider) return;
+
+    setIsConnecting(true);
+    const toastId = toast.loading('Preparing connection...');
+
+    try {
+      const features =
+        selectedFeatures.length > 0 ? selectedFeatures : (REQUIRED_FEATURES[byodProvider] ?? []);
+
+      const redirectAfter = window.location.href;
+      const result = await assistantActions.contact.connect(
+        assistant.agentId,
+        byodProvider,
+        features,
+        redirectAfter
+      );
+
+      if ('detail' in result) {
+        throw new Error((result as ResponseProps).detail);
+      }
+
+      const { oauthUrl } = result as { oauthUrl: string };
+      toast.success('Redirecting to sign in...', { id: toastId });
+      window.location.href = oauthUrl;
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to start connection.', { id: toastId });
+      setIsConnecting(false);
+    }
+  }, [isConnecting, byodProvider, selectedFeatures, assistant.agentId, assistantActions.contact]);
+
+  const updateFeatures = React.useCallback(async () => {
+    if (isConnecting || !grantedFeatures?.provider) return;
+
+    setIsConnecting(true);
+    const toastId = toast.loading('Updating features...');
+
+    try {
+      const redirectAfter = window.location.href;
+      const result = await assistantActions.contact.connect(
+        assistant.agentId,
+        grantedFeatures.provider as OAuthProvider,
+        selectedFeatures,
+        redirectAfter
+      );
+
+      if ('detail' in result) {
+        throw new Error((result as ResponseProps).detail);
+      }
+
+      const { oauthUrl } = result as { oauthUrl: string };
+      toast.success('Redirecting to update permissions...', { id: toastId });
+      window.location.href = oauthUrl;
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update features.', { id: toastId });
+      setIsConnecting(false);
+    }
+  }, [
+    isConnecting,
+    grantedFeatures,
+    selectedFeatures,
+    assistant.agentId,
+    assistantActions.contact,
+  ]);
+
+  const disconnectAccount = React.useCallback(async () => {
+    if (isDisconnecting) return;
+
+    setIsDisconnecting(true);
+    const toastId = toast.loading('Disconnecting account...');
+
+    try {
+      const result = await assistantActions.contact.disconnect(assistant.agentId);
+
+      if (result.detail && !result.info) {
+        throw new Error(result.detail);
+      }
+
+      toast.success('Account disconnected.', { id: toastId });
+      setConfirmDisconnect(false);
+      onSuccess();
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to disconnect.', { id: toastId });
+    } finally {
+      setIsDisconnecting(false);
+    }
+  }, [isDisconnecting, assistant.agentId, assistantActions.contact, onSuccess]);
+
+  // Initialize default features when byodProvider changes
+  React.useEffect(() => {
+    if (byodProvider) {
+      setSelectedFeatures(REQUIRED_FEATURES[byodProvider] ?? []);
+    }
+  }, [byodProvider]);
+
+  // ---------------------------------------------------------------------------
+  // Delete / submit (platform provisioning)
+  // ---------------------------------------------------------------------------
 
   const handleProceedDelete = async () => {
     if (!confirmDelete || isDeleting) return;
@@ -332,7 +569,7 @@ export function useAssistantContactManager({
       }
       toast.success(`Contact method deleted.`, { id: toastId });
       setConfirmDelete(null);
-      onSuccess(); // This closes the dialog & refreshes assistants list
+      onSuccess();
     } catch (error: any) {
       toast.error(`Failed to delete contact. Please try again.`, { id: toastId });
     } finally {
@@ -364,13 +601,14 @@ export function useAssistantContactManager({
             throw new Error('No email to save.');
           }
 
-          if (!email || !email.endsWith(EMAIL_DOMAIN_WITH_AT)) {
-            throw new Error(`Valid email ending with ${EMAIL_DOMAIN_WITH_AT} is required.`);
+          if (!email || !email.endsWith(activeEmailDomain)) {
+            throw new Error(`Valid email ending with ${activeEmailDomain} is required.`);
           }
 
           // Extract local part for the backend
-          const emailLocal = email.substring(0, email.length - EMAIL_DOMAIN_WITH_AT.length);
+          const emailLocal = email.substring(0, email.length - activeEmailDomain.length);
           payload.emailLocal = emailLocal;
+          payload.emailProvider = emailProvider;
           payload.firstName = assistant.firstName || '';
           payload.lastName = assistant.surname || '';
           break;
@@ -382,13 +620,9 @@ export function useAssistantContactManager({
           break;
         }
 
-        case 'whatsapp': {
+        case 'whatsapp':
+        case 'discord':
           break;
-        }
-
-        case 'discord': {
-          break;
-        }
       }
 
       // Call the dedicated contact creation endpoint
@@ -411,6 +645,8 @@ export function useAssistantContactManager({
   }, [
     isSubmittingContact,
     activeTab,
+    activeEmailDomain,
+    emailProvider,
     getValues,
     assistant.agentId,
     assistant.firstName,
@@ -418,6 +654,10 @@ export function useAssistantContactManager({
     assistantActions.contact,
     onSuccess,
   ]);
+
+  // ---------------------------------------------------------------------------
+  // Computed values
+  // ---------------------------------------------------------------------------
 
   // Watch form values for reactive UI updates
   const isEmailAdded = watch('isEmailAdded');
@@ -428,11 +668,13 @@ export function useAssistantContactManager({
    * show a generic "setup fee applies" message instead of a wrong number.
    */
   const creationCost = React.useMemo((): number | null => {
-    if (contactCosts) {
-      return contactCosts[activeTab]?.oneTimeCost ?? 0;
+    if (!contactCosts) return null;
+    if (activeTab === 'email') {
+      const providerCost = contactCosts.emailByProvider?.[emailProvider];
+      return (providerCost ?? contactCosts.email)?.oneTimeCost ?? 0;
     }
-    return null;
-  }, [activeTab, contactCosts]);
+    return contactCosts[activeTab]?.oneTimeCost ?? 0;
+  }, [activeTab, contactCosts, emailProvider]);
 
   /**
    * Estimated monthly cost for the contact type on the active tab.
@@ -440,11 +682,13 @@ export function useAssistantContactManager({
    * show a generic "monthly fee applies" message instead of a wrong number.
    */
   const monthlyCost = React.useMemo((): number | null => {
-    if (contactCosts) {
-      return contactCosts[activeTab]?.monthlyCost ?? 0;
+    if (!contactCosts) return null;
+    if (activeTab === 'email') {
+      const providerCost = contactCosts.emailByProvider?.[emailProvider];
+      return (providerCost ?? contactCosts.email)?.monthlyCost ?? 0;
     }
-    return null;
-  }, [activeTab, contactCosts]);
+    return contactCosts[activeTab]?.monthlyCost ?? 0;
+  }, [activeTab, contactCosts, emailProvider]);
 
   const isCreateButtonDisabled = React.useMemo(() => {
     if (isSubmittingContact) return true;
@@ -479,7 +723,7 @@ export function useAssistantContactManager({
     (activeTab === 'discord' && !assistant.assistantDiscordBotId);
 
   const showDeleteButton =
-    (activeTab === 'email' && !!assistant.email) ||
+    (activeTab === 'email' && !!isPlatformEmail) ||
     (activeTab === 'phone' && !!assistant.phone) ||
     (activeTab === 'whatsapp' && !!assistant.assistantWhatsappNumber) ||
     (activeTab === 'discord' && !!assistant.assistantDiscordBotId);
@@ -490,11 +734,33 @@ export function useAssistantContactManager({
     // Tab state
     activeTab,
     setActiveTab,
-    // Email management
+    // Email management (platform provisioning)
     emailLocalPart,
     handleLocalPartChange,
     allAssistantEmails,
     isLoadingEmails,
+    emailProvider,
+    setEmailProvider,
+    activeEmailDomain,
+    // BYOD
+    byodProvider,
+    setByodProvider,
+    selectedFeatures,
+    toggleFeature,
+    availableFeaturesForByod,
+    requiredFeaturesForByod,
+    grantedFeatures,
+    isLoadingFeatures,
+    hasFeaturesChanged,
+    connectAccount,
+    updateFeatures,
+    disconnectAccount,
+    isConnecting,
+    isDisconnecting,
+    confirmDisconnect,
+    setConfirmDisconnect,
+    isByodEmail: !!isByodEmail,
+    isPlatformEmail: !!isPlatformEmail,
     // Phone countries
     availablePhoneCountries,
     isLoadingPhoneCountries,
@@ -521,9 +787,6 @@ export function useAssistantContactManager({
   };
 }
 
-/**
- * Helper to create default contact form values from an assistant object.
- */
 function getDefaultContactValues(assistant: Assistant): ContactFormData {
   return {
     email: assistant.email || null,

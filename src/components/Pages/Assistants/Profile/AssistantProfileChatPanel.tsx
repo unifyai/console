@@ -1,17 +1,7 @@
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import {
-  Send,
-  Loader2,
-  MessageSquareMore,
-  Paperclip,
-  Mic,
-  Square,
-  Camera,
-  File,
-  X,
-} from 'lucide-react';
+import { Send, Loader2, Paperclip, Mic, Square, Camera, File, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/UI/textarea';
 import { useDropzone } from 'react-dropzone';
@@ -83,8 +73,6 @@ interface AssistantProfileChatPanelProps {
   searchOpen?: boolean;
   onSearchOpenChange?: (open: boolean) => void;
 }
-
-const IS_LOCAL_DEV = typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
 export function AssistantProfileChatPanel({
   assistant,
@@ -227,7 +215,7 @@ export function AssistantProfileChatPanel({
     });
   }, [jumpToPresent]);
 
-  const sseBlocked = connectionStatus === 'error' && !IS_LOCAL_DEV;
+  const sseBlocked = connectionStatus === 'error';
 
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = React.useRef<number | null>(null);
@@ -347,16 +335,19 @@ export function AssistantProfileChatPanel({
     textarea.style.overflowY = 'hidden';
     textarea.style.scrollbarWidth = 'none';
 
-    if (inputValue) {
-      const scrollHeight = textarea.scrollHeight;
+    // Always size to scrollHeight (not just when inputValue is non-empty) so
+    // the empty/placeholder state and the typed state render at the exact
+    // same height. Otherwise the empty state falls back to rows={1}
+    // intrinsic sizing which can differ from scrollHeight by a pixel or two
+    // and causes a visible height jump the moment the user starts typing.
+    const scrollHeight = textarea.scrollHeight;
 
-      if (scrollHeight > TEXTAREA_MAX_HEIGHT) {
-        textarea.style.height = `${TEXTAREA_MAX_HEIGHT}px`;
-        textarea.style.overflowY = 'auto';
-        textarea.style.scrollbarWidth = 'thin';
-      } else {
-        textarea.style.height = `${scrollHeight}px`;
-      }
+    if (scrollHeight > TEXTAREA_MAX_HEIGHT) {
+      textarea.style.height = `${TEXTAREA_MAX_HEIGHT}px`;
+      textarea.style.overflowY = 'auto';
+      textarea.style.scrollbarWidth = 'thin';
+    } else {
+      textarea.style.height = `${scrollHeight}px`;
     }
   }, [inputValue]);
 
@@ -537,6 +528,16 @@ export function AssistantProfileChatPanel({
         prev.map((a) => ({ ...a, uploadStatus: 'pending' as const }))
       );
 
+      // Force scroll-to-bottom on send so the user always sees their new
+      // message land, even if they had scrolled up to read older context.
+      isAtBottomRef.current = true;
+      requestAnimationFrame(() => {
+        const viewport = scrollAreaRef.current?.querySelector<HTMLDivElement>(
+          '[data-radix-scroll-area-viewport]'
+        );
+        if (viewport) viewport.scrollTop = viewport.scrollHeight;
+      });
+
       sendMessage(e, uploadable, setPendingAttachments);
     },
     [inputValue, pendingAttachments, sendMessage, isLoading, isUploading]
@@ -566,7 +567,7 @@ export function AssistantProfileChatPanel({
     <div className="flex h-full w-full flex-col bg-background">
       {/* Chat Area */}
       <ScrollArea
-        className="flex-1 px-3 py-4 md:px-6"
+        className="flex-1 px-3 md:px-6"
         ref={scrollAreaRef}
         data-testid="chat-scroll-area"
       >
@@ -584,7 +585,7 @@ export function AssistantProfileChatPanel({
         ) : isLoading && messages.length === 0 ? (
           <ChatMessageSkeletons />
         ) : (
-          <div className="mx-auto min-w-0 max-w-[1080px] space-y-6">
+          <div className="space-y-6 pt-4" style={{ width: '100%' }}>
             {isHistoricalMode ? (
               <>
                 {historicalView?.isLoadingOlder && <ChatMessageSkeletons />}
@@ -756,19 +757,13 @@ export function AssistantProfileChatPanel({
       {/* Historical view banner */}
       {isHistoricalMode && <OlderMessagesBanner onJumpToPresent={handleJumpToPresent} />}
 
-      {/* Connection error — only shown when all SSE retry attempts are
-         exhausted (permanent failure). Transient connecting/reconnecting
-         states are silent — SSE is self-healing plumbing the user doesn't
-         need to know about. */}
-      {!initialLoadError && connectionStatus === 'error' && (
-        <div className="text-caption flex animate-pulse flex-row gap-2 px-4 text-muted-foreground">
-          <MessageSquareMore className="h-4 w-4" />
-          Connection failed. Please refresh.
-        </div>
-      )}
-
       {/* Input Area */}
-      <form onSubmit={handleSendWithAttachments} className="bg-background p-4">
+      {/* Total vertical height of this row (textarea 32px + py-1 8px = 40px)
+          is kept in sync with the assistant-list toggle and the tab footers
+          so the bottom bars line up across the whole assistants page. The
+          4px top/bottom padding leaves the textarea visibly inset from the
+          form edges rather than flush against them. */}
+      <form onSubmit={handleSendWithAttachments} className="bg-background px-4 py-1">
         {/* Pending attachments — outside dropzone so tooltips work */}
         {pendingAttachments.length > 0 && (
           <PendingAttachmentList
@@ -805,7 +800,7 @@ export function AssistantProfileChatPanel({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute bottom-1 left-1 h-7 w-7"
+                  className="absolute inset-y-0 left-1 my-auto h-6 w-6"
                   disabled={
                     !canChat ||
                     isLoading ||
@@ -842,7 +837,7 @@ export function AssistantProfileChatPanel({
               variant="ghost"
               size="icon"
               className={cn(
-                'absolute bottom-1 left-8 h-7 w-7',
+                'absolute inset-y-0 left-7 my-auto h-6 w-6',
                 isRecording && 'animate-pulse text-red-500'
               )}
               onClick={toggleRecording}
@@ -883,14 +878,16 @@ export function AssistantProfileChatPanel({
                         ? spendingGate.blockedMessage || 'Spending limit reached'
                         : initialLoadError
                           ? 'Connection failed'
-                          : 'Send a message...'
+                          : connectionStatus === 'error'
+                            ? 'Connection failed. Please refresh.'
+                            : 'Send a message...'
               }
               value={inputValue}
               onChange={handleInputChange}
               disabled={
                 !canChat || isUploading || initialLoadError || sseBlocked || isSpendingBlocked
               }
-              className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-16 pr-10"
+              className="styled-scrollbar text-body min-h-[32px] resize-none overflow-y-hidden py-1 pl-14 pr-9 leading-6"
               autoComplete="off"
               onKeyDown={sendMessageOnEnter}
             />
@@ -905,7 +902,7 @@ export function AssistantProfileChatPanel({
                       aria-label="Cancel send"
                       size="icon"
                       variant="outline"
-                      className="group/cancel absolute bottom-1 right-1 h-7 w-7 hover:bg-muted"
+                      className="group/cancel absolute inset-y-0 right-1 my-auto h-6 w-6 hover:bg-muted"
                       onClick={handleCancelSend}
                     >
                       <Loader2 className="h-4 w-4 animate-spin group-hover/cancel:hidden" />
@@ -922,7 +919,8 @@ export function AssistantProfileChatPanel({
                 type="submit"
                 aria-label="Send message"
                 size="icon"
-                className="absolute bottom-1 right-1 h-7 w-7"
+                variant="ghost"
+                className="absolute inset-y-0 right-1 my-auto h-6 w-6"
                 disabled={
                   !canChat ||
                   isLoading ||

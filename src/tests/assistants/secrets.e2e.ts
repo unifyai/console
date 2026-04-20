@@ -1,18 +1,17 @@
 /**
- * Secrets Management E2E — create, edit, and delete secrets via
- * the Secrets Manager dialog. Verifies UI behaviour and that secrets
- * are persisted / removed in the Orchestra log_event table.
+ * Secrets Tab E2E — create, edit, and delete secrets via the dedicated
+ * Secrets tab on the assistant right pane. Verifies UI behaviour and that
+ * secrets are persisted / removed in the Orchestra log_event table.
  *
  * Run: npx playwright test src/tests/assistants/secrets.e2e.ts
  */
 
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import {
   createTestUser,
   cleanupUser,
   createAssistantTest,
   createAssistant,
-  navigateToAssistants,
   closeHireDialogIfOpen,
   deleteAllAssistantsForUser,
   ensureProjectSync,
@@ -39,9 +38,6 @@ test.afterAll(() => {
 // DB helpers for secrets (stored in log_event via context system)
 // ---------------------------------------------------------------------------
 
-/**
- * Queries from the per-assistant Secrets context.
- */
 function getSecretFromDb(userId: string, assistantId: number, secretName: string): string | null {
   try {
     const result = dbExec(
@@ -106,83 +102,84 @@ function getSecretCountForAssistant(userId: string, assistantId: number): number
 // Navigation helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Open the secrets manager via the list item dropdown menu.
- */
-async function openSecretsManager(page: import('@playwright/test').Page) {
-  await navigateToAssistants(page);
+async function openSecretsTab(page: Page) {
+  await page.goto(`/assistants?profile=${assistant.agentId}`);
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await closeHireDialogIfOpen(page);
+  await page.waitForTimeout(1_500);
 
-  const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
+  const tab = page.getByTestId('right-pane-tab-secrets');
+  await expect(tab).toBeVisible({ timeout: 10_000 });
+  await tab.click();
 
-  // Open the dropdown menu on the list item
-  const menuBtn = page.getByTestId(`assistant-menu-${assistant.agentId}`);
-  await listItem.hover();
-  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
-  await menuBtn.click();
-  await page.waitForTimeout(500);
+  const pane = page.getByTestId('secrets-pane');
+  await expect(pane).toBeVisible({ timeout: 5_000 });
 
-  // Click "Secrets" in the dropdown
-  const secretsItem = page.getByTestId('menu-manage-secrets');
-  await expect(secretsItem).toBeVisible({ timeout: 5_000 });
-  await secretsItem.click();
-  await page.waitForTimeout(1_000);
+  // Wait for the initial fetch to complete (skeleton rows go away).
+  await page.waitForTimeout(1_500);
+}
 
-  // Verify the dialog opened
-  const dialog = page.getByRole('dialog');
+async function openCreateDialog(page: Page) {
+  await page.getByTestId('secrets-new-button').click();
+  const dialog = page.getByTestId('secret-form-dialog');
   await expect(dialog).toBeVisible({ timeout: 5_000 });
-  await expect(dialog.locator('text=Secrets')).toBeVisible({ timeout: 5_000 });
+  return dialog;
+}
+
+async function fillAndSaveNewSecret(
+  page: Page,
+  { name, value, description }: { name: string; value: string; description?: string }
+) {
+  await openCreateDialog(page);
+
+  await page.locator('#name').fill(name);
+  await page.locator('#value').fill(value);
+  if (description !== undefined) await page.locator('#description').fill(description);
+
+  await page.getByRole('button', { name: 'Save' }).click();
+
+  // Dialog auto-closes after the hook finishes submitting.
+  await expect(page.getByTestId('secret-form-dialog')).toBeHidden({ timeout: 15_000 });
+  await page.waitForTimeout(1_000);
 }
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-test('creating a secret persists it to the database', async ({ authedPage: page }) => {
+test('Secrets tab is available on the right pane', async ({ authedPage: page }) => {
+  await openSecretsTab(page);
+
+  await expect(page.getByTestId('right-pane-tab-secrets')).toHaveAttribute('data-state', 'active');
+  await expect(page.getByTestId('secrets-search')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('secrets-new-button')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('secrets-upload-button')).toBeVisible({ timeout: 5_000 });
+});
+
+test('creating a secret persists it to the database and renders a row', async ({
+  authedPage: page,
+}) => {
   const secretName = `TEST_KEY_${Date.now()}`;
   const secretValue = 'sk-test-secret-value-1234';
   const secretDesc = 'E2E test secret description';
 
-  await openSecretsManager(page);
+  await openSecretsTab(page);
 
-  // Click "New" or "Add a secret" (depending on whether secrets already exist)
-  const newBtn = page.getByRole('button', { name: 'New' });
-  const addBtn = page.getByRole('button', { name: 'Add a secret' });
-  if (await newBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await newBtn.click();
-  } else {
-    await addBtn.click();
-  }
-  await page.waitForTimeout(500);
+  await fillAndSaveNewSecret(page, {
+    name: secretName,
+    value: secretValue,
+    description: secretDesc,
+  });
 
-  // Fill the secret form
-  const nameInput = page.locator('#name');
-  await expect(nameInput).toBeVisible({ timeout: 5_000 });
-  await nameInput.fill(secretName);
+  // Row should appear in the table with the description visible.
+  const row = page.getByTestId(`secrets-row-${secretName}`);
+  await expect(row).toBeVisible({ timeout: 5_000 });
+  await expect(row).toContainText(secretDesc);
 
-  const valueInput = page.locator('#value');
-  await valueInput.fill(secretValue);
+  // DB round-trip.
+  expect(getSecretFromDb(user.id, assistant.agentId, secretName)).toBe(secretName);
 
-  const descInput = page.locator('#description');
-  await descInput.fill(secretDesc);
-
-  // Submit
-  const saveBtn = page.getByRole('button', { name: 'Save' });
-  await saveBtn.click();
-
-  // Wait for submission to complete (the "New" button re-enables)
-  await expect(newBtn).toBeEnabled({ timeout: 15_000 });
-  await page.waitForTimeout(1_000);
-
-  // Verify the secret appears in the left pane tree
-  await expect(page.locator(`text=${secretName}`).first()).toBeVisible({ timeout: 5_000 });
-
-  // Verify in DB
-  const dbSecret = getSecretFromDb(user.id, assistant.agentId, secretName);
-  expect(dbSecret).toBe(secretName);
-
-  // Verify private fields were injected
+  // Context-injected private fields.
   const fields = getSecretPrivateFields(user.id, assistant.agentId, secretName);
   expect(fields).not.toBeNull();
   expect(fields!._user).toBe(user.id);
@@ -191,127 +188,147 @@ test('creating a secret persists it to the database', async ({ authedPage: page 
   expect(fields!._assistant_id).toBe(String(assistant.agentId));
 });
 
-test('creating a secret with a hierarchical name shows folder structure', async ({
+test('hierarchical secret names render as expandable folder rows', async ({ authedPage: page }) => {
+  const folderName = `e2e_${Date.now()}`;
+  const leafName = 'API_KEY';
+  const secretName = `${folderName}/${leafName}`;
+
+  await openSecretsTab(page);
+  await fillAndSaveNewSecret(page, { name: secretName, value: 'hierarchical-value' });
+
+  // The folder row should be visible, collapsed by default.
+  const folderRow = page.getByTestId(`secrets-folder-${folderName}`);
+  await expect(folderRow).toBeVisible({ timeout: 5_000 });
+  await expect(folderRow).toHaveAttribute('data-expanded', 'false');
+
+  // The leaf row should NOT yet be visible (collapsed).
+  await expect(page.getByTestId(`secrets-row-${secretName}`)).toHaveCount(0);
+
+  // Click to expand — then the leaf row should appear.
+  await folderRow.locator('td').first().click();
+  await expect(folderRow).toHaveAttribute('data-expanded', 'true');
+  await expect(page.getByTestId(`secrets-row-${secretName}`)).toBeVisible({ timeout: 3_000 });
+
+  // DB has the full path.
+  expect(getSecretFromDb(user.id, assistant.agentId, secretName)).toBe(secretName);
+});
+
+test('searching filters secrets and auto-expands matching folders', async ({
   authedPage: page,
 }) => {
-  const folderName = `e2e/${Date.now()}`;
-  const secretName = `${folderName}/API_KEY`;
-  const secretValue = 'hierarchical-value';
+  const ts = Date.now();
+  const inFolder = `search_${ts}/nested/HIT_KEY`;
+  const orphan = `ORPHAN_${ts}`;
 
-  await openSecretsManager(page);
+  await openSecretsTab(page);
+  await fillAndSaveNewSecret(page, { name: inFolder, value: 'v1' });
+  await fillAndSaveNewSecret(page, { name: orphan, value: 'v2' });
 
-  const newBtn = page.getByRole('button', { name: 'New' });
-  await newBtn.click();
+  // Sanity: folder row is collapsed by default.
+  const folderTop = page.getByTestId(`secrets-folder-search_${ts}`);
+  await expect(folderTop).toBeVisible({ timeout: 5_000 });
+  await expect(folderTop).toHaveAttribute('data-expanded', 'false');
+
+  // Search for "HIT_KEY" — the folder chain should auto-expand and the leaf
+  // row should become visible, while the unrelated orphan should disappear.
+  // Search is server-driven and triggered on Enter (mirrors Memory/Tasks).
+  const search = page.getByTestId('secrets-search');
+  await search.fill('HIT_KEY');
+  await search.press('Enter');
   await page.waitForTimeout(500);
 
-  await page.locator('#name').fill(secretName);
-  await page.locator('#value').fill(secretValue);
+  await expect(folderTop).toHaveAttribute('data-expanded', 'true');
+  await expect(page.getByTestId(`secrets-folder-search_${ts}/nested`)).toHaveAttribute(
+    'data-expanded',
+    'true'
+  );
+  await expect(page.getByTestId(`secrets-row-${inFolder}`)).toBeVisible({ timeout: 3_000 });
+  await expect(page.getByTestId(`secrets-row-${orphan}`)).toHaveCount(0);
 
-  const saveBtn = page.getByRole('button', { name: 'Save' });
-  await saveBtn.click();
-
-  await expect(newBtn).toBeEnabled({ timeout: 15_000 });
-  await page.waitForTimeout(1_000);
-
-  // The tree should show the folder "e2e" — click it to expand
-  const folderLabel = folderName.split('/')[0];
-  await expect(page.locator(`text=${folderLabel}`).first()).toBeVisible({ timeout: 5_000 });
-
-  // Verify in DB
-  const dbSecret = getSecretFromDb(user.id, assistant.agentId, secretName);
-  expect(dbSecret).toBe(secretName);
+  // Clearing the search brings everything back and restores collapse state.
+  await page.getByTestId('secrets-search-clear').click();
+  await page.waitForTimeout(300);
+  await expect(folderTop).toHaveAttribute('data-expanded', 'false');
+  await expect(page.getByTestId(`secrets-row-${orphan}`)).toBeVisible({ timeout: 3_000 });
 });
 
 test('editing a secret name persists the change to the database', async ({ authedPage: page }) => {
   const originalName = `EDIT_ME_${Date.now()}`;
   const updatedName = `EDITED_${Date.now()}`;
 
-  // Seed a secret first
-  await openSecretsManager(page);
+  await openSecretsTab(page);
+  await fillAndSaveNewSecret(page, { name: originalName, value: 'original-value' });
 
-  const newBtn = page.getByRole('button', { name: 'New' });
-  await newBtn.click();
-  await page.waitForTimeout(500);
+  // Open the row menu and click Update.
+  await page.getByTestId(`secrets-row-menu-${originalName}`).click();
+  await page.getByTestId('secrets-row-update').click();
 
-  await page.locator('#name').fill(originalName);
-  await page.locator('#value').fill('original-value');
+  const dialog = page.getByTestId('secret-form-dialog');
+  await expect(dialog).toBeVisible({ timeout: 5_000 });
 
-  let saveBtn = page.getByRole('button', { name: 'Save' });
-  await saveBtn.click();
-  await expect(newBtn).toBeEnabled({ timeout: 15_000 });
-  await page.waitForTimeout(1_000);
-
-  // Click the secret in the tree to select it for editing
-  await page.locator(`text=${originalName}`).first().click();
-  await page.waitForTimeout(500);
-
-  // The name input should be populated with the original name
+  // The form should be prefilled with the current name.
   const nameInput = page.locator('#name');
-  await expect(nameInput).toHaveValue(originalName, { timeout: 5_000 });
+  await expect(nameInput).toHaveValue(originalName);
 
-  // Change the name
   await nameInput.fill(updatedName);
-
-  // The button should now say "Save Changes" (editing mode)
-  saveBtn = page.getByRole('button', { name: 'Save Changes' });
-  await saveBtn.click();
-  await expect(newBtn).toBeEnabled({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Save Changes' }).click();
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
   await page.waitForTimeout(1_000);
 
-  // Verify updated name appears in tree
-  await expect(page.locator(`text=${updatedName}`).first()).toBeVisible({ timeout: 5_000 });
+  // Row should reflect the new name, old row should be gone.
+  await expect(page.getByTestId(`secrets-row-${updatedName}`)).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId(`secrets-row-${originalName}`)).toHaveCount(0);
 
-  // Verify in DB: old name gone, new name exists
-  const dbOld = getSecretFromDb(user.id, assistant.agentId, originalName);
-  expect(dbOld).toBeFalsy();
-
-  const dbNew = getSecretFromDb(user.id, assistant.agentId, updatedName);
-  expect(dbNew).toBe(updatedName);
+  // DB: old name deleted, new name present.
+  expect(getSecretFromDb(user.id, assistant.agentId, originalName)).toBeFalsy();
+  expect(getSecretFromDb(user.id, assistant.agentId, updatedName)).toBe(updatedName);
 });
 
-test('deleting a secret removes it from the database', async ({ authedPage: page }) => {
+test('deleting a secret removes it from the UI and the database', async ({ authedPage: page }) => {
   const secretName = `DELETE_ME_${Date.now()}`;
 
-  // Create a secret to delete
-  await openSecretsManager(page);
-
-  const newBtn = page.getByRole('button', { name: 'New' });
-  await newBtn.click();
-  await page.waitForTimeout(500);
-
-  await page.locator('#name').fill(secretName);
-  await page.locator('#value').fill('to-be-deleted');
-
-  const saveBtn = page.getByRole('button', { name: 'Save' });
-  await saveBtn.click();
-  await expect(newBtn).toBeEnabled({ timeout: 15_000 });
-  await page.waitForTimeout(1_000);
-
-  // Verify it exists
+  await openSecretsTab(page);
+  await fillAndSaveNewSecret(page, { name: secretName, value: 'to-be-deleted' });
   expect(getSecretFromDb(user.id, assistant.agentId, secretName)).toBe(secretName);
 
-  // Click the secret row to select it, then find the trash button
-  const secretSpan = page.locator(`span:text-is("${secretName}")`);
-  await expect(secretSpan).toBeVisible({ timeout: 5_000 });
+  // Open the row menu → Delete → confirm.
+  await page.getByTestId(`secrets-row-menu-${secretName}`).click();
+  await page.getByTestId('secrets-row-delete').click();
 
-  // The trash button is in the same parent div as the span
-  const rowDiv = secretSpan.locator('..');
-  const trashBtn = rowDiv.locator('button');
-  await trashBtn.click();
-  await page.waitForTimeout(500);
+  const confirm = page.getByTestId('secrets-delete-confirm');
+  await expect(confirm).toBeVisible({ timeout: 5_000 });
+  await expect(confirm).toContainText('This action cannot be undone.');
+  await page.getByRole('button', { name: 'Delete' }).click();
 
-  // Confirm deletion in the alert dialog
-  await expect(page.locator('text=This action cannot be undone.')).toBeVisible({ timeout: 5_000 });
-  const deleteConfirmBtn = page.getByRole('button', { name: 'Delete' });
-  await deleteConfirmBtn.click();
+  await expect(page.getByTestId(`secrets-row-${secretName}`)).toHaveCount(0, { timeout: 15_000 });
+  expect(getSecretFromDb(user.id, assistant.agentId, secretName)).toBeFalsy();
+});
 
-  // Wait for deletion to complete — the secret should disappear from the tree
-  await expect(secretSpan).not.toBeVisible({ timeout: 15_000 });
-  await page.waitForTimeout(1_000);
+test('deleting a folder removes every secret underneath it', async ({ authedPage: page }) => {
+  const folder = `doomed_${Date.now()}`;
+  const s1 = `${folder}/A`;
+  const s2 = `${folder}/deeper/B`;
 
-  // Verify removed from DB
-  const dbAfter = getSecretFromDb(user.id, assistant.agentId, secretName);
-  expect(dbAfter).toBeFalsy();
+  await openSecretsTab(page);
+  await fillAndSaveNewSecret(page, { name: s1, value: 'v' });
+  await fillAndSaveNewSecret(page, { name: s2, value: 'v' });
+
+  const countBefore = getSecretCountForAssistant(user.id, assistant.agentId);
+  expect(countBefore).toBeGreaterThanOrEqual(2);
+
+  // Open the folder's 3-dots and click "Delete folder".
+  await page.getByTestId(`secrets-folder-menu-${folder}`).click();
+  await page.getByTestId('secrets-folder-delete').click();
+
+  const confirm = page.getByTestId('secrets-delete-confirm');
+  await expect(confirm).toBeVisible({ timeout: 5_000 });
+  await expect(confirm).toContainText(`Delete 2 secrets under "${folder}/"`);
+  await page.getByRole('button', { name: 'Delete' }).click();
+
+  await expect(page.getByTestId(`secrets-folder-${folder}`)).toHaveCount(0, { timeout: 15_000 });
+  expect(getSecretFromDb(user.id, assistant.agentId, s1)).toBeFalsy();
+  expect(getSecretFromDb(user.id, assistant.agentId, s2)).toBeFalsy();
+  expect(getSecretCountForAssistant(user.id, assistant.agentId)).toBe(countBefore - 2);
 });
 
 test('secret value field is masked and full lifecycle works end-to-end', async ({
@@ -319,16 +336,12 @@ test('secret value field is masked and full lifecycle works end-to-end', async (
 }) => {
   const secretName = `LIFECYCLE_${Date.now()}`;
 
-  await openSecretsManager(page);
-
+  await openSecretsTab(page);
   const countBefore = getSecretCountForAssistant(user.id, assistant.agentId);
 
-  // Create
-  const newBtn = page.getByRole('button', { name: 'New' });
-  await newBtn.click();
-  await page.waitForTimeout(500);
+  await openCreateDialog(page);
 
-  // Verify the value input is masked (type="password")
+  // The value input is masked (type="password").
   const valueInput = page.locator('#value');
   await expect(valueInput).toBeVisible({ timeout: 5_000 });
   await expect(valueInput).toHaveAttribute('type', 'password');
@@ -337,31 +350,19 @@ test('secret value field is masked and full lifecycle works end-to-end', async (
   await valueInput.fill('lifecycle-value');
   await page.locator('#description').fill('Lifecycle test');
 
-  const saveBtn = page.getByRole('button', { name: 'Save' });
-  await saveBtn.click();
-  await expect(newBtn).toBeEnabled({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByTestId('secret-form-dialog')).toBeHidden({ timeout: 15_000 });
   await page.waitForTimeout(1_000);
 
-  // Verify created in DB
   expect(getSecretFromDb(user.id, assistant.agentId, secretName)).toBe(secretName);
   expect(getSecretCountForAssistant(user.id, assistant.agentId)).toBe(countBefore + 1);
 
-  // Delete
-  const secretSpan = page.locator(`span:text-is("${secretName}")`);
-  await expect(secretSpan).toBeVisible({ timeout: 5_000 });
-  const rowDiv = secretSpan.locator('..');
-  const trashBtn = rowDiv.locator('button');
-  await trashBtn.click();
-  await page.waitForTimeout(500);
-
-  await expect(page.locator('text=This action cannot be undone.')).toBeVisible({ timeout: 5_000 });
+  // Delete via row menu.
+  await page.getByTestId(`secrets-row-menu-${secretName}`).click();
+  await page.getByTestId('secrets-row-delete').click();
   await page.getByRole('button', { name: 'Delete' }).click();
 
-  // Wait for deletion to complete
-  await expect(secretSpan).not.toBeVisible({ timeout: 15_000 });
-  await page.waitForTimeout(1_000);
-
-  // Verify removed from DB
+  await expect(page.getByTestId(`secrets-row-${secretName}`)).toHaveCount(0, { timeout: 15_000 });
   expect(getSecretFromDb(user.id, assistant.agentId, secretName)).toBeFalsy();
   expect(getSecretCountForAssistant(user.id, assistant.agentId)).toBe(countBefore);
 });

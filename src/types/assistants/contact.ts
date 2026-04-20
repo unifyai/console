@@ -7,6 +7,11 @@
 
 export type ContactType = 'email' | 'phone' | 'whatsapp' | 'discord';
 
+export type EmailProvider = 'google_workspace' | 'microsoft_365';
+
+/** OAuth provider identifier used by the connect/granted-features endpoints. */
+export type OAuthProvider = 'google' | 'microsoft';
+
 /**
  * A single contact cost row from the `contact_type_costs` table.
  * Returned by GET /v0/admin/billing/contact-costs.
@@ -20,15 +25,22 @@ export interface AssistantContactCost {
   oneTimeCost: number;
 }
 
+interface CostEntry {
+  monthlyCost: number;
+  oneTimeCost: number;
+}
+
 /**
  * Keyed map of monthly + one-time costs per contact type.
  * Used by the UI to display pricing without hardcoding values.
  */
 export interface ContactCosts {
-  phone: { monthlyCost: number; oneTimeCost: number };
-  email: { monthlyCost: number; oneTimeCost: number };
-  whatsapp: { monthlyCost: number; oneTimeCost: number };
-  discord: { monthlyCost: number; oneTimeCost: number };
+  phone: CostEntry;
+  email: CostEntry;
+  whatsapp: CostEntry;
+  discord: CostEntry;
+  /** Per-provider email costs (e.g. google_workspace, microsoft_365). */
+  emailByProvider: Record<string, CostEntry>;
 }
 
 /**
@@ -40,7 +52,18 @@ export interface AssistantContactCreatePayload {
   // Phone-specific
   phoneCountry?: string;
   // Email-specific
+  emailProvider?: EmailProvider;
   emailLocal?: string;
   firstName?: string;
   lastName?: string;
+}
+
+/**
+ * Response from GET /assistant/{id}/granted-features.
+ * Describes which OAuth provider is connected and what features are granted.
+ */
+export interface GrantedFeaturesResponse {
+  provider: OAuthProvider | null;
+  features: string[];
+  requiredFeatures?: string[];
 }

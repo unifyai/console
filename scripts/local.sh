@@ -660,7 +660,7 @@ ensure_npm_deps() {
 # =============================================================================
 
 # Valid seed scenario names — must match SCENARIOS in src/tests/helpers/seeds/run.ts.
-VALID_SEED_SCENARIOS=(personal-workspace org-basic org-multi-role org-unify credit-grant-links billing-banner-states usage-ledger chat-search all)
+VALID_SEED_SCENARIOS=(personal-workspace org-basic org-multi-role org-unify credit-grant-links billing-banner-states usage-ledger chat-search memory-rich tasks-rich secrets-rich re-appraisal all)
 
 validate_seed_scenario() {
   local scenario="$1"
@@ -771,6 +771,14 @@ start_console() {
   # fetch calls to Console's own API routes) reach the correct port.
   export NEXTAUTH_URL="http://localhost:${CONSOLE_PORT}"
   export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
+
+  # When running locally without --pubsub/--chat, override the staging
+  # Pub/Sub credentials that .env.development defines so Console uses the
+  # local in-memory event bus (enables the /actions/push dev endpoint).
+  # process.env takes precedence over .env files in Next.js.
+  if [[ "$with_pubsub" != "true" && "$with_chat" != "true" ]]; then
+    export COMMS_SERVICE_ACCOUNT_CREDENTIALS=""
+  fi
 
   # When --pubsub or --chat is active, inject the Pub/Sub emulator env vars
   # so Console connects to the local emulator for billing events (and chat).

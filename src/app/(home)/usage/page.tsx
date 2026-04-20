@@ -7,10 +7,10 @@ import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
 import { Suspense } from 'react';
 import { getCurrentUser } from '@/lib/user/user';
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { createUsageActions } from '@/lib/usage/actions';
 import { listAssistants } from '@/lib/assistants/assistant';
 import { getMembersAction } from '@/lib/orchestra/api/organization';
+import { resolveWorkspaceContext } from '@/lib/user/workspace';
 
 export const metadata: Metadata = {
   title: 'Usage',
@@ -51,26 +51,13 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
 
   // Get API key
   const apiKey = user.apiKey || '';
+  const { activeOrganization, isUnifyMember } = resolveWorkspaceContext(user);
+  const isOrgContext = activeOrganization !== null;
+  const roleName = activeOrganization?.roleName?.toLowerCase();
+  const isAdmin = roleName === 'owner' || roleName === 'admin';
+  const orgId = activeOrganization?.id ?? null;
 
-  // Determine user role in current workspace
-  const cookieStore = cookies();
-  const workspaceId = cookieStore.get('unify_workspace_id')?.value;
-  const isOrgContext = workspaceId && workspaceId !== 'personal';
-  let isAdmin = false;
-  let orgId: number | null = null;
-  let activeOrg = isOrgContext
-    ? user.organizations?.find((o) => o.id.toString() === workspaceId)
-    : undefined;
-
-  if (activeOrg) {
-    const roleName = activeOrg.roleName?.toLowerCase();
-    isAdmin = roleName === 'owner' || roleName === 'admin';
-    orgId = activeOrg.id;
-  }
-
-  // ── Free trial lock (skip for Unify org members) ───────────────────
-  const isUnifyOrgMember = user.organizations?.some((o) => o.name === 'Unify') ?? false;
-  if (activeOrg?.freeTrial && !isUnifyOrgMember) {
+  if (activeOrganization?.freeTrial && !isUnifyMember) {
     return (
       <div className="h-full w-full overflow-auto p-1">
         <FreeTrialUsageLock />

@@ -18,8 +18,9 @@
  *  - Duplicate file detection
  *  - Attach button disabled when spending is blocked
  *
- * Local mode: sending returns 202 (dispatch skipped); SSE errors are
- * suppressed on localhost so the chat input remains enabled.
+ * Local mode: sending returns 202 (dispatch skipped). SSE errors disable
+ * the chat input in all environments (placeholder shows "Connection failed.
+ * Please refresh."), so tests assume SSE connects successfully.
  *
  * Run: npx playwright test src/tests/assistants/chat.e2e.ts
  */
@@ -649,14 +650,14 @@ test('attach button is disabled when spending is blocked', async ({ authedPage: 
 // Chat Search Tests
 // ===========================================================================
 
-test('search button opens the search dialog', async ({ authedPage: page }) => {
+test('search bar in the chat header opens the search dialog', async ({ authedPage: page }) => {
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
 
   await openAssistantChat(page);
 
-  const searchBtn = page.getByTestId('chat-search-trigger');
-  await expect(searchBtn).toBeVisible({ timeout: 10_000 });
-  await searchBtn.click();
+  const searchTrigger = page.getByTestId('chat-search-trigger');
+  await expect(searchTrigger).toBeVisible({ timeout: 10_000 });
+  await searchTrigger.click();
 
   const dialog = page.getByTestId('chat-search-dialog');
   await expect(dialog).toBeVisible({ timeout: 5_000 });

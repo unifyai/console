@@ -3,7 +3,13 @@ import { SupportedLanguage, Gender as CartesiaGender, Gender } from '@cartesia/c
 import { ChatMessage, UnifyMessage, AttachmentUploadResponse } from './chat';
 import { SecretActions } from './secret';
 import { ConnectionDetails } from './call';
-import { ContactCosts, AssistantContactCreatePayload, ContactType } from './contact';
+import {
+  ContactCosts,
+  AssistantContactCreatePayload,
+  ContactType,
+  OAuthProvider,
+  GrantedFeaturesResponse,
+} from './contact';
 
 export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
 
@@ -34,6 +40,13 @@ export interface Assistant {
   userImage?: string | null; // Owner's profile image URL
   firstName: string;
   surname: string;
+  /**
+   * Free-text job title / specialization (e.g. "Growth marketing",
+   * "QA engineer"). Surfaced in the UI as a per-assistant subtitle so users
+   * can remember at-a-glance what each assistant is for. Distinct from org
+   * RBAC roles (`organization.roleName`) and chat-message roles.
+   */
+  jobTitle: string | null;
   profilePhoto: string | null;
   profileVideo: string | null;
   age: number | null;
@@ -47,6 +60,8 @@ export interface Assistant {
   voiceProvider: VoiceProvider | null;
   // Contact fields (flat — populated from AssistantContact rows by the backend)
   email: string | null;
+  emailProvider?: string | null;
+  emailProvisionedBy?: 'platform' | 'user' | null;
   phone: string | null;
   assistantWhatsappNumber: string | null;
   assistantDiscordBotId: string | null;
@@ -104,11 +119,13 @@ export type AssistantPreset = Omit<
   | 'timezone'
   | 'profileVideo'
   | 'phoneCountry'
+  | 'jobTitle'
 > & {
   gender?: 'male' | 'female';
   phoneCountry?: string | null;
   timezone?: string | null;
   profileVideo?: string | null;
+  jobTitle?: string | null;
   voiceIds: {
     cartesia?: string | null;
     elevenlabs?: string | null;
@@ -256,6 +273,7 @@ export interface ReplicatePredictionResponse {
 export interface AssistantUpdatePayload {
   firstName?: string;
   surname?: string;
+  jobTitle?: string | null;
   age?: number;
   nationality?: string;
   about?: string | null;
@@ -351,6 +369,7 @@ export interface AssistantActions {
     create: (
       firstName: string,
       surname: string,
+      jobTitle: string | null,
       age: number | null,
       nationality: string | null,
       timezone: string | null,
@@ -445,6 +464,14 @@ export interface AssistantActions {
       assistantId: string,
       payload: AssistantContactCreatePayload
     ) => Promise<ResponseProps & { assistant?: Assistant }>;
+    connect: (
+      assistantId: string,
+      provider: OAuthProvider,
+      features: string[],
+      redirectAfter?: string
+    ) => Promise<{ oauthUrl: string } | ResponseProps>;
+    disconnect: (assistantId: string) => Promise<ResponseProps>;
+    getGrantedFeatures: (assistantId: string) => Promise<GrantedFeaturesResponse | ResponseProps>;
     listAllAssistantEmails: () => Promise<string[] | ResponseProps>;
     listAvailablePhoneCountries: () => Promise<AvailablePhoneCountry[]>;
     listAvailableSocialPlatforms: () => Promise<AvailableSocialPlatform[] | ResponseProps>;

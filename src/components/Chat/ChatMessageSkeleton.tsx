@@ -16,7 +16,7 @@ function Bar({ className, style }: { className?: string; style?: React.CSSProper
 
 function AssistantMessageSkeleton({ lineWidths }: { lineWidths: string[] }) {
   return (
-    <div>
+    <div className="min-w-0 md:max-w-[55%]">
       {/* Avatar + name row */}
       <div className="mb-2.5 flex items-center gap-2">
         <Bar className="h-6 w-6 flex-shrink-0 rounded-full" />
@@ -36,14 +36,16 @@ function AssistantMessageSkeleton({ lineWidths }: { lineWidths: string[] }) {
 function UserMessageSkeleton({ width }: { width: string }) {
   return (
     <div className="flex justify-end">
-      <Bar className="h-10 rounded-lg" style={{ width }} />
+      <div className="max-w-[85%] md:max-w-[55%]">
+        <Bar className="h-10 rounded-lg" style={{ width }} />
+      </div>
     </div>
   );
 }
 
 export function ChatMessageSkeletons() {
   return (
-    <div className="mx-auto max-w-[720px] space-y-6" data-testid="chat-skeleton">
+    <div className="space-y-6 px-3 py-4" style={{ width: '100%' }} data-testid="chat-skeleton">
       {/* Simulate a short conversation: assistant → user → assistant */}
       <AssistantMessageSkeleton lineWidths={['85%', '70%']} />
       <UserMessageSkeleton width="40%" />

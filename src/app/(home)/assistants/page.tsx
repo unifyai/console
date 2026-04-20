@@ -41,6 +41,9 @@ import {
   deleteAssistantContact,
   fetchContactCosts,
   createAssistantContact,
+  connectAssistantAccount,
+  disconnectAssistantAccount,
+  getGrantedFeatures,
 } from '@/lib/assistants/contact';
 import { AssistantActions } from '@/types/assistants/assistant';
 import { redirect } from 'next/navigation';
@@ -64,7 +67,7 @@ import {
   backfillByCallingIds,
 } from '@/lib/assistants/action';
 import { getDashboardMetadata, getDashboardTileContent } from '@/lib/assistants/dashboard';
-import { cookies } from 'next/headers';
+import { getActiveOrganization } from '@/lib/user/workspace';
 
 const AssistantsPage = async ({
   searchParams,
@@ -81,22 +84,11 @@ const AssistantsPage = async ({
   }
   const apiKey = user.apiKey;
   const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
-
-  // Determine org context from workspace cookie (not API key matching)
-  const cookieStore = cookies();
-  const workspaceId = cookieStore.get('unify_workspace_id')?.value;
-  let orgId: number | null = null;
-  let orgName: string | null = null;
-  let isFreeTrial = false;
-  if (workspaceId && workspaceId !== 'personal') {
-    const activeOrg = user.organizations?.find((o) => o.id.toString() === workspaceId);
-    if (activeOrg) {
-      orgId = activeOrg.id;
-      orgName = activeOrg.name;
-      isFreeTrial = !!activeOrg.freeTrial;
-    }
-  }
-  const isOrgContext = orgId !== null;
+  const activeOrganization = getActiveOrganization(user);
+  const orgId = activeOrganization?.id ?? null;
+  const orgName = activeOrganization?.name ?? null;
+  const isFreeTrial = !!activeOrganization?.freeTrial;
+  const isOrgContext = activeOrganization !== null;
 
   const assistantActions: AssistantActions = {
     assistant: {
@@ -135,6 +127,9 @@ const AssistantsPage = async ({
     contact: {
       delete: await deleteAssistantContact(apiKey),
       create: await createAssistantContact(apiKey),
+      connect: await connectAssistantAccount(apiKey),
+      disconnect: await disconnectAssistantAccount(apiKey),
+      getGrantedFeatures: await getGrantedFeatures(apiKey),
       listAllAssistantEmails: await listAllAssistantEmails(adminKey),
       listAvailablePhoneCountries: await listAvailablePhoneCountries(adminKey),
       listAvailableSocialPlatforms: await listAvailableSocialPlatforms(adminKey),

@@ -9,6 +9,7 @@
 import { test as base, expect, type Page, type Browser } from '@playwright/test';
 import path from 'path';
 import os from 'os';
+import { login, loginAndWaitForRedirect, switchToEmailTab } from '../auth/helpers';
 
 export { createTestUser, cleanupUser, setUserCredits } from '../helpers/e2e-helpers';
 export type { TestUser } from '../helpers/e2e-helpers';
@@ -28,7 +29,7 @@ export {
 } from '../helpers/seeds/client';
 export type { SeededOrg, SeededAssistant } from '../helpers/seeds/types';
 
-export { login, switchToEmailTab } from '../auth/helpers';
+export { login, switchToEmailTab };
 
 // =============================================================================
 // Shared Auth — storageState
@@ -48,9 +49,7 @@ export async function loginAndSaveState(
   const page = await ctx.newPage();
 
   await page.goto('/login');
-  const { login: doLogin } = await import('../auth/helpers');
-  await doLogin(page, email, password);
-  await page.waitForURL((url) => url.pathname !== '/login', { timeout: 45_000 });
+  await loginAndWaitForRedirect(page, email, password, 45_000);
 
   if (page.url().includes('/login/onboarding')) {
     const personalBtn = page.getByTestId('workspace-personal');
@@ -194,6 +193,8 @@ export async function fillProfileFields(
   opts: {
     firstName: string;
     lastName: string;
+    /** Optional free-text job title / specialization. Pass `''` to explicitly clear. */
+    jobTitle?: string;
     age?: number;
     nationality?: string;
     about?: string;
@@ -206,6 +207,11 @@ export async function fillProfileFields(
 
   const surnameInput = page.locator('#surname');
   await surnameInput.fill(opts.lastName);
+
+  if (opts.jobTitle !== undefined) {
+    const jobTitleInput = page.locator('#jobTitle');
+    await jobTitleInput.fill(opts.jobTitle);
+  }
 
   if (opts.age) {
     const ageInput = page.locator('#age');
@@ -293,7 +299,7 @@ import { dbExec } from '../helpers/seeds/client';
 
 export function getAssistantFromDb(agentId: number) {
   const row = dbExec(
-    `SELECT first_name, surname, voice_id, voice_provider, profile_photo, age, nationality, timezone, about, organization_id FROM assistants WHERE agent_id = ${agentId}`
+    `SELECT first_name, surname, voice_id, voice_provider, profile_photo, age, nationality, timezone, about, organization_id, COALESCE(job_title, '') FROM assistants WHERE agent_id = ${agentId}`
   );
   const [
     firstName,
@@ -306,6 +312,7 @@ export function getAssistantFromDb(agentId: number) {
     timezone,
     about,
     organizationId,
+    jobTitleRaw,
   ] = row.split('|');
   return {
     firstName,
@@ -318,6 +325,10 @@ export function getAssistantFromDb(agentId: number) {
     timezone,
     about,
     organizationId,
+    // Empty string sentinel means NULL in the database (we COALESCE so the
+    // pipe-split yields a stable column count). Map back to null so tests can
+    // explicitly assert "cleared" vs "set" without worrying about psql output.
+    jobTitle: jobTitleRaw === '' ? null : jobTitleRaw,
   };
 }
 
@@ -381,6 +392,34 @@ export function getAssistantContact(
   try {
     const result = dbExec(
       `SELECT contact_value FROM assistant_contacts WHERE assistant_id = ${agentId} AND contact_type = '${contactType}' AND status = 'active'`
+    );
+    return result || null;
+  } catch {
+    return null;
+  }
+}
+
+export function getAssistantContactProvider(
+  agentId: number,
+  contactType: 'email' | 'phone' | 'whatsapp' | 'discord'
+): string | null {
+  try {
+    const result = dbExec(
+      `SELECT provider FROM assistant_contacts WHERE assistant_id = ${agentId} AND contact_type = '${contactType}' AND status = 'active'`
+    );
+    return result || null;
+  } catch {
+    return null;
+  }
+}
+
+export function getAssistantContactProvisionedBy(
+  agentId: number,
+  contactType: 'email' | 'phone' | 'whatsapp' | 'discord'
+): string | null {
+  try {
+    const result = dbExec(
+      `SELECT provisioned_by FROM assistant_contacts WHERE assistant_id = ${agentId} AND contact_type = '${contactType}' AND status = 'active'`
     );
     return result || null;
   } catch {

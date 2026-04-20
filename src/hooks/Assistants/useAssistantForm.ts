@@ -51,6 +51,7 @@ export function useAssistantForm(
       // Profile fields
       firstName: '',
       surname: '',
+      jobTitle: null,
       age: null,
       nationality: 'United States',
       about: '',
@@ -223,6 +224,7 @@ export function useAssistantForm(
       setValue('currentPreset', preset);
       setValue('firstName', preset.firstName, { shouldValidate: true });
       setValue('surname', preset.surname, { shouldValidate: true });
+      setValue('jobTitle', preset.jobTitle ?? null, { shouldValidate: true });
       setValue('age', preset.age, { shouldValidate: true });
       setValue('nationality', preset.nationality ?? 'United States', { shouldValidate: true });
       setValue('about', preset.about ?? '', { shouldValidate: true });
@@ -355,6 +357,7 @@ export function useAssistantForm(
         // Profile fields
         firstName: values?.firstName || '',
         surname: values?.surname || '',
+        jobTitle: values?.jobTitle ?? null,
         age: values?.age || null,
         nationality: values?.nationality || 'United States',
         about: values?.about || '',
@@ -425,6 +428,7 @@ export function useAssistantForm(
         // Profile
         firstName: assistant.firstName,
         surname: assistant.surname,
+        jobTitle: assistant.jobTitle ?? null,
         age: assistant.age,
         nationality: assistant.nationality,
         about: assistant.about || '',
@@ -531,6 +535,12 @@ export function useAssistantForm(
 
       if (data.firstName !== editingAssistant.firstName) payload.firstName = data.firstName;
       if (data.surname !== editingAssistant.surname) payload.surname = data.surname;
+      // Normalize empty string to null so an emptied input clears the value
+      // server-side (the backend trims/normalizes too, but be explicit).
+      const normalizedJobTitle = data.jobTitle?.trim() ? data.jobTitle.trim() : null;
+      if (normalizedJobTitle !== (editingAssistant.jobTitle ?? null)) {
+        payload.jobTitle = normalizedJobTitle;
+      }
       if (data.age !== editingAssistant.age) payload.age = data.age ?? undefined;
       if (data.nationality !== editingAssistant.nationality) payload.nationality = data.nationality;
       if (data.about !== editingAssistant.about) payload.about = data.about;
@@ -719,9 +729,11 @@ export function useAssistantForm(
       }));
 
       // Create assistant first to get the assistant_id
+      const normalizedJobTitle = data.jobTitle?.trim() ? data.jobTitle.trim() : null;
       const assistantCreationResult = await assistantActions.assistant.create(
         data.firstName,
         data.surname,
+        normalizedJobTitle,
         ageNumber,
         data.nationality,
         data.timezone,
