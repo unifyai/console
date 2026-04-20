@@ -25,6 +25,7 @@ export {
   dbExecBlock,
   createUser,
   createOrg,
+  createAssistant,
   deleteOrg,
   addMember,
   orchestraFetch,

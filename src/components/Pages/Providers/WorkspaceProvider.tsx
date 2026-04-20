@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, UserOrganization, UserWorkspace } from '@/types/user';
+import { resolveWorkspaceContext } from '@/lib/user/workspace';
 
 interface WorkspaceContextType {
   workspaces: UserWorkspace[];
@@ -53,41 +54,17 @@ export function WorkspaceProvider({
     return list;
   }, [user]);
 
-  // 2. Determine Active Workspace
-  // We can't rely solely on cookies client-side for initial render sync.
-  // However, we can infer it: If the user.apiKey matches an org key, that org is active.
-  // OR simpler: we rely on a client-side cookie/localstorage or just track state.
-  // Since `user` prop comes from server where key-swapping happened,
-  // checking keys is the most robust way to sync Server <-> Client state.
-
-  // 2a. Determine Active Organization (full object with roleName)
-  const activeOrganization = useMemo(() => {
-    if (!user) return null;
-    return user.organizations?.find((o) => o.apiKey === user.apiKey) || null;
-  }, [user]);
-
-  // 2b. Determine Active Workspace
-  const activeWorkspace = useMemo(() => {
-    if (!user) return null;
-
-    if (activeOrganization) {
-      return workspaces.find((w) => w.id === activeOrganization.id.toString()) || null;
-    }
-
-    return workspaces.find((w) => w.id === 'personal') || null;
-  }, [user, workspaces, activeOrganization]);
+  // 2. Determine Active Workspace from the server-resolved user state.
+  // `getCurrentUser()` may override the raw workspace cookie (for example, to
+  // lock non-Unify members into their org workspace). Use that resolved state
+  // everywhere rather than re-deriving active workspace from the cookie.
+  const { activeOrganization, activeWorkspace, isWorkspaceSwitchable } = useMemo(
+    () => resolveWorkspaceContext(user),
+    [user]
+  );
 
   // 2c. Current User ID
   const currentUserId = user?.id || null;
-
-  // 2d. Workspace switchability
-  // Non-Unify org members are locked to their org workspace; the switcher
-  // is rendered as a static label instead of a dropdown.
-  const isWorkspaceSwitchable = useMemo(() => {
-    if (!user) return false;
-    // Only Unify org members can switch workspaces; everyone else sees a static label.
-    return user.organizations?.some((org) => org.name === 'Unify') ?? false;
-  }, [user]);
 
   // 3. Switcher Logic
   const [isSwitchingWorkspace, setIsSwitchingWorkspace] = useState(false);

@@ -1,0 +1,56 @@
+import type { User, UserOrganization, UserWorkspace } from '@/types/user';
+
+type WorkspaceResolvedUser = Pick<User, 'apiKey' | 'organizations' | 'name'> | null | undefined;
+
+export interface ResolvedWorkspaceContext {
+  activeOrganization: UserOrganization | null;
+  activeWorkspace: UserWorkspace | null;
+  isUnifyMember: boolean;
+  isWorkspaceSwitchable: boolean;
+}
+
+/**
+ * Resolve the effective workspace from the already-resolved user object.
+ *
+ * `getCurrentUser()` may override the raw workspace cookie (for example, when
+ * non-Unify members are locked into their organization workspace). Downstream
+ * pages should consume that effective state instead of re-reading the cookie
+ * and risking a split-brain UI.
+ */
+export function resolveWorkspaceContext(user: WorkspaceResolvedUser): ResolvedWorkspaceContext {
+  if (!user) {
+    return {
+      activeOrganization: null,
+      activeWorkspace: null,
+      isUnifyMember: false,
+      isWorkspaceSwitchable: false,
+    };
+  }
+
+  const organizations = user.organizations ?? [];
+  const activeOrganization =
+    organizations.find((organization) => organization.apiKey === user.apiKey) ?? null;
+  const isUnifyMember = organizations.some((organization) => organization.name === 'Unify');
+  const activeWorkspace: UserWorkspace = activeOrganization
+    ? {
+        id: activeOrganization.id.toString(),
+        name: activeOrganization.name,
+        type: 'organization',
+      }
+    : {
+        id: 'personal',
+        name: user.name ?? 'Personal',
+        type: 'personal',
+      };
+
+  return {
+    activeOrganization,
+    activeWorkspace,
+    isUnifyMember,
+    isWorkspaceSwitchable: isUnifyMember,
+  };
+}
+
+export function getActiveOrganization(user: WorkspaceResolvedUser): UserOrganization | null {
+  return resolveWorkspaceContext(user).activeOrganization;
+}

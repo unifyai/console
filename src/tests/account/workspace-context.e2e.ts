@@ -11,15 +11,23 @@ import {
   cleanupUser,
   createAccountTest,
   createOrg,
+  createAssistant,
   deleteOrg,
   getUserApiKeyFromDb,
   dbExec,
 } from './helpers';
 
 const user = createTestUser({ name: 'WsCtx', lastName: 'Test', credits: 5_000 });
-const org = createOrg({ name: `WsOrg${Date.now()}`, ownerId: user.id });
+const org = createOrg({ name: `WsOrg-${user.id}`, ownerId: user.id });
+const lockedOrgAssistant = createAssistant({
+  userId: user.id,
+  orgId: org.id,
+  firstName: 'Locked',
+  surname: 'Workspace',
+});
 
 const test = createAccountTest(user);
+test.describe.configure({ mode: 'serial' });
 test.setTimeout(60_000);
 
 test.afterAll(() => {
@@ -115,4 +123,32 @@ test('switching to org workspace and fetching billing returns org credits', asyn
     `SELECT credits FROM billing_account WHERE id = (SELECT billing_account_id FROM organization WHERE id = ${orgId})`
   );
   expect(parseFloat(balance)).toBeCloseTo(parseFloat(orgCredits), 0);
+});
+
+test('locked org users still see org assistants even with a personal workspace cookie', async ({
+  authedPage: page,
+}) => {
+  await page.goto('/assistants');
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+
+  const switchRes = await page.evaluate(async () => {
+    const res = await fetch('/api/session/workspace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId: 'personal' }),
+    });
+    return res.status;
+  });
+  expect(switchRes).toBe(200);
+
+  await page.goto('/assistants');
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+
+  const cookies = await page.context().cookies();
+  const wsCookie = cookies.find((c) => c.name === 'unify_workspace_id');
+  expect(wsCookie?.value).toBe('personal');
+
+  await expect(
+    page.getByText(`${lockedOrgAssistant.firstName} ${lockedOrgAssistant.surname}`)
+  ).toBeVisible({ timeout: 10_000 });
 });
