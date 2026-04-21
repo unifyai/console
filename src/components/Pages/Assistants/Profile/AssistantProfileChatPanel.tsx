@@ -437,14 +437,17 @@ export function AssistantProfileChatPanel({
     const prevScrollHeight = prevScrollHeightRef.current;
     const { scrollTop, scrollHeight, clientHeight } = viewport;
 
-    // Use *current* scrollHeight to decide if we're at the bottom, not the
-    // stale prevScrollHeight. After the useLayoutEffect preserves scroll
-    // position for "load older", scrollTop has already been adjusted, so
-    // comparing with prevScrollHeight gives a false-positive "was at bottom"
-    // when the first batch of older messages roughly doubles content height.
-    const isBottom = scrollHeight - scrollTop - clientHeight <= 20;
-    const wasBottom = prevScrollHeight === null || isBottom;
-    isAtBottomRef.current = isBottom;
+    // Decide whether the user was pinned to the bottom BEFORE the content
+    // changed, using the *previous* scrollHeight. Using the current
+    // scrollHeight here is wrong: when a new reply is appended, scrollHeight
+    // grows while scrollTop stays put, so `scrollHeight - scrollTop - clientHeight`
+    // immediately looks "not at bottom" and auto-scroll never fires. The
+    // `!isLoadingMore` guard below handles the "load older" case where the
+    // useLayoutEffect has already preserved scroll position — we never
+    // auto-scroll during a prepend.
+    const wasBottom =
+      prevScrollHeight === null || prevScrollHeight - scrollTop - clientHeight <= 20;
+    isAtBottomRef.current = wasBottom;
 
     if (scrollHeight !== prevScrollHeight && wasBottom && !isLoadingMore) {
       viewport.scrollTop = scrollHeight;
@@ -567,7 +570,7 @@ export function AssistantProfileChatPanel({
     <div className="flex h-full w-full flex-col bg-background">
       {/* Chat Area */}
       <ScrollArea
-        className="flex-1 px-3 md:px-6"
+        className="flex-1 px-3 pb-4 md:px-6"
         ref={scrollAreaRef}
         data-testid="chat-scroll-area"
       >
@@ -585,7 +588,7 @@ export function AssistantProfileChatPanel({
         ) : isLoading && messages.length === 0 ? (
           <ChatMessageSkeletons />
         ) : (
-          <div className="space-y-6 pt-4" style={{ width: '100%' }}>
+          <div className="space-y-6 py-4" style={{ width: '100%' }}>
             {isHistoricalMode ? (
               <>
                 {historicalView?.isLoadingOlder && <ChatMessageSkeletons />}
@@ -758,12 +761,7 @@ export function AssistantProfileChatPanel({
       {isHistoricalMode && <OlderMessagesBanner onJumpToPresent={handleJumpToPresent} />}
 
       {/* Input Area */}
-      {/* Total vertical height of this row (textarea 32px + py-1 8px = 40px)
-          is kept in sync with the assistant-list toggle and the tab footers
-          so the bottom bars line up across the whole assistants page. The
-          4px top/bottom padding leaves the textarea visibly inset from the
-          form edges rather than flush against them. */}
-      <form onSubmit={handleSendWithAttachments} className="bg-background px-4 py-1">
+      <form onSubmit={handleSendWithAttachments} className="bg-background px-4 pb-4 pt-2">
         {/* Pending attachments — outside dropzone so tooltips work */}
         {pendingAttachments.length > 0 && (
           <PendingAttachmentList
@@ -800,7 +798,7 @@ export function AssistantProfileChatPanel({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute inset-y-0 left-1 my-auto h-6 w-6"
+                  className="absolute bottom-1 left-1 h-7 w-7"
                   disabled={
                     !canChat ||
                     isLoading ||
@@ -837,7 +835,7 @@ export function AssistantProfileChatPanel({
               variant="ghost"
               size="icon"
               className={cn(
-                'absolute inset-y-0 left-7 my-auto h-6 w-6',
+                'absolute bottom-1 left-8 h-7 w-7',
                 isRecording && 'animate-pulse text-red-500'
               )}
               onClick={toggleRecording}
@@ -887,7 +885,7 @@ export function AssistantProfileChatPanel({
               disabled={
                 !canChat || isUploading || initialLoadError || sseBlocked || isSpendingBlocked
               }
-              className="styled-scrollbar text-body min-h-[32px] resize-none overflow-y-hidden py-1 pl-14 pr-9 leading-6"
+              className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-16 pr-10"
               autoComplete="off"
               onKeyDown={sendMessageOnEnter}
             />
@@ -902,7 +900,7 @@ export function AssistantProfileChatPanel({
                       aria-label="Cancel send"
                       size="icon"
                       variant="outline"
-                      className="group/cancel absolute inset-y-0 right-1 my-auto h-6 w-6 hover:bg-muted"
+                      className="group/cancel absolute bottom-1 right-1 h-7 w-7 hover:bg-muted"
                       onClick={handleCancelSend}
                     >
                       <Loader2 className="h-4 w-4 animate-spin group-hover/cancel:hidden" />
@@ -919,8 +917,7 @@ export function AssistantProfileChatPanel({
                 type="submit"
                 aria-label="Send message"
                 size="icon"
-                variant="ghost"
-                className="absolute inset-y-0 right-1 my-auto h-6 w-6"
+                className="absolute bottom-1 right-1 h-7 w-7"
                 disabled={
                   !canChat ||
                   isLoading ||
