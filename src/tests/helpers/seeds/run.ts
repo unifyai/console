@@ -15,6 +15,7 @@
 
 import type { SeedScenario, SeededState } from './types';
 import { seedPersonalWorkspace } from './scenarios/personal-workspace';
+import { seedPersonalWorkspaceMulti } from './scenarios/personal-workspace-multi';
 import { seedOrgBasic } from './scenarios/org-basic';
 import { seedOrgMultiRole } from './scenarios/org-multi-role';
 import { seedOrgAndOutsider } from './scenarios/org-unify';
@@ -29,6 +30,7 @@ import { seedReAppraisal } from './scenarios/re-appraisal';
 
 const SCENARIOS: Record<string, SeedScenario> = {
   'personal-workspace': seedPersonalWorkspace,
+  'personal-workspace-multi': seedPersonalWorkspaceMulti,
   'org-basic': seedOrgBasic,
   'org-multi-role': seedOrgMultiRole,
   'org-unify': seedOrgAndOutsider,

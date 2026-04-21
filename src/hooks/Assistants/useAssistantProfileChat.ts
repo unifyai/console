@@ -5,7 +5,6 @@ import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
 import { uploadAttachmentBatch, type BatchUploadHandle } from '@/components/Chat/attachmentUtils';
-import { snakeToCamelObject } from '@/utils/casing';
 import {
   getSessionContactId,
   setSessionContactId,
@@ -13,7 +12,8 @@ import {
   getOrFetchTranscripts,
   fetchTranscriptsDirect,
 } from './useContactIdPrefetch';
-import { clientLog, setLogContext, getSessionId } from '@/lib/logging/client-log-buffer';
+import { clientLog, setLogContext } from '@/lib/logging/client-log-buffer';
+import type { ChatStreamConnectionStatus } from './useAssistantChatStream';
 
 /**
  * Chat initialization follows a linear phase progression:
@@ -48,16 +48,40 @@ const CONTACT_ID_RETRY_BASE_DELAY = 500;
 const CONTACT_ID_RETRY_MAX_DELAY = 16000;
 const CONTACT_ID_MAX_RETRIES = 6;
 
+/**
+ * Panel-side chat hook.
+ *
+ * The page-level `useAssistantChatStream` owns the transport for every
+ * assistant in the workspace; this hook no longer opens its own SSE. Instead
+ * the caller passes down the current connection status, a reconnect handle,
+ * and a per-assistant "activity counter" that bumps on every inbound SSE
+ * frame. Everything panel-specific (contact-id resolution, transcript
+ * loading, send, typing indicator, cross-tab BroadcastChannel receive)
+ * stays here.
+ */
+export interface ChatStreamPanelLink {
+  /** Current SSE health for the page-level chat stream. */
+  connectionStatus: ChatStreamConnectionStatus;
+  /** Force a reconnect of the page-level chat stream. */
+  reconnect: () => void;
+  /**
+   * Monotonic counter bumped on every inbound SSE frame for *this* assistant.
+   * Used as a signal to clear the typing indicator; the panel does not read
+   * the absolute value, only changes to it.
+   */
+  activitySignal: number;
+}
+
 export function useAssistantProfileChat(
   assistant: Assistant | null,
   assistantActions: Pick<AssistantActions, 'chat'>,
   chatHistories: Record<string, ChatMessage[]>,
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>,
   userEmail: string | null | undefined,
+  chatStream: ChatStreamPanelLink,
   isFirstView?: boolean,
   preHireChat?: ChatMessage[],
-  onFirstViewCompleted?: () => void,
-  onAssistantReply?: (assistantId: string) => void
+  onFirstViewCompleted?: () => void
 ) {
   const assistantId = assistant?.agentId || null;
 
@@ -81,8 +105,6 @@ export function useAssistantProfileChat(
   // the SSE effect from creating a spurious connection during the render where
   // assistantId has changed but phase/contactId haven't been reset yet.
   const activeAssistantIdRef = React.useRef<string | null>(null);
-  const onAssistantReplyRef = React.useRef(onAssistantReply);
-  onAssistantReplyRef.current = onAssistantReply;
   // Session-wide cache so switching back to a previously-viewed assistant
   // doesn't re-resolve contactId (avoids "Connecting..." flash on every switch).
   const contactIdCacheRef = React.useRef<Map<string, number>>(new Map());
@@ -92,9 +114,6 @@ export function useAssistantProfileChat(
   // =========================================================================
   const [inputValue, setInputValue] = React.useState('');
   const [isAssistantReplying, setIsAssistantReplying] = React.useState(false);
-  const [connectionStatus, setConnectionStatus] = React.useState<
-    'connecting' | 'connected' | 'reconnecting' | 'error'
-  >('connecting');
   const [hasMoreMessages, setHasMoreMessages] = React.useState(true);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [loadMoreError, setLoadMoreError] = React.useState(false);
@@ -102,16 +121,8 @@ export function useAssistantProfileChat(
 
   const typingDelayTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const typingTimeoutTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const transcriptCutoffsRef = React.useRef<Record<string, number>>({});
   const uploadHandleRef = React.useRef<BatchUploadHandle | null>(null);
   const sendGenerationRef = React.useRef(0);
-
-  // SSE reconnection state
-  const [sseReconnectTrigger, setSseReconnectTrigger] = React.useState(0);
-  const sseReconnectTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-  const sseReconnectAttemptsRef = React.useRef(0);
-  const SSE_MAX_RECONNECT_ATTEMPTS = 5;
-  const SSE_RECONNECT_BASE_DELAY = 1000;
 
   // =========================================================================
   // Reset when assistant changes
@@ -129,8 +140,22 @@ export function useAssistantProfileChat(
     setHasMoreMessages(true);
     setHasFetchedHistory(false);
     setLoadMoreError(false);
-    setConnectionStatus('connecting');
     initDoneRef.current = false;
+    // Reset the typing indicator too. `AssistantProfileChatPanel` is
+    // rendered without a React `key` on `assistantId`, so React reuses this
+    // hook instance across assistant switches; without this reset, a
+    // `setIsAssistantReplying(true)` that fired for the previous assistant
+    // would still be truthy on the newly-selected one and render the "…"
+    // bubble in their chat until the 20 s auto-clear timer elapses.
+    if (typingDelayTimerRef.current) {
+      clearTimeout(typingDelayTimerRef.current);
+      typingDelayTimerRef.current = null;
+    }
+    if (typingTimeoutTimerRef.current) {
+      clearTimeout(typingTimeoutTimerRef.current);
+      typingTimeoutTimerRef.current = null;
+    }
+    setIsAssistantReplying(false);
     return () => {
       if (assistantId) clientLog('CHAT_CLOSED', { assistant: assistantId });
     };
@@ -170,25 +195,6 @@ export function useAssistantProfileChat(
     };
   }, [isAssistantReplying]);
 
-  const recordTranscriptTimestamp = React.useCallback((id: string, msgs: ChatMessage[]) => {
-    if (msgs.length > 0) {
-      const maxTime = Math.max(...msgs.map((m) => new Date(m.timestamp).getTime()));
-      if (!transcriptCutoffsRef.current[id] || maxTime > transcriptCutoffsRef.current[id]) {
-        const prev = transcriptCutoffsRef.current[id] || 0;
-        transcriptCutoffsRef.current[id] = maxTime;
-        clientLog('CUTOFF_SET', {
-          assistant: id,
-          cutoff: new Date(maxTime).toISOString(),
-          prev: prev ? new Date(prev).toISOString() : '0',
-          fromMsgCount: msgs.length,
-        });
-      }
-    } else if (!transcriptCutoffsRef.current[id]) {
-      transcriptCutoffsRef.current[id] = 0;
-      clientLog('CUTOFF_SET', { assistant: id, cutoff: '0', reason: 'empty transcripts' });
-    }
-  }, []);
-
   // =========================================================================
   // Phase 1: Initialization
   // Determines starting phase based on isFirstView and existing history.
@@ -224,7 +230,6 @@ export function useAssistantProfileChat(
         reason: 'first_view',
         preHireMsgCount: initialHistory.length,
       });
-      recordTranscriptTimestamp(assistantId, initialHistory);
       setChatHistories((prev) => ({ ...prev, [assistantId]: initialHistory }));
       onFirstViewCompleted?.();
       const ownerId = cachedId ?? OWNER_CONTACT_ID;
@@ -233,9 +238,6 @@ export function useAssistantProfileChat(
       setContactId(ownerId);
       setPhase('ready');
     } else if (chatHistories[assistantId] !== undefined) {
-      if (!transcriptCutoffsRef.current[assistantId]) {
-        recordTranscriptTimestamp(assistantId, chatHistories[assistantId] || []);
-      }
       if (cachedId !== undefined) {
         clientLog('PHASE', {
           from: 'uninitialized',
@@ -279,7 +281,7 @@ export function useAssistantProfileChat(
     // userEmail IS a dep: Phase 1 must wait for the session email so the
     // sessionStorage lookup uses the correct key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, assistantId, assistant, userEmail, recordTranscriptTimestamp, setChatHistories]);
+  }, [phase, assistantId, assistant, userEmail, setChatHistories]);
 
   // =========================================================================
   // Phase 2: Contact ID resolution
@@ -430,7 +432,6 @@ export function useAssistantProfileChat(
         } else {
           const history = [...(result as ChatMessage[])].reverse();
           clientLog('TRANSCRIPTS_LOADED', { count: history.length, assistant: currentAssistantId });
-          recordTranscriptTimestamp(currentAssistantId, history);
           setChatHistories((prev) => ({ ...prev, [currentAssistantId]: history }));
           if (history.length < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) {
             setHasMoreMessages(false);
@@ -501,16 +502,13 @@ export function useAssistantProfileChat(
       reason: 'prefetch_fast_path',
       historyLen: chatHistories[assistantId]?.length ?? 0,
     });
-    if (!transcriptCutoffsRef.current[assistantId]) {
-      recordTranscriptTimestamp(assistantId, chatHistories[assistantId] || []);
-    }
     if ((chatHistories[assistantId]?.length ?? 0) < ASSISTANT_CHAT_LOADED_MESSAGES_COUNT) {
       setHasMoreMessages(false);
     }
     setContactId(cachedId);
     setCanChat(true);
     setPhase('ready');
-  }, [phase, assistantId, chatHistories, userEmail, recordTranscriptTimestamp]);
+  }, [phase, assistantId, chatHistories, userEmail]);
 
   // =========================================================================
   // Error recovery
@@ -622,261 +620,35 @@ export function useAssistantProfileChat(
   }, [assistantId, setChatHistories]);
 
   // =========================================================================
-  // SSE connection (only when ready)
+  // Chat SSE stream
+  //
+  // The transport (open/close/parse/filter/reconnect/desktop-ready) lives at
+  // the page level in `useAssistantChatStream`, which delivers every parsed
+  // message directly into `chatHistories` via the page's `onChatMessage`
+  // handler. This hook observes two derived signals from that stream:
+  //
+  //   1. `connectionStatus` / `reconnect` — surfaced unchanged so the panel
+  //      header indicator and the "retry" button keep working.
+  //   2. `activitySignal` — a monotonic counter the page bumps on every
+  //      inbound frame for *this* assistant. When it ticks, we treat the
+  //      assistant as no longer "thinking" and clear the typing bubble.
   // =========================================================================
+  const { connectionStatus, reconnect: reconnectSSE, activitySignal } = chatStream;
+
+  const lastActivitySignalRef = React.useRef(activitySignal);
   React.useEffect(() => {
-    if (
-      phase !== 'ready' ||
-      !assistantId ||
-      contactId === null ||
-      assistantId !== activeAssistantIdRef.current
-    )
-      return;
-
-    setConnectionStatus('connecting');
-    const userContactId = contactId;
-
-    const eventSource = new EventSource(
-      `/api/assistant/${assistantId}/events?contactId=${contactId}&sid=${getSessionId()}`
-    );
-
-    const ack = (ackId: string) => {
-      fetch(`/api/assistant/${assistantId}/events/ack`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ackId, contactId: userContactId }),
-      })
-        .then((r) => {
-          if (!r.ok) clientLog('ACK_FAIL', { ackId: ackId.slice(0, 16), status: r.status });
-        })
-        .catch((e) => {
-          clientLog('ACK_FAIL', { ackId: ackId.slice(0, 16), error: String(e) });
-        });
-    };
-
-    eventSource.onopen = () => {
-      clientLog('SSE_OPEN', { assistant: assistantId, contact: contactId, url: eventSource.url });
-      setLogContext({ assistantId: assistantId!, contactId, userEmail: userEmail ?? undefined });
-      setConnectionStatus('connected');
-      sseReconnectAttemptsRef.current = 0;
-    };
-
-    eventSource.onmessage = (event) => {
-      stopReplying();
-      try {
-        const messagePayload: any = JSON.parse(event.data);
-        const ackId: string | undefined = messagePayload.__ackId;
-        const thread = messagePayload.thread ?? 'none';
-        const publishTimeStr: string | undefined = messagePayload.publishTime;
-        const msgId = messagePayload.id ?? 'no-id';
-        const contentPreview = String(
-          messagePayload.event?.content ?? messagePayload.content ?? ''
-        ).slice(0, 60);
-
-        const messageContactId = messagePayload.event?.contact_id ?? messagePayload.contact_id;
-        if (messageContactId !== undefined && messageContactId !== userContactId) {
-          clientLog('FILTERED_CONTACT', {
-            msgId,
-            msgContact: messageContactId,
-            myContact: userContactId,
-          });
-          if (ackId) ack(ackId);
-          return;
-        }
-
-        if (publishTimeStr) {
-          const msgTime = new Date(publishTimeStr).getTime();
-          const cutoff = transcriptCutoffsRef.current[assistantId] || 0;
-          if (msgTime < cutoff) {
-            clientLog('FILTERED_CUTOFF', {
-              msgId,
-              publishTime: publishTimeStr,
-              ageMs: Date.now() - msgTime,
-              cutoff: new Date(cutoff).toISOString(),
-              cutoffAgeMs: Date.now() - cutoff,
-              thread,
-            });
-            if (ackId) ack(ackId);
-            return;
-          }
-        }
-
-        if (thread === 'assistant_desktop_ready') {
-          if (ackId) ack(ackId);
-          const eventData = messagePayload.event ?? {};
-          try {
-            sessionStorage.setItem(`desktop-ready-${assistantId}`, JSON.stringify(eventData));
-          } catch {
-            /* quota / SSR */
-          }
-          const desktopChannel = new BroadcastChannel(`assistant-desktop-ready-${assistantId}`);
-          desktopChannel.postMessage(eventData);
-          desktopChannel.close();
-          return;
-        }
-
-        if (thread === 'unify_message_outbound' || messagePayload.event) {
-          const content =
-            messagePayload.event?.content ??
-            messagePayload.event?.body ??
-            messagePayload.content ??
-            messagePayload.rawContent ??
-            '';
-          const incomingId = messagePayload.id;
-          const serverMsgId = incomingId || uuidv4();
-          if (!publishTimeStr) clientLog('SSE_MISSING_PUBLISH_TIME', { msgId: serverMsgId });
-          const timestamp = new Date(publishTimeStr || new Date().toISOString());
-          const msgAgeMs = publishTimeStr ? Date.now() - timestamp.getTime() : 0;
-          const cutoff = transcriptCutoffsRef.current[assistantId] || 0;
-
-          clientLog('MSG_RECV', {
-            msgId: serverMsgId,
-            publishTime: publishTimeStr ?? 'none',
-            ageMs: msgAgeMs,
-            resolvedTimestamp: timestamp.toISOString(),
-            cutoff: cutoff ? new Date(cutoff).toISOString() : '0',
-            thread,
-            content: contentPreview,
-          });
-
-          const rawAttachments = messagePayload.event?.attachments;
-          const attachments: Attachment[] | undefined = Array.isArray(rawAttachments)
-            ? rawAttachments.map((a: Record<string, unknown>) => {
-                const camel = snakeToCamelObject<Record<string, unknown>>(a);
-                return {
-                  id: (camel.id as string) || uuidv4(),
-                  filename: (camel.filename as string) || 'attachment',
-                  gsUrl: camel.gsUrl as string | undefined,
-                  contentType: camel.contentType as string | undefined,
-                  sizeBytes: camel.sizeBytes as number | undefined,
-                } satisfies Attachment;
-              })
-            : undefined;
-
-          const newAssistantMessage: ChatMessage = {
-            id: serverMsgId,
-            role: 'assistant',
-            content: String(content),
-            timestamp: timestamp,
-            __ackId: ackId,
-            ...(attachments && attachments.length > 0 ? { attachments } : {}),
-          };
-
-          setChatHistories((prev) => {
-            const currentHistory = prev[assistantId] || [];
-            if (serverMsgId && currentHistory.some((m) => m.id === serverMsgId)) {
-              clientLog('DEDUP_ID', { msgId: serverMsgId });
-              if (ackId) ack(ackId);
-              return prev;
-            }
-
-            const lastMsg = currentHistory[currentHistory.length - 1];
-            if (
-              !incomingId &&
-              lastMsg &&
-              lastMsg.role === 'assistant' &&
-              lastMsg.content === content
-            ) {
-              clientLog('DEDUP_CONTENT', { msgId: serverMsgId, matchedId: lastMsg.id });
-              if (ackId) ack(ackId);
-              return prev;
-            }
-
-            const updatedList = [...currentHistory, newAssistantMessage];
-            updatedList.sort(
-              (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-            );
-
-            const insertIndex = updatedList.findIndex((m) => m.id === serverMsgId);
-            const isAtEnd = insertIndex === updatedList.length - 1;
-            clientLog('MSG_INSERTED', {
-              msgId: serverMsgId,
-              position: insertIndex,
-              total: updatedList.length,
-              isAtEnd,
-              historyLen: currentHistory.length,
-            });
-            if (!isAtEnd) {
-              const neighbors = updatedList
-                .slice(Math.max(0, insertIndex - 1), insertIndex + 2)
-                .map((m) => ({
-                  id: m.id,
-                  role: m.role,
-                  ts: new Date(m.timestamp).toISOString(),
-                  content: m.content.slice(0, 40),
-                }));
-              clientLog('MSG_NOT_AT_END', { msgId: serverMsgId, position: insertIndex, neighbors });
-            }
-
-            return { ...prev, [assistantId]: updatedList };
-          });
-
-          onAssistantReplyRef.current?.(assistantId);
-
-          const broadcastMsg = { ...newAssistantMessage };
-          delete broadcastMsg.__ackId;
-          const channel = new BroadcastChannel(`assistant-chat-sync-${assistantId}`);
-          const payload: BroadcastMessagePayload = {
-            type: 'NEW_MESSAGE',
-            message: broadcastMsg,
-          };
-          channel.postMessage(payload);
-          channel.close();
-        } else {
-          clientLog('IGNORED_THREAD', { msgId, thread });
-        }
-      } catch (error) {
-        clientLog('SSE_MSG_ERROR', { error: String(error) });
-      }
-    };
-
-    eventSource.onerror = () => {
-      const attempt = sseReconnectAttemptsRef.current;
-      const willRetry = attempt < SSE_MAX_RECONNECT_ATTEMPTS;
-      const delay = willRetry ? SSE_RECONNECT_BASE_DELAY * Math.pow(2, attempt) : 0;
-      clientLog('SSE_ERROR', {
-        assistant: assistantId,
-        attempt,
-        maxAttempts: SSE_MAX_RECONNECT_ATTEMPTS,
-        willRetry,
-        retryDelayMs: delay,
-      });
-
-      eventSource.close();
-
-      if (willRetry) {
-        setConnectionStatus('reconnecting');
-        sseReconnectAttemptsRef.current += 1;
-
-        if (sseReconnectTimeoutRef.current) {
-          clearTimeout(sseReconnectTimeoutRef.current);
-        }
-
-        sseReconnectTimeoutRef.current = setTimeout(() => {
-          setSseReconnectTrigger((prev) => prev + 1);
-        }, delay);
-      } else {
-        clientLog('SSE_GAVE_UP', {
-          assistant: assistantId,
-          maxAttempts: SSE_MAX_RECONNECT_ATTEMPTS,
-        });
-        setConnectionStatus('error');
-        sseReconnectAttemptsRef.current = 0;
-      }
-    };
-
-    return () => {
-      stopReplying();
-      eventSource.close();
-      if (sseReconnectTimeoutRef.current) {
-        clearTimeout(sseReconnectTimeoutRef.current);
-        sseReconnectTimeoutRef.current = null;
-      }
-    };
-    // userEmail is intentionally omitted — it is read inside onopen but
-    // should not trigger SSE reconnection when the session loads.
+    // Rebaseline on assistant switch so the switch itself (where the signal
+    // value jumps to the new assistant's counter) isn't mistaken for
+    // real-time activity on the newly-open chat.
+    lastActivitySignalRef.current = activitySignal;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, assistantId, contactId, setChatHistories, stopReplying, sseReconnectTrigger]);
+  }, [assistantId]);
+  React.useEffect(() => {
+    if (activitySignal > lastActivitySignalRef.current) {
+      stopReplying();
+    }
+    lastActivitySignalRef.current = activitySignal;
+  }, [activitySignal, stopReplying]);
 
   // =========================================================================
   // Polling fallback for missed SSE messages
@@ -911,8 +683,6 @@ export function useAssistantProfileChat(
 
         const fetched = [...(result as ChatMessage[])].reverse();
         if (fetched.length === 0) return;
-
-        recordTranscriptTimestamp(currentAssistantId, fetched);
 
         setChatHistories((prev) => {
           const current = prev[currentAssistantId] || [];
@@ -971,38 +741,7 @@ export function useAssistantProfileChat(
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [phase, assistantId, assistant, contactId, setChatHistories, recordTranscriptTimestamp]);
-
-  // =========================================================================
-  // ACK displayed messages
-  // =========================================================================
-  React.useEffect(() => {
-    if (!assistantId || contactId === null) return;
-    messages.forEach((msg) => {
-      if (msg.role === 'assistant' && msg.__ackId) {
-        const ackId = msg.__ackId;
-        fetch(`/api/assistant/${assistantId}/events/ack`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ackId, contactId }),
-        })
-          .then((r) => {
-            if (!r.ok)
-              clientLog('ACK_FAIL', { ackId: ackId.slice(0, 16), status: r.status, msgId: msg.id });
-          })
-          .catch((e) => {
-            clientLog('ACK_FAIL', { ackId: ackId.slice(0, 16), error: String(e), msgId: msg.id });
-          });
-        setChatHistories((prev) => {
-          const current = prev[assistantId] || [];
-          return {
-            ...prev,
-            [assistantId]: current.map((m) => (m.id === msg.id ? { ...m, __ackId: undefined } : m)),
-          };
-        });
-      }
-    });
-  }, [messages, assistantId, contactId, setChatHistories]);
+  }, [phase, assistantId, assistant, contactId, setChatHistories]);
 
   // =========================================================================
   // Send message
@@ -1215,14 +954,6 @@ export function useAssistantProfileChat(
     uploadHandleRef.current = null;
     stopReplying();
   }, [stopReplying]);
-
-  // =========================================================================
-  // Force SSE reconnection
-  // =========================================================================
-  const reconnectSSE = React.useCallback(() => {
-    sseReconnectAttemptsRef.current = 0;
-    setSseReconnectTrigger((prev) => prev + 1);
-  }, []);
 
   // =========================================================================
   // Return backward-compatible API

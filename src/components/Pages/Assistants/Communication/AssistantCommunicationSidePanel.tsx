@@ -14,6 +14,7 @@ import { Label } from '@/components/UI/label';
 import { AssistantProfileChatPanel } from '../Profile/AssistantProfileChatPanel';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
+import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 
 interface AssistantCommunicationSidePanelProps {
   panelType: 'chat' | 'settings' | null;
@@ -36,6 +37,9 @@ interface AssistantCommunicationSidePanelProps {
   userEmail?: string | null;
   userImage?: string | null;
   assistantPhoto?: string | null;
+  chatStreamConnectionStatus: ChatStreamConnectionStatus;
+  reconnectChatStream: () => void;
+  chatStreamActivitySignal: number;
 }
 
 export function AssistantCommunicationSidePanel({
@@ -59,6 +63,9 @@ export function AssistantCommunicationSidePanel({
   userEmail,
   userImage,
   assistantPhoto,
+  chatStreamConnectionStatus,
+  reconnectChatStream,
+  chatStreamActivitySignal,
 }: AssistantCommunicationSidePanelProps) {
   const renderSettings = () => (
     <div className="space-y-4">
@@ -154,7 +161,10 @@ export function AssistantCommunicationSidePanel({
   if (!panelType) return null;
 
   return (
-    <div className="flex h-full w-full flex-col text-foreground">
+    <div
+      data-testid={`call-side-panel-${panelType}`}
+      className="flex h-full w-full flex-col text-foreground"
+    >
       {/* Header */}
       <div className="flex flex-shrink-0 items-center justify-between border-b px-4 py-2.5">
         <div className="flex items-center gap-2">
@@ -186,6 +196,9 @@ export function AssistantCommunicationSidePanel({
               callPillHistories={callPillHistories}
               setCallPillHistories={setCallPillHistories}
               userEmail={userEmail}
+              chatStreamConnectionStatus={chatStreamConnectionStatus}
+              reconnectChatStream={reconnectChatStream}
+              chatStreamActivitySignal={chatStreamActivitySignal}
             />
           )}
         {panelType === 'settings' && <div className="p-4">{renderSettings()}</div>}

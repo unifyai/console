@@ -19,6 +19,7 @@ import {
   type SpendingGateStatus,
   DEFAULT_SPENDING_GATE_STATUS,
 } from '@/types/assistants/spendingGate';
+import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 
 const TAB_TRIGGER_CLASS = [
   'h-full shrink-0 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent',
@@ -55,7 +56,15 @@ interface RightPaneContainerProps {
   userTimezone?: string | null;
   canWrite?: boolean;
   spendingGate?: SpendingGateStatus;
-  onAssistantReply?: (assistantId: string) => void;
+  /** Page-level chat SSE health — rendered in the panel header. */
+  chatStreamConnectionStatus: ChatStreamConnectionStatus;
+  /** Force a reconnect of the page-level chat SSE. */
+  reconnectChatStream: () => void;
+  /**
+   * Monotonic counter of inbound frames for the currently-open assistant;
+   * drives the panel's typing-indicator clear.
+   */
+  chatStreamActivitySignal: number;
 }
 
 export function RightPaneContainer({
@@ -78,7 +87,9 @@ export function RightPaneContainer({
   userTimezone,
   canWrite = true,
   spendingGate = DEFAULT_SPENDING_GATE_STATUS,
-  onAssistantReply,
+  chatStreamConnectionStatus,
+  reconnectChatStream,
+  chatStreamActivitySignal,
 }: RightPaneContainerProps) {
   const [hasActiveAction, setHasActiveAction] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -246,7 +257,9 @@ export function RightPaneContainer({
               preHireChat={preHireChat}
               onFirstViewCompleted={onFirstViewCompleted}
               spendingGate={spendingGate}
-              onAssistantReply={onAssistantReply}
+              chatStreamConnectionStatus={chatStreamConnectionStatus}
+              reconnectChatStream={reconnectChatStream}
+              chatStreamActivitySignal={chatStreamActivitySignal}
               isCallConnected={isInThisCall && isCallConnected}
               searchOpen={searchOpen}
               onSearchOpenChange={setSearchOpen}

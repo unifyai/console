@@ -780,7 +780,17 @@ export interface CreateEmailLoginOpts {
 /**
  * Create an email-based login for a user (argon2 password hash).
  *
- * Requires the Orchestra Python venv to have argon2-cffi installed.
+ * Resolves a Python with `argon2-cffi` available, in this order:
+ *   1. `ORCHESTRA_PYTHON` env override (explicit path to a python binary).
+ *   2. In-project venv at `$ORCHESTRA_REPO_PATH/.venv/bin/python`, if present.
+ *      (Orchestra's `local.sh` only creates this when the user opts in;
+ *      Poetry's default config uses a global cache instead.)
+ *   3. `poetry run python` from the orchestra repo — works whether Poetry
+ *      uses an in-project venv or a managed one in its cache.
+ *
+ * We deliberately don't ship a bare side-venv at `$ORCHESTRA_REPO_PATH/.venv`
+ * just for argon2: Orchestra's `local.sh` and Poetry will both adopt that
+ * venv on next start and break migrations (alembic missing).
  *
  * Uses `dbExecStdin` (pipe via stdin) instead of `dbExecBlock` because
  * argon2 hashes contain `$` characters that bash would interpret as
@@ -791,16 +801,55 @@ export function createEmailLogin(opts: CreateEmailLoginOpts): void {
 
   const orchestraPath =
     process.env.ORCHESTRA_REPO_PATH || path.resolve(__dirname, '../../../../..', 'orchestra');
-  let pwHash: string;
 
+  const hashScript = `from argon2 import PasswordHasher; print(PasswordHasher().hash('${password}'))`;
+  const candidates: { cmd: string; cwd?: string }[] = [];
+  if (process.env.ORCHESTRA_PYTHON) {
+    candidates.push({ cmd: `"${process.env.ORCHESTRA_PYTHON}" -c "${hashScript}"` });
+  }
+  candidates.push({
+    cmd: `"${orchestraPath}/.venv/bin/python" -c "${hashScript}"`,
+  });
+  // Discover Poetry's actual venv path (works whether it's in-project or in
+  // ~/.cache/pypoetry). Done lazily — only invoked if earlier candidates fail.
   try {
-    pwHash = execSync(
-      `"${orchestraPath}/.venv/bin/python" -c "from argon2 import PasswordHasher; print(PasswordHasher().hash('${password}'))"`,
-      { encoding: 'utf-8', timeout: 10_000 }
-    ).trim();
+    const poetryVenv = execSync(`poetry env info -p`, {
+      encoding: 'utf-8',
+      timeout: 10_000,
+      cwd: orchestraPath,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+    if (poetryVenv) {
+      candidates.push({
+        cmd: `"${poetryVenv}/bin/python" -c "${hashScript}"`,
+      });
+    }
   } catch {
-    // Fallback: skip email login creation if Python is unavailable
-    console.warn('[seed] Could not generate password hash — skipping email login');
+    // Poetry may be unavailable; fall through to `poetry run` as a last resort.
+  }
+  candidates.push({ cmd: `poetry run python -c "${hashScript}"`, cwd: orchestraPath });
+
+  let pwHash: string | undefined;
+  let lastErr: unknown;
+  for (const { cmd, cwd } of candidates) {
+    try {
+      pwHash = execSync(cmd, {
+        encoding: 'utf-8',
+        timeout: 10_000,
+        cwd,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }).trim();
+      if (pwHash) break;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+
+  if (!pwHash) {
+    console.warn(
+      '[seed] Could not generate password hash — skipping email login',
+      lastErr instanceof Error ? lastErr.message : lastErr
+    );
     return;
   }
 

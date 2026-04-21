@@ -29,6 +29,11 @@ interface AssistantListProps {
   /** Whether the current user can hire new assistants (org Owner in org context, anyone in personal workspace) */
   canHire?: boolean;
   onToggleFold?: () => void;
+  /**
+   * Per-assistant unread message counts driven by the page-level inbox
+   * multiplex stream. A missing key or `0` means no badge is shown.
+   */
+  unreadCounts?: Record<string, number>;
 }
 
 export function AssistantList({
@@ -49,6 +54,7 @@ export function AssistantList({
   onHangUp,
   canHire = true,
   onToggleFold,
+  unreadCounts,
 }: AssistantListProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
 
@@ -163,6 +169,7 @@ export function AssistantList({
                 onEndContract={canEndContract?.(assistant) ? onEndContract : undefined}
                 isFolded={isFolded}
                 isCallActive={activeCallAssistantId === assistant.agentId}
+                unreadCount={unreadCounts?.[assistant.agentId] ?? 0}
               />
             ))
           ) : searchTerm && !isFolded ? (

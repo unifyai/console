@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
 import { AssistantProfileChatPanel } from './AssistantProfileChatPanel';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
+import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 
 interface AssistantProfilePanelProps {
   assistant: Assistant;
@@ -29,7 +30,9 @@ interface AssistantProfilePanelProps {
   canWrite?: boolean;
   /** Spending gate status for blocking billable activity */
   spendingGate?: SpendingGateStatus;
-  onAssistantReply?: (assistantId: string) => void;
+  chatStreamConnectionStatus: ChatStreamConnectionStatus;
+  reconnectChatStream: () => void;
+  chatStreamActivitySignal: number;
 }
 
 export function AssistantProfilePanel({
@@ -51,7 +54,9 @@ export function AssistantProfilePanel({
   userTimezone,
   canWrite = true,
   spendingGate = DEFAULT_SPENDING_GATE_STATUS,
-  onAssistantReply,
+  chatStreamConnectionStatus,
+  reconnectChatStream,
+  chatStreamActivitySignal,
 }: AssistantProfilePanelProps) {
   const isInThisCall = activeCallAssistantId === assistant.agentId;
   const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
@@ -164,7 +169,9 @@ export function AssistantProfilePanel({
           preHireChat={preHireChat}
           onFirstViewCompleted={onFirstViewCompleted}
           spendingGate={spendingGate}
-          onAssistantReply={onAssistantReply}
+          chatStreamConnectionStatus={chatStreamConnectionStatus}
+          reconnectChatStream={reconnectChatStream}
+          chatStreamActivitySignal={chatStreamActivitySignal}
           isCallConnected={isInThisCall && isCallConnected}
           searchOpen={searchOpen}
           onSearchOpenChange={setSearchOpen}

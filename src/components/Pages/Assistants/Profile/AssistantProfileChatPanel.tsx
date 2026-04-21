@@ -48,6 +48,7 @@ import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assist
 import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
 import { useChatTTS } from '@/hooks/Assistants/useChatTTS';
 import { ChatMessageSkeletons } from '@/components/Chat/ChatMessageSkeleton';
+import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 
 /* --------------------------
    AssistantProfileChatPanel 
@@ -66,7 +67,12 @@ interface AssistantProfileChatPanelProps {
   onFirstViewCompleted?: () => void;
   /** Spending gate status for blocking new messages */
   spendingGate?: SpendingGateStatus;
-  onAssistantReply?: (assistantId: string) => void;
+  /** Page-level chat SSE connection health (rendered in the panel header). */
+  chatStreamConnectionStatus: ChatStreamConnectionStatus;
+  /** Force a reconnect of the page-level chat SSE. */
+  reconnectChatStream: () => void;
+  /** Monotonic inbound-frame counter for this assistant; clears typing. */
+  chatStreamActivitySignal: number;
   /** Whether this assistant's call is currently connected */
   isCallConnected?: boolean;
   /** Externally controlled search dialog open state */
@@ -87,7 +93,9 @@ export function AssistantProfileChatPanel({
   preHireChat,
   onFirstViewCompleted,
   spendingGate = DEFAULT_SPENDING_GATE_STATUS,
-  onAssistantReply,
+  chatStreamConnectionStatus,
+  reconnectChatStream,
+  chatStreamActivitySignal,
   isCallConnected = false,
   searchOpen: externalSearchOpen,
   onSearchOpenChange,
@@ -131,10 +139,14 @@ export function AssistantProfileChatPanel({
     chatHistories,
     setChatHistories,
     userEmail,
+    {
+      connectionStatus: chatStreamConnectionStatus,
+      reconnect: reconnectChatStream,
+      activitySignal: chatStreamActivitySignal,
+    },
     isFirstView,
     preHireChat,
-    onFirstViewCompleted,
-    onAssistantReply
+    onFirstViewCompleted
   );
 
   const {

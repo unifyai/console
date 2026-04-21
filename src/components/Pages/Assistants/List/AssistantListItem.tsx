@@ -50,6 +50,12 @@ interface AssistantListItemProps {
   onEndContract?: (assistant: Assistant) => Promise<void>;
   isFolded: boolean;
   isCallActive: boolean;
+  /**
+   * Count of unread chat messages from the page-level inbox multiplex
+   * stream. Rendered as a numeric badge in expanded mode and as a small
+   * dot over the avatar in folded mode. `0` renders nothing.
+   */
+  unreadCount?: number;
 }
 
 export function AssistantListItem({
@@ -62,7 +68,10 @@ export function AssistantListItem({
   onEndContract,
   isFolded,
   isCallActive,
+  unreadCount = 0,
 }: AssistantListItemProps) {
+  const hasUnread = unreadCount > 0;
+  const unreadLabel = unreadCount > 99 ? '99+' : String(unreadCount);
   const [isIdCopied, setIsIdCopied] = React.useState(false);
   const [isEndContractAlertOpen, setIsEndContractAlertOpen] = React.useState(false);
   const [isEndingContract, setIsEndingContract] = React.useState(false);
@@ -242,6 +251,14 @@ export function AssistantListItem({
             </span>
           </span>
         )}
+        {hasUnread && !isCallActive && (
+          <span
+            data-testid={`assistant-unread-badge-${assistant.agentId}`}
+            className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground ring-2 ring-background"
+          >
+            {unreadLabel}
+          </span>
+        )}
       </div>
     );
 
@@ -299,6 +316,19 @@ export function AssistantListItem({
         <span className="text-body text-strong truncate">{displayName}</span>
       </div>
       <div className="flex items-center gap-1">
+        {hasUnread && (
+          <span
+            data-testid={`assistant-unread-badge-${assistant.agentId}`}
+            className={cn(
+              'flex h-4 min-w-4 flex-shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none',
+              isSelected
+                ? 'bg-primary-foreground text-primary'
+                : 'bg-primary text-primary-foreground'
+            )}
+          >
+            {unreadLabel}
+          </span>
+        )}
         {assistant.deployEnv === 'preview' && (
           <span
             className={cn(

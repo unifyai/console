@@ -26,6 +26,14 @@ import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ChatMessage } from '@/types/assistants/chat';
 import { makeRoomName } from '@/utils/assistants/call-utils';
 import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
+import {
+  useAssistantChatStream,
+  type ChatStreamConnectionStatus,
+  type ChatStreamPair,
+} from '@/hooks/Assistants/useAssistantChatStream';
+import { getOrFetchContactId } from '@/hooks/Assistants/useContactIdPrefetch';
+import type { ParsedInboundChatMessage } from '@/utils/assistants/chat-sse-frame';
+import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 
 type AssistantActionsSubset = Pick<AssistantActions, 'chat' | 'call' | 'desktop'> &
   Partial<Pick<AssistantActions, 'voice'>>;
@@ -62,6 +70,9 @@ const FullScreenCallUI: React.FC<{
   toggleRemoteControlInteractive: () => void;
   isWaitingForAssistant: boolean;
   isDesktopReady: boolean;
+  chatStreamConnectionStatus: ChatStreamConnectionStatus;
+  reconnectChatStream: () => void;
+  chatStreamActivitySignal: number;
 }> = ({
   room,
   assistant,
@@ -84,6 +95,9 @@ const FullScreenCallUI: React.FC<{
   toggleRemoteControlInteractive,
   isWaitingForAssistant,
   isDesktopReady,
+  chatStreamConnectionStatus,
+  reconnectChatStream,
+  chatStreamActivitySignal,
 }) => {
   // Standard LiveKit hooks
   const { state: agentState, videoTrack: agentVideoTrack } = useVoiceAssistant();
@@ -356,6 +370,9 @@ const FullScreenCallUI: React.FC<{
                 userEmail={userEmail}
                 userImage={userImage}
                 assistantPhoto={assistantPhoto}
+                chatStreamConnectionStatus={chatStreamConnectionStatus}
+                reconnectChatStream={reconnectChatStream}
+                chatStreamActivitySignal={chatStreamActivitySignal}
               />
             </motion.div>,
           ]}
@@ -421,6 +438,137 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
   const assistantEverJoinedRef = React.useRef(false);
   const [error, setError] = React.useState<string | null>(null);
   const [chatHistories, setChatHistories] = React.useState<Record<string, ChatMessage[]>>({});
+  const [chatContactId, setChatContactId] = React.useState<number | null>(null);
+
+  // Resolve the contact id for the single assistant in this popup so we can
+  // subscribe to the page-level chat stream for it. Without this, assistant
+  // replies during a call would not land in the side-panel chat view.
+  React.useEffect(() => {
+    if (!assistant || !user.email) {
+      setChatContactId(null);
+      return;
+    }
+    let cancelled = false;
+    getOrFetchContactId(
+      assistantActions.chat.getContactId,
+      user.email,
+      assistant.userId,
+      assistant.agentId
+    )
+      .then((id) => {
+        if (!cancelled) setChatContactId(id);
+      })
+      .catch(() => {
+        if (!cancelled) setChatContactId(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assistant, user.email, assistantActions.chat]);
+
+  const chatStreamPairs = React.useMemo<ChatStreamPair[]>(
+    () =>
+      assistant && chatContactId !== null
+        ? [{ assistantId: assistant.agentId, contactId: chatContactId }]
+        : [],
+    [assistant, chatContactId]
+  );
+
+  const [chatStreamActivityCounter, setChatStreamActivityCounter] = React.useState(0);
+  const handleChatStreamActivity = React.useCallback(() => {
+    setChatStreamActivityCounter((prev) => prev + 1);
+  }, []);
+
+  // See Main.tsx for the full reasoning; forward-declared ref so the
+  // message handler can call into the ack function that the chat-stream
+  // hook returns below.
+  const ackMessageRef = React.useRef<(assistantId: string, ackId: string) => void>(() => {});
+
+  const handleChatStreamMessage = React.useCallback(
+    (assistantId: string, parsed: ParsedInboundChatMessage) => {
+      const { message, hasServerMessageId } = parsed;
+      let wasNewMessage = false;
+      setChatHistories((prev) => {
+        const current = prev[assistantId] || [];
+        if (hasServerMessageId && current.some((m) => m.id === message.id)) {
+          return prev;
+        }
+        const lastMsg = current[current.length - 1];
+        if (
+          !hasServerMessageId &&
+          lastMsg &&
+          lastMsg.role === 'assistant' &&
+          lastMsg.content === message.content
+        ) {
+          return prev;
+        }
+        wasNewMessage = true;
+        const updated = [...current, message].sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+        return { ...prev, [assistantId]: updated };
+      });
+
+      // Always ack — see Main.tsx for the reasoning (dedup hits still need
+      // acking or Pub/Sub loops the redelivery forever).
+      const ackId = message.__ackId;
+      if (ackId) ackMessageRef.current(assistantId, ackId);
+
+      if (!wasNewMessage) return;
+
+      const broadcastMsg = { ...message };
+      delete broadcastMsg.__ackId;
+      try {
+        const channel = new BroadcastChannel(`assistant-chat-sync-${assistantId}`);
+        const payload: BroadcastMessagePayload = {
+          type: 'NEW_MESSAGE',
+          message: broadcastMsg,
+        };
+        channel.postMessage(payload);
+        channel.close();
+      } catch {
+        /* BroadcastChannel unsupported */
+      }
+    },
+    []
+  );
+
+  const handleChatStreamDesktopReady = React.useCallback(
+    (assistantId: string, eventData: Record<string, unknown>) => {
+      try {
+        sessionStorage.setItem(`desktop-ready-${assistantId}`, JSON.stringify(eventData));
+      } catch {
+        /* quota / SSR */
+      }
+      try {
+        const desktopChannel = new BroadcastChannel(`assistant-desktop-ready-${assistantId}`);
+        desktopChannel.postMessage(eventData);
+        desktopChannel.close();
+      } catch {
+        /* BroadcastChannel unsupported */
+      }
+    },
+    []
+  );
+
+  const {
+    connectionStatus: chatStreamConnectionStatus,
+    reconnect: reconnectChatStream,
+    ackMessage: ackChatStreamMessage,
+  } = useAssistantChatStream(
+    chatStreamPairs,
+    chatStreamPairs.length > 0,
+    {
+      onChatMessage: handleChatStreamMessage,
+      onDesktopReady: handleChatStreamDesktopReady,
+      onMessageActivity: handleChatStreamActivity,
+    },
+    {
+      userEmail: user.email ?? undefined,
+      activeAssistantId: assistant?.agentId ?? null,
+    }
+  );
+  ackMessageRef.current = ackChatStreamMessage;
 
   const boundGetLiveviewUrl = React.useCallback(
     (id: string) =>
@@ -818,6 +966,9 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
         toggleRemoteControlInteractive={toggleRemoteControlInteractive}
         isWaitingForAssistant={isWaitingForAssistant}
         isDesktopReady={isDesktopReady}
+        chatStreamConnectionStatus={chatStreamConnectionStatus}
+        reconnectChatStream={reconnectChatStream}
+        chatStreamActivitySignal={chatStreamActivityCounter}
       />
     </RoomContext.Provider>
   );
