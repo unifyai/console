@@ -84,11 +84,18 @@ export interface UseAssistantChatStreamOptions {
   /** Threaded into `setLogContext` on connect for log correlation. */
   userEmail?: string | null;
   /**
-   * When set, the unread count for `activeAssistantId` is never bumped —
-   * those messages are considered "seen as they arrive" because the user is
-   * already looking at the chat. Pass `null` when no chat panel is open.
-   * This avoids a visible badge flicker (bump → markAsRead clear) that
-   * would otherwise happen on every inbound message for the open chat.
+   * When set AND the tab is currently visible, the unread count for
+   * `activeAssistantId` is never bumped — those messages are considered
+   * "seen as they arrive" because the user is already looking at the chat.
+   * Pass `null` when no chat panel is open. This avoids a visible badge
+   * flicker (bump → markAsRead clear) that would otherwise happen on every
+   * inbound message for the open chat.
+   *
+   * Visibility gating: when the tab is hidden (`document.visibilityState
+   * !== 'visible'`) suppression is bypassed so messages arriving for the
+   * currently-selected assistant still raise the badge / tab-title
+   * counter. The badge is then cleared on the next `visibilitychange`
+   * back to `'visible'`.
    */
   activeAssistantId?: string | null;
 }
@@ -447,6 +454,31 @@ export function useAssistantChatStream(
     });
   }, []);
 
+  // Tab visibility tracking. Read by the message handler to decide whether
+  // the active chat suppression (`activeAssistantId`) should apply: a user
+  // who has assistant A selected but is on a different browser tab still
+  // wants the badge to climb so the title-bar counter can reflect it.
+  const isTabVisibleRef = React.useRef<boolean>(
+    typeof document === 'undefined' ? true : document.visibilityState === 'visible'
+  );
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const onVisibilityChange = () => {
+      const nowVisible = document.visibilityState === 'visible';
+      isTabVisibleRef.current = nowVisible;
+      // On returning to the tab, clear the badge for whichever assistant
+      // the user is "looking at" — we suppressed the live bumps while
+      // hidden, but the user only needs the cumulative-while-away count,
+      // not a phantom badge for the chat they're now actively viewing.
+      if (nowVisible) {
+        const activeId = optionsRef.current.activeAssistantId;
+        if (activeId) markAsRead(activeId);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [markAsRead]);
+
   React.useEffect(() => {
     if (!enabled || pairs.length === 0) {
       setShardStatuses((prev) => (prev.length === 0 ? prev : []));
@@ -690,7 +722,12 @@ export function useAssistantChatStream(
             // delivered while the tab was closed legitimately bump the
             // badge.
             const floor = lastReadAtRef.current[assistantId] ?? 0;
-            const isActive = optionsRef.current.activeAssistantId === assistantId;
+            // Suppress only when the assistant is "active" AND the tab is
+            // visible: a hidden tab can't actually show the message, so
+            // bumping the badge / tab-title counter is what the user
+            // expects when they tab back.
+            const isActive =
+              optionsRef.current.activeAssistantId === assistantId && isTabVisibleRef.current;
             if (publishMs > floor && !isActive) {
               setUnreadCounts((prev) => ({
                 ...prev,

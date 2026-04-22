@@ -65,6 +65,14 @@ interface RightPaneContainerProps {
    * drives the panel's typing-indicator clear.
    */
   chatStreamActivitySignal: number;
+  /**
+   * Right-pane tab state, lifted so `Main` can know whether the user is
+   * actually looking at the chat (vs. Actions / Memory / Secrets / etc.)
+   * and thus whether to suppress unread-badge bumps for the selected
+   * assistant.
+   */
+  activeTab: string;
+  onActiveTabChange: (tab: string) => void;
 }
 
 export function RightPaneContainer({
@@ -90,6 +98,8 @@ export function RightPaneContainer({
   chatStreamConnectionStatus,
   reconnectChatStream,
   chatStreamActivitySignal,
+  activeTab,
+  onActiveTabChange,
 }: RightPaneContainerProps) {
   const [hasActiveAction, setHasActiveAction] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -128,7 +138,7 @@ export function RightPaneContainer({
               : 'Start video call';
 
   return (
-    <Tabs defaultValue="chat" className="flex h-full flex-col">
+    <Tabs value={activeTab} onValueChange={onActiveTabChange} className="flex h-full flex-col">
       <div className="flex shrink-0 items-end justify-start gap-2 overflow-x-auto border-b border-border px-4 py-2">
         <TabsList className="h-7 flex-nowrap gap-6 rounded-none bg-transparent p-0">
           <TabsTrigger value="chat" className={TAB_TRIGGER_CLASS} data-testid="right-pane-tab-chat">

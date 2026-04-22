@@ -79,6 +79,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // --- UI Panel Management ---
   const { profileAssistantId, handleShowProfile, handleProfileClose } = usePanelManager();
 
+  // Right-pane tab is lifted out of `RightPaneContainer` so the unread-badge
+  // logic below can know whether the user is actually looking at the chat
+  // (vs. Actions / Memory / Secrets / etc.) — selecting an assistant alone
+  // shouldn't suppress unread bumps if the right pane is on a non-chat tab.
+  // Reset to 'chat' whenever the selected assistant changes so a fresh
+  // open lands on the chat by default.
+  const [rightPaneTab, setRightPaneTab] = React.useState<string>('chat');
+  React.useEffect(() => {
+    setRightPaneTab('chat');
+  }, [profileAssistantId]);
+
   // --- Assistant List Fold / Resize State ---
   const LIST_SNAP_THRESHOLD = 150;
   const LIST_DEFAULT_WIDTH = 240;
@@ -493,9 +504,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     {
       userEmail: userMeta.email ?? undefined,
       // Suppress unread bumps for whichever assistant chat the user is
-      // currently looking at — either the profile panel, or, if no panel is
-      // open, the call dialog's embedded side panel.
-      activeAssistantId: profileAssistantId ?? activeCallAssistant?.agentId ?? null,
+      // currently looking at — either the profile chat panel (only when the
+      // right-pane Chat tab is active; on Actions/Memory/etc. we still want
+      // the badge to climb so the user notices) or, if no panel is open,
+      // the call dialog's embedded side panel.
+      activeAssistantId:
+        (rightPaneTab === 'chat' ? profileAssistantId : null) ??
+        activeCallAssistant?.agentId ??
+        null,
       getCutoff: getChatStreamCutoff,
     }
   );
@@ -503,14 +519,24 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   // Surface the workspace-wide unread total in the browser tab title so
   // background tabs show a `(N) …` badge like a typical messaging app.
+  // No UI-side masking needed for the selected assistant: the hook
+  // already suppresses bumps when (and only when) the user is actually
+  // viewing that chat (Chat tab + tab visible), so its count is
+  // naturally 0 in exactly the case where we'd want to mask it.
   useUnreadDocumentTitle(chatStreamUnreadCounts);
 
   // Clear unread whenever the user opens a chat (or switches to a different
   // assistant's chat). The panel itself doesn't need to know about unread
   // counts — the page-level hook owns that state exclusively.
   React.useEffect(() => {
-    if (profileAssistantId) markChatStreamRead(profileAssistantId);
-  }, [profileAssistantId, markChatStreamRead]);
+    // Only clear the unread badge when the user is actually looking at the
+    // chat (Chat tab + assistant selected). Selecting an assistant while on
+    // a non-chat tab leaves the badge in place; switching to the Chat tab
+    // is what marks it read.
+    if (profileAssistantId && rightPaneTab === 'chat') {
+      markChatStreamRead(profileAssistantId);
+    }
+  }, [profileAssistantId, rightPaneTab, markChatStreamRead]);
 
   // Activity signal for the currently-open chat panel: the panel reads only
   // changes to this number, so passing 0 when no chat is open is fine.
@@ -1113,6 +1139,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             }
             reconnectChatStream={reconnectChatStream}
             chatStreamActivitySignal={profileChatActivitySignal}
+            activeTab={rightPaneTab}
+            onActiveTabChange={setRightPaneTab}
           />
         </div>
       </div>
