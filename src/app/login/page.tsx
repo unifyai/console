@@ -20,6 +20,7 @@ const ERRORS: Record<string, string> = {
   EmailSignin: 'Check your email address.',
   CredentialsSignin: 'Sign in failed. Check the details you provided are correct.',
   Verification: 'Error occured during verification.',
+  StagingRestricted: 'This staging environment is restricted to unify ai members only.',
   default: 'Unable to sign in.',
 };
 
@@ -86,7 +87,7 @@ const Login = () => {
       router.replace('/login');
     }
     // While session.status === 'loading', we wait
-  }, [shouldSignOut, session.status, router]);
+  }, [shouldSignOut, session.status, router, creditToken]);
 
   // Redirect authenticated users — but NOT if we're in the middle of signing
   // them out due to a deleted backend account.  Honour the callbackUrl

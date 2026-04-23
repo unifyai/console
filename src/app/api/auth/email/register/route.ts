@@ -13,6 +13,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, name, lastName, password, captchaToken } = body;
 
+    const isStaging = process.env.ORCHESTRA_URL?.includes('staging') ?? false;
+    if (isStaging && !email?.toLowerCase().endsWith('@unify.ai')) {
+      return NextResponse.json(
+        {
+          error: 'staging_restricted',
+          message: 'Registration on this environment is restricted to Unify AI members.',
+        },
+        { status: 403 }
+      );
+    }
+
     const validation = validatePassword(password ?? '');
     if (!validation.isValid) {
       const missing = validation.rules.filter((r) => !r.passed).map((r) => r.label.toLowerCase());

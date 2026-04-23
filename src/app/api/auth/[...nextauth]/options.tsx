@@ -11,6 +11,15 @@ import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
 const cookiePrefix = useSecureCookies ? '__Secure-' : '';
 
+// Staging environments are restricted to @unify.ai emails. Detected via
+// the ORCHESTRA_URL pattern used across the rest of the console.
+const UNIFY_EMAIL_DOMAIN = '@unify.ai';
+const IS_STAGING = process.env.ORCHESTRA_URL?.includes('staging') ?? false;
+
+function isUnifyMember(email: string | null | undefined): boolean {
+  return !!email && email.toLowerCase().endsWith(UNIFY_EMAIL_DOMAIN);
+}
+
 const authOptions: AuthOptions = {
   ...pagesOptions,
   // @ts-ignore
@@ -176,6 +185,10 @@ const authOptions: AuthOptions = {
      * enabled, so they are skipped here.
      */
     async signIn({ user, account }) {
+      if (IS_STAGING && !isUnifyMember(user.email)) {
+        return '/login?error=StagingRestricted';
+      }
+
       // Providers with allowDangerousEmailAccountLinking — let NextAuth auto-link
       const autoLinkProviders = ['google', 'azure-ad'];
 
@@ -237,6 +250,13 @@ const authOptions: AuthOptions = {
      *
      */
     async jwt({ token, user, account, profile, trigger, session }) {
+      // Forcibly sign out any existing session whose email is not allowed
+      // in the current environment. Read by the middleware to clear the
+      // session cookie and redirect the user back to /login.
+      if (IS_STAGING && !isUnifyMember(token.email ?? user?.email)) {
+        return { restrictedSignOut: true };
+      }
+
       // On initial sign-in: persist the auth provider ('credentials', 'google', 'github')
       if (account) {
         token.provider = account.provider;
@@ -351,6 +371,12 @@ const authOptions: AuthOptions = {
      *
      */
     async session({ session, token }) {
+      // Mirror the jwt-callback gate: drop the user from the session so
+      // server components and useSession() see an unauthenticated state.
+      if ((token as { restrictedSignOut?: boolean })?.restrictedSignOut) {
+        return { ...session, user: undefined } as typeof session;
+      }
+
       if (session.user) {
         session.user.email = token.email;
         session.user.name = token.name;

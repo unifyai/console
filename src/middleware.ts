@@ -75,6 +75,24 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
   // Allow /login/mfa itself, /login/invite (so users can accept invites
   // before verifying MFA), NextAuth API routes, and static assets.
   const token = await getToken({ req: request, secret: process.env.JWT_SECRET });
+
+  // Restricted-environment kill-switch: if the auth callbacks have flagged
+  // this token as no-longer-allowed (non-Unify email on a gated env), clear
+  // the session cookie and bounce the user to /login. This forcibly signs
+  // out anyone who held a valid session before the gate was enabled.
+  if ((token as { restrictedSignOut?: boolean } | null)?.restrictedSignOut) {
+    const useSecureCookies = request.nextUrl.protocol === 'https:';
+    const cookieName = useSecureCookies
+      ? '__Secure-next-auth.session-token'
+      : 'next-auth.session-token';
+
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('error', 'StagingRestricted');
+    const response = NextResponse.redirect(loginUrl);
+    response.cookies.set(cookieName, '', { path: '/', maxAge: 0 });
+    return response;
+  }
+
   if (token?.mfaPending) {
     // Allow the login page itself so users with stale sessions (e.g. DB reset)
     // can sign in again instead of being trapped in a redirect loop.
