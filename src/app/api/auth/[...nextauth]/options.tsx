@@ -7,18 +7,10 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { jwtVerify } from 'jose';
 import { OrchestraAdapter } from '@/lib/orchestra/orchestra-adapter';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { IS_STAGING, isStagingAllowedEmail } from '@/lib/auth/staging-gate';
 
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
 const cookiePrefix = useSecureCookies ? '__Secure-' : '';
-
-// Staging environments are restricted to @unify.ai emails. Detected via
-// the ORCHESTRA_URL pattern used across the rest of the console.
-const UNIFY_EMAIL_DOMAIN = '@unify.ai';
-const IS_STAGING = process.env.ORCHESTRA_URL?.includes('staging') ?? false;
-
-function isUnifyMember(email: string | null | undefined): boolean {
-  return !!email && email.toLowerCase().endsWith(UNIFY_EMAIL_DOMAIN);
-}
 
 const authOptions: AuthOptions = {
   ...pagesOptions,
@@ -185,7 +177,7 @@ const authOptions: AuthOptions = {
      * enabled, so they are skipped here.
      */
     async signIn({ user, account }) {
-      if (IS_STAGING && !isUnifyMember(user.email)) {
+      if (IS_STAGING && !isStagingAllowedEmail(user.email)) {
         return '/login?error=StagingRestricted';
       }
 
@@ -253,7 +245,7 @@ const authOptions: AuthOptions = {
       // Forcibly sign out any existing session whose email is not allowed
       // in the current environment. Read by the middleware to clear the
       // session cookie and redirect the user back to /login.
-      if (IS_STAGING && !isUnifyMember(token.email ?? user?.email)) {
+      if (IS_STAGING && !isStagingAllowedEmail(token.email ?? user?.email)) {
         return { restrictedSignOut: true };
       }
 
