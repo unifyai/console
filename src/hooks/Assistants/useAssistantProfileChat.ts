@@ -10,7 +10,6 @@ import {
   setSessionContactId,
   getOrFetchContactId,
   getOrFetchTranscripts,
-  fetchTranscriptsDirect,
 } from './useContactIdPrefetch';
 import { clientLog, setLogContext } from '@/lib/logging/client-log-buffer';
 import type { ChatStreamConnectionStatus } from './useAssistantChatStream';
@@ -650,98 +649,13 @@ export function useAssistantProfileChat(
     lastActivitySignalRef.current = activitySignal;
   }, [activitySignal, stopReplying]);
 
-  // =========================================================================
-  // Polling fallback for missed SSE messages
-  // =========================================================================
-  // SSE is the primary delivery mechanism, but connections can silently fail
-  // (Vercel function timeout, Pub/Sub gRPC stream errors, tab backgrounding).
-  // This effect periodically fetches recent transcripts and merges any
-  // messages the SSE missed. Also refetches immediately when the tab regains
-  // visibility, which is the most common "where's my reply?" scenario.
-  React.useEffect(() => {
-    if (phase !== 'ready' || !assistantId || !assistant || contactId === null) return;
-
-    const currentAssistantId = assistantId;
-    const currentOwnerId = assistant.userId;
-    const currentContactId = contactId;
-
-    const POLL_LIMIT = 10;
-    const POLL_INTERVAL_MS = 15_000;
-
-    const mergeRecentTranscripts = async () => {
-      try {
-        const result = await fetchTranscriptsDirect(
-          currentContactId,
-          currentOwnerId,
-          currentAssistantId,
-          POLL_LIMIT
-        );
-        if ('detail' in result) {
-          clientLog('POLL_ERROR', { detail: (result as any).detail });
-          return;
-        }
-
-        const fetched = [...(result as ChatMessage[])].reverse();
-        if (fetched.length === 0) return;
-
-        setChatHistories((prev) => {
-          const current = prev[currentAssistantId] || [];
-          const existingIds = new Set(current.map((m) => m.id));
-          let reconciled = [...current];
-          let changed = false;
-          const claimed = new Set<number>();
-
-          for (const m of fetched) {
-            if (existingIds.has(m.id)) continue;
-
-            const matchIdx = reconciled.findIndex(
-              (existing, idx) =>
-                !claimed.has(idx) && existing.role === m.role && existing.content === m.content
-            );
-
-            if (matchIdx !== -1) {
-              claimed.add(matchIdx);
-              reconciled[matchIdx] = m;
-              changed = true;
-            } else {
-              reconciled.push(m);
-              changed = true;
-            }
-          }
-
-          if (!changed) return prev;
-          const added = reconciled.length - current.length;
-          const replaced = claimed.size;
-          clientLog('POLL_RESULT', {
-            fetched: fetched.length,
-            replaced,
-            added,
-            totalAfter: reconciled.length,
-          });
-          reconciled.sort(
-            (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-          );
-          return { ...prev, [currentAssistantId]: reconciled };
-        });
-      } catch (err) {
-        clientLog('POLL_ERROR', { error: String(err) });
-      }
-    };
-
-    const interval = setInterval(mergeRecentTranscripts, POLL_INTERVAL_MS);
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        mergeRecentTranscripts();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [phase, assistantId, assistant, contactId, setChatHistories]);
+  // The polling fallback that used to live here has moved to the page-level
+  // `useAssistantTranscriptReconciler` (see `Main.tsx`). The reconciler
+  // covers every assistant in the workspace — not just the active panel —
+  // so backgrounded chats whose Pub/Sub subscription dies still have their
+  // unread badge stay accurate, and we don't pay the cost twice when both
+  // the chat panel and the call dialog's side panel are open for the same
+  // assistant. Cadence there adapts to the per-assistant SSE health.
 
   // =========================================================================
   // Send message

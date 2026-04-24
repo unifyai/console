@@ -46,6 +46,10 @@ import {
   useAssistantChatStream,
   type ChatStreamPair,
 } from '@/hooks/Assistants/useAssistantChatStream';
+import {
+  useAssistantTranscriptReconciler,
+  type TranscriptReconcilerPair,
+} from '@/hooks/Assistants/useAssistantTranscriptReconciler';
 import { useUnreadDocumentTitle } from '@/hooks/Assistants/useUnreadDocumentTitle';
 import type { ParsedInboundChatMessage } from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
@@ -414,7 +418,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // by 1 ms makes the filter cover the last-seen message too. The only
   // downside is a brand-new assistant message that lands at the exact
   // same millisecond as the previous one would be filtered, but the
-  // in-panel poll reconciler picks it up within 15 s.
+  // page-level transcript reconciler (`useAssistantTranscriptReconciler`)
+  // picks it up on the next poll (~30 s when SSE is healthy).
   const chatStreamCutoffsRef = React.useRef<Record<string, number>>({});
   React.useEffect(() => {
     const next: Record<string, number> = {};
@@ -578,6 +583,34 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     }
   );
   ackMessageRef.current = ackChatStreamMessage;
+
+  // Page-level polling fallback for the chat SSE. Reconciles missed
+  // messages into `profileChatHistories` for any assistant in the
+  // workspace whose stream is unhealthy (or the active panel as a safety
+  // net). Replaces the per-panel polling that used to live inside
+  // `useAssistantProfileChat`.
+  const reconcilerPairs = React.useMemo<TranscriptReconcilerPair[]>(
+    () =>
+      assistants
+        .map((a) => {
+          const cid = resolvedContactIds[a.agentId];
+          if (cid === undefined) return null;
+          return { assistantId: a.agentId, ownerId: a.userId, contactId: cid };
+        })
+        .filter((p): p is TranscriptReconcilerPair => p !== null),
+    [assistants, resolvedContactIds]
+  );
+  useAssistantTranscriptReconciler({
+    pairs: reconcilerPairs,
+    connectionStatusByAssistant: chatStreamConnectionStatusByAssistant,
+    activeAssistantId:
+      (isChatVisibleInRightPane ? profileAssistantId : null) ??
+      activeCallAssistant?.agentId ??
+      null,
+    enabled: reconcilerPairs.length > 0,
+    chatHistories: profileChatHistories,
+    setChatHistories: setProfileChatHistories,
+  });
 
   // Surface the workspace-wide unread total in the browser tab title so
   // background tabs show a `(N) …` badge like a typical messaging app.
