@@ -262,6 +262,13 @@ export function ChatWithInfoPanel({
   // it still opens by default — but also surfaces the panel on
   // subsequent visits to assistants the user has never closed it for.
   //
+  // Mobile is the exception: the panel claims the full viewport
+  // width there (the chat is hidden behind it), so opening by default
+  // would hide the chat the user came to use. On mobile we always
+  // start closed and let the user toggle in explicitly. We don't
+  // touch the dismissed set in that case so resizing back to desktop
+  // restores the user's persisted choice.
+  //
   // Switching between assistants re-evaluates against the dismissed
   // set, so each assistant remembers its own state without any one
   // assistant's dismissal leaking across the list.
@@ -272,6 +279,14 @@ export function ChatWithInfoPanel({
     initializedForRef.current = assistant.agentId;
     if (typeof window === 'undefined') {
       setIsInfoOpen(true);
+      return;
+    }
+    // Mobile breakpoint matches the Tailwind `sm` boundary used by
+    // the layout below (`hidden sm:flex`) so the auto-open rule and
+    // the responsive layout agree on what counts as "mobile".
+    const isMobile = window.matchMedia('(max-width: 639px)').matches;
+    if (isMobile) {
+      setIsInfoOpen(false);
       return;
     }
     const dismissed = readInfoPanelDismissed();
