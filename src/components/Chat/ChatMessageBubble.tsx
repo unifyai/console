@@ -7,18 +7,36 @@ import { ChatMarkdown } from './ChatMarkdown';
 import { RenderContentWithEmbeds, containsEmbedUrl } from './InlineEmbed';
 import { MessageAttachmentList } from './ChatAttachments';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
+import { TooltipContent, Tooltip, TooltipTrigger, TooltipProvider } from '@/components/UI/tooltip';
 
 type ChatBubbleVariant = 'profile' | 'hire';
 
+// `Intl.DateTimeFormat` construction is surprisingly expensive (allocates an
+// ICU formatter under the hood). Long conversations call `formatMessageTime`
+// once per bubble per render, so we cache one formatter per timezone and
+// reuse it across every bubble. Keyed on the resolved timezone string
+// (`'__local__'` for the implicit local zone) so each user only ever sees a
+// handful of entries even across timezone switches.
+const dateTimeFormatCache = new Map<string, Intl.DateTimeFormat>();
+function getMessageTimeFormatter(timezone?: string | null): Intl.DateTimeFormat {
+  const key = timezone || '__local__';
+  let formatter = dateTimeFormatCache.get(key);
+  if (!formatter) {
+    const options: Intl.DateTimeFormatOptions = {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    };
+    if (timezone) options.timeZone = timezone;
+    formatter = new Intl.DateTimeFormat('en-GB', options);
+    dateTimeFormatCache.set(key, formatter);
+  }
+  return formatter;
+}
+
 function formatMessageTime(date: Date, timezone?: string | null): string | null {
   if (!(date instanceof Date) || isNaN(date.getTime())) return null;
-  const options: Intl.DateTimeFormatOptions = {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  };
-  if (timezone) options.timeZone = timezone;
-  return new Intl.DateTimeFormat('en-GB', options).format(date);
+  return getMessageTimeFormatter(timezone).format(date);
 }
 
 function renderContentWithLinks(text: string) {
@@ -54,12 +72,20 @@ interface ChatMessageBubbleProps {
   index?: number;
   attachments?: Attachment[];
   variant?: ChatBubbleVariant;
-  onPlayAudio?: () => void;
+  /**
+   * `messageId` + `(messageId, content) => void` rather than a pre-bound
+   * `() => void`: a pre-bound closure would be reallocated by the parent on
+   * every render (most notably on every keystroke in the chat composer),
+   * defeating `React.memo`. Callers should pass the stable `playMessage`
+   * callback from `useChatTTS` directly.
+   */
+  messageId?: string;
+  onPlayAudio?: (messageId: string, content: string) => void;
   onStopAudio?: () => void;
   audioState?: 'idle' | 'generating' | 'playing';
 }
 
-export function ChatMessageBubble({
+function ChatMessageBubbleImpl({
   message,
   isUser,
   assistantPhoto,
@@ -70,6 +96,7 @@ export function ChatMessageBubble({
   index,
   attachments,
   variant = 'profile',
+  messageId,
   onPlayAudio,
   onStopAudio,
   audioState = 'idle',
@@ -177,36 +204,66 @@ export function ChatMessageBubble({
           <time className="text-[10px] leading-none text-muted-foreground">{timeString}</time>
         )}
         {onPlayAudio && (
-          <button
-            type="button"
-            onClick={audioState === 'playing' ? onStopAudio : onPlayAudio}
-            disabled={audioState === 'generating'}
-            className={cn(
-              'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-colors',
-              audioState === 'playing'
-                ? 'hover:text-primary/80 text-primary'
-                : 'text-muted-foreground/50 hover:text-muted-foreground'
-            )}
-          >
-            {audioState === 'generating' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {audioState === 'playing' && <Square className="h-3 w-3 fill-current" />}
-            {audioState === 'idle' && <Volume2 className="h-3.5 w-3.5" />}
-          </button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={
+                    audioState === 'playing'
+                      ? onStopAudio
+                      : () => onPlayAudio(messageId ?? '', message)
+                  }
+                  disabled={audioState === 'generating'}
+                  className={cn(
+                    'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-colors',
+                    audioState === 'playing'
+                      ? 'hover:text-primary/80 text-primary'
+                      : 'text-muted-foreground/50 hover:text-muted-foreground'
+                  )}
+                >
+                  {audioState === 'generating' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {audioState === 'playing' && <Square className="h-3 w-3 fill-current" />}
+                  {audioState === 'idle' && <Volume2 className="h-3.5 w-3.5" />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>
+                  {audioState === 'generating'
+                    ? 'Generating audio'
+                    : audioState === 'playing'
+                      ? 'Stop audio'
+                      : 'Play audio'}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
         {canCopy && (
-          <button
-            type="button"
-            onClick={handleCopy}
-            aria-label={isCopied ? 'Message copied' : 'Copy message'}
-            data-testid="message-copy-button"
-            data-copied={isCopied || undefined}
-            className={cn(
-              'flex h-4 w-4 flex-shrink-0 items-center justify-center rounded transition-colors',
-              isCopied ? 'text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'
-            )}
-          >
-            {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-          </button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  aria-label={isCopied ? 'Message copied' : 'Copy message'}
+                  data-testid="message-copy-button"
+                  data-copied={isCopied || undefined}
+                  className={cn(
+                    'flex h-4 w-4 flex-shrink-0 items-center justify-center rounded pt-0.5 transition-colors',
+                    isCopied
+                      ? 'text-primary'
+                      : 'text-muted-foreground/50 hover:text-muted-foreground'
+                  )}
+                >
+                  {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>{isCopied ? 'Message copied' : 'Copy message'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
       </div>
       {attachments && attachments.length > 0 && (
@@ -216,3 +273,19 @@ export function ChatMessageBubble({
     </div>
   );
 }
+
+/**
+ * Memoised so each bubble is skipped when the surrounding chat panel
+ * re-renders for unrelated reasons (e.g. a keystroke in the composer
+ * textarea). Default shallow-equality is sufficient because:
+ *  - All scalar props (`message`, `isUser`, `assistantName`, `timezone`,
+ *    `index`, `variant`, `audioState`, `messageId`, `assistantPhoto`,
+ *    `isLoading`) are primitives.
+ *  - `timestamp` and `attachments` are owned by the immutable message
+ *    object stored in chat history, so their references are stable for as
+ *    long as the message itself is unchanged.
+ *  - `onPlayAudio` / `onStopAudio` are passed straight through from
+ *    `useChatTTS` (memoised) and only change when audio playback state
+ *    transitions, which is intentional and rare.
+ */
+export const ChatMessageBubble = React.memo(ChatMessageBubbleImpl);

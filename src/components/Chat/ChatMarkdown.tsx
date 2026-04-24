@@ -77,8 +77,14 @@ const remarkPlugins = [remarkGfm];
  * Lightweight markdown renderer for chat messages.
  * Inherits font size and line height from the parent element instead of
  * injecting global CSS, so it fits naturally alongside chat styling.
+ *
+ * Wrapped in `React.memo` so the (relatively expensive) `react-markdown`
+ * mdast/hast parsing pipeline is skipped whenever the surrounding chat
+ * panel re-renders for unrelated reasons (most notably keystrokes in the
+ * composer textarea, which would otherwise re-parse every message in the
+ * conversation on every keystroke).
  */
-export function ChatMarkdown({ content }: { content: string }) {
+export const ChatMarkdown = React.memo(function ChatMarkdown({ content }: { content: string }) {
   const safeContent = escapeEmbedTokens(content);
   return (
     <div className="max-w-full break-words [&_img]:max-w-full">
@@ -87,4 +93,4 @@ export function ChatMarkdown({ content }: { content: string }) {
       </Markdown>
     </div>
   );
-}
+});

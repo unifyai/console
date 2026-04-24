@@ -229,6 +229,28 @@ export function AssistantProfileChatPanel({
 
   const sseBlocked = connectionStatus === 'error';
 
+  // Memoise the live and historical timelines so we don't pay an O(n log n)
+  // sort + array allocation on every parent re-render. The chat panel
+  // re-renders on every keystroke in the composer (because `inputValue`
+  // lives in `useAssistantProfileChat`), and re-sorting hundreds of
+  // messages per keystroke is one of the dominant typing-lag contributors
+  // in long conversations.
+  const liveTimeline = React.useMemo<TimelineItem[]>(() => {
+    const baseMessages: ChatMessage[] = USE_MOCK_EMBEDS
+      ? [...messages, ...getMockEmbedMessages()]
+      : messages;
+    return [...baseMessages, ...callPills].sort(
+      (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
+    );
+  }, [messages, callPills]);
+
+  const historicalTimeline = React.useMemo<TimelineItem[]>(() => {
+    if (!historicalView) return [];
+    return [...historicalView.messages, ...historicalView.callPills].sort(
+      (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
+    );
+  }, [historicalView]);
+
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = React.useRef<number | null>(null);
   const isAtBottomRef = React.useRef(true);
@@ -615,13 +637,8 @@ export function AssistantProfileChatPanel({
                 {historicalView?.messages.length === 0 && historicalView?.isLoadingOlder && (
                   <ChatMessageSkeletons />
                 )}
-                {(() => {
-                  if (!historicalView) return null;
-                  const timeline: TimelineItem[] = [
-                    ...historicalView.messages,
-                    ...historicalView.callPills,
-                  ].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-                  return timeline.map((item, i, arr) => {
+                {historicalView &&
+                  historicalTimeline.map((item, i, arr) => {
                     const prevItem = arr[i - 1];
                     const showDivider =
                       !prevItem || !isSameDay(prevItem.timestamp, item.timestamp, userTimezone);
@@ -663,8 +680,7 @@ export function AssistantProfileChatPanel({
                         </div>
                       </React.Fragment>
                     );
-                  });
-                })()}
+                  })}
                 {historicalView?.isLoadingNewer && <ChatMessageSkeletons />}
               </>
             ) : (
@@ -699,60 +715,54 @@ export function AssistantProfileChatPanel({
                     </Button>
                   </div>
                 )}
-                {(() => {
-                  const baseMessages: ChatMessage[] = USE_MOCK_EMBEDS
-                    ? [...messages, ...getMockEmbedMessages()]
-                    : messages;
-                  const timeline: TimelineItem[] = [...baseMessages, ...callPills].sort(
-                    (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
-                  );
-                  return timeline.map((item, i, arr) => {
-                    const prevItem = arr[i - 1];
-                    const showDivider =
-                      !prevItem || !isSameDay(prevItem.timestamp, item.timestamp, userTimezone);
+                {liveTimeline.map((item, i, arr) => {
+                  const prevItem = arr[i - 1];
+                  const showDivider =
+                    !prevItem || !isSameDay(prevItem.timestamp, item.timestamp, userTimezone);
 
-                    if (isCallPill(item)) {
-                      return (
-                        <React.Fragment key={item.id}>
-                          {showDivider && (
-                            <ChatDateDivider date={item.timestamp} timezone={userTimezone} />
-                          )}
-                          <CallPillBubble
-                            pill={item}
-                            timezone={userTimezone}
-                            onClick={openTranscript}
-                          />
-                        </React.Fragment>
-                      );
-                    }
-
-                    const msg = item;
+                  if (isCallPill(item)) {
                     return (
-                      <React.Fragment key={msg.id}>
+                      <React.Fragment key={item.id}>
                         {showDivider && (
-                          <ChatDateDivider date={msg.timestamp} timezone={userTimezone} />
+                          <ChatDateDivider date={item.timestamp} timezone={userTimezone} />
                         )}
-                        <ChatMessageBubble
-                          message={msg.content}
-                          isUser={msg.role === 'user'}
-                          assistantPhoto={photoSrc}
-                          assistantName={displayName}
-                          timestamp={msg.timestamp}
+                        <CallPillBubble
+                          pill={item}
                           timezone={userTimezone}
-                          index={i}
-                          attachments={msg.attachments}
-                          {...(hasVoice && msg.role === 'assistant' && msg.content
-                            ? {
-                                onPlayAudio: () => playMessage(msg.id, msg.content),
-                                onStopAudio: stopPlayback,
-                                audioState: getAudioState(msg.id),
-                              }
-                            : {})}
+                          onClick={openTranscript}
                         />
                       </React.Fragment>
                     );
-                  });
-                })()}
+                  }
+
+                  const msg = item;
+                  // Pass `playMessage` directly (not a per-render `() => …`
+                  // closure) so `React.memo` on `ChatMessageBubble` actually
+                  // bails out on keystrokes — the bubble builds its own
+                  // onClick handler from `messageId` + `message`.
+                  const audioEnabled = hasVoice && msg.role === 'assistant' && !!msg.content;
+                  return (
+                    <React.Fragment key={msg.id}>
+                      {showDivider && (
+                        <ChatDateDivider date={msg.timestamp} timezone={userTimezone} />
+                      )}
+                      <ChatMessageBubble
+                        message={msg.content}
+                        isUser={msg.role === 'user'}
+                        assistantPhoto={photoSrc}
+                        assistantName={displayName}
+                        timestamp={msg.timestamp}
+                        timezone={userTimezone}
+                        index={i}
+                        attachments={msg.attachments}
+                        messageId={msg.id}
+                        onPlayAudio={audioEnabled ? playMessage : undefined}
+                        onStopAudio={audioEnabled ? stopPlayback : undefined}
+                        audioState={audioEnabled ? getAudioState(msg.id) : undefined}
+                      />
+                    </React.Fragment>
+                  );
+                })}
                 {isAssistantReplying && (
                   <ChatMessageBubble
                     message=""
