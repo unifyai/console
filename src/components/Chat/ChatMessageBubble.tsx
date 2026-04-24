@@ -1,11 +1,12 @@
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
-import { Volume2, Loader2, Square } from 'lucide-react';
+import { Volume2, Loader2, Square, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Attachment } from '@/types/assistants/chat';
 import { ChatMarkdown } from './ChatMarkdown';
 import { RenderContentWithEmbeds, containsEmbedUrl } from './InlineEmbed';
 import { MessageAttachmentList } from './ChatAttachments';
+import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 
 type ChatBubbleVariant = 'profile' | 'hire';
 
@@ -79,6 +80,16 @@ export function ChatMessageBubble({
 
   const timeString = timestamp ? formatMessageTime(timestamp, timezone) : null;
   const isProfile = variant === 'profile';
+
+  // Copy lives on the message header row so it sits next to the audio
+  // affordance with matching geometry. Disabled while the bubble is
+  // still streaming (`isLoading && !message`) — there's nothing to
+  // copy yet, and a flashing button on a typing indicator is noisy.
+  const { isCopied, handleCopy } = useCopyToClipboard({
+    text: message,
+    copyMessage: 'Message copied',
+  });
+  const canCopy = !isUser && !!message && !(isLoading && !message);
 
   const bubbleContent = () => {
     if (!isUser && isLoading && !message) {
@@ -180,6 +191,21 @@ export function ChatMessageBubble({
             {audioState === 'generating' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {audioState === 'playing' && <Square className="h-3 w-3 fill-current" />}
             {audioState === 'idle' && <Volume2 className="h-3.5 w-3.5" />}
+          </button>
+        )}
+        {canCopy && (
+          <button
+            type="button"
+            onClick={handleCopy}
+            aria-label={isCopied ? 'Message copied' : 'Copy message'}
+            data-testid="message-copy-button"
+            data-copied={isCopied || undefined}
+            className={cn(
+              'flex h-4 w-4 flex-shrink-0 items-center justify-center rounded transition-colors',
+              isCopied ? 'text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'
+            )}
+          >
+            {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
           </button>
         )}
       </div>

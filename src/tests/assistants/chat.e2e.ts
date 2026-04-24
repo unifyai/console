@@ -496,6 +496,54 @@ test('assistant response seeded as transcript appears via polling', async ({
   await expect(assistantBubble).toBeVisible({ timeout: 5_000 });
 });
 
+test('assistant message exposes a copy button that confirms on click', async ({
+  authedPage: page,
+}) => {
+  // The copy affordance only appears on assistant bubbles (the user
+  // already authored their own messages). On click it briefly flips
+  // its `data-copied` attribute and surfaces a success toast — both
+  // are easier to assert against than reading the system clipboard,
+  // which would require granting `clipboard-read` to the browser
+  // context just for this case.
+  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
+
+  const ts = Date.now();
+  const userMsg = `Copy-test user message ${ts}`;
+  const assistantMsg = `Copy-test assistant reply ${ts}`;
+
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: CONTACT_ID,
+    content: userMsg,
+    timestamp: new Date(ts - 2000).toISOString(),
+  });
+  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
+    senderId: 0,
+    content: assistantMsg,
+    timestamp: new Date(ts - 1000).toISOString(),
+  });
+
+  await openAssistantChat(page);
+
+  const assistantBubble = page.locator(`[data-role="assistant"]:has-text("${assistantMsg}")`);
+  await expect(assistantBubble).toBeVisible({ timeout: 20_000 });
+
+  // User bubbles deliberately don't render the copy button — guard
+  // against accidentally surfacing it for both roles.
+  const userBubble = page.locator(`[data-role="user"]:has-text("${userMsg}")`);
+  await expect(userBubble.getByTestId('message-copy-button')).toHaveCount(0);
+
+  const copyButton = assistantBubble.getByTestId('message-copy-button');
+  await expect(copyButton).toBeVisible({ timeout: 5_000 });
+  await expect(copyButton).not.toHaveAttribute('data-copied', 'true');
+
+  await copyButton.click();
+
+  await expect(copyButton).toHaveAttribute('data-copied', 'true', { timeout: 3_000 });
+  const successToast = page.locator('[data-sonner-toast][data-type="success"]').first();
+  await expect(successToast).toBeVisible({ timeout: 3_000 });
+  await expect(successToast).toContainText('copied');
+});
+
 test('re-enabling credits after exhaustion restores chat input', async ({ authedPage: page }) => {
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
 

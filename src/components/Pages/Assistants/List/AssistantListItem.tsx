@@ -1,24 +1,17 @@
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import {
-  Phone,
-  Mail,
   PhoneCall,
   MoreVertical,
   PenLine,
   Contact,
-  Copy,
-  Check,
   Trash2,
   Loader2,
   AlertTriangle,
 } from 'lucide-react';
-import { WhatsApp } from '@mui/icons-material';
-import { FaDiscord } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
 import type { ContactType } from '@/types/assistants/contact';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/UI/hover-card';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/UI/tooltip';
 import {
   DropdownMenu,
@@ -72,7 +65,6 @@ export function AssistantListItem({
 }: AssistantListItemProps) {
   const hasUnread = unreadCount > 0;
   const unreadLabel = unreadCount > 99 ? '99+' : String(unreadCount);
-  const [isIdCopied, setIsIdCopied] = React.useState(false);
   const [isEndContractAlertOpen, setIsEndContractAlertOpen] = React.useState(false);
   const [isEndingContract, setIsEndingContract] = React.useState(false);
 
@@ -96,131 +88,8 @@ export function AssistantListItem({
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
   const isOnline = status?.running === true;
 
-  const supervisorName = [assistant.userFirstName, assistant.userLastName]
-    .filter(Boolean)
-    .join(' ');
-
-  const hoverCardContent = (
-    <div className="flex justify-between space-x-4">
-      <Avatar className="flex-shrink-0">
-        <AvatarImage src={photoSrc ?? undefined} />
-        <AvatarFallback>
-          {`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-      <div className="min-w-0 flex-1 space-y-0.5">
-        <h4 className="text-title truncate">{displayName}</h4>
-        <div
-          className="group/id text-caption flex min-w-0 cursor-pointer items-center gap-1 text-muted-foreground"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigator.clipboard.writeText(assistant.agentId);
-            setIsIdCopied(true);
-            setTimeout(() => setIsIdCopied(false), 2000);
-          }}
-        >
-          <span className="opacity-70">Assistant ID:</span>
-          {isIdCopied ? (
-            <Check className="h-3 w-3 flex-shrink-0 text-green-500" />
-          ) : (
-            <Copy className="h-3 w-3 flex-shrink-0 opacity-70 transition-colors group-hover/id:opacity-100" />
-          )}
-        </div>
-        {assistant.jobTitle && (
-          <div
-            className="text-caption flex min-w-0 items-center text-muted-foreground"
-            data-testid={`assistant-job-title-${assistant.agentId}`}
-          >
-            <span className="mr-1 opacity-70">Job Title:</span>
-            <span className="truncate">{assistant.jobTitle}</span>
-          </div>
-        )}
-        {supervisorName && (
-          <div className="text-caption flex min-w-0 items-center text-muted-foreground">
-            <span className="mr-1 opacity-70">Supervisor:</span>
-            <span className="truncate">{supervisorName}</span>
-          </div>
-        )}
-        <div className="text-caption flex min-w-0 items-center pt-1 text-muted-foreground">
-          <Mail className="mr-1.5 h-3 w-3 flex-shrink-0 opacity-70" />
-          {assistant.email ? (
-            <a
-              href={`mailto:${assistant.email}`}
-              onClick={(e) => e.stopPropagation()}
-              className="text-link min-w-0 truncate"
-            >
-              {assistant.email}
-            </a>
-          ) : (
-            <Button
-              variant="link"
-              className="text-caption text-link h-auto p-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenContactManager(assistant, 'email');
-              }}
-            >
-              Add Email
-            </Button>
-          )}
-        </div>
-        <div className="text-caption flex min-w-0 items-center pt-0.5 text-muted-foreground">
-          <Phone className="mr-1.5 h-3 w-3 flex-shrink-0 opacity-70" />
-          {assistant.phone ? (
-            <span className="min-w-0 truncate">{assistant.phone}</span>
-          ) : (
-            <Button
-              variant="link"
-              className="text-caption text-link h-auto p-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenContactManager(assistant, 'phone');
-              }}
-            >
-              Add Phone
-            </Button>
-          )}
-        </div>
-        <div className="text-caption flex min-w-0 items-center pt-0.5 text-muted-foreground">
-          <WhatsApp sx={{ fontSize: '12px', marginRight: '6px', opacity: 0.7, flexShrink: 0 }} />
-          {assistant.assistantWhatsappNumber ? (
-            <span className="min-w-0 truncate">{assistant.assistantWhatsappNumber}</span>
-          ) : (
-            <Button
-              variant="link"
-              className="text-caption text-link h-auto p-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenContactManager(assistant, 'whatsapp');
-              }}
-            >
-              Add WhatsApp
-            </Button>
-          )}
-        </div>
-        <div className="text-caption flex min-w-0 items-center pt-0.5 text-muted-foreground">
-          <FaDiscord className="mr-1.5 h-3 w-3 flex-shrink-0 opacity-70" />
-          {assistant.assistantDiscordBotId ? (
-            <span className="min-w-0 truncate">{assistant.assistantDiscordBotId}</span>
-          ) : (
-            <Button
-              variant="link"
-              className="text-caption text-link h-auto p-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenContactManager(assistant, 'discord');
-              }}
-            >
-              Add Discord
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-
   if (isFolded) {
-    const content = (
+    return (
       <div
         className={cn(
           'relative cursor-pointer rounded-full',
@@ -261,15 +130,6 @@ export function AssistantListItem({
         )}
       </div>
     );
-
-    return (
-      <HoverCard openDelay={200} closeDelay={100}>
-        <HoverCardTrigger asChild>{content}</HoverCardTrigger>
-        <HoverCardContent className="w-80" side="right" align="start">
-          {hoverCardContent}
-        </HoverCardContent>
-      </HoverCard>
-    );
   }
 
   return (
@@ -288,31 +148,24 @@ export function AssistantListItem({
       }}
     >
       <div className="flex min-w-0 items-center gap-3">
-        <HoverCard openDelay={200} closeDelay={100}>
-          <HoverCardTrigger asChild>
-            <div className="relative">
-              <Avatar className="h-8 w-8 flex-shrink-0 cursor-default">
-                <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
-                <AvatarFallback>
-                  {`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              {status !== null && (
-                <span
-                  role="status"
-                  data-testid={`status-indicator-${assistant.agentId}`}
-                  className={cn(
-                    'absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background',
-                    isOnline ? 'bg-green-500' : 'bg-gray-400'
-                  )}
-                />
+        <div className="relative">
+          <Avatar className="h-8 w-8 flex-shrink-0 cursor-default">
+            <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
+            <AvatarFallback>
+              {`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          {status !== null && (
+            <span
+              role="status"
+              data-testid={`status-indicator-${assistant.agentId}`}
+              className={cn(
+                'absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background',
+                isOnline ? 'bg-green-500' : 'bg-gray-400'
               )}
-            </div>
-          </HoverCardTrigger>
-          <HoverCardContent className="w-80" side="right" align="start">
-            {hoverCardContent}
-          </HoverCardContent>
-        </HoverCard>
+            />
+          )}
+        </div>
         <span className="text-body text-strong truncate">{displayName}</span>
       </div>
       <div className="flex items-center gap-1">

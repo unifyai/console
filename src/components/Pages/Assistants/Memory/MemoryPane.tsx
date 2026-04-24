@@ -167,7 +167,7 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
     <div className="flex h-full flex-col" data-testid="memory-pane">
       {/* Header — search + refresh */}
       <div
-        className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5"
+        className="flex shrink-0 items-center gap-2 border-b px-3 py-2"
         data-testid="memory-header"
       >
         <div className="relative max-w-xs flex-1">

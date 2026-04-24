@@ -2,7 +2,12 @@
 
 import * as React from 'react';
 import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
-import { RightPaneContainer } from '@/components/Pages/Assistants/RightPaneContainer';
+import {
+  RightPaneContainer,
+  DEFAULT_RIGHT_PANE_STATE,
+  type RightPaneState,
+  type RightPaneTab,
+} from '@/components/Pages/Assistants/RightPaneContainer';
 import {
   Assistant,
   AssistantActions,
@@ -79,16 +84,72 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // --- UI Panel Management ---
   const { profileAssistantId, handleShowProfile, handleProfileClose } = usePanelManager();
 
-  // Right-pane tab is lifted out of `RightPaneContainer` so the unread-badge
-  // logic below can know whether the user is actually looking at the chat
-  // (vs. Actions / Memory / Secrets / etc.) — selecting an assistant alone
-  // shouldn't suppress unread bumps if the right pane is on a non-chat tab.
-  // Reset to 'chat' whenever the selected assistant changes so a fresh
-  // open lands on the chat by default.
-  const [rightPaneTab, setRightPaneTab] = React.useState<string>('chat');
+  // Right-pane state (primary tab, optional secondary tab for split-view,
+  // splitter ratio) is lifted out of `RightPaneContainer` for two reasons:
+  //   1. Unread suppression below needs to know whether *either* slot is
+  //      showing the Chat tab to decide if the user is "viewing chat" for
+  //      the selected assistant.
+  //   2. Split layout / ratio is persisted across reloads via localStorage
+  //      so power users keep their preferred two-pane setup.
+  // Reset to single-Chat on assistant change — a fresh open should land
+  // on the conversation, not on whatever split the previous assistant
+  // had configured.
+  const RIGHT_PANE_STORAGE_KEY = 'console:assistants:rightPaneState';
+  const [paneState, setPaneState] = React.useState<RightPaneState>(DEFAULT_RIGHT_PANE_STATE);
+
+  // Hydrate persisted layout post-mount (avoids SSR mismatch). On mobile
+  // we forcibly drop any persisted secondary slot — split is desktop-only,
+  // and surfacing a half-pane on a phone would be unusable.
   React.useEffect(() => {
-    setRightPaneTab('chat');
+    try {
+      const stored = window.localStorage.getItem(RIGHT_PANE_STORAGE_KEY);
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as Partial<RightPaneState> | null;
+      if (!parsed || typeof parsed !== 'object') return;
+      const isMobile = window.matchMedia('(max-width: 767px)').matches;
+      setPaneState({
+        primary: { tab: (parsed.primary?.tab ?? 'chat') as RightPaneTab },
+        secondary:
+          !isMobile && parsed.secondary?.tab ? { tab: parsed.secondary.tab as RightPaneTab } : null,
+        splitRatio: typeof parsed.splitRatio === 'number' ? parsed.splitRatio : 0.5,
+      });
+    } catch {
+      // localStorage may be unavailable (private mode, etc.) — ignore.
+    }
+  }, []);
+
+  // Persist layout changes (best-effort; ignore quota/private-mode failures).
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem(RIGHT_PANE_STORAGE_KEY, JSON.stringify(paneState));
+    } catch {
+      /* ignore */
+    }
+  }, [paneState]);
+
+  // Collapse to primary-only on viewport shrink to mobile so a stored
+  // split doesn't suddenly look broken when the user resizes their window.
+  React.useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent) => {
+      if (e.matches) {
+        setPaneState((prev) => (prev.secondary ? { ...prev, secondary: null } : prev));
+      }
+    };
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  React.useEffect(() => {
+    setPaneState((prev) => ({ ...prev, primary: { tab: 'chat' }, secondary: null }));
   }, [profileAssistantId]);
+
+  // Convenience: chat is "visible" if either slot is showing it. Used by
+  // the chat-stream hook below to suppress unread bumps and by the
+  // mark-as-read effect to clear the badge when an assistant is opened.
+  const isChatVisibleInRightPane =
+    paneState.primary.tab === 'chat' ||
+    (paneState.secondary !== null && paneState.secondary.tab === 'chat');
 
   // --- Assistant List Fold / Resize State ---
   const LIST_SNAP_THRESHOLD = 150;
@@ -504,12 +565,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     {
       userEmail: userMeta.email ?? undefined,
       // Suppress unread bumps for whichever assistant chat the user is
-      // currently looking at — either the profile chat panel (only when the
-      // right-pane Chat tab is active; on Actions/Memory/etc. we still want
+      // currently looking at — either the profile chat panel (only when
+      // the right-pane Chat tab is visible in *either* the primary or
+      // secondary split slot; on Actions/Memory/etc.-only we still want
       // the badge to climb so the user notices) or, if no panel is open,
       // the call dialog's embedded side panel.
       activeAssistantId:
-        (rightPaneTab === 'chat' ? profileAssistantId : null) ??
+        (isChatVisibleInRightPane ? profileAssistantId : null) ??
         activeCallAssistant?.agentId ??
         null,
       getCutoff: getChatStreamCutoff,
@@ -530,13 +592,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // counts — the page-level hook owns that state exclusively.
   React.useEffect(() => {
     // Only clear the unread badge when the user is actually looking at the
-    // chat (Chat tab + assistant selected). Selecting an assistant while on
-    // a non-chat tab leaves the badge in place; switching to the Chat tab
-    // is what marks it read.
-    if (profileAssistantId && rightPaneTab === 'chat') {
+    // chat (Chat tab present in either split slot + assistant selected).
+    // Selecting an assistant while on a non-chat tab leaves the badge in
+    // place; switching either slot to the Chat tab is what marks it read.
+    if (profileAssistantId && isChatVisibleInRightPane) {
       markChatStreamRead(profileAssistantId);
     }
-  }, [profileAssistantId, rightPaneTab, markChatStreamRead]);
+  }, [profileAssistantId, isChatVisibleInRightPane, markChatStreamRead]);
 
   // Activity signal for the currently-open chat panel: the panel reads only
   // changes to this number, so passing 0 when no chat is open is fine.
@@ -1139,8 +1201,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             }
             reconnectChatStream={reconnectChatStream}
             chatStreamActivitySignal={profileChatActivitySignal}
-            activeTab={rightPaneTab}
-            onActiveTabChange={setRightPaneTab}
+            paneState={paneState}
+            onPaneStateChange={setPaneState}
+            onEditAssistant={handleOpenEditDialog}
+            onOpenContactManager={handleOpenContactManager}
           />
         </div>
       </div>

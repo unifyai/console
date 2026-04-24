@@ -157,8 +157,12 @@ async function selectAssistant(page: import('@playwright/test').Page) {
   await listItem.click();
   await page.waitForTimeout(1_500);
 
+  // Actions live in their own right-pane tab (default-collapsed under
+  // the tab strip; a single click brings the viewer into focus).
   const actionsTab = page.getByTestId('right-pane-tab-actions');
+  await expect(actionsTab).toBeVisible({ timeout: 5_000 });
   await actionsTab.click();
+  await expect(actionsTab).toHaveAttribute('data-state', 'active');
   await page.waitForTimeout(500);
 }
 
@@ -177,7 +181,6 @@ test('viewer is present and header controls are visible when assistant is select
   // Header controls should be rendered
   await expect(page.getByTestId('live-actions-header')).toBeVisible({ timeout: 5_000 });
   await expect(page.getByTestId('live-actions-time-window')).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('live-actions-refresh')).toBeVisible({ timeout: 5_000 });
   await expect(page.getByTestId('live-actions-search')).toBeVisible({ timeout: 5_000 });
 });
 
@@ -316,35 +319,6 @@ test('search filters action nodes and shows match count', async ({ authedPage: p
 
   // Both should be visible again after clearing
   await expect(page.locator(`text=${calendarQuestion}`).first()).toBeVisible({ timeout: 5_000 });
-});
-
-test('manual refresh re-fetches events from Orchestra', async ({ authedPage: page }) => {
-  const ts = Date.now();
-  const callingId = `refresh-${ts}`;
-  const questionText = `Refresh test question ${ts}`;
-
-  await selectAssistant(page);
-
-  const viewer = page.getByTestId('live-actions-viewer');
-  await expect(viewer).toBeVisible({ timeout: 10_000 });
-
-  // Seed an event after the viewer has loaded
-  await seedHistoricalEvent(user.apiKey, user.id, assistant.agentId, {
-    callingId,
-    phase: 'incoming',
-    manager: 'RefreshManager',
-    method: 'test',
-    hierarchy: ['RefreshManager.test'],
-    displayLabel: 'Refresh Test',
-    question: questionText,
-  });
-
-  // Click the refresh button to re-fetch from Orchestra
-  const refreshBtn = page.getByTestId('live-actions-refresh');
-  await refreshBtn.click();
-
-  // Wait for the newly seeded event to appear
-  await expect(page.locator(`text=${questionText}`).first()).toBeVisible({ timeout: 15_000 });
 });
 
 test('footer shows connection status and assistant status', async ({ authedPage: page }) => {

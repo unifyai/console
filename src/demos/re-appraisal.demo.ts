@@ -555,7 +555,7 @@ test('clip-2-the-research', async ({ page }) => {
   // Setup page WITHOUT zoom (need tabs visible to switch)
   await setupPage(page, valuer.email, agentId);
 
-  // Switch to Actions tab BEFORE applying zoom
+  // Switch to the Actions tab BEFORE applying zoom.
   await moveTo(page, '[data-testid="right-pane-tab-actions"]', { click: true });
   await page.waitForTimeout(1500);
 
