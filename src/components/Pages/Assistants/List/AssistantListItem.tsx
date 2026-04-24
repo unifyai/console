@@ -41,6 +41,10 @@ interface AssistantListItemProps {
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onEditAssistant: (assistant: Assistant) => void;
   onEndContract?: (assistant: Assistant) => Promise<void>;
+  /** When false, the row's "Profile" and "Contact Details" menu
+   *  entries are hidden — non-write viewers don't get edit
+   *  affordances they can't act on. Defaults to true. */
+  canEdit?: boolean;
   isFolded: boolean;
   isCallActive: boolean;
   /**
@@ -62,6 +66,7 @@ export function AssistantListItem({
   isFolded,
   isCallActive,
   unreadCount = 0,
+  canEdit = true,
 }: AssistantListItemProps) {
   const hasUnread = unreadCount > 0;
   const unreadLabel = unreadCount > 99 ? '99+' : String(unreadCount);
@@ -219,51 +224,62 @@ export function AssistantListItem({
             </Tooltip>
           </TooltipProvider>
         )}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                'h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100',
-                isSelected && 'text-primary-foreground opacity-100 hover:text-primary-foreground'
+        {/* Suppress the menu trigger entirely when none of the
+            entries are actionable — a kebab that opens an empty
+            menu just adds noise. With canEdit and onEndContract
+            both gated, a viewer with neither permission gets a
+            cleaner row. */}
+        {(canEdit || onEndContract) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  'h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100',
+                  isSelected && 'text-primary-foreground opacity-100 hover:text-primary-foreground'
+                )}
+                onClick={(e) => e.stopPropagation()}
+                data-testid={`assistant-menu-${assistant.agentId}`}
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="start" onClick={(e) => e.stopPropagation()}>
+              {canEdit && (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => onEditAssistant(assistant)}
+                    data-testid="menu-edit-profile"
+                  >
+                    <PenLine className="mr-2 h-4 w-4" />
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onOpenContactManager(assistant)}
+                    data-testid="menu-update-contacts"
+                  >
+                    <Contact className="mr-2 h-4 w-4" />
+                    Contact Details
+                  </DropdownMenuItem>
+                </>
               )}
-              onClick={(e) => e.stopPropagation()}
-              data-testid={`assistant-menu-${assistant.agentId}`}
-            >
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="right" align="start" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenuItem
-              onClick={() => onEditAssistant(assistant)}
-              data-testid="menu-edit-profile"
-            >
-              <PenLine className="mr-2 h-4 w-4" />
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onOpenContactManager(assistant)}
-              data-testid="menu-update-contacts"
-            >
-              <Contact className="mr-2 h-4 w-4" />
-              Contact Details
-            </DropdownMenuItem>
-            {onEndContract && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => setIsEndContractAlertOpen(true)}
-                  data-testid="menu-end-contract"
-                  className="text-destructive hover:bg-destructive hover:text-destructive-foreground focus:bg-destructive focus:text-destructive-foreground"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  End contract
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              {onEndContract && (
+                <>
+                  {canEdit && <DropdownMenuSeparator />}
+                  <DropdownMenuItem
+                    onClick={() => setIsEndContractAlertOpen(true)}
+                    data-testid="menu-end-contract"
+                    className="text-destructive hover:bg-destructive hover:text-destructive-foreground focus:bg-destructive focus:text-destructive-foreground"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    End contract
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         <AlertDialog open={isEndContractAlertOpen} onOpenChange={setIsEndContractAlertOpen}>
           <AlertDialogContent onClick={(e) => e.stopPropagation()}>
             <AlertDialogHeader>

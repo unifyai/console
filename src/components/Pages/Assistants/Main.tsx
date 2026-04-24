@@ -33,6 +33,9 @@ import { AssistantsBanners } from './AssistantsBanners';
 import { StripeSidePanel } from '@/components/Billing/StripeSidePanel';
 import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
+import { useAssistantOnboardingSummaries } from '@/hooks/Assistants/useAssistantOnboardingSummaries';
+import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
+import { useRouter } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
@@ -268,6 +271,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   // --- Assistant Permissions ---
   const { canHire, canWrite, canDelete } = useAssistantPermissions();
+  // Pulled out of the workspace context so we can do strict ownership
+  // checks (e.g. who sees the setup roadmap) — `canWrite` is broader
+  // and includes org owners/admins, which isn't the same audience.
+  const { currentUserId } = useWorkspace();
 
   // --- Billing Status & Credit Grant Link ---
   const {
@@ -910,8 +917,15 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       });
       setNewlyHiredInfo({ assistant: optimisticAssistant, preHireChat });
       handleShowProfile(optimisticAssistant.agentId);
+      // Capture the OS for local-mode hires so the setup roadmap's
+      // "Show install instructions" step can re-open the dialog later
+      // with the correct platform — we don't auto-pop here anymore;
+      // the user opts in from the in-panel roadmap when ready.
       if (formData.setup === 'local' && formData.operatingSystem) {
-        setSetupInstructions({ os: formData.operatingSystem, isOpen: true });
+        setHireOsByAgentId((prev) => ({
+          ...prev,
+          [optimisticAssistant.agentId]: formData.operatingSystem as string,
+        }));
       }
 
       refreshAssistants(false);
@@ -1129,6 +1143,169 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     () => assistants.find((a) => a.agentId === profileAssistantId) || null,
     [assistants, profileAssistantId]
   );
+
+  // --- Setup roadmap derivations (live-derived from existing state) ---
+  // Captured on local hires so the roadmap's "Show install
+  // instructions" step can re-open the dialog with the right OS
+  // without us having to round-trip through the form again.
+  const [hireOsByAgentId, setHireOsByAgentId] = React.useState<Record<string, string>>({});
+  // True iff the user has sent ≥1 message in the currently-profiled
+  // assistant's chat — drives the "Say hi" sub-step completion.
+  const profiledHasUserMessage = React.useMemo(() => {
+    if (!profileAssistantId) return false;
+    const messages = profileChatHistories[profileAssistantId] ?? [];
+    return messages.some((m) => m.role === 'user');
+  }, [profileChatHistories, profileAssistantId]);
+  // Latest user-message timestamp for the currently-profiled assistant.
+  // Drives the "Ask in chat" prefill steps' done detection: those steps
+  // are marked complete when the user sends a message after clicking
+  // the prefill (timestamp > clickedAt). Computed per-render but cheap
+  // since chat histories are already indexed in memory.
+  const profiledLatestUserMessageAt = React.useMemo<Date | null>(() => {
+    if (!profileAssistantId) return null;
+    const messages = profileChatHistories[profileAssistantId] ?? [];
+    let latest: Date | null = null;
+    for (const m of messages) {
+      if (m.role !== 'user') continue;
+      if (!latest || m.timestamp.getTime() > latest.getTime()) latest = m.timestamp;
+    }
+    return latest;
+  }, [profileChatHistories, profileAssistantId]);
+  // True iff this assistant has any historical call recorded — drives
+  // the roadmap's "Start a voice call" sub-step. Pulled from the
+  // existing call-pill cache so we don't duplicate fetches.
+  const profiledHasHistoricalCall = React.useMemo(() => {
+    if (!profileAssistantId) return false;
+    return (callPillHistories[profileAssistantId] ?? []).length > 0;
+  }, [callPillHistories, profileAssistantId]);
+  // True iff the logged-in user has a phone number on their profile —
+  // gates the "Add phone to profile" roadmap step.
+  const hasUserPhoneNumber = !!(userMeta.phoneNumber && userMeta.phoneNumber.trim() !== '');
+
+  // Cross-assistant onboarding summaries — drives the "needs
+  // attention" dot on each assistant list row. We pre-bake the
+  // per-assistant chat / call ctx maps from the same caches the
+  // single-assistant panel reads, so the badge can never disagree
+  // with what the user sees inside the panel.
+  //
+  // For non-profiled assistants we have no in-memory chat history
+  // (transcripts haven't been loaded), which means `hasUserMessage`
+  // is `false` for them — leading to a "Say hi" outstanding step
+  // and therefore a dot. That's actually the desired behavior: if
+  // we've never even loaded that assistant's chat, the user almost
+  // certainly hasn't onboarded them. We accept the small cost of
+  // showing a dot until the user opens the assistant once
+  // (transcripts then load and the panel resolves the state).
+  const perAssistantChatCtx = React.useMemo<
+    Record<string, { hasUserMessage: boolean; latestUserMessageAt: Date | null }>
+  >(() => {
+    const out: Record<string, { hasUserMessage: boolean; latestUserMessageAt: Date | null }> = {};
+    for (const [agentId, msgs] of Object.entries(profileChatHistories)) {
+      let latest: Date | null = null;
+      let hasUser = false;
+      for (const m of msgs) {
+        if (m.role !== 'user') continue;
+        hasUser = true;
+        if (!latest || m.timestamp.getTime() > latest.getTime()) latest = m.timestamp;
+      }
+      out[agentId] = { hasUserMessage: hasUser, latestUserMessageAt: latest };
+    }
+    return out;
+  }, [profileChatHistories]);
+  const perAssistantCallCtx = React.useMemo<Record<string, { hasHistoricalCall: boolean }>>(() => {
+    const out: Record<string, { hasHistoricalCall: boolean }> = {};
+    for (const [agentId, pills] of Object.entries(callPillHistories)) {
+      out[agentId] = { hasHistoricalCall: pills.length > 0 };
+    }
+    return out;
+  }, [callPillHistories]);
+  const onboardingSummaries = useAssistantOnboardingSummaries({
+    assistants,
+    currentUserId,
+    hasUserPhoneNumber,
+    perAssistantChat: perAssistantChatCtx,
+    perAssistantCalls: perAssistantCallCtx,
+  });
+  // Flattened `{ agentId: hasOutstanding }` for the list — keeps the
+  // list-level prop dead simple and avoids leaking summary internals
+  // (totalSteps etc.) to a component that only needs a yes/no.
+  const onboardingIncompleteByAgentId = React.useMemo<Record<string, boolean>>(() => {
+    const out: Record<string, boolean> = {};
+    for (const [agentId, summary] of Object.entries(onboardingSummaries)) {
+      if (summary?.hasOutstanding) out[agentId] = true;
+    }
+    return out;
+  }, [onboardingSummaries]);
+  // The setup roadmap is the *owner's* checklist — the contact
+  // details, integrations, install steps etc. all belong to whoever
+  // hired the assistant. Org admins / collaborators viewing a
+  // teammate's assistant get the bare Contact Info layout instead;
+  // they have no actionable steps to tick off here.
+  const isAssistantOwner =
+    !!profileAssistant && !!currentUserId && profileAssistant.userId === currentUserId;
+  // Open the local-install instructions dialog from the setup roadmap.
+  // Falls back to a sane default if we don't have an OS captured (e.g.
+  // the assistant was hired in a previous session before this feature
+  // shipped).
+  const handleShowInstallInstructions = React.useCallback(
+    (assistant: Assistant) => {
+      const os = hireOsByAgentId[assistant.agentId] || 'ubuntu';
+      setSetupInstructions({ os, isOpen: true });
+    },
+    [hireOsByAgentId]
+  );
+  // Open the user's account settings in a new tab so the chat session
+  // isn't disrupted while they configure their profile. Optional `tab`
+  // mirrors the /account page's `?tab=` param (see ProfileTabs) so
+  // callers can deep-link straight to the relevant section — e.g. the
+  // "Add phone to profile" step lands on Contact Info directly.
+  //
+  // We also stamp a localStorage flag so the focus-refresh effect
+  // below knows the user might have just changed something on their
+  // profile — refreshing server data on every focus event is
+  // wasteful, but doing so after an account-page round-trip ensures
+  // derivations like `hasUserPhoneNumber` reflect the edit without
+  // a manual reload.
+  const router = useRouter();
+  const handleOpenUserSettings = React.useCallback((tab?: string) => {
+    if (typeof window === 'undefined') return;
+    const url = tab ? `/account?tab=${encodeURIComponent(tab)}` : '/account';
+    try {
+      window.localStorage.setItem('console:assistants:user-settings-opened-at', String(Date.now()));
+    } catch {
+      /* private mode / quota — refresh just won't trigger */
+    }
+    window.open(url, '_blank', 'noopener');
+  }, []);
+  // Refresh server data (re-pulls userMeta) when the window regains
+  // focus AFTER the user opened account settings. Gated on the flag
+  // + a sane TTL so we don't trigger expensive RSC re-renders on
+  // every alt-tab — only after an account-edit round-trip.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const FLAG_KEY = 'console:assistants:user-settings-opened-at';
+    const TTL_MS = 10 * 60 * 1000;
+    const onFocus = () => {
+      let openedAt: number | null = null;
+      try {
+        const raw = window.localStorage.getItem(FLAG_KEY);
+        openedAt = raw ? Number(raw) : null;
+      } catch {
+        return;
+      }
+      if (!openedAt || Number.isNaN(openedAt)) return;
+      try {
+        window.localStorage.removeItem(FLAG_KEY);
+      } catch {
+        /* ignore */
+      }
+      if (Date.now() - openedAt > TTL_MS) return;
+      router.refresh();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [router]);
+
   const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
 
   // --- System error listener (assistant-level, above all interaction surfaces) ---
@@ -1190,6 +1367,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             onEditAssistant={handleOpenEditDialog}
             onEndContract={onDeleteAssistantSubmit}
             canEndContract={canDelete}
+            canEditAssistant={canWrite}
             isFolded={isAssistantListFolded}
             activeCallAssistantId={activeCallId}
             onHangUp={handleHangUp}
@@ -1238,6 +1416,27 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             onPaneStateChange={setPaneState}
             onEditAssistant={handleOpenEditDialog}
             onOpenContactManager={handleOpenContactManager}
+            hasUserMessage={profiledHasUserMessage}
+            hasHistoricalCall={profiledHasHistoricalCall}
+            hasUserPhoneNumber={hasUserPhoneNumber}
+            latestUserMessageAt={profiledLatestUserMessageAt}
+            userPhoneNumber={userMeta.phoneNumber}
+            // The roadmap activates downstream only when BOTH of the
+            // owner-only handlers are provided (see ChatWithInfoPanel
+            // — it gates the `roadmap` prop bag on their presence).
+            // Withholding them for non-owners cleanly hides the
+            // Onboarding tab without bespoke prop drilling.
+            onShowInstallInstructions={isAssistantOwner ? handleShowInstallInstructions : undefined}
+            onOpenUserSettings={isAssistantOwner ? handleOpenUserSettings : undefined}
+            // Drives the dot on the chat header's "Assistant info"
+            // button. Pulled from the same cross-assistant summary
+            // map we used for the (now-removed) list-item dot, so
+            // the source of truth doesn't fork.
+            hasIncompleteOnboarding={
+              isAssistantOwner && profileAssistant
+                ? !!onboardingIncompleteByAgentId[profileAssistant.agentId]
+                : false
+            }
           />
         </div>
       </div>

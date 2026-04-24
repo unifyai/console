@@ -78,6 +78,15 @@ interface AssistantProfileChatPanelProps {
   /** Externally controlled search dialog open state */
   searchOpen?: boolean;
   onSearchOpenChange?: (open: boolean) => void;
+  /**
+   * Optional draft seed pushed in from outside the chat (currently
+   * the setup-roadmap "Say hi" step). The composer's input value is
+   * replaced with `text` and the textarea focused whenever `nonce`
+   * changes — using a nonce-keyed object rather than the raw string
+   * means the same suggestion can be re-applied without sticking the
+   * input value in a one-way external prop.
+   */
+  draftSeed?: { text: string; nonce: number } | null;
 }
 
 export function AssistantProfileChatPanel({
@@ -99,6 +108,7 @@ export function AssistantProfileChatPanel({
   isCallConnected = false,
   searchOpen: externalSearchOpen,
   onSearchOpenChange,
+  draftSeed,
 }: AssistantProfileChatPanelProps) {
   const displayName = `${assistant.firstName} ${assistant.surname}`;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
@@ -148,6 +158,31 @@ export function AssistantProfileChatPanel({
     preHireChat,
     onFirstViewCompleted
   );
+
+  // Seed-from-outside draft (e.g. setup-roadmap "Say hi"). Keyed on
+  // the seed's `nonce` so re-applying the same text works — and so
+  // we don't fight the user if they're mid-typing and the same seed
+  // happens to re-render with no actual change.
+  const lastAppliedSeedNonceRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    if (!draftSeed) return;
+    if (lastAppliedSeedNonceRef.current === draftSeed.nonce) return;
+    lastAppliedSeedNonceRef.current = draftSeed.nonce;
+    setInputValue(draftSeed.text);
+    // Defer focus to next frame so the textarea has the new value
+    // committed before we move the caret.
+    requestAnimationFrame(() => {
+      const node = textareaRef.current;
+      if (!node) return;
+      node.focus();
+      const end = draftSeed.text.length;
+      try {
+        node.setSelectionRange(end, end);
+      } catch {
+        /* some browsers reject selection on disabled inputs — ignore */
+      }
+    });
+  }, [draftSeed, setInputValue]);
 
   const {
     callPills,

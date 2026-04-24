@@ -23,6 +23,15 @@ interface AssistantListProps {
   onEditAssistant: (assistant: Assistant) => void;
   onEndContract?: (assistant: Assistant) => Promise<void>;
   canEndContract?: (assistant: Assistant) => boolean;
+  /**
+   * Predicate gating the row dropdown's "Profile" / "Contact Details"
+   * edit entries. When it returns `false` for an assistant the menu
+   * items are hidden entirely (rather than disabled) so non-write
+   * viewers don't see edit affordances they can't act on. Defaults
+   * to "always allowed" to preserve back-compat for callers that
+   * pre-date the gating.
+   */
+  canEditAssistant?: (assistant: Assistant) => boolean;
   isFolded: boolean;
   activeCallAssistantId: string | null;
   onHangUp: () => void;
@@ -49,6 +58,7 @@ export function AssistantList({
   onEditAssistant,
   onEndContract,
   canEndContract,
+  canEditAssistant,
   isFolded,
   activeCallAssistantId,
   onHangUp,
@@ -167,6 +177,7 @@ export function AssistantList({
                 onOpenContactManager={onOpenContactManager}
                 onEditAssistant={onEditAssistant}
                 onEndContract={canEndContract?.(assistant) ? onEndContract : undefined}
+                canEdit={canEditAssistant ? canEditAssistant(assistant) : true}
                 isFolded={isFolded}
                 isCallActive={activeCallAssistantId === assistant.agentId}
                 unreadCount={unreadCounts?.[assistant.agentId] ?? 0}

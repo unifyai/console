@@ -123,6 +123,25 @@ interface RightPaneContainerProps {
   onEditAssistant?: (assistant: Assistant) => void;
   /** Open the Contact Manager dialog for the given assistant (wired from Main). */
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
+  /** True iff the user has sent ≥1 message in this assistant's chat. */
+  hasUserMessage?: boolean;
+  /** True iff this assistant has ≥1 historical call recorded. */
+  hasHistoricalCall?: boolean;
+  /** True iff the logged-in user has a phone number on their profile. */
+  hasUserPhoneNumber?: boolean;
+  /** Latest user-message timestamp in this chat (drives prefill done-detection). */
+  latestUserMessageAt?: Date | null;
+  /** User's own phone number for chat prefill personalisation. */
+  userPhoneNumber?: string | null;
+  /** Open the local-install instructions dialog (used by the setup roadmap). */
+  onShowInstallInstructions?: (assistant: Assistant) => void;
+  /** Open the logged-in user's account settings page. Optional `tab`
+   *  mirrors the /account `?tab=` query param so callers can deep-link
+   *  to a specific section (e.g. `'contact-info'`). */
+  onOpenUserSettings?: (tab?: string) => void;
+  /** True iff this assistant has outstanding setup work — drives the
+   *  dot on the chat header's "Assistant info" button. */
+  hasIncompleteOnboarding?: boolean;
 }
 
 export function RightPaneContainer({
@@ -152,6 +171,14 @@ export function RightPaneContainer({
   onPaneStateChange,
   onEditAssistant,
   onOpenContactManager,
+  hasUserMessage,
+  hasHistoricalCall,
+  hasUserPhoneNumber,
+  latestUserMessageAt,
+  userPhoneNumber,
+  onShowInstallInstructions,
+  onOpenUserSettings,
+  hasIncompleteOnboarding,
 }: RightPaneContainerProps) {
   // Tracks whether the live-actions stream is currently working, so the
   // dashboards pane can poll its tiles. Hoisted here because either pane
@@ -369,6 +396,15 @@ export function RightPaneContainer({
             spendingBlockedMessage={spendingGate.blockedMessage}
             onEditProfile={onEditAssistant}
             onOpenContactManager={onOpenContactManager}
+            canWrite={canWrite}
+            hasUserMessage={hasUserMessage}
+            hasHistoricalCall={hasHistoricalCall}
+            hasUserPhoneNumber={hasUserPhoneNumber}
+            latestUserMessageAt={latestUserMessageAt}
+            userPhoneNumber={userPhoneNumber}
+            onShowInstallInstructions={onShowInstallInstructions}
+            onOpenUserSettings={onOpenUserSettings}
+            hasIncompleteOnboarding={hasIncompleteOnboarding}
           />
         </TabsContent>
 
