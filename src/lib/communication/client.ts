@@ -61,14 +61,14 @@ function addAllInterceptors(client: AxiosInstance): AxiosInstance {
  * @example
  * // Unauthenticated request
  * const client = createCommunicationClient();
- * const { data } = await client.post('/email/create', { emailAddress: 'test@example.com' });
+ * const { data } = await client.post('/social/verify', { platform, accountIdentifier });
  *
  * // Authenticated request
  * const client = createCommunicationClient(userApiKey);
  * const { data } = await client.post('/social/verify', { platform, accountIdentifier });
  *
- * // Request body sent as: { email_address: 'test@example.com' }
- * // Response automatically converted to camelCase
+ * // Request bodies are sent as snake_case; responses are automatically
+ * // converted back to camelCase.
  */
 export function createCommunicationClient(apiKey?: string): AxiosInstance {
   const baseUrl = process.env.COMMUNICATION_URL;

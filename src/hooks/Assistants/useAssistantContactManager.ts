@@ -11,14 +11,11 @@ import {
   ContactCosts,
   AssistantContactCreatePayload,
   ContactType,
-  EmailProvider,
   OAuthProvider,
   GrantedFeaturesResponse,
 } from '@/types/assistants/contact';
 import { ResponseProps } from '@/types/common';
 import {
-  EMAIL_DOMAINS,
-  EMAIL_DOMAIN_WITH_AT,
   FALLBACK_DEFAULT_COUNTRY_CODE,
   AVAILABLE_FEATURES,
   REQUIRED_FEATURES,
@@ -62,23 +59,13 @@ export function useAssistantContactManager({
     defaultValues: getDefaultContactValues(assistant),
   });
 
-  const {
-    setValue,
-    getValues,
-    watch,
-    reset,
-    formState: { errors },
-  } = contactFormMethods;
+  const { setValue, getValues, reset } = contactFormMethods;
 
   // Phone countries state - fetched when dialog opens
   const [availablePhoneCountries, setAvailablePhoneCountries] = React.useState<
     AvailablePhoneCountry[]
   >([]);
   const [isLoadingPhoneCountries, setIsLoadingPhoneCountries] = React.useState(false);
-
-  // Assistant emails state - fetched when dialog opens for email validation
-  const [allAssistantEmails, setAllAssistantEmails] = React.useState<string[]>([]);
-  const [isLoadingEmails, setIsLoadingEmails] = React.useState(false);
 
   // Social platforms state - fetched when dialog opens for WhatsApp tab
   const [availableSocialPlatforms, setAvailableSocialPlatforms] = React.useState<
@@ -91,14 +78,9 @@ export function useAssistantContactManager({
   const [isLoadingContactCosts, setIsLoadingContactCosts] = React.useState(false);
 
   // ---------------------------------------------------------------------------
-  // Email provider state (for platform provisioning)
-  // ---------------------------------------------------------------------------
-
-  const [emailProvider, setEmailProvider] = React.useState<EmailProvider>('google_workspace');
-  const activeEmailDomain = EMAIL_DOMAINS[emailProvider] ?? EMAIL_DOMAIN_WITH_AT;
-
-  // ---------------------------------------------------------------------------
-  // BYOD state (connect your own account)
+  // BYOD state (connect your own account).  Email contacts are BYOD-only —
+  // platform-issued ``@unify.ai`` mailbox provisioning was retired
+  // backend-side and the corresponding UI surface is gone too.
   // ---------------------------------------------------------------------------
 
   const [byodProvider, setByodProvider] = React.useState<OAuthProvider | null>(null);
@@ -121,7 +103,6 @@ export function useAssistantContactManager({
   React.useEffect(() => {
     if (isOpen) {
       reset(getDefaultContactValues(assistant));
-      setEmailProvider('google_workspace');
       setByodProvider(null);
       setSelectedFeatures([]);
     }
@@ -185,40 +166,6 @@ export function useAssistantContactManager({
       cancelled = true;
     };
   }, [isOpen, assistantActions.contact, getValues, setValue]);
-
-  // Fetch assistant emails when dialog opens (for email uniqueness validation)
-  React.useEffect(() => {
-    if (!isOpen) return;
-
-    let cancelled = false;
-
-    async function loadAssistantEmails() {
-      setIsLoadingEmails(true);
-      try {
-        const result = await assistantActions.contact.listAllAssistantEmails();
-        if (cancelled) return;
-
-        if (Array.isArray(result)) {
-          setAllAssistantEmails(result);
-        } else {
-          setAllAssistantEmails([]);
-        }
-      } catch (error) {
-        if (cancelled) return;
-        setAllAssistantEmails([]);
-      } finally {
-        if (!cancelled) {
-          setIsLoadingEmails(false);
-        }
-      }
-    }
-
-    loadAssistantEmails();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, assistantActions.contact]);
 
   // Fetch social platforms when dialog opens (for WhatsApp cost calculation)
   React.useEffect(() => {
@@ -337,7 +284,6 @@ export function useAssistantContactManager({
   // ---------------------------------------------------------------------------
 
   const [activeTab, setActiveTab] = React.useState<ContactType>(initialTab || 'email');
-  const [emailLocalPart, setEmailLocalPart] = React.useState('');
   const [confirmDelete, setConfirmDelete] = React.useState<ContactType | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -347,8 +293,6 @@ export function useAssistantContactManager({
   const toastIdRef = React.useRef<string | number | undefined>(undefined);
 
   // Initialize tab and reset confirmDelete when dialog opens.
-  // This effect only depends on isOpen and initialTab to avoid resetting the tab
-  // when other async data (like allAssistantEmails) loads.
   React.useEffect(() => {
     if (isOpen) {
       setConfirmDelete(null);
@@ -358,64 +302,6 @@ export function useAssistantContactManager({
       }
     }
   }, [isOpen, initialTab]);
-
-  // Initialize email local part when dialog opens
-  React.useEffect(() => {
-    if (isOpen) {
-      if (assistant.email) {
-        const domain = EMAIL_DOMAINS[assistant.emailProvider ?? ''] ?? EMAIL_DOMAIN_WITH_AT;
-        if (assistant.email.endsWith(domain)) {
-          setEmailLocalPart(assistant.email.substring(0, assistant.email.length - domain.length));
-        } else {
-          setEmailLocalPart(assistant.email);
-        }
-      } else {
-        const baseLocalPart = `${assistant.firstName}.${assistant.surname}`
-          .toLowerCase()
-          .replace(/\s+/g, '.')
-          .replace(/[^a-z0-9.]/g, '');
-
-        let finalLocalPart = baseLocalPart;
-        let counter = 1;
-        while (allAssistantEmails.includes(`${finalLocalPart}${activeEmailDomain}`)) {
-          finalLocalPart = `${baseLocalPart}${counter}`;
-          counter++;
-        }
-        setEmailLocalPart(finalLocalPart);
-        setValue('email', `${finalLocalPart}${activeEmailDomain}`, {
-          shouldValidate: true,
-          shouldDirty: true,
-        });
-        setValue('isEmailAdded', true, { shouldDirty: true });
-        setValue('emailManuallyEdited', false);
-      }
-    }
-  }, [isOpen, assistant, allAssistantEmails, setValue, activeEmailDomain]);
-
-  // ---------------------------------------------------------------------------
-  // Email local part handler (uses active domain based on selected provider)
-  // ---------------------------------------------------------------------------
-
-  const handleLocalPartChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newLocalPart = event.target.value.replace(/[@\s]/g, '');
-    setEmailLocalPart(newLocalPart);
-    setValue('email', `${newLocalPart}${activeEmailDomain}`, {
-      shouldValidate: true,
-      shouldDirty: true,
-    });
-    setValue('isEmailAdded', true, { shouldDirty: true });
-    setValue('emailManuallyEdited', true);
-  };
-
-  // Resync the hidden email field when the provider (and thus domain) changes
-  React.useEffect(() => {
-    if (!assistant.email && emailLocalPart) {
-      setValue('email', `${emailLocalPart}${activeEmailDomain}`, {
-        shouldValidate: true,
-        shouldDirty: true,
-      });
-    }
-  }, [activeEmailDomain, emailLocalPart, assistant.email, setValue]);
 
   // ---------------------------------------------------------------------------
   // BYOD feature toggle
@@ -578,9 +464,13 @@ export function useAssistantContactManager({
   };
 
   /**
-   * Self-contained contact submission.
+   * Self-contained contact submission for non-email contact types.
    * Builds a payload based on the active tab, then calls the dedicated
    * POST /assistant/{id}/contact endpoint to provision the contact.
+   *
+   * Email contacts are BYOD-only and go through ``connectAccount`` (OAuth
+   * redirect), not this handler — the create button is hidden on the
+   * email tab.
    */
   const submitContact = React.useCallback(async () => {
     if (isSubmittingContact) return;
@@ -589,31 +479,9 @@ export function useAssistantContactManager({
     toastIdRef.current = toast.loading('Creating contact...', { id: toastIdRef.current });
 
     try {
-      // Build contact creation payload based on active tab
       const payload: AssistantContactCreatePayload = { contactType: activeTab };
 
       switch (activeTab) {
-        case 'email': {
-          const email = getValues('email');
-          const isEmailAdded = getValues('isEmailAdded');
-
-          if (!isEmailAdded) {
-            throw new Error('No email to save.');
-          }
-
-          if (!email || !email.endsWith(activeEmailDomain)) {
-            throw new Error(`Valid email ending with ${activeEmailDomain} is required.`);
-          }
-
-          // Extract local part for the backend
-          const emailLocal = email.substring(0, email.length - activeEmailDomain.length);
-          payload.emailLocal = emailLocal;
-          payload.emailProvider = emailProvider;
-          payload.firstName = assistant.firstName || '';
-          payload.lastName = assistant.surname || '';
-          break;
-        }
-
         case 'phone': {
           const phoneCountry = getValues('phoneCountry');
           payload.phoneCountry = phoneCountry || FALLBACK_DEFAULT_COUNTRY_CODE;
@@ -623,9 +491,11 @@ export function useAssistantContactManager({
         case 'whatsapp':
         case 'discord':
           break;
+
+        case 'email':
+          throw new Error('Email contacts are BYOD-only — use the OAuth Connect flow instead.');
       }
 
-      // Call the dedicated contact creation endpoint
       const createResult = await assistantActions.contact.create(assistant.agentId, payload);
 
       if ((createResult as ResponseProps).detail) {
@@ -645,12 +515,8 @@ export function useAssistantContactManager({
   }, [
     isSubmittingContact,
     activeTab,
-    activeEmailDomain,
-    emailProvider,
     getValues,
     assistant.agentId,
-    assistant.firstName,
-    assistant.surname,
     assistantActions.contact,
     onSuccess,
   ]);
@@ -658,9 +524,6 @@ export function useAssistantContactManager({
   // ---------------------------------------------------------------------------
   // Computed values
   // ---------------------------------------------------------------------------
-
-  // Watch form values for reactive UI updates
-  const isEmailAdded = watch('isEmailAdded');
 
   /**
    * One-time setup cost for the contact type on the active tab.
@@ -694,22 +557,20 @@ export function useAssistantContactManager({
     if (isSubmittingContact) return true;
 
     switch (activeTab) {
-      case 'email':
-        return !isEmailAdded || !emailLocalPart;
       case 'phone':
         return isLoadingPhoneCountries || !userPhoneNumber;
       case 'whatsapp':
         return !userWhatsappNumber;
       case 'discord':
         return !userDiscordId;
+      // Email tab never shows a Create button — BYOD goes through Connect.
+      case 'email':
       default:
         return true;
     }
   }, [
     isSubmittingContact,
     activeTab,
-    isEmailAdded,
-    emailLocalPart,
     isLoadingPhoneCountries,
     userPhoneNumber,
     userWhatsappNumber,
@@ -717,7 +578,6 @@ export function useAssistantContactManager({
   ]);
 
   const showCreateButton =
-    (activeTab === 'email' && !assistant.email) ||
     (activeTab === 'phone' && !assistant.phone) ||
     (activeTab === 'whatsapp' && !assistant.assistantWhatsappNumber) ||
     (activeTab === 'discord' && !assistant.assistantDiscordBotId);
@@ -734,14 +594,6 @@ export function useAssistantContactManager({
     // Tab state
     activeTab,
     setActiveTab,
-    // Email management (platform provisioning)
-    emailLocalPart,
-    handleLocalPartChange,
-    allAssistantEmails,
-    isLoadingEmails,
-    emailProvider,
-    setEmailProvider,
-    activeEmailDomain,
     // BYOD
     byodProvider,
     setByodProvider,

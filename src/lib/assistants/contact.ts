@@ -17,36 +17,6 @@ import {
 } from '@/types/assistants/contact';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 
-export const listAllAssistantEmails = async (apiKey: string) => {
-  return async (): Promise<string[] | ResponseProps> => {
-    'use server';
-    try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/email`, {
-        method: 'GET',
-        headers: { apiKey: apiKey },
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        return {
-          detail: data.detail || `Failed to list all assistant emails: ${response.statusText}`,
-        };
-      }
-      // The /api/contact/email GET proxy should return { emails: string[] }
-      if (data.emails && Array.isArray(data.emails)) {
-        return data.emails as string[];
-      }
-      return {
-        detail: 'Listing all assistant emails succeeded but response format was unexpected.',
-      };
-    } catch (error) {
-      return {
-        detail:
-          error instanceof Error ? error.message : 'Unknown error listing all assistant emails.',
-      };
-    }
-  };
-};
-
 export const listAvailablePhoneCountries = async (apiKey: string) => {
   return async (): Promise<AvailablePhoneCountry[]> => {
     'use server';
@@ -405,7 +375,6 @@ function buildCostsFromRows(rows: AssistantContactCost[]): ContactCosts {
     email: { monthlyCost: 0, oneTimeCost: 0 },
     whatsapp: { monthlyCost: 0, oneTimeCost: 0 },
     discord: { monthlyCost: 0, oneTimeCost: 0 },
-    emailByProvider: {},
   };
 
   for (const type of ['phone', 'email', 'whatsapp', 'discord'] as const) {
@@ -419,17 +388,6 @@ function buildCostsFromRows(rows: AssistantContactCost[]): ContactCosts {
       monthlyCost: defaultRow.monthlyCost,
       oneTimeCost: defaultRow.oneTimeCost,
     };
-
-    if (type === 'email') {
-      for (const row of typeRows) {
-        if (row.provider) {
-          costs.emailByProvider[row.provider] = {
-            monthlyCost: row.monthlyCost,
-            oneTimeCost: row.oneTimeCost,
-          };
-        }
-      }
-    }
   }
 
   return costs;
