@@ -1,3 +1,23 @@
+// Server Actions in Next.js enforce a CSRF check that the request's
+// ``Origin`` header suffix-matches one of ``allowedOrigins``. The canonical
+// console runs on ``unify.ai``, but slug-tagged Cloud Run preview revisions
+// run on ``<slug>---saas-web-app-redesign-staging-….a.run.app`` — so each
+// preview revision must allowlist its own host. ``NEXT_PUBLIC_APP_URL`` is
+// pinned to the slug's own URL by ``cloudbuild_preview.yaml``; on canonical
+// it points at the canonical console domain and the extra entry is a no-op.
+function serverActionsAllowedOrigins() {
+  const allowed = new Set(['unify.ai']);
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (appUrl) {
+    try {
+      allowed.add(new URL(appUrl).host);
+    } catch {
+      // Malformed value — keep the default origin only.
+    }
+  }
+  return Array.from(allowed);
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -38,7 +58,7 @@ const nextConfig = {
     instrumentationHook: true,
     serverMinification: false,
     serverActions: {
-      allowedOrigins: ['unify.ai'],
+      allowedOrigins: serverActionsAllowedOrigins(),
       bodySizeLimit: '100mb',
     },
   },
