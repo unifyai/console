@@ -106,8 +106,10 @@ describe('validatePreviewOrigin', () => {
 });
 
 describe('PREVIEW_HANDOFF_URL', () => {
-  it('points at the canonical Cloud Run host', () => {
-    expect(PREVIEW_HANDOFF_URL).toBe(`https://${PREVIEW_BASE_HOST}/api/auth/preview-handoff`);
+  it('points at the canonical custom domain registered with the OAuth client', () => {
+    expect(PREVIEW_HANDOFF_URL).toBe(
+      'https://internal.example.com/api/auth/preview-handoff'
+    );
   });
 });
 

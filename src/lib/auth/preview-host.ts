@@ -19,6 +19,15 @@
 export const PREVIEW_BASE_HOST = 'service.a.run.app';
 
 /**
+ * Canonical custom domain registered as the Google OAuth client's redirect
+ * origin. The OAuth bounce starts here so that NextAuth's CSRF cookie, the
+ * Google redirect URI, and the post-auth ``preview-redirect`` route all
+ * share a single host — otherwise the cookie set during ``signIn()``
+ * cannot be read when Google redirects back to ``NEXTAUTH_URL``.
+ */
+export const PREVIEW_HANDOFF_HOST = 'internal.example.com';
+
+/**
  * Cloud Run tag-name constraints (a-z, 0-9, hyphen; 1–63 chars; no leading or
  * trailing hyphen). The preview pipeline truncates at 30 chars so the
  * generated host stays well under the 63-byte DNS label limit.
@@ -65,14 +74,13 @@ export function validatePreviewOrigin(rawOrigin: string | null | undefined): str
 /**
  * URL of the canonical-side handoff route for the OAuth bounce.
  *
- * Any canonical hostname serves the same Cloud Run revision, so we always
- * use the bare Cloud Run host: it is structurally derivable from the
- * preview host without runtime configuration, and NextAuth itself rewrites
- * the OAuth callback to whatever ``NEXTAUTH_URL`` is set to (i.e. the
- * registered Google redirect URI), so the user ends up on the custom
- * domain mid-flow regardless of where the bounce started.
+ * Pinned to the canonical custom domain (``NEXTAUTH_URL``) because the
+ * Google OAuth client's authorized redirect URI is registered there.
+ * Starting the bounce on this same host means NextAuth's pre-auth CSRF
+ * cookie and the post-auth ``preview-redirect`` route both run on the
+ * domain Google redirects back to.
  */
-export const PREVIEW_HANDOFF_URL = `https://${PREVIEW_BASE_HOST}/api/auth/preview-handoff`;
+export const PREVIEW_HANDOFF_URL = `https://${PREVIEW_HANDOFF_HOST}/api/auth/preview-handoff`;
 
 /** Cloud Run tag pattern check — used by tests; also handy at the call site. */
 export function isValidSlug(slug: string): boolean {
