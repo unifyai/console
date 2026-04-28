@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { validatePreviewOrigin } from '@/lib/auth/preview-host';
+import { forwardedOrigin, validatePreviewOrigin } from '@/lib/auth/preview-host';
 
 /**
  * Canonical-side entrypoint for the preview-environment OAuth bounce.
@@ -37,19 +37,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const next = searchParams.get('next') ?? '/assistants';
+  const origin = forwardedOrigin(request.headers, request.nextUrl.origin);
 
   // After OAuth completes on canonical, NextAuth's ``redirect`` callback
   // accepts only same-origin URLs, so the post-auth landing is a relative
   // path here. ``preview-redirect`` then mints the transfer token and
   // bounces the browser to ``return_to``.
-  const callbackUrl = new URL('/api/auth/preview-redirect', request.url);
+  const callbackUrl = new URL('/api/auth/preview-redirect', origin);
   callbackUrl.searchParams.set('return_to', returnToOrigin);
   callbackUrl.searchParams.set('next', next);
 
   // Drive the canonical login page, which already calls ``signIn(provider)``
   // with the right CSRF + cookie plumbing. ``previewSignIn`` tells the
   // page to skip the form and trigger the provider immediately.
-  const loginUrl = new URL('/login', request.url);
+  const loginUrl = new URL('/login', origin);
   loginUrl.searchParams.set('previewSignIn', provider);
   loginUrl.searchParams.set('callbackUrl', callbackUrl.pathname + callbackUrl.search);
 

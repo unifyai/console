@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
+import { forwardedOrigin } from '@/lib/auth/preview-host';
 import {
   PREVIEW_SESSION_MAX_AGE_SECONDS,
   decodePreviewTransferToken,
@@ -28,15 +29,16 @@ const SAFE_NEXT_PATH = /^\/[^\s]*$/;
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const { searchParams } = request.nextUrl;
 
+  const origin = forwardedOrigin(request.headers, request.nextUrl.origin);
+
   const rawToken = searchParams.get('token');
   if (!rawToken) {
-    return NextResponse.redirect(new URL('/login?error=Signin', request.url));
+    return NextResponse.redirect(new URL('/login?error=Signin', origin));
   }
 
-  const expectedAudience = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
-  const payload = await decodePreviewTransferToken(rawToken, expectedAudience);
+  const payload = await decodePreviewTransferToken(rawToken, origin);
   if (!payload) {
-    return NextResponse.redirect(new URL('/login?error=Signin', request.url));
+    return NextResponse.redirect(new URL('/login?error=Signin', origin));
   }
 
   const sessionToken = await encodePreviewSessionToken(payload);
@@ -54,5 +56,5 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     maxAge: PREVIEW_SESSION_MAX_AGE_SECONDS,
   });
 
-  return NextResponse.redirect(new URL(next, request.url));
+  return NextResponse.redirect(new URL(next, origin));
 }

@@ -1,7 +1,7 @@
 import { getToken } from 'next-auth/jwt';
 import { NextRequest, NextResponse } from 'next/server';
 
-import { validatePreviewOrigin } from '@/lib/auth/preview-host';
+import { forwardedOrigin, validatePreviewOrigin } from '@/lib/auth/preview-host';
 import {
   PREVIEW_TRANSFER_MAX_AGE_SECONDS,
   encodePreviewTransferToken,
@@ -34,10 +34,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const requestedNext = searchParams.get('next') ?? '/assistants';
   const next = SAFE_NEXT_PATH.test(requestedNext) ? requestedNext : '/assistants';
+  const origin = forwardedOrigin(request.headers, request.nextUrl.origin);
 
   const token = await getToken({ req: request, secret: process.env.JWT_SECRET });
   if (!token || !token.email || !token.sub) {
-    const loginUrl = new URL('/login', request.url);
+    const loginUrl = new URL('/login', origin);
     loginUrl.searchParams.set('error', 'Signin');
     return NextResponse.redirect(loginUrl);
   }

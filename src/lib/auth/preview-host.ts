@@ -78,3 +78,22 @@ export const PREVIEW_HANDOFF_URL = `https://${PREVIEW_BASE_HOST}/api/auth/previe
 export function isValidSlug(slug: string): boolean {
   return SLUG_PATTERN.test(slug);
 }
+
+/**
+ * Compute the externally-visible request origin from forwarded headers.
+ *
+ * On Cloud Run, the container listens on ``0.0.0.0:3000`` and the
+ * Google frontend forwards ``Host``/``X-Forwarded-*`` headers carrying
+ * the real external URL. ``request.url`` and ``NextRequest.nextUrl``
+ * may reflect the listener address instead of the forwarded host
+ * depending on how the standalone Next.js server was built, so route
+ * handlers that build redirect URLs must read forwarded headers
+ * explicitly to avoid producing ``https://0.0.0.0:3000/...`` redirects
+ * the browser will reject.
+ */
+export function forwardedOrigin(headers: Headers, fallback: string): string {
+  const proto = headers.get('x-forwarded-proto') ?? 'https';
+  const host = headers.get('x-forwarded-host') ?? headers.get('host');
+  if (!host) return fallback;
+  return `${proto}://${host}`;
+}

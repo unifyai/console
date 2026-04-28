@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PREVIEW_BASE_HOST,
   PREVIEW_HANDOFF_URL,
+  forwardedOrigin,
   isPreviewHost,
   isValidSlug,
   previewSlugFromHost,
@@ -107,5 +108,28 @@ describe('validatePreviewOrigin', () => {
 describe('PREVIEW_HANDOFF_URL', () => {
   it('points at the canonical Cloud Run host', () => {
     expect(PREVIEW_HANDOFF_URL).toBe(`https://${PREVIEW_BASE_HOST}/api/auth/preview-handoff`);
+  });
+});
+
+describe('forwardedOrigin', () => {
+  it('uses x-forwarded-host with x-forwarded-proto when both are set', () => {
+    const headers = new Headers({
+      'x-forwarded-host': 'oauth-bounce---svc.run.app',
+      'x-forwarded-proto': 'https',
+    });
+    expect(forwardedOrigin(headers, 'http://0.0.0.0:3000')).toBe(
+      'https://oauth-bounce---svc.run.app'
+    );
+  });
+
+  it('falls back to the host header when no x-forwarded-host is present', () => {
+    const headers = new Headers({ host: 'oauth-bounce---svc.run.app' });
+    expect(forwardedOrigin(headers, 'http://0.0.0.0:3000')).toBe(
+      'https://oauth-bounce---svc.run.app'
+    );
+  });
+
+  it('returns the fallback when no host headers are set', () => {
+    expect(forwardedOrigin(new Headers(), 'http://0.0.0.0:3000')).toBe('http://0.0.0.0:3000');
   });
 });
