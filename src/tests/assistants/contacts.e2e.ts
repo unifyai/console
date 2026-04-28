@@ -350,7 +350,7 @@ test('whatsapp create button is enabled when user has a whatsapp number', async 
 // Email Provider Selection Tests
 // =============================================================================
 
-test('email tab shows provider cards (Gmail / Outlook) when no email is configured', async ({
+test('email tab hides platform provider cards (no @unify.ai / @unifyailtd123 provisioning)', async ({
   authedPage: page,
 }) => {
   // Ensure no email contact exists
@@ -362,22 +362,13 @@ test('email tab shows provider cards (Gmail / Outlook) when no email is configur
 
   await openContactManager(page);
 
-  // Both provider cards should be visible
-  await expect(page.locator('text=Gmail')).toBeVisible({ timeout: 5_000 });
-  await expect(page.locator('text=Outlook')).toBeVisible({ timeout: 5_000 });
-
-  // Domain suffix should update when switching providers
-  await expect(page.locator('text=@unify.ai')).toBeVisible({ timeout: 5_000 });
-
-  // Click the Outlook card
-  const outlookCard = page.locator('button:has-text("Outlook")');
-  await outlookCard.click();
-  await page.waitForTimeout(300);
-
-  await expect(page.locator('text=@tenant.onmicrosoft.com')).toBeVisible({ timeout: 5_000 });
+  // Platform provisioning UI must not be present anywhere.
+  await expect(page.locator('text=Provision a platform email')).toHaveCount(0);
+  await expect(page.locator('text=@unify.ai')).toHaveCount(0);
+  await expect(page.locator('text=@tenant.onmicrosoft.com')).toHaveCount(0);
 });
 
-test('email tab shows "or" divider and BYOD provider cards when no email exists', async ({
+test('email tab shows BYOD provider cards (no platform "or" divider) when no email exists', async ({
   authedPage: page,
 }) => {
   const existing = getAssistantContact(assistant.agentId, 'email');
@@ -388,13 +379,13 @@ test('email tab shows "or" divider and BYOD provider cards when no email exists'
 
   await openContactManager(page);
 
-  // "or" divider
-  await expect(page.locator('text=or').first()).toBeVisible({ timeout: 5_000 });
-
-  // BYOD provider cards
+  // BYOD provider cards remain
   await expect(page.locator('text=Connect your own account')).toBeVisible({ timeout: 5_000 });
   await expect(page.locator('button:has-text("Google")')).toBeVisible({ timeout: 5_000 });
   await expect(page.locator('button:has-text("Microsoft 365")')).toBeVisible({ timeout: 5_000 });
+
+  // The platform-vs-BYOD "or" divider should be gone — there is nothing to "or" between.
+  await expect(page.locator('text=Provision a platform email')).toHaveCount(0);
 });
 
 test('selecting a BYOD provider shows feature checkboxes and Connect button', async ({
@@ -476,7 +467,7 @@ test('deselecting a BYOD provider hides the feature list and Connect button', as
   await expect(connectBtn).not.toBeVisible({ timeout: 3_000 });
 });
 
-test('Create button is hidden when a BYOD provider is selected (mutual exclusivity)', async ({
+test('email tab never shows a Create button (platform provisioning is removed)', async ({
   authedPage: page,
 }) => {
   const existing = getAssistantContact(assistant.agentId, 'email');
@@ -487,16 +478,14 @@ test('Create button is hidden when a BYOD provider is selected (mutual exclusivi
 
   await openContactManager(page);
 
-  // The Create button should be visible initially (for platform provisioning)
-  const createBtn = page.getByRole('button', { name: 'Create' });
-  await expect(createBtn).toBeVisible({ timeout: 5_000 });
+  // No Create button on the email tab — only Connect (BYOD) is offered.
+  await expect(page.getByRole('button', { name: 'Create' })).toHaveCount(0);
 
-  // Select a BYOD provider
+  // Selecting a BYOD provider exposes the Connect button.
   const googleCard = page.locator('button:has-text("Google")').last();
   await googleCard.click();
   await page.waitForTimeout(300);
 
-  // Create should now be hidden — replaced by Connect
-  await expect(createBtn).not.toBeVisible({ timeout: 3_000 });
+  await expect(page.getByRole('button', { name: 'Create' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible({ timeout: 5_000 });
 });

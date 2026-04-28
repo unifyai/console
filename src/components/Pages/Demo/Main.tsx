@@ -356,19 +356,9 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
                             Country where the assistant&apos;s phone number will be provisioned.
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id="provisionEmail"
-                            checked={provisionEmail}
-                            onCheckedChange={(checked) => setProvisionEmail(checked === true)}
-                          />
-                          <Label
-                            htmlFor="provisionEmail"
-                            className="cursor-pointer text-sm font-normal"
-                          >
-                            Provision email address for this demo assistant
-                          </Label>
-                        </div>
+                        {/* Platform email provisioning is hidden — demos no
+                          longer get an `@unify.ai` mailbox. The
+                          `provisionEmail` state below stays `false`. */}
                       </div>
                     </section>
 

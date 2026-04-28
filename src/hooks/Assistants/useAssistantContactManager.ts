@@ -666,29 +666,29 @@ export function useAssistantContactManager({
    * One-time setup cost for the contact type on the active tab.
    * Returns null when costs haven't been fetched yet so the UI can
    * show a generic "setup fee applies" message instead of a wrong number.
+   *
+   * Email is always free: platform-issued mailbox provisioning is no longer
+   * offered, and BYOD email never incurs charges (the backend levy filters
+   * `provisioned_by == "platform"`).
    */
   const creationCost = React.useMemo((): number | null => {
+    if (activeTab === 'email') return 0;
     if (!contactCosts) return null;
-    if (activeTab === 'email') {
-      const providerCost = contactCosts.emailByProvider?.[emailProvider];
-      return (providerCost ?? contactCosts.email)?.oneTimeCost ?? 0;
-    }
     return contactCosts[activeTab]?.oneTimeCost ?? 0;
-  }, [activeTab, contactCosts, emailProvider]);
+  }, [activeTab, contactCosts]);
 
   /**
    * Estimated monthly cost for the contact type on the active tab.
    * Returns null when costs haven't been fetched yet so the UI can
    * show a generic "monthly fee applies" message instead of a wrong number.
+   *
+   * Email is always free — see ``creationCost`` above.
    */
   const monthlyCost = React.useMemo((): number | null => {
+    if (activeTab === 'email') return 0;
     if (!contactCosts) return null;
-    if (activeTab === 'email') {
-      const providerCost = contactCosts.emailByProvider?.[emailProvider];
-      return (providerCost ?? contactCosts.email)?.monthlyCost ?? 0;
-    }
     return contactCosts[activeTab]?.monthlyCost ?? 0;
-  }, [activeTab, contactCosts, emailProvider]);
+  }, [activeTab, contactCosts]);
 
   const isCreateButtonDisabled = React.useMemo(() => {
     if (isSubmittingContact) return true;

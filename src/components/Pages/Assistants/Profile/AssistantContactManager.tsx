@@ -25,9 +25,9 @@ import {
   Link2,
 } from 'lucide-react';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
-import { ContactType, EmailProvider, OAuthProvider } from '@/types/assistants/contact';
+import { ContactType, OAuthProvider } from '@/types/assistants/contact';
 import { FormProvider, useWatch } from 'react-hook-form';
-import { EMAIL_DOMAINS, FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/settings';
+import { FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/settings';
 import {
   Select,
   SelectContent,
@@ -137,35 +137,6 @@ const ProviderBadge: React.FC<{ provider: string }> = ({ provider }) => (
 );
 
 // ---------------------------------------------------------------------------
-// Email provider picker cards (for platform provisioning)
-// ---------------------------------------------------------------------------
-
-const EmailProviderCard: React.FC<{
-  provider: EmailProvider;
-  isSelected: boolean;
-  onSelect: () => void;
-  disabled?: boolean;
-}> = ({ provider, isSelected, onSelect, disabled }) => (
-  <button
-    type="button"
-    onClick={onSelect}
-    disabled={disabled}
-    className={cn(
-      'flex flex-1 flex-col items-center rounded-lg border p-3 transition-colors',
-      isSelected
-        ? 'bg-primary/5 border-primary ring-1 ring-primary'
-        : 'hover:border-muted-foreground/50 border-border',
-      disabled && 'cursor-not-allowed opacity-50'
-    )}
-  >
-    <span className="text-body text-strong">
-      {provider === 'google_workspace' ? 'Gmail' : 'Outlook'}
-    </span>
-    <span className="text-caption text-muted-foreground">{EMAIL_DOMAINS[provider]}</span>
-  </button>
-);
-
-// ---------------------------------------------------------------------------
 // BYOD provider picker cards
 // ---------------------------------------------------------------------------
 
@@ -255,9 +226,6 @@ export function AssistantContactManager({
     contactFormMethods,
     activeTab,
     setActiveTab,
-    emailLocalPart,
-    handleLocalPartChange,
-    allAssistantEmails,
     availablePhoneCountries,
     isLoadingPhoneCountries,
     creationCost,
@@ -271,10 +239,6 @@ export function AssistantContactManager({
     handleProceedDelete,
     submitContact,
     isSubmittingContact,
-    // Email provider (platform)
-    emailProvider,
-    setEmailProvider,
-    activeEmailDomain,
     // BYOD
     byodProvider,
     setByodProvider,
@@ -309,7 +273,6 @@ export function AssistantContactManager({
     register,
     setValue,
     formState: { errors },
-    getValues,
     control,
   } = contactFormMethods;
 
@@ -409,73 +372,12 @@ export function AssistantContactManager({
       );
     }
 
-    // State 1: No email — provision or connect
+    // State 1: No email — connect a custom (BYOD) account.
+    // Platform-issued mailbox provisioning (`@unify.ai` / MS365 tenant) is
+    // hidden — users must connect their own email account instead.
     return (
       <div className="space-y-6">
-        {!byodProvider && (
-          <>
-            {/* Sub-section A: Provision a platform email */}
-            <div className="space-y-3">
-              <Label className="text-strong">Provision a platform email</Label>
-              <div className="flex gap-2">
-                <EmailProviderCard
-                  provider="google_workspace"
-                  isSelected={emailProvider === 'google_workspace'}
-                  onSelect={() => setEmailProvider('google_workspace')}
-                  disabled={isSubmitting}
-                />
-                <EmailProviderCard
-                  provider="microsoft_365"
-                  isSelected={emailProvider === 'microsoft_365'}
-                  onSelect={() => setEmailProvider('microsoft_365')}
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="flex items-center rounded-md">
-                <Input
-                  id="email_local_part"
-                  type="text"
-                  value={emailLocalPart}
-                  onChange={handleLocalPartChange}
-                  placeholder="new-assistant"
-                  className="h-9 max-w-[250px] flex-1 rounded-r-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                  disabled={isSubmitting}
-                />
-                <span className="text-caption flex h-9 select-none items-center rounded-r-md border-l border-input bg-muted px-3 py-2 text-muted-foreground">
-                  {activeEmailDomain}
-                </span>
-              </div>
-              <input
-                type="hidden"
-                {...register('email', {
-                  validate: (value) => {
-                    if (getValues('isEmailAdded')) {
-                      if (!value || !value.endsWith(activeEmailDomain) || value.startsWith('@'))
-                        return 'A valid email is required.';
-                      if (allAssistantEmails.includes(value) && value !== assistant.email)
-                        return 'This email is already taken.';
-                    }
-                    return true;
-                  },
-                })}
-              />
-              {errors.email && (
-                <p className="text-body text-strong mt-1 text-destructive">
-                  {errors.email.message}
-                </p>
-              )}
-            </div>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-caption text-muted-foreground">or</span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-          </>
-        )}
-
-        {/* Sub-section B: Connect your own account */}
+        {/* Connect your own account */}
         <div className="space-y-3">
           <Label className="text-strong">Connect your own account</Label>
           <div className="flex gap-2">
@@ -622,37 +524,8 @@ export function AssistantContactManager({
       );
     }
 
-    // Create button for email (platform provisioning) — only in State 1 when no BYOD provider is selected
-    if (showCreateButton && canWrite && activeTab === 'email' && !byodProvider) {
-      return (
-        <div className="flex w-full flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <CostDisplay creationCost={creationCost} monthlyCost={monthlyCost} />
-            <BillableActionGuard
-              creditsRequired={
-                creationCost !== null && creationCost > 0
-                  ? creationCost
-                  : monthlyCost !== null && monthlyCost > 0
-                    ? monthlyCost
-                    : 0
-              }
-              onAddPaymentMethod={onAddPaymentMethod}
-              tooltipMessage={
-                monthlyCost !== null && monthlyCost > 0
-                  ? `This will add $${monthlyCost.toFixed(2)}/month to your bill.`
-                  : undefined
-              }
-            >
-              <Button onClick={submitContact} disabled={isCreateButtonDisabled || isBusy}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create
-              </Button>
-            </BillableActionGuard>
-          </div>
-        </div>
-      );
-    }
-
+    // Email tab no longer has a Create footer — platform-issued mailbox
+    // provisioning is hidden, and BYOD uses the inline Connect button.
     return null;
   };
 
