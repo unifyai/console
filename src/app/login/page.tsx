@@ -4,10 +4,11 @@ import { LayoutGroup, motion } from 'framer-motion';
 import { signIn, signOut, useSession } from 'next-auth/react';
 import { redirect, useSearchParams, useRouter } from 'next/navigation';
 import LoginFragment from '@/components/Pages/Login/LoginFragment';
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import CheckElement from '@/components/Pages/Login/CheckElement';
 import AnimatedTabs from '@/components/Common/Tabs/AnimatedTabs';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
+import { isPreviewHost, PREVIEW_HANDOFF_URL } from '@/lib/auth/preview-host';
 
 const ERRORS: Record<string, string> = {
   Signin: 'Try signing with a different account.',
@@ -61,10 +62,19 @@ const Login = () => {
   const isInviteFlow =
     !!inviteToken || callbackUrl?.includes('/login/invite') || callbackUrl?.includes('/invite');
 
+  // The preview-environment OAuth bounce sets ``previewSignIn=<provider>``
+  // when redirecting from a slug-tagged host. The login page then triggers
+  // that provider once, automatically, so the user only ever clicks the
+  // "Sign in" button once on the slug.
+  const previewSignIn = searchParams?.get('previewSignIn');
+  const autoStarted = useRef(false);
+
   // Track whether we are actively signing out a stale session
   // (e.g. user deleted their backend account but the JWT cookie persists).
   const [isSigningOut, setIsSigningOut] = useState(shouldSignOut);
-  const [tab, setTab] = useState<'login' | 'loading' | 'check'>('login');
+  const [tab, setTab] = useState<'login' | 'loading' | 'check'>(
+    previewSignIn ? 'loading' : 'login'
+  );
   const [error, setError] = useState<string | undefined>(searchErrorMessage);
 
   useEffect(() => {
@@ -88,6 +98,21 @@ const Login = () => {
     }
     // While session.status === 'loading', we wait
   }, [shouldSignOut, session.status, router, creditToken]);
+
+  // Auto-trigger the requested provider when the canonical login page is
+  // opened mid-bounce (``previewSignIn=<provider>``). Skipped if the user
+  // already has a canonical session — in that case the existing session
+  // redirect block below sends them straight through to ``callbackUrl``,
+  // which lands on the bounce's ``preview-redirect`` route.
+  useEffect(() => {
+    if (autoStarted.current) return;
+    if (!previewSignIn) return;
+    if (session.status !== 'unauthenticated') return;
+    if (previewSignIn !== 'google' && previewSignIn !== 'azure-ad') return;
+    autoStarted.current = true;
+    setTab('loading');
+    signIn(previewSignIn, { callbackUrl: callbackUrl ?? '/assistants' });
+  }, [previewSignIn, session.status, callbackUrl]);
 
   // Redirect authenticated users — but NOT if we're in the middle of signing
   // them out due to a deleted backend account.  Honour the callbackUrl
@@ -113,6 +138,27 @@ const Login = () => {
 
   const handleLogin = (provider: 'email' | 'google' | 'azure-ad', email?: string) => async () => {
     setTab('loading');
+
+    // From a slug-tagged preview host, OAuth-style providers are deferred
+    // to the canonical handoff route — Google / Azure only have canonical
+    // redirect URIs registered, and a session cookie set on canonical
+    // cannot cross to the slug. The handoff route mints a transfer token
+    // post-auth and bounces the browser back here. Email/credentials
+    // providers don't leave the host, so they sign in locally as usual.
+    if (
+      provider !== 'email' &&
+      typeof window !== 'undefined' &&
+      isPreviewHost(window.location.host)
+    ) {
+      const handoffUrl = new URL(PREVIEW_HANDOFF_URL);
+      handoffUrl.searchParams.set('return_to', window.location.origin);
+      handoffUrl.searchParams.set('provider', provider);
+      const requestedNext = callbackUrl?.startsWith('/') ? callbackUrl : '/assistants';
+      handoffUrl.searchParams.set('next', requestedNext);
+      window.location.href = handoffUrl.toString();
+      return;
+    }
+
     let callback: URL;
 
     // If we have an invite or credit token, set the callback to the appropriate page
