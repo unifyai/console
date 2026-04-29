@@ -4,10 +4,12 @@ import { LayoutGroup, motion } from 'framer-motion';
 import { signIn, signOut, useSession } from 'next-auth/react';
 import { redirect, useSearchParams, useRouter } from 'next/navigation';
 import LoginFragment from '@/components/Pages/Login/LoginFragment';
+import PreviewLoginFragment from '@/components/Pages/Login/PreviewLoginFragment';
 import { Suspense, useState, useEffect } from 'react';
 import CheckElement from '@/components/Pages/Login/CheckElement';
 import AnimatedTabs from '@/components/Common/Tabs/AnimatedTabs';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
+import { isPreviewHost } from '@/lib/auth/preview-host';
 
 const ERRORS: Record<string, string> = {
   Signin: 'Try signing with a different account.',
@@ -66,6 +68,14 @@ const Login = () => {
   const [isSigningOut, setIsSigningOut] = useState(shouldSignOut);
   const [tab, setTab] = useState<'login' | 'loading' | 'check'>('login');
   const [error, setError] = useState<string | undefined>(searchErrorMessage);
+  // Detect slug-tagged preview hosts on the client to swap in the
+  // preview sign-in panel. Defaults to ``false`` during SSR so the
+  // canonical login UI renders identically server-side and hydrates
+  // cleanly on canonical hosts.
+  const [isPreview, setIsPreview] = useState(false);
+  useEffect(() => {
+    setIsPreview(isPreviewHost(window.location.host));
+  }, []);
 
   useEffect(() => {
     if (!shouldSignOut) return;
@@ -168,16 +178,20 @@ const Login = () => {
           </div>
         )}
         <div className="flex justify-center lg:container">
-          <AnimatedTabs selected={tab}>
-            <LoginFragment
-              onLogin={handleLogin}
-              error={error}
-              callbackUrl={callbackUrl ?? undefined}
-              key="login"
-            />
-            <LoadingElement key="loading" />
-            <CheckElement key="check" />
-          </AnimatedTabs>
+          {isPreview ? (
+            <PreviewLoginFragment callbackUrl={callbackUrl ?? undefined} />
+          ) : (
+            <AnimatedTabs selected={tab}>
+              <LoginFragment
+                onLogin={handleLogin}
+                error={error}
+                callbackUrl={callbackUrl ?? undefined}
+                key="login"
+              />
+              <LoadingElement key="loading" />
+              <CheckElement key="check" />
+            </AnimatedTabs>
+          )}
         </div>
       </LayoutGroup>
     </motion.div>
