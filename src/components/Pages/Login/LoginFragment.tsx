@@ -25,10 +25,22 @@ interface LoginProps {
   error?: string;
   /** Callback URL for email login redirect */
   callbackUrl?: string;
+  /**
+   * When true, only the email + password form is shown and the user
+   * cannot switch to OAuth providers. Used on slug-tagged preview hosts
+   * where Google/Microsoft callback URIs are not (and cannot reasonably
+   * be) registered against the OAuth client.
+   */
+  previewOnly?: boolean;
 }
 
-const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps) => {
-  const [authTab, setAuthTab] = useState<AuthTab>('oauth');
+const LoginFragment = ({
+  onLogin: handleLogin,
+  error,
+  callbackUrl,
+  previewOnly = false,
+}: LoginProps) => {
+  const [authTab, setAuthTab] = useState<AuthTab>(previewOnly ? 'email' : 'oauth');
 
   return (
     <div className="flex flex-wrap">
@@ -82,19 +94,23 @@ const LoginFragment = ({ onLogin: handleLogin, error, callbackUrl }: LoginProps)
           ) : (
             <>
               <EmailLoginForm callbackUrl={callbackUrl} externalError={error} />
-              <div className="my-1 flex items-center gap-3">
-                <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
-                <span className="text-caption text-muted-foreground">or</span>
-                <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
-              </div>
-              <button
-                type="button"
-                onClick={() => setAuthTab('oauth')}
-                className="text-caption text-center text-muted-foreground transition-colors hover:text-foreground"
-                data-testid="switch-to-oauth"
-              >
-                Sign in with Google or Microsoft
-              </button>
+              {!previewOnly && (
+                <>
+                  <div className="my-1 flex items-center gap-3">
+                    <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
+                    <span className="text-caption text-muted-foreground">or</span>
+                    <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAuthTab('oauth')}
+                    className="text-caption text-center text-muted-foreground transition-colors hover:text-foreground"
+                    data-testid="switch-to-oauth"
+                  >
+                    Sign in with Google or Microsoft
+                  </button>
+                </>
+              )}
             </>
           )}
 

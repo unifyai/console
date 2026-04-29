@@ -4,7 +4,6 @@ import { LayoutGroup, motion } from 'framer-motion';
 import { signIn, signOut, useSession } from 'next-auth/react';
 import { redirect, useSearchParams, useRouter } from 'next/navigation';
 import LoginFragment from '@/components/Pages/Login/LoginFragment';
-import PreviewLoginFragment from '@/components/Pages/Login/PreviewLoginFragment';
 import { Suspense, useState, useEffect } from 'react';
 import CheckElement from '@/components/Pages/Login/CheckElement';
 import AnimatedTabs from '@/components/Common/Tabs/AnimatedTabs';
@@ -68,11 +67,11 @@ const Login = () => {
   const [isSigningOut, setIsSigningOut] = useState(shouldSignOut);
   const [tab, setTab] = useState<'login' | 'loading' | 'check'>('login');
   const [error, setError] = useState<string | undefined>(searchErrorMessage);
-  // Detect slug-tagged preview hosts on the client to swap in the
-  // preview sign-in panel. Starts as ``null`` (unknown) so neither the
-  // canonical OAuth UI nor the preview email panel renders until the
-  // client decides — otherwise users on slug hosts briefly see the
-  // canonical buttons during hydration.
+  // Detect slug-tagged preview hosts on the client so we can hide the
+  // OAuth buttons (their callback URIs aren't registered for slug hosts
+  // and clicking them would dead-end at Google's "redirect_uri_mismatch"
+  // page). Starts as ``null`` so the form doesn't flash OAuth controls
+  // before the client decides.
   const [isPreview, setIsPreview] = useState<boolean | null>(null);
   useEffect(() => {
     setIsPreview(isPreviewHost(window.location.host));
@@ -181,14 +180,13 @@ const Login = () => {
         <div className="flex justify-center lg:container">
           {isPreview === null ? (
             <LoadingElement />
-          ) : isPreview ? (
-            <PreviewLoginFragment callbackUrl={callbackUrl ?? undefined} />
           ) : (
             <AnimatedTabs selected={tab}>
               <LoginFragment
                 onLogin={handleLogin}
                 error={error}
                 callbackUrl={callbackUrl ?? undefined}
+                previewOnly={isPreview}
                 key="login"
               />
               <LoadingElement key="loading" />

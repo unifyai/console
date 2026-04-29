@@ -6,10 +6,11 @@
  * lowercase Cloud Run tag and ``<base-host>`` is the canonical bare
  * Cloud Run host of the staging service.
  *
- * Preview-only routes use {@link isPreviewHost} as a structural gate to
- * make sure they never activate on the canonical custom domain or in
- * production — a regression here would expose the preview-signin
- * shortcut to non-preview traffic.
+ * The login page uses {@link isPreviewHost} to hide the Google/Microsoft
+ * OAuth buttons on slug hosts, since their redirect URIs are not (and
+ * cannot reasonably be) registered for the dynamically-generated slug
+ * hostnames. Sign-in on a preview slug always goes through the standard
+ * email + password flow that Orchestra serves on canonical staging.
  */
 
 const PREVIEW_BASE_HOST = 'service.a.run.app';
