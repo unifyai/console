@@ -69,10 +69,11 @@ const Login = () => {
   const [tab, setTab] = useState<'login' | 'loading' | 'check'>('login');
   const [error, setError] = useState<string | undefined>(searchErrorMessage);
   // Detect slug-tagged preview hosts on the client to swap in the
-  // preview sign-in panel. Defaults to ``false`` during SSR so the
-  // canonical login UI renders identically server-side and hydrates
-  // cleanly on canonical hosts.
-  const [isPreview, setIsPreview] = useState(false);
+  // preview sign-in panel. Starts as ``null`` (unknown) so neither the
+  // canonical OAuth UI nor the preview email panel renders until the
+  // client decides — otherwise users on slug hosts briefly see the
+  // canonical buttons during hydration.
+  const [isPreview, setIsPreview] = useState<boolean | null>(null);
   useEffect(() => {
     setIsPreview(isPreviewHost(window.location.host));
   }, []);
@@ -178,7 +179,9 @@ const Login = () => {
           </div>
         )}
         <div className="flex justify-center lg:container">
-          {isPreview ? (
+          {isPreview === null ? (
+            <LoadingElement />
+          ) : isPreview ? (
             <PreviewLoginFragment callbackUrl={callbackUrl ?? undefined} />
           ) : (
             <AnimatedTabs selected={tab}>

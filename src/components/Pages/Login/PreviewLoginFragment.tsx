@@ -56,9 +56,12 @@ const PreviewLoginFragment = ({ callbackUrl }: PreviewLoginProps) => {
         return;
       }
 
-      if (result?.url) {
-        window.location.href = result.url;
-      }
+      // ``signIn`` returns a URL built from ``NEXTAUTH_URL`` (the canonical
+      // custom domain), but the session cookie was minted on the slug host.
+      // Navigate same-origin so the cookie travels with the request and the
+      // user lands on the slug, not on canonical.
+      const target = callbackUrl?.startsWith('/') ? callbackUrl : '/';
+      window.location.href = `${window.location.origin}${target}`;
     } catch {
       setError('Network error. Please try again.');
       setIsLoading(false);
