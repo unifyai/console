@@ -63,6 +63,35 @@ import type {
 } from '@/hooks/Assistants/useAssistantOnboardingState';
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Loose equality check for two email addresses, used by the
+ * `emailAsk` prefill to detect "the assistant's connected mailbox is
+ * the user's own personal mailbox" — in which case asking the
+ * assistant to send a test email to the user is a self-send and
+ * mostly noise. We collapse case + whitespace, and strip Gmail's
+ * dot-and-`+tag` aliases so e.g. `user@example.com` and
+ * `user@example.com` resolve as the same inbox.
+ *
+ * Returns false on either side missing — onboarding falls back to
+ * the generic test-email prefill, which is the safer default.
+ */
+function sameMailbox(a?: string | null, b?: string | null): boolean {
+  const norm = (e?: string | null): string => {
+    if (!e) return '';
+    const [local, domain] = e.trim().toLowerCase().split('@');
+    if (!local || !domain) return '';
+    const stripped = local.split('+')[0];
+    return `${domain === 'gmail.com' ? stripped.replace(/\./g, '') : stripped}@${domain}`;
+  };
+  const aN = norm(a);
+  const bN = norm(b);
+  return !!aN && aN === bN;
+}
+
+// ---------------------------------------------------------------------------
 // Per-step / per-group display metadata
 // ---------------------------------------------------------------------------
 
@@ -89,7 +118,7 @@ const STEP_META: Record<Exclude<OnboardingStepId, 'integrations'>, StepMeta> = {
     Icon: Mail,
   },
   emailAsk: {
-    label: (a) => `Ask ${a.firstName || 'them'} to send you an email`,
+    label: (a) => `Ask ${a.firstName || 'them'} to send an email`,
     Icon: MailPlus,
   },
   phoneOnProfile: {
@@ -275,10 +304,24 @@ export function AssistantSetupRoadmap({
         return;
       }
       case 'emailAsk': {
-        const target = userEmail?.trim() ? ` at ${userEmail.trim()}` : '';
-        onSeedChatDraft(
-          `Hi ${assistant.firstName || 'there'}, can you send me a test email${target}?`
-        );
+        // BYOD email: when the assistant is connected to the user's
+        // own mailbox, a "send me a test email" round-trip is still
+        // a self-send (same From and To) but Gmail / MS365 handle
+        // that fine, so we ask for a summary-by-email instead. That
+        // exercises both the read scope (fetching the inbox) and
+        // the send scope (delivering the summary), and leaves the
+        // user with a durable artifact in their inbox rather than
+        // an ephemeral chat reply. When the mailbox is distinct
+        // (e.g. a dedicated `assistant@…` BYOD address or a shared
+        // inbox), the plain test-email prompt remains the cleanest
+        // verification.
+        const greeting = `Hi ${assistant.firstName || 'there'}`;
+        const prompt = sameMailbox(assistant.email, userEmail)
+          ? `${greeting}, can you email me a summary of my most recent emails?`
+          : `${greeting}, can you send me a test email${
+              userEmail?.trim() ? ` at ${userEmail.trim()}` : ''
+            }?`;
+        onSeedChatDraft(prompt);
         recordPrefillClick(step.id);
         return;
       }
