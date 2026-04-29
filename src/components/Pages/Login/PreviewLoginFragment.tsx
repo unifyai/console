@@ -78,7 +78,7 @@ const PreviewLoginFragment = ({ callbackUrl }: PreviewLoginProps) => {
           <h1 className="text-center text-4xl leading-[1] tracking-[-0.02em] text-gray-800 dark:text-white sm:text-5xl">
             Preview environment
           </h1>
-          <p className="text-center text-body-muted">
+          <p className="text-body-muted text-center">
             Sign in with your @unify.ai address to test this branch.
           </p>
         </div>

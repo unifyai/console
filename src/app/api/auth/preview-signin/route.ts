@@ -71,7 +71,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let user: { id: string; email: string; name: string | null; lastName: string | null; image: string | null };
+  let user: {
+    id: string;
+    email: string;
+    name: string | null;
+    lastName: string | null;
+    image: string | null;
+  };
   try {
     const response = await OrchestraAdminClient.get('/user/by-email', {
       params: { email },
