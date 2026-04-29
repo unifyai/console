@@ -76,7 +76,7 @@ steps:
       - |
         set -euo pipefail
         SLUG=$(cat /workspace/slug.txt)
-        ORCHESTRA_URL="https://$${SLUG}---${_PEER_ORCHESTRA_HOST}"
+        ORCHESTRA_URL="https://$${SLUG}.${_PEER_ORCHESTRA_HOST}"
         COMMS_URL="https://$${SLUG}---${_PEER_COMMS_HOST}"
         ADAPTERS_URL="https://$${SLUG}---${_PEER_ADAPTERS_HOST}"
         APP_URL="https://$${SLUG}---${_PEER_CONSOLE_HOST}"
@@ -104,7 +104,7 @@ substitutions:
   _PEER_CONSOLE_HOST: 'service.a.run.app'
   _PEER_COMMS_HOST: 'service.a.run.app'
   _PEER_ADAPTERS_HOST: 'service.a.run.app'
-  _PEER_ORCHESTRA_HOST: 'service.a.run.app'
+  _PEER_ORCHESTRA_HOST: 'internal.example.com'
 
 tags:
   - gcp-cloud-build-deploy-cloud-run
