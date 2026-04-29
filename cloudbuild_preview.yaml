@@ -76,7 +76,7 @@ steps:
       - |
         set -euo pipefail
         SLUG=$(cat /workspace/slug.txt)
-        ORCHESTRA_URL="https://$${SLUG}---${_PEER_ORCHESTRA_HOST}/v0"
+        ORCHESTRA_URL="https://$${SLUG}---${_PEER_ORCHESTRA_HOST}"
         COMMS_URL="https://$${SLUG}---${_PEER_COMMS_HOST}"
         ADAPTERS_URL="https://$${SLUG}---${_PEER_ADAPTERS_HOST}"
         APP_URL="https://$${SLUG}---${_PEER_CONSOLE_HOST}"
