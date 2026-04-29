@@ -69,6 +69,22 @@ steps:
     waitFor: ['build-image']
 
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: snapshot-canonical-template
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        CANONICAL_REV=$(gcloud run services describe $_SERVICE_NAME \
+          --region=$_DEPLOY_REGION --platform=managed \
+          --format='value(status.traffic[0].revisionName)')
+        gcloud run revisions describe "$$CANONICAL_REV" \
+          --region=$_DEPLOY_REGION --platform=managed \
+          --format='value(spec.containers[0].image)' > /workspace/canonical-image.txt
+        echo "canonical image pinned for restore: $(cat /workspace/canonical-image.txt)"
+    waitFor: ['-']
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     id: deploy-tagged
     entrypoint: bash
     args:
@@ -89,7 +105,24 @@ steps:
           --update-env-vars=BRANCH_TAG=$${SLUG},ORCHESTRA_URL=$${ORCHESTRA_URL},UNITY_COMMS_URL=$${COMMS_URL},UNITY_ADAPTERS_URL=$${ADAPTERS_URL},NEXT_PUBLIC_APP_URL=$${APP_URL} \
           --quiet
         echo "preview revision URL: $${APP_URL}"
-    waitFor: ['push-image']
+    waitFor: ['push-image', 'snapshot-canonical-template']
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: restore-canonical-template
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        CANONICAL_IMAGE=$(cat /workspace/canonical-image.txt)
+        gcloud run services update $_SERVICE_NAME \
+          --region=$_DEPLOY_REGION --platform=managed \
+          --image="$$CANONICAL_IMAGE" \
+          --remove-env-vars=BRANCH_TAG,UNITY_COMMS_URL,UNITY_ADAPTERS_URL,NEXT_PUBLIC_APP_URL \
+          --update-env-vars=ORCHESTRA_URL=https://${_PEER_ORCHESTRA_HOST} \
+          --quiet
+        echo "canonical service template restored to image $$CANONICAL_IMAGE"
+    waitFor: ['deploy-tagged']
 
 options:
   substitutionOption: ALLOW_LOOSE
