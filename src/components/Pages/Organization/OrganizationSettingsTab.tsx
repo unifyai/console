@@ -44,14 +44,24 @@ const OrganizationSettingsTab = ({
 
   const handlePhotoSelect = (file: File) => {
     setPendingPhoto(file);
-    setPendingPhotoPreview(URL.createObjectURL(file));
+    setPendingPhotoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  };
+
+  const clearPendingPreview = () => {
+    setPendingPhotoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
   };
 
   const handleCancel = () => {
     setOrgName(currentName);
     setTimezone(currentTimezone || '');
     setPendingPhoto(null);
-    setPendingPhotoPreview(null);
+    clearPendingPreview();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,6 +84,12 @@ const OrganizationSettingsTab = ({
           return;
         }
         setPendingPhoto(null);
+        // Drop the local preview so the avatar switches over to the
+        // freshly-uploaded asset (resolved via `currentImage` after
+        // `router.refresh()`). Keeping the preview around would mask
+        // any server-side reprocessing — we want any framing change
+        // to be visible to the user immediately.
+        clearPendingPreview();
         router.refresh();
       }
 

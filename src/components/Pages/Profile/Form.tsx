@@ -86,7 +86,17 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
 
   const handlePhotoSelect = useCallback((file: File) => {
     setPendingPhoto(file);
-    setPendingPhotoPreview(URL.createObjectURL(file));
+    setPendingPhotoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  }, []);
+
+  const clearPendingPreview = useCallback(() => {
+    setPendingPhotoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
   }, []);
 
   // Sync form state when user prop changes (e.g. after server-side refresh)
@@ -111,8 +121,8 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
   const handleCancel = useCallback(() => {
     setFormState(initialFormState);
     setPendingPhoto(null);
-    setPendingPhotoPreview(null);
-  }, [initialFormState]);
+    clearPendingPreview();
+  }, [initialFormState, clearPendingPreview]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,6 +144,12 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
         return;
       }
       setPendingPhoto(null);
+      // Drop the local preview so the avatar switches over to the
+      // freshly-uploaded asset (resolved via `user.image` after
+      // `router.refresh()`). Keeping the preview around would mask
+      // any server-side reprocessing — we want any framing change
+      // to be visible to the user immediately.
+      clearPendingPreview();
     }
 
     const formData = new FormData(formEl);
