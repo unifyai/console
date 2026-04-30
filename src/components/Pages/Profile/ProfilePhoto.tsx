@@ -1,11 +1,19 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { Camera } from 'lucide-react';
 import { toast } from 'sonner';
 import { User } from '@/types/user';
-import { PhotoCropDialog } from '@/components/UI/PhotoCropDialog';
+
+// `PhotoCropDialog` pulls in `react-easy-crop` and only renders
+// after the user picks a file. Lazy-load it so it doesn't bloat
+// the account page's initial JS.
+const PhotoCropDialog = dynamic(
+  () => import('@/components/UI/PhotoCropDialog').then((m) => m.PhotoCropDialog),
+  { ssr: false }
+);
 
 function getInitials(name: string, lastName?: string): string {
   const first = name?.charAt(0)?.toUpperCase() || '';

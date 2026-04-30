@@ -1,10 +1,18 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { Camera } from 'lucide-react';
 import { toast } from 'sonner';
-import { PhotoCropDialog } from '@/components/UI/PhotoCropDialog';
+
+// `PhotoCropDialog` pulls in `react-easy-crop` and only renders
+// after the user picks a file. Lazy-load it so it doesn't bloat
+// every page that just shows the org avatar.
+const PhotoCropDialog = dynamic(
+  () => import('@/components/UI/PhotoCropDialog').then((m) => m.PhotoCropDialog),
+  { ssr: false }
+);
 
 async function resolvePhotoUrl(image: string): Promise<string> {
   if (!image.startsWith('gs://')) return image;

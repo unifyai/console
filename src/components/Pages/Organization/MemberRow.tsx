@@ -47,7 +47,8 @@ import Link from 'next/link';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { OrganizationRole, SpendingDisplayProps } from '@/types/organization';
+import { SpendingDisplayProps } from '@/types/organization';
+import { Role } from '@/types/role';
 import { UnifiedMember } from '@/hooks/Organizations/useOrganization';
 import { MemberAssistantInfo } from './Main';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
@@ -69,7 +70,14 @@ interface MemberRowProps {
   member: UnifiedMember;
   userTeams?: string[];
   memberAssistants?: MemberAssistantInfo[];
-  roles: OrganizationRole[];
+  /**
+   * Optional pre-resolved HTTPS URL for the member's avatar.
+   * When set, the row uses it directly and skips its own per-row
+   * `POST /api/storage/signed-url` resolution — the parent already
+   * batched the lookup for every row in one round-trip.
+   */
+  prefetchedImageUrl?: string;
+  roles: Role[];
   currentUserId: string;
   canManageMembers: boolean;
   isOrgOwner: boolean;
@@ -134,6 +142,7 @@ const MemberRow = ({
   member,
   userTeams,
   memberAssistants,
+  prefetchedImageUrl,
   roles,
   currentUserId,
   canManageMembers,
@@ -150,7 +159,12 @@ const MemberRow = ({
 }: MemberRowProps) => {
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
-  const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
+  // Seed with the parent-provided URL so the avatar paints on the
+  // first frame for the common case where prefetching succeeded —
+  // no per-row request, no pop-in.
+  const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(
+    prefetchedImageUrl ?? null
+  );
   const [isUploading, setIsUploading] = useState(false);
   const [isEmailCopied, setIsEmailCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -219,6 +233,16 @@ const MemberRow = ({
       setResolvedImageUrl(image);
       return;
     }
+    // Parent already resolved this `gs://` URL via the batched
+    // `/api/storage/signed-urls` call — use it and skip our own
+    // network round-trip.
+    if (prefetchedImageUrl) {
+      setResolvedImageUrl(prefetchedImageUrl);
+      return;
+    }
+    // Fallback path: parent didn't (or couldn't) prefetch this row's
+    // image — resolve it ourselves so the avatar still appears,
+    // even if a beat later than the rest of the table.
     let cancelled = false;
     fetch('/api/storage/signed-url', {
       method: 'POST',
@@ -236,7 +260,7 @@ const MemberRow = ({
     return () => {
       cancelled = true;
     };
-  }, [member.image]);
+  }, [member.image, prefetchedImageUrl]);
 
   const isSelf = member.userId === currentUserId;
   const currentRoleName = member.role || 'Member';

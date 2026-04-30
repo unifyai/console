@@ -79,22 +79,31 @@ const OrganizationPage = async () => {
     setMemberSpendingLimit: await MemberSpendingActions.setMemberSpendingLimit(apiKey),
   };
 
-  // Fetch org spending limit for validation context
-  // We need the first org's spending limit if user is in an org
-  let orgSpendingLimit: number | null = null;
-  if (organizations.length > 0) {
-    const getOrgLimit = await OrgSpendingActions.getOrgSpendingLimit(apiKey);
-    const orgLimitResult = await getOrgLimit(organizations[0].id);
-    if (isOrgSpendingLimitData(orgLimitResult)) {
-      orgSpendingLimit = orgLimitResult.monthlySpendingCap;
-    }
-  }
-
   // MFA settings actions
   const mfaSettingsActionsObj = {
     getMfaSettings: await MfaSettingsActions.getMfaSettingsAction(apiKey),
     updateMfaSettings: await MfaSettingsActions.updateMfaSettingsAction(apiKey),
   };
+
+  // Prefetch the spending limit AND the MFA toggle for the first org
+  // in parallel — the latter so opening the Security tab doesn't have
+  // to wait on a fresh server-action roundtrip before showing the
+  // actual toggle state.
+  let orgSpendingLimit: number | null = null;
+  let initialMfaRequired: boolean | null = null;
+  if (organizations.length > 0) {
+    const getOrgLimit = await OrgSpendingActions.getOrgSpendingLimit(apiKey);
+    const [orgLimitResult, mfa] = await Promise.all([
+      getOrgLimit(organizations[0].id),
+      mfaSettingsActionsObj.getMfaSettings(organizations[0].id),
+    ]);
+    if (isOrgSpendingLimitData(orgLimitResult)) {
+      orgSpendingLimit = orgLimitResult.monthlySpendingCap;
+    }
+    if (mfa && 'requireMfa' in mfa) {
+      initialMfaRequired = mfa.requireMfa;
+    }
+  }
 
   return (
     <div className="h-full w-full overflow-auto p-1">
@@ -108,6 +117,7 @@ const OrganizationPage = async () => {
           memberSpendingActions={memberSpendingActions}
           orgSpendingLimit={orgSpendingLimit}
           mfaSettingsActions={mfaSettingsActionsObj}
+          initialMfaRequired={initialMfaRequired}
           isUnifyMember={isUnifyMember}
         />
       </Suspense>

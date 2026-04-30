@@ -1,21 +1,32 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Team, TeamActions } from '@/types/team';
 import { toast } from 'sonner';
 
 export const useTeams = (orgId: number | undefined, actions: TeamActions) => {
   const [teams, setTeams] = useState<Team[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  // Mirrors the proven pattern in `useMemoryData`: initialize to
+  // `true` so the first paint of the consumer renders skeleton rows
+  // immediately, then flip to `false` in the fetch's `finally`.
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Mirror the latest `actions` through a ref so callbacks can stay
+  // structurally stable. Without this, every server-action roundtrip
+  // hands the parent server-component a fresh `actions` object,
+  // restarting `fetchTeams` on every call → refetch loop.
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
 
   // Fetch Teams (the list endpoint now includes members inline)
   const fetchTeams = useCallback(async () => {
     if (!orgId) {
       setTeams([]);
+      setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
     try {
-      const listRes = await actions.getTeams(orgId);
+      const listRes = await actionsRef.current.getTeams(orgId);
 
       if ('detail' in listRes) {
         console.error(listRes.detail);
@@ -29,7 +40,7 @@ export const useTeams = (orgId: number | undefined, actions: TeamActions) => {
     } finally {
       setIsLoading(false);
     }
-  }, [orgId, actions]);
+  }, [orgId]);
 
   // Initial Fetch
   useEffect(() => {

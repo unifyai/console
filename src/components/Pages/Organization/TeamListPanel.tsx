@@ -33,10 +33,10 @@ import {
 } from '@/components/UI/select';
 import PrimaryButton from '@/components/Common/Buttons/Primary';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-
 interface TeamListPanelProps {
   teams: Team[];
   members: OrganizationMember[];
+  isLoading?: boolean;
   onCreateTeam: (name: string, desc: string) => void;
   onUpdateTeam: (teamId: number, name: string, desc: string) => void;
   onDeleteTeam: (id: number) => void;
@@ -47,6 +47,7 @@ interface TeamListPanelProps {
 const TeamListPanel = ({
   teams,
   members,
+  isLoading = false,
   onCreateTeam,
   onUpdateTeam,
   onDeleteTeam,
@@ -136,82 +137,83 @@ const TeamListPanel = ({
 
       {/* List */}
       <div className="flex-1 overflow-auto px-3">
-        {filteredTeams.length === 0 ? (
-          <div className="text-body-muted flex items-center justify-center py-12">
-            No teams found.
-          </div>
-        ) : (
-          <Table className="table-fixed">
-            <TableHeader>
+        <Table className="table-fixed">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[30%]">Team</TableHead>
+              <TableHead className="w-[45%]">Description</TableHead>
+              <TableHead className="w-[15%] text-center">Members</TableHead>
+              <TableHead className="w-[10%] text-right"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && filteredTeams.length === 0 ? (
+              Array.from({ length: 5 }).map((_, i) => <TeamRowSkeleton key={`team-skel-${i}`} />)
+            ) : filteredTeams.length === 0 ? (
               <TableRow>
-                <TableHead className="w-[30%]">Team</TableHead>
-                <TableHead className="w-[45%]">Description</TableHead>
-                <TableHead className="w-[15%] text-center">Members</TableHead>
-                <TableHead className="w-[10%] text-right"></TableHead>
+                <TableCell colSpan={4} className="text-body-muted py-12 text-center">
+                  No teams found.
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTeams.map((team) => (
-                <TableRow key={team.id} className="hover:bg-muted/50">
-                  <TableCell className="font-medium">
-                    <div className="truncate" title={team.name}>
-                      {team.name}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    <div className="truncate" title={team.description}>
-                      {team.description || '-'}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-body text-center">
-                    {team.members?.length || 0}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <TooltipProvider delayDuration={300}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                aria-label="More team"
-                              >
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>More team</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleAddMemberClick(team.id)}>
-                          <UserPlus className="mr-2 h-4 w-4" /> Add member
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleRemoveMemberClick(team.id)}>
-                          <UserMinus className="mr-2 h-4 w-4" /> Remove member
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleUpdateTeamClick(team.id)}>
-                          <Pencil className="mr-2 h-4 w-4" /> Update team
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => onDeleteTeam(team.id)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete team
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+            ) : null}
+            {filteredTeams.map((team) => (
+              <TableRow key={team.id} className="hover:bg-muted/50">
+                <TableCell className="font-medium">
+                  <div className="truncate" title={team.name}>
+                    {team.name}
+                  </div>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  <div className="truncate" title={team.description}>
+                    {team.description || '-'}
+                  </div>
+                </TableCell>
+                <TableCell className="text-body text-center">{team.members?.length || 0}</TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              aria-label="More team"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>More team</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleAddMemberClick(team.id)}>
+                        <UserPlus className="mr-2 h-4 w-4" /> Add member
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleRemoveMemberClick(team.id)}>
+                        <UserMinus className="mr-2 h-4 w-4" /> Remove member
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => handleUpdateTeamClick(team.id)}>
+                        <Pencil className="mr-2 h-4 w-4" /> Update team
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => onDeleteTeam(team.id)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete team
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
 
       {/* Update Team Dialog */}
@@ -293,3 +295,35 @@ const TeamListPanel = ({
 };
 
 export default TeamListPanel;
+
+// Use raw `<div>` with `bg-muted` (proven pattern from `MemoryTable`)
+// instead of the global `<Skeleton>` component. The latter applies
+// `bg-primary/10`, an opacity-modified CSS variable that silently
+// no-ops in our theme (vars are raw hex, not HSL channels), making the
+// placeholder invisible.
+function SkeletonBar({ className }: { className?: string }) {
+  return <div className={`animate-pulse rounded-md bg-muted ${className ?? ''}`} />;
+}
+
+function TeamRowSkeleton() {
+  return (
+    <TableRow>
+      <TableCell>
+        <SkeletonBar className="h-3.5 w-32" />
+      </TableCell>
+      <TableCell>
+        <SkeletonBar className="h-3.5 w-64" />
+      </TableCell>
+      <TableCell>
+        <div className="flex justify-center">
+          <SkeletonBar className="h-3.5 w-6" />
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end">
+          <SkeletonBar className="h-7 w-7 rounded-md" />
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}

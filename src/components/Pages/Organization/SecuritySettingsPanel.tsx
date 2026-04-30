@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Loader2 } from 'lucide-react';
 import { Switch } from '@/components/UI/switch';
 import { Label } from '@/components/UI/label';
 import { toast } from 'sonner';
@@ -20,6 +19,11 @@ interface SecuritySettingsPanelProps {
   organizationId: number;
   canEdit: boolean;
   actions: MfaSettingsActions;
+  /**
+   * Server-prefetched initial value. When provided we skip the first
+   * client-side fetch entirely and render the toggle immediately.
+   */
+  initialRequireMfa?: boolean | null;
 }
 
 function isMfaSettings(data: OrgMFASettings | ResponseProps): data is OrgMFASettings {
@@ -30,9 +34,12 @@ const SecuritySettingsPanel = ({
   organizationId,
   canEdit,
   actions,
+  initialRequireMfa = null,
 }: SecuritySettingsPanelProps) => {
-  const [requireMfa, setRequireMfa] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [requireMfa, setRequireMfa] = useState<boolean>(initialRequireMfa ?? false);
+  // If the server already prefetched the setting, we don't need a
+  // client-side fetch (and don't want to flash a loading state).
+  const [isLoading, setIsLoading] = useState<boolean>(initialRequireMfa === null);
   const [isSaving, setIsSaving] = useState(false);
 
   const fetchSettings = useCallback(async () => {
@@ -50,8 +57,10 @@ const SecuritySettingsPanel = ({
   }, [actions, organizationId]);
 
   useEffect(() => {
-    fetchSettings();
-  }, [fetchSettings]);
+    if (initialRequireMfa === null) {
+      fetchSettings();
+    }
+  }, [fetchSettings, initialRequireMfa]);
 
   const handleToggle = async (checked: boolean) => {
     setIsSaving(true);
@@ -75,10 +84,24 @@ const SecuritySettingsPanel = ({
   };
 
   if (isLoading) {
+    // Use raw `<div>` with `bg-muted` (proven pattern from
+    // `MemoryTable`) instead of the global `<Skeleton>` component;
+    // `<Skeleton>` applies `bg-primary/10`, an opacity-modified CSS
+    // variable that silently no-ops in our theme (vars are raw hex,
+    // not HSL channels), making placeholders invisible.
+    const bar = 'animate-pulse rounded-md bg-muted';
     return (
-      <div className="flex items-center gap-2 p-4 text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        <span className="text-sm">Loading security settings...</span>
+      <div className="flex flex-col gap-4" data-testid="security-settings-panel-loading">
+        <div className="rounded-lg border bg-card p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-1 flex-col gap-2">
+              <div className={`${bar} h-4 w-56`} />
+              <div className={`${bar} h-3 w-full max-w-md`} />
+              <div className={`${bar} h-3 w-3/4 max-w-sm`} />
+            </div>
+            <div className={`${bar} h-6 w-11 rounded-full`} />
+          </div>
+        </div>
       </div>
     );
   }

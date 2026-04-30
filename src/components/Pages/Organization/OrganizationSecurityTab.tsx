@@ -22,6 +22,8 @@ interface OrganizationSecurityTabProps {
   canDelete: boolean;
   onDeleteOrg: () => void;
   mfaSettingsActions?: MfaSettingsActions;
+  /** Server-prefetched initial MFA toggle, avoids a roundtrip on tab open. */
+  initialMfaRequired?: boolean | null;
 }
 
 const OrganizationSecurityTab = ({
@@ -31,6 +33,7 @@ const OrganizationSecurityTab = ({
   canDelete,
   onDeleteOrg,
   mfaSettingsActions,
+  initialMfaRequired = null,
 }: OrganizationSecurityTabProps) => {
   return (
     <div className="flex flex-col gap-6 p-6" data-testid="organization-security-tab">
@@ -40,6 +43,7 @@ const OrganizationSecurityTab = ({
           organizationId={organizationId}
           canEdit={canEdit}
           actions={mfaSettingsActions}
+          initialRequireMfa={initialMfaRequired}
         />
       )}
 
