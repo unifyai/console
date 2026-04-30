@@ -4,7 +4,16 @@ import React, { useState, useCallback } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/UI/tabs';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { Columns2, X } from 'lucide-react';
+import {
+  Activity,
+  Brain,
+  Columns2,
+  KeyRound,
+  LayoutDashboard,
+  ListTodo,
+  MessageSquare,
+  X,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveActionsViewer } from './LiveActions';
 import { DashboardsPane } from './Dashboards';
@@ -23,12 +32,21 @@ import {
 } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 
+/**
+ * Underline tab style — same shape as the assistant info side panel
+ * (`PANEL_TAB_TRIGGER_CLASS`). Active = primary-coloured 2px bottom
+ * border + `font-semibold` weight bump + `text-foreground` (i.e. full
+ * black instead of the muted gray of inactive tabs). Three coordinated
+ * cues so the active tab is readable even on the icon-only mobile
+ * strip; coordinated stacking matters because each cue alone is
+ * subtle (theme primary is a forest-green close to foreground black).
+ */
 const TAB_TRIGGER_CLASS = [
-  'h-full shrink-0 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent',
+  'flex h-full shrink-0 items-center gap-1.5 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent',
   'px-1 text-xs font-medium text-muted-foreground',
   'shadow-none transition-colors hover:text-foreground',
   'data-[state=active]:border-primary data-[state=active]:bg-transparent',
-  'data-[state=active]:text-foreground data-[state=active]:shadow-none',
+  'data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:shadow-none',
 ].join(' ');
 
 /**
@@ -37,13 +55,68 @@ const TAB_TRIGGER_CLASS = [
  */
 export type RightPaneTab = 'chat' | 'tasks' | 'dashboards' | 'memory' | 'secrets' | 'actions';
 
-export const RIGHT_PANE_TABS: ReadonlyArray<{ id: RightPaneTab; label: string }> = [
-  { id: 'chat', label: 'Chat' },
-  { id: 'tasks', label: 'Tasks' },
-  { id: 'dashboards', label: 'Dashboards' },
-  { id: 'memory', label: 'Memory' },
-  { id: 'secrets', label: 'Secrets' },
-  { id: 'actions', label: 'Actions' },
+interface RightPaneTabConfig {
+  id: RightPaneTab;
+  label: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  /** Tooltip text. `name` is the assistant's first name (or a fallback)
+   *  so each tooltip reads as "of *this* assistant" — same personal-
+   *  isation pattern the info side panel uses elsewhere. */
+  describe: (name: string) => string;
+}
+
+/**
+ * Visual order — left to right. Chosen by usage frequency + conceptual
+ * grouping rather than alphabet:
+ *   1. Chat           — primary interaction surface.
+ *   2. Actions        — Chat's natural live partner; the default
+ *                       split-pane secondary, so it sits adjacent.
+ *   3. Tasks          — work output / queue; less frequent than chat.
+ *   4. Dashboards     — assistant-built views; observation surface.
+ *   5. Memory         — persistent context; configuration, write-mostly.
+ *   6. Secrets        — credentials; rarest, lives at the edge.
+ *
+ * Reorder here is the single source of truth — slot rendering, the
+ * tab strip, and (eventually) keyboard shortcuts all iterate this
+ * array in order.
+ */
+export const RIGHT_PANE_TABS: ReadonlyArray<RightPaneTabConfig> = [
+  {
+    id: 'chat',
+    label: 'Chat',
+    Icon: MessageSquare,
+    describe: (name) => `Conversation with ${name}`,
+  },
+  {
+    id: 'actions',
+    label: 'Actions',
+    Icon: Activity,
+    describe: (name) => `What ${name} is doing right now`,
+  },
+  {
+    id: 'tasks',
+    label: 'Tasks',
+    Icon: ListTodo,
+    describe: (name) => `Work in progress and completed tasks for ${name}`,
+  },
+  {
+    id: 'dashboards',
+    label: 'Dashboards',
+    Icon: LayoutDashboard,
+    describe: (name) => `Data views built by ${name}`,
+  },
+  {
+    id: 'memory',
+    label: 'Memory',
+    Icon: Brain,
+    describe: (name) => `Persistent context and notes for ${name}`,
+  },
+  {
+    id: 'secrets',
+    label: 'Secrets',
+    Icon: KeyRound,
+    describe: (name) => `Credentials available to ${name}`,
+  },
 ];
 
 /**
@@ -142,6 +215,13 @@ interface RightPaneContainerProps {
   /** True iff this assistant has outstanding setup work — drives the
    *  dot on the chat header's "Assistant info" button. */
   hasIncompleteOnboarding?: boolean;
+  /**
+   * Unread chat-message count for the currently-open assistant. Drives
+   * the numeric badge on the Chat tab. Cleared by `Main` whenever the
+   * user actually views the chat (in either slot), so we render the
+   * badge unconditionally when `> 0` — no per-slot suppression needed.
+   */
+  unreadChatCount?: number;
 }
 
 export function RightPaneContainer({
@@ -179,6 +259,7 @@ export function RightPaneContainer({
   onShowInstallInstructions,
   onOpenUserSettings,
   hasIncompleteOnboarding,
+  unreadChatCount = 0,
 }: RightPaneContainerProps) {
   // Tracks whether the live-actions stream is currently working, so the
   // dashboards pane can poll its tiles. Hoisted here because either pane
@@ -286,33 +367,141 @@ export function RightPaneContainer({
       >
         <div
           // Identical chrome on both slots so the bottom border reads as
-          // one continuous line across the splitter. The vertical splitter
-          // (rendered below) is what tells the two panes apart visually.
+          // one continuous line across the splitter. The vertical
+          // splitter (rendered below) is what tells the two panes apart
+          // visually.
           //
           // `items-end` is load-bearing: the active TabsTrigger draws a
-          // 2px primary underline that needs to sit flush with this row's
-          // 1px bottom border for the "active tab continues the line"
-          // effect. `items-center` would float the underline mid-row.
+          // 2px primary underline that needs to sit flush with this
+          // row's 1px bottom border for the "active tab continues the
+          // line" effect. `items-center` would float the underline
+          // mid-row.
           className="flex shrink-0 items-end justify-between gap-2 border-b border-border px-3 py-2"
         >
           <div className="flex min-w-0 flex-1 items-end overflow-x-auto">
-            <TabsList className="h-7 flex-nowrap gap-6 rounded-none bg-transparent p-0">
-              {RIGHT_PANE_TABS.map(({ id, label }) => (
-                <TabsTrigger
-                  key={id}
-                  value={id}
-                  className={TAB_TRIGGER_CLASS}
-                  // Primary slot keeps the legacy `right-pane-tab-{id}` id
-                  // so existing e2e selectors (and the demo) keep working;
-                  // the secondary slot uses an explicit prefix so tests
-                  // can target a specific pane when split.
-                  data-testid={
-                    slot === 'primary' ? `right-pane-tab-${id}` : `right-pane-secondary-tab-${id}`
-                  }
-                >
-                  {label}
-                </TabsTrigger>
-              ))}
+            <TabsList
+              // `gap-6` reads well at full width; in split / mobile the
+              // labels collapse to icon-only (`hidden sm:inline` below)
+              // so the same gap stays comfortable for icon-only chips.
+              className="h-7 flex-nowrap gap-6 rounded-none bg-transparent p-0"
+            >
+              {RIGHT_PANE_TABS.map(({ id, label, Icon, describe }) => {
+                // "Active in this slot" — i.e. the tab the user is
+                // currently looking at. Used to suppress the unread
+                // chip while chat is visible (defensive: `Main` also
+                // clears the count for us, but covers the brief render
+                // frame between view and clear).
+                const isActiveInThisSlot = id === tab;
+                const showUnreadInsteadOfIcon =
+                  id === 'chat' && !isActiveInThisSlot && unreadChatCount > 0;
+                // The Activity icon gains a pulse when there's live
+                // work — the Activity glyph is already a graph waveform,
+                // so pulsing it reads as "telemetry active" without
+                // needing a separate dot. The pulse persists even when
+                // Actions is the visible tab: it's a *state* indicator
+                // (work in flight), not an attention bid, and with the
+                // underline-style active state there's no bg conflict
+                // to worry about.
+                const isActionsLive = id === 'actions' && hasActiveAction;
+                const unreadLabel = unreadChatCount > 99 ? '99+' : String(unreadChatCount);
+                const tooltipBase = describe(assistant.firstName || 'them');
+                const tooltipText = showUnreadInsteadOfIcon
+                  ? `${tooltipBase} — ${unreadChatCount} unread`
+                  : isActionsLive
+                    ? `${tooltipBase} — live`
+                    : tooltipBase;
+
+                return (
+                  <TooltipProvider key={id} delayDuration={300}>
+                    <Tooltip>
+                      {/* `asChild` Slot wraps the *span*, NOT the
+                          TabsTrigger directly. Chaining two Radix
+                          asChild slots (TooltipTrigger → TabsTrigger
+                          → TabsPrimitive.Trigger) suppressed the
+                          `data-state` attribute on the rendered button
+                          and broke the active-tab styling entirely.
+                          The intermediate span eats the tooltip event
+                          handlers / aria attributes; the inner
+                          TabsTrigger renders untouched and its
+                          data-state propagates as designed. The span
+                          uses `inline-flex` so it doesn't disturb the
+                          flex layout of the TabsList. */}
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex">
+                          <TabsTrigger
+                            value={id}
+                            className={TAB_TRIGGER_CLASS}
+                            // Primary slot keeps the legacy
+                            // `right-pane-tab-{id}` id so existing e2e
+                            // selectors (and the demo) keep working;
+                            // the secondary slot uses an explicit
+                            // prefix so tests can target a specific
+                            // pane when split.
+                            data-testid={
+                              slot === 'primary'
+                                ? `right-pane-tab-${id}`
+                                : `right-pane-secondary-tab-${id}`
+                            }
+                            // Mirror the visual indicator into the AT
+                            // layer so screen-reader users hear "Chat,
+                            // 3 unread" / "Actions, live" instead of
+                            // just the bare label.
+                            aria-label={tooltipText}
+                          >
+                            {showUnreadInsteadOfIcon ? (
+                              // Numeric chip *replaces* the icon (same
+                              // visual slot, same width footprint as
+                              // the 14×14 icon plus a few pixels for
+                              // 2-3 digit counts). Same primary-on-
+                              // primary-foreground language as the
+                              // assistant-list unread badge so the
+                              // meaning carries across surfaces.
+                              <span
+                                data-testid={
+                                  slot === 'primary'
+                                    ? `right-pane-tab-chat-unread-badge`
+                                    : `right-pane-secondary-tab-chat-unread-badge`
+                                }
+                                className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold tabular-nums leading-none text-primary-foreground"
+                              >
+                                {unreadLabel}
+                              </span>
+                            ) : (
+                              <Icon
+                                className={cn(
+                                  'h-3.5 w-3.5',
+                                  // Pulsing primary-coloured Activity
+                                  // icon = "live action in flight".
+                                  // The colour change carries the
+                                  // signal even when reduced-motion
+                                  // disables the pulse, so it stays
+                                  // accessible.
+                                  isActionsLive && 'animate-pulse text-primary'
+                                )}
+                                aria-hidden="true"
+                                data-testid={
+                                  isActionsLive
+                                    ? slot === 'primary'
+                                      ? 'right-pane-tab-actions-live-icon'
+                                      : 'right-pane-secondary-tab-actions-live-icon'
+                                    : undefined
+                                }
+                              />
+                            )}
+                            {/* Same icon-only-on-mobile pattern as the
+                                Memory pane subtabs. The Radix tooltip
+                                carries the name on hover regardless. */}
+                            <span className="hidden sm:inline">{label}</span>
+                          </TabsTrigger>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>{tooltipText}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                );
+              })}
             </TabsList>
           </div>
           <div className="flex shrink-0 items-center gap-1">

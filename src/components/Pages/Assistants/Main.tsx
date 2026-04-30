@@ -1432,6 +1432,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             // button. Pulled from the same cross-assistant summary
             // map we used for the (now-removed) list-item dot, so
             // the source of truth doesn't fork.
+            unreadChatCount={
+              profileAssistant ? (chatStreamUnreadCounts[profileAssistant.agentId] ?? 0) : 0
+            }
             hasIncompleteOnboarding={
               isAssistantOwner && profileAssistant
                 ? !!onboardingIncompleteByAgentId[profileAssistant.agentId]
