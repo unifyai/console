@@ -12,6 +12,8 @@ import {
   Infinity,
   Camera,
   Lock,
+  Copy,
+  Check,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -150,7 +152,28 @@ const MemberRow = ({
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isEmailCopied, setIsEmailCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Copy the row's email to the clipboard. Swallowing the error keeps
+  // the UI quiet on browsers/contexts where clipboard access is denied
+  // (e.g. insecure context, embedded iframe) — the toast surfaces the
+  // failure so the user knows to copy manually.
+  const handleCopyEmail = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!member.email) return;
+      try {
+        await navigator.clipboard.writeText(member.email);
+        setIsEmailCopied(true);
+        toast.success('Email copied to clipboard.');
+        setTimeout(() => setIsEmailCopied(false), 1500);
+      } catch {
+        toast.error('Failed to copy email.');
+      }
+    },
+    [member.email]
+  );
 
   const handlePhotoSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -226,7 +249,7 @@ const MemberRow = ({
       <TableRow className="hover:bg-muted/50 group">
         {/* User */}
         <TableCell className="font-medium">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <div
               className={cn('group/avatar relative flex-shrink-0', isSelf && 'cursor-pointer')}
               onClick={isSelf ? () => fileInputRef.current?.click() : undefined}
@@ -268,7 +291,7 @@ const MemberRow = ({
                 onChange={handlePhotoSelect}
               />
             )}
-            <div className="flex max-w-[180px] flex-col">
+            <div className="flex min-w-0 flex-1 flex-col">
               <span className="text-title truncate leading-none">
                 {isSelf ? (
                   <TooltipProvider delayDuration={300}>
@@ -301,7 +324,32 @@ const MemberRow = ({
 
         {/* Email */}
         <TableCell className="hidden lg:table-cell">
-          <span className="text-body-muted block max-w-[200px] truncate">{member.email}</span>
+          {member.email ? (
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={handleCopyEmail}
+                    aria-label={isEmailCopied ? 'Email copied' : `Copy ${member.email}`}
+                    className="text-body-muted group/email inline-flex max-w-full items-center gap-1.5 rounded text-left transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <span className="truncate">{member.email}</span>
+                    {isEmailCopied ? (
+                      <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5 shrink-0 opacity-0 transition-opacity group-hover/email:opacity-100" />
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isEmailCopied ? 'Copied!' : `Copy ${member.email}`}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <span className="text-body-muted block truncate">—</span>
+          )}
         </TableCell>
 
         {/* Assistants */}

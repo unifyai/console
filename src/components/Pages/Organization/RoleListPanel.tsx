@@ -95,7 +95,7 @@ const RoleListPanel = ({
             No roles found.
           </div>
         ) : (
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[30%]">Role</TableHead>
@@ -109,7 +109,7 @@ const RoleListPanel = ({
               {filteredRoles.map((role) => (
                 <TableRow key={role.id} className="hover:bg-muted/50">
                   <TableCell className="font-medium">
-                    <div className="max-w-[150px] truncate" title={role.name}>
+                    <div className="truncate" title={role.name}>
                       {role.name}
                     </div>
                   </TableCell>
@@ -128,9 +128,7 @@ const RoleListPanel = ({
                     <TooltipProvider delayDuration={300}>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className="max-w-[150px] cursor-help truncate">
-                            {role.description || '-'}
-                          </div>
+                          <div className="cursor-help truncate">{role.description || '-'}</div>
                         </TooltipTrigger>
                         <TooltipContent className="max-w-[300px] whitespace-normal">
                           <p>{role.description || 'No description provided.'}</p>

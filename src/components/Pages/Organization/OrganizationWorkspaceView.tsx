@@ -463,7 +463,7 @@ const OrganizationWorkspaceView = ({
                   <p>Loading members...</p>
                 </div>
               ) : (
-                <Table>
+                <Table className="table-fixed">
                   <TableHeader className="bg-muted/40 sticky top-0 z-10 backdrop-blur-sm">
                     <TableRow>
                       <TableHead

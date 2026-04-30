@@ -141,7 +141,7 @@ const TeamListPanel = ({
             No teams found.
           </div>
         ) : (
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[30%]">Team</TableHead>
@@ -154,12 +154,12 @@ const TeamListPanel = ({
               {filteredTeams.map((team) => (
                 <TableRow key={team.id} className="hover:bg-muted/50">
                   <TableCell className="font-medium">
-                    <div className="max-w-[150px] truncate" title={team.name}>
+                    <div className="truncate" title={team.name}>
                       {team.name}
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    <div className="max-w-[200px] truncate" title={team.description}>
+                    <div className="truncate" title={team.description}>
                       {team.description || '-'}
                     </div>
                   </TableCell>
