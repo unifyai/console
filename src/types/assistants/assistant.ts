@@ -79,6 +79,21 @@ export interface Assistant {
   // Contract fields
   weeklyLimit: number | null;
   maxParallel: number | null;
+  /**
+   * Live shared spaces this assistant can read from and write to. An empty
+   * array means the assistant is currently personal-only.
+   */
+  spaceIds: number[];
+  /**
+   * Contact id representing the assistant in its own conversation data. Null
+   * means the backend could not resolve the overlay row yet.
+   */
+  selfContactId: number | null;
+  /**
+   * Contact id representing the owning user in conversation data. Null means
+   * the backend could not resolve the overlay row yet.
+   */
+  bossContactId: number | null;
   // Meta fields
   createdAt: string;
   updatedAt: string;
@@ -114,6 +129,9 @@ export type AssistantPreset = Omit<
   | 'assistantDiscordBotId'
   | 'weeklyLimit'
   | 'maxParallel'
+  | 'spaceIds'
+  | 'selfContactId'
+  | 'bossContactId'
   | 'voiceId'
   | 'voiceProvider'
   | 'timezone'
@@ -188,6 +206,9 @@ export type AssistantFormData = Omit<
   | 'phoneCountry'
   | 'weeklyLimit'
   | 'maxParallel'
+  | 'spaceIds'
+  | 'selfContactId'
+  | 'bossContactId'
   | 'gender'
   | 'voiceId'
   | 'voiceProvider'
