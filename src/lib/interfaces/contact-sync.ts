@@ -16,6 +16,43 @@ import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
  */
 const SYNCABLE_FIELDS = ['timezone', 'bio'] as const;
 
+type SyncableEntries = SyncableLogEntry['entries'];
+
+function numericId(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value)) return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim();
+    if (!/^\d+$/.test(normalized)) return null;
+    const parsed = Number(normalized);
+    return Number.isSafeInteger(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function isSystemEntry(entries: SyncableEntries): boolean {
+  return entries.isSystem === true || entries.is_system === true;
+}
+
+function resolveAssistantRouting(entries: SyncableEntries): {
+  selfAssistantId: number | null;
+  assistantId: number | null;
+} {
+  const selfAssistantId = numericId(entries.assistantId ?? entries.assistant_id);
+  const authoringAssistantId = numericId(
+    entries.authoringAssistantId ??
+      entries.authoring_assistant_id ??
+      entries.internalAssistantId ??
+      entries.internal_assistant_id ??
+      entries._assistantId ??
+      entries._assistant_id
+  );
+
+  return {
+    selfAssistantId,
+    assistantId: selfAssistantId ?? authoringAssistantId,
+  };
+}
+
 /**
  * Sync user profile fields directly via Orchestra admin API.
  * POST /v0/admin/assistant/update-user
@@ -64,8 +101,8 @@ async function syncAssistantContact(
  * - affected row has is_system = true
  *
  * Sync routing:
- * - entries.id = 0 → sync to assistant (PATCH /v0/admin/assistant/{id})
- * - entries.id != 0 → sync to user (POST /v0/admin/assistant/update-user)
+ * - rows with an assistant relationship sync to that assistant
+ * - other system rows sync to the user identified by email
  *
  * This function is fire-and-forget: errors are logged but not thrown.
  */
@@ -106,29 +143,18 @@ export async function maybeSyncContactFields(
     const entries = log.entries || {};
 
     // Guard: Only rows with is_system = true
-    if (entries.is_system !== true) {
+    if (!isSystemEntry(entries)) {
       continue;
     }
 
-    // Get assistantId - support both "_assistantId" and "assistantId" field names
-    // Also support both number and string types
-    const rawAssistantId = entries._assistantId ?? entries.assistantId;
-    const assistantId =
-      typeof rawAssistantId === 'number'
-        ? rawAssistantId
-        : typeof rawAssistantId === 'string'
-          ? parseInt(rawAssistantId, 10)
-          : NaN;
+    const { selfAssistantId, assistantId } = resolveAssistantRouting(entries);
 
-    if (isNaN(assistantId)) {
-      console.warn('[ContactSync] Missing or invalid _assistantId/assistantId in log', log.id);
+    if (assistantId === null) {
+      console.warn('[ContactSync] Missing assistant routing id in log', log.id);
       continue;
     }
 
-    // Support both "id" and "contact_id" field names
-    const contactId = entries.contactId ?? entries.id;
-
-    if (contactId === 0) {
+    if (selfAssistantId !== null) {
       // Sync to assistant
       const existing = assistantSyncs.get(assistantId) || {};
 
@@ -144,7 +170,9 @@ export async function maybeSyncContactFields(
       assistantSyncs.set(assistantId, existing);
     } else {
       // Sync to user - need email from entries
-      const email = (entries.email ?? entries.emailAddress) as string | undefined;
+      const email = (entries.email ?? entries.emailAddress ?? entries.email_address) as
+        | string
+        | undefined;
       if (!email) {
         console.warn('[ContactSync] Missing email for user sync in log', log.id);
         continue;
