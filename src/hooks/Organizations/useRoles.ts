@@ -1,37 +1,57 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Role, RoleActions, Permission } from '@/types/role';
 import { toast } from 'sonner';
 
-export const useRoles = (orgId: number | undefined, actions: RoleActions) => {
+interface UseRolesOptions {
+  /**
+   * When `true`, the hook also pulls down the global permissions
+   * catalog in parallel with the roles list. Defaults to `false`
+   * because most consumers (org-level permission checks, role-name
+   * dropdowns, member role pickers) only need the roles themselves —
+   * the catalog is exclusively used by the role-management dialogs in
+   * `RoleListPanel`, which lazy-loads via `loadPermissions` when its
+   * tab is first opened.
+   *
+   * Splitting the fetch this way removes an eager `GET /v0/permissions`
+   * from the default Organizations page load.
+   */
+  loadPermissions?: boolean;
+}
+
+export const useRoles = (
+  orgId: number | undefined,
+  actions: RoleActions,
+  { loadPermissions = false }: UseRolesOptions = {}
+) => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [allPermissions, setAllPermissions] = useState<Permission[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  // Initialize to `true` (proven pattern, see `useMemoryData`) so the
+  // role list renders skeleton rows on first paint instead of briefly
+  // flashing an empty body before the fetch effect runs.
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
-  // Fetch Roles and Permissions
-  const fetchData = useCallback(async () => {
+  // Ref the (otherwise unstable) actions object so callbacks below
+  // don't churn on every server-action roundtrip — see useOrganization
+  // for the longer story; same root cause.
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
+
+  const fetchRoles = useCallback(async () => {
     if (!orgId) {
       setRoles([]);
+      setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
     try {
-      const [rolesRes, permsRes] = await Promise.all([
-        actions.getRoles(orgId),
-        actions.getAllPermissions(),
-      ]);
-
+      const rolesRes = await actionsRef.current.getRoles(orgId);
       if ('detail' in rolesRes) {
         console.error(rolesRes.detail);
         toast.error('Failed to load roles');
       } else {
         setRoles(rolesRes as Role[]);
-      }
-
-      if ('detail' in permsRes) {
-        console.error(permsRes.detail);
-      } else {
-        setAllPermissions(permsRes as Permission[]);
       }
     } catch (error) {
       console.error(error);
@@ -39,12 +59,35 @@ export const useRoles = (orgId: number | undefined, actions: RoleActions) => {
     } finally {
       setIsLoading(false);
     }
-  }, [orgId, actions]);
+  }, [orgId]);
 
-  // Initial Fetch
+  // On-demand permissions catalog fetch. Idempotent — repeated calls
+  // (e.g. when `RoleListPanel` re-mounts) reuse the already-loaded
+  // list rather than re-fetching.
+  const fetchPermissions = useCallback(async () => {
+    if (permissionsLoaded) return;
+    try {
+      const permsRes = await actionsRef.current.getAllPermissions();
+      if ('detail' in permsRes) {
+        console.error(permsRes.detail);
+      } else {
+        setAllPermissions(permsRes as Permission[]);
+        setPermissionsLoaded(true);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [permissionsLoaded]);
+
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchRoles();
+  }, [fetchRoles]);
+
+  useEffect(() => {
+    if (loadPermissions) {
+      fetchPermissions();
+    }
+  }, [loadPermissions, fetchPermissions]);
 
   // --- Handlers ---
 
@@ -57,7 +100,7 @@ export const useRoles = (orgId: number | undefined, actions: RoleActions) => {
         toast.error(res.detail);
       } else {
         toast.success('Role created');
-        fetchData();
+        fetchRoles();
       }
     } catch (e) {
       toast.error('Failed to create role');
@@ -73,7 +116,7 @@ export const useRoles = (orgId: number | undefined, actions: RoleActions) => {
         toast.error(res.detail);
       } else {
         toast.success('Role updated');
-        fetchData();
+        fetchRoles();
       }
     } catch (e) {
       toast.error('Failed to update role');
@@ -105,7 +148,7 @@ export const useRoles = (orgId: number | undefined, actions: RoleActions) => {
         toast.error(res.detail);
       } else {
         toast.success('Permissions added');
-        fetchData();
+        fetchRoles();
       }
     } catch (e) {
       toast.error('Failed to add permissions');
@@ -121,7 +164,7 @@ export const useRoles = (orgId: number | undefined, actions: RoleActions) => {
         toast.error(res.detail);
       } else {
         toast.success('Permission removed');
-        fetchData();
+        fetchRoles();
       }
     } catch (e) {
       toast.error('Failed to remove permission');
@@ -132,7 +175,8 @@ export const useRoles = (orgId: number | undefined, actions: RoleActions) => {
     roles,
     allPermissions,
     isLoading,
-    refreshRoles: fetchData,
+    refreshRoles: fetchRoles,
+    loadPermissions: fetchPermissions,
     handleCreateRole,
     handleUpdateRole,
     handleDeleteRole,

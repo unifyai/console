@@ -21,6 +21,12 @@ interface UseCallPillsReturn {
   closeTranscript: () => void;
 }
 
+// Module-level frozen empty array reused as the "no call pills" sentinel.
+// `((... || [])` allocates a fresh empty array on every render, breaking
+// downstream `useMemo` dependencies (e.g. the timeline memo in the chat
+// panel) and forcing pointless recomputation on every keystroke.
+const EMPTY_CALL_PILLS: readonly CallPill[] = Object.freeze([]);
+
 async function fetchCallTranscriptDirect(
   ownerId: string,
   assistantId: string,
@@ -77,7 +83,8 @@ export function useCallPills({
   const [activeTranscriptPill, setActiveTranscriptPill] = React.useState<CallPill | null>(null);
 
   const assistantId = assistant?.agentId;
-  const callPills = (assistantId && callPillHistories?.[assistantId]) || [];
+  const callPills: CallPill[] =
+    (assistantId && callPillHistories?.[assistantId]) || (EMPTY_CALL_PILLS as CallPill[]);
 
   const callStartTimeRef = React.useRef<Date | null>(null);
   const prevIsConnectedRef = React.useRef(false);

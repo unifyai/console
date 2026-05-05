@@ -472,7 +472,6 @@ export interface AssistantActions {
     ) => Promise<{ oauthUrl: string } | ResponseProps>;
     disconnect: (assistantId: string) => Promise<ResponseProps>;
     getGrantedFeatures: (assistantId: string) => Promise<GrantedFeaturesResponse | ResponseProps>;
-    listAllAssistantEmails: () => Promise<string[] | ResponseProps>;
     listAvailablePhoneCountries: () => Promise<AvailablePhoneCountry[]>;
     listAvailableSocialPlatforms: () => Promise<AvailableSocialPlatform[] | ResponseProps>;
     verifySocialAccount: (

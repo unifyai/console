@@ -15,13 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/UI/select';
-import { OrganizationMember, OrganizationRole } from '@/types/organization';
+import { OrganizationMember } from '@/types/organization';
+import { Role } from '@/types/role';
 import { Label } from '@/components/UI/label';
 
 interface InviteMemberDialogProps {
   onInvite: (email: string, roleId?: number) => Promise<{ success: boolean; error?: string }>;
   existingMembers: OrganizationMember[];
-  roles: OrganizationRole[];
+  roles: Role[];
 }
 
 const InviteMemberDialog = ({ onInvite, existingMembers, roles }: InviteMemberDialogProps) => {

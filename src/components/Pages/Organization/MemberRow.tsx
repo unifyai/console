@@ -12,6 +12,8 @@ import {
   Infinity,
   Camera,
   Lock,
+  Copy,
+  Check,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -45,7 +47,8 @@ import Link from 'next/link';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { OrganizationRole, SpendingDisplayProps } from '@/types/organization';
+import { SpendingDisplayProps } from '@/types/organization';
+import { Role } from '@/types/role';
 import { UnifiedMember } from '@/hooks/Organizations/useOrganization';
 import { MemberAssistantInfo } from './Main';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
@@ -67,7 +70,14 @@ interface MemberRowProps {
   member: UnifiedMember;
   userTeams?: string[];
   memberAssistants?: MemberAssistantInfo[];
-  roles: OrganizationRole[];
+  /**
+   * Optional pre-resolved HTTPS URL for the member's avatar.
+   * When set, the row uses it directly and skips its own per-row
+   * `POST /api/storage/signed-url` resolution — the parent already
+   * batched the lookup for every row in one round-trip.
+   */
+  prefetchedImageUrl?: string;
+  roles: Role[];
   currentUserId: string;
   canManageMembers: boolean;
   isOrgOwner: boolean;
@@ -132,6 +142,7 @@ const MemberRow = ({
   member,
   userTeams,
   memberAssistants,
+  prefetchedImageUrl,
   roles,
   currentUserId,
   canManageMembers,
@@ -148,9 +159,35 @@ const MemberRow = ({
 }: MemberRowProps) => {
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
-  const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
+  // Seed with the parent-provided URL so the avatar paints on the
+  // first frame for the common case where prefetching succeeded —
+  // no per-row request, no pop-in.
+  const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(
+    prefetchedImageUrl ?? null
+  );
   const [isUploading, setIsUploading] = useState(false);
+  const [isEmailCopied, setIsEmailCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Copy the row's email to the clipboard. Swallowing the error keeps
+  // the UI quiet on browsers/contexts where clipboard access is denied
+  // (e.g. insecure context, embedded iframe) — the toast surfaces the
+  // failure so the user knows to copy manually.
+  const handleCopyEmail = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!member.email) return;
+      try {
+        await navigator.clipboard.writeText(member.email);
+        setIsEmailCopied(true);
+        toast.success('Email copied to clipboard.');
+        setTimeout(() => setIsEmailCopied(false), 1500);
+      } catch {
+        toast.error('Failed to copy email.');
+      }
+    },
+    [member.email]
+  );
 
   const handlePhotoSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -196,6 +233,16 @@ const MemberRow = ({
       setResolvedImageUrl(image);
       return;
     }
+    // Parent already resolved this `gs://` URL via the batched
+    // `/api/storage/signed-urls` call — use it and skip our own
+    // network round-trip.
+    if (prefetchedImageUrl) {
+      setResolvedImageUrl(prefetchedImageUrl);
+      return;
+    }
+    // Fallback path: parent didn't (or couldn't) prefetch this row's
+    // image — resolve it ourselves so the avatar still appears,
+    // even if a beat later than the rest of the table.
     let cancelled = false;
     fetch('/api/storage/signed-url', {
       method: 'POST',
@@ -213,7 +260,7 @@ const MemberRow = ({
     return () => {
       cancelled = true;
     };
-  }, [member.image]);
+  }, [member.image, prefetchedImageUrl]);
 
   const isSelf = member.userId === currentUserId;
   const currentRoleName = member.role || 'Member';
@@ -226,7 +273,7 @@ const MemberRow = ({
       <TableRow className="hover:bg-muted/50 group">
         {/* User */}
         <TableCell className="font-medium">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <div
               className={cn('group/avatar relative flex-shrink-0', isSelf && 'cursor-pointer')}
               onClick={isSelf ? () => fileInputRef.current?.click() : undefined}
@@ -268,7 +315,7 @@ const MemberRow = ({
                 onChange={handlePhotoSelect}
               />
             )}
-            <div className="flex max-w-[180px] flex-col">
+            <div className="flex min-w-0 flex-1 flex-col">
               <span className="text-title truncate leading-none">
                 {isSelf ? (
                   <TooltipProvider delayDuration={300}>
@@ -301,7 +348,32 @@ const MemberRow = ({
 
         {/* Email */}
         <TableCell className="hidden lg:table-cell">
-          <span className="text-body-muted block max-w-[200px] truncate">{member.email}</span>
+          {member.email ? (
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={handleCopyEmail}
+                    aria-label={isEmailCopied ? 'Email copied' : `Copy ${member.email}`}
+                    className="text-body-muted group/email inline-flex max-w-full items-center gap-1.5 rounded text-left transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <span className="truncate">{member.email}</span>
+                    {isEmailCopied ? (
+                      <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5 shrink-0 opacity-0 transition-opacity group-hover/email:opacity-100" />
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isEmailCopied ? 'Copied!' : `Copy ${member.email}`}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <span className="text-body-muted block truncate">—</span>
+          )}
         </TableCell>
 
         {/* Assistants */}

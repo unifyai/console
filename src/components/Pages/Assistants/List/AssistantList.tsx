@@ -23,12 +23,26 @@ interface AssistantListProps {
   onEditAssistant: (assistant: Assistant) => void;
   onEndContract?: (assistant: Assistant) => Promise<void>;
   canEndContract?: (assistant: Assistant) => boolean;
+  /**
+   * Predicate gating the row dropdown's "Profile" / "Contact Details"
+   * edit entries. When it returns `false` for an assistant the menu
+   * items are hidden entirely (rather than disabled) so non-write
+   * viewers don't see edit affordances they can't act on. Defaults
+   * to "always allowed" to preserve back-compat for callers that
+   * pre-date the gating.
+   */
+  canEditAssistant?: (assistant: Assistant) => boolean;
   isFolded: boolean;
   activeCallAssistantId: string | null;
   onHangUp: () => void;
   /** Whether the current user can hire new assistants (org Owner in org context, anyone in personal workspace) */
   canHire?: boolean;
   onToggleFold?: () => void;
+  /**
+   * Per-assistant unread message counts driven by the page-level inbox
+   * multiplex stream. A missing key or `0` means no badge is shown.
+   */
+  unreadCounts?: Record<string, number>;
 }
 
 export function AssistantList({
@@ -44,11 +58,13 @@ export function AssistantList({
   onEditAssistant,
   onEndContract,
   canEndContract,
+  canEditAssistant,
   isFolded,
   activeCallAssistantId,
   onHangUp,
   canHire = true,
   onToggleFold,
+  unreadCounts,
 }: AssistantListProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
 
@@ -161,8 +177,10 @@ export function AssistantList({
                 onOpenContactManager={onOpenContactManager}
                 onEditAssistant={onEditAssistant}
                 onEndContract={canEndContract?.(assistant) ? onEndContract : undefined}
+                canEdit={canEditAssistant ? canEditAssistant(assistant) : true}
                 isFolded={isFolded}
                 isCallActive={activeCallAssistantId === assistant.agentId}
+                unreadCount={unreadCounts?.[assistant.agentId] ?? 0}
               />
             ))
           ) : searchTerm && !isFolded ? (

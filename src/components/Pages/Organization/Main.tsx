@@ -31,6 +31,12 @@ interface MainProps {
   orgSpendingLimit?: number | null;
   /** MFA settings actions (optional - enables security settings panel) */
   mfaSettingsActions?: MfaSettingsActions;
+  /**
+   * Server-prefetched MFA toggle for the active organization, so the
+   * Security tab can render the toggle immediately instead of waiting
+   * for a fresh server-action roundtrip on first open.
+   */
+  initialMfaRequired?: boolean | null;
   isUnifyMember?: boolean;
 }
 
@@ -43,6 +49,7 @@ const Main = ({
   memberSpendingActions,
   orgSpendingLimit,
   mfaSettingsActions,
+  initialMfaRequired = null,
   isUnifyMember = false,
 }: MainProps) => {
   // 1. Organization Logic
@@ -51,7 +58,6 @@ const Main = ({
     currentOrg,
     members,
     unifiedMembers,
-    roles,
     loadingMembers,
     handleCreateOrg,
     handleDeleteOrg,
@@ -67,6 +73,7 @@ const Main = ({
   // 2. Team Logic (Dependent on currentOrg)
   const {
     teams,
+    isLoading: isLoadingTeams,
     handleCreateTeam,
     handleUpdateTeam,
     handleDeleteTeam,
@@ -74,10 +81,20 @@ const Main = ({
     handleRemoveTeamMember,
   } = useTeams(currentOrg?.id, teamActions);
 
-  // 3. Role Logic (Dependent on currentOrg)
+  // 3. Role Logic (Dependent on currentOrg).
+  //
+  // `useRoles` is the single source of truth for the org's roles —
+  // both the role-management table in the Roles tab and the
+  // permission-derivation logic (workspace view, member role picker,
+  // invite dialog) consume the same `roles` array. The permissions
+  // catalog is loaded lazily via `loadPermissions()` from
+  // `RoleListPanel` when its tab first mounts; we don't need it on
+  // initial page load.
   const {
     roles: managedRoles,
     allPermissions,
+    isLoading: isLoadingRoles,
+    loadPermissions,
     handleCreateRole,
     handleUpdateRole: handleUpdateManagedRole,
     handleDeleteRole,
@@ -136,12 +153,15 @@ const Main = ({
             organization={currentOrg}
             currentUserId={userId}
             unifiedMembers={unifiedMembers}
-            roles={roles}
+            roles={managedRoles}
             teams={teams}
             // Role Data
             managedRoles={managedRoles}
             allPermissions={allPermissions}
+            onLoadPermissions={loadPermissions}
             isLoadingMembers={loadingMembers}
+            isLoadingTeams={isLoadingTeams}
+            isLoadingRoles={isLoadingRoles}
             onDeleteOrg={handleDeleteOrg}
             onUpdateOrg={handleUpdateOrg}
             onInvite={handleInvite}
@@ -167,6 +187,7 @@ const Main = ({
             orgSpendingLimit={orgSpendingLimit}
             // MFA Settings
             mfaSettingsActions={mfaSettingsActions}
+            initialMfaRequired={initialMfaRequired}
             // Assistants per member
             memberAssistantsMap={memberAssistantsMap}
           />

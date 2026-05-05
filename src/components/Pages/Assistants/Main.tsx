@@ -2,7 +2,12 @@
 
 import * as React from 'react';
 import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
-import { RightPaneContainer } from '@/components/Pages/Assistants/RightPaneContainer';
+import {
+  RightPaneContainer,
+  DEFAULT_RIGHT_PANE_STATE,
+  type RightPaneState,
+  type RightPaneTab,
+} from '@/components/Pages/Assistants/RightPaneContainer';
 import {
   Assistant,
   AssistantActions,
@@ -28,6 +33,9 @@ import { AssistantsBanners } from './AssistantsBanners';
 import { StripeSidePanel } from '@/components/Billing/StripeSidePanel';
 import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
+import { useAssistantOnboardingSummaries } from '@/hooks/Assistants/useAssistantOnboardingSummaries';
+import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
+import { useRouter } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
@@ -37,6 +45,17 @@ import { AssistantHireLocalSetupInstructionsDialog } from './Hire/AssistantHireL
 import { AssistantContactManager } from './Profile/AssistantContactManager';
 import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
 import { useContactIdPrefetch } from '@/hooks/Assistants/useContactIdPrefetch';
+import {
+  useAssistantChatStream,
+  type ChatStreamPair,
+} from '@/hooks/Assistants/useAssistantChatStream';
+import {
+  useAssistantTranscriptReconciler,
+  type TranscriptReconcilerPair,
+} from '@/hooks/Assistants/useAssistantTranscriptReconciler';
+import { useUnreadDocumentTitle } from '@/hooks/Assistants/useUnreadDocumentTitle';
+import type { ParsedInboundChatMessage } from '@/utils/assistants/chat-sse-frame';
+import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 import { LogLevel, Room, setLogLevel } from 'livekit-client';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
@@ -71,6 +90,73 @@ function isSignedMediaUrl(url: string | null | undefined): url is string {
 export default function Main({ assistantActions, userMeta }: MainProps) {
   // --- UI Panel Management ---
   const { profileAssistantId, handleShowProfile, handleProfileClose } = usePanelManager();
+
+  // Right-pane state (primary tab, optional secondary tab for split-view,
+  // splitter ratio) is lifted out of `RightPaneContainer` for two reasons:
+  //   1. Unread suppression below needs to know whether *either* slot is
+  //      showing the Chat tab to decide if the user is "viewing chat" for
+  //      the selected assistant.
+  //   2. Split layout / ratio is persisted across reloads via localStorage
+  //      so power users keep their preferred two-pane setup.
+  // Reset to single-Chat on assistant change — a fresh open should land
+  // on the conversation, not on whatever split the previous assistant
+  // had configured.
+  const RIGHT_PANE_STORAGE_KEY = 'console:assistants:rightPaneState';
+  const [paneState, setPaneState] = React.useState<RightPaneState>(DEFAULT_RIGHT_PANE_STATE);
+
+  // Hydrate persisted layout post-mount (avoids SSR mismatch). On mobile
+  // we forcibly drop any persisted secondary slot — split is desktop-only,
+  // and surfacing a half-pane on a phone would be unusable.
+  React.useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(RIGHT_PANE_STORAGE_KEY);
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as Partial<RightPaneState> | null;
+      if (!parsed || typeof parsed !== 'object') return;
+      const isMobile = window.matchMedia('(max-width: 767px)').matches;
+      setPaneState({
+        primary: { tab: (parsed.primary?.tab ?? 'chat') as RightPaneTab },
+        secondary:
+          !isMobile && parsed.secondary?.tab ? { tab: parsed.secondary.tab as RightPaneTab } : null,
+        splitRatio: typeof parsed.splitRatio === 'number' ? parsed.splitRatio : 0.5,
+      });
+    } catch {
+      // localStorage may be unavailable (private mode, etc.) — ignore.
+    }
+  }, []);
+
+  // Persist layout changes (best-effort; ignore quota/private-mode failures).
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem(RIGHT_PANE_STORAGE_KEY, JSON.stringify(paneState));
+    } catch {
+      /* ignore */
+    }
+  }, [paneState]);
+
+  // Collapse to primary-only on viewport shrink to mobile so a stored
+  // split doesn't suddenly look broken when the user resizes their window.
+  React.useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent) => {
+      if (e.matches) {
+        setPaneState((prev) => (prev.secondary ? { ...prev, secondary: null } : prev));
+      }
+    };
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  React.useEffect(() => {
+    setPaneState((prev) => ({ ...prev, primary: { tab: 'chat' }, secondary: null }));
+  }, [profileAssistantId]);
+
+  // Convenience: chat is "visible" if either slot is showing it. Used by
+  // the chat-stream hook below to suppress unread bumps and by the
+  // mark-as-read effect to clear the badge when an assistant is opened.
+  const isChatVisibleInRightPane =
+    paneState.primary.tab === 'chat' ||
+    (paneState.secondary !== null && paneState.secondary.tab === 'chat');
 
   // --- Assistant List Fold / Resize State ---
   const LIST_SNAP_THRESHOLD = 150;
@@ -185,6 +271,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   // --- Assistant Permissions ---
   const { canHire, canWrite, canDelete } = useAssistantPermissions();
+  // Pulled out of the workspace context so we can do strict ownership
+  // checks (e.g. who sees the setup roadmap) — `canWrite` is broader
+  // and includes org owners/admins, which isn't the same audience.
+  const { currentUserId } = useWorkspace();
 
   // --- Billing Status & Credit Grant Link ---
   const {
@@ -221,17 +311,340 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // --- Prefetch contact IDs, transcripts, AND call pills for all loaded assistants ---
   // Resolves contact IDs and fetches transcript history + meet call pills in
   // the background as soon as the assistant list is available.
-  // Contact IDs go into sessionStorage; transcripts and call pills go directly
-  // into their respective state maps (write-if-absent).
-  // When the user opens a chat, all data is already cached — the chat loads
-  // instantly with zero loading/skeleton state.
-  useContactIdPrefetch(
+  // Contact IDs go into sessionStorage AND are surfaced as React state so the
+  // page-level inbox multiplex below can join new assistants without polling.
+  // Transcripts and call pills go directly into their respective state maps
+  // (write-if-absent). When the user opens a chat, all data is already
+  // cached — the chat loads instantly with zero loading/skeleton state.
+  const resolvedContactIds = useContactIdPrefetch(
     assistants,
     assistantActions,
     userMeta.email,
     setProfileChatHistories,
     setCallPillHistories
   );
+
+  // --- Call Management ---
+  // Lifted above the chat-stream hook so the stream can use the active-call
+  // assistant as a fallback for `activeAssistantId` (prevents the in-call
+  // side-panel chat from flashing an unread badge for the very assistant
+  // the user is talking to).
+  const room = React.useMemo(() => {
+    setLogLevel(LogLevel.warn);
+    return new Room();
+  }, []);
+  const {
+    isConnecting: isConnectingCall,
+    isConnected: isCallConnected,
+    activeCallAssistant,
+    callType,
+    connectionDetails,
+    connect: startCall,
+    disconnect: hangUpCall,
+    isSpeakerMuted,
+    toggleSpeakerMute,
+    isWaitingForAssistant,
+    waitingMessage,
+    connectionError,
+    retryConnection,
+    isDesktopReady,
+    isRemoteControlActive,
+    liveviewUrl,
+    isRemoteControlLoading,
+    toggleRemoteControl,
+    isRemoteControlInteractive,
+    isRemoteControlInteractiveLoading,
+    toggleRemoteControlInteractive,
+  } = useAssistantCall(room, assistantActions);
+
+  // --- Page-level chat SSE stream ---
+  // Single SSE connection that demultiplexes Pub/Sub chat topics for every
+  // assistant in the workspace. Drives (a) unread badges on the list, (b)
+  // the currently-open chat panel's message history, (c) the typing
+  // indicator via `activityCounters`, and (d) the per-assistant online
+  // status via `markAssistantOnline`.
+  //
+  // Pairs are assembled from the `resolvedContactIds` state that
+  // `useContactIdPrefetch` maintains; as new IDs resolve, React batches the
+  // updates and the stream reconnects once per render pass rather than once
+  // per network response.
+  const chatStreamPairs = React.useMemo<ChatStreamPair[]>(
+    () =>
+      assistants
+        .map((a) => {
+          const cid = resolvedContactIds[a.agentId];
+          if (cid === undefined) return null;
+          return { assistantId: a.agentId, contactId: cid };
+        })
+        .filter((p): p is ChatStreamPair => p !== null),
+    [assistants, resolvedContactIds]
+  );
+
+  // Per-assistant monotonic counter bumped on every inbound SSE frame.
+  // Consumed by the chat panel (via props) to clear its typing indicator
+  // when the assistant starts replying.
+  const [chatActivityCounters, setChatActivityCounters] = React.useState<Record<string, number>>(
+    {}
+  );
+  const handleChatActivity = React.useCallback((assistantId: string) => {
+    setChatActivityCounters((prev) => ({
+      ...prev,
+      [assistantId]: (prev[assistantId] ?? 0) + 1,
+    }));
+  }, []);
+
+  // `ackMessage` is returned by `useAssistantChatStream` below, but we need
+  // to reference it from inside `handleChatStreamMessage`, which is passed
+  // INTO that hook. The ref sidesteps the temporal ordering: we update it
+  // on every render once the hook has returned.
+  const ackMessageRef = React.useRef<(assistantId: string, ackId: string) => void>(() => {});
+
+  // Per-assistant publish-time cutoff for the chat SSE filter. The ref is
+  // rebuilt from `profileChatHistories` whenever histories change, and
+  // `useAssistantChatStream` reads it on every inbound frame via
+  // `getCutoff` below — so anything Pub/Sub redelivers that we already have
+  // in chat history (transcripts, prefetch, prior session) gets dropped at
+  // parse time before it can reach `setProfileChatHistories`.
+  //
+  // Why assistant-role only: Pub/Sub only delivers assistant-outbound
+  // messages, so only those carry a `publishTime` we can meaningfully
+  // compare against. Including user-side optimistic timestamps in the
+  // cutoff would be unsafe — `useAssistantProfileChat.sendMessage` clamps
+  // them forward to `max(client_now, lastTs + 1)` to defend against
+  // client clock skew, which can push them past the server's actual
+  // wall-clock when the client clock is ahead. A subsequent assistant
+  // reply could then arrive with `publishTime < clamped_user_time` and
+  // get filtered out as if it were a redelivery.
+  //
+  // Why `+ 1`: SSE-delivered messages carry a Pub/Sub message id while
+  // the copy already in `profileChatHistories` (loaded by transcripts /
+  // prefetch) carries the Orchestra log-entry id, so id-based dedup
+  // can't recognise them as the same logical message. The two copies
+  // share the same `publishTime`, so a `<` cutoff at exactly the latest
+  // timestamp would let the redelivery slip through. Bumping the cutoff
+  // by 1 ms makes the filter cover the last-seen message too. The only
+  // downside is a brand-new assistant message that lands at the exact
+  // same millisecond as the previous one would be filtered, but the
+  // page-level transcript reconciler (`useAssistantTranscriptReconciler`)
+  // picks it up on the next poll (~30 s when SSE is healthy).
+  const chatStreamCutoffsRef = React.useRef<Record<string, number>>({});
+  React.useEffect(() => {
+    const next: Record<string, number> = {};
+    for (const [assistantId, msgs] of Object.entries(profileChatHistories)) {
+      if (!msgs || msgs.length === 0) continue;
+      let max = 0;
+      for (const m of msgs) {
+        if (m.role !== 'assistant') continue;
+        const t = new Date(m.timestamp).getTime();
+        if (t > max) max = t;
+      }
+      if (max > 0) next[assistantId] = max + 1;
+    }
+    chatStreamCutoffsRef.current = next;
+  }, [profileChatHistories]);
+  const getChatStreamCutoff = React.useCallback(
+    (assistantId: string) => chatStreamCutoffsRef.current[assistantId] ?? 0,
+    []
+  );
+
+  const handleChatStreamMessage = React.useCallback(
+    (assistantId: string, parsed: ParsedInboundChatMessage) => {
+      const { message, hasServerMessageId } = parsed;
+
+      // Merge into chat history with id-based dedup — but ONLY for chats
+      // whose transcripts have already been loaded into state.
+      //
+      // Why the gate: SSE-delivered messages carry the Pub/Sub message id
+      // (set server-side in `/api/assistant/events/chat-stream`), whereas
+      // server-loaded transcripts use the Orchestra log entry id. The two
+      // never match, so eagerly merging an SSE delivery into a chat the
+      // user hasn't opened yet would render a duplicate the moment the
+      // panel opens and pulls fresh transcripts (which already include
+      // the same message). For unopened chats we therefore drop the SSE
+      // copy on the floor — the unread badge is bumped separately by
+      // `useAssistantChatStream`, and the next transcript load is the
+      // single source of truth for content.
+      //
+      // For chats that ARE loaded, the publish-time cutoff supplied to
+      // `useAssistantChatStream` filters out backlog redeliveries before
+      // they reach this handler, so anything we get here is genuinely new
+      // and the id-based dedup below only ever fires on duplicate
+      // redeliveries that arrived before the cutoff caught up.
+      type MergeOutcome = 'skipped_no_history' | 'duplicate' | 'merged';
+      const outcomeRef: { value: MergeOutcome } = { value: 'merged' };
+      setProfileChatHistories((prev) => {
+        const current = prev[assistantId];
+        if (current === undefined) {
+          outcomeRef.value = 'skipped_no_history';
+          return prev;
+        }
+        if (hasServerMessageId && current.some((m) => m.id === message.id)) {
+          outcomeRef.value = 'duplicate';
+          return prev;
+        }
+        const lastMsg = current[current.length - 1];
+        if (
+          !hasServerMessageId &&
+          lastMsg &&
+          lastMsg.role === 'assistant' &&
+          lastMsg.content === message.content
+        ) {
+          outcomeRef.value = 'duplicate';
+          return prev;
+        }
+        const updated = [...current, message].sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+        return { ...prev, [assistantId]: updated };
+      });
+      const mergeOutcome = outcomeRef.value;
+
+      // Ack upstream on every delivery — including the "skipped, no
+      // history" and dedup-hit cases — so Pub/Sub stops looping on us.
+      // The server-side chat-stream route intentionally leaves messages
+      // leased until this call arrives, so any drop is redelivered on
+      // reconnect; once we've taken responsibility for the message
+      // (whether by merging it or by letting the next transcript load
+      // surface it) we have to release the lease.
+      const ackId = message.__ackId;
+      if (ackId) ackMessageRef.current(assistantId, ackId);
+
+      if (mergeOutcome === 'duplicate') return;
+
+      // Mark the assistant as "online" in the list — an incoming message
+      // is the strongest possible signal the process is reachable. This
+      // applies to both merged and skipped-no-history cases.
+      markAssistantOnline(assistantId);
+
+      // Broadcast to sibling tabs so a second tab with the same chat open
+      // renders the message even if Pub/Sub load-balanced the delivery to
+      // this tab. Skipped-no-history doesn't broadcast: the receiving
+      // tab's chat panel (if any) would face the same SSE-id vs
+      // log-entry-id mismatch and end up with a phantom duplicate. Tabs
+      // with the chat open will pick the message up either via their own
+      // direct SSE delivery or via the in-panel polling reconciler.
+      if (mergeOutcome !== 'merged') return;
+
+      const broadcastMsg = { ...message };
+      delete broadcastMsg.__ackId;
+      try {
+        const channel = new BroadcastChannel(`assistant-chat-sync-${assistantId}`);
+        const payload: BroadcastMessagePayload = {
+          type: 'NEW_MESSAGE',
+          message: broadcastMsg,
+        };
+        channel.postMessage(payload);
+        channel.close();
+      } catch {
+        /* BroadcastChannel unsupported (very old browsers) */
+      }
+    },
+    [markAssistantOnline]
+  );
+
+  const handleChatStreamDesktopReady = React.useCallback(
+    (assistantId: string, eventData: Record<string, unknown>) => {
+      try {
+        sessionStorage.setItem(`desktop-ready-${assistantId}`, JSON.stringify(eventData));
+      } catch {
+        /* quota / SSR */
+      }
+      try {
+        const desktopChannel = new BroadcastChannel(`assistant-desktop-ready-${assistantId}`);
+        desktopChannel.postMessage(eventData);
+        desktopChannel.close();
+      } catch {
+        /* BroadcastChannel unsupported */
+      }
+    },
+    []
+  );
+
+  const {
+    connectionStatusByAssistant: chatStreamConnectionStatusByAssistant,
+    reconnect: reconnectChatStream,
+    unreadCounts: chatStreamUnreadCounts,
+    markAsRead: markChatStreamRead,
+    ackMessage: ackChatStreamMessage,
+  } = useAssistantChatStream(
+    chatStreamPairs,
+    chatStreamPairs.length > 0,
+    {
+      onChatMessage: handleChatStreamMessage,
+      onDesktopReady: handleChatStreamDesktopReady,
+      onMessageActivity: handleChatActivity,
+    },
+    {
+      userEmail: userMeta.email ?? undefined,
+      // Suppress unread bumps for whichever assistant chat the user is
+      // currently looking at — either the profile chat panel (only when
+      // the right-pane Chat tab is visible in *either* the primary or
+      // secondary split slot; on Actions/Memory/etc.-only we still want
+      // the badge to climb so the user notices) or, if no panel is open,
+      // the call dialog's embedded side panel.
+      activeAssistantId:
+        (isChatVisibleInRightPane ? profileAssistantId : null) ??
+        activeCallAssistant?.agentId ??
+        null,
+      getCutoff: getChatStreamCutoff,
+    }
+  );
+  ackMessageRef.current = ackChatStreamMessage;
+
+  // Page-level polling fallback for the chat SSE. Reconciles missed
+  // messages into `profileChatHistories` for any assistant in the
+  // workspace whose stream is unhealthy (or the active panel as a safety
+  // net). Replaces the per-panel polling that used to live inside
+  // `useAssistantProfileChat`.
+  const reconcilerPairs = React.useMemo<TranscriptReconcilerPair[]>(
+    () =>
+      assistants
+        .map((a) => {
+          const cid = resolvedContactIds[a.agentId];
+          if (cid === undefined) return null;
+          return { assistantId: a.agentId, ownerId: a.userId, contactId: cid };
+        })
+        .filter((p): p is TranscriptReconcilerPair => p !== null),
+    [assistants, resolvedContactIds]
+  );
+  useAssistantTranscriptReconciler({
+    pairs: reconcilerPairs,
+    connectionStatusByAssistant: chatStreamConnectionStatusByAssistant,
+    activeAssistantId:
+      (isChatVisibleInRightPane ? profileAssistantId : null) ??
+      activeCallAssistant?.agentId ??
+      null,
+    enabled: reconcilerPairs.length > 0,
+    chatHistories: profileChatHistories,
+    setChatHistories: setProfileChatHistories,
+  });
+
+  // Surface the workspace-wide unread total in the browser tab title so
+  // background tabs show a `(N) …` badge like a typical messaging app.
+  // No UI-side masking needed for the selected assistant: the hook
+  // already suppresses bumps when (and only when) the user is actually
+  // viewing that chat (Chat tab + tab visible), so its count is
+  // naturally 0 in exactly the case where we'd want to mask it.
+  useUnreadDocumentTitle(chatStreamUnreadCounts);
+
+  // Clear unread whenever the user opens a chat (or switches to a different
+  // assistant's chat). The panel itself doesn't need to know about unread
+  // counts — the page-level hook owns that state exclusively.
+  React.useEffect(() => {
+    // Only clear the unread badge when the user is actually looking at the
+    // chat (Chat tab present in either split slot + assistant selected).
+    // Selecting an assistant while on a non-chat tab leaves the badge in
+    // place; switching either slot to the Chat tab is what marks it read.
+    if (profileAssistantId && isChatVisibleInRightPane) {
+      markChatStreamRead(profileAssistantId);
+    }
+  }, [profileAssistantId, isChatVisibleInRightPane, markChatStreamRead]);
+
+  // Activity signal for the currently-open chat panel: the panel reads only
+  // changes to this number, so passing 0 when no chat is open is fine.
+  const profileChatActivitySignal = profileAssistantId
+    ? (chatActivityCounters[profileAssistantId] ?? 0)
+    : 0;
 
   const [setupInstructions, setSetupInstructions] = React.useState<{
     os: string;
@@ -296,34 +709,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     };
   }, [verifyAndSetPopOutState]);
 
-  // --- Call Management ---
-  const room = React.useMemo(() => {
-    setLogLevel(LogLevel.warn);
-    return new Room();
-  }, []);
-  const {
-    isConnecting: isConnectingCall,
-    isConnected: isCallConnected,
-    activeCallAssistant,
-    callType,
-    connectionDetails,
-    connect: startCall,
-    disconnect: hangUpCall,
-    isSpeakerMuted,
-    toggleSpeakerMute,
-    isWaitingForAssistant,
-    waitingMessage,
-    connectionError,
-    retryConnection,
-    isDesktopReady,
-    isRemoteControlActive,
-    liveviewUrl,
-    isRemoteControlLoading,
-    toggleRemoteControl,
-    isRemoteControlInteractive,
-    isRemoteControlInteractiveLoading,
-    toggleRemoteControlInteractive,
-  } = useAssistantCall(room, assistantActions);
   const [isCommunicationDialogOpen, setIsCommunicationDialogOpen] = React.useState(false);
 
   // --- User/Org Spending for Spending Gate ---
@@ -532,8 +917,15 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       });
       setNewlyHiredInfo({ assistant: optimisticAssistant, preHireChat });
       handleShowProfile(optimisticAssistant.agentId);
+      // Capture the OS for local-mode hires so the setup roadmap's
+      // "Show install instructions" step can re-open the dialog later
+      // with the correct platform — we don't auto-pop here anymore;
+      // the user opts in from the in-panel roadmap when ready.
       if (formData.setup === 'local' && formData.operatingSystem) {
-        setSetupInstructions({ os: formData.operatingSystem, isOpen: true });
+        setHireOsByAgentId((prev) => ({
+          ...prev,
+          [optimisticAssistant.agentId]: formData.operatingSystem as string,
+        }));
       }
 
       refreshAssistants(false);
@@ -751,6 +1143,169 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     () => assistants.find((a) => a.agentId === profileAssistantId) || null,
     [assistants, profileAssistantId]
   );
+
+  // --- Setup roadmap derivations (live-derived from existing state) ---
+  // Captured on local hires so the roadmap's "Show install
+  // instructions" step can re-open the dialog with the right OS
+  // without us having to round-trip through the form again.
+  const [hireOsByAgentId, setHireOsByAgentId] = React.useState<Record<string, string>>({});
+  // True iff the user has sent ≥1 message in the currently-profiled
+  // assistant's chat — drives the "Say hi" sub-step completion.
+  const profiledHasUserMessage = React.useMemo(() => {
+    if (!profileAssistantId) return false;
+    const messages = profileChatHistories[profileAssistantId] ?? [];
+    return messages.some((m) => m.role === 'user');
+  }, [profileChatHistories, profileAssistantId]);
+  // Latest user-message timestamp for the currently-profiled assistant.
+  // Drives the "Ask in chat" prefill steps' done detection: those steps
+  // are marked complete when the user sends a message after clicking
+  // the prefill (timestamp > clickedAt). Computed per-render but cheap
+  // since chat histories are already indexed in memory.
+  const profiledLatestUserMessageAt = React.useMemo<Date | null>(() => {
+    if (!profileAssistantId) return null;
+    const messages = profileChatHistories[profileAssistantId] ?? [];
+    let latest: Date | null = null;
+    for (const m of messages) {
+      if (m.role !== 'user') continue;
+      if (!latest || m.timestamp.getTime() > latest.getTime()) latest = m.timestamp;
+    }
+    return latest;
+  }, [profileChatHistories, profileAssistantId]);
+  // True iff this assistant has any historical call recorded — drives
+  // the roadmap's "Start a voice call" sub-step. Pulled from the
+  // existing call-pill cache so we don't duplicate fetches.
+  const profiledHasHistoricalCall = React.useMemo(() => {
+    if (!profileAssistantId) return false;
+    return (callPillHistories[profileAssistantId] ?? []).length > 0;
+  }, [callPillHistories, profileAssistantId]);
+  // True iff the logged-in user has a phone number on their profile —
+  // gates the "Add phone to profile" roadmap step.
+  const hasUserPhoneNumber = !!(userMeta.phoneNumber && userMeta.phoneNumber.trim() !== '');
+
+  // Cross-assistant onboarding summaries — drives the "needs
+  // attention" dot on each assistant list row. We pre-bake the
+  // per-assistant chat / call ctx maps from the same caches the
+  // single-assistant panel reads, so the badge can never disagree
+  // with what the user sees inside the panel.
+  //
+  // For non-profiled assistants we have no in-memory chat history
+  // (transcripts haven't been loaded), which means `hasUserMessage`
+  // is `false` for them — leading to a "Say hi" outstanding step
+  // and therefore a dot. That's actually the desired behavior: if
+  // we've never even loaded that assistant's chat, the user almost
+  // certainly hasn't onboarded them. We accept the small cost of
+  // showing a dot until the user opens the assistant once
+  // (transcripts then load and the panel resolves the state).
+  const perAssistantChatCtx = React.useMemo<
+    Record<string, { hasUserMessage: boolean; latestUserMessageAt: Date | null }>
+  >(() => {
+    const out: Record<string, { hasUserMessage: boolean; latestUserMessageAt: Date | null }> = {};
+    for (const [agentId, msgs] of Object.entries(profileChatHistories)) {
+      let latest: Date | null = null;
+      let hasUser = false;
+      for (const m of msgs) {
+        if (m.role !== 'user') continue;
+        hasUser = true;
+        if (!latest || m.timestamp.getTime() > latest.getTime()) latest = m.timestamp;
+      }
+      out[agentId] = { hasUserMessage: hasUser, latestUserMessageAt: latest };
+    }
+    return out;
+  }, [profileChatHistories]);
+  const perAssistantCallCtx = React.useMemo<Record<string, { hasHistoricalCall: boolean }>>(() => {
+    const out: Record<string, { hasHistoricalCall: boolean }> = {};
+    for (const [agentId, pills] of Object.entries(callPillHistories)) {
+      out[agentId] = { hasHistoricalCall: pills.length > 0 };
+    }
+    return out;
+  }, [callPillHistories]);
+  const onboardingSummaries = useAssistantOnboardingSummaries({
+    assistants,
+    currentUserId,
+    hasUserPhoneNumber,
+    perAssistantChat: perAssistantChatCtx,
+    perAssistantCalls: perAssistantCallCtx,
+  });
+  // Flattened `{ agentId: hasOutstanding }` for the list — keeps the
+  // list-level prop dead simple and avoids leaking summary internals
+  // (totalSteps etc.) to a component that only needs a yes/no.
+  const onboardingIncompleteByAgentId = React.useMemo<Record<string, boolean>>(() => {
+    const out: Record<string, boolean> = {};
+    for (const [agentId, summary] of Object.entries(onboardingSummaries)) {
+      if (summary?.hasOutstanding) out[agentId] = true;
+    }
+    return out;
+  }, [onboardingSummaries]);
+  // The setup roadmap is the *owner's* checklist — the contact
+  // details, integrations, install steps etc. all belong to whoever
+  // hired the assistant. Org admins / collaborators viewing a
+  // teammate's assistant get the bare Contact Info layout instead;
+  // they have no actionable steps to tick off here.
+  const isAssistantOwner =
+    !!profileAssistant && !!currentUserId && profileAssistant.userId === currentUserId;
+  // Open the local-install instructions dialog from the setup roadmap.
+  // Falls back to a sane default if we don't have an OS captured (e.g.
+  // the assistant was hired in a previous session before this feature
+  // shipped).
+  const handleShowInstallInstructions = React.useCallback(
+    (assistant: Assistant) => {
+      const os = hireOsByAgentId[assistant.agentId] || 'ubuntu';
+      setSetupInstructions({ os, isOpen: true });
+    },
+    [hireOsByAgentId]
+  );
+  // Open the user's account settings in a new tab so the chat session
+  // isn't disrupted while they configure their profile. Optional `tab`
+  // mirrors the /account page's `?tab=` param (see ProfileTabs) so
+  // callers can deep-link straight to the relevant section — e.g. the
+  // "Add phone to profile" step lands on Contact Info directly.
+  //
+  // We also stamp a localStorage flag so the focus-refresh effect
+  // below knows the user might have just changed something on their
+  // profile — refreshing server data on every focus event is
+  // wasteful, but doing so after an account-page round-trip ensures
+  // derivations like `hasUserPhoneNumber` reflect the edit without
+  // a manual reload.
+  const router = useRouter();
+  const handleOpenUserSettings = React.useCallback((tab?: string) => {
+    if (typeof window === 'undefined') return;
+    const url = tab ? `/account?tab=${encodeURIComponent(tab)}` : '/account';
+    try {
+      window.localStorage.setItem('console:assistants:user-settings-opened-at', String(Date.now()));
+    } catch {
+      /* private mode / quota — refresh just won't trigger */
+    }
+    window.open(url, '_blank', 'noopener');
+  }, []);
+  // Refresh server data (re-pulls userMeta) when the window regains
+  // focus AFTER the user opened account settings. Gated on the flag
+  // + a sane TTL so we don't trigger expensive RSC re-renders on
+  // every alt-tab — only after an account-edit round-trip.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const FLAG_KEY = 'console:assistants:user-settings-opened-at';
+    const TTL_MS = 10 * 60 * 1000;
+    const onFocus = () => {
+      let openedAt: number | null = null;
+      try {
+        const raw = window.localStorage.getItem(FLAG_KEY);
+        openedAt = raw ? Number(raw) : null;
+      } catch {
+        return;
+      }
+      if (!openedAt || Number.isNaN(openedAt)) return;
+      try {
+        window.localStorage.removeItem(FLAG_KEY);
+      } catch {
+        /* ignore */
+      }
+      if (Date.now() - openedAt > TTL_MS) return;
+      router.refresh();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [router]);
+
   const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
 
   // --- System error listener (assistant-level, above all interaction surfaces) ---
@@ -812,11 +1367,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             onEditAssistant={handleOpenEditDialog}
             onEndContract={onDeleteAssistantSubmit}
             canEndContract={canDelete}
+            canEditAssistant={canWrite}
             isFolded={isAssistantListFolded}
             activeCallAssistantId={activeCallId}
             onHangUp={handleHangUp}
             canHire={canHire}
             onToggleFold={handleToggleListFold}
+            unreadCounts={chatStreamUnreadCounts}
           />
         </div>
         {/* List resize handle */}
@@ -848,7 +1405,41 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             userTimezone={userMeta.timezone}
             canWrite={profileAssistant ? canWrite(profileAssistant) : undefined}
             spendingGate={spendingGateStatus}
-            onAssistantReply={markAssistantOnline}
+            chatStreamConnectionStatus={
+              profileAssistant
+                ? (chatStreamConnectionStatusByAssistant[profileAssistant.agentId] ?? 'connecting')
+                : 'connecting'
+            }
+            reconnectChatStream={reconnectChatStream}
+            chatStreamActivitySignal={profileChatActivitySignal}
+            paneState={paneState}
+            onPaneStateChange={setPaneState}
+            onEditAssistant={handleOpenEditDialog}
+            onOpenContactManager={handleOpenContactManager}
+            hasUserMessage={profiledHasUserMessage}
+            hasHistoricalCall={profiledHasHistoricalCall}
+            hasUserPhoneNumber={hasUserPhoneNumber}
+            latestUserMessageAt={profiledLatestUserMessageAt}
+            userPhoneNumber={userMeta.phoneNumber}
+            // The roadmap activates downstream only when BOTH of the
+            // owner-only handlers are provided (see ChatWithInfoPanel
+            // — it gates the `roadmap` prop bag on their presence).
+            // Withholding them for non-owners cleanly hides the
+            // Onboarding tab without bespoke prop drilling.
+            onShowInstallInstructions={isAssistantOwner ? handleShowInstallInstructions : undefined}
+            onOpenUserSettings={isAssistantOwner ? handleOpenUserSettings : undefined}
+            // Drives the dot on the chat header's "Assistant info"
+            // button. Pulled from the same cross-assistant summary
+            // map we used for the (now-removed) list-item dot, so
+            // the source of truth doesn't fork.
+            unreadChatCount={
+              profileAssistant ? (chatStreamUnreadCounts[profileAssistant.agentId] ?? 0) : 0
+            }
+            hasIncompleteOnboarding={
+              isAssistantOwner && profileAssistant
+                ? !!onboardingIncompleteByAgentId[profileAssistant.agentId]
+                : false
+            }
           />
         </div>
       </div>
@@ -999,6 +1590,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             callType={callType}
             isSpeakerMuted={isSpeakerMuted}
             onToggleSpeaker={toggleSpeakerMute}
+            chatStreamConnectionStatus={
+              chatStreamConnectionStatusByAssistant[activeCallAssistant.agentId] ?? 'connecting'
+            }
+            reconnectChatStream={reconnectChatStream}
+            chatStreamActivitySignal={chatActivityCounters[activeCallAssistant.agentId] ?? 0}
           />
         </RoomContext.Provider>
       )}

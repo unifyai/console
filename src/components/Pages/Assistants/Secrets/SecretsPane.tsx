@@ -164,7 +164,7 @@ export function SecretsPane({
     <div className="flex h-full flex-col" data-testid="secrets-pane">
       {/* Header — search + actions */}
       <div
-        className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5"
+        className="flex shrink-0 items-center gap-2 border-b px-3 py-2"
         data-testid="secrets-header"
       >
         <div className="relative max-w-xs flex-1">

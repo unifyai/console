@@ -7,6 +7,11 @@
 
 export type ContactType = 'email' | 'phone' | 'whatsapp' | 'discord';
 
+/**
+ * Email provider stored on `assistant.emailProvider` for BYOD-connected
+ * mailboxes.  Platform provisioning (`@unify.ai` / MS365 tenant) was retired,
+ * so the value always reflects a user-connected account.
+ */
 export type EmailProvider = 'google_workspace' | 'microsoft_365';
 
 /** OAuth provider identifier used by the connect/granted-features endpoints. */
@@ -33,29 +38,29 @@ interface CostEntry {
 /**
  * Keyed map of monthly + one-time costs per contact type.
  * Used by the UI to display pricing without hardcoding values.
+ *
+ * Email contacts are BYOD-only and never billed, so `email` is always zero
+ * and is kept only so callers can index `contactCosts[contactType]` uniformly.
  */
 export interface ContactCosts {
   phone: CostEntry;
   email: CostEntry;
   whatsapp: CostEntry;
   discord: CostEntry;
-  /** Per-provider email costs (e.g. google_workspace, microsoft_365). */
-  emailByProvider: Record<string, CostEntry>;
 }
 
 /**
  * Payload for creating a new contact detail via POST /assistant/{id}/contact.
  * Mirrors the backend `AssistantContactCreate` schema.
+ *
+ * Email contacts are BYOD-only and are created through the OAuth connect
+ * flow (`POST /assistant/{id}/connect`), not this endpoint, so no email-
+ * specific fields are needed here.
  */
 export interface AssistantContactCreatePayload {
   contactType: ContactType;
   // Phone-specific
   phoneCountry?: string;
-  // Email-specific
-  emailProvider?: EmailProvider;
-  emailLocal?: string;
-  firstName?: string;
-  lastName?: string;
 }
 
 /**

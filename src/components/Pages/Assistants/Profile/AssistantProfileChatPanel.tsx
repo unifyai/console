@@ -48,6 +48,7 @@ import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assist
 import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
 import { useChatTTS } from '@/hooks/Assistants/useChatTTS';
 import { ChatMessageSkeletons } from '@/components/Chat/ChatMessageSkeleton';
+import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 
 /* --------------------------
    AssistantProfileChatPanel 
@@ -66,12 +67,26 @@ interface AssistantProfileChatPanelProps {
   onFirstViewCompleted?: () => void;
   /** Spending gate status for blocking new messages */
   spendingGate?: SpendingGateStatus;
-  onAssistantReply?: (assistantId: string) => void;
+  /** Page-level chat SSE connection health (rendered in the panel header). */
+  chatStreamConnectionStatus: ChatStreamConnectionStatus;
+  /** Force a reconnect of the page-level chat SSE. */
+  reconnectChatStream: () => void;
+  /** Monotonic inbound-frame counter for this assistant; clears typing. */
+  chatStreamActivitySignal: number;
   /** Whether this assistant's call is currently connected */
   isCallConnected?: boolean;
   /** Externally controlled search dialog open state */
   searchOpen?: boolean;
   onSearchOpenChange?: (open: boolean) => void;
+  /**
+   * Optional draft seed pushed in from outside the chat (currently
+   * the setup-roadmap "Say hi" step). The composer's input value is
+   * replaced with `text` and the textarea focused whenever `nonce`
+   * changes — using a nonce-keyed object rather than the raw string
+   * means the same suggestion can be re-applied without sticking the
+   * input value in a one-way external prop.
+   */
+  draftSeed?: { text: string; nonce: number } | null;
 }
 
 export function AssistantProfileChatPanel({
@@ -87,10 +102,13 @@ export function AssistantProfileChatPanel({
   preHireChat,
   onFirstViewCompleted,
   spendingGate = DEFAULT_SPENDING_GATE_STATUS,
-  onAssistantReply,
+  chatStreamConnectionStatus,
+  reconnectChatStream,
+  chatStreamActivitySignal,
   isCallConnected = false,
   searchOpen: externalSearchOpen,
   onSearchOpenChange,
+  draftSeed,
 }: AssistantProfileChatPanelProps) {
   const displayName = `${assistant.firstName} ${assistant.surname}`;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
@@ -131,11 +149,40 @@ export function AssistantProfileChatPanel({
     chatHistories,
     setChatHistories,
     userEmail,
+    {
+      connectionStatus: chatStreamConnectionStatus,
+      reconnect: reconnectChatStream,
+      activitySignal: chatStreamActivitySignal,
+    },
     isFirstView,
     preHireChat,
-    onFirstViewCompleted,
-    onAssistantReply
+    onFirstViewCompleted
   );
+
+  // Seed-from-outside draft (e.g. setup-roadmap "Say hi"). Keyed on
+  // the seed's `nonce` so re-applying the same text works — and so
+  // we don't fight the user if they're mid-typing and the same seed
+  // happens to re-render with no actual change.
+  const lastAppliedSeedNonceRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    if (!draftSeed) return;
+    if (lastAppliedSeedNonceRef.current === draftSeed.nonce) return;
+    lastAppliedSeedNonceRef.current = draftSeed.nonce;
+    setInputValue(draftSeed.text);
+    // Defer focus to next frame so the textarea has the new value
+    // committed before we move the caret.
+    requestAnimationFrame(() => {
+      const node = textareaRef.current;
+      if (!node) return;
+      node.focus();
+      const end = draftSeed.text.length;
+      try {
+        node.setSelectionRange(end, end);
+      } catch {
+        /* some browsers reject selection on disabled inputs — ignore */
+      }
+    });
+  }, [draftSeed, setInputValue]);
 
   const {
     callPills,
@@ -216,6 +263,28 @@ export function AssistantProfileChatPanel({
   }, [jumpToPresent]);
 
   const sseBlocked = connectionStatus === 'error';
+
+  // Memoise the live and historical timelines so we don't pay an O(n log n)
+  // sort + array allocation on every parent re-render. The chat panel
+  // re-renders on every keystroke in the composer (because `inputValue`
+  // lives in `useAssistantProfileChat`), and re-sorting hundreds of
+  // messages per keystroke is one of the dominant typing-lag contributors
+  // in long conversations.
+  const liveTimeline = React.useMemo<TimelineItem[]>(() => {
+    const baseMessages: ChatMessage[] = USE_MOCK_EMBEDS
+      ? [...messages, ...getMockEmbedMessages()]
+      : messages;
+    return [...baseMessages, ...callPills].sort(
+      (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
+    );
+  }, [messages, callPills]);
+
+  const historicalTimeline = React.useMemo<TimelineItem[]>(() => {
+    if (!historicalView) return [];
+    return [...historicalView.messages, ...historicalView.callPills].sort(
+      (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
+    );
+  }, [historicalView]);
 
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = React.useRef<number | null>(null);
@@ -437,14 +506,17 @@ export function AssistantProfileChatPanel({
     const prevScrollHeight = prevScrollHeightRef.current;
     const { scrollTop, scrollHeight, clientHeight } = viewport;
 
-    // Use *current* scrollHeight to decide if we're at the bottom, not the
-    // stale prevScrollHeight. After the useLayoutEffect preserves scroll
-    // position for "load older", scrollTop has already been adjusted, so
-    // comparing with prevScrollHeight gives a false-positive "was at bottom"
-    // when the first batch of older messages roughly doubles content height.
-    const isBottom = scrollHeight - scrollTop - clientHeight <= 20;
-    const wasBottom = prevScrollHeight === null || isBottom;
-    isAtBottomRef.current = isBottom;
+    // Decide whether the user was pinned to the bottom BEFORE the content
+    // changed, using the *previous* scrollHeight. Using the current
+    // scrollHeight here is wrong: when a new reply is appended, scrollHeight
+    // grows while scrollTop stays put, so `scrollHeight - scrollTop - clientHeight`
+    // immediately looks "not at bottom" and auto-scroll never fires. The
+    // `!isLoadingMore` guard below handles the "load older" case where the
+    // useLayoutEffect has already preserved scroll position — we never
+    // auto-scroll during a prepend.
+    const wasBottom =
+      prevScrollHeight === null || prevScrollHeight - scrollTop - clientHeight <= 20;
+    isAtBottomRef.current = wasBottom;
 
     if (scrollHeight !== prevScrollHeight && wasBottom && !isLoadingMore) {
       viewport.scrollTop = scrollHeight;
@@ -567,7 +639,15 @@ export function AssistantProfileChatPanel({
     <div className="flex h-full w-full flex-col bg-background">
       {/* Chat Area */}
       <ScrollArea
-        className="flex-1 px-3 md:px-6"
+        // Radix wraps viewport children in a `display:table` div, which
+        // sizes to intrinsic content width — long URLs / code in a
+        // message bubble end up pushing the wrapper wider than the
+        // viewport and the bubble overflows horizontally on mobile.
+        // Forcing the wrapper to `display:block` lets `min-w-0` +
+        // `break-words` on bubbles do their job and stay within the
+        // viewport bounds. Scoped to this scroll area so we don't
+        // disturb any callsite that genuinely wants horizontal scroll.
+        className="flex-1 px-3 pb-4 md:px-6 [&>[data-radix-scroll-area-viewport]>div]:!block"
         ref={scrollAreaRef}
         data-testid="chat-scroll-area"
       >
@@ -585,7 +665,7 @@ export function AssistantProfileChatPanel({
         ) : isLoading && messages.length === 0 ? (
           <ChatMessageSkeletons />
         ) : (
-          <div className="space-y-6 pt-4" style={{ width: '100%' }}>
+          <div className="space-y-6 py-4" style={{ width: '100%' }}>
             {isHistoricalMode ? (
               <>
                 {historicalView?.isLoadingOlder && <ChatMessageSkeletons />}
@@ -600,13 +680,8 @@ export function AssistantProfileChatPanel({
                 {historicalView?.messages.length === 0 && historicalView?.isLoadingOlder && (
                   <ChatMessageSkeletons />
                 )}
-                {(() => {
-                  if (!historicalView) return null;
-                  const timeline: TimelineItem[] = [
-                    ...historicalView.messages,
-                    ...historicalView.callPills,
-                  ].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-                  return timeline.map((item, i, arr) => {
+                {historicalView &&
+                  historicalTimeline.map((item, i, arr) => {
                     const prevItem = arr[i - 1];
                     const showDivider =
                       !prevItem || !isSameDay(prevItem.timestamp, item.timestamp, userTimezone);
@@ -648,8 +723,7 @@ export function AssistantProfileChatPanel({
                         </div>
                       </React.Fragment>
                     );
-                  });
-                })()}
+                  })}
                 {historicalView?.isLoadingNewer && <ChatMessageSkeletons />}
               </>
             ) : (
@@ -684,60 +758,54 @@ export function AssistantProfileChatPanel({
                     </Button>
                   </div>
                 )}
-                {(() => {
-                  const baseMessages: ChatMessage[] = USE_MOCK_EMBEDS
-                    ? [...messages, ...getMockEmbedMessages()]
-                    : messages;
-                  const timeline: TimelineItem[] = [...baseMessages, ...callPills].sort(
-                    (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
-                  );
-                  return timeline.map((item, i, arr) => {
-                    const prevItem = arr[i - 1];
-                    const showDivider =
-                      !prevItem || !isSameDay(prevItem.timestamp, item.timestamp, userTimezone);
+                {liveTimeline.map((item, i, arr) => {
+                  const prevItem = arr[i - 1];
+                  const showDivider =
+                    !prevItem || !isSameDay(prevItem.timestamp, item.timestamp, userTimezone);
 
-                    if (isCallPill(item)) {
-                      return (
-                        <React.Fragment key={item.id}>
-                          {showDivider && (
-                            <ChatDateDivider date={item.timestamp} timezone={userTimezone} />
-                          )}
-                          <CallPillBubble
-                            pill={item}
-                            timezone={userTimezone}
-                            onClick={openTranscript}
-                          />
-                        </React.Fragment>
-                      );
-                    }
-
-                    const msg = item;
+                  if (isCallPill(item)) {
                     return (
-                      <React.Fragment key={msg.id}>
+                      <React.Fragment key={item.id}>
                         {showDivider && (
-                          <ChatDateDivider date={msg.timestamp} timezone={userTimezone} />
+                          <ChatDateDivider date={item.timestamp} timezone={userTimezone} />
                         )}
-                        <ChatMessageBubble
-                          message={msg.content}
-                          isUser={msg.role === 'user'}
-                          assistantPhoto={photoSrc}
-                          assistantName={displayName}
-                          timestamp={msg.timestamp}
+                        <CallPillBubble
+                          pill={item}
                           timezone={userTimezone}
-                          index={i}
-                          attachments={msg.attachments}
-                          {...(hasVoice && msg.role === 'assistant' && msg.content
-                            ? {
-                                onPlayAudio: () => playMessage(msg.id, msg.content),
-                                onStopAudio: stopPlayback,
-                                audioState: getAudioState(msg.id),
-                              }
-                            : {})}
+                          onClick={openTranscript}
                         />
                       </React.Fragment>
                     );
-                  });
-                })()}
+                  }
+
+                  const msg = item;
+                  // Pass `playMessage` directly (not a per-render `() => …`
+                  // closure) so `React.memo` on `ChatMessageBubble` actually
+                  // bails out on keystrokes — the bubble builds its own
+                  // onClick handler from `messageId` + `message`.
+                  const audioEnabled = hasVoice && msg.role === 'assistant' && !!msg.content;
+                  return (
+                    <React.Fragment key={msg.id}>
+                      {showDivider && (
+                        <ChatDateDivider date={msg.timestamp} timezone={userTimezone} />
+                      )}
+                      <ChatMessageBubble
+                        message={msg.content}
+                        isUser={msg.role === 'user'}
+                        assistantPhoto={photoSrc}
+                        assistantName={displayName}
+                        timestamp={msg.timestamp}
+                        timezone={userTimezone}
+                        index={i}
+                        attachments={msg.attachments}
+                        messageId={msg.id}
+                        onPlayAudio={audioEnabled ? playMessage : undefined}
+                        onStopAudio={audioEnabled ? stopPlayback : undefined}
+                        audioState={audioEnabled ? getAudioState(msg.id) : undefined}
+                      />
+                    </React.Fragment>
+                  );
+                })}
                 {isAssistantReplying && (
                   <ChatMessageBubble
                     message=""
@@ -758,12 +826,7 @@ export function AssistantProfileChatPanel({
       {isHistoricalMode && <OlderMessagesBanner onJumpToPresent={handleJumpToPresent} />}
 
       {/* Input Area */}
-      {/* Total vertical height of this row (textarea 32px + py-1 8px = 40px)
-          is kept in sync with the assistant-list toggle and the tab footers
-          so the bottom bars line up across the whole assistants page. The
-          4px top/bottom padding leaves the textarea visibly inset from the
-          form edges rather than flush against them. */}
-      <form onSubmit={handleSendWithAttachments} className="bg-background px-4 py-1">
+      <form onSubmit={handleSendWithAttachments} className="bg-background px-4 pb-4 pt-2">
         {/* Pending attachments — outside dropzone so tooltips work */}
         {pendingAttachments.length > 0 && (
           <PendingAttachmentList
@@ -800,7 +863,7 @@ export function AssistantProfileChatPanel({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute inset-y-0 left-1 my-auto h-6 w-6"
+                  className="absolute bottom-1 left-1 h-7 w-7"
                   disabled={
                     !canChat ||
                     isLoading ||
@@ -837,7 +900,7 @@ export function AssistantProfileChatPanel({
               variant="ghost"
               size="icon"
               className={cn(
-                'absolute inset-y-0 left-7 my-auto h-6 w-6',
+                'absolute bottom-1 left-8 h-7 w-7',
                 isRecording && 'animate-pulse text-red-500'
               )}
               onClick={toggleRecording}
@@ -887,7 +950,7 @@ export function AssistantProfileChatPanel({
               disabled={
                 !canChat || isUploading || initialLoadError || sseBlocked || isSpendingBlocked
               }
-              className="styled-scrollbar text-body min-h-[32px] resize-none overflow-y-hidden py-1 pl-14 pr-9 leading-6"
+              className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-16 pr-10"
               autoComplete="off"
               onKeyDown={sendMessageOnEnter}
             />
@@ -902,7 +965,7 @@ export function AssistantProfileChatPanel({
                       aria-label="Cancel send"
                       size="icon"
                       variant="outline"
-                      className="group/cancel absolute inset-y-0 right-1 my-auto h-6 w-6 hover:bg-muted"
+                      className="group/cancel absolute bottom-1 right-1 h-7 w-7 hover:bg-muted"
                       onClick={handleCancelSend}
                     >
                       <Loader2 className="h-4 w-4 animate-spin group-hover/cancel:hidden" />
@@ -919,8 +982,7 @@ export function AssistantProfileChatPanel({
                 type="submit"
                 aria-label="Send message"
                 size="icon"
-                variant="ghost"
-                className="absolute inset-y-0 right-1 my-auto h-6 w-6"
+                className="absolute bottom-1 right-1 h-7 w-7"
                 disabled={
                   !canChat ||
                   isLoading ||

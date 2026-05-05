@@ -24,6 +24,7 @@ import {
 } from '@livekit/components-react';
 import { Room, Track } from 'livekit-client';
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
+import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 
 interface AssistantCommunicationDialogContentProps {
   assistant: Assistant;
@@ -55,6 +56,9 @@ interface AssistantCommunicationDialogContentProps {
   callType: 'video' | 'audio' | null;
   isSpeakerMuted: boolean;
   onToggleSpeaker: () => void;
+  chatStreamConnectionStatus: ChatStreamConnectionStatus;
+  reconnectChatStream: () => void;
+  chatStreamActivitySignal: number;
 }
 
 const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialogContentProps> = ({
@@ -87,6 +91,9 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   callType,
   isSpeakerMuted,
   onToggleSpeaker,
+  chatStreamConnectionStatus,
+  reconnectChatStream,
+  chatStreamActivitySignal,
 }) => {
   const room = React.useContext(RoomContext);
   if (!room)
@@ -407,6 +414,9 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 userEmail={userEmail}
                 userImage={userImage}
                 assistantPhoto={assistantPhoto}
+                chatStreamConnectionStatus={chatStreamConnectionStatus}
+                reconnectChatStream={reconnectChatStream}
+                chatStreamActivitySignal={chatStreamActivitySignal}
               />
             </motion.div>,
           ]}
@@ -472,6 +482,9 @@ interface AssistantCommunicationDialogProps {
   callType: 'video' | 'audio' | null;
   isSpeakerMuted: boolean;
   onToggleSpeaker: () => void;
+  chatStreamConnectionStatus: ChatStreamConnectionStatus;
+  reconnectChatStream: () => void;
+  chatStreamActivitySignal: number;
 }
 
 export function AssistantCommunicationDialog({
@@ -503,6 +516,9 @@ export function AssistantCommunicationDialog({
   callType,
   isSpeakerMuted,
   onToggleSpeaker,
+  chatStreamConnectionStatus,
+  reconnectChatStream,
+  chatStreamActivitySignal,
 }: AssistantCommunicationDialogProps) {
   // --- Modal / Floating mode ---
   const [mode, setMode] = React.useState<'modal' | 'floating'>('modal');
@@ -763,6 +779,9 @@ export function AssistantCommunicationDialog({
             callType={callType}
             isSpeakerMuted={isSpeakerMuted}
             onToggleSpeaker={onToggleSpeaker}
+            chatStreamConnectionStatus={chatStreamConnectionStatus}
+            reconnectChatStream={reconnectChatStream}
+            chatStreamActivitySignal={chatStreamActivitySignal}
           />
         )}
 

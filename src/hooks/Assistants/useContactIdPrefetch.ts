@@ -299,15 +299,20 @@ export async function fetchMeetExchangesDirect(
  * delays the prefetch by seconds. Direct fetch uses session cookie auth
  * and runs concurrently with server actions.
  *
- * Contact IDs are stored in sessionStorage; transcripts and call pills are
- * written directly into their respective state maps (write-if-absent, so
- * hooks' own writes always win).
+ * Contact IDs are stored in sessionStorage AND returned as React state so
+ * callers (notably the page-level multiplex inbox stream) can react
+ * to newly-resolved IDs without polling sessionStorage. Transcripts and
+ * call pills are written directly into their respective state maps
+ * (write-if-absent, so hooks' own writes always win).
  *
  * When the user eventually opens a chat, the chat hook sees
  * `chatHistories[assistantId] !== undefined` and takes the fast
  * "returning" branch — going straight to `ready` with zero loading state.
  *
- * This hook is fire-and-forget — it never blocks rendering or shows errors.
+ * This hook is fire-and-forget for the transcript/pill side effects — it
+ * never blocks rendering or shows errors. The returned contactId map
+ * reflects what the hook has resolved so far; it grows as fetches complete
+ * and prunes when assistants are removed from the input list.
  */
 export function useContactIdPrefetch(
   assistants: Assistant[],
@@ -315,9 +320,48 @@ export function useContactIdPrefetch(
   userEmail: string | null | undefined,
   setChatHistories?: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>,
   setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>
-) {
+): Record<string, number> {
   // Track which assistants we've already attempted to prefetch
   const attemptedRef = React.useRef<Set<string>>(new Set());
+  const [contactIds, setContactIds] = React.useState<Record<string, number>>({});
+
+  // Hydrate from sessionStorage (and prune removed assistants) whenever the
+  // input list or user changes. Writes here are batched by React into a
+  // single render pass, so callers don't see an incremental "one ID per
+  // tick" reveal the way a sessionStorage poll would produce.
+  React.useEffect(() => {
+    if (!userEmail) {
+      setContactIds((prev) => (Object.keys(prev).length === 0 ? prev : {}));
+      return;
+    }
+    setContactIds((prev) => {
+      const next: Record<string, number> = {};
+      for (const a of assistants) {
+        if (prev[a.agentId] !== undefined) {
+          next[a.agentId] = prev[a.agentId];
+          continue;
+        }
+        const cached = getSessionContactId(a.agentId, userEmail);
+        if (cached !== undefined) next[a.agentId] = cached;
+      }
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      if (prevKeys.length === nextKeys.length && prevKeys.every((k) => prev[k] === next[k])) {
+        return prev;
+      }
+      return next;
+    });
+  }, [assistants, userEmail]);
+
+  // Forget attempted-marks for assistants that left the list so a future
+  // remount (e.g., re-hire) triggers a fresh prefetch.
+  React.useEffect(() => {
+    if (assistants.length === 0) return;
+    const current = new Set(assistants.map((a) => a.agentId));
+    for (const id of Array.from(attemptedRef.current)) {
+      if (!current.has(id)) attemptedRef.current.delete(id);
+    }
+  }, [assistants]);
 
   React.useEffect(() => {
     if (!userEmail || assistants.length === 0) return;
@@ -357,6 +401,14 @@ export function useContactIdPrefetch(
       contactIdPromise
         .then((contactId) => {
           if (contactId === null) return;
+
+          // Surface the resolved ID as state so consumers (e.g. the inbox
+          // multiplex) can react without polling sessionStorage.
+          setContactIds((prev) =>
+            prev[assistant.agentId] === contactId
+              ? prev
+              : { ...prev, [assistant.agentId]: contactId }
+          );
 
           // Prefetch transcripts
           if (setChatHistories) {
@@ -409,4 +461,6 @@ export function useContactIdPrefetch(
         });
     }
   }, [assistants, chatActions, userEmail, setChatHistories, setCallPillHistories]);
+
+  return contactIds;
 }

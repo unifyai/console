@@ -200,7 +200,7 @@ export function TasksPane({ ownerId, assistantId }: TasksPaneProps) {
     <div className="flex h-full flex-col" data-testid="tasks-pane">
       {/* Header — search + working indicator + refresh */}
       <div
-        className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5"
+        className="flex shrink-0 items-center gap-2 border-b px-3 py-2"
         data-testid="tasks-header"
       >
         <div className="relative max-w-xs flex-1">

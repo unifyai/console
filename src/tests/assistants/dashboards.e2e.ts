@@ -216,7 +216,7 @@ test('defaults to the Chat tab when an assistant is selected', async ({ authedPa
   await expect(chatTab).toHaveAttribute('data-state', 'active');
 });
 
-test('switches between Chat, Actions, Dashboards, and Memory tabs', async ({
+test('switches between Chat, Actions drawer, Dashboards, and Memory', async ({
   authedPage: page,
 }) => {
   await navigateToAssistants(page);
@@ -230,10 +230,12 @@ test('switches between Chat, Actions, Dashboards, and Memory tabs', async ({
   const chatTab = page.getByTestId('right-pane-tab-chat');
   await expect(chatTab).toHaveAttribute('data-state', 'active');
 
+  // Actions are reachable via their own right-pane tab.
   const actionsTab = page.getByTestId('right-pane-tab-actions');
+  await expect(actionsTab).toBeVisible({ timeout: 5_000 });
   await actionsTab.click();
-  await page.waitForTimeout(500);
   await expect(actionsTab).toHaveAttribute('data-state', 'active');
+  await page.waitForTimeout(300);
 
   const dashTab = page.getByTestId('right-pane-tab-dashboards');
   await dashTab.click();
@@ -248,6 +250,70 @@ test('switches between Chat, Actions, Dashboards, and Memory tabs', async ({
   await chatTab.click();
   await page.waitForTimeout(500);
   await expect(chatTab).toHaveAttribute('data-state', 'active');
+});
+
+// ===========================================================================
+// Split-pane layout
+// ===========================================================================
+
+test('split tabs lets the user view two right-pane tabs side by side and close either side', async ({
+  authedPage: page,
+}) => {
+  // The split affordance turns the right pane into two independent
+  // tab strips ("primary" + "secondary"). Closing the *primary* in
+  // split mode promotes the secondary into the primary slot, so a
+  // user who split off Actions to focus on it can shed the chat side
+  // without losing their Actions context. This is non-obvious behavior
+  // worth pinning explicitly.
+  await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
+
+  const listItem = page.getByTestId(`assistant-list-item-${emptyAssistant.agentId}`);
+  await expect(listItem).toBeVisible({ timeout: 15_000 });
+  await listItem.click();
+  await page.waitForTimeout(1_500);
+
+  const primaryChatTab = page.getByTestId('right-pane-tab-chat');
+  await expect(primaryChatTab).toHaveAttribute('data-state', 'active');
+
+  // Splitter and secondary-side tabs must not exist before the user
+  // actually splits — otherwise the single-pane layout would have a
+  // dead vertical line.
+  await expect(page.getByTestId('right-pane-splitter')).toHaveCount(0);
+  await expect(page.getByTestId('right-pane-secondary-tab-chat')).toHaveCount(0);
+
+  await page.getByTestId('right-pane-split-button').click();
+
+  // Now we expect a fully-formed split: a splitter, two tab strips,
+  // and a close button on each pane (split mode is the only time the
+  // primary becomes closable).
+  await expect(page.getByTestId('right-pane-splitter')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('right-pane-secondary-tab-actions')).toBeVisible();
+  await expect(page.getByTestId('right-pane-close-primary')).toBeVisible();
+  await expect(page.getByTestId('right-pane-close-secondary')).toBeVisible();
+
+  // Confirm both panes can be driven independently — switch the
+  // secondary to Memory while leaving the primary on Chat.
+  await page.getByTestId('right-pane-secondary-tab-memory').click();
+  await expect(page.getByTestId('right-pane-secondary-tab-memory')).toHaveAttribute(
+    'data-state',
+    'active'
+  );
+  await expect(primaryChatTab).toHaveAttribute('data-state', 'active');
+
+  // Closing the *primary* should promote whatever was in the secondary
+  // (Memory) into the primary slot, then collapse out of split mode.
+  await page.getByTestId('right-pane-close-primary').click();
+  await expect(page.getByTestId('right-pane-splitter')).toHaveCount(0, { timeout: 5_000 });
+  await expect(page.getByTestId('right-pane-tab-memory')).toHaveAttribute('data-state', 'active');
+
+  // Re-split, then close the secondary side. Should also collapse,
+  // and the primary tab (Memory) should remain active.
+  await page.getByTestId('right-pane-split-button').click();
+  await expect(page.getByTestId('right-pane-splitter')).toBeVisible({ timeout: 5_000 });
+  await page.getByTestId('right-pane-close-secondary').click();
+  await expect(page.getByTestId('right-pane-splitter')).toHaveCount(0, { timeout: 5_000 });
+  await expect(page.getByTestId('right-pane-tab-memory')).toHaveAttribute('data-state', 'active');
 });
 
 // ===========================================================================
@@ -273,9 +339,9 @@ test('no tabs visible and shows placeholder when no assistant is selected', asyn
   await page.waitForTimeout(1_000);
 
   await expect(page.getByTestId('right-pane-tab-chat')).not.toBeVisible({ timeout: 3_000 });
-  await expect(page.getByTestId('right-pane-tab-actions')).not.toBeVisible({ timeout: 3_000 });
   await expect(page.getByTestId('right-pane-tab-dashboards')).not.toBeVisible({ timeout: 3_000 });
   await expect(page.getByTestId('right-pane-tab-memory')).not.toBeVisible({ timeout: 3_000 });
+  await expect(page.getByTestId('right-pane-tab-actions')).not.toBeVisible({ timeout: 3_000 });
   await expect(page.locator('text=Select an assistant to watch them work')).toBeVisible({
     timeout: 5_000,
   });

@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Organization,
   OrganizationMember,
   OrganizationActions,
-  OrganizationRole,
   OrganizationInvite,
 } from '@/types/organization';
 import { toast } from 'sonner';
@@ -32,11 +31,50 @@ export const useOrganization = (
   const { activeWorkspace, switchWorkspace } = useWorkspace();
   const [organizations, setOrganizations] = useState<Organization[]>(initialOrganizations);
 
-  // Sync with server updates
+  // The Organizations page is a fully server-rendered RSC. Every
+  // server-action roundtrip (each spending fetch, every Members tab
+  // reload, etc.) re-runs the page on the server and hands `Main` a
+  // brand-new `actions` object reference. If any callback below
+  // depends on `actions` directly its identity churns on every server
+  // call, restarting all dependent effects → a refetch storm.
+  // We mirror the latest actions through a ref so callbacks can stay
+  // structurally stable across these re-renders.
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
+
+  // Sync with server updates — but ONLY when the data actually
+  // changed. The page is server-rendered, so every server-action
+  // roundtrip (e.g. each spending-data fetch) hands `Main` a fresh
+  // `initialOrganizations` array reference. Blindly setting state
+  // would churn this hook's `organizations` ref, which in turn
+  // churns `currentOrg`, `fetchData`, `unifiedMembers`,
+  // `fetchMemberSpending`, ... — restarting every dependent effect
+  // and producing an infinite refetch loop. Bailing out when the
+  // contents are equivalent keeps the reference stable.
   useEffect(() => {
-    if (initialOrganizations && initialOrganizations.length > 0) {
-      setOrganizations(initialOrganizations);
-    }
+    if (!initialOrganizations || initialOrganizations.length === 0) return;
+    setOrganizations((prev) => {
+      if (
+        prev.length === initialOrganizations.length &&
+        prev.every((o, i) => {
+          const next = initialOrganizations[i];
+          return (
+            !!next &&
+            o.id === next.id &&
+            o.name === next.name &&
+            o.image === next.image &&
+            o.timezone === next.timezone &&
+            o.roleId === next.roleId &&
+            o.roleName === next.roleName &&
+            o.ownerId === next.ownerId &&
+            o.freeTrial === next.freeTrial
+          );
+        })
+      ) {
+        return prev;
+      }
+      return initialOrganizations;
+    });
   }, [initialOrganizations]);
 
   // Derive currentOrg based on the Global Workspace Context
@@ -51,24 +89,30 @@ export const useOrganization = (
 
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [invites, setInvites] = useState<OrganizationInvite[]>([]);
-  const [roles, setRoles] = useState<OrganizationRole[]>([]);
-  const [loadingMembers, setLoadingMembers] = useState(false);
+  // Initialize to `true` (proven pattern, see `useMemoryData`) so the
+  // Members table paints skeleton rows immediately on first render
+  // instead of briefly flashing an empty body while the fetch effect
+  // runs.
+  const [loadingMembers, setLoadingMembers] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch members when the current organization changes
+  // Fetch members when the current organization changes.
+  // Roles used to be fetched here too, but that was a duplicate of
+  // the `useRoles` fetch one level up (same Orchestra endpoint,
+  // `GET /v0/organizations/{id}/roles`). They now share a single
+  // source of truth; this hook focuses purely on member data.
   const fetchData = useCallback(async () => {
     if (!currentOrg) {
       setMembers([]);
       setInvites([]);
-      setRoles([]);
+      setLoadingMembers(false);
       return;
     }
     setLoadingMembers(true);
     try {
-      const [membersResult, invitesResult, rolesResult] = await Promise.all([
-        actions.getMembers(currentOrg.id),
-        actions.getInvites(currentOrg.id),
-        actions.getRoles(currentOrg.id),
+      const [membersResult, invitesResult] = await Promise.all([
+        actionsRef.current.getMembers(currentOrg.id),
+        actionsRef.current.getInvites(currentOrg.id),
       ]);
 
       if ('detail' in membersResult) {
@@ -83,18 +127,12 @@ export const useOrganization = (
       } else {
         setInvites((invitesResult as any).invites || []);
       }
-
-      if ('detail' in rolesResult) {
-        toast.error(rolesResult.detail);
-      } else {
-        setRoles(rolesResult as OrganizationRole[]);
-      }
     } catch (error) {
       toast.error('Failed to load organization data');
     } finally {
       setLoadingMembers(false);
     }
-  }, [currentOrg, actions]);
+  }, [currentOrg]);
 
   useEffect(() => {
     fetchData();
@@ -303,7 +341,6 @@ export const useOrganization = (
     currentOrg,
     unifiedMembers,
     members,
-    roles,
     loadingMembers,
     isLoading,
     handleCreateOrg,

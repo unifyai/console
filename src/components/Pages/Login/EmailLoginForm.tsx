@@ -14,6 +14,26 @@ import ForgotPasswordForm from './ForgotPasswordForm';
 /** Possible views within the email login flow */
 type EmailView = 'login' | 'register' | 'verify' | 'forgot-password';
 
+/**
+ * Resolve a sign-in callback URL against the current browser origin.
+ *
+ * NextAuth's `signIn` result URL is built against `NEXTAUTH_URL`, which
+ * may not match the host the user is currently on (notably on slug-tagged
+ * preview revisions whose canonical `NEXTAUTH_URL` points elsewhere).
+ * Navigating same-origin keeps the freshly-minted session cookie in scope.
+ */
+function sameOriginRedirect(callbackUrl: string | undefined): string {
+  const origin = window.location.origin;
+  if (!callbackUrl) return `${origin}/`;
+  if (callbackUrl.startsWith('/')) return `${origin}${callbackUrl}`;
+  try {
+    const parsed = new URL(callbackUrl);
+    return `${origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return `${origin}/`;
+  }
+}
+
 interface EmailLoginFormProps {
   /** Optional callback URL after successful login */
   callbackUrl?: string;
@@ -142,9 +162,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
         return;
       }
 
-      if (result?.url) {
-        window.location.href = result.url;
-      }
+      window.location.href = sameOriginRedirect(callbackUrl);
     } catch {
       setError('Network error. Please try again.');
     } finally {
@@ -187,9 +205,13 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
         callbackUrl: effectiveCallbackUrl,
       });
 
-      if (result?.url) {
-        window.location.href = result.url;
+      if (result?.error) {
+        setVerificationError('Sign-in failed after verification. Please try again.');
+        setIsLoading(false);
+        return;
       }
+
+      window.location.href = sameOriginRedirect(effectiveCallbackUrl);
     } catch {
       setVerificationError('Network error. Please try again.');
     } finally {

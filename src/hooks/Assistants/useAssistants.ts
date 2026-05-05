@@ -6,9 +6,37 @@ import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
 import {
   fetchAssistants,
   fetchMediaSignedUrls,
+  getEarliestSignedUrlExpiryMs,
+  MEDIA_SIGNED_URL_EXPIRY_BUFFER_MS,
   readCachedMediaSignedUrls,
   seedMediaSignedUrls,
 } from '@/lib/client/assistant';
+
+/**
+ * Refresh-scheduler safety bounds.
+ *
+ * `MIN_REFRESH_DELAY_MS` keeps us from busy-looping if the earliest
+ * expiry is already in the past (or within the buffer) — the scheduler
+ * still gives the network a moment to breathe before refetching.
+ *
+ * `MAX_REFRESH_DELAY_MS` caps `setTimeout` so a single absurdly-long
+ * signed-URL TTL (e.g. an hour) doesn't postpone re-evaluation past
+ * the point we'd want to react to a clock skew or visibility-change.
+ */
+const MIN_REFRESH_DELAY_MS = 5_000;
+const MAX_REFRESH_DELAY_MS = 30 * 60 * 1000;
+
+/** GCS-backed media paths on an assistant that participate in the
+ *  signed-URL refresh dance. Pulled out so the scheduler and the
+ *  refresh fn agree on what's in scope. */
+function collectMediaPaths(assistants: ReadonlyArray<Assistant>): string[] {
+  const paths = new Set<string>();
+  for (const a of assistants) {
+    if (a.profilePhoto && isGcsPhoto(a.profilePhoto)) paths.add(a.profilePhoto);
+    if (a.profileVideo && isGcsPhoto(a.profileVideo)) paths.add(a.profileVideo);
+  }
+  return Array.from(paths);
+}
 
 export function useAssistants(allActions: AssistantActions, isOrgContext: boolean) {
   const { assistant: assistantActions } = allActions;
@@ -179,6 +207,102 @@ export function useAssistants(allActions: AssistantActions, isOrgContext: boolea
   React.useEffect(() => {
     fetchAssistantsWithDetails(false);
   }, [fetchAssistantsWithDetails]);
+
+  /**
+   * Pre-emptive signed-URL refresh.
+   *
+   * GCS signed URLs have a TTL on the order of minutes. Once a URL
+   * expires, any *new* `<img>` element created against it (e.g. a
+   * freshly-streamed chat bubble's avatar) hits a 403 from GCS and
+   * Radix's `AvatarImage` falls back to initials — even though the
+   * already-decoded photo on existing bubbles keeps rendering from
+   * the browser image cache. The result is the "photo disappears for
+   * new messages until I reload" behaviour.
+   *
+   * Rather than retry per-img on error, we re-mint the URLs centrally
+   * just before they expire and patch them back onto the in-memory
+   * assistants list, so every consumer always sees a fresh URL.
+   */
+  const refreshSignedUrls = React.useCallback(async () => {
+    const paths = collectMediaPaths(assistantsRef.current);
+    if (paths.length === 0) return;
+
+    let urlMap: Record<string, string>;
+    try {
+      urlMap = await fetchMediaSignedUrls(paths);
+    } catch {
+      // Swallow — the next assistants change (or visibilitychange)
+      // will give us another shot. We deliberately don't toast since
+      // this runs in the background and a transient failure shouldn't
+      // surface to the user.
+      return;
+    }
+
+    setAssistants((current) =>
+      current.map((assistant) => {
+        const photo = assistant.profilePhoto ? urlMap[assistant.profilePhoto] : undefined;
+        const video = assistant.profileVideo ? urlMap[assistant.profileVideo] : undefined;
+        if (!photo && !video) return assistant;
+        return {
+          ...assistant,
+          ...(photo ? { signedProfilePhotoUrl: photo } : {}),
+          ...(video ? { signedProfileVideoUrl: video } : {}),
+        };
+      })
+    );
+  }, []);
+
+  // Keep a ref to the latest refresh fn so the visibilitychange
+  // listener (mounted once) and the timer always invoke the current
+  // closure without re-binding.
+  const refreshSignedUrlsRef = React.useRef(refreshSignedUrls);
+  React.useEffect(() => {
+    refreshSignedUrlsRef.current = refreshSignedUrls;
+  }, [refreshSignedUrls]);
+
+  // Arm a timer for the soonest pending expiry. Re-runs whenever the
+  // assistants list mutates (incl. after a refresh patches it), so
+  // the timer naturally re-arms against the new earliest expiry.
+  React.useEffect(() => {
+    const paths = collectMediaPaths(assistants);
+    if (paths.length === 0) return;
+    const earliestExpiryMs = getEarliestSignedUrlExpiryMs(paths);
+    if (earliestExpiryMs === null) return;
+
+    const refreshAtMs = earliestExpiryMs - MEDIA_SIGNED_URL_EXPIRY_BUFFER_MS;
+    const delayMs = Math.min(
+      Math.max(refreshAtMs - Date.now(), MIN_REFRESH_DELAY_MS),
+      MAX_REFRESH_DELAY_MS
+    );
+
+    const handle = setTimeout(() => {
+      void refreshSignedUrlsRef.current();
+    }, delayMs);
+
+    return () => clearTimeout(handle);
+  }, [assistants]);
+
+  // Browsers throttle (and on some platforms, suspend) timers in
+  // backgrounded tabs, so a tab that wakes up after a long sleep can
+  // miss its scheduled refresh. Re-check on visibility change and
+  // refresh immediately if we're already inside the buffer window.
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      const paths = collectMediaPaths(assistantsRef.current);
+      if (paths.length === 0) return;
+      const earliestExpiryMs = getEarliestSignedUrlExpiryMs(paths);
+      if (earliestExpiryMs === null) return;
+      if (Date.now() + MEDIA_SIGNED_URL_EXPIRY_BUFFER_MS >= earliestExpiryMs) {
+        void refreshSignedUrlsRef.current();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
 
   const deleteAssistant = React.useCallback(
     async (assistantToDelete: Assistant): Promise<boolean> => {

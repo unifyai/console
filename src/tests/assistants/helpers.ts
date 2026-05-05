@@ -102,6 +102,20 @@ export function createAssistantTest(user: { email: string; password: string }) {
  * Waits a beat after networkidle so React effects (auto-open dialog etc.) fire.
  */
 export async function navigateToAssistants(page: Page) {
+  // Suppress the post-hire onboarding wizard for every test that
+  // doesn't explicitly opt into it. The wizard is an optional UX step
+  // (the user can always skip it), and existing assistant flows assume
+  // they land directly in the chat after hire — having the dialog pop
+  // on top would force every legacy test to add a dismissal step.
+  // Onboarding-specific tests can override by clearing the flag before
+  // their hire flow.
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem('console:assistants:onboarding:disabled', 'true');
+    } catch {
+      /* private mode — ignore */
+    }
+  });
   await page.goto('/assistants');
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await page.waitForTimeout(2_000);

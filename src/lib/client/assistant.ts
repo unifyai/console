@@ -15,7 +15,9 @@ import { Assistant, AssistantStatus } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import {
   clearMediaSignedUrlInFlight,
+  getEarliestSignedUrlExpiryMs,
   getMediaSignedUrlInFlight,
+  MEDIA_SIGNED_URL_EXPIRY_BUFFER_MS,
   normalizeMediaPathKey,
   readCachedMediaSignedUrls,
   seedMediaSignedUrls,
@@ -250,4 +252,9 @@ export async function fetchMediaSignedUrls(
   }
 }
 
-export { seedMediaSignedUrls, readCachedMediaSignedUrls };
+export {
+  getEarliestSignedUrlExpiryMs,
+  MEDIA_SIGNED_URL_EXPIRY_BUFFER_MS,
+  readCachedMediaSignedUrls,
+  seedMediaSignedUrls,
+};

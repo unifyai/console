@@ -92,15 +92,22 @@ test('clicking an assistant in the list selects it and shows the Chat tab', asyn
   await expect(page.locator(`text=${dbAssistant.surname}`).first()).toBeVisible({ timeout: 5_000 });
 });
 
-test('a seeded assistant with a job title shows it as a subtitle in the hover card', async ({
+test('an assistant with a job title shows it in the chat info side panel', async ({
   authedPage: page,
 }) => {
+  // The assistant list-item hover card was retired in favor of the
+  // chat-tab info side panel (see `AssistantInfoSidePanelContent`),
+  // which is now the single surface for rendering identity + contacts
+  // for a selected assistant. This test pins the contract that opening
+  // the panel reveals a populated `jobTitle` (and that the row is
+  // suppressed when unset — covered by the `Field` empty-state branch
+  // elsewhere).
   deleteAllAssistantsForUser(user.id);
 
   const titled = createAssistant({
     userId: user.id,
     firstName: 'Titled',
-    surname: 'HoverCard',
+    surname: 'InfoPanel',
     jobTitle: 'QA engineer',
   });
 
@@ -109,13 +116,19 @@ test('a seeded assistant with a job title shows it as a subtitle in the hover ca
 
   const listItem = page.getByTestId(`assistant-list-item-${titled.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
+  await listItem.click();
 
-  // Hover the avatar (the HoverCard trigger) to reveal the "Job Title:" row.
-  await listItem.hover();
-  const subtitle = page.getByTestId(`assistant-job-title-${titled.agentId}`);
-  await expect(subtitle).toBeVisible({ timeout: 5_000 });
-  await expect(subtitle).toContainText('Job Title:');
-  await expect(subtitle).toContainText('QA engineer');
+  // Open the inline info side panel from the chat sub-header. We can't
+  // rely on the post-hire auto-open path here because this assistant
+  // was seeded via `createAssistant` (no `newlyHiredInfo` in memory).
+  const infoButton = page.getByTestId('assistant-info-button');
+  await expect(infoButton).toBeVisible({ timeout: 10_000 });
+  await infoButton.click();
+
+  const jobTitleField = page.getByTestId('assistant-info-job-title');
+  await expect(jobTitleField).toBeVisible({ timeout: 5_000 });
+  await expect(jobTitleField).toContainText('Job Title');
+  await expect(jobTitleField).toContainText('QA engineer');
 });
 
 test('list updates after hiring a new assistant without page reload', async ({

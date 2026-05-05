@@ -415,6 +415,8 @@ is_unity_running() {
 }
 
 start_unity() {
+  local force_echo="${1:-false}"
+
   if ! is_unity_available; then
     log_warn "Unity repo not found at $CONSOLE_REPO_PATH/../unity — skipping."
     log_info "Set UNITY_REPO_PATH to override. Chat will work but no responses will come back."
@@ -436,7 +438,11 @@ start_unity() {
     -c "SELECT agent_id FROM assistants ORDER BY agent_id LIMIT 1;" 2>/dev/null | head -1 || echo "")
   resolved_assistant_id="${resolved_assistant_id:-${CHAT_TEST_ASSISTANT_ID:-default-test-assistant}}"
 
-  log_info "Starting Unity (auto-detecting mode) for assistant=$resolved_assistant_id ..."
+  if [[ "$force_echo" == "true" ]]; then
+    log_info "Starting Unity in echo mode (forced) — auto-discovers all unity-* topics ..."
+  else
+    log_info "Starting Unity (auto-detecting mode) for assistant=$resolved_assistant_id ..."
+  fi
 
   local unity_env=(
     PUBSUB_EMULATOR_HOST="$LOCAL_PUBSUB_HOST"
@@ -513,7 +519,12 @@ start_unity() {
   [[ -n "$_u_email" ]]   && unity_env+=("USER_EMAIL=$_u_email")
   [[ -n "$_u_id" ]]      && unity_env+=("USER_ID=$_u_id")
 
-  if ! env "${unity_env[@]}" bash "$UNITY_LOCAL_SCRIPT" start; then
+  local unity_args=(start)
+  if [[ "$force_echo" == "true" ]]; then
+    unity_args+=(--echo)
+  fi
+
+  if ! env "${unity_env[@]}" bash "$UNITY_LOCAL_SCRIPT" "${unity_args[@]}"; then
     log_warn "Unity failed to start — chat will work but no responses will come back."
     return 0
   fi
@@ -660,7 +671,7 @@ ensure_npm_deps() {
 # =============================================================================
 
 # Valid seed scenario names — must match SCENARIOS in src/tests/helpers/seeds/run.ts.
-VALID_SEED_SCENARIOS=(personal-workspace org-basic org-multi-role org-unify credit-grant-links billing-banner-states usage-ledger chat-search memory-rich tasks-rich secrets-rich re-appraisal all)
+VALID_SEED_SCENARIOS=(personal-workspace personal-workspace-multi org-basic org-multi-role org-unify credit-grant-links billing-banner-states usage-ledger chat-search memory-rich tasks-rich secrets-rich re-appraisal all)
 
 validate_seed_scenario() {
   local scenario="$1"
@@ -934,6 +945,7 @@ cmd_start() {
   local seed_scenario="$3"
   local with_chat="$4"
   local with_pubsub="$5"
+  local unity_echo="${6:-false}"
 
   # Resolve effective seed scenario:
   #   --seed X  → X                     (explicit)
@@ -1015,7 +1027,7 @@ cmd_start() {
     if [[ "$with_chat" == "true" ]]; then
       create_seeded_assistant_topics
       echo ""
-      start_unity
+      start_unity "$unity_echo"
     fi
   fi
 
@@ -1101,6 +1113,7 @@ cmd_restart() {
   local seed_scenario="$3"
   local with_chat="$4"
   local with_pubsub="$5"
+  local unity_echo="${6:-false}"
 
   # Resolve default early so validation works.
   if [[ -z "$seed_scenario" ]]; then
@@ -1118,7 +1131,7 @@ cmd_restart() {
 
   cmd_stop
   echo ""
-  cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub"
+  cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo"
 }
 
 cmd_status() {
@@ -1192,6 +1205,7 @@ main() {
   local with_stripe="false"
   local with_chat="false"
   local with_pubsub="false"
+  local unity_echo="false"
   local seed_scenario=""
 
   while (( "$#" )); do
@@ -1200,6 +1214,7 @@ main() {
       --stripe) with_stripe="true"; shift ;;
       --chat)   with_chat="true"; with_pubsub="true"; shift ;;
       --pubsub) with_pubsub="true"; shift ;;
+      --echo|--unity-echo) unity_echo="true"; shift ;;
       --seed)   shift; seed_scenario="${1:-}"; shift ;;
       -h|--help|help) cmd="help"; shift ;;
       -*)      log_error "Unknown flag: $1"; echo "Run '$0 help' for usage"; exit 1 ;;
@@ -1210,12 +1225,12 @@ main() {
   cmd="${cmd:-start}"
 
   case "$cmd" in
-    start)   cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" ;;
+    start)   cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" ;;
     stop)    cmd_stop ;;
-    restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" ;;
+    restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" ;;
     status)  cmd_status ;;
     help)
-      echo "Usage: $0 [start|stop|restart|status] [--org] [--stripe] [--pubsub] [--chat] [--seed <scenario>]"
+      echo "Usage: $0 [start|stop|restart|status] [--org] [--stripe] [--pubsub] [--chat] [--echo] [--seed <scenario>]"
       echo ""
       echo "Commands:"
       echo "  start    Start Console + Orchestra + seed data (default)"
@@ -1225,9 +1240,9 @@ main() {
       echo ""
       echo "Flags:"
       echo "  --seed <scenario>  Choose a seed scenario. Default: personal-workspace"
-      echo "                     Scenarios: personal-workspace, org-basic, org-multi-role,"
-      echo "                               org-unify, credit-grant-links,"
-      echo "                               billing-banner-states, all"
+      echo "                     Scenarios: personal-workspace, personal-workspace-multi,"
+      echo "                               org-basic, org-multi-role, org-unify,"
+      echo "                               credit-grant-links, billing-banner-states, all"
       echo "                     See: src/tests/helpers/seeds/run.ts --list"
       echo "  --org              Shorthand for --seed org-basic"
       echo "  --stripe           Start Stripe webhook forwarding for E2E billing flows"
@@ -1240,6 +1255,11 @@ main() {
       echo "                     Includes everything --pubsub does, plus chat functionality."
       echo "                     Requires: communication repo as sibling (../communication)"
       echo "                               + gcloud CLI with pubsub-emulator component"
+      echo "  --echo             Force Unity to start in echo-responder mode even when LLM"
+      echo "                     keys are present in .env.local. The echo responder auto-"
+      echo "                     discovers all unity-* topics, making it suitable for multi-"
+      echo "                     assistant scenarios (e.g. personal-workspace-multi). Only"
+      echo "                     meaningful with --chat. Alias: --unity-echo."
       echo ""
       echo "Environment:"
       echo "  ORCHESTRA_REPO_PATH       Path to orchestra repo (default: ../orchestra)"
@@ -1256,12 +1276,14 @@ main() {
       echo "  $0 start                              # personal-workspace (default)"
       echo "  $0 start --org                        # org-basic (shorthand)"
       echo "  $0 start --seed org-multi-role        # org-multi-role scenario"
+      echo "  $0 start --seed personal-workspace-multi # personal workspace with several assistants"
       echo "  $0 start --seed all                   # all scenarios"
       echo "  $0 start --stripe                     # + Stripe webhook forwarding"
       echo "  $0 start --org --stripe               # org-basic + Stripe"
       echo "  $0 start --pubsub                     # + Pub/Sub emulator (billing events)"
       echo "  $0 start --chat                       # + Pub/Sub + chat (adapters + Unity)"
       echo "  $0 start --chat --org                 # org-basic + local chat"
+      echo "  $0 start --chat --echo --seed personal-workspace-multi  # multi-assistant chat with echo responder"
       ;;
     *)
       log_error "Unknown command: $cmd"

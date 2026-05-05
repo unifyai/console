@@ -112,6 +112,40 @@ export function readCachedMediaSignedUrls(
   return resolved;
 }
 
+/**
+ * Returns the soonest `expiresAtMs` across the cached entries for the
+ * supplied paths, or `null` when none are cached. Used by
+ * `useAssistants` to schedule a pre-emptive refresh: we want to mint
+ * fresh signed URLs *before* the oldest one in the working set goes
+ * stale, otherwise a freshly-mounted `<img>` (e.g. on a new chat
+ * bubble) hits the network with an expired signature and 403s.
+ *
+ * Pure read against the in-memory cache; doesn't trigger any I/O.
+ */
+export function getEarliestSignedUrlExpiryMs(paths: string[]): number | null {
+  let earliest: number | null = null;
+  for (const path of paths) {
+    if (!path) continue;
+    const cacheKey = normalizeMediaPathKey(path);
+    if (!cacheKey) continue;
+    const cached = signedUrlCache.get(cacheKey);
+    if (!cached) continue;
+    if (earliest === null || cached.expiresAtMs < earliest) {
+      earliest = cached.expiresAtMs;
+    }
+  }
+  return earliest;
+}
+
+/**
+ * Buffer applied when scheduling a pre-emptive refresh — we want the
+ * refetch to *complete* before the URL goes stale, not race the
+ * expiry. Re-exported so consumers (the refresh scheduler) use the
+ * same buffer the freshness checks use, keeping the policy in one
+ * place.
+ */
+export const MEDIA_SIGNED_URL_EXPIRY_BUFFER_MS = SIGNED_URL_EXPIRY_BUFFER_MS;
+
 export function getMediaSignedUrlInFlight(path: string): Promise<string | null> | undefined {
   return signedUrlInFlight.get(normalizeMediaPathKey(path));
 }

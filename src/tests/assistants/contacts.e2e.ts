@@ -1,7 +1,11 @@
 /**
- * Contact Provisioning E2E — add and remove email/phone contacts for
- * an assistant via the Contact Manager dialog, verifying UI updates
- * and database persistence at each step.
+ * Contact Provisioning E2E — add and remove phone / WhatsApp contacts and
+ * exercise the BYOD email connect flow via the Contact Manager dialog,
+ * verifying UI updates and database persistence at each step.
+ *
+ * Platform-issued mailbox provisioning (`@unify.ai` / MS365 tenant) was
+ * retired, so the email tab now only offers the BYOD OAuth flow — there
+ * is no Create button or `#email_local_part` input on the email tab.
  *
  * Uses a pre-seeded assistant so tests go straight to contact management.
  *
@@ -18,8 +22,6 @@ import {
   closeHireDialogIfOpen,
   deleteAssistantFromDb,
   getAssistantContact,
-  getAssistantContactProvider,
-  getAssistantContactProvisionedBy,
   setUserPhoneNumber,
   clearUserPhoneNumber,
   setUserWhatsappNumber,
@@ -88,77 +90,6 @@ async function openContactManager(page: import('@playwright/test').Page) {
 
   await expect(page.locator('text=Update Contact')).toBeVisible({ timeout: 5_000 });
 }
-
-test('adding an email contact persists it to the database and displays it in the dialog', async ({
-  authedPage: page,
-}) => {
-  await openContactManager(page);
-
-  // Email tab is the default
-  const emailInput = page.locator('#email_local_part');
-  await expect(emailInput).toBeVisible({ timeout: 5_000 });
-
-  const localPart = `e2e-${Date.now()}`;
-  await emailInput.fill(localPart);
-
-  const createBtn = page.getByRole('button', { name: 'Create' });
-  await expect(createBtn).toBeVisible({ timeout: 5_000 });
-
-  await Promise.all([
-    page
-      .waitForResponse(
-        (resp) =>
-          resp.url().includes('/contact') && (resp.status() === 200 || resp.status() === 201),
-        { timeout: 30_000 }
-      )
-      .catch(() => {}),
-    createBtn.click(),
-  ]);
-
-  await page.waitForTimeout(3_000);
-
-  // Verify email persisted in DB (contacts live in assistant_contacts table)
-  const emailContact = getAssistantContact(assistant.agentId, 'email');
-  expect(emailContact).toBeTruthy();
-  expect(emailContact).toContain(localPart);
-});
-
-test('deleting an email contact removes it from the database', async ({ authedPage: page }) => {
-  const existingEmail = getAssistantContact(assistant.agentId, 'email');
-  if (!existingEmail) {
-    test.skip(true, 'No email to delete — previous test may have failed');
-    return;
-  }
-
-  await openContactManager(page);
-
-  // Email tab — the email should now be displayed as read-only
-  await expect(page.locator('text=Email Address')).toBeVisible({ timeout: 5_000 });
-
-  // Click Delete
-  const deleteBtn = page.getByRole('button', { name: 'Delete' });
-  await expect(deleteBtn).toBeVisible({ timeout: 5_000 });
-  await deleteBtn.click();
-
-  // Confirm
-  await expect(page.locator('text=Are you sure?')).toBeVisible({ timeout: 5_000 });
-  const proceedBtn = page.getByRole('button', { name: 'Proceed' });
-
-  await Promise.all([
-    page
-      .waitForResponse((resp) => resp.url().includes('/contact') && resp.status() === 200, {
-        timeout: 30_000,
-      })
-      .catch(() => {}),
-    proceedBtn.click(),
-  ]);
-
-  await page.waitForTimeout(3_000);
-
-  // Verify email removed from DB
-  const emailAfter = getAssistantContact(assistant.agentId, 'email');
-  expect(emailAfter).toBeFalsy();
-});
 
 test('adding a phone contact persists it to the database', async ({ authedPage: page }) => {
   await openContactManager(page);
@@ -231,58 +162,6 @@ test('deleting a phone contact removes it from the database', async ({ authedPag
   expect(phoneAfter).toBeFalsy();
 });
 
-test('full email lifecycle: create → verify in DB → delete → verify removed', async ({
-  authedPage: page,
-}) => {
-  // Create
-  await openContactManager(page);
-
-  const emailInput = page.locator('#email_local_part');
-  await expect(emailInput).toBeVisible({ timeout: 5_000 });
-
-  const localPart = `lifecycle-${Date.now()}`;
-  await emailInput.fill(localPart);
-
-  const createBtn = page.getByRole('button', { name: 'Create' });
-  await Promise.all([
-    page
-      .waitForResponse(
-        (resp) =>
-          resp.url().includes('/contact') && (resp.status() === 200 || resp.status() === 201),
-        { timeout: 30_000 }
-      )
-      .catch(() => {}),
-    createBtn.click(),
-  ]);
-  await page.waitForTimeout(3_000);
-
-  const emailCreated = getAssistantContact(assistant.agentId, 'email');
-  expect(emailCreated).toContain(localPart);
-
-  // Delete — re-open the contact manager
-  await openContactManager(page);
-
-  const deleteBtn = page.getByRole('button', { name: 'Delete' });
-  await expect(deleteBtn).toBeVisible({ timeout: 5_000 });
-  await deleteBtn.click();
-
-  await expect(page.locator('text=Are you sure?')).toBeVisible({ timeout: 5_000 });
-  const proceedBtn = page.getByRole('button', { name: 'Proceed' });
-
-  await Promise.all([
-    page
-      .waitForResponse((resp) => resp.url().includes('/contact') && resp.status() === 200, {
-        timeout: 30_000,
-      })
-      .catch(() => {}),
-    proceedBtn.click(),
-  ]);
-  await page.waitForTimeout(3_000);
-
-  const emailAfterDelete = getAssistantContact(assistant.agentId, 'email');
-  expect(emailAfterDelete).toBeFalsy();
-});
-
 test('phone create button is disabled when user has no phone number', async ({
   authedPage: page,
 }) => {
@@ -350,7 +229,7 @@ test('whatsapp create button is enabled when user has a whatsapp number', async 
 // Email Provider Selection Tests
 // =============================================================================
 
-test('email tab shows provider cards (Gmail / Outlook) when no email is configured', async ({
+test('email tab hides platform provider cards (no @unify.ai / @unifyailtd123 provisioning)', async ({
   authedPage: page,
 }) => {
   // Ensure no email contact exists
@@ -362,22 +241,13 @@ test('email tab shows provider cards (Gmail / Outlook) when no email is configur
 
   await openContactManager(page);
 
-  // Both provider cards should be visible
-  await expect(page.locator('text=Gmail')).toBeVisible({ timeout: 5_000 });
-  await expect(page.locator('text=Outlook')).toBeVisible({ timeout: 5_000 });
-
-  // Domain suffix should update when switching providers
-  await expect(page.locator('text=@unify.ai')).toBeVisible({ timeout: 5_000 });
-
-  // Click the Outlook card
-  const outlookCard = page.locator('button:has-text("Outlook")');
-  await outlookCard.click();
-  await page.waitForTimeout(300);
-
-  await expect(page.locator('text=@tenant.onmicrosoft.com')).toBeVisible({ timeout: 5_000 });
+  // Platform provisioning UI must not be present anywhere.
+  await expect(page.locator('text=Provision a platform email')).toHaveCount(0);
+  await expect(page.locator('text=@unify.ai')).toHaveCount(0);
+  await expect(page.locator('text=@tenant.onmicrosoft.com')).toHaveCount(0);
 });
 
-test('email tab shows "or" divider and BYOD provider cards when no email exists', async ({
+test('email tab shows BYOD provider cards (no platform "or" divider) when no email exists', async ({
   authedPage: page,
 }) => {
   const existing = getAssistantContact(assistant.agentId, 'email');
@@ -388,13 +258,13 @@ test('email tab shows "or" divider and BYOD provider cards when no email exists'
 
   await openContactManager(page);
 
-  // "or" divider
-  await expect(page.locator('text=or').first()).toBeVisible({ timeout: 5_000 });
-
-  // BYOD provider cards
+  // BYOD provider cards remain
   await expect(page.locator('text=Connect your own account')).toBeVisible({ timeout: 5_000 });
   await expect(page.locator('button:has-text("Google")')).toBeVisible({ timeout: 5_000 });
   await expect(page.locator('button:has-text("Microsoft 365")')).toBeVisible({ timeout: 5_000 });
+
+  // The platform-vs-BYOD "or" divider should be gone — there is nothing to "or" between.
+  await expect(page.locator('text=Provision a platform email')).toHaveCount(0);
 });
 
 test('selecting a BYOD provider shows feature checkboxes and Connect button', async ({
@@ -476,7 +346,7 @@ test('deselecting a BYOD provider hides the feature list and Connect button', as
   await expect(connectBtn).not.toBeVisible({ timeout: 3_000 });
 });
 
-test('Create button is hidden when a BYOD provider is selected (mutual exclusivity)', async ({
+test('email tab never shows a Create button (platform provisioning is removed)', async ({
   authedPage: page,
 }) => {
   const existing = getAssistantContact(assistant.agentId, 'email');
@@ -487,16 +357,14 @@ test('Create button is hidden when a BYOD provider is selected (mutual exclusivi
 
   await openContactManager(page);
 
-  // The Create button should be visible initially (for platform provisioning)
-  const createBtn = page.getByRole('button', { name: 'Create' });
-  await expect(createBtn).toBeVisible({ timeout: 5_000 });
+  // No Create button on the email tab — only Connect (BYOD) is offered.
+  await expect(page.getByRole('button', { name: 'Create' })).toHaveCount(0);
 
-  // Select a BYOD provider
+  // Selecting a BYOD provider exposes the Connect button.
   const googleCard = page.locator('button:has-text("Google")').last();
   await googleCard.click();
   await page.waitForTimeout(300);
 
-  // Create should now be hidden — replaced by Connect
-  await expect(createBtn).not.toBeVisible({ timeout: 3_000 });
+  await expect(page.getByRole('button', { name: 'Create' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible({ timeout: 5_000 });
 });

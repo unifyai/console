@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 import { validatePassword } from '@/lib/auth/password';
+import { IS_STAGING, isStagingAllowedEmail } from '@/lib/auth/staging-gate';
 
 /**
  * POST /api/auth/email/register
@@ -12,6 +13,16 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { email, name, lastName, password, captchaToken } = body;
+
+    if (IS_STAGING && !isStagingAllowedEmail(email)) {
+      return NextResponse.json(
+        {
+          error: 'staging_restricted',
+          message: 'Registration on this environment is restricted to Unify AI members.',
+        },
+        { status: 403 }
+      );
+    }
 
     const validation = validatePassword(password ?? '');
     if (!validation.isValid) {

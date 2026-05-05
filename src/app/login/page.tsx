@@ -8,6 +8,7 @@ import { Suspense, useState, useEffect } from 'react';
 import CheckElement from '@/components/Pages/Login/CheckElement';
 import AnimatedTabs from '@/components/Common/Tabs/AnimatedTabs';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
+import { isPreviewHost } from '@/lib/auth/preview-host';
 
 const ERRORS: Record<string, string> = {
   Signin: 'Try signing with a different account.',
@@ -20,6 +21,7 @@ const ERRORS: Record<string, string> = {
   EmailSignin: 'Check your email address.',
   CredentialsSignin: 'Sign in failed. Check the details you provided are correct.',
   Verification: 'Error occured during verification.',
+  StagingRestricted: 'This staging environment is restricted to unify ai members only.',
   default: 'Unable to sign in.',
 };
 
@@ -65,6 +67,15 @@ const Login = () => {
   const [isSigningOut, setIsSigningOut] = useState(shouldSignOut);
   const [tab, setTab] = useState<'login' | 'loading' | 'check'>('login');
   const [error, setError] = useState<string | undefined>(searchErrorMessage);
+  // Detect slug-tagged preview hosts on the client so we can hide the
+  // OAuth buttons (their callback URIs aren't registered for slug hosts
+  // and clicking them would dead-end at Google's "redirect_uri_mismatch"
+  // page). Starts as ``null`` so the form doesn't flash OAuth controls
+  // before the client decides.
+  const [isPreview, setIsPreview] = useState<boolean | null>(null);
+  useEffect(() => {
+    setIsPreview(isPreviewHost(window.location.host));
+  }, []);
 
   useEffect(() => {
     if (!shouldSignOut) return;
@@ -86,7 +97,7 @@ const Login = () => {
       router.replace('/login');
     }
     // While session.status === 'loading', we wait
-  }, [shouldSignOut, session.status, router]);
+  }, [shouldSignOut, session.status, router, creditToken]);
 
   // Redirect authenticated users — but NOT if we're in the middle of signing
   // them out due to a deleted backend account.  Honour the callbackUrl
@@ -167,16 +178,21 @@ const Login = () => {
           </div>
         )}
         <div className="flex justify-center lg:container">
-          <AnimatedTabs selected={tab}>
-            <LoginFragment
-              onLogin={handleLogin}
-              error={error}
-              callbackUrl={callbackUrl ?? undefined}
-              key="login"
-            />
-            <LoadingElement key="loading" />
-            <CheckElement key="check" />
-          </AnimatedTabs>
+          {isPreview === null ? (
+            <LoadingElement />
+          ) : (
+            <AnimatedTabs selected={tab}>
+              <LoginFragment
+                onLogin={handleLogin}
+                error={error}
+                callbackUrl={callbackUrl ?? undefined}
+                previewOnly={isPreview}
+                key="login"
+              />
+              <LoadingElement key="loading" />
+              <CheckElement key="check" />
+            </AnimatedTabs>
+          )}
         </div>
       </LayoutGroup>
     </motion.div>

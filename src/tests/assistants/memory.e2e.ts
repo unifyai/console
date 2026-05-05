@@ -234,7 +234,6 @@ test('can switch between all main tabs', async ({ authedPage: page }) => {
   await page.waitForTimeout(1_500);
 
   const chatTab = page.getByTestId('right-pane-tab-chat');
-  const actionsTab = page.getByTestId('right-pane-tab-actions');
   const tasksTab = page.getByTestId('right-pane-tab-tasks');
   const dashTab = page.getByTestId('right-pane-tab-dashboards');
   const memoryTab = page.getByTestId('right-pane-tab-memory');
@@ -249,10 +248,6 @@ test('can switch between all main tabs', async ({ authedPage: page }) => {
   await page.waitForTimeout(500);
   await expect(memoryTab).toHaveAttribute('data-state', 'active');
 
-  await actionsTab.click();
-  await page.waitForTimeout(500);
-  await expect(actionsTab).toHaveAttribute('data-state', 'active');
-
   await dashTab.click();
   await page.waitForTimeout(500);
   await expect(dashTab).toHaveAttribute('data-state', 'active');
@@ -260,6 +255,12 @@ test('can switch between all main tabs', async ({ authedPage: page }) => {
   await chatTab.click();
   await page.waitForTimeout(500);
   await expect(chatTab).toHaveAttribute('data-state', 'active');
+
+  // Actions live in their own right-pane tab.
+  const actionsTab = page.getByTestId('right-pane-tab-actions');
+  await expect(actionsTab).toBeVisible({ timeout: 5_000 });
+  await actionsTab.click();
+  await expect(actionsTab).toHaveAttribute('data-state', 'active');
 });
 
 // ===========================================================================

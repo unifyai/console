@@ -40,9 +40,16 @@ export function outputExtension(mime: string): string {
 /**
  * Creates an off-screen canvas, draws the cropped region, and returns a Blob.
  *
- * Uses a two-canvas approach so that areas outside the image (visible when
- * de-zooming with restrictPosition=false) stay transparent/black instead of
- * showing smeared edge-pixel artifacts from getImageData.
+ * Two-canvas approach: first build the full rotated image, then composite
+ * the visible portion of the requested crop window onto a square output
+ * canvas. The cropper allows zooming below 1 and dragging the image past
+ * the crop edges, which means `pixelCrop` may extend beyond the source
+ * image's bounds — naive `drawImage` of the whole crop window would leave
+ * asymmetric "transparent black" padding wherever the source isn't covered,
+ * which then renders as a black wedge on JPEG and visually pushes the photo
+ * off-center inside the round avatar. We instead clip to the visible image
+ * region, center it inside the square, and fill the surrounding canvas with
+ * a neutral background appropriate for the output format.
  */
 async function getCroppedBlob(
   imageSrc: string,
@@ -72,24 +79,50 @@ async function getCroppedBlob(
   rotCtx.rotate(radians);
   rotCtx.drawImage(image, -image.width / 2, -image.height / 2);
 
-  // Canvas 2: extract the crop via drawImage (clips to source bounds,
-  // so out-of-image areas remain transparent rather than showing artifacts)
+  // Canvas 2: square output the size of the requested crop window.
   const cropCanvas = document.createElement('canvas');
   cropCanvas.width = pixelCrop.width;
   cropCanvas.height = pixelCrop.height;
   const cropCtx = cropCanvas.getContext('2d')!;
 
-  cropCtx.drawImage(
-    rotCanvas,
-    pixelCrop.x,
-    pixelCrop.y,
-    pixelCrop.width,
-    pixelCrop.height,
-    0,
-    0,
-    pixelCrop.width,
-    pixelCrop.height
-  );
+  // Intersect the requested crop with the rotated image bounds — the
+  // overlap is the actual visible image data the user can see in the
+  // editor; everything outside it would otherwise be padding.
+  const srcX = Math.max(pixelCrop.x, 0);
+  const srcY = Math.max(pixelCrop.y, 0);
+  const srcRight = Math.min(pixelCrop.x + pixelCrop.width, rotatedWidth);
+  const srcBottom = Math.min(pixelCrop.y + pixelCrop.height, rotatedHeight);
+  const visibleW = Math.max(0, srcRight - srcX);
+  const visibleH = Math.max(0, srcBottom - srcY);
+  const needsPadding = visibleW < pixelCrop.width || visibleH < pixelCrop.height;
+
+  // JPEG can't encode transparency, so any uncovered pixels would
+  // otherwise be encoded as solid black (the canvas spec's
+  // "transparent black" → JPEG's 0,0,0). Paint a neutral white before
+  // drawing so any padding reads as a clean surface. This colour is
+  // baked into the saved asset and viewed across themes/devices, so a
+  // fixed neutral is the right call here rather than a theme-bound
+  // CSS variable. PNG/WebP keep transparency and need no fill.
+  if (mime === 'image/jpeg' && needsPadding) {
+    cropCtx.fillStyle = 'white';
+    cropCtx.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
+  }
+
+  if (visibleW > 0 && visibleH > 0) {
+    // Center the visible portion inside the square. When the crop is
+    // fully inside the image (the common case) this resolves to
+    // `dstX = dstY = 0`, identical to the previous behaviour. When
+    // the crop extends past the image (zoom < 1, or image dragged
+    // partly out of frame) we redistribute the leftover space evenly
+    // on either side instead of letting it collect on whichever side
+    // the user happened to drag toward — so the avatar always reads
+    // as "photo centered, neutral padding around" rather than "photo
+    // shoved against one edge".
+    const dstX = (pixelCrop.width - visibleW) / 2;
+    const dstY = (pixelCrop.height - visibleH) / 2;
+
+    cropCtx.drawImage(rotCanvas, srcX, srcY, visibleW, visibleH, dstX, dstY, visibleW, visibleH);
+  }
 
   // Canvas 3 (optional): apply horizontal/vertical flip
   const outputCanvas = flipH || flipV ? document.createElement('canvas') : cropCanvas;

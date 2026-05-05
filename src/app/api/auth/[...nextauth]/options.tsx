@@ -7,6 +7,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { jwtVerify } from 'jose';
 import { OrchestraAdapter } from '@/lib/orchestra/orchestra-adapter';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { IS_STAGING, isStagingAllowedEmail } from '@/lib/auth/staging-gate';
 
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
 const cookiePrefix = useSecureCookies ? '__Secure-' : '';
@@ -176,6 +177,10 @@ const authOptions: AuthOptions = {
      * enabled, so they are skipped here.
      */
     async signIn({ user, account }) {
+      if (IS_STAGING && !isStagingAllowedEmail(user.email)) {
+        return '/login?error=StagingRestricted';
+      }
+
       // Providers with allowDangerousEmailAccountLinking — let NextAuth auto-link
       const autoLinkProviders = ['google', 'azure-ad'];
 
@@ -237,6 +242,13 @@ const authOptions: AuthOptions = {
      *
      */
     async jwt({ token, user, account, profile, trigger, session }) {
+      // Forcibly sign out any existing session whose email is not allowed
+      // in the current environment. Read by the middleware to clear the
+      // session cookie and redirect the user back to /login.
+      if (IS_STAGING && !isStagingAllowedEmail(token.email ?? user?.email)) {
+        return { restrictedSignOut: true };
+      }
+
       // On initial sign-in: persist the auth provider ('credentials', 'google', 'github')
       if (account) {
         token.provider = account.provider;
@@ -351,6 +363,12 @@ const authOptions: AuthOptions = {
      *
      */
     async session({ session, token }) {
+      // Mirror the jwt-callback gate: drop the user from the session so
+      // server components and useSession() see an unauthenticated state.
+      if ((token as { restrictedSignOut?: boolean })?.restrictedSignOut) {
+        return { ...session, user: undefined } as typeof session;
+      }
+
       if (session.user) {
         session.user.email = token.email;
         session.user.name = token.name;

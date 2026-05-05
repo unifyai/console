@@ -34,7 +34,6 @@ import {
   uploadAttachment,
 } from '@/lib/assistants/chat';
 import {
-  listAllAssistantEmails,
   listAvailablePhoneCountries,
   listAvailableSocialPlatforms,
   verifySocialAccount,
@@ -130,7 +129,6 @@ const AssistantsPage = async ({
       connect: await connectAssistantAccount(apiKey),
       disconnect: await disconnectAssistantAccount(apiKey),
       getGrantedFeatures: await getGrantedFeatures(apiKey),
-      listAllAssistantEmails: await listAllAssistantEmails(adminKey),
       listAvailablePhoneCountries: await listAvailablePhoneCountries(adminKey),
       listAvailableSocialPlatforms: await listAvailableSocialPlatforms(adminKey),
       verifySocialAccount: await verifySocialAccount(adminKey),
