@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Assistant } from '@/types/assistants/assistant';
 import {
   bossContactId,
+  contactScopedRootQueries,
   currentSpaceIds,
   isBoss,
   isSelf,
@@ -41,6 +42,14 @@ const assistant: Assistant = {
   spaceIds: [],
   selfContactId: 5,
   bossContactId: 6,
+  contactIdentityRoots: [
+    {
+      targetScope: 'personal',
+      targetSpaceId: null,
+      selfContactId: 5,
+      bossContactId: 6,
+    },
+  ],
   createdAt: '2026-05-01T10:00:00Z',
   updatedAt: '2026-05-01T10:00:00Z',
 };
@@ -82,6 +91,48 @@ describe('assistant scope helpers', () => {
       { kind: 'space', spaceId: 1 },
       { kind: 'space', spaceId: 2 },
       { kind: 'space', spaceId: 3 },
+    ]);
+  });
+
+  it('builds contact-scoped queries with root-local contact ids', () => {
+    const scopedAssistant = {
+      ...assistant,
+      userId: 'owner',
+      agentId: 'assistant',
+      spaceIds: [7],
+      selfContactId: 10,
+      bossContactId: 11,
+      contactIdentityRoots: [
+        {
+          targetScope: 'personal' as const,
+          targetSpaceId: null,
+          selfContactId: 10,
+          bossContactId: 11,
+        },
+        {
+          targetScope: 'space' as const,
+          targetSpaceId: 7,
+          selfContactId: 70,
+          bossContactId: 77,
+        },
+      ],
+    };
+
+    expect(contactScopedRootQueries(scopedAssistant, 11, 'Transcripts')).toEqual([
+      {
+        root: { kind: 'personal' },
+        rootKey: 'personal',
+        context: 'owner/assistant/Transcripts',
+        contactId: 11,
+        selfContactId: 10,
+      },
+      {
+        root: { kind: 'space', spaceId: 7 },
+        rootKey: 'space-7',
+        context: 'Spaces/7/Transcripts',
+        contactId: 77,
+        selfContactId: 70,
+      },
     ]);
   });
 });

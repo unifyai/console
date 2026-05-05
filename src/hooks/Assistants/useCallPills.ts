@@ -2,8 +2,12 @@ import * as React from 'react';
 import { CallPill, CallTranscriptUtterance } from '@/types/assistants/chat';
 import { Assistant } from '@/types/assistants/assistant';
 import { fetchMeetExchangesDirect } from './useContactIdPrefetch';
-import { roleFromSenderId, rootContext } from '@/lib/assistants/scope';
-import { readAcrossRoots } from '@/lib/client/read_across_roots';
+import {
+  contactIdentityForRoot,
+  roleFromRootSenderId,
+  rootContext,
+  roots,
+} from '@/lib/assistants/scope';
 
 interface UseCallPillsOptions {
   assistant: Assistant | null;
@@ -31,37 +35,54 @@ const EMPTY_CALL_PILLS: readonly CallPill[] = Object.freeze([]);
 
 async function fetchCallTranscriptDirect(
   assistant: Assistant,
-  exchangeId: number
+  exchangeId: number,
+  sourceContext?: string,
+  selfContactId?: number
 ): Promise<CallTranscriptUtterance[]> {
   try {
     const filterExpr = `medium == "unify_meet" and exchange_id == ${exchangeId}`;
-    const logs = await readAcrossRoots<Record<string, any>>(assistant, async (root) => {
-      const params = new URLSearchParams({
-        projectName: 'Assistants',
-        context: rootContext(root, assistant.userId, assistant.agentId, 'Transcripts'),
-        limit: '1000',
-        filterExpr,
-      });
+    const queries = sourceContext
+      ? [{ context: sourceContext, selfContactId: selfContactId ?? assistant.selfContactId }]
+      : roots(assistant).flatMap((root) => {
+          const identity = contactIdentityForRoot(assistant, root);
+          if (!identity) return [];
+          return [
+            {
+              context: rootContext(root, assistant.userId, assistant.agentId, 'Transcripts'),
+              selfContactId: identity.selfContactId,
+            },
+          ];
+        });
+    const rootLogs = await Promise.all(
+      queries.map(async (query) => {
+        const params = new URLSearchParams({
+          projectName: 'Assistants',
+          context: query.context,
+          limit: '1000',
+          filterExpr,
+        });
 
-      const response = await fetch(`/api/logs?${params.toString()}`, {
-        cache: 'no-store',
-      });
+        const response = await fetch(`/api/logs?${params.toString()}`, {
+          cache: 'no-store',
+        });
 
-      if (response.status === 404 || !response.ok) return [];
+        if (response.status === 404 || !response.ok) return [];
 
-      const data = await response.json();
-      const rootLogs = data?.logs;
-      return Array.isArray(rootLogs) ? rootLogs : [];
-    });
+        const data = await response.json();
+        const rootLogs = data?.logs;
+        return Array.isArray(rootLogs) ? rootLogs.map((log) => ({ log, query })) : [];
+      })
+    );
+    const logs = rootLogs.flat();
     if (!Array.isArray(logs) || logs.length === 0) return [];
 
     return logs
-      .map((log: Record<string, any>): CallTranscriptUtterance | null => {
+      .map(({ log, query }): CallTranscriptUtterance | null => {
         const { entries, id } = log;
         if (!entries || typeof entries.content !== 'string') return null;
         return {
           id: String(id),
-          role: roleFromSenderId(assistant, entries.senderId as number),
+          role: roleFromRootSenderId(query, entries.senderId as number),
           content: entries.content,
           timestamp: new Date(entries.timestamp as string),
           callUtteranceTimestamp: entries.metadata?.callUtteranceTimestamp as string | undefined,
@@ -140,6 +161,8 @@ export function useCallPills({
 
       try {
         let resolvedExchangeId = pill.exchangeId;
+        let resolvedSourceContext = pill.sourceContext;
+        let resolvedSelfContactId = pill.selfContactId;
 
         if (resolvedExchangeId === undefined) {
           const exchanges = await fetchMeetExchangesDirect(contactId, assistant);
@@ -149,19 +172,33 @@ export function useCallPills({
           }
           const latest = exchanges[exchanges.length - 1];
           resolvedExchangeId = latest.exchangeId;
+          resolvedSourceContext = latest.sourceContext;
+          resolvedSelfContactId = latest.selfContactId;
 
           if (resolvedExchangeId !== undefined && assistantId && setCallPillHistories) {
             setCallPillHistories((prev) => ({
               ...prev,
               [assistantId]: (prev[assistantId] || []).map((p) =>
-                p.id === pill.id ? { ...p, exchangeId: resolvedExchangeId } : p
+                p.id === pill.id
+                  ? {
+                      ...p,
+                      exchangeId: resolvedExchangeId,
+                      sourceContext: resolvedSourceContext,
+                      selfContactId: resolvedSelfContactId,
+                    }
+                  : p
               ),
             }));
           }
         }
 
         if (resolvedExchangeId !== undefined) {
-          const utterances = await fetchCallTranscriptDirect(assistant, resolvedExchangeId);
+          const utterances = await fetchCallTranscriptDirect(
+            assistant,
+            resolvedExchangeId,
+            resolvedSourceContext,
+            resolvedSelfContactId
+          );
           setActiveTranscript(utterances);
         } else {
           setActiveTranscript([]);

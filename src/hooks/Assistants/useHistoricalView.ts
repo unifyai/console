@@ -8,12 +8,12 @@ import type {
 } from '@/types/assistants/chat';
 import type { Assistant } from '@/types/assistants/assistant';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
-import { readAcrossRoots } from '@/lib/client/read_across_roots';
+import { mergeRootRows } from '@/lib/client/read_across_roots';
 import {
-  meetExchangeFilter,
-  roleFromSenderId,
-  rootContext,
-  transcriptFilter,
+  contactScopedRootQueries,
+  meetExchangeFilterForRoot,
+  roleFromRootSenderId,
+  transcriptFilterForRoot,
 } from '@/lib/assistants/scope';
 
 const WINDOW_SIZE = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
@@ -38,16 +38,30 @@ function sortingParam(direction: 'ascending' | 'descending'): string {
   return JSON.stringify({ timestamp: direction });
 }
 
+function messageAnchorKey(
+  message: Pick<ChatMessage, 'id' | 'messageId' | 'sourceContext'>
+): string {
+  return `${message.sourceContext ?? ''}:${message.messageId ?? message.id}`;
+}
+
+function boundaryMessageKeys(messages: ChatMessage[], boundary: Date): Set<string> {
+  const boundaryMs = boundary.getTime();
+  return new Set(
+    messages
+      .filter((message) => message.timestamp.getTime() === boundaryMs)
+      .map((message) => messageAnchorKey(message))
+  );
+}
+
 async function fetchMessagesAround(
   assistant: Assistant,
   contactId: number,
-  targetMessageId: number
+  targetTimestamp: Date
 ): Promise<{ messages: ChatMessage[]; hasOlder: boolean; hasNewer: boolean }> {
-  const filterBase = transcriptFilter(assistant, contactId);
-
+  const anchor = targetTimestamp.toISOString();
   const [olderRes, newerRes] = await Promise.all([
-    fetchPage(assistant, filterBase, `message_id <= ${targetMessageId}`, WINDOW_SIZE, 'descending'),
-    fetchPage(assistant, filterBase, `message_id > ${targetMessageId}`, WINDOW_SIZE, 'ascending'),
+    fetchPage(assistant, contactId, `timestamp <= "${anchor}"`, WINDOW_SIZE, 'descending'),
+    fetchPage(assistant, contactId, `timestamp > "${anchor}"`, WINDOW_SIZE, 'ascending'),
   ]);
 
   const combined = [...olderRes.messages, ...newerRes.messages].sort(
@@ -58,51 +72,67 @@ async function fetchMessagesAround(
 
   return {
     messages: deduped,
-    hasOlder: olderRes.messages.length >= WINDOW_SIZE,
-    hasNewer: newerRes.messages.length >= WINDOW_SIZE,
+    hasOlder: olderRes.hasMore,
+    hasNewer: newerRes.hasMore,
   };
 }
 
 async function fetchPage(
   assistant: Assistant,
-  baseFilter: string,
+  contactId: number,
   rangeFilter: string,
   limit: number,
-  direction: 'ascending' | 'descending'
-): Promise<{ messages: ChatMessage[] }> {
-  const filterExpr = `${baseFilter} and ${rangeFilter}`;
-
+  direction: 'ascending' | 'descending',
+  excludedKeys: Set<string> = new Set()
+): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
   try {
-    const logs = await readAcrossRoots<Record<string, any>>(assistant, async (root) => {
-      const params = new URLSearchParams({
-        projectName: 'Assistants',
-        context: rootContext(root, assistant.userId, assistant.agentId, 'Transcripts'),
-        limit: String(limit),
-        filterExpr,
-        sorting: sortingParam(direction),
-      });
+    const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
+    const rootLimit = limit + excludedKeys.size + 1;
+    const rootLogs = await Promise.all(
+      queries.map(async (query) => {
+        const filterExpr = `${transcriptFilterForRoot(query)} and ${rangeFilter}`;
+        const params = new URLSearchParams({
+          projectName: 'Assistants',
+          context: query.context,
+          limit: String(rootLimit),
+          filterExpr,
+          sorting: sortingParam(direction),
+        });
 
-      const response = await fetch(`/api/logs?${params.toString()}`, {
-        cache: 'no-store',
-      });
+        const response = await fetch(`/api/logs?${params.toString()}`, {
+          cache: 'no-store',
+        });
 
-      if (response.status === 404 || !response.ok) return [];
+        if (response.status === 404 || !response.ok) return [];
 
-      const data = await response.json();
-      const rootLogs = data?.logs;
-      return Array.isArray(rootLogs) ? rootLogs : [];
+        const data = await response.json();
+        const rootLogs = data?.logs;
+        return Array.isArray(rootLogs) ? rootLogs.map((log) => ({ log, query })) : [];
+      })
+    );
+    const logs = mergeRootRows(rootLogs.flat(), {
+      limit: rootLimit,
+      direction,
+      sortValue: ({ log }) => log.entries?.timestamp,
+      dedupeKey: ({ log, query }) => `${query.context}:${log.entries?.messageId ?? log.id}`,
     });
 
-    const messages = logs
-      .map((log: Record<string, any>): ChatMessage | null => {
+    const visibleLogs = logs.filter(
+      ({ log, query }) => !excludedKeys.has(`${query.context}:${log.entries?.messageId ?? log.id}`)
+    );
+
+    const messages = visibleLogs
+      .slice(0, limit)
+      .map(({ log, query }): ChatMessage | null => {
         const { entries, id } = log;
         if (!entries || typeof entries.content !== 'string') return null;
         return {
           id: String(id),
-          role: roleFromSenderId(assistant, entries.senderId as number),
+          role: roleFromRootSenderId(query, entries.senderId as number),
           content: entries.content,
           timestamp: new Date(entries.timestamp as string),
           messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
+          sourceContext: query.context,
           attachments: Array.isArray(entries.attachments)
             ? (entries.attachments as Record<string, unknown>[]).map(
                 (a): Attachment => ({
@@ -118,9 +148,9 @@ async function fetchPage(
       })
       .filter((msg: ChatMessage | null): msg is ChatMessage => msg !== null);
 
-    return { messages };
+    return { messages, hasMore: visibleLogs.length > limit };
   } catch {
-    return { messages: [] };
+    return { messages: [], hasMore: false };
   }
 }
 
@@ -134,36 +164,41 @@ async function fetchCallPillsForRange(
   minTs: Date,
   maxTs: Date
 ): Promise<CallPill[]> {
-  const baseFilter = meetExchangeFilter(assistant, contactId);
-  const filterExpr = [
-    baseFilter,
-    `timestamp >= "${minTs.toISOString()}"`,
-    `timestamp <= "${maxTs.toISOString()}"`,
-  ].join(' and ');
-
   try {
-    const logs = await readAcrossRoots<Record<string, any>>(assistant, async (root) => {
-      const params = new URLSearchParams({
-        projectName: 'Assistants',
-        context: rootContext(root, assistant.userId, assistant.agentId, 'Transcripts'),
-        limit: '500',
-        filterExpr,
-      });
+    const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
+    const rootLogs = await Promise.all(
+      queries.map(async (query) => {
+        const filterExpr = [
+          meetExchangeFilterForRoot(query),
+          `timestamp >= "${minTs.toISOString()}"`,
+          `timestamp <= "${maxTs.toISOString()}"`,
+        ].join(' and ');
+        const params = new URLSearchParams({
+          projectName: 'Assistants',
+          context: query.context,
+          limit: '500',
+          filterExpr,
+        });
 
-      const response = await fetch(`/api/logs?${params.toString()}`, {
-        cache: 'no-store',
-      });
-      if (response.status === 404 || !response.ok) return [];
+        const response = await fetch(`/api/logs?${params.toString()}`, {
+          cache: 'no-store',
+        });
+        if (response.status === 404 || !response.ok) return [];
 
-      const data = await response.json();
-      const rootLogs = data?.logs;
-      return Array.isArray(rootLogs) ? rootLogs : [];
-    });
+        const data = await response.json();
+        const rootLogs = data?.logs;
+        return Array.isArray(rootLogs) ? rootLogs.map((log) => ({ log, query })) : [];
+      })
+    );
+    const logs = rootLogs.flat();
 
     if (!Array.isArray(logs) || logs.length === 0) return [];
 
-    const exchangeGroups = new Map<number, { minTs: Date; maxTs: Date }>();
-    for (const log of logs) {
+    const exchangeGroups = new Map<
+      string,
+      { exchangeId: number; sourceContext: string; selfContactId: number; minTs: Date; maxTs: Date }
+    >();
+    for (const { log, query } of logs) {
       const entries = log.entries;
       if (!entries) continue;
       const xid = typeof entries.exchangeId === 'number' ? entries.exchangeId : undefined;
@@ -171,24 +206,33 @@ async function fetchCallPillsForRange(
       const ts = new Date(entries.timestamp as string);
       if (isNaN(ts.getTime())) continue;
 
-      const existing = exchangeGroups.get(xid);
+      const groupKey = `${query.context}:${xid}`;
+      const existing = exchangeGroups.get(groupKey);
       if (existing) {
         if (ts < existing.minTs) existing.minTs = ts;
         if (ts > existing.maxTs) existing.maxTs = ts;
       } else {
-        exchangeGroups.set(xid, { minTs: ts, maxTs: ts });
+        exchangeGroups.set(groupKey, {
+          exchangeId: xid,
+          sourceContext: query.context,
+          selfContactId: query.selfContactId,
+          minTs: ts,
+          maxTs: ts,
+        });
       }
     }
 
-    return Array.from(exchangeGroups.entries())
-      .map(([exchangeId, group]) => {
+    return Array.from(exchangeGroups.values())
+      .map((group) => {
         const durationSeconds = Math.round((group.maxTs.getTime() - group.minTs.getTime()) / 1000);
         return {
-          id: `call-pill-hist-${exchangeId}`,
+          id: `call-pill-hist-${group.sourceContext}-${group.exchangeId}`,
           type: 'call_pill' as const,
           timestamp: group.maxTs,
           durationSeconds: Math.max(durationSeconds, 0),
-          exchangeId,
+          exchangeId: group.exchangeId,
+          sourceContext: group.sourceContext,
+          selfContactId: group.selfContactId,
         };
       })
       .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
@@ -218,9 +262,10 @@ export function useHistoricalView({
 
   const navigateToMessage = React.useCallback(
     async (result: ChatSearchResult) => {
-      if (!ownerId || !assistantId || contactId === null || !result.messageId) return;
+      if (!ownerId || !assistantId || contactId === null) return;
 
       setHistoricalView({
+        anchorMessageKey: messageAnchorKey(result),
         anchorMessageId: result.messageId,
         messages: [],
         callPills: [],
@@ -234,7 +279,7 @@ export function useHistoricalView({
         const { messages, hasOlder, hasNewer } = await fetchMessagesAround(
           assistant,
           contactId,
-          result.messageId
+          result.timestamp
         );
 
         const range = getTimeRange(messages);
@@ -243,6 +288,7 @@ export function useHistoricalView({
           : [];
 
         setHistoricalView({
+          anchorMessageKey: messageAnchorKey(result),
           anchorMessageId: result.messageId,
           messages,
           callPills,
@@ -267,18 +313,18 @@ export function useHistoricalView({
     if (historicalView.isLoadingOlder || !historicalView.hasOlder) return;
 
     const oldest = historicalView.messages[0];
-    if (!oldest?.messageId) return;
+    if (!oldest) return;
 
     setHistoricalView((prev) => prev && { ...prev, isLoadingOlder: true });
 
     try {
-      const filterBase = transcriptFilter(assistant, contactId);
-      const { messages } = await fetchPage(
+      const { messages, hasMore } = await fetchPage(
         assistant,
-        filterBase,
-        `message_id < ${oldest.messageId}`,
+        contactId,
+        `timestamp <= "${oldest.timestamp.toISOString()}"`,
         WINDOW_SIZE,
-        'descending'
+        'descending',
+        boundaryMessageKeys(historicalView.messages, oldest.timestamp)
       );
 
       setHistoricalView((prev) => {
@@ -291,7 +337,7 @@ export function useHistoricalView({
         return {
           ...prev,
           messages: merged,
-          hasOlder: messages.length >= WINDOW_SIZE,
+          hasOlder: hasMore,
           isLoadingOlder: false,
         };
       });
@@ -330,18 +376,18 @@ export function useHistoricalView({
     if (historicalView.isLoadingNewer || !historicalView.hasNewer) return;
 
     const newest = historicalView.messages[historicalView.messages.length - 1];
-    if (!newest?.messageId) return;
+    if (!newest) return;
 
     setHistoricalView((prev) => prev && { ...prev, isLoadingNewer: true });
 
     try {
-      const filterBase = transcriptFilter(assistant, contactId);
-      const { messages } = await fetchPage(
+      const { messages, hasMore } = await fetchPage(
         assistant,
-        filterBase,
-        `message_id > ${newest.messageId}`,
+        contactId,
+        `timestamp >= "${newest.timestamp.toISOString()}"`,
         WINDOW_SIZE,
-        'ascending'
+        'ascending',
+        boundaryMessageKeys(historicalView.messages, newest.timestamp)
       );
 
       setHistoricalView((prev) => {
@@ -354,7 +400,7 @@ export function useHistoricalView({
         return {
           ...prev,
           messages: merged,
-          hasNewer: messages.length >= WINDOW_SIZE,
+          hasNewer: hasMore,
           isLoadingNewer: false,
         };
       });

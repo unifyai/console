@@ -16,6 +16,19 @@ export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
 export type UserLocalDesktop = 'ubuntu' | 'windows' | 'macos';
 export type DesktopMode = 'ubuntu' | 'windows' | 'macos';
 export type AssistantHiringSufficientFunds = { sufficient: boolean };
+export type ContactIdentityRoot =
+  | {
+      targetScope: 'personal';
+      targetSpaceId: null;
+      selfContactId: number;
+      bossContactId: number;
+    }
+  | {
+      targetScope: 'space';
+      targetSpaceId: number;
+      selfContactId: number;
+      bossContactId: number;
+    };
 
 export interface UserDesktop {
   id: number;
@@ -92,6 +105,10 @@ export interface Assistant {
    * Contact id representing the owning user in conversation data.
    */
   bossContactId: number;
+  /**
+   * Root-local contact ids for every readable root with a resolved identity.
+   */
+  contactIdentityRoots: ContactIdentityRoot[];
   // Meta fields
   createdAt: string;
   updatedAt: string;
@@ -130,6 +147,7 @@ export type AssistantPreset = Omit<
   | 'spaceIds'
   | 'selfContactId'
   | 'bossContactId'
+  | 'contactIdentityRoots'
   | 'voiceId'
   | 'voiceProvider'
   | 'timezone'
@@ -455,7 +473,7 @@ export interface AssistantActions {
     getTranscripts: (
       contactId: number,
       assistant: Assistant,
-      beforeMessageId?: number
+      before?: { timestamp: string; excludedKeys?: string[] }
     ) => Promise<ChatMessage[] | ResponseProps>;
     message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;
     getAssistantOwnerById: (

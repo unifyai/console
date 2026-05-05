@@ -3,12 +3,13 @@ import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ChatMessage, Attachment, CallPill } from '@/types/assistants/chat';
 import { ResponseProps } from '@/types/common';
 import { clientLog } from '@/lib/logging/client-log-buffer';
-import { readAcrossRoots } from '@/lib/client/read_across_roots';
+import { mergeRootRows } from '@/lib/client/read_across_roots';
 import {
-  meetExchangeFilter,
-  roleFromSenderId,
+  contactScopedRootQueries,
+  meetExchangeFilterForRoot,
+  roleFromRootSenderId,
   rootContext,
-  transcriptFilter,
+  transcriptFilterForRoot,
 } from '@/lib/assistants/scope';
 
 const CONTACT_ID_SESSION_PREFIX = 'assistant_contact_id:';
@@ -109,7 +110,7 @@ export function getOrFetchTranscripts(
   getTranscripts: (
     contactId: number,
     assistant: Assistant,
-    beforeMessageId?: number
+    before?: { timestamp: string; excludedKeys?: string[] }
   ) => Promise<ChatMessage[] | ResponseProps>,
   contactId: number,
   assistant: Assistant
@@ -142,25 +143,21 @@ export function getOrFetchTranscripts(
 async function fetchContactIdDirect(email: string, assistant: Assistant): Promise<number | null> {
   try {
     const filterExpr = `email_address == "${email}"`;
-    const logs = await readAcrossRoots<Record<string, any>>(assistant, async (root) => {
-      const params = new URLSearchParams({
-        projectName: 'Assistants',
-        context: rootContext(root, assistant.userId, assistant.agentId, 'Contacts'),
-        filterExpr,
-        limit: '1',
-      });
-
-      const response = await fetch(`/api/logs?${params.toString()}`, {
-        cache: 'no-store',
-      });
-
-      if (!response.ok) return [];
-
-      const data = await response.json();
-      const rootLogs = data?.logs;
-      return Array.isArray(rootLogs) ? rootLogs : [];
+    const params = new URLSearchParams({
+      projectName: 'Assistants',
+      context: rootContext({ kind: 'personal' }, assistant.userId, assistant.agentId, 'Contacts'),
+      filterExpr,
+      limit: '1',
     });
 
+    const response = await fetch(`/api/logs?${params.toString()}`, {
+      cache: 'no-store',
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const logs = data?.logs;
     if (!Array.isArray(logs) || logs.length === 0) return null;
 
     const contactId = logs[0]?.entries?.contactId;
@@ -176,31 +173,40 @@ export async function fetchTranscriptsDirect(
   limit: number = TRANSCRIPT_LIMIT
 ): Promise<ChatMessage[] | ResponseProps> {
   try {
-    const filterExpr = transcriptFilter(assistant, contactId);
-    const logs = await readAcrossRoots<Record<string, any>>(assistant, async (root) => {
-      const params = new URLSearchParams({
-        projectName: 'Assistants',
-        context: rootContext(root, assistant.userId, assistant.agentId, 'Transcripts'),
-        limit: String(limit),
-        filterExpr,
-      });
+    const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
+    const rootLogs = await Promise.all(
+      queries.map(async (query) => {
+        const filterExpr = transcriptFilterForRoot(query);
+        const params = new URLSearchParams({
+          projectName: 'Assistants',
+          context: query.context,
+          limit: String(limit),
+          filterExpr,
+          sorting: JSON.stringify({ timestamp: 'descending' }),
+        });
 
-      const response = await fetch(`/api/logs?${params.toString()}`, {
-        cache: 'no-store',
-      });
+        const response = await fetch(`/api/logs?${params.toString()}`, {
+          cache: 'no-store',
+        });
 
-      if (response.status === 404) return [];
-      if (!response.ok) {
-        throw new Error(`Failed with status ${response.status}`);
-      }
+        if (response.status === 404) return [];
+        if (!response.ok) {
+          throw new Error(`Failed with status ${response.status}`);
+        }
 
-      const data = await response.json();
-      const rootLogs = data?.logs;
-      return Array.isArray(rootLogs) ? rootLogs : [];
+        const data = await response.json();
+        const rootLogs = data?.logs;
+        return Array.isArray(rootLogs) ? rootLogs.map((log) => ({ log, query })) : [];
+      })
+    );
+    const logs = mergeRootRows(rootLogs.flat(), {
+      limit,
+      sortValue: ({ log }) => log.entries?.timestamp,
+      dedupeKey: ({ log, query }) => `${query.context}:${log.entries?.messageId ?? log.id}`,
     });
 
     return logs
-      .map((log: Record<string, any>): ChatMessage | null => {
+      .map(({ log, query }): ChatMessage | null => {
         const entries = log.entries;
         const id = log.id;
         if (
@@ -212,10 +218,11 @@ export async function fetchTranscriptsDirect(
         }
         return {
           id: String(id),
-          role: roleFromSenderId(assistant, entries.senderId as number),
+          role: roleFromRootSenderId(query, entries.senderId as number),
           content: entries.content,
           timestamp: new Date(entries.timestamp as string),
           messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
+          sourceContext: query.context,
           attachments: Array.isArray(entries.attachments)
             ? (entries.attachments as Record<string, unknown>[]).map(
                 (a): Attachment => ({
@@ -241,31 +248,44 @@ export async function fetchMeetExchangesDirect(
   assistant: Assistant
 ): Promise<CallPill[]> {
   try {
-    const filterExpr = meetExchangeFilter(assistant, contactId);
+    const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
+    const rootLogs = await Promise.all(
+      queries.map(async (query) => {
+        const filterExpr = meetExchangeFilterForRoot(query);
+        const params = new URLSearchParams({
+          projectName: 'Assistants',
+          context: query.context,
+          limit: '500',
+          filterExpr,
+        });
 
-    const logs = await readAcrossRoots<Record<string, any>>(assistant, async (root) => {
-      const params = new URLSearchParams({
-        projectName: 'Assistants',
-        context: rootContext(root, assistant.userId, assistant.agentId, 'Transcripts'),
-        limit: '500',
-        filterExpr,
-      });
+        const response = await fetch(`/api/logs?${params.toString()}`, {
+          cache: 'no-store',
+        });
 
-      const response = await fetch(`/api/logs?${params.toString()}`, {
-        cache: 'no-store',
-      });
+        if (response.status === 404 || !response.ok) return [];
 
-      if (response.status === 404 || !response.ok) return [];
-
-      const data = await response.json();
-      const rootLogs = data?.logs;
-      return Array.isArray(rootLogs) ? rootLogs : [];
-    });
+        const data = await response.json();
+        const rootLogs = data?.logs;
+        return Array.isArray(rootLogs) ? rootLogs.map((log) => ({ log, query })) : [];
+      })
+    );
+    const logs = rootLogs.flat();
 
     if (!Array.isArray(logs) || logs.length === 0) return [];
 
-    const exchangeGroups = new Map<number, { minTs: Date; maxTs: Date; count: number }>();
-    for (const log of logs) {
+    const exchangeGroups = new Map<
+      string,
+      {
+        exchangeId: number;
+        sourceContext: string;
+        selfContactId: number;
+        minTs: Date;
+        maxTs: Date;
+        count: number;
+      }
+    >();
+    for (const { log, query } of logs) {
       const entries = log.entries;
       if (!entries) continue;
       const xid = typeof entries.exchangeId === 'number' ? entries.exchangeId : undefined;
@@ -273,25 +293,35 @@ export async function fetchMeetExchangesDirect(
       const ts = new Date(entries.timestamp as string);
       if (isNaN(ts.getTime())) continue;
 
-      const existing = exchangeGroups.get(xid);
+      const groupKey = `${query.context}:${xid}`;
+      const existing = exchangeGroups.get(groupKey);
       if (existing) {
         if (ts < existing.minTs) existing.minTs = ts;
         if (ts > existing.maxTs) existing.maxTs = ts;
         existing.count++;
       } else {
-        exchangeGroups.set(xid, { minTs: ts, maxTs: ts, count: 1 });
+        exchangeGroups.set(groupKey, {
+          exchangeId: xid,
+          sourceContext: query.context,
+          selfContactId: query.selfContactId,
+          minTs: ts,
+          maxTs: ts,
+          count: 1,
+        });
       }
     }
 
-    return Array.from(exchangeGroups.entries())
-      .map(([exchangeId, group]) => {
+    return Array.from(exchangeGroups.values())
+      .map((group) => {
         const durationSeconds = Math.round((group.maxTs.getTime() - group.minTs.getTime()) / 1000);
         return {
-          id: `call-pill-${exchangeId}`,
+          id: `call-pill-${group.sourceContext}-${group.exchangeId}`,
           type: 'call_pill' as const,
           timestamp: group.maxTs,
           durationSeconds: Math.max(durationSeconds, 0),
-          exchangeId,
+          exchangeId: group.exchangeId,
+          sourceContext: group.sourceContext,
+          selfContactId: group.selfContactId,
         };
       })
       .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());

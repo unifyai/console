@@ -31,6 +31,14 @@ const assistant: Assistant = {
   spaceIds: [2, 1],
   selfContactId: 5,
   bossContactId: 6,
+  contactIdentityRoots: [
+    {
+      targetScope: 'personal',
+      targetSpaceId: null,
+      selfContactId: 5,
+      bossContactId: 6,
+    },
+  ],
   createdAt: '2026-05-01T10:00:00Z',
   updatedAt: '2026-05-01T10:00:00Z',
 };

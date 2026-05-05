@@ -15,8 +15,9 @@ import type {
   FunctionRow,
 } from '@/types/assistants/memory';
 import type { Assistant } from '@/types/assistants/assistant';
-import { camelToSnake } from '@/utils/casing';
+import { camelToSnake, snakeToCamel } from '@/utils/casing';
 import { roots } from '@/lib/client/read_across_roots';
+import { mergeRootRows } from '@/lib/client/read_across_roots';
 import { rootContext } from '@/lib/assistants/scope';
 
 const PAGE_SIZE = 50;
@@ -33,6 +34,28 @@ function parseLogsResponse<T extends MemoryRow>(data: any): MemoryContextData<T>
   });
 
   return { rows, count, fields: Array.from(fields) };
+}
+
+function parseSortingParam(
+  sorting?: string
+): { field: string; direction: 'ascending' | 'descending' } | null {
+  if (!sorting) return null;
+  try {
+    const parsed = JSON.parse(sorting) as Record<string, 'ascending' | 'descending'>;
+    const [entry] = Object.entries(parsed);
+    if (!entry) return null;
+    const [field, direction] = entry;
+    return { field: snakeToCamel(field), direction };
+  } catch {
+    return null;
+  }
+}
+
+function sortValueForField(row: MemoryRow, field: string): string | number | Date | null {
+  const value = (row as Record<string, unknown>)[field];
+  if (typeof value === 'string' || typeof value === 'number') return value;
+  if (value instanceof Date) return value;
+  return null;
 }
 
 /**
@@ -93,15 +116,17 @@ export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
       return parseLogsResponse<T>(data);
     }
 
+    const requestedLimit = options?.limit ?? PAGE_SIZE;
+    const requestedOffset = options?.offset ?? 0;
+    const rootLimit = requestedLimit + requestedOffset;
     const rootResults = await Promise.all(
       roots(assistant).map(async (root): Promise<MemoryContextData<T>> => {
         const params = new URLSearchParams({
           projectName: 'Assistants',
           context: rootContext(root, assistant.userId, assistant.agentId, context),
-          limit: String(options?.limit ?? PAGE_SIZE),
+          limit: String(rootLimit),
         });
 
-        if (options?.offset) params.set('offset', String(options.offset));
         if (options?.filterExpr) params.set('filterExpr', options.filterExpr);
         if (options?.sorting) params.set('sorting', options.sorting);
 
@@ -125,7 +150,17 @@ export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
       count += result.count;
       result.fields.forEach((field) => fields.add(field));
     }
-    return { rows, count, fields: Array.from(fields) };
+    const sorting = parseSortingParam(options?.sorting) ?? {
+      field: 'timestamp',
+      direction: 'descending' as const,
+    };
+    const mergedRows = mergeRootRows(rows, {
+      limit: requestedLimit,
+      offset: requestedOffset,
+      direction: sorting?.direction,
+      sortValue: (row) => sortValueForField(row, sorting.field),
+    });
+    return { rows: mergedRows, count, fields: Array.from(fields) };
   } catch {
     return empty;
   }

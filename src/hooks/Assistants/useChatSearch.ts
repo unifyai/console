@@ -8,8 +8,12 @@ import type {
   Attachment,
 } from '@/types/assistants/chat';
 import type { Assistant } from '@/types/assistants/assistant';
-import { readAcrossRoots } from '@/lib/client/read_across_roots';
-import { roleFromSenderId, rootContext, selfContactId } from '@/lib/assistants/scope';
+import { mergeRootRows } from '@/lib/client/read_across_roots';
+import {
+  contactScopedRootQueries,
+  roleFromRootSenderId,
+  type ContactScopedRootQuery,
+} from '@/lib/assistants/scope';
 
 const SEARCH_PAGE_SIZE = 30;
 
@@ -38,11 +42,10 @@ interface UseChatSearchReturn {
 
 function buildFilterExpr(
   filters: ChatSearchFilters,
-  assistant: Assistant,
-  contactId: number
+  query: Pick<ContactScopedRootQuery, 'contactId' | 'selfContactId'>
 ): string {
   const clauses: string[] = [];
-  const selfId = selfContactId(assistant);
+  const { contactId, selfContactId: selfId } = query;
 
   // Medium filter
   if (filters.medium === 'chat') {
@@ -94,43 +97,59 @@ function buildFilterExpr(
 
 async function executeSearch(
   assistant: Assistant,
-  filterExpr: string,
+  filters: ChatSearchFilters,
+  contactId: number,
   limit: number,
   offset: number
-): Promise<ChatSearchResult[]> {
-  const logs = await readAcrossRoots<Record<string, any>>(assistant, async (root) => {
-    const params = new URLSearchParams({
-      projectName: 'Assistants',
-      context: rootContext(root, assistant.userId, assistant.agentId, 'Transcripts'),
-      limit: String(limit),
-      offset: String(offset),
-      filterExpr,
-      sorting: JSON.stringify({ timestamp: 'descending' }),
-    });
+): Promise<{ results: ChatSearchResult[]; hasMore: boolean }> {
+  const queryLimit = offset + limit + 1;
+  const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
+  const rootLogs = await Promise.all(
+    queries.map(async (query) => {
+      const filterExpr = buildFilterExpr(filters, query);
+      const params = new URLSearchParams({
+        projectName: 'Assistants',
+        context: query.context,
+        limit: String(queryLimit),
+        filterExpr,
+        sorting: JSON.stringify({ timestamp: 'descending' }),
+      });
 
-    const response = await fetch(`/api/logs?${params.toString()}`, {
-      cache: 'no-store',
-    });
+      const response = await fetch(`/api/logs?${params.toString()}`, {
+        cache: 'no-store',
+      });
 
-    if (response.status === 404 || !response.ok) return [];
+      if (response.status === 404 || !response.ok) return [];
 
-    const data = await response.json();
-    const rootLogs = data?.logs;
-    return Array.isArray(rootLogs) ? rootLogs : [];
+      const data = await response.json();
+      const rootLogs = data?.logs;
+      return Array.isArray(rootLogs) ? rootLogs.map((log) => ({ log, query })) : [];
+    })
+  );
+
+  const mergedLogs = mergeRootRows(rootLogs.flat(), {
+    limit: limit + 1,
+    offset,
+    sortValue: ({ log }) => log.entries?.timestamp,
+    dedupeKey: ({ log, query }) => `${query.context}:${log.entries?.messageId ?? log.id}`,
   });
 
-  if (!Array.isArray(logs) || logs.length === 0) return [];
+  if (!Array.isArray(mergedLogs) || mergedLogs.length === 0) {
+    return { results: [], hasMore: false };
+  }
 
-  return logs
-    .map((log: Record<string, any>): ChatSearchResult | null => {
+  const results = mergedLogs
+    .slice(0, limit)
+    .map(({ log, query }): ChatSearchResult | null => {
       const { entries, id } = log;
       if (!entries || typeof entries.content !== 'string') return null;
       return {
         id: String(id),
-        role: roleFromSenderId(assistant, entries.senderId as number),
+        role: roleFromRootSenderId(query, entries.senderId as number),
         content: entries.content,
         timestamp: new Date(entries.timestamp as string),
         messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
+        sourceContext: query.context,
         medium: (entries.medium as string) || 'unify_message',
         exchangeId: typeof entries.exchangeId === 'number' ? entries.exchangeId : undefined,
         attachments: Array.isArray(entries.attachments)
@@ -147,6 +166,8 @@ async function executeSearch(
       };
     })
     .filter((r: ChatSearchResult | null): r is ChatSearchResult => r !== null);
+
+  return { results, hasMore: mergedLogs.length > limit };
 }
 
 function matchesAttachmentType(
@@ -202,7 +223,6 @@ export function useChatSearch({
   const [hasSearched, setHasSearched] = React.useState(false);
   const [hasMore, setHasMore] = React.useState(false);
   const [offset, setOffset] = React.useState(0);
-  const filterExprRef = React.useRef('');
   const filtersRef = React.useRef(filters);
   filtersRef.current = filters;
 
@@ -223,9 +243,6 @@ export function useChatSearch({
     setHasSearched(true);
 
     try {
-      const expr = buildFilterExpr(snap, assistant, contactId);
-      filterExprRef.current = expr;
-
       let collected: ChatSearchResult[] = [];
       let serverOffset = 0;
       let serverExhausted = false;
@@ -236,9 +253,16 @@ export function useChatSearch({
         i < MAX_FETCHES && collected.length < SEARCH_PAGE_SIZE && !serverExhausted;
         i++
       ) {
-        let page = await executeSearch(assistant, expr, SEARCH_PAGE_SIZE, serverOffset);
+        const searchPage = await executeSearch(
+          assistant,
+          snap,
+          contactId,
+          SEARCH_PAGE_SIZE,
+          serverOffset
+        );
+        let page = searchPage.results;
         serverOffset += SEARCH_PAGE_SIZE;
-        if (page.length < SEARCH_PAGE_SIZE) serverExhausted = true;
+        if (!searchPage.hasMore) serverExhausted = true;
 
         if (snap.attachmentType) {
           page = page.filter((r) => matchesAttachmentType(r.attachments, snap.attachmentType!));
@@ -273,14 +297,16 @@ export function useChatSearch({
         i < MAX_FETCHES && collected.length < SEARCH_PAGE_SIZE && !serverExhausted;
         i++
       ) {
-        let page = await executeSearch(
+        const searchPage = await executeSearch(
           assistant,
-          filterExprRef.current,
+          snap,
+          contactId,
           SEARCH_PAGE_SIZE,
           serverOffset
         );
+        let page = searchPage.results;
         serverOffset += SEARCH_PAGE_SIZE;
-        if (page.length < SEARCH_PAGE_SIZE) serverExhausted = true;
+        if (!searchPage.hasMore) serverExhausted = true;
 
         if (snap.attachmentType) {
           page = page.filter((r) => matchesAttachmentType(r.attachments, snap.attachmentType!));

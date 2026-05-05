@@ -526,7 +526,7 @@ export function useAssistantProfileChat(
     if (contactId === null) return;
 
     const oldestMessage = messages[0];
-    if (!oldestMessage || oldestMessage.messageId === undefined) {
+    if (!oldestMessage) {
       setHasMoreMessages(false);
       return;
     }
@@ -534,11 +534,12 @@ export function useAssistantProfileChat(
     setLoadMoreError(false);
     setIsLoadingMore(true);
     try {
-      const result = await assistantActions.chat.getTranscripts(
-        contactId,
-        assistant,
-        oldestMessage.messageId
-      );
+      const result = await assistantActions.chat.getTranscripts(contactId, assistant, {
+        timestamp: oldestMessage.timestamp.toISOString(),
+        excludedKeys: messages.map(
+          (message) => `${message.sourceContext ?? ''}:${message.messageId ?? message.id}`
+        ),
+      });
       setHasFetchedHistory(true);
       if ('detail' in result) {
         setLoadMoreError(true);
