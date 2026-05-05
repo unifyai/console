@@ -1,0 +1,221 @@
+'use client';
+
+import * as React from 'react';
+import { toast } from 'sonner';
+import {
+  INTEGRATION_PROVIDERS,
+  customerProvidedSecretKeysFor,
+  secretKeysFor,
+} from '@/constants/assistants/integrations';
+import type {
+  IntegrationCardState,
+  IntegrationProviderConfig,
+  IntegrationProviderId,
+} from '@/types/assistants/integration';
+import type { Secret } from '@/types/assistants/secret';
+
+/**
+ * Derived per-integration card state for the IntegrationsPane.  Built
+ * purely from secret-name presence — never reads any secret value.
+ */
+export interface IntegrationCardSummary {
+  provider: IntegrationProviderConfig;
+  state: IntegrationCardState;
+  /** Subset of ``secrets`` whose names belong to this provider.  Used by
+   *  the Edit-credentials path to find the logIds we need to update. */
+  ownedSecrets: Secret[];
+}
+
+/**
+ * Partition a list of assistant secrets into:
+ *  - per-provider card summaries (cards rendered above the secrets table)
+ *  - "other" secrets (custom secrets shown in the existing table)
+ *  - "hidden" OAuth-managed secrets (never user-facing per the
+ *    universal-masking + hide-managed convention)
+ */
+export function partitionForIntegrations(secrets: Secret[]): {
+  cards: IntegrationCardSummary[];
+  otherSecrets: Secret[];
+  hiddenSecrets: Secret[];
+} {
+  const byProvider = new Map<IntegrationProviderId, Secret[]>();
+  const otherSecrets: Secret[] = [];
+
+  for (const secret of secrets) {
+    const owner = INTEGRATION_PROVIDERS.find(
+      (p) => p.id !== 'custom' && secretKeysFor(p).has(secret.name)
+    );
+    if (!owner) {
+      otherSecrets.push(secret);
+      continue;
+    }
+    const list = byProvider.get(owner.id) ?? [];
+    list.push(secret);
+    byProvider.set(owner.id, list);
+  }
+
+  // Build a card summary per provider that has at least one owned secret.
+  const cards: IntegrationCardSummary[] = [];
+  const hiddenSecrets: Secret[] = [];
+  for (const [providerId, ownedSecrets] of Array.from(byProvider.entries())) {
+    const provider = INTEGRATION_PROVIDERS.find((p) => p.id === providerId);
+    if (!provider) continue;
+    cards.push({
+      provider,
+      state: deriveCardState(provider, ownedSecrets),
+      ownedSecrets,
+    });
+    // Anything OAuth-managed is hidden from the otherSecrets list AND
+    // from the card detail (per "hidden, follow existing convention").
+    if (provider.auth.kind === 'oauth_authorization_code') {
+      const managedNames = new Set(provider.auth.oauth.managedSecretKeys);
+      for (const s of ownedSecrets) {
+        if (managedNames.has(s.name)) hiddenSecrets.push(s);
+      }
+    }
+  }
+
+  // Stable card order matching the registry.
+  cards.sort(
+    (a, b) => INTEGRATION_PROVIDERS.indexOf(a.provider) - INTEGRATION_PROVIDERS.indexOf(b.provider)
+  );
+
+  return { cards, otherSecrets, hiddenSecrets };
+}
+
+function deriveCardState(
+  provider: IntegrationProviderConfig,
+  ownedSecrets: Secret[]
+): IntegrationCardState {
+  const present = new Set(ownedSecrets.map((s) => s.name));
+  const customerKeys = customerProvidedSecretKeysFor(provider);
+  const missingCustomer = customerKeys.filter((k) => !present.has(k));
+
+  switch (provider.auth.kind) {
+    case 'freeform':
+      // Should never reach here — custom isn't owned.
+      return { kind: 'configured' };
+    case 'api_key':
+      return missingCustomer.length === 0
+        ? { kind: 'configured' }
+        : { kind: 'needs_reconnect', missing: missingCustomer };
+    case 'oauth_authorization_code': {
+      // ``connected`` requires both customer-provided creds AND a refresh
+      // token.  ``needs_reconnect`` covers the case where credentials are
+      // present but the refresh token is missing (post-Disconnect, post-
+      // expiry, or a rotation that nuked the local cache).
+      if (missingCustomer.length > 0) {
+        return { kind: 'needs_reconnect', missing: missingCustomer };
+      }
+      const hasRefresh = present.has(
+        provider.auth.oauth.managedSecretKeys.find((k) => k.endsWith('REFRESH_TOKEN')) ?? ''
+      );
+      return hasRefresh ? { kind: 'connected' } : { kind: 'needs_reconnect', missing: [] };
+    }
+  }
+}
+
+/**
+ * Async wrapper that drives the per-provider Connect flow: POST to the
+ * oauth/start route, then redirect the browser to the authorize URL.
+ *
+ * Caller has already saved any customer-provided credentials.  The user
+ * lands back at the integrations tab via the per-provider callback
+ * route.
+ */
+export async function startOAuthConnect(args: {
+  assistantId: string;
+  providerId: IntegrationProviderId;
+  redirectAfter?: string;
+}): Promise<void> {
+  const response = await fetch('/api/integrations/oauth/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(args),
+  });
+  if (!response.ok) {
+    const data = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      hint?: string;
+    };
+    toast.error(
+      data.hint ?? data.error ?? `Failed to start the OAuth flow for ${args.providerId}.`
+    );
+    return;
+  }
+  const data = (await response.json()) as { authorizeUrl?: string };
+  if (!data.authorizeUrl) {
+    toast.error('Server did not return an authorize URL.');
+    return;
+  }
+  window.location.href = data.authorizeUrl;
+}
+
+/**
+ * DELETE the integration via the per-provider disconnect route.  Returns
+ * true on success.  Customer-provided credentials are preserved server-
+ * side (the route only deletes managed/api-key secrets).
+ */
+export async function disconnectIntegration(args: {
+  assistantId: string;
+  providerId: IntegrationProviderId;
+}): Promise<boolean> {
+  const response = await fetch(
+    `/api/assistant/${args.assistantId}/integrations/${args.providerId}`,
+    { method: 'DELETE' }
+  );
+  if (!response.ok) {
+    const data = (await response.json().catch(() => ({}))) as {
+      error?: string;
+    };
+    toast.error(data.error ?? 'Failed to disconnect.');
+    return false;
+  }
+  const data = (await response.json()) as {
+    success?: boolean;
+    note?: string;
+  };
+  toast.success(data.note ?? 'Disconnected.');
+  return data.success === true;
+}
+
+/**
+ * Read URL search params for ``integration_success`` / ``integration_error``
+ * flags set by the OAuth callback redirect.  Returns the matched flag
+ * (if any) and a helper to clear it from the URL after the toast fires.
+ */
+export function useIntegrationCallbackFlash(): {
+  success: { providerId: string; hubDomain: string | null } | null;
+  error: { reason: string } | null;
+  clear: () => void;
+} {
+  const [state, setState] = React.useState<{
+    success: { providerId: string; hubDomain: string | null } | null;
+    error: { reason: string } | null;
+  }>({ success: null, error: null });
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get('integration_success');
+    const error = params.get('integration_error');
+    const hubDomain = params.get('hub_domain');
+    if (success) {
+      setState({ success: { providerId: success, hubDomain }, error: null });
+    } else if (error) {
+      setState({ success: null, error: { reason: error } });
+    }
+  }, []);
+
+  const clear = React.useCallback(() => {
+    setState({ success: null, error: null });
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('integration_success');
+    url.searchParams.delete('integration_error');
+    url.searchParams.delete('hub_domain');
+    window.history.replaceState({}, '', url.toString());
+  }, []);
+
+  return { ...state, clear };
+}

@@ -8,7 +8,7 @@ import {
   Activity,
   Brain,
   Columns2,
-  KeyRound,
+  Plug2,
   LayoutDashboard,
   ListTodo,
   MessageSquare,
@@ -19,7 +19,7 @@ import { LiveActionsViewer } from './LiveActions';
 import { DashboardsPane } from './Dashboards';
 import { MemoryPane } from './Memory';
 import { TasksPane } from './Tasks';
-import { SecretsPane } from './Secrets';
+import { IntegrationsPane } from './Integrations';
 import { ChatWithInfoPanel } from './Chat/ChatWithInfoPanel';
 import type { AssistantActionActions } from '@/types/assistants/action';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
@@ -53,7 +53,7 @@ const TAB_TRIGGER_CLASS = [
  * Right-pane tab identifiers. Kept as a string-literal union so the split
  * state and persistence layer can stay typed end-to-end.
  */
-export type RightPaneTab = 'chat' | 'tasks' | 'dashboards' | 'memory' | 'secrets' | 'actions';
+export type RightPaneTab = 'chat' | 'tasks' | 'dashboards' | 'memory' | 'integrations' | 'actions';
 
 interface RightPaneTabConfig {
   id: RightPaneTab;
@@ -74,7 +74,7 @@ interface RightPaneTabConfig {
  *   3. Tasks          — work output / queue; less frequent than chat.
  *   4. Dashboards     — assistant-built views; observation surface.
  *   5. Memory         — persistent context; configuration, write-mostly.
- *   6. Secrets        — credentials; rarest, lives at the edge.
+ *   6. Integrations   — connected apps + raw secrets; rarest, lives at the edge.
  *
  * Reorder here is the single source of truth — slot rendering, the
  * tab strip, and (eventually) keyboard shortcuts all iterate this
@@ -112,10 +112,10 @@ export const RIGHT_PANE_TABS: ReadonlyArray<RightPaneTabConfig> = [
     describe: (name) => `Persistent context and notes for ${name}`,
   },
   {
-    id: 'secrets',
-    label: 'Secrets',
-    Icon: KeyRound,
-    describe: (name) => `Credentials available to ${name}`,
+    id: 'integrations',
+    label: 'Integrations',
+    Icon: Plug2,
+    describe: (name) => `Connected apps and raw credentials available to ${name}`,
   },
 ];
 
@@ -634,11 +634,11 @@ export function RightPaneContainer({
         </TabsContent>
 
         <TabsContent
-          value="secrets"
+          value="integrations"
           className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
           forceMount
         >
-          <SecretsPane
+          <IntegrationsPane
             ownerId={assistant.userId}
             assistantId={assistant.agentId}
             secretActions={assistantActions.secret}

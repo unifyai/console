@@ -108,11 +108,11 @@ async function openSecretsTab(page: Page) {
   await closeHireDialogIfOpen(page);
   await page.waitForTimeout(1_500);
 
-  const tab = page.getByTestId('right-pane-tab-secrets');
+  const tab = page.getByTestId('right-pane-tab-integrations');
   await expect(tab).toBeVisible({ timeout: 10_000 });
   await tab.click();
 
-  const pane = page.getByTestId('secrets-pane');
+  const pane = page.getByTestId('integrations-pane');
   await expect(pane).toBeVisible({ timeout: 5_000 });
 
   // Wait for the initial fetch to complete (skeleton rows go away).
@@ -120,7 +120,12 @@ async function openSecretsTab(page: Page) {
 }
 
 async function openCreateDialog(page: Page) {
-  await page.getByTestId('secrets-new-button').click();
+  // The Integrations tab uses an "Add new ▾" dropdown instead of a
+  // single + button.  Click the trigger, then pick the "Custom secret"
+  // option to land on the freeform form (the same dialog the legacy
+  // Secrets tab opened directly).
+  await page.getByTestId('integrations-add-new-trigger').click();
+  await page.getByTestId('integrations-add-new-custom').click();
   const dialog = page.getByTestId('secret-form-dialog');
   await expect(dialog).toBeVisible({ timeout: 5_000 });
   return dialog;
@@ -147,13 +152,16 @@ async function fillAndSaveNewSecret(
 // Tests
 // ---------------------------------------------------------------------------
 
-test('Secrets tab is available on the right pane', async ({ authedPage: page }) => {
+test('Integrations tab is available on the right pane', async ({ authedPage: page }) => {
   await openSecretsTab(page);
 
-  await expect(page.getByTestId('right-pane-tab-secrets')).toHaveAttribute('data-state', 'active');
-  await expect(page.getByTestId('secrets-search')).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('secrets-new-button')).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('secrets-upload-button')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('right-pane-tab-integrations')).toHaveAttribute(
+    'data-state',
+    'active'
+  );
+  await expect(page.getByTestId('integrations-search')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('integrations-add-new-trigger')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('integrations-upload-button')).toBeVisible({ timeout: 5_000 });
 });
 
 test('creating a secret persists it to the database and renders a row', async ({
@@ -232,7 +240,7 @@ test('searching filters secrets and auto-expands matching folders', async ({
   // Search for "HIT_KEY" — the folder chain should auto-expand and the leaf
   // row should become visible, while the unrelated orphan should disappear.
   // Search is server-driven and triggered on Enter (mirrors Memory/Tasks).
-  const search = page.getByTestId('secrets-search');
+  const search = page.getByTestId('integrations-search');
   await search.fill('HIT_KEY');
   await search.press('Enter');
   await page.waitForTimeout(500);
@@ -246,7 +254,7 @@ test('searching filters secrets and auto-expands matching folders', async ({
   await expect(page.getByTestId(`secrets-row-${orphan}`)).toHaveCount(0);
 
   // Clearing the search brings everything back and restores collapse state.
-  await page.getByTestId('secrets-search-clear').click();
+  await page.getByTestId('integrations-search-clear').click();
   await page.waitForTimeout(300);
   await expect(folderTop).toHaveAttribute('data-expanded', 'false');
   await expect(page.getByTestId(`secrets-row-${orphan}`)).toBeVisible({ timeout: 3_000 });
