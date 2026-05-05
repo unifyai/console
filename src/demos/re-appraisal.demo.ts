@@ -416,7 +416,7 @@ async function setupAssistant() {
   });
 
   const { apiKey } = valuer;
-  const { agentId } = assistant;
+  const { agentId, selfContactId, bossContactId } = assistant;
   const seedOpts = { apiKey, userId: valuer.id, assistantId: agentId };
 
   await ensureProject(apiKey, 'Assistants');
@@ -429,7 +429,7 @@ async function setupAssistant() {
   });
 
   await seedLogEntry(seedOpts, 'Contacts', {
-    contact_id: 0,
+    contact_id: selfContactId,
     first_name: 'Aria',
     surname: 'Sterling',
     email_address: 'aria@sterling-surveyors.example.com',
@@ -438,7 +438,7 @@ async function setupAssistant() {
     bio: 'AI valuation analyst.',
   });
   await seedLogEntry(seedOpts, 'Contacts', {
-    contact_id: 1,
+    contact_id: bossContactId,
     first_name: 'James',
     surname: 'Whitfield',
     email_address: valuer.email,
@@ -446,7 +446,7 @@ async function setupAssistant() {
     bio: 'MRICS, Senior Director.',
   });
 
-  return { valuer, assistant, seedOpts, agentId };
+  return { valuer, assistant, seedOpts, agentId, selfContactId, bossContactId };
 }
 
 async function setupPage(
@@ -516,38 +516,38 @@ test('clip-2-the-research', async ({ page }) => {
   test.setTimeout(300_000);
   const testStart = Date.now();
 
-  const { valuer, seedOpts, agentId } = await setupAssistant();
+  const { valuer, seedOpts, agentId, selfContactId, bossContactId } = await setupAssistant();
 
   // Pre-seed the EXACT conversation from clip 1
   await preseedMessage(seedOpts, {
     message_id: nextMsgId(),
     medium: 'unify_message',
-    sender_id: 1,
-    receiver_ids: [0],
+    sender_id: bossContactId,
+    receiver_ids: [selfContactId],
     timestamp: ts(),
     content: USER_MSG_1,
   });
   await preseedMessage(seedOpts, {
     message_id: nextMsgId(),
     medium: 'unify_message',
-    sender_id: 0,
-    receiver_ids: [1],
+    sender_id: selfContactId,
+    receiver_ids: [bossContactId],
     timestamp: ts(),
     content: ARIA_REPLY_1,
   });
   await preseedMessage(seedOpts, {
     message_id: nextMsgId(),
     medium: 'unify_message',
-    sender_id: 1,
-    receiver_ids: [0],
+    sender_id: bossContactId,
+    receiver_ids: [selfContactId],
     timestamp: ts(),
     content: USER_MSG_2,
   });
   await preseedMessage(seedOpts, {
     message_id: nextMsgId(),
     medium: 'unify_message',
-    sender_id: 0,
-    receiver_ids: [1],
+    sender_id: selfContactId,
+    receiver_ids: [bossContactId],
     timestamp: ts(),
     content: ARIA_REPLY_2,
   });
@@ -795,38 +795,38 @@ test('clip-3-the-report', async ({ page }) => {
   test.setTimeout(300_000);
   const testStart = Date.now();
 
-  const { valuer, seedOpts, agentId } = await setupAssistant();
+  const { valuer, seedOpts, agentId, selfContactId, bossContactId } = await setupAssistant();
 
   // Pre-seed the EXACT 4 messages from clip 1 — no extra messages
   await preseedMessage(seedOpts, {
     message_id: nextMsgId(),
     medium: 'unify_message',
-    sender_id: 1,
-    receiver_ids: [0],
+    sender_id: bossContactId,
+    receiver_ids: [selfContactId],
     timestamp: ts(),
     content: USER_MSG_1,
   });
   await preseedMessage(seedOpts, {
     message_id: nextMsgId(),
     medium: 'unify_message',
-    sender_id: 0,
-    receiver_ids: [1],
+    sender_id: selfContactId,
+    receiver_ids: [bossContactId],
     timestamp: ts(),
     content: ARIA_REPLY_1,
   });
   await preseedMessage(seedOpts, {
     message_id: nextMsgId(),
     medium: 'unify_message',
-    sender_id: 1,
-    receiver_ids: [0],
+    sender_id: bossContactId,
+    receiver_ids: [selfContactId],
     timestamp: ts(),
     content: USER_MSG_2,
   });
   await preseedMessage(seedOpts, {
     message_id: nextMsgId(),
     medium: 'unify_message',
-    sender_id: 0,
-    receiver_ids: [1],
+    sender_id: selfContactId,
+    receiver_ids: [bossContactId],
     timestamp: ts(),
     content: ARIA_REPLY_2,
   });

@@ -29,6 +29,9 @@ const test = createAssistantTest(user);
 test.setTimeout(120_000);
 test.describe.configure({ mode: 'serial' });
 
+const ASSISTANT_CONTACT_ID = 0;
+const OWNER_CONTACT_ID = 1;
+
 const emptyAssistant = createAssistant({
   userId: user.id,
   firstName: 'EmptyBot',
@@ -121,14 +124,14 @@ async function ensureSeeded() {
 
   await seedContacts(user.apiKey, user.id, dataAssistant.agentId, [
     {
-      contact_id: 0,
+      contact_id: ASSISTANT_CONTACT_ID,
       first_name: 'MemBot',
       last_name: 'WithData',
       email_address: 'membot@test.ai',
       timezone: 'UTC',
     },
     {
-      contact_id: 1,
+      contact_id: OWNER_CONTACT_ID,
       first_name: 'Alice',
       last_name: 'Owner',
       email_address: 'alice@example.com',
@@ -147,8 +150,8 @@ async function ensureSeeded() {
     {
       message_id: 1,
       medium: 'unify_message',
-      sender_id: 1,
-      receiver_ids: [0],
+      sender_id: OWNER_CONTACT_ID,
+      receiver_ids: [ASSISTANT_CONTACT_ID],
       timestamp: '2025-06-01T10:00:00Z',
       content: 'Hello, can you help me with my schedule?',
       exchange_id: 1,
@@ -156,8 +159,8 @@ async function ensureSeeded() {
     {
       message_id: 2,
       medium: 'unify_message',
-      sender_id: 0,
-      receiver_ids: [1],
+      sender_id: ASSISTANT_CONTACT_ID,
+      receiver_ids: [OWNER_CONTACT_ID],
       timestamp: '2025-06-01T10:01:00Z',
       content: 'Of course! Let me check your calendar.',
       exchange_id: 1,
@@ -166,7 +169,7 @@ async function ensureSeeded() {
       message_id: 3,
       medium: 'unify_message',
       sender_id: 2,
-      receiver_ids: [0],
+      receiver_ids: [ASSISTANT_CONTACT_ID],
       timestamp: '2025-06-02T14:30:00Z',
       content: 'What is the status of the project?',
       exchange_id: 2,

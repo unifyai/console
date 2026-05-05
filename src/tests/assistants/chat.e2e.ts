@@ -42,7 +42,8 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 
-const CONTACT_ID = 2; // convention: 0=assistant, 1=owner, 2+=contacts
+const ASSISTANT_CONTACT_ID = 0;
+const CONTACT_ID = 2;
 
 const user = createTestUser({ name: 'ChatE2E', lastName: 'Tester', credits: 50_000 });
 ensureProjectSync(user.apiKey);
@@ -101,7 +102,7 @@ async function seedTranscript(
   userId: string,
   assistantId: number,
   opts: {
-    senderId: number; // 0 = assistant, CONTACT_ID = user
+    senderId: number;
     content: string;
     timestamp?: string;
     medium?: string;
@@ -116,7 +117,9 @@ async function seedTranscript(
   const entries: Record<string, unknown> = {
     medium: opts.medium ?? 'unify_message',
     sender_id: opts.senderId,
-    receiver_ids: opts.receiverIds ?? (opts.senderId === 0 ? [CONTACT_ID] : [0]),
+    receiver_ids:
+      opts.receiverIds ??
+      (opts.senderId === ASSISTANT_CONTACT_ID ? [CONTACT_ID] : [ASSISTANT_CONTACT_ID]),
     content: opts.content,
     message_id: msgId,
     timestamp: ts,
@@ -292,7 +295,7 @@ test('historical transcript messages load when navigating to an assistant', asyn
     timestamp: new Date(ts - 2000).toISOString(),
   });
   await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: 0,
+    senderId: ASSISTANT_CONTACT_ID,
     content: assistantMsg,
     timestamp: new Date(ts - 1000).toISOString(),
   });
@@ -322,13 +325,21 @@ test('multiple historical messages render in chronological order', async ({ auth
       time: new Date(ts - 5000).toISOString(),
       senderId: CONTACT_ID,
     },
-    { content: `Second message ${ts}`, time: new Date(ts - 4000).toISOString(), senderId: 0 },
+    {
+      content: `Second message ${ts}`,
+      time: new Date(ts - 4000).toISOString(),
+      senderId: ASSISTANT_CONTACT_ID,
+    },
     {
       content: `Third message ${ts}`,
       time: new Date(ts - 3000).toISOString(),
       senderId: CONTACT_ID,
     },
-    { content: `Fourth message ${ts}`, time: new Date(ts - 2000).toISOString(), senderId: 0 },
+    {
+      content: `Fourth message ${ts}`,
+      time: new Date(ts - 2000).toISOString(),
+      senderId: ASSISTANT_CONTACT_ID,
+    },
   ];
 
   for (const m of msgs) {
@@ -483,7 +494,7 @@ test('assistant response seeded as transcript appears via polling', async ({
   // Seed an assistant reply as a transcript (simulating what adapters would produce)
   const assistantReply = `Poll test assistant reply ${Date.now()}`;
   await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: 0,
+    senderId: ASSISTANT_CONTACT_ID,
     content: assistantReply,
   });
 
@@ -517,7 +528,7 @@ test('assistant message exposes a copy button that confirms on click', async ({
     timestamp: new Date(ts - 2000).toISOString(),
   });
   await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: 0,
+    senderId: ASSISTANT_CONTACT_ID,
     content: assistantMsg,
     timestamp: new Date(ts - 1000).toISOString(),
   });
@@ -799,7 +810,7 @@ test('searching returns matching messages', async ({ authedPage: page }) => {
     timestamp: new Date(ts - 5000).toISOString(),
   });
   await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: 0,
+    senderId: ASSISTANT_CONTACT_ID,
     content: `Reply to ${unique} from assistant`,
     timestamp: new Date(ts - 3000).toISOString(),
   });
@@ -888,7 +899,7 @@ test('sender filter narrows to assistant or user messages', async ({ authedPage:
     timestamp: new Date(ts - 5000).toISOString(),
   });
   await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: 0,
+    senderId: ASSISTANT_CONTACT_ID,
     content: `${marker} from assistant`,
     timestamp: new Date(ts - 3000).toISOString(),
   });
@@ -928,7 +939,7 @@ test('go-to-message navigates to historical view and jump-to-present returns', a
 
   for (let i = 0; i < 60; i++) {
     await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-      senderId: i % 2 === 0 ? CONTACT_ID : 0,
+      senderId: i % 2 === 0 ? CONTACT_ID : ASSISTANT_CONTACT_ID,
       content: i === 0 ? `${marker} target message` : `Padding message ${i} of ${marker}`,
       timestamp: new Date(ts - (60 - i) * 60000).toISOString(),
     });
@@ -976,7 +987,7 @@ test('navigate to message, scroll to bottom auto-returns to present, then re-nav
 
   for (let i = 0; i < 80; i++) {
     await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-      senderId: i % 2 === 0 ? CONTACT_ID : 0,
+      senderId: i % 2 === 0 ? CONTACT_ID : ASSISTANT_CONTACT_ID,
       content: i === 0 ? `${marker} target message` : `Filler msg ${i} for ${marker}`,
       timestamp: new Date(ts - (80 - i) * 60_000).toISOString(),
     });
@@ -1050,7 +1061,7 @@ test('historical view includes call pills when calls fall within message range',
 
   for (let i = 0; i < 30; i++) {
     await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-      senderId: i % 2 === 0 ? CONTACT_ID : 0,
+      senderId: i % 2 === 0 ? CONTACT_ID : ASSISTANT_CONTACT_ID,
       content: i === 0 ? `${marker} anchor message` : `${marker} padding before ${i}`,
       timestamp: new Date(ts - (60 - i) * 60_000).toISOString(),
     });
@@ -1064,7 +1075,7 @@ test('historical view includes call pills when calls fall within message range',
     exchangeId,
   });
   await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: 0,
+    senderId: ASSISTANT_CONTACT_ID,
     content: 'Hello from assistant on call',
     timestamp: new Date(ts - 44 * 60_000).toISOString(),
     medium: 'unify_meet',
@@ -1073,7 +1084,7 @@ test('historical view includes call pills when calls fall within message range',
 
   for (let i = 0; i < 30; i++) {
     await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-      senderId: i % 2 === 0 ? CONTACT_ID : 0,
+      senderId: i % 2 === 0 ? CONTACT_ID : ASSISTANT_CONTACT_ID,
       content: `${marker} padding after ${i}`,
       timestamp: new Date(ts - (29 - i) * 60_000).toISOString(),
     });
@@ -1227,7 +1238,7 @@ test('switching to another assistant and back keeps each chat working independen
   // fallback picks it up — proves the post-switch inbox stream is live.
   const replyA = `Alpha late reply ${ts}`;
   await seedTranscript(user.apiKey, user.id, assistantA.agentId, {
-    senderId: 0,
+    senderId: ASSISTANT_CONTACT_ID,
     content: replyA,
   });
 

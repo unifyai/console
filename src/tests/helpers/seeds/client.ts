@@ -21,6 +21,8 @@ import type { OrgRole, SeededUser, SeededOrg, SeededAssistant, SeededSecret } fr
 
 const DB_CONTAINER = process.env.ORCHESTRA_DB_CONTAINER || 'orchestra-local-db';
 const CONSOLE_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+const ASSISTANT_CONTACT_ID = 42;
+const OWNER_CONTACT_ID = 43;
 
 /**
  * Orchestra base URL must be the API **origin** only (no `/v0` suffix).
@@ -406,13 +408,40 @@ VALUES (
   const agentId = dbExec(
     `SELECT agent_id FROM assistants WHERE user_id = '${opts.userId}' AND first_name = '${firstName}' AND surname = '${surname}' ORDER BY agent_id DESC LIMIT 1;`
   );
+  const parsedAgentId = parseInt(agentId, 10);
+
+  dbExecBlock(`
+INSERT INTO contact_memberships (
+  assistant_id,
+  contact_id,
+  target_scope,
+  relationship,
+  should_respond,
+  response_policy,
+  can_edit
+)
+VALUES
+  (${parsedAgentId}, ${ASSISTANT_CONTACT_ID}, 'personal', 'self', true, '', true),
+  (
+    ${parsedAgentId},
+    ${OWNER_CONTACT_ID},
+    'personal',
+    'boss',
+    true,
+    'Your immediate manager, please do whatever they ask you to do within reason, and do *not* withhold any information from them.',
+    true
+  )
+ON CONFLICT DO NOTHING;
+`);
 
   return {
-    agentId: parseInt(agentId, 10),
+    agentId: parsedAgentId,
     firstName,
     surname,
     userId: opts.userId,
     organizationId: opts.orgId ?? null,
+    selfContactId: ASSISTANT_CONTACT_ID,
+    bossContactId: OWNER_CONTACT_ID,
   };
 }
 
@@ -658,7 +687,7 @@ export interface SeedChatOpts {
  *
  * Creates:
  *   - "Assistants" project (idempotent)
- *   - "{userId}/{assistantId}/Contacts" context with a contact log entry (contactId=1 for owner)
+ *   - "{userId}/{assistantId}/Contacts" context with a contact log entry (the owner contact row)
  *
  * Without this, the chat panel shows "Chat unavailable" because
  * getContactIdByEmail can't find the contact record.
@@ -676,7 +705,7 @@ export async function seedChatInfrastructure(opts: SeedChatOpts): Promise<void> 
         entries: [
           {
             email_address: opts.email,
-            contactId: 1,
+            contactId: OWNER_CONTACT_ID,
           },
         ],
       }),

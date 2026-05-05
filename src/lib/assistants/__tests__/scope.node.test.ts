@@ -6,7 +6,10 @@ import {
   currentSpaceIds,
   isBoss,
   isSelf,
+  meetExchangeFilter,
+  roleFromSenderId,
   roots,
+  transcriptFilter,
   selfContactId,
 } from '@/lib/assistants/scope';
 
@@ -36,8 +39,8 @@ const assistant: Assistant = {
   weeklyLimit: null,
   maxParallel: null,
   spaceIds: [],
-  selfContactId: null,
-  bossContactId: null,
+  selfContactId: 5,
+  bossContactId: 6,
   createdAt: '2026-05-01T10:00:00Z',
   updatedAt: '2026-05-01T10:00:00Z',
 };
@@ -48,11 +51,6 @@ describe('assistant scope helpers', () => {
     expect(bossContactId({ ...assistant, bossContactId: 6 })).toBe(6);
   });
 
-  it('falls back to personal contact ids when the overlay is unresolved', () => {
-    expect(selfContactId(assistant)).toBe(0);
-    expect(bossContactId(assistant)).toBe(1);
-  });
-
   it('identifies self and boss contacts through the resolved ids', () => {
     const scopedAssistant = { ...assistant, selfContactId: 9, bossContactId: 10 };
 
@@ -60,6 +58,19 @@ describe('assistant scope helpers', () => {
     expect(isSelf(scopedAssistant, 10)).toBe(false);
     expect(isBoss(scopedAssistant, 10)).toBe(true);
     expect(isBoss(scopedAssistant, 9)).toBe(false);
+    expect(roleFromSenderId(scopedAssistant, 9)).toBe('assistant');
+    expect(roleFromSenderId(scopedAssistant, 10)).toBe('user');
+  });
+
+  it('builds transcript and meet filters from resolved self ids', () => {
+    const scopedAssistant = { ...assistant, selfContactId: 42, bossContactId: 43 };
+
+    expect(transcriptFilter(scopedAssistant, 43)).toBe(
+      'medium == "unify_message" and (sender_id == 43 or (sender_id == 42 and 43 in receiver_ids))'
+    );
+    expect(meetExchangeFilter(scopedAssistant, 43)).toBe(
+      'medium == "unify_meet" and (sender_id == 43 or sender_id == 42) and (43 in receiver_ids or receiver_ids == [42])'
+    );
   });
 
   it('returns personal first followed by sorted space roots', () => {
