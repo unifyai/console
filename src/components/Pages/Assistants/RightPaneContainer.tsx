@@ -233,12 +233,8 @@ interface RightPaneContainerProps {
   assistant: Assistant | null;
   actions: AssistantActionActions | null;
   dashboardActions: {
-    getMetadata: (ownerId: string, assistantId: string) => Promise<DashboardPaneData>;
-    getTileContent: (
-      ownerId: string,
-      assistantId: string,
-      tileToken: string
-    ) => Promise<string | null>;
+    getMetadata: (assistant: Assistant) => Promise<DashboardPaneData>;
+    getTileContent: (assistant: Assistant, tileToken: string) => Promise<string | null>;
   } | null;
   assistantActions: AssistantActions;
   chatHistories: Record<string, ChatMessage[]>;
@@ -883,6 +879,7 @@ export function RightPaneContainer({
           forceMount
         >
           <TasksPane
+            assistant={assistant}
             ownerId={assistant.userId}
             assistantId={assistant.agentId}
             subTab={subTabBySlot[slot].tasks}
@@ -897,6 +894,7 @@ export function RightPaneContainer({
         >
           {dashboardActions ? (
             <DashboardsPane
+              assistant={assistant}
               ownerId={assistant.userId}
               assistantId={assistant.agentId}
               getMetadata={dashboardActions.getMetadata}
@@ -916,6 +914,7 @@ export function RightPaneContainer({
           forceMount
         >
           <MemoryPane
+            assistant={assistant}
             ownerId={assistant.userId}
             assistantId={assistant.agentId}
             subTab={subTabBySlot[slot].memory}

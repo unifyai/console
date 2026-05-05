@@ -10,8 +10,10 @@ import { getColumnsForTaskView, TASK_LIVE_DOT_CLASS } from '@/utils/assistants/t
 import { MemoryTable } from '../Memory/MemoryTable';
 import { MemoryRowDetail } from '../Memory/MemoryRowDetail';
 import type { MemoryRow, TaskMemoryView, TaskRunRow } from '@/types/assistants/memory';
+import type { Assistant } from '@/types/assistants/assistant';
 
 interface TasksPaneProps {
+  assistant: Assistant;
   ownerId: string;
   assistantId: string;
   /**
@@ -45,7 +47,13 @@ function getTaskEmptyState(taskView: TaskMemoryView, isFiltered: boolean): { tit
   }
 }
 
-export function TasksPane({ ownerId, assistantId, subTab, onSubTabChange }: TasksPaneProps) {
+export function TasksPane({
+  assistant,
+  ownerId,
+  assistantId,
+  subTab,
+  onSubTabChange,
+}: TasksPaneProps) {
   const {
     tasks,
     taskRuns,
@@ -60,7 +68,7 @@ export function TasksPane({ ownerId, assistantId, subTab, onSubTabChange }: Task
     clearSearch,
     loadMore,
     refetch,
-  } = useTasksData({ ownerId, assistantId });
+  } = useTasksData({ assistant, ownerId, assistantId });
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedRow, setSelectedRow] = useState<Record<string, unknown> | null>(null);

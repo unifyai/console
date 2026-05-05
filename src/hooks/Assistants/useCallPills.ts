@@ -2,6 +2,8 @@ import * as React from 'react';
 import { CallPill, CallTranscriptUtterance } from '@/types/assistants/chat';
 import { Assistant } from '@/types/assistants/assistant';
 import { fetchMeetExchangesDirect } from './useContactIdPrefetch';
+import { roleFromSenderId, rootContext } from '@/lib/assistants/scope';
+import { readAcrossRoots } from '@/lib/client/read_across_roots';
 
 interface UseCallPillsOptions {
   assistant: Assistant | null;
@@ -28,27 +30,29 @@ interface UseCallPillsReturn {
 const EMPTY_CALL_PILLS: readonly CallPill[] = Object.freeze([]);
 
 async function fetchCallTranscriptDirect(
-  ownerId: string,
-  assistantId: string,
+  assistant: Assistant,
   exchangeId: number
 ): Promise<CallTranscriptUtterance[]> {
   try {
     const filterExpr = `medium == "unify_meet" and exchange_id == ${exchangeId}`;
-    const params = new URLSearchParams({
-      projectName: 'Assistants',
-      context: `${ownerId}/${assistantId}/Transcripts`,
-      limit: '1000',
-      filterExpr,
+    const logs = await readAcrossRoots<Record<string, any>>(assistant, async (root) => {
+      const params = new URLSearchParams({
+        projectName: 'Assistants',
+        context: rootContext(root, assistant.userId, assistant.agentId, 'Transcripts'),
+        limit: '1000',
+        filterExpr,
+      });
+
+      const response = await fetch(`/api/logs?${params.toString()}`, {
+        cache: 'no-store',
+      });
+
+      if (response.status === 404 || !response.ok) return [];
+
+      const data = await response.json();
+      const rootLogs = data?.logs;
+      return Array.isArray(rootLogs) ? rootLogs : [];
     });
-
-    const response = await fetch(`/api/logs?${params.toString()}`, {
-      cache: 'no-store',
-    });
-
-    if (response.status === 404 || !response.ok) return [];
-
-    const data = await response.json();
-    const logs = data?.logs;
     if (!Array.isArray(logs) || logs.length === 0) return [];
 
     return logs
@@ -57,7 +61,7 @@ async function fetchCallTranscriptDirect(
         if (!entries || typeof entries.content !== 'string') return null;
         return {
           id: String(id),
-          role: entries.senderId === 0 ? 'assistant' : 'user',
+          role: roleFromSenderId(assistant, entries.senderId as number),
           content: entries.content,
           timestamp: new Date(entries.timestamp as string),
           callUtteranceTimestamp: entries.metadata?.callUtteranceTimestamp as string | undefined,
@@ -138,11 +142,7 @@ export function useCallPills({
         let resolvedExchangeId = pill.exchangeId;
 
         if (resolvedExchangeId === undefined) {
-          const exchanges = await fetchMeetExchangesDirect(
-            contactId,
-            assistant.userId,
-            assistant.agentId
-          );
+          const exchanges = await fetchMeetExchangesDirect(contactId, assistant);
           if (exchanges.length === 0) {
             setActiveTranscript([]);
             return;
@@ -161,11 +161,7 @@ export function useCallPills({
         }
 
         if (resolvedExchangeId !== undefined) {
-          const utterances = await fetchCallTranscriptDirect(
-            assistant.userId,
-            assistant.agentId,
-            resolvedExchangeId
-          );
+          const utterances = await fetchCallTranscriptDirect(assistant, resolvedExchangeId);
           setActiveTranscript(utterances);
         } else {
           setActiveTranscript([]);

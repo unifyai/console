@@ -617,7 +617,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         .map((a) => {
           const cid = resolvedContactIds[a.agentId];
           if (cid === undefined) return null;
-          return { assistantId: a.agentId, ownerId: a.userId, contactId: cid };
+          return { assistantId: a.agentId, contactId: cid, assistant: a };
         })
         .filter((p): p is TranscriptReconcilerPair => p !== null),
     [assistants, resolvedContactIds]

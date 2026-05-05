@@ -666,7 +666,7 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
                               )}
                             </TableCell>
                             <TableCell>
-                              <ContactTypeLabel contactId={contact.contactId} />
+                              <ContactTypeLabel />
                             </TableCell>
                           </TableRow>
                         ))}
@@ -728,31 +728,7 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
   );
 }
 
-/**
- * Label showing the contact type based on contactId
- */
-function ContactTypeLabel({ contactId }: { contactId: number }) {
-  if (contactId === 0) {
-    return (
-      <span className="bg-primary/10 text-caption inline-flex items-center rounded-full px-2 py-0.5 text-primary">
-        Assistant
-      </span>
-    );
-  }
-  if (contactId === 1) {
-    return (
-      <span className="text-caption inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-600">
-        Boss
-      </span>
-    );
-  }
-  if (contactId === 2) {
-    return (
-      <span className="text-caption inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-blue-600">
-        Demoer
-      </span>
-    );
-  }
+function ContactTypeLabel() {
   return (
     <span className="text-caption inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
       Contact

@@ -13,6 +13,9 @@ import { ResponseProps } from '@/types/common';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
 import { camelToSnakeObject } from '@/utils/casing';
+import type { Assistant } from '@/types/assistants/assistant';
+import { readAcrossRoots } from '@/lib/client/read_across_roots';
+import { roleFromSenderId, rootContext, transcriptFilter } from '@/lib/assistants/scope';
 
 /** Message payload with optional attachments */
 export interface UnifyMessageWithAttachments extends UnifyMessage {
@@ -23,49 +26,39 @@ export interface UnifyMessageWithAttachments extends UnifyMessage {
  * Looks up a user's contactId from the Contacts table using their email address.
  * Returns null if no contact record is found (user cannot chat with this assistant).
  *
- * Contact ID Reference:
- * - 0 = Assistant (AI)
- * - 1 = Owner (creator of assistant)
- * - 2+ = Other users/contacts
+ * Contact ids are resolved from assistant-scoped relationship overlays.
  */
 export const getContactIdByEmail = async (apiKey: string) => {
-  return async (
-    userEmail: string,
-    ownerId: string,
-    assistantId: string
-  ): Promise<number | null> => {
+  return async (userEmail: string, assistant: Assistant): Promise<number | null> => {
     'use server';
     try {
       const project = 'Assistants';
-      const context = `${ownerId}/${assistantId}/Contacts`;
       const filterExpr = `email_address == "${userEmail}"`;
-      const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${context}&filterExpr=${encodeURIComponent(filterExpr)}&limit=1`;
+      const logs = await readAcrossRoots<LogProps>(assistant, async (root) => {
+        const context = rootContext(root, assistant.userId, assistant.agentId, 'Contacts');
+        const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${context}&filterExpr=${encodeURIComponent(filterExpr)}&limit=1`;
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { apiKey: apiKey },
-        cache: 'no-store',
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: { apiKey: apiKey },
+          cache: 'no-store',
+        });
+
+        if (response.status === 404) return [];
+        if (!response.ok) {
+          console.error(
+            `[getContactIdByEmail] Error response: ${response.status} ${response.statusText}`
+          );
+          return [];
+        }
+
+        const data = await response.json();
+        const logsResponse = data as LogsResponseProps;
+        return logsResponse.logs as LogProps[];
       });
 
-      if (response.status === 404) {
-        console.warn(`[getContactIdByEmail] No contacts found for context '${context}'`);
-        return null;
-      }
-      if (!response.ok) {
-        console.error(
-          `[getContactIdByEmail] Error response: ${response.status} ${response.statusText}`
-        );
-        return null;
-      }
-
-      const data = await response.json();
-      const logsResponse = data as LogsResponseProps;
-      const logs = logsResponse.logs as LogProps[];
-
       if (logs.length === 0) {
-        console.warn(
-          `[getContactIdByEmail] No contact found for email '${userEmail}' in context '${context}'`
-        );
+        console.warn(`[getContactIdByEmail] No contact found for email '${userEmail}'`);
         return null;
       }
 
@@ -92,54 +85,54 @@ export const getContactIdByEmail = async (apiKey: string) => {
  * @param beforeMessageId - Optional message ID for pagination
  *
  * Filter: Shows messages sent by the current user OR assistant responses to the current user.
- * Role mapping: sender_id=0 (assistant) -> 'assistant', sender_id!=0 (humans) -> 'user'
  */
 export const getTranscripts = async (apiKey: string) => {
   return async (
     contactId: number,
-    ownerId: string,
-    assistantId: string,
+    assistant: Assistant,
     beforeMessageId?: number
   ): Promise<ChatMessage[] | ResponseProps> => {
     'use server';
     try {
       const project = 'Assistants';
-      const context = `${ownerId}/${assistantId}/Transcripts`;
       const limit = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
-      let filterExpr = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
+      let filterExpr = transcriptFilter(assistant, contactId);
       if (beforeMessageId !== undefined) {
         filterExpr += ` and message_id < ${beforeMessageId}`;
       }
-      let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${context}&limit=${limit}&filterExpr=${encodeURIComponent(filterExpr)}`;
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { apiKey: apiKey },
-        cache: 'no-store',
+      const logs = await readAcrossRoots<LogProps>(assistant, async (root) => {
+        const context = rootContext(root, assistant.userId, assistant.agentId, 'Transcripts');
+        const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${context}&limit=${limit}&filterExpr=${encodeURIComponent(filterExpr)}`;
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: { apiKey: apiKey },
+          cache: 'no-store',
+        });
+
+        if (response.status === 404) {
+          return [];
+        }
+        if (!response.ok) {
+          let errorDetail = `Failed to get chat history with status ${response.status}: ${response.statusText}`;
+          try {
+            const errorData = await response.json();
+            errorDetail = errorData.detail || errorDetail;
+          } catch (e) {
+            const textError = await response.text();
+            console.error('[getTranscripts] Non-JSON error response from /api/logs:', textError);
+            errorDetail = textError || errorDetail;
+          }
+          throw new Error(errorDetail);
+        }
+
+        const data = await response.json();
+        const logsResponse = data as LogsResponseProps;
+        return logsResponse.logs as LogProps[];
       });
 
-      if (response.status === 404) {
-        console.warn(
-          `[getTranscripts] No logs found for context '${context}', returning empty array.`
-        );
-        return [];
-      }
-      if (!response.ok) {
-        let errorDetail = `Failed to get chat history with status ${response.status}: ${response.statusText}`;
-        try {
-          const errorData = await response.json();
-          errorDetail = errorData.detail || errorDetail;
-        } catch (e) {
-          const textError = await response.text();
-          console.error('[getTranscripts] Non-JSON error response from /api/logs:', textError);
-          errorDetail = textError || errorDetail;
-        }
-        console.error(`[getTranscripts] Error response: ${errorDetail}`);
-        return { detail: errorDetail };
-      }
-      const data = await response.json();
-      const logsResponse = data as LogsResponseProps;
-      const mappedMessages = (logsResponse.logs as LogProps[])
+      const mappedMessages = logs
         .map((log): ChatMessage | null => {
           const { entries, id } = log;
           if (
@@ -150,9 +143,10 @@ export const getTranscripts = async (apiKey: string) => {
             console.warn('[getTranscripts] Skipping invalid log entry:', log);
             return null;
           }
+          const senderId = entries.senderId as number;
           return {
             id: String(id),
-            role: entries.senderId === 0 ? 'assistant' : 'user',
+            role: roleFromSenderId(assistant, senderId),
             content: entries.content,
             timestamp: new Date(entries.timestamp as string),
             messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
@@ -172,7 +166,10 @@ export const getTranscripts = async (apiKey: string) => {
         .filter((msg): msg is ChatMessage => msg !== null);
       return mappedMessages;
     } catch (error) {
-      console.error(`[getTranscripts] CATCH block error for assistant '${assistantId}':`, error);
+      console.error(
+        `[getTranscripts] CATCH block error for assistant '${assistant.agentId}':`,
+        error
+      );
       const message = error instanceof Error ? error.message : 'Unknown error getting history.';
       return { detail: message };
     }

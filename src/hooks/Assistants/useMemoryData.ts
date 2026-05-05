@@ -21,6 +21,7 @@ import type {
   FunctionRow,
   MemoryRow,
 } from '@/types/assistants/memory';
+import type { Assistant } from '@/types/assistants/assistant';
 import {
   fetchMemoryContext,
   fetchKnowledgeTables,
@@ -34,6 +35,7 @@ const PAGE_SIZE = 50;
 type MemoryTabContext = Exclude<MemoryContext, 'Tasks'>;
 
 interface UseMemoryDataOptions {
+  assistant: Assistant;
   ownerId: string;
   assistantId: string;
 }
@@ -111,8 +113,7 @@ type ContextStates = {
 };
 
 function fetchForKey(
-  ownerId: string,
-  assistantId: string,
+  assistant: Assistant,
   context: MemoryTabContext,
   sorting: SortState | null,
   offset = 0,
@@ -121,14 +122,14 @@ function fetchForKey(
   const sortingParam = sorting ? buildSortingParam(sorting.field, sorting.direction) : undefined;
 
   if (context === 'Knowledge') {
-    return fetchKnowledgeTables(ownerId, assistantId);
+    return fetchKnowledgeTables(assistant);
   }
 
   if (context === 'Functions') {
-    return fetchFunctionsTables(ownerId, assistantId);
+    return fetchFunctionsTables(assistant);
   }
 
-  return fetchMemoryContext(ownerId, assistantId, context, {
+  return fetchMemoryContext(assistant, context, {
     limit: PAGE_SIZE,
     offset,
     sorting: sortingParam,
@@ -136,7 +137,11 @@ function fetchForKey(
   });
 }
 
-export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): UseMemoryDataResult {
+export function useMemoryData({
+  assistant,
+  ownerId,
+  assistantId,
+}: UseMemoryDataOptions): UseMemoryDataResult {
   const [states, setStates] = React.useState<ContextStates>({
     Contacts: emptyState(),
     Transcripts: emptyState(),
@@ -157,11 +162,11 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
 
     try {
       const [c, t, k, g, f] = await Promise.all([
-        fetchForKey(ownerId, assistantId, 'Contacts', null),
-        fetchForKey(ownerId, assistantId, 'Transcripts', null),
-        fetchForKey(ownerId, assistantId, 'Knowledge', null),
-        fetchForKey(ownerId, assistantId, 'Guidance', null),
-        fetchForKey(ownerId, assistantId, 'Functions', null),
+        fetchForKey(assistant, 'Contacts', null),
+        fetchForKey(assistant, 'Transcripts', null),
+        fetchForKey(assistant, 'Knowledge', null),
+        fetchForKey(assistant, 'Guidance', null),
+        fetchForKey(assistant, 'Functions', null),
       ]);
       const loadedAt = Date.now();
 
@@ -207,7 +212,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     } finally {
       setIsLoading(false);
     }
-  }, [ownerId, assistantId]);
+  }, [ownerId, assistantId, assistant]);
 
   React.useEffect(() => {
     setStates({
@@ -235,14 +240,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
       setIsLoading(true);
 
       try {
-        const data = await fetchForKey(
-          ownerId,
-          assistantId,
-          activeContext,
-          newSorting,
-          0,
-          current.filterExpr
-        );
+        const data = await fetchForKey(assistant, activeContext, newSorting, 0, current.filterExpr);
         setStates((prev) => ({
           ...prev,
           [activeContext]: contextStateFromData(
@@ -258,7 +256,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
         setIsLoading(false);
       }
     },
-    [ownerId, assistantId, activeContext, states]
+    [ownerId, assistantId, activeContext, states, assistant]
   );
 
   const search = React.useCallback(
@@ -277,14 +275,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
       setIsLoading(true);
 
       try {
-        const data = await fetchForKey(
-          ownerId,
-          assistantId,
-          activeContext,
-          currentSorting,
-          0,
-          filterExpr
-        );
+        const data = await fetchForKey(assistant, activeContext, currentSorting, 0, filterExpr);
         setStates((prev) => ({
           ...prev,
           [activeContext]: contextStateFromData(data as any, currentSorting, filterExpr, trimmed),
@@ -295,7 +286,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
         setIsLoading(false);
       }
     },
-    [ownerId, assistantId, activeContext, states]
+    [ownerId, assistantId, activeContext, states, assistant]
   );
 
   const clearSearch = React.useCallback(async () => {
@@ -310,7 +301,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     setIsLoading(true);
 
     try {
-      const data = await fetchForKey(ownerId, assistantId, activeContext, currentSorting, 0, null);
+      const data = await fetchForKey(assistant, activeContext, currentSorting, 0, null);
       setStates((prev) => ({
         ...prev,
         [activeContext]: contextStateFromData(data as any, currentSorting, null, ''),
@@ -320,7 +311,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     } finally {
       setIsLoading(false);
     }
-  }, [ownerId, assistantId, activeContext, states]);
+  }, [ownerId, assistantId, activeContext, states, assistant]);
 
   const loadMore = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
@@ -335,8 +326,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     try {
       const offset = current.rows.length;
       const data = await fetchForKey(
-        ownerId,
-        assistantId,
+        assistant,
         activeContext,
         current.sorting,
         offset,
@@ -363,7 +353,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     } finally {
       setIsLoadingMore(false);
     }
-  }, [ownerId, assistantId, activeContext, states, isLoadingMore]);
+  }, [ownerId, assistantId, activeContext, states, isLoadingMore, assistant]);
 
   const refetch = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
@@ -374,8 +364,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     try {
       const current = states[activeContext];
       const data = await fetchForKey(
-        ownerId,
-        assistantId,
+        assistant,
         activeContext,
         current.sorting,
         0,
@@ -395,7 +384,7 @@ export function useMemoryData({ ownerId, assistantId }: UseMemoryDataOptions): U
     } finally {
       setIsLoading(false);
     }
-  }, [ownerId, assistantId, activeContext, states]);
+  }, [ownerId, assistantId, activeContext, states, assistant]);
 
   return {
     contacts: states.Contacts,

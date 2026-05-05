@@ -7,10 +7,14 @@ import type {
   AttachmentType,
   Attachment,
 } from '@/types/assistants/chat';
+import type { Assistant } from '@/types/assistants/assistant';
+import { readAcrossRoots } from '@/lib/client/read_across_roots';
+import { roleFromSenderId, rootContext, selfContactId } from '@/lib/assistants/scope';
 
 const SEARCH_PAGE_SIZE = 30;
 
 interface UseChatSearchOptions {
+  assistant: Assistant;
   ownerId: string | null;
   assistantId: string | null;
   contactId: number | null;
@@ -32,8 +36,13 @@ interface UseChatSearchReturn {
   reset: () => void;
 }
 
-function buildFilterExpr(filters: ChatSearchFilters, contactId: number): string {
+function buildFilterExpr(
+  filters: ChatSearchFilters,
+  assistant: Assistant,
+  contactId: number
+): string {
   const clauses: string[] = [];
+  const selfId = selfContactId(assistant);
 
   // Medium filter
   if (filters.medium === 'chat') {
@@ -46,16 +55,16 @@ function buildFilterExpr(filters: ChatSearchFilters, contactId: number): string 
 
   // Sender filter
   if (filters.sender === 'assistant') {
-    clauses.push('sender_id == 0');
+    clauses.push(`sender_id == ${selfId}`);
   } else if (filters.sender === 'me') {
     clauses.push(`sender_id == ${contactId}`);
   } else {
-    clauses.push(`(sender_id == ${contactId} or sender_id == 0)`);
+    clauses.push(`(sender_id == ${contactId} or sender_id == ${selfId})`);
   }
 
   // Receiver scoping — only show messages relevant to this contact
   clauses.push(
-    `(${contactId} in receiver_ids or receiver_ids == [0] or sender_id == ${contactId})`
+    `(${contactId} in receiver_ids or receiver_ids == [${selfId}] or sender_id == ${contactId})`
   );
 
   // Content search (case-insensitive via .lower() on both sides)
@@ -84,29 +93,32 @@ function buildFilterExpr(filters: ChatSearchFilters, contactId: number): string 
 }
 
 async function executeSearch(
-  ownerId: string,
-  assistantId: string,
+  assistant: Assistant,
   filterExpr: string,
   limit: number,
   offset: number
 ): Promise<ChatSearchResult[]> {
-  const params = new URLSearchParams({
-    projectName: 'Assistants',
-    context: `${ownerId}/${assistantId}/Transcripts`,
-    limit: String(limit),
-    offset: String(offset),
-    filterExpr,
-    sorting: JSON.stringify({ timestamp: 'descending' }),
+  const logs = await readAcrossRoots<Record<string, any>>(assistant, async (root) => {
+    const params = new URLSearchParams({
+      projectName: 'Assistants',
+      context: rootContext(root, assistant.userId, assistant.agentId, 'Transcripts'),
+      limit: String(limit),
+      offset: String(offset),
+      filterExpr,
+      sorting: JSON.stringify({ timestamp: 'descending' }),
+    });
+
+    const response = await fetch(`/api/logs?${params.toString()}`, {
+      cache: 'no-store',
+    });
+
+    if (response.status === 404 || !response.ok) return [];
+
+    const data = await response.json();
+    const rootLogs = data?.logs;
+    return Array.isArray(rootLogs) ? rootLogs : [];
   });
 
-  const response = await fetch(`/api/logs?${params.toString()}`, {
-    cache: 'no-store',
-  });
-
-  if (response.status === 404 || !response.ok) return [];
-
-  const data = await response.json();
-  const logs = data?.logs;
   if (!Array.isArray(logs) || logs.length === 0) return [];
 
   return logs
@@ -115,7 +127,7 @@ async function executeSearch(
       if (!entries || typeof entries.content !== 'string') return null;
       return {
         id: String(id),
-        role: entries.senderId === 0 ? 'assistant' : 'user',
+        role: roleFromSenderId(assistant, entries.senderId as number),
         content: entries.content,
         timestamp: new Date(entries.timestamp as string),
         messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
@@ -179,6 +191,7 @@ const DEFAULT_FILTERS: ChatSearchFilters = {
 export type { UseChatSearchReturn };
 
 export function useChatSearch({
+  assistant,
   ownerId,
   assistantId,
   contactId,
@@ -210,7 +223,7 @@ export function useChatSearch({
     setHasSearched(true);
 
     try {
-      const expr = buildFilterExpr(snap, contactId);
+      const expr = buildFilterExpr(snap, assistant, contactId);
       filterExprRef.current = expr;
 
       let collected: ChatSearchResult[] = [];
@@ -223,7 +236,7 @@ export function useChatSearch({
         i < MAX_FETCHES && collected.length < SEARCH_PAGE_SIZE && !serverExhausted;
         i++
       ) {
-        let page = await executeSearch(ownerId, assistantId, expr, SEARCH_PAGE_SIZE, serverOffset);
+        let page = await executeSearch(assistant, expr, SEARCH_PAGE_SIZE, serverOffset);
         serverOffset += SEARCH_PAGE_SIZE;
         if (page.length < SEARCH_PAGE_SIZE) serverExhausted = true;
 
@@ -242,7 +255,7 @@ export function useChatSearch({
     } finally {
       setIsSearching(false);
     }
-  }, [ownerId, assistantId, contactId]);
+  }, [ownerId, assistantId, contactId, assistant]);
 
   const loadMore = React.useCallback(async () => {
     if (!ownerId || !assistantId || contactId === null || isSearching || !hasMore) return;
@@ -261,8 +274,7 @@ export function useChatSearch({
         i++
       ) {
         let page = await executeSearch(
-          ownerId,
-          assistantId,
+          assistant,
           filterExprRef.current,
           SEARCH_PAGE_SIZE,
           serverOffset
@@ -284,7 +296,7 @@ export function useChatSearch({
     } finally {
       setIsSearching(false);
     }
-  }, [ownerId, assistantId, contactId, isSearching, hasMore, offset]);
+  }, [ownerId, assistantId, contactId, isSearching, hasMore, offset, assistant]);
 
   const reset = React.useCallback(() => {
     setFilters(DEFAULT_FILTERS);

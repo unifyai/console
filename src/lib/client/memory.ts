@@ -14,7 +14,10 @@ import type {
   KnowledgeRow,
   FunctionRow,
 } from '@/types/assistants/memory';
+import type { Assistant } from '@/types/assistants/assistant';
 import { camelToSnake } from '@/utils/casing';
+import { roots } from '@/lib/client/read_across_roots';
+import { rootContext } from '@/lib/assistants/scope';
 
 const PAGE_SIZE = 50;
 
@@ -55,38 +58,74 @@ export function buildSearchFilterExpr(query: string, fields: string[]): string {
 }
 
 export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
-  ownerId: string,
-  assistantId: string,
+  assistant: Assistant,
   context: MemoryContext | string,
   options?: {
     limit?: number;
     offset?: number;
     filterExpr?: string;
     sorting?: string;
+    readAcrossRoots?: boolean;
   }
 ): Promise<MemoryContextData<T>> {
   const empty: MemoryContextData<T> = { rows: [], count: 0, fields: [] };
 
   try {
-    const params = new URLSearchParams({
-      projectName: 'Assistants',
-      context: `${ownerId}/${assistantId}/${context}`,
-      limit: String(options?.limit ?? PAGE_SIZE),
-    });
+    if (options?.readAcrossRoots === false) {
+      const params = new URLSearchParams({
+        projectName: 'Assistants',
+        context: rootContext({ kind: 'personal' }, assistant.userId, assistant.agentId, context),
+        limit: String(options?.limit ?? PAGE_SIZE),
+      });
 
-    if (options?.offset) params.set('offset', String(options.offset));
-    if (options?.filterExpr) params.set('filterExpr', options.filterExpr);
-    if (options?.sorting) params.set('sorting', options.sorting);
+      if (options?.offset) params.set('offset', String(options.offset));
+      if (options?.filterExpr) params.set('filterExpr', options.filterExpr);
+      if (options?.sorting) params.set('sorting', options.sorting);
 
-    const res = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
+      const res = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
 
-    if (!res.ok) return empty;
+      if (!res.ok) return empty;
 
-    const contentType = res.headers.get('content-type');
-    if (!contentType?.includes('application/json')) return empty;
+      const contentType = res.headers.get('content-type');
+      if (!contentType?.includes('application/json')) return empty;
 
-    const data = await res.json();
-    return parseLogsResponse<T>(data);
+      const data = await res.json();
+      return parseLogsResponse<T>(data);
+    }
+
+    const rootResults = await Promise.all(
+      roots(assistant).map(async (root): Promise<MemoryContextData<T>> => {
+        const params = new URLSearchParams({
+          projectName: 'Assistants',
+          context: rootContext(root, assistant.userId, assistant.agentId, context),
+          limit: String(options?.limit ?? PAGE_SIZE),
+        });
+
+        if (options?.offset) params.set('offset', String(options.offset));
+        if (options?.filterExpr) params.set('filterExpr', options.filterExpr);
+        if (options?.sorting) params.set('sorting', options.sorting);
+
+        const res = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
+
+        if (!res.ok) return empty;
+
+        const contentType = res.headers.get('content-type');
+        if (!contentType?.includes('application/json')) return empty;
+
+        const data = await res.json();
+        return parseLogsResponse<T>(data);
+      })
+    );
+
+    const fields = new Set<string>();
+    const rows: T[] = [];
+    let count = 0;
+    for (const result of rootResults) {
+      rows.push(...result.rows);
+      count += result.count;
+      result.fields.forEach((field) => fields.add(field));
+    }
+    return { rows, count, fields: Array.from(fields) };
   } catch {
     return empty;
   }
@@ -98,14 +137,12 @@ export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
  * merges rows from all tables, tagging each row with a `_table` field.
  */
 async function fetchSubContextTables<T extends MemoryRow>(
-  ownerId: string,
-  assistantId: string,
+  assistant: Assistant,
   parentContext: string
 ): Promise<MemoryContextData<T>> {
   const empty: MemoryContextData<T> = { rows: [], count: 0, fields: [] };
 
   try {
-    const prefix = `${ownerId}/${assistantId}/${parentContext}`;
     const ctxRes = await fetch(`/api/context/Assistants`, { cache: 'no-store' });
 
     if (!ctxRes.ok) return empty;
@@ -122,12 +159,19 @@ async function fetchSubContextTables<T extends MemoryRow>(
       return empty;
     }
 
-    const subContexts = allContextNames.filter((c) => c.startsWith(prefix + '/') && c !== prefix);
+    const prefixes = roots(assistant).map((root) =>
+      rootContext(root, assistant.userId, assistant.agentId, parentContext)
+    );
+    const subContexts = allContextNames.filter((contextName) =>
+      prefixes.some((prefix) => contextName.startsWith(prefix + '/') && contextName !== prefix)
+    );
 
     if (subContexts.length === 0) return empty;
 
     const results = await Promise.all(
       subContexts.map(async (fullCtx) => {
+        const prefix = prefixes.find((candidate) => fullCtx.startsWith(candidate + '/'));
+        if (!prefix) return null;
         const tableName = fullCtx.slice(prefix.length + 1);
         const params = new URLSearchParams({
           projectName: 'Assistants',
@@ -167,15 +211,13 @@ async function fetchSubContextTables<T extends MemoryRow>(
 }
 
 export function fetchKnowledgeTables(
-  ownerId: string,
-  assistantId: string
+  assistant: Assistant
 ): Promise<MemoryContextData<KnowledgeRow>> {
-  return fetchSubContextTables<KnowledgeRow>(ownerId, assistantId, 'Knowledge');
+  return fetchSubContextTables<KnowledgeRow>(assistant, 'Knowledge');
 }
 
 export function fetchFunctionsTables(
-  ownerId: string,
-  assistantId: string
+  assistant: Assistant
 ): Promise<MemoryContextData<FunctionRow>> {
-  return fetchSubContextTables<FunctionRow>(ownerId, assistantId, 'Functions');
+  return fetchSubContextTables<FunctionRow>(assistant, 'Functions');
 }

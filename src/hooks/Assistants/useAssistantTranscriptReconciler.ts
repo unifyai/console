@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { ChatMessage } from '@/types/assistants/chat';
+import type { Assistant } from '@/types/assistants/assistant';
 import { fetchTranscriptsDirect } from './useContactIdPrefetch';
 import { clientLog } from '@/lib/logging/client-log-buffer';
 import type { ChatStreamConnectionStatus } from './useAssistantChatStream';
@@ -60,8 +61,8 @@ import type { ChatStreamConnectionStatus } from './useAssistantChatStream';
  */
 export interface TranscriptReconcilerPair {
   assistantId: string;
-  ownerId: string;
   contactId: number;
+  assistant: Assistant;
 }
 
 export interface UseAssistantTranscriptReconcilerOptions {
@@ -250,12 +251,7 @@ export function useAssistantTranscriptReconciler({
       if (historiesRef.current[pair.assistantId] === undefined) return;
 
       try {
-        const result = await fetchTranscriptsDirect(
-          pair.contactId,
-          pair.ownerId,
-          pair.assistantId,
-          POLL_LIMIT
-        );
+        const result = await fetchTranscriptsDirect(pair.contactId, pair.assistant, POLL_LIMIT);
         if ('detail' in result) {
           state.consecutiveErrors += 1;
           clientLog('RECONCILER_FETCH_ERROR', {

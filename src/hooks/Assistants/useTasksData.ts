@@ -14,12 +14,14 @@ import type {
   TaskMemoryView,
   MemoryRow,
 } from '@/types/assistants/memory';
+import type { Assistant } from '@/types/assistants/assistant';
 import { fetchMemoryContext, buildSortingParam, buildSearchFilterExpr } from '@/lib/client/memory';
 
 const PAGE_SIZE = 50;
 const RUNNING_TASK_RUN_FILTER_EXPR = 'state == "running"';
 
 interface UseTasksDataOptions {
+  assistant: Assistant;
   ownerId: string;
   assistantId: string;
 }
@@ -105,8 +107,7 @@ interface TaskStates {
 }
 
 function fetchForKey(
-  ownerId: string,
-  assistantId: string,
+  assistant: Assistant,
   stateKey: StateKey,
   sorting: SortState | null,
   offset = 0,
@@ -114,18 +115,18 @@ function fetchForKey(
 ) {
   const apiContext = STATE_KEY_TO_API[stateKey];
   const sortingParam = sorting ? buildSortingParam(sorting.field, sorting.direction) : undefined;
-  return fetchMemoryContext(ownerId, assistantId, apiContext, {
+  return fetchMemoryContext(assistant, apiContext, {
     limit: PAGE_SIZE,
     offset,
     sorting: sortingParam,
     filterExpr: filterExpr ?? undefined,
+    readAcrossRoots: stateKey === 'tasks',
   });
 }
 
-async function fetchHasRunningSnapshot(ownerId: string, assistantId: string): Promise<boolean> {
+async function fetchHasRunningSnapshot(assistant: Assistant): Promise<boolean> {
   const data = (await fetchForKey(
-    ownerId,
-    assistantId,
+    assistant,
     'taskRuns',
     null,
     0,
@@ -134,7 +135,11 @@ async function fetchHasRunningSnapshot(ownerId: string, assistantId: string): Pr
   return data.count > 0 || data.rows.some((row) => row.state === 'running');
 }
 
-export function useTasksData({ ownerId, assistantId }: UseTasksDataOptions): UseTasksDataResult {
+export function useTasksData({
+  assistant,
+  ownerId,
+  assistantId,
+}: UseTasksDataOptions): UseTasksDataResult {
   const [states, setStates] = React.useState<TaskStates>({
     tasks: emptyState(),
     taskRuns: emptyState(),
@@ -155,9 +160,9 @@ export function useTasksData({ ownerId, assistantId }: UseTasksDataOptions): Use
 
     try {
       const [td, tr, hasRunning] = await Promise.all([
-        fetchForKey(ownerId, assistantId, 'tasks', null),
-        fetchForKey(ownerId, assistantId, 'taskRuns', null),
-        fetchHasRunningSnapshot(ownerId, assistantId),
+        fetchForKey(assistant, 'tasks', null),
+        fetchForKey(assistant, 'taskRuns', null),
+        fetchHasRunningSnapshot(assistant),
       ]);
       const loadedAt = Date.now();
 
@@ -177,7 +182,7 @@ export function useTasksData({ ownerId, assistantId }: UseTasksDataOptions): Use
     } finally {
       setIsLoading(false);
     }
-  }, [ownerId, assistantId]);
+  }, [ownerId, assistantId, assistant]);
 
   React.useEffect(() => {
     setStates({
@@ -203,14 +208,7 @@ export function useTasksData({ ownerId, assistantId }: UseTasksDataOptions): Use
       setIsLoading(true);
 
       try {
-        const data = await fetchForKey(
-          ownerId,
-          assistantId,
-          activeKey,
-          newSorting,
-          0,
-          current.filterExpr
-        );
+        const data = await fetchForKey(assistant, activeKey, newSorting, 0, current.filterExpr);
         setStates((prev) => ({
           ...prev,
           [activeKey]: contextStateFromData(
@@ -226,7 +224,7 @@ export function useTasksData({ ownerId, assistantId }: UseTasksDataOptions): Use
         setIsLoading(false);
       }
     },
-    [ownerId, assistantId, activeKey, states]
+    [ownerId, assistantId, activeKey, states, assistant]
   );
 
   const search = React.useCallback(
@@ -245,14 +243,7 @@ export function useTasksData({ ownerId, assistantId }: UseTasksDataOptions): Use
       setIsLoading(true);
 
       try {
-        const data = await fetchForKey(
-          ownerId,
-          assistantId,
-          activeKey,
-          currentSorting,
-          0,
-          filterExpr
-        );
+        const data = await fetchForKey(assistant, activeKey, currentSorting, 0, filterExpr);
         setStates((prev) => ({
           ...prev,
           [activeKey]: contextStateFromData(data as any, currentSorting, filterExpr, trimmed),
@@ -263,7 +254,7 @@ export function useTasksData({ ownerId, assistantId }: UseTasksDataOptions): Use
         setIsLoading(false);
       }
     },
-    [ownerId, assistantId, activeKey, states]
+    [ownerId, assistantId, activeKey, states, assistant]
   );
 
   const clearSearch = React.useCallback(async () => {
@@ -278,7 +269,7 @@ export function useTasksData({ ownerId, assistantId }: UseTasksDataOptions): Use
     setIsLoading(true);
 
     try {
-      const data = await fetchForKey(ownerId, assistantId, activeKey, currentSorting, 0, null);
+      const data = await fetchForKey(assistant, activeKey, currentSorting, 0, null);
       setStates((prev) => ({
         ...prev,
         [activeKey]: contextStateFromData(data as any, currentSorting, null, ''),
@@ -288,7 +279,7 @@ export function useTasksData({ ownerId, assistantId }: UseTasksDataOptions): Use
     } finally {
       setIsLoading(false);
     }
-  }, [ownerId, assistantId, activeKey, states]);
+  }, [ownerId, assistantId, activeKey, states, assistant]);
 
   const loadMore = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
@@ -301,8 +292,7 @@ export function useTasksData({ ownerId, assistantId }: UseTasksDataOptions): Use
     try {
       const offset = current.rows.length;
       const data = await fetchForKey(
-        ownerId,
-        assistantId,
+        assistant,
         activeKey,
         current.sorting,
         offset,
@@ -329,7 +319,7 @@ export function useTasksData({ ownerId, assistantId }: UseTasksDataOptions): Use
     } finally {
       setIsLoadingMore(false);
     }
-  }, [ownerId, assistantId, activeKey, states, isLoadingMore]);
+  }, [ownerId, assistantId, activeKey, states, isLoadingMore, assistant]);
 
   const refetch = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
@@ -342,16 +332,9 @@ export function useTasksData({ ownerId, assistantId }: UseTasksDataOptions): Use
       const taskRunsState = states.taskRuns;
 
       const [tasksData, taskRunsData, hasRunning] = await Promise.all([
-        fetchForKey(ownerId, assistantId, 'tasks', taskState.sorting, 0, taskState.filterExpr),
-        fetchForKey(
-          ownerId,
-          assistantId,
-          'taskRuns',
-          taskRunsState.sorting,
-          0,
-          taskRunsState.filterExpr
-        ),
-        fetchHasRunningSnapshot(ownerId, assistantId),
+        fetchForKey(assistant, 'tasks', taskState.sorting, 0, taskState.filterExpr),
+        fetchForKey(assistant, 'taskRuns', taskRunsState.sorting, 0, taskRunsState.filterExpr),
+        fetchHasRunningSnapshot(assistant),
       ]);
 
       const loadedAt = Date.now();
@@ -377,7 +360,7 @@ export function useTasksData({ ownerId, assistantId }: UseTasksDataOptions): Use
     } finally {
       setIsLoading(false);
     }
-  }, [ownerId, assistantId, states]);
+  }, [ownerId, assistantId, states, assistant]);
 
   return {
     tasks: states.tasks,

@@ -449,12 +449,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       return;
     }
     let cancelled = false;
-    getOrFetchContactId(
-      assistantActions.chat.getContactId,
-      user.email,
-      assistant.userId,
-      assistant.agentId
-    )
+    getOrFetchContactId(assistantActions.chat.getContactId, user.email, assistant)
       .then((id) => {
         if (!cancelled) setChatContactId(id);
       })

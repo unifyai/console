@@ -6,11 +6,20 @@ import type {
   ChatSearchResult,
   Attachment,
 } from '@/types/assistants/chat';
+import type { Assistant } from '@/types/assistants/assistant';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
+import { readAcrossRoots } from '@/lib/client/read_across_roots';
+import {
+  meetExchangeFilter,
+  roleFromSenderId,
+  rootContext,
+  transcriptFilter,
+} from '@/lib/assistants/scope';
 
 const WINDOW_SIZE = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
 
 interface UseHistoricalViewOptions {
+  assistant: Assistant;
   ownerId: string | null;
   assistantId: string | null;
   contactId: number | null;
@@ -30,30 +39,15 @@ function sortingParam(direction: 'ascending' | 'descending'): string {
 }
 
 async function fetchMessagesAround(
-  ownerId: string,
-  assistantId: string,
+  assistant: Assistant,
   contactId: number,
   targetMessageId: number
 ): Promise<{ messages: ChatMessage[]; hasOlder: boolean; hasNewer: boolean }> {
-  const filterBase = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
+  const filterBase = transcriptFilter(assistant, contactId);
 
   const [olderRes, newerRes] = await Promise.all([
-    fetchPage(
-      ownerId,
-      assistantId,
-      filterBase,
-      `message_id <= ${targetMessageId}`,
-      WINDOW_SIZE,
-      'descending'
-    ),
-    fetchPage(
-      ownerId,
-      assistantId,
-      filterBase,
-      `message_id > ${targetMessageId}`,
-      WINDOW_SIZE,
-      'ascending'
-    ),
+    fetchPage(assistant, filterBase, `message_id <= ${targetMessageId}`, WINDOW_SIZE, 'descending'),
+    fetchPage(assistant, filterBase, `message_id > ${targetMessageId}`, WINDOW_SIZE, 'ascending'),
   ]);
 
   const combined = [...olderRes.messages, ...newerRes.messages].sort(
@@ -70,32 +64,34 @@ async function fetchMessagesAround(
 }
 
 async function fetchPage(
-  ownerId: string,
-  assistantId: string,
+  assistant: Assistant,
   baseFilter: string,
   rangeFilter: string,
   limit: number,
   direction: 'ascending' | 'descending'
 ): Promise<{ messages: ChatMessage[] }> {
   const filterExpr = `${baseFilter} and ${rangeFilter}`;
-  const params = new URLSearchParams({
-    projectName: 'Assistants',
-    context: `${ownerId}/${assistantId}/Transcripts`,
-    limit: String(limit),
-    filterExpr,
-    sorting: sortingParam(direction),
-  });
 
   try {
-    const response = await fetch(`/api/logs?${params.toString()}`, {
-      cache: 'no-store',
+    const logs = await readAcrossRoots<Record<string, any>>(assistant, async (root) => {
+      const params = new URLSearchParams({
+        projectName: 'Assistants',
+        context: rootContext(root, assistant.userId, assistant.agentId, 'Transcripts'),
+        limit: String(limit),
+        filterExpr,
+        sorting: sortingParam(direction),
+      });
+
+      const response = await fetch(`/api/logs?${params.toString()}`, {
+        cache: 'no-store',
+      });
+
+      if (response.status === 404 || !response.ok) return [];
+
+      const data = await response.json();
+      const rootLogs = data?.logs;
+      return Array.isArray(rootLogs) ? rootLogs : [];
     });
-
-    if (response.status === 404 || !response.ok) return { messages: [] };
-
-    const data = await response.json();
-    const logs = data?.logs;
-    if (!Array.isArray(logs)) return { messages: [] };
 
     const messages = logs
       .map((log: Record<string, any>): ChatMessage | null => {
@@ -103,7 +99,7 @@ async function fetchPage(
         if (!entries || typeof entries.content !== 'string') return null;
         return {
           id: String(id),
-          role: entries.senderId === 0 ? 'assistant' : 'user',
+          role: roleFromSenderId(assistant, entries.senderId as number),
           content: entries.content,
           timestamp: new Date(entries.timestamp as string),
           messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
@@ -133,35 +129,37 @@ async function fetchPage(
  * group by exchange_id, and return CallPill objects.
  */
 async function fetchCallPillsForRange(
-  ownerId: string,
-  assistantId: string,
+  assistant: Assistant,
   contactId: number,
   minTs: Date,
   maxTs: Date
 ): Promise<CallPill[]> {
+  const baseFilter = meetExchangeFilter(assistant, contactId);
   const filterExpr = [
-    'medium == "unify_meet"',
-    `(sender_id == ${contactId} or sender_id == 0)`,
-    `(${contactId} in receiver_ids or receiver_ids == [0])`,
+    baseFilter,
     `timestamp >= "${minTs.toISOString()}"`,
     `timestamp <= "${maxTs.toISOString()}"`,
   ].join(' and ');
 
-  const params = new URLSearchParams({
-    projectName: 'Assistants',
-    context: `${ownerId}/${assistantId}/Transcripts`,
-    limit: '500',
-    filterExpr,
-  });
-
   try {
-    const response = await fetch(`/api/logs?${params.toString()}`, {
-      cache: 'no-store',
-    });
-    if (response.status === 404 || !response.ok) return [];
+    const logs = await readAcrossRoots<Record<string, any>>(assistant, async (root) => {
+      const params = new URLSearchParams({
+        projectName: 'Assistants',
+        context: rootContext(root, assistant.userId, assistant.agentId, 'Transcripts'),
+        limit: '500',
+        filterExpr,
+      });
 
-    const data = await response.json();
-    const logs = data?.logs;
+      const response = await fetch(`/api/logs?${params.toString()}`, {
+        cache: 'no-store',
+      });
+      if (response.status === 404 || !response.ok) return [];
+
+      const data = await response.json();
+      const rootLogs = data?.logs;
+      return Array.isArray(rootLogs) ? rootLogs : [];
+    });
+
     if (!Array.isArray(logs) || logs.length === 0) return [];
 
     const exchangeGroups = new Map<number, { minTs: Date; maxTs: Date }>();
@@ -211,6 +209,7 @@ function getTimeRange(messages: ChatMessage[]): { minTs: Date; maxTs: Date } | n
 }
 
 export function useHistoricalView({
+  assistant,
   ownerId,
   assistantId,
   contactId,
@@ -233,15 +232,14 @@ export function useHistoricalView({
 
       try {
         const { messages, hasOlder, hasNewer } = await fetchMessagesAround(
-          ownerId,
-          assistantId,
+          assistant,
           contactId,
           result.messageId
         );
 
         const range = getTimeRange(messages);
         const callPills = range
-          ? await fetchCallPillsForRange(ownerId, assistantId, contactId, range.minTs, range.maxTs)
+          ? await fetchCallPillsForRange(assistant, contactId, range.minTs, range.maxTs)
           : [];
 
         setHistoricalView({
@@ -257,7 +255,7 @@ export function useHistoricalView({
         setHistoricalView(null);
       }
     },
-    [ownerId, assistantId, contactId]
+    [ownerId, assistantId, contactId, assistant]
   );
 
   const jumpToPresent = React.useCallback(() => {
@@ -274,10 +272,9 @@ export function useHistoricalView({
     setHistoricalView((prev) => prev && { ...prev, isLoadingOlder: true });
 
     try {
-      const filterBase = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
+      const filterBase = transcriptFilter(assistant, contactId);
       const { messages } = await fetchPage(
-        ownerId,
-        assistantId,
+        assistant,
         filterBase,
         `message_id < ${oldest.messageId}`,
         WINDOW_SIZE,
@@ -304,8 +301,7 @@ export function useHistoricalView({
         const newOldest = messages.reduce((a, b) => (a.timestamp < b.timestamp ? a : b));
         const existingOldest = oldest.timestamp;
         const pills = await fetchCallPillsForRange(
-          ownerId,
-          assistantId,
+          assistant,
           contactId,
           newOldest.timestamp,
           existingOldest
@@ -327,7 +323,7 @@ export function useHistoricalView({
     } catch {
       setHistoricalView((prev) => prev && { ...prev, isLoadingOlder: false });
     }
-  }, [ownerId, assistantId, contactId, historicalView]);
+  }, [ownerId, assistantId, contactId, historicalView, assistant]);
 
   const loadNewerHistorical = React.useCallback(async () => {
     if (!ownerId || !assistantId || contactId === null || !historicalView) return;
@@ -339,10 +335,9 @@ export function useHistoricalView({
     setHistoricalView((prev) => prev && { ...prev, isLoadingNewer: true });
 
     try {
-      const filterBase = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
+      const filterBase = transcriptFilter(assistant, contactId);
       const { messages } = await fetchPage(
-        ownerId,
-        assistantId,
+        assistant,
         filterBase,
         `message_id > ${newest.messageId}`,
         WINDOW_SIZE,
@@ -369,8 +364,7 @@ export function useHistoricalView({
         const newNewest = messages.reduce((a, b) => (a.timestamp > b.timestamp ? a : b));
         const existingNewest = newest.timestamp;
         const pills = await fetchCallPillsForRange(
-          ownerId,
-          assistantId,
+          assistant,
           contactId,
           existingNewest,
           newNewest.timestamp
@@ -392,7 +386,7 @@ export function useHistoricalView({
     } catch {
       setHistoricalView((prev) => prev && { ...prev, isLoadingNewer: false });
     }
-  }, [ownerId, assistantId, contactId, historicalView]);
+  }, [ownerId, assistantId, contactId, historicalView, assistant]);
 
   return {
     historicalView,

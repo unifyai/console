@@ -2,15 +2,14 @@ import type { Assistant } from '@/types/assistants/assistant';
 
 export type ContextRoot = { kind: 'personal' } | { kind: 'space'; spaceId: number };
 
-export const PERSONAL_SELF_CONTACT_ID = 0;
-export const PERSONAL_BOSS_CONTACT_ID = 1;
+export type ChatRole = 'assistant' | 'user';
 
 export function selfContactId(assistant: Assistant): number {
-  return assistant.selfContactId ?? PERSONAL_SELF_CONTACT_ID;
+  return assistant.selfContactId;
 }
 
 export function bossContactId(assistant: Assistant): number {
-  return assistant.bossContactId ?? PERSONAL_BOSS_CONTACT_ID;
+  return assistant.bossContactId;
 }
 
 export function isSelf(assistant: Assistant, contactId: number): boolean {
@@ -19,6 +18,40 @@ export function isSelf(assistant: Assistant, contactId: number): boolean {
 
 export function isBoss(assistant: Assistant, contactId: number): boolean {
   return contactId === bossContactId(assistant);
+}
+
+export function roleFromSenderId(assistant: Assistant, senderId: number): ChatRole {
+  return isSelf(assistant, senderId) ? 'assistant' : 'user';
+}
+
+export function conversationFilter(assistant: Assistant, contactId: number): string {
+  const selfId = selfContactId(assistant);
+  return `(sender_id == ${contactId} or (sender_id == ${selfId} and ${contactId} in receiver_ids))`;
+}
+
+export function transcriptFilter(assistant: Assistant, contactId: number): string {
+  return `medium == "unify_message" and ${conversationFilter(assistant, contactId)}`;
+}
+
+export function meetExchangeFilter(assistant: Assistant, contactId: number): string {
+  const selfId = selfContactId(assistant);
+  return [
+    'medium == "unify_meet"',
+    `(sender_id == ${contactId} or sender_id == ${selfId})`,
+    `(${contactId} in receiver_ids or receiver_ids == [${selfId}])`,
+  ].join(' and ');
+}
+
+export function rootContext(
+  root: ContextRoot,
+  ownerId: string,
+  assistantId: string,
+  table: string
+): string {
+  if (root.kind === 'personal') {
+    return `${ownerId}/${assistantId}/${table}`;
+  }
+  return `Spaces/${root.spaceId}/${table}`;
 }
 
 export function currentSpaceIds(assistant: Assistant): number[] {

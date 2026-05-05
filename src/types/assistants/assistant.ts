@@ -85,15 +85,13 @@ export interface Assistant {
    */
   spaceIds: number[];
   /**
-   * Contact id representing the assistant in its own conversation data. Null
-   * means the backend could not resolve the overlay row yet.
+   * Contact id representing the assistant in its own conversation data.
    */
-  selfContactId: number | null;
+  selfContactId: number;
   /**
-   * Contact id representing the owning user in conversation data. Null means
-   * the backend could not resolve the overlay row yet.
+   * Contact id representing the owning user in conversation data.
    */
-  bossContactId: number | null;
+  bossContactId: number;
   // Meta fields
   createdAt: string;
   updatedAt: string;
@@ -453,15 +451,10 @@ export interface AssistantActions {
     ) => Promise<(Voice & { info?: string; isPreset?: boolean }) | ResponseProps>;
   };
   chat: {
-    getContactId: (
-      userEmail: string,
-      ownerId: string,
-      assistantId: string
-    ) => Promise<number | null>;
+    getContactId: (userEmail: string, assistant: Assistant) => Promise<number | null>;
     getTranscripts: (
       contactId: number,
-      ownerId: string,
-      assistantId: string,
+      assistant: Assistant,
       beforeMessageId?: number
     ) => Promise<ChatMessage[] | ResponseProps>;
     message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;
@@ -547,13 +540,8 @@ export interface AssistantActions {
   /** Dashboards pane - dashboard and tile data */
   dashboards?: {
     getMetadata: (
-      ownerId: string,
-      assistantId: string
+      assistant: Assistant
     ) => Promise<import('@/types/assistants/dashboard').DashboardPaneData>;
-    getTileContent: (
-      ownerId: string,
-      assistantId: string,
-      tileToken: string
-    ) => Promise<string | null>;
+    getTileContent: (assistant: Assistant, tileToken: string) => Promise<string | null>;
   };
 }

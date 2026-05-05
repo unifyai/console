@@ -202,6 +202,7 @@ export function AssistantProfileChatPanel({
 
   // Chat search
   const searchState = useChatSearch({
+    assistant,
     ownerId: assistant.userId,
     assistantId: assistant.agentId,
     contactId: currentContactId,
@@ -216,6 +217,7 @@ export function AssistantProfileChatPanel({
     loadOlderHistorical,
     loadNewerHistorical,
   } = useHistoricalView({
+    assistant,
     ownerId: assistant.userId,
     assistantId: assistant.agentId,
     contactId: currentContactId,
