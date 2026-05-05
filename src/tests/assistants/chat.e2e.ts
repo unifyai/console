@@ -34,6 +34,8 @@ import {
   navigateToAssistants,
   closeHireDialogIfOpen,
   deleteAllAssistantsForUser,
+  dbExec,
+  dbExecBlock,
   ensureProjectSync,
   orchestraFetch,
   setUserCredits,
@@ -41,9 +43,7 @@ import {
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-
-const ASSISTANT_CONTACT_ID = 0;
-const CONTACT_ID = 2;
+import type { SeededAssistant } from './helpers';
 
 const user = createTestUser({ name: 'ChatE2E', lastName: 'Tester', credits: 50_000 });
 ensureProjectSync(user.apiKey);
@@ -55,6 +55,8 @@ const assistant = createAssistant({
   firstName: 'ChatBot',
   surname: 'E2E',
 });
+const ASSISTANT_CONTACT_ID = assistant.selfContactId;
+const CONTACT_ID = assistant.bossContactId;
 
 test.afterAll(() => {
   setUserCredits(user.id, 50_000);
@@ -71,11 +73,17 @@ let messageCounter = 1000;
 /**
  * Seed a contact record so that getContactIdByEmail resolves for this user.
  */
-async function seedContact(apiKey: string, userId: string, assistantId: number, email: string) {
+async function seedContact(
+  apiKey: string,
+  userId: string,
+  assistantId: number,
+  email: string,
+  contactId: number = CONTACT_ID
+) {
   /* eslint-disable @typescript-eslint/naming-convention */
   const entries = {
     email_address: email,
-    contact_id: CONTACT_ID,
+    contact_id: contactId,
   };
   /* eslint-enable @typescript-eslint/naming-convention */
 
@@ -108,18 +116,21 @@ async function seedTranscript(
     medium?: string;
     exchangeId?: number;
     receiverIds?: number[];
+    context?: string;
+    selfContactId?: number;
+    bossContactId?: number;
   }
 ) {
   const msgId = messageCounter++;
   const ts = opts.timestamp || new Date().toISOString();
+  const selfId = opts.selfContactId ?? ASSISTANT_CONTACT_ID;
+  const bossId = opts.bossContactId ?? CONTACT_ID;
 
   /* eslint-disable @typescript-eslint/naming-convention */
   const entries: Record<string, unknown> = {
     medium: opts.medium ?? 'unify_message',
     sender_id: opts.senderId,
-    receiver_ids:
-      opts.receiverIds ??
-      (opts.senderId === ASSISTANT_CONTACT_ID ? [CONTACT_ID] : [ASSISTANT_CONTACT_ID]),
+    receiver_ids: opts.receiverIds ?? (opts.senderId === selfId ? [bossId] : [selfId]),
     content: opts.content,
     message_id: msgId,
     timestamp: ts,
@@ -133,7 +144,7 @@ async function seedTranscript(
       method: 'POST',
       body: JSON.stringify({
         project_name: 'Assistants',
-        context: `${userId}/${assistantId}/Transcripts`,
+        context: opts.context ?? `${userId}/${assistantId}/Transcripts`,
         entries: [entries],
       }),
     },
@@ -141,6 +152,54 @@ async function seedTranscript(
   );
   if (!res.ok) throw new Error(`Failed to seed transcript: ${res.status} ${await res.text()}`);
   return msgId;
+}
+
+function createSharedSpaceForAssistant(
+  targetAssistant: SeededAssistant,
+  opts: {
+    selfContactId: number;
+    bossContactId: number;
+  }
+): number {
+  const suffix = Date.now();
+  const rawSpaceId = dbExec(`
+INSERT INTO spaces (name, description, owner_user_id, status, kind)
+VALUES (
+  'Chat Root E2E ${suffix}',
+  'Shared chat root e2e description for pagination coverage',
+  '${targetAssistant.userId}',
+  'active',
+  'team'
+)
+RETURNING space_id;
+`);
+  const spaceId = Number(rawSpaceId.match(/^\d+$/m)?.[0]);
+  if (!Number.isInteger(spaceId)) {
+    throw new Error(`Failed to parse seeded space id from psql output: ${rawSpaceId}`);
+  }
+
+  dbExecBlock(`
+INSERT INTO assistant_space_memberships (assistant_id, space_id, added_by)
+VALUES (${targetAssistant.agentId}, ${spaceId}, '${targetAssistant.userId}')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO contact_memberships (
+  assistant_id,
+  contact_id,
+  target_scope,
+  target_space_id,
+  relationship,
+  should_respond,
+  response_policy,
+  can_edit
+)
+VALUES
+  (${targetAssistant.agentId}, ${opts.selfContactId}, 'space', ${spaceId}, 'self', true, '', true),
+  (${targetAssistant.agentId}, ${opts.bossContactId}, 'space', ${spaceId}, 'boss', true, '', true)
+ON CONFLICT DO NOTHING;
+`);
+
+  return spaceId;
 }
 
 // ---------------------------------------------------------------------------
@@ -219,11 +278,14 @@ async function publishUnifyMessageOutbound(
 // Navigation helpers
 // ---------------------------------------------------------------------------
 
-async function openAssistantChat(page: import('@playwright/test').Page) {
+async function openAssistantChat(
+  page: import('@playwright/test').Page,
+  targetAssistant = assistant
+) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
+  const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
   await listItem.click();
   await page.waitForTimeout(2_000);
@@ -313,6 +375,98 @@ test('historical transcript messages load when navigating to an assistant', asyn
   // Assistant message has correct role
   const assistantBubble = page.locator(`[data-role="assistant"]:has-text("${assistantMsg}")`);
   await expect(assistantBubble).toBeVisible({ timeout: 5_000 });
+});
+
+test('shared-root chat history merges root-local identities and paginates', async ({
+  authedPage: page,
+}) => {
+  const sharedAssistant = createAssistant({
+    userId: user.id,
+    firstName: 'SharedChat',
+    surname: `E2E${Date.now()}`,
+  });
+  await seedContact(
+    user.apiKey,
+    user.id,
+    sharedAssistant.agentId,
+    user.email,
+    sharedAssistant.bossContactId
+  );
+
+  const sharedSelfContactId = 70;
+  const sharedBossContactId = 77;
+  const spaceId = createSharedSpaceForAssistant(sharedAssistant, {
+    selfContactId: sharedSelfContactId,
+    bossContactId: sharedBossContactId,
+  });
+  const sharedContext = `Spaces/${spaceId}/Transcripts`;
+
+  const stamp = Date.now();
+  const boundaryTimestamp = new Date(stamp - 60_000).toISOString();
+  const sharedBoundary = `Shared same timestamp page two ${stamp}`;
+  const personalBoundary = `Personal same timestamp boundary ${stamp}`;
+  const personalLatest = `Personal root latest ${stamp}`;
+  const sharedLatest = `Shared root latest ${stamp}`;
+  const decoy = `Shared decoy personal contact ${stamp}`;
+
+  for (let i = 0; i < 48; i++) {
+    await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+      senderId: sharedAssistant.bossContactId,
+      content: `Merged filler ${stamp}-${i}`,
+      timestamp: new Date(stamp - i * 1000).toISOString(),
+      receiverIds: [sharedAssistant.selfContactId],
+    });
+  }
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedAssistant.bossContactId,
+    content: personalLatest,
+    timestamp: new Date(stamp + 1000).toISOString(),
+    receiverIds: [sharedAssistant.selfContactId],
+  });
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedBossContactId,
+    content: sharedLatest,
+    timestamp: new Date(stamp + 2000).toISOString(),
+    receiverIds: [sharedSelfContactId],
+    context: sharedContext,
+  });
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedAssistant.bossContactId,
+    content: decoy,
+    timestamp: new Date(stamp + 3000).toISOString(),
+    receiverIds: [sharedSelfContactId],
+    context: sharedContext,
+  });
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedAssistant.bossContactId,
+    content: personalBoundary,
+    timestamp: boundaryTimestamp,
+    receiverIds: [sharedAssistant.selfContactId],
+  });
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedBossContactId,
+    content: sharedBoundary,
+    timestamp: boundaryTimestamp,
+    receiverIds: [sharedSelfContactId],
+    context: sharedContext,
+  });
+
+  await openAssistantChat(page, sharedAssistant);
+
+  await expect(page.locator(`text=${personalLatest}`).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(`text=${sharedLatest}`).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(`text=${decoy}`)).toHaveCount(0);
+
+  const viewport = page
+    .getByTestId('chat-scroll-area')
+    .locator('[data-radix-scroll-area-viewport]');
+  await viewport.evaluate((el) => {
+    el.scrollTop = 0;
+    el.dispatchEvent(new Event('scroll'));
+  });
+
+  await expect(page.locator(`text=${personalBoundary}`).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(`text=${sharedBoundary}`).first()).toBeVisible({ timeout: 20_000 });
 });
 
 test('multiple historical messages render in chronological order', async ({ authedPage: page }) => {
