@@ -32,6 +32,7 @@ import {
   type ChatStreamPair,
 } from '@/hooks/Assistants/useAssistantChatStream';
 import { getOrFetchContactId } from '@/hooks/Assistants/useContactIdPrefetch';
+import { contactScopedRootQueries } from '@/lib/assistants/scope';
 import type { ParsedInboundChatMessage } from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 
@@ -461,13 +462,23 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     };
   }, [assistant, user.email, assistantActions.chat]);
 
-  const chatStreamPairs = React.useMemo<ChatStreamPair[]>(
-    () =>
-      assistant && chatContactId !== null
-        ? [{ assistantId: assistant.agentId, contactId: chatContactId }]
-        : [],
-    [assistant, chatContactId]
-  );
+  const chatStreamPairs = React.useMemo<ChatStreamPair[]>(() => {
+    if (!assistant || chatContactId === null) return [];
+    const seenPairs = new Set<string>();
+    return contactScopedRootQueries(assistant, chatContactId, 'Transcripts').flatMap((query) => {
+      const pairKey = `${query.contactId}:${query.rootKey}`;
+      if (seenPairs.has(pairKey)) return [];
+      seenPairs.add(pairKey);
+      return [
+        {
+          assistantId: assistant.agentId,
+          contactId: query.contactId,
+          rootKey: query.rootKey,
+          sourceContext: query.context,
+        },
+      ];
+    });
+  }, [assistant, chatContactId]);
 
   const [chatStreamActivityCounter, setChatStreamActivityCounter] = React.useState(0);
   const handleChatStreamActivity = React.useCallback(() => {
@@ -477,7 +488,9 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
   // See Main.tsx for the full reasoning; forward-declared ref so the
   // message handler can call into the ack function that the chat-stream
   // hook returns below.
-  const ackMessageRef = React.useRef<(assistantId: string, ackId: string) => void>(() => {});
+  const ackMessageRef = React.useRef<
+    (assistantId: string, contactId: number, rootKey: string, ackId: string) => void
+  >(() => {});
 
   const handleChatStreamMessage = React.useCallback(
     (assistantId: string, parsed: ParsedInboundChatMessage) => {
@@ -507,7 +520,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       // Always ack — see Main.tsx for the reasoning (dedup hits still need
       // acking or Pub/Sub loops the redelivery forever).
       const ackId = message.__ackId;
-      if (ackId) ackMessageRef.current(assistantId, ackId);
+      if (ackId) ackMessageRef.current(assistantId, parsed.contactId, parsed.rootKey, ackId);
 
       if (!wasNewMessage) return;
 

@@ -50,6 +50,7 @@ import {
   useAssistantChatStream,
   type ChatStreamPair,
 } from '@/hooks/Assistants/useAssistantChatStream';
+import { contactScopedRootQueries } from '@/lib/assistants/scope';
 import {
   useAssistantTranscriptReconciler,
   type TranscriptReconcilerPair,
@@ -386,10 +387,23 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const chatStreamPairs = React.useMemo<ChatStreamPair[]>(
     () =>
       assistants
-        .map((a) => {
+        .flatMap((a) => {
           const cid = resolvedContactIds[a.agentId];
-          if (cid === undefined) return null;
-          return { assistantId: a.agentId, contactId: cid };
+          if (cid === undefined) return [];
+          const seenPairs = new Set<string>();
+          return contactScopedRootQueries(a, cid, 'Transcripts').flatMap((query) => {
+            const pairKey = `${query.contactId}:${query.rootKey}`;
+            if (seenPairs.has(pairKey)) return [];
+            seenPairs.add(pairKey);
+            return [
+              {
+                assistantId: a.agentId,
+                contactId: query.contactId,
+                rootKey: query.rootKey,
+                sourceContext: query.context,
+              },
+            ];
+          });
         })
         .filter((p): p is ChatStreamPair => p !== null),
     [assistants, resolvedContactIds]
@@ -412,7 +426,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // to reference it from inside `handleChatStreamMessage`, which is passed
   // INTO that hook. The ref sidesteps the temporal ordering: we update it
   // on every render once the hook has returned.
-  const ackMessageRef = React.useRef<(assistantId: string, ackId: string) => void>(() => {});
+  const ackMessageRef = React.useRef<
+    (assistantId: string, contactId: number, rootKey: string, ackId: string) => void
+  >(() => {});
 
   // Per-assistant publish-time cutoff for the chat SSE filter. The ref is
   // rebuilt from `profileChatHistories` whenever histories change, and
@@ -522,7 +538,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       // (whether by merging it or by letting the next transcript load
       // surface it) we have to release the lease.
       const ackId = message.__ackId;
-      if (ackId) ackMessageRef.current(assistantId, ackId);
+      if (ackId) ackMessageRef.current(assistantId, parsed.contactId, parsed.rootKey, ackId);
 
       if (mergeOutcome === 'duplicate') return;
 
