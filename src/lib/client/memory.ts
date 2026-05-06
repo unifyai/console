@@ -16,9 +16,8 @@ import type {
 } from '@/types/assistants/memory';
 import type { Assistant } from '@/types/assistants/assistant';
 import { camelToSnake, snakeToCamel } from '@/utils/casing';
-import { roots } from '@/lib/client/read_across_roots';
 import { mergeRootRows } from '@/lib/client/read_across_roots';
-import { rootContext } from '@/lib/assistants/scope';
+import { rootContext, roots, type ContextRoot } from '@/lib/assistants/scope';
 
 const PAGE_SIZE = 50;
 
@@ -80,6 +79,22 @@ export function buildSearchFilterExpr(query: string, fields: string[]): string {
   return snakeFields.map((f) => `${value} in str(${f})`).join(' or ');
 }
 
+function readableRootsFor(
+  assistant: Assistant,
+  options?: {
+    root?: ContextRoot | null;
+    readAcrossRoots?: boolean;
+  }
+): readonly ContextRoot[] {
+  if (options?.root !== undefined && options.root !== null) {
+    return [options.root];
+  }
+  if (options?.readAcrossRoots === false) {
+    return [{ kind: 'personal' }];
+  }
+  return roots(assistant);
+}
+
 export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
   assistant: Assistant,
   context: MemoryContext | string,
@@ -89,15 +104,19 @@ export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
     filterExpr?: string;
     sorting?: string;
     readAcrossRoots?: boolean;
+    root?: ContextRoot | null;
   }
 ): Promise<MemoryContextData<T>> {
   const empty: MemoryContextData<T> = { rows: [], count: 0, fields: [] };
 
   try {
-    if (options?.readAcrossRoots === false) {
+    const readableRoots = readableRootsFor(assistant, options);
+
+    if (readableRoots.length === 1) {
+      const [root] = readableRoots;
       const params = new URLSearchParams({
         projectName: 'Assistants',
-        context: rootContext({ kind: 'personal' }, assistant.userId, assistant.agentId, context),
+        context: rootContext(root, assistant.userId, assistant.agentId, context),
         limit: String(options?.limit ?? PAGE_SIZE),
       });
 
@@ -120,7 +139,7 @@ export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
     const requestedOffset = options?.offset ?? 0;
     const rootLimit = requestedLimit + requestedOffset;
     const rootResults = await Promise.all(
-      roots(assistant).map(async (root): Promise<MemoryContextData<T>> => {
+      readableRoots.map(async (root): Promise<MemoryContextData<T>> => {
         const params = new URLSearchParams({
           projectName: 'Assistants',
           context: rootContext(root, assistant.userId, assistant.agentId, context),
@@ -173,7 +192,8 @@ export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
  */
 async function fetchSubContextTables<T extends MemoryRow>(
   assistant: Assistant,
-  parentContext: string
+  parentContext: string,
+  root?: ContextRoot | null
 ): Promise<MemoryContextData<T>> {
   const empty: MemoryContextData<T> = { rows: [], count: 0, fields: [] };
 
@@ -194,8 +214,9 @@ async function fetchSubContextTables<T extends MemoryRow>(
       return empty;
     }
 
-    const prefixes = roots(assistant).map((root) =>
-      rootContext(root, assistant.userId, assistant.agentId, parentContext)
+    const readableRoots = readableRootsFor(assistant, { root });
+    const prefixes = readableRoots.map((readRoot) =>
+      rootContext(readRoot, assistant.userId, assistant.agentId, parentContext)
     );
     const subContexts = allContextNames.filter((contextName) =>
       prefixes.some((prefix) => contextName.startsWith(prefix + '/') && contextName !== prefix)
@@ -246,13 +267,15 @@ async function fetchSubContextTables<T extends MemoryRow>(
 }
 
 export function fetchKnowledgeTables(
-  assistant: Assistant
+  assistant: Assistant,
+  root?: ContextRoot | null
 ): Promise<MemoryContextData<KnowledgeRow>> {
-  return fetchSubContextTables<KnowledgeRow>(assistant, 'Knowledge');
+  return fetchSubContextTables<KnowledgeRow>(assistant, 'Knowledge', root);
 }
 
 export function fetchFunctionsTables(
-  assistant: Assistant
+  assistant: Assistant,
+  root?: ContextRoot | null
 ): Promise<MemoryContextData<FunctionRow>> {
-  return fetchSubContextTables<FunctionRow>(assistant, 'Functions');
+  return fetchSubContextTables<FunctionRow>(assistant, 'Functions', root);
 }

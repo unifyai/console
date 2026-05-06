@@ -29,6 +29,7 @@ import {
   buildSortingParam,
   buildSearchFilterExpr,
 } from '@/lib/client/memory';
+import type { ContextRoot } from '@/lib/assistants/scope';
 
 const PAGE_SIZE = 50;
 
@@ -38,6 +39,7 @@ interface UseMemoryDataOptions {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
+  root?: ContextRoot | null;
 }
 
 interface SortState {
@@ -112,21 +114,26 @@ type ContextStates = {
   Functions: ContextState<FunctionRow>;
 };
 
+interface FetchForKeyOptions {
+  sorting?: SortState | null;
+  offset?: number;
+  filterExpr?: string | null;
+  root?: ContextRoot | null;
+}
+
 function fetchForKey(
   assistant: Assistant,
   context: MemoryTabContext,
-  sorting: SortState | null,
-  offset = 0,
-  filterExpr?: string | null
+  { sorting = null, offset = 0, filterExpr = null, root = null }: FetchForKeyOptions = {}
 ) {
   const sortingParam = sorting ? buildSortingParam(sorting.field, sorting.direction) : undefined;
 
   if (context === 'Knowledge') {
-    return fetchKnowledgeTables(assistant);
+    return fetchKnowledgeTables(assistant, root);
   }
 
   if (context === 'Functions') {
-    return fetchFunctionsTables(assistant);
+    return fetchFunctionsTables(assistant, root);
   }
 
   return fetchMemoryContext(assistant, context, {
@@ -134,6 +141,7 @@ function fetchForKey(
     offset,
     sorting: sortingParam,
     filterExpr: filterExpr ?? undefined,
+    root,
   });
 }
 
@@ -141,6 +149,7 @@ export function useMemoryData({
   assistant,
   ownerId,
   assistantId,
+  root = null,
 }: UseMemoryDataOptions): UseMemoryDataResult {
   const [states, setStates] = React.useState<ContextStates>({
     Contacts: emptyState(),
@@ -153,21 +162,50 @@ export function useMemoryData({
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [activeContext, setActiveContext] = React.useState<MemoryTabContext>('Contacts');
+  const identityKey = `${ownerId}:${assistantId}`;
+  const previousIdentityKey = React.useRef(identityKey);
+  const requestSequence = React.useRef(0);
+  const pageRequestSequence = React.useRef(0);
+
+  const nextRequestId = React.useCallback(() => {
+    requestSequence.current += 1;
+    return requestSequence.current;
+  }, []);
+
+  const isLatestRequest = React.useCallback((requestId: number) => {
+    return requestSequence.current === requestId;
+  }, []);
+
+  const invalidatePageRequests = React.useCallback(() => {
+    pageRequestSequence.current += 1;
+  }, []);
+
+  const nextPageRequestId = React.useCallback(() => {
+    pageRequestSequence.current += 1;
+    return pageRequestSequence.current;
+  }, []);
+
+  const isLatestPageRequest = React.useCallback((requestId: number) => {
+    return pageRequestSequence.current === requestId;
+  }, []);
 
   const fetchAll = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
 
+    const requestId = nextRequestId();
     setIsLoading(true);
     setError(null);
 
     try {
       const [c, t, k, g, f] = await Promise.all([
-        fetchForKey(assistant, 'Contacts', null),
-        fetchForKey(assistant, 'Transcripts', null),
-        fetchForKey(assistant, 'Knowledge', null),
-        fetchForKey(assistant, 'Guidance', null),
-        fetchForKey(assistant, 'Functions', null),
+        fetchForKey(assistant, 'Contacts', { root }),
+        fetchForKey(assistant, 'Transcripts', { root }),
+        fetchForKey(assistant, 'Knowledge', { root }),
+        fetchForKey(assistant, 'Guidance', { root }),
+        fetchForKey(assistant, 'Functions', { root }),
       ]);
+      if (!isLatestRequest(requestId)) return;
+
       const loadedAt = Date.now();
 
       setStates({
@@ -208,11 +246,15 @@ export function useMemoryData({
         ),
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load memory data');
+      if (isLatestRequest(requestId)) {
+        setError(err instanceof Error ? err.message : 'Failed to load memory data');
+      }
     } finally {
-      setIsLoading(false);
+      if (isLatestRequest(requestId)) {
+        setIsLoading(false);
+      }
     }
-  }, [ownerId, assistantId, assistant]);
+  }, [ownerId, assistantId, assistant, root, nextRequestId, isLatestRequest]);
 
   React.useEffect(() => {
     setStates({
@@ -222,9 +264,14 @@ export function useMemoryData({
       Guidance: emptyState(),
       Functions: emptyState(),
     });
-    setActiveContext('Contacts');
+    if (previousIdentityKey.current !== identityKey) {
+      setActiveContext('Contacts');
+      previousIdentityKey.current = identityKey;
+    }
+    invalidatePageRequests();
+    setIsLoadingMore(false);
     fetchAll();
-  }, [fetchAll]);
+  }, [fetchAll, identityKey, invalidatePageRequests]);
 
   const sort = React.useCallback(
     async (field: string, direction: 'asc' | 'desc' | null) => {
@@ -237,10 +284,17 @@ export function useMemoryData({
         ...prev,
         [activeContext]: { ...prev[activeContext], rows: [], sorting: newSorting },
       }));
+      const requestId = nextRequestId();
       setIsLoading(true);
 
       try {
-        const data = await fetchForKey(assistant, activeContext, newSorting, 0, current.filterExpr);
+        const data = await fetchForKey(assistant, activeContext, {
+          sorting: newSorting,
+          filterExpr: current.filterExpr,
+          root,
+        });
+        if (!isLatestRequest(requestId)) return;
+
         setStates((prev) => ({
           ...prev,
           [activeContext]: contextStateFromData(
@@ -251,12 +305,16 @@ export function useMemoryData({
           ),
         }));
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to sort data');
+        if (isLatestRequest(requestId)) {
+          setError(err instanceof Error ? err.message : 'Failed to sort data');
+        }
       } finally {
-        setIsLoading(false);
+        if (isLatestRequest(requestId)) {
+          setIsLoading(false);
+        }
       }
     },
-    [ownerId, assistantId, activeContext, states, assistant]
+    [ownerId, assistantId, activeContext, states, assistant, root, nextRequestId, isLatestRequest]
   );
 
   const search = React.useCallback(
@@ -272,21 +330,32 @@ export function useMemoryData({
         ...prev,
         [activeContext]: { ...prev[activeContext], rows: [], filterExpr, searchQuery: trimmed },
       }));
+      const requestId = nextRequestId();
       setIsLoading(true);
 
       try {
-        const data = await fetchForKey(assistant, activeContext, currentSorting, 0, filterExpr);
+        const data = await fetchForKey(assistant, activeContext, {
+          sorting: currentSorting,
+          filterExpr,
+          root,
+        });
+        if (!isLatestRequest(requestId)) return;
+
         setStates((prev) => ({
           ...prev,
           [activeContext]: contextStateFromData(data as any, currentSorting, filterExpr, trimmed),
         }));
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to search');
+        if (isLatestRequest(requestId)) {
+          setError(err instanceof Error ? err.message : 'Failed to search');
+        }
       } finally {
-        setIsLoading(false);
+        if (isLatestRequest(requestId)) {
+          setIsLoading(false);
+        }
       }
     },
-    [ownerId, assistantId, activeContext, states, assistant]
+    [ownerId, assistantId, activeContext, states, assistant, root, nextRequestId, isLatestRequest]
   );
 
   const clearSearch = React.useCallback(async () => {
@@ -298,20 +367,39 @@ export function useMemoryData({
       ...prev,
       [activeContext]: { ...prev[activeContext], rows: [], filterExpr: null, searchQuery: '' },
     }));
+    const requestId = nextRequestId();
     setIsLoading(true);
 
     try {
-      const data = await fetchForKey(assistant, activeContext, currentSorting, 0, null);
+      const data = await fetchForKey(assistant, activeContext, {
+        sorting: currentSorting,
+        root,
+      });
+      if (!isLatestRequest(requestId)) return;
+
       setStates((prev) => ({
         ...prev,
         [activeContext]: contextStateFromData(data as any, currentSorting, null, ''),
       }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to clear search');
+      if (isLatestRequest(requestId)) {
+        setError(err instanceof Error ? err.message : 'Failed to clear search');
+      }
     } finally {
-      setIsLoading(false);
+      if (isLatestRequest(requestId)) {
+        setIsLoading(false);
+      }
     }
-  }, [ownerId, assistantId, activeContext, states, assistant]);
+  }, [
+    ownerId,
+    assistantId,
+    activeContext,
+    states,
+    assistant,
+    root,
+    nextRequestId,
+    isLatestRequest,
+  ]);
 
   const loadMore = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
@@ -321,17 +409,18 @@ export function useMemoryData({
 
     if (activeContext === 'Knowledge' || activeContext === 'Functions') return;
 
+    const requestId = nextPageRequestId();
     setIsLoadingMore(true);
 
     try {
       const offset = current.rows.length;
-      const data = await fetchForKey(
-        assistant,
-        activeContext,
-        current.sorting,
+      const data = await fetchForKey(assistant, activeContext, {
+        sorting: current.sorting,
         offset,
-        current.filterExpr
-      );
+        filterExpr: current.filterExpr,
+        root,
+      });
+      if (!isLatestPageRequest(requestId)) return;
 
       setStates((prev) => {
         const prevCtx = prev[activeContext];
@@ -349,11 +438,25 @@ export function useMemoryData({
         };
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load more data');
+      if (isLatestPageRequest(requestId)) {
+        setError(err instanceof Error ? err.message : 'Failed to load more data');
+      }
     } finally {
-      setIsLoadingMore(false);
+      if (isLatestPageRequest(requestId)) {
+        setIsLoadingMore(false);
+      }
     }
-  }, [ownerId, assistantId, activeContext, states, isLoadingMore, assistant]);
+  }, [
+    ownerId,
+    assistantId,
+    activeContext,
+    states,
+    isLoadingMore,
+    assistant,
+    root,
+    nextPageRequestId,
+    isLatestPageRequest,
+  ]);
 
   const refetch = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
@@ -361,15 +464,16 @@ export function useMemoryData({
     setIsLoading(true);
     setError(null);
 
+    const requestId = nextRequestId();
     try {
       const current = states[activeContext];
-      const data = await fetchForKey(
-        assistant,
-        activeContext,
-        current.sorting,
-        0,
-        current.filterExpr
-      );
+      const data = await fetchForKey(assistant, activeContext, {
+        sorting: current.sorting,
+        filterExpr: current.filterExpr,
+        root,
+      });
+      if (!isLatestRequest(requestId)) return;
+
       setStates((prev) => ({
         ...prev,
         [activeContext]: contextStateFromData(
@@ -380,11 +484,24 @@ export function useMemoryData({
         ),
       }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh data');
+      if (isLatestRequest(requestId)) {
+        setError(err instanceof Error ? err.message : 'Failed to refresh data');
+      }
     } finally {
-      setIsLoading(false);
+      if (isLatestRequest(requestId)) {
+        setIsLoading(false);
+      }
     }
-  }, [ownerId, assistantId, activeContext, states, assistant]);
+  }, [
+    ownerId,
+    assistantId,
+    activeContext,
+    states,
+    assistant,
+    root,
+    nextRequestId,
+    isLatestRequest,
+  ]);
 
   return {
     contacts: states.Contacts,

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { buildSortingParam, fetchMemoryContext } from '@/lib/client/memory';
+import { buildSortingParam, fetchKnowledgeTables, fetchMemoryContext } from '@/lib/client/memory';
 import type { Assistant } from '@/types/assistants/assistant';
 
 const assistant: Assistant = {
@@ -81,5 +81,90 @@ describe('fetchMemoryContext merged pagination', () => {
       'shared middle',
     ]);
     expect(seenUrls.every((url) => !url.searchParams.has('offset'))).toBe(true);
+  });
+
+  it('fetches only the selected personal root', async () => {
+    const seenContexts: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = new URL(String(input), 'https://console.test');
+        seenContexts.push(url.searchParams.get('context') ?? '');
+
+        return new Response(JSON.stringify({ logs: [], count: 0 }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      })
+    );
+
+    await fetchMemoryContext(assistant, 'Contacts', {
+      root: { kind: 'personal' },
+    });
+
+    expect(seenContexts).toEqual(['user-1/42/Contacts']);
+  });
+
+  it('fetches only the selected space root', async () => {
+    const seenContexts: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = new URL(String(input), 'https://console.test');
+        seenContexts.push(url.searchParams.get('context') ?? '');
+
+        return new Response(JSON.stringify({ logs: [], count: 0 }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      })
+    );
+
+    await fetchMemoryContext(assistant, 'Contacts', {
+      root: { kind: 'space', spaceId: 7 },
+    });
+
+    expect(seenContexts).toEqual(['Spaces/7/Contacts']);
+  });
+
+  it('discovers Knowledge tables only under the selected root', async () => {
+    const seenLogContexts: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = new URL(String(input), 'https://console.test');
+
+        if (url.pathname === '/api/context/Assistants') {
+          return new Response(
+            JSON.stringify([
+              { name: 'user-1/42/Knowledge/PersonalNotes' },
+              { name: 'Spaces/7/Knowledge/SharedRunbook' },
+            ]),
+            {
+              status: 200,
+              headers: { 'content-type': 'application/json' },
+            }
+          );
+        }
+
+        seenLogContexts.push(url.searchParams.get('context') ?? '');
+        return new Response(
+          JSON.stringify({
+            logs: [{ entries: { title: 'shared row' } }],
+            count: 1,
+          }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }
+        );
+      })
+    );
+
+    const data = await fetchKnowledgeTables(assistant, { kind: 'space', spaceId: 7 });
+
+    expect(seenLogContexts).toEqual(['Spaces/7/Knowledge/SharedRunbook']);
+    expect(data.rows).toEqual([expect.objectContaining({ title: 'shared row' })]);
+    expect(data.rows[0]?.['_table']).toBe('SharedRunbook');
   });
 });
