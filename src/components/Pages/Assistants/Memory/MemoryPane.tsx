@@ -119,7 +119,6 @@ export function MemoryPane({
   useEffect(() => {
     setSelectedRow(null);
   }, [activeContext, effectiveDestinationValue]);
-
   // Parent -> hook: mirror any externally-controlled sub-tab into the hook state.
   useEffect(() => {
     if (subTab !== undefined) {
