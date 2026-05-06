@@ -113,7 +113,7 @@ export function IntegrationCard({
           data-testid={`integration-edit-${provider.id}`}
         >
           <Pencil className="h-3.5 w-3.5" />
-          {isOAuth ? 'Edit credentials' : 'Edit'}
+          Edit
         </Button>
         <Button
           variant="ghost"
@@ -124,7 +124,7 @@ export function IntegrationCard({
           data-testid={`integration-disconnect-${provider.id}`}
         >
           <Trash2 className="h-3.5 w-3.5" />
-          {isOAuth ? 'Disconnect' : 'Remove'}
+          Disconnect
         </Button>
       </div>
     </div>
