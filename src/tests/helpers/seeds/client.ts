@@ -378,6 +378,7 @@ export interface CreateAssistantOpts {
   profilePhoto?: string;
   /** Optional free-text job title / specialization. */
   jobTitle?: string;
+  isCoordinator?: boolean;
 }
 
 /**
@@ -394,9 +395,10 @@ export function createAssistant(opts: CreateAssistantOpts): SeededAssistant {
   const orgClause = opts.orgId != null ? `${opts.orgId}` : 'NULL';
   const photoClause = opts.profilePhoto ? `'${opts.profilePhoto}'` : 'NULL';
   const jobTitleClause = opts.jobTitle ? `'${opts.jobTitle.replace(/'/g, "''")}'` : 'NULL';
+  const coordinatorClause = opts.isCoordinator ? 'TRUE' : 'FALSE';
 
   dbExecBlock(`
-INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel, organization_id, is_local, profile_photo, job_title)
+INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel, organization_id, is_local, profile_photo, job_title, is_coordinator)
 VALUES (
   '${opts.userId}',
   '${firstName}',
@@ -412,7 +414,8 @@ VALUES (
   ${orgClause},
   true,
   ${photoClause},
-  ${jobTitleClause}
+  ${jobTitleClause},
+  ${coordinatorClause}
 );
 `);
 
@@ -451,6 +454,7 @@ ON CONFLICT DO NOTHING;
     surname,
     userId: opts.userId,
     organizationId: opts.orgId ?? null,
+    isCoordinator: opts.isCoordinator === true,
     selfContactId: ASSISTANT_CONTACT_ID,
     bossContactId: OWNER_CONTACT_ID,
   };
@@ -925,7 +929,9 @@ export function createEmailLogin(opts: CreateEmailLoginOpts): void {
   const hashScript = `from argon2 import PasswordHasher; print(PasswordHasher().hash('${password}'))`;
   const candidates: { cmd: string; cwd?: string }[] = [];
   if (process.env.ORCHESTRA_PYTHON) {
-    candidates.push({ cmd: `"${process.env.ORCHESTRA_PYTHON}" -c "${hashScript}"` });
+    candidates.push({
+      cmd: `"${process.env.ORCHESTRA_PYTHON}" -c "${hashScript}"`,
+    });
   }
   candidates.push({
     cmd: `"${orchestraPath}/.venv/bin/python" -c "${hashScript}"`,
@@ -947,7 +953,10 @@ export function createEmailLogin(opts: CreateEmailLoginOpts): void {
   } catch {
     // Poetry may be unavailable; fall through to `poetry run` as a last resort.
   }
-  candidates.push({ cmd: `poetry run python -c "${hashScript}"`, cwd: orchestraPath });
+  candidates.push({
+    cmd: `poetry run python -c "${hashScript}"`,
+    cwd: orchestraPath,
+  });
 
   let pwHash: string | undefined;
   let lastErr: unknown;
