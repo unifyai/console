@@ -83,7 +83,12 @@ export function useAssistants(allActions: AssistantActions, isOrgContext: boolea
           throw new Error(`Invalid response format received for assistants: ${detail}`);
         }
 
-        const validAssistants = listResult.filter((a) => a && a.agentId && a.firstName);
+        const validAssistants = listResult
+          .filter((a) => a && a.agentId && a.firstName)
+          .map((assistant) => ({
+            ...assistant,
+            isCoordinator: assistant.isCoordinator === true,
+          }));
         if (validAssistants.length !== listResult.length) {
           /* no-op */
         }

@@ -7,6 +7,7 @@ const assistant: Assistant = {
   agentId: '42',
   userId: 'user-1',
   organizationId: null,
+  isCoordinator: false,
   firstName: 'Ava',
   surname: 'Repairs',
   jobTitle: null,
@@ -59,10 +60,27 @@ describe('fetchMemoryContext merged pagination', () => {
         const logs =
           context === 'user-1/42/Transcripts'
             ? [
-                { entries: { content: 'personal newest', timestamp: '2026-05-01T12:00:00Z' } },
-                { entries: { content: 'personal oldest', timestamp: '2026-05-01T10:00:00Z' } },
+                {
+                  entries: {
+                    content: 'personal newest',
+                    timestamp: '2026-05-01T12:00:00Z',
+                  },
+                },
+                {
+                  entries: {
+                    content: 'personal oldest',
+                    timestamp: '2026-05-01T10:00:00Z',
+                  },
+                },
               ]
-            : [{ entries: { content: 'shared middle', timestamp: '2026-05-01T11:00:00Z' } }];
+            : [
+                {
+                  entries: {
+                    content: 'shared middle',
+                    timestamp: '2026-05-01T11:00:00Z',
+                  },
+                },
+              ];
 
         return new Response(JSON.stringify({ logs, count: logs.length }), {
           status: 200,
@@ -161,7 +179,10 @@ describe('fetchMemoryContext merged pagination', () => {
       })
     );
 
-    const data = await fetchKnowledgeTables(assistant, { kind: 'space', spaceId: 7 });
+    const data = await fetchKnowledgeTables(assistant, {
+      kind: 'space',
+      spaceId: 7,
+    });
 
     expect(seenLogContexts).toEqual(['Spaces/7/Knowledge/SharedRunbook']);
     expect(data.rows).toEqual([expect.objectContaining({ title: 'shared row' })]);

@@ -7,6 +7,7 @@ const assistant: Assistant = {
   agentId: '42',
   userId: 'user-1',
   organizationId: null,
+  isCoordinator: false,
   firstName: 'Ava',
   surname: 'Repairs',
   jobTitle: null,

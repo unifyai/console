@@ -44,6 +44,7 @@ import {
   DEFAULT_SPENDING_GATE_STATUS,
 } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
+import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
 
 /**
  * Underline tab style — same shape as the assistant info side panel
@@ -345,6 +346,7 @@ export function RightPaneContainer({
   const handleActiveActionChange = useCallback((active: boolean) => {
     setHasActiveAction(active);
   }, []);
+  const { canOpenAssistantChat } = useAssistantPermissions();
 
   // Per-slot sub-tab state for the tabs that have sub-tabs (Memory,
   // Tasks). Kept here so the dropdown in the tab strip can both *drive*
@@ -435,6 +437,20 @@ export function RightPaneContainer({
         className="h-full"
         onHasActiveActionChange={handleActiveActionChange}
       />
+    );
+  }
+
+  if (!canOpenAssistantChat(assistant)) {
+    return (
+      <div
+        data-testid="coordinator-admin-only"
+        className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center"
+      >
+        <p className="text-body-muted">Coordinator chat is admin-only.</p>
+        <p className="text-caption text-muted-foreground">
+          Ask an organization Owner or Admin to open this chat.
+        </p>
+      </div>
     );
   }
 

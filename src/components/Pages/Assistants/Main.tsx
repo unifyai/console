@@ -178,7 +178,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, []);
 
   React.useEffect(() => {
-    setPaneState((prev) => ({ ...prev, primary: { tab: 'chat' }, secondary: null }));
+    setPaneState((prev) => ({
+      ...prev,
+      primary: { tab: 'chat' },
+      secondary: null,
+    }));
   }, [profileAssistantId]);
 
   // Convenience: chat is "visible" if either slot is showing it. Used by
@@ -286,9 +290,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // and includes org owners/admins, which isn't the same audience.
   const { activeWorkspace, currentUserId } = useWorkspace();
 
+  // --- Assistant Permissions ---
+  const { canHire, canWrite, canEndContract, canOpenAssistantChat } = useAssistantPermissions();
+  const sidebarAssistants = React.useMemo(
+    () => assistants.filter((assistant) => canOpenAssistantChat(assistant)),
+    [assistants, canOpenAssistantChat]
+  );
+  const chatReadableAssistants = sidebarAssistants;
+
   const hasSpaceMemberships = React.useMemo(
-    () => assistants.some((assistant) => (assistant.spaceIds?.length ?? 0) > 0),
-    [assistants]
+    () => sidebarAssistants.some((assistant) => (assistant.spaceIds?.length ?? 0) > 0),
+    [sidebarAssistants]
   );
 
   const spacesQuery = useQuery({
@@ -320,9 +332,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // --- Assistant Status Polling ---
   const { statuses: assistantStatuses, markOnline: markAssistantOnline } =
     useAssistantStatus(assistants);
-
-  // --- Assistant Permissions ---
-  const { canHire, canWrite, canDelete } = useAssistantPermissions();
 
   // --- Billing Status & Credit Grant Link ---
   const {
@@ -368,7 +377,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // (write-if-absent). When the user opens a chat, all data is already
   // cached — the chat loads instantly with zero loading/skeleton state.
   const resolvedContactIds = useContactIdPrefetch(
-    assistants,
+    chatReadableAssistants,
     assistantActions,
     userMeta.email,
     setProfileChatHistories,
@@ -421,7 +430,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // per network response.
   const chatStreamPairs = React.useMemo<ChatStreamPair[]>(
     () =>
-      assistants
+      chatReadableAssistants
         .flatMap((a) => {
           const cid = resolvedContactIds[a.agentId];
           if (cid === undefined) return [];
@@ -441,7 +450,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           });
         })
         .filter((p): p is ChatStreamPair => p !== null),
-    [assistants, resolvedContactIds]
+    [chatReadableAssistants, resolvedContactIds]
   );
 
   // Per-assistant monotonic counter bumped on every inbound SSE frame.
@@ -664,14 +673,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // `useAssistantProfileChat`.
   const reconcilerPairs = React.useMemo<TranscriptReconcilerPair[]>(
     () =>
-      assistants
+      chatReadableAssistants
         .map((a) => {
           const cid = resolvedContactIds[a.agentId];
           if (cid === undefined) return null;
           return { assistantId: a.agentId, contactId: cid, assistant: a };
         })
         .filter((p): p is TranscriptReconcilerPair => p !== null),
-    [assistants, resolvedContactIds]
+    [chatReadableAssistants, resolvedContactIds]
   );
   useAssistantTranscriptReconciler({
     pairs: reconcilerPairs,
@@ -959,6 +968,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
       const optimisticAssistant: Assistant = {
         ...newAssistant,
+        isCoordinator: newAssistant.isCoordinator ?? false,
         ...(formData.profilePhotoUrl && !newAssistant.profilePhoto
           ? { profilePhoto: formData.profilePhotoUrl }
           : {}),
@@ -1428,7 +1438,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           }}
         >
           <AssistantList
-            assistants={assistants}
+            assistants={sidebarAssistants}
             assistantStatuses={assistantStatuses}
             assistantError={assistantError}
             isLoading={isLoadingAssistants}
@@ -1440,7 +1450,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             onOpenWorkspaceManager={handleOpenWorkspaceManager}
             onEditAssistant={handleOpenEditDialog}
             onEndContract={onDeleteAssistantSubmit}
-            canEndContract={canDelete}
+            canEndContract={canEndContract}
             canEditAssistant={canWrite}
             isFolded={isAssistantListFolded}
             activeCallAssistantId={activeCallId}
@@ -1592,7 +1602,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             onAddPaymentMethod={() => setIsStripePanelOpen(true)}
             isStripePanelOpen={isStripePanelOpen}
             onDeleteAssistant={onDeleteAssistantSubmit}
-            canDelete={canDelete(assistantToEdit)}
+            canDelete={canEndContract(assistantToEdit)}
           >
             <HireForm
               formMethods={formMethods}

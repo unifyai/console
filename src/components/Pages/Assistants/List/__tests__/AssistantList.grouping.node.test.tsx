@@ -17,11 +17,17 @@ Object.defineProperty(window, 'ResizeObserver', {
   value: TestResizeObserver,
 });
 
-function assistant(agentId: string, firstName: string, surname: string, spaceIds: number[]): Assistant {
+function assistant(
+  agentId: string,
+  firstName: string,
+  surname: string,
+  spaceIds: number[]
+): Assistant {
   return {
     agentId,
     userId: 'user-1',
     organizationId: null,
+    isCoordinator: false,
     firstName,
     surname,
     jobTitle: null,

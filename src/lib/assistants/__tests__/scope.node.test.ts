@@ -18,6 +18,7 @@ const assistant: Assistant = {
   agentId: '42',
   userId: 'user-1',
   organizationId: null,
+  isCoordinator: false,
   firstName: 'Ava',
   surname: 'Repairs',
   jobTitle: null,
@@ -61,7 +62,11 @@ describe('assistant scope helpers', () => {
   });
 
   it('identifies self and boss contacts through the resolved ids', () => {
-    const scopedAssistant = { ...assistant, selfContactId: 9, bossContactId: 10 };
+    const scopedAssistant = {
+      ...assistant,
+      selfContactId: 9,
+      bossContactId: 10,
+    };
 
     expect(isSelf(scopedAssistant, 9)).toBe(true);
     expect(isSelf(scopedAssistant, 10)).toBe(false);
@@ -72,7 +77,11 @@ describe('assistant scope helpers', () => {
   });
 
   it('builds transcript and meet filters from resolved self ids', () => {
-    const scopedAssistant = { ...assistant, selfContactId: 42, bossContactId: 43 };
+    const scopedAssistant = {
+      ...assistant,
+      selfContactId: 42,
+      bossContactId: 43,
+    };
 
     expect(transcriptFilter(scopedAssistant, 43)).toBe(
       'medium == "unify_message" and (sender_id == 43 or (sender_id == 42 and 43 in receiver_ids))'

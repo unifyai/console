@@ -9,6 +9,7 @@ import {
   Trash2,
   Loader2,
   AlertTriangle,
+  Star,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
@@ -59,6 +60,17 @@ interface AssistantListItemProps {
   alsoInSpaceLabels?: string[];
 }
 
+function CoordinatorAvatarBadge() {
+  return (
+    <span
+      aria-label="Coordinator"
+      className="absolute right-0 top-0 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background"
+    >
+      <Star className="h-2.5 w-2.5 fill-current" aria-hidden="true" />
+    </span>
+  );
+}
+
 export function AssistantListItem({
   assistant,
   status,
@@ -100,6 +112,8 @@ export function AssistantListItem({
   const displayName = `${assistant.firstName} ${assistant.surname}`;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
   const isOnline = status?.running === true;
+  const isCoordinator = assistant.isCoordinator === true;
+  const canEndContract = !!onEndContract;
 
   if (isFolded) {
     return (
@@ -126,6 +140,7 @@ export function AssistantListItem({
             )}
           />
         )}
+        {isCoordinator && <CoordinatorAvatarBadge />}
         {isCallActive && (
           <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
@@ -179,8 +194,26 @@ export function AssistantListItem({
               )}
             />
           )}
+          {isCoordinator && <CoordinatorAvatarBadge />}
         </div>
-        <span className="text-body text-strong truncate">{displayName}</span>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className="text-body text-strong truncate">{displayName}</span>
+          {isCoordinator && (
+            <span
+              className={cn(
+                'text-caption shrink-0',
+                isSelected ? 'text-primary-foreground' : 'text-muted-foreground'
+              )}
+            >
+              <Badge
+                variant="outline"
+                className={cn(isSelected && 'border-primary-foreground text-primary-foreground')}
+              >
+                Coordinator
+              </Badge>
+            </span>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-1">
         {alsoInSpaceLabels.length > 0 && (
@@ -260,7 +293,7 @@ export function AssistantListItem({
             menu just adds noise. With canEdit and onEndContract
             both gated, a viewer with neither permission gets a
             cleaner row. */}
-        {(canEdit || onEndContract) && (
+        {(canEdit || canEndContract) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -302,7 +335,7 @@ export function AssistantListItem({
                   </DropdownMenuItem>
                 </>
               )}
-              {onEndContract && (
+              {canEndContract && (
                 <>
                   {canEdit && <DropdownMenuSeparator />}
                   <DropdownMenuItem
@@ -318,37 +351,39 @@ export function AssistantListItem({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        <AlertDialog open={isEndContractAlertOpen} onOpenChange={setIsEndContractAlertOpen}>
-          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center">
-                <AlertTriangle className="mr-2 h-5 w-5 text-destructive" />
-                Confirm End Contract
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                You are about to remove{' '}
-                <strong>
-                  {assistant.firstName} {assistant.surname}
-                </strong>{' '}
-                from your team. This action cannot be undone. Are you sure?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isEndingContract}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleEndContractConfirm}
-                disabled={isEndingContract}
-                className={cn(
-                  'hover:bg-destructive/90 bg-destructive',
-                  isEndingContract && 'cursor-not-allowed opacity-70'
-                )}
-              >
-                {isEndingContract ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Proceed
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        {canEndContract && (
+          <AlertDialog open={isEndContractAlertOpen} onOpenChange={setIsEndContractAlertOpen}>
+            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center">
+                  <AlertTriangle className="mr-2 h-5 w-5 text-destructive" />
+                  Confirm End Contract
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  You are about to remove{' '}
+                  <strong>
+                    {assistant.firstName} {assistant.surname}
+                  </strong>{' '}
+                  from your team. This action cannot be undone. Are you sure?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isEndingContract}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleEndContractConfirm}
+                  disabled={isEndingContract}
+                  className={cn(
+                    'hover:bg-destructive/90 bg-destructive',
+                    isEndingContract && 'cursor-not-allowed opacity-70'
+                  )}
+                >
+                  {isEndingContract ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Proceed
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
     </div>
   );

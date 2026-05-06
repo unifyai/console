@@ -99,6 +99,31 @@ export function AssistantList({
     [filteredAssistants, spacesById]
   );
 
+  const foldedAssistantRows = React.useMemo(() => {
+    if (!isFolded) {
+      return { assistants: filteredAssistants, coordinatorCount: 0 };
+    }
+
+    const coordinatorRows: Assistant[] = [];
+    const regularRows: Assistant[] = [];
+    filteredAssistants.forEach((assistant) => {
+      if (assistant.isCoordinator) {
+        coordinatorRows.push(assistant);
+      } else {
+        regularRows.push(assistant);
+      }
+    });
+
+    if (coordinatorRows.length === 0) {
+      return { assistants: filteredAssistants, coordinatorCount: 0 };
+    }
+
+    return {
+      assistants: [...coordinatorRows, ...regularRows],
+      coordinatorCount: coordinatorRows.length,
+    };
+  }, [filteredAssistants, isFolded]);
+
   React.useEffect(() => {
     try {
       const stored = window.localStorage.getItem(LIST_GROUP_FOLDS_STORAGE_KEY);
@@ -121,10 +146,7 @@ export function AssistantList({
 
   const persistFoldedGroups = React.useCallback((nextFoldedGroups: Record<string, boolean>) => {
     try {
-      window.localStorage.setItem(
-        LIST_GROUP_FOLDS_STORAGE_KEY,
-        JSON.stringify(nextFoldedGroups)
-      );
+      window.localStorage.setItem(LIST_GROUP_FOLDS_STORAGE_KEY, JSON.stringify(nextFoldedGroups));
     } catch {
       /* ignore */
     }
@@ -188,17 +210,41 @@ export function AssistantList({
   );
 
   const renderFlatAssistants = React.useCallback(() => {
-    return filteredAssistants.map((assistant) =>
-      renderAssistantRow(
-        {
-          assistant,
-          isPrimarySpaceListing: true,
-          alsoInSpaceLabels: [],
-        },
-        assistant.agentId
-      )
-    );
-  }, [filteredAssistants, renderAssistantRow]);
+    const renderedRows: React.ReactNode[] = [];
+    const { assistants: flatAssistants, coordinatorCount } = foldedAssistantRows;
+
+    flatAssistants.forEach((assistant, index) => {
+      renderedRows.push(
+        renderAssistantRow(
+          {
+            assistant,
+            isPrimarySpaceListing: true,
+            alsoInSpaceLabels: [],
+          },
+          assistant.agentId
+        )
+      );
+
+      if (
+        isFolded &&
+        coordinatorCount > 0 &&
+        index === coordinatorCount - 1 &&
+        flatAssistants.length > coordinatorCount
+      ) {
+        renderedRows.push(
+          <div
+            key="coordinator-divider"
+            role="separator"
+            aria-orientation="horizontal"
+            data-testid="coordinator-divider"
+            className="my-1 h-px w-6 bg-border"
+          />
+        );
+      }
+    });
+
+    return renderedRows;
+  }, [foldedAssistantRows, isFolded, renderAssistantRow]);
 
   const renderGroup = React.useCallback(
     (group: AssistantListGroup) => {
@@ -256,9 +302,25 @@ export function AssistantList({
   const pinnedGroup = assistantGroups.find((group) => group.kind === 'pinned');
   const spaceGroups = assistantGroups.filter((group) => group.kind === 'space');
   const soloGroup = assistantGroups.find((group) => group.kind === 'solo');
+  const hasPinnedRows = (pinnedGroup?.rows.length ?? 0) > 0;
+  const hasGroupedRowsBelowCoordinator = spaceGroups.length > 0 || !!soloGroup;
   const groupedAssistantList = (
     <div className="space-y-3">
-      {pinnedGroup ? renderGroup(pinnedGroup) : null}
+      {pinnedGroup ? (
+        <div className="space-y-1" data-testid="assistant-list-group-pinned">
+          {pinnedGroup.rows.map((entry) =>
+            renderAssistantRow(entry, `${pinnedGroup.id}:${entry.assistant.agentId}`)
+          )}
+        </div>
+      ) : null}
+      {hasPinnedRows && hasGroupedRowsBelowCoordinator ? (
+        <div
+          role="separator"
+          aria-orientation="horizontal"
+          data-testid="coordinator-divider"
+          className="my-2 border-t border-border"
+        />
+      ) : null}
       {spaceGroups.length > 0
         ? renderSection(
             'section:spaces',

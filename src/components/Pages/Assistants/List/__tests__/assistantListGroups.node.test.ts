@@ -15,6 +15,7 @@ function assistant(
     agentId,
     userId: 'user-1',
     organizationId: null,
+    isCoordinator: false,
     firstName,
     surname,
     jobTitle: null,
@@ -123,7 +124,7 @@ describe('groupAssistantsBySpace', () => {
     expect(groups[0].rows.map((entry) => entry.assistant.agentId)).toEqual(['1', '2', '3']);
   });
 
-  it('accepts assistants without a Coordinator flag', () => {
+  it('treats false Coordinator flags as regular solo assistants', () => {
     const groups = groupAssistantsBySpace([assistant('1', 'No', 'Flag', [])], {});
 
     expect(groups.map((group) => group.id)).toEqual(['solo']);

@@ -3839,6 +3839,12 @@ export interface components {
        */
       organization_id?: number | null;
       /**
+       * Is Coordinator
+       * @description Whether this assistant configures and coordinates its workspace.
+       * @default false
+       */
+      is_coordinator: boolean;
+      /**
        * Created At
        * Format: date-time
        * @description Timestamp when the assistant was created

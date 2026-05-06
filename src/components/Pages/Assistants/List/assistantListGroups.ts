@@ -29,8 +29,6 @@ export type AssistantListGroup =
       rows: AssistantListEntry[];
     };
 
-type CoordinatorAssistant = Assistant & { isCoordinator?: boolean };
-
 function assistantSortKey(assistant: Assistant): string {
   return [assistant.firstName, assistant.surname, assistant.agentId].join('\u0000').toLowerCase();
 }
@@ -40,7 +38,7 @@ function sortEntries(left: AssistantListEntry, right: AssistantListEntry): numbe
 }
 
 function isCoordinator(assistant: Assistant): boolean {
-  return (assistant as CoordinatorAssistant).isCoordinator === true;
+  return assistant.isCoordinator === true;
 }
 
 function spaceLabel(spaceId: number, spacesById: Record<number, SpaceSummary>): string {
@@ -70,13 +68,21 @@ export function groupAssistantsBySpace(
 
   for (const assistant of assistants) {
     if (isCoordinator(assistant)) {
-      pinnedRows.push({ assistant, isPrimarySpaceListing: true, alsoInSpaceLabels: [] });
+      pinnedRows.push({
+        assistant,
+        isPrimarySpaceListing: true,
+        alsoInSpaceLabels: [],
+      });
       continue;
     }
 
     const spaceIds = currentSpaceIds(assistant);
     if (spaceIds.length === 0) {
-      soloRows.push({ assistant, isPrimarySpaceListing: true, alsoInSpaceLabels: [] });
+      soloRows.push({
+        assistant,
+        isPrimarySpaceListing: true,
+        alsoInSpaceLabels: [],
+      });
       continue;
     }
 

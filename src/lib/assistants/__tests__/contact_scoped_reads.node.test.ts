@@ -8,6 +8,7 @@ const assistant: Assistant = {
   agentId: '42',
   userId: 'user-1',
   organizationId: null,
+  isCoordinator: false,
   firstName: 'Ava',
   surname: 'Repairs',
   jobTitle: null,
@@ -158,8 +159,14 @@ describe('contact-scoped root reads', () => {
 
     expect('detail' in result).toBe(false);
     expect(result).toMatchObject([
-      { content: 'same timestamp next page', sourceContext: 'user-1/42/Transcripts' },
-      { content: 'shared same timestamp next page', sourceContext: 'Spaces/7/Transcripts' },
+      {
+        content: 'same timestamp next page',
+        sourceContext: 'user-1/42/Transcripts',
+      },
+      {
+        content: 'shared same timestamp next page',
+        sourceContext: 'Spaces/7/Transcripts',
+      },
     ]);
   });
 });

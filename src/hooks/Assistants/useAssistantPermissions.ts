@@ -7,12 +7,9 @@ import { Assistant } from '@/types/assistants/assistant';
 /**
  * Permission state for assistant operations.
  *
- * Current Implementation:
  * - canHire: Only org Owner or Admin can hire in org context; anyone in personal workspace
  * - canWrite/canDelete: Assistant creator, org Owner, or org Admin can modify in org context;
  *   regular org Members can only view but not edit other members' assistants
- *
- * Future: Will be extended to use full RBAC with assistant:read/write/delete permissions
  */
 export interface AssistantPermissions {
   /** Whether we're in an organization workspace */
@@ -25,6 +22,10 @@ export interface AssistantPermissions {
   canWrite: (assistant: Assistant) => boolean;
   /** Check if user can delete a specific assistant */
   canDelete: (assistant: Assistant) => boolean;
+  /** Check if user can end a specific assistant contract */
+  canEndContract: (assistant: Assistant) => boolean;
+  /** Check if user can open the Coordinator chat surface */
+  canOpenAssistantChat: (assistant: Assistant) => boolean;
 }
 
 /**
@@ -56,23 +57,32 @@ export function useAssistantPermissions(): AssistantPermissions {
       isOrgContext,
       isOrgOwner,
 
-      // v0: Owner or Admin can hire in org context; anyone can hire in personal workspace
+      // Owner or Admin can hire in org context; anyone can hire in personal workspace.
       canHire: !isOrgContext || isOrgOwner || isOrgAdmin,
 
-      // Assistant creator, org owner, or org admin can write in org context
-      // In personal workspace, user always has full access
+      // Assistant creator, org owner, or org admin can write in org context.
+      // In personal workspace, user always has full access.
       canWrite: (assistant: Assistant) => {
         if (!isOrgContext) return true;
         return assistant.userId === currentUserId || isOrgOwner || isOrgAdmin;
-        // TODO v2: Add || checkResourcePermission('assistant:write', assistant.agentId)
       },
 
-      // Assistant creator, org owner, or org admin can delete in org context
-      // Same logic as canWrite for now
+      // Assistant creator, org owner, or org admin can delete in org context.
       canDelete: (assistant: Assistant) => {
         if (!isOrgContext) return true;
         return assistant.userId === currentUserId || isOrgOwner || isOrgAdmin;
-        // TODO v2: Add || checkResourcePermission('assistant:delete', assistant.agentId)
+      },
+
+      canEndContract: (assistant: Assistant) => {
+        if (assistant.isCoordinator) return false;
+        if (!isOrgContext) return true;
+        return assistant.userId === currentUserId || isOrgOwner || isOrgAdmin;
+      },
+
+      canOpenAssistantChat: (assistant: Assistant) => {
+        if (!assistant.isCoordinator) return true;
+        if (!isOrgContext) return true;
+        return isOrgOwner || isOrgAdmin;
       },
     }),
     [isOrgContext, isOrgOwner, isOrgAdmin, currentUserId]
