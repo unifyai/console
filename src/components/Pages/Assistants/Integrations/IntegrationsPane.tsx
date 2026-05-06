@@ -143,7 +143,7 @@ export function IntegrationsPane({
       toast.success(`Connected to ${label}.`);
       flash.clear();
     } else if (flash.error) {
-      toast.error(`Connection failed: ${flash.error.reason}`);
+      toast.error(flash.error.message);
       flash.clear();
     }
   }, [flash]);
@@ -470,13 +470,9 @@ export function IntegrationsPane({
           </div>
         )}
 
-        {/* Custom secrets table */}
-        <div data-testid="integrations-other-secrets">
-          {cards.length > 0 && tableSecrets.length > 0 && (
-            <div className="border-b bg-background px-3 pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              Other secrets
-            </div>
-          )}
+        {/* Custom secrets table — rendered directly under the integration
+            cards with no separator label. */}
+        <div data-testid="integrations-custom-secrets">
           <SecretsTable
             secrets={tableSecrets}
             isLoading={isLoading}

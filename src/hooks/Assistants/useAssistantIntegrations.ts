@@ -180,18 +180,64 @@ export async function disconnectIntegration(args: {
 }
 
 /**
+ * Map a raw ``integration_error`` reason (set by the OAuth callback) to
+ * a customer-friendly message.  Unknown reasons fall through unchanged
+ * so we never lose information — they just look terser.
+ *
+ * The redirect-URI bucket matches the strings Employment Hero sends back
+ * via the ``error`` query param when the URI registered in the dev-portal
+ * app doesn't match the one Console uses.  Any of these should send the
+ * user back to Step 1 of the Connect modal to copy the right URL.
+ */
+function describeIntegrationError(reason: string): string {
+  const lower = reason.toLowerCase();
+
+  // Redirect-URI mismatch — the most common first-time-setup failure.
+  if (
+    lower.includes('invalid_redirect_uri') ||
+    lower.includes('redirect_uri_mismatch') ||
+    lower.includes('redirect uri')
+  ) {
+    return 'The redirect URI registered with your provider doesn’t match. Re-open Connect, copy the redirect URI from Step 1, and paste it into your developer-portal app.';
+  }
+
+  if (lower.includes('access_denied')) {
+    return 'You declined the request on the provider. Click Connect again to retry.';
+  }
+
+  if (lower === 'missing_credentials' || lower === 'credentials_unreadable') {
+    return 'Your saved credentials couldn’t be read. Edit them and try Connect again.';
+  }
+
+  if (lower === 'missing_params' || lower.startsWith('state')) {
+    return 'The Connect link expired or was reused. Click Connect again to start a fresh flow.';
+  }
+
+  if (lower.startsWith('write_failed:')) {
+    const which = reason.split(':')[1] ?? '';
+    return `Connection succeeded but saving ${which} failed. Try Reconnect.`;
+  }
+
+  return `Connection failed: ${reason}`;
+}
+
+/**
  * Read URL search params for ``integration_success`` / ``integration_error``
  * flags set by the OAuth callback redirect.  Returns the matched flag
  * (if any) and a helper to clear it from the URL after the toast fires.
+ *
+ * ``error.message`` is the customer-friendly message; ``error.reason``
+ * is the raw machine token from the redirect (kept around for
+ * logging/debug).
  */
 export function useIntegrationCallbackFlash(): {
   success: { providerId: string; hubDomain: string | null } | null;
-  error: { reason: string } | null;
+  error: { reason: string; message: string } | null;
   clear: () => void;
 } {
   const [state, setState] = React.useState<{
     success: { providerId: string; hubDomain: string | null } | null;
-    error: { reason: string } | null;
+    error: { reason: string; message: string } | null;
   }>({ success: null, error: null });
 
   React.useEffect(() => {
@@ -203,7 +249,10 @@ export function useIntegrationCallbackFlash(): {
     if (success) {
       setState({ success: { providerId: success, hubDomain }, error: null });
     } else if (error) {
-      setState({ success: null, error: { reason: error } });
+      setState({
+        success: null,
+        error: { reason: error, message: describeIntegrationError(error) },
+      });
     }
   }, []);
 

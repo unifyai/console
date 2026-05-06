@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Check, Copy, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -60,10 +61,35 @@ export function OAuthIntegrationDialog({
   // Per-field input state.  Empty string means "keep existing" in edit
   // mode and "missing" in add mode.
   const [values, setValues] = React.useState<Record<string, string>>({});
+  const [copied, setCopied] = React.useState(false);
 
   React.useEffect(() => {
-    if (open) setValues({});
+    if (open) {
+      setValues({});
+      setCopied(false);
+    }
   }, [open]);
+
+  // The exact URL the customer must register as a Redirect URI inside
+  // their provider's developer-portal app.  Computed client-side so it
+  // matches whatever origin the user is on (works for localhost dev,
+  // staging, prod without env wiring).  Mirrors the
+  // ``oauth/<providerId>/callback`` route the callback handler lives at.
+  const redirectUri = React.useMemo(() => {
+    if (typeof window === 'undefined') return '';
+    return `${window.location.origin}/oauth/${provider.id}/callback`;
+  }, [provider.id]);
+
+  const handleCopyRedirectUri = async () => {
+    try {
+      await navigator.clipboard.writeText(redirectUri);
+      setCopied(true);
+      toast.success('Redirect URI copied');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Could not copy to clipboard');
+    }
+  };
 
   if (provider.auth.kind !== 'oauth_authorization_code') {
     return null;
@@ -143,6 +169,48 @@ export function OAuthIntegrationDialog({
               </>
             )}
           </p>
+
+          {!isEditing && (
+            <div
+              className="bg-muted/30 flex flex-col gap-2 rounded-md border p-3"
+              data-testid={`integration-oauth-redirect-uri-${provider.id}`}
+            >
+              <p className="text-label">Step 1 — Add this redirect URI</p>
+              <p className="text-caption">
+                Open your {provider.label} developer-portal app and paste the URL below into its
+                &quot;Redirect URIs&quot; field. Save the app, then continue to Step 2.
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="text-code-sm flex-1 truncate rounded border bg-background px-2 py-1.5">
+                  {redirectUri}
+                </code>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 shrink-0 gap-1 px-2"
+                  onClick={handleCopyRedirectUri}
+                  disabled={isSubmitting || !redirectUri}
+                  data-testid={`integration-oauth-copy-redirect-uri-${provider.id}`}
+                  aria-label="Copy redirect URI"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="h-3.5 w-3.5" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3.5 w-3.5" />
+                      Copy
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {!isEditing && <p className="text-label">Step 2 — Paste your app credentials</p>}
 
           {fields.map((field) => (
             <div key={field.secretKey} className="flex flex-col gap-1.5">
