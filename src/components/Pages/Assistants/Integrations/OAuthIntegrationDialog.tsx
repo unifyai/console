@@ -150,7 +150,7 @@ export function OAuthIntegrationDialog({
 
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col gap-4 pt-1"
+          className="flex min-w-0 flex-col gap-4 overflow-hidden pt-1"
           data-testid="integration-oauth-form"
         >
           <p className="text-caption">
@@ -180,8 +180,8 @@ export function OAuthIntegrationDialog({
                 Open your {provider.label} developer-portal app and paste the URL below into its
                 &quot;Redirect URIs&quot; field. Save the app, then continue to Step 2.
               </p>
-              <div className="flex items-center gap-2">
-                <code className="text-code-sm flex-1 truncate rounded border bg-background px-2 py-1.5">
+              <div className="flex min-w-0 items-center gap-2">
+                <code className="text-code-sm min-w-0 flex-1 truncate rounded border bg-background px-2 py-1.5">
                   {redirectUri}
                 </code>
                 <Button
