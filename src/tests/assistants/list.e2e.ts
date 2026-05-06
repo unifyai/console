@@ -64,6 +64,7 @@ test('seeded assistants appear in the list with correct names', async ({ authedP
   await expect(item1).toBeVisible({ timeout: 15_000 });
   await expect(item2).toBeVisible({ timeout: 5_000 });
 
+  await expect(page.locator('[data-testid^="assistant-list-group-"]')).toHaveCount(0);
   await expect(item1).toContainText('Alpha');
   await expect(item2).toContainText('Beta');
 });

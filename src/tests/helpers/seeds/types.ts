@@ -45,6 +45,14 @@ export interface SeededAssistant {
   bossContactId: number;
 }
 
+export interface SeededSpace {
+  /** space_id primary key */
+  spaceId: number;
+  name: string;
+  description: string;
+  ownerUserId: string;
+}
+
 export interface SeededSecret {
   name: string;
   description?: string;
