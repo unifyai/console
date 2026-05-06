@@ -24,8 +24,8 @@ interface IntegrationCardProps {
  * buttons depending on whether the integration is OAuth or API-key.
  *
  * Per the universal-masking decision, the card never displays any
- * actual secret values — even non-sensitive metadata like ``hub_domain``
- * lives only as boolean presence.
+ * actual secret values — even non-sensitive metadata lives only as
+ * boolean presence.
  */
 export function IntegrationCard({
   provider,

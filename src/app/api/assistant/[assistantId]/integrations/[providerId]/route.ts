@@ -41,11 +41,11 @@ export async function DELETE(
   }
 
   // Determine which keys to delete.  For OAuth providers, only the
-  // managed keys (refresh_token, organisation_id, hub_domain).  For
-  // API-key providers, the single field (caller chose to disconnect, so
-  // remove the token).  Custom isn't routable here — there's no
-  // ``providerId`` for custom secrets; users delete them via the
-  // standard secrets row.
+  // managed keys (refresh_token, organisation_id, etc. — whatever the
+  // provider's registry entry lists).  For API-key providers, the
+  // single field (caller chose to disconnect, so remove the token).
+  // Custom isn't routable here — there's no ``providerId`` for custom
+  // secrets; users delete them via the standard secrets row.
   let keysToDelete: string[] = [];
   switch (provider.auth.kind) {
     case 'oauth_authorization_code':

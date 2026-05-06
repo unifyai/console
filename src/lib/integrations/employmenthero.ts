@@ -11,6 +11,15 @@
  *
  * Mirrors the unity-deploy package's ``_client.py`` resolver for parity:
  * same token endpoint, same form-encoded payload, same response shape.
+ *
+ * Org-pinning policy: the callback uses ``/api/v1/organisations`` — not
+ * ``/me`` — to enumerate organisations the token can access.  ``/me``
+ * is gated behind a separate identity scope that EH dev-portal apps do
+ * not always have, and was the reason the previous "best-effort" hook
+ * silently returned nulls for tokens minted without it.  Selection is
+ * driven by ``selectActiveOrganisation`` here (a single named org wins;
+ * 0 or 2+ named orgs are surfaced via a notice on the success redirect
+ * so the user can override via Console -> Secrets if needed).
  */
 
 const DEFAULT_TOKEN_URL = 'https://oauth.employmenthero.com/oauth2/token';
@@ -29,12 +38,16 @@ export interface EmploymentHeroTokens {
 }
 /* eslint-enable @typescript-eslint/naming-convention */
 
-export interface EmploymentHeroAccountInfo {
-  /** First organisation the token can access; pinned per-assistant. */
-  activeOrganisationId: string | null;
-  /** Subdomain (e.g. ``acme.employmenthero.com``) for UI display. */
-  hubDomain: string | null;
+export interface EmploymentHeroOrganisation {
+  id: string;
+  name: string | null;
+  country: string | null;
+  logoUrl: string | null;
 }
+
+/** Notice surfaced on the success redirect when auto-pin can't make a
+ *  clean choice.  Consumed by ``useIntegrationCallbackFlash``. */
+export type EmploymentHeroSelectionNotice = 'none_named' | 'multi_named';
 
 /**
  * Exchange the authorisation code returned by EH after the user grants
@@ -93,42 +106,89 @@ export async function exchangeEmploymentHeroCode(args: {
 }
 
 /**
- * Fetch ``/me`` with the freshly-minted access token to identify which
- * EH organisation the user authorised, and capture its subdomain for UI
- * display.  Best-effort: failure here doesn't block the connection — we
- * still write the refresh token so the runtime can self-resolve the org
- * later via ``list_organisations()``.
+ * Enumerate organisations the token can access.  Hits
+ * ``/api/v1/organisations`` (the canonical org list, also used by the
+ * unity-deploy runtime) rather than ``/me`` (which requires a separate
+ * identity scope and 403's for most dev-portal apps).
+ *
+ * Envelope is ``{ data: { items: [...], page_index, total_pages, ... } }``
+ * per the live API.  Throws on transport errors so the caller can
+ * surface a meaningful ``integration_error`` reason; returns ``[]`` when
+ * the response is well-formed but the user belongs to no organisations.
  */
-export async function fetchEmploymentHeroAccountInfo(args: {
+export async function listEmploymentHeroOrganisations(args: {
   accessToken: string;
   /** Optional API host override.  Defaults to the global host which
    *  routes regionally at the load balancer. */
   apiBase?: string;
-}): Promise<EmploymentHeroAccountInfo> {
+}): Promise<EmploymentHeroOrganisation[]> {
   const apiBase = args.apiBase ?? DEFAULT_API_BASE;
-  const response = await fetch(`${apiBase}/api/v1/me`, {
+  const response = await fetch(`${apiBase}/api/v1/organisations`, {
     headers: {
       Authorization: `Bearer ${args.accessToken}`,
       Accept: 'application/json',
     },
   });
   if (!response.ok) {
-    return { activeOrganisationId: null, hubDomain: null };
+    const text = await response.text().catch(() => '');
+    throw new Error(
+      `Employment Hero organisations fetch returned ${response.status}: ${text.slice(0, 300)}`
+    );
   }
+  /* eslint-disable @typescript-eslint/naming-convention */
   const body = (await response.json().catch(() => ({}))) as {
-    organisations?: Array<{ id?: string | number; subdomain?: string; domain?: string }>;
     data?: {
-      organisations?: Array<{ id?: string | number; subdomain?: string; domain?: string }>;
+      items?: Array<{
+        id?: string | number;
+        name?: string | null;
+        country?: string | null;
+        logo_url?: string | null;
+      }>;
     };
   };
+  /* eslint-enable @typescript-eslint/naming-convention */
 
-  const organisations = body.organisations ?? body.data?.organisations ?? [];
-  const first = organisations[0];
-  if (!first) {
-    return { activeOrganisationId: null, hubDomain: null };
+  const items = body?.data?.items ?? [];
+  const out: EmploymentHeroOrganisation[] = [];
+  for (const o of items) {
+    if (o.id == null) continue;
+    out.push({
+      id: String(o.id),
+      name: typeof o.name === 'string' && o.name.trim() !== '' ? o.name : null,
+      country: typeof o.country === 'string' && o.country !== '' ? o.country : null,
+      logoUrl: typeof o.logo_url === 'string' && o.logo_url !== '' ? o.logo_url : null,
+    });
   }
-  return {
-    activeOrganisationId: first.id != null ? String(first.id) : null,
-    hubDomain: first.subdomain ?? first.domain ?? null,
-  };
+  return out;
+}
+
+/**
+ * Auto-pin policy for the Connect callback.
+ *
+ *   - Exactly one org has a non-null ``name`` → pin it.  Clean success.
+ *   - Zero named orgs → pin nothing.  ``none_named`` notice tells the
+ *     user the runtime will fall back to the first accessible org.
+ *   - Two or more named orgs → pin the lexicographically-first id (a
+ *     deterministic tie-break) and surface ``multi_named`` so the user
+ *     knows to override via Settings -> Secrets if the auto-pick was
+ *     wrong.
+ *
+ * The id-based tie-break is deterministic across reconnects: the same
+ * input list always yields the same pinned id, so a customer who
+ * accepts the first auto-pick won't be silently re-pinned to a
+ * different org on a later Reconnect.
+ */
+export function selectActiveOrganisation(orgs: EmploymentHeroOrganisation[]): {
+  pinnedId: string | null;
+  notice: EmploymentHeroSelectionNotice | null;
+} {
+  const named = orgs.filter((o) => o.name != null);
+  if (named.length === 1) {
+    return { pinnedId: named[0].id, notice: null };
+  }
+  if (named.length === 0) {
+    return { pinnedId: null, notice: 'none_named' };
+  }
+  const sorted = [...named].sort((a, b) => a.id.localeCompare(b.id));
+  return { pinnedId: sorted[0].id, notice: 'multi_named' };
 }

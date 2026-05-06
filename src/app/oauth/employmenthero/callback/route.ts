@@ -24,7 +24,8 @@ import { createSecret, deleteSecret, getSecrets } from '@/lib/assistants/secret'
 import { verifyOAuthState } from '@/lib/oauth/state';
 import {
   exchangeEmploymentHeroCode,
-  fetchEmploymentHeroAccountInfo,
+  listEmploymentHeroOrganisations,
+  selectActiveOrganisation,
 } from '@/lib/integrations/employmenthero';
 import {
   getIntegrationProvider,
@@ -156,12 +157,33 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // 5. Best-effort: identify active organisation for UI metadata.
-  const accountInfo = await fetchEmploymentHeroAccountInfo({
-    accessToken: tokens.access_token,
-  }).catch(() => ({ activeOrganisationId: null, hubDomain: null }));
+  // 5. Enumerate organisations the token can access.  Hits
+  //    /api/v1/organisations (canonical org list) — not /me, which
+  //    requires an identity scope dev-portal apps don't always have.
+  let orgs;
+  try {
+    orgs = await listEmploymentHeroOrganisations({
+      accessToken: tokens.access_token,
+    });
+  } catch (e) {
+    const reason = e instanceof Error ? e.message.slice(0, 200) : 'organisations_fetch_failed';
+    return Response.redirect(
+      `${consoleUrl}${payload.redirectAfter}?integration_error=${encodeURIComponent(reason)}`,
+      302
+    );
+  }
+  if (orgs.length === 0) {
+    return Response.redirect(
+      `${consoleUrl}${payload.redirectAfter}?integration_error=no_organisations`,
+      302
+    );
+  }
 
-  // 6. Write OAuth-managed secrets.  This is a multi-step write because
+  // 6. Auto-pin policy: single named org wins; 0 / 2+ named orgs fall
+  //    through with a notice so the user can override in Secrets.
+  const { pinnedId, notice } = selectActiveOrganisation(orgs);
+
+  // 7. Write OAuth-managed secrets.  This is a multi-step write because
   //    each secret is one log entry; we delete any existing values first
   //    so re-Connect after a previous Disconnect/expiry replaces cleanly.
   const managedKeys = provider.auth.oauth.managedSecretKeys;
@@ -176,17 +198,8 @@ export async function GET(request: NextRequest) {
   const writes: Array<{ name: string; value: string }> = [
     { name: 'EMPLOYMENTHERO_REFRESH_TOKEN', value: tokens.refresh_token },
   ];
-  if (accountInfo.activeOrganisationId) {
-    writes.push({
-      name: 'EMPLOYMENTHERO_ORGANISATION_ID',
-      value: accountInfo.activeOrganisationId,
-    });
-  }
-  if (accountInfo.hubDomain) {
-    writes.push({
-      name: 'EMPLOYMENTHERO_HUB_DOMAIN',
-      value: accountInfo.hubDomain,
-    });
+  if (pinnedId) {
+    writes.push({ name: 'EMPLOYMENTHERO_ORGANISATION_ID', value: pinnedId });
   }
 
   for (const { name, value } of writes) {
@@ -203,11 +216,13 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // 7. Done — redirect with success flag.
+  // 8. Done — redirect with success flag.  ``integration_notice`` is
+  //    set when auto-pin couldn't make a clean choice (0 or 2+ named
+  //    orgs); the flash hook surfaces it as a secondary toast.
   const successUrl = new URL(`${consoleUrl}${payload.redirectAfter}`);
   successUrl.searchParams.set('integration_success', PROVIDER_ID);
-  if (accountInfo.hubDomain) {
-    successUrl.searchParams.set('hub_domain', accountInfo.hubDomain);
+  if (notice) {
+    successUrl.searchParams.set('integration_notice', notice);
   }
   return Response.redirect(successUrl.toString(), 302);
 }

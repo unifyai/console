@@ -51,11 +51,7 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
       ],
       oauth: {
         authorizeUrl: 'https://oauth.employmenthero.com/oauth2/authorize',
-        managedSecretKeys: [
-          'EMPLOYMENTHERO_REFRESH_TOKEN',
-          'EMPLOYMENTHERO_ORGANISATION_ID',
-          'EMPLOYMENTHERO_HUB_DOMAIN',
-        ],
+        managedSecretKeys: ['EMPLOYMENTHERO_REFRESH_TOKEN', 'EMPLOYMENTHERO_ORGANISATION_ID'],
       },
     },
   },

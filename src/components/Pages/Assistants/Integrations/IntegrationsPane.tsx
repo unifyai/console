@@ -141,6 +141,12 @@ export function IntegrationsPane({
       const provider = getIntegrationProvider(flash.success.providerId as IntegrationProviderId);
       const label = provider?.label ?? flash.success.providerId;
       toast.success(`Connected to ${label}.`);
+      // Secondary informational toast when auto-pin couldn't make a
+      // clean choice (e.g. EH multi-org / no-named-org cases).  Long
+      // duration since the user may want to act on the override hint.
+      if (flash.success.notice) {
+        toast.message(flash.success.notice.message, { duration: 10000 });
+      }
       flash.clear();
     } else if (flash.error) {
       toast.error(flash.error.message);

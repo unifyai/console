@@ -218,7 +218,31 @@ function describeIntegrationError(reason: string): string {
     return `Connection succeeded but saving ${which} failed. Try Reconnect.`;
   }
 
+  if (lower === 'no_organisations') {
+    return 'Connect succeeded but the token has access to no organisations. Confirm with the user that the connected Employment Hero account belongs to a user enrolled in at least one organisation, then Reconnect.';
+  }
+  if (lower.startsWith('employment hero organisations fetch returned')) {
+    return 'Connect succeeded but Employment Hero rejected the organisations request — most often a missing scope on the developer-portal app. Add the org-list scope and Reconnect.';
+  }
+
   return `Connection failed: ${reason}`;
+}
+
+/**
+ * Friendly label for the ``integration_notice`` query param the OAuth
+ * callback sets when auto-pin couldn't pick a single organisation.
+ * Returns ``null`` for unknown notice codes so the flash hook can fall
+ * back to "no notice" silently.
+ */
+function describeIntegrationNotice(notice: string): string | null {
+  switch (notice) {
+    case 'none_named':
+      return 'Connected, but no named organisation was found. The runtime will fall back to the first accessible organisation. Set EMPLOYMENTHERO_ORGANISATION_ID via Settings → Secrets to pin a specific one.';
+    case 'multi_named':
+      return 'Connected. Multiple named organisations were available — we pinned one for you. Override via Settings → Secrets if it’s not the right one.';
+    default:
+      return null;
+  }
 }
 
 /**
@@ -229,14 +253,26 @@ function describeIntegrationError(reason: string): string {
  * ``error.message`` is the customer-friendly message; ``error.reason``
  * is the raw machine token from the redirect (kept around for
  * logging/debug).
+ *
+ * ``success.notice`` is set when auto-pin couldn't make a clean choice
+ * (e.g. zero / multiple named organisations on Employment Hero).  The
+ * caller renders it as a secondary informational toast alongside the
+ * success toast — non-blocking, but tells the user what happened and
+ * how to override.
  */
 export function useIntegrationCallbackFlash(): {
-  success: { providerId: string; hubDomain: string | null } | null;
+  success: {
+    providerId: string;
+    notice: { code: string; message: string } | null;
+  } | null;
   error: { reason: string; message: string } | null;
   clear: () => void;
 } {
   const [state, setState] = React.useState<{
-    success: { providerId: string; hubDomain: string | null } | null;
+    success: {
+      providerId: string;
+      notice: { code: string; message: string } | null;
+    } | null;
     error: { reason: string; message: string } | null;
   }>({ success: null, error: null });
 
@@ -245,9 +281,12 @@ export function useIntegrationCallbackFlash(): {
     const params = new URLSearchParams(window.location.search);
     const success = params.get('integration_success');
     const error = params.get('integration_error');
-    const hubDomain = params.get('hub_domain');
+    const noticeCode = params.get('integration_notice');
     if (success) {
-      setState({ success: { providerId: success, hubDomain }, error: null });
+      const noticeMessage = noticeCode ? describeIntegrationNotice(noticeCode) : null;
+      const notice =
+        noticeCode && noticeMessage ? { code: noticeCode, message: noticeMessage } : null;
+      setState({ success: { providerId: success, notice }, error: null });
     } else if (error) {
       setState({
         success: null,
@@ -262,7 +301,7 @@ export function useIntegrationCallbackFlash(): {
     const url = new URL(window.location.href);
     url.searchParams.delete('integration_success');
     url.searchParams.delete('integration_error');
-    url.searchParams.delete('hub_domain');
+    url.searchParams.delete('integration_notice');
     window.history.replaceState({}, '', url.toString());
   }, []);
 
