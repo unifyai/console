@@ -27,6 +27,7 @@ import { SecretFormDialog } from '../Secrets/SecretFormDialog';
 import { JsonUploadPreviewDialog } from '../Secrets/JsonUploadPreviewDialog';
 import type { Secret, SecretActions } from '@/types/assistants/secret';
 import type {
+  IntegrationCardState,
   IntegrationProviderConfig,
   IntegrationProviderId,
 } from '@/types/assistants/integration';
@@ -46,7 +47,7 @@ interface IntegrationsPaneProps {
 type PendingDelete =
   | { type: 'secret'; secret: Secret }
   | { type: 'folder'; prefix: string; count: number }
-  | { type: 'integration'; provider: IntegrationProviderConfig };
+  | { type: 'integration'; provider: IntegrationProviderConfig; state: IntegrationCardState };
 
 type IntegrationDialog = null | {
   mode: 'add' | 'edit';
@@ -166,6 +167,11 @@ export function IntegrationsPane({
     [hiddenSecrets]
   );
 
+  // Any provider that already has a card (connected, configured, or
+  // needs_reconnect) is hidden from "Add new" — the user re-enters via
+  // Edit/Reconnect on the card instead of the empty-paste flow.
+  const hiddenProviderIds = React.useMemo(() => new Set(cards.map((c) => c.provider.id)), [cards]);
+
   // ---- Action handlers --------------------------------------------------
 
   const toggleFolder = (path: string) => {
@@ -206,8 +212,11 @@ export function IntegrationsPane({
     });
   };
 
-  const handleDisconnectRequest = (provider: IntegrationProviderConfig) => {
-    setPendingDelete({ type: 'integration', provider });
+  const handleDisconnectRequest = (
+    provider: IntegrationProviderConfig,
+    state: IntegrationCardState
+  ) => {
+    setPendingDelete({ type: 'integration', provider, state });
   };
 
   const handleConfirmDelete = async () => {
@@ -363,6 +372,15 @@ export function IntegrationsPane({
     [otherSecrets, hiddenLogIds]
   );
 
+  // OAuth disconnect runs in two stages — title and copy reflect which
+  // one will fire when the user confirms.  ``connected`` ⇒ tokens-only
+  // (Client ID/Secret kept).  ``needs_reconnect`` ⇒ full removal.
+  const oauthDisconnectStage: 'tokens' | 'credentials' | null = (() => {
+    if (!pendingDelete || pendingDelete.type !== 'integration') return null;
+    if (pendingDelete.provider.auth.kind !== 'oauth_authorization_code') return null;
+    return pendingDelete.state.kind === 'connected' ? 'tokens' : 'credentials';
+  })();
+
   const deleteDialogTitle = (() => {
     if (!pendingDelete) return '';
     if (pendingDelete.type === 'folder') {
@@ -373,6 +391,9 @@ export function IntegrationsPane({
     if (pendingDelete.type === 'secret') {
       return `Delete secret "${pendingDelete.secret.name}"?`;
     }
+    if (oauthDisconnectStage === 'credentials') {
+      return `Remove ${pendingDelete.provider.label}?`;
+    }
     return `Disconnect ${pendingDelete.provider.label}?`;
   })();
 
@@ -380,8 +401,11 @@ export function IntegrationsPane({
     if (!pendingDelete || pendingDelete.type !== 'integration') {
       return 'This action cannot be undone.';
     }
-    if (pendingDelete.provider.auth.kind === 'oauth_authorization_code') {
+    if (oauthDisconnectStage === 'tokens') {
       return `Removes the OAuth tokens for this assistant. Your Client ID and Client Secret are kept so you can reconnect with one click.`;
+    }
+    if (oauthDisconnectStage === 'credentials') {
+      return `Removes ${pendingDelete.provider.label} entirely. Your saved Client ID and Client Secret will be deleted from this assistant.`;
     }
     return `Removes ${pendingDelete.provider.label} credentials from this assistant.`;
   })();
@@ -423,6 +447,7 @@ export function IntegrationsPane({
             <AddNewDropdown
               onSelect={handleAddNewSelect}
               disabled={isSubmitting || isIntegrationSubmitting}
+              hiddenProviderIds={hiddenProviderIds}
             />
             <Tooltip>
               <TooltipTrigger asChild>
@@ -469,7 +494,7 @@ export function IntegrationsPane({
                 state={card.state}
                 onEdit={() => handleEditIntegration(card.provider)}
                 onReconnect={() => handleReconnectIntegration(card.provider)}
-                onDisconnect={() => handleDisconnectRequest(card.provider)}
+                onDisconnect={() => handleDisconnectRequest(card.provider, card.state)}
                 busy={isIntegrationSubmitting}
               />
             ))}
@@ -554,7 +579,11 @@ export function IntegrationsPane({
               onClick={handleConfirmDelete}
               className="hover:bg-destructive/90 bg-destructive text-destructive-foreground"
             >
-              {pendingDelete?.type === 'integration' ? 'Disconnect' : 'Delete'}
+              {pendingDelete?.type === 'integration'
+                ? oauthDisconnectStage === 'credentials'
+                  ? 'Remove'
+                  : 'Disconnect'
+                : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

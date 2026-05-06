@@ -18,6 +18,10 @@ interface AddNewDropdownProps {
   /** Called when the user picks an option from the dropdown. */
   onSelect: (providerId: IntegrationProviderId) => void;
   disabled?: boolean;
+  /** Provider ids hidden from the list — typically the set of
+   *  integrations already showing as a card.  ``custom`` is never
+   *  hidden. */
+  hiddenProviderIds?: ReadonlySet<IntegrationProviderId>;
 }
 
 /* The auth-kind keys mirror the discriminator union from
@@ -38,7 +42,15 @@ const STRATEGY_LABEL: Record<string, string> = {
  * Lists Custom first (the freeform key/value flow), then each registered
  * integration with a small badge identifying its auth strategy.
  */
-export function AddNewDropdown({ onSelect, disabled }: AddNewDropdownProps) {
+export function AddNewDropdown({ onSelect, disabled, hiddenProviderIds }: AddNewDropdownProps) {
+  // Drop already-shown integrations from the list so the user can't
+  // re-enter the empty-paste flow for something that already has a
+  // card.  ``custom`` is always kept — it's the freeform fallback,
+  // not an integration.
+  const visibleProviders = INTEGRATION_PROVIDERS.filter(
+    (p) => p.id === 'custom' || !hiddenProviderIds?.has(p.id)
+  );
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -59,13 +71,18 @@ export function AddNewDropdown({ onSelect, disabled }: AddNewDropdownProps) {
           Add new
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {INTEGRATION_PROVIDERS.map((provider, index) => {
+        {visibleProviders.map((provider, index) => {
           const isCustom = provider.id === 'custom';
           const strategyLabel = STRATEGY_LABEL[provider.auth.kind] ?? '';
+          // The custom entry sits at the top; insert a separator after
+          // it so the visual grouping stays the same when integrations
+          // get filtered out (the original logic keyed off the registry
+          // index, which breaks once the list is filtered).
+          const showSeparatorAbove =
+            !isCustom && index > 0 && visibleProviders[index - 1]?.id === 'custom';
           return (
             <React.Fragment key={provider.id}>
-              {isCustom && index > 0 && <DropdownMenuSeparator />}
-              {!isCustom && index === 1 && <DropdownMenuSeparator />}
+              {showSeparatorAbove && <DropdownMenuSeparator />}
               <DropdownMenuItem
                 onSelect={() => onSelect(provider.id)}
                 data-testid={`integrations-add-new-${provider.id}`}

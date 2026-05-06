@@ -1,20 +1,23 @@
 /**
  * DELETE /api/assistant/[assistantId]/integrations/[providerId]
  *
- * Disconnects an integration for an assistant by deleting its
- * OAuth-managed secrets.  Customer-provided credentials
- * (CLIENT_ID/CLIENT_SECRET for OAuth, or the API-key value) are LEFT in
- * place so the user can reconnect with one click without re-pasting.
+ * Two-stage disconnect for OAuth providers, single-stage for API-key.
  *
- * For full removal (including customer-provided credentials), the user
- * deletes them individually from the Integrations tab — same as any
- * custom secret.
+ * OAuth:
+ *   - Stage 1 (any managed secret present, e.g. refresh_token): deletes
+ *     managed secrets only.  Customer-provided Client ID / Client Secret
+ *     stay so the user can reconnect with one click.  Card transitions
+ *     to ``needs_reconnect``.
+ *   - Stage 2 (no managed secrets — already in needs_reconnect): deletes
+ *     the customer-provided keys.  The card disappears entirely.
+ *
+ * API-key: deletes the single field in one shot.
  *
  * Returns:
- *   - 200 with ``{ success, removedCount, note }`` on success
+ *   - 200 with ``{ success, removedCount, stage, note }`` on success.
+ *     ``stage`` is ``'tokens'`` | ``'credentials'`` | ``'api_key'``.
  *   - 400 if the provider is unknown or the integration is non-removable
  *   - 401 if the user is unauthenticated
- *   - 404 if the assistant has no managed secrets to remove
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -22,7 +25,10 @@ import { getApiKeyFromRequest, unauthorized, badRequest } from '../../../../_uti
 import { getCurrentUser } from '@/lib/user/user';
 import { getActiveOrganization } from '@/lib/user/workspace';
 import { deleteSecret, getSecrets } from '@/lib/assistants/secret';
-import { getIntegrationProvider } from '@/constants/assistants/integrations';
+import {
+  customerProvidedSecretKeysFor,
+  getIntegrationProvider,
+} from '@/constants/assistants/integrations';
 import type { IntegrationProviderId } from '@/types/assistants/integration';
 
 export async function DELETE(
@@ -40,24 +46,12 @@ export async function DELETE(
     return badRequest(`Unknown provider: ${params.providerId}`);
   }
 
-  // Determine which keys to delete.  For OAuth providers, only the
-  // managed keys (refresh_token, organisation_id, etc. — whatever the
-  // provider's registry entry lists).  For API-key providers, the
-  // single field (caller chose to disconnect, so remove the token).
   // Custom isn't routable here — there's no ``providerId`` for custom
   // secrets; users delete them via the standard secrets row.
-  let keysToDelete: string[] = [];
-  switch (provider.auth.kind) {
-    case 'oauth_authorization_code':
-      keysToDelete = provider.auth.oauth.managedSecretKeys;
-      break;
-    case 'api_key':
-      keysToDelete = [provider.auth.field.secretKey];
-      break;
-    case 'freeform':
-      return badRequest(
-        'Custom secrets are removed via the standard delete row, not the integration disconnect endpoint.'
-      );
+  if (provider.auth.kind === 'freeform') {
+    return badRequest(
+      'Custom secrets are removed via the standard delete row, not the integration disconnect endpoint.'
+    );
   }
 
   const ownerId = String(user.id);
@@ -72,10 +66,38 @@ export async function DELETE(
       { status: 502 }
     );
   }
+
+  // Pick the stage and the keys it targets.
+  //   - OAuth stage 1 (``tokens``): managed keys present → delete those.
+  //   - OAuth stage 2 (``credentials``): no managed keys remain → delete
+  //     the customer-provided keys to fully remove the integration.
+  //   - API-key (``api_key``): one shot — delete the single field.
+  let stage: 'tokens' | 'credentials' | 'api_key';
+  let keysToDelete: string[];
+  switch (provider.auth.kind) {
+    case 'oauth_authorization_code': {
+      const managed = provider.auth.oauth.managedSecretKeys;
+      const presentNames = new Set(list.map((s) => s.name));
+      const anyManagedPresent = managed.some((k) => presentNames.has(k));
+      if (anyManagedPresent) {
+        stage = 'tokens';
+        keysToDelete = managed;
+      } else {
+        stage = 'credentials';
+        keysToDelete = customerProvidedSecretKeysFor(provider);
+      }
+      break;
+    }
+    case 'api_key':
+      stage = 'api_key';
+      keysToDelete = [provider.auth.field.secretKey];
+      break;
+  }
+
   const matching = list.filter((s) => keysToDelete.includes(s.name));
   if (matching.length === 0) {
     return NextResponse.json(
-      { success: true, removedCount: 0, note: 'Nothing to remove.' },
+      { success: true, removedCount: 0, stage, note: 'Nothing to remove.' },
       { status: 200 }
     );
   }
@@ -87,14 +109,21 @@ export async function DELETE(
     if (!('detail' in result) || !result.detail) removedCount += 1;
   }
 
-  const note =
-    provider.auth.kind === 'oauth_authorization_code'
-      ? `Disconnected locally. To revoke this app's access in ${provider.label}, visit its Apps & Integrations settings — we cannot revoke server-side.`
-      : `Removed ${provider.label} credentials from this assistant.`;
+  const note = (() => {
+    switch (stage) {
+      case 'tokens':
+        return `Disconnected locally. To revoke this app's access in ${provider.label}, visit its Apps & Integrations settings — we cannot revoke server-side.`;
+      case 'credentials':
+        return `Removed ${provider.label} from this assistant.`;
+      case 'api_key':
+        return `Removed ${provider.label} credentials from this assistant.`;
+    }
+  })();
 
   return NextResponse.json({
     success: true,
     removedCount,
+    stage,
     note,
   });
 }

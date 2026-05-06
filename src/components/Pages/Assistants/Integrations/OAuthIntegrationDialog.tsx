@@ -141,7 +141,7 @@ export function OAuthIntegrationDialog({
         if (!next && !isSubmitting) onClose();
       }}
     >
-      <DialogContent className="max-w-md" data-testid={`integration-oauth-dialog-${provider.id}`}>
+      <DialogContent className="max-w-lg" data-testid={`integration-oauth-dialog-${provider.id}`}>
         <DialogHeader>
           <DialogTitle>
             {titlePrefix} {provider.label}
@@ -210,30 +210,42 @@ export function OAuthIntegrationDialog({
             </div>
           )}
 
-          {!isEditing && <p className="text-label">Step 2 — Paste your app credentials</p>}
+          {(() => {
+            const inputs = fields.map((field) => (
+              <div key={field.secretKey} className="flex flex-col gap-1.5">
+                <Label htmlFor={`oauth-${field.secretKey}`} className="text-xs">
+                  {field.label}
+                </Label>
+                <Input
+                  id={`oauth-${field.secretKey}`}
+                  type="password"
+                  autoComplete="new-password"
+                  value={values[field.secretKey] ?? ''}
+                  onChange={(e) =>
+                    setValues((prev) => ({ ...prev, [field.secretKey]: e.target.value }))
+                  }
+                  placeholder={isEditing ? '••••••••' : (field.placeholder ?? '')}
+                  disabled={isSubmitting}
+                  data-testid={`integration-oauth-input-${field.secretKey}`}
+                />
+                {field.helpText && (
+                  <p className="text-[11px] text-muted-foreground">{field.helpText}</p>
+                )}
+              </div>
+            ));
 
-          {fields.map((field) => (
-            <div key={field.secretKey} className="flex flex-col gap-1.5">
-              <Label htmlFor={`oauth-${field.secretKey}`} className="text-xs">
-                {field.label}
-              </Label>
-              <Input
-                id={`oauth-${field.secretKey}`}
-                type="password"
-                autoComplete="new-password"
-                value={values[field.secretKey] ?? ''}
-                onChange={(e) =>
-                  setValues((prev) => ({ ...prev, [field.secretKey]: e.target.value }))
-                }
-                placeholder={isEditing ? '••••••••' : (field.placeholder ?? '')}
-                disabled={isSubmitting}
-                data-testid={`integration-oauth-input-${field.secretKey}`}
-              />
-              {field.helpText && (
-                <p className="text-[11px] text-muted-foreground">{field.helpText}</p>
-              )}
-            </div>
-          ))}
+            if (isEditing) return inputs;
+
+            return (
+              <div
+                className="bg-muted/30 flex flex-col gap-3 rounded-md border p-3"
+                data-testid={`integration-oauth-credentials-${provider.id}`}
+              >
+                <p className="text-label">Step 2 — Paste your app credentials</p>
+                {inputs}
+              </div>
+            );
+          })()}
 
           {isEditing ? (
             <p className="text-[11px] text-muted-foreground">
