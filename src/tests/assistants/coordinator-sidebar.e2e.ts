@@ -20,6 +20,7 @@ import {
   deleteOrg,
   ensureProjectSync,
   navigateToAssistants,
+  orchestraFetch,
 } from './helpers';
 import { loginAndWaitForRedirect } from '../auth/helpers';
 
@@ -123,6 +124,87 @@ async function expectCoordinatorChatOpen(page: Page, agentId: number) {
   await expect(page.getByTestId('coordinator-admin-only')).toHaveCount(0);
   await expect(page.getByTestId('right-pane-tab-chat')).toHaveAttribute('data-state', 'active');
 }
+
+/* eslint-disable @typescript-eslint/naming-convention */
+async function seedCoordinatorWorkspace() {
+  const contextRoot = `${owner.id}/${coordinator.agentId}`;
+  const rows = [
+    {
+      context: `${contextRoot}/Coordinator/State`,
+      entries: [
+        {
+          mode: 'active',
+          started_at: '2026-05-01T10:00:00Z',
+          ready_at: null,
+        },
+      ],
+    },
+    {
+      context: `${contextRoot}/Coordinator/Checklist`,
+      entries: [
+        {
+          item_id: 1,
+          title: 'Invite operators',
+          description: 'Add the people who receive assignments.',
+          kind: 'team_setup',
+          status: 'pending',
+          created_at: '2026-05-01T10:00:00Z',
+          updated_at: '2026-05-01T10:00:00Z',
+        },
+        {
+          item_id: 2,
+          title: 'Validate first run',
+          description: null,
+          kind: null,
+          status: 'done',
+          created_at: '2026-05-01T10:01:00Z',
+          updated_at: '2026-05-01T10:01:00Z',
+        },
+      ],
+    },
+    {
+      context: `${contextRoot}/Events/CoordinatorActivity`,
+      entries: [
+        {
+          activity_id: 'activity-1',
+          phase: 'progress',
+          stage: 'proposal',
+          surfaces: ['chat'],
+          title: 'Drafting the teammate plan',
+          summary: 'Collecting roles and handoff rules.',
+          checklist_item_id: 1,
+          chat_prompt: 'What roles have you found so far?',
+          chat_prompt_label: 'Ask for roles',
+          correlation_id: 'corr-1',
+          occurred_at: '2026-05-01T10:03:00Z',
+          status: 'ok',
+          error: null,
+        },
+      ],
+    },
+  ];
+
+  await Promise.all(
+    rows.map(async (row) => {
+      const res = await orchestraFetch(
+        '/v0/logs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            project_name: 'Assistants',
+            context: row.context,
+            entries: row.entries,
+          }),
+        },
+        org.ownerOrgApiKey
+      );
+      if (!res.ok) {
+        throw new Error(`Failed to seed Coordinator workspace: ${res.status} ${await res.text()}`);
+      }
+    })
+  );
+}
+/* eslint-enable @typescript-eslint/naming-convention */
 
 async function expectPinnedBeforeSolo(page: Page) {
   await expect(page.getByTestId('assistant-list-group-pinned')).toBeVisible({
@@ -294,15 +376,15 @@ test.afterAll(() => {
   cleanupUser(personalUser.id);
 });
 
-test('owner sees the Coordinator pinned with role affordances and no contract teardown', async ({
+test('owner sees the Coordinator pinned with workspace chrome and no contract teardown', async ({
   ownerPage: page,
 }) => {
+  await seedCoordinatorWorkspace();
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await expectPinnedBeforeSolo(page);
 
   const coordinatorRow = page.getByTestId(`assistant-list-item-${coordinator.agentId}`);
-  await expect(coordinatorRow).toContainText('Atlas Guide');
   await expect(coordinatorRow).toContainText('Coordinator');
   await expect(coordinatorRow.getByLabel('Coordinator')).toBeVisible();
 
@@ -321,6 +403,19 @@ test('owner sees the Coordinator pinned with role affordances and no contract te
   await page.keyboard.press('Escape');
 
   await expectCoordinatorChatOpen(page, coordinator.agentId);
+  if ((await page.getByTestId('coordinator-workspace-panel').count()) === 0) {
+    await page.getByTestId('assistant-info-button').click();
+  }
+  await expect(page.getByTestId('coordinator-workspace-panel')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('coordinator-workspace-name')).toContainText('Coordinator');
+  await expect(page.getByTestId('coordinator-show-activity')).toHaveCount(0);
+  const currentWorkCard = page.getByTestId('coordinator-current-work-card');
+  await expect(currentWorkCard).toContainText('Drafting the teammate plan', { timeout: 15_000 });
+  await expect(currentWorkCard.getByTestId('coordinator-current-work-loader')).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(page.getByText('Setup plan')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Invite operators')).toBeVisible({ timeout: 15_000 });
 });
 
 test('organization admin can open the Coordinator chat', async ({ adminPage: page }) => {
