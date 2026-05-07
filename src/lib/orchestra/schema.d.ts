@@ -354,6 +354,26 @@ export interface paths {
     patch: operations['update_assistant_config_v0_assistant__assistant_id__config_patch'];
     trace?: never;
   };
+  '/v0/assistant/{coordinator_id}/transcript-seed': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Seed Coordinator Transcript Endpoint
+     * @description Persist the Coordinator opener transcript once.
+     */
+    post: operations['seed_coordinator_transcript_endpoint_v0_assistant__coordinator_id__transcript_seed_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/v0/assistant/{assistant_id}/transfer/to-org': {
     parameters: {
       query?: never;
@@ -5637,6 +5657,28 @@ export interface components {
     InfoResponse_AssistantRead_: {
       info: components['schemas']['AssistantRead'];
     };
+    /**
+     * CoordinatorTranscriptSeed
+     * @description Request body for persisting the Coordinator's opener transcript row.
+     */
+    CoordinatorTranscriptSeed: {
+      /** Content */
+      content: string;
+      /** Source Assistant Id */
+      source_assistant_id?: number | null;
+    };
+    /**
+     * CoordinatorTranscriptSeedResponse
+     * @description Response returned after the opener row is present in the transcript.
+     */
+    CoordinatorTranscriptSeedResponse: {
+      /** Log Event Id */
+      log_event_id: number;
+    };
+    /** InfoResponse[CoordinatorTranscriptSeedResponse] */
+    InfoResponse_CoordinatorTranscriptSeedResponse_: {
+      info: components['schemas']['CoordinatorTranscriptSeedResponse'];
+    };
     /** InfoResponse[AssistantTransferResponse] */
     InfoResponse_AssistantTransferResponse_: {
       info: components['schemas']['AssistantTransferResponse'];
@@ -9280,6 +9322,41 @@ export interface operations {
            *     }
            */
           'application/json': unknown;
+        };
+      };
+    };
+  };
+  seed_coordinator_transcript_endpoint_v0_assistant__coordinator_id__transcript_seed_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        coordinator_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CoordinatorTranscriptSeed'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InfoResponse_CoordinatorTranscriptSeedResponse_'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
         };
       };
     };
