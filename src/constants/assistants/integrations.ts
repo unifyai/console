@@ -119,18 +119,38 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
       oauth: {
         authorizeUrl: 'https://webexapis.com/v1/authorize',
         managedSecretKeys: ['WEBEX_REFRESH_TOKEN'],
-        // Webex requires explicit scope on the authorize URL.  This must
-        // match the scopes declared on the Webex Integration app the
-        // customer registers — narrowing here without narrowing on the
-        // dev-portal app yields a runtime 403 on the missing capability.
+        // Webex requires explicit scope on the authorize URL.  Three
+        // families:
+        //
+        //   - ``spark:all`` — meta-scope covering messaging, rooms,
+        //     people, memberships, attachments, teams, devices.
+        //   - ``meeting:*`` — scheduled-meeting CRUD, participants,
+        //     recordings, transcripts, in-meeting controls.  NOT covered
+        //     by ``spark:all``.
+        //   - ``spark-admin:*`` / ``meeting:admin_*`` — org-wide reads.
+        //     Excluded by default because they require the connecting
+        //     user to have an admin role; mixing admin scopes with
+        //     non-admin scopes can fail consent for regular users.  Add
+        //     to a customer's Integration app + their connect attempt
+        //     only when they explicitly need org-wide visibility.
+        //
+        // The Webex Integration app the customer registers must declare
+        // every scope we request here — narrowing here without narrowing
+        // on the dev-portal app is fine; the reverse yields
+        // ``invalid_scope`` at consent time.
         scope: [
-          'spark:people_read',
-          'spark:rooms_read',
-          'spark:memberships_read',
+          'spark:all',
           'meeting:schedules_read',
+          'meeting:schedules_write',
           'meeting:participants_read',
+          'meeting:participants_write',
           'meeting:recordings_read',
+          'meeting:recordings_write',
           'meeting:transcripts_read',
+          'meeting:controls_read',
+          'meeting:controls_write',
+          'meeting:preferences_read',
+          'meeting:preferences_write',
         ].join(' '),
       },
     },
