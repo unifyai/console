@@ -11,7 +11,9 @@
  *   - Stage 2 (no managed secrets — already in needs_reconnect): deletes
  *     the customer-provided keys.  The card disappears entirely.
  *
- * API-key: deletes the single field in one shot.
+ * API-key (``api_key`` and ``api_key_multi``): deletes every customer-
+ * provided field in one shot.  ``api_key_multi`` providers store a token
+ * pair (e.g. Matterport's Token ID + secret) so removal must drop both.
  *
  * Returns:
  *   - 200 with ``{ success, removedCount, stage, note }`` on success.
@@ -89,8 +91,9 @@ export async function DELETE(
       break;
     }
     case 'api_key':
+    case 'api_key_multi':
       stage = 'api_key';
-      keysToDelete = [provider.auth.field.secretKey];
+      keysToDelete = customerProvidedSecretKeysFor(provider);
       break;
   }
 

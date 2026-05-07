@@ -252,15 +252,14 @@ export function IntegrationsPane({
 
   const [isIntegrationSubmitting, setIsIntegrationSubmitting] = React.useState(false);
 
-  const handleApiKeySubmit = async (newValue: string | null) => {
+  const handleApiKeySubmit = async (changedFields: Record<string, string>) => {
     if (!integrationDialog) return;
     const provider = integrationDialog.provider;
-    if (provider.auth.kind !== 'api_key') return;
-    if (newValue === null) {
-      // Edit-mode "keep existing" — caller already closed.
+    if (provider.auth.kind !== 'api_key' && provider.auth.kind !== 'api_key_multi') return;
+    if (Object.keys(changedFields).length === 0) {
+      // Edit-mode "keep existing" — dialog already closed.
       return;
     }
-    const field = provider.auth.field;
     setIsIntegrationSubmitting(true);
     const toastId = toast.loading(
       integrationDialog.mode === 'edit'
@@ -270,19 +269,23 @@ export function IntegrationsPane({
     try {
       // For both Add and Edit: delete any existing same-name secret then
       // create afresh.  Avoids needing to know the logId in the hook.
-      const existing = secrets.find((s) => s.name === field.secretKey);
-      if (existing) {
-        const del = await secretActions.delete(existing.logId, ownerId, assistantId);
-        if ('detail' in del && del.detail) {
-          throw new Error(del.detail);
+      // Iterates per field so api_key_multi (e.g. Matterport's Token ID
+      // + secret pair) and single-field api_key share one path.
+      for (const [secretKey, value] of Object.entries(changedFields)) {
+        const existing = secrets.find((s) => s.name === secretKey);
+        if (existing) {
+          const del = await secretActions.delete(existing.logId, ownerId, assistantId);
+          if ('detail' in del && del.detail) {
+            throw new Error(del.detail);
+          }
         }
-      }
-      const create = await secretActions.create(assistantId, ownerId, {
-        name: field.secretKey,
-        value: newValue,
-      });
-      if ('detail' in create && create.detail) {
-        throw new Error(create.detail);
+        const create = await secretActions.create(assistantId, ownerId, {
+          name: secretKey,
+          value,
+        });
+        if ('detail' in create && create.detail) {
+          throw new Error(create.detail);
+        }
       }
       toast.success(`${provider.label} saved.`, { id: toastId });
       setIntegrationDialog(null);
@@ -545,7 +548,8 @@ export function IntegrationsPane({
       />
 
       {/* Integration dialogs */}
-      {integrationDialog?.provider.auth.kind === 'api_key' && (
+      {(integrationDialog?.provider.auth.kind === 'api_key' ||
+        integrationDialog?.provider.auth.kind === 'api_key_multi') && (
         <ApiKeyIntegrationDialog
           open={true}
           mode={integrationDialog.mode}

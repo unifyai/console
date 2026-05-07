@@ -96,6 +96,12 @@ function deriveCardState(
       // Should never reach here — custom isn't owned.
       return { kind: 'configured' };
     case 'api_key':
+    case 'api_key_multi':
+      // ``configured`` once every customer-provided field is present.
+      // For ``api_key_multi`` the partition can build a card with only
+      // some fields populated (the user closed the modal half-finished
+      // or rotated one half of the pair) — surface those gaps via
+      // ``needs_reconnect`` so the card prompts the user to complete.
       return missingCustomer.length === 0
         ? { kind: 'configured' }
         : { kind: 'needs_reconnect', missing: missingCustomer };

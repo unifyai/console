@@ -9,7 +9,12 @@ import type { ResponseProps } from '../common';
  * Integrations tab — kept as the top entry in the ``Add new`` dropdown so
  * users still have an unstructured fallback for arbitrary env vars.
  */
-export type IntegrationProviderId = 'custom' | 'employmenthero' | 'hubspot' | 'webex';
+export type IntegrationProviderId =
+  | 'custom'
+  | 'employmenthero'
+  | 'hubspot'
+  | 'matterport'
+  | 'webex';
 
 /**
  * One field the customer fills in when adding/editing an integration.  The
@@ -34,6 +39,16 @@ export interface IntegrationFieldSpec {
 export type IntegrationAuthStrategy =
   | { kind: 'freeform' }
   | { kind: 'api_key'; field: IntegrationFieldSpec }
+  | {
+      /** Multi-field paste-and-go.  Used for providers that issue a token
+       *  pair instead of a single token (e.g. Matterport's Token ID +
+       *  Token Secret used to compose HTTP Basic credentials).  Same
+       *  storage shape as ``api_key`` — every field maps to a SecretManager
+       *  entry — but the dialog renders all fields together and the card
+       *  is only ``configured`` once every field is present. */
+      kind: 'api_key_multi';
+      fields: IntegrationFieldSpec[];
+    }
   | {
       kind: 'oauth_authorization_code';
       fields: IntegrationFieldSpec[];

@@ -72,6 +72,30 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
     },
   },
   {
+    id: 'matterport',
+    label: 'Matterport',
+    shortDescription: 'Paste your Matterport API token pair (Token ID + secret).',
+    docsUrl: 'https://matterport.github.io/showcase-sdk/api_home.html',
+    auth: {
+      kind: 'api_key_multi',
+      fields: [
+        {
+          label: 'Token ID',
+          secretKey: 'MATTERPORT_TOKEN_ID',
+          sensitive: true,
+          helpText:
+            'Generate at Matterport → Settings → Account → API Access → Add API Token. Copy the Token ID shown.',
+        },
+        {
+          label: 'Token secret',
+          secretKey: 'MATTERPORT_TOKEN_SECRET',
+          sensitive: true,
+          helpText: 'Shown once at token creation — copy it before closing the Matterport dialog.',
+        },
+      ],
+    },
+  },
+  {
     id: 'webex',
     label: 'Webex',
     shortDescription: 'Connect via OAuth using a Webex Integration app.',
@@ -139,6 +163,9 @@ export function secretKeysFor(provider: IntegrationProviderConfig): Set<string> 
     case 'api_key':
       out.add(provider.auth.field.secretKey);
       return out;
+    case 'api_key_multi':
+      for (const f of provider.auth.fields) out.add(f.secretKey);
+      return out;
     case 'oauth_authorization_code':
       for (const f of provider.auth.fields) out.add(f.secretKey);
       for (const k of provider.auth.oauth.managedSecretKeys) out.add(k);
@@ -154,6 +181,8 @@ export function customerProvidedSecretKeysFor(provider: IntegrationProviderConfi
       return [];
     case 'api_key':
       return [provider.auth.field.secretKey];
+    case 'api_key_multi':
+      return provider.auth.fields.map((f) => f.secretKey);
     case 'oauth_authorization_code':
       return provider.auth.fields.map((f) => f.secretKey);
   }
