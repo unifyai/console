@@ -380,6 +380,11 @@ export function AssistantContactManager({
         {/* Connect your own account */}
         <div className="space-y-3">
           <Label className="text-strong">Connect your own account</Label>
+          <p className="text-caption text-muted-foreground">
+            Tip: create a dedicated account for your assistant first, and sign in to that account in
+            this browser before connecting — choose the account you want the assistant to use when
+            the picker is shown in the OAuth flow.
+          </p>
           <div className="flex gap-2">
             <ByodProviderCard
               provider="google"
