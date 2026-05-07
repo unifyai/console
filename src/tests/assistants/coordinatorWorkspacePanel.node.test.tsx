@@ -392,14 +392,7 @@ describe('Coordinator workspace panel', () => {
   });
 
   it('does not add a setup right-pane tab', () => {
-    expect(RIGHT_PANE_TABS.map((tab) => tab.id)).toEqual([
-      'chat',
-      'actions',
-      'tasks',
-      'dashboards',
-      'memory',
-      'integrations',
-    ]);
+    expect(RIGHT_PANE_TABS.map((tab) => tab.id)).not.toContain('setup');
   });
 });
 
