@@ -71,6 +71,46 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
       },
     },
   },
+  {
+    id: 'webex',
+    label: 'Webex',
+    shortDescription: 'Connect via OAuth using a Webex Integration app.',
+    docsUrl: 'https://developer.webex.com/docs/integrations',
+    auth: {
+      kind: 'oauth_authorization_code',
+      fields: [
+        {
+          label: 'Client ID',
+          secretKey: 'WEBEX_OAUTH_CLIENT_ID',
+          sensitive: false,
+          helpText: 'From your Webex Integration app at developer.webex.com → My Webex Apps.',
+        },
+        {
+          label: 'Client secret',
+          secretKey: 'WEBEX_OAUTH_CLIENT_SECRET',
+          sensitive: true,
+          helpText: 'From your Webex Integration app at developer.webex.com → My Webex Apps.',
+        },
+      ],
+      oauth: {
+        authorizeUrl: 'https://webexapis.com/v1/authorize',
+        managedSecretKeys: ['WEBEX_REFRESH_TOKEN'],
+        // Webex requires explicit scope on the authorize URL.  This must
+        // match the scopes declared on the Webex Integration app the
+        // customer registers — narrowing here without narrowing on the
+        // dev-portal app yields a runtime 403 on the missing capability.
+        scope: [
+          'spark:people_read',
+          'spark:rooms_read',
+          'spark:memberships_read',
+          'meeting:schedules_read',
+          'meeting:participants_read',
+          'meeting:recordings_read',
+          'meeting:transcripts_read',
+        ].join(' '),
+      },
+    },
+  },
 ];
 
 /** Lookup helper.  Returns ``undefined`` for unknown ids — callers should

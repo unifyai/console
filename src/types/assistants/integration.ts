@@ -9,7 +9,7 @@ import type { ResponseProps } from '../common';
  * Integrations tab — kept as the top entry in the ``Add new`` dropdown so
  * users still have an unstructured fallback for arbitrary env vars.
  */
-export type IntegrationProviderId = 'custom' | 'employmenthero' | 'hubspot';
+export type IntegrationProviderId = 'custom' | 'employmenthero' | 'hubspot' | 'webex';
 
 /**
  * One field the customer fills in when adding/editing an integration.  The
@@ -44,6 +44,12 @@ export type IntegrationAuthStrategy =
          *  Disconnect.  Customer-provided fields are **not** in this list
          *  (they're managed by the user, not the OAuth flow). */
         managedSecretKeys: string[];
+        /** Optional space-separated scopes appended to the authorize URL
+         *  by ``/api/integrations/oauth/start``.  Required for providers
+         *  that demand explicit scope on the authorize URL (e.g. Webex).
+         *  Omitted for providers whose scopes are bound at
+         *  app-registration time (e.g. Employment Hero). */
+        scope?: string;
       };
     };
 

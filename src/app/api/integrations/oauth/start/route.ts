@@ -145,12 +145,21 @@ export async function POST(request: NextRequest) {
   });
 
   const redirectUri = `${consoleUrl}/oauth/${body.providerId}/callback`;
+  /* OAuth-spec wire format requires snake_case parameter names. */
+  /* eslint-disable @typescript-eslint/naming-convention */
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: clientIdValue,
     redirect_uri: redirectUri,
     state: stateToken,
   });
+  /* eslint-enable @typescript-eslint/naming-convention */
+  // Append ``scope`` for providers that require it on the authorize URL.
+  // EH binds scopes at app-registration time and doesn't need this; Webex
+  // does.  See ``IntegrationAuthStrategy.oauth.scope`` for context.
+  if (provider.auth.oauth.scope) {
+    params.set('scope', provider.auth.oauth.scope);
+  }
 
   return NextResponse.json({
     authorizeUrl: `${provider.auth.oauth.authorizeUrl}?${params.toString()}`,
