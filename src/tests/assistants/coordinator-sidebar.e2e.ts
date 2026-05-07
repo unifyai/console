@@ -351,12 +351,6 @@ const regularAssistant = createAssistant({
   firstName: 'Regular',
   surname: 'Colleague',
 });
-const personalCoordinator = createAssistant({
-  userId: personalUser.id,
-  firstName: 'Personal',
-  surname: 'Coordinator',
-  isCoordinator: true,
-});
 
 let ownerAuthFile: string | undefined;
 let adminAuthFile: string | undefined;
@@ -525,20 +519,13 @@ test('organization member does not receive the Coordinator sidebar surface', asy
   await expect(page.getByTestId('coordinator-divider')).toHaveCount(0);
 });
 
-test('personal Coordinator opens chat without the organization admin gate', async ({
-  personalPage: page,
-}) => {
+test('personal workspace does not show a Coordinator surface', async ({ personalPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const coordinatorRow = page.getByTestId(`assistant-list-item-${personalCoordinator.agentId}`);
-  await expect(coordinatorRow).toBeVisible({ timeout: 15_000 });
-  await expect(coordinatorRow).toContainText('Coordinator');
   await expect(page.getByTestId('coordinator-divider')).toHaveCount(0);
-  await expectCoordinatorChatOpen(page, personalCoordinator.agentId);
-
-  const coordinatorFlag = dbExec(
-    `SELECT is_coordinator FROM assistants WHERE agent_id = ${personalCoordinator.agentId}`
+  const coordinatorCount = dbExec(
+    `SELECT count(*) FROM assistants WHERE user_id = '${personalUser.id}' AND is_coordinator = TRUE`
   );
-  expect(coordinatorFlag).toContain('t');
+  expect(coordinatorCount).toBe('0');
 });
