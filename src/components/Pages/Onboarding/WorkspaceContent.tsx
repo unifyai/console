@@ -9,6 +9,8 @@ import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
 import { ResponseProps } from '@/types/common';
 import { Organization } from '@/types/organization';
+import { generateCoordinatorOpener } from '@/lib/assistants/preHireChat';
+import { seedCoordinatorOpener } from '@/lib/client/coordinator';
 
 interface WorkspaceContentProps {
   onCreateOrg: (name: string) => Promise<Organization | ResponseProps>;
@@ -28,6 +30,16 @@ interface WorkspaceContentProps {
    * detects the user already has an org (e.g. joined via invite).
    */
   autoComplete?: boolean;
+}
+
+function getOnboardingRedirectParams(): Record<string, string> {
+  const extraParams: Record<string, string> = {};
+  const current = new URLSearchParams(window.location.search);
+  current.forEach((value, key) => {
+    if (key === 'openHire') return;
+    extraParams[key] = value;
+  });
+  return extraParams;
 }
 
 /**
@@ -95,11 +107,7 @@ const WorkspaceContent = ({
       }
 
       // Collect current URL params (e.g. credit tokens) to forward.
-      const extraParams: Record<string, string> = {};
-      const current = new URLSearchParams(window.location.search);
-      current.forEach((value, key) => {
-        extraParams[key] = value;
-      });
+      const extraParams = getOnboardingRedirectParams();
 
       await onPatchSession({ onboardingStep: 'completed' }, '/assistants', extraParams);
     },
@@ -112,6 +120,23 @@ const WorkspaceContent = ({
     // Selecting "personal" has no side effect — repeating is harmless.
     await completeAndRedirect({ selectedType: 'personal' });
   }, [completeAndRedirect]);
+
+  const seedNewOrganizationCoordinator = useCallback(async (org: Organization) => {
+    if (!org.coordinatorId) {
+      console.warn('[onboarding] Organization was created without a Coordinator id');
+      return;
+    }
+
+    try {
+      const opener = await generateCoordinatorOpener({ organizationName: org.name });
+      const seedResult = await seedCoordinatorOpener(org.coordinatorId, opener.content);
+      if ('detail' in seedResult) {
+        console.warn('[onboarding] Failed to seed Coordinator opener:', seedResult.detail);
+      }
+    } catch (error) {
+      console.warn('[onboarding] Failed to prepare Coordinator opener:', error);
+    }
+  }, []);
 
   const handleCreateOrg = useCallback(async () => {
     const trimmed = orgName.trim();
@@ -142,6 +167,8 @@ const WorkspaceContent = ({
         body: JSON.stringify({ workspaceId: String(org.id) }),
       });
 
+      void seedNewOrganizationCoordinator(org);
+
       await completeAndRedirect({
         selectedType: 'organization',
         organizationId: String(org.id),
@@ -151,7 +178,7 @@ const WorkspaceContent = ({
       setError('Failed to create organization. Please try again.');
       setIsLoading(false);
     }
-  }, [orgName, onCreateOrg, completeAndRedirect]);
+  }, [orgName, onCreateOrg, seedNewOrganizationCoordinator, completeAndRedirect]);
 
   // Auto-complete onboarding on mount when the user already has an org.
   // Server actions can modify cookies when called from a client component,
@@ -160,11 +187,7 @@ const WorkspaceContent = ({
     if (!autoComplete || autoCompleteTriggered.current) return;
     autoCompleteTriggered.current = true;
 
-    const extraParams: Record<string, string> = {};
-    const current = new URLSearchParams(window.location.search);
-    current.forEach((value, key) => {
-      extraParams[key] = value;
-    });
+    const extraParams = getOnboardingRedirectParams();
 
     // Fire timezone detection alongside the session patch (best-effort).
     persistBrowserTimezone();

@@ -22,6 +22,7 @@ export type {
 export interface Organization {
   id: number;
   name: string;
+  coordinatorId?: number;
   ownerId?: string;
   billingUserId?: string;
   createdAt?: string;
