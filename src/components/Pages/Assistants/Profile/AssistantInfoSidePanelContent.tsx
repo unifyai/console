@@ -25,6 +25,8 @@ import { FaDiscord } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 import type { Assistant } from '@/types/assistants/assistant';
 import type { ContactType } from '@/types/assistants/contact';
+import type { CoordinatorActivityState } from '@/hooks/Assistants/useCoordinatorActivity';
+import type { CoordinatorActivityRow } from '@/types/assistants/coordinatorActivity';
 import { AssistantSetupRoadmap } from '@/components/Pages/Assistants/Onboarding/AssistantSetupRoadmap';
 import {
   useAssistantOnboardingState,
@@ -77,6 +79,8 @@ export interface AssistantInfoSidePanelContentProps {
     onSeedChatDraft: (text: string) => void;
   };
   onSeedChatDraft?: (text: string) => void;
+  onCoordinatorActivity?: (activity: CoordinatorActivityRow) => void;
+  coordinatorActivity?: CoordinatorActivityState;
   className?: string;
 }
 
@@ -112,6 +116,8 @@ export function AssistantInfoSidePanelContent({
         assistant={assistant}
         className={props.className}
         onSeedChatDraft={onSeedChatDraft}
+        onCoordinatorActivity={props.onCoordinatorActivity}
+        coordinatorActivity={props.coordinatorActivity}
       />
     );
   }

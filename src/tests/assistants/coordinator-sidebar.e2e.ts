@@ -206,6 +206,82 @@ async function seedCoordinatorWorkspace() {
 }
 /* eslint-enable @typescript-eslint/naming-convention */
 
+/* eslint-disable @typescript-eslint/naming-convention */
+async function seedCoordinatorChecklistItem({
+  itemId,
+  title,
+  description,
+  kind,
+}: {
+  itemId: number;
+  title: string;
+  description: string;
+  kind: string;
+}) {
+  const res = await orchestraFetch(
+    '/v0/logs',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        project_name: 'Assistants',
+        context: `${owner.id}/${coordinator.agentId}/Coordinator/Checklist`,
+        entries: [
+          {
+            item_id: itemId,
+            title,
+            description,
+            kind,
+            status: 'pending',
+            created_at: '2026-05-01T10:05:00Z',
+            updated_at: '2026-05-01T10:05:00Z',
+          },
+        ],
+      }),
+    },
+    org.ownerOrgApiKey
+  );
+  if (!res.ok) {
+    throw new Error(`Failed to seed Coordinator checklist item: ${res.status} ${await res.text()}`);
+  }
+}
+
+async function pushCoordinatorActivity(page: Page) {
+  await page.evaluate(async (agentId) => {
+    const response = await fetch(`/api/assistant/${agentId}/actions/push`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'CoordinatorActivity',
+        data: {
+          id: 500,
+          ts: '2026-05-01T10:05:01Z',
+          entries: {
+            eventId: 'event-live-integration-setup',
+            activityId: 'activity-live-integration-setup',
+            phase: 'progress',
+            stage: 'integration_setup',
+            surfaces: ['credentials'],
+            title: 'Connecting Salesforce',
+            summary: 'Checking the integration path before asking for access.',
+            checklistItemId: 3,
+            relatedEntities: [{ type: 'credential', id: 'salesforce', name: 'Salesforce' }],
+            chatPrompt: 'Should I continue with Salesforce setup?',
+            chatPromptLabel: 'Continue',
+            correlationId: 'salesforce-integration-setup',
+            occurredAt: '2026-05-01T10:05:00Z',
+            status: 'ok',
+            error: null,
+          },
+        },
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to push Coordinator activity: ${response.status}`);
+    }
+  }, coordinator.agentId);
+}
+/* eslint-enable @typescript-eslint/naming-convention */
+
 async function expectPinnedBeforeSolo(page: Page) {
   await expect(page.getByTestId('assistant-list-group-pinned')).toBeVisible({
     timeout: 15_000,
@@ -416,6 +492,19 @@ test('owner sees the Coordinator pinned with workspace chrome and no contract te
   });
   await expect(page.getByText('Setup plan')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('Invite operators')).toBeVisible({ timeout: 15_000 });
+
+  await seedCoordinatorChecklistItem({
+    itemId: 3,
+    title: 'Connect Salesforce',
+    description: 'Finish the integration setup choice.',
+    kind: 'integration',
+  });
+  await pushCoordinatorActivity(page);
+
+  await expect(currentWorkCard).toContainText('Connecting Salesforce', { timeout: 15_000 });
+  await expect(currentWorkCard).toContainText('Integration setup', { timeout: 15_000 });
+  await expect(page.getByText('Refreshing...')).toHaveCount(0, { timeout: 45_000 });
+  await expect(page.getByText('Connect Salesforce')).toBeVisible({ timeout: 15_000 });
 });
 
 test('organization admin can open the Coordinator chat', async ({ adminPage: page }) => {

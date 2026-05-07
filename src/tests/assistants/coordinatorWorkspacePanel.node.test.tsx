@@ -112,7 +112,7 @@ function seedCoordinatorLogs(
     {
       activity_id: 'activity-1',
       phase: 'progress',
-      stage: 'proposal',
+      stage: 'integration_setup',
       surfaces: ['chat'],
       title: 'Drafting the teammate plan',
       summary: 'Collecting roles and handoff rules.',
@@ -224,6 +224,7 @@ describe('Coordinator workspace panel', () => {
     expect(screen.getByText('Setup plan')).toBeInTheDocument();
     const currentWorkCard = screen.getByTestId('coordinator-current-work-card');
     expect(currentWorkCard).toHaveTextContent('Drafting the teammate plan');
+    expect(currentWorkCard).toHaveTextContent('Integration setup');
     expect(
       within(currentWorkCard).getByTestId('coordinator-current-work-loader')
     ).toBeInTheDocument();

@@ -15,36 +15,21 @@ import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
 import type { Assistant } from '@/types/assistants/assistant';
 import {
-  type CoordinatorActivityRow,
   type CoordinatorChecklistRow,
   useCoordinatorPanel,
 } from '@/hooks/Assistants/useCoordinatorPanel';
+import {
+  type CoordinatorActivityState,
+  useCoordinatorActivity,
+} from '@/hooks/Assistants/useCoordinatorActivity';
+import {
+  type CoordinatorActivityRow,
+  defaultCoordinatorActivityPromptLabel,
+  isActiveCoordinatorActivity,
+  latestCoordinatorActivityLifecycleRows,
+} from '@/types/assistants/coordinatorActivity';
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
-
-const ACTIVE_ACTIVITY_PHASES = new Set<CoordinatorActivityRow['phase']>([
-  'started',
-  'progress',
-  'needs_input',
-  'blocked',
-  'failed',
-]);
-
-function defaultLabelForPhase(phase: CoordinatorActivityRow['phase']): string {
-  switch (phase) {
-    case 'needs_input':
-      return 'Continue setup';
-    case 'blocked':
-      return 'Resolve';
-    case 'completed':
-      return 'Review';
-    case 'failed':
-      return 'Troubleshoot';
-    case 'started':
-    case 'progress':
-      return 'Ask for update';
-  }
-}
 
 function promptForChecklistRow(row: CoordinatorChecklistRow): string {
   switch (row.status) {
@@ -55,10 +40,6 @@ function promptForChecklistRow(row: CoordinatorChecklistRow): string {
     case 'skipped':
       return `Reopen this - I want to revisit ${row.title}`;
   }
-}
-
-function isNowActivity(activity: CoordinatorActivityRow): boolean {
-  return ACTIVE_ACTIVITY_PHASES.has(activity.phase);
 }
 
 function titleFromKind(kind: string): string {
@@ -88,29 +69,6 @@ function groupChecklistRows(rows: CoordinatorChecklistRow[]): {
     grouped.set(label, groupRows);
   }
   return Array.from(grouped, ([label, groupRows]) => ({ label, rows: groupRows }));
-}
-
-function activityLifecycleKey(activity: CoordinatorActivityRow): string {
-  return activity.correlationId?.trim() || activity.activityId;
-}
-
-function occurredAtMillis(activity: CoordinatorActivityRow): number {
-  const millis = Date.parse(activity.occurredAt);
-  return Number.isFinite(millis) ? millis : 0;
-}
-
-function latestActivityLifecycleRows(
-  activities: CoordinatorActivityRow[]
-): CoordinatorActivityRow[] {
-  const seen = new Set<string>();
-  return [...activities]
-    .sort((left, right) => occurredAtMillis(right) - occurredAtMillis(left))
-    .filter((activity) => {
-      const key = activityLifecycleKey(activity);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
 }
 
 const DOT_FLICKER_TIMINGS = [
@@ -144,6 +102,7 @@ function DotFlickerLoader({ className }: { className?: string }) {
 }
 
 function stageLabel(stage: CoordinatorActivityRow['stage']): string {
+  if (stage === 'integration_setup') return 'Integration setup';
   return titleFromKind(stage);
 }
 
@@ -154,7 +113,7 @@ function stageIcon(stage: CoordinatorActivityRow['stage']) {
   if (stage === 'proposal' || stage === 'handoff') {
     return <UserRoundPlus className="h-3.5 w-3.5" aria-hidden="true" />;
   }
-  if (stage === 'credential_setup') {
+  if (stage === 'integration_setup') {
     return <Cloud className="h-3.5 w-3.5" aria-hidden="true" />;
   }
   return <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />;
@@ -212,7 +171,8 @@ function CurrentWorkCard({
                   data-testid="coordinator-activity-chat-prompt"
                 >
                   <MessageSquareText className="h-3.5 w-3.5" />
-                  {activity.chatPromptLabel || defaultLabelForPhase(activity.phase)}
+                  {activity.chatPromptLabel ||
+                    defaultCoordinatorActivityPromptLabel(activity.phase)}
                 </Button>
               )}
             </div>
@@ -330,24 +290,69 @@ export function CoordinatorWorkspacePanelContent({
   assistant,
   className,
   onSeedChatDraft,
+  onCoordinatorActivity,
+  coordinatorActivity,
 }: {
   assistant: Assistant;
   className?: string;
   onSeedChatDraft: (text: string) => void;
+  onCoordinatorActivity?: (activity: CoordinatorActivityRow) => void;
+  coordinatorActivity?: CoordinatorActivityState;
 }): JSX.Element {
   const { canOpenAssistantChat } = useAssistantPermissions();
   const canReadCoordinatorPanel = canOpenAssistantChat(assistant);
-  const { state, checklist, activities, isLoading, error, refetch } = useCoordinatorPanel({
+  const { state, checklist, isLoading, error, refetch } = useCoordinatorPanel({
     assistant,
     enabled: canReadCoordinatorPanel,
   });
+  const refreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const schedulePanelRefresh = React.useCallback(() => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null;
+      void refetch();
+    }, 500);
+  }, [refetch]);
+  const handleActivity = React.useCallback(
+    (activity: CoordinatorActivityRow) => {
+      schedulePanelRefresh();
+      onCoordinatorActivity?.(activity);
+    },
+    [onCoordinatorActivity, schedulePanelRefresh]
+  );
+  const localCoordinatorActivity = useCoordinatorActivity({
+    assistant,
+    enabled: canReadCoordinatorPanel && coordinatorActivity == null,
+    onActivity: handleActivity,
+  });
+  const activityState = coordinatorActivity ?? localCoordinatorActivity;
+  const lastActivitySignalRef = React.useRef(activityState.activitySignal);
+
+  React.useEffect(
+    () => () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    },
+    [assistant.agentId, refetch]
+  );
+
+  React.useEffect(() => {
+    if (coordinatorActivity == null) return;
+    if (activityState.activitySignal === lastActivitySignalRef.current) return;
+    lastActivitySignalRef.current = activityState.activitySignal;
+    if (activityState.activitySignal > 0) schedulePanelRefresh();
+  }, [activityState.activitySignal, coordinatorActivity, schedulePanelRefresh]);
+
+  React.useEffect(() => {
+    lastActivitySignalRef.current = activityState.activitySignal;
+  }, [assistant.agentId, activityState.activitySignal]);
 
   const lifecycleActivities = React.useMemo(
-    () => latestActivityLifecycleRows(activities),
-    [activities]
+    () => latestCoordinatorActivityLifecycleRows(activityState.activities),
+    [activityState.activities]
   );
+
   const nowActivity = React.useMemo(
-    () => lifecycleActivities.find(isNowActivity) ?? null,
+    () => lifecycleActivities.find(isActiveCoordinatorActivity) ?? null,
     [lifecycleActivities]
   );
   const firstPendingChecklistRow = React.useMemo(
@@ -355,6 +360,8 @@ export function CoordinatorWorkspacePanelContent({
     [checklist]
   );
   const checklistGroups = React.useMemo(() => groupChecklistRows(checklist), [checklist]);
+  const isWorkspaceLoading = isLoading || activityState.isLoading;
+  const workspaceError = error || activityState.error;
   return (
     <ScrollArea className={cn('flex-1', className)}>
       <div className="flex flex-col gap-4 px-4 py-4" data-testid="coordinator-workspace-panel">
@@ -371,12 +378,12 @@ export function CoordinatorWorkspacePanelContent({
               variant="ghost"
               size="icon"
               className="h-7 w-7 shrink-0"
-              onClick={() => void refetch()}
-              disabled={isLoading}
+              onClick={() => void Promise.all([refetch(), activityState.refetch()])}
+              disabled={isWorkspaceLoading}
               aria-label="Refresh Coordinator workspace"
               data-testid="coordinator-workspace-refresh"
             >
-              <RefreshCw className={cn('h-3.5 w-3.5', isLoading && 'animate-spin')} />
+              <RefreshCw className={cn('h-3.5 w-3.5', isWorkspaceLoading && 'animate-spin')} />
             </Button>
           </div>
 
@@ -393,9 +400,9 @@ export function CoordinatorWorkspacePanelContent({
           </div>
         </header>
 
-        {error && (
+        {workspaceError && (
           <div className="text-caption text-error border-destructive/30 bg-destructive/10 rounded-md border p-2">
-            {error}
+            {workspaceError}
           </div>
         )}
 
@@ -409,7 +416,7 @@ export function CoordinatorWorkspacePanelContent({
           <div className="flex items-center justify-between gap-2">
             <div>
               <h3 className="text-label text-semibold">Setup plan</h3>
-              {isLoading && (
+              {isWorkspaceLoading && (
                 <p className="text-caption mt-0.5 text-muted-foreground">Refreshing...</p>
               )}
             </div>

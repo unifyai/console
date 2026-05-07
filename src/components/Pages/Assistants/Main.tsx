@@ -70,6 +70,10 @@ import { SpendingDisplayProps } from '@/types/assistants/spending';
 import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemErrors';
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import type { SpaceSummary } from '@/types/spaces/space';
+import {
+  type CoordinatorActivityRow,
+  invalidatesCoordinatorSidebar,
+} from '@/types/assistants/coordinatorActivity';
 
 const EMPTY_SPACES: SpaceSummary[] = [];
 
@@ -310,6 +314,32 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     staleTime: 5 * 60 * 1000,
   });
   const visibleSpaces = spacesQuery.data ?? EMPTY_SPACES;
+  const { refetch: refetchVisibleSpaces } = spacesQuery;
+  const coordinatorInvalidationTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCoordinatorActivity = React.useCallback(
+    (activity: CoordinatorActivityRow) => {
+      if (!invalidatesCoordinatorSidebar(activity)) return;
+      if (coordinatorInvalidationTimerRef.current) {
+        clearTimeout(coordinatorInvalidationTimerRef.current);
+      }
+      coordinatorInvalidationTimerRef.current = setTimeout(() => {
+        coordinatorInvalidationTimerRef.current = null;
+        refreshAssistants(false);
+        void refetchVisibleSpaces();
+      }, 500);
+    },
+    [refreshAssistants, refetchVisibleSpaces]
+  );
+
+  React.useEffect(
+    () => () => {
+      if (coordinatorInvalidationTimerRef.current) {
+        clearTimeout(coordinatorInvalidationTimerRef.current);
+      }
+    },
+    []
+  );
 
   const spacesById = React.useMemo<Record<number, SpaceSummary>>(() => {
     return Object.fromEntries(visibleSpaces.map((space) => [space.spaceId, space]));
@@ -1501,6 +1531,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             onPaneStateChange={setPaneState}
             onEditAssistant={handleOpenEditDialog}
             onOpenContactManager={handleOpenContactManager}
+            onCoordinatorActivity={handleCoordinatorActivity}
             hasUserMessage={profiledHasUserMessage}
             hasHistoricalCall={profiledHasHistoricalCall}
             hasUserPhoneNumber={hasUserPhoneNumber}
