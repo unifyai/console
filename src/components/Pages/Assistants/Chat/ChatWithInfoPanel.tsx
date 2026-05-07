@@ -458,6 +458,7 @@ export function ChatWithInfoPanel({
               onEditProfile={onEditProfile}
               onOpenContactManager={onOpenContactManager}
               roadmap={roadmap}
+              onSeedChatDraft={seedChatDraft}
               canWrite={canWrite}
             />
           </ChatSidePanel>

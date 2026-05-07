@@ -30,6 +30,7 @@ import {
   useAssistantOnboardingState,
   type OnboardingDerivationContext,
 } from '@/hooks/Assistants/useAssistantOnboardingState';
+import { CoordinatorWorkspacePanelContent } from './CoordinatorWorkspacePanelContent';
 
 export interface AssistantInfoSidePanelContentProps {
   assistant: Assistant;
@@ -75,8 +76,11 @@ export interface AssistantInfoSidePanelContentProps {
     onOpenUserSettings: (tab?: string) => void;
     onSeedChatDraft: (text: string) => void;
   };
+  onSeedChatDraft?: (text: string) => void;
   className?: string;
 }
+
+const noopSeedChatDraft = () => {};
 
 /**
  * Body of the chat-tab assistant info side panel.
@@ -98,6 +102,24 @@ export interface AssistantInfoSidePanelContentProps {
  * doesn't need a static panel section to live in.
  */
 export function AssistantInfoSidePanelContent({
+  assistant,
+  onSeedChatDraft = noopSeedChatDraft,
+  ...props
+}: AssistantInfoSidePanelContentProps) {
+  if (assistant.isCoordinator === true) {
+    return (
+      <CoordinatorWorkspacePanelContent
+        assistant={assistant}
+        className={props.className}
+        onSeedChatDraft={onSeedChatDraft}
+      />
+    );
+  }
+
+  return <RegularAssistantInfoSidePanelContent assistant={assistant} {...props} />;
+}
+
+function RegularAssistantInfoSidePanelContent({
   assistant,
   onEditProfile,
   onOpenContactManager,
