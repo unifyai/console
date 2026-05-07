@@ -9,7 +9,6 @@ import {
   Trash2,
   Loader2,
   AlertTriangle,
-  Star,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
@@ -34,6 +33,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/UI/alert-dialog';
+import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 
 interface AssistantListItemProps {
   assistant: Assistant;
@@ -60,17 +60,6 @@ interface AssistantListItemProps {
   alsoInSpaceLabels?: string[];
 }
 
-function CoordinatorAvatarBadge() {
-  return (
-    <span
-      aria-label="Coordinator"
-      className="absolute right-0 top-0 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background"
-    >
-      <Star className="h-2.5 w-2.5 fill-current" aria-hidden="true" />
-    </span>
-  );
-}
-
 export function AssistantListItem({
   assistant,
   status,
@@ -93,9 +82,13 @@ export function AssistantListItem({
   const [isEndContractAlertOpen, setIsEndContractAlertOpen] = React.useState(false);
   const [isEndingContract, setIsEndingContract] = React.useState(false);
 
+  const openProfile = () => {
+    onShowProfile(assistant.agentId);
+  };
+
   const handleProfileClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onShowProfile(assistant.agentId);
+    openProfile();
   };
 
   const handleEndContractConfirm = async () => {
@@ -109,28 +102,48 @@ export function AssistantListItem({
     }
   };
 
-  const displayName = `${assistant.firstName} ${assistant.surname}`;
+  const isCoordinator = assistant.isCoordinator === true;
+  const displayName = isCoordinator ? 'Coordinator' : `${assistant.firstName} ${assistant.surname}`;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
   const isOnline = status?.running === true;
-  const isCoordinator = assistant.isCoordinator === true;
-  const canEndContract = !!onEndContract;
+  const canEndContract = !!onEndContract && !isCoordinator;
+
+  const handleFoldedKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    openProfile();
+  };
+
+  const handleRowKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    openProfile();
+  };
 
   if (isFolded) {
     return (
       <div
         data-testid={isPrimary ? `assistant-list-item-${assistant.agentId}` : undefined}
+        role="button"
+        tabIndex={0}
+        aria-label={displayName}
         className={cn(
           'relative cursor-pointer rounded-full',
           isSelected && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
         )}
         onClick={handleProfileClick}
+        onKeyDown={handleFoldedKeyDown}
       >
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
-          <AvatarFallback>
-            {`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        {isCoordinator ? (
+          <CoordinatorLogoAvatar className="h-8 w-8 rounded-full" />
+        ) : (
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
+            <AvatarFallback>
+              {`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        )}
         {status !== null && (
           <span
             role="status"
@@ -140,7 +153,6 @@ export function AssistantListItem({
             )}
           />
         )}
-        {isCoordinator && <CoordinatorAvatarBadge />}
         {isCallActive && (
           <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
@@ -172,18 +184,20 @@ export function AssistantListItem({
         isSelected && 'bg-primary text-primary-foreground'
       )}
       onClick={handleProfileClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') handleProfileClick(e as any);
-      }}
+      onKeyDown={handleRowKeyDown}
     >
       <div className="flex min-w-0 items-center gap-3">
         <div className="relative">
-          <Avatar className="h-8 w-8 flex-shrink-0 cursor-default">
-            <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
-            <AvatarFallback>
-              {`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          {isCoordinator ? (
+            <CoordinatorLogoAvatar className="h-8 w-8 flex-shrink-0" />
+          ) : (
+            <Avatar className="h-8 w-8 flex-shrink-0 cursor-default">
+              <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
+              <AvatarFallback>
+                {`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          )}
           {status !== null && (
             <span
               role="status"
@@ -194,25 +208,9 @@ export function AssistantListItem({
               )}
             />
           )}
-          {isCoordinator && <CoordinatorAvatarBadge />}
         </div>
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="text-body text-strong truncate">{displayName}</span>
-          {isCoordinator && (
-            <span
-              className={cn(
-                'text-caption shrink-0',
-                isSelected ? 'text-primary-foreground' : 'text-muted-foreground'
-              )}
-            >
-              <Badge
-                variant="outline"
-                className={cn(isSelected && 'border-primary-foreground text-primary-foreground')}
-              >
-                Coordinator
-              </Badge>
-            </span>
-          )}
         </div>
       </div>
       <div className="flex items-center gap-1">
