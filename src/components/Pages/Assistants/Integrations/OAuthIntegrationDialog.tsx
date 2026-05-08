@@ -170,6 +170,12 @@ export function OAuthIntegrationDialog({
             )}
           </p>
 
+          {!isEditing && provider.setupNote && (
+            <p className="text-caption" data-testid={`integration-oauth-setup-note-${provider.id}`}>
+              <span className="font-medium">Tip:</span> {provider.setupNote}
+            </p>
+          )}
+
           {!isEditing && (
             <div
               className="bg-muted/30 flex flex-col gap-2 rounded-md border p-3"

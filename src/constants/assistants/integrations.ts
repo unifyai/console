@@ -110,6 +110,8 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
       'Authenticated Salesforce REST + SOQL access; sync standard objects into DataManager.',
     docsUrl: 'https://help.salesforce.com/s/articleView?id=sf.connected_app_create.htm&type=5',
     iconComponent: SiSalesforce,
+    setupNote:
+      'When creating the Connected App, under the security-policy checkboxes, tick "Require Secret for Web Server Flow" and "Require Secret for Refresh Token Flow" only — leave the rest (including any PKCE / proof-key requirement) unticked.',
     auth: {
       kind: 'oauth_authorization_code',
       fields: [

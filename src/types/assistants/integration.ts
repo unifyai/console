@@ -87,6 +87,12 @@ export interface IntegrationProviderConfig {
   iconClassName?: string;
   /** Optional "How to set up" link surfaced in the modal. */
   docsUrl?: string;
+  /** Optional one-liner the OAuthIntegrationDialog renders in `add`
+   *  mode for non-obvious setup steps that aren't a single field —
+   *  e.g. provider-specific security-policy checkbox selections.  Use
+   *  for short, action-oriented hints; longer guidance belongs in
+   *  ``docsUrl``. */
+  setupNote?: string;
   auth: IntegrationAuthStrategy;
 }
 
