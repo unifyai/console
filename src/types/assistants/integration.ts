@@ -14,6 +14,7 @@ export type IntegrationProviderId =
   | 'employmenthero'
   | 'hubspot'
   | 'matterport'
+  | 'salesforce'
   | 'webex';
 
 /**

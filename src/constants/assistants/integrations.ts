@@ -1,5 +1,5 @@
 import { KeyRound } from 'lucide-react';
-import { SiHubspot, SiWebex } from 'react-icons/si';
+import { SiHubspot, SiSalesforce, SiWebex } from 'react-icons/si';
 import type {
   IntegrationProviderConfig,
   IntegrationProviderId,
@@ -101,6 +101,47 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
           helpText: 'Shown once at token creation — copy it before closing the Matterport dialog.',
         },
       ],
+    },
+  },
+  {
+    id: 'salesforce',
+    label: 'Salesforce',
+    shortDescription:
+      'Authenticated Salesforce REST + SOQL access; sync standard objects into DataManager.',
+    docsUrl: 'https://help.salesforce.com/s/articleView?id=sf.connected_app_create.htm&type=5',
+    iconComponent: SiSalesforce,
+    auth: {
+      kind: 'oauth_authorization_code',
+      fields: [
+        {
+          label: 'Consumer Key',
+          secretKey: 'SALESFORCE_CLIENT_ID',
+          sensitive: false,
+          helpText:
+            'Consumer Key from your Connected App at Salesforce Setup → App Manager → Manage Consumer Details.',
+        },
+        {
+          label: 'Consumer Secret',
+          secretKey: 'SALESFORCE_CLIENT_SECRET',
+          sensitive: true,
+          helpText:
+            'Consumer Secret from your Connected App. Salesforce may take ~5 minutes to propagate after creation.',
+        },
+      ],
+      oauth: {
+        // Production-only.  Sandbox (test.salesforce.com) and customer
+        // My Domain login hosts are not supported in v0; both would land
+        // on the same redirect URI and produce ``invalid_client_id`` at
+        // the token-exchange step.  Per-org REST traffic uses the
+        // ``instance_url`` returned by the token response, persisted as
+        // SALESFORCE_INSTANCE_URL by the callback.
+        authorizeUrl: 'https://login.salesforce.com/services/oauth2/authorize',
+        // ``api`` covers REST + SOQL on standard + custom sObjects.
+        // ``refresh_token`` (alias ``offline_access``) is mandatory for
+        // the long-lived refresh-token grant the runtime relies on.
+        scope: 'api refresh_token',
+        managedSecretKeys: ['SALESFORCE_REFRESH_TOKEN', 'SALESFORCE_INSTANCE_URL'],
+      },
     },
   },
   {
