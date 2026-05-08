@@ -80,7 +80,7 @@ export function InvoicesTable({
   const description =
     variant === 'metered'
       ? 'Newest first. Each invoice covers one billing period.'
-      : 'Newest first. Auto-recharge invoices appear here once Stripe finalises them.';
+      : 'Newest first. Auto-recharge invoices appear here.';
   const emptyCopy =
     variant === 'metered'
       ? 'No invoices yet. The first one will appear after the end of your current billing period.'
