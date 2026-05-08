@@ -22,7 +22,8 @@ import {
   Info,
   Copy,
   Check,
-  Link2,
+  Pencil,
+  Plus,
 } from 'lucide-react';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ContactType, OAuthProvider } from '@/types/assistants/contact';
@@ -57,6 +58,10 @@ interface AssistantContactManagerProps {
   canWrite?: boolean;
   /** Callback to open the Stripe payment panel when credits are insufficient */
   onAddPaymentMethod?: () => void;
+  /** Open the Workspace modal — wired by the Email tab's "Add/update
+   *  config" CTA.  The OAuth connect flow lives there now; the Email
+   *  tab is display-only. */
+  onOpenWorkspaceManager?: (assistant: Assistant) => void;
   /** User's phone number from their profile */
   userPhoneNumber?: string | null;
   /** User's WhatsApp number from their profile */
@@ -69,7 +74,10 @@ interface AssistantContactManagerProps {
 // Shared sub-components
 // ---------------------------------------------------------------------------
 
-const DisplayContactField: React.FC<{ label: string; value: string }> = ({ label, value }) => {
+export const DisplayContactField: React.FC<{ label: string; value: string }> = ({
+  label,
+  value,
+}) => {
   const [isCopied, setIsCopied] = React.useState(false);
 
   const handleCopy = () => {
@@ -112,7 +120,7 @@ const DisplayContactField: React.FC<{ label: string; value: string }> = ({ label
 };
 
 /* eslint-disable @typescript-eslint/naming-convention */
-const PROVIDER_LABELS: Record<string, string> = {
+export const PROVIDER_LABELS: Record<string, string> = {
   google_workspace: 'Gmail',
   microsoft_365: 'Outlook 365',
   google: 'Google',
@@ -130,7 +138,7 @@ const FEATURE_LABELS: Record<string, string> = {
   tasks: 'Tasks',
 };
 
-const ProviderBadge: React.FC<{ provider: string }> = ({ provider }) => (
+export const ProviderBadge: React.FC<{ provider: string }> = ({ provider }) => (
   <Badge variant="secondary" className="ml-2 text-xs font-normal">
     {PROVIDER_LABELS[provider] ?? provider}
   </Badge>
@@ -140,7 +148,7 @@ const ProviderBadge: React.FC<{ provider: string }> = ({ provider }) => (
 // BYOD provider picker cards
 // ---------------------------------------------------------------------------
 
-const ByodProviderCard: React.FC<{
+export const ByodProviderCard: React.FC<{
   provider: OAuthProvider;
   isSelected: boolean;
   onSelect: () => void;
@@ -171,7 +179,7 @@ const ByodProviderCard: React.FC<{
 // Feature checklist
 // ---------------------------------------------------------------------------
 
-const FeatureChecklist: React.FC<{
+export const FeatureChecklist: React.FC<{
   features: string[];
   selected: string[];
   required: string[];
@@ -217,6 +225,7 @@ export function AssistantContactManager({
   initialTab,
   canWrite = true,
   onAddPaymentMethod,
+  onOpenWorkspaceManager,
   userPhoneNumber,
   userWhatsappNumber,
   userDiscordId,
@@ -239,25 +248,10 @@ export function AssistantContactManager({
     handleProceedDelete,
     submitContact,
     isSubmittingContact,
-    // BYOD
-    byodProvider,
-    setByodProvider,
-    selectedFeatures,
-    toggleFeature,
-    availableFeaturesForByod,
-    requiredFeaturesForByod,
-    grantedFeatures,
-    isLoadingFeatures,
-    hasFeaturesChanged,
-    connectAccount,
-    updateFeatures,
-    disconnectAccount,
-    isConnecting,
-    isDisconnecting,
-    confirmDisconnect,
-    setConfirmDisconnect,
-    isByodEmail,
-    isPlatformEmail,
+    // BYOD connect / disconnect / feature management lives in
+    // ``AssistantWorkspaceManager`` now — those hook fields are not
+    // destructured here.  The hook still produces them for the
+    // workspace modal's own ``useAssistantContactManager`` instance.
   } = useAssistantContactManager({
     assistant,
     isOpen,
@@ -277,7 +271,7 @@ export function AssistantContactManager({
   } = contactFormMethods;
 
   const isSubmitting = isSubmittingContact;
-  const isBusy = isSubmitting || isDeleting || isConnecting || isDisconnecting;
+  const isBusy = isSubmitting || isDeleting;
 
   const rhfPhoneCountry = useWatch({ control, name: 'phoneCountry' });
 
@@ -294,131 +288,51 @@ export function AssistantContactManager({
   };
 
   // -------------------------------------------------------------------------
-  // Email tab content (four states)
+  // Email tab content — display-only.  Connect / disconnect / feature
+  // configuration moved to the Workspace modal (``AssistantWorkspaceManager``);
+  // this tab now just shows the email address (if connected) plus a
+  // CTA that opens that modal.
   // -------------------------------------------------------------------------
 
+  const openWorkspace = () => {
+    if (!onOpenWorkspaceManager) return;
+    // Close ContactManager so the Workspace modal isn't stacked behind it.
+    onClose();
+    onOpenWorkspaceManager(assistant);
+  };
+
   const renderEmailTab = () => {
-    // Determining email type from granted-features fetch
-    if (assistant.email && isLoadingFeatures) {
-      return (
-        <div className="flex items-center justify-center py-8 text-muted-foreground">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          <span className="text-caption">Loading email details...</span>
-        </div>
-      );
-    }
-
-    // State 4: Read-only user
-    if (!canWrite) {
-      if (assistant.email) {
-        return (
-          <div className="space-y-2">
-            <DisplayContactField label="Email Address" value={assistant.email} />
-            {assistant.emailProvider && <ProviderBadge provider={assistant.emailProvider} />}
-          </div>
-        );
-      }
-      return <p className="text-body text-muted-foreground">No email configured.</p>;
-    }
-
-    // State 2: Platform email exists
-    if (isPlatformEmail) {
+    if (assistant.email) {
       return (
         <div className="space-y-3">
           <div className="flex items-center">
             <Label>Email Address</Label>
             {assistant.emailProvider && <ProviderBadge provider={assistant.emailProvider} />}
           </div>
-          <DisplayContactField label="" value={assistant.email!} />
-          <p className="text-caption text-muted-foreground">
-            Platform-managed email. Delete it to connect your own account instead.
-          </p>
-        </div>
-      );
-    }
-
-    // State 3: BYOD email connected
-    if (isByodEmail) {
-      return (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Label>Connected Email</Label>
-            <Badge variant="outline" className="text-xs">
-              <Link2 className="mr-1 h-3 w-3" />
-              {PROVIDER_LABELS[grantedFeatures?.provider ?? assistant.emailProvider ?? ''] ??
-                'Connected'}
-            </Badge>
-          </div>
-          <DisplayContactField label="" value={assistant.email!} />
-
-          {/* Feature list */}
-          {isLoadingFeatures ? (
-            <div className="flex items-center gap-2 py-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-caption">Loading features...</span>
-            </div>
-          ) : availableFeaturesForByod.length > 0 ? (
-            <div className="space-y-2">
-              <Label>Features</Label>
-              <FeatureChecklist
-                features={availableFeaturesForByod}
-                selected={selectedFeatures}
-                required={requiredFeaturesForByod}
-                onToggle={toggleFeature}
-              />
-            </div>
-          ) : null}
-        </div>
-      );
-    }
-
-    // State 1: No email — connect a custom (BYOD) account.
-    // Platform-issued mailbox provisioning (`@unify.ai` / MS365 tenant) is
-    // hidden — users must connect their own email account instead.
-    return (
-      <div className="space-y-6">
-        {/* Connect your own account */}
-        <div className="space-y-3">
-          <Label className="text-strong">Connect your own account</Label>
-          <p className="text-caption text-muted-foreground">
-            Tip: create a dedicated account for your assistant first, and sign in to that account in
-            this browser before connecting — choose the account you want the assistant to use when
-            the picker is shown in the OAuth flow.
-          </p>
-          <div className="flex gap-2">
-            <ByodProviderCard
-              provider="google"
-              isSelected={byodProvider === 'google'}
-              onSelect={() => setByodProvider(byodProvider === 'google' ? null : 'google')}
-              disabled={isConnecting}
-            />
-            <ByodProviderCard
-              provider="microsoft"
-              isSelected={byodProvider === 'microsoft'}
-              onSelect={() => setByodProvider(byodProvider === 'microsoft' ? null : 'microsoft')}
-              disabled={isConnecting}
-            />
-          </div>
-
-          {byodProvider && (
-            <div className="space-y-3 pt-1">
-              <Label className="text-caption text-muted-foreground">
-                Select features to grant access to:
-              </Label>
-              <FeatureChecklist
-                features={availableFeaturesForByod}
-                selected={selectedFeatures}
-                required={requiredFeaturesForByod}
-                onToggle={toggleFeature}
-                disabled={isConnecting}
-              />
-              <Button onClick={connectAccount} disabled={isConnecting || !byodProvider}>
-                {isConnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Connect
-              </Button>
-            </div>
+          <DisplayContactField label="" value={assistant.email} />
+          {canWrite && onOpenWorkspaceManager && (
+            <Button variant="outline" size="sm" onClick={openWorkspace}>
+              <Pencil className="mr-2 h-3.5 w-3.5" />
+              Configure
+            </Button>
           )}
         </div>
+      );
+    }
+
+    if (!canWrite) {
+      return <p className="text-body text-muted-foreground">No email configured.</p>;
+    }
+
+    return (
+      <div className="space-y-3">
+        <p className="text-body text-muted-foreground">No email connected.</p>
+        {onOpenWorkspaceManager && (
+          <Button variant="outline" size="sm" onClick={openWorkspace}>
+            <Plus className="mr-2 h-3.5 w-3.5" />
+            Configure
+          </Button>
+        )}
       </div>
     );
   };
@@ -443,45 +357,8 @@ export function AssistantContactManager({
       );
     }
 
-    // Confirm disconnect (BYOD)
-    if (confirmDisconnect) {
-      return (
-        <div className="flex w-full items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setConfirmDisconnect(false)}
-            disabled={isDisconnecting}
-          >
-            Cancel
-          </Button>
-          <Button variant="destructive" onClick={disconnectAccount} disabled={isDisconnecting}>
-            {isDisconnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Disconnect
-          </Button>
-        </div>
-      );
-    }
-
-    // BYOD connected state — disconnect + optional update features
-    if (activeTab === 'email' && isByodEmail && canWrite) {
-      return (
-        <div className="flex w-full items-center justify-end gap-2">
-          {hasFeaturesChanged && (
-            <Button onClick={updateFeatures} disabled={isConnecting}>
-              {isConnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Update Features
-            </Button>
-          )}
-          <Button
-            variant="destructive"
-            onClick={() => setConfirmDisconnect(true)}
-            disabled={isBusy}
-          >
-            Disconnect
-          </Button>
-        </div>
-      );
-    }
+    // BYOD confirm-disconnect / connect / update-features actions live
+    // in the Workspace modal now — the Email tab is display-only.
 
     // Delete button for platform email or other contacts
     if (showDeleteButton && canWrite) {
@@ -552,15 +429,6 @@ export function AssistantContactManager({
               <p className="text-body-muted mx-auto mt-2 max-w-sm">
                 Deleting the {confirmDelete} contact method is irreversible. You can add a new one
                 again at any time.
-              </p>
-            </div>
-          ) : confirmDisconnect ? (
-            <div className="py-8 text-center">
-              <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
-              <h3 className="text-h2 mt-4">Disconnect account?</h3>
-              <p className="text-body-muted mx-auto mt-2 max-w-sm">
-                This will revoke access and remove the connected email. Your assistant will no
-                longer be able to send or receive emails via this account.
               </p>
             </div>
           ) : (

@@ -20,6 +20,7 @@ interface AssistantListProps {
   onShowProfile: (id: string) => void;
   onOpenHireDialog: () => void;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
+  onOpenWorkspaceManager: (assistant: Assistant) => void;
   onEditAssistant: (assistant: Assistant) => void;
   onEndContract?: (assistant: Assistant) => Promise<void>;
   canEndContract?: (assistant: Assistant) => boolean;
@@ -55,6 +56,7 @@ export function AssistantList({
   onShowProfile,
   onOpenHireDialog,
   onOpenContactManager,
+  onOpenWorkspaceManager,
   onEditAssistant,
   onEndContract,
   canEndContract,
@@ -175,6 +177,7 @@ export function AssistantList({
                 isSelected={profileAssistantId === assistant.agentId}
                 onShowProfile={onShowProfile}
                 onOpenContactManager={onOpenContactManager}
+                onOpenWorkspaceManager={onOpenWorkspaceManager}
                 onEditAssistant={onEditAssistant}
                 onEndContract={canEndContract?.(assistant) ? onEndContract : undefined}
                 canEdit={canEditAssistant ? canEditAssistant(assistant) : true}

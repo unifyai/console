@@ -5,6 +5,7 @@ import {
   MoreVertical,
   PenLine,
   Contact,
+  Briefcase,
   Trash2,
   Loader2,
   AlertTriangle,
@@ -39,10 +40,11 @@ interface AssistantListItemProps {
   isSelected: boolean;
   onShowProfile: (id: string) => void;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
+  onOpenWorkspaceManager: (assistant: Assistant) => void;
   onEditAssistant: (assistant: Assistant) => void;
   onEndContract?: (assistant: Assistant) => Promise<void>;
-  /** When false, the row's "Profile" and "Contact Details" menu
-   *  entries are hidden — non-write viewers don't get edit
+  /** When false, the row's "Profile" / "Workspace" / "Contact Details"
+   *  menu entries are hidden — non-write viewers don't get edit
    *  affordances they can't act on. Defaults to true. */
   canEdit?: boolean;
   isFolded: boolean;
@@ -61,6 +63,7 @@ export function AssistantListItem({
   isSelected,
   onShowProfile,
   onOpenContactManager,
+  onOpenWorkspaceManager,
   onEditAssistant,
   onEndContract,
   isFolded,
@@ -254,6 +257,13 @@ export function AssistantListItem({
                   >
                     <PenLine className="mr-2 h-4 w-4" />
                     Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onOpenWorkspaceManager(assistant)}
+                    data-testid="menu-update-workspace"
+                  >
+                    <Briefcase className="mr-2 h-4 w-4" />
+                    Workspace
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => onOpenContactManager(assistant)}
