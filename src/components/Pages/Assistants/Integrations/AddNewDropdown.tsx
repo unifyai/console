@@ -28,12 +28,13 @@ interface AddNewDropdownProps {
 /* The auth-kind keys mirror the discriminator union from
    ``IntegrationAuthStrategy`` and intentionally use snake_case so the
    union literal types stay readable.  Disable the naming-convention
-   rule for this map only — it's a 3-entry lookup, not part of any
+   rule for this map only — it's a small lookup, not part of any
    broader API surface. */
 /* eslint-disable @typescript-eslint/naming-convention */
 const STRATEGY_LABEL: Record<string, string> = {
   freeform: '',
   api_key: 'API key',
+  api_key_multi: 'API key',
   oauth_authorization_code: 'OAuth',
 };
 /* eslint-enable @typescript-eslint/naming-convention */

@@ -31,5 +31,5 @@ export function ProviderIcon({ provider, className }: ProviderIconProps) {
     const Icon = provider.iconComponent;
     return <Icon className={cn('shrink-0', className, provider.iconClassName)} />;
   }
-  return <Plug2 className={cn('shrink-0 text-muted-foreground', className)} />;
+  return <Plug2 className={cn('shrink-0', className)} />;
 }
