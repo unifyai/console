@@ -110,7 +110,9 @@ export function AssistantProfileChatPanel({
   onSearchOpenChange,
   draftSeed,
 }: AssistantProfileChatPanelProps) {
-  const displayName = `${assistant.firstName} ${assistant.surname}`;
+  const displayName = assistant.isCoordinator
+    ? 'Coordinator'
+    : [assistant.firstName, assistant.surname].filter(Boolean).join(' ');
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
 
   const { playMessage, stopPlayback, getAudioState, hasVoice } = useChatTTS({
@@ -719,6 +721,7 @@ export function AssistantProfileChatPanel({
                             isUser={item.role === 'user'}
                             assistantPhoto={photoSrc}
                             assistantName={displayName}
+                            isCoordinator={assistant.isCoordinator}
                             timestamp={item.timestamp}
                             timezone={userTimezone}
                             index={i}
@@ -798,6 +801,7 @@ export function AssistantProfileChatPanel({
                         isUser={msg.role === 'user'}
                         assistantPhoto={photoSrc}
                         assistantName={displayName}
+                        isCoordinator={assistant.isCoordinator}
                         timestamp={msg.timestamp}
                         timezone={userTimezone}
                         index={i}
@@ -816,6 +820,7 @@ export function AssistantProfileChatPanel({
                     isUser={false}
                     assistantPhoto={photoSrc}
                     assistantName={displayName}
+                    isCoordinator={assistant.isCoordinator}
                     isLoading={true}
                     index={messages.length}
                   />
