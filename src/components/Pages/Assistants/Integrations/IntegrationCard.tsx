@@ -7,6 +7,7 @@ import type {
   IntegrationCardState,
   IntegrationProviderConfig,
 } from '@/types/assistants/integration';
+import { ProviderIcon } from './ProviderIcon';
 
 interface IntegrationCardProps {
   provider: IntegrationProviderConfig;
@@ -84,10 +85,11 @@ export function IntegrationCard({
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
+          <ProviderIcon provider={provider} className="h-5 w-5" />
           <span className="text-title truncate">{provider.label}</span>
           {statusBadge}
         </div>
-        <p className="text-caption truncate">{subtitle}</p>
+        <p className="text-caption ml-7 truncate">{subtitle}</p>
       </div>
 
       <div className="flex shrink-0 items-center gap-1">

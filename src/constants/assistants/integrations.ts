@@ -1,3 +1,5 @@
+import { KeyRound } from 'lucide-react';
+import { SiHubspot, SiWebex } from 'react-icons/si';
 import type {
   IntegrationProviderConfig,
   IntegrationProviderId,
@@ -26,6 +28,7 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
     id: 'custom',
     label: 'Custom secret',
     shortDescription: 'Paste any environment-style key/value pair.',
+    iconComponent: KeyRound,
     auth: { kind: 'freeform' },
   },
   {
@@ -33,6 +36,8 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
     label: 'Employment Hero',
     shortDescription: 'Connect via OAuth using a developer-portal app.',
     docsUrl: 'https://developer.employmenthero.com',
+    // Not in react-icons/si — falls through to the generic Plug2 glyph
+    // in ``ProviderIcon``, matching the right-pane Integrations tab.
     auth: {
       kind: 'oauth_authorization_code',
       fields: [
@@ -60,6 +65,7 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
     label: 'HubSpot',
     shortDescription: 'Paste your HubSpot Private App access token.',
     docsUrl: 'https://developers.hubspot.com/docs/api/private-apps',
+    iconComponent: SiHubspot,
     auth: {
       kind: 'api_key',
       field: {
@@ -76,6 +82,8 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
     label: 'Matterport',
     shortDescription: 'Paste your Matterport API token pair (Token ID + secret).',
     docsUrl: 'https://matterport.github.io/showcase-sdk/api_home.html',
+    // Not in react-icons/si — falls through to the generic Plug2 glyph
+    // in ``ProviderIcon``, matching the right-pane Integrations tab.
     auth: {
       kind: 'api_key_multi',
       fields: [
@@ -100,6 +108,7 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
     label: 'Webex',
     shortDescription: 'Connect via OAuth using a Webex Integration app.',
     docsUrl: 'https://developer.webex.com/docs/integrations',
+    iconComponent: SiWebex,
     auth: {
       kind: 'oauth_authorization_code',
       fields: [

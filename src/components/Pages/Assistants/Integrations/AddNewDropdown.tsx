@@ -13,6 +13,7 @@ import {
 } from '@/components/UI/dropdown-menu';
 import { INTEGRATION_PROVIDERS } from '@/constants/assistants/integrations';
 import type { IntegrationProviderId } from '@/types/assistants/integration';
+import { ProviderIcon } from './ProviderIcon';
 
 interface AddNewDropdownProps {
   /** Called when the user picks an option from the dropdown. */
@@ -88,15 +89,16 @@ export function AddNewDropdown({ onSelect, disabled, hiddenProviderIds }: AddNew
                 data-testid={`integrations-add-new-${provider.id}`}
                 className="flex flex-col items-start gap-0.5"
               >
-                <div className="flex w-full items-center justify-between">
-                  <span className="text-title">{provider.label}</span>
+                <div className="flex w-full items-center gap-2">
+                  <ProviderIcon provider={provider} className="h-4 w-4" />
+                  <span className="text-title flex-1 truncate">{provider.label}</span>
                   {strategyLabel && (
                     <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
                       {strategyLabel}
                     </span>
                   )}
                 </div>
-                <span className="text-[11px] leading-tight text-muted-foreground">
+                <span className="ml-6 text-[11px] leading-tight text-muted-foreground">
                   {provider.shortDescription}
                 </span>
               </DropdownMenuItem>

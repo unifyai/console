@@ -74,8 +74,16 @@ export interface IntegrationProviderConfig {
   label: string;
   /** One-liner shown under the dropdown item and as the default card subtitle. */
   shortDescription: string;
-  /** Optional logo URL.  Falls back to a generic icon if unset. */
-  iconUrl?: string;
+  /** Brand-mark React component, expected to be a ``react-icons/si``
+   *  import.  Falls back to a generic ``Plug2`` glyph in ``ProviderIcon``
+   *  when unset — used for the freeform ``custom`` entry and any
+   *  provider whose brand isn't available in Simple Icons. */
+  iconComponent?: React.ComponentType<{ className?: string }>;
+  /** Extra Tailwind classes appended to the icon's ``className`` —
+   *  e.g. ``dark:invert`` to flip a hard-coded dark fill to white on
+   *  dark theme.  Most ``react-icons/si`` brand marks read on both
+   *  themes via baked-in colour and don't need this. */
+  iconClassName?: string;
   /** Optional "How to set up" link surfaced in the modal. */
   docsUrl?: string;
   auth: IntegrationAuthStrategy;
