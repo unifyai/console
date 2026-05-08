@@ -167,7 +167,7 @@ const WorkspaceContent = ({
         body: JSON.stringify({ workspaceId: String(org.id) }),
       });
 
-      void seedNewOrganizationCoordinator(org);
+      await seedNewOrganizationCoordinator(org);
 
       await completeAndRedirect({
         selectedType: 'organization',

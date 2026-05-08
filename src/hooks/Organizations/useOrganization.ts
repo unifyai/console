@@ -8,6 +8,8 @@ import {
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
+import { generateCoordinatorOpener } from '@/lib/assistants/preHireChat';
+import { seedCoordinatorOpener } from '@/lib/client/coordinator';
 
 export interface UnifiedMember {
   id: string; // userId or invite_id
@@ -21,6 +23,23 @@ export interface UnifiedMember {
   jobTitle?: string;
   bio?: string;
   isInvite?: boolean;
+}
+
+async function seedNewOrganizationCoordinator(org: Organization): Promise<void> {
+  if (!org.coordinatorId) {
+    console.warn('[organizations] Organization was created without a Coordinator id');
+    return;
+  }
+
+  try {
+    const opener = await generateCoordinatorOpener({ organizationName: org.name });
+    const seedResult = await seedCoordinatorOpener(org.coordinatorId, opener.content);
+    if ('detail' in seedResult) {
+      console.warn('[organizations] Failed to seed Coordinator opener:', seedResult.detail);
+    }
+  } catch (error) {
+    console.warn('[organizations] Failed to prepare Coordinator opener:', error);
+  }
 }
 
 export const useOrganization = (
@@ -177,6 +196,7 @@ export const useOrganization = (
         const newOrg = result as Organization;
         setOrganizations((prev) => [...prev, newOrg]);
         toast.success('Organization created successfully');
+        await seedNewOrganizationCoordinator(newOrg);
         await switchWorkspace(newOrg.id.toString());
         router.refresh();
       }
