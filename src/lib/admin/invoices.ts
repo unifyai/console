@@ -14,6 +14,7 @@
 'use server';
 
 import { snakeToCamelObject } from '@/utils/casing';
+import { requireUnifyAdmin } from '@/lib/admin/_guard';
 import type { AdminInvoiceListFilters, AdminInvoiceListResponse } from '@/types/admin';
 import type { ResponseProps } from '@/types/common';
 
@@ -69,6 +70,8 @@ export async function listAdminInvoicesAction() {
     filters?: AdminInvoiceListFilters
   ): Promise<AdminInvoiceListResponse | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     const params = new URLSearchParams();
     if (filters?.limit !== undefined) params.set('limit', String(filters.limit));
     if (filters?.offset !== undefined) params.set('offset', String(filters.offset));

@@ -15,6 +15,7 @@
 'use server';
 
 import { snakeToCamelObject } from '@/utils/casing';
+import { requireUnifyAdmin } from '@/lib/admin/_guard';
 import type {
   AdminOrgListResponse,
   AdminOrgDetail,
@@ -74,6 +75,8 @@ export async function listOrganizationsAction() {
     offset = 0
   ): Promise<AdminOrgListResponse | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     const params = new URLSearchParams();
     params.set('limit', String(limit));
     params.set('offset', String(offset));
@@ -90,6 +93,8 @@ export async function listOrganizationsAction() {
 export async function getOrganizationDetailAction() {
   return async (orgId: number): Promise<AdminOrgDetail | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
 
     // Fetch verification status and billing info in parallel
     const [verificationResult, billingResult] = await Promise.all([
@@ -179,6 +184,8 @@ export async function getOrganizationDetailAction() {
 export async function lookupUserByEmailAction() {
   return async (email: string): Promise<AdminUserLookup | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     return safeFetch(
       `${backendUrl}/admin/user/by-email?email=${encodeURIComponent(email)}`,
       { method: 'GET', headers: adminHeaders },
@@ -190,6 +197,8 @@ export async function lookupUserByEmailAction() {
 export async function createOrganizationForUserAction() {
   return async (name: string, creatorUserId: string): Promise<ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     return safeFetch(
       `${backendUrl}/admin/organizations`,
       {
@@ -215,6 +224,8 @@ export async function inviteUserToOrgAction() {
     roleName?: string
   ): Promise<ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     const body: Record<string, unknown> = { email };
     if (roleId !== undefined) {
       body.role_id = roleId;
@@ -237,6 +248,8 @@ export async function inviteUserToOrgAction() {
 export async function listOrgInvitesAction() {
   return async (orgId: number): Promise<AdminOrgInvite[] | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     const result = await safeFetch(
       `${backendUrl}/admin/organization/${orgId}/invites`,
       { method: 'GET', headers: adminHeaders },
@@ -262,6 +275,8 @@ export async function listOrgInvitesAction() {
 export async function enableFreeTrialAction() {
   return async (orgId: number): Promise<ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     return safeFetch(
       `${backendUrl}/admin/organization/${orgId}/free-trial`,
       { method: 'PUT', headers: adminHeaders },
@@ -273,6 +288,8 @@ export async function enableFreeTrialAction() {
 export async function disableFreeTrialAction() {
   return async (orgId: number): Promise<ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     return safeFetch(
       `${backendUrl}/admin/organization/${orgId}/free-trial`,
       { method: 'DELETE', headers: adminHeaders },
@@ -288,6 +305,8 @@ export async function disableFreeTrialAction() {
 export async function verifyOrganizationAction() {
   return async (orgId: number): Promise<ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     return safeFetch(
       `${backendUrl}/admin/organization/${orgId}/verify`,
       { method: 'PUT', headers: adminHeaders },
@@ -299,6 +318,8 @@ export async function verifyOrganizationAction() {
 export async function unverifyOrganizationAction() {
   return async (orgId: number): Promise<ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     return safeFetch(
       `${backendUrl}/admin/organization/${orgId}/verify`,
       { method: 'DELETE', headers: adminHeaders },
@@ -314,6 +335,8 @@ export async function unverifyOrganizationAction() {
 export async function addCreditsAction() {
   return async (orgId: number, amount: number, type: string): Promise<ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     return safeFetch(
       `${backendUrl}/admin/create_recharge`,
       {
@@ -330,6 +353,8 @@ export async function addCreditsAction() {
 export async function freezeAccountAction() {
   return async (orgId: number, freeze: boolean): Promise<ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     return safeFetch(
       `${backendUrl}/admin/billing/freeze?freeze=${freeze}&organization_id=${orgId}`,
       { method: 'POST', headers: adminHeaders },
@@ -354,6 +379,8 @@ export async function updateBillingProfileAction() {
     profile: Partial<AdminBillingProfile>
   ): Promise<AdminBillingProfile | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     /* eslint-disable @typescript-eslint/naming-convention */
     const address = profile.billingAddress;
     const body: Record<string, unknown> = {

@@ -20,6 +20,7 @@
 'use server';
 
 import { snakeToCamelObject } from '@/utils/casing';
+import { requireUnifyAdmin } from '@/lib/admin/_guard';
 import type {
   AdminBillingPlanTemplate,
   AdminBillingPlanTemplateCreate,
@@ -93,6 +94,8 @@ export async function listBillingTemplatesAction() {
     options?: ListTemplatesOptions
   ): Promise<AdminBillingPlanTemplate[] | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     const params = new URLSearchParams();
     if (options?.includeCustom !== undefined) {
       params.set('include_custom', String(options.includeCustom));
@@ -114,6 +117,8 @@ export async function createBillingTemplateAction() {
     body: AdminBillingPlanTemplateCreate
   ): Promise<AdminBillingPlanTemplate | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     /* eslint-disable @typescript-eslint/naming-convention */
     const payload: Record<string, unknown> = {
       name: body.name,
@@ -148,6 +153,8 @@ export async function createBillingTemplateAction() {
 export async function deprecateBillingTemplateAction() {
   return async (templateId: number): Promise<ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     return safeFetch(
       `${backendUrl}/admin/billing/plans/templates/${templateId}/deprecate`,
       { method: 'POST', headers: adminHeaders },
@@ -163,6 +170,8 @@ export async function deprecateBillingTemplateAction() {
 export async function getActivePlanAction() {
   return async (orgId: number): Promise<AdminActivePlanResponse | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     return safeFetch(
       `${backendUrl}/admin/billing/plans/active?organization_id=${orgId}`,
       { method: 'GET', headers: adminHeaders },
@@ -174,6 +183,8 @@ export async function getActivePlanAction() {
 export async function getPlanHistoryAction() {
   return async (orgId: number): Promise<AdminPlanHistoryResponse | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     return safeFetch(
       `${backendUrl}/admin/billing/plans/history?organization_id=${orgId}`,
       { method: 'GET', headers: adminHeaders },
@@ -206,6 +217,8 @@ export async function setPlanAction() {
     options?: SetPlanOptions
   ): Promise<ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     /* eslint-disable @typescript-eslint/naming-convention */
     const body = {
       organization_id: orgId,
@@ -232,6 +245,8 @@ export async function ensureStripeCustomerAction() {
     options?: { fallbackEmail?: string; fallbackName?: string; isBusiness?: boolean }
   ): Promise<AdminStripeCustomerResponse | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     /* eslint-disable @typescript-eslint/naming-convention */
     const body = {
       organization_id: orgId,
@@ -321,6 +336,8 @@ export async function listPlanGroupsAction() {
     includeInactive?: boolean;
   }): Promise<AdminPlanGroupListResponse | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     const params = new URLSearchParams();
     if (options?.includeInactive) {
       params.set('include_inactive', 'true');
@@ -337,6 +354,8 @@ export async function listPlanGroupsAction() {
 export async function getPlanGroupAction() {
   return async (groupId: number): Promise<AdminPlanGroupDetail | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     return safeFetch(
       `${backendUrl}/admin/billing/plans/groups/${groupId}`,
       { method: 'GET', headers: adminHeaders },
@@ -350,6 +369,8 @@ export async function createPlanGroupAction() {
     body: AdminPlanGroupCreatePayload
   ): Promise<AdminPlanGroupDetail | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     /* eslint-disable @typescript-eslint/naming-convention */
     const payload: Record<string, unknown> = {
       name: body.name,
@@ -372,6 +393,8 @@ export async function updatePlanGroupAction() {
     body: AdminPlanGroupUpdatePayload
   ): Promise<AdminPlanGroupDetail | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     /* eslint-disable @typescript-eslint/naming-convention */
     const payload: Record<string, unknown> = {};
     if (body.displayName !== undefined) payload.display_name = body.displayName;
@@ -393,6 +416,8 @@ export async function addPlanGroupMemberAction() {
     position?: number | null
   ): Promise<AdminPlanGroupDetail | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     /* eslint-disable @typescript-eslint/naming-convention */
     const payload = {
       template_id: templateId,
@@ -413,6 +438,8 @@ export async function removePlanGroupMemberAction() {
     templateId: number
   ): Promise<AdminPlanGroupDetail | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     return safeFetch(
       `${backendUrl}/admin/billing/plans/groups/${groupId}/members/${templateId}`,
       { method: 'DELETE', headers: adminHeaders },
@@ -427,6 +454,8 @@ export async function setPlanGroupPositionsAction() {
     positions: Array<{ templateId: number; position: number | null }>
   ): Promise<AdminPlanGroupDetail | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     /* eslint-disable @typescript-eslint/naming-convention */
     const payload = {
       positions: positions.map((p) => ({
@@ -459,6 +488,8 @@ export async function assignPlanGroupToOrgAction() {
     groupId: number
   ): Promise<AdminAssignPlanGroupResponse | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     /* eslint-disable @typescript-eslint/naming-convention */
     const payload = { group_id: groupId };
     /* eslint-enable @typescript-eslint/naming-convention */
