@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '../../_utils/auth';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
-import { getAdaptersPrefix } from '@/utils/assistants/api-utils';
+import { getAdaptersBaseUrl, isStagingEnvironment } from '@/utils/assistants/api-utils';
 import type { Attachment } from '@/types/assistants/chat';
 
 export async function POST(request: NextRequest) {
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
   const orchestraUrl = process.env.ORCHESTRA_URL || '';
   const isLocal = orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1');
-  const isStaging = orchestraUrl.includes('staging') || isLocal;
+  const isStaging = isStagingEnvironment(orchestraUrl);
 
   // LOCAL_ADAPTERS_URL allows local dev to dispatch messages to a locally
   // running Communication adapters instance (e.g. via communication/scripts/local.sh)
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
   // dispatch to avoid accidentally hitting staging adapters.
   const localAdaptersUrl = process.env.LOCAL_ADAPTERS_URL;
 
-  let webhookUrl: string;
+  let adaptersBaseUrl: string;
   if (isLocal) {
     if (!localAdaptersUrl) {
       return NextResponse.json(
@@ -68,11 +68,11 @@ export async function POST(request: NextRequest) {
         { status: 202 }
       );
     }
-    webhookUrl = `${localAdaptersUrl}/unify/message`;
+    adaptersBaseUrl = getAdaptersBaseUrl({ localAdaptersUrl });
   } else {
-    const prefix = getAdaptersPrefix(deployEnv, isStaging);
-    webhookUrl = `https://unity-adapters-${prefix}ky4ja5fxna-uc.a.run.app/unify/message`;
+    adaptersBaseUrl = getAdaptersBaseUrl({ deployEnv, isStaging });
   }
+  const webhookUrl = `${adaptersBaseUrl}/unify/message`;
 
   const payload = camelToSnakeObject({
     assistantId,

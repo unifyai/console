@@ -8,6 +8,7 @@ import {
 import { getObjectPathFromUrl, isGcsPhoto } from '@/utils/assistants/gcs-utils';
 import { Storage } from '@google-cloud/storage';
 import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
+import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 
 let storage: Storage;
 try {
@@ -21,7 +22,7 @@ export const uploadPhoto = async (apiKey: string) => {
     'use server';
 
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/photo/upload`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/photo/upload`, {
         method: 'POST',
         headers: {
           apiKey: apiKey,
@@ -50,7 +51,7 @@ export const uploadVideo = async (apiKey: string) => {
   return async (formData: FormData): Promise<PhotoUploadResponse | ResponseProps> => {
     'use server';
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/video/upload`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/video/upload`, {
         method: 'POST',
         headers: {
           apiKey: apiKey,
@@ -319,7 +320,7 @@ export const generatePhoto = async (apiKey: string) => {
       // Convert camelCase payload to snake_case for API
       const snakeCasePayload = camelToSnakeObject(payload);
 
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/photo/generate`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/photo/generate`, {
         method: 'POST',
         headers: { apiKey, 'Content-Type': 'application/json' },
         body: JSON.stringify(snakeCasePayload),
@@ -342,7 +343,7 @@ export const editPhoto = async (apiKey: string) => {
   return async (formData: FormData): Promise<PhotoCreationResponse | ResponseProps> => {
     'use server';
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/photo/edit`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/photo/edit`, {
         method: 'POST',
         headers: {
           apiKey: apiKey,
@@ -368,7 +369,7 @@ export const animatePhoto = async (apiKey: string) => {
   return async (formData: FormData): Promise<ReplicatePredictionResponse | ResponseProps> => {
     'use server';
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/photo/animate`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/photo/animate`, {
         method: 'POST',
         headers: {
           apiKey: apiKey,
@@ -400,7 +401,7 @@ export const getAnimationPrediction = async (apiKey: string) => {
     'use server';
     try {
       const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/assistant/photo/animate/${predictionId}`,
+        `${getInternalApiBaseUrl()}/api/assistant/photo/animate/${predictionId}`,
         {
           method: 'GET',
           headers: { apiKey },
@@ -427,7 +428,7 @@ export const cancelAnimationPrediction = async (apiKey: string) => {
     'use server';
     try {
       const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/assistant/photo/animate/${predictionId}/cancel`,
+        `${getInternalApiBaseUrl()}/api/assistant/photo/animate/${predictionId}/cancel`,
         {
           method: 'POST',
           headers: { apiKey },

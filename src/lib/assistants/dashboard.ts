@@ -17,6 +17,7 @@ import type { DashboardPaneData, DashboardRecord, TileRecord } from '@/types/ass
 import type { Assistant } from '@/types/assistants/assistant';
 import { readAcrossRoots } from '@/lib/client/read_across_roots';
 import { rootContext } from '@/lib/assistants/scope';
+import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 
 const PAGE_SIZE = 200;
 
@@ -36,7 +37,7 @@ async function fetchContext(
   context: string,
   options?: { extraParams?: string; fromFields?: string; filterExpr?: string }
 ): Promise<Record<string, unknown>[]> {
-  let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${encodeURIComponent(context)}&limit=${PAGE_SIZE}`;
+  let url = `${getInternalApiBaseUrl()}/api/logs?projectName=Assistants&context=${encodeURIComponent(context)}&limit=${PAGE_SIZE}`;
   if (options?.extraParams) url += `&${options.extraParams}`;
   if (options?.fromFields) url += `&fromFields=${encodeURIComponent(options.fromFields)}`;
   if (options?.filterExpr) url += `&filterExpr=${encodeURIComponent(options.filterExpr)}`;

@@ -16,13 +16,14 @@ import {
   GrantedFeaturesResponse,
 } from '@/types/assistants/contact';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 
 export const listAvailablePhoneCountries = async (apiKey: string) => {
   return async (): Promise<AvailablePhoneCountry[]> => {
     'use server';
     try {
       const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/contact/phone/available-countries`,
+        `${getInternalApiBaseUrl()}/api/contact/phone/available-countries`,
         {
           method: 'GET',
           headers: { apiKey: apiKey },
@@ -57,7 +58,7 @@ export const listAvailableSocialPlatforms = async (apiKey: string) => {
     'use server';
     try {
       const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/contact/social/available-platforms`,
+        `${getInternalApiBaseUrl()}/api/contact/social/available-platforms`,
         {
           method: 'GET',
           headers: { apiKey: apiKey },
@@ -89,7 +90,7 @@ export const verifySocialAccount = async (apiKey: string) => {
   ): Promise<{ verificationCode: string; sentAt: string } | ResponseProps> => {
     'use server';
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/contact/social/verify`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/contact/social/verify`, {
         method: 'POST',
         headers: { apiKey: apiKey, 'Content-Type': 'application/json' },
         // API expects snake_case
@@ -123,7 +124,7 @@ export const deleteAssistantContact = async (apiKey: string) => {
 
     try {
       const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/contact`,
+        `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/contact`,
         {
           method: 'DELETE',
           headers: {
@@ -176,7 +177,7 @@ export const createAssistantContact = async (apiKey: string) => {
 
     try {
       const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/contact`,
+        `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/contact`,
         {
           method: 'POST',
           headers: {
@@ -228,7 +229,7 @@ export const connectAssistantAccount = async (apiKey: string) => {
 
     try {
       const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/connect`,
+        `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/connect`,
         {
           method: 'POST',
           headers: {
@@ -271,7 +272,7 @@ export const disconnectAssistantAccount = async (apiKey: string) => {
 
     try {
       const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/connect`,
+        `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/connect`,
         {
           method: 'DELETE',
           headers: { apiKey: apiKey },
@@ -305,7 +306,7 @@ export const getGrantedFeatures = async (apiKey: string) => {
 
     try {
       const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/granted-features`,
+        `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/granted-features`,
         {
           method: 'GET',
           headers: { apiKey: apiKey },

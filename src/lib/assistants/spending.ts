@@ -16,6 +16,7 @@ import {
   isSpendingLimitData,
   getCurrentMonth,
 } from '@/types/assistants/spending';
+import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 
 /**
  * Fetch the assistant's cumulative spend for a given month.
@@ -38,7 +39,7 @@ export const getAssistantSpend = async (apiKey: string) => {
 
     try {
       const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/spending?month=${targetMonth}`,
+        `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/spending?month=${targetMonth}`,
         {
           method: 'GET',
           headers: { apiKey: apiKey },
@@ -111,7 +112,7 @@ export const getAssistantSpendingLimit = async (apiKey: string) => {
 
     try {
       const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/spending-limit`,
+        `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/spending-limit`,
         {
           method: 'GET',
           headers: { apiKey: apiKey },
@@ -177,7 +178,7 @@ export const setAssistantSpendingLimit = async (apiKey: string) => {
 
     try {
       const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/spending-limit`,
+        `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/spending-limit`,
         {
           method: 'PUT',
           headers: {

@@ -14,6 +14,7 @@ import { buildTimestampFilter, compareLogsByTime } from '@/utils/assistants/assi
 import { snakeToCamelObject } from '@/utils/casing';
 import type { ActionsLogsResponse } from '@/types/assistants/action';
 import { buildExcludedManagerFilters } from './event-filters';
+import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 
 const __DEV__ = process.env.NODE_ENV === 'development';
 
@@ -176,7 +177,7 @@ export const getManagerMethodEvents = async (apiKey: string) => {
 
     try {
       const context = `${ownerId}/${assistantId}/Events/ManagerMethod`;
-      let baseUrl = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${context}`;
+      let baseUrl = `${getInternalApiBaseUrl()}/api/logs?projectName=Assistants&context=${context}`;
 
       const filters: string[] = [...buildExcludedManagerFilters()];
       if (startTime) {
@@ -252,7 +253,7 @@ export const getToolLoopEvents = async (apiKey: string) => {
 
     try {
       const context = `${ownerId}/${assistantId}/Events/ToolLoop`;
-      let baseUrl = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${context}`;
+      let baseUrl = `${getInternalApiBaseUrl()}/api/logs?projectName=Assistants&context=${context}`;
 
       const joinedHierarchy = hierarchy.join('->');
       const filters: string[] = [
@@ -322,7 +323,7 @@ export const backfillByCallingIds = async (apiKey: string) => {
 
     try {
       const context = `${ownerId}/${assistantId}/Events/ManagerMethod`;
-      let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${context}`;
+      let url = `${getInternalApiBaseUrl()}/api/logs?projectName=Assistants&context=${context}`;
 
       const callingIdConditions = callingIds
         .map((id) => `calling_id == '${escapeFilterValue(id)}'`)
