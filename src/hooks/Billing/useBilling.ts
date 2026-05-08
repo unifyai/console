@@ -14,11 +14,18 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import type {
+  AvailablePlanItem,
+  AvailablePlansResponse,
   BillingActions,
   AutoRechargeData,
   AutoRechargeBlockedReason,
+  BillingMode,
   CheckoutStatus,
+  CurrentPeriodUsage,
+  CurrentPlanSummary,
+  InvoiceListItem,
   BillingOrgContext,
+  SwitchPlanResponse,
 } from '@/types/billing';
 import { isBillingError } from '@/types/billing';
 
@@ -35,6 +42,54 @@ export interface UseBillingReturn {
   loadingBalance: boolean;
   isRefreshingBalance: boolean;
   handleRefreshBalance: () => Promise<void>;
+
+  // Managed-billing: discriminator + active plan + invoices
+  billingMode: BillingMode;
+  plan: CurrentPlanSummary | null;
+  invoices: InvoiceListItem[];
+  loadingInvoices: boolean;
+  /**
+   * Surface for invoice-list fetch failures. ``null`` while a fetch
+   * succeeds (or has not yet run) and a short server-supplied detail
+   * string while one is failing — the table renders it inline so
+   * users aren't left staring at an empty table thinking they have
+   * no invoices when the API is actually down.
+   */
+  invoicesError: string | null;
+  /**
+   * Re-run the invoice fetch (also clears ``invoicesError`` on
+   * success). Wired to the table's "Try again" affordance so users
+   * can recover without reloading the whole page.
+   */
+  refetchInvoices: () => Promise<void>;
+  /**
+   * Mid-period usage snapshot (METERED only). `null` while loading or
+   * when the active plan is CREDITS (the backend 404s in that case).
+   */
+  currentPeriodUsage: CurrentPeriodUsage | null;
+  loadingCurrentPeriodUsage: boolean;
+
+  // Self-serve plan switching
+  /**
+   * Server-derived list of templates the account can switch to.
+   * Empty array when the account has no plan_group set; the
+   * "Switch plan" UI section is hidden in that case.
+   */
+  availablePlans: AvailablePlanItem[];
+  loadingAvailablePlans: boolean;
+  /** Group display name for the section heading. */
+  planGroupDisplayName: string | null;
+  /** ISO-8601 next-month boundary every switch will land on. */
+  nextPeriodStart: string | null;
+  /**
+   * Schedule a switch. Returns the server response so callers can
+   * surface effective_at / classification in a confirmation toast.
+   * Refreshes the plan + balance state on success.
+   */
+  handleSwitchPlan: (
+    templateId: number,
+    changeReason?: string
+  ) => Promise<SwitchPlanResponse | null>;
 
   // Checkout
   checkoutStatus: CheckoutStatus | null;
@@ -78,6 +133,19 @@ export function useBilling(
   const [loadingBalance, setLoadingBalance] = useState(true);
   const [isRefreshingBalance, setIsRefreshingBalance] = useState(false);
 
+  // ── Managed-billing ───────────────────────────────────────────────
+  const [billingMode, setBillingMode] = useState<BillingMode>('CREDITS');
+  const [plan, setPlan] = useState<CurrentPlanSummary | null>(null);
+  const [invoices, setInvoices] = useState<InvoiceListItem[]>([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  const [invoicesError, setInvoicesError] = useState<string | null>(null);
+  const [currentPeriodUsage, setCurrentPeriodUsage] = useState<CurrentPeriodUsage | null>(null);
+  const [loadingCurrentPeriodUsage, setLoadingCurrentPeriodUsage] = useState(false);
+  const [availablePlans, setAvailablePlans] = useState<AvailablePlanItem[]>([]);
+  const [loadingAvailablePlans, setLoadingAvailablePlans] = useState(false);
+  const [planGroupDisplayName, setPlanGroupDisplayName] = useState<string | null>(null);
+  const [nextPeriodStart, setNextPeriodStart] = useState<string | null>(null);
+
   // ── Checkout ─────────────────────────────────────────────────────────
   const [checkoutStatus, setCheckoutStatus] = useState<CheckoutStatus | null>(null);
 
@@ -116,30 +184,136 @@ export function useBilling(
   }, [autoRechargeData, isAutoRechargeEnabled]);
 
   // ── Fetch balance ────────────────────────────────────────────────────
-  const fetchBalance = useCallback(async () => {
+  // Returns the resolved billing mode so callers can branch on it
+  // *during the initial load* rather than waiting for state to settle.
+  const fetchBalance = useCallback(async (): Promise<BillingMode> => {
     const result = await actions.getBalance();
     if (!isBillingError(result)) {
       setBalance(result.balance);
+      setBillingMode(result.billingMode);
+      setPlan(result.plan);
+      return result.billingMode;
+    }
+    return 'CREDITS';
+  }, [actions]);
+
+  // ── Fetch invoices ───────────────────────────────────────────────────
+  // Used by both METERED *and* CREDITS surfaces — InvoicesTable renders
+  // either historical metered invoices or autorecharge / top-up
+  // invoices depending on `variant`. On failure we surface the server
+  // detail string via `invoicesError` so the table can render an inline
+  // "couldn't load invoices" notice with a retry — silently swallowing
+  // the error (the previous behaviour) made downtime indistinguishable
+  // from a brand-new account with zero invoices.
+  const fetchInvoices = useCallback(async () => {
+    setLoadingInvoices(true);
+    try {
+      const result = await actions.getInvoices({ limit: 50 });
+      if (!isBillingError(result)) {
+        setInvoices(result.invoices);
+        setInvoicesError(null);
+      } else {
+        setInvoicesError(result.detail || "Couldn't load invoices. Try again in a moment.");
+      }
+    } catch (err) {
+      setInvoicesError(
+        err instanceof Error ? err.message : "Couldn't load invoices. Try again in a moment."
+      );
+    } finally {
+      setLoadingInvoices(false);
     }
   }, [actions]);
+
+  // ── Fetch in-progress usage estimate (METERED only) ──────────────────
+  // The backend 404s for CREDITS accounts; we silently swallow that
+  // here so the hook is safe to call unconditionally — callers gate on
+  // ``billingMode`` to decide whether to render the progress bar.
+  const fetchCurrentPeriodUsage = useCallback(async () => {
+    setLoadingCurrentPeriodUsage(true);
+    try {
+      const result = await actions.getCurrentPeriodUsage();
+      if (!isBillingError(result)) {
+        setCurrentPeriodUsage(result);
+      } else {
+        setCurrentPeriodUsage(null);
+      }
+    } finally {
+      setLoadingCurrentPeriodUsage(false);
+    }
+  }, [actions]);
+
+  // ── Fetch self-serve plan switch catalog ─────────────────────────────
+  // The endpoint is safe to call for every account — it returns an
+  // empty list when no plan_group is assigned. We still render the
+  // section conditionally on a non-empty list so unconfigured
+  // accounts don't see a stale heading.
+  const fetchAvailablePlans = useCallback(async () => {
+    setLoadingAvailablePlans(true);
+    try {
+      const result: AvailablePlansResponse | { detail: string } = await actions.getAvailablePlans();
+      if (!isBillingError(result)) {
+        setAvailablePlans(result.available);
+        setPlanGroupDisplayName(result.planGroupDisplayName);
+        setNextPeriodStart(result.nextPeriodStart);
+      } else {
+        setAvailablePlans([]);
+        setPlanGroupDisplayName(null);
+      }
+    } finally {
+      setLoadingAvailablePlans(false);
+    }
+  }, [actions]);
+
+  // ── Schedule a plan switch ───────────────────────────────────────────
+  // After a successful switch, refresh balance (so the plan summary
+  // updates if the move was effectively immediate) AND the available-
+  // plans list (so the "current" badge moves to the new rung).
+  const handleSwitchPlan = useCallback(
+    async (templateId: number, changeReason?: string): Promise<SwitchPlanResponse | null> => {
+      const result = await actions.switchPlan(templateId, changeReason);
+      if (isBillingError(result)) {
+        return null;
+      }
+      await Promise.all([fetchBalance(), fetchAvailablePlans()]);
+      return result;
+    },
+    [actions, fetchBalance, fetchAvailablePlans]
+  );
 
   // ── Initial data load ────────────────────────────────────────────────
   useEffect(() => {
     const init = async () => {
       try {
-        // Load balance
+        // Load balance + plan first so we can branch on billingMode.
         setLoadingBalance(true);
-        await fetchBalance();
+        const mode = await fetchBalance();
 
-        // Load auto-recharge settings + eligibility
-        const arResult = await actions.getAutoRecharge();
-        if (!isBillingError(arResult)) {
-          setAutoRechargeData(arResult);
-          setIsAutoRechargeEnabled(arResult.autoRechargeEnabled);
-          setMinBalance(arResult.autoRechargeThreshold.toString());
-          setRechargeAmount(arResult.autoRechargeQty.toString());
-          setInitialMinBalance(arResult.autoRechargeThreshold.toString());
-          setInitialRechargeAmount(arResult.autoRechargeQty.toString());
+        // Invoices apply to both modes:
+        //   * METERED — month-end invoices from the metered invoicer.
+        //   * CREDITS — autorecharge invoices + manual top-ups.
+        // Fired in parallel with the mode-specific fetches below.
+        const invoicesPromise = fetchInvoices();
+
+        if (mode === 'METERED') {
+          // METERED accounts: skip auto-recharge fetch (disabled server-side),
+          // but pull the in-progress usage estimate that drives the
+          // commitment / overage progress bar in MeteredBillingSection.
+          // Available-plans is fired alongside — it returns [] for
+          // accounts without a plan_group so calling it unconditionally
+          // is cheap and lets the UI render the Switch Plan section
+          // on the first paint with no extra round-trip.
+          await Promise.all([invoicesPromise, fetchCurrentPeriodUsage(), fetchAvailablePlans()]);
+        } else {
+          // CREDITS path — load auto-recharge settings + eligibility alongside invoices.
+          const [arResult] = await Promise.all([actions.getAutoRecharge(), invoicesPromise]);
+          if (!isBillingError(arResult)) {
+            setAutoRechargeData(arResult);
+            setIsAutoRechargeEnabled(arResult.autoRechargeEnabled);
+            setMinBalance(arResult.autoRechargeThreshold.toString());
+            setRechargeAmount(arResult.autoRechargeQty.toString());
+            setInitialMinBalance(arResult.autoRechargeThreshold.toString());
+            setInitialRechargeAmount(arResult.autoRechargeQty.toString());
+          }
         }
       } catch (error) {
         console.error('Failed to initialise billing page:', error);
@@ -322,6 +496,21 @@ export function useBilling(
     loadingBalance,
     isRefreshingBalance,
     handleRefreshBalance,
+
+    billingMode,
+    plan,
+    invoices,
+    loadingInvoices,
+    invoicesError,
+    refetchInvoices: fetchInvoices,
+    currentPeriodUsage,
+    loadingCurrentPeriodUsage,
+
+    availablePlans,
+    loadingAvailablePlans,
+    planGroupDisplayName,
+    nextPeriodStart,
+    handleSwitchPlan,
 
     checkoutStatus,
     handleBuyCredits,

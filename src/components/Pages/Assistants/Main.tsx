@@ -292,6 +292,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const {
     credits,
     accountStatus,
+    billingMode,
     isLoading: isBillingLoading,
     refetch: refetchBillingStatus,
     startPolling: startBillingPolling,
@@ -780,6 +781,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       (isOrgSpendingEnabled ? orgSpendingData.isRefreshing : false),
     credits,
     isBillingLoading,
+    billingMode,
     isFreeTrial: !!userMeta.isFreeTrial,
   });
 
@@ -1343,6 +1345,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         isOrgWorkspace={!!userMeta.orgId}
         isFreeTrial={!!userMeta.isFreeTrial}
         accountStatus={accountStatus}
+        billingMode={billingMode}
       />
 
       {/* StripeSidePanel — for adding payment method */}

@@ -468,8 +468,8 @@ export function AssistantHire({
                       <h3 className="text-title text-destructive">Insufficient Funds</h3>
                     </div>
                     <p className="text-body text-muted-foreground">
-                      Your required balance is ${totalOnboardingFee.toFixed(2)}. Please recharge
-                      your account.
+                      Your required balance is {totalOnboardingFee.toFixed(2)} credits. Please
+                      recharge your account.
                     </p>
                   </div>
                   <Button

@@ -23,10 +23,18 @@ import { createOrchestraClient } from '@/lib/orchestra/client';
 
 /**
  * Response from the credits balance endpoint.
+ *
+ * `billing_mode` is `'CREDITS'` for prepaid wallet accounts and
+ * `'METERED'` for accounts billed via monthly invoice. METERED
+ * accounts settle usage at month-end via the metered invoicer; their
+ * wallet balance is frozen and not a reliable spending gate. Defaults
+ * to `'CREDITS'` for back-compat with older orchestra builds that
+ * don't surface the field.
  */
 export interface CreditsBalanceResponse {
   id: string;
   credits: number;
+  billing_mode?: 'CREDITS' | 'METERED';
 }
 
 /**
@@ -100,9 +108,14 @@ export async function checkCreditsBalance(
 
     const creditsData = data as unknown as CreditsBalanceResponse;
     const currentBalance = creditsData?.credits ?? 0;
+    const isMetered = creditsData?.billing_mode === 'METERED';
 
     return {
-      hasSufficientCredits: currentBalance >= requiredAmount,
+      // METERED accounts settle usage at month-end via the metered
+      // invoicer; the wallet is frozen and may carry any leftover
+      // balance from a prior CREDITS phase, so it must not gate
+      // billable actions either way.
+      hasSufficientCredits: isMetered || currentBalance >= requiredAmount,
       currentBalance,
     };
   } catch (error) {

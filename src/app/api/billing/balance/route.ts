@@ -19,6 +19,8 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  *   - fullBalance: raw number
  *   - lastRechargeAt: ISO-8601 timestamp of last paid recharge, or null
  *   - accountStatus: ACTIVE, PAST_DUE, SUSPENDED, or CLOSED
+ *   - billingMode: CREDITS | METERED (managed-billing discriminator)
+ *   - plan: CurrentPlanSummary | null (active plan summary)
  */
 export async function GET(request: NextRequest) {
   const apiKey = await getApiKeyFromRequest(request);

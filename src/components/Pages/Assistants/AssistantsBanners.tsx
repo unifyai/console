@@ -3,6 +3,7 @@
 import { AlertTriangle, ShieldAlert } from 'lucide-react';
 import { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import { formatSpendAmount } from '@/types/assistants/spending';
+import type { BillingMode } from '@/types/billing';
 
 interface AssistantsBannersProps {
   /** Current credit balance */
@@ -17,6 +18,14 @@ interface AssistantsBannersProps {
   isFreeTrial: boolean;
   /** Account status (ACTIVE, PAST_DUE, SUSPENDED, CLOSED) */
   accountStatus?: string;
+  /**
+   * Billing mode of the workspace's account. METERED accounts settle
+   * usage at month-end via the metered invoicer; their wallet is
+   * frozen and may carry any leftover balance from a prior CREDITS
+   * phase, so the out-of-credits banner must not fire for them.
+   * Defaults to 'CREDITS' for back-compat when callers don't pass it.
+   */
+  billingMode?: BillingMode;
 }
 
 /**
@@ -38,6 +47,7 @@ export function AssistantsBanners({
   isOrgWorkspace,
   isFreeTrial,
   accountStatus,
+  billingMode = 'CREDITS',
 }: AssistantsBannersProps) {
   // Account status banners — highest priority
   if (!isBillingLoading && accountStatus && accountStatus !== 'ACTIVE') {
@@ -92,9 +102,13 @@ export function AssistantsBanners({
   // Out of credits — shown when balance has gone negative (excludes brand-new users at 0).
   // The spending gate also detects credit exhaustion ('no_credits'), but the OOC banner
   // is the correct UI for this case, so we only suppress when a *spending limit* blocks.
+  // Also suppressed for METERED accounts: usage is settled at month-end via the metered
+  // invoicer and the wallet is frozen, so neither a positive nor a leftover negative
+  // balance is actionable for the user. Suspension on non-payment is webhook-driven
+  // (`accountStatus` flips to PAST_DUE / SUSPENDED, handled by the banner above).
   const blockedBySpendingLimit =
     spendingGateStatus.isBlocked && spendingGateStatus.blockReason !== 'no_credits';
-  if (credits < 0 && !isBillingLoading && !blockedBySpendingLimit) {
+  if (billingMode !== 'METERED' && credits < 0 && !isBillingLoading && !blockedBySpendingLimit) {
     return (
       <div
         className="flex items-center justify-center gap-3 border-b border-orange-200 bg-orange-50 px-4 py-2.5 dark:border-orange-800 dark:bg-orange-950"

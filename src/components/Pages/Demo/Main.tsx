@@ -45,7 +45,7 @@ import {
 import {
   Plus,
   User,
-  DollarSign,
+  Coins,
   Hash,
   Loader2,
   Phone,
@@ -497,21 +497,21 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
                       <span className="text-code mt-0.5">ID {selectedDemo.agentId}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <Coins className="h-4 w-4 text-muted-foreground" />
                       {isLoadingDetails ? (
                         <span className="text-body-muted mt-0.5">Loading...</span>
                       ) : spending ? (
                         <span className="text-body-muted mt-0.5">
-                          ${spending.cumulativeSpend.toFixed(2)} / $
-                          {spending.limit?.toFixed(2) ?? '∞'} this month
+                          {spending.cumulativeSpend.toFixed(2)} /{' '}
+                          {spending.limit?.toFixed(2) ?? '∞'} credits this month
                         </span>
                       ) : (
                         <span className="text-body-muted mt-0.5">
-                          $0.00 /{' '}
+                          0.00 /{' '}
                           {selectedDemo.monthlySpendingCap != null
-                            ? `$${selectedDemo.monthlySpendingCap.toFixed(2)}`
+                            ? selectedDemo.monthlySpendingCap.toFixed(2)
                             : '∞'}{' '}
-                          this month
+                          credits this month
                         </span>
                       )}
                     </div>

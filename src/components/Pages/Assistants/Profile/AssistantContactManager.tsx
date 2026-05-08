@@ -392,7 +392,7 @@ export function AssistantContactManager({
               onAddPaymentMethod={onAddPaymentMethod}
               tooltipMessage={
                 monthlyCost !== null && monthlyCost > 0
-                  ? `This will add $${monthlyCost.toFixed(2)}/month to your bill.`
+                  ? `This will deduct ${monthlyCost.toFixed(2)} credits/month from your wallet.`
                   : undefined
               }
             >

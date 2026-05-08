@@ -155,9 +155,9 @@ export function GenerateOneTimeLinkButton({
               className="col-span-2 h-9"
               min="1"
               step="1"
-              placeholder="Default 10 USD"
+              placeholder="Default 10"
             />
-            <span className="text-body-muted col-span-1">USD</span>
+            <span className="text-body-muted col-span-1">credits</span>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="maxClaims" className="col-span-1 text-right">

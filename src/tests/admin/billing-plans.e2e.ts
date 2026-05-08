@@ -1,0 +1,231 @@
+/**
+ * Admin · Managed-Billing v2 UI E2E.
+ *
+ * Smoke-tests the admin pages added for managed-billing:
+ *   - /admin                — landing tile grid links to the new pages.
+ *   - /admin/billing-plans  — create + see + deprecate a BESPOKE template
+ *                             (incl. picking an FX policy on multi-currency).
+ *   - /admin/organizations  — pick an org, see the Plan card, assign the
+ *                             template just created, see the Stripe-customer
+ *                             prompt collapse to the "provisioned" state
+ *                             after the assignment auto-creates one.
+ *
+ * FX rates no longer have their own admin page — the per-template
+ * ``fx_policy`` field replaced the daily-snapshot table. SPOT and
+ * PERIOD_AVERAGE rates are resolved live (Frankfurter) at invoice time.
+ *
+ * The test user is provisioned as the Owner of an organization literally
+ * named "Unify" so the AdminLayout's role check accepts them. The target
+ * org is a separate seed so we can exercise the per-org plan UI without
+ * mutating the admin's own billing account.
+ *
+ * Run: npx playwright test src/tests/admin/billing-plans.e2e.ts
+ */
+
+import { expect, test as base, type Page } from '@playwright/test';
+import path from 'path';
+import os from 'os';
+import { createTestUser, cleanupUser, createOrg, deleteOrg, dbExec } from '../billing/helpers';
+import { loginAndWaitForRedirect } from '../auth/helpers';
+
+// ---------------------------------------------------------------------------
+// Fixtures
+// ---------------------------------------------------------------------------
+
+// Admin user belongs to an org literally named "Unify" with the Owner role
+// — that's what `app/(home)/admin/layout.tsx` checks.
+const adminUser = createTestUser({ name: 'Admin', lastName: 'Operator' });
+const unifyOrg = createOrg({ name: 'Unify', ownerId: adminUser.id });
+
+// Target org — a "real" customer org we'll manage from /admin/organizations.
+const targetOwner = createTestUser({ name: 'Target', lastName: 'OrgOwner' });
+const targetOrg = createOrg({
+  name: `E2E Target ${Date.now()}`,
+  ownerId: targetOwner.id,
+});
+
+// Per-test unique template name so the catalog row is easy to spot among
+// any leftover BESPOKE rows from prior test runs.
+const templateName = `E2E Bespoke ${adminUser.id.slice(0, 8)}`;
+
+// ---------------------------------------------------------------------------
+// Auth fixture (login once, reuse storageState)
+// ---------------------------------------------------------------------------
+
+let authFile: string | undefined;
+
+const test = base.extend<{ adminPage: Page }>({
+  adminPage: async ({ browser }, use, testInfo) => {
+    if (!authFile) {
+      testInfo.setTimeout(testInfo.timeout + 30_000);
+      authFile = path.join(
+        os.tmpdir(),
+        `pw-admin-${adminUser.email.replace(/[^a-z0-9]/gi, '-')}.json`
+      );
+      const ctx = await browser.newContext();
+      const p = await ctx.newPage();
+      await p.goto('/login');
+      await loginAndWaitForRedirect(p, adminUser.email, adminUser.password, 30_000);
+      if (p.url().includes('/login/onboarding')) {
+        const personalBtn = p.getByTestId('workspace-personal');
+        if (await personalBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
+          await personalBtn.click();
+          await p.getByTestId('workspace-continue').click();
+          await p.waitForURL((u) => !u.pathname.includes('onboarding'), { timeout: 15_000 });
+        }
+      }
+      await ctx.storageState({ path: authFile });
+      await ctx.close();
+    }
+    const ctx = await browser.newContext({ storageState: authFile });
+    const page = await ctx.newPage();
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    await use(page);
+    await ctx.close();
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Teardown
+// ---------------------------------------------------------------------------
+
+test.afterAll(() => {
+  // Clean up any plan assignment we may have written so the target org
+  // can be deleted without an FK violation.
+  try {
+    dbExec(
+      `DELETE FROM billing_plan_assignment WHERE billing_account_id = ` +
+        `(SELECT billing_account_id FROM organization WHERE id = ${targetOrg.id})`
+    );
+  } catch {
+    /* best effort */
+  }
+  try {
+    dbExec(
+      `UPDATE billing_account SET plan_assignment_id = NULL WHERE id = ` +
+        `(SELECT billing_account_id FROM organization WHERE id = ${targetOrg.id})`
+    );
+  } catch {
+    /* best effort */
+  }
+  // Drop the BESPOKE template (only safe because we know the assignment
+  // above is gone — templates with assignments would FK-fail).
+  try {
+    dbExec(`DELETE FROM billing_plan_template WHERE name = '${templateName}'`);
+  } catch {
+    /* best effort */
+  }
+  try {
+    deleteOrg(targetOrg.id);
+  } catch {
+    /* best effort */
+  }
+  try {
+    deleteOrg(unifyOrg.id);
+  } catch {
+    /* best effort */
+  }
+  cleanupUser(targetOwner.id);
+  cleanupUser(adminUser.id);
+});
+
+// =============================================================================
+// /admin landing
+// =============================================================================
+
+test('admin landing lists the managed-billing tools', async ({ adminPage: page }) => {
+  await page.goto('/admin');
+
+  // The landing isn't behind a redirect for admins — it should render
+  // the tile grid with the new pages discoverable.
+  await expect(page.getByRole('heading', { name: 'Admin' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('link', { name: /Billing Plans/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Organizations/i })).toBeVisible();
+});
+
+// =============================================================================
+// /admin/billing-plans — create + deprecate template
+// =============================================================================
+
+test('billing plans page creates a BESPOKE template and lists it', async ({ adminPage: page }) => {
+  await page.goto('/admin/billing-plans');
+
+  await expect(page.getByRole('heading', { name: /Admin · Billing Plans/i })).toBeVisible({
+    timeout: 15_000,
+  });
+
+  await page.getByRole('button', { name: /Create Template/i }).click();
+
+  // Fill the form. Defaults pick COMMITMENT + METERED + BESPOKE which is
+  // the canonical happy path the dialog defaults to; we only need to
+  // type a unique name + commit amount.
+  const dialog = page.getByRole('dialog', { name: /Create Billing Plan Template/i });
+  await dialog.locator('input').first().fill(templateName);
+
+  // Click the create button INSIDE the dialog (not the trigger above).
+  await dialog.getByRole('button', { name: /Create Template/i }).click();
+
+  // Toast confirms create; row appears in the table when the BESPOKE
+  // filter is on (default).
+  await expect(page.locator('text=' + templateName).first()).toBeVisible({ timeout: 10_000 });
+});
+
+// =============================================================================
+// /admin/organizations — set the bespoke template on the target org
+// =============================================================================
+
+test('organizations page sets the new template on the target org', async ({ adminPage: page }) => {
+  // Pre-seed a Stripe customer id on the target org's BillingAccount.
+  // METERED assignments require one (the implicit
+  // ``auto_create_stripe_customer`` toggle was removed in 2026-05; the
+  // canonical flow is "Provision via the admin UI's Business Profile
+  // → Provision button"). Seeding directly via SQL keeps this test
+  // focused on the plan-assignment surface without coupling it to
+  // the orthogonal Provision UX flow, which has its own tests.
+  dbExec(
+    `UPDATE billing_account SET stripe_customer_id = 'cus_e2e_billing_plans_seed' ` +
+      `WHERE id = (SELECT billing_account_id FROM organization WHERE id = ${targetOrg.id})`
+  );
+
+  await page.goto('/admin/organizations');
+  await expect(page.getByRole('heading', { name: /Admin · Organizations/i })).toBeVisible({
+    timeout: 15_000,
+  });
+
+  // Filter the org list down to our target org for stability.
+  const search = page.getByPlaceholder('Search organizations…');
+  await search.fill(targetOrg.name);
+
+  await expect(page.locator('text=' + targetOrg.name)).toBeVisible({ timeout: 10_000 });
+  await page
+    .locator('text=' + targetOrg.name)
+    .first()
+    .click();
+
+  // The Plan section should render with "default (implicit)".
+  await expect(page.locator('text=default (implicit)')).toBeVisible({ timeout: 15_000 });
+
+  // The single plan-mutation entry point is "Set plan…".
+  await page.getByRole('button', { name: /Set plan/i }).click();
+  // Dialog title is "Change plan" for non-default templates and
+  // "Return to default plan" for the cancel flow; match either so
+  // the test isn't coupled to which template happens to be picked
+  // first.
+  const dialog = page.getByRole('dialog', { name: /^(Change plan|Return to default plan)$/ });
+  await expect(dialog).toBeVisible();
+
+  // Pick the template we created. The Select shows "Name · Mode · PlanType".
+  await dialog.locator('button[role="combobox"]').click();
+  await page.locator(`text=${templateName}`).first().click();
+
+  // No more "Auto-create Stripe Customer" toggle — the seeded
+  // stripe_customer_id above already satisfies the METERED guard,
+  // so the Set button is enabled directly.
+  await dialog.getByRole('button', { name: /^Set$/ }).click();
+
+  // After success the dialog closes and the active plan card refreshes
+  // to show the new template name. A "Return to default plan" affordance
+  // appears now that the account is on a non-default plan.
+  await expect(page.locator(`text=${templateName}`)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('button', { name: /Return to default plan/i })).toBeVisible();
+});

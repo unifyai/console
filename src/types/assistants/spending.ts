@@ -9,15 +9,19 @@ import { ResponseProps } from '../common';
 /**
  * Cumulative spend data for an assistant in a given month.
  * Returned by GET /assistant/{id}/spend
+ *
+ * Amounts are in credits (the canonical wallet unit; 1 credit ≡ 1 USD
+ * in the Stripe ledger today, but customer-facing surfaces denominate
+ * in credits regardless of plan currency).
  */
 export interface AssistantSpend {
   /** Assistant ID */
   agentId: string;
   /** Month in YYYY-MM format */
   month: string;
-  /** Total spend for the month in dollars */
+  /** Total spend for the month in credits */
   cumulativeSpend: number;
-  /** Monthly spending limit in dollars (null = unlimited) */
+  /** Monthly spending limit in credits (null = unlimited) */
   limit: number | null;
   /** Percentage of limit used (0-100+, can exceed 100 for soft limits) */
   percentUsed: number;
@@ -30,7 +34,7 @@ export interface AssistantSpend {
 export interface SpendingLimitResponse {
   /** Assistant ID */
   agentId: string;
-  /** Configured monthly spending cap in dollars (null = no limit) */
+  /** Configured monthly spending cap in credits (null = no limit) */
   monthlySpendingCap: number | null;
   /** Effective limit after hierarchy constraints (may be lower than cap) */
   effectiveLimit: number | null;
@@ -40,7 +44,7 @@ export interface SpendingLimitResponse {
  * Request payload for setting a spending limit.
  */
 export interface SpendingLimitRequest {
-  /** Monthly spending cap in dollars (null to remove limit) */
+  /** Monthly spending cap in credits (null to remove limit) */
   monthlySpendingCap: number | null;
 }
 
@@ -48,9 +52,9 @@ export interface SpendingLimitRequest {
  * Props for spending-related components.
  */
 export interface SpendingDisplayProps {
-  /** Current cumulative spend in dollars */
+  /** Current cumulative spend in credits */
   currentSpend: number;
-  /** Spending limit in dollars (null = unlimited) */
+  /** Spending limit in credits (null = unlimited) */
   limit: number | null;
   /** Percentage of limit used (0-100+) */
   percentUsed: number;
@@ -116,10 +120,16 @@ export function calculateSpendingDisplay(spend: AssistantSpend): SpendingDisplay
 }
 
 /**
- * Format a dollar amount for display.
+ * Format a credit amount for display.
+ *
+ * The wallet ledger denominates in credits (1 credit ≡ 1 USD on the
+ * Stripe side today); customer-facing surfaces show "credits" rather
+ * than a currency so the unit stays stable across plan currencies.
+ * Plan-currency rendering belongs on invoice surfaces only — see
+ * ``InvoicesTable.tsx`` and ``MeteredBillingSection.tsx``.
  */
 export function formatSpendAmount(amount: number): string {
-  return `$${amount.toFixed(2)}`;
+  return `${amount.toFixed(2)} credits`;
 }
 
 /**

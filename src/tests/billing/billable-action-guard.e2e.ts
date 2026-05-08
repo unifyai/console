@@ -12,6 +12,8 @@ import {
   setUserCredits,
   insertRechargeRecord,
   createBillingTest,
+  setMeteredPlan,
+  clearMeteredPlan,
   type TestUser,
 } from './helpers';
 
@@ -81,5 +83,49 @@ restoreTest(
 
     const newBtn = page.locator('button', { hasText: 'New' });
     await expect(newBtn).toBeEnabled({ timeout: 10_000 });
+  }
+);
+
+// ---------------------------------------------------------------------------
+// METERED — guard bypassed even at $0 wallet
+//
+// METERED accounts are invoiced monthly (managed-billing). They
+// intentionally hold a $0 credits balance — `deduct_credits` writes to
+// the ledger without mutating the wallet — so the legacy "no credits"
+// gate would block every billable action. The guard must read the
+// ``billing_mode`` flag from the balance endpoint and skip the check.
+// ---------------------------------------------------------------------------
+
+const meteredUser = createTestUser({
+  name: 'Guard',
+  lastName: 'Metered',
+  credits: 0,
+});
+setMeteredPlan(meteredUser.id, {
+  templateName: `E2E Guard Metered ${meteredUser.id.slice(0, 8)}`,
+  commitAmount: 1000,
+  commitPeriod: 'MONTHLY',
+});
+const meteredTest = createBillingTest(meteredUser);
+
+meteredTest.afterAll(() => {
+  clearMeteredPlan(meteredUser.id);
+  cleanupUser(meteredUser.id);
+});
+
+meteredTest(
+  'METERED account with $0 wallet keeps billable actions enabled',
+  async ({ authedPage: page }) => {
+    await page.goto('/assistants');
+    await page.waitForSelector('text=/assistant/i', { timeout: 15_000 });
+
+    // The "New" button is the canonical billable action on /assistants
+    // — same locator as the CREDITS-mode "with credits" test above.
+    const newBtn = page.locator('button', { hasText: 'New' });
+    await expect(newBtn).toBeEnabled({ timeout: 10_000 });
+
+    // And the guard's tooltip wrapper (which only renders when blocked)
+    // must NOT appear anywhere on the page.
+    await expect(page.locator('[data-testid="billable-action-guard"]')).toHaveCount(0);
   }
 );

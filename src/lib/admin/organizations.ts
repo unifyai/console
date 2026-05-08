@@ -20,6 +20,7 @@ import type {
   AdminOrgDetail,
   AdminUserLookup,
   AdminOrgInvite,
+  AdminBillingProfile,
 } from '@/types/admin';
 import type { ResponseProps } from '@/types/common';
 
@@ -129,6 +130,14 @@ export async function getOrganizationDetailAction() {
         ? (billingResult as Record<string, unknown>)
         : {};
 
+    // Backend returns ``billing_profile`` as a snake_case nested object;
+    // safeFetch's response is already snakeToCamel-converted upstream
+    // (verified by the matching keys on ``billing.billingAccountId``).
+    // If for any reason it's absent we fall back to an empty profile so
+    // downstream UI code can render the "Not set" path uniformly.
+    const profile = (billing.billingProfile as Record<string, unknown>) ?? {};
+    const profileAddress = (profile.billingAddress as Record<string, unknown> | undefined) ?? {};
+
     return {
       id: org.id as number,
       name: org.name as string,
@@ -144,6 +153,21 @@ export async function getOrganizationDetailAction() {
       accountStatus: (billing.accountStatus as string) ?? 'UNKNOWN',
       tier: (billing.tier as string) ?? null,
       stripeCustomerId: (billing.stripeCustomerId as string) ?? null,
+      billingProfile: {
+        billingEmail: (profile.billingEmail as string) ?? null,
+        name: (profile.name as string) ?? null,
+        taxId: (profile.taxId as string) ?? null,
+        taxIdType: (profile.taxIdType as string) ?? null,
+        billingAddress: {
+          line1: (profileAddress.line1 as string) ?? '',
+          line2: (profileAddress.line2 as string) ?? '',
+          city: (profileAddress.city as string) ?? '',
+          state: (profileAddress.state as string) ?? '',
+          postalCode: (profileAddress.postalCode as string) ?? '',
+          country: (profileAddress.country as string) ?? '',
+        },
+      },
+      planGroupId: typeof billing.planGroupId === 'number' ? billing.planGroupId : 1,
     } as AdminOrgDetail;
   };
 }
@@ -311,5 +335,74 @@ export async function freezeAccountAction() {
       { method: 'POST', headers: adminHeaders },
       'freezeAccount'
     ) as Promise<ResponseProps>;
+  };
+}
+
+/**
+ * Update a billing account's business profile via the admin endpoint.
+ * Partial — only fields explicitly provided are persisted.
+ * ``billingAddress`` is merged with the existing dict server-side, so
+ * the dialog can patch a single line without re-sending everything.
+ *
+ * The backend best-effort-syncs the same fields to the existing
+ * Stripe Customer (if any), so the next monthly invoice picks up the
+ * new addressee data.
+ */
+export async function updateBillingProfileAction() {
+  return async (
+    orgId: number,
+    profile: Partial<AdminBillingProfile>
+  ): Promise<AdminBillingProfile | ResponseProps> => {
+    'use server';
+    /* eslint-disable @typescript-eslint/naming-convention */
+    const address = profile.billingAddress;
+    const body: Record<string, unknown> = {
+      organization_id: orgId,
+      is_business: true,
+    };
+    if (profile.billingEmail !== undefined) body.billing_email = profile.billingEmail;
+    if (profile.name !== undefined) body.name = profile.name;
+    if (profile.taxId !== undefined) body.tax_id = profile.taxId;
+    if (profile.taxIdType !== undefined) body.tax_id_type = profile.taxIdType;
+    if (address !== undefined) {
+      body.billing_address = {
+        line1: address.line1 ?? '',
+        line2: address.line2 ?? '',
+        city: address.city ?? '',
+        state: address.state ?? '',
+        postal_code: address.postalCode ?? '',
+        country: address.country ?? '',
+      };
+    }
+    /* eslint-enable @typescript-eslint/naming-convention */
+
+    const result = (await safeFetch(
+      `${backendUrl}/admin/billing/profile`,
+      {
+        method: 'PUT',
+        headers: { ...adminHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+      'updateBillingProfile'
+    )) as Record<string, unknown> | ResponseProps;
+
+    if ('detail' in result) return result as ResponseProps;
+
+    const r = result as Record<string, unknown>;
+    const addr = (r.billingAddress as Record<string, unknown> | undefined) ?? {};
+    return {
+      billingEmail: (r.billingEmail as string) ?? null,
+      name: (r.name as string) ?? null,
+      taxId: (r.taxId as string) ?? null,
+      taxIdType: (r.taxIdType as string) ?? null,
+      billingAddress: {
+        line1: (addr.line1 as string) ?? '',
+        line2: (addr.line2 as string) ?? '',
+        city: (addr.city as string) ?? '',
+        state: (addr.state as string) ?? '',
+        postalCode: (addr.postalCode as string) ?? '',
+        country: (addr.country as string) ?? '',
+      },
+    };
   };
 }

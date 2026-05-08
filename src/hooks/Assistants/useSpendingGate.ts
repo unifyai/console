@@ -24,6 +24,7 @@
  */
 
 import * as React from 'react';
+import type { BillingMode } from '@/types/billing';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 import {
   SpendingGateStatus,
@@ -58,6 +59,14 @@ export interface UseSpendingGateConfig {
   /** Whether credit balance is still loading */
   isBillingLoading?: boolean;
 
+  /**
+   * Active billing model. METERED accounts settle usage at month-end
+   * via the metered invoicer; their wallet is frozen and not a
+   * reliable spending signal — credit-exhaustion gating is skipped
+   * entirely for METERED. Defaults to `'CREDITS'` for back-compat.
+   */
+  billingMode?: BillingMode;
+
   /** Whether the active org is in free-trial mode (affects blocked messages) */
   isFreeTrial?: boolean;
 }
@@ -91,6 +100,7 @@ export function useSpendingGate({
   isRefreshing = false,
   credits,
   isBillingLoading = false,
+  billingMode = 'CREDITS',
   isFreeTrial = false,
 }: UseSpendingGateConfig): SpendingGateStatus {
   return React.useMemo(() => {
@@ -99,8 +109,13 @@ export function useSpendingGate({
     const userLimit = toLimitStatus(userSpending);
     const orgLimit = toLimitStatus(orgSpending);
 
-    // Credit exhaustion takes priority over spending limits
-    const creditsExhausted = credits !== undefined && !isBillingLoading && credits < 0;
+    // Credit exhaustion takes priority over spending limits, but only
+    // for CREDITS accounts. METERED wallets are frozen and may carry
+    // any leftover balance from a prior CREDITS phase — gate behaviour
+    // for METERED is webhook-driven (`accountStatus` flips on
+    // `invoice.payment_failed`) rather than balance-driven.
+    const creditsExhausted =
+      billingMode === 'CREDITS' && credits !== undefined && !isBillingLoading && credits < 0;
 
     const blockReason: SpendingBlockReason = creditsExhausted
       ? 'no_credits'
@@ -128,6 +143,7 @@ export function useSpendingGate({
     isRefreshing,
     credits,
     isBillingLoading,
+    billingMode,
     isFreeTrial,
   ]);
 }

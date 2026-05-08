@@ -23,6 +23,7 @@
 
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import type { BillingMode } from '@/types/billing';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,16 @@ export interface BillingStatusData {
   hasCredits: boolean;
   /** Account status: ACTIVE, PAST_DUE, SUSPENDED, or CLOSED */
   accountStatus: string;
+  /**
+   * Active billing model (managed-billing). METERED accounts pay
+   * by monthly invoice; their wallet balance is frozen (no automatic
+   * writes from usage) and may carry any leftover balance from a
+   * prior CREDITS phase. `BillableActionGuard` keys off this to
+   * bypass the `hasCredits` gate regardless of the displayed
+   * balance. Defaults to 'CREDITS' for back-compat with older
+   * orchestra builds that don't surface the field.
+   */
+  billingMode: BillingMode;
 }
 
 export interface UseBillingStatusReturn extends BillingStatusData {
@@ -60,18 +71,31 @@ export interface UseBillingStatusReturn extends BillingStatusData {
 export async function fetchBillingStatus(): Promise<BillingStatusData> {
   const res = await fetch('/api/billing/balance');
   if (!res.ok) {
-    return { hasBillingHistory: false, credits: 0, hasCredits: false, accountStatus: 'ACTIVE' };
+    return {
+      hasBillingHistory: false,
+      credits: 0,
+      hasCredits: false,
+      accountStatus: 'ACTIVE',
+      billingMode: 'CREDITS',
+    };
   }
 
   const data = await res.json();
   const credits =
     typeof data.fullBalance === 'number' ? data.fullBalance : parseFloat(data.balance) || 0;
+  const billingMode: BillingMode = data.billingMode === 'METERED' ? 'METERED' : 'CREDITS';
 
   return {
     hasBillingHistory: data.lastRechargeAt != null,
     credits,
-    hasCredits: credits > 0,
+    // METERED accounts settle usage at month-end via the metered
+    // invoicer; the wallet is frozen and not a reliable spending
+    // signal — they are *always* "has credits" from the guard's
+    // perspective. The legacy CREDITS path keeps the strict
+    // `credits > 0` rule.
+    hasCredits: billingMode === 'METERED' ? true : credits > 0,
     accountStatus: data.accountStatus ?? 'ACTIVE',
+    billingMode,
   };
 }
 
@@ -118,6 +142,7 @@ export function useBillingStatus(): UseBillingStatusReturn {
     credits: 0,
     hasCredits: false,
     accountStatus: 'ACTIVE',
+    billingMode: 'CREDITS',
   };
 
   // Stable callback – safe to capture in closures / intervals

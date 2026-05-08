@@ -42,6 +42,7 @@ import * as React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { useBillingStatus } from '@/hooks/Billing/useBillingStatus';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
+import type { BillingMode } from '@/types/billing';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -77,9 +78,22 @@ export interface GuardDecision {
 
 /**
  * Determines whether a billable action should be blocked and why.
+ *
+ * Managed-billing: METERED accounts pay by monthly invoice and
+ * intentionally have a $0 credits wallet, so the credit-balance gate
+ * must be bypassed entirely for them. Spending caps still apply (the
+ * org/user/assistant limits live elsewhere — this guard is only the
+ * "do you have credits?" check).
+ *
  * Exported for unit testing without React.
  */
-export function computeGuardDecision(hasCredits: boolean): GuardDecision {
+export function computeGuardDecision(
+  hasCredits: boolean,
+  billingMode: BillingMode = 'CREDITS'
+): GuardDecision {
+  if (billingMode === 'METERED') {
+    return { blocked: false, reason: null, message: '' };
+  }
   if (!hasCredits) {
     return {
       blocked: true,
@@ -112,7 +126,11 @@ export function BillableActionGuard({
     hasCreditsProp ??
     (creditsRequired > 0 ? billingStatus.credits >= creditsRequired : billingStatus.hasCredits);
 
-  const decision = computeGuardDecision(hasCredits);
+  // METERED accounts always pass the credits gate (see computeGuardDecision).
+  // We still consult ``billingStatus.billingMode`` even when the caller passed
+  // an explicit ``hasCredits`` prop — a parent computing ``hasCredits`` from
+  // raw balance might not know the account is METERED.
+  const decision = computeGuardDecision(hasCredits, billingStatus.billingMode);
 
   // Still loading and no explicit props → render children as-is (not blocked)
   if (billingStatus.isLoading && hasCreditsProp === undefined) {

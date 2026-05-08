@@ -85,8 +85,8 @@ export function AssistantSpendingSection({
         {/* Matches SpendingProgressBar layout: labels row + progress bar */}
         <div className="space-y-1.5">
           <div className="flex items-baseline justify-between gap-2">
-            <Skeleton className="h-4 w-28 bg-muted" /> {/* "$45.00 in January" */}
-            <Skeleton className="h-3 w-24 bg-muted" /> {/* "of $100.00 (45%)" */}
+            <Skeleton className="h-4 w-28 bg-muted" /> {/* "45.00 credits in January" */}
+            <Skeleton className="h-3 w-24 bg-muted" /> {/* "of 100.00 credits (45%)" */}
           </div>
           <Skeleton className="h-2 w-full rounded-full bg-muted" /> {/* Progress bar */}
         </div>

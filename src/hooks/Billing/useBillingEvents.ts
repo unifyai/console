@@ -71,12 +71,20 @@ export function useBillingEvents(): void {
                 ? -1
                 : 1;
 
-          queryClient.setQueryData<BillingStatusData>(BILLING_STATUS_QUERY_KEY, (old) => ({
-            hasBillingHistory: old?.hasBillingHistory ?? false,
-            credits: eventBalance,
-            hasCredits: eventBalance > 0,
-            accountStatus: old?.accountStatus ?? 'ACTIVE',
-          }));
+          queryClient.setQueryData<BillingStatusData>(BILLING_STATUS_QUERY_KEY, (old) => {
+            const billingMode = old?.billingMode ?? 'CREDITS';
+            return {
+              hasBillingHistory: old?.hasBillingHistory ?? false,
+              credits: eventBalance,
+              // METERED accounts intentionally hold a $0 wallet — see
+              // ``fetchBillingStatus``. Mirror that invariant here so a
+              // ``credits_exhausted`` SSE for a METERED account doesn't
+              // flip ``hasCredits`` to false and start gating actions.
+              hasCredits: billingMode === 'METERED' ? true : eventBalance > 0,
+              accountStatus: old?.accountStatus ?? 'ACTIVE',
+              billingMode,
+            };
+          });
 
           queryClient.invalidateQueries({
             queryKey: BILLING_STATUS_QUERY_KEY,

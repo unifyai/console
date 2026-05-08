@@ -143,11 +143,8 @@ export function SpendingLimitDialog({
             {/* Limit input */}
             {!isUnlimited && (
               <div className="space-y-2">
-                <Label htmlFor="spending-limit">Monthly limit ($)</Label>
+                <Label htmlFor="spending-limit">Monthly limit (credits)</Label>
                 <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    $
-                  </span>
                   <Input
                     id="spending-limit"
                     type="number"
@@ -159,10 +156,13 @@ export function SpendingLimitDialog({
                       setLimitValue(e.target.value);
                       setError(null);
                     }}
-                    className="pl-7"
+                    className="pr-16"
                     disabled={isSaving}
                     autoFocus
                   />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    credits
+                  </span>
                 </div>
               </div>
             )}

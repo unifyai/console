@@ -671,7 +671,7 @@ ensure_npm_deps() {
 # =============================================================================
 
 # Valid seed scenario names — must match SCENARIOS in src/tests/helpers/seeds/run.ts.
-VALID_SEED_SCENARIOS=(personal-workspace personal-workspace-multi org-basic org-multi-role org-unify credit-grant-links billing-banner-states usage-ledger chat-search memory-rich tasks-rich secrets-rich re-appraisal all)
+VALID_SEED_SCENARIOS=(personal-workspace personal-workspace-multi org-basic org-multi-role org-unify credit-grant-links billing-banner-states managed-billing usage-ledger chat-search memory-rich tasks-rich secrets-rich re-appraisal all)
 
 validate_seed_scenario() {
   local scenario="$1"
@@ -1242,7 +1242,8 @@ main() {
       echo "  --seed <scenario>  Choose a seed scenario. Default: personal-workspace"
       echo "                     Scenarios: personal-workspace, personal-workspace-multi,"
       echo "                               org-basic, org-multi-role, org-unify,"
-      echo "                               credit-grant-links, billing-banner-states, all"
+      echo "                               credit-grant-links, billing-banner-states,"
+      echo "                               managed-billing, all"
       echo "                     See: src/tests/helpers/seeds/run.ts --list"
       echo "  --org              Shorthand for --seed org-basic"
       echo "  --stripe           Start Stripe webhook forwarding for E2E billing flows"

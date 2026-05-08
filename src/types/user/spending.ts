@@ -15,15 +15,17 @@ export { formatSpendAmount, getCurrentMonth } from '@/types/assistants/spending'
 /**
  * User's cumulative spend data for a given month.
  * Returned by GET /api/user/spending
+ *
+ * Amounts are in credits (the canonical wallet unit).
  */
 export interface UserSpend {
   /** User ID */
   userId: string;
   /** Month in YYYY-MM format */
   month: string;
-  /** Total spend this month in dollars */
+  /** Total spend this month in credits */
   cumulativeSpend: number;
-  /** Monthly spending limit (null = unlimited) */
+  /** Monthly spending limit in credits (null = unlimited) */
   limit: number | null;
   /** Percentage of limit used (0-100+), null if no limit */
   percentUsed: number;
@@ -36,7 +38,7 @@ export interface UserSpend {
 export interface UserSpendingLimitResponse {
   /** User ID */
   userId: string;
-  /** Monthly spending cap in dollars (null = unlimited) */
+  /** Monthly spending cap in credits (null = unlimited) */
   monthlySpendingCap: number | null;
   /** Number of assistants that were capped (on update) */
   assistantsCapped?: number;
@@ -47,7 +49,7 @@ export interface UserSpendingLimitResponse {
  * Used by PUT /api/user/spending-limit
  */
 export interface UserSpendingLimitRequest {
-  /** Monthly spending cap in dollars (null = remove limit) */
+  /** Monthly spending cap in credits (null = remove limit) */
   monthlySpendingCap: number | null;
 }
 
