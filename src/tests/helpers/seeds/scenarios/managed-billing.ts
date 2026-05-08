@@ -43,22 +43,32 @@
  * History card renders multiple rows (default → Pilot Free → ClientGamma).
  *
  * **Invoice mix (drives the /admin/invoices page):** every
- * `RechargeStatus` value is exercised across the seeded accounts so
- * the admin invoice list, status filter, and currency rendering all
- * have something to show without needing to run the real invoicer.
+ * Stripe-reachable `RechargeStatus` value is exercised across the
+ * seeded accounts so the admin invoice list, status filter, and
+ * currency rendering all have something to show without needing to
+ * run the real invoicer.
  *
- * | Account            | Period            | Status            | Currency | Notes                                        |
- * |--------------------|-------------------|-------------------|----------|----------------------------------------------|
- * | Auto Recharge user | -14d              | PAID              | USD      | CREDITS, auto_recharge type                  |
- * | ClientGamma Health     | last month        | PAID              | USD      | CREDITS, commit_topup (commitment fee)       |
- * | Acme Corp          | 3 months ago      | PAID              | USD      | METERED commit                                |
- * | Acme Corp          | 2 months ago      | PAID              | USD      | METERED commit + overage                      |
- * | Acme Corp          | last month        | INVOICE_CREATED   | USD      | issued, awaiting payment                      |
- * | Acme Corp          | current month     | PENDING_INVOICE   | USD      | mid-period placeholder (invoicer pre-claim)   |
- * | BritCo             | 2 months ago      | PAID              | GBP      | METERED, locked FX                            |
- * | BritCo             | last month        | FAILED            | GBP      | charge declined                               |
- * | EuroCo             | last month        | PAID              | EUR      | METERED, SPOT FX                              |
- * | EuroCo             | 2 months ago      | DISPUTED          | EUR      | chargeback                                    |
+ * | Account            | Period            | Status            | Currency | Visible? | Notes                                        |
+ * |--------------------|-------------------|-------------------|----------|----------|----------------------------------------------|
+ * | Auto Recharge user | -14d              | PAID              | USD      | yes      | CREDITS, auto_recharge type                   |
+ * | ClientGamma Health     | last month        | PAID              | USD      | yes      | CREDITS, commit_topup (commitment fee)        |
+ * | Acme Corp          | 3 months ago      | PAID              | USD      | yes      | METERED commit                                |
+ * | Acme Corp          | 2 months ago      | PAID              | USD      | yes      | METERED commit + overage                      |
+ * | Acme Corp          | last month        | INVOICE_CREATED   | USD      | yes      | issued, awaiting payment                      |
+ * | Acme Corp          | current month     | PENDING_INVOICE   | USD      | no       | dedup-only stub (no Stripe id; filtered out)  |
+ * | BritCo             | 2 months ago      | PAID              | GBP      | yes      | METERED, locked FX                            |
+ * | BritCo             | last month        | FAILED            | GBP      | yes      | charge declined                               |
+ * | EuroCo             | last month        | PAID              | EUR      | yes      | METERED, SPOT FX                              |
+ * | EuroCo             | 2 months ago      | DISPUTED          | EUR      | yes      | chargeback                                    |
+ *
+ * The /admin/invoices endpoint filters HISTORICAL rows by
+ * `stripe_invoice_id IS NOT NULL` — wallet-only adjustments and stub
+ * PENDING rows have nothing on the Stripe side to deep-link to and
+ * aren't "invoices" in any operator-meaningful sense. The Acme
+ * current-month PENDING_INVOICE row above is seeded specifically to
+ * exercise the UPCOMING-dedup branch (the dedup query reads recharge
+ * rows directly, independent of the display filter), then quietly
+ * disappears from the table itself.
  *
  * Plus *synthesised UPCOMING projections*: the /admin/invoices
  * endpoint generates one per active METERED assignment (Acme,
@@ -66,8 +76,7 @@
  * `monthly_metered_invoicer.estimate_in_progress_invoice` against
  * the seeded current-month usage. Acme's UPCOMING is suppressed
  * automatically by the endpoint's "already invoiced this period?"
- * check because of the seeded PENDING_INVOICE row above — exercising
- * the de-duplication branch.
+ * check because of the seeded (invisible) PENDING_INVOICE row above.
  *
  * **Credentials:** Every user has email login with password `testpass123`.
  * Sign in as `unify_admin` to view the /admin/plans + /admin/organizations

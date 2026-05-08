@@ -22,7 +22,10 @@ export interface InvoicesTableProps {
    *
    * - 'metered' — month-end invoices from the metered invoicer.
    *   Empty state copy mentions the upcoming month-end run.
-   * - 'credits' — historical autorecharge + manual top-up invoices.
+   * - 'credits' — historical autorecharge invoices. (Admin-driven
+   *   wallet credits — promo grants, manual top-ups — are excluded
+   *   server-side because they don't produce a Stripe invoice; they
+   *   show up in the credits-balance card instead.)
    *   Empty state copy explains there's no billing history yet.
    *
    * Defaults to 'metered' for back-compat with the original call site.
@@ -77,11 +80,11 @@ export function InvoicesTable({
   const description =
     variant === 'metered'
       ? 'Newest first. Each invoice covers one billing period.'
-      : 'Newest first. Includes auto-recharge invoices and manual top-ups.';
+      : 'Newest first. Auto-recharge invoices appear here once Stripe finalises them.';
   const emptyCopy =
     variant === 'metered'
       ? 'No invoices yet. The first one will appear after the end of your current billing period.'
-      : 'No invoices yet. Top-ups and auto-recharge invoices will appear here once your first payment is processed.';
+      : 'No invoices yet. Auto-recharge invoices will appear here once your first payment is processed.';
 
   return (
     <section className="space-y-4" data-testid={`${variant}-invoices-section`}>
@@ -369,8 +372,9 @@ interface MeteredBreakdown {
  * Pull the audit blob the metered invoicer stamps onto every Recharge
  * row (`raw_usage_local`, `commit_amount`, `invoiced_local`, …) and
  * coerce it into a typed shape we can render. Returns ``null`` for
- * non-METERED rows (autorecharge / manual top-up / promo) — those
- * have no per-invoice breakdown to display.
+ * autorecharge rows — those have no per-invoice breakdown to display.
+ * (Manual top-ups / promo credits never reach this component because
+ * the backend filters them out — they don't produce a Stripe invoice.)
  *
  * Internal pricing knobs (``base_pricing_factor``, ``overage_pricing_factor``) are intentionally
  * dropped here — they're not customer-facing.
@@ -416,8 +420,8 @@ function numberOrNull(value: unknown): number | null {
  * Use `detail.invoiced_local` + `detail.currency` when present so
  * non-USD invoices show the actual amount the customer was charged
  * (e.g. €5,000) rather than the USD-denominated equivalent stored
- * on the bare Recharge row. Falls back to USD on autorecharge /
- * manual rows that have no localised detail.
+ * on the bare Recharge row. Falls back to USD on autorecharge rows
+ * that have no localised detail.
  */
 function formatInvoiceAmount(inv: InvoiceListItem, breakdown: MeteredBreakdown | null): string {
   if (breakdown) {

@@ -156,11 +156,14 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
           <Separator />
 
           {/*
-            Invoices for CREDITS accounts: shows historical autorecharge
-            invoices + manual top-ups inline. The Stripe customer portal
-            (linked from "Manage Payment Methods" above) remains the
-            canonical invoice receipt source; this table is a convenience
-            view alongside it.
+            Invoices for CREDITS accounts: historical autorecharge
+            invoices only. Admin-driven wallet credits (promo / manual
+            top-ups) are excluded server-side because they don't have
+            a Stripe invoice — they're visible in the credits-balance
+            card. The Stripe customer portal (linked from "Manage
+            Payment Methods" above) remains the canonical invoice
+            receipt source; this table is a convenience view alongside
+            it.
           */}
           <InvoicesTable
             invoices={invoices}
