@@ -33,6 +33,7 @@ import {
   type OnboardingDerivationContext,
 } from '@/hooks/Assistants/useAssistantOnboardingState';
 import { CoordinatorWorkspacePanelContent } from './CoordinatorWorkspacePanelContent';
+import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 
 export interface AssistantInfoSidePanelContentProps {
   assistant: Assistant;
@@ -85,6 +86,7 @@ export interface AssistantInfoSidePanelContentProps {
 }
 
 const noopSeedChatDraft = () => {};
+const COORDINATOR_COPY_RESET_MS = 2000;
 
 /**
  * Body of the chat-tab assistant info side panel.
@@ -112,17 +114,126 @@ export function AssistantInfoSidePanelContent({
 }: AssistantInfoSidePanelContentProps) {
   if (assistant.isCoordinator === true) {
     return (
-      <CoordinatorWorkspacePanelContent
+      <CoordinatorAssistantInfoSidePanelContent
         assistant={assistant}
+        onEditProfile={props.onEditProfile}
         className={props.className}
         onSeedChatDraft={onSeedChatDraft}
         onCoordinatorActivity={props.onCoordinatorActivity}
         coordinatorActivity={props.coordinatorActivity}
+        onOpenContactManager={props.onOpenContactManager}
+        canWrite={props.canWrite}
       />
     );
   }
 
   return <RegularAssistantInfoSidePanelContent assistant={assistant} {...props} />;
+}
+
+function CoordinatorAssistantInfoSidePanelContent({
+  assistant,
+  onEditProfile,
+  onSeedChatDraft,
+  onCoordinatorActivity,
+  coordinatorActivity,
+  onOpenContactManager,
+  className,
+  canWrite = true,
+}: {
+  assistant: Assistant;
+  onEditProfile?: (assistant: Assistant) => void;
+  onSeedChatDraft: (text: string) => void;
+  onCoordinatorActivity?: (activity: CoordinatorActivityRow) => void;
+  coordinatorActivity?: CoordinatorActivityState;
+  onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
+  className?: string;
+  canWrite?: boolean;
+}) {
+  const [isIdCopied, setIsIdCopied] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<'onboarding' | 'contact'>('onboarding');
+  const copyResetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const supervisorName = [assistant.userFirstName, assistant.userLastName]
+    .filter(Boolean)
+    .join(' ');
+
+  React.useEffect(
+    () => () => {
+      if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+    },
+    []
+  );
+
+  const copyId = () => {
+    navigator.clipboard.writeText(assistant.agentId);
+    setIsIdCopied(true);
+    if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+    copyResetTimerRef.current = setTimeout(() => {
+      copyResetTimerRef.current = null;
+      setIsIdCopied(false);
+    }, COORDINATOR_COPY_RESET_MS);
+  };
+
+  return (
+    <ScrollArea className={cn('flex-1', className)}>
+      <div className="flex flex-col gap-4 px-4 py-4">
+        <IdentityHeader
+          name="Coordinator"
+          photoSrc={undefined}
+          initials="CO"
+          supervisorName={supervisorName}
+          isIdCopied={isIdCopied}
+          onCopyId={copyId}
+          onEdit={canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined}
+          avatarNode={
+            <CoordinatorLogoAvatar
+              className="h-14 w-14 flex-shrink-0 rounded-md"
+              logoClassName="h-7 w-7"
+            />
+          }
+        />
+
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as 'onboarding' | 'contact')}
+          className="flex min-h-0 flex-1 flex-col gap-3"
+        >
+          <TabsList className="h-8 w-full items-end justify-start gap-6 rounded-none border-b border-border bg-transparent p-0">
+            <TabsTrigger
+              value="onboarding"
+              data-testid="assistant-info-tab-onboarding"
+              className={PANEL_TAB_TRIGGER_CLASS}
+            >
+              Onboarding
+            </TabsTrigger>
+            <TabsTrigger
+              value="contact"
+              data-testid="assistant-info-tab-contact"
+              className={PANEL_TAB_TRIGGER_CLASS}
+            >
+              Contact info
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="onboarding" className="mt-0">
+            <CoordinatorWorkspacePanelContent
+              assistant={assistant}
+              onSeedChatDraft={onSeedChatDraft}
+              onCoordinatorActivity={onCoordinatorActivity}
+              coordinatorActivity={coordinatorActivity}
+              withScrollArea={false}
+              showHeader={false}
+            />
+          </TabsContent>
+          <TabsContent value="contact" className="mt-0">
+            <ContactInfoGrid
+              assistant={assistant}
+              onOpenContactManager={onOpenContactManager}
+              canWrite={canWrite}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </ScrollArea>
+  );
 }
 
 function RegularAssistantInfoSidePanelContent({
@@ -272,6 +383,7 @@ interface IdentityHeaderProps {
   isIdCopied: boolean;
   onCopyId: () => void;
   onEdit?: () => void;
+  avatarNode?: React.ReactNode;
 }
 
 function IdentityHeader({
@@ -282,13 +394,16 @@ function IdentityHeader({
   isIdCopied,
   onCopyId,
   onEdit,
+  avatarNode,
 }: IdentityHeaderProps) {
   return (
     <div className="flex items-start gap-3">
-      <Avatar className="h-14 w-14 flex-shrink-0 rounded-md">
-        <AvatarImage src={photoSrc} alt={name} className="rounded-md" />
-        <AvatarFallback className="rounded-md">{initials}</AvatarFallback>
-      </Avatar>
+      {avatarNode ?? (
+        <Avatar className="h-14 w-14 flex-shrink-0 rounded-md">
+          <AvatarImage src={photoSrc} alt={name} className="rounded-md" />
+          <AvatarFallback className="rounded-md">{initials}</AvatarFallback>
+        </Avatar>
+      )}
       <div className="min-w-0 flex-1 space-y-0.5">
         <div className="text-title truncate" data-testid="assistant-info-name">
           {name}

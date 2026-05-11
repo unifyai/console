@@ -205,23 +205,30 @@ describe('Coordinator workspace panel', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders the Coordinator workspace for coordinators and keeps regular assistants on the normal panel', async () => {
+  it('renders Coordinator onboarding and contact info tabs while regular assistants keep the normal panel', async () => {
     seedCoordinatorLogs();
+    const user = userEvent.setup();
     const seedChatDraft = vi.fn();
+    const onOpenContactManager = vi.fn();
+    const coordinator = assistant();
 
     renderWithWorkspace(
       <AssistantInfoSidePanelContent
-        assistant={assistant()}
-        onOpenContactManager={vi.fn()}
+        assistant={coordinator}
+        onOpenContactManager={onOpenContactManager}
         onSeedChatDraft={seedChatDraft}
       />
     );
 
+    expect(screen.getByTestId('assistant-info-tab-onboarding')).toHaveTextContent('Onboarding');
+    expect(screen.getByTestId('assistant-info-tab-contact')).toHaveTextContent('Contact info');
     expect(await screen.findByTestId('coordinator-workspace-panel')).toBeInTheDocument();
-    expect(screen.getByTestId('coordinator-workspace-name')).toHaveTextContent('Coordinator');
     expect(screen.getByTestId('coordinator-logo-avatar')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'Team Setup' })).toBeInTheDocument();
+    expect(screen.queryByText('Setup progress')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('coordinator-setup-progress-count')).not.toBeInTheDocument();
+    expect(screen.queryByRole('progressbar', { name: 'Coordinator setup progress' })).toBeNull();
     expect(screen.getByText('Setup plan')).toBeInTheDocument();
+    expect(screen.getByTestId('coordinator-workspace-refresh')).toBeInTheDocument();
     const currentWorkCard = screen.getByTestId('coordinator-current-work-card');
     expect(currentWorkCard).toHaveTextContent('Drafting the teammate plan');
     expect(currentWorkCard).toHaveTextContent('Integration setup');
@@ -231,6 +238,21 @@ describe('Coordinator workspace panel', () => {
     expect(screen.getByText('Invite operators')).toBeInTheDocument();
     expect(screen.queryByTestId('coordinator-show-activity')).not.toBeInTheDocument();
     expect(screen.queryByTestId('assistant-info-contact-grid')).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId('assistant-info-tab-contact'));
+    const coordinatorContactInfo = screen.getByTestId('assistant-info-contact-grid');
+    expect(coordinatorContactInfo).toHaveTextContent('Contact info');
+    expect(
+      within(coordinatorContactInfo).getByLabelText('Manage contact details')
+    ).toBeInTheDocument();
+    expect(within(coordinatorContactInfo).getByText('Add phone')).toBeInTheDocument();
+    expect(within(coordinatorContactInfo).getByText('Add email')).toBeInTheDocument();
+    expect(within(coordinatorContactInfo).getByText('Add whatsapp')).toBeInTheDocument();
+    expect(within(coordinatorContactInfo).getByText('Add discord')).toBeInTheDocument();
+    expect(screen.queryByTestId('coordinator-contact-info')).not.toBeInTheDocument();
+
+    await user.click(within(coordinatorContactInfo).getByText('Add email'));
+    expect(onOpenContactManager).toHaveBeenLastCalledWith(coordinator, 'email');
 
     cleanup();
 

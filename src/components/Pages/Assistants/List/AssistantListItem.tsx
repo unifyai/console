@@ -104,6 +104,7 @@ export function AssistantListItem({
 
   const isCoordinator = assistant.isCoordinator === true;
   const displayName = isCoordinator ? 'Coordinator' : `${assistant.firstName} ${assistant.surname}`;
+  const subtitle = assistant.jobTitle?.trim() || null;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
   const isOnline = status?.running === true;
   const canEndContract = !!onEndContract && !isCoordinator;
@@ -209,8 +210,20 @@ export function AssistantListItem({
             />
           )}
         </div>
-        <div className="flex min-w-0 items-center gap-1.5">
-          <span className="text-body text-strong truncate">{displayName}</span>
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="text-body text-strong truncate">{displayName}</span>
+          </div>
+          {subtitle && !isCoordinator ? (
+            <p
+              className={cn(
+                'text-caption mt-0.5 truncate',
+                isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'
+              )}
+            >
+              {subtitle}
+            </p>
+          ) : null}
         </div>
       </div>
       <div className="flex items-center gap-1">

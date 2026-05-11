@@ -102,7 +102,7 @@ describe('AssistantList space grouping', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders space groups under a broad Spaces section', () => {
+  it('renders space groups under a broad Teams section', () => {
     renderAssistantList(
       [assistant('1', 'Ava', 'Patch', [3]), assistant('2', 'Bea', 'Region', [7])],
       {
@@ -114,9 +114,21 @@ describe('AssistantList space grouping', () => {
     );
 
     const spacesSection = screen.getByTestId('assistant-list-section-spaces');
-    expect(within(spacesSection).getByRole('button', { name: /Spaces/ })).toBeInTheDocument();
+    expect(within(spacesSection).getByRole('button', { name: /Teams/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Patch Three/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Region Seven/ })).toBeInTheDocument();
+    expect(screen.getAllByText('Team').length).toBeGreaterThan(0);
+  });
+
+  it('does not render an empty independent colleagues section', () => {
+    renderAssistantList([assistant('1', 'Ava', 'Patch', [3])], {
+      spacesById: {
+        3: space(3, 'Patch Three'),
+      },
+    });
+
+    expect(screen.getByTestId('assistant-list-section-spaces')).toBeInTheDocument();
+    expect(screen.queryByTestId('assistant-list-section-solo')).not.toBeInTheDocument();
   });
 
   it('keeps spaceless assistants in the flat list with no group header', () => {
@@ -126,7 +138,7 @@ describe('AssistantList space grouping', () => {
     expect(screen.getByTestId('assistant-list-item-1')).toHaveTextContent('Solo Assistant');
   });
 
-  it('renders Solo as a broad section when spaces are present', () => {
+  it('renders independent colleagues as a broad section when spaces are present', () => {
     renderAssistantList(
       [assistant('1', 'Solo', 'Assistant', []), assistant('2', 'Shared', 'Assistant', [3])],
       {
@@ -137,7 +149,9 @@ describe('AssistantList space grouping', () => {
     );
 
     const soloSection = screen.getByTestId('assistant-list-section-solo');
-    expect(within(soloSection).getByRole('button', { name: /^Solo1$/ })).toBeInTheDocument();
+    expect(
+      within(soloSection).getByRole('button', { name: /Independent colleagues.*1/ })
+    ).toBeInTheDocument();
     expect(within(soloSection).getByText('Solo Assistant')).toBeVisible();
   });
 
@@ -175,8 +189,9 @@ describe('AssistantList space grouping', () => {
 
     await user.hover(screen.getByRole('button', { name: /Patch Three/ }));
 
-    const tooltipCopies = await screen.findAllByText('Shared work for patch operations.');
-    expect(tooltipCopies.length).toBeGreaterThan(0);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(
+      'Shared work for patch operations.'
+    );
   });
 
   it('filters assistants inside groups and hides empty groups', async () => {
@@ -193,7 +208,7 @@ describe('AssistantList space grouping', () => {
 
     await user.type(screen.getByRole('searchbox'), 'Alpha');
 
-    expect(screen.getByRole('button', { name: /Spaces/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Teams/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Patch Three/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Region Seven/ })).not.toBeInTheDocument();
     expect(screen.getByTestId('assistant-list-item-1')).toHaveTextContent('Alpha Patch');

@@ -286,18 +286,45 @@ function EmptyNowCard() {
   );
 }
 
+function RefreshWorkspaceButton({
+  isLoading,
+  onRefresh,
+}: {
+  isLoading: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="h-7 w-7 shrink-0"
+      onClick={onRefresh}
+      disabled={isLoading}
+      aria-label="Refresh Coordinator workspace"
+      data-testid="coordinator-workspace-refresh"
+    >
+      <RefreshCw className={cn('h-3.5 w-3.5', isLoading && 'animate-spin')} />
+    </Button>
+  );
+}
+
 export function CoordinatorWorkspacePanelContent({
   assistant,
   className,
   onSeedChatDraft,
   onCoordinatorActivity,
   coordinatorActivity,
+  withScrollArea = true,
+  showHeader = true,
 }: {
   assistant: Assistant;
   className?: string;
   onSeedChatDraft: (text: string) => void;
   onCoordinatorActivity?: (activity: CoordinatorActivityRow) => void;
   coordinatorActivity?: CoordinatorActivityState;
+  withScrollArea?: boolean;
+  showHeader?: boolean;
 }): JSX.Element {
   const { canOpenAssistantChat } = useAssistantPermissions();
   const canReadCoordinatorPanel = canOpenAssistantChat(assistant);
@@ -362,9 +389,21 @@ export function CoordinatorWorkspacePanelContent({
   const checklistGroups = React.useMemo(() => groupChecklistRows(checklist), [checklist]);
   const isWorkspaceLoading = isLoading || activityState.isLoading;
   const workspaceError = error || activityState.error;
-  return (
-    <ScrollArea className={cn('flex-1', className)}>
-      <div className="flex flex-col gap-4 px-4 py-4" data-testid="coordinator-workspace-panel">
+  const refreshActivity = activityState.refetch;
+  const refreshWorkspace = React.useCallback(
+    () => void Promise.all([refetch(), refreshActivity()]),
+    [refetch, refreshActivity]
+  );
+  const content = (
+    <div
+      className={cn(
+        'flex flex-col gap-4',
+        withScrollArea && 'px-4 py-4',
+        !withScrollArea && className
+      )}
+      data-testid="coordinator-workspace-panel"
+    >
+      {showHeader && (
         <header className="space-y-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -373,18 +412,7 @@ export function CoordinatorWorkspacePanelContent({
                 Your Coordinator is shaping the team, tools, and first handoffs.
               </p>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 shrink-0"
-              onClick={() => void Promise.all([refetch(), activityState.refetch()])}
-              disabled={isWorkspaceLoading}
-              aria-label="Refresh Coordinator workspace"
-              data-testid="coordinator-workspace-refresh"
-            >
-              <RefreshCw className={cn('h-3.5 w-3.5', isWorkspaceLoading && 'animate-spin')} />
-            </Button>
+            <RefreshWorkspaceButton isLoading={isWorkspaceLoading} onRefresh={refreshWorkspace} />
           </div>
 
           <div className="bg-muted/20 flex items-center gap-2 rounded-full border px-2.5 py-2">
@@ -399,60 +427,67 @@ export function CoordinatorWorkspacePanelContent({
             </div>
           </div>
         </header>
+      )}
 
-        {workspaceError && (
-          <div className="text-caption text-error border-destructive/30 bg-destructive/10 rounded-md border p-2">
-            {workspaceError}
+      {workspaceError && (
+        <div className="text-caption text-error border-destructive/30 bg-destructive/10 rounded-md border p-2">
+          {workspaceError}
+        </div>
+      )}
+
+      <CurrentWorkCard
+        activity={nowActivity}
+        fallback={firstPendingChecklistRow}
+        onSeedChatDraft={onSeedChatDraft}
+      />
+
+      <section className="space-y-3" aria-label="Coordinator setup checklist">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h3 className="text-label text-semibold">Setup plan</h3>
+            {isWorkspaceLoading && (
+              <p className="text-caption mt-0.5 text-muted-foreground">Refreshing...</p>
+            )}
           </div>
-        )}
-
-        <CurrentWorkCard
-          activity={nowActivity}
-          fallback={firstPendingChecklistRow}
-          onSeedChatDraft={onSeedChatDraft}
-        />
-
-        <section className="space-y-3" aria-label="Coordinator setup checklist">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h3 className="text-label text-semibold">Setup plan</h3>
-              {isWorkspaceLoading && (
-                <p className="text-caption mt-0.5 text-muted-foreground">Refreshing...</p>
-              )}
+          {!showHeader && (
+            <RefreshWorkspaceButton isLoading={isWorkspaceLoading} onRefresh={refreshWorkspace} />
+          )}
+        </div>
+        {checklistGroups.length > 0 ? (
+          checklistGroups.map((group) => (
+            <div key={group.label} className="space-y-2">
+              <h4 className="text-caption text-semibold uppercase tracking-wide text-muted-foreground">
+                {group.label}
+              </h4>
+              <ul className="space-y-2">
+                {group.rows.map((row) => (
+                  <ChecklistRow key={row.itemId} row={row} onSeedChatDraft={onSeedChatDraft} />
+                ))}
+              </ul>
             </div>
-          </div>
-          {checklistGroups.length > 0 ? (
-            checklistGroups.map((group) => (
-              <div key={group.label} className="space-y-2">
-                <h4 className="text-caption text-semibold uppercase tracking-wide text-muted-foreground">
-                  {group.label}
-                </h4>
-                <ul className="space-y-2">
-                  {group.rows.map((row) => (
-                    <ChecklistRow key={row.itemId} row={row} onSeedChatDraft={onSeedChatDraft} />
-                  ))}
-                </ul>
-              </div>
-            ))
-          ) : (
-            <p className="text-caption rounded-lg border border-dashed p-3 text-muted-foreground">
-              The setup checklist will appear here as the Coordinator learns what your team needs.
-            </p>
-          )}
-          {state?.mode === 'ready_to_go' && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 w-full"
-              onClick={() => onSeedChatDraft("Let's review where we landed with the team setup.")}
-              data-testid="coordinator-review-setup"
-            >
-              Review setup
-            </Button>
-          )}
-        </section>
-      </div>
-    </ScrollArea>
+          ))
+        ) : (
+          <p className="text-caption rounded-lg border border-dashed p-3 text-muted-foreground">
+            The setup checklist will appear here as the Coordinator learns what your team needs.
+          </p>
+        )}
+        {state?.mode === 'ready_to_go' && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 w-full"
+            onClick={() => onSeedChatDraft("Let's review where we landed with the team setup.")}
+            data-testid="coordinator-review-setup"
+          >
+            Review setup
+          </Button>
+        )}
+      </section>
+    </div>
   );
+
+  if (!withScrollArea) return content;
+
+  return <ScrollArea className={cn('flex-1', className)}>{content}</ScrollArea>;
 }

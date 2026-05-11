@@ -125,6 +125,15 @@ async function expectCoordinatorChatOpen(page: Page, agentId: number) {
   await expect(page.getByTestId('right-pane-tab-chat')).toHaveAttribute('data-state', 'active');
 }
 
+async function waitForCoordinatorActionStream(page: Page, agentId: number) {
+  await page.waitForResponse(
+    (response) =>
+      response.url().includes(`/api/assistant/${agentId}/actions/stream`) &&
+      response.status() === 200,
+    { timeout: 20_000 }
+  );
+}
+
 /* eslint-disable @typescript-eslint/naming-convention */
 async function seedCoordinatorWorkspace() {
   const contextRoot = `${owner.id}/${coordinator.agentId}`;
@@ -472,12 +481,23 @@ test('owner sees the Coordinator pinned with workspace chrome and no contract te
   });
   await page.keyboard.press('Escape');
 
+  const actionStreamReady = waitForCoordinatorActionStream(page, coordinator.agentId);
   await expectCoordinatorChatOpen(page, coordinator.agentId);
+  await actionStreamReady;
   if ((await page.getByTestId('coordinator-workspace-panel').count()) === 0) {
     await page.getByTestId('assistant-info-button').click();
   }
   await expect(page.getByTestId('coordinator-workspace-panel')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('coordinator-workspace-name')).toContainText('Coordinator');
+  await expect(page.getByTestId('assistant-info-tab-onboarding')).toContainText('Onboarding');
+  await expect(page.getByTestId('assistant-info-tab-contact')).toContainText('Contact info');
+  await page.getByTestId('assistant-info-tab-contact').click();
+  const contactGrid = page.getByTestId('assistant-info-contact-grid');
+  await expect(contactGrid).toBeVisible({ timeout: 15_000 });
+  await expect(contactGrid).toContainText('Add phone');
+  await expect(contactGrid).toContainText('Add email');
+  await expect(contactGrid).toContainText('Add whatsapp');
+  await expect(contactGrid).toContainText('Add discord');
+  await page.getByTestId('assistant-info-tab-onboarding').click();
   await expect(page.getByTestId('coordinator-show-activity')).toHaveCount(0);
   const currentWorkCard = page.getByTestId('coordinator-current-work-card');
   await expect(currentWorkCard).toContainText('Drafting the teammate plan', { timeout: 15_000 });
