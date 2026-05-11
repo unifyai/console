@@ -89,7 +89,12 @@ export function AssistantListGroupHeader({
     <TooltipProvider delayDuration={150}>
       <Tooltip>
         <TooltipTrigger asChild>{header}</TooltipTrigger>
-        <TooltipContent side="right" className="max-w-64">
+        <TooltipContent
+          side="bottom"
+          align="start"
+          sideOffset={6}
+          className="w-[var(--radix-tooltip-trigger-width)] max-w-80 text-left leading-snug"
+        >
           <p>{description}</p>
         </TooltipContent>
       </Tooltip>
