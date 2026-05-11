@@ -273,7 +273,7 @@ test('shows empty state when assistant has no data', async ({ authedPage: page }
   const memoryPane = page.getByTestId('memory-pane');
   await expect(memoryPane).toBeVisible({ timeout: 10_000 });
 
-  await expect(page.locator('text=No contacts found.')).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('text=No contacts found')).toBeVisible({ timeout: 10_000 });
 });
 
 // ===========================================================================
@@ -600,7 +600,7 @@ test('search with no results shows empty message', async ({ authedPage: page }) 
   await searchInput.press('Enter');
 
   await expect(footer).not.toBeVisible({ timeout: 10_000 });
-  await expect(page.locator('text=No results match your search.')).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('text=No results match your search')).toBeVisible({ timeout: 5_000 });
 });
 
 test('search query persists when switching tabs and back', async ({ authedPage: page }) => {

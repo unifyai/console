@@ -325,10 +325,7 @@ test('shows empty state when assistant has no dashboards or tiles', async ({
 }) => {
   await selectAssistantAndOpenDashboards(page, emptyAssistant.agentId);
 
-  await expect(page.locator('text=No dashboards yet')).toBeVisible({ timeout: 10_000 });
-  await expect(page.locator('text=/Your assistant will create dashboards/')).toBeVisible({
-    timeout: 5_000,
-  });
+  await expect(page.locator('text=No dashboards found')).toBeVisible({ timeout: 10_000 });
 });
 
 test('no tabs visible and shows placeholder when no assistant is selected', async ({

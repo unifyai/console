@@ -273,24 +273,16 @@ test('Tasks tab shows Tasks and Activity sub-tabs in footer', async ({ authedPag
 test('Tasks tab shows empty state when assistant has no tasks', async ({ authedPage: page }) => {
   await selectAssistantAndOpenTasks(page, emptyAssistant.agentId);
 
-  await expect(page.getByText('No tasks found.')).toBeVisible({ timeout: 10_000 });
-  await expect(
-    page.getByText('Create a task to give the assistant structured work to own.')
-  ).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText('No tasks found')).toBeVisible({ timeout: 10_000 });
 });
 
-test('Activity view shows contextual empty helper text', async ({ authedPage: page }) => {
+test('Activity view shows empty placeholder when no activity', async ({ authedPage: page }) => {
   await selectAssistantAndOpenTasks(page, emptyAssistant.agentId);
 
   await page.getByTestId('tasks-view-activity').click();
   await page.waitForTimeout(500);
 
-  await expect(page.getByText('No task activity yet.')).toBeVisible({ timeout: 5_000 });
-  await expect(
-    page.getByText(
-      'Task activity appears here after a task starts or finishes running. Use Refresh to check for recent updates.'
-    )
-  ).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText('No activity found')).toBeVisible({ timeout: 5_000 });
 });
 
 // ===========================================================================
@@ -657,10 +649,7 @@ test('search with no results shows empty message', async ({ authedPage: page }) 
   await searchInput.fill('xyznonexistent');
   await searchInput.press('Enter');
 
-  await expect(page.getByText('No results match your search.')).toBeVisible({ timeout: 10_000 });
-  await expect(
-    page.getByText('Try clearing search or switching between Tasks and Activity.')
-  ).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText('No results match your search')).toBeVisible({ timeout: 10_000 });
 });
 
 // ===========================================================================

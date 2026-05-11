@@ -113,7 +113,7 @@ export function useAssistantSecrets(
   }, [assistantId, fetchSecrets]);
 
   // Clear the cached rows and flip loading on synchronously so there's no
-  // intermediate "No secrets yet" flash between the state change and the
+  // intermediate "No secrets found" flash between the state change and the
   // effect-driven re-fetch kicking in.
   const beginRefetch = React.useCallback(() => {
     setSecrets([]);

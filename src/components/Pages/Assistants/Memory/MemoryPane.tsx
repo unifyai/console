@@ -149,8 +149,8 @@ export function MemoryPane({ ownerId, assistantId }: MemoryPaneProps) {
   const isFiltered = !!activeState.filterExpr;
   const detailTitle = `${MEMORY_CONTEXT_LABELS[activeContext]} Detail`;
   const emptyMessage = isFiltered
-    ? 'No results match your search.'
-    : `No ${(MEMORY_CONTEXT_LABELS[activeContext] ?? activeContext).toLowerCase()} found.`;
+    ? 'No results match your search'
+    : `No ${(MEMORY_CONTEXT_LABELS[activeContext] ?? activeContext).toLowerCase()} found`;
 
   if (error) {
     return (

@@ -32,29 +32,16 @@ const TAB_CLASS = [
   'data-[active=true]:bg-primary data-[active=true]:text-primary-foreground',
 ].join(' ');
 
-function getTaskEmptyState(
-  taskView: TaskMemoryView,
-  isFiltered: boolean
-): { title: string; helperText?: string } {
+function getTaskEmptyState(taskView: TaskMemoryView, isFiltered: boolean): { title: string } {
   if (isFiltered) {
-    return {
-      title: 'No results match your search.',
-      helperText: 'Try clearing search or switching between Tasks and Activity.',
-    };
+    return { title: 'No results match your search' };
   }
 
   switch (taskView) {
     case 'Tasks':
-      return {
-        title: 'No tasks found.',
-        helperText: 'Create a task to give the assistant structured work to own.',
-      };
+      return { title: 'No tasks found' };
     case 'Activity':
-      return {
-        title: 'No task activity yet.',
-        helperText:
-          'Task activity appears here after a task starts or finishes running. Use Refresh to check for recent updates.',
-      };
+      return { title: 'No activity found' };
   }
 }
 
@@ -262,7 +249,6 @@ export function TasksPane({ ownerId, assistantId }: TasksPaneProps) {
           isLoadingMore={isLoadingMore}
           hasMore={activeState.hasMore}
           emptyMessage={emptyState.title}
-          emptyHelperText={emptyState.helperText}
           onRowClick={(row) => setSelectedRow(row as Record<string, unknown>)}
           onSort={sort}
           onLoadMore={loadMore}
