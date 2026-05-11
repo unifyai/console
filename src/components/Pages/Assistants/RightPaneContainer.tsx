@@ -5,15 +5,28 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/UI/tabs';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/UI/dropdown-menu';
+import {
   Activity,
+  BookOpen,
   Brain,
+  ChevronDown,
+  Code,
   Columns2,
-  Plug2,
-  LayoutDashboard,
+  Compass,
+  ListChecks,
   ListTodo,
   MessageSquare,
+  Plug2,
+  LayoutDashboard,
+  Users,
   X,
 } from 'lucide-react';
+import type { MemoryContext, TaskMemoryView } from '@/types/assistants/memory';
 import { cn } from '@/lib/utils';
 import { LiveActionsViewer } from './LiveActions';
 import { DashboardsPane } from './Dashboards';
@@ -43,7 +56,14 @@ import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistant
  */
 const TAB_TRIGGER_CLASS = [
   'flex h-full shrink-0 items-center gap-1.5 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent',
-  'px-1 text-xs font-medium text-muted-foreground',
+  // `py-1` is load-bearing: the `TabsTrigger` variant inherits an
+  // identical `py-1` from Radix's default wrapper classes, but plain
+  // `<button>` triggers (the dropdown variant used for Memory / Tasks)
+  // don't get it for free. Making it explicit here keeps both variants
+  // visually aligned — without it, the dropdown tab's active underline
+  // sits flush against the text instead of leaving the same breathing
+  // room as the single-layer tabs (Chat, Actions, Dashboards, etc.).
+  'px-1 py-1 text-xs font-medium text-muted-foreground',
   'shadow-none transition-colors hover:text-foreground',
   'data-[state=active]:border-primary data-[state=active]:bg-transparent',
   'data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:shadow-none',
@@ -55,6 +75,22 @@ const TAB_TRIGGER_CLASS = [
  */
 export type RightPaneTab = 'chat' | 'tasks' | 'dashboards' | 'memory' | 'integrations' | 'actions';
 
+type MemoryTabContext = Exclude<MemoryContext, 'Tasks'>;
+
+/**
+ * Discriminated union of sub-tab IDs valid for each parent tab that has
+ * sub-tabs. The dropdown in the tab strip uses the parent tab's
+ * `subTabs` config to enumerate options and feeds the selected value
+ * down to the relevant pane via its `subTab` prop. Stays as string IDs
+ * here (rather than a fully typed map) so the config table can be a
+ * single uniform shape.
+ */
+interface RightPaneSubTab {
+  id: string;
+  label: string;
+  Icon: React.ComponentType<{ className?: string }>;
+}
+
 interface RightPaneTabConfig {
   id: RightPaneTab;
   label: string;
@@ -63,7 +99,31 @@ interface RightPaneTabConfig {
    *  so each tooltip reads as "of *this* assistant" — same personal-
    *  isation pattern the info side panel uses elsewhere. */
   describe: (name: string) => string;
+  /**
+   * Optional sub-tabs surfaced via a dropdown that *replaces* the
+   * default tab-click behaviour: clicking the tab opens this menu,
+   * picking an item switches the slot to this parent tab AND sets the
+   * sub-tab on the pane. Tabs without a `subTabs` config keep the
+   * direct-switch click behaviour they always had.
+   */
+  subTabs?: ReadonlyArray<RightPaneSubTab>;
 }
+
+const MEMORY_SUB_TABS: ReadonlyArray<RightPaneSubTab> = [
+  { id: 'Contacts', label: 'Contacts', Icon: Users },
+  { id: 'Transcripts', label: 'Transcripts', Icon: MessageSquare },
+  { id: 'Knowledge', label: 'Knowledge', Icon: BookOpen },
+  { id: 'Guidance', label: 'Guidance', Icon: Compass },
+  { id: 'Functions', label: 'Functions', Icon: Code },
+];
+
+const TASKS_SUB_TABS: ReadonlyArray<RightPaneSubTab> = [
+  { id: 'Tasks', label: 'Tasks', Icon: ListChecks },
+  { id: 'Activity', label: 'Activity', Icon: Activity },
+];
+
+const DEFAULT_MEMORY_SUB_TAB: MemoryTabContext = 'Contacts';
+const DEFAULT_TASKS_SUB_TAB: TaskMemoryView = 'Tasks';
 
 /**
  * Visual order — left to right. Chosen by usage frequency + conceptual
@@ -98,6 +158,7 @@ export const RIGHT_PANE_TABS: ReadonlyArray<RightPaneTabConfig> = [
     label: 'Tasks',
     Icon: ListTodo,
     describe: (name) => `Work in progress and completed tasks for ${name}`,
+    subTabs: TASKS_SUB_TABS,
   },
   {
     id: 'dashboards',
@@ -110,6 +171,7 @@ export const RIGHT_PANE_TABS: ReadonlyArray<RightPaneTabConfig> = [
     label: 'Memory',
     Icon: Brain,
     describe: (name) => `Persistent context and notes for ${name}`,
+    subTabs: MEMORY_SUB_TABS,
   },
   {
     id: 'integrations',
@@ -270,6 +332,54 @@ export function RightPaneContainer({
     setHasActiveAction(active);
   }, []);
 
+  // Per-slot sub-tab state for the tabs that have sub-tabs (Memory,
+  // Tasks). Kept here so the dropdown in the tab strip can both *drive*
+  // the pane's sub-tab (dropdown click → pane switches) and *reflect*
+  // the pane's current sub-tab (footer-tab click inside the pane →
+  // dropdown's radio indicator stays accurate). Each slot keeps its own
+  // pair of sub-tab choices so a split view with the same tab in both
+  // slots can show different sub-tabs.
+  const [subTabBySlot, setSubTabBySlot] = useState<{
+    primary: { memory: MemoryTabContext; tasks: TaskMemoryView };
+    secondary: { memory: MemoryTabContext; tasks: TaskMemoryView };
+  }>({
+    primary: { memory: DEFAULT_MEMORY_SUB_TAB, tasks: DEFAULT_TASKS_SUB_TAB },
+    secondary: { memory: DEFAULT_MEMORY_SUB_TAB, tasks: DEFAULT_TASKS_SUB_TAB },
+  });
+
+  const setSlotSubTab = useCallback(
+    <K extends 'memory' | 'tasks'>(
+      slot: 'primary' | 'secondary',
+      key: K,
+      value: K extends 'memory' ? MemoryTabContext : TaskMemoryView
+    ) => {
+      setSubTabBySlot((prev) =>
+        prev[slot][key] === value ? prev : { ...prev, [slot]: { ...prev[slot], [key]: value } }
+      );
+    },
+    []
+  );
+
+  // Stable per-slot callback factories so MemoryPane / TasksPane don't
+  // re-fire their `onSubTabChange` effect on every render of this
+  // container.
+  const primaryMemoryChange = useCallback(
+    (next: MemoryTabContext) => setSlotSubTab('primary', 'memory', next),
+    [setSlotSubTab]
+  );
+  const primaryTasksChange = useCallback(
+    (next: TaskMemoryView) => setSlotSubTab('primary', 'tasks', next),
+    [setSlotSubTab]
+  );
+  const secondaryMemoryChange = useCallback(
+    (next: MemoryTabContext) => setSlotSubTab('secondary', 'memory', next),
+    [setSlotSubTab]
+  );
+  const secondaryTasksChange = useCallback(
+    (next: TaskMemoryView) => setSlotSubTab('secondary', 'tasks', next),
+    [setSlotSubTab]
+  );
+
   // --- Splitter resize ---
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [isResizingSplit, setIsResizingSplit] = React.useState(false);
@@ -385,7 +495,7 @@ export function RightPaneContainer({
               // so the same gap stays comfortable for icon-only chips.
               className="h-7 flex-nowrap gap-6 rounded-none bg-transparent p-0"
             >
-              {RIGHT_PANE_TABS.map(({ id, label, Icon, describe }) => {
+              {RIGHT_PANE_TABS.map(({ id, label, Icon, describe, subTabs }) => {
                 // "Active in this slot" — i.e. the tab the user is
                 // currently looking at. Used to suppress the unread
                 // chip while chat is visible (defensive: `Main` also
@@ -410,6 +520,125 @@ export function RightPaneContainer({
                   : isActionsLive
                     ? `${tooltipBase} — live`
                     : tooltipBase;
+
+                // Tabs with `subTabs` configured replace the direct
+                // tab-switch click with a dropdown of sub-tab options.
+                // Picking an option switches the slot to this parent
+                // tab AND sets the matching sub-tab on the pane below.
+                // We render a plain button (not a TabsTrigger) so the
+                // click doesn't fight Radix's tab-switch handler — the
+                // `data-state` attribute is set manually so the same
+                // active-underline styling (driven by the
+                // `data-[state=active]` rules in TAB_TRIGGER_CLASS)
+                // still applies.
+                if (subTabs && subTabs.length > 0) {
+                  const slotSubTabs = subTabBySlot[slot];
+                  const currentSubTabValue: string =
+                    id === 'memory' ? slotSubTabs.memory : id === 'tasks' ? slotSubTabs.tasks : '';
+                  // The tab chip *displays* the currently-selected
+                  // sub-tab (label + icon) rather than the parent tab's
+                  // own name, so the user can read which sub-tab they
+                  // are on without having to open the dropdown. The
+                  // ChevronDown glyph + parent tooltip still convey the
+                  // grouping and dropdown affordance. Falls back to the
+                  // parent's own label/Icon if the current sub-tab id
+                  // can't be resolved (defensive — shouldn't happen
+                  // with a non-empty `subTabs` list).
+                  const currentSubTab = subTabs.find((st) => st.id === currentSubTabValue);
+                  const DisplayIcon = currentSubTab?.Icon ?? Icon;
+                  const displayLabel = currentSubTab?.label ?? label;
+                  // Surface the resolved sub-tab in the tooltip too so
+                  // the AT label and hover bubble stay accurate after
+                  // the in-place swap.
+                  const dropdownTooltipText = currentSubTab
+                    ? `${tooltipText} — ${currentSubTab.label}`
+                    : tooltipText;
+                  const handleSubTabSelect = (next: string) => {
+                    if (id === 'memory') {
+                      setSlotSubTab(slot, 'memory', next as MemoryTabContext);
+                    } else if (id === 'tasks') {
+                      setSlotSubTab(slot, 'tasks', next as TaskMemoryView);
+                    }
+                    // Switch the slot to this parent tab on selection;
+                    // a no-op when we're already on it.
+                    if (!isActiveInThisSlot) onTabChange(id);
+                  };
+                  return (
+                    <DropdownMenu key={id}>
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            {/* Wrapping span mirrors the non-dropdown
+                                branch's two-asChild-slot workaround:
+                                it keeps the tooltip's event handlers
+                                off the trigger button so the
+                                dropdown opens cleanly on click. */}
+                            <span className="inline-flex">
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  data-state={isActiveInThisSlot ? 'active' : 'inactive'}
+                                  className={TAB_TRIGGER_CLASS}
+                                  data-testid={
+                                    slot === 'primary'
+                                      ? `right-pane-tab-${id}`
+                                      : `right-pane-secondary-tab-${id}`
+                                  }
+                                  aria-label={dropdownTooltipText}
+                                  aria-haspopup="menu"
+                                >
+                                  <DisplayIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                                  <span className="hidden sm:inline">{displayLabel}</span>
+                                  <ChevronDown className="h-3 w-3 opacity-60" aria-hidden="true" />
+                                </button>
+                              </DropdownMenuTrigger>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">
+                            <p>{dropdownTooltipText}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <DropdownMenuContent
+                        align="start"
+                        className="min-w-[10rem]"
+                        data-testid={
+                          slot === 'primary'
+                            ? `right-pane-tab-${id}-menu`
+                            : `right-pane-secondary-tab-${id}-menu`
+                        }
+                      >
+                        {subTabs.map(({ id: subId, label: subLabel, Icon: SubIcon }) => {
+                          const isSelectedSubTab = subId === currentSubTabValue;
+                          return (
+                            <DropdownMenuItem
+                              key={subId}
+                              onSelect={() => handleSubTabSelect(subId)}
+                              data-testid={
+                                slot === 'primary'
+                                  ? `right-pane-tab-${id}-menu-${subId.toLowerCase()}`
+                                  : `right-pane-secondary-tab-${id}-menu-${subId.toLowerCase()}`
+                              }
+                              // Selected item gets the same primary-on-
+                              // primary-foreground language used for the
+                              // active footer sub-tab chips. The
+                              // hover/focus overrides keep the colour
+                              // stable while the user moves the mouse or
+                              // keyboard focus around the menu.
+                              className={cn(
+                                isSelectedSubTab &&
+                                  'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground'
+                              )}
+                            >
+                              <SubIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                              <span>{subLabel}</span>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  );
+                }
 
                 return (
                   <TooltipProvider key={id} delayDuration={300}>
@@ -602,7 +831,12 @@ export function RightPaneContainer({
           className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
           forceMount
         >
-          <TasksPane ownerId={assistant.userId} assistantId={assistant.agentId} />
+          <TasksPane
+            ownerId={assistant.userId}
+            assistantId={assistant.agentId}
+            subTab={subTabBySlot[slot].tasks}
+            onSubTabChange={slot === 'primary' ? primaryTasksChange : secondaryTasksChange}
+          />
         </TabsContent>
 
         <TabsContent
@@ -630,7 +864,12 @@ export function RightPaneContainer({
           className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
           forceMount
         >
-          <MemoryPane ownerId={assistant.userId} assistantId={assistant.agentId} />
+          <MemoryPane
+            ownerId={assistant.userId}
+            assistantId={assistant.agentId}
+            subTab={subTabBySlot[slot].memory}
+            onSubTabChange={slot === 'primary' ? primaryMemoryChange : secondaryMemoryChange}
+          />
         </TabsContent>
 
         <TabsContent

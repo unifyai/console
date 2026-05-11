@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { RefreshCw, Search, X, ListChecks, Activity } from 'lucide-react';
+import { RefreshCw, Search, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
 import { useTasksData } from '@/hooks/Assistants/useTasksData';
@@ -14,23 +14,23 @@ import type { MemoryRow, TaskMemoryView, TaskRunRow } from '@/types/assistants/m
 interface TasksPaneProps {
   ownerId: string;
   assistantId: string;
+  /**
+   * Optional externally-controlled sub-tab. When the parent passes this
+   * (and updates it), the pane mirrors the value to the underlying hook
+   * via effect. The internal sub-tab state still lives in the hook, so
+   * footer-tab clicks inside the pane continue to work; this prop adds
+   * a *second* input that lets the parent (e.g. the right-pane tab
+   * strip's dropdown) drive sub-tab selection too.
+   */
+  subTab?: TaskMemoryView;
+  /**
+   * Fires whenever the active sub-tab changes — from footer clicks,
+   * external `subTab` updates, or assistant-change resets. Lets the
+   * parent's dropdown stay in sync with whichever sub-tab is actually
+   * showing in the pane.
+   */
+  onSubTabChange?: (next: TaskMemoryView) => void;
 }
-
-const TASK_VIEW_LABELS: Record<TaskMemoryView, string> = {
-  Tasks: 'Tasks',
-  Activity: 'Activity',
-};
-
-const TASK_VIEW_ICONS: Record<TaskMemoryView, React.ElementType> = {
-  Tasks: ListChecks,
-  Activity: Activity,
-};
-
-const TAB_CLASS = [
-  'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-medium',
-  'text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-  'data-[active=true]:bg-primary data-[active=true]:text-primary-foreground',
-].join(' ');
 
 function getTaskEmptyState(taskView: TaskMemoryView, isFiltered: boolean): { title: string } {
   if (isFiltered) {
@@ -45,7 +45,7 @@ function getTaskEmptyState(taskView: TaskMemoryView, isFiltered: boolean): { tit
   }
 }
 
-export function TasksPane({ ownerId, assistantId }: TasksPaneProps) {
+export function TasksPane({ ownerId, assistantId, subTab, onSubTabChange }: TasksPaneProps) {
   const {
     tasks,
     taskRuns,
@@ -70,6 +70,29 @@ export function TasksPane({ ownerId, assistantId }: TasksPaneProps) {
   useEffect(() => {
     setSelectedRow(null);
   }, [taskView]);
+
+  // Parent → hook: mirror any externally-controlled `subTab` into the
+  // hook's internal state. Intentionally depends *only* on `subTab` —
+  // taking `taskView` as a dep too would refire this effect on
+  // footer-tab clicks (before the parent's state catches up via the
+  // sibling effect below), regressing the change back to the stale
+  // prop and triggering an infinite ping-pong with that effect.
+  // `setTaskView` is `useState`'s setter so it bails out for free when
+  // the new value already matches the current state, which makes the
+  // unconditional call here safe.
+  useEffect(() => {
+    if (subTab !== undefined) {
+      setTaskView(subTab);
+    }
+  }, [subTab, setTaskView]);
+
+  // Hook → parent: notify on any change to the active sub-tab so the
+  // dropdown in the tab strip can reflect footer-tab clicks too. The
+  // parent's setter is no-op-on-equal, so the round-trip after a
+  // parent-driven update settles in one extra render.
+  useEffect(() => {
+    onSubTabChange?.(taskView);
+  }, [taskView, onSubTabChange]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -157,10 +180,6 @@ export function TasksPane({ ownerId, assistantId }: TasksPaneProps) {
   }, [allColumns, activeState.rows]);
 
   const isFiltered = !!activeState.filterExpr;
-  const taskViewCounts: Record<TaskMemoryView, number> = {
-    Tasks: tasks.count,
-    Activity: taskRuns.count,
-  };
   const tableTestId = taskView === 'Tasks' ? 'tasks-table-tasks' : 'tasks-table-activity';
   const detailTitle = taskView === 'Tasks' ? 'Task Detail' : 'Activity Detail';
   const emptyState = getTaskEmptyState(taskView, isFiltered);
@@ -258,34 +277,16 @@ export function TasksPane({ ownerId, assistantId }: TasksPaneProps) {
         />
       </div>
 
-      {/* Footer — sub-tabs (left) + row count (right). h-10 aligns this bar
-          with the assistant-list toggle and the chat input / other tab footers. */}
-      <div
-        className="flex h-10 shrink-0 items-center justify-between border-t px-2"
-        data-testid="tasks-footer"
-      >
-        <div className="flex items-center gap-1 overflow-x-auto" data-testid="tasks-views">
-          {(Object.keys(TASK_VIEW_LABELS) as TaskMemoryView[]).map((view) => {
-            const Icon = TASK_VIEW_ICONS[view];
-            return (
-              <button
-                key={view}
-                className={TAB_CLASS}
-                data-active={taskView === view}
-                data-testid={`tasks-view-${view.toLowerCase()}`}
-                onClick={() => setTaskView(view)}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{TASK_VIEW_LABELS[view]}</span>
-                {taskViewCounts[view] > 0 && (
-                  <span className="tabular-nums opacity-60">{taskViewCounts[view]}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {activeState.rows.length > 0 && (
+      {/* Footer — row count only. Sub-tab selection lives in the
+          right-pane tab strip's dropdown (see RightPaneContainer's
+          `TASKS_SUB_TABS`); the in-pane Tasks/Activity toggle used to
+          live here but was removed once the dropdown became the single
+          source of truth for sub-tab navigation. */}
+      {activeState.rows.length > 0 && (
+        <div
+          className="flex h-10 shrink-0 items-center justify-end border-t px-2"
+          data-testid="tasks-footer"
+        >
           <span
             className="text-caption hidden shrink-0 px-3 py-1.5 sm:inline"
             data-testid="tasks-table-footer"
@@ -294,8 +295,8 @@ export function TasksPane({ ownerId, assistantId }: TasksPaneProps) {
             {activeState.count === 1 ? 'row' : 'rows'}
             {activeState.hasMore && ' · scroll for more'}
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       <MemoryRowDetail
         row={selectedRow}
