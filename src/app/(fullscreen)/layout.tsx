@@ -8,6 +8,7 @@ import '@/styles/globals.css';
 
 import ThemeLoader from '@/components/Layout/ThemeLoader';
 import LoadingScreen from '@/components/Layout/LoadingScreen';
+import { NetworkStatusToast } from '@/components/Layout/NetworkStatusToast';
 import { Toaster } from '@/components/UI/Chat/sonner';
 import { fontSans, fontMono } from '@/styles/fonts';
 
@@ -32,6 +33,7 @@ export default function FullscreenLayout({ children }: { children: React.ReactNo
                 </main>
               </Suspense>
               <Toaster richColors position="bottom-right" closeButton />
+              <NetworkStatusToast />
             </ThemeLoader>
           </Providers>
         </ThemeProvider>

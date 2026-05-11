@@ -14,6 +14,7 @@ import ThemeLoader from '@/components/Layout/ThemeLoader';
 import LoadingScreen from '@/components/Layout/LoadingScreen';
 import MfaEnforcementGate from '@/components/Common/Auth/MfaEnforcementGate';
 import { TimezoneSync } from '@/components/Layout/TimezoneSync';
+import { NetworkStatusToast } from '@/components/Layout/NetworkStatusToast';
 import { Toaster } from '@/components/UI/Chat/sonner';
 import { Loader2 } from 'lucide-react';
 import { fontSans, fontMono } from '@/styles/fonts';
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </Suspense>
               <Toaster richColors position="bottom-right" closeButton />
               <TimezoneSync />
+              <NetworkStatusToast />
             </ThemeLoader>
           </Providers>
         </ThemeProvider>
