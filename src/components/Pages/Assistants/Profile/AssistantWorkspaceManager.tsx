@@ -1,0 +1,290 @@
+'use client';
+
+import * as React from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/UI/dialog';
+import { Button } from '@/components/UI/button';
+import { Label } from '@/components/UI/label';
+import { Badge } from '@/components/UI/badge';
+import { AlertCircle, Link2, Loader2 } from 'lucide-react';
+import { Assistant, AssistantActions } from '@/types/assistants/assistant';
+import { useAssistantContactManager } from '@/hooks/Assistants/useAssistantContactManager';
+import {
+  ByodProviderCard,
+  DisplayContactField,
+  FeatureChecklist,
+  PROVIDER_LABELS,
+  ProviderBadge,
+} from './AssistantContactManager';
+
+interface AssistantWorkspaceManagerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  assistant: Assistant;
+  assistantActions: AssistantActions;
+  onSuccess: () => void;
+  /** Whether the current user can edit workspace details. */
+  canWrite?: boolean;
+}
+
+/**
+ * Standalone modal for the workspace OAuth flow — connect-your-own-account
+ * (Google / Microsoft 365), feature scope selection, and disconnect.
+ *
+ * Carved out of ``AssistantContactManager``'s Email tab so the workspace
+ * configuration has a dedicated entry in the row dropdown and can be
+ * opened from elsewhere (e.g. the Email tab's "Add/update config" CTA)
+ * without dragging the rest of the contact-tab UI along.
+ *
+ * Reuses ``useAssistantContactManager`` with ``initialTab='email'`` for
+ * the BYOD state — connect / disconnect / features / loading flags all
+ * flow through that hook unchanged.  Phone / WhatsApp / Discord state
+ * the hook produces is unused here and harmless.
+ */
+export function AssistantWorkspaceManager({
+  isOpen,
+  onClose,
+  assistant,
+  assistantActions,
+  onSuccess,
+  canWrite = true,
+}: AssistantWorkspaceManagerProps) {
+  const {
+    byodProvider,
+    setByodProvider,
+    selectedFeatures,
+    toggleFeature,
+    availableFeaturesForByod,
+    requiredFeaturesForByod,
+    grantedFeatures,
+    isLoadingFeatures,
+    hasFeaturesChanged,
+    connectAccount,
+    updateFeatures,
+    disconnectAccount,
+    isConnecting,
+    isDisconnecting,
+    confirmDisconnect,
+    setConfirmDisconnect,
+    isByodEmail,
+    isPlatformEmail,
+  } = useAssistantContactManager({
+    assistant,
+    isOpen,
+    assistantActions,
+    onSuccess,
+    initialTab: 'email',
+  });
+
+  const isBusy = isConnecting || isDisconnecting;
+
+  const handleDialogClose = (open: boolean) => {
+    if (!isBusy && !open) onClose();
+  };
+
+  const handleInteractOutside = (e: React.MouseEvent) => {
+    if (isBusy) e.preventDefault();
+  };
+
+  // ---- body --------------------------------------------------------------
+
+  const renderBody = () => {
+    if (assistant.email && isLoadingFeatures) {
+      return (
+        <div className="flex items-center justify-center py-8 text-muted-foreground">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <span className="text-caption">Loading workspace details...</span>
+        </div>
+      );
+    }
+
+    // Read-only viewer
+    if (!canWrite) {
+      if (assistant.email) {
+        return (
+          <div className="space-y-2">
+            <DisplayContactField label="Connected Email" value={assistant.email} />
+            {assistant.emailProvider && <ProviderBadge provider={assistant.emailProvider} />}
+          </div>
+        );
+      }
+      return <p className="text-body text-muted-foreground">No workspace configured.</p>;
+    }
+
+    // Platform-managed mailbox (legacy)
+    if (isPlatformEmail) {
+      return (
+        <div className="space-y-3">
+          <div className="flex items-center">
+            <Label>Email Address</Label>
+            {assistant.emailProvider && <ProviderBadge provider={assistant.emailProvider} />}
+          </div>
+          <DisplayContactField label="" value={assistant.email!} />
+          <p className="text-caption text-muted-foreground">
+            Platform-managed email. Delete it to connect your own account instead.
+          </p>
+        </div>
+      );
+    }
+
+    // BYOD account already connected
+    if (isByodEmail) {
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Label>Connected Email</Label>
+            <Badge variant="outline" className="text-xs">
+              <Link2 className="mr-1 h-3 w-3" />
+              {PROVIDER_LABELS[grantedFeatures?.provider ?? assistant.emailProvider ?? ''] ??
+                'Connected'}
+            </Badge>
+          </div>
+          <DisplayContactField label="" value={assistant.email!} />
+
+          {isLoadingFeatures ? (
+            <div className="flex items-center gap-2 py-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-caption">Loading features...</span>
+            </div>
+          ) : availableFeaturesForByod.length > 0 ? (
+            <div className="space-y-2">
+              <Label>Features</Label>
+              <FeatureChecklist
+                features={availableFeaturesForByod}
+                selected={selectedFeatures}
+                required={requiredFeaturesForByod}
+                onToggle={toggleFeature}
+              />
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+
+    // No connection yet — pick a provider
+    return (
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <Label className="text-strong">Connect your own account</Label>
+          <p className="text-caption text-muted-foreground">
+            Tip: create a dedicated account for your assistant first, and sign in to that account in
+            this browser before connecting — choose the account you want the assistant to use when
+            the picker is shown in the OAuth flow.
+          </p>
+          <div className="flex gap-2">
+            <ByodProviderCard
+              provider="google"
+              isSelected={byodProvider === 'google'}
+              onSelect={() => setByodProvider(byodProvider === 'google' ? null : 'google')}
+              disabled={isConnecting}
+            />
+            <ByodProviderCard
+              provider="microsoft"
+              isSelected={byodProvider === 'microsoft'}
+              onSelect={() => setByodProvider(byodProvider === 'microsoft' ? null : 'microsoft')}
+              disabled={isConnecting}
+            />
+          </div>
+
+          {byodProvider && (
+            <div className="space-y-3 pt-1">
+              <Label className="text-caption text-muted-foreground">
+                Select features to grant access to:
+              </Label>
+              <FeatureChecklist
+                features={availableFeaturesForByod}
+                selected={selectedFeatures}
+                required={requiredFeaturesForByod}
+                onToggle={toggleFeature}
+                disabled={isConnecting}
+              />
+              <Button onClick={connectAccount} disabled={isConnecting || !byodProvider}>
+                {isConnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Connect
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // ---- footer ------------------------------------------------------------
+
+  const renderFooter = () => {
+    if (confirmDisconnect) {
+      return (
+        <div className="flex w-full items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setConfirmDisconnect(false)}
+            disabled={isDisconnecting}
+          >
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={disconnectAccount} disabled={isDisconnecting}>
+            {isDisconnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Disconnect
+          </Button>
+        </div>
+      );
+    }
+
+    if (isByodEmail && canWrite) {
+      return (
+        <div className="flex w-full items-center justify-end gap-2">
+          {hasFeaturesChanged && (
+            <Button onClick={updateFeatures} disabled={isConnecting}>
+              {isConnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Update Features
+            </Button>
+          )}
+          <Button
+            variant="destructive"
+            onClick={() => setConfirmDisconnect(true)}
+            disabled={isBusy}
+          >
+            Disconnect
+          </Button>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleDialogClose}>
+      <DialogContent onInteractOutside={handleInteractOutside as any}>
+        <DialogHeader>
+          <DialogTitle className="text-title">Workspace</DialogTitle>
+          <DialogDescription className="text-subtitle">
+            Connect a Google or Microsoft account so {assistant.firstName} can read and act on
+            email, calendar, and related workspace surfaces.
+          </DialogDescription>
+        </DialogHeader>
+
+        {confirmDisconnect ? (
+          <div className="py-8 text-center">
+            <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
+            <h3 className="text-h2 mt-4">Disconnect account?</h3>
+            <p className="text-body-muted mx-auto mt-2 max-w-sm">
+              This will revoke access and remove the connected account. Your assistant will no
+              longer be able to act on workspace surfaces via this account.
+            </p>
+          </div>
+        ) : (
+          <div className="max-h-[60vh] overflow-y-auto py-4 pt-2">{renderBody()}</div>
+        )}
+
+        <DialogFooter>{renderFooter()}</DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

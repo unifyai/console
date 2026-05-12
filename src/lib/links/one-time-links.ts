@@ -2,6 +2,7 @@ import { AxiosError } from 'axios';
 import { ResponseProps } from '@/types/common';
 import { OneTimeLinkResponse, OneTimeLinkEntry, ADMIN_TABLE_PAGE_SIZE } from '@/types/admin';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { requireUnifyAdmin } from '@/lib/admin/_guard';
 
 export const generateOneTimeCreditGrantLink = async () => {
   return async (
@@ -11,6 +12,8 @@ export const generateOneTimeCreditGrantLink = async () => {
     name: string | null = null
   ): Promise<OneTimeLinkResponse | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
 
     try {
       const body: Record<string, unknown> = { expiresInDays, maxClaims };
@@ -34,6 +37,8 @@ export const listOneTimeCreditGrantLinks = async () => {
     offset: number = 0
   ): Promise<OneTimeLinkEntry[] | ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     try {
       const response = await OrchestraAdminClient.get('/credit-grant-link', {
         params: { limit, offset },
@@ -54,6 +59,8 @@ export const listOneTimeCreditGrantLinks = async () => {
 export const deleteOneTimeCreditGrantLink = async () => {
   return async (linkId: string): Promise<ResponseProps> => {
     'use server';
+    const denied = await requireUnifyAdmin();
+    if (denied) return denied;
     try {
       await OrchestraAdminClient.delete(`/credit-grant-link/${linkId}`);
       return { info: 'Link deleted successfully.' };

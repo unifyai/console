@@ -27,6 +27,7 @@ import { seedMemoryRich } from './scenarios/memory-rich';
 import { seedTasksRich } from './scenarios/tasks-rich';
 import { seedSecretsRich } from './scenarios/secrets-rich';
 import { seedReAppraisal } from './scenarios/re-appraisal';
+import { seedManagedBilling } from './scenarios/managed-billing';
 
 const SCENARIOS: Record<string, SeedScenario> = {
   'personal-workspace': seedPersonalWorkspace,
@@ -36,6 +37,7 @@ const SCENARIOS: Record<string, SeedScenario> = {
   'org-unify': seedOrgAndOutsider,
   'credit-grant-links': seedCreditGrantLinks,
   'billing-banner-states': seedBillingBannerStates,
+  'managed-billing': seedManagedBilling,
   'usage-ledger': seedUsageLedger,
   'chat-search': seedChatSearch,
   'memory-rich': seedMemoryRich,

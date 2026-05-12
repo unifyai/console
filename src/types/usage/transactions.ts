@@ -63,7 +63,6 @@ export interface CreditTransaction {
   id: number;
   at: string;
   amount: number;
-  balanceAfter: number | null;
   category: string;
   assistantId: number | null;
   userId: string | null;

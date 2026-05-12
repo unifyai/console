@@ -212,6 +212,23 @@ export function SecretsTable({
     [tree, secretsByName, expandedFolders, isSearching]
   );
 
+  // When there are no rows to render (and we aren't loading the initial set),
+  // show a single centered placeholder that fills the available area. Matches
+  // the unified "No {entrytype} found" empty-state style used elsewhere in
+  // the right-pane tabs (Actions, Tasks, Memory, Dashboards).
+  if (!isLoading && rows.length === 0) {
+    return (
+      <div
+        className="flex h-full items-center justify-center text-muted-foreground"
+        data-testid="secrets-table-empty"
+      >
+        <p className="text-sm">
+          {isSearching ? `No secrets match "${searchQuery}"` : 'No secrets found'}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className="h-full overflow-auto" data-testid="secrets-table-scroll">
@@ -236,12 +253,6 @@ export function SecretsTable({
           <TableBody>
             {isLoading && secrets.length === 0 ? (
               <SkeletonRows />
-            ) : rows.length === 0 ? (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={3} className="text-caption px-3 py-6 text-center">
-                  {isSearching ? `No secrets match "${searchQuery}".` : 'No secrets yet.'}
-                </TableCell>
-              </TableRow>
             ) : (
               rows.map((row) => {
                 if (row.kind === 'folder') {

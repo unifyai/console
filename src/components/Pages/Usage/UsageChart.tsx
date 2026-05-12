@@ -4,7 +4,7 @@ import * as React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { UsageDataPoint, TimeGranularity } from '@/types/usage';
 import { formatTimestampForDisplay } from '@/utils/usage/dateUtils';
-import { formatCostForDisplay } from '@/utils/usage/formatters';
+import { formatCostAxis, formatCostForDisplay } from '@/utils/usage/formatters';
 import { BarChart3 } from 'lucide-react';
 
 interface UsageChartProps {
@@ -155,7 +155,7 @@ export function UsageChart({ data, granularity, isLoading = false }: UsageChartP
               minTickGap={24}
             />
             <YAxis
-              tickFormatter={(v: number) => formatCostForDisplay(v)}
+              tickFormatter={(v: number) => formatCostAxis(v)}
               tick={{ fontSize: 11, fill: colors.tickText }}
               axisLine={false}
               tickLine={false}

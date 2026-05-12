@@ -228,10 +228,25 @@ async function selectAssistantAndOpenTasks(page: import('@playwright/test').Page
   await closeHireDialogIfOpen(page);
   await page.waitForTimeout(1_500);
 
+  // Tasks is now a dropdown trigger: click opens the sub-tab menu,
+  // picking a sub-tab switches the slot to Tasks + that sub-tab.
   const tasksTab = page.getByTestId('right-pane-tab-tasks');
   await expect(tasksTab).toBeVisible({ timeout: 5_000 });
   await tasksTab.click();
+  await page.getByTestId('right-pane-tab-tasks-menu-tasks').click();
   await page.waitForTimeout(1_500);
+}
+
+/**
+ * Switch the active Tasks sub-tab via the right-pane tab strip
+ * dropdown. The in-pane footer Tasks/Activity row was removed once the
+ * dropdown became the single source of truth for sub-tab navigation,
+ * so existing test logic that used to click `tasks-view-{view}` directly
+ * routes through this helper instead.
+ */
+async function switchTasksView(page: import('@playwright/test').Page, view: 'tasks' | 'activity') {
+  await page.getByTestId('right-pane-tab-tasks').click();
+  await page.getByTestId(`right-pane-tab-tasks-menu-${view}`).click();
 }
 
 // ===========================================================================
@@ -251,19 +266,21 @@ test('Tasks tab is visible when an assistant is selected', async ({ authedPage: 
   await expect(tasksTab).toBeVisible({ timeout: 5_000 });
 });
 
-test('Tasks tab shows Tasks and Activity sub-tabs in footer', async ({ authedPage: page }) => {
+test('Tasks tab exposes Tasks and Activity sub-tabs in the dropdown', async ({
+  authedPage: page,
+}) => {
   await selectAssistantAndOpenTasks(page, emptyAssistant.agentId);
 
   const tasksTab = page.getByTestId('right-pane-tab-tasks');
   await expect(tasksTab).toHaveAttribute('data-state', 'active');
 
-  const footer = page.getByTestId('tasks-footer');
-  await expect(footer).toBeVisible({ timeout: 5_000 });
-
-  const views = page.getByTestId('tasks-views');
-  await expect(views).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('tasks-view-tasks')).toBeVisible({ timeout: 3_000 });
-  await expect(page.getByTestId('tasks-view-activity')).toBeVisible({ timeout: 3_000 });
+  // Sub-tab navigation lives in the tab strip dropdown now; open it
+  // and assert the expected sub-tabs are present.
+  await tasksTab.click();
+  await expect(page.getByTestId('right-pane-tab-tasks-menu-tasks')).toBeVisible({ timeout: 3_000 });
+  await expect(page.getByTestId('right-pane-tab-tasks-menu-activity')).toBeVisible({
+    timeout: 3_000,
+  });
 });
 
 // ===========================================================================
@@ -273,24 +290,16 @@ test('Tasks tab shows Tasks and Activity sub-tabs in footer', async ({ authedPag
 test('Tasks tab shows empty state when assistant has no tasks', async ({ authedPage: page }) => {
   await selectAssistantAndOpenTasks(page, emptyAssistant.agentId);
 
-  await expect(page.getByText('No tasks found.')).toBeVisible({ timeout: 10_000 });
-  await expect(
-    page.getByText('Create a task to give the assistant structured work to own.')
-  ).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText('No tasks found')).toBeVisible({ timeout: 10_000 });
 });
 
-test('Activity view shows contextual empty helper text', async ({ authedPage: page }) => {
+test('Activity view shows empty placeholder when no activity', async ({ authedPage: page }) => {
   await selectAssistantAndOpenTasks(page, emptyAssistant.agentId);
 
-  await page.getByTestId('tasks-view-activity').click();
+  await switchTasksView(page, 'activity');
   await page.waitForTimeout(500);
 
-  await expect(page.getByText('No task activity yet.')).toBeVisible({ timeout: 5_000 });
-  await expect(
-    page.getByText(
-      'Task activity appears here after a task starts or finishes running. Use Refresh to check for recent updates.'
-    )
-  ).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText('No activity found')).toBeVisible({ timeout: 5_000 });
 });
 
 // ===========================================================================
@@ -303,7 +312,10 @@ test('displays seeded tasks with correct status badges and descriptions', async 
   await ensureSeeded();
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
-  await expect(page.getByTestId('tasks-view-tasks')).toHaveAttribute('data-active', 'true');
+  // The Tasks tab chip now in-place displays the active sub-tab name,
+  // so the previous `data-active` assertion on the footer button is
+  // expressed here as a label check on the main tab.
+  await expect(page.getByTestId('right-pane-tab-tasks')).toContainText('Tasks');
   const table = page.getByTestId('tasks-table-tasks');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
@@ -346,7 +358,7 @@ test('Activity view shows task runs with correct state and sources', async ({
   await ensureSeeded();
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
-  await page.getByTestId('tasks-view-activity').click();
+  await switchTasksView(page, 'activity');
   await page.waitForTimeout(500);
 
   const activityTable = page.getByTestId('tasks-table-activity');
@@ -386,7 +398,7 @@ test('activity Running badge shows tooltip', async ({ authedPage: page }) => {
   await ensureSeeded();
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
-  await page.getByTestId('tasks-view-activity').click();
+  await switchTasksView(page, 'activity');
   await page.waitForTimeout(500);
 
   const activityTable = page.getByTestId('tasks-table-activity');
@@ -416,7 +428,7 @@ test('running activity rows have visual emphasis', async ({ authedPage: page }) 
   await ensureSeeded();
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
-  await page.getByTestId('tasks-view-activity').click();
+  await switchTasksView(page, 'activity');
   await page.waitForTimeout(500);
 
   const activityTable = page.getByTestId('tasks-table-activity');
@@ -441,7 +453,7 @@ test('refresh updates tasks and activity together', async ({ authedPage: page })
   await ensureSeeded();
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
-  await page.getByTestId('tasks-view-activity').click();
+  await switchTasksView(page, 'activity');
   await page.waitForTimeout(500);
 
   const taskId = Date.now();
@@ -479,12 +491,15 @@ test('refresh updates tasks and activity together', async ({ authedPage: page })
 
   await page.getByTestId('tasks-refresh').click();
 
-  await expect(page.getByTestId('tasks-view-tasks')).toHaveText(/Tasks\s*4/, {
-    timeout: 10_000,
-  });
-  await expect(page.getByTestId('tasks-view-activity')).toHaveText(/Activity\s*3/, {
-    timeout: 5_000,
-  });
+  // Sub-tab count badges were removed when the dropdown took over
+  // sub-tab navigation; verify the refresh picked up the new rows via
+  // the active table's footer row-count chip + the new activity row
+  // becoming visible in the table.
+  const tasksFooter = page.getByTestId('tasks-table-footer');
+  await expect(tasksFooter).toContainText('4 of 4', { timeout: 10_000 });
+
+  await switchTasksView(page, 'activity');
+  await expect(tasksFooter).toContainText('3 of 3', { timeout: 5_000 });
   await expect(
     page.getByTestId('tasks-table-activity').getByText(`Follow up customer ${taskId}`)
   ).toBeVisible({ timeout: 5_000 });
@@ -496,7 +511,7 @@ test('refresh preserves Working indicator when activity is filtered', async ({
   await ensureSeeded();
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
-  await page.getByTestId('tasks-view-activity').click();
+  await switchTasksView(page, 'activity');
   await page.waitForTimeout(500);
 
   const searchInput = page.getByTestId('tasks-search');
@@ -531,7 +546,7 @@ test('task detail panel groups human-first task information', async ({ authedPag
   await ensureSeeded();
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
-  await page.getByTestId('tasks-view-activity').click();
+  await switchTasksView(page, 'activity');
   await page.waitForTimeout(500);
 
   const table = page.getByTestId('tasks-table-activity');
@@ -657,10 +672,7 @@ test('search with no results shows empty message', async ({ authedPage: page }) 
   await searchInput.fill('xyznonexistent');
   await searchInput.press('Enter');
 
-  await expect(page.getByText('No results match your search.')).toBeVisible({ timeout: 10_000 });
-  await expect(
-    page.getByText('Try clearing search or switching between Tasks and Activity.')
-  ).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText('No results match your search')).toBeVisible({ timeout: 10_000 });
 });
 
 // ===========================================================================
@@ -703,32 +715,33 @@ test('switching between Tasks and Activity views preserves data', async ({ authe
   await expect(tasksTable).toBeVisible({ timeout: 10_000 });
   await expect(tasksTable.locator('text=Send report')).toBeVisible({ timeout: 5_000 });
 
-  await page.getByTestId('tasks-view-activity').click();
+  await switchTasksView(page, 'activity');
   await page.waitForTimeout(500);
   const activityTable = page.getByTestId('tasks-table-activity');
   await expect(activityTable).toBeVisible({ timeout: 5_000 });
   await expect(activityTable.locator('text=Follow up with Alice')).toBeVisible({ timeout: 5_000 });
 
-  await page.getByTestId('tasks-view-tasks').click();
+  await switchTasksView(page, 'tasks');
   await page.waitForTimeout(500);
   await expect(tasksTable).toBeVisible({ timeout: 5_000 });
   await expect(tasksTable.locator('text=Send report')).toBeVisible({ timeout: 3_000 });
 });
 
-test('active sub-tab is visually indicated via data-active attribute', async ({
+test('active sub-tab is visually indicated by the Tasks tab chip label', async ({
   authedPage: page,
 }) => {
   await ensureSeeded();
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
-  await expect(page.getByTestId('tasks-view-tasks')).toHaveAttribute('data-active', 'true');
-  await expect(page.getByTestId('tasks-view-activity')).toHaveAttribute('data-active', 'false');
+  // The Tasks tab chip in-place displays the active sub-tab name now
+  // that the footer Tasks/Activity row was removed.
+  const tasksTabChip = page.getByTestId('right-pane-tab-tasks');
+  await expect(tasksTabChip).toContainText('Tasks');
 
-  await page.getByTestId('tasks-view-activity').click();
+  await switchTasksView(page, 'activity');
   await page.waitForTimeout(500);
 
-  await expect(page.getByTestId('tasks-view-tasks')).toHaveAttribute('data-active', 'false');
-  await expect(page.getByTestId('tasks-view-activity')).toHaveAttribute('data-active', 'true');
+  await expect(tasksTabChip).toContainText('Activity');
 });
 
 // ===========================================================================
@@ -760,12 +773,12 @@ test('Tasks tab data matches what was seeded via Orchestra API', async ({ authed
 
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
-  await expect(page.getByTestId('tasks-view-tasks')).toHaveText(
-    new RegExp(`Tasks\\s*${taskCount}`),
-    { timeout: 10_000 }
-  );
-  await expect(page.getByTestId('tasks-view-activity')).toHaveText(
-    new RegExp(`Activity\\s*${runCount}`),
-    { timeout: 5_000 }
-  );
+  // The sub-tab count badges were removed when the dropdown took over
+  // sub-tab navigation, so we verify the seeded counts via each
+  // sub-tab's table footer row-count chip instead.
+  const tasksFooter = page.getByTestId('tasks-table-footer');
+  await expect(tasksFooter).toContainText(`${taskCount} of ${taskCount}`, { timeout: 10_000 });
+
+  await switchTasksView(page, 'activity');
+  await expect(tasksFooter).toContainText(`${runCount} of ${runCount}`, { timeout: 5_000 });
 });

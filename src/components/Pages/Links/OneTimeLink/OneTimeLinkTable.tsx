@@ -129,7 +129,7 @@ export function OneTimeLinkTable({
 
   const formatCreditAmount = (amount?: number | null) => {
     if (amount == null) return '—';
-    return `$${amount.toFixed(2)}`;
+    return `${amount.toFixed(2)} credits`;
   };
 
   const tableData = React.useMemo(() => {

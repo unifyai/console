@@ -216,12 +216,12 @@ async function openSecretsTab(page: Page, agentId: number) {
   await closeHireDialogIfOpen(page);
   await page.waitForTimeout(1_500);
 
-  const tab = page.getByTestId('right-pane-tab-secrets');
+  const tab = page.getByTestId('right-pane-tab-integrations');
   await expect(tab).toBeVisible({ timeout: 10_000 });
   await tab.click();
   await page.waitForTimeout(1_000);
 
-  await expect(page.getByTestId('secrets-pane')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('integrations-pane')).toBeVisible({ timeout: 5_000 });
 }
 
 // =============================================================================
@@ -313,12 +313,13 @@ test('member can view the secrets tab but cannot add secrets on owner assistant'
   await openSecretsTab(page, ownerAssistant.agentId);
 
   // The read-only primitives are present…
-  await expect(page.getByTestId('secrets-search')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('integrations-search')).toBeVisible({ timeout: 5_000 });
 
-  // …but the write-action affordances must NOT be. The "New" and "Upload"
-  // buttons are gated on `canWrite`, and every row/folder 3-dots menu is too.
-  await expect(page.getByTestId('secrets-new-button')).toHaveCount(0);
-  await expect(page.getByTestId('secrets-upload-button')).toHaveCount(0);
+  // …but the write-action affordances must NOT be. The "Add new" dropdown
+  // and "Upload" button are gated on `canWrite`, and every row/folder
+  // 3-dots menu is too.
+  await expect(page.getByTestId('integrations-add-new-trigger')).toHaveCount(0);
+  await expect(page.getByTestId('integrations-upload-button')).toHaveCount(0);
   await expect(page.locator('[data-testid^="secrets-row-menu-"]')).toHaveCount(0);
   await expect(page.locator('[data-testid^="secrets-folder-menu-"]')).toHaveCount(0);
 });

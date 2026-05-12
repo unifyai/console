@@ -68,6 +68,11 @@ const BillingPage: React.FC = async () => {
     getCheckoutStatus: await BillingLib.getCheckoutStatus(apiKey),
     getSupportedTaxCountries: await BillingLib.getSupportedTaxCountries(apiKey),
     validateTaxId: await BillingLib.validateTaxId(apiKey),
+    getInvoices: await BillingLib.getInvoices(apiKey),
+    getInvoiceUrls: await BillingLib.getInvoiceUrls(apiKey),
+    getCurrentPeriodUsage: await BillingLib.getCurrentPeriodUsage(apiKey),
+    getAvailablePlans: await BillingLib.getAvailablePlans(apiKey),
+    switchPlan: await BillingLib.switchPlan(apiKey),
   };
 
   return (

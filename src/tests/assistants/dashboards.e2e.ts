@@ -242,8 +242,10 @@ test('switches between Chat, Actions drawer, Dashboards, and Memory', async ({
   await page.waitForTimeout(500);
   await expect(dashTab).toHaveAttribute('data-state', 'active');
 
+  // Memory is a dropdown trigger — click + pick a sub-tab to switch.
   const memoryTab = page.getByTestId('right-pane-tab-memory');
   await memoryTab.click();
+  await page.getByTestId('right-pane-tab-memory-menu-contacts').click();
   await page.waitForTimeout(500);
   await expect(memoryTab).toHaveAttribute('data-state', 'active');
 
@@ -293,8 +295,11 @@ test('split tabs lets the user view two right-pane tabs side by side and close e
   await expect(page.getByTestId('right-pane-close-secondary')).toBeVisible();
 
   // Confirm both panes can be driven independently — switch the
-  // secondary to Memory while leaving the primary on Chat.
+  // secondary to Memory while leaving the primary on Chat. Memory is
+  // a dropdown trigger, so opening it and picking a sub-tab is what
+  // actually performs the switch.
   await page.getByTestId('right-pane-secondary-tab-memory').click();
+  await page.getByTestId('right-pane-secondary-tab-memory-menu-contacts').click();
   await expect(page.getByTestId('right-pane-secondary-tab-memory')).toHaveAttribute(
     'data-state',
     'active'
@@ -325,10 +330,7 @@ test('shows empty state when assistant has no dashboards or tiles', async ({
 }) => {
   await selectAssistantAndOpenDashboards(page, emptyAssistant.agentId);
 
-  await expect(page.locator('text=No dashboards yet')).toBeVisible({ timeout: 10_000 });
-  await expect(page.locator('text=/Your assistant will create dashboards/')).toBeVisible({
-    timeout: 5_000,
-  });
+  await expect(page.locator('text=No dashboards found')).toBeVisible({ timeout: 10_000 });
 });
 
 test('no tabs visible and shows placeholder when no assistant is selected', async ({

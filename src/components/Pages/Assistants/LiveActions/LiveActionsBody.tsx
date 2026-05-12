@@ -213,7 +213,7 @@ export function LiveActionsBody({
         className={cn('flex flex-1 items-center justify-center text-muted-foreground', className)}
         data-testid="live-actions-empty"
       >
-        <p className="text-sm">No recent actions</p>
+        <p className="text-sm">No actions found</p>
       </div>
     );
   }
@@ -225,7 +225,7 @@ export function LiveActionsBody({
         className={cn('flex flex-1 items-center justify-center text-muted-foreground', className)}
         data-testid="live-actions-no-matches"
       >
-        <p className="text-sm">No matching actions</p>
+        <p className="text-sm">No results match your search</p>
       </div>
     );
   }

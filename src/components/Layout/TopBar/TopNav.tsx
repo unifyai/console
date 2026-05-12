@@ -15,6 +15,7 @@ import {
   BarChart3,
   Settings,
   Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { Button } from '@/components/UI/button';
@@ -186,6 +187,13 @@ export default function TopNav() {
 
   // Hide billing & usage links when the active org is in free trial mode
   const isOrgInFreeTrial = !!currentOrg?.freeTrial;
+
+  // Mirrors the gate in `/admin/layout.tsx`: only Owner/Admin members of
+  // the "Unify" organization see the Admin link in the profile menu. Done
+  // off the already-loaded `userOrgs` so there's no extra round-trip.
+  const isUnifyAdmin = userOrgs.some(
+    (o) => o.name === 'Unify' && ['owner', 'admin'].includes(o.roleName?.toLowerCase() ?? '')
+  );
 
   return (
     <div className="bg-[color:var(--background)]/80 fixed left-0 right-0 top-0 z-50 h-10 border-b border-[color:var(--border)] backdrop-blur-lg">
@@ -431,6 +439,17 @@ export default function TopNav() {
                   >
                     <CreditCard className="mr-2 h-4 w-4" />
                     <span>Billing</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              {isUnifyAdmin && (
+                <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">
+                  <Link
+                    href="/admin"
+                    className="text-body flex items-center hover:text-[color:var(--foreground)]"
+                  >
+                    <ShieldCheck className="mr-2 h-4 w-4" />
+                    <span>Admin</span>
                   </Link>
                 </DropdownMenuItem>
               )}

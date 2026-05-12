@@ -13,7 +13,11 @@
 
 import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
 import type {
+  AvailablePlanItem,
+  AvailablePlansResponse,
   BalanceData,
+  BillingMode,
+  CurrentPlanSummary,
   AutoRechargeData,
   AutoRechargeUpdatePayload,
   BillingErrorResponse,
@@ -23,8 +27,12 @@ import type {
   PortalSessionResponse,
   CheckoutStatusResponse,
   SupportedTaxCountriesResponse,
+  SwitchPlanResponse,
   TaxIdValidationRequest,
   TaxIdValidationResponse,
+  InvoiceListResponse,
+  InvoiceUrls,
+  CurrentPeriodUsage,
 } from '@/types/billing';
 
 // =============================================================================
@@ -54,11 +62,39 @@ export const getBalance = async (apiKey: string) => {
 
       const credits = typeof data.credits === 'number' ? data.credits : 0;
 
+      // Managed-billing: server returns ``billing_mode`` and a
+      // ``plan`` summary. Both are optional in the wire format for
+      // back-compat with older orchestra builds — coerce to safe
+      // defaults so the rest of the UI never has to special-case
+      // ``undefined``.
+      const billingMode: BillingMode = data.billingMode === 'METERED' ? 'METERED' : 'CREDITS';
+      const planRaw = data.plan ?? null;
+      const plan: CurrentPlanSummary | null = planRaw
+        ? {
+            assignmentId: planRaw.assignmentId ?? null,
+            templateId: planRaw.templateId,
+            templateName: planRaw.templateName,
+            templateDisplayName: planRaw.templateDisplayName ?? planRaw.templateName,
+            planType: planRaw.planType,
+            billingMode: planRaw.billingMode === 'METERED' ? 'METERED' : 'CREDITS',
+            commitAmount: planRaw.commitAmount ?? null,
+            currency: planRaw.currency ?? 'USD',
+            commitPeriod: planRaw.commitPeriod ?? null,
+            commitSchedule: planRaw.commitSchedule ?? null,
+            collectionMethod: planRaw.collectionMethod ?? 'AUTO_CARD',
+            startedAt: planRaw.startedAt ?? null,
+            endedAt: planRaw.endedAt ?? null,
+          }
+        : null;
+
       return {
         balance: credits.toFixed(2),
         fullBalance: credits,
         lastRechargeAt: data.lastRechargeAt ?? null,
         accountStatus: data.accountStatus ?? 'ACTIVE',
+        billingMode,
+        plan,
+        planGroupId: typeof data.planGroupId === 'number' ? data.planGroupId : 1,
       };
     } catch (error) {
       return errorResponse(error, 'Failed to fetch balance');
@@ -253,6 +289,165 @@ export const validateTaxId = async (apiKey: string) => {
       };
     } catch (error) {
       return errorResponse(error, 'Failed to validate tax ID');
+    }
+  };
+};
+
+// =============================================================================
+// Invoices (managed-billing)
+// =============================================================================
+
+/**
+ * Lists historical invoices (newest first) for the current billing
+ * account. Wraps `GET /v0/billing/invoices`. The orchestra client
+ * interceptor handles snake_case → camelCase, so the response is
+ * already in the shape `InvoiceListResponse` expects.
+ */
+export const getInvoices = async (apiKey: string) => {
+  return async (params?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<InvoiceListResponse | BillingErrorResponse> => {
+    'use server';
+    try {
+      const client = await getOrchestraUserClient(apiKey);
+      const response = await client.get('/billing/invoices', {
+        params: {
+          limit: params?.limit ?? 50,
+          offset: params?.offset ?? 0,
+        },
+      });
+      return response.data as InvoiceListResponse;
+    } catch (error) {
+      return errorResponse(error, 'Failed to fetch invoices');
+    }
+  };
+};
+
+/**
+ * Resolve Stripe-hosted view + PDF URLs for one invoice. Wraps
+ * `GET /v0/billing/invoices/{recharge_id}/urls`. Called on demand
+ * from the InvoicesTable rather than pre-fetched, since Stripe URLs
+ * are short-lived.
+ */
+export const getInvoiceUrls = async (apiKey: string) => {
+  return async (rechargeId: number): Promise<InvoiceUrls | BillingErrorResponse> => {
+    'use server';
+    try {
+      const client = await getOrchestraUserClient(apiKey);
+      const response = await client.get(`/billing/invoices/${rechargeId}/urls`);
+      return response.data as InvoiceUrls;
+    } catch (error) {
+      return errorResponse(error, 'Failed to fetch invoice URLs');
+    }
+  };
+};
+
+/**
+ * Fetch the in-progress monthly invoice estimate for the active
+ * METERED plan. Wraps `GET /v0/billing/current-period-usage`. The
+ * backend 404s for non-METERED accounts; we surface that as a
+ * `BillingErrorResponse` with a stable `detail` so callers can render
+ * the credits view instead.
+ */
+export const getCurrentPeriodUsage = async (apiKey: string) => {
+  return async (): Promise<CurrentPeriodUsage | BillingErrorResponse> => {
+    'use server';
+    try {
+      const client = await getOrchestraUserClient(apiKey);
+      const response = await client.get('/billing/current-period-usage');
+      return response.data as CurrentPeriodUsage;
+    } catch (error) {
+      return errorResponse(error, 'Failed to fetch current period usage');
+    }
+  };
+};
+
+// =============================================================================
+// Plan switching (self-serve)
+// =============================================================================
+
+/**
+ * Wraps `GET /v0/billing/available-plans`. The orchestra response is
+ * already in the shape `AvailablePlansResponse` expects (axios
+ * interceptor handles snake_case → camelCase). `planGroupId` is
+ * always set (every account is on at least the platform-default
+ * group); the server returns an empty `available` list when there's
+ * nothing to switch to (group of one, or current plan not in the
+ * group), and callers gate the Switch Plan section on
+ * `available.length === 0`.
+ */
+export const getAvailablePlans = async (apiKey: string) => {
+  return async (): Promise<AvailablePlansResponse | BillingErrorResponse> => {
+    'use server';
+    try {
+      const client = await getOrchestraUserClient(apiKey);
+      const response = await client.get('/billing/available-plans');
+      const data = response.data;
+      // Be defensive about the items list — the interceptor handles
+      // case conversion but missing optional fields would still come
+      // through as undefined. Normalise so the consumer never has to
+      // special-case shape drift.
+      const items: AvailablePlanItem[] = (data.available ?? []).map((it: any) => ({
+        templateId: it.templateId,
+        templateName: it.templateName,
+        templateDisplayName: it.templateDisplayName ?? it.templateName,
+        billingMode: it.billingMode === 'METERED' ? 'METERED' : 'CREDITS',
+        commitAmount: it.commitAmount ?? null,
+        currency: it.currency ?? 'USD',
+        commitPeriod: it.commitPeriod ?? null,
+        commitSchedule: it.commitSchedule ?? null,
+        basePricingFactor: typeof it.basePricingFactor === 'number' ? it.basePricingFactor : 1,
+        overagePricingFactor:
+          typeof it.overagePricingFactor === 'number' ? it.overagePricingFactor : 1,
+        position: typeof it.position === 'number' ? it.position : null,
+        isCurrent: !!it.isCurrent,
+        classification: it.classification ?? 'sidegrade',
+        effectiveAt: it.effectiveAt ?? data.nextPeriodStart,
+      }));
+      return {
+        billingAccountId: data.billingAccountId,
+        planGroupId: typeof data.planGroupId === 'number' ? data.planGroupId : 1,
+        planGroupDisplayName: data.planGroupDisplayName ?? null,
+        nextPeriodStart: data.nextPeriodStart,
+        available: items,
+      };
+    } catch (error) {
+      return errorResponse(error, 'Failed to fetch available plans');
+    }
+  };
+};
+
+/**
+ * Wraps `POST /v0/billing/plan`. The switch is always scheduled at
+ * the next AT_BOUNDARY (next-month start UTC) — there is no
+ * `effectiveAt` parameter on the wire format because we want the rule
+ * to be a server-enforced invariant, not a client preference. The
+ * `changeReason` is optional and recorded on the new assignment row
+ * for audit clarity.
+ */
+export const switchPlan = async (apiKey: string) => {
+  return async (
+    templateId: number,
+    changeReason?: string
+  ): Promise<SwitchPlanResponse | BillingErrorResponse> => {
+    'use server';
+    try {
+      const client = await getOrchestraUserClient(apiKey);
+      const response = await client.post('/billing/plan', {
+        templateId,
+        changeReason: changeReason ?? null,
+      });
+      const data = response.data;
+      return {
+        status: data.status === 'noop' ? 'noop' : 'scheduled',
+        billingAccountId: data.billingAccountId,
+        templateId: data.templateId,
+        effectiveAt: data.effectiveAt ?? null,
+        classification: data.classification ?? 'sidegrade',
+      };
+    } catch (error) {
+      return errorResponse(error, 'Failed to switch plan');
     }
   };
 };

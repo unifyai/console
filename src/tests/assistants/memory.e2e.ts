@@ -189,10 +189,28 @@ async function selectAssistantAndOpenMemory(
   await closeHireDialogIfOpen(page);
   await page.waitForTimeout(1_500);
 
+  // Memory is now a dropdown trigger: click opens the sub-tab menu,
+  // picking a sub-tab switches the slot to Memory + that sub-tab.
   const memoryTab = page.getByTestId('right-pane-tab-memory');
   await expect(memoryTab).toBeVisible({ timeout: 5_000 });
   await memoryTab.click();
+  await page.getByTestId('right-pane-tab-memory-menu-contacts').click();
   await page.waitForTimeout(1_500);
+}
+
+/**
+ * Switch the active Memory sub-tab via the right-pane tab strip
+ * dropdown. The in-pane footer sub-tab row was removed once the
+ * dropdown became the single source of truth for sub-tab navigation,
+ * so existing test logic that used to click `memory-tab-{ctx}` directly
+ * routes through this helper instead.
+ */
+async function switchMemorySubTab(
+  page: import('@playwright/test').Page,
+  ctx: 'contacts' | 'transcripts' | 'knowledge' | 'guidance' | 'functions'
+) {
+  await page.getByTestId('right-pane-tab-memory').click();
+  await page.getByTestId(`right-pane-tab-memory-menu-${ctx}`).click();
 }
 
 // ===========================================================================
@@ -212,16 +230,26 @@ test('Memory tab is visible when an assistant is selected', async ({ authedPage:
   await expect(memoryTab).toBeVisible({ timeout: 5_000 });
 });
 
-test('switches to Memory tab and shows sub-tabs', async ({ authedPage: page }) => {
+test('switches to Memory tab and exposes sub-tabs in the dropdown', async ({
+  authedPage: page,
+}) => {
   await selectAssistantAndOpenMemory(page, emptyAssistant.agentId);
 
   const memoryTab = page.getByTestId('right-pane-tab-memory');
   await expect(memoryTab).toHaveAttribute('data-state', 'active');
 
-  await expect(page.getByTestId('memory-sub-tabs')).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('memory-tab-contacts')).toBeVisible({ timeout: 3_000 });
-  await expect(page.getByTestId('memory-tab-transcripts')).toBeVisible({ timeout: 3_000 });
-  await expect(page.getByTestId('memory-tab-knowledge')).toBeVisible({ timeout: 3_000 });
+  // Sub-tab navigation lives in the tab strip dropdown now; open it
+  // and assert the expected sub-tabs are present.
+  await memoryTab.click();
+  await expect(page.getByTestId('right-pane-tab-memory-menu-contacts')).toBeVisible({
+    timeout: 3_000,
+  });
+  await expect(page.getByTestId('right-pane-tab-memory-menu-transcripts')).toBeVisible({
+    timeout: 3_000,
+  });
+  await expect(page.getByTestId('right-pane-tab-memory-menu-knowledge')).toBeVisible({
+    timeout: 3_000,
+  });
 });
 
 test('can switch between all main tabs', async ({ authedPage: page }) => {
@@ -240,11 +268,14 @@ test('can switch between all main tabs', async ({ authedPage: page }) => {
 
   await expect(chatTab).toHaveAttribute('data-state', 'active');
 
+  // Tasks and Memory are dropdown triggers — pick a sub-tab to switch.
   await tasksTab.click();
+  await page.getByTestId('right-pane-tab-tasks-menu-tasks').click();
   await page.waitForTimeout(500);
   await expect(tasksTab).toHaveAttribute('data-state', 'active');
 
   await memoryTab.click();
+  await page.getByTestId('right-pane-tab-memory-menu-contacts').click();
   await page.waitForTimeout(500);
   await expect(memoryTab).toHaveAttribute('data-state', 'active');
 
@@ -273,7 +304,7 @@ test('shows empty state when assistant has no data', async ({ authedPage: page }
   const memoryPane = page.getByTestId('memory-pane');
   await expect(memoryPane).toBeVisible({ timeout: 10_000 });
 
-  await expect(page.locator('text=No contacts found.')).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('text=No contacts found')).toBeVisible({ timeout: 10_000 });
 });
 
 // ===========================================================================
@@ -284,7 +315,10 @@ test('displays seeded contacts in the Contacts sub-tab', async ({ authedPage: pa
   await ensureSeeded();
   await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
 
-  await expect(page.getByTestId('memory-tab-contacts')).toHaveAttribute('data-active', 'true');
+  // The Memory tab chip now in-place displays the active sub-tab name,
+  // so the previous `data-active` assertion on the footer button is
+  // expressed here as a label check on the main tab.
+  await expect(page.getByTestId('right-pane-tab-memory')).toContainText('Contacts');
   const table = page.getByTestId('memory-table-contacts');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
@@ -316,11 +350,10 @@ test('displays seeded transcripts in the Transcripts sub-tab', async ({ authedPa
   await ensureSeeded();
   await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
 
-  const transcriptsTab = page.getByTestId('memory-tab-transcripts');
-  await transcriptsTab.click();
+  await switchMemorySubTab(page, 'transcripts');
   await page.waitForTimeout(1_000);
 
-  await expect(transcriptsTab).toHaveAttribute('data-active', 'true');
+  await expect(page.getByTestId('right-pane-tab-memory')).toContainText('Transcripts');
   const table = page.getByTestId('memory-table-transcripts');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
@@ -347,15 +380,15 @@ test('switching between sub-tabs preserves data and shows correct tables', async
 
   await expect(page.getByTestId('memory-table-contacts')).toBeVisible({ timeout: 10_000 });
 
-  await page.getByTestId('memory-tab-transcripts').click();
+  await switchMemorySubTab(page, 'transcripts');
   await page.waitForTimeout(500);
   await expect(page.getByTestId('memory-table-transcripts')).toBeVisible({ timeout: 5_000 });
 
-  await page.getByTestId('memory-tab-knowledge').click();
+  await switchMemorySubTab(page, 'knowledge');
   await page.waitForTimeout(500);
   await expect(page.getByTestId('memory-table-knowledge')).toBeVisible({ timeout: 5_000 });
 
-  await page.getByTestId('memory-tab-contacts').click();
+  await switchMemorySubTab(page, 'contacts');
   await page.waitForTimeout(500);
   const table = page.getByTestId('memory-table-contacts');
   await expect(table).toBeVisible({ timeout: 5_000 });
@@ -437,7 +470,7 @@ test('detail panel shows full untruncated content for transcripts', async ({
   await ensureSeeded();
   await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
 
-  await page.getByTestId('memory-tab-transcripts').click();
+  await switchMemorySubTab(page, 'transcripts');
   await page.waitForTimeout(1_000);
 
   const table = page.getByTestId('memory-table-transcripts');
@@ -600,7 +633,7 @@ test('search with no results shows empty message', async ({ authedPage: page }) 
   await searchInput.press('Enter');
 
   await expect(footer).not.toBeVisible({ timeout: 10_000 });
-  await expect(page.locator('text=No results match your search.')).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('text=No results match your search')).toBeVisible({ timeout: 5_000 });
 });
 
 test('search query persists when switching tabs and back', async ({ authedPage: page }) => {
@@ -615,12 +648,12 @@ test('search query persists when switching tabs and back', async ({ authedPage: 
   await searchInput.press('Enter');
   await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
 
-  await page.getByTestId('memory-tab-transcripts').click();
+  await switchMemorySubTab(page, 'transcripts');
   await page.waitForTimeout(1_000);
 
   await expect(searchInput).toHaveValue('');
 
-  await page.getByTestId('memory-tab-contacts').click();
+  await switchMemorySubTab(page, 'contacts');
   await expect(searchInput).toHaveValue('Alice', { timeout: 3_000 });
 
   await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
@@ -653,9 +686,12 @@ test('memory tab data matches what was seeded via Orchestra API', async ({ authe
 
   await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
 
-  const contactsTabBtn = page.getByTestId('memory-tab-contacts');
-  await expect(contactsTabBtn).toHaveText(/Contacts\s*\(?3\)?/, { timeout: 10_000 });
+  // The sub-tab count badges were removed when the dropdown took over
+  // sub-tab navigation, so we verify the seeded counts via each
+  // sub-tab's table footer row-count chip instead.
+  const footer = page.getByTestId('memory-table-footer');
+  await expect(footer).toContainText('3 of 3', { timeout: 10_000 });
 
-  const transcriptsTabBtn = page.getByTestId('memory-tab-transcripts');
-  await expect(transcriptsTabBtn).toHaveText(/Transcripts\s*\(?3\)?/, { timeout: 5_000 });
+  await switchMemorySubTab(page, 'transcripts');
+  await expect(footer).toContainText('3 of 3', { timeout: 5_000 });
 });

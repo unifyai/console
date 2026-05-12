@@ -43,6 +43,7 @@ import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
 import { AssistantHireLocalSetupInstructionsDialog } from './Hire/AssistantHireLocalSetupInstructions';
 import { AssistantContactManager } from './Profile/AssistantContactManager';
+import { AssistantWorkspaceManager } from './Profile/AssistantWorkspaceManager';
 import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
 import { useContactIdPrefetch } from '@/hooks/Assistants/useContactIdPrefetch';
 import {
@@ -114,10 +115,21 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       const parsed = JSON.parse(stored) as Partial<RightPaneState> | null;
       if (!parsed || typeof parsed !== 'object') return;
       const isMobile = window.matchMedia('(max-width: 767px)').matches;
+      // Migrate legacy 'secrets' tab id (renamed to 'integrations' when
+      // the per-assistant Integrations tab landed). Drops cleanly once
+      // every persisted state has been visited at least once after the
+      // rename.
+      const migrateTabId = (tab: unknown): RightPaneTab | null => {
+        if (typeof tab !== 'string') return null;
+        if (tab === 'secrets') return 'integrations';
+        return tab as RightPaneTab;
+      };
+      const primaryTab = migrateTabId(parsed.primary?.tab) ?? 'chat';
+      const secondaryTab =
+        !isMobile && parsed.secondary?.tab ? migrateTabId(parsed.secondary.tab) : null;
       setPaneState({
-        primary: { tab: (parsed.primary?.tab ?? 'chat') as RightPaneTab },
-        secondary:
-          !isMobile && parsed.secondary?.tab ? { tab: parsed.secondary.tab as RightPaneTab } : null,
+        primary: { tab: primaryTab },
+        secondary: secondaryTab ? { tab: secondaryTab } : null,
         splitRatio: typeof parsed.splitRatio === 'number' ? parsed.splitRatio : 0.5,
       });
     } catch {
@@ -280,6 +292,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const {
     credits,
     accountStatus,
+    billingMode,
     isLoading: isBillingLoading,
     refetch: refetchBillingStatus,
     startPolling: startBillingPolling,
@@ -296,6 +309,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
   const [contactManagerInitialTab, setContactManagerInitialTab] =
     React.useState<ContactType>('email');
+  const [workspaceManagerAssistant, setWorkspaceManagerAssistant] =
+    React.useState<Assistant | null>(null);
   const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
   const [isDialogBusyProcessingPhoto, setIsDialogBusyProcessingPhoto] = React.useState(false);
   const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false);
@@ -766,6 +781,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       (isOrgSpendingEnabled ? orgSpendingData.isRefreshing : false),
     credits,
     isBillingLoading,
+    billingMode,
     isFreeTrial: !!userMeta.isFreeTrial,
   });
 
@@ -1059,6 +1075,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setContactManagerAssistant(assistant);
   };
 
+  const handleOpenWorkspaceManager = (assistant: Assistant) => {
+    loadAssistantForEdit(assistant);
+    setWorkspaceManagerAssistant(assistant);
+  };
+
   const handleRandomizePreset = () => {
     if (currentFilteredPresets.length === 0) {
       toast.info('No presets match filters.');
@@ -1324,6 +1345,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         isOrgWorkspace={!!userMeta.orgId}
         isFreeTrial={!!userMeta.isFreeTrial}
         accountStatus={accountStatus}
+        billingMode={billingMode}
       />
 
       {/* StripeSidePanel — for adding payment method */}
@@ -1364,6 +1386,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             onShowProfile={handleShowProfile}
             onOpenHireDialog={handleOpenHireDialog}
             onOpenContactManager={handleOpenContactManager}
+            onOpenWorkspaceManager={handleOpenWorkspaceManager}
             onEditAssistant={handleOpenEditDialog}
             onEndContract={onDeleteAssistantSubmit}
             canEndContract={canDelete}
@@ -1546,9 +1569,25 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             initialTab={contactManagerInitialTab}
             canWrite={canWrite(contactManagerAssistant)}
             onAddPaymentMethod={() => setIsStripePanelOpen(true)}
+            onOpenWorkspaceManager={(a) => {
+              // Email tab CTA — close ContactManager and open the
+              // Workspace modal as a sibling.
+              setContactManagerAssistant(null);
+              handleOpenWorkspaceManager(a);
+            }}
             userPhoneNumber={userMeta.phoneNumber ?? null}
             userWhatsappNumber={userMeta.whatsappNumber ?? null}
             userDiscordId={userMeta.discordId ?? null}
+          />
+        )}
+        {workspaceManagerAssistant && (
+          <AssistantWorkspaceManager
+            isOpen={!!workspaceManagerAssistant}
+            onClose={() => setWorkspaceManagerAssistant(null)}
+            assistant={workspaceManagerAssistant}
+            assistantActions={assistantActions}
+            onSuccess={handleUpdateSuccess}
+            canWrite={canWrite(workspaceManagerAssistant)}
           />
         )}
       </FormProvider>

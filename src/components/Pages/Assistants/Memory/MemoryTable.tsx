@@ -60,7 +60,6 @@ interface MemoryTableProps<TData> {
   isLoadingMore?: boolean;
   hasMore?: boolean;
   emptyMessage?: string;
-  emptyHelperText?: string;
   onRowClick?: (row: TData) => void;
   onSort?: (field: string, direction: 'asc' | 'desc' | null) => void;
   onLoadMore?: () => void;
@@ -81,8 +80,7 @@ export function MemoryTable<TData>({
   isLoading,
   isLoadingMore,
   hasMore,
-  emptyMessage = 'No data.',
-  emptyHelperText,
+  emptyMessage = 'No data found',
   onRowClick,
   onSort,
   onLoadMore,
@@ -144,6 +142,51 @@ export function MemoryTable<TData>({
     return () => observer.disconnect();
   }, [onLoadMore, hasMore, isLoadingMore]);
 
+  const showEmptyPlaceholder = !isLoading && data.length === 0;
+
+  if (showEmptyPlaceholder) {
+    return (
+      <div
+        className="flex h-full items-center justify-center text-muted-foreground"
+        data-testid={testId}
+      >
+        <p className="text-sm" data-testid="memory-table-empty">
+          {emptyMessage}
+        </p>
+      </div>
+    );
+  }
+
+  // Sub-tabs with dynamic schemas (Knowledge, Functions) derive their
+  // columns from the row payload itself, so `columns` is `[]` on the
+  // very first load — before any rows have arrived. Feeding an empty
+  // column array to <SkeletonRows /> renders TableRows with zero cells,
+  // which paints nothing and makes those sub-tabs look like they're
+  // showing an empty pane instead of loading. Bypass the Table chrome
+  // entirely in that case and render a generic columns-agnostic
+  // shimmer (4 placeholder bars per row) so every memory sub-tab gets
+  // a consistent loading affordance. The 4-column choice tracks the
+  // typical Knowledge/Functions schema width; fewer rows than the
+  // static skeleton above would feel emptier than the static-column
+  // sub-tabs, so we reuse the same widths array.
+  if (isLoading && columns.length === 0) {
+    return (
+      <div className="flex h-full flex-col gap-3 p-3" data-testid={testId}>
+        {SKELETON_ROW_WIDTHS.map((widths, i) => (
+          <div key={i} className="flex items-center gap-3" data-testid="memory-table-skeleton-row">
+            {Array.from({ length: 4 }, (_, j) => (
+              <SkeletonBar
+                key={j}
+                className="h-4 flex-1"
+                style={{ maxWidth: widths[j % widths.length] }}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col" data-testid={testId}>
       <ScrollArea className="min-h-0 flex-1" ref={scrollRef}>
@@ -176,7 +219,7 @@ export function MemoryTable<TData>({
           <TableBody>
             {isLoading && table.getRowModel().rows.length === 0 ? (
               <SkeletonRows columns={columns.length} />
-            ) : table.getRowModel().rows.length > 0 ? (
+            ) : (
               table.getRowModel().rows.map((row) => {
                 const rowEmphasis = getRowEmphasis?.(row.original);
                 return (
@@ -217,24 +260,6 @@ export function MemoryTable<TData>({
                   </TableRow>
                 );
               })
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-body-muted text-sm dark:text-slate-300">
-                      {emptyMessage}
-                    </span>
-                    {emptyHelperText ? (
-                      <span
-                        className="text-caption max-w-md text-center dark:text-slate-400"
-                        data-testid="memory-table-empty-helper"
-                      >
-                        {emptyHelperText}
-                      </span>
-                    ) : null}
-                  </div>
-                </TableCell>
-              </TableRow>
             )}
           </TableBody>
         </Table>
