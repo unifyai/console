@@ -9,7 +9,8 @@ import { Assistant } from '@/types/assistants/assistant';
  *
  * - canHire: Only org Owner or Admin can hire in org context; anyone in personal workspace
  * - canWrite/canDelete: Assistant creator, org Owner, or org Admin can modify in org context;
- *   regular org Members can only view but not edit other members' assistants
+ *   regular org Members can only view but not edit other members' assistants,
+ *   except for Coordinator non-delete actions which are shared across org roles
  */
 export interface AssistantPermissions {
   /** Whether we're in an organization workspace */
@@ -51,6 +52,8 @@ export function useAssistantPermissions(): AssistantPermissions {
   const isOrgContext = activeWorkspace?.type === 'organization';
   const isOrgOwner = activeOrganization?.roleName === 'Owner';
   const isOrgAdmin = activeOrganization?.roleName === 'Admin';
+  const isOrgMember = activeOrganization?.roleName === 'Member';
+  const hasCoordinatorParityRole = isOrgOwner || isOrgAdmin || isOrgMember;
 
   return useMemo(
     () => ({
@@ -61,9 +64,11 @@ export function useAssistantPermissions(): AssistantPermissions {
       canHire: !isOrgContext || isOrgOwner || isOrgAdmin,
 
       // Assistant creator, org owner, or org admin can write in org context.
+      // Coordinator non-delete actions are shared across org members/admins/owners.
       // In personal workspace, user always has full access.
       canWrite: (assistant: Assistant) => {
         if (!isOrgContext) return true;
+        if (assistant.isCoordinator) return hasCoordinatorParityRole;
         return assistant.userId === currentUserId || isOrgOwner || isOrgAdmin;
       },
 
@@ -82,9 +87,9 @@ export function useAssistantPermissions(): AssistantPermissions {
       canOpenAssistantChat: (assistant: Assistant) => {
         if (!assistant.isCoordinator) return true;
         if (!isOrgContext) return true;
-        return isOrgOwner || isOrgAdmin;
+        return hasCoordinatorParityRole;
       },
     }),
-    [isOrgContext, isOrgOwner, isOrgAdmin, currentUserId]
+    [isOrgContext, isOrgOwner, isOrgAdmin, hasCoordinatorParityRole, currentUserId]
   );
 }

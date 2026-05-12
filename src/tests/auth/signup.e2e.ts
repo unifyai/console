@@ -192,10 +192,15 @@ test.describe('Onboarding', () => {
     const userId = dbExec(`SELECT id FROM "user" WHERE email = '${email.toLowerCase()}'`);
     if (userId) createdUserIds.push(userId);
 
-    const personalCoordinatorCount = dbExec(
-      `SELECT count(*) FROM assistants WHERE user_id = '${userId}' AND is_coordinator = TRUE`
+    const personalCoordinatorId = dbExec(
+      `SELECT agent_id FROM assistants WHERE user_id = '${userId}' AND organization_id IS NULL AND is_coordinator = TRUE`
     );
-    expect(personalCoordinatorCount).toBe('0');
+    expect(personalCoordinatorId).toBeTruthy();
+
+    const personalCoordinatorCount = dbExec(
+      `SELECT count(*) FROM assistants WHERE user_id = '${userId}' AND organization_id IS NULL AND is_coordinator = TRUE`
+    );
+    expect(personalCoordinatorCount).toBe('1');
   });
 
   test('creates organization workspace with a Coordinator and redirects to assistants', async ({

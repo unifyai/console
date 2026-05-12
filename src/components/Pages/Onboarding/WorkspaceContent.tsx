@@ -9,7 +9,10 @@ import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
 import { ResponseProps } from '@/types/common';
 import { Organization } from '@/types/organization';
-import { generateCoordinatorOpener } from '@/lib/assistants/preHireChat';
+import {
+  generateCoordinatorOpener,
+  seedPersonalCoordinatorOpener,
+} from '@/lib/assistants/preHireChat';
 import { seedCoordinatorOpener } from '@/lib/client/coordinator';
 
 interface WorkspaceContentProps {
@@ -117,7 +120,12 @@ const WorkspaceContent = ({
   const handlePersonal = useCallback(async () => {
     setError(undefined);
     setIsLoading(true);
-    // Selecting "personal" has no side effect — repeating is harmless.
+    try {
+      await seedPersonalCoordinatorOpener();
+    } catch (error) {
+      console.warn('[onboarding] Failed to seed personal Coordinator opener:', error);
+    }
+
     await completeAndRedirect({ selectedType: 'personal' });
   }, [completeAndRedirect]);
 
@@ -128,7 +136,10 @@ const WorkspaceContent = ({
     }
 
     try {
-      const opener = await generateCoordinatorOpener({ organizationName: org.name });
+      const opener = await generateCoordinatorOpener({
+        workspaceType: 'organization',
+        workspaceName: org.name,
+      });
       const seedResult = await seedCoordinatorOpener(org.coordinatorId, opener.content);
       if ('detail' in seedResult) {
         console.warn('[onboarding] Failed to seed Coordinator opener:', seedResult.detail);

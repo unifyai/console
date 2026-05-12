@@ -32,7 +32,10 @@ async function seedNewOrganizationCoordinator(org: Organization): Promise<void> 
   }
 
   try {
-    const opener = await generateCoordinatorOpener({ organizationName: org.name });
+    const opener = await generateCoordinatorOpener({
+      workspaceType: 'organization',
+      workspaceName: org.name,
+    });
     const seedResult = await seedCoordinatorOpener(org.coordinatorId, opener.content);
     if ('detail' in seedResult) {
       console.warn('[organizations] Failed to seed Coordinator opener:', seedResult.detail);

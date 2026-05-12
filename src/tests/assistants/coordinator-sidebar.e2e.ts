@@ -360,6 +360,12 @@ const regularAssistant = createAssistant({
   firstName: 'Regular',
   surname: 'Colleague',
 });
+const personalCoordinator = createAssistant({
+  userId: personalUser.id,
+  firstName: 'Personal',
+  surname: 'Guide',
+  isCoordinator: true,
+});
 
 let ownerAuthFile: string | undefined;
 let adminAuthFile: string | undefined;
@@ -528,24 +534,34 @@ test('organization admin can open the Coordinator chat', async ({ adminPage: pag
   await expectCoordinatorChatOpen(page, coordinator.agentId);
 });
 
-test('organization member does not receive the Coordinator sidebar surface', async ({
+test('organization member can open the Coordinator chat without delete controls', async ({
   memberPage: page,
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
-
-  await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toHaveCount(0);
-  await expect(page.getByTestId('assistant-list-group-pinned')).toHaveCount(0);
-  await expect(page.getByTestId('coordinator-divider')).toHaveCount(0);
+  await expectPinnedBeforeSolo(page);
+  await expectCoordinatorChatOpen(page, coordinator.agentId);
+  await openAssistantMenu(page, coordinator.agentId);
+  await expect(page.getByTestId('menu-end-contract')).toHaveCount(0);
+  await page.keyboard.press('Escape');
 });
 
-test('personal workspace does not show a Coordinator surface', async ({ personalPage: page }) => {
+test('personal workspace shows the personal Coordinator surface', async ({
+  personalPage: page,
+}) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  await expect(page.getByTestId('coordinator-divider')).toHaveCount(0);
+  await expect(page.getByTestId(`assistant-list-item-${personalCoordinator.agentId}`)).toBeVisible({
+    timeout: 15_000,
+  });
+  await expectCoordinatorChatOpen(page, personalCoordinator.agentId);
+  await openAssistantMenu(page, personalCoordinator.agentId);
+  await expect(page.getByTestId('menu-end-contract')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
   const coordinatorCount = dbExec(
-    `SELECT count(*) FROM assistants WHERE user_id = '${personalUser.id}' AND is_coordinator = TRUE`
+    `SELECT count(*) FROM assistants WHERE user_id = '${personalUser.id}' AND organization_id IS NULL AND is_coordinator = TRUE`
   );
-  expect(coordinatorCount).toBe('0');
+  expect(coordinatorCount).toBe('1');
 });
