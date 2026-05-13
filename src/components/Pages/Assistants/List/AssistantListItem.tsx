@@ -23,6 +23,7 @@ import {
 } from '@/components/UI/dropdown-menu';
 import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
+import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -103,7 +104,7 @@ export function AssistantListItem({
   };
 
   const isCoordinator = assistant.isCoordinator === true;
-  const displayName = isCoordinator ? 'Coordinator' : `${assistant.firstName} ${assistant.surname}`;
+  const displayName = assistantDisplayName(assistant);
   const subtitle = assistant.jobTitle?.trim() || null;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
   const isOnline = status?.running === true;
@@ -140,9 +141,7 @@ export function AssistantListItem({
         ) : (
           <Avatar className="h-8 w-8">
             <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
-            <AvatarFallback>
-              {`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
-            </AvatarFallback>
+            <AvatarFallback>{assistantInitials(assistant)}</AvatarFallback>
           </Avatar>
         )}
         {status !== null && (
@@ -194,9 +193,7 @@ export function AssistantListItem({
           ) : (
             <Avatar className="h-8 w-8 flex-shrink-0 cursor-default">
               <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
-              <AvatarFallback>
-                {`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
-              </AvatarFallback>
+              <AvatarFallback>{assistantInitials(assistant)}</AvatarFallback>
             </Avatar>
           )}
           {status !== null && (

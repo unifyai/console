@@ -49,6 +49,7 @@ import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
 import { useChatTTS } from '@/hooks/Assistants/useChatTTS';
 import { ChatMessageSkeletons } from '@/components/Chat/ChatMessageSkeleton';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 
 /* --------------------------
    AssistantProfileChatPanel 
@@ -110,9 +111,7 @@ export function AssistantProfileChatPanel({
   onSearchOpenChange,
   draftSeed,
 }: AssistantProfileChatPanelProps) {
-  const displayName = assistant.isCoordinator
-    ? 'Coordinator'
-    : [assistant.firstName, assistant.surname].filter(Boolean).join(' ');
+  const displayName = assistantDisplayName(assistant);
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
 
   const { playMessage, stopPlayback, getAudioState, hasVoice } = useChatTTS({

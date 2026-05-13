@@ -34,6 +34,7 @@ import {
 } from '@/hooks/Assistants/useAssistantOnboardingState';
 import { CoordinatorWorkspacePanelContent } from './CoordinatorWorkspacePanelContent';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
+import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 
 export interface AssistantInfoSidePanelContentProps {
   assistant: Assistant;
@@ -281,7 +282,7 @@ function RegularAssistantInfoSidePanelContent({
     }
   }, [showOnboardingTab, activeTab, onboardingState.resolvedSteps]);
 
-  const displayName = `${assistant.firstName} ${assistant.surname}`;
+  const displayName = assistantDisplayName(assistant);
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
   const supervisorName = [assistant.userFirstName, assistant.userLastName]
     .filter(Boolean)
@@ -307,7 +308,7 @@ function RegularAssistantInfoSidePanelContent({
         <IdentityHeader
           name={displayName}
           photoSrc={photoSrc}
-          initials={`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
+          initials={assistantInitials(assistant)}
           supervisorName={supervisorName}
           isIdCopied={isIdCopied}
           onCopyId={copyId}

@@ -29,6 +29,7 @@ import { Button } from '@/components/UI/button';
 import { Loader2, X, Trash2, AlertTriangle } from 'lucide-react';
 import { UseFormReturn } from 'react-hook-form';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 
 interface AssistantEditProps {
   isOpen: boolean;
@@ -143,7 +144,7 @@ export function AssistantEdit({
     return 'Update Assistant';
   };
 
-  const displayName = `${assistant.firstName} ${assistant.surname}`;
+  const displayName = assistantDisplayName(assistant);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogClose}>
@@ -219,11 +220,8 @@ export function AssistantEdit({
                         Confirm End Contract
                       </AlertDialogTitle>
                       <AlertDialogDescription>
-                        You are about to remove{' '}
-                        <strong>
-                          {assistant.firstName} {assistant.surname}
-                        </strong>{' '}
-                        from your team. This action cannot be undone. Are you sure?
+                        You are about to remove <strong>{displayName}</strong> from your team. This
+                        action cannot be undone. Are you sure?
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

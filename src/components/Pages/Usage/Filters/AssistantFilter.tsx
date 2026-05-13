@@ -10,6 +10,7 @@ import * as React from 'react';
 import { Users } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/UI/select';
 import { Assistant } from '@/types/assistants/assistant';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 
 interface AssistantFilterProps {
   /** List of available assistants */
@@ -35,7 +36,7 @@ export function AssistantFilter({
     }
     const assistant = assistants.find((a) => a.agentId === value);
     if (assistant) {
-      return `${assistant.firstName} ${assistant.surname}`;
+      return assistantDisplayName(assistant);
     }
     return 'All Assistants';
   }, [value, assistants]);
@@ -50,7 +51,7 @@ export function AssistantFilter({
         <SelectItem value="all">All Assistants</SelectItem>
         {assistants.map((assistant) => (
           <SelectItem key={assistant.agentId} value={assistant.agentId}>
-            {`${assistant.firstName} ${assistant.surname}`}
+            {assistantDisplayName(assistant)}
           </SelectItem>
         ))}
       </SelectContent>
