@@ -1481,7 +1481,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             onEditAssistant={handleOpenEditDialog}
             onEndContract={onDeleteAssistantSubmit}
             canEndContract={canEndContract}
-            canEditAssistant={canWrite}
             isFolded={isAssistantListFolded}
             activeCallAssistantId={activeCallId}
             onHangUp={handleHangUp}
