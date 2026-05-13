@@ -304,7 +304,7 @@ describe('Coordinator workspace panel', () => {
     );
   });
 
-  it('does not fetch Coordinator logs when the admin gate blocks access', async () => {
+  it('lets organization members fetch Coordinator logs under parity access', async () => {
     const requestUrls: string[] = [];
     server.use(
       http.get('/api/logs', ({ request }) => {
@@ -323,7 +323,11 @@ describe('Coordinator workspace panel', () => {
     );
 
     expect(await screen.findByTestId('coordinator-workspace-panel')).toBeInTheDocument();
-    expect(requestUrls).toHaveLength(0);
+    expect(requestUrls).toHaveLength(3);
+    const decodedUrls = requestUrls.map((url) => decodeURIComponent(url));
+    expect(decodedUrls.some((url) => url.includes('/Coordinator/State'))).toBe(true);
+    expect(decodedUrls.some((url) => url.includes('/Coordinator/Checklist'))).toBe(true);
+    expect(decodedUrls.some((url) => url.includes('/Events/CoordinatorActivity'))).toBe(true);
   });
 
   it('falls back to the checklist when the latest lifecycle row is completed', async () => {
