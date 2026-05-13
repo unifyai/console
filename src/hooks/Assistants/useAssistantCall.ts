@@ -12,6 +12,14 @@ const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
 
+function assistantDisplayName(
+  assistant: Pick<Assistant, 'firstName' | 'surname' | 'isCoordinator'>
+) {
+  return assistant.isCoordinator
+    ? 'Coordinator'
+    : [assistant.firstName, assistant.surname].filter(Boolean).join(' ');
+}
+
 export function useAssistantCall(room: Room, assistantActions: AssistantActions) {
   const [connectionDetails, setConnectionDetails] = React.useState<ConnectionDetails | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -124,7 +132,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         // Fire-and-forget: clean up any stale room without blocking the connection flow
         assistantActions.call.deleteRoom(expectedRoomName).catch(() => {});
 
-        const assistantName = `${assistant.firstName}${assistant.surname}`;
+        const assistantName = assistantDisplayName(assistant);
         let connDetails: ConnectionDetails | null = null;
 
         for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
@@ -196,7 +204,9 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
               ASSISTANT_JOIN_SLOW_THRESHOLD;
             assistantJoinTimeoutRef.current = setTimeout(() => {
               if (isStaleAttempt()) return;
-              setWaitingMessage(`${assistant.firstName} is taking a bit longer than expected…`);
+              setWaitingMessage(
+                `${assistantDisplayName(assistant)} is taking a bit longer than expected…`
+              );
             }, timeoutDuration);
           } else {
             setIsWaitingForAssistant(false);
@@ -423,7 +433,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     if (!activeCallAssistant || !connectionDetails || isRedispatchingRef.current) return;
 
     isRedispatchingRef.current = true;
-    const assistantName = `${activeCallAssistant.firstName}${activeCallAssistant.surname}`;
+    const displayName = assistantDisplayName(activeCallAssistant);
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       if (isCancelledRef.current || !isRedispatchingRef.current) return;
@@ -445,9 +455,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         if (attempt === MAX_RETRIES) {
           // All retries failed
           isRedispatchingRef.current = false;
-          toast.error(
-            `${activeCallAssistant.firstName} had trouble rejoining. Please try calling again.`
-          );
+          toast.error(`${displayName} had trouble rejoining. Please try calling again.`);
           room.disconnect();
           return;
         }
@@ -514,8 +522,8 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       if (!isConnectedRef.current || !activeCallAssistantRef.current) return;
 
       if (room.remoteParticipants.size < 1) {
-        const firstName = activeCallAssistantRef.current.firstName;
-        setWaitingMessage(`${firstName} disconnected, waiting for them to rejoin...`);
+        const displayName = assistantDisplayName(activeCallAssistantRef.current);
+        setWaitingMessage(`${displayName} disconnected, waiting for them to rejoin...`);
         setIsWaitingForAssistant(true);
 
         // Try to redispatch the assistant
@@ -538,7 +546,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
                 .catch(() => {});
             }
             toast.error(
-              `${firstName} couldn't rejoin the call. Please try calling again if needed.`
+              `${displayName} couldn't rejoin the call. Please try calling again if needed.`
             );
             room.disconnect();
           }

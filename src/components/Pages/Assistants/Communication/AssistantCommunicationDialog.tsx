@@ -251,7 +251,10 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   }, [localParticipant, camToggle.track]);
 
   const userTrackRef = screenShareTrack || localVideoTrackRef;
-  const displayName = `${assistant.firstName} ${assistant.surname}`;
+  const isCoordinator = assistant.isCoordinator === true;
+  const displayName = isCoordinator
+    ? 'Coordinator'
+    : [assistant.firstName, assistant.surname].filter(Boolean).join(' ');
   const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
 
   const handleToggleSidePanel = (panel: 'chat' | 'settings') => {
@@ -261,7 +264,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   const showLoadingState = isConnecting || isWaitingForAssistant;
   const loadingMessage = isConnecting
     ? 'Setting up a connection...'
-    : waitingMessage || `Waiting for ${assistant.firstName} to join...`;
+    : waitingMessage || `Waiting for ${displayName} to join...`;
 
   return (
     <>
@@ -292,6 +295,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
             <>
               <AssistantCommunicationMainView
                 assistantName={displayName}
+                isCoordinator={isCoordinator}
                 isSpeaking={agentState === 'speaking'}
                 imageUrl={assistantPhoto}
                 videoTrack={agentVideoTrack}

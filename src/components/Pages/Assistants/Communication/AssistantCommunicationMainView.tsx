@@ -6,9 +6,11 @@ import { VideoTrack, TrackReference } from '@livekit/components-react';
 import { cn } from '@/lib/utils';
 import { Loader2, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/UI/button';
+import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 
 interface AssistantCommunicationMainViewProps {
   assistantName: string;
+  isCoordinator?: boolean;
   isSpeaking: boolean;
   imageUrl: string | null | undefined;
   videoTrack?: TrackReference;
@@ -27,6 +29,7 @@ interface AssistantCommunicationMainViewProps {
 
 export function AssistantCommunicationMainView({
   assistantName,
+  isCoordinator = false,
   isSpeaking,
   imageUrl,
   videoTrack,
@@ -80,12 +83,19 @@ export function AssistantCommunicationMainView({
               spinnerSize
             )}
           >
-            <Avatar className="h-full w-full">
-              <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
-              <AvatarFallback className="bg-muted text-4xl text-muted-foreground">
-                {fallback}
-              </AvatarFallback>
-            </Avatar>
+            {isCoordinator ? (
+              <CoordinatorLogoAvatar
+                className="h-full w-full rounded-full border-0 bg-muted text-primary shadow-none"
+                logoClassName="h-[45%] w-[45%]"
+              />
+            ) : (
+              <Avatar className="h-full w-full">
+                <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
+                <AvatarFallback className="bg-muted text-4xl text-muted-foreground">
+                  {fallback}
+                </AvatarFallback>
+              </Avatar>
+            )}
           </div>
         </div>
         <p className="text-body-muted mt-4">{loadingMessage}</p>
@@ -186,12 +196,21 @@ export function AssistantCommunicationMainView({
           videoTrack.publication.track?.kind === 'video' ? (
             <VideoTrack trackRef={videoTrack} className="h-full w-full object-cover" />
           ) : (
-            <Avatar className="h-full w-full">
-              <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
-              <AvatarFallback className="bg-muted text-4xl text-muted-foreground">
-                {fallback}
-              </AvatarFallback>
-            </Avatar>
+            <>
+              {isCoordinator ? (
+                <CoordinatorLogoAvatar
+                  className="h-full w-full rounded-full border-0 bg-muted text-primary shadow-none"
+                  logoClassName="h-[45%] w-[45%]"
+                />
+              ) : (
+                <Avatar className="h-full w-full">
+                  <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
+                  <AvatarFallback className="bg-muted text-4xl text-muted-foreground">
+                    {fallback}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+            </>
           )}
         </div>
       </div>
