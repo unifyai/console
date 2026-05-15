@@ -128,7 +128,7 @@ describe('fetchMemoryContext merged pagination', () => {
                     medium: 'unify_message',
                     senderId: 77,
                     receiverIds: [70],
-                    messageId: 41,
+                    messageId: 141,
                     timestamp: '2026-05-01T10:01:00Z',
                   },
                 },
@@ -173,6 +173,7 @@ describe('fetchMemoryContext merged pagination', () => {
         const context = url.searchParams.get('context');
         const senderId = context === 'user-1/42/Transcripts' ? 10 : 77;
         const receiverIds = context === 'user-1/42/Transcripts' ? [9] : [70];
+        const messageId = context === 'user-1/42/Transcripts' ? 80 : 180;
         const logs = [
           {
             entries: {
@@ -180,7 +181,7 @@ describe('fetchMemoryContext merged pagination', () => {
               medium: 'unify_message',
               senderId,
               receiverIds,
-              messageId: 80,
+              messageId,
               timestamp: '2026-05-01T10:01:00Z',
             },
           },

@@ -93,7 +93,7 @@ describe('contact-scoped root reads', () => {
           content: 'fanout duplicate row',
           senderId: 77,
           timestamp: '2026-05-01T10:01:00Z',
-          messageId: 41,
+          messageId: 141,
           attachments: [],
         },
       };
@@ -165,7 +165,7 @@ describe('contact-scoped root reads', () => {
                     content: 'fanout duplicate row',
                     senderId: 77,
                     timestamp: '2026-05-01T10:01:00Z',
-                    messageId: 41,
+                    messageId: 141,
                     attachments: [],
                   },
                 },
@@ -209,7 +209,7 @@ describe('contact-scoped root reads', () => {
       content: 'already visible boundary row',
       senderId: 77,
       timestamp: '2026-05-01T10:00:00Z',
-      messageId: 50,
+      messageId: 150,
       attachments: [],
     };
     const excludedMergeKey = transcriptMergeDedupeKey(
