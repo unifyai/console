@@ -87,10 +87,12 @@ export const TRANSCRIPT_COLUMNS: ColumnDef<TranscriptRow>[] = [
 ];
 
 export function buildTranscriptColumns(
-  contactMap: Map<number, string>
+  contactMap: Map<number, string>,
+  options?: {
+    assistantContactIds?: Set<number>;
+    assistantDisplayName?: string;
+  }
 ): ColumnDef<TranscriptRow>[] {
-  if (contactMap.size === 0) return TRANSCRIPT_COLUMNS;
-
   return TRANSCRIPT_COLUMNS.map((colDef) => {
     if ((colDef as { accessorKey?: string }).accessorKey !== 'senderId') return colDef;
     return {
@@ -98,6 +100,9 @@ export function buildTranscriptColumns(
       cell: ({ getValue }: { getValue: () => unknown }) => {
         const id = getValue();
         if (typeof id !== 'number') return truncate(id);
+        if (options?.assistantContactIds?.has(id) && options.assistantDisplayName) {
+          return `${options.assistantDisplayName} (${id})`;
+        }
         const name = contactMap.get(id);
         return name ? `${name} (${id})` : String(id);
       },

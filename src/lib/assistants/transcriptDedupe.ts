@@ -1,11 +1,11 @@
 type TranscriptLike = Record<string, unknown> | null | undefined;
 
 interface CanonicalTranscriptKey {
-  messageId: number | null;
   medium: string;
   timestamp: string;
   exchangeId: number | null;
   content: string;
+  authoringAssistantId: number | null;
   attachments: string;
 }
 
@@ -34,7 +34,6 @@ function canonicalAttachmentSignature(value: unknown): string {
     }
     const record = attachment as Record<string, unknown>;
     return [
-      asString(record.id),
       asString(record.filename),
       asString(record.gsUrl ?? record.gs_url),
       asString(record.contentType ?? record.content_type),
@@ -59,19 +58,21 @@ export function transcriptMergeDedupeKey(
     return `fallback:${String(fallbackId ?? 'unknown')}`;
   }
   const canonical: CanonicalTranscriptKey = {
-    messageId: asNumber(transcript.messageId ?? transcript.message_id),
     medium: asString(transcript.medium),
     timestamp: asString(transcript.timestamp),
     exchangeId: asNumber(transcript.exchangeId ?? transcript.exchange_id),
     content: asString(transcript.content),
+    authoringAssistantId: asNumber(
+      transcript.authoringAssistantId ?? transcript.authoring_assistant_id
+    ),
     attachments: canonicalAttachmentSignature(transcript.attachments),
   };
   const hasCanonicalData =
-    canonical.messageId !== null ||
     canonical.medium !== '' ||
     canonical.timestamp !== '' ||
     canonical.exchangeId !== null ||
     canonical.content !== '' ||
+    canonical.authoringAssistantId !== null ||
     canonical.attachments !== '';
   if (!hasCanonicalData) {
     return `fallback:${String(fallbackId ?? 'unknown')}`;
