@@ -16,6 +16,7 @@ import { camelToSnakeObject } from '@/utils/casing';
 import type { Assistant } from '@/types/assistants/assistant';
 import { mergeRootRows } from '@/lib/client/read_across_roots';
 import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
+import { transcriptMergeDedupeKey } from '@/lib/assistants/transcriptDedupe';
 import {
   contactScopedRootQueries,
   roleFromRootSenderId,
@@ -147,12 +148,15 @@ export const getTranscripts = async (apiKey: string) => {
       const logs = mergeRootRows(rootLogs.flat(), {
         limit: rootLimit,
         sortValue: ({ log }) => log.entries?.timestamp,
-        dedupeKey: ({ log, query }) => `${query.context}:${log.entries?.messageId ?? log.id}`,
+        dedupeKey: ({ log }) => transcriptMergeDedupeKey(log.entries, log.id),
       })
-        .filter(
-          ({ log, query }) =>
-            !excludedKeys.has(`${query.context}:${log.entries?.messageId ?? log.id}`)
-        )
+        .filter(({ log, query }) => {
+          const contextKey = `${query.context}:${log.entries?.messageId ?? log.id}`;
+          if (excludedKeys.has(contextKey)) return false;
+          const mergeKey = transcriptMergeDedupeKey(log.entries, log.id);
+          if (excludedKeys.has(mergeKey)) return false;
+          return true;
+        })
         .slice(0, limit);
 
       const mappedMessages = logs
@@ -174,6 +178,7 @@ export const getTranscripts = async (apiKey: string) => {
             timestamp: new Date(entries.timestamp as string),
             messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
             sourceContext: query.context,
+            mergeKey: transcriptMergeDedupeKey(entries, id),
             attachments: Array.isArray(entries.attachments)
               ? (entries.attachments as Record<string, unknown>[]).map(
                   (a): Attachment => ({

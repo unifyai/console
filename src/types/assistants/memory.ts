@@ -139,6 +139,7 @@ export interface MemoryContextData<T extends MemoryRow = MemoryRow> {
   rows: T[];
   count: number;
   fields: string[];
+  hasMore?: boolean;
 }
 
 export const MEMORY_CONTEXTS: MemoryContext[] = [

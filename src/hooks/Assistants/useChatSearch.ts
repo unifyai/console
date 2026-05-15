@@ -14,6 +14,7 @@ import {
   roleFromRootSenderId,
   type ContactScopedRootQuery,
 } from '@/lib/assistants/scope';
+import { transcriptMergeDedupeKey } from '@/lib/assistants/transcriptDedupe';
 
 const SEARCH_PAGE_SIZE = 30;
 
@@ -131,7 +132,7 @@ async function executeSearch(
     limit: limit + 1,
     offset,
     sortValue: ({ log }) => log.entries?.timestamp,
-    dedupeKey: ({ log, query }) => `${query.context}:${log.entries?.messageId ?? log.id}`,
+    dedupeKey: ({ log }) => transcriptMergeDedupeKey(log.entries, log.id),
   });
 
   if (!Array.isArray(mergedLogs) || mergedLogs.length === 0) {

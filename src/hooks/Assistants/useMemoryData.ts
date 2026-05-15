@@ -98,7 +98,7 @@ function contextStateFromData<T extends MemoryRow>(
 ): ContextState<T> {
   return {
     ...data,
-    hasMore: data.rows.length < data.count,
+    hasMore: data.hasMore ?? data.rows.length < data.count,
     sorting,
     filterExpr,
     searchQuery,
@@ -426,13 +426,21 @@ export function useMemoryData({
         const prevCtx = prev[activeContext];
         const merged = [...prevCtx.rows, ...data.rows];
         const fields = new Set([...prevCtx.fields, ...data.fields]);
+        const hasMore = data.hasMore ?? merged.length < data.count;
+        const nextCount =
+          activeContext === 'Transcripts'
+            ? hasMore
+              ? Math.max(prevCtx.count, merged.length + 1)
+              : merged.length
+            : data.count;
         return {
           ...prev,
           [activeContext]: {
             ...prevCtx,
             rows: merged,
             fields: Array.from(fields),
-            hasMore: merged.length < data.count,
+            count: nextCount,
+            hasMore,
             lastLoadedAt: Date.now(),
           } as any,
         };
