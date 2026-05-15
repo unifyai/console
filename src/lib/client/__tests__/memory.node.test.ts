@@ -101,6 +101,106 @@ describe('fetchMemoryContext merged pagination', () => {
     expect(seenUrls.every((url) => !url.searchParams.has('offset'))).toBe(true);
   });
 
+  it('dedupes transcript fanout copies across roots', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = new URL(String(input), 'https://console.test');
+        const context = url.searchParams.get('context');
+        const logs =
+          context === 'user-1/42/Transcripts'
+            ? [
+                {
+                  entries: {
+                    content: 'fanout duplicate',
+                    medium: 'unify_message',
+                    senderId: 10,
+                    receiverIds: [9],
+                    messageId: 41,
+                    timestamp: '2026-05-01T10:01:00Z',
+                  },
+                },
+              ]
+            : [
+                {
+                  entries: {
+                    content: 'fanout duplicate',
+                    medium: 'unify_message',
+                    senderId: 77,
+                    receiverIds: [70],
+                    messageId: 41,
+                    timestamp: '2026-05-01T10:01:00Z',
+                  },
+                },
+                {
+                  entries: {
+                    content: 'shared unique',
+                    medium: 'unify_message',
+                    senderId: 77,
+                    receiverIds: [70],
+                    messageId: 42,
+                    timestamp: '2026-05-01T10:02:00Z',
+                  },
+                },
+              ];
+
+        return new Response(JSON.stringify({ logs, count: logs.length }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      })
+    );
+
+    const data = await fetchMemoryContext(assistant, 'Transcripts', {
+      limit: 10,
+      sorting: buildSortingParam('timestamp', 'desc'),
+    });
+
+    expect(data.rows.map((row) => (row as { content: string }).content)).toEqual([
+      'shared unique',
+      'fanout duplicate',
+    ]);
+    expect(
+      data.rows.filter((row) => (row as { content: string }).content === 'fanout duplicate')
+    ).toHaveLength(1);
+  });
+
+  it('marks transcript pages as exhausted after dedupe collapses all root rows', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = new URL(String(input), 'https://console.test');
+        const context = url.searchParams.get('context');
+        const senderId = context === 'user-1/42/Transcripts' ? 10 : 77;
+        const receiverIds = context === 'user-1/42/Transcripts' ? [9] : [70];
+        const logs = [
+          {
+            entries: {
+              content: 'single logical row',
+              medium: 'unify_message',
+              senderId,
+              receiverIds,
+              messageId: 80,
+              timestamp: '2026-05-01T10:01:00Z',
+            },
+          },
+        ];
+        return new Response(JSON.stringify({ logs, count: 1 }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      })
+    );
+
+    const data = await fetchMemoryContext(assistant, 'Transcripts', {
+      limit: 1,
+      sorting: buildSortingParam('timestamp', 'desc'),
+    });
+
+    expect(data.rows).toHaveLength(1);
+    expect(data.hasMore).toBe(false);
+  });
+
   it('fetches only the selected personal root', async () => {
     const seenContexts: string[] = [];
     vi.stubGlobal(
