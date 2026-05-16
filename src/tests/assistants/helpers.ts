@@ -37,6 +37,22 @@ export { login, switchToEmailTab };
 // Shared Auth — storageState
 // =============================================================================
 
+async function loginViaDevQuickLogin(page: Page, email: string, timeout: number): Promise<void> {
+  const quickLoginPanel = page.getByTestId('dev-quick-login');
+  await expect(quickLoginPanel).toBeVisible({ timeout: 15_000 });
+
+  const quickLoginButton = quickLoginPanel.locator('button', { hasText: email }).first();
+  await expect(quickLoginButton).toBeVisible({ timeout: 15_000 });
+
+  await Promise.all([
+    page.waitForURL((url) => url.pathname !== '/login', {
+      timeout,
+      waitUntil: 'domcontentloaded',
+    }),
+    quickLoginButton.click(),
+  ]);
+}
+
 export async function loginAndSaveState(
   browser: Browser,
   email: string,
@@ -47,11 +63,30 @@ export async function loginAndSaveState(
     `pw-assistant-${email.replace(/[^a-z0-9]/gi, '-')}.json`
   );
 
-  const ctx = await browser.newContext();
+  const ctx = await browser.newContext({
+    permissions: ['clipboard-read', 'clipboard-write'],
+  });
   const page = await ctx.newPage();
 
   await page.goto('/login');
-  await loginAndWaitForRedirect(page, email, password, 45_000);
+  try {
+    await loginAndWaitForRedirect(page, email, password, 45_000);
+  } catch (error) {
+    if (!page.url().includes('/login')) {
+      throw error;
+    }
+    const hasQuickLoginPanel = await page
+      .getByTestId('dev-quick-login')
+      .isVisible({ timeout: 3_000 })
+      .catch(() => false);
+    if (!hasQuickLoginPanel) {
+      throw error;
+    }
+    // Local dev login occasionally lands back on /login after credentials submit.
+    // Retry once via the dev quick-login panel to keep assistant e2e fixtures stable.
+    await page.goto('/login');
+    await loginViaDevQuickLogin(page, email, 45_000);
+  }
 
   if (page.url().includes('/login/onboarding')) {
     const personalBtn = page.getByTestId('workspace-personal');
@@ -86,7 +121,10 @@ export function createAssistantTest(user: { email: string; password: string }) {
         testInfo.setTimeout(testInfo.timeout + 30_000);
         authFile = await loginAndSaveState(browser, user.email, user.password);
       }
-      const ctx = await browser.newContext({ storageState: authFile });
+      const ctx = await browser.newContext({
+        storageState: authFile,
+        permissions: ['clipboard-read', 'clipboard-write'],
+      });
       const page = await ctx.newPage();
       // eslint-disable-next-line react-hooks/rules-of-hooks
       await use(page);

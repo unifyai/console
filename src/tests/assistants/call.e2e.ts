@@ -41,9 +41,6 @@ import {
   setUserCredits,
 } from './helpers';
 
-const ASSISTANT_CONTACT_ID = 0;
-const CONTACT_ID = 2;
-
 const user = createTestUser({ name: 'CallE2E', lastName: 'Tester', credits: 50_000 });
 ensureProjectSync(user.apiKey);
 const test = createAssistantTest(user);
@@ -54,6 +51,8 @@ const assistant = createAssistant({
   firstName: 'Caller',
   surname: 'TestBot',
 });
+const ASSISTANT_CONTACT_ID = assistant.selfContactId;
+const CONTACT_ID = assistant.bossContactId;
 
 test.afterAll(() => {
   setUserCredits(user.id, 50_000);
@@ -387,7 +386,7 @@ test('historical call pill renders in shared roots only for own or null authorin
 
   const sharedSelfContactId = 370;
   const sharedBossContactId = 377;
-  const sharedAssistantId = Number(sharedAssistant.agentId);
+  const sharedAssistantId = sharedAssistant.agentId;
   const { spaceId } = createSpaceForAssistant(sharedAssistant, {
     name: `Call Root E2E ${Date.now()}`,
     description: 'Shared call root e2e description for visibility coverage',
@@ -574,29 +573,45 @@ test('two distinct calls show as separate pills', async ({ authedPage: page }) =
 test('call pills interleave correctly with text messages by timestamp', async ({
   authedPage: page,
 }) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
+  const interleaveAssistant = createAssistant({
+    userId: user.id,
+    firstName: 'Interleave',
+    surname: `E2E${Date.now()}`,
+  });
+  const interleaveContactId = interleaveAssistant.bossContactId;
+  const interleaveSelfContactId = interleaveAssistant.selfContactId;
+  await seedContact(
+    user.apiKey,
+    user.id,
+    interleaveAssistant.agentId,
+    user.email,
+    interleaveContactId
+  );
 
   const ts = Date.now();
-  const exchangeId = 300;
+  const exchangeId = 30000 + Math.floor(Math.random() * 10000);
 
   // Text message first
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
+  await seedTranscript(user.apiKey, user.id, interleaveAssistant.agentId, {
+    senderId: interleaveContactId,
+    receiverIds: [interleaveSelfContactId],
     content: `Text before call ${ts}`,
     timestamp: new Date(ts - 40000).toISOString(),
     medium: 'unify_message',
   });
 
   // Meet call in the middle
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
+  await seedTranscript(user.apiKey, user.id, interleaveAssistant.agentId, {
+    senderId: interleaveContactId,
+    receiverIds: [interleaveSelfContactId],
     content: 'Call utterance',
     timestamp: new Date(ts - 25000).toISOString(),
     medium: 'unify_meet',
     exchangeId,
   });
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: ASSISTANT_CONTACT_ID,
+  await seedTranscript(user.apiKey, user.id, interleaveAssistant.agentId, {
+    senderId: interleaveSelfContactId,
+    receiverIds: [interleaveContactId],
     content: 'Call reply',
     timestamp: new Date(ts - 20000).toISOString(),
     medium: 'unify_meet',
@@ -604,14 +619,15 @@ test('call pills interleave correctly with text messages by timestamp', async ({
   });
 
   // Text message after
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: ASSISTANT_CONTACT_ID,
+  await seedTranscript(user.apiKey, user.id, interleaveAssistant.agentId, {
+    senderId: interleaveSelfContactId,
+    receiverIds: [interleaveContactId],
     content: `Text after call ${ts}`,
     timestamp: new Date(ts - 5000).toISOString(),
     medium: 'unify_message',
   });
 
-  await openAssistantChat(page);
+  await openAssistantChat(page, interleaveAssistant);
 
   await expect(page.locator(`text=Text before call ${ts}`).first()).toBeVisible({
     timeout: 20_000,
@@ -622,15 +638,19 @@ test('call pills interleave correctly with text messages by timestamp', async ({
 
   const chatArea = page.getByTestId('chat-scroll-area');
   const allElements = chatArea.locator('[data-testid="message-bubble"], [data-testid="call-pill"]');
-  const texts: string[] = [];
-  const count = await allElements.count();
-  for (let i = 0; i < count; i++) {
-    texts.push((await allElements.nth(i).textContent()) || '');
-  }
+  const sequence = await allElements.evaluateAll((nodes) =>
+    nodes.map((node) => ({
+      testId: node.getAttribute('data-testid'),
+      exchangeId: node.getAttribute('data-exchange-id'),
+      text: node.textContent ?? '',
+    }))
+  );
 
-  const beforeIdx = texts.findIndex((t) => t.includes(`Text before call ${ts}`));
-  const pillIdx = texts.findIndex((t) => t.includes('Call'));
-  const afterIdx = texts.findIndex((t) => t.includes(`Text after call ${ts}`));
+  const beforeIdx = sequence.findIndex((item) => item.text.includes(`Text before call ${ts}`));
+  const pillIdx = sequence.findIndex(
+    (item) => item.exchangeId === String(exchangeId) || item.testId === 'call-pill'
+  );
+  const afterIdx = sequence.findIndex((item) => item.text.includes(`Text after call ${ts}`));
 
   expect(beforeIdx).toBeGreaterThanOrEqual(0);
   expect(pillIdx).toBeGreaterThan(beforeIdx);

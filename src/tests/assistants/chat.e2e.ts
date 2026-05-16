@@ -349,7 +349,7 @@ test('shared-root chat history merges root-local identities and paginates', asyn
 
   const sharedSelfContactId = 70;
   const sharedBossContactId = 77;
-  const sharedAssistantId = Number(sharedAssistant.agentId);
+  const sharedAssistantId = sharedAssistant.agentId;
   const { spaceId } = createSpaceForAssistant(sharedAssistant, {
     name: `Chat Root E2E ${Date.now()}`,
     description: 'Shared chat root e2e description for pagination coverage',
@@ -655,10 +655,8 @@ test('assistant message exposes a copy button that confirms on click', async ({
 }) => {
   // The copy affordance only appears on assistant bubbles (the user
   // already authored their own messages). On click it briefly flips
-  // its `data-copied` attribute and surfaces a success toast — both
-  // are easier to assert against than reading the system clipboard,
-  // which would require granting `clipboard-read` to the browser
-  // context just for this case.
+  // its `data-copied` attribute and updates the aria-label. Those
+  // UI signals are more deterministic than asserting clipboard reads.
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
 
   const ts = Date.now();
@@ -693,9 +691,7 @@ test('assistant message exposes a copy button that confirms on click', async ({
   await copyButton.click();
 
   await expect(copyButton).toHaveAttribute('data-copied', 'true', { timeout: 3_000 });
-  const successToast = page.locator('[data-sonner-toast][data-type="success"]').first();
-  await expect(successToast).toBeVisible({ timeout: 3_000 });
-  await expect(successToast).toContainText('copied');
+  await expect(copyButton).toHaveAttribute('aria-label', 'Message copied');
 });
 
 test('re-enabling credits after exhaustion restores chat input', async ({ authedPage: page }) => {
@@ -1003,7 +999,7 @@ test('shared-root search hides foreign-authored rows while keeping null-authored
 
   const sharedSelfContactId = 170;
   const sharedBossContactId = 177;
-  const sharedAssistantId = Number(sharedAssistant.agentId);
+  const sharedAssistantId = sharedAssistant.agentId;
   const { spaceId } = createSpaceForAssistant(sharedAssistant, {
     name: `Chat Search Root E2E ${Date.now()}`,
     description: 'Shared chat-search root e2e description for visibility coverage',
@@ -1354,7 +1350,7 @@ test('historical shared-root call pills hide foreign-authored exchanges', async 
 
   const sharedSelfContactId = 270;
   const sharedBossContactId = 277;
-  const sharedAssistantId = Number(sharedAssistant.agentId);
+  const sharedAssistantId = sharedAssistant.agentId;
   const { spaceId } = createSpaceForAssistant(sharedAssistant, {
     name: `Chat Hist Root E2E ${Date.now()}`,
     description: 'Shared historical call root e2e description for visibility coverage',

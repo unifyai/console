@@ -202,11 +202,26 @@ export function createUser(opts: CreateUserOpts = {}): SeededUser {
 DO \\$\\$
 DECLARE
   _ba_id integer;
+  _default_plan_template_id bigint;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM "user" WHERE id = '${id}') THEN
     INSERT INTO billing_account (credits, autorecharge, autorecharge_threshold, autorecharge_qty, account_status, tier)
     VALUES (${credits}, false, 0, 25, 'ACTIVE', 'developer')
     RETURNING id INTO _ba_id;
+
+    SELECT id
+    INTO _default_plan_template_id
+    FROM billing_plan_template
+    WHERE name = 'default' AND is_active = true
+    ORDER BY id
+    LIMIT 1;
+
+    IF _default_plan_template_id IS NULL THEN
+      RAISE EXCEPTION 'Missing default billing_plan_template while creating seeded user %', '${id}';
+    END IF;
+
+    INSERT INTO billing_plan_assignment (billing_account_id, template_id, change_reason)
+    VALUES (_ba_id, _default_plan_template_id, 'seed user bootstrap');
 
     INSERT INTO "user" (id, email, name, last_name, billing_account_id, store_prompts)
     VALUES ('${id}', '${email}', '${name}', '${lastName}', _ba_id, true);
@@ -268,11 +283,26 @@ DO \\$\\$
 DECLARE
   _org_id integer;
   _ba_id integer;
+  _default_plan_template_id bigint;
   _owner_role_id integer;
 BEGIN
   INSERT INTO billing_account (credits, autorecharge, autorecharge_threshold, autorecharge_qty, account_status, tier)
   VALUES (${credits}, false, 0, 25, 'ACTIVE', 'developer')
   RETURNING id INTO _ba_id;
+
+  SELECT id
+  INTO _default_plan_template_id
+  FROM billing_plan_template
+  WHERE name = 'default' AND is_active = true
+  ORDER BY id
+  LIMIT 1;
+
+  IF _default_plan_template_id IS NULL THEN
+    RAISE EXCEPTION 'Missing default billing_plan_template while creating seeded org owner %', '${opts.ownerId}';
+  END IF;
+
+  INSERT INTO billing_plan_assignment (billing_account_id, template_id, change_reason)
+  VALUES (_ba_id, _default_plan_template_id, 'seed org bootstrap');
 
   INSERT INTO organization (owner_id, name, billing_account_id, verified)
   VALUES ('${opts.ownerId}', '${name.replace(/'/g, "''")}', _ba_id, true)
@@ -423,6 +453,11 @@ VALUES (
     `SELECT agent_id FROM assistants WHERE user_id = '${opts.userId}' AND first_name = '${firstName}' AND surname = '${surname}' ORDER BY agent_id DESC LIMIT 1;`
   );
   const parsedAgentId = parseInt(agentId, 10);
+  if (!Number.isFinite(parsedAgentId)) {
+    throw new Error(
+      `Failed to parse seeded assistant id for ${opts.userId}/${firstName} ${surname}: ${agentId}`
+    );
+  }
 
   dbExecBlock(`
 INSERT INTO contact_memberships (
