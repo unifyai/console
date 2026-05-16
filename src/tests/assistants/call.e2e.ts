@@ -35,6 +35,7 @@ import {
   closeHireDialogIfOpen,
   selectAssistantInList,
   deleteAllAssistantsForUser,
+  createSpaceForAssistant,
   ensureProjectSync,
   orchestraFetch,
   setUserCredits,
@@ -77,7 +78,13 @@ async function openAssistantProfile(page: import('@playwright/test').Page, agent
 
 let messageCounter = 5000;
 
-async function seedContact(apiKey: string, userId: string, assistantId: number, email: string) {
+async function seedContact(
+  apiKey: string,
+  userId: string,
+  assistantId: number,
+  email: string,
+  contactId: number = CONTACT_ID
+) {
   /* eslint-disable @typescript-eslint/naming-convention */
   const res = await orchestraFetch(
     '/v0/logs',
@@ -86,7 +93,7 @@ async function seedContact(apiKey: string, userId: string, assistantId: number, 
       body: JSON.stringify({
         project_name: 'Assistants',
         context: `${userId}/${assistantId}/Contacts`,
-        entries: [{ email_address: email, contact_id: CONTACT_ID }],
+        entries: [{ email_address: email, contact_id: contactId }],
       }),
     },
     apiKey
@@ -106,7 +113,9 @@ async function seedTranscript(
     medium?: string;
     exchangeId?: number;
     receiverIds?: number[];
+    context?: string;
     metadata?: Record<string, unknown>;
+    authoringAssistantId?: number | null;
   }
 ) {
   const msgId = messageCounter++;
@@ -124,6 +133,9 @@ async function seedTranscript(
     timestamp: ts,
   };
   if (opts.exchangeId !== undefined) entries.exchange_id = opts.exchangeId;
+  if ('authoringAssistantId' in opts) {
+    entries.authoring_assistant_id = opts.authoringAssistantId;
+  }
   if (opts.metadata) entries.metadata = opts.metadata;
   /* eslint-enable @typescript-eslint/naming-convention */
 
@@ -133,7 +145,7 @@ async function seedTranscript(
       method: 'POST',
       body: JSON.stringify({
         project_name: 'Assistants',
-        context: `${userId}/${assistantId}/Transcripts`,
+        context: opts.context ?? `${userId}/${assistantId}/Transcripts`,
         entries: [entries],
       }),
     },
@@ -161,11 +173,14 @@ async function queryTranscripts(
   return data.logs ?? [];
 }
 
-async function openAssistantChat(page: import('@playwright/test').Page) {
+async function openAssistantChat(
+  page: import('@playwright/test').Page,
+  targetAssistant: { agentId: number } = assistant
+) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
+  const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
   await listItem.click();
   await page.waitForTimeout(2_000);
@@ -354,33 +369,112 @@ test('hanging up and re-calling the same assistant works', async ({ authedPage: 
 // Call pill tests
 // ---------------------------------------------------------------------------
 
-test('historical call pill renders in the chat timeline', async ({ authedPage: page }) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
+test('historical call pill renders in shared roots only for own or null authoring', async ({
+  authedPage: page,
+}) => {
+  const sharedAssistant = createAssistant({
+    userId: user.id,
+    firstName: 'SharedCall',
+    surname: `E2E${Date.now()}`,
+  });
+  await seedContact(
+    user.apiKey,
+    user.id,
+    sharedAssistant.agentId,
+    user.email,
+    sharedAssistant.bossContactId
+  );
+
+  const sharedSelfContactId = 370;
+  const sharedBossContactId = 377;
+  const sharedAssistantId = Number(sharedAssistant.agentId);
+  const { spaceId } = createSpaceForAssistant(sharedAssistant, {
+    name: `Call Root E2E ${Date.now()}`,
+    description: 'Shared call root e2e description for visibility coverage',
+    selfContactId: sharedSelfContactId,
+    bossContactId: sharedBossContactId,
+  });
+  const sharedContext = `Spaces/${spaceId}/Transcripts`;
 
   const ts = Date.now();
-  const exchangeId = 100;
+  const ownExchangeId = 12000 + Math.floor(Math.random() * 10000);
+  const nullExchangeId = ownExchangeId + 1;
+  const foreignExchangeId = ownExchangeId + 2;
 
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
-    content: 'Hello, can you hear me?',
-    timestamp: new Date(ts - 30000).toISOString(),
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedBossContactId,
+    content: 'Visible own-authoring call message',
+    timestamp: new Date(ts - 30_000).toISOString(),
     medium: 'unify_meet',
-    exchangeId,
+    exchangeId: ownExchangeId,
+    receiverIds: [sharedSelfContactId],
+    context: sharedContext,
     metadata: { call_utterance_timestamp: '00.00' },
+    authoringAssistantId: sharedAssistantId,
   });
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: ASSISTANT_CONTACT_ID,
-    content: 'Yes, I can hear you clearly!',
-    timestamp: new Date(ts - 5000).toISOString(),
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedSelfContactId,
+    content: 'Visible own-authoring call reply',
+    timestamp: new Date(ts - 29_000).toISOString(),
     medium: 'unify_meet',
-    exchangeId,
+    exchangeId: ownExchangeId,
+    receiverIds: [sharedBossContactId],
+    context: sharedContext,
     metadata: { call_utterance_timestamp: '00.25' },
+    authoringAssistantId: sharedAssistantId,
   });
 
-  await openAssistantChat(page);
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedBossContactId,
+    content: 'Visible null-authoring call message',
+    timestamp: new Date(ts - 28_000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId: nullExchangeId,
+    receiverIds: [sharedSelfContactId],
+    context: sharedContext,
+    authoringAssistantId: null,
+  });
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedSelfContactId,
+    content: 'Visible null-authoring call reply',
+    timestamp: new Date(ts - 27_000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId: nullExchangeId,
+    receiverIds: [sharedBossContactId],
+    context: sharedContext,
+    authoringAssistantId: null,
+  });
 
-  const callPill = page.getByTestId('call-pill').first();
-  await expect(callPill).toBeVisible({ timeout: 20_000 });
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedBossContactId,
+    content: 'Hidden foreign-authoring call message',
+    timestamp: new Date(ts - 26_000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId: foreignExchangeId,
+    receiverIds: [sharedSelfContactId],
+    context: sharedContext,
+    authoringAssistantId: sharedAssistantId + 1,
+  });
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedSelfContactId,
+    content: 'Hidden foreign-authoring call reply',
+    timestamp: new Date(ts - 25_000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId: foreignExchangeId,
+    receiverIds: [sharedBossContactId],
+    context: sharedContext,
+    authoringAssistantId: sharedAssistantId + 1,
+  });
+
+  await openAssistantChat(page, sharedAssistant);
+
+  await expect(page.locator(`[data-exchange-id="${ownExchangeId}"]`)).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.locator(`[data-exchange-id="${nullExchangeId}"]`)).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.locator(`[data-exchange-id="${foreignExchangeId}"]`)).toHaveCount(0);
 
   const pillButton = page.getByTestId('call-pill-button').first();
   await expect(pillButton).toBeVisible();
