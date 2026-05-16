@@ -177,7 +177,7 @@ export async function fetchTranscriptsDirect(
     const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
     const rootLogs = await Promise.all(
       queries.map(async (query) => {
-        const filterExpr = transcriptFilterForRoot(query);
+        const filterExpr = transcriptFilterForRoot(query, assistant.agentId);
         const params = new URLSearchParams({
           projectName: 'Assistants',
           context: query.context,
@@ -253,7 +253,7 @@ export async function fetchMeetExchangesDirect(
     const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
     const rootLogs = await Promise.all(
       queries.map(async (query) => {
-        const filterExpr = meetExchangeFilterForRoot(query);
+        const filterExpr = meetExchangeFilterForRoot(query, assistant.agentId);
         const params = new URLSearchParams({
           projectName: 'Assistants',
           context: query.context,

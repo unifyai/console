@@ -132,6 +132,17 @@ describe('contact-scoped root reads', () => {
     const transcriptRows = result as { content?: string }[];
     expect(transcriptRows.filter((row) => row.content === 'fanout duplicate row')).toHaveLength(1);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    const requestedFilters = fetchMock.mock.calls.map(([input]) => {
+      const url = new URL(String(input), 'https://console.test');
+      return url.searchParams.get('filterExpr') ?? '';
+    });
+    const personalFilter = requestedFilters.find((filter) => filter.includes('sender_id == 10'));
+    const sharedFilter = requestedFilters.find((filter) => filter.includes('sender_id == 77'));
+    expect(personalFilter).toBeDefined();
+    expect(personalFilter).not.toContain('authoring_assistant_id');
+    expect(sharedFilter).toContain(
+      '(authoring_assistant_id == 42 or authoring_assistant_id == None)'
+    );
   });
 
   it('dedupes fanout copies in getTranscripts while keeping unique rows', async () => {
@@ -200,6 +211,17 @@ describe('contact-scoped root reads', () => {
     ]);
     const transcriptRows = result as { content?: string }[];
     expect(transcriptRows.filter((row) => row.content === 'fanout duplicate row')).toHaveLength(1);
+    const requestedFilters = fetchMock.mock.calls.map(([input]) => {
+      const url = new URL(String(input));
+      return url.searchParams.get('filterExpr') ?? '';
+    });
+    const personalFilter = requestedFilters.find((filter) => filter.includes('sender_id == 10'));
+    const sharedFilter = requestedFilters.find((filter) => filter.includes('sender_id == 77'));
+    expect(personalFilter).toBeDefined();
+    expect(personalFilter).not.toContain('authoring_assistant_id');
+    expect(sharedFilter).toContain(
+      '(authoring_assistant_id == 42 or authoring_assistant_id == None)'
+    );
   });
 
   it('respects merge-key exclusions when a boundary row resolves to another root', async () => {

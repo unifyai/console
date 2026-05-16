@@ -8,9 +8,11 @@ import {
   isBoss,
   isSelf,
   meetExchangeFilter,
+  meetExchangeFilterForRoot,
   roleFromSenderId,
   roots,
   transcriptFilter,
+  transcriptFilterForRoot,
   selfContactId,
 } from '@/lib/assistants/scope';
 
@@ -89,6 +91,46 @@ describe('assistant scope helpers', () => {
     expect(meetExchangeFilter(scopedAssistant, 43)).toBe(
       'medium == "unify_meet" and (sender_id == 43 or sender_id == 42) and (43 in receiver_ids or receiver_ids == [42])'
     );
+  });
+
+  it('adds authoring visibility clauses for shared roots', () => {
+    expect(
+      transcriptFilterForRoot(
+        {
+          root: { kind: 'space', spaceId: 9 },
+          contactId: 43,
+          selfContactId: 42,
+        },
+        '42'
+      )
+    ).toBe(
+      'medium == "unify_message" and (sender_id == 43 or (sender_id == 42 and 43 in receiver_ids)) and (authoring_assistant_id == 42 or authoring_assistant_id == None)'
+    );
+    expect(
+      meetExchangeFilterForRoot(
+        {
+          root: { kind: 'space', spaceId: 9 },
+          contactId: 43,
+          selfContactId: 42,
+        },
+        '42'
+      )
+    ).toBe(
+      'medium == "unify_meet" and (sender_id == 43 or sender_id == 42) and (43 in receiver_ids or receiver_ids == [42]) and (authoring_assistant_id == 42 or authoring_assistant_id == None)'
+    );
+  });
+
+  it('fails fast when shared-root authoring filter receives non-numeric assistant ids', () => {
+    expect(() =>
+      transcriptFilterForRoot(
+        {
+          root: { kind: 'space', spaceId: 9 },
+          contactId: 43,
+          selfContactId: 42,
+        },
+        'assistant-42'
+      )
+    ).toThrow('[assistants/scope] assistantId must be numeric, got: assistant-42');
   });
 
   it('returns personal first followed by sorted space roots', () => {

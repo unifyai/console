@@ -50,29 +50,63 @@ export function conversationFilter(assistant: Assistant, contactId: number): str
   return conversationFilterForRoot({ contactId, selfContactId: selfContactId(assistant) });
 }
 
+function parseAssistantIdForAuthoringFilter(assistantId: string): number {
+  if (!/^\d+$/.test(assistantId)) {
+    throw new Error(`[assistants/scope] assistantId must be numeric, got: ${assistantId}`);
+  }
+  return Number(assistantId);
+}
+
+export function authoringAssistantFilterForRoot(
+  root: ContextRoot,
+  assistantId: string
+): string | null {
+  if (root.kind !== 'space') return null;
+  const parsedAssistantId = parseAssistantIdForAuthoringFilter(assistantId);
+  return `(authoring_assistant_id == ${parsedAssistantId} or authoring_assistant_id == None)`;
+}
+
 export function transcriptFilterForRoot(
-  query: Pick<ContactScopedRootQuery, 'contactId' | 'selfContactId'>
+  query: Pick<ContactScopedRootQuery, 'root' | 'contactId' | 'selfContactId'>,
+  assistantId: string
 ): string {
-  return `medium == "unify_message" and ${conversationFilterForRoot(query)}`;
+  const clauses = ['medium == "unify_message"', conversationFilterForRoot(query)];
+  const authoringFilter = authoringAssistantFilterForRoot(query.root, assistantId);
+  if (authoringFilter) {
+    clauses.push(authoringFilter);
+  }
+  return clauses.join(' and ');
 }
 
 export function transcriptFilter(assistant: Assistant, contactId: number): string {
-  return transcriptFilterForRoot({ contactId, selfContactId: selfContactId(assistant) });
+  return transcriptFilterForRoot(
+    { root: { kind: 'personal' }, contactId, selfContactId: selfContactId(assistant) },
+    assistant.agentId
+  );
 }
 
 export function meetExchangeFilterForRoot(
-  query: Pick<ContactScopedRootQuery, 'contactId' | 'selfContactId'>
+  query: Pick<ContactScopedRootQuery, 'root' | 'contactId' | 'selfContactId'>,
+  assistantId: string
 ): string {
   const { contactId, selfContactId: selfId } = query;
-  return [
+  const clauses = [
     'medium == "unify_meet"',
     `(sender_id == ${contactId} or sender_id == ${selfId})`,
     `(${contactId} in receiver_ids or receiver_ids == [${selfId}])`,
-  ].join(' and ');
+  ];
+  const authoringFilter = authoringAssistantFilterForRoot(query.root, assistantId);
+  if (authoringFilter) {
+    clauses.push(authoringFilter);
+  }
+  return clauses.join(' and ');
 }
 
 export function meetExchangeFilter(assistant: Assistant, contactId: number): string {
-  return meetExchangeFilterForRoot({ contactId, selfContactId: selfContactId(assistant) });
+  return meetExchangeFilterForRoot(
+    { root: { kind: 'personal' }, contactId, selfContactId: selfContactId(assistant) },
+    assistant.agentId
+  );
 }
 
 export function rootContext(

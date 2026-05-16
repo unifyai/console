@@ -111,7 +111,7 @@ export const getTranscripts = async (apiKey: string) => {
       const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
       const rootLogs = await Promise.all(
         queries.map(async (query) => {
-          let filterExpr = transcriptFilterForRoot(query);
+          let filterExpr = transcriptFilterForRoot(query, assistant.agentId);
           if (before) {
             filterExpr += ` and timestamp <= "${before.timestamp}"`;
           }

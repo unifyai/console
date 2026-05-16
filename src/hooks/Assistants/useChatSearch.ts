@@ -10,6 +10,7 @@ import type {
 import type { Assistant } from '@/types/assistants/assistant';
 import { mergeRootRows } from '@/lib/client/read_across_roots';
 import {
+  authoringAssistantFilterForRoot,
   contactScopedRootQueries,
   roleFromRootSenderId,
   type ContactScopedRootQuery,
@@ -43,7 +44,8 @@ interface UseChatSearchReturn {
 
 function buildFilterExpr(
   filters: ChatSearchFilters,
-  query: Pick<ContactScopedRootQuery, 'contactId' | 'selfContactId'>
+  query: Pick<ContactScopedRootQuery, 'root' | 'contactId' | 'selfContactId'>,
+  assistantId: string
 ): string {
   const clauses: string[] = [];
   const { contactId, selfContactId: selfId } = query;
@@ -70,6 +72,10 @@ function buildFilterExpr(
   clauses.push(
     `(${contactId} in receiver_ids or receiver_ids == [${selfId}] or sender_id == ${contactId})`
   );
+  const authoringFilter = authoringAssistantFilterForRoot(query.root, assistantId);
+  if (authoringFilter) {
+    clauses.push(authoringFilter);
+  }
 
   // Content search (case-insensitive via .lower() on both sides)
   if (filters.query.trim()) {
@@ -107,7 +113,7 @@ async function executeSearch(
   const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
   const rootLogs = await Promise.all(
     queries.map(async (query) => {
-      const filterExpr = buildFilterExpr(filters, query);
+      const filterExpr = buildFilterExpr(filters, query, assistant.agentId);
       const params = new URLSearchParams({
         projectName: 'Assistants',
         context: query.context,

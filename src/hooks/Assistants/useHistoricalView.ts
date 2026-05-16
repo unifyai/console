@@ -91,7 +91,7 @@ async function fetchPage(
     const rootLimit = limit + excludedKeys.size + 1;
     const rootLogs = await Promise.all(
       queries.map(async (query) => {
-        const filterExpr = `${transcriptFilterForRoot(query)} and ${rangeFilter}`;
+        const filterExpr = `${transcriptFilterForRoot(query, assistant.agentId)} and ${rangeFilter}`;
         const params = new URLSearchParams({
           projectName: 'Assistants',
           context: query.context,
@@ -175,7 +175,7 @@ async function fetchCallPillsForRange(
     const rootLogs = await Promise.all(
       queries.map(async (query) => {
         const filterExpr = [
-          meetExchangeFilterForRoot(query),
+          meetExchangeFilterForRoot(query, assistant.agentId),
           `timestamp >= "${minTs.toISOString()}"`,
           `timestamp <= "${maxTs.toISOString()}"`,
         ].join(' and ');
