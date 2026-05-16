@@ -223,7 +223,7 @@ export function AssistantListItem({
           ) : null}
         </div>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
         {alsoInSpaceLabels.length > 0 && (
           <TooltipProvider delayDuration={100}>
             <Tooltip>
