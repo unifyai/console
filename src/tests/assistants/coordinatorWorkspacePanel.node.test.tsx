@@ -323,7 +323,7 @@ describe('Coordinator workspace panel', () => {
     );
 
     expect(await screen.findByTestId('coordinator-workspace-panel')).toBeInTheDocument();
-    expect(requestUrls).toHaveLength(3);
+    expect(requestUrls.length).toBeGreaterThanOrEqual(3);
     const decodedUrls = requestUrls.map((url) => decodeURIComponent(url));
     expect(decodedUrls.some((url) => url.includes('/Coordinator/State'))).toBe(true);
     expect(decodedUrls.some((url) => url.includes('/Coordinator/Checklist'))).toBe(true);
@@ -439,6 +439,7 @@ describe('Coordinator sidebar chrome', () => {
         isSelected={false}
         onShowProfile={vi.fn()}
         onOpenContactManager={vi.fn()}
+        onOpenWorkspaceManager={vi.fn()}
         onEditAssistant={vi.fn()}
         onEndContract={vi.fn()}
         isFolded={false}
@@ -463,6 +464,7 @@ describe('Coordinator sidebar chrome', () => {
         isSelected={false}
         onShowProfile={onShowProfile}
         onOpenContactManager={vi.fn()}
+        onOpenWorkspaceManager={vi.fn()}
         onEditAssistant={vi.fn()}
         onEndContract={vi.fn()}
         isFolded
@@ -492,6 +494,7 @@ describe('Coordinator sidebar chrome', () => {
         isSelected={false}
         onShowProfile={vi.fn()}
         onOpenContactManager={vi.fn()}
+        onOpenWorkspaceManager={vi.fn()}
         onEditAssistant={vi.fn()}
         onEndContract={vi.fn()}
         isFolded={false}

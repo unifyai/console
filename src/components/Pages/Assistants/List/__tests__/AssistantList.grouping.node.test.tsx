@@ -86,6 +86,7 @@ function renderAssistantList(
       onShowProfile={vi.fn()}
       onOpenHireDialog={vi.fn()}
       onOpenContactManager={vi.fn()}
+      onOpenWorkspaceManager={vi.fn()}
       onEditAssistant={vi.fn()}
       isFolded={options.isFolded ?? false}
       activeCallAssistantId={null}

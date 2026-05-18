@@ -194,6 +194,7 @@ export function AssistantList({
           isSelected={profileAssistantId === entry.assistant.agentId}
           onShowProfile={onShowProfile}
           onOpenContactManager={onOpenContactManager}
+          onOpenWorkspaceManager={onOpenWorkspaceManager}
           onEditAssistant={onEditAssistant}
           onEndContract={canEndContract?.(entry.assistant) ? onEndContract : undefined}
           canEdit={canEditAssistant ? canEditAssistant(entry.assistant) : true}
@@ -216,6 +217,7 @@ export function AssistantList({
       onEditAssistant,
       onEndContract,
       onOpenContactManager,
+      onOpenWorkspaceManager,
       onShowProfile,
       profileAssistantId,
       unreadCounts,
