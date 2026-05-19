@@ -15,6 +15,7 @@ import { MemoryTable } from './MemoryTable';
 import { MemoryRowDetail } from './MemoryRowDetail';
 import type { MemoryContext, MemoryRow } from '@/types/assistants/memory';
 import type { Assistant } from '@/types/assistants/assistant';
+import { fetchAssistants } from '@/lib/client/assistant';
 import {
   DestinationDropdown,
   MEMORY_DESTINATION_ALL,
@@ -27,6 +28,7 @@ interface MemoryPaneProps {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
+  isVisible?: boolean;
   /**
    * Optional externally-controlled sub-tab. When the parent passes this
    * (and updates it), the pane mirrors the value to the underlying hook
@@ -61,12 +63,92 @@ const TAB_CLASS = [
   'data-[active=true]:bg-primary data-[active=true]:text-primary-foreground',
 ].join(' ');
 
+const ASSISTANT_NAME_LOOKUP_CACHE = new Map<string, Map<number, string>>();
+const ASSISTANT_NAME_LOOKUP_IN_FLIGHT = new Map<string, Promise<Map<number, string>>>();
+
+function assistantNameLookupKey(assistant: Pick<Assistant, 'organizationId' | 'userId'>): string {
+  if (assistant.organizationId !== null) {
+    return `org:${assistant.organizationId}`;
+  }
+  return `user:${assistant.userId}`;
+}
+
+function assistantDisplayNameFromNames(
+  names: Pick<Assistant, 'firstName' | 'surname'>
+): string | null {
+  const firstName = (names.firstName ?? '').trim();
+  const surname = (names.surname ?? '').trim();
+  if (firstName && surname) {
+    return `${firstName} ${surname}`;
+  }
+  if (firstName) {
+    return firstName;
+  }
+  if (surname) {
+    return surname;
+  }
+  return null;
+}
+
+function assistantNameMapsEqual(left: Map<number, string>, right: Map<number, string>): boolean {
+  if (left.size !== right.size) {
+    return false;
+  }
+  let matches = true;
+  left.forEach((value, key) => {
+    if (right.get(key) !== value) {
+      matches = false;
+    }
+  });
+  if (!matches) return false;
+  return true;
+}
+
+async function fetchAssistantNameLookup(
+  lookupKey: string,
+  isOrgContext: boolean
+): Promise<Map<number, string>> {
+  const cached = ASSISTANT_NAME_LOOKUP_CACHE.get(lookupKey);
+  if (cached) {
+    return new Map(cached);
+  }
+
+  const existing = ASSISTANT_NAME_LOOKUP_IN_FLIGHT.get(lookupKey);
+  if (existing) {
+    return existing;
+  }
+
+  const request = (async () => {
+    const result = await fetchAssistants(isOrgContext, true);
+    if (!Array.isArray(result)) {
+      return new Map<number, string>();
+    }
+
+    const namesById = new Map<number, string>();
+    for (const candidate of result) {
+      const candidateId = Number(candidate.agentId);
+      if (!Number.isInteger(candidateId)) continue;
+      const candidateDisplayName = assistantDisplayNameFromNames(candidate);
+      if (!candidateDisplayName) continue;
+      namesById.set(candidateId, candidateDisplayName);
+    }
+    ASSISTANT_NAME_LOOKUP_CACHE.set(lookupKey, namesById);
+    return namesById;
+  })().finally(() => {
+    ASSISTANT_NAME_LOOKUP_IN_FLIGHT.delete(lookupKey);
+  });
+
+  ASSISTANT_NAME_LOOKUP_IN_FLIGHT.set(lookupKey, request);
+  return request;
+}
+
 export function MemoryPane({
   assistant,
   ownerId,
   assistantId,
   subTab,
   onSubTabChange,
+  isVisible = true,
 }: MemoryPaneProps) {
   const [destinationValue, setDestinationValue] =
     useState<MemoryDestinationValue>(MEMORY_DESTINATION_ALL);
@@ -104,6 +186,7 @@ export function MemoryPane({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedRow, setSelectedRow] = useState<Record<string, unknown> | null>(null);
   const [searchValue, setSearchValue] = useState('');
+  const [assistantNamesById, setAssistantNamesById] = useState<Map<number, string>>(new Map());
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -176,9 +259,79 @@ export function MemoryPane({
     ]);
   }, [assistant.contactIdentityRoots, assistant.selfContactId]);
   const assistantDisplayName = useMemo(() => {
-    const fullName = [assistant.firstName, assistant.surname].filter(Boolean).join(' ').trim();
-    return fullName || assistant.firstName;
+    return (
+      assistantDisplayNameFromNames({
+        firstName: assistant.firstName,
+        surname: assistant.surname,
+      }) ?? assistant.firstName
+    );
   }, [assistant.firstName, assistant.surname]);
+  const selectedAssistantId = useMemo(() => {
+    const parsed = Number(assistant.agentId);
+    return Number.isInteger(parsed) ? parsed : null;
+  }, [assistant.agentId]);
+  const isOrgContext = assistant.organizationId !== null;
+  const lookupKey = useMemo(
+    () =>
+      assistantNameLookupKey({
+        organizationId: assistant.organizationId,
+        userId: assistant.userId,
+      }),
+    [assistant.organizationId, assistant.userId]
+  );
+  const shouldResolveAssistantNames = isVisible && activeContext === 'Transcripts';
+
+  useEffect(() => {
+    let isActive = true;
+    const fallbackMap = new Map<number, string>();
+    if (selectedAssistantId !== null && assistantDisplayName) {
+      fallbackMap.set(selectedAssistantId, assistantDisplayName);
+    }
+    const setIfChanged = (next: Map<number, string>) => {
+      setAssistantNamesById((previous) =>
+        assistantNameMapsEqual(previous, next) ? previous : next
+      );
+    };
+
+    const loadAssistantNames = async () => {
+      if (!shouldResolveAssistantNames) {
+        setIfChanged(fallbackMap);
+        return;
+      }
+
+      const cachedNames = ASSISTANT_NAME_LOOKUP_CACHE.get(lookupKey);
+      if (cachedNames) {
+        const mergedNames = new Map(cachedNames);
+        fallbackMap.forEach((value, key) => {
+          mergedNames.set(key, value);
+        });
+        setIfChanged(mergedNames);
+        return;
+      }
+
+      setIfChanged(fallbackMap);
+      const resolvedNames = await fetchAssistantNameLookup(lookupKey, isOrgContext);
+      if (!isActive) {
+        return;
+      }
+      const namesById = new Map(resolvedNames);
+      fallbackMap.forEach((value, key) => {
+        namesById.set(key, value);
+      });
+      setIfChanged(namesById);
+    };
+
+    void loadAssistantNames();
+    return () => {
+      isActive = false;
+    };
+  }, [
+    shouldResolveAssistantNames,
+    lookupKey,
+    isOrgContext,
+    assistantDisplayName,
+    selectedAssistantId,
+  ]);
 
   const activeState = useMemo(() => {
     switch (activeContext) {
@@ -204,10 +357,20 @@ export function MemoryPane({
       return buildTranscriptColumns(contactMap, {
         assistantContactIds,
         assistantDisplayName,
+        selectedAssistantId,
+        assistantNamesById,
       });
     }
     return getColumnsForContext(activeContext, activeState.fields);
-  }, [activeContext, activeState.fields, contactMap, assistantContactIds, assistantDisplayName]);
+  }, [
+    activeContext,
+    activeState.fields,
+    contactMap,
+    assistantContactIds,
+    assistantDisplayName,
+    selectedAssistantId,
+    assistantNamesById,
+  ]);
 
   const columns = useMemo(() => {
     if (activeState.rows.length === 0) return allColumns;

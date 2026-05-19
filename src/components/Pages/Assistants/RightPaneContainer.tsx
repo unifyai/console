@@ -938,6 +938,7 @@ export function RightPaneContainer({
             assistant={assistant}
             ownerId={assistant.userId}
             assistantId={assistant.agentId}
+            isVisible={tab === 'memory'}
             subTab={subTabBySlot[slot].memory}
             onSubTabChange={slot === 'primary' ? primaryMemoryChange : secondaryMemoryChange}
           />

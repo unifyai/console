@@ -44,6 +44,7 @@ export interface TranscriptRow {
   medium: string | null;
   senderId: number | null;
   receiverIds: number[] | null;
+  authoringAssistantId: number | null;
   timestamp: string | null;
   content: string | null;
   exchangeId: number | null;
