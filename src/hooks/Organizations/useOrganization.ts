@@ -8,8 +8,7 @@ import {
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
-import { generateCoordinatorOpener } from '@/lib/assistants/preHireChat';
-import { seedCoordinatorOpener } from '@/lib/client/coordinator';
+import { seedPersonalCoordinatorOpener } from '@/lib/assistants/preHireChat';
 
 export interface UnifiedMember {
   id: string; // userId or invite_id
@@ -25,23 +24,14 @@ export interface UnifiedMember {
   isInvite?: boolean;
 }
 
-async function seedNewOrganizationCoordinator(org: Organization): Promise<void> {
-  if (!org.coordinatorId) {
-    console.warn('[organizations] Organization was created without a Coordinator id');
-    return;
-  }
-
+async function seedOrganizationWorkspaceOpener(org: Organization): Promise<void> {
   try {
-    const opener = await generateCoordinatorOpener({
+    await seedPersonalCoordinatorOpener({
       workspaceType: 'organization',
       workspaceName: org.name,
     });
-    const seedResult = await seedCoordinatorOpener(org.coordinatorId, opener.content);
-    if ('detail' in seedResult) {
-      console.warn('[organizations] Failed to seed Coordinator opener:', seedResult.detail);
-    }
   } catch (error) {
-    console.warn('[organizations] Failed to prepare Coordinator opener:', error);
+    console.warn('[organizations] Failed to seed Coordinator opener for organization:', error);
   }
 }
 
@@ -199,7 +189,7 @@ export const useOrganization = (
         const newOrg = result as Organization;
         setOrganizations((prev) => [...prev, newOrg]);
         toast.success('Organization created successfully');
-        await seedNewOrganizationCoordinator(newOrg);
+        await seedOrganizationWorkspaceOpener(newOrg);
         await switchWorkspace(newOrg.id.toString());
         router.refresh();
       }

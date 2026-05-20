@@ -17,6 +17,7 @@ import { AssistantListItemSkeleton } from './AssistantListItemSkeleton';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
+import { resolveCanonicalPersonalCoordinator } from '@/lib/assistants/coordinatorIdentity';
 import type { SpaceSummary } from '@/types/spaces/space';
 import { AssistantListGroupHeader } from './AssistantListGroupHeader';
 import {
@@ -65,6 +66,7 @@ interface AssistantListProps {
    * multiplex stream. A missing key or `0` means no badge is shown.
    */
   unreadCounts?: Record<string, number>;
+  currentUserId?: string | null;
   spacesById: Record<number, SpaceSummary>;
 }
 
@@ -89,6 +91,7 @@ export function AssistantList({
   canHire = true,
   onToggleFold,
   unreadCounts,
+  currentUserId = null,
   spacesById,
 }: AssistantListProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -107,9 +110,17 @@ export function AssistantList({
     );
   }, [assistants, searchTerm]);
 
+  const canonicalCoordinatorId = React.useMemo(
+    () => resolveCanonicalPersonalCoordinator(filteredAssistants, currentUserId)?.agentId ?? null,
+    [filteredAssistants, currentUserId]
+  );
+
   const assistantGroups = React.useMemo(
-    () => groupAssistantsBySpace(filteredAssistants, spacesById),
-    [filteredAssistants, spacesById]
+    () =>
+      groupAssistantsBySpace(filteredAssistants, spacesById, {
+        pinnedCoordinatorId: canonicalCoordinatorId,
+      }),
+    [canonicalCoordinatorId, filteredAssistants, spacesById]
   );
 
   const foldedAssistantRows = React.useMemo(() => {
@@ -120,7 +131,7 @@ export function AssistantList({
     const coordinatorRows: Assistant[] = [];
     const regularRows: Assistant[] = [];
     filteredAssistants.forEach((assistant) => {
-      if (assistant.isCoordinator) {
+      if (assistant.isCoordinator && assistant.agentId === canonicalCoordinatorId) {
         coordinatorRows.push(assistant);
       } else {
         regularRows.push(assistant);
@@ -135,7 +146,7 @@ export function AssistantList({
       assistants: [...coordinatorRows, ...regularRows],
       coordinatorCount: coordinatorRows.length,
     };
-  }, [filteredAssistants, isFolded]);
+  }, [canonicalCoordinatorId, filteredAssistants, isFolded]);
 
   React.useEffect(() => {
     try {

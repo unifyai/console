@@ -139,4 +139,21 @@ describe('groupAssistantsBySpace', () => {
     expect(groups).toHaveLength(1);
     expect(groups[0]).toMatchObject({ id: 'pinned', label: 'Pinned' });
   });
+
+  it('pins only the canonical coordinator when a pinned id is provided', () => {
+    const groups = groupAssistantsBySpace(
+      [
+        assistant('1', 'Coordinator', 'One', [], { isCoordinator: true }),
+        assistant('2', 'Coordinator', 'Two', [], { isCoordinator: true }),
+      ],
+      {},
+      { pinnedCoordinatorId: '2' }
+    );
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0]).toMatchObject({ id: 'pinned' });
+    expect(groups[0].rows.map((row) => row.assistant.agentId)).toEqual(['2']);
+    expect(groups[1]).toMatchObject({ id: 'solo' });
+    expect(groups[1].rows.map((row) => row.assistant.agentId)).toEqual(['1']);
+  });
 });

@@ -3,6 +3,7 @@ import { Assistant, AssistantActions, AssistantUpdatePayload } from '@/types/ass
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
+import { canonicalizeAssistantList } from '@/lib/assistants/coordinatorIdentity';
 import {
   fetchAssistants,
   fetchMediaSignedUrls,
@@ -38,7 +39,11 @@ function collectMediaPaths(assistants: ReadonlyArray<Assistant>): string[] {
   return Array.from(paths);
 }
 
-export function useAssistants(allActions: AssistantActions, isOrgContext: boolean) {
+export function useAssistants(
+  allActions: AssistantActions,
+  isOrgContext: boolean,
+  currentUserId: string | null
+) {
   const { assistant: assistantActions } = allActions;
 
   const [assistants, setAssistants] = React.useState<Assistant[]>([]);
@@ -61,7 +66,7 @@ export function useAssistants(allActions: AssistantActions, isOrgContext: boolea
       }
 
       try {
-        const listResult = await fetchAssistants(isOrgContext);
+        const listResult = await fetchAssistants(isOrgContext, true, { currentUserId });
 
         if (typeof listResult === 'object' && listResult !== null && 'detail' in listResult) {
           // Specifically handle 403 Forbidden as a non-error state (user is not approved)
@@ -83,13 +88,18 @@ export function useAssistants(allActions: AssistantActions, isOrgContext: boolea
           throw new Error(`Invalid response format received for assistants: ${detail}`);
         }
 
-        const validAssistants = listResult
+        const normalizedAssistants = canonicalizeAssistantList(listResult, {
+          currentUserId,
+          pinCanonicalCoordinatorFirst: isOrgContext,
+        });
+
+        const validAssistants = normalizedAssistants
           .filter((a) => a && a.agentId && a.firstName)
           .map((assistant) => ({
             ...assistant,
             isCoordinator: assistant.isCoordinator === true,
           }));
-        if (validAssistants.length !== listResult.length) {
+        if (validAssistants.length !== normalizedAssistants.length) {
           /* no-op */
         }
 
@@ -206,7 +216,7 @@ export function useAssistants(allActions: AssistantActions, isOrgContext: boolea
         }
       }
     },
-    [isOrgContext]
+    [currentUserId, isOrgContext]
   );
 
   React.useEffect(() => {

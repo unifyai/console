@@ -251,9 +251,12 @@ export async function generateCoordinatorOpener(
 
 /**
  * Best-effort personal Coordinator provisioning + first-turn opener seeding.
- * Called during personal onboarding to align with org workspace opener behavior.
+ * The seeded message can target personal or organization workspace onboarding
+ * while still writing into the same personal Coordinator transcript.
  */
-export async function seedPersonalCoordinatorOpener(): Promise<void> {
+export async function seedPersonalCoordinatorOpener(
+  request: CoordinatorOpenerRequest = { workspaceType: 'personal' }
+): Promise<void> {
   const user = await getCurrentUser();
   if (!user) {
     throw new Error('Unauthorized');
@@ -272,9 +275,7 @@ export async function seedPersonalCoordinatorOpener(): Promise<void> {
   }
 
   const userName = formatCoordinatorPromptDisplayText(`${user.name} ${user.lastName}`, 'there');
-  const openerContent = await generateCoordinatorOpenerText(userName, {
-    workspaceType: 'personal',
-  });
+  const openerContent = await generateCoordinatorOpenerText(userName, request);
 
   await orchestraClient.post(`/assistant/${coordinatorId}/transcript-seed`, {
     content: openerContent,

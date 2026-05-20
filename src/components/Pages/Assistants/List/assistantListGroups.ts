@@ -60,14 +60,20 @@ function rowsForSpace(
 
 export function groupAssistantsBySpace(
   assistants: readonly Assistant[],
-  spacesById: Record<number, SpaceSummary>
+  spacesById: Record<number, SpaceSummary>,
+  options: { pinnedCoordinatorId?: string | null } = {}
 ): AssistantListGroup[] {
   const pinnedRows: AssistantListEntry[] = [];
   const soloRows: AssistantListEntry[] = [];
   const rowsBySpace = new Map<number, AssistantListEntry[]>();
+  const pinnedCoordinatorId = options.pinnedCoordinatorId ?? null;
 
   for (const assistant of assistants) {
-    if (isCoordinator(assistant)) {
+    const shouldPinCoordinator =
+      isCoordinator(assistant) &&
+      (pinnedCoordinatorId === null || assistant.agentId === pinnedCoordinatorId);
+
+    if (shouldPinCoordinator) {
       pinnedRows.push({
         assistant,
         isPrimarySpaceListing: true,

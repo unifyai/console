@@ -9,11 +9,7 @@ import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
 import { ResponseProps } from '@/types/common';
 import { Organization } from '@/types/organization';
-import {
-  generateCoordinatorOpener,
-  seedPersonalCoordinatorOpener,
-} from '@/lib/assistants/preHireChat';
-import { seedCoordinatorOpener } from '@/lib/client/coordinator';
+import { seedPersonalCoordinatorOpener } from '@/lib/assistants/preHireChat';
 
 interface WorkspaceContentProps {
   onCreateOrg: (name: string) => Promise<Organization | ResponseProps>;
@@ -129,23 +125,14 @@ const WorkspaceContent = ({
     await completeAndRedirect({ selectedType: 'personal' });
   }, [completeAndRedirect]);
 
-  const seedNewOrganizationCoordinator = useCallback(async (org: Organization) => {
-    if (!org.coordinatorId) {
-      console.warn('[onboarding] Organization was created without a Coordinator id');
-      return;
-    }
-
+  const seedOrganizationWorkspaceOpener = useCallback(async (org: Organization) => {
     try {
-      const opener = await generateCoordinatorOpener({
+      await seedPersonalCoordinatorOpener({
         workspaceType: 'organization',
         workspaceName: org.name,
       });
-      const seedResult = await seedCoordinatorOpener(org.coordinatorId, opener.content);
-      if ('detail' in seedResult) {
-        console.warn('[onboarding] Failed to seed Coordinator opener:', seedResult.detail);
-      }
     } catch (error) {
-      console.warn('[onboarding] Failed to prepare Coordinator opener:', error);
+      console.warn('[onboarding] Failed to seed Coordinator opener for organization:', error);
     }
   }, []);
 
@@ -178,7 +165,7 @@ const WorkspaceContent = ({
         body: JSON.stringify({ workspaceId: String(org.id) }),
       });
 
-      await seedNewOrganizationCoordinator(org);
+      await seedOrganizationWorkspaceOpener(org);
 
       await completeAndRedirect({
         selectedType: 'organization',
@@ -189,7 +176,7 @@ const WorkspaceContent = ({
       setError('Failed to create organization. Please try again.');
       setIsLoading(false);
     }
-  }, [orgName, onCreateOrg, seedNewOrganizationCoordinator, completeAndRedirect]);
+  }, [orgName, onCreateOrg, seedOrganizationWorkspaceOpener, completeAndRedirect]);
 
   // Auto-complete onboarding on mount when the user already has an org.
   // Server actions can modify cookies when called from a client component,

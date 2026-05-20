@@ -203,7 +203,7 @@ test.describe('Onboarding', () => {
     expect(personalCoordinatorCount).toBe('1');
   });
 
-  test('creates organization workspace with a Coordinator and redirects to assistants', async ({
+  test('creates organization workspace with personal Coordinator pinned and redirects to assistants', async ({
     page,
   }) => {
     const email = uniqueEmail('onboard-org');
@@ -237,14 +237,19 @@ test.describe('Onboarding', () => {
     expect(orgId).toBeTruthy();
 
     const coordinatorId = dbExec(
-      `SELECT agent_id FROM assistants WHERE organization_id = ${orgId} AND is_coordinator = TRUE`
+      `SELECT agent_id FROM assistants WHERE user_id = '${userId}' AND organization_id IS NULL AND is_coordinator = TRUE`
     );
     expect(coordinatorId).toBeTruthy();
 
     const coordinatorCount = dbExec(
-      `SELECT count(*) FROM assistants WHERE organization_id = ${orgId} AND is_coordinator = TRUE`
+      `SELECT count(*) FROM assistants WHERE user_id = '${userId}' AND organization_id IS NULL AND is_coordinator = TRUE`
     );
     expect(coordinatorCount).toBe('1');
+
+    const orgCoordinatorCount = dbExec(
+      `SELECT count(*) FROM assistants WHERE organization_id = ${orgId} AND is_coordinator = TRUE`
+    );
+    expect(orgCoordinatorCount).toBe('0');
 
     const coordinatorRow = page.getByTestId(`assistant-list-item-${coordinatorId}`);
     await expect(coordinatorRow).toBeVisible({ timeout: 15000 });

@@ -1,6 +1,111 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiKeyFromRequest, unauthorized } from '../_utils/auth';
+import { getApiKeyFromRequest, getPersonalApiKeyFromRequest, unauthorized } from '../_utils/auth';
 import { createOrchestraClient } from '@/lib/orchestra/client';
+
+function unwrapInfoPayload(payload: unknown): unknown {
+  if (payload && typeof payload === 'object' && 'info' in payload) {
+    return (payload as { info: unknown }).info;
+  }
+  return payload;
+}
+
+function asInteger(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim());
+    if (Number.isInteger(parsed)) return parsed;
+  }
+  return null;
+}
+
+function readAgentId(row: unknown): number | null {
+  if (!row || typeof row !== 'object') return null;
+  const record = row as Record<string, unknown>;
+  return asInteger(record.agentId ?? record.agent_id);
+}
+
+function readCoordinatorId(payload: unknown): number | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const record = payload as Record<string, unknown>;
+  return asInteger(record.coordinatorId ?? record.coordinator_id);
+}
+
+function readUserId(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const record = payload as Record<string, unknown>;
+  const value = record.userId ?? record.user_id;
+  if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+  return null;
+}
+
+function mergePersonalCoordinator(assistants: unknown[], personalCoordinator: unknown): unknown[] {
+  const coordinatorAgentId = readAgentId(personalCoordinator);
+  if (!coordinatorAgentId) return assistants;
+
+  return [
+    personalCoordinator,
+    ...assistants.filter((assistant) => readAgentId(assistant) !== coordinatorAgentId),
+  ];
+}
+
+async function fetchPersonalCoordinatorRow(
+  request: NextRequest,
+  includeDemo: boolean
+): Promise<unknown | null> {
+  const personalApiKey = await getPersonalApiKeyFromRequest(request);
+  if (!personalApiKey) return null;
+
+  const orchestraBaseUrl = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
+  const requestHeaders = {
+    Authorization: `Bearer ${personalApiKey}`,
+    'Content-Type': 'application/json',
+  };
+
+  const basicInfoResponse = await fetch(`${orchestraBaseUrl}/v0/user/basic-info`, {
+    method: 'GET',
+    headers: requestHeaders,
+  });
+  if (!basicInfoResponse.ok) return null;
+
+  const basicInfoPayload = await basicInfoResponse.json();
+  const userId = readUserId(basicInfoPayload);
+  if (!userId) return null;
+
+  const ensureCoordinatorResponse = await fetch(
+    `${orchestraBaseUrl}/v0/user/${encodeURIComponent(userId)}/coordinator`,
+    {
+      method: 'POST',
+      headers: requestHeaders,
+    }
+  );
+  if (!ensureCoordinatorResponse.ok) return null;
+
+  const ensureCoordinatorPayload = await ensureCoordinatorResponse.json();
+  const coordinatorId = readCoordinatorId(ensureCoordinatorPayload);
+  if (!coordinatorId) return null;
+
+  const assistantParams = new URLSearchParams({
+    agent_id: String(coordinatorId),
+  });
+  if (includeDemo) {
+    assistantParams.set('demo', 'true');
+  }
+
+  const coordinatorListResponse = await fetch(
+    `${orchestraBaseUrl}/v0/assistant?${assistantParams.toString()}`,
+    {
+      method: 'GET',
+      headers: requestHeaders,
+    }
+  );
+  if (!coordinatorListResponse.ok) return null;
+
+  const coordinatorListPayload = await coordinatorListResponse.json();
+  const coordinatorRows = unwrapInfoPayload(coordinatorListPayload);
+  if (!Array.isArray(coordinatorRows) || coordinatorRows.length === 0) return null;
+
+  return coordinatorRows[0] ?? null;
+}
 
 export async function GET(request: NextRequest) {
   const apiKey = await getApiKeyFromRequest(request);
@@ -11,6 +116,8 @@ export async function GET(request: NextRequest) {
   const client = createOrchestraClient(apiKey);
   const listAllOrg = request.nextUrl.searchParams.get('list_all_org');
   const demo = request.nextUrl.searchParams.get('demo');
+  const includePersonalCoordinator =
+    request.nextUrl.searchParams.get('include_personal_coordinator') === 'true';
 
   try {
     const { data, error, response } = await client.GET('/v0/assistant', {
@@ -26,8 +133,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(error, { status: response.status });
     }
 
-    // Orchestra wraps list responses in { info: [...] }, unwrap for cleaner client API
-    const responseData = data && typeof data === 'object' && 'info' in data ? data.info : data;
+    // Orchestra wraps list responses in { info: [...] }, unwrap for cleaner client API.
+    let responseData = unwrapInfoPayload(data);
+    if (includePersonalCoordinator && Array.isArray(responseData)) {
+      try {
+        const personalCoordinator = await fetchPersonalCoordinatorRow(request, demo === 'true');
+        if (personalCoordinator) {
+          responseData = mergePersonalCoordinator(responseData, personalCoordinator);
+        }
+      } catch (coordinatorError) {
+        console.warn(
+          '[API /api/assistant GET] Failed to inject personal coordinator row:',
+          coordinatorError instanceof Error ? coordinatorError.message : coordinatorError
+        );
+      }
+    }
+
     return NextResponse.json(responseData, { status: response.status });
   } catch (e: unknown) {
     console.error('[API /api/assistant GET] Error:', e instanceof Error ? e.message : e);

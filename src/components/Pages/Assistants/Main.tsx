@@ -39,6 +39,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
+import { resolveCanonicalPersonalCoordinator } from '@/lib/assistants/coordinatorIdentity';
 import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
@@ -111,8 +112,52 @@ function isSignedMediaUrl(url: string | null | undefined): url is string {
 }
 
 export default function Main({ assistantActions, userMeta }: MainProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const profileParam = searchParams.get('profile');
+  const { activeWorkspace, currentUserId } = useWorkspace();
+
+  const syncProfileQueryParam = React.useCallback(
+    (assistantId: string | null) => {
+      if (typeof window === 'undefined') return;
+
+      const currentProfile = searchParams.get('profile');
+      if ((assistantId ?? null) === (currentProfile ?? null)) return;
+
+      const nextParams = new URLSearchParams(searchParams.toString());
+      if (assistantId) {
+        nextParams.set('profile', assistantId);
+      } else {
+        nextParams.delete('profile');
+      }
+
+      const nextQuery = nextParams.toString();
+      const nextUrl =
+        nextQuery.length > 0
+          ? `${window.location.pathname}?${nextQuery}`
+          : window.location.pathname;
+      router.replace(nextUrl, { scroll: false });
+    },
+    [router, searchParams]
+  );
+
   // --- UI Panel Management ---
-  const { profileAssistantId, handleShowProfile, handleProfileClose } = usePanelManager();
+  const {
+    profileAssistantId,
+    handleShowProfile: setPanelProfileAssistant,
+    handleProfileClose: clearPanelProfileAssistant,
+  } = usePanelManager(profileParam);
+  const handleShowProfile = React.useCallback(
+    (assistantId: string) => {
+      setPanelProfileAssistant(assistantId);
+      syncProfileQueryParam(assistantId);
+    },
+    [setPanelProfileAssistant, syncProfileQueryParam]
+  );
+  const handleProfileClose = React.useCallback(() => {
+    clearPanelProfileAssistant();
+    syncProfileQueryParam(null);
+  }, [clearPanelProfileAssistant, syncProfileQueryParam]);
 
   // Right-pane state (primary tab, optional secondary tab for split-view,
   // splitter ratio) is lifted out of `RightPaneContainer` for two reasons:
@@ -287,12 +332,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     refreshAssistants,
     deleteAssistant,
     updateAssistantProfile,
-  } = useAssistants(assistantActions, !!userMeta.isOrgContext);
-
-  // Pulled out of the workspace context so we can do strict ownership
-  // checks (e.g. who sees the setup roadmap) — `canWrite` is broader
-  // and includes org owners/admins, which isn't the same audience.
-  const { activeWorkspace, currentUserId } = useWorkspace();
+  } = useAssistants(assistantActions, !!userMeta.isOrgContext, currentUserId);
 
   // --- Assistant Permissions ---
   const { canHire, canWrite, canEndContract, canOpenAssistantChat } = useAssistantPermissions();
@@ -345,19 +385,32 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     return Object.fromEntries(visibleSpaces.map((space) => [space.spaceId, space]));
   }, [visibleSpaces]);
 
-  // --- Deep-link to a specific assistant via ?profile=<agentId> ---
-  const searchParams = useSearchParams();
-  const profileParam = searchParams.get('profile');
-  const hasOpenedDeepLink = React.useRef(false);
+  const canonicalCoordinatorId = React.useMemo(
+    () => resolveCanonicalPersonalCoordinator(assistants, currentUserId)?.agentId ?? null,
+    [assistants, currentUserId]
+  );
+
   React.useEffect(() => {
-    if (profileParam && assistants.length > 0 && !hasOpenedDeepLink.current) {
-      const match = assistants.find((a) => a.agentId === profileParam);
-      if (match) {
-        hasOpenedDeepLink.current = true;
-        handleShowProfile(match.agentId);
-      }
+    if (!profileAssistantId || isLoadingAssistants) return;
+    const selectedAssistantStillVisible = assistants.some(
+      (assistant) => assistant.agentId === profileAssistantId
+    );
+    if (selectedAssistantStillVisible) return;
+
+    if (canonicalCoordinatorId) {
+      handleShowProfile(canonicalCoordinatorId);
+      return;
     }
-  }, [profileParam, assistants, handleShowProfile]);
+
+    handleProfileClose();
+  }, [
+    assistants,
+    canonicalCoordinatorId,
+    handleProfileClose,
+    handleShowProfile,
+    isLoadingAssistants,
+    profileAssistantId,
+  ]);
 
   // --- Assistant Status Polling ---
   const { statuses: assistantStatuses, markOnline: markAssistantOnline } =
@@ -1378,7 +1431,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // wasteful, but doing so after an account-page round-trip ensures
   // derivations like `hasUserPhoneNumber` reflect the edit without
   // a manual reload.
-  const router = useRouter();
   const handleOpenUserSettings = React.useCallback((tab?: string) => {
     if (typeof window === 'undefined') return;
     const url = tab ? `/account?tab=${encodeURIComponent(tab)}` : '/account';
@@ -1487,6 +1539,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             canHire={canHire}
             onToggleFold={handleToggleListFold}
             unreadCounts={chatStreamUnreadCounts}
+            currentUserId={currentUserId}
             spacesById={spacesById}
           />
         </div>
