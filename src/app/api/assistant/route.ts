@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, getPersonalApiKeyFromRequest, unauthorized } from '../_utils/auth';
 import { createOrchestraClient } from '@/lib/orchestra/client';
+import { snakeToCamelObject } from '@/utils/casing';
 
 function unwrapInfoPayload(payload: unknown): unknown {
   if (payload && typeof payload === 'object' && 'info' in payload) {
@@ -46,6 +47,11 @@ function mergePersonalCoordinator(assistants: unknown[], personalCoordinator: un
     personalCoordinator,
     ...assistants.filter((assistant) => readAgentId(assistant) !== coordinatorAgentId),
   ];
+}
+
+function normalizePersonalCoordinatorRow(row: unknown): unknown {
+  if (!row || typeof row !== 'object') return row;
+  return snakeToCamelObject(row);
 }
 
 async function fetchPersonalCoordinatorRow(
@@ -104,7 +110,7 @@ async function fetchPersonalCoordinatorRow(
   const coordinatorRows = unwrapInfoPayload(coordinatorListPayload);
   if (!Array.isArray(coordinatorRows) || coordinatorRows.length === 0) return null;
 
-  return coordinatorRows[0] ?? null;
+  return normalizePersonalCoordinatorRow(coordinatorRows[0] ?? null);
 }
 
 export async function GET(request: NextRequest) {
