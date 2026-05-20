@@ -1,0 +1,21 @@
+---
+description: Testing — browser E2E only, verify UI and backend state
+alwaysApply: true
+---
+
+# Testing — E2E First
+
+No unit tests. Write browser-based E2E tests that run against the real local stack, exercise the real
+UI through user journeys and (whenever the flow mutates data) verify the resulting backend state. See `src/tests/README.md`.
+
+Rules:
+
+- File: `src/tests/<feature>/<flow>.e2e.ts`.
+- Seed at module scope via `@/tests/helpers/seeds` and `<feature>/helpers`
+  (`createTestUser`, `createAssistantTest`, etc.). Clean up in `afterAll`.
+- Drive Playwright with `getByTestId` / `getByRole` / `getByText`.
+- Assert visible UI for reads. For mutations, **also** assert the DB with
+  `dbExec("SELECT ...")` — UI alone can be optimistic.
+- No mocked `fetch`, server actions, or DB. Local stubs activate via missing
+  credentials (see `src/tests/README.md`).
+- No snapshot-only or screenshot-only assertions.
