@@ -97,6 +97,10 @@ Options:
         console.log(`   Org:        ${state.org.name} (id=${state.org.id})`);
       }
       console.log(`   Assistants: ${state.assistants.length}`);
+      const coordinatorCount = Object.values(state.users).filter((u) => u.coordinator).length;
+      if (coordinatorCount > 0) {
+        console.log(`   Coordinators: ${coordinatorCount} (one per user)`);
+      }
       if (state.secrets?.length) {
         console.log(`   Secrets:    ${state.secrets.map((s) => s.name).join(', ')}`);
       }

@@ -18,7 +18,13 @@
  */
 
 import type { SeededState } from '../types';
-import { createUser, createAssistant, createEmailLogin, seedChatInfrastructure } from '../client';
+import {
+  createUser,
+  createAssistant,
+  createEmailLogin,
+  seedChatInfrastructure,
+  seedCoordinatorChatForUsers,
+} from '../client';
 
 // Tuned so the workspace exceeds the chat-stream client-side shard size
 // (CHAT_STREAM_SHARD_SIZE = 25), exercising multi-shard delivery while
@@ -57,6 +63,9 @@ export async function seedPersonalWorkspaceMulti(): Promise<SeededState> {
       email: owner.email,
     });
   }
+
+  // Make the auto-provisioned personal Coordinator chat-ready too.
+  await seedCoordinatorChatForUsers([owner]);
 
   return {
     users: { owner },

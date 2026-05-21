@@ -33,6 +33,7 @@ import {
   createAssistant,
   createEmailLogin,
   seedChatInfrastructure,
+  seedCoordinatorChatForUsers,
   orchestraFetch,
   ensureProject,
   seedManagerMethodEvents,
@@ -1064,6 +1065,9 @@ export async function seedReAppraisal(): Promise<SeededState> {
     assistantId: agentId,
     email: valuer.email,
   });
+
+  // Make the auto-provisioned personal Coordinator chat-ready.
+  await seedCoordinatorChatForUsers([valuer]);
 
   // Seed knowledge (comparables + market data)
   await Promise.all([

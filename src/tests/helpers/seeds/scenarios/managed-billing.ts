@@ -99,6 +99,7 @@ import {
   dbExec,
   dbExecBlock,
   seedChatInfrastructure,
+  seedCoordinatorChatForUsers,
 } from '../client';
 
 // ---------------------------------------------------------------------------
@@ -1152,6 +1153,11 @@ VALUES (
     startup_owner: startupOwner,
     startup_member: startupMember,
   };
+
+  // Wire chat infra for every user's auto-provisioned Coordinator so
+  // the panel is ready to use regardless of which billing-shape account
+  // you quick-login as.
+  await seedCoordinatorChatForUsers(Object.values(users));
 
   // For each user the `apiKey` slot uses the *org-scoped* key when the
   // user belongs to an org (Unify admin, org owners) so that switching

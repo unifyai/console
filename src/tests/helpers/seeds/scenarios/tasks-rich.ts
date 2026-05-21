@@ -28,6 +28,7 @@ import {
   createAssistant,
   createEmailLogin,
   seedChatInfrastructure,
+  seedCoordinatorChatForUsers,
   orchestraFetch,
   ensureProject,
 } from '../client';
@@ -421,6 +422,9 @@ export async function seedTasksRich(): Promise<SeededState> {
     assistantId: agentId,
     email: owner.email,
   });
+
+  // Make the auto-provisioned personal Coordinator chat-ready.
+  await seedCoordinatorChatForUsers([owner]);
 
   await Promise.all([
     seedLogs(apiKey, owner.id, agentId, 'Contacts', CONTACTS),

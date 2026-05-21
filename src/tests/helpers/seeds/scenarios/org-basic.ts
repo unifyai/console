@@ -23,6 +23,7 @@ import {
   createAssistant,
   createEmailLogin,
   seedChatInfrastructure,
+  seedCoordinatorChatForUsers,
 } from '../client';
 
 export async function seedOrgBasic(): Promise<SeededState> {
@@ -52,6 +53,11 @@ export async function seedOrgBasic(): Promise<SeededState> {
     assistantId: assistant.agentId,
     email: owner.email,
   });
+
+  // Every user — owner and member — gets a personal Coordinator
+  // (organization_id IS NULL), mirroring production signup. Wire up
+  // their chat infra so both workspaces are immediately usable.
+  await seedCoordinatorChatForUsers([owner, member]);
 
   return {
     users: { owner, member },
