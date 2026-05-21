@@ -147,3 +147,25 @@ test('groups colleagues by space and keeps row selection assistant-scoped', asyn
     page.getByTestId('assistant-list-section-solo').getByText('Solo Only')
   ).toBeVisible();
 });
+
+test('typing in the sidebar search filters assistants and hides groups with no matches', async ({
+  authedPage: page,
+}) => {
+  await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
+
+  await expect(page.getByRole('button', { name: /Patch Alpha/ })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('button', { name: /Patch Beta/ })).toBeVisible({ timeout: 10_000 });
+
+  const searchInput = page.getByRole('searchbox');
+  await expect(searchInput).toBeVisible({ timeout: 5_000 });
+  await searchInput.fill('Patch Only');
+
+  await expect(page.getByRole('button', { name: /Patch Alpha/ })).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByRole('button', { name: /Patch Beta/ })).toHaveCount(0);
+  await expect(page.getByTestId(`assistant-list-item-${patchAssistant.agentId}`)).toBeVisible();
+  await expect(page.getByTestId(`assistant-list-item-${soloAssistant.agentId}`)).toHaveCount(0);
+
+  await searchInput.fill('');
+  await expect(page.getByRole('button', { name: /Patch Beta/ })).toBeVisible({ timeout: 5_000 });
+});
