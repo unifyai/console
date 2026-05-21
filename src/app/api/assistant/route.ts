@@ -25,10 +25,24 @@ function readAgentId(row: unknown): number | null {
   return asInteger(record.agentId ?? record.agent_id);
 }
 
-function readCoordinatorId(payload: unknown): number | null {
-  if (!payload || typeof payload !== 'object') return null;
-  const record = payload as Record<string, unknown>;
-  return asInteger(record.coordinatorId ?? record.coordinator_id);
+function readAssistantUserId(row: unknown): string | null {
+  if (!row || typeof row !== 'object') return null;
+  const record = row as Record<string, unknown>;
+  const value = record.userId ?? record.user_id;
+  if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+  return null;
+}
+
+function readOrganizationId(row: unknown): number | null {
+  if (!row || typeof row !== 'object') return null;
+  const record = row as Record<string, unknown>;
+  return asInteger(record.organizationId ?? record.organization_id);
+}
+
+function readIsCoordinator(row: unknown): boolean {
+  if (!row || typeof row !== 'object') return false;
+  const record = row as Record<string, unknown>;
+  return record.isCoordinator === true || record.is_coordinator === true;
 }
 
 function readUserId(payload: unknown): string | null {
@@ -77,40 +91,34 @@ async function fetchPersonalCoordinatorRow(
   const userId = readUserId(basicInfoPayload);
   if (!userId) return null;
 
-  const ensureCoordinatorResponse = await fetch(
-    `${orchestraBaseUrl}/v0/user/${encodeURIComponent(userId)}/coordinator`,
-    {
-      method: 'POST',
-      headers: requestHeaders,
-    }
-  );
-  if (!ensureCoordinatorResponse.ok) return null;
-
-  const ensureCoordinatorPayload = await ensureCoordinatorResponse.json();
-  const coordinatorId = readCoordinatorId(ensureCoordinatorPayload);
-  if (!coordinatorId) return null;
-
-  const assistantParams = new URLSearchParams({
-    agent_id: String(coordinatorId),
-  });
+  const assistantParams = new URLSearchParams({ list_all_org: 'true' });
   if (includeDemo) {
     assistantParams.set('demo', 'true');
   }
 
-  const coordinatorListResponse = await fetch(
+  const assistantsResponse = await fetch(
     `${orchestraBaseUrl}/v0/assistant?${assistantParams.toString()}`,
     {
       method: 'GET',
       headers: requestHeaders,
     }
   );
-  if (!coordinatorListResponse.ok) return null;
+  if (!assistantsResponse.ok) return null;
 
-  const coordinatorListPayload = await coordinatorListResponse.json();
-  const coordinatorRows = unwrapInfoPayload(coordinatorListPayload);
-  if (!Array.isArray(coordinatorRows) || coordinatorRows.length === 0) return null;
+  const assistantsPayload = await assistantsResponse.json();
+  const assistantRows = unwrapInfoPayload(assistantsPayload);
+  if (!Array.isArray(assistantRows) || assistantRows.length === 0) return null;
 
-  return normalizePersonalCoordinatorRow(coordinatorRows[0] ?? null);
+  const personalCoordinator = assistantRows
+    .map(normalizePersonalCoordinatorRow)
+    .find(
+      (assistant) =>
+        readIsCoordinator(assistant) &&
+        readOrganizationId(assistant) === null &&
+        readAssistantUserId(assistant) === userId
+    );
+
+  return personalCoordinator ?? null;
 }
 
 export async function GET(request: NextRequest) {

@@ -110,10 +110,29 @@ function parseCoordinatorId(value: unknown): number | null {
   return null;
 }
 
-function readCoordinatorId(payload: unknown): number | null {
-  if (!payload || typeof payload !== 'object') return null;
-  const row = payload as Record<string, unknown>;
-  return parseCoordinatorId(row.coordinatorId ?? row.coordinator_id);
+function readAssistantRows(payload: unknown): Record<string, unknown>[] {
+  if (Array.isArray(payload)) {
+    return payload.filter(
+      (row): row is Record<string, unknown> => row != null && typeof row === 'object'
+    );
+  }
+  if (!payload || typeof payload !== 'object') return [];
+  const record = payload as Record<string, unknown>;
+  if (!Array.isArray(record.info)) return [];
+  return record.info.filter(
+    (row): row is Record<string, unknown> => row != null && typeof row === 'object'
+  );
+}
+
+function readExistingPersonalCoordinatorId(payload: unknown, userId: string): number | null {
+  const coordinatorRow = readAssistantRows(payload).find((row) => {
+    const rowUserId = row.userId ?? row.user_id;
+    const organizationId = row.organizationId ?? row.organization_id;
+    const isCoordinator = row.isCoordinator ?? row.is_coordinator;
+    return rowUserId === userId && organizationId == null && isCoordinator === true;
+  });
+  if (!coordinatorRow) return null;
+  return parseCoordinatorId(coordinatorRow.agentId ?? coordinatorRow.agent_id);
 }
 
 /**
@@ -266,12 +285,12 @@ export async function seedPersonalCoordinatorOpener(
   }
 
   const orchestraClient = await getOrchestraUserClient(user.apiKey);
-  const ensureCoordinatorResponse = await orchestraClient.post(
-    `/user/${encodeURIComponent(user.id)}/coordinator`
-  );
-  const coordinatorId = readCoordinatorId(ensureCoordinatorResponse.data);
+  const assistantsResponse = await orchestraClient.get('/assistant', {
+    params: { listAllOrg: true },
+  });
+  const coordinatorId = readExistingPersonalCoordinatorId(assistantsResponse.data, user.id);
   if (!coordinatorId) {
-    throw new Error('Coordinator provisioning response did not include a coordinator id.');
+    return;
   }
 
   const userName = formatCoordinatorPromptDisplayText(`${user.name} ${user.lastName}`, 'there');
