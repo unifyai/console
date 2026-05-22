@@ -63,17 +63,44 @@ ORCHESTRA_PORT="${ORCHESTRA_PORT:-8000}"
 CONSOLE_PIDFILE="/tmp/console-local-dev.pid"
 CONSOLE_LOGFILE="/tmp/console-local-dev.log"
 
-# Read keys from .env.local (needed so Orchestra accepts admin API calls and
-# Stripe-dependent billing flows work end-to-end).
+# Read keys from local env files (needed so Orchestra accepts admin API calls
+# and Stripe-dependent billing flows work end-to-end).
 ENV_LOCAL="$CONSOLE_REPO_PATH/.env.local"
+ENV_DEVELOPMENT="$CONSOLE_REPO_PATH/.env.development"
+ENV_DEFAULT="$CONSOLE_REPO_PATH/.env"
+
+read_env_value() {
+  local key="$1"
+  shift
+  local file
+  for file in "$@"; do
+    [[ -f "$file" ]] || continue
+    local value
+    value=$(grep -E "^${key}=" "$file" | sed 's/^[^=]*=//' | tr -d '"' || true)
+    if [[ -n "$value" ]]; then
+      echo "$value"
+      return 0
+    fi
+  done
+  echo ""
+}
+
 ADMIN_KEY=""
 STRIPE_SECRET_KEY=""
 STRIPE_WEBHOOK_SECRET=""
-if [[ -f "$ENV_LOCAL" ]]; then
-  ADMIN_KEY=$(grep -E '^ORCHESTRA_ADMIN_KEY=' "$ENV_LOCAL" | sed 's/^[^=]*=//' | tr -d '"' || true)
-  STRIPE_SECRET_KEY=$(grep -E '^STRIPE_SECRET_KEY=' "$ENV_LOCAL" | sed 's/^[^=]*=//' | tr -d '"' || true)
-  STRIPE_WEBHOOK_SECRET=$(grep -E '^STRIPE_WEBHOOK_SECRET=' "$ENV_LOCAL" | sed 's/^[^=]*=//' | tr -d '"' || true)
+ADMIN_KEY_SOURCE=""
+
+ADMIN_KEY="$(read_env_value ORCHESTRA_ADMIN_KEY "$ENV_LOCAL" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")"
+if [[ -n "$ADMIN_KEY" ]]; then
+  ADMIN_KEY_SOURCE="env file"
+else
+  # Keep a deterministic local fallback so Console, seed scripts, and Orchestra
+  # all share the same admin credential unless explicitly overridden.
+  ADMIN_KEY="local-admin-key"
+  ADMIN_KEY_SOURCE="local fallback"
 fi
+STRIPE_SECRET_KEY="$(read_env_value STRIPE_SECRET_KEY "$ENV_LOCAL" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")"
+STRIPE_WEBHOOK_SECRET="$(read_env_value STRIPE_WEBHOOK_SECRET "$ENV_LOCAL" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")"
 
 # Stripe webhook forwarding (via orchestra/scripts/stripe.sh)
 STRIPE_SCRIPT="$ORCHESTRA_REPO_PATH/scripts/stripe.sh"
@@ -708,7 +735,7 @@ run_seed_scenario() {
   export NEXT_PUBLIC_BASE_URL="http://localhost:${CONSOLE_PORT}"
   export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
   export ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH"
-  export ORCHESTRA_ADMIN_KEY="${ADMIN_KEY:-local-admin-key}"
+  export ORCHESTRA_ADMIN_KEY="$ADMIN_KEY"
 
   if npx tsx src/tests/helpers/seeds/run.ts "$scenario"; then
     log_success "Seed scenario '$scenario' completed"
@@ -983,6 +1010,11 @@ cmd_start() {
 
   if ! check_prerequisites; then
     return 1
+  fi
+
+  if [[ "$ADMIN_KEY_SOURCE" == "local fallback" ]]; then
+    log_warn "ORCHESTRA_ADMIN_KEY not found in .env.local/.env.development/.env; using local-admin-key fallback."
+    log_warn "If Orchestra was started manually with a different key, restart it through this script to realign auth."
   fi
 
   # Start the Pub/Sub emulator (Console-managed) early if --pubsub or --chat.
