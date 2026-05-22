@@ -31,7 +31,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest } from '../../../_utils/auth';
 import { getCurrentUser } from '@/lib/user/user';
 import { getActiveOrganization } from '@/lib/user/workspace';
-import { getSecrets } from '@/lib/assistants/secret';
+import { getSecrets, getSecretValue } from '@/lib/assistants/secret';
 import { beginOAuthState } from '@/lib/oauth/state';
 import {
   getIntegrationProvider,
@@ -113,19 +113,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Read the actual client_id value.  The standard list call excludes
-  // values; we re-fetch by ``filterExpr`` (the pattern used elsewhere in
-  // the codebase, e.g. contact-by-email lookup) without ``excludeFields``
-  // so the value comes back inline.  client_id is a public OAuth
-  // identifier per the spec, so embedding it in the authorize URL is
-  // expected — but we still keep this read server-side to avoid
-  // round-tripping it through the browser unnecessarily.
-  const clientIdValue = await readSecretValue({
-    apiKey,
-    ownerId,
-    assistantId: body.assistantId,
-    secretName: clientIdKey,
-  });
+  // Read the actual client_id value via the shared ``getSecretValue``
+  // helper (filterExpr lookup against the assistant's Secrets context).
+  // client_id is a public OAuth identifier per the spec, so embedding it
+  // in the authorize URL is expected — but we still keep this read
+  // server-side to avoid round-tripping it through the browser
+  // unnecessarily.
+  const getSecretValueFn = await getSecretValue(apiKey, orgId);
+  const clientIdValue = await getSecretValueFn(body.assistantId, ownerId, clientIdKey);
   if (!clientIdValue) {
     return NextResponse.json(
       {
@@ -164,54 +159,4 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     authorizeUrl: `${provider.auth.oauth.authorizeUrl}?${params.toString()}`,
   });
-}
-
-/**
- * Read a single secret's value via the Orchestra logs API.  The
- * ``getSecrets`` helper sets ``excludeFields=value`` so the standard
- * list call returns names only — we need a separate fetch that keeps
- * values inline.
- *
- * Implementation note: the ``/api/logs`` proxy at
- * ``src/app/api/logs/route.ts`` only honours a fixed list of query
- * params (``projectName``, ``context``, ``filterExpr``, ``limit``,
- * ``excludeFields``, etc.) — anything else (like ``logIds``) is
- * silently dropped, and Orchestra falls back to a default unfiltered
- * fetch.  So we filter by ``filterExpr=name == "..."`` within the
- * specific assistant's Secrets context — the same pattern used for
- * contact-by-email lookup elsewhere in the codebase.
- */
-async function readSecretValue(args: {
-  apiKey: string;
-  ownerId: string;
-  assistantId: string;
-  secretName: string;
-}): Promise<string | null> {
-  // Defensive escaping — the secret name comes from our own provider
-  // registry, but a future provider config could add quotes.
-  const escapedName = args.secretName.replace(/"/g, '\\"');
-  const params = new URLSearchParams({
-    projectName: 'Assistants',
-    context: `${args.ownerId}/${args.assistantId}/Secrets`,
-    filterExpr: `name == "${escapedName}"`,
-    limit: '1',
-  });
-  const url = `${process.env.NEXTAUTH_URL}/api/logs?${params.toString()}`;
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { apiKey: args.apiKey },
-    });
-    if (!response.ok) return null;
-    const data = (await response.json()) as {
-      logs?: Array<{ entries?: { name?: string; value?: string } }>;
-    };
-    // Belt-and-braces: only return the value if the matched row's name
-    // really equals the requested secretName.  Orchestra's filterExpr
-    // should already enforce this, but paranoia is cheap.
-    const log = data.logs?.find((l) => l.entries?.name === args.secretName);
-    return log?.entries?.value ?? null;
-  } catch {
-    return null;
-  }
 }
