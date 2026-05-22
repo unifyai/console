@@ -22,6 +22,7 @@ import {
   memoryDestinationRoot,
   type MemoryDestinationValue,
 } from './DestinationDropdown';
+import type { CoordinatorWorkspaceScope } from '@/lib/assistants/coordinatorIdentity';
 import { currentSpaceIds } from '@/lib/assistants/scope';
 
 interface MemoryPaneProps {
@@ -106,7 +107,7 @@ function assistantNameMapsEqual(left: Map<number, string>, right: Map<number, st
 
 async function fetchAssistantNameLookup(
   lookupKey: string,
-  isOrgContext: boolean
+  workspace: CoordinatorWorkspaceScope
 ): Promise<Map<number, string>> {
   const cached = ASSISTANT_NAME_LOOKUP_CACHE.get(lookupKey);
   if (cached) {
@@ -119,7 +120,7 @@ async function fetchAssistantNameLookup(
   }
 
   const request = (async () => {
-    const result = await fetchAssistants(isOrgContext, true);
+    const result = await fetchAssistants(workspace, true);
     if (!Array.isArray(result)) {
       return new Map<number, string>();
     }
@@ -270,7 +271,13 @@ export function MemoryPane({
     const parsed = Number(assistant.agentId);
     return Number.isInteger(parsed) ? parsed : null;
   }, [assistant.agentId]);
-  const isOrgContext = assistant.organizationId !== null;
+  const workspace = useMemo(
+    () =>
+      assistant.organizationId !== null
+        ? { type: 'organization' as const, organizationId: assistant.organizationId }
+        : { type: 'personal' as const, organizationId: null },
+    [assistant.organizationId]
+  );
   const lookupKey = useMemo(
     () =>
       assistantNameLookupKey({
@@ -310,7 +317,7 @@ export function MemoryPane({
       }
 
       setIfChanged(fallbackMap);
-      const resolvedNames = await fetchAssistantNameLookup(lookupKey, isOrgContext);
+      const resolvedNames = await fetchAssistantNameLookup(lookupKey, workspace);
       if (!isActive) {
         return;
       }
@@ -328,7 +335,7 @@ export function MemoryPane({
   }, [
     shouldResolveAssistantNames,
     lookupKey,
-    isOrgContext,
+    workspace,
     assistantDisplayName,
     selectedAssistantId,
   ]);

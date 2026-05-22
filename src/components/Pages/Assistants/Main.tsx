@@ -39,7 +39,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
-import { resolveCanonicalPersonalCoordinator } from '@/lib/assistants/coordinatorIdentity';
+import {
+  type CoordinatorWorkspaceScope,
+  resolveCanonicalWorkspaceCoordinator,
+} from '@/lib/assistants/coordinatorIdentity';
 import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
@@ -116,6 +119,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
   const { activeWorkspace, currentUserId } = useWorkspace();
+  const coordinatorWorkspace = React.useMemo<CoordinatorWorkspaceScope>(() => {
+    if (activeWorkspace?.type === 'organization') {
+      const parsedOrganizationId = Number.parseInt(activeWorkspace.id, 10);
+      return {
+        type: 'organization',
+        organizationId: Number.isFinite(parsedOrganizationId) ? parsedOrganizationId : null,
+      };
+    }
+    return { type: 'personal', organizationId: null };
+  }, [activeWorkspace?.id, activeWorkspace?.type]);
 
   const syncProfileQueryParam = React.useCallback(
     (assistantId: string | null) => {
@@ -332,7 +345,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     refreshAssistants,
     deleteAssistant,
     updateAssistantProfile,
-  } = useAssistants(assistantActions, !!userMeta.isOrgContext, currentUserId);
+  } = useAssistants(assistantActions, coordinatorWorkspace, currentUserId);
 
   // --- Assistant Permissions ---
   const { canHire, canWrite, canEndContract, canOpenAssistantChat } = useAssistantPermissions();
@@ -386,8 +399,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, [visibleSpaces]);
 
   const canonicalCoordinatorId = React.useMemo(
-    () => resolveCanonicalPersonalCoordinator(assistants, currentUserId)?.agentId ?? null,
-    [assistants, currentUserId]
+    () =>
+      resolveCanonicalWorkspaceCoordinator(assistants, currentUserId, coordinatorWorkspace)
+        ?.agentId ?? null,
+    [assistants, coordinatorWorkspace, currentUserId]
   );
 
   React.useEffect(() => {
@@ -1540,6 +1555,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             onToggleFold={handleToggleListFold}
             unreadCounts={chatStreamUnreadCounts}
             currentUserId={currentUserId}
+            workspace={coordinatorWorkspace}
             spacesById={spacesById}
           />
         </div>

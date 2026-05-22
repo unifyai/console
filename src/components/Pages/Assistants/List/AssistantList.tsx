@@ -17,7 +17,10 @@ import { AssistantListItemSkeleton } from './AssistantListItemSkeleton';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
-import { resolveCanonicalPersonalCoordinator } from '@/lib/assistants/coordinatorIdentity';
+import {
+  type CoordinatorWorkspaceScope,
+  resolveCanonicalWorkspaceCoordinator,
+} from '@/lib/assistants/coordinatorIdentity';
 import type { SpaceSummary } from '@/types/spaces/space';
 import { AssistantListGroupHeader } from './AssistantListGroupHeader';
 import {
@@ -67,6 +70,7 @@ interface AssistantListProps {
    */
   unreadCounts?: Record<string, number>;
   currentUserId?: string | null;
+  workspace: CoordinatorWorkspaceScope;
   spacesById: Record<number, SpaceSummary>;
 }
 
@@ -92,6 +96,7 @@ export function AssistantList({
   onToggleFold,
   unreadCounts,
   currentUserId = null,
+  workspace,
   spacesById,
 }: AssistantListProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -111,8 +116,10 @@ export function AssistantList({
   }, [assistants, searchTerm]);
 
   const canonicalCoordinatorId = React.useMemo(
-    () => resolveCanonicalPersonalCoordinator(filteredAssistants, currentUserId)?.agentId ?? null,
-    [filteredAssistants, currentUserId]
+    () =>
+      resolveCanonicalWorkspaceCoordinator(filteredAssistants, currentUserId, workspace)?.agentId ??
+      null,
+    [filteredAssistants, currentUserId, workspace]
   );
 
   const assistantGroups = React.useMemo(

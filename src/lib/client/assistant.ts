@@ -15,7 +15,8 @@ import { Assistant, AssistantStatus } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import {
   canonicalizeAssistantList,
-  resolveCanonicalPersonalCoordinator,
+  type CoordinatorWorkspaceScope,
+  resolveCanonicalWorkspaceCoordinator,
 } from '@/lib/assistants/coordinatorIdentity';
 import {
   clearMediaSignedUrlInFlight,
@@ -44,14 +45,14 @@ function createDeferred<T>(): Deferred<T> {
 }
 
 export async function fetchAssistants(
-  isOrgContext: boolean,
+  workspace: CoordinatorWorkspaceScope,
   includeDemo: boolean = true,
   options: { currentUserId?: string | null } = {}
 ): Promise<Assistant[] | ResponseProps> {
+  const isOrgContext = workspace.type === 'organization';
   const buildParams = (listAllOrg: boolean): URLSearchParams => {
     const params = new URLSearchParams();
     if (listAllOrg) params.set('list_all_org', 'true');
-    if (isOrgContext) params.set('include_personal_coordinator', 'true');
     if (includeDemo) params.set('demo', 'true');
     return params;
   };
@@ -83,6 +84,7 @@ export async function fetchAssistants(
     return canonicalizeAssistantList(data, {
       currentUserId: options.currentUserId ?? null,
       pinCanonicalCoordinatorFirst: isOrgContext,
+      workspace,
     });
   } catch (error) {
     return { detail: error instanceof Error ? error.message : 'Failed to fetch assistants' };
@@ -281,7 +283,7 @@ export async function fetchMediaSignedUrls(
 export {
   getEarliestSignedUrlExpiryMs,
   MEDIA_SIGNED_URL_EXPIRY_BUFFER_MS,
-  resolveCanonicalPersonalCoordinator,
+  resolveCanonicalWorkspaceCoordinator,
   readCachedMediaSignedUrls,
   seedMediaSignedUrls,
 };

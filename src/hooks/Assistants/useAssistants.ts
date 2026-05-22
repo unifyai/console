@@ -3,7 +3,10 @@ import { Assistant, AssistantActions, AssistantUpdatePayload } from '@/types/ass
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
-import { canonicalizeAssistantList } from '@/lib/assistants/coordinatorIdentity';
+import {
+  canonicalizeAssistantList,
+  type CoordinatorWorkspaceScope,
+} from '@/lib/assistants/coordinatorIdentity';
 import {
   fetchAssistants,
   fetchMediaSignedUrls,
@@ -41,7 +44,7 @@ function collectMediaPaths(assistants: ReadonlyArray<Assistant>): string[] {
 
 export function useAssistants(
   allActions: AssistantActions,
-  isOrgContext: boolean,
+  workspace: CoordinatorWorkspaceScope,
   currentUserId: string | null
 ) {
   const { assistant: assistantActions } = allActions;
@@ -55,6 +58,8 @@ export function useAssistants(
     assistantsRef.current = assistants;
   }, [assistants]);
 
+  const isOrgContext = workspace.type === 'organization';
+
   const fetchAssistantsWithDetails = React.useCallback(
     async (shouldShowLoadingToast = true) => {
       setIsLoading(true);
@@ -66,7 +71,7 @@ export function useAssistants(
       }
 
       try {
-        const listResult = await fetchAssistants(isOrgContext, true, { currentUserId });
+        const listResult = await fetchAssistants(workspace, true, { currentUserId });
 
         if (typeof listResult === 'object' && listResult !== null && 'detail' in listResult) {
           // Specifically handle 403 Forbidden as a non-error state (user is not approved)
@@ -91,6 +96,7 @@ export function useAssistants(
         const normalizedAssistants = canonicalizeAssistantList(listResult, {
           currentUserId,
           pinCanonicalCoordinatorFirst: isOrgContext,
+          workspace,
         });
 
         const validAssistants = normalizedAssistants
@@ -216,7 +222,7 @@ export function useAssistants(
         }
       }
     },
-    [currentUserId, isOrgContext]
+    [currentUserId, isOrgContext, workspace]
   );
 
   React.useEffect(() => {
