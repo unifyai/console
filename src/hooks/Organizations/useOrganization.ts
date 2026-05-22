@@ -8,7 +8,7 @@ import {
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
-import { seedPersonalCoordinatorOpener } from '@/lib/assistants/preHireChat';
+import { seedWorkspaceCoordinatorOpener } from '@/lib/assistants/preHireChat';
 
 export interface UnifiedMember {
   id: string; // userId or invite_id
@@ -26,9 +26,10 @@ export interface UnifiedMember {
 
 async function seedOrganizationWorkspaceOpener(org: Organization): Promise<void> {
   try {
-    await seedPersonalCoordinatorOpener({
+    await seedWorkspaceCoordinatorOpener({
       workspaceType: 'organization',
       workspaceName: org.name,
+      organizationId: org.id,
     });
   } catch (error) {
     console.warn('[organizations] Failed to seed Coordinator opener for organization:', error);

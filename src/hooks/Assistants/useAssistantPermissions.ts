@@ -10,7 +10,7 @@ import { Assistant } from '@/types/assistants/assistant';
  * - canHire: Only org Owner or Admin can hire in org context; anyone in personal workspace
  * - canWrite/canDelete: Assistant creator, org Owner, or org Admin can modify in org context;
  *   regular org Members can only view but not edit other members' assistants.
- * - Coordinator chat/write access is tied to the coordinator owner only.
+ * - Personal coordinator chat/write access is owner-scoped; org coordinator chat follows active org scope.
  */
 export interface AssistantPermissions {
   /** Whether we're in an organization workspace */
@@ -50,6 +50,7 @@ export function useAssistantPermissions(): AssistantPermissions {
   const { activeWorkspace, activeOrganization, currentUserId } = useWorkspace();
 
   const isOrgContext = activeWorkspace?.type === 'organization';
+  const activeOrganizationId = activeOrganization?.id ?? null;
   const isOrgOwner = activeOrganization?.roleName === 'Owner';
   const isOrgAdmin = activeOrganization?.roleName === 'Admin';
 
@@ -62,10 +63,15 @@ export function useAssistantPermissions(): AssistantPermissions {
       canHire: !isOrgContext || isOrgOwner || isOrgAdmin,
 
       // Assistant creator, org owner, or org admin can write in org context.
-      // Coordinator lifecycle and write operations are owner-scoped.
+      // Personal coordinator lifecycle stays owner-scoped.
       // In personal workspace, user always has full access.
       canWrite: (assistant: Assistant) => {
-        if (assistant.isCoordinator) return assistant.userId === currentUserId;
+        if (assistant.isCoordinator) {
+          if (assistant.organizationId === null) return assistant.userId === currentUserId;
+          if (!isOrgContext || activeOrganizationId == null) return false;
+          if (assistant.organizationId !== activeOrganizationId) return false;
+          return assistant.userId === currentUserId || isOrgOwner || isOrgAdmin;
+        }
         if (!isOrgContext) return true;
         return assistant.userId === currentUserId || isOrgOwner || isOrgAdmin;
       },
@@ -85,9 +91,16 @@ export function useAssistantPermissions(): AssistantPermissions {
 
       canOpenAssistantChat: (assistant: Assistant) => {
         if (!assistant.isCoordinator) return true;
-        return assistant.userId === currentUserId;
+        if (assistant.organizationId === null) {
+          return assistant.userId === currentUserId;
+        }
+        return (
+          isOrgContext &&
+          activeOrganizationId != null &&
+          assistant.organizationId === activeOrganizationId
+        );
       },
     }),
-    [currentUserId, isOrgAdmin, isOrgContext, isOrgOwner]
+    [activeOrganizationId, currentUserId, isOrgAdmin, isOrgContext, isOrgOwner]
   );
 }

@@ -47,6 +47,7 @@ export interface PreHireChatResult {
 export interface CoordinatorOpenerRequest {
   workspaceType: CoordinatorWorkspaceType;
   workspaceName?: string | null;
+  organizationId?: number | null;
 }
 
 export interface CoordinatorOpenerResult {
@@ -110,29 +111,10 @@ function parseCoordinatorId(value: unknown): number | null {
   return null;
 }
 
-function readAssistantRows(payload: unknown): Record<string, unknown>[] {
-  if (Array.isArray(payload)) {
-    return payload.filter(
-      (row): row is Record<string, unknown> => row != null && typeof row === 'object'
-    );
-  }
-  if (!payload || typeof payload !== 'object') return [];
+function readProvisionedCoordinatorId(payload: unknown): number | null {
+  if (!payload || typeof payload !== 'object') return null;
   const record = payload as Record<string, unknown>;
-  if (!Array.isArray(record.info)) return [];
-  return record.info.filter(
-    (row): row is Record<string, unknown> => row != null && typeof row === 'object'
-  );
-}
-
-function readExistingPersonalCoordinatorId(payload: unknown, userId: string): number | null {
-  const coordinatorRow = readAssistantRows(payload).find((row) => {
-    const rowUserId = row.userId ?? row.user_id;
-    const organizationId = row.organizationId ?? row.organization_id;
-    const isCoordinator = row.isCoordinator ?? row.is_coordinator;
-    return rowUserId === userId && organizationId == null && isCoordinator === true;
-  });
-  if (!coordinatorRow) return null;
-  return parseCoordinatorId(coordinatorRow.agentId ?? coordinatorRow.agent_id);
+  return parseCoordinatorId(record.coordinatorId ?? record.coordinator_id);
 }
 
 /**
@@ -269,11 +251,9 @@ export async function generateCoordinatorOpener(
 }
 
 /**
- * Best-effort personal Coordinator provisioning + first-turn opener seeding.
- * The seeded message can target personal or organization workspace onboarding
- * while still writing into the same personal Coordinator transcript.
+ * Best-effort workspace Coordinator provisioning + first-turn opener seeding.
  */
-export async function seedPersonalCoordinatorOpener(
+export async function seedWorkspaceCoordinatorOpener(
   request: CoordinatorOpenerRequest = { workspaceType: 'personal' }
 ): Promise<void> {
   const user = await getCurrentUser();
@@ -285,10 +265,14 @@ export async function seedPersonalCoordinatorOpener(
   }
 
   const orchestraClient = await getOrchestraUserClient(user.apiKey);
-  const assistantsResponse = await orchestraClient.get('/assistant', {
-    params: { listAllOrg: true },
-  });
-  const coordinatorId = readExistingPersonalCoordinatorId(assistantsResponse.data, user.id);
+  const organizationId =
+    request.workspaceType === 'organization' ? (request.organizationId ?? null) : null;
+  const coordinatorRoute =
+    organizationId == null
+      ? `/user/${user.id}/coordinator`
+      : `/user/${user.id}/coordinator?organization_id=${encodeURIComponent(String(organizationId))}`;
+  const provisionResponse = await orchestraClient.post(coordinatorRoute);
+  const coordinatorId = readProvisionedCoordinatorId(provisionResponse.data);
   if (!coordinatorId) {
     return;
   }
@@ -300,3 +284,5 @@ export async function seedPersonalCoordinatorOpener(
     content: openerContent,
   });
 }
+
+export const seedPersonalCoordinatorOpener = seedWorkspaceCoordinatorOpener;

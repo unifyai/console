@@ -9,7 +9,7 @@ import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
 import { ResponseProps } from '@/types/common';
 import { Organization } from '@/types/organization';
-import { seedPersonalCoordinatorOpener } from '@/lib/assistants/preHireChat';
+import { seedWorkspaceCoordinatorOpener } from '@/lib/assistants/preHireChat';
 
 interface WorkspaceContentProps {
   onCreateOrg: (name: string) => Promise<Organization | ResponseProps>;
@@ -117,7 +117,7 @@ const WorkspaceContent = ({
     setError(undefined);
     setIsLoading(true);
     try {
-      await seedPersonalCoordinatorOpener();
+      await seedWorkspaceCoordinatorOpener();
     } catch (error) {
       console.warn('[onboarding] Failed to seed personal Coordinator opener:', error);
     }
@@ -127,9 +127,10 @@ const WorkspaceContent = ({
 
   const seedOrganizationWorkspaceOpener = useCallback(async (org: Organization) => {
     try {
-      await seedPersonalCoordinatorOpener({
+      await seedWorkspaceCoordinatorOpener({
         workspaceType: 'organization',
         workspaceName: org.name,
+        organizationId: org.id,
       });
     } catch (error) {
       console.warn('[onboarding] Failed to seed Coordinator opener for organization:', error);
