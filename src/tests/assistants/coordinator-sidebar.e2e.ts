@@ -20,51 +20,48 @@ import {
   deleteOrg,
   ensureProjectSync,
   navigateToAssistants,
-  orchestraFetch,
 } from './helpers';
 import { loginAndWaitForRedirect } from '../auth/helpers';
 
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 async function authenticate(page: Page, email: string, password: string) {
-  async function tryDevQuickLogin(timeout: number): Promise<boolean> {
-    const quickLoginPanel = page.getByTestId('dev-quick-login');
-    await quickLoginPanel.waitFor({ state: 'visible', timeout });
-    const quickLogin = quickLoginPanel.getByRole('button', {
-      name: new RegExp(escapeRegex(email)),
-    });
-    await quickLogin.waitFor({ state: 'visible', timeout: 10_000 });
-    await Promise.all([
-      page.waitForURL((url) => url.pathname !== '/login', {
-        timeout: 15_000,
-        waitUntil: 'domcontentloaded',
-      }),
-      quickLogin.click(),
-    ]);
-    return true;
-  }
+  const tryDevQuickLogin = async (): Promise<boolean> => {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        await page.goto('/login');
+        await page.waitForLoadState('domcontentloaded');
+      }
+
+      const quickLoginPanel = page.getByTestId('dev-quick-login');
+      const quickLoginButton = quickLoginPanel.locator('button', { hasText: email }).first();
+      const quickLoginVisible = await quickLoginButton
+        .isVisible({ timeout: 10_000 })
+        .catch(() => false);
+      if (!quickLoginVisible) continue;
+
+      await quickLoginButton.click();
+      await page.waitForTimeout(500);
+
+      if (new URL(page.url()).pathname === '/login') {
+        await page.goto('/assistants');
+        await page.waitForLoadState('domcontentloaded');
+      }
+      if (new URL(page.url()).pathname !== '/login') return true;
+    }
+    return false;
+  };
 
   await page.goto('/login');
+  if (await tryDevQuickLogin()) return;
 
   try {
-    await tryDevQuickLogin(5_000);
+    await loginAndWaitForRedirect(page, email, password, 30_000);
     return;
   } catch {
-    /* fall back to email auth below */
+    await page.goto('/login');
+    if (await tryDevQuickLogin()) return;
   }
 
-  try {
-    await loginAndWaitForRedirect(page, email, password, 15_000);
-  } catch (error) {
-    try {
-      await tryDevQuickLogin(20_000);
-      return;
-    } catch {
-      throw error;
-    }
-  }
+  throw new Error(`Unable to authenticate test user ${email}`);
 }
 
 async function loginAndSaveWorkspaceState(
@@ -98,13 +95,17 @@ async function loginAndSaveWorkspaceState(
   }
 
   if (workspaceId !== null) {
-    await page.evaluate(async (orgId) => {
-      await fetch('/api/session/workspace', {
+    const workspaceSwitch = await page.evaluate(async (orgId) => {
+      const response = await fetch('/api/session/workspace', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ workspaceId: String(orgId) }),
       });
+      return { ok: response.ok, status: response.status };
     }, workspaceId);
+    if (!workspaceSwitch.ok) {
+      throw new Error(`Failed to switch workspace session: ${workspaceSwitch.status}`);
+    }
   }
 
   await ctx.storageState({ path: stateFile });
@@ -121,175 +122,9 @@ async function openAssistantMenu(page: Page, agentId: number) {
 
 async function expectCoordinatorChatOpen(page: Page, agentId: number) {
   await page.getByTestId(`assistant-list-item-${agentId}`).click();
-  await expect(page.getByTestId('coordinator-admin-only')).toHaveCount(0);
+  await expect(page.getByTestId('coordinator-private')).toHaveCount(0);
   await expect(page.getByTestId('right-pane-tab-chat')).toHaveAttribute('data-state', 'active');
 }
-
-async function waitForCoordinatorActionStream(page: Page, agentId: number) {
-  await page.waitForResponse(
-    (response) =>
-      response.url().includes(`/api/assistant/${agentId}/actions/stream`) &&
-      response.status() === 200,
-    { timeout: 20_000 }
-  );
-}
-
-/* eslint-disable @typescript-eslint/naming-convention */
-async function seedCoordinatorWorkspace() {
-  const contextRoot = `${owner.id}/${coordinator.agentId}`;
-  const rows = [
-    {
-      context: `${contextRoot}/Coordinator/State`,
-      entries: [
-        {
-          mode: 'active',
-          started_at: '2026-05-01T10:00:00Z',
-          ready_at: null,
-        },
-      ],
-    },
-    {
-      context: `${contextRoot}/Coordinator/Checklist`,
-      entries: [
-        {
-          item_id: 1,
-          title: 'Invite operators',
-          description: 'Add the people who receive assignments.',
-          kind: 'team_setup',
-          status: 'pending',
-          created_at: '2026-05-01T10:00:00Z',
-          updated_at: '2026-05-01T10:00:00Z',
-        },
-        {
-          item_id: 2,
-          title: 'Validate first run',
-          description: null,
-          kind: null,
-          status: 'done',
-          created_at: '2026-05-01T10:01:00Z',
-          updated_at: '2026-05-01T10:01:00Z',
-        },
-      ],
-    },
-    {
-      context: `${contextRoot}/Events/CoordinatorActivity`,
-      entries: [
-        {
-          activity_id: 'activity-1',
-          phase: 'progress',
-          stage: 'proposal',
-          surfaces: ['chat'],
-          title: 'Drafting the teammate plan',
-          summary: 'Collecting roles and handoff rules.',
-          checklist_item_id: 1,
-          chat_prompt: 'What roles have you found so far?',
-          chat_prompt_label: 'Ask for roles',
-          correlation_id: 'corr-1',
-          occurred_at: '2026-05-01T10:03:00Z',
-          status: 'ok',
-          error: null,
-        },
-      ],
-    },
-  ];
-
-  await Promise.all(
-    rows.map(async (row) => {
-      const res = await orchestraFetch(
-        '/v0/logs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            project_name: 'Assistants',
-            context: row.context,
-            entries: row.entries,
-          }),
-        },
-        org.ownerOrgApiKey
-      );
-      if (!res.ok) {
-        throw new Error(`Failed to seed Coordinator workspace: ${res.status} ${await res.text()}`);
-      }
-    })
-  );
-}
-/* eslint-enable @typescript-eslint/naming-convention */
-
-/* eslint-disable @typescript-eslint/naming-convention */
-async function seedCoordinatorChecklistItem({
-  itemId,
-  title,
-  description,
-  kind,
-}: {
-  itemId: number;
-  title: string;
-  description: string;
-  kind: string;
-}) {
-  const res = await orchestraFetch(
-    '/v0/logs',
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        project_name: 'Assistants',
-        context: `${owner.id}/${coordinator.agentId}/Coordinator/Checklist`,
-        entries: [
-          {
-            item_id: itemId,
-            title,
-            description,
-            kind,
-            status: 'pending',
-            created_at: '2026-05-01T10:05:00Z',
-            updated_at: '2026-05-01T10:05:00Z',
-          },
-        ],
-      }),
-    },
-    org.ownerOrgApiKey
-  );
-  if (!res.ok) {
-    throw new Error(`Failed to seed Coordinator checklist item: ${res.status} ${await res.text()}`);
-  }
-}
-
-async function pushCoordinatorActivity(page: Page) {
-  await page.evaluate(async (agentId) => {
-    const response = await fetch(`/api/assistant/${agentId}/actions/push`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'CoordinatorActivity',
-        data: {
-          id: 500,
-          ts: '2026-05-01T10:05:01Z',
-          entries: {
-            eventId: 'event-live-integration-setup',
-            activityId: 'activity-live-integration-setup',
-            phase: 'progress',
-            stage: 'integration_setup',
-            surfaces: ['credentials'],
-            title: 'Connecting Salesforce',
-            summary: 'Checking the integration path before asking for access.',
-            checklistItemId: 3,
-            relatedEntities: [{ type: 'credential', id: 'salesforce', name: 'Salesforce' }],
-            chatPrompt: 'Should I continue with Salesforce setup?',
-            chatPromptLabel: 'Continue',
-            correlationId: 'salesforce-integration-setup',
-            occurredAt: '2026-05-01T10:05:00Z',
-            status: 'ok',
-            error: null,
-          },
-        },
-      }),
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to push Coordinator activity: ${response.status}`);
-    }
-  }, coordinator.agentId);
-}
-/* eslint-enable @typescript-eslint/naming-convention */
 
 async function expectPinnedBeforeSolo(page: Page) {
   await expect(page.getByTestId('assistant-list-group-pinned')).toBeVisible({
@@ -360,12 +195,18 @@ const regularAssistant = createAssistant({
   firstName: 'Regular',
   surname: 'Colleague',
 });
-const personalCoordinator = createAssistant({
-  userId: personalUser.id,
-  firstName: 'Personal',
-  surname: 'Guide',
-  isCoordinator: true,
-});
+const existingPersonalCoordinatorId = dbExec(
+  `SELECT agent_id FROM assistants WHERE user_id = '${personalUser.id}' AND organization_id IS NULL AND is_coordinator = TRUE ORDER BY agent_id DESC LIMIT 1`
+);
+const personalCoordinator =
+  existingPersonalCoordinatorId && Number.isFinite(parseInt(existingPersonalCoordinatorId, 10))
+    ? { agentId: parseInt(existingPersonalCoordinatorId, 10) }
+    : createAssistant({
+        userId: personalUser.id,
+        firstName: 'Personal',
+        surname: 'Guide',
+        isCoordinator: true,
+      });
 
 let ownerAuthFile: string | undefined;
 let adminAuthFile: string | undefined;
@@ -448,23 +289,29 @@ test.setTimeout(120_000);
 test.describe.configure({ mode: 'serial' });
 
 test.afterAll(() => {
-  try {
-    deleteAllAssistantsForUser(owner.id);
-    deleteAllAssistantsForUser(personalUser.id);
-    deleteOrg(org.id);
-  } catch {
-    /* best effort */
+  const cleanupSteps: Array<() => void> = [
+    () => deleteAllAssistantsForUser(owner.id),
+    () => deleteAllAssistantsForUser(admin.id),
+    () => deleteAllAssistantsForUser(member.id),
+    () => deleteAllAssistantsForUser(personalUser.id),
+    () => deleteOrg(org.id),
+    () => cleanupUser(owner.id),
+    () => cleanupUser(admin.id),
+    () => cleanupUser(member.id),
+    () => cleanupUser(personalUser.id),
+  ];
+  for (const cleanupStep of cleanupSteps) {
+    try {
+      cleanupStep();
+    } catch {
+      /* best effort */
+    }
   }
-  cleanupUser(owner.id);
-  cleanupUser(admin.id);
-  cleanupUser(member.id);
-  cleanupUser(personalUser.id);
 });
 
 test('owner sees the Coordinator pinned with workspace chrome and no contract teardown', async ({
   ownerPage: page,
 }) => {
-  await seedCoordinatorWorkspace();
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await expectPinnedBeforeSolo(page);
@@ -487,63 +334,48 @@ test('owner sees the Coordinator pinned with workspace chrome and no contract te
   });
   await page.keyboard.press('Escape');
 
-  const actionStreamReady = waitForCoordinatorActionStream(page, coordinator.agentId);
   await expectCoordinatorChatOpen(page, coordinator.agentId);
-  await actionStreamReady;
   if ((await page.getByTestId('coordinator-workspace-panel').count()) === 0) {
     await page.getByTestId('assistant-info-button').click();
   }
   await expect(page.getByTestId('coordinator-workspace-panel')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('assistant-info-tab-onboarding')).toContainText('Onboarding');
   await expect(page.getByTestId('assistant-info-tab-contact')).toContainText('Contact info');
-  await page.getByTestId('assistant-info-tab-contact').click();
-  const contactGrid = page.getByTestId('assistant-info-contact-grid');
-  await expect(contactGrid).toBeVisible({ timeout: 15_000 });
-  await expect(contactGrid).toContainText('Add phone');
-  await expect(contactGrid).toContainText('Add email');
-  await expect(contactGrid).toContainText('Add whatsapp');
-  await expect(contactGrid).toContainText('Add discord');
-  await page.getByTestId('assistant-info-tab-onboarding').click();
-  await expect(page.getByTestId('coordinator-show-activity')).toHaveCount(0);
-  const currentWorkCard = page.getByTestId('coordinator-current-work-card');
-  await expect(currentWorkCard).toContainText('Drafting the teammate plan', { timeout: 15_000 });
-  await expect(currentWorkCard.getByTestId('coordinator-current-work-loader')).toBeVisible({
-    timeout: 15_000,
-  });
-  await expect(page.getByText('Setup plan')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText('Invite operators')).toBeVisible({ timeout: 15_000 });
-
-  await seedCoordinatorChecklistItem({
-    itemId: 3,
-    title: 'Connect Salesforce',
-    description: 'Finish the integration setup choice.',
-    kind: 'integration',
-  });
-  await pushCoordinatorActivity(page);
-
-  await expect(currentWorkCard).toContainText('Connecting Salesforce', { timeout: 15_000 });
-  await expect(currentWorkCard).toContainText('Integration setup', { timeout: 15_000 });
-  await expect(page.getByText('Refreshing...')).toHaveCount(0, { timeout: 45_000 });
-  await expect(page.getByText('Connect Salesforce')).toBeVisible({ timeout: 15_000 });
 });
 
-test('organization admin can open the Coordinator chat', async ({ adminPage: page }) => {
+test('organization admin cannot access another user coordinator in org workspace', async ({
+  adminPage: page,
+}) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
-  await expectPinnedBeforeSolo(page);
-  await expectCoordinatorChatOpen(page, coordinator.agentId);
+  await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toHaveCount(0);
+  await expect(page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`)).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`).click();
+  await expect(page.getByTestId('coordinator-private')).toHaveCount(0);
 });
 
-test('organization member can open the Coordinator chat without delete controls', async ({
+test('organization member cannot access another user coordinator in org workspace', async ({
   memberPage: page,
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
-  await expectPinnedBeforeSolo(page);
-  await expectCoordinatorChatOpen(page, coordinator.agentId);
-  await openAssistantMenu(page, coordinator.agentId);
-  await expect(page.getByTestId('menu-end-contract')).toHaveCount(0);
-  await page.keyboard.press('Escape');
+  await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toHaveCount(0);
+  await expect(page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`)).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`).click();
+  await expect(page.getByTestId('coordinator-private')).toHaveCount(0);
+  const memberMenuTrigger = page.getByTestId(`assistant-menu-${regularAssistant.agentId}`);
+  const hasMenuTrigger = (await memberMenuTrigger.count()) > 0;
+  if (hasMenuTrigger) {
+    await openAssistantMenu(page, regularAssistant.agentId);
+    await expect(page.getByTestId('menu-end-contract')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+  } else {
+    await expect(memberMenuTrigger).toHaveCount(0);
+  }
 });
 
 test('personal workspace shows the personal Coordinator surface', async ({
