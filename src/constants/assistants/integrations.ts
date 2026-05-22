@@ -189,7 +189,7 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
     // Not in react-icons/si — falls through to the generic Plug2 glyph
     // in ``ProviderIcon``, matching Employment Hero and Matterport.
     setupNote:
-      "Two steps: (1) email your regional Salto Business Unit to request OAuth client credentials for the \"Backend Server\" integration type (scope: user_api.full_access). (2) In your Salto KS dashboard, create a dedicated service-account user (e.g. svc-unity@yourco.com) with the KS roles the integration needs — this user's email and password are the third and fourth required fields below. Don't reuse a real person's login — passwords are held long-term in SecretManager.",
+      "Two steps: (1) email your regional Salto Business Unit to request OAuth client credentials for the \"Backend Server\" integration type (scope: user_api.full_access). (2) In your Salto KS dashboard, create a dedicated service-account user (e.g. svc-unity@yourco.com) with the KS roles the integration needs — this user's email and password are the third and fourth required fields below. Don't reuse a real person's login — passwords are held long-term in SecretManager. For non-EU regions or sandbox environments, set SALTO_KS_IDENTITY_HOST (and usually SALTO_KS_BASE_URL) via the Custom secret flow.",
     auth: {
       // Salto KS uses OAuth 2.0 Resource Owner Password Credentials
       // (ROPC) layered with OpenID Connect — Salto's documented
@@ -204,14 +204,6 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
       // ``api_key_multi`` here is the *Console UX* category (paste-
       // and-go modal), not a claim about the wire-protocol auth
       // model.
-      //
-      // Region + Environment are exposed as optional labeled fields
-      // (defaults: eu / prod).  The remaining optional config
-      // (SALTO_KS_DEFAULT_SITE_ID, SALTO_KS_BASE_URL,
-      // SALTO_KS_IDENTITY_HOST, SALTO_KS_OAUTH_TOKEN_URL,
-      // SALTO_KS_OAUTH_SCOPES) is rare and lives via the freeform
-      // ``custom`` provider — surfacing them as labeled fields here
-      // would clutter the dialog without enough payoff.
       kind: 'api_key_multi',
       fields: [
         {
@@ -241,24 +233,6 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
           sensitive: true,
           helpText:
             'Password of the Salto KS service-account user. Held in SecretManager between calls and re-sent each time the ~1h access token expires.',
-        },
-        {
-          label: 'Region',
-          secretKey: 'SALTO_KS_REGION',
-          sensitive: false,
-          optional: true,
-          placeholder: 'eu',
-          helpText:
-            'Salto regional cloud — "eu" (default), "us", or "ap". Non-EU customers must set this so the runtime hits the right identity server.',
-        },
-        {
-          label: 'Environment',
-          secretKey: 'SALTO_KS_ENVIRONMENT',
-          sensitive: false,
-          optional: true,
-          placeholder: 'prod',
-          helpText:
-            'Salto identity environment — "prod" (default) or "acc". Only set "acc" if the BU has issued sandbox credentials.',
         },
       ],
     },
