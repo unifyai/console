@@ -8,9 +8,9 @@ import { Assistant } from '@/types/assistants/assistant';
  * Permission state for assistant operations.
  *
  * - canHire: Only org Owner or Admin can hire in org context; anyone in personal workspace
- * - canWrite/canDelete: Assistant creator, org Owner, or org Admin can modify in org context;
- *   regular org Members can only view but not edit other members' assistants.
- * - Personal coordinator chat/write access is owner-scoped; org coordinator chat follows active org scope.
+ * - canWrite/canDelete: Assistant creator, org Owner, or org Admin can modify regular assistants
+ *   in org context; coordinators remain owner-scoped in every workspace.
+ * - Coordinator chat visibility is owner-scoped across personal and org workspaces.
  */
 export interface AssistantPermissions {
   /** Whether we're in an organization workspace */
@@ -63,14 +63,14 @@ export function useAssistantPermissions(): AssistantPermissions {
       canHire: !isOrgContext || isOrgOwner || isOrgAdmin,
 
       // Assistant creator, org owner, or org admin can write in org context.
-      // Personal coordinator lifecycle stays owner-scoped.
+      // Coordinator lifecycle stays owner-scoped in both personal and org workspaces.
       // In personal workspace, user always has full access.
       canWrite: (assistant: Assistant) => {
         if (assistant.isCoordinator) {
           if (assistant.organizationId === null) return assistant.userId === currentUserId;
           if (!isOrgContext || activeOrganizationId == null) return false;
           if (assistant.organizationId !== activeOrganizationId) return false;
-          return assistant.userId === currentUserId || isOrgOwner || isOrgAdmin;
+          return assistant.userId === currentUserId;
         }
         if (!isOrgContext) return true;
         return assistant.userId === currentUserId || isOrgOwner || isOrgAdmin;
@@ -97,7 +97,8 @@ export function useAssistantPermissions(): AssistantPermissions {
         return (
           isOrgContext &&
           activeOrganizationId != null &&
-          assistant.organizationId === activeOrganizationId
+          assistant.organizationId === activeOrganizationId &&
+          assistant.userId === currentUserId
         );
       },
     }),

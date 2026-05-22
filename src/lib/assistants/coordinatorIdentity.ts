@@ -37,19 +37,14 @@ export function resolveCanonicalWorkspaceCoordinator(
   if (coordinatorRows.length === 0) return null;
 
   if (workspace.type === 'organization' && workspace.organizationId != null) {
-    if (currentUserId) {
-      const ownedOrgCoordinator = coordinatorRows.find(
+    if (!currentUserId) return null;
+    return (
+      coordinatorRows.find(
         (assistant) =>
           assistant.userId === currentUserId &&
           assistant.organizationId === workspace.organizationId
-      );
-      if (ownedOrgCoordinator) return ownedOrgCoordinator;
-    }
-
-    const orgCoordinator = coordinatorRows.find(
-      (assistant) => assistant.organizationId === workspace.organizationId
+      ) ?? null
     );
-    return orgCoordinator ?? null;
   }
 
   if (currentUserId) {

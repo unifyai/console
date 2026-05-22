@@ -447,12 +447,12 @@ export function RightPaneContainer({
   if (!canOpenAssistantChat(assistant)) {
     return (
       <div
-        data-testid="coordinator-admin-only"
+        data-testid="coordinator-private"
         className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center"
       >
-        <p className="text-body-muted">Coordinator chat is admin-only.</p>
+        <p className="text-body-muted">Coordinator chat is private.</p>
         <p className="text-caption text-muted-foreground">
-          Ask an organization Owner or Admin to open this chat.
+          Open your own Coordinator from this workspace to continue.
         </p>
       </div>
     );
