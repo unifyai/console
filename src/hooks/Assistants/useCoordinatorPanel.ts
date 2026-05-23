@@ -9,12 +9,39 @@ const PERSONAL_ROOT = { kind: 'personal' as const };
 
 type CoordinatorRawRow = Record<string, unknown>;
 
+/**
+ * ``Coordinator/State`` mode — the assistants-page onboarding gate.
+ * ``onboarding`` shows the guided picker/chat surface, ``working``
+ * means the user has graduated to the regular assistants UI.
+ *
+ * Intentionally distinct from the checklist's mode vocabulary
+ * (``active`` / ``ready_to_go``) so a value alone tells you which
+ * context it came from.
+ */
+export type CoordinatorMode = 'onboarding' | 'working';
+
 export interface CoordinatorStateRow {
-  mode: 'active' | 'ready_to_go';
+  mode: CoordinatorMode;
+  /**
+   * Persisted step marker used to resume the onboarding conversation
+   * at the same point if the user closes the browser mid-flow. The
+   * call-vs-chat picker is *not* persisted here — it's re-asked on
+   * every entry into the onboarding view.
+   */
+  onboardingStep: string | null;
   startedAt: string | null;
-  readyAt: string | null;
+  endedAt: string | null;
   [key: string]: unknown;
 }
+
+/**
+ * ``Coordinator/Checklist`` row mode — distinct vocabulary from the
+ * state context. Each checklist row is independently ``active`` (in
+ * progress) or ``ready_to_go`` (queued and unblocked). Kept separate
+ * from {@link CoordinatorMode} so the two concerns don't overload
+ * the word ``active``.
+ */
+export type CoordinatorChecklistMode = 'active' | 'ready_to_go';
 
 export interface CoordinatorChecklistRow {
   itemId: number;
@@ -22,6 +49,7 @@ export interface CoordinatorChecklistRow {
   description: string | null;
   kind: string | null;
   status: 'pending' | 'done' | 'skipped';
+  mode: CoordinatorChecklistMode | null;
   createdAt: string;
   updatedAt: string;
   [key: string]: unknown;
@@ -44,20 +72,29 @@ function numberOrNull(value: unknown): number | null {
   return null;
 }
 
-function normalizeCoordinatorStateRow(rawRow: CoordinatorRawRow): CoordinatorStateRow {
+function normalizeCoordinatorMode(value: unknown): CoordinatorMode {
+  return value === 'working' ? 'working' : 'onboarding';
+}
+
+export function normalizeCoordinatorStateRow(rawRow: CoordinatorRawRow): CoordinatorStateRow {
   const row = snakeToCamelObject<CoordinatorRawRow>(rawRow);
-  const mode = row.mode === 'ready_to_go' ? 'ready_to_go' : 'active';
   return {
     ...row,
-    mode,
+    mode: normalizeCoordinatorMode(row.mode),
+    onboardingStep: stringOrNull(row.onboardingStep),
     startedAt: stringOrNull(row.startedAt),
-    readyAt: stringOrNull(row.readyAt),
+    endedAt: stringOrNull(row.endedAt),
   };
 }
 
 function normalizeChecklistStatus(value: unknown): CoordinatorChecklistRow['status'] {
   if (value === 'done' || value === 'skipped') return value;
   return 'pending';
+}
+
+function normalizeChecklistMode(value: unknown): CoordinatorChecklistMode | null {
+  if (value === 'active' || value === 'ready_to_go') return value;
+  return null;
 }
 
 function normalizeCoordinatorChecklistRow(rawRow: CoordinatorRawRow): CoordinatorChecklistRow {
@@ -69,6 +106,7 @@ function normalizeCoordinatorChecklistRow(rawRow: CoordinatorRawRow): Coordinato
     description: stringOrNull(row.description),
     kind: stringOrNull(row.kind),
     status: normalizeChecklistStatus(row.status),
+    mode: normalizeChecklistMode(row.mode),
     createdAt: stringOrEmpty(row.createdAt),
     updatedAt: stringOrEmpty(row.updatedAt),
   };

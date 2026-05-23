@@ -1,0 +1,66 @@
+'use client';
+
+/**
+ * Shared checklist state for the Coordinator gradual-onboarding flow.
+ * The two surfaces that render the checklist — the gradual-view
+ * sidebar and the coordinator's assistant info panel "Onboarding"
+ * sub-tab — both consume this context so the user's per-session
+ * progress survives the gradual ↔ info-panel layout transition
+ * (which mounts / unmounts distinct subtrees).
+ *
+ * Action handlers (connect-workspace, hire-specialist, …) are
+ * deliberately *not* on the context — they're surface-specific (e.g.
+ * connect-apps opens a docked side tab in the gradual view but is a
+ * no-op in the info-panel surface) and so each surface threads its
+ * own handlers down to the shared ``CoordinatorOnboardingChecklist``
+ * component as props.
+ *
+ * The provider lives in ``Main.tsx`` so the underlying state is
+ * always mounted while the user is on the assistants page.
+ * Consumers fall through gracefully when the context isn't
+ * provided — checklist UI shows everything as pending against an
+ * empty completed set and silently ignores ``markStepCompleted``.
+ */
+
+import * as React from 'react';
+
+export interface CoordinatorOnboardingContextValue {
+  /** Per-session record of which checklist steps the user has
+   * *actually* finished. Drives the strikethrough on the checklist
+   * row and the prereq-satisfaction logic for downstream rows.
+   * Lives in ``Main.tsx`` so the set survives the gradual-view →
+   * info-panel layout swap.
+   *
+   * Several steps (connect-apps, task, watch-and-guide) flip
+   * to "done" only when their underlying real-world state lands —
+   * a token saved, a task created, an action observed running —
+   * rather than on the row click that opened the surface. The
+   * engagement bookkeeping is kept separately on
+   * ``engagedStepIds``. */
+  completedStepIds: ReadonlySet<string>;
+  /** Idempotently records a step as completed. Re-marking a step
+   * already in the set is a no-op (no extra render). */
+  markStepCompleted: (stepId: string) => void;
+  /** Per-session record of which checklist steps the user has
+   * *entered* — i.e. clicked into the corresponding surface
+   * (integrations / tasks / actions tab in the gradual view).
+   * Drives right-section tab visibility so the tab unlocks the
+   * moment the user opens the row, even though the row itself
+   * stays "pending" until the real underlying action lands. */
+  engagedStepIds: ReadonlySet<string>;
+  /** Idempotently records a step as engaged. Marking complete also
+   * marks engaged automatically (see ``Main.tsx``) so callers
+   * generally only invoke this for the click-but-not-yet-done
+   * transition. */
+  markStepEngaged: (stepId: string) => void;
+}
+
+const CoordinatorOnboardingContext = React.createContext<CoordinatorOnboardingContextValue | null>(
+  null
+);
+
+export const CoordinatorOnboardingProvider = CoordinatorOnboardingContext.Provider;
+
+export function useCoordinatorOnboardingContext(): CoordinatorOnboardingContextValue | null {
+  return React.useContext(CoordinatorOnboardingContext);
+}

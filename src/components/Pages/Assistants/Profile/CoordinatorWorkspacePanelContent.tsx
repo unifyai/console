@@ -471,7 +471,7 @@ export function CoordinatorWorkspacePanelContent({
             The setup checklist will appear here as the Coordinator learns what your team needs.
           </p>
         )}
-        {state?.mode === 'ready_to_go' && (
+        {state?.mode === 'working' && (
           <Button
             type="button"
             variant="outline"

@@ -32,6 +32,13 @@ interface TasksPaneProps {
    * showing in the pane.
    */
   onSubTabChange?: (next: TaskMemoryView) => void;
+  /**
+   * Notifies the parent whenever the pane's tasks list count
+   * changes. Used by the Coordinator onboarding flow to auto-mark
+   * the "Assign a task" step done the moment a task actually
+   * lands. Receives ``0`` while the list is empty or still loading.
+   */
+  onTasksCountChange?: (count: number) => void;
 }
 
 function getTaskEmptyState(taskView: TaskMemoryView, isFiltered: boolean): { title: string } {
@@ -53,6 +60,7 @@ export function TasksPane({
   assistantId,
   subTab,
   onSubTabChange,
+  onTasksCountChange,
 }: TasksPaneProps) {
   const {
     tasks,
@@ -69,6 +77,17 @@ export function TasksPane({
     loadMore,
     refetch,
   } = useTasksData({ assistant, ownerId, assistantId });
+
+  // Push the tasks count up so the Coordinator onboarding flow can
+  // auto-complete the "Assign a task" step. Inexpensive to leave
+  // unconditional — the callback is undefined on every other
+  // surface and the optional call becomes a no-op. ``tasks`` is a
+  // ``ContextState`` envelope, so we read its ``count`` rather than
+  // a bare ``length``.
+  const tasksCount = tasks.count;
+  useEffect(() => {
+    onTasksCountChange?.(tasksCount);
+  }, [tasksCount, onTasksCountChange]);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedRow, setSelectedRow] = useState<Record<string, unknown> | null>(null);

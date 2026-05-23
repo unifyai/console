@@ -296,6 +296,19 @@ interface RightPaneContainerProps {
    *  dot on the chat header's "Assistant info" button. */
   hasIncompleteOnboarding?: boolean;
   /**
+   * Coordinator-only handler bag forwarded down to the info panel.
+   * When the active assistant is the canonical Coordinator and it's
+   * still in onboarding mode, the info panel surfaces a third
+   * "Onboarding" sub-tab whose action rows are wired from here.
+   * Ignored for non-coordinator assistants. */
+  coordinatorOnboarding?: {
+    onConnectWorkspace?: () => void;
+    onConnectApps?: () => void;
+    onAssignTask?: () => void;
+    onWatchAndGuide?: () => void;
+    onHireSpecialist?: () => void;
+  };
+  /**
    * Unread chat-message count for the currently-open assistant. Drives
    * the numeric badge on the Chat tab. Cleared by `Main` whenever the
    * user actually views the chat (in either slot), so we render the
@@ -340,6 +353,7 @@ export function RightPaneContainer({
   onShowInstallInstructions,
   onOpenUserSettings,
   hasIncompleteOnboarding,
+  coordinatorOnboarding,
   unreadChatCount = 0,
 }: RightPaneContainerProps) {
   // Tracks whether the live-actions stream is currently working, so the
@@ -891,6 +905,7 @@ export function RightPaneContainer({
             onShowInstallInstructions={onShowInstallInstructions}
             onOpenUserSettings={onOpenUserSettings}
             hasIncompleteOnboarding={hasIncompleteOnboarding}
+            coordinatorOnboarding={coordinatorOnboarding}
           />
         </TabsContent>
 

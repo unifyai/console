@@ -131,6 +131,19 @@ export interface ChatWithInfoPanelProps {
    * isn't provided — i.e. for non-owners who can't see the panel.
    */
   hasIncompleteOnboarding?: boolean;
+  /**
+   * Coordinator-only handler bag forwarded to the info panel so the
+   * "Onboarding" sub-tab on the coordinator's info panel can wire
+   * its action rows. Ignored entirely for non-coordinator
+   * assistants. See ``AssistantInfoSidePanelContent`` for details.
+   */
+  coordinatorOnboarding?: {
+    onConnectWorkspace?: () => void;
+    onConnectApps?: () => void;
+    onAssignTask?: () => void;
+    onWatchAndGuide?: () => void;
+    onHireSpecialist?: () => void;
+  };
 }
 
 export function ChatWithInfoPanel({
@@ -167,6 +180,7 @@ export function ChatWithInfoPanel({
   onShowInstallInstructions,
   onOpenUserSettings,
   hasIncompleteOnboarding = false,
+  coordinatorOnboarding,
 }: ChatWithInfoPanelProps) {
   // The dot is only meaningful when the panel actually exposes the
   // Onboarding tab — for non-owners (who don't get the tab) we
@@ -471,6 +485,7 @@ export function ChatWithInfoPanel({
               canWrite={canWrite}
               onCoordinatorActivity={onCoordinatorActivity}
               coordinatorActivity={coordinatorActivity}
+              coordinatorOnboarding={coordinatorOnboarding}
             />
           </ChatSidePanel>
         )}

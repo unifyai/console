@@ -42,6 +42,14 @@ interface IntegrationsPaneProps {
   assistantId: string;
   secretActions: SecretActions;
   canWrite?: boolean;
+  /**
+   * Notifies the parent whenever the pane's secrets list count
+   * changes. Used by the Coordinator onboarding flow to auto-mark
+   * the "Connect your coordinator with your apps" step done the
+   * moment a token actually lands (vs. on the click that merely
+   * opened the integrations tab). Receives ``0`` while the list
+   * is empty or still loading. */
+  onSecretsCountChange?: (count: number) => void;
 }
 
 type PendingDelete =
@@ -72,6 +80,7 @@ export function IntegrationsPane({
   assistantId,
   secretActions,
   canWrite = true,
+  onSecretsCountChange,
 }: IntegrationsPaneProps) {
   const {
     secrets,
@@ -116,6 +125,16 @@ export function IntegrationsPane({
     setSearchValue('');
     clearSearch();
   };
+
+  // Push the secrets count up whenever it changes. Cheap to keep
+  // unconditional: most consumers don't pass ``onSecretsCountChange``
+  // and the ``?.()`` call becomes a no-op, while the Coordinator
+  // onboarding flow uses this to auto-complete the "connect apps"
+  // step the moment a real token lands.
+  const secretsCount = secrets.length;
+  React.useEffect(() => {
+    onSecretsCountChange?.(secretsCount);
+  }, [secretsCount, onSecretsCountChange]);
 
   const [expandedFolders, setExpandedFolders] = React.useState<Set<string>>(new Set());
   const [customDialogMode, setCustomDialogMode] = React.useState<'create' | 'edit' | null>(null);

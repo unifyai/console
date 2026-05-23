@@ -29,7 +29,9 @@ import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistant
 interface AssistantCommunicationDialogContentProps {
   assistant: Assistant;
   onHangUp: () => void;
-  onHeaderPointerDown: (e: React.PointerEvent) => void;
+  /** Optional; when omitted the header is rendered without drag
+   * chrome — used by the docked / inline call surface. */
+  onHeaderPointerDown?: (e: React.PointerEvent) => void;
   onExpand?: () => void;
   onMinimize?: () => void;
   chatHistories: Record<string, ChatMessage[]>;
@@ -489,6 +491,17 @@ interface AssistantCommunicationDialogProps {
   chatStreamConnectionStatus: ChatStreamConnectionStatus;
   reconnectChatStream: () => void;
   chatStreamActivitySignal: number;
+  /**
+   * Docked mode replaces the modal/floating shell with an inline
+   * container that fills its parent (``h-full w-full``, no fixed
+   * positioning, no backdrop, no drag/resize affordances). Used by
+   * the Coordinator onboarding flow to dock the call surface in
+   * place of the chat panel while the onboarding sidebar stays
+   * visible to its right. Escape no longer transitions to a
+   * floating overlay either — closing the call is done explicitly
+   * via the hangup control.
+   */
+  docked?: boolean;
 }
 
 export function AssistantCommunicationDialog({
@@ -523,6 +536,7 @@ export function AssistantCommunicationDialog({
   chatStreamConnectionStatus,
   reconnectChatStream,
   chatStreamActivitySignal,
+  docked = false,
 }: AssistantCommunicationDialogProps) {
   // --- Modal / Floating mode ---
   const [mode, setMode] = React.useState<'modal' | 'floating'>('modal');
@@ -556,8 +570,11 @@ export function AssistantCommunicationDialog({
   }, []);
 
   // Escape key: modal → floating (keeps the call alive).
+  // Suppressed in docked mode — the call is part of the surrounding
+  // page chrome there, not a dismissable overlay, so escape should
+  // remain available for other UI (e.g. closing menus).
   React.useEffect(() => {
-    if (!isOpen || !isModal) return;
+    if (!isOpen || !isModal || docked) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -566,7 +583,7 @@ export function AssistantCommunicationDialog({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isModal, transitionToFloating]);
+  }, [isOpen, isModal, docked, transitionToFloating]);
 
   // --- Header drag ---
   const handleHeaderPointerDown = React.useCallback(
@@ -682,6 +699,54 @@ export function AssistantCommunicationDialog({
   const handleResizeEnd = React.useCallback(() => setIsResizing(false), []);
 
   if (!isOpen) return null;
+
+  // Docked mode: inline surface that fills its parent. No backdrop,
+  // no positioning chrome, no drag/resize/floating — the dialog is
+  // just one panel of a larger page layout (the Coordinator
+  // onboarding flow). Always renders the full call UI; compact is
+  // unreachable because there is nothing to minimize *into*.
+  if (docked) {
+    return (
+      <div
+        ref={contentRef}
+        className="relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground"
+        data-testid="assistant-call-docked"
+      >
+        <RoomAudioRenderer />
+        <AssistantCommunicationDialogContent
+          assistant={assistant}
+          onHangUp={onClose}
+          chatHistories={chatHistories}
+          setChatHistories={setChatHistories}
+          callPillHistories={callPillHistories}
+          setCallPillHistories={setCallPillHistories}
+          assistantActions={assistantActions}
+          isConnecting={isConnecting}
+          userEmail={userEmail}
+          userImage={userImage}
+          isWaitingForAssistant={isWaitingForAssistant}
+          waitingMessage={waitingMessage}
+          connectionError={connectionError}
+          onRetry={onRetry}
+          isRemoteControlActive={isRemoteControlActive}
+          liveviewUrl={liveviewUrl}
+          isRemoteControlLoading={isRemoteControlLoading}
+          toggleRemoteControl={toggleRemoteControl}
+          isRemoteControlInteractive={isRemoteControlInteractive}
+          isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
+          toggleRemoteControlInteractive={toggleRemoteControlInteractive}
+          isCallConnected={isCallConnected}
+          isDesktopReady={isDesktopReady}
+          callType={callType}
+          isSpeakerMuted={isSpeakerMuted}
+          onToggleSpeaker={onToggleSpeaker}
+          chatStreamConnectionStatus={chatStreamConnectionStatus}
+          reconnectChatStream={reconnectChatStream}
+          chatStreamActivitySignal={chatStreamActivitySignal}
+        />
+      </div>
+    );
+  }
 
   const isCompact =
     !isModal &&
