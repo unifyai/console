@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
-import { Hand, Maximize2, X } from 'lucide-react';
+import { Hand, Maximize2, SquareArrowOutUpRight, PictureInPicture2, X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +11,15 @@ interface AssistantCommunicationHeaderProps {
   onHeaderPointerDown?: (e: React.PointerEvent) => void;
   onExpand?: () => void;
   onMinimize?: () => void;
+  /** Lift the docked call out of the page layout into a floating /
+   *  modal dialog. Only meaningful in docked mode — the chat returns
+   *  to its slot once we pop out. */
+  onPopOut?: () => void;
+  /** Inverse of ``onPopOut`` — return the floating / modal call
+   *  surface to its docked position in the chat slot. Wired on the
+   *  modal & floating modes so users who popped out can re-dock
+   *  without having to hang up first. */
+  onRedock?: () => void;
   onHangUp?: () => void;
 }
 
@@ -19,12 +28,18 @@ export function AssistantCommunicationHeader({
   onHeaderPointerDown,
   onExpand,
   onMinimize,
+  onPopOut,
+  onRedock,
   onHangUp,
 }: AssistantCommunicationHeaderProps) {
   return (
+    // Header height matches the chat tab strip (``py-2`` + h-7 ≈
+    // 44px) so the docked call's top edge lines up with the
+    // adjacent secondary slot's tab strip and the page-wide horizontal
+    // border reads as a single line.
     <div
       className={cn(
-        'relative flex h-10 flex-shrink-0 items-center justify-between border-b bg-background px-4',
+        'relative flex h-11 flex-shrink-0 items-center justify-between border-b bg-background px-4',
         onHeaderPointerDown && 'cursor-grab select-none active:cursor-grabbing'
       )}
       onPointerDown={onHeaderPointerDown}
@@ -36,6 +51,48 @@ export function AssistantCommunicationHeader({
       <p className="text-title">Talk to {assistantName}</p>
       {/* Stop propagation so button clicks don't initiate a drag */}
       <div className="flex items-center gap-0.5" onPointerDown={(e) => e.stopPropagation()}>
+        {onRedock && (
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  onClick={onRedock}
+                  aria-label="Dock call in place of chat"
+                  data-testid="call-redock-button"
+                >
+                  <PictureInPicture2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Dock in chat</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {onPopOut && (
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  onClick={onPopOut}
+                  aria-label="Pop out call into a dialog"
+                  data-testid="call-popout-button"
+                >
+                  <SquareArrowOutUpRight className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Pop out call</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         {onMinimize && (
           <TooltipProvider delayDuration={100}>
             <Tooltip>

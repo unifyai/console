@@ -315,6 +315,15 @@ interface RightPaneContainerProps {
    * badge unconditionally when `> 0` — no per-slot suppression needed.
    */
   unreadChatCount?: number;
+  /**
+   * Renderer for the docked call surface (the
+   * ``AssistantCommunicationDialog`` in ``docked`` mode). Threaded
+   * straight through to ``ChatWithInfoPanel`` which swaps it in for
+   * the chat panel; passed by ``Main`` only when a call is active
+   * for *this* assistant and hasn't been popped out. Undefined →
+   * regular chat is rendered.
+   */
+  renderDockedCall?: () => React.ReactNode;
 }
 
 export function RightPaneContainer({
@@ -355,6 +364,7 @@ export function RightPaneContainer({
   hasIncompleteOnboarding,
   coordinatorOnboarding,
   unreadChatCount = 0,
+  renderDockedCall,
 }: RightPaneContainerProps) {
   // Tracks whether the live-actions stream is currently working, so the
   // dashboards pane can poll its tiles. Hoisted here because either pane
@@ -906,6 +916,14 @@ export function RightPaneContainer({
             onOpenUserSettings={onOpenUserSettings}
             hasIncompleteOnboarding={hasIncompleteOnboarding}
             coordinatorOnboarding={coordinatorOnboarding}
+            // The docked call lives in a single slot — the primary
+            // one — so a split layout can run chat in one pane and
+            // a call in the other without the two mirroring each
+            // other. The secondary slot always renders the regular
+            // chat panel; popping the call out is the path to
+            // having both visible side-by-side in any other
+            // arrangement.
+            renderDockedCall={slot === 'primary' ? renderDockedCall : undefined}
           />
         </TabsContent>
 

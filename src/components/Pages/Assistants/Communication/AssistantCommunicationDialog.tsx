@@ -34,6 +34,16 @@ interface AssistantCommunicationDialogContentProps {
   onHeaderPointerDown?: (e: React.PointerEvent) => void;
   onExpand?: () => void;
   onMinimize?: () => void;
+  /** Header chrome for swapping between docked and dialog modes —
+   *  forwarded straight through to ``AssistantCommunicationHeader``.
+   *  Only one of these is meaningful per render (docked surfaces a
+   *  pop-out button, modal/floating surfaces a redock button). */
+  onPopOut?: () => void;
+  onRedock?: () => void;
+  /** Renders the toolbar at chat-composer height with smaller
+   *  buttons; mirrors the ``docked`` flag on the outer dialog so
+   *  the docked surface lines up with adjacent panes' footers. */
+  compact?: boolean;
   chatHistories: Record<string, ChatMessage[]>;
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories?: Record<string, CallPill[]>;
@@ -69,6 +79,9 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   onHeaderPointerDown,
   onExpand,
   onMinimize,
+  onPopOut,
+  onRedock,
+  compact = false,
   chatHistories,
   setChatHistories,
   callPillHistories,
@@ -275,6 +288,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         onHeaderPointerDown={onHeaderPointerDown}
         onExpand={onExpand}
         onMinimize={onMinimize}
+        onPopOut={onPopOut}
+        onRedock={onRedock}
         onHangUp={onHangUp}
       />
       <div className="relative flex min-h-0 flex-1">
@@ -449,6 +464,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         isAssistantJoined={!isWaitingForAssistant}
         isDesktopReady={isDesktopReady}
         callType={callType}
+        compact={compact}
       />
     </>
   );
@@ -500,8 +516,21 @@ interface AssistantCommunicationDialogProps {
    * visible to its right. Escape no longer transitions to a
    * floating overlay either — closing the call is done explicitly
    * via the hangup control.
+   *
+   * The docked branch deliberately ignores ``isOpen``: docked
+   * surfaces are part of the page layout and the parent decides
+   * when to mount them based on whether a call is active. ``isOpen``
+   * only gates the modal/floating shell.
    */
   docked?: boolean;
+  /** Promote the call from its docked slot into the dialog (modal /
+   *  floating) shell. Wired by the header's pop-out button in docked
+   *  mode. */
+  onPopOut?: () => void;
+  /** Demote the call from the dialog shell back into its docked
+   *  slot. Wired by the header's "dock" button on modal & floating
+   *  modes. */
+  onRedock?: () => void;
 }
 
 export function AssistantCommunicationDialog({
@@ -537,6 +566,8 @@ export function AssistantCommunicationDialog({
   reconnectChatStream,
   chatStreamActivitySignal,
   docked = false,
+  onPopOut,
+  onRedock,
 }: AssistantCommunicationDialogProps) {
   // --- Modal / Floating mode ---
   const [mode, setMode] = React.useState<'modal' | 'floating'>('modal');
@@ -698,13 +729,16 @@ export function AssistantCommunicationDialog({
 
   const handleResizeEnd = React.useCallback(() => setIsResizing(false), []);
 
-  if (!isOpen) return null;
-
   // Docked mode: inline surface that fills its parent. No backdrop,
   // no positioning chrome, no drag/resize/floating — the dialog is
-  // just one panel of a larger page layout (the Coordinator
-  // onboarding flow). Always renders the full call UI; compact is
-  // unreachable because there is nothing to minimize *into*.
+  // just one panel of a larger page layout (the chat slot on the
+  // /assistants page, or the Coordinator onboarding shell).
+  //
+  // The branch sits *above* the ``isOpen`` guard on purpose: docked
+  // surfaces are mounted/unmounted by their parent based on whether
+  // a call is active, not by the dialog-only ``isOpen`` flag, so
+  // gating them on ``isOpen`` would force every caller to thread
+  // an unrelated boolean through.
   if (docked) {
     return (
       <div
@@ -716,6 +750,8 @@ export function AssistantCommunicationDialog({
         <AssistantCommunicationDialogContent
           assistant={assistant}
           onHangUp={onClose}
+          onPopOut={onPopOut}
+          compact
           chatHistories={chatHistories}
           setChatHistories={setChatHistories}
           callPillHistories={callPillHistories}
@@ -747,6 +783,8 @@ export function AssistantCommunicationDialog({
       </div>
     );
   }
+
+  if (!isOpen) return null;
 
   const isCompact =
     !isModal &&
@@ -824,6 +862,7 @@ export function AssistantCommunicationDialog({
             onHeaderPointerDown={handleHeaderPointerDown}
             onExpand={!isModal ? () => setMode('modal') : undefined}
             onMinimize={isModal ? transitionToFloating : undefined}
+            onRedock={onRedock}
             chatHistories={chatHistories}
             setChatHistories={setChatHistories}
             callPillHistories={callPillHistories}

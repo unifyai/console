@@ -1063,6 +1063,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setProfileAssistantSpending(null);
   }, [profileAssistantId]);
 
+  // ``isCommunicationDialogOpen`` doubles as the call-popped-out
+  // flag now: ``false`` (the default) renders the call docked in
+  // place of the chat panel, ``true`` lifts it back into the
+  // floating/modal dialog overlay. The flag is reset to ``false`` on
+  // hangup and on disconnect so the next call starts docked again.
   const handleStartCall = React.useCallback(
     async (assistant: Assistant, callType: 'video' | 'audio') => {
       const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
@@ -1072,27 +1077,38 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             toast.info(
               'Call is active in a separate tab. Close that tab to start a new call here.'
             );
-          } else {
-            setIsCommunicationDialogOpen(true);
           }
+          // Same-assistant re-click while a call is already running:
+          // no-op — the docked surface is already on screen, and
+          // popping it out shouldn't happen by accident.
         } else {
           toast.info('A call is already in progress with another assistant.');
         }
         return;
       }
 
-      setIsCommunicationDialogOpen(true);
+      // Fresh call: stay docked by default.
+      setIsCommunicationDialogOpen(false);
       await startCall(assistant, callType);
     },
     [startCall, activeCallAssistant, popOutCallAssistantId]
   );
+
+  const handlePopOutCall = React.useCallback(() => {
+    setIsCommunicationDialogOpen(true);
+  }, []);
+  const handleRedockCall = React.useCallback(() => {
+    setIsCommunicationDialogOpen(false);
+  }, []);
 
   const handleHangUp = React.useCallback(async () => {
     await hangUpCall();
     setIsCommunicationDialogOpen(false);
   }, [hangUpCall]);
 
-  // Close dialog if connection fails during setup or is disconnected remotely
+  // Reset the popped-out flag if the call drops while popped out,
+  // so the next call starts docked rather than surprise-popping the
+  // user with a leftover overlay.
   React.useEffect(() => {
     if (connectionError) return; // Don't close if there's an error the user needs to see
 
@@ -1781,14 +1797,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               }
               isCoordinatorCallActive={
                 !!activeCallAssistant &&
-                activeCallAssistant.agentId === canonicalCoordinator.agentId
+                activeCallAssistant.agentId === canonicalCoordinator.agentId &&
+                !isCommunicationDialogOpen
               }
               renderDockedCall={() => (
                 <RoomContext.Provider value={room}>
                   <AssistantCommunicationDialog
                     docked
-                    isOpen={isCommunicationDialogOpen}
+                    isOpen
                     onClose={handleHangUp}
+                    onPopOut={handlePopOutCall}
                     assistant={canonicalCoordinator}
                     assistantActions={assistantActions}
                     room={room}
@@ -1981,6 +1999,63 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     : false
                 }
                 coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
+                // Dock the call into the chat slot whenever an active
+                // call's assistant matches the chat's assistant and the
+                // user hasn't explicitly popped the call out. The
+                // Coordinator-onboarding shell hosts its own docked
+                // render (and unmounts this tree), so no extra guard
+                // is needed here.
+                renderDockedCall={
+                  activeCallAssistant &&
+                  profileAssistant &&
+                  activeCallAssistant.agentId === profileAssistant.agentId &&
+                  !isCommunicationDialogOpen
+                    ? () => (
+                        <RoomContext.Provider value={room}>
+                          <AssistantCommunicationDialog
+                            docked
+                            isOpen
+                            onClose={handleHangUp}
+                            onPopOut={handlePopOutCall}
+                            assistant={activeCallAssistant}
+                            assistantActions={assistantActions}
+                            room={room}
+                            chatHistories={profileChatHistories}
+                            setChatHistories={setProfileChatHistories}
+                            callPillHistories={callPillHistories}
+                            setCallPillHistories={setCallPillHistories}
+                            isConnecting={isConnectingCall}
+                            userEmail={userMeta.email}
+                            userImage={userMeta.image}
+                            isWaitingForAssistant={isWaitingForAssistant}
+                            waitingMessage={waitingMessage}
+                            isCallConnected={isCallConnected}
+                            connectionError={connectionError}
+                            onRetry={retryConnection}
+                            isRemoteControlActive={isRemoteControlActive}
+                            liveviewUrl={liveviewUrl}
+                            isRemoteControlLoading={isRemoteControlLoading}
+                            toggleRemoteControl={toggleRemoteControl}
+                            isRemoteControlInteractive={isRemoteControlInteractive}
+                            isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
+                            toggleRemoteControlInteractive={toggleRemoteControlInteractive}
+                            isDesktopReady={isDesktopReady}
+                            callType={callType}
+                            isSpeakerMuted={isSpeakerMuted}
+                            onToggleSpeaker={toggleSpeakerMute}
+                            chatStreamConnectionStatus={
+                              chatStreamConnectionStatusByAssistant[activeCallAssistant.agentId] ??
+                              'connecting'
+                            }
+                            reconnectChatStream={reconnectChatStream}
+                            chatStreamActivitySignal={
+                              chatActivityCounters[activeCallAssistant.agentId] ?? 0
+                            }
+                          />
+                        </RoomContext.Provider>
+                      )
+                    : undefined
+                }
               />
             </div>
           </div>
@@ -2117,50 +2192,51 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           onClose={() => setSetupInstructions(null)}
         />
 
-        {activeCallAssistant &&
-          !(
-            showCoordinatorOnboarding &&
-            canonicalCoordinator &&
-            activeCallAssistant.agentId === canonicalCoordinator.agentId
-          ) && (
-            <RoomContext.Provider value={room}>
-              <AssistantCommunicationDialog
-                isOpen={isCommunicationDialogOpen}
-                onClose={handleHangUp}
-                assistant={activeCallAssistant}
-                assistantActions={assistantActions}
-                room={room}
-                chatHistories={profileChatHistories}
-                setChatHistories={setProfileChatHistories}
-                callPillHistories={callPillHistories}
-                setCallPillHistories={setCallPillHistories}
-                isConnecting={isConnectingCall}
-                userEmail={userMeta.email}
-                userImage={userMeta.image}
-                isWaitingForAssistant={isWaitingForAssistant}
-                waitingMessage={waitingMessage}
-                isCallConnected={isCallConnected}
-                connectionError={connectionError}
-                onRetry={retryConnection}
-                isRemoteControlActive={isRemoteControlActive}
-                liveviewUrl={liveviewUrl}
-                isRemoteControlLoading={isRemoteControlLoading}
-                toggleRemoteControl={toggleRemoteControl}
-                isRemoteControlInteractive={isRemoteControlInteractive}
-                isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
-                toggleRemoteControlInteractive={toggleRemoteControlInteractive}
-                isDesktopReady={isDesktopReady}
-                callType={callType}
-                isSpeakerMuted={isSpeakerMuted}
-                onToggleSpeaker={toggleSpeakerMute}
-                chatStreamConnectionStatus={
-                  chatStreamConnectionStatusByAssistant[activeCallAssistant.agentId] ?? 'connecting'
-                }
-                reconnectChatStream={reconnectChatStream}
-                chatStreamActivitySignal={chatActivityCounters[activeCallAssistant.agentId] ?? 0}
-              />
-            </RoomContext.Provider>
-          )}
+        {/* Page-level dialog — only mounted when the user has popped
+         *  the call out of its docked slot. The docked render lives
+         *  closer to the call's content (the chat panel in the base
+         *  /assistants view, or the Coordinator-onboarding shell)
+         *  so we don't need a guard for those shells here. */}
+        {activeCallAssistant && isCommunicationDialogOpen && (
+          <RoomContext.Provider value={room}>
+            <AssistantCommunicationDialog
+              isOpen={isCommunicationDialogOpen}
+              onClose={handleHangUp}
+              onRedock={handleRedockCall}
+              assistant={activeCallAssistant}
+              assistantActions={assistantActions}
+              room={room}
+              chatHistories={profileChatHistories}
+              setChatHistories={setProfileChatHistories}
+              callPillHistories={callPillHistories}
+              setCallPillHistories={setCallPillHistories}
+              isConnecting={isConnectingCall}
+              userEmail={userMeta.email}
+              userImage={userMeta.image}
+              isWaitingForAssistant={isWaitingForAssistant}
+              waitingMessage={waitingMessage}
+              isCallConnected={isCallConnected}
+              connectionError={connectionError}
+              onRetry={retryConnection}
+              isRemoteControlActive={isRemoteControlActive}
+              liveviewUrl={liveviewUrl}
+              isRemoteControlLoading={isRemoteControlLoading}
+              toggleRemoteControl={toggleRemoteControl}
+              isRemoteControlInteractive={isRemoteControlInteractive}
+              isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
+              toggleRemoteControlInteractive={toggleRemoteControlInteractive}
+              isDesktopReady={isDesktopReady}
+              callType={callType}
+              isSpeakerMuted={isSpeakerMuted}
+              onToggleSpeaker={toggleSpeakerMute}
+              chatStreamConnectionStatus={
+                chatStreamConnectionStatusByAssistant[activeCallAssistant.agentId] ?? 'connecting'
+              }
+              reconnectChatStream={reconnectChatStream}
+              chatStreamActivitySignal={chatActivityCounters[activeCallAssistant.agentId] ?? 0}
+            />
+          </RoomContext.Provider>
+        )}
       </div>
     </CoordinatorOnboardingProvider>
   );
