@@ -238,32 +238,6 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
     },
   },
   {
-    id: 'valos',
-    label: 'Valos',
-    shortDescription: 'Paste a Valos.ai API key to enable AI-driven property valuation lookups.',
-    docsUrl: 'https://valos.ai',
-    // Not in react-icons/si — falls through to the generic Plug2 glyph
-    // in ``ProviderIcon``, matching Employment Hero / Matterport / Salto KS.
-    //
-    // PLACEHOLDER auth scheme.  The runtime ``_client.py`` assumes a
-    // single bearer API key pending official Valos developer
-    // documentation; swap the strategy here once the real contract is
-    // confirmed (bearer / OAuth client credentials / signed-request /
-    // multi-field).
-    setupNote:
-      "Valos doesn't self-serve API keys yet — request one from the Valos team. To point at a sandbox/staging environment, add VALOS_API_BASE_URL via the Custom secret flow.",
-    auth: {
-      kind: 'api_key',
-      field: {
-        label: 'API key',
-        secretKey: 'VALOS_API_KEY',
-        sensitive: true,
-        helpText:
-          'Bearer API key issued by the Valos team. Credential format is provisional pending official Valos developer documentation.',
-      },
-    },
-  },
-  {
     id: 'webex',
     label: 'Webex',
     shortDescription: 'Connect via OAuth using a Webex Integration app.',
