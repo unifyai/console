@@ -315,6 +315,18 @@ start_orchestra() {
   # (success_url / cancel_url) point to localhost instead of console.unify.ai
   export UNIFY_CONSOLE_FRONTEND_URL="http://localhost:${CONSOLE_PORT}"
 
+  # Wire Orchestra → Communication adapters so the unity_system_event
+  # webhook is reachable in local dev. ``CHAT_ADAPTERS_URL`` is
+  # populated by ``load_communication_config`` (line 411) when --chat
+  # is on; without this export Orchestra would read the variable as
+  # ``None`` at import time and every subsequent ``_post_unity_system_event``
+  # (secret-landed narration, onboarding-session-started, ...) would
+  # fail with "Request URL is missing an 'http://' or 'https://' protocol."
+  if [[ -n "$CHAT_ADAPTERS_URL" ]]; then
+    export UNITY_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
+    log_info "  UNITY_ADAPTERS_URL=$UNITY_ADAPTERS_URL"
+  fi
+
   # When --stripe is requested, pass Stripe keys so Orchestra can create
   # checkout/portal sessions and process webhooks.
   if [[ "$with_stripe" == "true" ]]; then

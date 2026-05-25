@@ -38,6 +38,7 @@ import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile
 import { CoordinatorOnboardingSidebar } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingSidebar';
 import { useCoordinatorOnboardingContext } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingContext';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
+import { notifyOnboardingSessionStarted } from '@/lib/client/coordinator';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import type { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { SpendingGateStatus } from '@/types/assistants/spendingGate';
@@ -53,11 +54,16 @@ type OnboardingPickerChoice = 'call' | 'chat' | null;
  */
 type RightSectionTab = 'actions' | 'tasks' | 'integrations';
 
-/** How long the artificial "coordinator is typing…" indicator
- * lingers before we reveal the chat surface and its seeded greeting.
- * Long enough to read as intentional, short enough that it never
- * blocks a motivated user. */
-const TYPING_INDICATOR_MS = 1_500;
+/** Hard timeout for the "coordinator is typing…" indicator.
+ *
+ * The typing bubble normally hides the moment the Coordinator's
+ * first message lands in ``chatHistories`` (event-driven via
+ * Pub/Sub → SSE). If the round-trip stalls — e.g. the user is on a
+ * flaky connection or the orchestra-side emission silently dropped
+ * — we still flip the bubble off after this fallback window so the
+ * surface doesn't pretend the assistant is typing forever. Sized
+ * to feel like a slow-but-real assistant response time. */
+const TYPING_INDICATOR_FALLBACK_MS = 8_000;
 
 interface CoordinatorOnboardingProps {
   coordinator: Assistant;
@@ -236,6 +242,46 @@ export function CoordinatorOnboarding({
     setActiveRightTab('actions');
   }, [markStepEngaged, renderActionsPane]);
 
+  // Auto-engage the right-section steps as soon as their
+  // prerequisite completes, so the corresponding panel pops open
+  // without making the user click the checklist row. The contract
+  // mirrors what the click handlers above do (markStepEngaged +
+  // setActiveRightTab) so the panel surfaces, becomes the active
+  // tab, and the step row itself stays pending until the real
+  // underlying state lands. Gated on the renderer being wired so
+  // we don't auto-engage a step whose panel this surface can't
+  // mount. We also gate on the step not already being engaged or
+  // complete to avoid bouncing the active tab around on resumed
+  // sessions where the user has already moved past the step.
+  const completedStepIds = onboardingCtx?.completedStepIds;
+  const engagedStepIdsForAutoOpen = onboardingCtx?.engagedStepIds;
+  React.useEffect(() => {
+    if (!completedStepIds || !engagedStepIdsForAutoOpen) return;
+    const autoEngage = (
+      stepId: 'apps' | 'task' | 'guide',
+      prereqId: string,
+      tab: RightSectionTab,
+      hasRenderer: boolean
+    ) => {
+      if (!hasRenderer) return;
+      if (!completedStepIds.has(prereqId)) return;
+      if (completedStepIds.has(stepId)) return;
+      if (engagedStepIdsForAutoOpen.has(stepId)) return;
+      onboardingCtx?.markStepEngaged(stepId);
+      setActiveRightTab(tab);
+    };
+    autoEngage('apps', 'workspace', 'integrations', !!renderIntegrationsPane);
+    autoEngage('task', 'apps', 'tasks', !!renderTasksPane);
+    autoEngage('guide', 'task', 'actions', !!renderActionsPane);
+  }, [
+    completedStepIds,
+    engagedStepIdsForAutoOpen,
+    onboardingCtx,
+    renderActionsPane,
+    renderIntegrationsPane,
+    renderTasksPane,
+  ]);
+
   // Hire-specialist is the final structural milestone: clicking
   // hands control back to the parent, which is expected to swap to
   // the base /assistants layout and pop the hire dialog on top. We
@@ -247,6 +293,35 @@ export function CoordinatorOnboarding({
     onHireSpecialist?.();
   }, [onHireSpecialist]);
 
+  // Snapshot of completed step ids passed to Unity at picker time.
+  // Lives behind a ref so picker handlers don't rerun whenever the
+  // checklist progresses — the snapshot is captured at click time
+  // and that's the one Unity should see.
+  const completedStepIdsRef = React.useRef<string[]>([]);
+  React.useEffect(() => {
+    if (!onboardingCtx) return;
+    completedStepIdsRef.current = Array.from(onboardingCtx.completedStepIds);
+  }, [onboardingCtx]);
+
+  // Fire the picker-resolution event so Unity opens the session
+  // with the right kind of message (intro on a fresh transcript,
+  // recap on a resumed one). Best-effort: the chat surface still
+  // mounts even if the event POST fails — the user can always send
+  // a message themselves to unblock things. The actual generated
+  // text arrives via the normal chat-streaming channel and lands
+  // in ``chatHistories[coordinator.agentId]`` automatically.
+  const notifySessionStarted = React.useCallback(
+    (medium: 'chat' | 'call') => {
+      const snapshot = completedStepIdsRef.current;
+      void notifyOnboardingSessionStarted(
+        coordinator.agentId,
+        medium,
+        snapshot.length > 0 ? snapshot : undefined
+      );
+    },
+    [coordinator.agentId]
+  );
+
   const handleStartCall = React.useCallback(async () => {
     if (isStartingCall || isCoordinatorCallActive) return;
     setIsStartingCall(true);
@@ -256,15 +331,17 @@ export function CoordinatorOnboarding({
       // flipping ``isCoordinatorCallActive`` to true, and we don't
       // want the picker to flash back in.
       setChoice('call');
+      notifySessionStarted('call');
       await onStartCall(coordinator, 'audio');
     } finally {
       setIsStartingCall(false);
     }
-  }, [coordinator, isCoordinatorCallActive, isStartingCall, onStartCall]);
+  }, [coordinator, isCoordinatorCallActive, isStartingCall, notifySessionStarted, onStartCall]);
 
   const handlePickChat = React.useCallback(() => {
     setChoice('chat');
-  }, []);
+    notifySessionStarted('chat');
+  }, [notifySessionStarted]);
 
   // When a docked call ends (parent flips ``isCoordinatorCallActive``
   // back to false), the user lands without an active surface. If
@@ -667,18 +744,65 @@ function CoordinatorOnboardingChatSurface({
   // chat panel already renders a typing bubble at the tail of its
   // message list when the assistant is replying; we co-opt that
   // affordance via ``forceTypingIndicator`` to keep a "typing…"
-  // hint visible above an empty thread during this artificial
-  // pause. The bubble disappears in place — replaced either by the
-  // seeded greeting if it has arrived from Pub/Sub, or by an empty
-  // thread waiting for the user's first message.
-  const [isTypingPlaceholderVisible, setIsTypingPlaceholderVisible] = React.useState(true);
+  // hint visible above an empty thread until the Coordinator's
+  // opener actually arrives.
+  //
+  // Two ways the bubble hides:
+  //   1. The Coordinator's first assistant message lands in
+  //      ``chatHistories`` (event-driven via Pub/Sub → SSE — this
+  //      is the happy path).
+  //   2. A hard fallback timer fires so a slow / dropped
+  //      Pub/Sub round-trip can't strand the indicator forever.
+  const coordinatorAgentId = coordinator.agentId;
+  const history = chatHistories[coordinatorAgentId];
+  const hasAssistantMessage = React.useMemo(() => {
+    if (!history) return false;
+    return history.some((message) => message.role === 'assistant');
+  }, [history]);
+
+  // Remember the assistant-message count we saw on mount so we can
+  // detect a *new* assistant message landing after the picker — the
+  // page-level prefetch may have already populated previous turns
+  // for a resumed session, but the recap line is the one we want
+  // to gate on. ``initialAssistantCount`` is captured once and the
+  // typing bubble flips off when the live count exceeds it.
+  const initialAssistantCountRef = React.useRef<number | null>(null);
+  if (initialAssistantCountRef.current === null && history !== undefined) {
+    initialAssistantCountRef.current = history.filter(
+      (message) => message.role === 'assistant'
+    ).length;
+  }
+
+  const liveAssistantCount = React.useMemo(() => {
+    if (!history) return 0;
+    return history.filter((message) => message.role === 'assistant').length;
+  }, [history]);
+
+  const hasNewAssistantMessage =
+    initialAssistantCountRef.current !== null &&
+    liveAssistantCount > initialAssistantCountRef.current;
+
+  const [hasFallbackElapsed, setHasFallbackElapsed] = React.useState(false);
   React.useEffect(() => {
     const handle = window.setTimeout(
-      () => setIsTypingPlaceholderVisible(false),
-      TYPING_INDICATOR_MS
+      () => setHasFallbackElapsed(true),
+      TYPING_INDICATOR_FALLBACK_MS
     );
     return () => window.clearTimeout(handle);
   }, []);
+
+  // Hide the bubble as soon as a new opener arrives, OR after the
+  // fallback timer fires. We deliberately keep it visible even if
+  // ``hasAssistantMessage`` was already true at mount (e.g. resumed
+  // onboarding with a prior recap line still in history) — the
+  // user just picked chat again, so they're waiting for *this*
+  // session's opener.
+  const isTypingPlaceholderVisible = !hasNewAssistantMessage && !hasFallbackElapsed;
+
+  // Reference variable so eslint doesn't flag ``hasAssistantMessage``
+  // as unused — kept around as a clear name for readers tracing the
+  // hide logic above (counts on resumed sessions, etc.).
+  void hasAssistantMessage;
 
   return (
     <div

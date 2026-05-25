@@ -29,7 +29,7 @@
  */
 
 import * as React from 'react';
-import { ArrowRight, Check, Info } from 'lucide-react';
+import { ArrowLeft, Check, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
 import { useCoordinatorOnboardingContext } from './CoordinatorOnboardingContext';
@@ -509,6 +509,22 @@ function ChecklistRow({
   const isBlocked = !!item.disabledReason;
   const isActionable = hasWiredAction && !item.done && !isBlocked;
   const isNext = nextActionableId === item.id;
+  // Whether the next actionable leaf sits somewhere inside this
+  // row's subtree. Parents on the path to "Next" stay at full
+  // opacity so the user's eye flows from the phase header straight
+  // down to the actionable row instead of jumping over a dimmed
+  // group title.
+  const containsNext =
+    !!nextActionableId &&
+    !!item.children?.some(function walk(child: ResolvedChecklistItem): boolean {
+      if (child.id === nextActionableId) return true;
+      return !!child.children?.some(walk);
+    });
+  // Soft-dim every row that isn't the "Next" anchor (and isn't on
+  // the path leading to it). Done rows already carry their own
+  // muted styling but we still apply the wrapper so the entire
+  // list visually settles behind the single actionable focus.
+  const dim = !isNext && !containsNext;
   const hasInfo = !!item.description || !!item.estimatedTime;
 
   const handleClick = React.useCallback(() => {
@@ -547,7 +563,7 @@ function ChecklistRow({
         data-testid={`coordinator-onboarding-next-${item.id}`}
       >
         Next
-        <ArrowRight aria-hidden="true" className="h-3 w-3" />
+        <ArrowLeft aria-hidden="true" className="h-3 w-3" />
       </span>
     ) : null;
 
@@ -654,7 +670,18 @@ function ChecklistRow({
   const showSuggestions = item.id === 'task' && !item.done && !isBlocked;
 
   return (
-    <li className={cn('flex flex-col gap-2', isChild && 'ml-6')}>
+    <li
+      className={cn(
+        'flex flex-col gap-2',
+        isChild && 'ml-6',
+        // Soft fade applies to the whole row container so the
+        // marker, label, Next pill, info button, and any
+        // suggestion chips all dim together. The "Next" row and
+        // its ancestor chain stay opaque to keep the path to the
+        // current focus legible.
+        dim && 'opacity-50 transition-opacity'
+      )}
+    >
       {row}
       {showSuggestions ? (
         <ul

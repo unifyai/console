@@ -8,7 +8,6 @@ import {
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
-import { seedWorkspaceCoordinatorOpener } from '@/lib/assistants/preHireChat';
 
 export interface UnifiedMember {
   id: string; // userId or invite_id
@@ -22,18 +21,6 @@ export interface UnifiedMember {
   jobTitle?: string;
   bio?: string;
   isInvite?: boolean;
-}
-
-async function seedOrganizationWorkspaceOpener(org: Organization): Promise<void> {
-  try {
-    await seedWorkspaceCoordinatorOpener({
-      workspaceType: 'organization',
-      workspaceName: org.name,
-      organizationId: org.id,
-    });
-  } catch (error) {
-    console.warn('[organizations] Failed to seed Coordinator opener for organization:', error);
-  }
 }
 
 export const useOrganization = (
@@ -190,7 +177,12 @@ export const useOrganization = (
         const newOrg = result as Organization;
         setOrganizations((prev) => [...prev, newOrg]);
         toast.success('Organization created successfully');
-        await seedOrganizationWorkspaceOpener(newOrg);
+        // The Coordinator now opens every onboarding session from the
+        // picker resolution on /assistants (see
+        // ``notifyOnboardingSessionStarted`` in
+        // ``CoordinatorOnboarding``). We deliberately no longer
+        // pre-seed an opener here — that produced two openers in
+        // quick succession (static seed + event-driven greeting).
         await switchWorkspace(newOrg.id.toString());
         router.refresh();
       }

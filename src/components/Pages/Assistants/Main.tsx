@@ -259,6 +259,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // Convenience: chat is "visible" if either slot is showing it. Used by
   // the chat-stream hook below to suppress unread bumps and by the
   // mark-as-read effect to clear the badge when an assistant is opened.
+  // The gradual-onboarding view (rendered below when
+  // ``showCoordinatorOnboarding`` flips on) has its own chat surface
+  // pinned to the Coordinator and bypasses ``paneState.tab`` entirely;
+  // ``isChatVisibleForCoordinator`` is OR-ed in below so the unread
+  // badge clears the moment the onboarding tab regains focus, instead
+  // of waiting for the user to also poke a pane tab.
   const isChatVisibleInRightPane =
     paneState.primary.tab === 'chat' ||
     (paneState.secondary !== null && paneState.secondary.tab === 'chat');
@@ -868,9 +874,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       // currently looking at — either the profile chat panel (only when
       // the right-pane Chat tab is visible in *either* the primary or
       // secondary split slot; on Actions/Memory/etc.-only we still want
-      // the badge to climb so the user notices) or, if no panel is open,
-      // the call dialog's embedded side panel.
+      // the badge to climb so the user notices), the gradual-onboarding
+      // chat surface (always pinned to the Coordinator), or, if no
+      // panel is open, the call dialog's embedded side panel.
       activeAssistantId:
+        (showCoordinatorOnboarding ? canonicalCoordinatorId : null) ??
         (isChatVisibleInRightPane ? profileAssistantId : null) ??
         activeCallAssistant?.agentId ??
         null,
@@ -927,6 +935,31 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       markChatStreamRead(profileAssistantId);
     }
   }, [profileAssistantId, isChatVisibleInRightPane, markChatStreamRead]);
+
+  // Same idea for the gradual-onboarding view: it always shows the
+  // Coordinator chat, so the Coordinator's badge should clear as soon
+  // as the user is back on that tab — whether they just navigated in,
+  // a new message landed while they were on it, or they switched away
+  // and tab-visibility flipped back on.
+  React.useEffect(() => {
+    if (!showCoordinatorOnboarding || !canonicalCoordinatorId) return undefined;
+    const sweep = () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        markChatStreamRead(canonicalCoordinatorId);
+      }
+    };
+    sweep();
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', sweep);
+      return () => document.removeEventListener('visibilitychange', sweep);
+    }
+    return undefined;
+  }, [
+    showCoordinatorOnboarding,
+    canonicalCoordinatorId,
+    chatStreamUnreadCounts,
+    markChatStreamRead,
+  ]);
 
   // Activity signal for the currently-open chat panel: the panel reads only
   // changes to this number, so passing 0 when no chat is open is fine.

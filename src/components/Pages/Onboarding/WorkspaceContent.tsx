@@ -9,7 +9,6 @@ import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
 import { ResponseProps } from '@/types/common';
 import { Organization } from '@/types/organization';
-import { seedWorkspaceCoordinatorOpener } from '@/lib/assistants/preHireChat';
 
 interface WorkspaceContentProps {
   onCreateOrg: (name: string) => Promise<Organization | ResponseProps>;
@@ -116,26 +115,14 @@ const WorkspaceContent = ({
   const handlePersonal = useCallback(async () => {
     setError(undefined);
     setIsLoading(true);
-    try {
-      await seedWorkspaceCoordinatorOpener();
-    } catch (error) {
-      console.warn('[onboarding] Failed to seed personal Coordinator opener:', error);
-    }
-
+    // No signup-time opener seed anymore: the Coordinator now opens
+    // every onboarding session from the picker resolution (see
+    // ``notifyOnboardingSessionStarted`` wired into
+    // ``CoordinatorOnboarding``). Pre-seeding here would result in
+    // two openers in quick succession — one static from signup,
+    // one event-driven from the picker.
     await completeAndRedirect({ selectedType: 'personal' });
   }, [completeAndRedirect]);
-
-  const seedOrganizationWorkspaceOpener = useCallback(async (org: Organization) => {
-    try {
-      await seedWorkspaceCoordinatorOpener({
-        workspaceType: 'organization',
-        workspaceName: org.name,
-        organizationId: org.id,
-      });
-    } catch (error) {
-      console.warn('[onboarding] Failed to seed Coordinator opener for organization:', error);
-    }
-  }, []);
 
   const handleCreateOrg = useCallback(async () => {
     const trimmed = orgName.trim();
@@ -166,7 +153,10 @@ const WorkspaceContent = ({
         body: JSON.stringify({ workspaceId: String(org.id) }),
       });
 
-      await seedOrganizationWorkspaceOpener(org);
+      // No signup-time opener seed: the picker fires
+      // ``notifyOnboardingSessionStarted`` so the Coordinator
+      // opens the session itself the first time the user lands
+      // on /assistants.
 
       await completeAndRedirect({
         selectedType: 'organization',
@@ -177,7 +167,7 @@ const WorkspaceContent = ({
       setError('Failed to create organization. Please try again.');
       setIsLoading(false);
     }
-  }, [orgName, onCreateOrg, seedOrganizationWorkspaceOpener, completeAndRedirect]);
+  }, [orgName, onCreateOrg, completeAndRedirect]);
 
   // Auto-complete onboarding on mount when the user already has an org.
   // Server actions can modify cookies when called from a client component,
