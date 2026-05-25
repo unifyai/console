@@ -88,6 +88,16 @@ interface AssistantProfileChatPanelProps {
    * input value in a one-way external prop.
    */
   draftSeed?: { text: string; nonce: number } | null;
+  /**
+   * Force the assistant-replying typing bubble to render even when
+   * no real reply is in flight. Used by the Coordinator onboarding
+   * shell to keep a "typing…" hint visible while it waits for the
+   * seeded greeting to land — the chat panel itself mounts
+   * immediately so the input bar is present from the start, and
+   * this prop drives a transient hint above an otherwise-empty
+   * thread.
+   */
+  forceTypingIndicator?: boolean;
 }
 
 export function AssistantProfileChatPanel({
@@ -110,6 +120,7 @@ export function AssistantProfileChatPanel({
   searchOpen: externalSearchOpen,
   onSearchOpenChange,
   draftSeed,
+  forceTypingIndicator = false,
 }: AssistantProfileChatPanelProps) {
   const displayName = assistantDisplayName(assistant);
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
@@ -813,7 +824,7 @@ export function AssistantProfileChatPanel({
                     </React.Fragment>
                   );
                 })}
-                {isAssistantReplying && (
+                {(isAssistantReplying || forceTypingIndicator) && (
                   <ChatMessageBubble
                     message=""
                     isUser={false}

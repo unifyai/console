@@ -461,7 +461,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // should be sourced from the backend snapshot instead so the
   // chain reflects real progress (and persists across reloads).
   const [completedStepIds, setCompletedStepIds] = React.useState<ReadonlySet<string>>(
-    () => new Set(['meet', 'workspace', 'apps'])
+    () => new Set(['meet'])
   );
   // Engagement is a strict superset of completion — engaging
   // ``apps`` (clicking "Connect apps") unlocks the integrations

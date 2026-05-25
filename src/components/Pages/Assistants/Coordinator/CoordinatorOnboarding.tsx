@@ -35,11 +35,9 @@ import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
-import { ChatMessageBubble } from '@/components/Chat/ChatMessageBubble';
 import { CoordinatorOnboardingSidebar } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingSidebar';
 import { useCoordinatorOnboardingContext } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingContext';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
-import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import type { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { SpendingGateStatus } from '@/types/assistants/spendingGate';
@@ -663,11 +661,16 @@ function CoordinatorOnboardingChatSurface({
   chatStreamActivitySignal,
   isCallConnected,
 }: CoordinatorOnboardingChatSurfaceProps) {
-  // Hold the real chat panel back briefly so the seeded greeting
-  // arrives behind a "typing…" hint rather than appearing instantly.
-  // We only do this once per mount — subsequent renders (e.g. a
-  // skip-onboarding toggle, then re-entry) would re-fire the
-  // typing pause, which is desired UX.
+  // Mount the real chat panel immediately so the input bar is
+  // visible from the very first render — what we hold back is the
+  // *appearance* of the seeded greeting, not the chat surface. The
+  // chat panel already renders a typing bubble at the tail of its
+  // message list when the assistant is replying; we co-opt that
+  // affordance via ``forceTypingIndicator`` to keep a "typing…"
+  // hint visible above an empty thread during this artificial
+  // pause. The bubble disappears in place — replaced either by the
+  // seeded greeting if it has arrived from Pub/Sub, or by an empty
+  // thread waiting for the user's first message.
   const [isTypingPlaceholderVisible, setIsTypingPlaceholderVisible] = React.useState(true);
   React.useEffect(() => {
     const handle = window.setTimeout(
@@ -676,34 +679,6 @@ function CoordinatorOnboardingChatSurface({
     );
     return () => window.clearTimeout(handle);
   }, []);
-
-  if (isTypingPlaceholderVisible) {
-    // Mirror the real chat panel's outer shell + spacing so the
-    // typing bubble appears in the exact position the first assistant
-    // message will land in once the panel mounts — top of the
-    // scrollable area, left-aligned, same horizontal padding.
-    const photoSrc = coordinator.signedProfilePhotoUrl || coordinator.profilePhoto || undefined;
-    return (
-      <div
-        className="mx-auto flex h-full w-full max-w-3xl flex-col bg-background"
-        data-testid="coordinator-onboarding-chat"
-      >
-        <div className="flex-1 overflow-hidden px-3 md:px-6">
-          <div className="space-y-6 py-4" data-testid="coordinator-onboarding-typing">
-            <ChatMessageBubble
-              message=""
-              isUser={false}
-              assistantPhoto={photoSrc}
-              assistantName={assistantDisplayName(coordinator)}
-              isCoordinator={coordinator.isCoordinator}
-              isLoading
-              index={0}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div
@@ -724,6 +699,7 @@ function CoordinatorOnboardingChatSurface({
         reconnectChatStream={reconnectChatStream}
         chatStreamActivitySignal={chatStreamActivitySignal}
         isCallConnected={isCallConnected}
+        forceTypingIndicator={isTypingPlaceholderVisible}
       />
     </div>
   );
