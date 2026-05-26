@@ -28,10 +28,12 @@ import { seedTasksRich } from './scenarios/tasks-rich';
 import { seedSecretsRich } from './scenarios/secrets-rich';
 import { seedReAppraisal } from './scenarios/re-appraisal';
 import { seedManagedBilling } from './scenarios/managed-billing';
+import { seedSidebarSpaceGrouping } from './scenarios/sidebar-space-grouping';
 
 const SCENARIOS: Record<string, SeedScenario> = {
   'personal-workspace': seedPersonalWorkspace,
   'personal-workspace-multi': seedPersonalWorkspaceMulti,
+  'sidebar-space-grouping': seedSidebarSpaceGrouping,
   'org-basic': seedOrgBasic,
   'org-multi-role': seedOrgMultiRole,
   'org-unify': seedOrgAndOutsider,

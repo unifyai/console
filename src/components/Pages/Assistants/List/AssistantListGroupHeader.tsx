@@ -33,7 +33,7 @@ export function AssistantListGroupHeader({
     <button
       type="button"
       className={cn(
-        'flex w-full items-center gap-1.5 text-xs transition-colors hover:bg-muted hover:text-foreground',
+        'flex w-full min-w-0 max-w-full items-center gap-1.5 overflow-hidden text-xs transition-colors hover:bg-muted hover:text-foreground',
         variant === 'section' &&
           'border-b px-2 py-2 font-semibold uppercase tracking-wide text-muted-foreground',
         variant === 'group' && 'border-b px-2 py-1.5 text-muted-foreground',

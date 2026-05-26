@@ -169,3 +169,64 @@ test('typing in the sidebar search filters assistants and hides groups with no m
   await searchInput.fill('');
   await expect(page.getByRole('button', { name: /Patch Beta/ })).toBeVisible({ timeout: 5_000 });
 });
+
+test('kebab menu stays visible while Teams section is expanded', async ({ authedPage: page }) => {
+  await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
+
+  const teamsSection = page.getByTestId('assistant-list-section-spaces');
+  await expect(teamsSection).toBeVisible({ timeout: 15_000 });
+  const teamsHeader = teamsSection.getByRole('button', { name: /Teams/ });
+  if ((await teamsHeader.getAttribute('aria-expanded')) === 'false') {
+    await teamsHeader.click();
+  }
+  await expect(teamsHeader).toHaveAttribute('aria-expanded', 'true');
+
+  const assertMenuInSidebar = async (agentId: number) => {
+    const row = page.getByTestId(`assistant-list-item-${agentId}`);
+    await expect(row).toBeVisible({ timeout: 10_000 });
+    await row.hover();
+    const menuTrigger = page.getByTestId(`assistant-menu-${agentId}`);
+    await expect(menuTrigger).toBeVisible({ timeout: 5_000 });
+    await expect
+      .poll(async () =>
+        page.evaluate((testId) => {
+          const menu = document.querySelector(`[data-testid="${testId}"]`);
+          const sidebar = document.querySelector('[data-testid="assistant-list-section-spaces"]');
+          if (!menu || !sidebar) return false;
+          const menuRect = menu.getBoundingClientRect();
+          const sidebarRect = sidebar.closest('.relative')?.getBoundingClientRect();
+          if (!sidebarRect || menuRect.width <= 0) return false;
+          return menuRect.right <= sidebarRect.right + 1;
+        }, `assistant-menu-${agentId}`)
+      )
+      .toBe(true);
+    await menuTrigger.click();
+    await expect(page.getByTestId('menu-edit-profile')).toBeVisible({ timeout: 5_000 });
+    await page.keyboard.press('Escape');
+  };
+
+  await assertMenuInSidebar(patchAssistant.agentId);
+  await assertMenuInSidebar(soloAssistant.agentId);
+});
+
+test('kebab menu stays visible for multi-space assistant rows', async ({ authedPage: page }) => {
+  await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
+
+  const groupedRow = page.getByTestId(`assistant-list-item-${multiAssistant.agentId}`);
+  await expect(groupedRow).toBeVisible({ timeout: 15_000 });
+  await groupedRow.hover();
+
+  const menuTrigger = page.getByTestId(`assistant-menu-${multiAssistant.agentId}`);
+  await expect(menuTrigger).toBeVisible({ timeout: 5_000 });
+  await expect(groupedRow.getByText('2 spaces')).toBeVisible();
+
+  const menuBox = await menuTrigger.boundingBox();
+  expect(menuBox).not.toBeNull();
+  expect(menuBox!.width).toBeGreaterThan(0);
+
+  await menuTrigger.click();
+  await expect(page.getByTestId('menu-edit-profile')).toBeVisible({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+});

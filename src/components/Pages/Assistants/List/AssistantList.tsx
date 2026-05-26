@@ -287,7 +287,7 @@ export function AssistantList({
       return (
         <div
           key={group.id}
-          className={cn(group.kind === 'space' && 'space-y-1')}
+          className={cn('min-w-0', group.kind === 'space' && 'space-y-1')}
           data-testid={`assistant-list-group-${group.id}`}
         >
           <AssistantListGroupHeader
@@ -309,7 +309,7 @@ export function AssistantList({
             badgeLabel={group.kind === 'space' ? 'Team' : undefined}
           />
           {!isGroupFolded && (
-            <div className={cn('space-y-1 pt-1', group.kind === 'space' && 'pl-3')}>
+            <div className={cn('min-w-0 space-y-1 pt-1', group.kind === 'space' && 'pl-3')}>
               {group.rows.map((entry) =>
                 renderAssistantRow(entry, `${group.id}:${entry.assistant.agentId}`)
               )}
@@ -332,7 +332,7 @@ export function AssistantList({
     ) => {
       const isSectionFolded = foldedGroups[sectionId] === true;
       return (
-        <div key={sectionId} data-testid={testId}>
+        <div key={sectionId} data-testid={testId} className="min-w-0 max-w-full">
           <AssistantListGroupHeader
             label={label}
             count={count}
@@ -342,7 +342,7 @@ export function AssistantList({
             variant="section"
             icon={options.icon}
           />
-          {!isSectionFolded && <div className="space-y-2 pt-1">{children}</div>}
+          {!isSectionFolded && <div className="min-w-0 space-y-2 pt-1">{children}</div>}
         </div>
       );
     },
@@ -358,9 +358,9 @@ export function AssistantList({
   const hasGroupedRowsBelowCoordinator = spaceGroups.length > 0 || !!soloGroup;
   const soloRows = soloGroup?.rows ?? [];
   const groupedAssistantList = (
-    <div className="space-y-3">
+    <div className="w-full min-w-0 max-w-full space-y-3">
       {pinnedGroup ? (
-        <div className="space-y-1" data-testid="assistant-list-group-pinned">
+        <div className="min-w-0 space-y-1" data-testid="assistant-list-group-pinned">
           {pinnedGroup.rows.map((entry) =>
             renderAssistantRow(entry, `${pinnedGroup.id}:${entry.assistant.agentId}`)
           )}
@@ -392,7 +392,7 @@ export function AssistantList({
             'section:solo',
             'Independent colleagues',
             soloRows.length,
-            <div className="space-y-1">
+            <div className="min-w-0 space-y-1">
               {soloRows.map((entry) =>
                 renderAssistantRow(entry, `${soloGroup.id}:${entry.assistant.agentId}`)
               )}
@@ -464,10 +464,19 @@ export function AssistantList({
       </div>
 
       {/* Content Area: Loading Skeletons, Error, or List */}
-      <ScrollArea className="flex-1">
+      <ScrollArea
+        className={cn(
+          'flex-1',
+          // Radix wraps viewport children in `display:table`, which sizes to the
+          // widest intrinsic row (e.g. long workspace descriptions). That pushes
+          // the scroll surface wider than the sidebar and clips right-side actions.
+          !isFolded &&
+            '[&>[data-radix-scroll-area-viewport]>div]:!block [&>[data-radix-scroll-area-viewport]]:overflow-x-hidden'
+        )}
+      >
         <div
           className={cn(
-            'space-y-1 px-2 py-2',
+            'w-full min-w-0 max-w-full space-y-1 overflow-x-hidden px-2 py-2',
             isFolded && 'flex flex-col items-center space-y-3 px-3 py-3'
           )}
         >

@@ -179,14 +179,14 @@ export function AssistantListItem({
       tabIndex={0}
       data-testid={isPrimary ? `assistant-list-item-${assistant.agentId}` : undefined}
       className={cn(
-        'group flex cursor-pointer items-center justify-between rounded-md p-2',
+        'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-md p-2',
         !isSelected && 'hover:bg-muted',
         isSelected && 'bg-primary text-primary-foreground'
       )}
       onClick={handleProfileClick}
       onKeyDown={handleRowKeyDown}
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="relative">
           {isCoordinator ? (
             <CoordinatorLogoAvatar className="h-8 w-8 flex-shrink-0" />
