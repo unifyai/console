@@ -562,8 +562,8 @@ function ChecklistRow({
         className="bg-primary/15 text-caption ml-1 inline-flex flex-shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 font-medium text-primary"
         data-testid={`coordinator-onboarding-next-${item.id}`}
       >
-        Next
         <ArrowLeft aria-hidden="true" className="h-3 w-3" />
+        Next
       </span>
     ) : null;
 
@@ -694,7 +694,7 @@ function ChecklistRow({
               key={workflow.id}
               className={cn(
                 'inline-flex select-none items-center rounded-full',
-                'bg-muted/40 border border-border px-2 py-0.5',
+                'bg-muted/40 px-2 py-0.5',
                 'text-caption text-muted-foreground'
               )}
               data-testid={`coordinator-onboarding-suggestion-${workflow.id}`}

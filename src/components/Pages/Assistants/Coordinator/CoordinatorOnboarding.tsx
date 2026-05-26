@@ -38,6 +38,7 @@ import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile
 import { CoordinatorOnboardingSidebar } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingSidebar';
 import { useCoordinatorOnboardingContext } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingContext';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
+import { useIsMobile } from '@/hooks/Common/useMobile';
 import { notifyOnboardingSessionStarted } from '@/lib/client/coordinator';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import type { ChatMessage, CallPill } from '@/types/assistants/chat';
@@ -53,6 +54,10 @@ type OnboardingPickerChoice = 'call' | 'chat' | null;
  * each appearing once its unlocking step has been touched.
  */
 type RightSectionTab = 'actions' | 'tasks' | 'integrations';
+/** Unified tab identifier used by the mobile layout, where the
+ * chat surface and the right-section panes live in the same tab
+ * strip instead of being side-by-side columns. */
+type MobileTab = 'chat' | RightSectionTab;
 
 /** Hard timeout for the "coordinator is typing…" indicator.
  *
@@ -204,6 +209,16 @@ export function CoordinatorOnboarding({
   // the most-recently-engaged tab is selected by default, and the
   // user can switch via the tab strip when more than one is open.
   const [activeRightTab, setActiveRightTab] = React.useState<RightSectionTab>('integrations');
+  // Mobile-only: which tab is showing in the unified ``Chat |
+  // Integrations | Tasks | Actions`` strip we render on narrow
+  // viewports. Defaults to ``'chat'`` so a fresh mobile session
+  // lands on the conversation (or call) just like desktop. The
+  // auto-engage effect below also drives this so a newly-unlocked
+  // right-section tab pops to the front on mobile — the user
+  // wouldn't otherwise see the panel that just opened, since on
+  // mobile the right section isn't a separate column.
+  const [activeMobileTab, setActiveMobileTab] = React.useState<MobileTab>('chat');
+  const isMobile = useIsMobile();
 
   // Workspace OAuth is engagement-only on click — the dialog
   // opens but the step stays pending until ``Assistant.email`` +
@@ -228,18 +243,21 @@ export function CoordinatorOnboarding({
     if (!renderIntegrationsPane) return;
     markStepEngaged('apps');
     setActiveRightTab('integrations');
+    setActiveMobileTab('integrations');
   }, [markStepEngaged, renderIntegrationsPane]);
 
   const handleOpenTasks = React.useCallback(() => {
     if (!renderTasksPane) return;
     markStepEngaged('task');
     setActiveRightTab('tasks');
+    setActiveMobileTab('tasks');
   }, [markStepEngaged, renderTasksPane]);
 
   const handleOpenActions = React.useCallback(() => {
     if (!renderActionsPane) return;
     markStepEngaged('guide');
     setActiveRightTab('actions');
+    setActiveMobileTab('actions');
   }, [markStepEngaged, renderActionsPane]);
 
   // Auto-engage the right-section steps as soon as their
@@ -269,6 +287,7 @@ export function CoordinatorOnboarding({
       if (engagedStepIdsForAutoOpen.has(stepId)) return;
       onboardingCtx?.markStepEngaged(stepId);
       setActiveRightTab(tab);
+      setActiveMobileTab(tab);
     };
     autoEngage('apps', 'workspace', 'integrations', !!renderIntegrationsPane);
     autoEngage('task', 'apps', 'tasks', !!renderTasksPane);
@@ -481,6 +500,93 @@ export function CoordinatorOnboarding({
         ? 'tasks'
         : 'integrations';
 
+  // The onboarding sidebar (checklist + skip footer) is identical
+  // in desktop and mobile layouts; only its positioning differs.
+  // Computing it once here keeps the two branches below from
+  // duplicating prop wiring.
+  const onboardingSidebar = (
+    <CoordinatorOnboardingSidebar
+      onSkip={handleSkipOnboarding}
+      isSkipping={isSkipping}
+      onConnectWorkspace={onConnectWorkspace ? handleConnectWorkspace : undefined}
+      onConnectApps={renderIntegrationsPane ? handleOpenIntegrations : undefined}
+      onAssignTask={renderTasksPane ? handleOpenTasks : undefined}
+      onWatchAndGuide={renderActionsPane ? handleOpenActions : undefined}
+      onHireSpecialist={onHireSpecialist ? handleHireSpecialist : undefined}
+    />
+  );
+
+  // ── Mobile layout ────────────────────────────────────────────
+  // Narrow viewports collapse the desktop 2/3-pane split into a
+  // vertical stack:
+  //   1. Unified tab strip — Chat (or Call) plus any engaged
+  //      right-section tabs (Integrations / Tasks / Actions).
+  //   2. Active pane filling roughly 60% of the remaining height
+  //      (mirrors the ~60/40 horizontal split on desktop where
+  //      the 380px sidebar takes ~40% of a typical viewport).
+  //   3. Checklist + Skip-onboarding footer in the remaining ~40%
+  //      so the user keeps their progress in view without having
+  //      to scroll past the chat.
+  // We branch on ``useIsMobile`` rather than CSS-only because the
+  // chat surface is a heavy component and we don't want to mount
+  // it twice; the hook returns ``false`` during SSR + the very
+  // first client render so the desktop layout is the safe default.
+  if (isMobile) {
+    // Resolve the active mobile tab against actual engagement —
+    // if the selected tab got unmounted (engagement undone, etc.)
+    // fall back to chat. We never strand the user on a hidden
+    // tab.
+    const isMobileTabVisible = (tab: MobileTab): boolean =>
+      tab === 'chat'
+        ? true
+        : tab === 'actions'
+          ? showActions
+          : tab === 'tasks'
+            ? showTasks
+            : showIntegrations;
+    const resolvedActiveMobileTab: MobileTab = isMobileTabVisible(activeMobileTab)
+      ? activeMobileTab
+      : 'chat';
+    return (
+      <div
+        className="flex h-full w-full flex-col bg-background"
+        data-testid="coordinator-onboarding"
+      >
+        <OnboardingMobileTabStrip
+          activeTab={resolvedActiveMobileTab}
+          onSelectTab={setActiveMobileTab}
+          chatLabel={mainPaneTabLabel}
+          ChatIcon={MainPaneTabIcon}
+          showActions={showActions}
+          showTasks={showTasks}
+          showIntegrations={showIntegrations}
+        />
+        {/* Flex-col so the active pane (Tasks / Actions /
+         *  Integrations) stretches to the container's full width.
+         *  A row flex container would leave the child sized to
+         *  its intrinsic width — fine for the chat surface (which
+         *  carries ``w-full``) but not for the panes, which rely
+         *  on their parent giving them a width. */}
+        <div className="flex min-h-0 flex-[3] flex-col overflow-hidden">
+          {resolvedActiveMobileTab === 'actions' && showActions
+            ? renderActionsPane()
+            : resolvedActiveMobileTab === 'tasks' && showTasks
+              ? renderTasksPane()
+              : resolvedActiveMobileTab === 'integrations' && showIntegrations
+                ? renderIntegrationsPane()
+                : mainPane}
+        </div>
+        <aside
+          className="flex min-h-0 flex-[2] flex-col border-t"
+          data-testid="coordinator-onboarding-sidebar"
+        >
+          {onboardingSidebar}
+        </aside>
+      </div>
+    );
+  }
+
+  // ── Desktop layout ───────────────────────────────────────────
   return (
     <div className="flex h-full w-full bg-background" data-testid="coordinator-onboarding">
       {/* Center container (chat + onboarding sidebar). When the
@@ -498,24 +604,16 @@ export function CoordinatorOnboarding({
         <div className="flex min-h-0 flex-1">
           <div className="flex min-w-0 flex-1">{mainPane}</div>
           <aside
-            className="hidden h-full w-[380px] flex-shrink-0 border-l md:flex"
+            className="h-full w-[380px] flex-shrink-0 border-l"
             data-testid="coordinator-onboarding-sidebar"
           >
-            <CoordinatorOnboardingSidebar
-              onSkip={handleSkipOnboarding}
-              isSkipping={isSkipping}
-              onConnectWorkspace={onConnectWorkspace ? handleConnectWorkspace : undefined}
-              onConnectApps={renderIntegrationsPane ? handleOpenIntegrations : undefined}
-              onAssignTask={renderTasksPane ? handleOpenTasks : undefined}
-              onWatchAndGuide={renderActionsPane ? handleOpenActions : undefined}
-              onHireSpecialist={onHireSpecialist ? handleHireSpecialist : undefined}
-            />
+            {onboardingSidebar}
           </aside>
         </div>
       </div>
       {hasRightSection && (
         <aside
-          className="hidden h-full min-w-0 flex-1 flex-col border-l md:flex"
+          className="flex h-full min-w-0 flex-1 flex-col border-l"
           data-testid="coordinator-onboarding-right-section"
         >
           <OnboardingRightSectionTabs
@@ -638,6 +736,100 @@ function OnboardingRightSectionTabs({
           className={tabClass(activeTab === 'integrations')}
           onClick={() => onSelectTab('integrations')}
           data-testid="coordinator-onboarding-integrations-tab"
+          data-state={activeTab === 'integrations' ? 'active' : 'inactive'}
+        >
+          <Plug2 className="mr-1.5 inline h-3.5 w-3.5" aria-hidden="true" />
+          Integrations
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Unified tab strip rendered at the top of the mobile onboarding
+ * layout. Mirrors the visual treatment of ``OnboardingRightSectionTabs``
+ * — underlined active tab, muted siblings — but extends it with a
+ * leading ``Chat`` (or ``Call`` mid-call) tab so the user can flip
+ * back to the conversation without a separate header band. Only
+ * the chat tab is always present; the right-section tabs append
+ * themselves as their underlying steps get engaged, mirroring
+ * desktop's unlock-order behaviour.
+ *
+ * Render order: ``Chat | Actions | Tasks | Integrations`` —
+ * matches the desktop right-section strip ordering so a user
+ * resizing across the breakpoint sees their tabs stay roughly in
+ * place (rather than reshuffling). Chat docks leftmost as the
+ * default anchor for the session.
+ */
+interface OnboardingMobileTabStripProps {
+  activeTab: MobileTab;
+  onSelectTab: (next: MobileTab) => void;
+  chatLabel: string;
+  ChatIcon: LucideIcon;
+  showActions: boolean;
+  showTasks: boolean;
+  showIntegrations: boolean;
+}
+
+function OnboardingMobileTabStrip({
+  activeTab,
+  onSelectTab,
+  chatLabel,
+  ChatIcon,
+  showActions,
+  showTasks,
+  showIntegrations,
+}: OnboardingMobileTabStripProps) {
+  const tabClass = (isActive: boolean) =>
+    cn(
+      'flex h-full shrink-0 items-center rounded-none border-b-2 border-transparent bg-transparent px-1 py-1 text-label font-medium text-muted-foreground transition-colors',
+      'hover:text-foreground',
+      isActive && 'border-primary text-foreground font-semibold'
+    );
+
+  return (
+    <div className="flex h-10 flex-shrink-0 items-center gap-4 border-b px-4">
+      <button
+        type="button"
+        className={tabClass(activeTab === 'chat')}
+        onClick={() => onSelectTab('chat')}
+        data-testid="coordinator-onboarding-mobile-chat-tab"
+        data-state={activeTab === 'chat' ? 'active' : 'inactive'}
+      >
+        <ChatIcon className="mr-1.5 inline h-3.5 w-3.5" aria-hidden="true" />
+        {chatLabel}
+      </button>
+      {showActions && (
+        <button
+          type="button"
+          className={tabClass(activeTab === 'actions')}
+          onClick={() => onSelectTab('actions')}
+          data-testid="coordinator-onboarding-mobile-actions-tab"
+          data-state={activeTab === 'actions' ? 'active' : 'inactive'}
+        >
+          <Activity className="mr-1.5 inline h-3.5 w-3.5" aria-hidden="true" />
+          Actions
+        </button>
+      )}
+      {showTasks && (
+        <button
+          type="button"
+          className={tabClass(activeTab === 'tasks')}
+          onClick={() => onSelectTab('tasks')}
+          data-testid="coordinator-onboarding-mobile-tasks-tab"
+          data-state={activeTab === 'tasks' ? 'active' : 'inactive'}
+        >
+          <ListTodo className="mr-1.5 inline h-3.5 w-3.5" aria-hidden="true" />
+          Tasks
+        </button>
+      )}
+      {showIntegrations && (
+        <button
+          type="button"
+          className={tabClass(activeTab === 'integrations')}
+          onClick={() => onSelectTab('integrations')}
+          data-testid="coordinator-onboarding-mobile-integrations-tab"
           data-state={activeTab === 'integrations' ? 'active' : 'inactive'}
         >
           <Plug2 className="mr-1.5 inline h-3.5 w-3.5" aria-hidden="true" />
