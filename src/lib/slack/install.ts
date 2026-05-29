@@ -31,6 +31,20 @@ import { getCurrentUser } from '@/lib/user/user';
 import type { ResponseProps } from '@/types/common';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
 import type { SlackInstallUpsertBody } from '@/lib/slack/exchange';
+import type { UserOrganization } from '@/types/user';
+
+/**
+ * Org roles allowed to manage (connect/disconnect) the workspace Slack
+ * install. Matches the Owner/Admin gate used across the assistant
+ * surfaces (see ``useAssistantPermissions``); the install is org-config,
+ * so admins manage it alongside owners.
+ */
+const ORG_MANAGER_ROLES = new Set(['Owner', 'Admin']);
+
+/** Whether ``org`` lets the current user manage its Slack install. */
+export function canManageOrgSlackInstall(org: UserOrganization | undefined | null): boolean {
+  return !!org && ORG_MANAGER_ROLES.has(org.roleName);
+}
 
 function errorResponse(error: unknown, fallback: string): ResponseProps {
   const ax = error as AxiosError<{ detail?: string }> | undefined;
@@ -47,8 +61,8 @@ function errorResponse(error: unknown, fallback: string): ResponseProps {
 /**
  * Confirm the session user may manage the install for ``owner``.
  *
- * * Org installs — the user must own the target organization (matching
- *   the destructive org-admin surface: Delete Organization, MFA).
+ * * Org installs — the user must be an owner or admin of the target
+ *   organization.
  * * Personal installs — the user must be that same user.
  *
  * Returns ``null`` on success or a ``ResponseProps`` (with a generic
@@ -73,9 +87,9 @@ async function requireInstallOwner(owner: SlackInstallOwner): Promise<ResponsePr
   if (!org) {
     return { detail: 'Organization not found.', status: 404 };
   }
-  if (org.ownerId !== user.id) {
+  if (!canManageOrgSlackInstall(org)) {
     return {
-      detail: 'You must be the organization owner to manage the Slack workspace install.',
+      detail: 'You must be an organization owner or admin to manage the Slack workspace install.',
       status: 403,
     };
   }

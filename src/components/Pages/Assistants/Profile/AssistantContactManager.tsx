@@ -906,7 +906,7 @@ const SlackTabContent: React.FC<{
       return (
         <p className="text-body text-muted-foreground">
           No Slack workspace is connected for this {ownerNoun} yet. Ask your{' '}
-          {owner.kind === 'org' ? 'organization owner' : 'account owner'} to connect Slack.
+          {owner.kind === 'org' ? 'organization owner or admin' : 'account owner'} to connect Slack.
         </p>
       );
     }
@@ -1003,8 +1003,8 @@ const SlackTabContent: React.FC<{
 
       {!canManage && (
         <p className="text-caption text-muted-foreground">
-          Only the {owner.kind === 'org' ? 'organization owner' : 'account owner'} can change the
-          Slack workspace connection.
+          Only an {owner.kind === 'org' ? 'organization owner or admin' : 'account owner'} can
+          change the Slack workspace connection.
         </p>
       )}
     </div>

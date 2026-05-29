@@ -33,6 +33,7 @@ import { getApiKeyFromRequest, unauthorized, badRequest } from '../../../_utils/
 import { getCurrentUser } from '@/lib/user/user';
 import { beginSlackOAuthState } from '@/lib/slack/oauth-state';
 import { buildSlackAuthorizeUrl } from '@/lib/slack/exchange';
+import { canManageOrgSlackInstall } from '@/lib/slack/install';
 import type { SlackInstallOwner } from '@/types/slack/install';
 
 interface StartBody {
@@ -60,22 +61,21 @@ export async function POST(request: NextRequest) {
     return badRequest('owner ({ kind: "org", orgId } | { kind: "user", userId }) is required');
   }
 
-  // Owner gate. Org installs match the destructive org-admin surface
-  // (Delete Organization, MFA enforcement); personal installs require
-  // the user to be themselves. Re-enforced server-side by the
-  // install/revoke server actions; checking here too means a
-  // non-owner gets a clean 403 instead of being sent into the Slack
+  // Owner gate. Org installs require an org owner or admin; personal
+  // installs require the user to be themselves. Re-enforced server-side
+  // by the install/revoke server actions; checking here too means a
+  // non-manager gets a clean 403 instead of being sent into the Slack
   // consent screen only to fail on persist.
   if (owner.kind === 'org') {
     const org = user.organizations?.find((o) => o.id === owner.orgId);
     if (!org) {
       return NextResponse.json({ detail: 'Organization not found.' }, { status: 404 });
     }
-    if (org.ownerId !== user.id) {
+    if (!canManageOrgSlackInstall(org)) {
       return NextResponse.json(
         {
           detail:
-            'You must be the organization owner to install a Slack workspace for this organization.',
+            'You must be an organization owner or admin to install a Slack workspace for this organization.',
         },
         { status: 403 }
       );
