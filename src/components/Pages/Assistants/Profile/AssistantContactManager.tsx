@@ -24,9 +24,25 @@ import {
   Check,
   Pencil,
   Plus,
+  Slack,
+  Trash2,
+  ExternalLink,
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/UI/alert-dialog';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ContactType, OAuthProvider } from '@/types/assistants/contact';
+import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
+import { useSlackIntegration } from '@/hooks/Slack/useSlackIntegration';
 import { FormProvider, useWatch } from 'react-hook-form';
 import { FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/settings';
 import {
@@ -68,7 +84,24 @@ interface AssistantContactManagerProps {
   userWhatsappNumber?: string | null;
   /** User's Discord ID from their profile */
   userDiscordId?: string | null;
+  /** Owner scope for the shared Slack install. ``null`` (or absent
+   *  ``assistantActions.slack``) hides the Slack entry — e.g. when
+   *  Slack OAuth isn't configured on the deployment. */
+  slackOwner?: SlackInstallOwner | null;
+  /** Whether the current user may connect/disconnect the workspace
+   *  Slack install (org owner, or the personal-account owner). */
+  slackCanManageInstall?: boolean;
+  /** Server-prefetched shared Slack install for the active workspace. */
+  slackInitialInstall?: SlackInstall | null;
 }
+
+/**
+ * Tabs shown in the contact manager. Extends the billable
+ * ``ContactType`` set with the display-only ``slack`` entry, whose
+ * connection is a shared workspace install rather than a per-assistant
+ * contact row.
+ */
+type ContactManagerTab = ContactType | 'slack';
 
 // ---------------------------------------------------------------------------
 // Shared sub-components
@@ -229,6 +262,9 @@ export function AssistantContactManager({
   userPhoneNumber,
   userWhatsappNumber,
   userDiscordId,
+  slackOwner = null,
+  slackCanManageInstall = false,
+  slackInitialInstall = null,
 }: AssistantContactManagerProps) {
   const {
     // Self-contained form methods from the hook
@@ -274,6 +310,21 @@ export function AssistantContactManager({
   const isBusy = isSubmitting || isDeleting;
 
   const rhfPhoneCountry = useWatch({ control, name: 'phoneCountry' });
+
+  // Slack is a display/routing-only entry — it has no per-assistant
+  // contact row, cost, or create/delete flow — so it lives outside the
+  // contact hook's `activeTab` (which is typed to billable `ContactType`s).
+  // We overlay a widened local tab and forward only real contact types
+  // back to the hook so its footer/cost logic stays consistent.
+  const slackAvailable = !!assistantActions.slack && !!slackOwner;
+  const [selectedTab, setSelectedTab] = React.useState<ContactManagerTab>(initialTab ?? activeTab);
+  React.useEffect(() => {
+    if (isOpen && initialTab) setSelectedTab(initialTab);
+  }, [isOpen, initialTab]);
+  const handleTabChange = (value: ContactManagerTab) => {
+    setSelectedTab(value);
+    if (value !== 'slack') setActiveTab(value);
+  };
 
   const handleDialogClose = (open: boolean) => {
     if (!isBusy && !open) {
@@ -342,6 +393,10 @@ export function AssistantContactManager({
   // -------------------------------------------------------------------------
 
   const renderFooter = () => {
+    // Slack is display/routing-only: connect/disconnect live inside the
+    // Slack tab itself, so there's no shared dialog footer for it.
+    if (selectedTab === 'slack') return null;
+
     // Confirm delete (platform contact)
     if (confirmDelete) {
       return (
@@ -434,8 +489,8 @@ export function AssistantContactManager({
           ) : (
             <div className="w-full pt-4">
               <Select
-                value={activeTab}
-                onValueChange={(value) => setActiveTab(value as ContactType)}
+                value={selectedTab}
+                onValueChange={(value) => handleTabChange(value as ContactManagerTab)}
               >
                 <SelectTrigger data-testid="contact-type-select">
                   <SelectValue />
@@ -461,13 +516,20 @@ export function AssistantContactManager({
                       <FaDiscord className="mr-2 h-4 w-4" /> Discord
                     </span>
                   </SelectItem>
+                  {slackAvailable && (
+                    <SelectItem value="slack">
+                      <span className="flex items-center">
+                        <Slack className="mr-2 h-4 w-4" /> Slack
+                      </span>
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
 
               <div className="max-h-[60vh] overflow-y-auto py-4 pt-8">
-                {activeTab === 'email' && renderEmailTab()}
+                {selectedTab === 'email' && renderEmailTab()}
 
-                {activeTab === 'phone' && (
+                {selectedTab === 'phone' && (
                   <PhoneTabContent
                     assistant={assistant}
                     canWrite={canWrite}
@@ -482,7 +544,7 @@ export function AssistantContactManager({
                   />
                 )}
 
-                {activeTab === 'whatsapp' && (
+                {selectedTab === 'whatsapp' && (
                   <WhatsAppTabContent
                     assistant={assistant}
                     canWrite={canWrite}
@@ -490,11 +552,21 @@ export function AssistantContactManager({
                   />
                 )}
 
-                {activeTab === 'discord' && (
+                {selectedTab === 'discord' && (
                   <DiscordTabContent
                     assistant={assistant}
                     canWrite={canWrite}
                     userDiscordId={userDiscordId}
+                  />
+                )}
+
+                {selectedTab === 'slack' && slackOwner && assistantActions.slack && (
+                  <SlackTabContent
+                    assistant={assistant}
+                    owner={slackOwner}
+                    canManage={slackCanManageInstall}
+                    initialInstall={slackInitialInstall}
+                    actions={assistantActions.slack}
                   />
                 )}
               </div>
@@ -795,6 +867,145 @@ const DiscordTabContent: React.FC<{
             to enable Discord messaging with your assistant.
           </p>
         </div>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Slack tab content
+// ---------------------------------------------------------------------------
+
+/**
+ * Slack is connected once per workspace (per org, or per personal
+ * account) and shared by every assistant in that scope — so this tab
+ * reflects the shared install rather than a per-assistant contact.
+ * Once connected, this assistant is reachable in Slack via
+ * ``@<app> <token>``, where ``<token>`` is its id, first name, or full
+ * name (the id always disambiguates).
+ */
+const SlackTabContent: React.FC<{
+  assistant: Assistant;
+  owner: SlackInstallOwner;
+  canManage: boolean;
+  initialInstall: SlackInstall | null;
+  actions: NonNullable<AssistantActions['slack']>;
+}> = ({ assistant, owner, canManage, initialInstall, actions }) => {
+  const { install, isConnecting, isDisconnecting, connect, disconnect } = useSlackIntegration({
+    owner,
+    initialInstall,
+    actions,
+    redirectAfter: '/assistants',
+  });
+
+  const ownerNoun = owner.kind === 'org' ? 'organization' : 'account';
+  const fullName = `${assistant.firstName} ${assistant.surname}`.trim();
+
+  if (!install) {
+    if (!canManage) {
+      return (
+        <p className="text-body text-muted-foreground">
+          No Slack workspace is connected for this {ownerNoun} yet. Ask your{' '}
+          {owner.kind === 'org' ? 'organization owner' : 'account owner'} to connect Slack.
+        </p>
+      );
+    }
+    return (
+      <div className="space-y-4">
+        <p className="text-body text-muted-foreground">
+          Connect a Slack workspace so this {ownerNoun}&apos;s assistants can chat in DMs and
+          channels. You only connect once — every assistant in this {ownerNoun} becomes reachable.
+        </p>
+        <Button onClick={connect} disabled={isConnecting} className="gap-2">
+          <Slack className="h-4 w-4" />
+          {isConnecting ? 'Redirecting…' : 'Add to Slack'}
+          <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <CheckCircle2 className="h-5 w-5 text-green-500" />
+        <span className="text-body">
+          Connected to <strong>{install.slackTeamName ?? install.slackTeamId}</strong>
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-caption text-muted-foreground">
+          Address this assistant in Slack by mentioning the app, then one of:
+        </p>
+        <DisplayContactField label="By ID (always unique)" value={String(assistant.agentId)} />
+        {fullName && <DisplayContactField label="By full name" value={fullName} />}
+        {assistant.firstName && (
+          <DisplayContactField label="By first name" value={assistant.firstName} />
+        )}
+      </div>
+
+      {install.revoked && (
+        <p className="text-caption text-destructive" data-testid="slack-install-revoked-notice">
+          This install has been revoked. Re-connect to restore Slack messaging.
+        </p>
+      )}
+
+      {canManage && (
+        <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={connect}
+            disabled={isConnecting}
+            className="gap-2"
+          >
+            <Slack className="h-3.5 w-3.5" />
+            Re-install
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={isDisconnecting}
+                className="gap-2"
+                data-testid="slack-disconnect-button"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Disconnect
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Disconnect Slack workspace</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This removes the Slack install for{' '}
+                  <strong>{install.slackTeamName ?? install.slackTeamId}</strong> from this{' '}
+                  {ownerNoun}. Inbound messages will stop reaching <strong>all assistants</strong>{' '}
+                  in this {ownerNoun}, and channel bindings and thread routes will be dropped. You
+                  can re-connect at any time.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={disconnect}
+                  className="hover:bg-destructive/90 bg-destructive text-destructive-foreground"
+                >
+                  Disconnect
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
+
+      {!canManage && (
+        <p className="text-caption text-muted-foreground">
+          Only the {owner.kind === 'org' ? 'organization owner' : 'account owner'} can change the
+          Slack workspace connection.
+        </p>
       )}
     </div>
   );
