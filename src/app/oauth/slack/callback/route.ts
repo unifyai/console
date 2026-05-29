@@ -13,23 +13,49 @@
  * the user — see ``code-conventions.mdc``).
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { verifySlackOAuthState } from '@/lib/slack/oauth-state';
 import { exchangeSlackCode } from '@/lib/slack/exchange';
 import { persistSlackInstall } from '@/lib/slack/install';
 import { getCurrentUser } from '@/lib/user/user';
+import type { SlackInstallOwner } from '@/types/slack/install';
 
 function consoleUrl(): string {
   return (process.env.NEXT_PUBLIC_CONSOLE_URL ?? process.env.NEXTAUTH_URL ?? '').replace(/\/$/, '');
 }
 
-function redirectWith(path: string, params: Record<string, string>): Response {
+/** The workspace cookie ``getCurrentUser`` reads to pick the active org. */
+function ownerWorkspaceId(owner: SlackInstallOwner): string {
+  return owner.kind === 'org' ? String(owner.orgId) : 'personal';
+}
+
+/**
+ * Redirect back into the console. When ``workspaceId`` is supplied (i.e.
+ * the OAuth state was verified and we know which owner the install
+ * belongs to), the ``unify_workspace_id`` cookie is restored so the user
+ * lands in the same workspace they started the install from. The
+ * switcher writes this cookie ``SameSite=Strict``, so it is dropped on
+ * the cross-site return leg from Slack and must be re-set here.
+ */
+function redirectWith(
+  path: string,
+  params: Record<string, string>,
+  workspaceId?: string
+): Response {
   const base = consoleUrl();
   const url = new URL(`${base}${path.startsWith('/') ? path : `/${path}`}`);
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
   }
-  return Response.redirect(url.toString(), 302);
+  const response = NextResponse.redirect(url.toString(), 302);
+  if (workspaceId) {
+    response.cookies.set('unify_workspace_id', workspaceId, {
+      path: '/',
+      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
+    });
+  }
+  return response;
 }
 
 /* The callback emits snake_case query params (``slack_install``,
@@ -65,12 +91,22 @@ export async function GET(request: NextRequest) {
     return redirectWith(FALLBACK_REDIRECT, { slack_install_error: reason });
   }
 
+  // Restore the workspace the install belongs to on every redirect past
+  // state verification — the SameSite=Strict workspace cookie is dropped
+  // on the cross-site return from Slack, so without this the user lands
+  // back in their personal workspace even for an org install.
+  const workspaceId = ownerWorkspaceId(payload.owner);
+
   const user = await getCurrentUser();
   if (!user) {
     return redirectWith('/login', { signout: 'true' });
   }
   if (String(user.id) !== payload.initiatorUserId) {
-    return redirectWith(payload.redirectAfter, { slack_install_error: 'owner_mismatch' });
+    return redirectWith(
+      payload.redirectAfter,
+      { slack_install_error: 'owner_mismatch' },
+      workspaceId
+    );
   }
 
   let installBody;
@@ -78,21 +114,31 @@ export async function GET(request: NextRequest) {
     installBody = await exchangeSlackCode({ code, owner: payload.owner });
   } catch (e) {
     console.error('[slack/oauth/callback] token exchange failed:', e);
-    return redirectWith(payload.redirectAfter, {
-      slack_install_error: 'token_exchange_failed',
-    });
+    return redirectWith(
+      payload.redirectAfter,
+      { slack_install_error: 'token_exchange_failed' },
+      workspaceId
+    );
   }
 
   const persistResult = await persistSlackInstall({ body: installBody });
   if ('detail' in persistResult) {
     console.error('[slack/oauth/callback] install persist failed:', persistResult);
-    return redirectWith(payload.redirectAfter, { slack_install_error: 'persist_failed' });
+    return redirectWith(
+      payload.redirectAfter,
+      { slack_install_error: 'persist_failed' },
+      workspaceId
+    );
   }
 
-  return redirectWith(payload.redirectAfter, {
-    slack_install: 'success',
-    slack_team: installBody.slack_team_name ?? installBody.slack_team_id,
-  });
+  return redirectWith(
+    payload.redirectAfter,
+    {
+      slack_install: 'success',
+      slack_team: installBody.slack_team_name ?? installBody.slack_team_id,
+    },
+    workspaceId
+  );
 }
 
 /* eslint-enable @typescript-eslint/naming-convention */
