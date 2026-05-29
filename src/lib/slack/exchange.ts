@@ -34,6 +34,7 @@ export const SLACK_BOT_SCOPES = [
   'mpim:read',
   'chat:write',
   'users:read',
+  'users:read.email',
   'team:read',
   'files:read',
 ] as const;
