@@ -77,10 +77,11 @@ export function ApiKeyIntegrationDialog({
     if (v !== '') trimmedChanged[f.secretKey] = v;
   }
 
-  // Add mode requires every field — partial pastes wouldn't form a usable
-  // credential.  Edit mode allows partial: untouched fields keep their
-  // existing value.
-  const isAddIncomplete = !isEditing && fields.some((f) => !(f.secretKey in trimmedChanged));
+  // Add mode requires every required field — partial pastes wouldn't
+  // form a usable credential.  Optional fields can be left blank.  Edit
+  // mode allows partial: untouched fields keep their existing value.
+  const isAddIncomplete =
+    !isEditing && fields.some((f) => !f.optional && !(f.secretKey in trimmedChanged));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,6 +136,7 @@ export function ApiKeyIntegrationDialog({
               <div key={field.secretKey} className="flex flex-col gap-1.5">
                 <Label htmlFor={inputId} className="text-xs">
                   {field.label}
+                  {field.optional && <span className="ml-1 text-muted-foreground">(optional)</span>}
                 </Label>
                 <Input
                   id={inputId}

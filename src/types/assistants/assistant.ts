@@ -2,6 +2,7 @@ import { ResponseProps } from '../common';
 import { SupportedLanguage, Gender as CartesiaGender, Gender } from '@cartesia/cartesia-js/api'; // LocalizeTargetLanguage removed, Literal added (if needed from API spec)
 import { ChatMessage, UnifyMessage, AttachmentUploadResponse } from './chat';
 import { SecretActions } from './secret';
+import type { SlackInstallActions } from '../slack/install';
 import { ConnectionDetails } from './call';
 import {
   ContactCosts,
@@ -481,6 +482,13 @@ export interface AssistantActions {
     fetchContactCosts: () => Promise<ContactCosts | ResponseProps>;
   };
   secret: SecretActions;
+  /**
+   * Slack workspace install management (owner-scoped). Optional — only
+   * bound when Slack OAuth is configured on the deployment. The install
+   * is shared across every assistant in the same owner scope, so these
+   * actions operate on the workspace install, not a per-assistant row.
+   */
+  slack?: SlackInstallActions;
   call: {
     getConnectionDetails: (
       assistantId: string,

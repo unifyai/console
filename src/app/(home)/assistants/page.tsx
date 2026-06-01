@@ -67,6 +67,12 @@ import {
 } from '@/lib/assistants/action';
 import { getDashboardMetadata, getDashboardTileContent } from '@/lib/assistants/dashboard';
 import { getActiveOrganization } from '@/lib/user/workspace';
+import {
+  getSlackInstallAction,
+  revokeSlackInstallAction,
+  canManageOrgSlackInstall,
+} from '@/lib/slack/install';
+import { isSlackInstall, type SlackInstall, type SlackInstallOwner } from '@/types/slack/install';
 
 const AssistantsPage = async ({
   searchParams,
@@ -168,6 +174,31 @@ const AssistantsPage = async ({
     },
   };
 
+  // Slack workspace install (owner-scoped, shared across every
+  // assistant in the active workspace). Only wired when Slack OAuth is
+  // configured on this deployment; otherwise the contact-details Slack
+  // entry stays hidden. The install owner is the active org, or the
+  // user's personal account when not in an org workspace — matching how
+  // Orchestra scopes ``@app <token>`` resolution.
+  const slackConfigured = !!process.env.SLACK_CLIENT_ID && !!process.env.SLACK_CLIENT_SECRET;
+  let slackOwner: SlackInstallOwner | null = null;
+  let slackCanManageInstall = false;
+  let slackInitialInstall: SlackInstall | null = null;
+  if (slackConfigured) {
+    slackOwner = orgId != null ? { kind: 'org', orgId } : { kind: 'user', userId: String(user.id) };
+    // Connect/disconnect is destructive and workspace-wide. Org installs
+    // are managed by org owners or admins; personal installs are managed
+    // by the user themselves.
+    slackCanManageInstall = orgId != null ? canManageOrgSlackInstall(activeOrganization) : true;
+    const getInstall = await getSlackInstallAction(apiKey);
+    const revokeInstall = await revokeSlackInstallAction(apiKey);
+    assistantActions.slack = { getInstall, revokeInstall };
+    const installResult = await getInstall(slackOwner);
+    if (isSlackInstall(installResult)) {
+      slackInitialInstall = installResult;
+    }
+  }
+
   const userMeta = {
     image: user.image,
     timezone: user.timezone,
@@ -179,6 +210,9 @@ const AssistantsPage = async ({
     isOrgContext,
     isFreeTrial,
     mfaSetupRequired: !!user.mfaSetupRequired,
+    slackOwner,
+    slackCanManageInstall,
+    slackInitialInstall,
   };
 
   return (
