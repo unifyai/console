@@ -54,7 +54,10 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
   const { activeOrganization, isUnifyMember } = resolveWorkspaceContext(user);
   const isOrgContext = activeOrganization !== null;
   const roleName = activeOrganization?.roleName?.toLowerCase();
-  const isAdmin = roleName === 'owner' || roleName === 'admin';
+  // Unify members (internal staff) get the org-wide usage view (members
+  // filter, org totals) for any org they belong to, even if they aren't an
+  // owner/admin of that org — matching the trial bypass below.
+  const isAdmin = roleName === 'owner' || roleName === 'admin' || isUnifyMember;
   const orgId = activeOrganization?.id ?? null;
 
   if (activeOrganization?.freeTrial && !isUnifyMember) {

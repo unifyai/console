@@ -37,13 +37,17 @@ const BillingPage: React.FC = async () => {
 
   if (activeOrganization) {
     const roleName = activeOrganization.roleName?.toLowerCase();
-    if (roleName !== 'owner' && roleName !== 'admin') {
+    const isOrgAdmin = roleName === 'owner' || roleName === 'admin';
+    // Unify members (internal staff) can view billing for any org they belong
+    // to, regardless of their role in that org. Edit rights still follow the
+    // org role so a non-owner/admin Unify member gets a read-only view.
+    if (!isOrgAdmin && !isUnifyMember) {
       redirect('/profile');
     }
     orgContext = {
       orgId: activeOrganization.id,
       orgName: activeOrganization.name,
-      canEdit: roleName === 'owner' || roleName === 'admin',
+      canEdit: isOrgAdmin,
     };
   }
 
