@@ -2,6 +2,7 @@ import { ResponseProps } from '@/types/common';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { Secret, SecretPayload, SecretUpdatePayload } from '@/types/assistants/secret';
 import { resolveOwnerApiKeyForAssistant } from '@/lib/assistants/owner';
+import { formatValidationDetail } from '@/utils/orchestra-error';
 
 const PROJECT = 'Assistants';
 const CONTEXT_SUFFIX = '/Secrets';
@@ -163,7 +164,11 @@ export const createSecret = async (
 
       if (!response.ok) {
         const data = await response.json();
-        return { detail: data.detail || `Failed to create secret: ${response.statusText}` };
+        return {
+          detail:
+            formatValidationDetail(data.detail) ||
+            `Failed to create secret: ${response.statusText}`,
+        };
       }
 
       return { info: 'Secret created successfully.' };
@@ -198,7 +203,11 @@ export const updateSecret = async (apiKey: string, orgId: number | null = null) 
 
       if (!response.ok) {
         const data = await response.json();
-        return { detail: data.detail || `Failed to update secret: ${response.statusText}` };
+        return {
+          detail:
+            formatValidationDetail(data.detail) ||
+            `Failed to update secret: ${response.statusText}`,
+        };
       }
 
       return { info: 'Secret updated successfully.' };

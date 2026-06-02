@@ -27,6 +27,7 @@ import {
 import { ResponseProps } from '@/types/common';
 import { createOrchestraClient } from '@/lib/orchestra/client';
 import { snakeToCamelObject } from '@/utils/casing';
+import { formatValidationDetail } from '@/utils/orchestra-error';
 
 const backendUrl = `${process.env.ORCHESTRA_URL}/v0`;
 const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
@@ -45,7 +46,9 @@ const safeFetch = async (url: string, options: RequestInit, context: string): Pr
       const data = await response.json();
       if (!response.ok) {
         const errorMessage =
-          data.detail || data.error || `Operation failed: ${response.statusText}`;
+          formatValidationDetail(data.detail) ||
+          data.error ||
+          `Operation failed: ${response.statusText}`;
         return { detail: errorMessage, status: response.status };
       }
       return snakeToCamelObject(data as Record<string, unknown>);

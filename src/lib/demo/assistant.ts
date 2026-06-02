@@ -14,6 +14,7 @@ import {
 } from '@/types/demo';
 import { AssistantSpend } from '@/types/assistants/spending';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
+import { formatValidationDetail } from '@/utils/orchestra-error';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 
 /**
@@ -115,7 +116,8 @@ export const createDemoAssistant = async (apiKey: string) => {
 
       if (!response.ok) {
         const errorMessage =
-          data.detail || `Failed to create demo assistant: ${response.statusText}`;
+          formatValidationDetail(data.detail) ||
+          `Failed to create demo assistant: ${response.statusText}`;
         return { detail: errorMessage };
       }
 

@@ -20,6 +20,7 @@
 'use server';
 
 import { snakeToCamelObject } from '@/utils/casing';
+import { formatValidationDetail } from '@/utils/orchestra-error';
 import { requireUnifyAdmin } from '@/lib/admin/_guard';
 import type {
   AdminBillingPlanTemplate,
@@ -54,7 +55,10 @@ const safeFetch = async (url: string, options: RequestInit, context: string): Pr
     if (contentType && contentType.includes('application/json')) {
       const data = await response.json();
       if (!response.ok) {
-        const detail = data.detail || data.error || `Operation failed: ${response.statusText}`;
+        const detail =
+          formatValidationDetail(data.detail) ||
+          data.error ||
+          `Operation failed: ${response.statusText}`;
         return { detail, status: response.status };
       }
       // Recursively snake → camel; Array support is built-in.
