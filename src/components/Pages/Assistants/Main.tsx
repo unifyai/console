@@ -1791,9 +1791,23 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       refetch();
       retryTimers.push(setTimeout(refetch, 1500));
       if (detail.kind === 'workspace') {
-        setWorkspaceManagerAssistant(null);
-        setContactManagerAssistant(null);
-        toast.success('Workspace connected.');
+        // The OAuth itself succeeded, but the contact row write may have
+        // failed (e.g. the mailbox is already connected to another
+        // assistant). Surface that instead of a false "connected" — and
+        // keep the dialog open so the user can retry with another account.
+        const params = new URLSearchParams(detail.query || '');
+        const contactError = params.get('contact_error');
+        if (contactError || params.get('success') === 'false') {
+          toast.error(
+            contactError === 'email_in_use'
+              ? 'That mailbox is already connected to an assistant. Disconnect it there first, or connect a different account.'
+              : "Couldn't finish connecting the workspace. Please try again."
+          );
+        } else {
+          setWorkspaceManagerAssistant(null);
+          setContactManagerAssistant(null);
+          toast.success('Workspace connected.');
+        }
       }
     });
     return () => {
