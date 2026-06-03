@@ -84,6 +84,7 @@ import { useSpendingGate } from '@/hooks/Assistants/useSpendingGate';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemErrors';
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
+import { fetchMemoryContext } from '@/lib/client/memory';
 import type { SpaceSummary } from '@/types/spaces/space';
 import {
   type CoordinatorActivityRow,
@@ -1511,7 +1512,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   // Auto-complete the workspace step the moment the Coordinator
   // gains a BYOD workspace credential. Mirrors the ``apps`` /
-  // ``task`` / ``guide`` flow (count callbacks from the
+  // ``act`` / ``schedule`` flow (count callbacks from the
   // rendered panes): real completion is observed from the data,
   // not from the click that opened the dialog. We treat the
   // presence of both ``email`` and ``emailProvider`` as the
@@ -1526,6 +1527,96 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       markStepCompleted('workspace');
     }
   }, [coordinatorEmail, coordinatorEmailProvider, markStepCompleted]);
+
+  // Backfill the "Ask your coordinator to do something now" (`act`)
+  // step from durable history so it survives a reload.
+  //
+  // workspace / apps / schedule all re-derive from durable domain
+  // data (a contact row, a secret, a scheduled task). "An action
+  // ran", by contrast, is otherwise only observed via the *live*
+  // ``onHasActiveActionChange`` signal off the Actions pane, which
+  // never re-fires for a *past* action after a reload — and because
+  // the Actions pane only mounts once ``act`` is engaged (and the
+  // pane reports only currently-running actions), a resumed session
+  // would strand the step, and with it everything gated behind it
+  // (schedule, hire). Here we run a one-shot, NON-time-windowed
+  // existence probe for any root action the Coordinator has ever
+  // dispatched (``len(hierarchy) == 1``, limit 1, no start bound)
+  // and mark the step done if one exists. The live observer still
+  // covers in-session completion; this only backfills.
+  //
+  // Probed once per coordinator (the ref guard); reset on error so a
+  // transient failure can retry on a later render. Deliberately NOT
+  // gated on (or depended on) ``completedStepIds``: that set changes
+  // rapidly on reload (meet → workspace → apps …), and tying the
+  // probe to it would let an unrelated step completing tear down an
+  // in-flight probe before it resolves. The ref guard already limits
+  // us to one probe per coordinator, and ``markStepCompleted`` is
+  // idempotent, so marking ``act`` when the live observer already did
+  // is a harmless no-op.
+  const actBackfillProbedRef = React.useRef<string | null>(null);
+  const actionActions = assistantActions.actions;
+  React.useEffect(() => {
+    if (!showCoordinatorOnboarding) return;
+    const coordinator = canonicalCoordinator;
+    if (!coordinator || !actionActions) return;
+    if (actBackfillProbedRef.current === coordinator.agentId) return;
+    actBackfillProbedRef.current = coordinator.agentId;
+
+    void (async () => {
+      try {
+        const response = await actionActions.getManagerMethodEvents(
+          coordinator.userId,
+          coordinator.agentId,
+          null, // no lower time bound — durable "ever acted?" check
+          1,
+          undefined,
+          ['len(hierarchy) == 1']
+        );
+        const hasAnyAction = !('detail' in response) && (response.logs?.length ?? 0) > 0;
+        if (hasAnyAction) markStepCompleted('act');
+      } catch {
+        // Best-effort — clear the guard so a later render can retry.
+        // The live observer still covers anything the user does this
+        // session.
+        actBackfillProbedRef.current = null;
+      }
+    })();
+  }, [showCoordinatorOnboarding, canonicalCoordinator, actionActions, markStepCompleted]);
+
+  // Backfill the "Schedule a task for later" (`schedule`) step from
+  // durable data, symmetric with the `act` probe above. Unlike `act`,
+  // a scheduled task IS durable domain state (it lives in the
+  // Coordinator's Tasks context), so the in-session signal already
+  // re-derives it — *if* the Tasks pane is mounted. But reaching the
+  // schedule step deliberately doesn't steal focus to the Tasks pane
+  // (so we don't yank the user off the action they just kicked off),
+  // which means on a resumed session the pane never auto-mounts and a
+  // previously-created task wouldn't re-tick the step. This page-level
+  // probe closes that gap with a one-shot Tasks-count check that's
+  // independent of which pane is rendered. ``readAcrossRoots`` mirrors
+  // the Tasks pane's own query (tasks live across the Coordinator's
+  // roots). Same once-per-coordinator + idempotent contract as `act`.
+  const scheduleBackfillProbedRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!showCoordinatorOnboarding) return;
+    const coordinator = canonicalCoordinator;
+    if (!coordinator) return;
+    if (scheduleBackfillProbedRef.current === coordinator.agentId) return;
+    scheduleBackfillProbedRef.current = coordinator.agentId;
+
+    void (async () => {
+      try {
+        const data = await fetchMemoryContext(coordinator, 'Tasks', {
+          limit: 1,
+          readAcrossRoots: true,
+        });
+        if (data.count > 0) markStepCompleted('schedule');
+      } catch {
+        scheduleBackfillProbedRef.current = null;
+      }
+    })();
+  }, [showCoordinatorOnboarding, canonicalCoordinator, markStepCompleted]);
 
   const handleRandomizePreset = () => {
     if (currentFilteredPresets.length === 0) {
@@ -1955,8 +2046,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   assistant={canonicalCoordinator}
                   ownerId={canonicalCoordinator.userId}
                   assistantId={canonicalCoordinator.agentId}
+                  // A scheduled task landing in the Tasks context
+                  // completes the "Schedule a task for later" step.
                   onTasksCountChange={(count) => {
-                    if (count > 0) markStepCompleted('task');
+                    if (count > 0) markStepCompleted('schedule');
                   }}
                 />
               )}
@@ -1965,8 +2058,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   assistant={canonicalCoordinator}
                   actions={assistantActions.actions || null}
                   className="h-full"
+                  // A live action running completes the "Ask your
+                  // coordinator to do something now" step — point-in-
+                  // time work shows here, not in the Tasks list.
                   onHasActiveActionChange={(active) => {
-                    if (active) markStepCompleted('guide');
+                    if (active) markStepCompleted('act');
                   }}
                 />
               )}

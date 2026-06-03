@@ -37,8 +37,8 @@ import { useCoordinatorOnboardingContext } from './CoordinatorOnboardingContext'
 type ChecklistAction =
   | 'connect-workspace'
   | 'connect-apps'
-  | 'task'
-  | 'watch-and-guide'
+  | 'act'
+  | 'schedule'
   | 'hire-specialist';
 
 interface OnboardingChecklistItem {
@@ -109,25 +109,38 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
     id: 'work',
     title: 'Get work done',
     phaseLabel: 'Delegate',
-    description: 'Hand off a real task and see it run.',
-    // Grouping row. The "tasks" panel surfaces alongside the
-    // children once any of them is engaged.
+    description: 'Hand off real work and see it run.',
+    // Grouping row. The right-section panels (Actions, then Tasks)
+    // surface alongside the children as each is engaged.
     children: [
       {
-        id: 'task',
-        title: 'Assign a task or try these workflows',
-        description: 'Pick a workflow or describe a task in chat.',
-        estimatedTime: '~1 min',
-        action: 'task',
+        // Point-in-time work: the user asks for something now and
+        // watches it run live in the Actions panel. Completion is
+        // observed off the live-actions feed (an action started),
+        // NOT the scheduled-Tasks list — a "do X now" request never
+        // creates a scheduled task, so gating this on the Tasks
+        // count would strand the user here. The old separate "watch
+        // and guide" row is folded in: asking + watching it run is
+        // a single moment on the Actions panel.
+        id: 'act',
+        title: 'Ask your coordinator to do something now',
+        description: 'Give it a one-off job and watch it run live.',
+        estimatedTime: '~2 min',
+        action: 'act',
         prerequisiteId: 'apps',
       },
       {
-        id: 'guide',
-        title: 'Watch and guide me through it',
-        description: 'See each step live and nudge as it runs.',
-        estimatedTime: '~2 min',
-        action: 'watch-and-guide',
-        prerequisiteId: 'task',
+        // Time- or event-bound work: this is what the product calls
+        // a "Task" — it lands in the Coordinator's Tasks context and
+        // shows in the Tasks panel. Completion is the Tasks count
+        // going non-zero. Encouraged but not a hard gate for hiring
+        // (see ``hire-specialist`` below).
+        id: 'schedule',
+        title: 'Schedule a task for later',
+        description: 'Set up a recurring or event-triggered task.',
+        estimatedTime: '~1 min',
+        action: 'schedule',
+        prerequisiteId: 'act',
       },
       {
         id: 'hire-specialist',
@@ -135,9 +148,11 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Spin up a focused specialist for recurring work.',
         estimatedTime: '~3 min',
         action: 'hire-specialist',
-        // Same shape as ``guide`` — visible-but-locked until the
-        // user has seen at least one task land.
-        prerequisiteId: 'task',
+        // Gated on ``act`` (seeing real work happen), not
+        // ``schedule`` — scheduling is encouraged but optional, so a
+        // user who just wants to hire isn't forced to set up a
+        // scheduled task first.
+        prerequisiteId: 'act',
       },
     ],
   },
@@ -145,44 +160,73 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
 
 /**
  * Static, read-only "try one of these" prompts that surface as
- * chips under the ``task`` row while the user is still on the
- * "Assign a task or try these workflows" step.
+ * chips under the ``act`` and ``schedule`` rows while each is still
+ * the current step.
  *
  * Intentionally non-interactive: the chips are inspiration, not a
- * UI to click. They disappear the moment a task actually lands
- * (the row flips to ``done`` and the row body is replaced by a
- * strikethrough label without any chips below). Keeping them
- * inert means we don't need a transport (chat-send vs call-
+ * UI to click. They disappear the moment their row lands (it flips
+ * to ``done`` and the body becomes a strikethrough label). Keeping
+ * them inert means we don't need a transport (chat-send vs call-
  * inject) and the same chip reads the same in chat and call.
  *
- * The trio is curated to cover three distinct capability
- * dimensions so the strip itself is a tiny tour of what the
- * Coordinator can do:
+ * They're split by row so each chip matches what *completes* that
+ * step — the earlier single list mixed point-in-time prompts with a
+ * scheduled one under a step that only completed on a scheduled
+ * task, which sent users down a dead end.
  *
- *  - ``summarize-email``  read + synthesize across structured data
- *    (workspace integration). Implicitly nudges workspace
- *    connection if the user hasn't done it yet — the Coordinator
- *    will simply say it needs access first.
- *  - ``screen-share``     vision + voice + real-time guidance.
- *    Call-native; the copy makes the call requirement explicit
- *    rather than gating the chip itself.
- *  - ``morning-briefing`` scheduling + proactive delivery +
- *    recurrence. The dimension neither of the others touches and
- *    arguably the most distinctive Orchestra capability vs. a
- *    generic chat LLM.
+ * ``ACT`` — point-in-time jobs that run immediately and show in the
+ * Actions panel. The set is further split by *medium* so each chip's
+ * output is naturally consumable on the channel the user is actually
+ * using right now:
+ *  - ``ACT…_CHAT``  jobs whose result reads well as text in the
+ *    transcript (a summary, a news digest, a drafted reply).
+ *  - ``ACT…_CALL``  jobs whose result is naturally delivered out
+ *    loud or interactively on a voice call (walking a website via
+ *    screen-share + vision, reading the calendar aloud, an inbox
+ *    readout). Suggesting "summarize my emails" on a call would dump
+ *    a wall of text the caller can't hear; suggesting "walk me
+ *    through this website" in chat has nothing to walk through.
+ * Both sets span distinct capability dimensions so the strip stays a
+ * tiny tour rather than three variations on one trick.
+ *
+ * ``SCHEDULE`` — time- or event-bound tasks that land in the Tasks
+ * context (recurrence, future delivery, event triggers). Medium-
+ * agnostic: a scheduled task's output is delivered later, not on the
+ * current channel, so the same chips read fine in chat or on a call:
+ *  - ``morning-briefing`` future + recurring proactive delivery.
+ *  - ``weekly-recap``     recurrence on a weekly cadence.
+ *  - ``email-trigger``    event-driven (fires on an inbound email).
  *
  * Gating is intentional too: we *don't* hide chips whose
  * preconditions aren't satisfied. A chip describing email
  * summarization is also a prompt to connect email — gating it
  * defeats that side effect.
  */
-const SUGGESTED_WORKFLOWS: ReadonlyArray<{
+const ACT_SUGGESTED_WORKFLOWS_CHAT: ReadonlyArray<{
   id: string;
   label: string;
 }> = [
   { id: 'summarize-email', label: 'Summarize my unread emails' },
-  { id: 'screen-share', label: 'Help me through this website (on a call)' },
+  { id: 'catch-up-news', label: "Catch me up on today's news" },
+  { id: 'draft-reply', label: 'Draft a reply to my latest email' },
+];
+
+const ACT_SUGGESTED_WORKFLOWS_CALL: ReadonlyArray<{
+  id: string;
+  label: string;
+}> = [
+  { id: 'screen-share', label: 'Walk me through this website' },
+  { id: 'next-meetings', label: 'Tell me about my next meetings' },
+  { id: 'inbox-readout', label: 'Read me a rundown of my inbox' },
+];
+
+const SCHEDULE_SUGGESTED_WORKFLOWS: ReadonlyArray<{
+  id: string;
+  label: string;
+}> = [
   { id: 'morning-briefing', label: 'Send me a briefing tomorrow at 8am' },
+  { id: 'weekly-recap', label: 'Every Friday, recap my week' },
+  { id: 'email-trigger', label: 'When I get an email from my boss, alert me' },
 ];
 
 interface ResolvedChecklistItem extends OnboardingChecklistItem {
@@ -326,18 +370,24 @@ export interface CoordinatorOnboardingChecklistProps {
    * "Connect your coordinator with your apps". Unset means the
    * row degrades to a static entry. */
   onConnectApps?: () => void;
-  /** Opens the Tasks pane in the current surface. Hung off "Assign
-   * a task or try these workflows". Unset means the row degrades
-   * to a static entry. */
-  onAssignTask?: () => void;
-  /** Opens the live Actions viewer in the current surface. Hung
-   * off "Watch and guide me through it". Unset means the row
+  /** Opens the live Actions viewer in the current surface. Hung off
+   * "Ask your coordinator to do something now" — the user gives a
+   * one-off job and watches it run live. Unset means the row
    * degrades to a static entry. */
-  onWatchAndGuide?: () => void;
+  onActNow?: () => void;
+  /** Opens the Tasks pane in the current surface. Hung off
+   * "Schedule a task for later". Unset means the row degrades to a
+   * static entry. */
+  onScheduleTask?: () => void;
   /** Engages the final step — see the prop docs on
    * ``CoordinatorOnboarding`` for the exact contract. Unset means
    * the row degrades to a static entry. */
   onHireSpecialist?: () => void;
+  /** Whether the user is currently on a voice call (vs. chat).
+   * Selects which "Act now" suggestion chips show: call-friendly
+   * (spoken / interactive output) vs. chat-friendly (text output).
+   * Defaults to chat. */
+  isOnCall?: boolean;
   className?: string;
 }
 
@@ -346,9 +396,10 @@ const EMPTY_SET: ReadonlySet<string> = new Set();
 export function CoordinatorOnboardingChecklist({
   onConnectWorkspace,
   onConnectApps,
-  onAssignTask,
-  onWatchAndGuide,
+  onActNow,
+  onScheduleTask,
   onHireSpecialist,
+  isOnCall = false,
   className,
 }: CoordinatorOnboardingChecklistProps) {
   const ctx = useCoordinatorOnboardingContext();
@@ -366,11 +417,11 @@ export function CoordinatorOnboardingChecklist({
     (action: ChecklistAction) => {
       if (action === 'connect-workspace') onConnectWorkspace?.();
       else if (action === 'connect-apps') onConnectApps?.();
-      else if (action === 'task') onAssignTask?.();
-      else if (action === 'watch-and-guide') onWatchAndGuide?.();
+      else if (action === 'act') onActNow?.();
+      else if (action === 'schedule') onScheduleTask?.();
       else if (action === 'hire-specialist') onHireSpecialist?.();
     },
-    [onConnectWorkspace, onConnectApps, onAssignTask, onWatchAndGuide, onHireSpecialist]
+    [onConnectWorkspace, onConnectApps, onActNow, onScheduleTask, onHireSpecialist]
   );
 
   // An action is reachable when the parent has wired the
@@ -382,12 +433,12 @@ export function CoordinatorOnboardingChecklist({
       if (!action) return false;
       if (action === 'connect-workspace') return !!onConnectWorkspace;
       if (action === 'connect-apps') return !!onConnectApps;
-      if (action === 'task') return !!onAssignTask;
-      if (action === 'watch-and-guide') return !!onWatchAndGuide;
+      if (action === 'act') return !!onActNow;
+      if (action === 'schedule') return !!onScheduleTask;
       if (action === 'hire-specialist') return !!onHireSpecialist;
       return false;
     },
-    [onConnectWorkspace, onConnectApps, onAssignTask, onWatchAndGuide, onHireSpecialist]
+    [onConnectWorkspace, onConnectApps, onActNow, onScheduleTask, onHireSpecialist]
   );
 
   // ID of the leaf row the user should tackle next — drives the
@@ -411,6 +462,7 @@ export function CoordinatorOnboardingChecklist({
             onAction={handleAction}
             isActionWired={isActionWired}
             nextActionableId={nextActionableId}
+            isOnCall={isOnCall}
           />
         ))}
       </ul>
@@ -496,6 +548,9 @@ interface ChecklistRowProps {
    * thread it down rather than recomputing per-row so the lookup
    * stays O(checklist-size) in total. */
   nextActionableId: string | null;
+  /** Whether the user is on a call — selects the call vs. chat
+   * "Act now" suggestion chips. */
+  isOnCall: boolean;
 }
 
 function ChecklistRow({
@@ -504,6 +559,7 @@ function ChecklistRow({
   onAction,
   isActionWired,
   nextActionableId,
+  isOnCall,
 }: ChecklistRowProps) {
   const hasWiredAction = isActionWired(item.action);
   const isBlocked = !!item.disabledReason;
@@ -657,17 +713,27 @@ function ChecklistRow({
     row = <div data-testid={`coordinator-onboarding-item-${item.id}`}>{rowBody('static')}</div>;
   }
 
-  // Read-only suggestion chips under the ``task`` row. Rendered
-  // only while the row is still pending + unblocked — once a task
-  // actually lands the parent strikes through and the inspiration
-  // is no longer useful. We intentionally don't wire any click
-  // behaviour: the chips are non-interactive copy. Same chip
-  // reads the same in chat and call surfaces — keeping them
+  // Read-only suggestion chips under the ``act`` / ``schedule``
+  // rows — each row shows the set that matches what completes it
+  // (point-in-time prompts for ``act``, scheduled/event prompts for
+  // ``schedule``). Rendered only while the row is still pending +
+  // unblocked — once the row lands the parent strikes it through and
+  // the inspiration is no longer useful. We intentionally don't wire
+  // any click behaviour: the chips are non-interactive copy. Same
+  // chip reads the same in chat and call surfaces — keeping them
   // inert avoids bifurcating semantics across the two transports
-  // (chat could seed an input, call has nothing to seed) and
-  // avoids the user accidentally firing a multi-sentence prompt
+  // (chat could seed an input, call has nothing to seed) and avoids
+  // the user accidentally firing a multi-sentence prompt
   // mid-voice-turn.
-  const showSuggestions = item.id === 'task' && !item.done && !isBlocked;
+  const suggestionsForItem =
+    item.id === 'act'
+      ? isOnCall
+        ? ACT_SUGGESTED_WORKFLOWS_CALL
+        : ACT_SUGGESTED_WORKFLOWS_CHAT
+      : item.id === 'schedule'
+        ? SCHEDULE_SUGGESTED_WORKFLOWS
+        : null;
+  const showSuggestions = !!suggestionsForItem && !item.done && !isBlocked;
 
   return (
     <li
@@ -683,13 +749,13 @@ function ChecklistRow({
       )}
     >
       {row}
-      {showSuggestions ? (
+      {showSuggestions && suggestionsForItem ? (
         <ul
           className="ml-6 flex flex-wrap gap-1.5"
           aria-label="Suggested workflows to try"
           data-testid="coordinator-onboarding-suggestions"
         >
-          {SUGGESTED_WORKFLOWS.map((workflow) => (
+          {suggestionsForItem.map((workflow) => (
             <li
               key={workflow.id}
               className={cn(
@@ -714,6 +780,7 @@ function ChecklistRow({
               onAction={onAction}
               isActionWired={isActionWired}
               nextActionableId={nextActionableId}
+              isOnCall={isOnCall}
             />
           ))}
         </ul>

@@ -140,8 +140,8 @@ export interface ChatWithInfoPanelProps {
   coordinatorOnboarding?: {
     onConnectWorkspace?: () => void;
     onConnectApps?: () => void;
-    onAssignTask?: () => void;
-    onWatchAndGuide?: () => void;
+    onActNow?: () => void;
+    onScheduleTask?: () => void;
     onHireSpecialist?: () => void;
   };
   /**

@@ -97,8 +97,8 @@ export interface AssistantInfoSidePanelContentProps {
   coordinatorOnboarding?: {
     onConnectWorkspace?: () => void;
     onConnectApps?: () => void;
-    onAssignTask?: () => void;
-    onWatchAndGuide?: () => void;
+    onActNow?: () => void;
+    onScheduleTask?: () => void;
     onHireSpecialist?: () => void;
     /** Surfaces a "Resume onboarding" CTA at the bottom of the
      * onboarding sub-tab. Wired only when the Coordinator/State row
@@ -279,8 +279,8 @@ function CoordinatorAssistantInfoSidePanelContent({
               <CoordinatorOnboardingChecklist
                 onConnectWorkspace={coordinatorOnboarding.onConnectWorkspace}
                 onConnectApps={coordinatorOnboarding.onConnectApps}
-                onAssignTask={coordinatorOnboarding.onAssignTask}
-                onWatchAndGuide={coordinatorOnboarding.onWatchAndGuide}
+                onActNow={coordinatorOnboarding.onActNow}
+                onScheduleTask={coordinatorOnboarding.onScheduleTask}
                 onHireSpecialist={coordinatorOnboarding.onHireSpecialist}
               />
               {coordinatorOnboarding.onResumeOnboarding && (

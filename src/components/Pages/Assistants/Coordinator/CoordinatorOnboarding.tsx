@@ -246,19 +246,26 @@ export function CoordinatorOnboarding({
     setActiveMobileTab('integrations');
   }, [markStepEngaged, renderIntegrationsPane]);
 
-  const handleOpenTasks = React.useCallback(() => {
-    if (!renderTasksPane) return;
-    markStepEngaged('task');
-    setActiveRightTab('tasks');
-    setActiveMobileTab('tasks');
-  }, [markStepEngaged, renderTasksPane]);
-
-  const handleOpenActions = React.useCallback(() => {
+  // "Ask your coordinator to do something now" → opens the live
+  // Actions panel so the user watches the one-off job run. Engages
+  // the ``act`` step; completion is observed at the page level off
+  // the live-actions feed.
+  const handleActNow = React.useCallback(() => {
     if (!renderActionsPane) return;
-    markStepEngaged('guide');
+    markStepEngaged('act');
     setActiveRightTab('actions');
     setActiveMobileTab('actions');
   }, [markStepEngaged, renderActionsPane]);
+
+  // "Schedule a task for later" → opens the Tasks panel. Engages the
+  // ``schedule`` step; completion is observed when a scheduled task
+  // lands in the Tasks context.
+  const handleScheduleTask = React.useCallback(() => {
+    if (!renderTasksPane) return;
+    markStepEngaged('schedule');
+    setActiveRightTab('tasks');
+    setActiveMobileTab('tasks');
+  }, [markStepEngaged, renderTasksPane]);
 
   // Auto-engage the right-section steps as soon as their
   // prerequisite completes, so the corresponding panel pops open
@@ -276,22 +283,37 @@ export function CoordinatorOnboarding({
   React.useEffect(() => {
     if (!completedStepIds || !engagedStepIdsForAutoOpen) return;
     const autoEngage = (
-      stepId: 'apps' | 'task' | 'guide',
+      stepId: 'apps' | 'act' | 'schedule',
       prereqId: string,
       tab: RightSectionTab,
-      hasRenderer: boolean
+      hasRenderer: boolean,
+      // Whether to also switch the active tab to ``tab``. We focus
+      // when reaching a step *primes* the user for an action they're
+      // about to take (open Integrations to connect, open Actions to
+      // ask for work). We deliberately DON'T focus when reaching
+      // ``schedule``: that step completes the moment the user's first
+      // action *starts running*, and stealing focus to the Tasks
+      // panel right then would yank them away from watching the very
+      // action they just kicked off. The Tasks tab still appears
+      // (engaged); the checklist "Next" pill + coordinator narration
+      // point them to it when they're ready.
+      focus: boolean
     ) => {
       if (!hasRenderer) return;
       if (!completedStepIds.has(prereqId)) return;
       if (completedStepIds.has(stepId)) return;
       if (engagedStepIdsForAutoOpen.has(stepId)) return;
       onboardingCtx?.markStepEngaged(stepId);
-      setActiveRightTab(tab);
-      setActiveMobileTab(tab);
+      if (focus) {
+        setActiveRightTab(tab);
+        setActiveMobileTab(tab);
+      }
     };
-    autoEngage('apps', 'workspace', 'integrations', !!renderIntegrationsPane);
-    autoEngage('task', 'apps', 'tasks', !!renderTasksPane);
-    autoEngage('guide', 'task', 'actions', !!renderActionsPane);
+    // Engage order follows the new step flow: connect apps →
+    // act now (Actions panel) → schedule a task (Tasks panel).
+    autoEngage('apps', 'workspace', 'integrations', !!renderIntegrationsPane, true);
+    autoEngage('act', 'apps', 'actions', !!renderActionsPane, true);
+    autoEngage('schedule', 'act', 'tasks', !!renderTasksPane, false);
   }, [
     completedStepIds,
     engagedStepIdsForAutoOpen,
@@ -470,8 +492,8 @@ export function CoordinatorOnboarding({
   // the "progressively building the full /assistants layout" arc.
   const engagedStepIds = onboardingCtx?.engagedStepIds;
   const showIntegrations = !!engagedStepIds?.has('apps') && !!renderIntegrationsPane;
-  const showTasks = !!engagedStepIds?.has('task') && !!renderTasksPane;
-  const showActions = !!engagedStepIds?.has('guide') && !!renderActionsPane;
+  const showActions = !!engagedStepIds?.has('act') && !!renderActionsPane;
+  const showTasks = !!engagedStepIds?.has('schedule') && !!renderTasksPane;
   const hasRightSection = showIntegrations || showTasks || showActions;
 
   // Label + icon track the active main-pane surface. We
@@ -510,9 +532,12 @@ export function CoordinatorOnboarding({
       isSkipping={isSkipping}
       onConnectWorkspace={onConnectWorkspace ? handleConnectWorkspace : undefined}
       onConnectApps={renderIntegrationsPane ? handleOpenIntegrations : undefined}
-      onAssignTask={renderTasksPane ? handleOpenTasks : undefined}
-      onWatchAndGuide={renderActionsPane ? handleOpenActions : undefined}
+      onActNow={renderActionsPane ? handleActNow : undefined}
+      onScheduleTask={renderTasksPane ? handleScheduleTask : undefined}
       onHireSpecialist={onHireSpecialist ? handleHireSpecialist : undefined}
+      // Drives the call- vs. chat-flavoured "Act now" suggestion
+      // chips — same signal that labels the main pane Call/Chat.
+      isOnCall={isCoordinatorCallActive}
     />
   );
 
