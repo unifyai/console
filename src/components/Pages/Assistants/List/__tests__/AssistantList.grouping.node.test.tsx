@@ -17,7 +17,12 @@ Object.defineProperty(window, 'ResizeObserver', {
   value: TestResizeObserver,
 });
 
-function assistant(agentId: string, firstName: string, surname: string, spaceIds: number[]): Assistant {
+function assistant(
+  agentId: string,
+  firstName: string,
+  surname: string,
+  spaceIds: number[]
+): Assistant {
   return {
     agentId,
     userId: 'user-1',
@@ -80,6 +85,7 @@ function renderAssistantList(
       onShowProfile={vi.fn()}
       onOpenHireDialog={vi.fn()}
       onOpenContactManager={vi.fn()}
+      onOpenWorkspaceManager={vi.fn()}
       onEditAssistant={vi.fn()}
       isFolded={options.isFolded ?? false}
       activeCallAssistantId={null}

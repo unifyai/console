@@ -97,7 +97,9 @@ test('groups colleagues by space and keeps row selection assistant-scoped', asyn
   const patchBetaGroup = page.getByTestId(`assistant-list-group-space:${patchBeta.spaceId}`);
 
   await expect(patchAlphaGroup.getByText('Patch Only')).toBeVisible();
-  await expect(patchAlphaGroup.getByTestId(`assistant-list-item-${multiAssistant.agentId}`)).toBeVisible();
+  await expect(
+    patchAlphaGroup.getByTestId(`assistant-list-item-${multiAssistant.agentId}`)
+  ).toBeVisible();
   await patchAlphaHeader.hover();
   await expect(
     page.getByRole('tooltip', { name: 'Patch Alpha sidebar grouping coverage space.' })
@@ -141,5 +143,7 @@ test('groups colleagues by space and keeps row selection assistant-scoped', asyn
   await closeHireDialogIfOpen(page);
   await expect(page.getByRole('button', { name: /Patch Alpha/ })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId(`assistant-list-item-${multiAssistant.agentId}`)).toHaveCount(0);
-  await expect(page.getByTestId('assistant-list-section-solo').getByText('Solo Only')).toBeVisible();
+  await expect(
+    page.getByTestId('assistant-list-section-solo').getByText('Solo Only')
+  ).toBeVisible();
 });

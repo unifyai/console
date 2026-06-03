@@ -201,13 +201,10 @@ export function MemoryPane({
 
   const allColumns = useMemo(() => {
     if (activeContext === 'Transcripts') {
-      return buildTranscriptColumns(contactMap, {
-        assistantContactIds,
-        assistantDisplayName,
-      });
+      return buildTranscriptColumns(contactMap);
     }
     return getColumnsForContext(activeContext, activeState.fields);
-  }, [activeContext, activeState.fields, contactMap, assistantContactIds, assistantDisplayName]);
+  }, [activeContext, activeState.fields, contactMap]);
 
   const columns = useMemo(() => {
     if (activeState.rows.length === 0) return allColumns;
