@@ -53,6 +53,7 @@ import { IntegrationsPane } from '@/components/Pages/Assistants/Integrations';
 import { TasksPane } from '@/components/Pages/Assistants/Tasks';
 import { LiveActionsViewer } from '@/components/Pages/Assistants/LiveActions';
 import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
+import { subscribeOAuthComplete } from '@/utils/assistants/oauth';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
 import { AssistantHireLocalSetupInstructionsDialog } from './Hire/AssistantHireLocalSetupInstructions';
@@ -1771,6 +1772,35 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, [router]);
+
+  // A provider OAuth flow (workspace BYOD, integrations) runs in a separate
+  // tab that bounces through ``/oauth/complete`` and broadcasts when it's
+  // done. Refetch the assistant rows + spaces so any landed connection
+  // (e.g. the Coordinator's new workspace email) shows up — and the
+  // onboarding checklist crosses the step off — without a manual refresh.
+  // The connection row can lag the callback redirect slightly, so refetch
+  // a couple of times. For the workspace flow we also dismiss the connect
+  // dialogs, which the user left open in the original tab.
+  React.useEffect(() => {
+    const retryTimers: ReturnType<typeof setTimeout>[] = [];
+    const unsubscribe = subscribeOAuthComplete((detail) => {
+      const refetch = () => {
+        refreshAssistants(false);
+        void refetchVisibleSpaces();
+      };
+      refetch();
+      retryTimers.push(setTimeout(refetch, 1500));
+      if (detail.kind === 'workspace') {
+        setWorkspaceManagerAssistant(null);
+        setContactManagerAssistant(null);
+        toast.success('Workspace connected.');
+      }
+    });
+    return () => {
+      unsubscribe();
+      retryTimers.forEach(clearTimeout);
+    };
+  }, [refreshAssistants, refetchVisibleSpaces]);
 
   const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
 

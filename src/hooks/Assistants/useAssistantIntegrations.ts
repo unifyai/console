@@ -4,7 +4,7 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import {
   INTEGRATION_PROVIDERS,
-  requiredCustomerProvidedSecretKeysFor,
+  customerProvidedSecretKeysFor,
   secretKeysFor,
 } from '@/constants/assistants/integrations';
 import type {
@@ -13,6 +13,7 @@ import type {
   IntegrationProviderId,
 } from '@/types/assistants/integration';
 import type { Secret } from '@/types/assistants/secret';
+import { openPendingOAuthTab, type PendingOAuthTab } from '@/utils/assistants/oauth';
 
 /**
  * Derived per-integration card state for the IntegrationsPane.  Built
@@ -88,12 +89,8 @@ function deriveCardState(
   ownedSecrets: Secret[]
 ): IntegrationCardState {
   const present = new Set(ownedSecrets.map((s) => s.name));
-  // Use the required-only key set so that absent optional fields don't
-  // hold the card in ``needs_reconnect`` forever.  ``customerProvidedSecretKeysFor``
-  // (which includes optional keys) is still used by the OAuth callback
-  // and disconnect routes — they want the full set.
-  const requiredKeys = requiredCustomerProvidedSecretKeysFor(provider);
-  const missingCustomer = requiredKeys.filter((k) => !present.has(k));
+  const customerKeys = customerProvidedSecretKeysFor(provider);
+  const missingCustomer = customerKeys.filter((k) => !present.has(k));
 
   switch (provider.auth.kind) {
     case 'freeform':
@@ -101,22 +98,19 @@ function deriveCardState(
       return { kind: 'configured' };
     case 'api_key':
     case 'api_key_multi':
-      // ``configured`` once every required customer-provided field is
-      // present.  Optional fields don't affect state.  For
-      // ``api_key_multi`` the partition can build a card with only some
-      // required fields populated (the user closed the modal
-      // half-finished or rotated one half of the pair) — surface those
-      // gaps via ``needs_reconnect`` so the card prompts the user to
-      // complete.
+      // ``configured`` once every customer-provided field is present.
+      // For ``api_key_multi`` the partition can build a card with only
+      // some fields populated (the user closed the modal half-finished
+      // or rotated one half of the pair) — surface those gaps via
+      // ``needs_reconnect`` so the card prompts the user to complete.
       return missingCustomer.length === 0
         ? { kind: 'configured' }
         : { kind: 'needs_reconnect', missing: missingCustomer };
     case 'oauth_authorization_code': {
-      // ``connected`` requires both required customer-provided creds AND
-      // a refresh token.  ``needs_reconnect`` covers the case where
-      // required credentials are present but the refresh token is
-      // missing (post-Disconnect, post-expiry, or a rotation that nuked
-      // the local cache).
+      // ``connected`` requires both customer-provided creds AND a refresh
+      // token.  ``needs_reconnect`` covers the case where credentials are
+      // present but the refresh token is missing (post-Disconnect, post-
+      // expiry, or a rotation that nuked the local cache).
       if (missingCustomer.length > 0) {
         return { kind: 'needs_reconnect', missing: missingCustomer };
       }
@@ -130,23 +124,44 @@ function deriveCardState(
 
 /**
  * Async wrapper that drives the per-provider Connect flow: POST to the
- * oauth/start route, then redirect the browser to the authorize URL.
+ * oauth/start route, then send the browser to the authorize URL in a
+ * new tab.
  *
  * Caller has already saved any customer-provided credentials.  The user
  * lands back at the integrations tab via the per-provider callback
  * route.
+ *
+ * The authorize URL opens in a fresh tab rather than navigating the
+ * current one: connecting an app mid-onboarding shouldn't tear down
+ * the SPA (and any in-progress assistant call). Falls back to a
+ * same-tab redirect only when the new tab is blocked (popup blocker
+ * etc.) so the Connect action never silently no-ops.
  */
 export async function startOAuthConnect(args: {
   assistantId: string;
   providerId: IntegrationProviderId;
   redirectAfter?: string;
+  /**
+   * A tab already opened synchronously in the click gesture. Pass this
+   * when the caller does other ``await`` work (e.g. saving credentials)
+   * before reaching here — opening the tab inside this function would
+   * then be post-await and get blocked. When omitted we open one now,
+   * which is correct only if the caller invoked us synchronously.
+   */
+  pendingTab?: PendingOAuthTab;
 }): Promise<void> {
+  // Open the tab synchronously, before the fetch below — ``window.open``
+  // after an ``await`` is blocked by popup blockers and would force a
+  // same-tab redirect that tears down the SPA (and any live call).
+  const oauthTab = args.pendingTab ?? openPendingOAuthTab();
+
   const response = await fetch('/api/integrations/oauth/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(args),
   });
   if (!response.ok) {
+    oauthTab.close();
     const data = (await response.json().catch(() => ({}))) as {
       error?: string;
       hint?: string;
@@ -158,10 +173,15 @@ export async function startOAuthConnect(args: {
   }
   const data = (await response.json()) as { authorizeUrl?: string };
   if (!data.authorizeUrl) {
+    oauthTab.close();
     toast.error('Server did not return an authorize URL.');
     return;
   }
-  window.location.href = data.authorizeUrl;
+  if (oauthTab.opened) {
+    oauthTab.navigate(data.authorizeUrl);
+  } else {
+    window.location.href = data.authorizeUrl;
+  }
 }
 
 /**

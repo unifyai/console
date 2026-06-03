@@ -22,6 +22,7 @@ import {
   startOAuthConnect,
   useIntegrationCallbackFlash,
 } from '@/hooks/Assistants/useAssistantIntegrations';
+import { openPendingOAuthTab } from '@/utils/assistants/oauth';
 import { SecretsTable } from '../Secrets/SecretsTable';
 import { SecretFormDialog } from '../Secrets/SecretFormDialog';
 import { JsonUploadPreviewDialog } from '../Secrets/JsonUploadPreviewDialog';
@@ -330,6 +331,12 @@ export function IntegrationsPane({
       return;
     }
 
+    // Open the OAuth tab NOW, synchronously in this submit gesture.
+    // We persist credentials (awaits) before connecting below, which
+    // would otherwise leave window.open post-await and get popup-blocked
+    // (forcing a same-tab redirect that drops any in-progress call).
+    const oauthTab = openPendingOAuthTab();
+
     setIsIntegrationSubmitting(true);
     const toastId = toast.loading(
       isEditing
@@ -377,8 +384,10 @@ export function IntegrationsPane({
         assistantId,
         providerId: provider.id,
         redirectAfter: window.location.pathname,
+        pendingTab: oauthTab,
       });
     } catch (e) {
+      oauthTab.close();
       const msg = e instanceof Error ? e.message : 'Save failed.';
       toast.error(msg, { id: toastId });
     } finally {
