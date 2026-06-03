@@ -239,9 +239,9 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
   },
   {
     id: 'valos',
-    label: 'Valos (UK property data)',
+    label: 'Valos',
     shortDescription:
-      'Paste OS Maps + PropertyData API keys to enable UK property valuation tools (geocoding, freeholds, title polygons, demographics, OS-tiled map rendering).',
+      'UK property data. Paste OS Maps + PropertyData API keys to enable UK property valuation tools (geocoding, freeholds, title polygons, demographics, OS-tiled map rendering).',
     docsUrl: 'https://osdatahub.os.uk',
     // No react-icons/si mark for OS / PropertyData / Valos — falls
     // through to the generic Plug2 glyph in ``ProviderIcon``, matching
