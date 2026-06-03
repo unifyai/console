@@ -85,6 +85,8 @@ import { SpendingDisplayProps } from '@/types/assistants/spending';
 import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemErrors';
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import { fetchMemoryContext } from '@/lib/client/memory';
+import { isWorkspaceManagedSecretName } from '@/hooks/Assistants/useAssistantIntegrations';
+import type { Secret } from '@/types/assistants/secret';
 import type { SpaceSummary } from '@/types/spaces/space';
 import {
   type CoordinatorActivityRow,
@@ -1617,6 +1619,50 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       }
     })();
   }, [showCoordinatorOnboarding, canonicalCoordinator, markStepCompleted]);
+
+  // Backfill the "Connect your coordinator with your apps" (`apps`)
+  // step from durable data, symmetric with the `act`/`schedule` probes
+  // above. The live observer for this step is the Integrations pane's
+  // ``onSecretsCountChange`` — but that only fires once the pane mounts,
+  // which happens *after* the picker (it auto-engages off ``workspace``).
+  // That late timing is exactly what produces the user-visible mismatch:
+  // a pre-existing app integration (a custom secret already on the
+  // Coordinator) flips the checklist row to done a beat after the
+  // picker, while the coordinator's session-start narration — built from
+  // the completed-step snapshot captured at picker time — still tells the
+  // user to "connect an app". Running a page-level existence probe before
+  // the picker folds ``apps`` into that snapshot so the two agree.
+  //
+  // Counts the same way the pane does: any owned secret that ISN'T a
+  // workspace-managed OAuth token (GOOGLE_/MICROSOFT_/AZURE_). Workspace
+  // secrets land via the "connect workspace" step and must not stand in
+  // for an actual app connection. Same once-per-coordinator + idempotent
+  // contract as the probes above.
+  const appsBackfillProbedRef = React.useRef<string | null>(null);
+  const secretActions = assistantActions.secret;
+  React.useEffect(() => {
+    if (!showCoordinatorOnboarding) return;
+    const coordinator = canonicalCoordinator;
+    if (!coordinator || !secretActions) return;
+    if (appsBackfillProbedRef.current === coordinator.agentId) return;
+    appsBackfillProbedRef.current = coordinator.agentId;
+
+    void (async () => {
+      try {
+        const result = await secretActions.get(coordinator.agentId, coordinator.userId);
+        if ('detail' in result) {
+          appsBackfillProbedRef.current = null;
+          return;
+        }
+        const hasAppSecret = result.some(
+          (secret: Secret) => !isWorkspaceManagedSecretName(secret.name)
+        );
+        if (hasAppSecret) markStepCompleted('apps');
+      } catch {
+        appsBackfillProbedRef.current = null;
+      }
+    })();
+  }, [showCoordinatorOnboarding, canonicalCoordinator, secretActions, markStepCompleted]);
 
   const handleRandomizePreset = () => {
     if (currentFilteredPresets.length === 0) {
