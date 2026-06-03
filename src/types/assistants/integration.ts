@@ -16,6 +16,7 @@ export type IntegrationProviderId =
   | 'matterport'
   | 'salesforce'
   | 'salto_ks'
+  | 'valos'
   | 'webex';
 
 /**

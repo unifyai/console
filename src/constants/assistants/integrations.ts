@@ -238,6 +238,35 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
     },
   },
   {
+    id: 'valos',
+    label: 'Valos (UK property data)',
+    shortDescription:
+      'Paste OS Maps + PropertyData API keys to enable UK property valuation tools (geocoding, freeholds, title polygons, demographics, OS-tiled map rendering).',
+    docsUrl: 'https://osdatahub.os.uk',
+    // No react-icons/si mark for OS / PropertyData / Valos — falls
+    // through to the generic Plug2 glyph in ``ProviderIcon``, matching
+    // Employment Hero / Matterport / Salto KS.
+    auth: {
+      kind: 'api_key_multi',
+      fields: [
+        {
+          label: 'OS Maps API key',
+          secretKey: 'OS_MAPS_API_KEY',
+          sensitive: true,
+          helpText:
+            'Project API key from osdatahub.os.uk → Project → API key (the Project API Secret is unused — we authenticate via the simple ?key=... query-param flow). Single key covers OS Maps WMTS, OS Names, and OS Places. OS Places requires a Premium plan; on Free, the package falls back to OS Names for geocoding.',
+        },
+        {
+          label: 'PropertyData API key',
+          secretKey: 'PROPERTYDATA_API_KEY',
+          sensitive: true,
+          helpText:
+            'API key from propertydata.co.uk → Settings → API. Plan must include Land Registry endpoints (/api/freeholds, /api/title-information). 14-day free trial requires a card on file at signup; auto-renews to the selected plan unless cancelled before day 14.',
+        },
+      ],
+    },
+  },
+  {
     id: 'webex',
     label: 'Webex',
     shortDescription: 'Connect via OAuth using a Webex Integration app.',
