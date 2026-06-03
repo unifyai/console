@@ -254,7 +254,7 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
           secretKey: 'OS_MAPS_API_KEY',
           sensitive: true,
           helpText:
-            'Project API key from osdatahub.os.uk → Project → API key (the Project API Secret is unused — we authenticate via the simple ?key=... query-param flow). Single key covers OS Maps WMTS, OS Names, and OS Places. OS Places requires a Premium plan; on Free, the package falls back to OS Names for geocoding.',
+            'Project API key from osdatahub.os.uk → Project → API key (the Project API Secret is unused — we authenticate via the simple ?key=... query-param flow). Required scope is just OS Maps for tile rendering; OS Names and OS Places are optional Premium add-ons that give building-level geocoding with UPRN. On Standard plans, valos_geocode transparently falls back to postcodes.io (postcodes) and Nominatim (free-text addresses) — no extra wiring needed.',
         },
         {
           label: 'PropertyData API key',
