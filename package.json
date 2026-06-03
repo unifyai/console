@@ -1,6 +1,5 @@
 {
   "name": "console",
-  "version": "0.1.0",
   "private": true,
   "scripts": {
     "generate:api": "openapi-typescript https://api.unify.ai/v0/openapi.json -o src/lib/orchestra/schema.d.ts",
