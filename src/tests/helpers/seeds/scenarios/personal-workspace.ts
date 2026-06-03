@@ -18,6 +18,7 @@ import {
   createAssistant,
   createEmailLogin,
   seedChatInfrastructure,
+  seedCoordinatorChatForUsers,
   seedSecretsViaOrchestra,
 } from '../client';
 
@@ -37,6 +38,9 @@ export async function seedPersonalWorkspace(): Promise<SeededState> {
     assistantId: assistant.agentId,
     email: owner.email,
   });
+
+  // Make the auto-provisioned personal Coordinator chat-ready.
+  await seedCoordinatorChatForUsers([owner]);
 
   const secrets = await seedSecretsViaOrchestra({
     apiKey: owner.apiKey,

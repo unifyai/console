@@ -19,13 +19,14 @@ import {
   DEDUP_WINDOW_MS,
 } from '@/utils/assistants/system-errors';
 import type { Assistant } from '@/types/assistants/assistant';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 
 const SSE_MAX_RECONNECT_ATTEMPTS = 5;
 const SSE_RECONNECT_BASE_DELAY = 2000;
 
 export function useAssistantSystemErrors(assistant: Assistant | null): void {
   const assistantId = assistant?.agentId || null;
-  const assistantName = assistant ? `${assistant.firstName} ${assistant.surname}` : '';
+  const assistantName = assistantDisplayName(assistant, '');
 
   const lastErrorRef = React.useRef<{ type: string; time: number } | null>(null);
 

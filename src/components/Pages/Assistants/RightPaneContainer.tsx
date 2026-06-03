@@ -44,6 +44,8 @@ import {
   DEFAULT_SPENDING_GATE_STATUS,
 } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
+import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
+import type { CoordinatorActivityRow } from '@/types/assistants/coordinatorActivity';
 
 /**
  * Underline tab style — same shape as the assistant info side panel
@@ -272,6 +274,8 @@ interface RightPaneContainerProps {
   onEditAssistant?: (assistant: Assistant) => void;
   /** Open the Contact Manager dialog for the given assistant (wired from Main). */
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
+  /** Notify Main when live Coordinator activity should invalidate page-level data. */
+  onCoordinatorActivity?: (activity: CoordinatorActivityRow) => void;
   /** True iff the user has sent ≥1 message in this assistant's chat. */
   hasUserMessage?: boolean;
   /** True iff this assistant has ≥1 historical call recorded. */
@@ -292,12 +296,34 @@ interface RightPaneContainerProps {
    *  dot on the chat header's "Assistant info" button. */
   hasIncompleteOnboarding?: boolean;
   /**
+   * Coordinator-only handler bag forwarded down to the info panel.
+   * When the active assistant is the canonical Coordinator and it's
+   * still in onboarding mode, the info panel surfaces a third
+   * "Onboarding" sub-tab whose action rows are wired from here.
+   * Ignored for non-coordinator assistants. */
+  coordinatorOnboarding?: {
+    onConnectWorkspace?: () => void;
+    onConnectApps?: () => void;
+    onAssignTask?: () => void;
+    onWatchAndGuide?: () => void;
+    onHireSpecialist?: () => void;
+  };
+  /**
    * Unread chat-message count for the currently-open assistant. Drives
    * the numeric badge on the Chat tab. Cleared by `Main` whenever the
    * user actually views the chat (in either slot), so we render the
    * badge unconditionally when `> 0` — no per-slot suppression needed.
    */
   unreadChatCount?: number;
+  /**
+   * Renderer for the docked call surface (the
+   * ``AssistantCommunicationDialog`` in ``docked`` mode). Threaded
+   * straight through to ``ChatWithInfoPanel`` which swaps it in for
+   * the chat panel; passed by ``Main`` only when a call is active
+   * for *this* assistant and hasn't been popped out. Undefined →
+   * regular chat is rendered.
+   */
+  renderDockedCall?: () => React.ReactNode;
 }
 
 export function RightPaneContainer({
@@ -327,6 +353,7 @@ export function RightPaneContainer({
   onPaneStateChange,
   onEditAssistant,
   onOpenContactManager,
+  onCoordinatorActivity,
   hasUserMessage,
   hasHistoricalCall,
   hasUserPhoneNumber,
@@ -335,7 +362,9 @@ export function RightPaneContainer({
   onShowInstallInstructions,
   onOpenUserSettings,
   hasIncompleteOnboarding,
+  coordinatorOnboarding,
   unreadChatCount = 0,
+  renderDockedCall,
 }: RightPaneContainerProps) {
   // Tracks whether the live-actions stream is currently working, so the
   // dashboards pane can poll its tiles. Hoisted here because either pane
@@ -345,6 +374,7 @@ export function RightPaneContainer({
   const handleActiveActionChange = useCallback((active: boolean) => {
     setHasActiveAction(active);
   }, []);
+  const { canOpenAssistantChat } = useAssistantPermissions();
 
   // Per-slot sub-tab state for the tabs that have sub-tabs (Memory,
   // Tasks). Kept here so the dropdown in the tab strip can both *drive*
@@ -435,6 +465,20 @@ export function RightPaneContainer({
         className="h-full"
         onHasActiveActionChange={handleActiveActionChange}
       />
+    );
+  }
+
+  if (!canOpenAssistantChat(assistant)) {
+    return (
+      <div
+        data-testid="coordinator-private"
+        className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center"
+      >
+        <p className="text-body-muted">Coordinator chat is private.</p>
+        <p className="text-caption text-muted-foreground">
+          Open your own Coordinator from this workspace to continue.
+        </p>
+      </div>
     );
   }
 
@@ -861,6 +905,7 @@ export function RightPaneContainer({
             spendingBlockedMessage={spendingGate.blockedMessage}
             onEditProfile={onEditAssistant}
             onOpenContactManager={onOpenContactManager}
+            onCoordinatorActivity={onCoordinatorActivity}
             canWrite={canWrite}
             hasUserMessage={hasUserMessage}
             hasHistoricalCall={hasHistoricalCall}
@@ -870,6 +915,15 @@ export function RightPaneContainer({
             onShowInstallInstructions={onShowInstallInstructions}
             onOpenUserSettings={onOpenUserSettings}
             hasIncompleteOnboarding={hasIncompleteOnboarding}
+            coordinatorOnboarding={coordinatorOnboarding}
+            // The docked call lives in a single slot — the primary
+            // one — so a split layout can run chat in one pane and
+            // a call in the other without the two mirroring each
+            // other. The secondary slot always renders the regular
+            // chat panel; popping the call out is the path to
+            // having both visible side-by-side in any other
+            // arrangement.
+            renderDockedCall={slot === 'primary' ? renderDockedCall : undefined}
           />
         </TabsContent>
 
@@ -917,6 +971,7 @@ export function RightPaneContainer({
             assistant={assistant}
             ownerId={assistant.userId}
             assistantId={assistant.agentId}
+            isVisible={tab === 'memory'}
             subTab={subTabBySlot[slot].memory}
             onSubTabChange={slot === 'primary' ? primaryMemoryChange : secondaryMemoryChange}
           />

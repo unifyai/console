@@ -71,6 +71,8 @@ export interface ChatMessage {
   timestamp: Date;
   messageId?: number;
   sourceContext?: string;
+  /** Root-agnostic transcript identity key used for cross-root pagination dedupe. */
+  mergeKey?: string;
   /** Pub/Sub ack ID for client-side acknowledgement after display */
   __ackId?: string;
   attachments?: Attachment[];

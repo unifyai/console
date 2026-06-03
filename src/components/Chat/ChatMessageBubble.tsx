@@ -8,6 +8,7 @@ import { RenderContentWithEmbeds, containsEmbedUrl } from './InlineEmbed';
 import { MessageAttachmentList } from './ChatAttachments';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { TooltipContent, Tooltip, TooltipTrigger, TooltipProvider } from '@/components/UI/tooltip';
+import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 
 type ChatBubbleVariant = 'profile' | 'hire';
 
@@ -66,6 +67,7 @@ interface ChatMessageBubbleProps {
   isUser?: boolean;
   assistantPhoto?: string | null;
   assistantName?: string;
+  isCoordinator?: boolean;
   isLoading?: boolean;
   timestamp?: Date;
   timezone?: string | null;
@@ -90,6 +92,7 @@ function ChatMessageBubbleImpl({
   isUser,
   assistantPhoto,
   assistantName,
+  isCoordinator = false,
   isLoading,
   timestamp,
   timezone,
@@ -195,10 +198,17 @@ function ChatMessageBubbleImpl({
       className={cn('min-w-0', isProfile && 'md:max-w-[66.6667%]')}
     >
       <div className="mb-2.5 flex items-center gap-2">
-        <Avatar className="h-6 w-6 flex-shrink-0 border">
-          <AvatarImage src={assistantPhoto ?? undefined} alt={assistantName} />
-          <AvatarFallback className="text-[10px]">{fallback}</AvatarFallback>
-        </Avatar>
+        {isCoordinator ? (
+          <CoordinatorLogoAvatar
+            className="h-6 w-6 flex-shrink-0 rounded-full border"
+            logoClassName="h-3.5 w-3.5"
+          />
+        ) : (
+          <Avatar className="h-6 w-6 flex-shrink-0 border">
+            <AvatarImage src={assistantPhoto ?? undefined} alt={assistantName} />
+            <AvatarFallback className="text-[10px]">{fallback}</AvatarFallback>
+          </Avatar>
+        )}
         <span className="text-body-muted font-medium">{assistantName}</span>
         {timeString && (
           <time className="text-[10px] leading-none text-muted-foreground">{timeString}</time>

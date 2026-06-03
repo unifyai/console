@@ -15,6 +15,8 @@ import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/set
 import { camelToSnakeObject } from '@/utils/casing';
 import type { Assistant } from '@/types/assistants/assistant';
 import { mergeRootRows } from '@/lib/client/read_across_roots';
+import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
+import { transcriptMergeDedupeKey } from '@/lib/assistants/transcriptDedupe';
 import {
   contactScopedRootQueries,
   roleFromRootSenderId,
@@ -45,7 +47,7 @@ export const getContactIdByEmail = async (apiKey: string) => {
         assistant.agentId,
         'Contacts'
       );
-      const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${context}&filterExpr=${encodeURIComponent(filterExpr)}&limit=1`;
+      const url = `${getInternalApiBaseUrl()}/api/logs?projectName=${project}&context=${context}&filterExpr=${encodeURIComponent(filterExpr)}&limit=1`;
 
       const response = await fetch(url, {
         method: 'GET',
@@ -109,12 +111,12 @@ export const getTranscripts = async (apiKey: string) => {
       const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
       const rootLogs = await Promise.all(
         queries.map(async (query) => {
-          let filterExpr = transcriptFilterForRoot(query);
+          let filterExpr = transcriptFilterForRoot(query, assistant.agentId);
           if (before) {
             filterExpr += ` and timestamp <= "${before.timestamp}"`;
           }
           const sorting = encodeURIComponent(JSON.stringify({ timestamp: 'descending' }));
-          const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${query.context}&limit=${rootLimit}&sorting=${sorting}&filterExpr=${encodeURIComponent(filterExpr)}`;
+          const url = `${getInternalApiBaseUrl()}/api/logs?projectName=${project}&context=${query.context}&limit=${rootLimit}&sorting=${sorting}&filterExpr=${encodeURIComponent(filterExpr)}`;
 
           const response = await fetch(url, {
             method: 'GET',
@@ -146,12 +148,15 @@ export const getTranscripts = async (apiKey: string) => {
       const logs = mergeRootRows(rootLogs.flat(), {
         limit: rootLimit,
         sortValue: ({ log }) => log.entries?.timestamp,
-        dedupeKey: ({ log, query }) => `${query.context}:${log.entries?.messageId ?? log.id}`,
+        dedupeKey: ({ log }) => transcriptMergeDedupeKey(log.entries, log.id),
       })
-        .filter(
-          ({ log, query }) =>
-            !excludedKeys.has(`${query.context}:${log.entries?.messageId ?? log.id}`)
-        )
+        .filter(({ log, query }) => {
+          const contextKey = `${query.context}:${log.entries?.messageId ?? log.id}`;
+          if (excludedKeys.has(contextKey)) return false;
+          const mergeKey = transcriptMergeDedupeKey(log.entries, log.id);
+          if (excludedKeys.has(mergeKey)) return false;
+          return true;
+        })
         .slice(0, limit);
 
       const mappedMessages = logs
@@ -173,6 +178,7 @@ export const getTranscripts = async (apiKey: string) => {
             timestamp: new Date(entries.timestamp as string),
             messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
             sourceContext: query.context,
+            mergeKey: transcriptMergeDedupeKey(entries, id),
             attachments: Array.isArray(entries.attachments)
               ? (entries.attachments as Record<string, unknown>[]).map(
                   (a): Attachment => ({
@@ -208,7 +214,7 @@ export const messageAssistant = async (apiKey: string) => {
       // Convert camelCase payload to snake_case for API
       const snakeCasePayload = camelToSnakeObject(payload);
 
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/message`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/message`, {
         method: 'POST',
         headers: {
           apiKey: apiKey,
@@ -252,7 +258,7 @@ export const uploadAttachment = async (apiKey: string) => {
         formData.append('deploy_env', deployEnv);
       }
 
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/attachment`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/attachment`, {
         method: 'POST',
         headers: {
           apiKey: apiKey,
@@ -293,7 +299,7 @@ export const getSignedUrl = async (apiKey: string) => {
   return async (gsUrl: string): Promise<{ signedUrl: string } | ResponseProps> => {
     'use server';
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/storage/signed-url`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/storage/signed-url`, {
         method: 'POST',
         headers: {
           apiKey: apiKey,

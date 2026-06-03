@@ -18,6 +18,7 @@ import type { Assistant } from '@/types/assistants/assistant';
 import { camelToSnake, snakeToCamel } from '@/utils/casing';
 import { mergeRootRows } from '@/lib/client/read_across_roots';
 import { rootContext, roots, type ContextRoot } from '@/lib/assistants/scope';
+import { transcriptMergeDedupeKey } from '@/lib/assistants/transcriptDedupe';
 
 const PAGE_SIZE = 50;
 
@@ -114,13 +115,15 @@ export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
 
     if (readableRoots.length === 1) {
       const [root] = readableRoots;
+      const requestedLimit = options?.limit ?? PAGE_SIZE;
+      const requestedOffset = options?.offset ?? 0;
       const params = new URLSearchParams({
         projectName: 'Assistants',
         context: rootContext(root, assistant.userId, assistant.agentId, context),
-        limit: String(options?.limit ?? PAGE_SIZE),
+        limit: String(requestedLimit),
       });
 
-      if (options?.offset) params.set('offset', String(options.offset));
+      if (requestedOffset) params.set('offset', String(requestedOffset));
       if (options?.filterExpr) params.set('filterExpr', options.filterExpr);
       if (options?.sorting) params.set('sorting', options.sorting);
 
@@ -132,12 +135,14 @@ export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
       if (!contentType?.includes('application/json')) return empty;
 
       const data = await res.json();
-      return parseLogsResponse<T>(data);
+      const parsed = parseLogsResponse<T>(data);
+      const hasMore = requestedOffset + parsed.rows.length < parsed.count;
+      return { ...parsed, hasMore };
     }
 
     const requestedLimit = options?.limit ?? PAGE_SIZE;
     const requestedOffset = options?.offset ?? 0;
-    const rootLimit = requestedLimit + requestedOffset;
+    const rootLimit = requestedLimit + requestedOffset + 1;
     const rootResults = await Promise.all(
       readableRoots.map(async (root): Promise<MemoryContextData<T>> => {
         const params = new URLSearchParams({
@@ -174,12 +179,25 @@ export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
       direction: 'descending' as const,
     };
     const mergedRows = mergeRootRows(rows, {
-      limit: requestedLimit,
+      limit: requestedLimit + 1,
       offset: requestedOffset,
       direction: sorting?.direction,
       sortValue: (row) => sortValueForField(row, sorting.field),
+      dedupeKey:
+        context === 'Transcripts'
+          ? (row) => transcriptMergeDedupeKey(row as Record<string, unknown>)
+          : undefined,
     });
-    return { rows: mergedRows, count, fields: Array.from(fields) };
+    const hasMore = mergedRows.length > requestedLimit;
+    const pageRows = mergedRows.slice(0, requestedLimit);
+    const dedupedCount =
+      requestedOffset + pageRows.length + (hasMore && context === 'Transcripts' ? 1 : 0);
+    return {
+      rows: pageRows,
+      count: context === 'Transcripts' ? dedupedCount : count,
+      fields: Array.from(fields),
+      hasMore,
+    };
   } catch {
     return empty;
   }

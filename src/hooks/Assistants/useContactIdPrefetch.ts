@@ -11,6 +11,7 @@ import {
   rootContext,
   transcriptFilterForRoot,
 } from '@/lib/assistants/scope';
+import { transcriptMergeDedupeKey } from '@/lib/assistants/transcriptDedupe';
 
 const CONTACT_ID_SESSION_PREFIX = 'assistant_contact_id:';
 const TRANSCRIPT_LIMIT = 50;
@@ -176,7 +177,7 @@ export async function fetchTranscriptsDirect(
     const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
     const rootLogs = await Promise.all(
       queries.map(async (query) => {
-        const filterExpr = transcriptFilterForRoot(query);
+        const filterExpr = transcriptFilterForRoot(query, assistant.agentId);
         const params = new URLSearchParams({
           projectName: 'Assistants',
           context: query.context,
@@ -202,7 +203,7 @@ export async function fetchTranscriptsDirect(
     const logs = mergeRootRows(rootLogs.flat(), {
       limit,
       sortValue: ({ log }) => log.entries?.timestamp,
-      dedupeKey: ({ log, query }) => `${query.context}:${log.entries?.messageId ?? log.id}`,
+      dedupeKey: ({ log }) => transcriptMergeDedupeKey(log.entries, log.id),
     });
 
     return logs
@@ -223,6 +224,7 @@ export async function fetchTranscriptsDirect(
           timestamp: new Date(entries.timestamp as string),
           messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
           sourceContext: query.context,
+          mergeKey: transcriptMergeDedupeKey(entries, id),
           attachments: Array.isArray(entries.attachments)
             ? (entries.attachments as Record<string, unknown>[]).map(
                 (a): Attachment => ({
@@ -251,7 +253,7 @@ export async function fetchMeetExchangesDirect(
     const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
     const rootLogs = await Promise.all(
       queries.map(async (query) => {
-        const filterExpr = meetExchangeFilterForRoot(query);
+        const filterExpr = meetExchangeFilterForRoot(query, assistant.agentId);
         const params = new URLSearchParams({
           projectName: 'Assistants',
           context: query.context,

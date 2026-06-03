@@ -15,6 +15,7 @@ import {
   roleFromRootSenderId,
   transcriptFilterForRoot,
 } from '@/lib/assistants/scope';
+import { transcriptMergeDedupeKey } from '@/lib/assistants/transcriptDedupe';
 
 const WINDOW_SIZE = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
 
@@ -49,7 +50,7 @@ function boundaryMessageKeys(messages: ChatMessage[], boundary: Date): Set<strin
   return new Set(
     messages
       .filter((message) => message.timestamp.getTime() === boundaryMs)
-      .map((message) => messageAnchorKey(message))
+      .map((message) => message.mergeKey ?? messageAnchorKey(message))
   );
 }
 
@@ -68,7 +69,7 @@ async function fetchMessagesAround(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
 
-  const deduped = Array.from(new Map(combined.map((m) => [m.id, m])).values());
+  const deduped = Array.from(new Map(combined.map((m) => [m.mergeKey ?? m.id, m])).values());
 
   return {
     messages: deduped,
@@ -90,7 +91,7 @@ async function fetchPage(
     const rootLimit = limit + excludedKeys.size + 1;
     const rootLogs = await Promise.all(
       queries.map(async (query) => {
-        const filterExpr = `${transcriptFilterForRoot(query)} and ${rangeFilter}`;
+        const filterExpr = `${transcriptFilterForRoot(query, assistant.agentId)} and ${rangeFilter}`;
         const params = new URLSearchParams({
           projectName: 'Assistants',
           context: query.context,
@@ -114,12 +115,16 @@ async function fetchPage(
       limit: rootLimit,
       direction,
       sortValue: ({ log }) => log.entries?.timestamp,
-      dedupeKey: ({ log, query }) => `${query.context}:${log.entries?.messageId ?? log.id}`,
+      dedupeKey: ({ log }) => transcriptMergeDedupeKey(log.entries, log.id),
     });
 
-    const visibleLogs = logs.filter(
-      ({ log, query }) => !excludedKeys.has(`${query.context}:${log.entries?.messageId ?? log.id}`)
-    );
+    const visibleLogs = logs.filter(({ log, query }) => {
+      const contextKey = `${query.context}:${log.entries?.messageId ?? log.id}`;
+      if (excludedKeys.has(contextKey)) return false;
+      const mergeKey = transcriptMergeDedupeKey(log.entries, log.id);
+      if (excludedKeys.has(mergeKey)) return false;
+      return true;
+    });
 
     const messages = visibleLogs
       .slice(0, limit)
@@ -133,6 +138,7 @@ async function fetchPage(
           timestamp: new Date(entries.timestamp as string),
           messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
           sourceContext: query.context,
+          mergeKey: transcriptMergeDedupeKey(entries, id),
           attachments: Array.isArray(entries.attachments)
             ? (entries.attachments as Record<string, unknown>[]).map(
                 (a): Attachment => ({
@@ -169,7 +175,7 @@ async function fetchCallPillsForRange(
     const rootLogs = await Promise.all(
       queries.map(async (query) => {
         const filterExpr = [
-          meetExchangeFilterForRoot(query),
+          meetExchangeFilterForRoot(query, assistant.agentId),
           `timestamp >= "${minTs.toISOString()}"`,
           `timestamp <= "${maxTs.toISOString()}"`,
         ].join(' and ');
@@ -329,8 +335,8 @@ export function useHistoricalView({
 
       setHistoricalView((prev) => {
         if (!prev) return null;
-        const existingIds = new Set(prev.messages.map((m) => m.id));
-        const unique = messages.filter((m) => !existingIds.has(m.id));
+        const existingIds = new Set(prev.messages.map((m) => m.mergeKey ?? m.id));
+        const unique = messages.filter((m) => !existingIds.has(m.mergeKey ?? m.id));
         const merged = [...unique, ...prev.messages].sort(
           (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
@@ -392,8 +398,8 @@ export function useHistoricalView({
 
       setHistoricalView((prev) => {
         if (!prev) return null;
-        const existingIds = new Set(prev.messages.map((m) => m.id));
-        const unique = messages.filter((m) => !existingIds.has(m.id));
+        const existingIds = new Set(prev.messages.map((m) => m.mergeKey ?? m.id));
+        const unique = messages.filter((m) => !existingIds.has(m.mergeKey ?? m.id));
         const merged = [...prev.messages, ...unique].sort(
           (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );

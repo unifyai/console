@@ -25,6 +25,7 @@ import {
   createAssistant,
   createEmailLogin,
   seedChatInfrastructure,
+  seedCoordinatorChatForUsers,
 } from '../client';
 
 export async function seedOrgMultiRole(): Promise<SeededState> {
@@ -61,6 +62,11 @@ export async function seedOrgMultiRole(): Promise<SeededState> {
     assistantId: assistant.agentId,
     email: owner.email,
   });
+
+  // Each role's user gets their own personal Coordinator. Seed chat
+  // infra for all four so any account can open their Coordinator panel
+  // immediately after quick-login.
+  await seedCoordinatorChatForUsers([owner, admin, member, viewer]);
 
   return {
     users: { owner, admin, member, viewer },

@@ -231,7 +231,10 @@ const FullScreenCallUI: React.FC<{
   }, [localParticipant, camToggle.track]);
 
   const userTrackRef = screenShareTrack || localVideoTrackRef;
-  const assistantName = `${assistant.firstName} ${assistant.surname}`;
+  const isCoordinator = assistant.isCoordinator === true;
+  const assistantName = isCoordinator
+    ? 'Coordinator'
+    : [assistant.firstName, assistant.surname].filter(Boolean).join(' ');
   const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
 
   return (
@@ -256,6 +259,7 @@ const FullScreenCallUI: React.FC<{
             <>
               <AssistantCommunicationMainView
                 assistantName={assistantName}
+                isCoordinator={isCoordinator}
                 isSpeaking={agentState === 'speaking'}
                 imageUrl={assistantPhoto}
                 videoTrack={agentVideoTrack}
@@ -763,7 +767,9 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       // same participant identity and the old room may have been cleaned up
       // server-side after the dialog disconnected, so we need our own token
       // with a new identity to reliably join the room.
-      const assistantName = `${assistant.firstName} ${assistant.surname}`;
+      const assistantName = assistant.isCoordinator
+        ? 'Coordinator'
+        : [assistant.firstName, assistant.surname].filter(Boolean).join(' ');
       const connDetails = await assistantActions.call.getConnectionDetails(
         assistant.agentId,
         assistantName
@@ -847,11 +853,14 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       ? params.assistantId[0]
       : params.assistantId;
     if (assistant && assistantId) {
+      const displayName = assistant.isCoordinator
+        ? 'Coordinator'
+        : [assistant.firstName, assistant.surname].filter(Boolean).join(' ');
       localStorage.setItem(
         'activePopOutCall',
         JSON.stringify({
           assistantId,
-          assistantName: `${assistant.firstName} ${assistant.surname}`,
+          assistantName: displayName,
         })
       );
       window.dispatchEvent(
@@ -945,9 +954,12 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
   }
 
   const showLoadingState = isConnecting || isWaitingForAssistant;
+  const displayName = assistant.isCoordinator
+    ? 'Coordinator'
+    : [assistant.firstName, assistant.surname].filter(Boolean).join(' ');
   const loadingMessage = isConnecting
     ? 'Setting up a connection...'
-    : `Waiting for ${assistant.firstName} to join...`;
+    : `Waiting for ${displayName} to join...`;
 
   return (
     <RoomContext.Provider value={room}>

@@ -187,12 +187,25 @@ test.describe('Onboarding', () => {
     await page.getByTestId('workspace-continue').click();
 
     await page.waitForURL(/\/assistants/, { timeout: 15000 });
+    expect(new URL(page.url()).searchParams.has('openHire')).toBe(false);
 
     const userId = dbExec(`SELECT id FROM "user" WHERE email = '${email.toLowerCase()}'`);
     if (userId) createdUserIds.push(userId);
+
+    const personalCoordinatorId = dbExec(
+      `SELECT agent_id FROM assistants WHERE user_id = '${userId}' AND organization_id IS NULL AND is_coordinator = TRUE`
+    );
+    expect(personalCoordinatorId).toBeTruthy();
+
+    const personalCoordinatorCount = dbExec(
+      `SELECT count(*) FROM assistants WHERE user_id = '${userId}' AND organization_id IS NULL AND is_coordinator = TRUE`
+    );
+    expect(personalCoordinatorCount).toBe('1');
   });
 
-  test('creates organization workspace and redirects to assistants', async ({ page }) => {
+  test('creates organization workspace with personal Coordinator pinned and redirects to assistants', async ({
+    page,
+  }) => {
     const email = uniqueEmail('onboard-org');
     const password = 'OnboardP@ss1';
 
@@ -215,12 +228,32 @@ test.describe('Onboarding', () => {
     await page.getByTestId('workspace-continue').click();
 
     await page.waitForURL(/\/assistants/, { timeout: 15000 });
+    expect(new URL(page.url()).searchParams.has('openHire')).toBe(false);
 
     const userId = dbExec(`SELECT id FROM "user" WHERE email = '${email.toLowerCase()}'`);
     if (userId) createdUserIds.push(userId);
 
-    const orgExists = dbExec(`SELECT count(*) FROM organization WHERE name = '${orgName}'`);
-    expect(orgExists).not.toBe('0');
+    const orgId = dbExec(`SELECT id FROM organization WHERE name = '${orgName}'`);
+    expect(orgId).toBeTruthy();
+
+    const coordinatorId = dbExec(
+      `SELECT agent_id FROM assistants WHERE user_id = '${userId}' AND organization_id IS NULL AND is_coordinator = TRUE`
+    );
+    expect(coordinatorId).toBeTruthy();
+
+    const coordinatorCount = dbExec(
+      `SELECT count(*) FROM assistants WHERE user_id = '${userId}' AND organization_id IS NULL AND is_coordinator = TRUE`
+    );
+    expect(coordinatorCount).toBe('1');
+
+    const orgCoordinatorCount = dbExec(
+      `SELECT count(*) FROM assistants WHERE organization_id = ${orgId} AND is_coordinator = TRUE`
+    );
+    expect(orgCoordinatorCount).toBe('0');
+
+    const coordinatorRow = page.getByTestId(`assistant-list-item-${coordinatorId}`);
+    await expect(coordinatorRow).toBeVisible({ timeout: 15000 });
+    await expect(coordinatorRow).toContainText('Coordinator');
   });
 
   test('keeps Create Organization button disabled with whitespace-only name', async ({ page }) => {

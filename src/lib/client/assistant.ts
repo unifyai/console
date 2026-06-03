@@ -14,6 +14,11 @@
 import { Assistant, AssistantStatus } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import {
+  canonicalizeAssistantList,
+  type CoordinatorWorkspaceScope,
+  resolveCanonicalWorkspaceCoordinator,
+} from '@/lib/assistants/coordinatorIdentity';
+import {
   clearMediaSignedUrlInFlight,
   getEarliestSignedUrlExpiryMs,
   getMediaSignedUrlInFlight,
@@ -40,15 +45,30 @@ function createDeferred<T>(): Deferred<T> {
 }
 
 export async function fetchAssistants(
-  isOrgContext: boolean,
-  includeDemo: boolean = true
+  workspace: CoordinatorWorkspaceScope,
+  includeDemo: boolean = true,
+  options: { currentUserId?: string | null } = {}
 ): Promise<Assistant[] | ResponseProps> {
-  try {
+  const isOrgContext = workspace.type === 'organization';
+  const buildParams = (listAllOrg: boolean): URLSearchParams => {
     const params = new URLSearchParams();
-    if (isOrgContext) params.set('list_all_org', 'true');
+    if (listAllOrg) params.set('list_all_org', 'true');
     if (includeDemo) params.set('demo', 'true');
+    return params;
+  };
 
-    const res = await fetch(`/api/assistant?${params}`);
+  try {
+    let params = buildParams(isOrgContext);
+    let res = await fetch(`/api/assistant?${params.toString()}`);
+
+    // Org members without assistant:read cannot list every org assistant.
+    // Fall back to user-scoped org assistants while still injecting the
+    // canonical personal coordinator into the response.
+    if (res.status === 403 && isOrgContext) {
+      params = buildParams(false);
+      res = await fetch(`/api/assistant?${params.toString()}`);
+    }
+
     const data = await res.json();
 
     if (!res.ok) {
@@ -57,7 +77,15 @@ export async function fetchAssistants(
         status: res.status,
       } as ResponseProps;
     }
-    return data;
+    if (!Array.isArray(data)) {
+      return data;
+    }
+
+    return canonicalizeAssistantList(data, {
+      currentUserId: options.currentUserId ?? null,
+      pinCanonicalCoordinatorFirst: isOrgContext,
+      workspace,
+    });
   } catch (error) {
     return { detail: error instanceof Error ? error.message : 'Failed to fetch assistants' };
   }
@@ -255,6 +283,7 @@ export async function fetchMediaSignedUrls(
 export {
   getEarliestSignedUrlExpiryMs,
   MEDIA_SIGNED_URL_EXPIRY_BUFFER_MS,
+  resolveCanonicalWorkspaceCoordinator,
   readCachedMediaSignedUrls,
   seedMediaSignedUrls,
 };

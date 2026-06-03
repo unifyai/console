@@ -39,6 +39,19 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
+import {
+  type CoordinatorWorkspaceScope,
+  resolveCanonicalWorkspaceCoordinator,
+} from '@/lib/assistants/coordinatorIdentity';
+import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
+import {
+  CoordinatorOnboardingProvider,
+  type CoordinatorOnboardingContextValue,
+} from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingContext';
+import { CoordinatorOnboarding } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboarding';
+import { IntegrationsPane } from '@/components/Pages/Assistants/Integrations';
+import { TasksPane } from '@/components/Pages/Assistants/Tasks';
+import { LiveActionsViewer } from '@/components/Pages/Assistants/LiveActions';
 import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
@@ -71,6 +84,10 @@ import { SpendingDisplayProps } from '@/types/assistants/spending';
 import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemErrors';
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import type { SpaceSummary } from '@/types/spaces/space';
+import {
+  type CoordinatorActivityRow,
+  invalidatesCoordinatorSidebar,
+} from '@/types/assistants/coordinatorActivity';
 
 const EMPTY_SPACES: SpaceSummary[] = [];
 
@@ -116,8 +133,62 @@ function isSignedMediaUrl(url: string | null | undefined): url is string {
 }
 
 export default function Main({ assistantActions, userMeta }: MainProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const profileParam = searchParams.get('profile');
+  const { activeWorkspace, currentUserId } = useWorkspace();
+  const coordinatorWorkspace = React.useMemo<CoordinatorWorkspaceScope>(() => {
+    if (activeWorkspace?.type === 'organization') {
+      const parsedOrganizationId = Number.parseInt(activeWorkspace.id, 10);
+      return {
+        type: 'organization',
+        organizationId: Number.isFinite(parsedOrganizationId) ? parsedOrganizationId : null,
+      };
+    }
+    return { type: 'personal', organizationId: null };
+  }, [activeWorkspace?.id, activeWorkspace?.type]);
+
+  const syncProfileQueryParam = React.useCallback(
+    (assistantId: string | null) => {
+      if (typeof window === 'undefined') return;
+
+      const currentProfile = searchParams.get('profile');
+      if ((assistantId ?? null) === (currentProfile ?? null)) return;
+
+      const nextParams = new URLSearchParams(searchParams.toString());
+      if (assistantId) {
+        nextParams.set('profile', assistantId);
+      } else {
+        nextParams.delete('profile');
+      }
+
+      const nextQuery = nextParams.toString();
+      const nextUrl =
+        nextQuery.length > 0
+          ? `${window.location.pathname}?${nextQuery}`
+          : window.location.pathname;
+      router.replace(nextUrl, { scroll: false });
+    },
+    [router, searchParams]
+  );
+
   // --- UI Panel Management ---
-  const { profileAssistantId, handleShowProfile, handleProfileClose } = usePanelManager();
+  const {
+    profileAssistantId,
+    handleShowProfile: setPanelProfileAssistant,
+    handleProfileClose: clearPanelProfileAssistant,
+  } = usePanelManager(profileParam);
+  const handleShowProfile = React.useCallback(
+    (assistantId: string) => {
+      setPanelProfileAssistant(assistantId);
+      syncProfileQueryParam(assistantId);
+    },
+    [setPanelProfileAssistant, syncProfileQueryParam]
+  );
+  const handleProfileClose = React.useCallback(() => {
+    clearPanelProfileAssistant();
+    syncProfileQueryParam(null);
+  }, [clearPanelProfileAssistant, syncProfileQueryParam]);
 
   // Right-pane state (primary tab, optional secondary tab for split-view,
   // splitter ratio) is lifted out of `RightPaneContainer` for two reasons:
@@ -187,12 +258,22 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, []);
 
   React.useEffect(() => {
-    setPaneState((prev) => ({ ...prev, primary: { tab: 'chat' }, secondary: null }));
+    setPaneState((prev) => ({
+      ...prev,
+      primary: { tab: 'chat' },
+      secondary: null,
+    }));
   }, [profileAssistantId]);
 
   // Convenience: chat is "visible" if either slot is showing it. Used by
   // the chat-stream hook below to suppress unread bumps and by the
   // mark-as-read effect to clear the badge when an assistant is opened.
+  // The gradual-onboarding view (rendered below when
+  // ``showCoordinatorOnboarding`` flips on) has its own chat surface
+  // pinned to the Coordinator and bypasses ``paneState.tab`` entirely;
+  // ``isChatVisibleForCoordinator`` is OR-ed in below so the unread
+  // badge clears the moment the onboarding tab regains focus, instead
+  // of waiting for the user to also poke a pane tab.
   const isChatVisibleInRightPane =
     paneState.primary.tab === 'chat' ||
     (paneState.secondary !== null && paneState.secondary.tab === 'chat');
@@ -288,16 +369,19 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     refreshAssistants,
     deleteAssistant,
     updateAssistantProfile,
-  } = useAssistants(assistantActions, !!userMeta.isOrgContext);
+  } = useAssistants(assistantActions, coordinatorWorkspace, currentUserId);
 
-  // Pulled out of the workspace context so we can do strict ownership
-  // checks (e.g. who sees the setup roadmap) — `canWrite` is broader
-  // and includes org owners/admins, which isn't the same audience.
-  const { activeWorkspace, currentUserId } = useWorkspace();
+  // --- Assistant Permissions ---
+  const { canHire, canWrite, canEndContract, canOpenAssistantChat } = useAssistantPermissions();
+  const sidebarAssistants = React.useMemo(
+    () => assistants.filter((assistant) => canOpenAssistantChat(assistant)),
+    [assistants, canOpenAssistantChat]
+  );
+  const chatReadableAssistants = sidebarAssistants;
 
   const hasSpaceMemberships = React.useMemo(
-    () => assistants.some((assistant) => (assistant.spaceIds?.length ?? 0) > 0),
-    [assistants]
+    () => sidebarAssistants.some((assistant) => (assistant.spaceIds?.length ?? 0) > 0),
+    [sidebarAssistants]
   );
 
   const spacesQuery = useQuery({
@@ -307,31 +391,175 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     staleTime: 5 * 60 * 1000,
   });
   const visibleSpaces = spacesQuery.data ?? EMPTY_SPACES;
+  const { refetch: refetchVisibleSpaces } = spacesQuery;
+  const coordinatorInvalidationTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCoordinatorActivity = React.useCallback(
+    (activity: CoordinatorActivityRow) => {
+      if (!invalidatesCoordinatorSidebar(activity)) return;
+      if (coordinatorInvalidationTimerRef.current) {
+        clearTimeout(coordinatorInvalidationTimerRef.current);
+      }
+      coordinatorInvalidationTimerRef.current = setTimeout(() => {
+        coordinatorInvalidationTimerRef.current = null;
+        refreshAssistants(false);
+        void refetchVisibleSpaces();
+      }, 500);
+    },
+    [refreshAssistants, refetchVisibleSpaces]
+  );
+
+  React.useEffect(
+    () => () => {
+      if (coordinatorInvalidationTimerRef.current) {
+        clearTimeout(coordinatorInvalidationTimerRef.current);
+      }
+    },
+    []
+  );
 
   const spacesById = React.useMemo<Record<number, SpaceSummary>>(() => {
     return Object.fromEntries(visibleSpaces.map((space) => [space.spaceId, space]));
   }, [visibleSpaces]);
 
-  // --- Deep-link to a specific assistant via ?profile=<agentId> ---
-  const searchParams = useSearchParams();
-  const profileParam = searchParams.get('profile');
-  const hasOpenedDeepLink = React.useRef(false);
+  const canonicalCoordinator = React.useMemo(
+    () => resolveCanonicalWorkspaceCoordinator(assistants, currentUserId, coordinatorWorkspace),
+    [assistants, coordinatorWorkspace, currentUserId]
+  );
+  const canonicalCoordinatorId = canonicalCoordinator?.agentId ?? null;
+
+  // Coordinator onboarding-mode gate: while ``mode === 'onboarding'`` we
+  // replace the regular list + right-pane shell with the guided
+  // ``CoordinatorOnboarding`` surface. The hook is enabled the moment
+  // a canonical coordinator is resolvable — non-owner viewers of an
+  // org workspace fall through with ``state === null`` because the
+  // backend rejects their read of the state row, which leaves the
+  // ``showCoordinatorOnboarding`` flag below ``false`` and the
+  // regular layout intact.
+  const isCanonicalCoordinatorOwned =
+    !!canonicalCoordinator && !!currentUserId && canonicalCoordinator.userId === currentUserId;
+  const {
+    state: coordinatorOnboardingState,
+    isLoading: isCoordinatorOnboardingStateLoading,
+    refetch: refetchCoordinatorOnboardingState,
+    updateState: updateCoordinatorOnboardingState,
+  } = useCoordinatorOnboarding(canonicalCoordinatorId, {
+    enabled: isCanonicalCoordinatorOwned,
+  });
+  // Tracks whether the user has clicked "Hire your first specialist
+  // assistant" in the onboarding sidebar. While this is true we
+  // suppress the onboarding view *even though* the Coordinator/State
+  // row is still ``onboarding`` — the page intentionally previews
+  // the post-onboarding layout (base /assistants shell with the
+  // coordinator selected) while the hire dialog is open on top, so
+  // the user immediately sees the final shape of their workspace.
+  // An actual hire then promotes the row to ``working`` via
+  // ``handleHireSuccess`` (which also clears this flag); cancelling
+  // the dialog leaves the page on the base layout for the rest of
+  // the session, with a reload taking the user back to the
+  // onboarding view to resume.
+  const [isHireSpecialistEngaged, setIsHireSpecialistEngaged] = React.useState(false);
+  const showCoordinatorOnboarding =
+    isCanonicalCoordinatorOwned &&
+    coordinatorOnboardingState?.mode === 'onboarding' &&
+    !isHireSpecialistEngaged;
+
+  // Shared per-session checklist progress for the Coordinator
+  // onboarding flow. Lifted out of ``CoordinatorOnboarding`` so the
+  // same set survives the gradual ↔ info-panel layout transition —
+  // when the user clicks "Hire your first specialist" the layout
+  // swaps to the base /assistants shell and the checklist relocates
+  // into the coordinator's assistant info panel "Onboarding"
+  // sub-tab. ``'meet'`` is seeded because the picker is always
+  // resolved by the time we render anything substantive. When the
+  // orchestra ``Coordinator/Checklist`` write path lands, this set
+  // should be sourced from the backend snapshot instead so the
+  // chain reflects real progress (and persists across reloads).
+  const [completedStepIds, setCompletedStepIds] = React.useState<ReadonlySet<string>>(
+    () => new Set(['meet'])
+  );
+  // Engagement is a strict superset of completion — engaging
+  // ``apps`` (clicking "Connect apps") unlocks the integrations
+  // tab even though the row stays pending until a secret actually
+  // lands. Completion always implies engagement, so
+  // ``markStepCompleted`` below back-fills the engaged set too.
+  const [engagedStepIds, setEngagedStepIds] = React.useState<ReadonlySet<string>>(
+    () => new Set(['meet'])
+  );
+  const markStepCompleted = React.useCallback((stepId: string) => {
+    setCompletedStepIds((prev) => {
+      if (prev.has(stepId)) return prev;
+      const next = new Set(prev);
+      next.add(stepId);
+      return next;
+    });
+    setEngagedStepIds((prev) => {
+      if (prev.has(stepId)) return prev;
+      const next = new Set(prev);
+      next.add(stepId);
+      return next;
+    });
+  }, []);
+  const markStepEngaged = React.useCallback((stepId: string) => {
+    setEngagedStepIds((prev) => {
+      if (prev.has(stepId)) return prev;
+      const next = new Set(prev);
+      next.add(stepId);
+      return next;
+    });
+  }, []);
+  const coordinatorOnboardingCtxValue = React.useMemo<CoordinatorOnboardingContextValue>(
+    () => ({ completedStepIds, markStepCompleted, engagedStepIds, markStepEngaged }),
+    [completedStepIds, markStepCompleted, engagedStepIds, markStepEngaged]
+  );
+  // While the state read is still in flight we can't make a confident
+  // layout choice: rendering the regular shell only to swap to the
+  // onboarding view a moment later would flash the wrong UI in front
+  // of users who just came back to a Coordinator still in onboarding.
+  // We keep the main shell suspended for two distinct windows:
+  //
+  //   1. The assistants-list load — until that resolves we don't even
+  //      know who the canonical coordinator is, so we can't dispatch
+  //      to the onboarding hook with a stable id. Without this guard
+  //      the regular shell renders briefly with empty data before the
+  //      list lands and the onboarding gate flips on.
+  //   2. The first read of the Coordinator/State row — once we know
+  //      the user owns a coordinator, we wait on its state before
+  //      committing to a layout.
+  //
+  // Subsequent transitions update the React Query cache synchronously
+  // so neither branch fires again after the initial bootstrap.
+  const isCoordinatorOnboardingResolvePending =
+    (isLoadingAssistants && !canonicalCoordinator) ||
+    (isCanonicalCoordinatorOwned &&
+      coordinatorOnboardingState === null &&
+      isCoordinatorOnboardingStateLoading);
+
   React.useEffect(() => {
-    if (profileParam && assistants.length > 0 && !hasOpenedDeepLink.current) {
-      const match = assistants.find((a) => a.agentId === profileParam);
-      if (match) {
-        hasOpenedDeepLink.current = true;
-        handleShowProfile(match.agentId);
-      }
+    if (!profileAssistantId || isLoadingAssistants) return;
+    const selectedAssistantStillVisible = assistants.some(
+      (assistant) => assistant.agentId === profileAssistantId
+    );
+    if (selectedAssistantStillVisible) return;
+
+    if (canonicalCoordinatorId) {
+      handleShowProfile(canonicalCoordinatorId);
+      return;
     }
-  }, [profileParam, assistants, handleShowProfile]);
+
+    handleProfileClose();
+  }, [
+    assistants,
+    canonicalCoordinatorId,
+    handleProfileClose,
+    handleShowProfile,
+    isLoadingAssistants,
+    profileAssistantId,
+  ]);
 
   // --- Assistant Status Polling ---
   const { statuses: assistantStatuses, markOnline: markAssistantOnline } =
     useAssistantStatus(assistants);
-
-  // --- Assistant Permissions ---
-  const { canHire, canWrite, canDelete } = useAssistantPermissions();
 
   // --- Billing Status & Credit Grant Link ---
   const {
@@ -377,7 +605,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // (write-if-absent). When the user opens a chat, all data is already
   // cached — the chat loads instantly with zero loading/skeleton state.
   const resolvedContactIds = useContactIdPrefetch(
-    assistants,
+    chatReadableAssistants,
     assistantActions,
     userMeta.email,
     setProfileChatHistories,
@@ -430,7 +658,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // per network response.
   const chatStreamPairs = React.useMemo<ChatStreamPair[]>(
     () =>
-      assistants
+      chatReadableAssistants
         .flatMap((a) => {
           const cid = resolvedContactIds[a.agentId];
           if (cid === undefined) return [];
@@ -450,7 +678,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           });
         })
         .filter((p): p is ChatStreamPair => p !== null),
-    [assistants, resolvedContactIds]
+    [chatReadableAssistants, resolvedContactIds]
   );
 
   // Per-assistant monotonic counter bumped on every inbound SSE frame.
@@ -655,9 +883,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       // currently looking at — either the profile chat panel (only when
       // the right-pane Chat tab is visible in *either* the primary or
       // secondary split slot; on Actions/Memory/etc.-only we still want
-      // the badge to climb so the user notices) or, if no panel is open,
-      // the call dialog's embedded side panel.
+      // the badge to climb so the user notices), the gradual-onboarding
+      // chat surface (always pinned to the Coordinator), or, if no
+      // panel is open, the call dialog's embedded side panel.
       activeAssistantId:
+        (showCoordinatorOnboarding ? canonicalCoordinatorId : null) ??
         (isChatVisibleInRightPane ? profileAssistantId : null) ??
         activeCallAssistant?.agentId ??
         null,
@@ -673,14 +903,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // `useAssistantProfileChat`.
   const reconcilerPairs = React.useMemo<TranscriptReconcilerPair[]>(
     () =>
-      assistants
+      chatReadableAssistants
         .map((a) => {
           const cid = resolvedContactIds[a.agentId];
           if (cid === undefined) return null;
           return { assistantId: a.agentId, contactId: cid, assistant: a };
         })
         .filter((p): p is TranscriptReconcilerPair => p !== null),
-    [assistants, resolvedContactIds]
+    [chatReadableAssistants, resolvedContactIds]
   );
   useAssistantTranscriptReconciler({
     pairs: reconcilerPairs,
@@ -714,6 +944,31 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       markChatStreamRead(profileAssistantId);
     }
   }, [profileAssistantId, isChatVisibleInRightPane, markChatStreamRead]);
+
+  // Same idea for the gradual-onboarding view: it always shows the
+  // Coordinator chat, so the Coordinator's badge should clear as soon
+  // as the user is back on that tab — whether they just navigated in,
+  // a new message landed while they were on it, or they switched away
+  // and tab-visibility flipped back on.
+  React.useEffect(() => {
+    if (!showCoordinatorOnboarding || !canonicalCoordinatorId) return undefined;
+    const sweep = () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        markChatStreamRead(canonicalCoordinatorId);
+      }
+    };
+    sweep();
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', sweep);
+      return () => document.removeEventListener('visibilitychange', sweep);
+    }
+    return undefined;
+  }, [
+    showCoordinatorOnboarding,
+    canonicalCoordinatorId,
+    chatStreamUnreadCounts,
+    markChatStreamRead,
+  ]);
 
   // Activity signal for the currently-open chat panel: the panel reads only
   // changes to this number, so passing 0 when no chat is open is fine.
@@ -850,6 +1105,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setProfileAssistantSpending(null);
   }, [profileAssistantId]);
 
+  // ``isCommunicationDialogOpen`` doubles as the call-popped-out
+  // flag now: ``false`` (the default) renders the call docked in
+  // place of the chat panel, ``true`` lifts it back into the
+  // floating/modal dialog overlay. The flag is reset to ``false`` on
+  // hangup and on disconnect so the next call starts docked again.
   const handleStartCall = React.useCallback(
     async (assistant: Assistant, callType: 'video' | 'audio') => {
       const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
@@ -859,27 +1119,38 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             toast.info(
               'Call is active in a separate tab. Close that tab to start a new call here.'
             );
-          } else {
-            setIsCommunicationDialogOpen(true);
           }
+          // Same-assistant re-click while a call is already running:
+          // no-op — the docked surface is already on screen, and
+          // popping it out shouldn't happen by accident.
         } else {
           toast.info('A call is already in progress with another assistant.');
         }
         return;
       }
 
-      setIsCommunicationDialogOpen(true);
+      // Fresh call: stay docked by default.
+      setIsCommunicationDialogOpen(false);
       await startCall(assistant, callType);
     },
     [startCall, activeCallAssistant, popOutCallAssistantId]
   );
+
+  const handlePopOutCall = React.useCallback(() => {
+    setIsCommunicationDialogOpen(true);
+  }, []);
+  const handleRedockCall = React.useCallback(() => {
+    setIsCommunicationDialogOpen(false);
+  }, []);
 
   const handleHangUp = React.useCallback(async () => {
     await hangUpCall();
     setIsCommunicationDialogOpen(false);
   }, [hangUpCall]);
 
-  // Close dialog if connection fails during setup or is disconnected remotely
+  // Reset the popped-out flag if the call drops while popped out,
+  // so the next call starts docked rather than surprise-popping the
+  // user with a leftover overlay.
   React.useEffect(() => {
     if (connectionError) return; // Don't close if there's an error the user needs to see
 
@@ -968,6 +1239,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
       const optimisticAssistant: Assistant = {
         ...newAssistant,
+        isCoordinator: newAssistant.isCoordinator ?? false,
         ...(formData.profilePhotoUrl && !newAssistant.profilePhoto
           ? { profilePhoto: formData.profilePhotoUrl }
           : {}),
@@ -1007,8 +1279,35 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       refreshAssistants(false);
       fetchUserVoices();
       refetchBillingStatus();
+
+      // Hiring a specialist while the Coordinator is still in
+      // ``onboarding`` mode is the natural completion signal for the
+      // "Hire your first specialist assistant" milestone — the user
+      // has visibly done the thing the step is asking for, so we
+      // promote the Coordinator to ``working`` and let the base
+      // /assistants shell take over (with the freshly-hired
+      // specialist visible alongside the coordinator in the list).
+      // We skip this for re-hires (anything past the first promotion
+      // is a no-op since ``mode`` is already ``working``) and for
+      // hires of the coordinator itself — though that path doesn't
+      // exist today, this guard keeps the contract narrow.
+      if (coordinatorOnboardingState?.mode === 'onboarding' && !optimisticAssistant.isCoordinator) {
+        void updateCoordinatorOnboardingState({
+          mode: 'working',
+          clearOnboardingStep: true,
+        });
+        setIsHireSpecialistEngaged(false);
+      }
     },
-    [refreshAssistants, handleShowProfile, refetchBillingStatus, fetchUserVoices, setAssistants]
+    [
+      refreshAssistants,
+      handleShowProfile,
+      refetchBillingStatus,
+      fetchUserVoices,
+      setAssistants,
+      coordinatorOnboardingState?.mode,
+      updateCoordinatorOnboardingState,
+    ]
   );
 
   const handleUpdateSuccess = React.useCallback(
@@ -1139,6 +1438,93 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     loadAssistantForEdit(assistant);
     setWorkspaceManagerAssistant(assistant);
   };
+
+  // Engages the "Hire your first specialist" milestone. Wired to
+  // both surfaces — the gradual onboarding sidebar (which calls
+  // this when the user clicks the row) and the coordinator's
+  // info-panel checklist (so the user can re-pop the dialog after
+  // dismissing it without leaving onboarding mode). Selecting the
+  // coordinator and flipping ``isHireSpecialistEngaged`` is
+  // idempotent so calling this from the info panel — where the
+  // user has typically already been promoted to the base shell —
+  // is a safe no-op for those bits.
+  const handleHireSpecialistEngage = React.useCallback(() => {
+    if (canonicalCoordinatorId) handleShowProfile(canonicalCoordinatorId);
+    setIsHireSpecialistEngaged(true);
+    handleOpenHireDialog();
+  }, [canonicalCoordinatorId, handleShowProfile, handleOpenHireDialog]);
+
+  // Handler bag forwarded to the coordinator's assistant info
+  // panel "Onboarding" sub-tab. Only the actions that still make
+  // sense in the post-engage-hire-specialist state are wired: by
+  // that point ``workspace`` / ``apps`` / ``task`` / ``guide``
+  // are typically already marked done (the user reached
+  // ``hire-specialist`` by completing them), so their rows render
+  // as strikethrough and the handlers wouldn't fire. Re-engaging
+  // ``hire-specialist`` from the info-panel checklist re-opens the
+  // dialog without surprises; ``connect-workspace`` is kept wired as
+  // a defensive fallback in case a future flow lets users reach the
+  // info panel with that step still pending.
+  //
+  // ``connect-workspace`` here is engagement-only: clicking opens
+  // the workspace manager but doesn't mark the step done. Real
+  // completion is observed by the effect below that watches
+  // ``canonicalCoordinator.email`` / ``.emailProvider`` landing.
+  const coordinatorOnboardingPanelHandlers = React.useMemo(() => {
+    if (!isCanonicalCoordinatorOwned || !canonicalCoordinator) return undefined;
+    // ``onResumeOnboarding`` is exposed only when the Coordinator
+    // is currently in ``working`` mode — i.e. the user already
+    // skipped or finished onboarding once and the gradual shell is
+    // dormant. Flipping the row back to ``onboarding`` is enough:
+    // the ``showCoordinatorOnboarding`` selector above re-mounts
+    // the alternate /assistants view automatically, and
+    // ``isHireSpecialistEngaged`` is cleared as a defensive reset
+    // in case the user got into ``working`` via the hire path.
+    const isWorkingMode = coordinatorOnboardingState?.mode === 'working';
+    return {
+      onConnectWorkspace: () => {
+        markStepEngaged('workspace');
+        handleOpenWorkspaceManager(canonicalCoordinator);
+      },
+      onHireSpecialist: handleHireSpecialistEngage,
+      onResumeOnboarding: isWorkingMode
+        ? () => {
+            setIsHireSpecialistEngaged(false);
+            void updateCoordinatorOnboardingState({ mode: 'onboarding' });
+          }
+        : undefined,
+    };
+    // ``handleOpenWorkspaceManager`` isn't a useCallback (defined
+    // inline above) so it intentionally isn't in the deps — using
+    // its stable identity across renders would require lifting it
+    // to a ref, which is overkill for this rarely-reactive surface.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isCanonicalCoordinatorOwned,
+    canonicalCoordinator,
+    markStepEngaged,
+    handleHireSpecialistEngage,
+    coordinatorOnboardingState?.mode,
+    updateCoordinatorOnboardingState,
+  ]);
+
+  // Auto-complete the workspace step the moment the Coordinator
+  // gains a BYOD workspace credential. Mirrors the ``apps`` /
+  // ``task`` / ``guide`` flow (count callbacks from the
+  // rendered panes): real completion is observed from the data,
+  // not from the click that opened the dialog. We treat the
+  // presence of both ``email`` and ``emailProvider`` as the
+  // canonical "workspace connected" signal — the backend's
+  // ``handleUpdateSuccess`` refetch picks up the new row right
+  // after OAuth, and on subsequent sessions this also auto-marks
+  // for users who already connected before.
+  const coordinatorEmail = canonicalCoordinator?.email ?? null;
+  const coordinatorEmailProvider = canonicalCoordinator?.emailProvider ?? null;
+  React.useEffect(() => {
+    if (coordinatorEmail && coordinatorEmailProvider) {
+      markStepCompleted('workspace');
+    }
+  }, [coordinatorEmail, coordinatorEmailProvider, markStepCompleted]);
 
   const handleRandomizePreset = () => {
     if (currentFilteredPresets.length === 0) {
@@ -1347,7 +1733,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // wasteful, but doing so after an account-page round-trip ensures
   // derivations like `hasUserPhoneNumber` reflect the edit without
   // a manual reload.
-  const router = useRouter();
   const handleOpenUserSettings = React.useCallback((tab?: string) => {
     if (typeof window === 'undefined') return;
     const url = tab ? `/account?tab=${encodeURIComponent(tab)}` : '/account';
@@ -1397,215 +1782,349 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const computedListWidth = isAssistantListFolded ? LIST_MIN_WIDTH : assistantListWidth;
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <AssistantsBanners
-        credits={credits}
-        isBillingLoading={isBillingLoading}
-        spendingGateStatus={spendingGateStatus}
-        isOrgWorkspace={!!userMeta.orgId}
-        isFreeTrial={!!userMeta.isFreeTrial}
-        accountStatus={accountStatus}
-        billingMode={billingMode}
-      />
-
-      {/* StripeSidePanel — for adding payment method */}
-      <StripeSidePanel
-        open={isStripePanelOpen}
-        onOpenChange={setIsStripePanelOpen}
-        onSuccess={() => {
-          // Kick off aggressive polling (every 2 s) to bridge the gap
-          // between Stripe confirming payment and the webhook crediting
-          // the balance.  Polling auto-stops once credits appear or
-          // after 30 s.
-          refetchBillingStatus();
-          startBillingPolling();
-          // Auto-claim pending credit grant token after payment method added
-          if (pendingToken) {
-            claimPendingToken();
-          }
-        }}
-        pendingCreditToken={pendingToken}
-      />
-
-      <div className="flex min-h-0 flex-1 overflow-hidden bg-background">
-        {/* Assistant List */}
-        <div
-          className="relative h-full flex-shrink-0 border-r"
-          style={{
-            width: computedListWidth,
-            transition: isResizingList ? 'none' : 'width 0.3s ease-in-out',
-          }}
-        >
-          <AssistantList
-            assistants={assistants}
-            assistantStatuses={assistantStatuses}
-            assistantError={assistantError}
-            isLoading={isLoadingAssistants}
-            error={assistantError}
-            profileAssistantId={profileAssistantId}
-            onShowProfile={handleShowProfile}
-            onOpenHireDialog={handleOpenHireDialog}
-            onOpenContactManager={handleOpenContactManager}
-            onOpenWorkspaceManager={handleOpenWorkspaceManager}
-            onEditAssistant={handleOpenEditDialog}
-            onEndContract={onDeleteAssistantSubmit}
-            canEndContract={canDelete}
-            canEditAssistant={canWrite}
-            isFolded={isAssistantListFolded}
-            activeCallAssistantId={activeCallId}
-            onHangUp={handleHangUp}
-            canHire={canHire}
-            onToggleFold={handleToggleListFold}
-            unreadCounts={chatStreamUnreadCounts}
-            spacesById={spacesById}
-          />
-        </div>
-        {/* List resize handle */}
-        <div
-          onMouseDown={handleListResizeStart}
-          className="hover:bg-primary/20 active:bg-primary/40 -ml-1.5 h-full w-1.5 flex-shrink-0 cursor-col-resize bg-transparent transition-colors duration-200"
-          style={{ zIndex: 20 }}
+    <CoordinatorOnboardingProvider value={coordinatorOnboardingCtxValue}>
+      <div className="flex h-full flex-col overflow-hidden">
+        <AssistantsBanners
+          credits={credits}
+          isBillingLoading={isBillingLoading}
+          spendingGateStatus={spendingGateStatus}
+          isOrgWorkspace={!!userMeta.orgId}
+          isFreeTrial={!!userMeta.isFreeTrial}
+          accountStatus={accountStatus}
+          billingMode={billingMode}
         />
 
-        {/* Right Pane: Chat + Actions + Dashboards */}
-        <div className="relative h-full min-w-0 flex-1 overflow-hidden bg-background">
-          <RightPaneContainer
-            assistant={profileAssistant}
-            actions={assistantActions.actions || null}
-            dashboardActions={assistantActions.dashboards || null}
-            assistantActions={assistantActions}
-            chatHistories={profileChatHistories}
-            setChatHistories={setProfileChatHistories}
-            callPillHistories={callPillHistories}
-            setCallPillHistories={setCallPillHistories}
-            userEmail={userMeta.email}
-            isFirstView={isFirstViewAfterHire}
-            preHireChat={isFirstViewAfterHire ? newlyHiredInfo?.preHireChat : undefined}
-            onFirstViewCompleted={handleFirstViewCompleted}
-            onStartCall={handleStartCall}
-            activeCallAssistantId={activeCallId}
-            isCallConnected={isCallConnected}
-            isConnectingCall={isConnectingCall}
-            userTimezone={userMeta.timezone}
-            canWrite={profileAssistant ? canWrite(profileAssistant) : undefined}
-            spendingGate={spendingGateStatus}
-            chatStreamConnectionStatus={
-              profileAssistant
-                ? (chatStreamConnectionStatusByAssistant[profileAssistant.agentId] ?? 'connecting')
-                : 'connecting'
+        {/* StripeSidePanel — for adding payment method */}
+        <StripeSidePanel
+          open={isStripePanelOpen}
+          onOpenChange={setIsStripePanelOpen}
+          onSuccess={() => {
+            // Kick off aggressive polling (every 2 s) to bridge the gap
+            // between Stripe confirming payment and the webhook crediting
+            // the balance.  Polling auto-stops once credits appear or
+            // after 30 s.
+            refetchBillingStatus();
+            startBillingPolling();
+            // Auto-claim pending credit grant token after payment method added
+            if (pendingToken) {
+              claimPendingToken();
             }
-            reconnectChatStream={reconnectChatStream}
-            chatStreamActivitySignal={profileChatActivitySignal}
-            paneState={paneState}
-            onPaneStateChange={setPaneState}
-            onEditAssistant={handleOpenEditDialog}
-            onOpenContactManager={handleOpenContactManager}
-            hasUserMessage={profiledHasUserMessage}
-            hasHistoricalCall={profiledHasHistoricalCall}
-            hasUserPhoneNumber={hasUserPhoneNumber}
-            latestUserMessageAt={profiledLatestUserMessageAt}
-            userPhoneNumber={userMeta.phoneNumber}
-            // The roadmap activates downstream only when BOTH of the
-            // owner-only handlers are provided (see ChatWithInfoPanel
-            // — it gates the `roadmap` prop bag on their presence).
-            // Withholding them for non-owners cleanly hides the
-            // Onboarding tab without bespoke prop drilling.
-            onShowInstallInstructions={isAssistantOwner ? handleShowInstallInstructions : undefined}
-            onOpenUserSettings={isAssistantOwner ? handleOpenUserSettings : undefined}
-            // Drives the dot on the chat header's "Assistant info"
-            // button. Pulled from the same cross-assistant summary
-            // map we used for the (now-removed) list-item dot, so
-            // the source of truth doesn't fork.
-            unreadChatCount={
-              profileAssistant ? (chatStreamUnreadCounts[profileAssistant.agentId] ?? 0) : 0
-            }
-            hasIncompleteOnboarding={
-              isAssistantOwner && profileAssistant
-                ? !!onboardingIncompleteByAgentId[profileAssistant.agentId]
-                : false
-            }
-          />
-        </div>
-      </div>
+          }}
+          pendingCreditToken={pendingToken}
+        />
 
-      {/* Dialogs and Overlays */}
-      <FormProvider {...formMethods}>
-        <AssistantHire
-          formMethods={formMethods}
-          isHireDialogOpen={isHireDialogOpen}
-          isHireSubmitting={isFormSubmitting}
-          setIsHireDialogOpen={setIsHireDialogOpen}
-          isAssistantPresetsOpen={isAssistantPresetsOpen}
-          setIsAssistantPresetsOpen={setIsAssistantPresetsOpen}
-          handleRandomizePreset={handleRandomizePreset}
-          currentFilteredPresets={currentFilteredPresets}
-          onHireAttempt={initiateHireSequence}
-          isProcessingPhoto={isDialogBusyProcessingPhoto}
-          isProcessingVoice={isDialogBusyProcessingVoice}
-          isCheckingBalance={isCheckingBalance}
-          showInsufficientFundsHint={showInsufficientFundsHint}
-          setShowInsufficientFundsHint={setShowInsufficientFundsHint}
-          onAddPaymentMethod={() => setIsStripePanelOpen(true)}
-          isStripePanelOpen={isStripePanelOpen}
-        >
-          <HireForm
-            formMethods={formMethods}
-            isSubmitting={isFormSubmitting}
-            assistantActions={assistantActions}
-            onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
-            onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice}
-            allDisplayableVoices={allDisplayableVoices}
-            isLoadingUserVoices={isLoadingUserVoices}
-            fetchUserVoices={fetchUserVoices}
-            handleDeleteVoice={handleDeleteVoice}
-            onNewMediaReady={onNewMediaReady}
-            mode="hire"
-            onAddPaymentMethod={() => setIsStripePanelOpen(true)}
-            userHasChangedPreset={userHasChangedPreset}
-          />
-          <PresetsPanel
-            displayedPresets={displayedPresets}
-            onPresetSelect={handleUserPresetSelect}
-            onClose={() => setIsAssistantPresetsOpen(false)}
-            onLoadMore={loadMorePresets}
-            canLoadMore={canLoadMorePresets}
-            isLoadingMore={isLoadingMorePresets}
-            ageFilter={presetAgeFilter}
-            onAgeFilterChange={setPresetAgeFilter}
-            availableAgeBrackets={availableAgeBrackets}
-            nationalityFilter={presetNationalityFilter}
-            onNationalityFilterChange={setPresetNationalityFilter}
-            availableNationalities={availableNationalities}
-            genderFilter={presetGenderFilter}
-            onGenderFilterChange={setPresetGenderFilter}
-            availableGenders={availableGenders}
-            languageFilter={presetLanguageFilter}
-            onLanguageFilterChange={setPresetLanguageFilter}
-            availableLanguages={availableLanguages}
-            layoutMode="split" // Dummy prop
-            setLayoutMode={() => {}} // Dummy prop
-            presetPhotoUrls={presetPhotoUrls}
-          />
-        </AssistantHire>
+        {isCoordinatorOnboardingResolvePending ? (
+          <div className="flex min-h-0 flex-1 items-center justify-center bg-background">
+            <span className="sr-only">Loading workspace…</span>
+          </div>
+        ) : showCoordinatorOnboarding && canonicalCoordinator ? (
+          <div className="flex min-h-0 flex-1 overflow-hidden bg-background">
+            <CoordinatorOnboarding
+              coordinator={canonicalCoordinator}
+              assistantActions={assistantActions}
+              chatHistories={profileChatHistories}
+              setChatHistories={setProfileChatHistories}
+              callPillHistories={callPillHistories}
+              setCallPillHistories={setCallPillHistories}
+              userEmail={userMeta.email}
+              userTimezone={userMeta.timezone}
+              spendingGate={spendingGateStatus}
+              chatStreamConnectionStatus={
+                chatStreamConnectionStatusByAssistant[canonicalCoordinator.agentId] ?? 'connecting'
+              }
+              reconnectChatStream={reconnectChatStream}
+              chatStreamActivitySignal={chatActivityCounters[canonicalCoordinator.agentId] ?? 0}
+              isCallConnected={
+                isCallConnected && activeCallAssistant?.agentId === canonicalCoordinator.agentId
+              }
+              isCoordinatorCallActive={
+                !!activeCallAssistant &&
+                activeCallAssistant.agentId === canonicalCoordinator.agentId &&
+                !isCommunicationDialogOpen
+              }
+              renderDockedCall={() => (
+                <RoomContext.Provider value={room}>
+                  <AssistantCommunicationDialog
+                    docked
+                    isOpen
+                    onClose={handleHangUp}
+                    onPopOut={handlePopOutCall}
+                    assistant={canonicalCoordinator}
+                    assistantActions={assistantActions}
+                    room={room}
+                    chatHistories={profileChatHistories}
+                    setChatHistories={setProfileChatHistories}
+                    callPillHistories={callPillHistories}
+                    setCallPillHistories={setCallPillHistories}
+                    isConnecting={isConnectingCall}
+                    userEmail={userMeta.email}
+                    userImage={userMeta.image}
+                    isWaitingForAssistant={isWaitingForAssistant}
+                    waitingMessage={waitingMessage}
+                    isCallConnected={isCallConnected}
+                    connectionError={connectionError}
+                    onRetry={retryConnection}
+                    isRemoteControlActive={isRemoteControlActive}
+                    liveviewUrl={liveviewUrl}
+                    isRemoteControlLoading={isRemoteControlLoading}
+                    toggleRemoteControl={toggleRemoteControl}
+                    isRemoteControlInteractive={isRemoteControlInteractive}
+                    isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
+                    toggleRemoteControlInteractive={toggleRemoteControlInteractive}
+                    isDesktopReady={isDesktopReady}
+                    callType={callType}
+                    isSpeakerMuted={isSpeakerMuted}
+                    onToggleSpeaker={toggleSpeakerMute}
+                    chatStreamConnectionStatus={
+                      chatStreamConnectionStatusByAssistant[canonicalCoordinator.agentId] ??
+                      'connecting'
+                    }
+                    reconnectChatStream={reconnectChatStream}
+                    chatStreamActivitySignal={
+                      chatActivityCounters[canonicalCoordinator.agentId] ?? 0
+                    }
+                  />
+                </RoomContext.Provider>
+              )}
+              onStartCall={handleStartCall}
+              onConnectWorkspace={() => handleOpenWorkspaceManager(canonicalCoordinator)}
+              // Auto-completion observers — these turn each
+              // count/active-state change from the pane's own data
+              // source into a ``markStepCompleted`` call, so the
+              // checklist row only flips to done once the real
+              // underlying action lands (a token saved, a task
+              // created, a workflow run observed) instead of the
+              // moment the user clicks into the pane.
+              renderIntegrationsPane={() => (
+                <IntegrationsPane
+                  ownerId={canonicalCoordinator.userId}
+                  assistantId={canonicalCoordinator.agentId}
+                  secretActions={assistantActions.secret}
+                  canWrite={canWrite(canonicalCoordinator)}
+                  onSecretsCountChange={(count) => {
+                    if (count > 0) markStepCompleted('apps');
+                  }}
+                />
+              )}
+              renderTasksPane={() => (
+                <TasksPane
+                  assistant={canonicalCoordinator}
+                  ownerId={canonicalCoordinator.userId}
+                  assistantId={canonicalCoordinator.agentId}
+                  onTasksCountChange={(count) => {
+                    if (count > 0) markStepCompleted('task');
+                  }}
+                />
+              )}
+              renderActionsPane={() => (
+                <LiveActionsViewer
+                  assistant={canonicalCoordinator}
+                  actions={assistantActions.actions || null}
+                  className="h-full"
+                  onHasActiveActionChange={(active) => {
+                    if (active) markStepCompleted('guide');
+                  }}
+                />
+              )}
+              onHireSpecialist={handleHireSpecialistEngage}
+              onOnboardingComplete={() => {
+                // Best-effort refresh — the React Query optimistic
+                // write already flips ``mode`` to ``working`` so the
+                // layout swap is immediate; this just makes sure
+                // subsequent reads pick up any server-side derivations
+                // (e.g. ``endedAt``).
+                void refetchCoordinatorOnboardingState();
+              }}
+            />
+          </div>
+        ) : (
+          <div className="flex min-h-0 flex-1 overflow-hidden bg-background">
+            {/* Assistant List */}
+            <div
+              className="relative h-full flex-shrink-0 border-r"
+              style={{
+                width: computedListWidth,
+                transition: isResizingList ? 'none' : 'width 0.3s ease-in-out',
+              }}
+            >
+              <AssistantList
+                assistants={sidebarAssistants}
+                assistantStatuses={assistantStatuses}
+                assistantError={assistantError}
+                isLoading={isLoadingAssistants}
+                error={assistantError}
+                profileAssistantId={profileAssistantId}
+                onShowProfile={handleShowProfile}
+                onOpenHireDialog={handleOpenHireDialog}
+                onOpenContactManager={handleOpenContactManager}
+                onOpenWorkspaceManager={handleOpenWorkspaceManager}
+                onEditAssistant={handleOpenEditDialog}
+                onEndContract={onDeleteAssistantSubmit}
+                canEndContract={canEndContract}
+                isFolded={isAssistantListFolded}
+                activeCallAssistantId={activeCallId}
+                onHangUp={handleHangUp}
+                canHire={canHire}
+                onToggleFold={handleToggleListFold}
+                unreadCounts={chatStreamUnreadCounts}
+                currentUserId={currentUserId}
+                workspace={coordinatorWorkspace}
+                spacesById={spacesById}
+              />
+            </div>
+            {/* List resize handle */}
+            <div
+              onMouseDown={handleListResizeStart}
+              className="hover:bg-primary/20 active:bg-primary/40 -ml-1.5 h-full w-1.5 flex-shrink-0 cursor-col-resize bg-transparent transition-colors duration-200"
+              style={{ zIndex: 20 }}
+            />
 
-        {assistantToEdit && (
-          <AssistantEdit
-            isOpen={!!assistantToEdit}
-            onClose={() => setAssistantToEdit(null)}
-            assistant={assistantToEdit}
+            {/* Right Pane: Chat + Actions + Dashboards */}
+            <div className="relative h-full min-w-0 flex-1 overflow-hidden bg-background">
+              <RightPaneContainer
+                assistant={profileAssistant}
+                actions={assistantActions.actions || null}
+                dashboardActions={assistantActions.dashboards || null}
+                assistantActions={assistantActions}
+                chatHistories={profileChatHistories}
+                setChatHistories={setProfileChatHistories}
+                callPillHistories={callPillHistories}
+                setCallPillHistories={setCallPillHistories}
+                userEmail={userMeta.email}
+                isFirstView={isFirstViewAfterHire}
+                preHireChat={isFirstViewAfterHire ? newlyHiredInfo?.preHireChat : undefined}
+                onFirstViewCompleted={handleFirstViewCompleted}
+                onStartCall={handleStartCall}
+                activeCallAssistantId={activeCallId}
+                isCallConnected={isCallConnected}
+                isConnectingCall={isConnectingCall}
+                userTimezone={userMeta.timezone}
+                canWrite={profileAssistant ? canWrite(profileAssistant) : undefined}
+                spendingGate={spendingGateStatus}
+                chatStreamConnectionStatus={
+                  profileAssistant
+                    ? (chatStreamConnectionStatusByAssistant[profileAssistant.agentId] ??
+                      'connecting')
+                    : 'connecting'
+                }
+                reconnectChatStream={reconnectChatStream}
+                chatStreamActivitySignal={profileChatActivitySignal}
+                paneState={paneState}
+                onPaneStateChange={setPaneState}
+                onEditAssistant={handleOpenEditDialog}
+                onOpenContactManager={handleOpenContactManager}
+                onCoordinatorActivity={handleCoordinatorActivity}
+                hasUserMessage={profiledHasUserMessage}
+                hasHistoricalCall={profiledHasHistoricalCall}
+                hasUserPhoneNumber={hasUserPhoneNumber}
+                latestUserMessageAt={profiledLatestUserMessageAt}
+                userPhoneNumber={userMeta.phoneNumber}
+                // The roadmap activates downstream only when BOTH of the
+                // owner-only handlers are provided (see ChatWithInfoPanel
+                // — it gates the `roadmap` prop bag on their presence).
+                // Withholding them for non-owners cleanly hides the
+                // Onboarding tab without bespoke prop drilling.
+                onShowInstallInstructions={
+                  isAssistantOwner ? handleShowInstallInstructions : undefined
+                }
+                onOpenUserSettings={isAssistantOwner ? handleOpenUserSettings : undefined}
+                // Drives the dot on the chat header's "Assistant info"
+                // button. Pulled from the same cross-assistant summary
+                // map we used for the (now-removed) list-item dot, so
+                // the source of truth doesn't fork.
+                unreadChatCount={
+                  profileAssistant ? (chatStreamUnreadCounts[profileAssistant.agentId] ?? 0) : 0
+                }
+                hasIncompleteOnboarding={
+                  isAssistantOwner && profileAssistant
+                    ? !!onboardingIncompleteByAgentId[profileAssistant.agentId]
+                    : false
+                }
+                coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
+                // Dock the call into the chat slot whenever an active
+                // call's assistant matches the chat's assistant and the
+                // user hasn't explicitly popped the call out. The
+                // Coordinator-onboarding shell hosts its own docked
+                // render (and unmounts this tree), so no extra guard
+                // is needed here.
+                renderDockedCall={
+                  activeCallAssistant &&
+                  profileAssistant &&
+                  activeCallAssistant.agentId === profileAssistant.agentId &&
+                  !isCommunicationDialogOpen
+                    ? () => (
+                        <RoomContext.Provider value={room}>
+                          <AssistantCommunicationDialog
+                            docked
+                            isOpen
+                            onClose={handleHangUp}
+                            onPopOut={handlePopOutCall}
+                            assistant={activeCallAssistant}
+                            assistantActions={assistantActions}
+                            room={room}
+                            chatHistories={profileChatHistories}
+                            setChatHistories={setProfileChatHistories}
+                            callPillHistories={callPillHistories}
+                            setCallPillHistories={setCallPillHistories}
+                            isConnecting={isConnectingCall}
+                            userEmail={userMeta.email}
+                            userImage={userMeta.image}
+                            isWaitingForAssistant={isWaitingForAssistant}
+                            waitingMessage={waitingMessage}
+                            isCallConnected={isCallConnected}
+                            connectionError={connectionError}
+                            onRetry={retryConnection}
+                            isRemoteControlActive={isRemoteControlActive}
+                            liveviewUrl={liveviewUrl}
+                            isRemoteControlLoading={isRemoteControlLoading}
+                            toggleRemoteControl={toggleRemoteControl}
+                            isRemoteControlInteractive={isRemoteControlInteractive}
+                            isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
+                            toggleRemoteControlInteractive={toggleRemoteControlInteractive}
+                            isDesktopReady={isDesktopReady}
+                            callType={callType}
+                            isSpeakerMuted={isSpeakerMuted}
+                            onToggleSpeaker={toggleSpeakerMute}
+                            chatStreamConnectionStatus={
+                              chatStreamConnectionStatusByAssistant[activeCallAssistant.agentId] ??
+                              'connecting'
+                            }
+                            reconnectChatStream={reconnectChatStream}
+                            chatStreamActivitySignal={
+                              chatActivityCounters[activeCallAssistant.agentId] ?? 0
+                            }
+                          />
+                        </RoomContext.Provider>
+                      )
+                    : undefined
+                }
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Dialogs and Overlays */}
+        <FormProvider {...formMethods}>
+          <AssistantHire
             formMethods={formMethods}
-            onSubmit={initiateUpdate}
-            isSubmitting={isFormSubmitting}
+            isHireDialogOpen={isHireDialogOpen}
+            isHireSubmitting={isFormSubmitting}
+            setIsHireDialogOpen={setIsHireDialogOpen}
+            isAssistantPresetsOpen={isAssistantPresetsOpen}
+            setIsAssistantPresetsOpen={setIsAssistantPresetsOpen}
+            handleRandomizePreset={handleRandomizePreset}
+            currentFilteredPresets={currentFilteredPresets}
+            onHireAttempt={initiateHireSequence}
             isProcessingPhoto={isDialogBusyProcessingPhoto}
             isProcessingVoice={isDialogBusyProcessingVoice}
+            isCheckingBalance={isCheckingBalance}
+            showInsufficientFundsHint={showInsufficientFundsHint}
+            setShowInsufficientFundsHint={setShowInsufficientFundsHint}
             onAddPaymentMethod={() => setIsStripePanelOpen(true)}
             isStripePanelOpen={isStripePanelOpen}
-            onDeleteAssistant={onDeleteAssistantSubmit}
-            canDelete={canDelete(assistantToEdit)}
           >
             <HireForm
               formMethods={formMethods}
-              onSubmit={initiateUpdate}
               isSubmitting={isFormSubmitting}
               assistantActions={assistantActions}
               onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
@@ -1615,92 +2134,155 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               fetchUserVoices={fetchUserVoices}
               handleDeleteVoice={handleDeleteVoice}
               onNewMediaReady={onNewMediaReady}
-              mode="edit"
+              mode="hire"
               onAddPaymentMethod={() => setIsStripePanelOpen(true)}
+              userHasChangedPreset={userHasChangedPreset}
             />
-          </AssistantEdit>
-        )}
-        {contactManagerAssistant && (
-          <AssistantContactManager
-            isOpen={!!contactManagerAssistant}
-            onClose={() => setContactManagerAssistant(null)}
-            assistant={contactManagerAssistant}
-            assistantActions={assistantActions}
-            onSuccess={handleUpdateSuccess}
-            initialTab={contactManagerInitialTab}
-            canWrite={canWrite(contactManagerAssistant)}
-            onAddPaymentMethod={() => setIsStripePanelOpen(true)}
-            onOpenWorkspaceManager={(a) => {
-              // Email tab CTA — close ContactManager and open the
-              // Workspace modal as a sibling.
-              setContactManagerAssistant(null);
-              handleOpenWorkspaceManager(a);
-            }}
-            userPhoneNumber={userMeta.phoneNumber ?? null}
-            userWhatsappNumber={userMeta.whatsappNumber ?? null}
-            userDiscordId={userMeta.discordId ?? null}
-            slackOwner={userMeta.slackOwner ?? null}
-            slackCanManageInstall={userMeta.slackCanManageInstall ?? false}
-            slackInitialInstall={userMeta.slackInitialInstall ?? null}
-          />
-        )}
-        {workspaceManagerAssistant && (
-          <AssistantWorkspaceManager
-            isOpen={!!workspaceManagerAssistant}
-            onClose={() => setWorkspaceManagerAssistant(null)}
-            assistant={workspaceManagerAssistant}
-            assistantActions={assistantActions}
-            onSuccess={handleUpdateSuccess}
-            canWrite={canWrite(workspaceManagerAssistant)}
-          />
-        )}
-      </FormProvider>
+            <PresetsPanel
+              displayedPresets={displayedPresets}
+              onPresetSelect={handleUserPresetSelect}
+              onClose={() => setIsAssistantPresetsOpen(false)}
+              onLoadMore={loadMorePresets}
+              canLoadMore={canLoadMorePresets}
+              isLoadingMore={isLoadingMorePresets}
+              ageFilter={presetAgeFilter}
+              onAgeFilterChange={setPresetAgeFilter}
+              availableAgeBrackets={availableAgeBrackets}
+              nationalityFilter={presetNationalityFilter}
+              onNationalityFilterChange={setPresetNationalityFilter}
+              availableNationalities={availableNationalities}
+              genderFilter={presetGenderFilter}
+              onGenderFilterChange={setPresetGenderFilter}
+              availableGenders={availableGenders}
+              languageFilter={presetLanguageFilter}
+              onLanguageFilterChange={setPresetLanguageFilter}
+              availableLanguages={availableLanguages}
+              layoutMode="split" // Dummy prop
+              setLayoutMode={() => {}} // Dummy prop
+              presetPhotoUrls={presetPhotoUrls}
+            />
+          </AssistantHire>
 
-      <AssistantHireLocalSetupInstructionsDialog
-        isOpen={setupInstructions?.isOpen || false}
-        os={setupInstructions?.os || 'ubuntu'}
-        onClose={() => setSetupInstructions(null)}
-      />
+          {assistantToEdit && (
+            <AssistantEdit
+              isOpen={!!assistantToEdit}
+              onClose={() => setAssistantToEdit(null)}
+              assistant={assistantToEdit}
+              formMethods={formMethods}
+              onSubmit={initiateUpdate}
+              isSubmitting={isFormSubmitting}
+              isProcessingPhoto={isDialogBusyProcessingPhoto}
+              isProcessingVoice={isDialogBusyProcessingVoice}
+              onAddPaymentMethod={() => setIsStripePanelOpen(true)}
+              isStripePanelOpen={isStripePanelOpen}
+              onDeleteAssistant={onDeleteAssistantSubmit}
+              canDelete={canEndContract(assistantToEdit)}
+            >
+              <HireForm
+                formMethods={formMethods}
+                onSubmit={initiateUpdate}
+                isSubmitting={isFormSubmitting}
+                assistantActions={assistantActions}
+                onPhotoProcessingStateChange={setIsDialogBusyProcessingPhoto}
+                onVoiceProcessingStateChange={setIsDialogBusyProcessingVoice}
+                allDisplayableVoices={allDisplayableVoices}
+                isLoadingUserVoices={isLoadingUserVoices}
+                fetchUserVoices={fetchUserVoices}
+                handleDeleteVoice={handleDeleteVoice}
+                onNewMediaReady={onNewMediaReady}
+                mode="edit"
+                onAddPaymentMethod={() => setIsStripePanelOpen(true)}
+              />
+            </AssistantEdit>
+          )}
+          {contactManagerAssistant && (
+            <AssistantContactManager
+              isOpen={!!contactManagerAssistant}
+              onClose={() => setContactManagerAssistant(null)}
+              assistant={contactManagerAssistant}
+              assistantActions={assistantActions}
+              onSuccess={handleUpdateSuccess}
+              initialTab={contactManagerInitialTab}
+              canWrite={canWrite(contactManagerAssistant)}
+              onAddPaymentMethod={() => setIsStripePanelOpen(true)}
+              onOpenWorkspaceManager={(a) => {
+                // Email tab CTA — close ContactManager and open the
+                // Workspace modal as a sibling.
+                setContactManagerAssistant(null);
+                handleOpenWorkspaceManager(a);
+              }}
+              userPhoneNumber={userMeta.phoneNumber ?? null}
+              userWhatsappNumber={userMeta.whatsappNumber ?? null}
+              userDiscordId={userMeta.discordId ?? null}
+              slackOwner={userMeta.slackOwner ?? null}
+              slackCanManageInstall={userMeta.slackCanManageInstall ?? false}
+              slackInitialInstall={userMeta.slackInitialInstall ?? null}
+            />
+          )}
+          {workspaceManagerAssistant && (
+            <AssistantWorkspaceManager
+              isOpen={!!workspaceManagerAssistant}
+              onClose={() => setWorkspaceManagerAssistant(null)}
+              assistant={workspaceManagerAssistant}
+              assistantActions={assistantActions}
+              onSuccess={handleUpdateSuccess}
+              canWrite={canWrite(workspaceManagerAssistant)}
+            />
+          )}
+        </FormProvider>
 
-      {activeCallAssistant && (
-        <RoomContext.Provider value={room}>
-          <AssistantCommunicationDialog
-            isOpen={isCommunicationDialogOpen}
-            onClose={handleHangUp}
-            assistant={activeCallAssistant}
-            assistantActions={assistantActions}
-            room={room}
-            chatHistories={profileChatHistories}
-            setChatHistories={setProfileChatHistories}
-            callPillHistories={callPillHistories}
-            setCallPillHistories={setCallPillHistories}
-            isConnecting={isConnectingCall}
-            userEmail={userMeta.email}
-            userImage={userMeta.image}
-            isWaitingForAssistant={isWaitingForAssistant}
-            waitingMessage={waitingMessage}
-            isCallConnected={isCallConnected}
-            connectionError={connectionError}
-            onRetry={retryConnection}
-            isRemoteControlActive={isRemoteControlActive}
-            liveviewUrl={liveviewUrl}
-            isRemoteControlLoading={isRemoteControlLoading}
-            toggleRemoteControl={toggleRemoteControl}
-            isRemoteControlInteractive={isRemoteControlInteractive}
-            isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
-            toggleRemoteControlInteractive={toggleRemoteControlInteractive}
-            isDesktopReady={isDesktopReady}
-            callType={callType}
-            isSpeakerMuted={isSpeakerMuted}
-            onToggleSpeaker={toggleSpeakerMute}
-            chatStreamConnectionStatus={
-              chatStreamConnectionStatusByAssistant[activeCallAssistant.agentId] ?? 'connecting'
-            }
-            reconnectChatStream={reconnectChatStream}
-            chatStreamActivitySignal={chatActivityCounters[activeCallAssistant.agentId] ?? 0}
-          />
-        </RoomContext.Provider>
-      )}
-    </div>
+        <AssistantHireLocalSetupInstructionsDialog
+          isOpen={setupInstructions?.isOpen || false}
+          os={setupInstructions?.os || 'ubuntu'}
+          onClose={() => setSetupInstructions(null)}
+        />
+
+        {/* Page-level dialog — only mounted when the user has popped
+         *  the call out of its docked slot. The docked render lives
+         *  closer to the call's content (the chat panel in the base
+         *  /assistants view, or the Coordinator-onboarding shell)
+         *  so we don't need a guard for those shells here. */}
+        {activeCallAssistant && isCommunicationDialogOpen && (
+          <RoomContext.Provider value={room}>
+            <AssistantCommunicationDialog
+              isOpen={isCommunicationDialogOpen}
+              onClose={handleHangUp}
+              onRedock={handleRedockCall}
+              assistant={activeCallAssistant}
+              assistantActions={assistantActions}
+              room={room}
+              chatHistories={profileChatHistories}
+              setChatHistories={setProfileChatHistories}
+              callPillHistories={callPillHistories}
+              setCallPillHistories={setCallPillHistories}
+              isConnecting={isConnectingCall}
+              userEmail={userMeta.email}
+              userImage={userMeta.image}
+              isWaitingForAssistant={isWaitingForAssistant}
+              waitingMessage={waitingMessage}
+              isCallConnected={isCallConnected}
+              connectionError={connectionError}
+              onRetry={retryConnection}
+              isRemoteControlActive={isRemoteControlActive}
+              liveviewUrl={liveviewUrl}
+              isRemoteControlLoading={isRemoteControlLoading}
+              toggleRemoteControl={toggleRemoteControl}
+              isRemoteControlInteractive={isRemoteControlInteractive}
+              isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
+              toggleRemoteControlInteractive={toggleRemoteControlInteractive}
+              isDesktopReady={isDesktopReady}
+              callType={callType}
+              isSpeakerMuted={isSpeakerMuted}
+              onToggleSpeaker={toggleSpeakerMute}
+              chatStreamConnectionStatus={
+                chatStreamConnectionStatusByAssistant[activeCallAssistant.agentId] ?? 'connecting'
+              }
+              reconnectChatStream={reconnectChatStream}
+              chatStreamActivitySignal={chatActivityCounters[activeCallAssistant.agentId] ?? 0}
+            />
+          </RoomContext.Provider>
+        )}
+      </div>
+    </CoordinatorOnboardingProvider>
   );
 }

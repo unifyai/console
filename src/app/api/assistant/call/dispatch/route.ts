@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { badRequest, internalError } from '../../../_utils/auth';
 import { camelToSnakeObject } from '@/utils/casing';
-import { getAdaptersPrefix } from '@/utils/assistants/api-utils';
+import { getAdaptersBaseUrl, isStagingEnvironment } from '@/utils/assistants/api-utils';
 
 // This route dispatches an agent to join a LiveKit room for a voice call.
 // It proxies to your backend/agents orchestrator.
@@ -15,10 +15,9 @@ export async function POST(request: NextRequest) {
       return badRequest('assistantId and roomName are required');
     }
 
-    const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
-    const isStaging = baseUrl.includes('staging');
-    const prefix = getAdaptersPrefix(deployEnv, isStaging);
-    const DISPATCH_URL = `https://unity-adapters-${prefix}ky4ja5fxna-uc.a.run.app/unify/meet`;
+    const orchestraUrl = process.env.ORCHESTRA_URL || '';
+    const isStaging = isStagingEnvironment(orchestraUrl);
+    const dispatchUrl = `${getAdaptersBaseUrl({ deployEnv, isStaging })}/unify/meet`;
     const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
     if (!ADMIN_KEY) {
@@ -39,7 +38,7 @@ export async function POST(request: NextRequest) {
       roomName,
     });
 
-    const resp = await fetch(DISPATCH_URL, {
+    const resp = await fetch(dispatchUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -50,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     if (!resp.ok) {
       const detail = await resp.text().catch(() => 'Failed to dispatch agent');
-      console.error(`[API /dispatch] Error dispatching agent to ${DISPATCH_URL}: ${detail}`);
+      console.error(`[API /dispatch] Error dispatching agent to ${dispatchUrl}: ${detail}`);
       return NextResponse.json({ detail }, { status: 502 });
     }
 

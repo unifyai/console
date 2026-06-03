@@ -31,8 +31,31 @@ const CONSOLE_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3
 const ASSISTANT_CONTACT_ID = 42;
 const OWNER_CONTACT_ID = 43;
 
+// Personal Coordinator contact rows mirror Orchestra's
+// `contact_membership_service`: every Coordinator's `self` is contact_id=0
+// and its `boss` (= the owning user) is contact_id=1. Keeping these in
+// sync with `PERSONAL_SELF_CONTACT_ID` / `PERSONAL_BOSS_CONTACT_ID` lets
+// seeded Coordinators round-trip through the runtime exactly like
+// production-provisioned ones.
+const COORDINATOR_SELF_CONTACT_ID = 0;
+const COORDINATOR_BOSS_CONTACT_ID = 1;
+
 function sqlString(value: string): string {
   return value.replace(/'/g, "''");
+}
+
+/**
+ * Render a value as a SQL literal, preserving SQL NULL for null/undefined.
+ *
+ * Avoids the trap of `'${value}'` interpolation, which turns `null` into
+ * the string literal `'null'` rather than SQL `NULL`. Use this anywhere
+ * a column accepts NULL and the seed callers may pass undefined.
+ */
+function sqlLiteral(value: string | number | boolean | null | undefined): string {
+  if (value === null || value === undefined) return 'NULL';
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'NULL';
+  if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
+  return `'${sqlString(value)}'`;
 }
 
 /**
@@ -183,12 +206,28 @@ export interface CreateUserOpts {
   apiKey?: string;
   /** Initial credits (default: 10000) */
   credits?: number;
+  /**
+   * Skip auto-provisioning the user's personal Coordinator.
+   *
+   * Defaults to `false` so every seeded user mirrors the production
+   * signup hook (one Coordinator per user, `organization_id IS NULL`).
+   * Set to `true` only for scenarios that need to exercise the
+   * Orchestra backfill endpoint or assert a pre-Coordinator state.
+   */
+  skipCoordinator?: boolean;
 }
 
 /**
  * Create a user with a billing account and API key.
  *
- * Idempotent: skips if user with this ID already exists.
+ * Also auto-provisions the user's personal Coordinator unless
+ * `skipCoordinator: true` is passed, so every seeded workspace shows
+ * the Coordinator alongside any other seeded assistants — matching the
+ * production behaviour where signup always provisions one.
+ *
+ * Idempotent: skips if user with this ID already exists. The Coordinator
+ * creation is also idempotent (it returns the existing row if a
+ * personal Coordinator already exists for the user).
  */
 export function createUser(opts: CreateUserOpts = {}): SeededUser {
   const id = opts.id ?? uniqueUserId();
@@ -202,11 +241,26 @@ export function createUser(opts: CreateUserOpts = {}): SeededUser {
 DO \\$\\$
 DECLARE
   _ba_id integer;
+  _default_plan_template_id bigint;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM "user" WHERE id = '${id}') THEN
     INSERT INTO billing_account (credits, autorecharge, autorecharge_threshold, autorecharge_qty, account_status, tier)
     VALUES (${credits}, false, 0, 25, 'ACTIVE', 'developer')
     RETURNING id INTO _ba_id;
+
+    SELECT id
+    INTO _default_plan_template_id
+    FROM billing_plan_template
+    WHERE name = 'default' AND is_active = true
+    ORDER BY id
+    LIMIT 1;
+
+    IF _default_plan_template_id IS NULL THEN
+      RAISE EXCEPTION 'Missing default billing_plan_template while creating seeded user %', '${id}';
+    END IF;
+
+    INSERT INTO billing_plan_assignment (billing_account_id, template_id, change_reason)
+    VALUES (_ba_id, _default_plan_template_id, 'seed user bootstrap');
 
     INSERT INTO "user" (id, email, name, last_name, billing_account_id, store_prompts)
     VALUES ('${id}', '${email}', '${name}', '${lastName}', _ba_id, true);
@@ -219,7 +273,9 @@ END
 \\$\\$;
 `);
 
-  return { id, email, name, lastName, apiKey };
+  const coordinator = opts.skipCoordinator ? null : createPersonalCoordinator(id);
+
+  return { id, email, name, lastName, apiKey, coordinator };
 }
 
 // =============================================================================
@@ -268,11 +324,26 @@ DO \\$\\$
 DECLARE
   _org_id integer;
   _ba_id integer;
+  _default_plan_template_id bigint;
   _owner_role_id integer;
 BEGIN
   INSERT INTO billing_account (credits, autorecharge, autorecharge_threshold, autorecharge_qty, account_status, tier)
   VALUES (${credits}, false, 0, 25, 'ACTIVE', 'developer')
   RETURNING id INTO _ba_id;
+
+  SELECT id
+  INTO _default_plan_template_id
+  FROM billing_plan_template
+  WHERE name = 'default' AND is_active = true
+  ORDER BY id
+  LIMIT 1;
+
+  IF _default_plan_template_id IS NULL THEN
+    RAISE EXCEPTION 'Missing default billing_plan_template while creating seeded org owner %', '${opts.ownerId}';
+  END IF;
+
+  INSERT INTO billing_plan_assignment (billing_account_id, template_id, change_reason)
+  VALUES (_ba_id, _default_plan_template_id, 'seed org bootstrap');
 
   INSERT INTO organization (owner_id, name, billing_account_id, verified)
   VALUES ('${opts.ownerId}', '${name.replace(/'/g, "''")}', _ba_id, true)
@@ -374,52 +445,112 @@ export interface CreateAssistantOpts {
   userId: string;
   orgId?: number;
   firstName?: string;
-  surname?: string;
+  /** Surname. Pass `null` to omit (matches Coordinator provisioning). */
+  surname?: string | null;
   profilePhoto?: string;
   /** Optional free-text job title / specialization. */
   jobTitle?: string;
+  isCoordinator?: boolean;
+  // -- Optional overrides for the assistant row. When omitted the
+  //    historical seed defaults are used so existing scenarios are
+  //    unaffected; Coordinator seeding sets these explicitly to mirror
+  //    Orchestra's `create_coordinator_assistant`.
+  about?: string | null;
+  nationality?: string | null;
+  timezone?: string | null;
+  age?: number | null;
+  voiceId?: string | null;
+  voiceProvider?: string | null;
+  weeklyLimit?: number | null;
+  maxParallel?: number | null;
+  desktopMode?: string | null;
+  isLocal?: boolean;
+  // -- Optional contact_memberships overrides. Coordinators wire
+  //    `self=0` / `boss=1` to match production; regular seeded
+  //    assistants keep the historical 42 / 43 pair.
+  selfContactId?: number;
+  bossContactId?: number;
+  /**
+   * Optional response policy for the boss contact membership. Defaults
+   * to the same instruction used for regular seeded assistants; pass
+   * `null` to emit an empty string (mirrors Coordinator provisioning).
+   */
+  bossResponsePolicy?: string | null;
 }
+
+const DEFAULT_BOSS_RESPONSE_POLICY =
+  'Your immediate manager, please do whatever they ask you to do within reason, and do *not* withhold any information from them.';
 
 /**
  * Create an assistant via direct SQL (bypasses billing checks).
  *
  * Ensures a voice preset exists before creating.
+ *
+ * The defaults reproduce the existing seed shape (Ada Lovelace–style
+ * test assistant with elevenlabs voice). Pass overrides via opts to
+ * shape a different kind of assistant — see {@link createPersonalCoordinator}
+ * for the Coordinator-flavoured invocation.
  */
 export function createAssistant(opts: CreateAssistantOpts): SeededAssistant {
   const firstName = opts.firstName ?? 'Seed';
-  const surname = opts.surname ?? 'Assistant';
+  const surname = opts.surname === undefined ? 'Assistant' : opts.surname;
 
   ensureVoicePreset(opts.userId);
 
-  const orgClause = opts.orgId != null ? `${opts.orgId}` : 'NULL';
-  const photoClause = opts.profilePhoto ? `'${opts.profilePhoto}'` : 'NULL';
-  const jobTitleClause = opts.jobTitle ? `'${opts.jobTitle.replace(/'/g, "''")}'` : 'NULL';
+  const age = opts.age === undefined ? 30 : opts.age;
+  const nationality = opts.nationality === undefined ? 'United States' : opts.nationality;
+  const timezone = opts.timezone === undefined ? 'America/New_York' : opts.timezone;
+  const about =
+    opts.about === undefined ? 'Seed test assistant for automated testing.' : opts.about;
+  const voiceId = opts.voiceId === undefined ? '9BWtsMINqrJLrRacOk9x' : opts.voiceId;
+  const voiceProvider = opts.voiceProvider === undefined ? 'elevenlabs' : opts.voiceProvider;
+  const weeklyLimit = opts.weeklyLimit === undefined ? 40 : opts.weeklyLimit;
+  const maxParallel = opts.maxParallel === undefined ? 10 : opts.maxParallel;
+  const desktopMode = opts.desktopMode === undefined ? null : opts.desktopMode;
+  const isLocal = opts.isLocal === undefined ? true : opts.isLocal;
+  const selfContactId =
+    opts.selfContactId ?? (opts.isCoordinator ? COORDINATOR_SELF_CONTACT_ID : ASSISTANT_CONTACT_ID);
+  const bossContactId =
+    opts.bossContactId ?? (opts.isCoordinator ? COORDINATOR_BOSS_CONTACT_ID : OWNER_CONTACT_ID);
+  const bossResponsePolicy =
+    opts.bossResponsePolicy === undefined ? DEFAULT_BOSS_RESPONSE_POLICY : opts.bossResponsePolicy;
 
   dbExecBlock(`
-INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel, organization_id, is_local, profile_photo, job_title)
+INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel, organization_id, is_local, profile_photo, job_title, is_coordinator, desktop_mode)
 VALUES (
-  '${opts.userId}',
-  '${firstName}',
-  '${surname}',
-  30,
-  'United States',
-  'America/New_York',
-  'Seed test assistant for automated testing.',
-  '9BWtsMINqrJLrRacOk9x',
-  'elevenlabs',
-  40,
-  10,
-  ${orgClause},
-  true,
-  ${photoClause},
-  ${jobTitleClause}
+  ${sqlLiteral(opts.userId)},
+  ${sqlLiteral(firstName)},
+  ${sqlLiteral(surname)},
+  ${sqlLiteral(age)},
+  ${sqlLiteral(nationality)},
+  ${sqlLiteral(timezone)},
+  ${sqlLiteral(about)},
+  ${sqlLiteral(voiceId)},
+  ${sqlLiteral(voiceProvider)},
+  ${sqlLiteral(weeklyLimit)},
+  ${sqlLiteral(maxParallel)},
+  ${sqlLiteral(opts.orgId ?? null)},
+  ${sqlLiteral(isLocal)},
+  ${sqlLiteral(opts.profilePhoto ?? null)},
+  ${sqlLiteral(opts.jobTitle ?? null)},
+  ${sqlLiteral(opts.isCoordinator === true)},
+  ${sqlLiteral(desktopMode)}
 );
 `);
 
+  // Resolve the freshly inserted agent_id. Surname is nullable so we
+  // distinguish it explicitly to make this work for Coordinator rows.
+  const surnamePredicate =
+    surname === null ? 'surname IS NULL' : `surname = ${sqlLiteral(surname)}`;
   const agentId = dbExec(
-    `SELECT agent_id FROM assistants WHERE user_id = '${opts.userId}' AND first_name = '${firstName}' AND surname = '${surname}' ORDER BY agent_id DESC LIMIT 1;`
+    `SELECT agent_id FROM assistants WHERE user_id = ${sqlLiteral(opts.userId)} AND first_name = ${sqlLiteral(firstName)} AND ${surnamePredicate} ORDER BY agent_id DESC LIMIT 1;`
   );
   const parsedAgentId = parseInt(agentId, 10);
+  if (!Number.isFinite(parsedAgentId)) {
+    throw new Error(
+      `Failed to parse seeded assistant id for ${opts.userId}/${firstName} ${surname ?? '(no surname)'}: ${agentId}`
+    );
+  }
 
   dbExecBlock(`
 INSERT INTO contact_memberships (
@@ -432,14 +563,14 @@ INSERT INTO contact_memberships (
   can_edit
 )
 VALUES
-  (${parsedAgentId}, ${ASSISTANT_CONTACT_ID}, 'personal', 'self', true, '', true),
+  (${parsedAgentId}, ${selfContactId}, 'personal', 'self', true, '', true),
   (
     ${parsedAgentId},
-    ${OWNER_CONTACT_ID},
+    ${bossContactId},
     'personal',
     'boss',
     true,
-    'Your immediate manager, please do whatever they ask you to do within reason, and do *not* withhold any information from them.',
+    ${sqlLiteral(bossResponsePolicy ?? '')},
     true
   )
 ON CONFLICT DO NOTHING;
@@ -448,12 +579,90 @@ ON CONFLICT DO NOTHING;
   return {
     agentId: parsedAgentId,
     firstName,
-    surname,
+    surname: surname ?? '',
     userId: opts.userId,
     organizationId: opts.orgId ?? null,
-    selfContactId: ASSISTANT_CONTACT_ID,
-    bossContactId: OWNER_CONTACT_ID,
+    isCoordinator: opts.isCoordinator === true,
+    selfContactId,
+    bossContactId,
   };
+}
+
+// =============================================================================
+// Personal Coordinator
+// =============================================================================
+
+/**
+ * Options for {@link createPersonalCoordinator}.
+ *
+ * The shape intentionally excludes fields that are fixed by Coordinator
+ * semantics (org scoping, name, `is_coordinator`, contact IDs). The few
+ * remaining knobs are mostly for test variants — e.g. seeding a specific
+ * `timezone` or `profilePhoto`.
+ */
+export type CreatePersonalCoordinatorOpts = Pick<
+  CreateAssistantOpts,
+  'timezone' | 'profilePhoto' | 'about' | 'desktopMode' | 'nationality'
+>;
+
+/**
+ * Create the user's personal Coordinator.
+ *
+ * Mirrors Orchestra's `create_coordinator_assistant`:
+ *   - `first_name = 'Coordinator'`, `surname = NULL`, `job_title = 'Coordinator'`
+ *   - `nationality = 'United States'`, `desktop_mode = 'ubuntu'`
+ *   - All numeric/voice fields default to NULL (no weekly limit, no voice yet)
+ *   - `is_coordinator = TRUE`, `organization_id = NULL`
+ *   - Personal contact memberships pinned to `self=0` / `boss=1`
+ *
+ * Idempotent — if the user already has a personal Coordinator the
+ * existing row is returned without re-inserting (matches the partial
+ * unique index on `(user_id) WHERE is_coordinator AND organization_id IS NULL`).
+ */
+export function createPersonalCoordinator(
+  userId: string,
+  opts: CreatePersonalCoordinatorOpts = {}
+): SeededAssistant {
+  const existingId = dbExec(
+    `SELECT agent_id FROM assistants WHERE user_id = ${sqlLiteral(userId)} AND is_coordinator = TRUE AND organization_id IS NULL LIMIT 1;`
+  );
+  if (existingId) {
+    const parsed = parseInt(existingId, 10);
+    if (Number.isFinite(parsed)) {
+      return {
+        agentId: parsed,
+        firstName: 'Coordinator',
+        surname: '',
+        userId,
+        organizationId: null,
+        isCoordinator: true,
+        selfContactId: COORDINATOR_SELF_CONTACT_ID,
+        bossContactId: COORDINATOR_BOSS_CONTACT_ID,
+      };
+    }
+  }
+
+  return createAssistant({
+    userId,
+    firstName: 'Coordinator',
+    surname: null,
+    jobTitle: 'Coordinator',
+    isCoordinator: true,
+    about: opts.about ?? 'Coordinates setup and shared assistant memory.',
+    nationality: opts.nationality ?? 'United States',
+    timezone: opts.timezone ?? null,
+    age: null,
+    voiceId: null,
+    voiceProvider: null,
+    weeklyLimit: null,
+    maxParallel: null,
+    desktopMode: opts.desktopMode ?? 'ubuntu',
+    isLocal: false,
+    profilePhoto: opts.profilePhoto,
+    selfContactId: COORDINATOR_SELF_CONTACT_ID,
+    bossContactId: COORDINATOR_BOSS_CONTACT_ID,
+    bossResponsePolicy: null, // Coordinator uses an empty response policy
+  });
 }
 
 export interface CreateSpaceForAssistantOpts {
@@ -771,6 +980,16 @@ export interface SeedChatOpts {
   userId: string;
   assistantId: number;
   email: string;
+  /**
+   * Optional contact id to write into the seeded `Contacts` row.
+   *
+   * Defaults to the regular seeded-assistant owner contact (43). For
+   * Coordinators pass `1` so the Contacts row matches the contact
+   * membership wired by `createPersonalCoordinator`. The
+   * {@link seedAssistantChatInfrastructure} helper picks this up
+   * automatically from `SeededAssistant.bossContactId`.
+   */
+  bossContactId?: number;
 }
 
 /**
@@ -778,13 +997,17 @@ export interface SeedChatOpts {
  *
  * Creates:
  *   - "Assistants" project (idempotent)
- *   - "{userId}/{assistantId}/Contacts" context with a contact log entry (the owner contact row)
+ *   - "{userId}/{assistantId}/Contacts" context with a contact log entry
+ *     for the owning user (contactId defaults to 43; pass `bossContactId: 1`
+ *     for Coordinators to match production's PERSONAL_BOSS_CONTACT_ID)
  *
  * Without this, the chat panel shows "Chat unavailable" because
  * getContactIdByEmail can't find the contact record.
  */
 export async function seedChatInfrastructure(opts: SeedChatOpts): Promise<void> {
   await ensureProject(opts.apiKey, 'Assistants');
+
+  const bossContactId = opts.bossContactId ?? OWNER_CONTACT_ID;
 
   const contactRes = await orchestraFetch(
     '/v0/logs',
@@ -796,7 +1019,7 @@ export async function seedChatInfrastructure(opts: SeedChatOpts): Promise<void> 
         entries: [
           {
             email_address: opts.email,
-            contactId: OWNER_CONTACT_ID,
+            contactId: bossContactId,
           },
         ],
       }),
@@ -807,6 +1030,57 @@ export async function seedChatInfrastructure(opts: SeedChatOpts): Promise<void> 
   if (!contactRes.ok) {
     const text = await contactRes.text().catch(() => '');
     throw new Error(`Failed to seed contact: ${contactRes.status} ${text}`);
+  }
+}
+
+/**
+ * Seed chat infrastructure for a {@link SeededAssistant}, auto-selecting
+ * the right `bossContactId` (0/1 for Coordinators, 42/43 for regular
+ * seeded assistants).
+ *
+ * Convenience wrapper so scenarios can wire chat for both a primary
+ * assistant and the user's Coordinator without repeating the
+ * `bossContactId` switch in every call site.
+ */
+export async function seedAssistantChatInfrastructure(opts: {
+  apiKey: string;
+  user: { id: string; email: string };
+  assistant: SeededAssistant;
+}): Promise<void> {
+  await seedChatInfrastructure({
+    apiKey: opts.apiKey,
+    userId: opts.user.id,
+    assistantId: opts.assistant.agentId,
+    email: opts.user.email,
+    bossContactId: opts.assistant.bossContactId,
+  });
+}
+
+/**
+ * Seed chat infrastructure for every passed user's personal Coordinator
+ * in sequence.
+ *
+ * Each user is keyed by their personal API key + email so the
+ * `/v0/logs` write is attributed correctly. Users created with
+ * `skipCoordinator: true` (no `coordinator` row) are silently skipped.
+ *
+ * This is the one-liner that lets scenarios make every seeded
+ * workspace's Coordinator chat-ready:
+ *
+ * ```ts
+ * const owner = createUser(...);
+ * const member = createUser(...);
+ * await seedCoordinatorChatForUsers([owner, member]);
+ * ```
+ */
+export async function seedCoordinatorChatForUsers(users: SeededUser[]): Promise<void> {
+  for (const user of users) {
+    if (!user.coordinator) continue;
+    await seedAssistantChatInfrastructure({
+      apiKey: user.apiKey,
+      user,
+      assistant: user.coordinator,
+    });
   }
 }
 
@@ -925,7 +1199,9 @@ export function createEmailLogin(opts: CreateEmailLoginOpts): void {
   const hashScript = `from argon2 import PasswordHasher; print(PasswordHasher().hash('${password}'))`;
   const candidates: { cmd: string; cwd?: string }[] = [];
   if (process.env.ORCHESTRA_PYTHON) {
-    candidates.push({ cmd: `"${process.env.ORCHESTRA_PYTHON}" -c "${hashScript}"` });
+    candidates.push({
+      cmd: `"${process.env.ORCHESTRA_PYTHON}" -c "${hashScript}"`,
+    });
   }
   candidates.push({
     cmd: `"${orchestraPath}/.venv/bin/python" -c "${hashScript}"`,
@@ -947,7 +1223,10 @@ export function createEmailLogin(opts: CreateEmailLoginOpts): void {
   } catch {
     // Poetry may be unavailable; fall through to `poetry run` as a last resort.
   }
-  candidates.push({ cmd: `poetry run python -c "${hashScript}"`, cwd: orchestraPath });
+  candidates.push({
+    cmd: `poetry run python -c "${hashScript}"`,
+    cwd: orchestraPath,
+  });
 
   let pwHash: string | undefined;
   let lastErr: unknown;

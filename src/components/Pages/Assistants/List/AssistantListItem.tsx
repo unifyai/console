@@ -23,6 +23,7 @@ import {
 } from '@/components/UI/dropdown-menu';
 import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
+import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -33,6 +34,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/UI/alert-dialog';
+import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 
 interface AssistantListItemProps {
   assistant: Assistant;
@@ -81,9 +83,13 @@ export function AssistantListItem({
   const [isEndContractAlertOpen, setIsEndContractAlertOpen] = React.useState(false);
   const [isEndingContract, setIsEndingContract] = React.useState(false);
 
+  const openProfile = () => {
+    onShowProfile(assistant.agentId);
+  };
+
   const handleProfileClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onShowProfile(assistant.agentId);
+    openProfile();
   };
 
   const handleEndContractConfirm = async () => {
@@ -97,26 +103,47 @@ export function AssistantListItem({
     }
   };
 
-  const displayName = `${assistant.firstName} ${assistant.surname}`;
+  const isCoordinator = assistant.isCoordinator === true;
+  const displayName = assistantDisplayName(assistant);
+  const subtitle = assistant.jobTitle?.trim() || null;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
   const isOnline = status?.running === true;
+  const canEndContract = !!onEndContract && !isCoordinator;
+
+  const handleFoldedKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    openProfile();
+  };
+
+  const handleRowKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    openProfile();
+  };
 
   if (isFolded) {
     return (
       <div
         data-testid={isPrimary ? `assistant-list-item-${assistant.agentId}` : undefined}
+        role="button"
+        tabIndex={0}
+        aria-label={displayName}
         className={cn(
           'relative cursor-pointer rounded-full',
           isSelected && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
         )}
         onClick={handleProfileClick}
+        onKeyDown={handleFoldedKeyDown}
       >
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
-          <AvatarFallback>
-            {`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        {isCoordinator ? (
+          <CoordinatorLogoAvatar className="h-8 w-8 rounded-full" />
+        ) : (
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
+            <AvatarFallback>{assistantInitials(assistant)}</AvatarFallback>
+          </Avatar>
+        )}
         {status !== null && (
           <span
             role="status"
@@ -152,23 +179,23 @@ export function AssistantListItem({
       tabIndex={0}
       data-testid={isPrimary ? `assistant-list-item-${assistant.agentId}` : undefined}
       className={cn(
-        'group flex cursor-pointer items-center justify-between rounded-md p-2',
+        'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-md p-2',
         !isSelected && 'hover:bg-muted',
         isSelected && 'bg-primary text-primary-foreground'
       )}
       onClick={handleProfileClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') handleProfileClick(e as any);
-      }}
+      onKeyDown={handleRowKeyDown}
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="relative">
-          <Avatar className="h-8 w-8 flex-shrink-0 cursor-default">
-            <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
-            <AvatarFallback>
-              {`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          {isCoordinator ? (
+            <CoordinatorLogoAvatar className="h-8 w-8 flex-shrink-0" />
+          ) : (
+            <Avatar className="h-8 w-8 flex-shrink-0 cursor-default">
+              <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
+              <AvatarFallback>{assistantInitials(assistant)}</AvatarFallback>
+            </Avatar>
+          )}
           {status !== null && (
             <span
               role="status"
@@ -180,9 +207,23 @@ export function AssistantListItem({
             />
           )}
         </div>
-        <span className="text-body text-strong truncate">{displayName}</span>
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="text-body text-strong truncate">{displayName}</span>
+          </div>
+          {subtitle && !isCoordinator ? (
+            <p
+              className={cn(
+                'text-caption mt-0.5 truncate',
+                isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'
+              )}
+            >
+              {subtitle}
+            </p>
+          ) : null}
+        </div>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
         {alsoInSpaceLabels.length > 0 && (
           <TooltipProvider delayDuration={100}>
             <Tooltip>
@@ -260,7 +301,7 @@ export function AssistantListItem({
             menu just adds noise. With canEdit and onEndContract
             both gated, a viewer with neither permission gets a
             cleaner row. */}
-        {(canEdit || onEndContract) && (
+        {(canEdit || canEndContract) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -302,7 +343,7 @@ export function AssistantListItem({
                   </DropdownMenuItem>
                 </>
               )}
-              {onEndContract && (
+              {canEndContract && (
                 <>
                   {canEdit && <DropdownMenuSeparator />}
                   <DropdownMenuItem
@@ -318,37 +359,39 @@ export function AssistantListItem({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        <AlertDialog open={isEndContractAlertOpen} onOpenChange={setIsEndContractAlertOpen}>
-          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center">
-                <AlertTriangle className="mr-2 h-5 w-5 text-destructive" />
-                Confirm End Contract
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                You are about to remove{' '}
-                <strong>
-                  {assistant.firstName} {assistant.surname}
-                </strong>{' '}
-                from your team. This action cannot be undone. Are you sure?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isEndingContract}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleEndContractConfirm}
-                disabled={isEndingContract}
-                className={cn(
-                  'hover:bg-destructive/90 bg-destructive',
-                  isEndingContract && 'cursor-not-allowed opacity-70'
-                )}
-              >
-                {isEndingContract ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Proceed
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        {canEndContract && (
+          <AlertDialog open={isEndContractAlertOpen} onOpenChange={setIsEndContractAlertOpen}>
+            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center">
+                  <AlertTriangle className="mr-2 h-5 w-5 text-destructive" />
+                  Confirm End Contract
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  You are about to remove{' '}
+                  <strong>
+                    {assistant.firstName} {assistant.surname}
+                  </strong>{' '}
+                  from your team. This action cannot be undone. Are you sure?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isEndingContract}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleEndContractConfirm}
+                  disabled={isEndingContract}
+                  className={cn(
+                    'hover:bg-destructive/90 bg-destructive',
+                    isEndingContract && 'cursor-not-allowed opacity-70'
+                  )}
+                >
+                  {isEndingContract ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Proceed
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
     </div>
   );

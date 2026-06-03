@@ -10,10 +10,12 @@ import type {
 import type { Assistant } from '@/types/assistants/assistant';
 import { mergeRootRows } from '@/lib/client/read_across_roots';
 import {
+  authoringAssistantFilterForRoot,
   contactScopedRootQueries,
   roleFromRootSenderId,
   type ContactScopedRootQuery,
 } from '@/lib/assistants/scope';
+import { transcriptMergeDedupeKey } from '@/lib/assistants/transcriptDedupe';
 
 const SEARCH_PAGE_SIZE = 30;
 
@@ -42,7 +44,8 @@ interface UseChatSearchReturn {
 
 function buildFilterExpr(
   filters: ChatSearchFilters,
-  query: Pick<ContactScopedRootQuery, 'contactId' | 'selfContactId'>
+  query: Pick<ContactScopedRootQuery, 'root' | 'contactId' | 'selfContactId'>,
+  assistantId: string
 ): string {
   const clauses: string[] = [];
   const { contactId, selfContactId: selfId } = query;
@@ -69,6 +72,10 @@ function buildFilterExpr(
   clauses.push(
     `(${contactId} in receiver_ids or receiver_ids == [${selfId}] or sender_id == ${contactId})`
   );
+  const authoringFilter = authoringAssistantFilterForRoot(query.root, assistantId);
+  if (authoringFilter) {
+    clauses.push(authoringFilter);
+  }
 
   // Content search (case-insensitive via .lower() on both sides)
   if (filters.query.trim()) {
@@ -106,7 +113,7 @@ async function executeSearch(
   const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
   const rootLogs = await Promise.all(
     queries.map(async (query) => {
-      const filterExpr = buildFilterExpr(filters, query);
+      const filterExpr = buildFilterExpr(filters, query, assistant.agentId);
       const params = new URLSearchParams({
         projectName: 'Assistants',
         context: query.context,
@@ -131,7 +138,7 @@ async function executeSearch(
     limit: limit + 1,
     offset,
     sortValue: ({ log }) => log.entries?.timestamp,
-    dedupeKey: ({ log, query }) => `${query.context}:${log.entries?.messageId ?? log.id}`,
+    dedupeKey: ({ log }) => transcriptMergeDedupeKey(log.entries, log.id),
   });
 
   if (!Array.isArray(mergedLogs) || mergedLogs.length === 0) {

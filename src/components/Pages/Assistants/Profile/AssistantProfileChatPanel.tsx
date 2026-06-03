@@ -49,6 +49,7 @@ import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
 import { useChatTTS } from '@/hooks/Assistants/useChatTTS';
 import { ChatMessageSkeletons } from '@/components/Chat/ChatMessageSkeleton';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 
 /* --------------------------
    AssistantProfileChatPanel 
@@ -87,6 +88,16 @@ interface AssistantProfileChatPanelProps {
    * input value in a one-way external prop.
    */
   draftSeed?: { text: string; nonce: number } | null;
+  /**
+   * Force the assistant-replying typing bubble to render even when
+   * no real reply is in flight. Used by the Coordinator onboarding
+   * shell to keep a "typing…" hint visible while it waits for the
+   * seeded greeting to land — the chat panel itself mounts
+   * immediately so the input bar is present from the start, and
+   * this prop drives a transient hint above an otherwise-empty
+   * thread.
+   */
+  forceTypingIndicator?: boolean;
 }
 
 export function AssistantProfileChatPanel({
@@ -109,8 +120,9 @@ export function AssistantProfileChatPanel({
   searchOpen: externalSearchOpen,
   onSearchOpenChange,
   draftSeed,
+  forceTypingIndicator = false,
 }: AssistantProfileChatPanelProps) {
-  const displayName = `${assistant.firstName} ${assistant.surname}`;
+  const displayName = assistantDisplayName(assistant);
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
 
   const { playMessage, stopPlayback, getAudioState, hasVoice } = useChatTTS({
@@ -719,6 +731,7 @@ export function AssistantProfileChatPanel({
                             isUser={item.role === 'user'}
                             assistantPhoto={photoSrc}
                             assistantName={displayName}
+                            isCoordinator={assistant.isCoordinator}
                             timestamp={item.timestamp}
                             timezone={userTimezone}
                             index={i}
@@ -798,6 +811,7 @@ export function AssistantProfileChatPanel({
                         isUser={msg.role === 'user'}
                         assistantPhoto={photoSrc}
                         assistantName={displayName}
+                        isCoordinator={assistant.isCoordinator}
                         timestamp={msg.timestamp}
                         timezone={userTimezone}
                         index={i}
@@ -810,12 +824,13 @@ export function AssistantProfileChatPanel({
                     </React.Fragment>
                   );
                 })}
-                {isAssistantReplying && (
+                {(isAssistantReplying || forceTypingIndicator) && (
                   <ChatMessageBubble
                     message=""
                     isUser={false}
                     assistantPhoto={photoSrc}
                     assistantName={displayName}
+                    isCoordinator={assistant.isCoordinator}
                     isLoading={true}
                     index={messages.length}
                   />

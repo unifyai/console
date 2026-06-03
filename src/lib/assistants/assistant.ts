@@ -12,6 +12,7 @@ import { ASSISTANT_ONBOARDING_FEE } from '@/constants/assistants/settings';
 import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
 import { formatValidationDetail } from '@/utils/orchestra-error';
 import { checkCreditsBalance } from '@/lib/user/credits';
+import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 
 export const listAssistants = async (
   apiKey: string,
@@ -22,7 +23,7 @@ export const listAssistants = async (
     'use server';
 
     try {
-      const url = new URL(`${process.env.NEXTAUTH_URL}/api/assistant`);
+      const url = new URL(`${getInternalApiBaseUrl()}/api/assistant`);
       if (listAllOrg) {
         url.searchParams.set('list_all_org', 'true');
       }
@@ -78,7 +79,7 @@ export const getAssistantStatus = async (apiKey: string) => {
 
     try {
       const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}/status`,
+        `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/status`,
         { method: 'GET', headers: { apiKey: apiKey } }
       );
 
@@ -118,7 +119,7 @@ export const deleteAssistant = async (apiKey: string) => {
     'use server';
 
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/${assistantId}`, {
         method: 'DELETE',
         headers: { apiKey: apiKey },
       });
@@ -158,7 +159,7 @@ export const updateAssistant = async (apiKey: string) => {
       // Convert camelCase payload to snake_case for API
       const snakeCasePayload = camelToSnakeObject<Record<string, unknown>>(payload);
 
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/${assistantId}`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/${assistantId}`, {
         method: 'PATCH',
         headers: {
           apiKey: apiKey,
@@ -228,7 +229,7 @@ export const createAssistant = async (apiKey: string) => {
     'use server';
 
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant`, {
         method: 'POST',
         headers: {
           apiKey: apiKey,

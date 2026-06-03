@@ -1,8 +1,9 @@
 /**
  * SSE Endpoint for Live Actions Streaming
  *
- * Streams ManagerMethod and ToolLoop events from the assistant's Pub/Sub topic
- * to the browser via Server-Sent Events, using gRPC streaming pull.
+ * Streams ManagerMethod, ToolLoop, and CoordinatorActivity events from the
+ * assistant's Pub/Sub topic to the browser via Server-Sent Events, using gRPC
+ * streaming pull.
  *
  * Architecture:
  * - Each SSE connection creates its own ephemeral Pub/Sub subscription on the
@@ -13,7 +14,7 @@
  *   latency. Server-side ACK (Orchestra is the durable store; client polls on
  *   catch-up).
  * - snake_case → camelCase transformation via shared casing utilities
- * - Reshapes flat Pub/Sub payload into { id, ts, entries } to match ManagerMethodLog
+ * - Reshapes flat Pub/Sub payload into { id, ts, entries } to match frontend log shapes
  *
  * Local development mode:
  * - When COMMS_SERVICE_ACCOUNT_CREDENTIALS is absent, falls back to an
@@ -25,6 +26,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import type { Message } from '@google-cloud/pubsub';
 import { snakeToCamelObject } from '@/utils/casing';
+import { reshapeActionEventToLogEntry } from '@/lib/assistants/action-stream-shape';
 import {
   getPubSubClient,
   getTopicName,
@@ -43,49 +45,6 @@ const __DEV__ = process.env.NODE_ENV === 'development';
 // =============================================================================
 
 const encoder = new TextEncoder();
-
-/**
- * Reshapes a camelCased Pub/Sub event payload into the { id, ts, entries }
- * shape that ManagerMethodLog / ToolLoopLog types expect, so the existing
- * buildActionTree / mergeNewEvents functions work unchanged.
- */
-function reshapeToLogEntry(camelEvent: Record<string, unknown>): {
-  type: string;
-  data: { id: number; ts: string; entries: Record<string, unknown> };
-} {
-  const type = (camelEvent.type as string) || 'ManagerMethod';
-
-  return {
-    type,
-    data: {
-      id: (camelEvent.rowId as number) ?? 0,
-      ts: (camelEvent.eventTimestamp as string) || new Date().toISOString(),
-      entries: {
-        callingId: camelEvent.callingId,
-        eventId: camelEvent.eventId,
-        manager: camelEvent.manager,
-        method: camelEvent.method,
-        phase: camelEvent.phase,
-        hierarchy: camelEvent.hierarchy,
-        hierarchyLabel: camelEvent.hierarchyLabel,
-        displayLabel: camelEvent.displayLabel,
-        status: camelEvent.status,
-        question: camelEvent.question,
-        instructions: camelEvent.instructions,
-        request: camelEvent.request,
-        answer: camelEvent.answer,
-        action: camelEvent.action,
-        error: camelEvent.error,
-        errorType: camelEvent.errorType,
-        traceback: camelEvent.traceback,
-        kind: camelEvent.kind ?? null,
-        message: camelEvent.message,
-        toolAliases: camelEvent.toolAliases ?? null,
-        persist: camelEvent.persist ?? null,
-      },
-    },
-  };
-}
 
 // =============================================================================
 // SSE Response Helpers
@@ -197,7 +156,7 @@ function createPubSubStream(
 
           const eventPayload = payload.event || payload;
           const camelEvent = snakeToCamelObject<Record<string, unknown>>(eventPayload);
-          const shaped = reshapeToLogEntry(camelEvent);
+          const shaped = reshapeActionEventToLogEntry(camelEvent);
 
           if (isManagerExcluded(shaped.data.entries.manager as string)) {
             message.ack();

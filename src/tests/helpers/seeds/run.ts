@@ -28,10 +28,12 @@ import { seedTasksRich } from './scenarios/tasks-rich';
 import { seedSecretsRich } from './scenarios/secrets-rich';
 import { seedReAppraisal } from './scenarios/re-appraisal';
 import { seedManagedBilling } from './scenarios/managed-billing';
+import { seedSidebarSpaceGrouping } from './scenarios/sidebar-space-grouping';
 
 const SCENARIOS: Record<string, SeedScenario> = {
   'personal-workspace': seedPersonalWorkspace,
   'personal-workspace-multi': seedPersonalWorkspaceMulti,
+  'sidebar-space-grouping': seedSidebarSpaceGrouping,
   'org-basic': seedOrgBasic,
   'org-multi-role': seedOrgMultiRole,
   'org-unify': seedOrgAndOutsider,
@@ -97,6 +99,10 @@ Options:
         console.log(`   Org:        ${state.org.name} (id=${state.org.id})`);
       }
       console.log(`   Assistants: ${state.assistants.length}`);
+      const coordinatorCount = Object.values(state.users).filter((u) => u.coordinator).length;
+      if (coordinatorCount > 0) {
+        console.log(`   Coordinators: ${coordinatorCount} (one per user)`);
+      }
       if (state.secrets?.length) {
         console.log(`   Secrets:    ${state.secrets.map((s) => s.name).join(', ')}`);
       }

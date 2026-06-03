@@ -86,20 +86,67 @@ export const TRANSCRIPT_COLUMNS: ColumnDef<TranscriptRow>[] = [
   col<TranscriptRow>('content', 'Content', { formatter: (v) => truncate(v, 200) }),
 ];
 
-export function buildTranscriptColumns(
-  contactMap: Map<number, string>
-): ColumnDef<TranscriptRow>[] {
-  if (contactMap.size === 0) return TRANSCRIPT_COLUMNS;
+export interface TranscriptSenderLabelOptions {
+  assistantContactIds?: Set<number>;
+  assistantDisplayName?: string;
+  selectedAssistantId?: number | null;
+  assistantNamesById?: Map<number, string>;
+}
 
+function resolveAuthoringAssistantId(row: TranscriptRow): number | null {
+  if (typeof row.authoringAssistantId === 'number') {
+    return row.authoringAssistantId;
+  }
+  const snakeCaseValue = (row as unknown as Record<string, unknown>)['authoring_assistant_id'];
+  return typeof snakeCaseValue === 'number' ? snakeCaseValue : null;
+}
+
+function assistantLabel(
+  contactId: number,
+  authoringAssistantId: number,
+  options?: TranscriptSenderLabelOptions
+): string {
+  const authorName =
+    options?.assistantNamesById?.get(authoringAssistantId) ??
+    (options?.selectedAssistantId === authoringAssistantId ? options.assistantDisplayName : null);
+  if (authorName) {
+    return `${authorName} (${contactId})`;
+  }
+  return `Assistant ${authoringAssistantId} (${contactId})`;
+}
+
+export function formatTranscriptSenderLabel(
+  row: TranscriptRow,
+  contactMap: Map<number, string>,
+  options?: TranscriptSenderLabelOptions
+): string {
+  const senderId = row.senderId;
+  if (typeof senderId !== 'number') return truncate(senderId);
+  const authoringAssistantId = resolveAuthoringAssistantId(row);
+
+  if (options?.assistantContactIds?.has(senderId)) {
+    if (authoringAssistantId !== null) {
+      return assistantLabel(senderId, authoringAssistantId, options);
+    }
+    if (options.assistantDisplayName) {
+      return `${options.assistantDisplayName} (${senderId})`;
+    }
+  }
+
+  const contactName = contactMap.get(senderId);
+  return contactName ? `${contactName} (${senderId})` : String(senderId);
+}
+
+export function buildTranscriptColumns(
+  contactMap: Map<number, string>,
+  options?: TranscriptSenderLabelOptions
+): ColumnDef<TranscriptRow>[] {
   return TRANSCRIPT_COLUMNS.map((colDef) => {
     if ((colDef as { accessorKey?: string }).accessorKey !== 'senderId') return colDef;
     return {
       ...colDef,
-      cell: ({ getValue }: { getValue: () => unknown }) => {
-        const id = getValue();
-        if (typeof id !== 'number') return truncate(id);
-        const name = contactMap.get(id);
-        return name ? `${name} (${id})` : String(id);
+      cell: ({ row }: { row: { original: TranscriptRow } }) => {
+        return formatTranscriptSenderLabel(row.original, contactMap, options);
       },
     };
   });

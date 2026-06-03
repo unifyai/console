@@ -2,6 +2,7 @@ import { ResponseProps } from '@/types/common';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { Secret, SecretPayload, SecretUpdatePayload } from '@/types/assistants/secret';
 import { resolveOwnerApiKeyForAssistant } from '@/lib/assistants/owner';
+import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 import { formatValidationDetail } from '@/utils/orchestra-error';
 
 const PROJECT = 'Assistants';
@@ -44,7 +45,7 @@ export const getSecrets = async (apiKey: string, orgId: number | null = null) =>
       });
       if (sorting) params.set('sorting', sorting);
       if (filterExpr) params.set('filterExpr', filterExpr);
-      const url = `${process.env.NEXTAUTH_URL}/api/logs?${params.toString()}`;
+      const url = `${getInternalApiBaseUrl()}/api/logs?${params.toString()}`;
 
       const response = await fetch(url, { method: 'GET', headers: { apiKey: effectiveKey } });
 
@@ -156,7 +157,7 @@ export const createSecret = async (
         entries: [{ ...payload, ...privateFields }],
       };
 
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/logs`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/logs`, {
         method: 'POST',
         headers: { apiKey: effectiveKey, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -195,7 +196,7 @@ export const updateSecret = async (apiKey: string, orgId: number | null = null) 
         overwrite: true,
       };
 
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/logs`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/logs`, {
         method: 'PUT',
         headers: { apiKey: effectiveKey, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -225,7 +226,7 @@ export const deleteSecret = async (apiKey: string, orgId: number | null = null) 
       const effectiveKey = await resolveOwnerApiKeyForAssistant(ownerId, orgId).catch(() => apiKey);
 
       const context = `${ownerId}/${assistantId}${CONTEXT_SUFFIX}`;
-      const url = `${process.env.NEXTAUTH_URL}/api/logs`;
+      const url = `${getInternalApiBaseUrl()}/api/logs`;
       const body = {
         projectName: PROJECT,
         context,

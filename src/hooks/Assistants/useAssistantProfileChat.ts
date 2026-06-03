@@ -537,7 +537,8 @@ export function useAssistantProfileChat(
       const result = await assistantActions.chat.getTranscripts(contactId, assistant, {
         timestamp: oldestMessage.timestamp.toISOString(),
         excludedKeys: messages.map(
-          (message) => `${message.sourceContext ?? ''}:${message.messageId ?? message.id}`
+          (message) =>
+            message.mergeKey ?? `${message.sourceContext ?? ''}:${message.messageId ?? message.id}`
         ),
       });
       setHasFetchedHistory(true);
@@ -550,8 +551,8 @@ export function useAssistantProfileChat(
         }
         setChatHistories((prev) => {
           const current = prev[assistantId] || [];
-          const existingIds = new Set(current.map((m) => m.id));
-          const uniqueNewMessages = newMessages.filter((m) => !existingIds.has(m.id));
+          const existingIds = new Set(current.map((m) => m.mergeKey ?? m.id));
+          const uniqueNewMessages = newMessages.filter((m) => !existingIds.has(m.mergeKey ?? m.id));
           return { ...prev, [assistantId]: [...uniqueNewMessages, ...current] };
         });
       }

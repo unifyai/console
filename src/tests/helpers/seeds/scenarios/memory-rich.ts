@@ -29,6 +29,7 @@ import {
   createAssistant,
   createEmailLogin,
   seedChatInfrastructure,
+  seedCoordinatorChatForUsers,
   orchestraFetch,
   ensureProject,
 } from '../client';
@@ -1603,6 +1604,10 @@ export async function seedMemoryRich(): Promise<SeededState> {
     assistantId: agentId,
     email: owner.email,
   });
+
+  // Coordinator chat infra — the auto-provisioned personal Coordinator
+  // sits next to Aria in the workspace and exercises the panel UI.
+  await seedCoordinatorChatForUsers([owner]);
 
   // Seed all memory contexts in parallel where possible
   await Promise.all([

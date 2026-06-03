@@ -81,12 +81,18 @@ export function WorkspaceProvider({
     setIsSwitchingWorkspace(true);
 
     try {
-      await fetch('/api/session/workspace', {
+      const response = await fetch('/api/session/workspace', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ workspaceId }),
       });
+      if (!response.ok) {
+        throw new Error('Failed to switch workspace');
+      }
 
       startTransition(() => {
+        // Refresh keeps the current pathname/query so assistant profile deep-links
+        // (for example ?profile=<coordinatorId>) survive workspace switches.
         router.refresh();
       });
     } catch {

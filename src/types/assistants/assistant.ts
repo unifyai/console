@@ -49,6 +49,7 @@ export interface Assistant {
   agentId: string;
   userId: string; // ID of the user who created/owns the assistant - used for permission checks
   organizationId: number | null; // Organization ID if org assistant, null for personal - reserved for future use
+  isCoordinator: boolean;
   userFirstName?: string | null; // Owner's first name
   userLastName?: string | null; // Owner's last name
   userImage?: string | null; // Owner's profile image URL
@@ -132,6 +133,7 @@ export type AssistantPreset = Omit<
   | 'agentId'
   | 'userId'
   | 'organizationId'
+  | 'isCoordinator'
   | 'createdAt'
   | 'updatedAt'
   | 'signedProfilePhotoUrl'
@@ -208,6 +210,7 @@ export type AssistantFormData = Omit<
   | 'agentId'
   | 'userId'
   | 'organizationId'
+  | 'isCoordinator'
   | 'createdAt'
   | 'updatedAt'
   | 'signedProfilePhotoUrl'
@@ -459,9 +462,12 @@ export interface AssistantActions {
     clone: (
       formData: FormData
     ) => Promise<(Voice & { info?: string; isPreset?: boolean }) | ResponseProps>;
-    generate: (
-      payload: GenerateSpeechPayload
-    ) => Promise<{ audioBase64?: string; contentType?: string; detail?: string; status?: number }>;
+    generate: (payload: GenerateSpeechPayload) => Promise<{
+      audioBase64?: string;
+      contentType?: string;
+      detail?: string;
+      status?: number;
+    }>;
     preview: (
       payload: VoiceDesignGeneratePreviewsRequest
     ) => Promise<VoiceDesignGeneratePreviewsAPIResponse | ResponseProps>;

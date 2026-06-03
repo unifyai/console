@@ -19,6 +19,17 @@ export interface SeededUser {
   lastName: string;
   /** API key for authenticating requests */
   apiKey: string;
+  /**
+   * The user's personal Coordinator assistant. Auto-provisioned by
+   * {@link createUser} so every seeded user mirrors the production
+   * signup hook — one personal Coordinator per user with
+   * `organization_id IS NULL` and `is_coordinator = true`.
+   *
+   * Will be `null` only when the caller passed `skipCoordinator: true`
+   * to {@link createUser} (rare — reserved for scenarios that exercise
+   * the backfill path explicitly).
+   */
+  coordinator: SeededAssistant | null;
 }
 
 export interface SeededOrg {
@@ -39,6 +50,8 @@ export interface SeededAssistant {
   userId: string;
   /** Organization ID (null for personal assistants) */
   organizationId: number | null;
+  /** Whether the row is the workspace Coordinator */
+  isCoordinator: boolean;
   /** Contact row used for assistant-authored messages. */
   selfContactId: number;
   /** Contact row used for owner-authored messages. */

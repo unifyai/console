@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { getCurrentUser } from '@/lib/user/user';
-import { resolveApiKeyFromCache } from './api-key-cache';
+import { resolveApiKeyFromCache, resolvePersonalApiKeyFromCache } from './api-key-cache';
 
 /**
  * Get API key from request.
@@ -66,6 +66,52 @@ export async function getApiKeyFromRequest(request: NextRequest): Promise<string
   }
 
   // Fall back to custom apiKey header (for tests and backwards compatibility)
+  const headerApiKey = request.headers.get('apiKey');
+  if (headerApiKey) {
+    return headerApiKey;
+  }
+
+  return null;
+}
+
+/**
+ * Resolve the authenticated user's personal workspace API key.
+ *
+ * This bypasses org workspace locking and is used when server routes need to
+ * operate on the user's single personal Coordinator identity regardless of the
+ * currently selected workspace.
+ */
+export async function getPersonalApiKeyFromRequest(request: NextRequest): Promise<string | null> {
+  const pathname = request.nextUrl.pathname;
+  const isMfaRoute = pathname.startsWith('/api/auth/mfa');
+  const jwtToken = await getToken({ req: request, secret: process.env.JWT_SECRET });
+  if (!isMfaRoute && jwtToken?.mfaPending) {
+    return null;
+  }
+
+  if (jwtToken?.email && typeof jwtToken.email === 'string') {
+    const cached = resolvePersonalApiKeyFromCache(jwtToken.email);
+    if (cached) {
+      return cached;
+    }
+  }
+
+  const user = await getCurrentUser();
+  if (jwtToken?.email && typeof jwtToken.email === 'string') {
+    const cached = resolvePersonalApiKeyFromCache(jwtToken.email);
+    if (cached) {
+      return cached;
+    }
+  }
+  if (user?.apiKey) {
+    return user.apiKey;
+  }
+
+  const authHeader = request.headers.get('Authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.slice(7);
+  }
+
   const headerApiKey = request.headers.get('apiKey');
   if (headerApiKey) {
     return headerApiKey;

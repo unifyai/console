@@ -21,6 +21,7 @@ import {
   createAssistant,
   createEmailLogin,
   seedChatInfrastructure,
+  seedCoordinatorChatForUsers,
   orchestraFetch,
 } from '../client';
 
@@ -197,6 +198,10 @@ export async function seedChatSearch(): Promise<SeededState> {
     assistantId: assistant.agentId,
     email: owner.email,
   });
+
+  // Wire the auto-provisioned Coordinator's chat infra so it sits
+  // alongside Luna in the workspace.
+  await seedCoordinatorChatForUsers([owner]);
 
   // -----------------------------------------------------------------
   // Day 14 ago — onboarding

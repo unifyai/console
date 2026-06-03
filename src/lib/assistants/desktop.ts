@@ -4,7 +4,11 @@ import { ResponseProps } from '@/types/common';
 import { UserDesktop } from '@/types/assistants/assistant';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
-import { getAdaptersPrefix } from '@/utils/assistants/api-utils';
+import {
+  getAdaptersBaseUrl,
+  getInternalApiBaseUrl,
+  isStagingEnvironment,
+} from '@/utils/assistants/api-utils';
 import { resolveOwnerApiKeyForAssistant } from '@/lib/assistants/owner';
 
 const LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS = 5000;
@@ -46,15 +50,11 @@ export const getLiveviewUrl = async () => {
         return { detail: 'Server configuration error: Shared key not found.' };
       }
 
-      const nextAuthUrl = process.env.NEXTAUTH_URL;
-      if (!nextAuthUrl) {
-        console.error('[getLiveviewUrl] Server configuration error: NEXTAUTH_URL is not set.');
-        return { detail: 'Server configuration error: Application URL not found.' };
-      }
+      const internalApiBaseUrl = getInternalApiBaseUrl();
 
       const filterExpr = `user_id == '${ownerId}' and assistant_id == '${assistantId}'`;
 
-      const url = new URL(`${nextAuthUrl}/api/logs`);
+      const url = new URL(`${internalApiBaseUrl}/api/logs`);
       url.searchParams.append('projectName', 'AssistantJobs');
       url.searchParams.append('context', 'startup_events');
       url.searchParams.append('filterExpr', filterExpr);
@@ -161,13 +161,9 @@ export const sendSystemEvent = async () => {
     }
 
     const orchestraUrl = process.env.ORCHESTRA_URL || '';
-    const isStaging =
-      orchestraUrl.includes('staging') ||
-      orchestraUrl.includes('localhost') ||
-      orchestraUrl.includes('127.0.0.1');
+    const isStaging = isStagingEnvironment(orchestraUrl);
 
-    const prefix = getAdaptersPrefix(deployEnv, isStaging);
-    const webhookUrl = `https://unity-adapters-${prefix}ky4ja5fxna-uc.a.run.app/unity/system-event`;
+    const webhookUrl = `${getAdaptersBaseUrl({ deployEnv, isStaging })}/unity/system-event`;
 
     // API expects snake_case - convert camelCase to snake_case
     const payload = camelToSnakeObject({

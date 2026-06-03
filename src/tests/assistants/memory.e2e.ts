@@ -456,6 +456,14 @@ test('contacts sub-tab shows correct row count', async ({ authedPage: page }) =>
   await expect(footer.locator('text=/3 of 3/')).toBeVisible({ timeout: 5_000 });
 });
 
+test('memory destination dropdown is hidden for solo assistants', async ({ authedPage: page }) => {
+  await selectAssistantAndOpenMemory(page, emptyAssistant.agentId);
+
+  const memoryPane = page.getByTestId('memory-pane');
+  await expect(memoryPane).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('memory-destination-dropdown')).toHaveCount(0);
+});
+
 test('memory dropdown drills into personal and shared roots', async ({ authedPage: page }) => {
   await ensureDestinationSeeded();
   await selectAssistantAndOpenMemory(page, destinationAssistant.agentId);

@@ -35,13 +35,11 @@ import {
   closeHireDialogIfOpen,
   selectAssistantInList,
   deleteAllAssistantsForUser,
+  createSpaceForAssistant,
   ensureProjectSync,
   orchestraFetch,
   setUserCredits,
 } from './helpers';
-
-const ASSISTANT_CONTACT_ID = 0;
-const CONTACT_ID = 2;
 
 const user = createTestUser({ name: 'CallE2E', lastName: 'Tester', credits: 50_000 });
 ensureProjectSync(user.apiKey);
@@ -53,6 +51,8 @@ const assistant = createAssistant({
   firstName: 'Caller',
   surname: 'TestBot',
 });
+const ASSISTANT_CONTACT_ID = assistant.selfContactId;
+const CONTACT_ID = assistant.bossContactId;
 
 test.afterAll(() => {
   setUserCredits(user.id, 50_000);
@@ -77,7 +77,13 @@ async function openAssistantProfile(page: import('@playwright/test').Page, agent
 
 let messageCounter = 5000;
 
-async function seedContact(apiKey: string, userId: string, assistantId: number, email: string) {
+async function seedContact(
+  apiKey: string,
+  userId: string,
+  assistantId: number,
+  email: string,
+  contactId: number = CONTACT_ID
+) {
   /* eslint-disable @typescript-eslint/naming-convention */
   const res = await orchestraFetch(
     '/v0/logs',
@@ -86,7 +92,7 @@ async function seedContact(apiKey: string, userId: string, assistantId: number, 
       body: JSON.stringify({
         project_name: 'Assistants',
         context: `${userId}/${assistantId}/Contacts`,
-        entries: [{ email_address: email, contact_id: CONTACT_ID }],
+        entries: [{ email_address: email, contact_id: contactId }],
       }),
     },
     apiKey
@@ -106,7 +112,9 @@ async function seedTranscript(
     medium?: string;
     exchangeId?: number;
     receiverIds?: number[];
+    context?: string;
     metadata?: Record<string, unknown>;
+    authoringAssistantId?: number | null;
   }
 ) {
   const msgId = messageCounter++;
@@ -124,6 +132,9 @@ async function seedTranscript(
     timestamp: ts,
   };
   if (opts.exchangeId !== undefined) entries.exchange_id = opts.exchangeId;
+  if ('authoringAssistantId' in opts) {
+    entries.authoring_assistant_id = opts.authoringAssistantId;
+  }
   if (opts.metadata) entries.metadata = opts.metadata;
   /* eslint-enable @typescript-eslint/naming-convention */
 
@@ -133,7 +144,7 @@ async function seedTranscript(
       method: 'POST',
       body: JSON.stringify({
         project_name: 'Assistants',
-        context: `${userId}/${assistantId}/Transcripts`,
+        context: opts.context ?? `${userId}/${assistantId}/Transcripts`,
         entries: [entries],
       }),
     },
@@ -161,11 +172,14 @@ async function queryTranscripts(
   return data.logs ?? [];
 }
 
-async function openAssistantChat(page: import('@playwright/test').Page) {
+async function openAssistantChat(
+  page: import('@playwright/test').Page,
+  targetAssistant: { agentId: number } = assistant
+) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
+  const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
   await listItem.click();
   await page.waitForTimeout(2_000);
@@ -354,33 +368,112 @@ test('hanging up and re-calling the same assistant works', async ({ authedPage: 
 // Call pill tests
 // ---------------------------------------------------------------------------
 
-test('historical call pill renders in the chat timeline', async ({ authedPage: page }) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
+test('historical call pill renders in shared roots only for own or null authoring', async ({
+  authedPage: page,
+}) => {
+  const sharedAssistant = createAssistant({
+    userId: user.id,
+    firstName: 'SharedCall',
+    surname: `E2E${Date.now()}`,
+  });
+  await seedContact(
+    user.apiKey,
+    user.id,
+    sharedAssistant.agentId,
+    user.email,
+    sharedAssistant.bossContactId
+  );
+
+  const sharedSelfContactId = 370;
+  const sharedBossContactId = 377;
+  const sharedAssistantId = sharedAssistant.agentId;
+  const { spaceId } = createSpaceForAssistant(sharedAssistant, {
+    name: `Call Root E2E ${Date.now()}`,
+    description: 'Shared call root e2e description for visibility coverage',
+    selfContactId: sharedSelfContactId,
+    bossContactId: sharedBossContactId,
+  });
+  const sharedContext = `Spaces/${spaceId}/Transcripts`;
 
   const ts = Date.now();
-  const exchangeId = 100;
+  const ownExchangeId = 12000 + Math.floor(Math.random() * 10000);
+  const nullExchangeId = ownExchangeId + 1;
+  const foreignExchangeId = ownExchangeId + 2;
 
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
-    content: 'Hello, can you hear me?',
-    timestamp: new Date(ts - 30000).toISOString(),
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedBossContactId,
+    content: 'Visible own-authoring call message',
+    timestamp: new Date(ts - 30_000).toISOString(),
     medium: 'unify_meet',
-    exchangeId,
+    exchangeId: ownExchangeId,
+    receiverIds: [sharedSelfContactId],
+    context: sharedContext,
     metadata: { call_utterance_timestamp: '00.00' },
+    authoringAssistantId: sharedAssistantId,
   });
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: ASSISTANT_CONTACT_ID,
-    content: 'Yes, I can hear you clearly!',
-    timestamp: new Date(ts - 5000).toISOString(),
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedSelfContactId,
+    content: 'Visible own-authoring call reply',
+    timestamp: new Date(ts - 29_000).toISOString(),
     medium: 'unify_meet',
-    exchangeId,
+    exchangeId: ownExchangeId,
+    receiverIds: [sharedBossContactId],
+    context: sharedContext,
     metadata: { call_utterance_timestamp: '00.25' },
+    authoringAssistantId: sharedAssistantId,
   });
 
-  await openAssistantChat(page);
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedBossContactId,
+    content: 'Visible null-authoring call message',
+    timestamp: new Date(ts - 28_000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId: nullExchangeId,
+    receiverIds: [sharedSelfContactId],
+    context: sharedContext,
+    authoringAssistantId: null,
+  });
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedSelfContactId,
+    content: 'Visible null-authoring call reply',
+    timestamp: new Date(ts - 27_000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId: nullExchangeId,
+    receiverIds: [sharedBossContactId],
+    context: sharedContext,
+    authoringAssistantId: null,
+  });
 
-  const callPill = page.getByTestId('call-pill').first();
-  await expect(callPill).toBeVisible({ timeout: 20_000 });
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedBossContactId,
+    content: 'Hidden foreign-authoring call message',
+    timestamp: new Date(ts - 26_000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId: foreignExchangeId,
+    receiverIds: [sharedSelfContactId],
+    context: sharedContext,
+    authoringAssistantId: sharedAssistantId + 1,
+  });
+  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    senderId: sharedSelfContactId,
+    content: 'Hidden foreign-authoring call reply',
+    timestamp: new Date(ts - 25_000).toISOString(),
+    medium: 'unify_meet',
+    exchangeId: foreignExchangeId,
+    receiverIds: [sharedBossContactId],
+    context: sharedContext,
+    authoringAssistantId: sharedAssistantId + 1,
+  });
+
+  await openAssistantChat(page, sharedAssistant);
+
+  await expect(page.locator(`[data-exchange-id="${ownExchangeId}"]`)).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.locator(`[data-exchange-id="${nullExchangeId}"]`)).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.locator(`[data-exchange-id="${foreignExchangeId}"]`)).toHaveCount(0);
 
   const pillButton = page.getByTestId('call-pill-button').first();
   await expect(pillButton).toBeVisible();
@@ -480,29 +573,45 @@ test('two distinct calls show as separate pills', async ({ authedPage: page }) =
 test('call pills interleave correctly with text messages by timestamp', async ({
   authedPage: page,
 }) => {
-  await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
+  const interleaveAssistant = createAssistant({
+    userId: user.id,
+    firstName: 'Interleave',
+    surname: `E2E${Date.now()}`,
+  });
+  const interleaveContactId = interleaveAssistant.bossContactId;
+  const interleaveSelfContactId = interleaveAssistant.selfContactId;
+  await seedContact(
+    user.apiKey,
+    user.id,
+    interleaveAssistant.agentId,
+    user.email,
+    interleaveContactId
+  );
 
   const ts = Date.now();
-  const exchangeId = 300;
+  const exchangeId = 30000 + Math.floor(Math.random() * 10000);
 
   // Text message first
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
+  await seedTranscript(user.apiKey, user.id, interleaveAssistant.agentId, {
+    senderId: interleaveContactId,
+    receiverIds: [interleaveSelfContactId],
     content: `Text before call ${ts}`,
     timestamp: new Date(ts - 40000).toISOString(),
     medium: 'unify_message',
   });
 
   // Meet call in the middle
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: CONTACT_ID,
+  await seedTranscript(user.apiKey, user.id, interleaveAssistant.agentId, {
+    senderId: interleaveContactId,
+    receiverIds: [interleaveSelfContactId],
     content: 'Call utterance',
     timestamp: new Date(ts - 25000).toISOString(),
     medium: 'unify_meet',
     exchangeId,
   });
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: ASSISTANT_CONTACT_ID,
+  await seedTranscript(user.apiKey, user.id, interleaveAssistant.agentId, {
+    senderId: interleaveSelfContactId,
+    receiverIds: [interleaveContactId],
     content: 'Call reply',
     timestamp: new Date(ts - 20000).toISOString(),
     medium: 'unify_meet',
@@ -510,14 +619,15 @@ test('call pills interleave correctly with text messages by timestamp', async ({
   });
 
   // Text message after
-  await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: ASSISTANT_CONTACT_ID,
+  await seedTranscript(user.apiKey, user.id, interleaveAssistant.agentId, {
+    senderId: interleaveSelfContactId,
+    receiverIds: [interleaveContactId],
     content: `Text after call ${ts}`,
     timestamp: new Date(ts - 5000).toISOString(),
     medium: 'unify_message',
   });
 
-  await openAssistantChat(page);
+  await openAssistantChat(page, interleaveAssistant);
 
   await expect(page.locator(`text=Text before call ${ts}`).first()).toBeVisible({
     timeout: 20_000,
@@ -528,15 +638,19 @@ test('call pills interleave correctly with text messages by timestamp', async ({
 
   const chatArea = page.getByTestId('chat-scroll-area');
   const allElements = chatArea.locator('[data-testid="message-bubble"], [data-testid="call-pill"]');
-  const texts: string[] = [];
-  const count = await allElements.count();
-  for (let i = 0; i < count; i++) {
-    texts.push((await allElements.nth(i).textContent()) || '');
-  }
+  const sequence = await allElements.evaluateAll((nodes) =>
+    nodes.map((node) => ({
+      testId: node.getAttribute('data-testid'),
+      exchangeId: node.getAttribute('data-exchange-id'),
+      text: node.textContent ?? '',
+    }))
+  );
 
-  const beforeIdx = texts.findIndex((t) => t.includes(`Text before call ${ts}`));
-  const pillIdx = texts.findIndex((t) => t.includes('Call'));
-  const afterIdx = texts.findIndex((t) => t.includes(`Text after call ${ts}`));
+  const beforeIdx = sequence.findIndex((item) => item.text.includes(`Text before call ${ts}`));
+  const pillIdx = sequence.findIndex(
+    (item) => item.exchangeId === String(exchangeId) || item.testId === 'call-pill'
+  );
+  const afterIdx = sequence.findIndex((item) => item.text.includes(`Text after call ${ts}`));
 
   expect(beforeIdx).toBeGreaterThanOrEqual(0);
   expect(pillIdx).toBeGreaterThan(beforeIdx);

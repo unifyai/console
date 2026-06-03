@@ -226,7 +226,9 @@ export function useAssistantForm(
       setValue('surname', preset.surname, { shouldValidate: true });
       setValue('jobTitle', preset.jobTitle ?? null, { shouldValidate: true });
       setValue('age', preset.age, { shouldValidate: true });
-      setValue('nationality', preset.nationality ?? 'United States', { shouldValidate: true });
+      setValue('nationality', preset.nationality ?? 'United States', {
+        shouldValidate: true,
+      });
       setValue('about', preset.about ?? '', { shouldValidate: true });
       setValue('profilePhotoUrl', null);
       setValue('photoPreviewUrl', null);
@@ -509,11 +511,17 @@ export function useAssistantForm(
     try {
       // Input validity checks (same as creation path)
       if (!data.firstName) {
-        setError('firstName', { type: 'manual', message: 'Missing assistant first name.' });
+        setError('firstName', {
+          type: 'manual',
+          message: 'Missing assistant first name.',
+        });
         throw new Error('Missing assistant first name.');
       }
       if (!data.surname) {
-        setError('surname', { type: 'manual', message: 'Missing assistant surname.' });
+        setError('surname', {
+          type: 'manual',
+          message: 'Missing assistant surname.',
+        });
         throw new Error('Missing assistant surname.');
       }
       const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
@@ -521,11 +529,17 @@ export function useAssistantForm(
         data.age != null &&
         (isNaN(ageNumber as number) || (ageNumber as number) < 18 || (ageNumber as number) > 70)
       ) {
-        setError('age', { type: 'manual', message: 'Age must be between 18 and 70.' });
+        setError('age', {
+          type: 'manual',
+          message: 'Age must be between 18 and 70.',
+        });
         throw new Error('Invalid age provided.');
       }
       if (!data.nationality) {
-        setError('nationality', { type: 'manual', message: 'Missing assistant nationality.' });
+        setError('nationality', {
+          type: 'manual',
+          message: 'Missing assistant nationality.',
+        });
         throw new Error('Missing assistant nationality.');
       }
 
@@ -632,11 +646,17 @@ export function useAssistantForm(
     try {
       // Input validity checks
       if (!data.firstName) {
-        setError('firstName', { type: 'manual', message: 'Missing assistant first name.' });
+        setError('firstName', {
+          type: 'manual',
+          message: 'Missing assistant first name.',
+        });
         throw new Error('Missing assistant first name.');
       }
       if (!data.surname) {
-        setError('surname', { type: 'manual', message: 'Missing assistant surname.' });
+        setError('surname', {
+          type: 'manual',
+          message: 'Missing assistant surname.',
+        });
         throw new Error('Missing assistant surname.');
       }
       const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
@@ -644,16 +664,25 @@ export function useAssistantForm(
         data.age != null &&
         (isNaN(ageNumber as number) || (ageNumber as number) < 18 || (ageNumber as number) > 70)
       ) {
-        setError('age', { type: 'manual', message: 'Age must be between 18 and 70.' });
+        setError('age', {
+          type: 'manual',
+          message: 'Age must be between 18 and 70.',
+        });
         throw new Error('Invalid age provided.');
       }
       if (!data.nationality) {
-        setError('nationality', { type: 'manual', message: 'Missing assistant nationality.' });
+        setError('nationality', {
+          type: 'manual',
+          message: 'Missing assistant nationality.',
+        });
         throw new Error('Missing assistant nationality.');
       }
 
       if (!data.voiceId || !data.voiceName || !data.voiceGender || !data.voiceLanguage) {
-        setError('voiceId', { type: 'manual', message: 'Voice selection is required.' });
+        setError('voiceId', {
+          type: 'manual',
+          message: 'Voice selection is required.',
+        });
         throw new Error('No voice selected.');
       }
 
@@ -793,6 +822,7 @@ export function useAssistantForm(
 
       const assistantForSuccess: Assistant = {
         ...createdAssistant,
+        isCoordinator: createdAssistant.isCoordinator ?? false,
         ...(finalImageUrlToSend ? { profilePhoto: finalImageUrlToSend } : {}),
         ...(finalVideoUrlToSend ? { profileVideo: finalVideoUrlToSend } : {}),
         ...(mediaUpdate.profilePhoto ? { profilePhoto: mediaUpdate.profilePhoto } : {}),

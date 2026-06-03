@@ -44,6 +44,7 @@ export interface TranscriptRow {
   medium: string | null;
   senderId: number | null;
   receiverIds: number[] | null;
+  authoringAssistantId: number | null;
   timestamp: string | null;
   content: string | null;
   exchangeId: number | null;
@@ -139,6 +140,7 @@ export interface MemoryContextData<T extends MemoryRow = MemoryRow> {
   rows: T[];
   count: number;
   fields: string[];
+  hasMore?: boolean;
 }
 
 export const MEMORY_CONTEXTS: MemoryContext[] = [

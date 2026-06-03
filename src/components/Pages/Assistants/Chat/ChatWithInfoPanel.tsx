@@ -13,6 +13,8 @@ import type { ContactType } from '@/types/assistants/contact';
 import type { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
+import { useCoordinatorActivity } from '@/hooks/Assistants/useCoordinatorActivity';
+import type { CoordinatorActivityRow } from '@/types/assistants/coordinatorActivity';
 
 // ---------------------------------------------------------------------------
 // Per-assistant info-panel dismissal persistence
@@ -96,6 +98,7 @@ export interface ChatWithInfoPanelProps {
   // --- Assistant-contextual props for info side panel ---
   onEditProfile?: (assistant: Assistant) => void;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
+  onCoordinatorActivity?: (activity: CoordinatorActivityRow) => void;
   /** Drives the visibility of every edit affordance the info side
    *  panel surfaces (profile pencil, Contact Info "Edit" button,
    *  per-channel "Add …" CTAs). Defaults to `true`. */
@@ -128,6 +131,33 @@ export interface ChatWithInfoPanelProps {
    * isn't provided — i.e. for non-owners who can't see the panel.
    */
   hasIncompleteOnboarding?: boolean;
+  /**
+   * Coordinator-only handler bag forwarded to the info panel so the
+   * "Onboarding" sub-tab on the coordinator's info panel can wire
+   * its action rows. Ignored entirely for non-coordinator
+   * assistants. See ``AssistantInfoSidePanelContent`` for details.
+   */
+  coordinatorOnboarding?: {
+    onConnectWorkspace?: () => void;
+    onConnectApps?: () => void;
+    onAssignTask?: () => void;
+    onWatchAndGuide?: () => void;
+    onHireSpecialist?: () => void;
+  };
+  /**
+   * When a call with *this* assistant is active and not popped out,
+   * the parent supplies a renderer for the docked
+   * ``AssistantCommunicationDialog`` (in ``docked`` mode). We swap
+   * it in for the chat panel while leaving the chat sub-header and
+   * the assistant-info side panel untouched, so the user can still
+   * toggle the info panel and the layout doesn't reflow around the
+   * call.
+   *
+   * Undefined means "render the regular chat" — either no call is
+   * active for this assistant, or the user popped the call out and
+   * the page-level modal/floating dialog is showing it instead.
+   */
+  renderDockedCall?: () => React.ReactNode;
 }
 
 export function ChatWithInfoPanel({
@@ -154,6 +184,7 @@ export function ChatWithInfoPanel({
   spendingBlockedMessage,
   onEditProfile,
   onOpenContactManager,
+  onCoordinatorActivity,
   canWrite = true,
   hasUserMessage = false,
   hasHistoricalCall = false,
@@ -163,6 +194,8 @@ export function ChatWithInfoPanel({
   onShowInstallInstructions,
   onOpenUserSettings,
   hasIncompleteOnboarding = false,
+  coordinatorOnboarding,
+  renderDockedCall,
 }: ChatWithInfoPanelProps) {
   // The dot is only meaningful when the panel actually exposes the
   // Onboarding tab — for non-owners (who don't get the tab) we
@@ -171,6 +204,11 @@ export function ChatWithInfoPanel({
   // check keeps both surfaces in lockstep.
   const showOnboardingDot =
     hasIncompleteOnboarding && !!onShowInstallInstructions && !!onOpenUserSettings;
+  const coordinatorActivity = useCoordinatorActivity({
+    assistant,
+    enabled: assistant.isCoordinator === true,
+    onActivity: onCoordinatorActivity,
+  });
   const [searchOpen, setSearchOpen] = React.useState(false);
   // Default-closed; the assistant-id init effect below flips it open
   // for any assistant the user hasn't explicitly dismissed the panel
@@ -295,13 +333,20 @@ export function ChatWithInfoPanel({
 
   const isInThisCall = activeCallAssistantId === assistant.agentId;
   const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
-  const isCallButtonDisabled = isAnotherCallActive || (isSpendingBlocked && !isInThisCall);
+  // Disable the call buttons whenever ANY call is active —
+  // same-assistant in another slot (the docked call lives in the
+  // primary slot only, see ``RightPaneContainer``) or a different
+  // assistant entirely. The compose path is unreachable in both
+  // cases, and leaving the buttons enabled implied "click to do
+  // something" when there was nothing to do.
+  const isCallButtonDisabled =
+    isAnotherCallActive || isInThisCall || (isSpendingBlocked && !isInThisCall);
 
   const callButtonTooltip = (type: 'audio' | 'video') =>
     isInThisCall && isConnectingCall
       ? 'Connecting call...'
       : isInThisCall
-        ? 'Return to call'
+        ? 'Call in progress'
         : isSpendingBlocked && !isInThisCall
           ? spendingBlockedMessage || 'Spending limit reached'
           : isAnotherCallActive
@@ -310,14 +355,27 @@ export function ChatWithInfoPanel({
               ? 'Start audio call'
               : 'Start video call';
 
+  const isDockedCall = !!renderDockedCall;
+
   return (
     <div className="flex h-full w-full flex-col">
       {/* Sub-header: chat search + call buttons + info toggle.
           `py-2` (rather than `py-1.5`) is load-bearing in split mode —
           it matches the LiveActionsHeader's vertical padding so that
           when Chat is in one slot and Actions in the other, the bottom
-          border of each pane's sub-header lands on the same Y. */}
-      <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
+          border of each pane's sub-header lands on the same Y.
+          Suppressed while a call is docked into this slot — the call
+          surface owns its own header (with the popout / hangup
+          controls) and the call's bottom toolbar replaces the
+          composer, so the sub-header would just stack redundant
+          chrome above it. The user can still toggle the assistant
+          info panel by popping the call out first. */}
+      <div
+        className={cn(
+          'flex items-center justify-between gap-2 border-b px-3 py-2',
+          isDockedCall && 'hidden'
+        )}
+      >
         <div className="relative max-w-xs flex-1">
           <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -424,27 +482,31 @@ export function ChatWithInfoPanel({
           textarea doesn't peek through. */}
       <div className="flex min-h-0 flex-1">
         <div className={cn('flex min-w-0 flex-1 flex-col', isInfoOpen && 'hidden sm:flex')}>
-          <AssistantProfileChatPanel
-            assistant={assistant}
-            assistantActions={assistantActions}
-            chatHistories={chatHistories}
-            setChatHistories={setChatHistories}
-            callPillHistories={callPillHistories}
-            setCallPillHistories={setCallPillHistories}
-            userEmail={userEmail}
-            userTimezone={userTimezone}
-            isFirstView={isFirstView}
-            preHireChat={preHireChat}
-            onFirstViewCompleted={onFirstViewCompleted}
-            spendingGate={spendingGate}
-            chatStreamConnectionStatus={chatStreamConnectionStatus}
-            reconnectChatStream={reconnectChatStream}
-            chatStreamActivitySignal={chatStreamActivitySignal}
-            isCallConnected={isInThisCall && isCallConnected}
-            searchOpen={searchOpen}
-            onSearchOpenChange={setSearchOpen}
-            draftSeed={draftSeed}
-          />
+          {renderDockedCall ? (
+            renderDockedCall()
+          ) : (
+            <AssistantProfileChatPanel
+              assistant={assistant}
+              assistantActions={assistantActions}
+              chatHistories={chatHistories}
+              setChatHistories={setChatHistories}
+              callPillHistories={callPillHistories}
+              setCallPillHistories={setCallPillHistories}
+              userEmail={userEmail}
+              userTimezone={userTimezone}
+              isFirstView={isFirstView}
+              preHireChat={preHireChat}
+              onFirstViewCompleted={onFirstViewCompleted}
+              spendingGate={spendingGate}
+              chatStreamConnectionStatus={chatStreamConnectionStatus}
+              reconnectChatStream={reconnectChatStream}
+              chatStreamActivitySignal={chatStreamActivitySignal}
+              isCallConnected={isInThisCall && isCallConnected}
+              searchOpen={searchOpen}
+              onSearchOpenChange={setSearchOpen}
+              draftSeed={draftSeed}
+            />
+          )}
         </div>
 
         {isInfoOpen && (
@@ -458,7 +520,11 @@ export function ChatWithInfoPanel({
               onEditProfile={onEditProfile}
               onOpenContactManager={onOpenContactManager}
               roadmap={roadmap}
+              onSeedChatDraft={seedChatDraft}
               canWrite={canWrite}
+              onCoordinatorActivity={onCoordinatorActivity}
+              coordinatorActivity={coordinatorActivity}
+              coordinatorOnboarding={coordinatorOnboarding}
             />
           </ChatSidePanel>
         )}
