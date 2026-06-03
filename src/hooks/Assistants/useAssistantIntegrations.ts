@@ -84,6 +84,34 @@ export function partitionForIntegrations(secrets: Secret[]): {
   return { cards, otherSecrets, hiddenSecrets };
 }
 
+/**
+ * Secret-name prefixes written by the *workspace* OAuth handshake rather than
+ * by a user connecting an app integration. Connecting a workspace dumps tokens
+ * like ``GOOGLE_ACCESS_TOKEN`` / ``MICROSOFT_REFRESH_TOKEN`` and — for
+ * enterprise Microsoft 365 — the user's own ``AZURE_CLIENT_SECRET`` /
+ * ``AZURE_TENANT_ID`` etc. The console has no provider card for the workspace
+ * mailbox, so all of these land in the freeform ``otherSecrets`` bucket
+ * alongside genuine user-added custom secrets — and must NOT count as an "app
+ * integration" for the Coordinator onboarding "connect apps" step (otherwise
+ * it auto-completes the moment the workspace connects).
+ *
+ * Mirrors Orchestra's ``_WORKSPACE_SECRET_PREFIXES``
+ * (orchestra/orchestra/services/coordinator_service.py). NOTE: this list also
+ * includes ``AZURE_``, which the Orchestra constant currently omits — keep the
+ * two in mind together if either changes.
+ */
+export const WORKSPACE_MANAGED_SECRET_PREFIXES = ['GOOGLE_', 'MICROSOFT_', 'AZURE_'] as const;
+
+/**
+ * Whether a secret name was written by the workspace OAuth flow (vs. a custom
+ * secret the user added by hand). Used to keep workspace/default secrets from
+ * falsely completing the onboarding "connect apps" step.
+ */
+export function isWorkspaceManagedSecretName(name: string): boolean {
+  const upper = name.toUpperCase();
+  return WORKSPACE_MANAGED_SECRET_PREFIXES.some((prefix) => upper.startsWith(prefix));
+}
+
 function deriveCardState(
   provider: IntegrationProviderConfig,
   ownedSecrets: Secret[]

@@ -18,6 +18,7 @@ import {
 import { useAssistantSecrets } from '@/hooks/Assistants/useAssistantSecrets';
 import {
   disconnectIntegration,
+  isWorkspaceManagedSecretName,
   partitionForIntegrations,
   startOAuthConnect,
   useIntegrationCallbackFlash,
@@ -44,12 +45,15 @@ interface IntegrationsPaneProps {
   secretActions: SecretActions;
   canWrite?: boolean;
   /**
-   * Notifies the parent whenever the pane's secrets list count
-   * changes. Used by the Coordinator onboarding flow to auto-mark
-   * the "Connect your coordinator with your apps" step done the
-   * moment a token actually lands (vs. on the click that merely
-   * opened the integrations tab). Receives ``0`` while the list
-   * is empty or still loading. */
+   * Notifies the parent of the number of "connected an app" signals — used
+   * by the Coordinator onboarding flow to auto-mark the "Connect your
+   * coordinator with your apps" step done the moment a real integration
+   * lands. Counts both (a) recognised provider cards in a ``connected`` /
+   * ``configured`` state and (b) user-added custom secrets. It deliberately
+   * excludes the workspace's own BYOD OAuth tokens (``GOOGLE_*`` /
+   * ``MICROSOFT_*`` / ``AZURE_*``) so connecting the workspace doesn't
+   * falsely complete the step. Receives ``0`` while nothing qualifies or the
+   * list is still loading. */
   onSecretsCountChange?: (count: number) => void;
 }
 
@@ -127,16 +131,6 @@ export function IntegrationsPane({
     clearSearch();
   };
 
-  // Push the secrets count up whenever it changes. Cheap to keep
-  // unconditional: most consumers don't pass ``onSecretsCountChange``
-  // and the ``?.()`` call becomes a no-op, while the Coordinator
-  // onboarding flow uses this to auto-complete the "connect apps"
-  // step the moment a real token lands.
-  const secretsCount = secrets.length;
-  React.useEffect(() => {
-    onSecretsCountChange?.(secretsCount);
-  }, [secretsCount, onSecretsCountChange]);
-
   const [expandedFolders, setExpandedFolders] = React.useState<Set<string>>(new Set());
   const [customDialogMode, setCustomDialogMode] = React.useState<'create' | 'edit' | null>(null);
   const [integrationDialog, setIntegrationDialog] = React.useState<IntegrationDialog>(null);
@@ -182,6 +176,28 @@ export function IntegrationsPane({
     () => partitionForIntegrations(secrets),
     [secrets]
   );
+
+  // Report how many *app integrations* are actually wired up — used by the
+  // Coordinator onboarding flow to auto-complete the "connect apps" step.
+  // Two things count as "connected an app":
+  //   1. A recognised provider card in a ``connected`` (OAuth) or
+  //      ``configured`` (API-key) state.
+  //   2. A user-added custom secret (freeform ``otherSecrets``).
+  // We deliberately avoid a raw ``secrets.length``: connecting the workspace
+  // dumps OAuth tokens (``GOOGLE_*`` / ``MICROSOFT_*`` / ``AZURE_*``) into the
+  // same freeform bucket, so those are filtered out via
+  // ``isWorkspaceManagedSecretName`` — otherwise the step would auto-complete
+  // the moment the workspace connected.
+  const activeIntegrationCount = React.useMemo(() => {
+    const readyCards = cards.filter(
+      (c) => c.state.kind === 'connected' || c.state.kind === 'configured'
+    ).length;
+    const customSecrets = otherSecrets.filter((s) => !isWorkspaceManagedSecretName(s.name)).length;
+    return readyCards + customSecrets;
+  }, [cards, otherSecrets]);
+  React.useEffect(() => {
+    onSecretsCountChange?.(activeIntegrationCount);
+  }, [activeIntegrationCount, onSecretsCountChange]);
   const hiddenLogIds = React.useMemo(
     () => new Set(hiddenSecrets.map((s) => s.logId)),
     [hiddenSecrets]
