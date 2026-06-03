@@ -15,6 +15,8 @@ export type IntegrationProviderId =
   | 'hubspot'
   | 'matterport'
   | 'salesforce'
+  | 'salto_ks'
+  | 'valos'
   | 'webex';
 
 /**
@@ -33,6 +35,13 @@ export interface IntegrationFieldSpec {
    *  Inside the Integrations tab itself, **all** fields render masked
    *  regardless of this flag — see ``MaskedInput`` for details. */
   sensitive: boolean;
+  /** When ``true``, the dialog renders the label with " (optional)"
+   *  appended and the Save button doesn't require this field to be
+   *  filled in add mode.  Card state derivation also ignores absent
+   *  optional fields, so a card stays ``configured`` even when the
+   *  optional secret hasn't been set.  Defaults to ``false``
+   *  (required). */
+  optional?: boolean;
   placeholder?: string;
   helpText?: string;
 }

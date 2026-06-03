@@ -10,6 +10,7 @@ import {
 } from '@/types/assistants/assistant';
 import { ASSISTANT_ONBOARDING_FEE } from '@/constants/assistants/settings';
 import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
+import { formatValidationDetail } from '@/utils/orchestra-error';
 import { checkCreditsBalance } from '@/lib/user/credits';
 import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 
@@ -273,7 +274,9 @@ export const createAssistant = async (apiKey: string) => {
       }
 
       if (!response.ok) {
-        const errorMessage = data.detail || `Failed to create assistant: ${response.statusText}`;
+        const errorMessage =
+          formatValidationDetail(data.detail) ||
+          `Failed to create assistant: ${response.statusText}`;
         return { detail: errorMessage };
       }
 

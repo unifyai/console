@@ -182,11 +182,19 @@ export default function TopNav() {
       ? userOrgs.find((o) => o.id.toString() === activeWorkspace.id)
       : null;
 
-  const canManageBilling =
-    !currentOrg || ['owner', 'admin'].includes(currentOrg.roleName?.toLowerCase() ?? '');
+  // Members of the "Unify" organization (internal staff) are trusted to view
+  // billing/usage for any org they belong to, including during that org's free
+  // trial — mirroring the page-level trial bypass in `/billing` and `/usage`.
+  const isUnifyMember = userOrgs.some((o) => o.name === 'Unify');
 
-  // Hide billing & usage links when the active org is in free trial mode
-  const isOrgInFreeTrial = !!currentOrg?.freeTrial;
+  const canManageBilling =
+    !currentOrg ||
+    isUnifyMember ||
+    ['owner', 'admin'].includes(currentOrg.roleName?.toLowerCase() ?? '');
+
+  // Hide billing & usage links when the active org is in free trial mode —
+  // except for Unify members, who keep access during a customer org's trial.
+  const isOrgInFreeTrial = !!currentOrg?.freeTrial && !isUnifyMember;
 
   // Mirrors the gate in `/admin/layout.tsx`: only Owner/Admin members of
   // the "Unify" organization see the Admin link in the profile menu. Done

@@ -4,7 +4,7 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import {
   INTEGRATION_PROVIDERS,
-  customerProvidedSecretKeysFor,
+  requiredCustomerProvidedSecretKeysFor,
   secretKeysFor,
 } from '@/constants/assistants/integrations';
 import type {
@@ -88,8 +88,12 @@ function deriveCardState(
   ownedSecrets: Secret[]
 ): IntegrationCardState {
   const present = new Set(ownedSecrets.map((s) => s.name));
-  const customerKeys = customerProvidedSecretKeysFor(provider);
-  const missingCustomer = customerKeys.filter((k) => !present.has(k));
+  // Use the required-only key set so that absent optional fields don't
+  // hold the card in ``needs_reconnect`` forever.  ``customerProvidedSecretKeysFor``
+  // (which includes optional keys) is still used by the OAuth callback
+  // and disconnect routes — they want the full set.
+  const requiredKeys = requiredCustomerProvidedSecretKeysFor(provider);
+  const missingCustomer = requiredKeys.filter((k) => !present.has(k));
 
   switch (provider.auth.kind) {
     case 'freeform':
@@ -97,19 +101,22 @@ function deriveCardState(
       return { kind: 'configured' };
     case 'api_key':
     case 'api_key_multi':
-      // ``configured`` once every customer-provided field is present.
-      // For ``api_key_multi`` the partition can build a card with only
-      // some fields populated (the user closed the modal half-finished
-      // or rotated one half of the pair) — surface those gaps via
-      // ``needs_reconnect`` so the card prompts the user to complete.
+      // ``configured`` once every required customer-provided field is
+      // present.  Optional fields don't affect state.  For
+      // ``api_key_multi`` the partition can build a card with only some
+      // required fields populated (the user closed the modal
+      // half-finished or rotated one half of the pair) — surface those
+      // gaps via ``needs_reconnect`` so the card prompts the user to
+      // complete.
       return missingCustomer.length === 0
         ? { kind: 'configured' }
         : { kind: 'needs_reconnect', missing: missingCustomer };
     case 'oauth_authorization_code': {
-      // ``connected`` requires both customer-provided creds AND a refresh
-      // token.  ``needs_reconnect`` covers the case where credentials are
-      // present but the refresh token is missing (post-Disconnect, post-
-      // expiry, or a rotation that nuked the local cache).
+      // ``connected`` requires both required customer-provided creds AND
+      // a refresh token.  ``needs_reconnect`` covers the case where
+      // required credentials are present but the refresh token is
+      // missing (post-Disconnect, post-expiry, or a rotation that nuked
+      // the local cache).
       if (missingCustomer.length > 0) {
         return { kind: 'needs_reconnect', missing: missingCustomer };
       }

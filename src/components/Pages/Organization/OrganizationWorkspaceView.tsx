@@ -123,6 +123,12 @@ interface OrganizationWorkspaceViewProps {
   initialMfaRequired?: boolean | null;
   // Assistants grouped by supervisor userId
   memberAssistantsMap?: Map<string, MemberAssistantInfo[]>;
+  /**
+   * Whether the current user is a member of the "Unify" organization.
+   * Unify (internal) members keep visibility of member spend/limits even
+   * while the org is in free trial, instead of seeing the locked badge.
+   */
+  isUnifyMember?: boolean;
 }
 
 const OrganizationWorkspaceView = ({
@@ -160,6 +166,7 @@ const OrganizationWorkspaceView = ({
   mfaSettingsActions,
   initialMfaRequired = null,
   memberAssistantsMap,
+  isUnifyMember = false,
 }: OrganizationWorkspaceViewProps) => {
   const searchParams = useSearchParams();
   const validTabs = useMemo(() => ['organization', 'members', 'teams', 'roles', 'security'], []);
@@ -684,7 +691,7 @@ const OrganizationWorkspaceView = ({
                         showSpending={spendingEnabled}
                         spendingInfo={memberSpending}
                         onEditSpendingLimit={handleEditSpendingLimit}
-                        freeTrial={organization.freeTrial}
+                        freeTrial={organization.freeTrial && !isUnifyMember}
                       />
                     );
                   })}

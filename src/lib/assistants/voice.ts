@@ -56,7 +56,10 @@ export const registerVoice = async (apiKey: string) => {
         }),
       });
       const data = await response.json();
-      if (!response.ok) return { detail: data.detail || `Failed: ${response.statusText}` };
+      if (!response.ok)
+        return {
+          detail: data.detail ? formatFastApiError(data.detail) : `Failed: ${response.statusText}`,
+        };
       const voice = snakeToCamelObject<Voice>(data.info);
       return {
         ...voice,
@@ -103,7 +106,11 @@ export const cloneVoice = async (apiKey: string) => {
       });
       const data = await response.json();
       if (!response.ok)
-        return { detail: data.detail || `Voice clone failed: ${response.statusText}` };
+        return {
+          detail: data.detail
+            ? formatFastApiError(data.detail)
+            : `Voice clone failed: ${response.statusText}`,
+        };
       return snakeToCamelObject<Voice & { info?: string; isPreset?: boolean }>(data.info);
     } catch (error) {
       return {

@@ -20,6 +20,7 @@ import createClient, { type Middleware } from 'openapi-fetch';
 import type { paths } from './schema';
 import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
 import { createOpenapiLoggingMiddleware } from '@/lib/logging/fetch';
+import { formatValidationDetail } from '@/utils/orchestra-error';
 
 /**
  * Custom body serializer that transforms camelCase to snake_case
@@ -48,7 +49,18 @@ const responseMiddleware: Middleware = {
     try {
       const data = await response.clone().json();
       if (data && typeof data === 'object') {
-        const transformed = snakeToCamelObject(data as Record<string, unknown>);
+        const transformed = snakeToCamelObject(data as Record<string, unknown>) as Record<
+          string,
+          unknown
+        >;
+        // Collapse FastAPI 422 validation arrays into a readable `detail` string
+        // so error consumers/toasts never render "[object Object]".
+        if (!response.ok && 'detail' in transformed) {
+          const formatted = formatValidationDetail(transformed.detail);
+          if (formatted !== undefined) {
+            transformed.detail = formatted;
+          }
+        }
         return new Response(JSON.stringify(transformed), {
           status: response.status,
           statusText: response.statusText,

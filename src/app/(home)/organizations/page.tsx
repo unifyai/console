@@ -85,10 +85,9 @@ const OrganizationPage = async () => {
     updateMfaSettings: await MfaSettingsActions.updateMfaSettingsAction(apiKey),
   };
 
-  // Prefetch the spending limit AND the MFA toggle for the first org
-  // in parallel — the latter so opening the Security tab doesn't have
-  // to wait on a fresh server-action roundtrip before showing the
-  // actual toggle state.
+  // Prefetch the spending limit and the MFA toggle for the first org
+  // in parallel so opening the matching tab doesn't have to wait on a
+  // fresh server-action roundtrip before showing the actual state.
   let orgSpendingLimit: number | null = null;
   let initialMfaRequired: boolean | null = null;
   if (organizations.length > 0) {

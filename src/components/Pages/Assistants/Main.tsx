@@ -72,6 +72,7 @@ import {
 import { useUnreadDocumentTitle } from '@/hooks/Assistants/useUnreadDocumentTitle';
 import type { ParsedInboundChatMessage } from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
+import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
 import { LogLevel, Room, setLogLevel } from 'livekit-client';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
@@ -103,6 +104,14 @@ interface MainProps {
     isOrgContext?: boolean;
     isFreeTrial?: boolean;
     mfaSetupRequired?: boolean;
+    /** Owner scope for the shared Slack install (null when Slack OAuth
+     *  is not configured on the deployment). */
+    slackOwner?: SlackInstallOwner | null;
+    /** Whether the current user may connect/disconnect the workspace
+     *  Slack install (org owner, or the personal-account owner). */
+    slackCanManageInstall?: boolean;
+    /** Server-prefetched shared Slack install for the active workspace. */
+    slackInitialInstall?: SlackInstall | null;
   };
 }
 
@@ -2205,6 +2214,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               userPhoneNumber={userMeta.phoneNumber ?? null}
               userWhatsappNumber={userMeta.whatsappNumber ?? null}
               userDiscordId={userMeta.discordId ?? null}
+              slackOwner={userMeta.slackOwner ?? null}
+              slackCanManageInstall={userMeta.slackCanManageInstall ?? false}
+              slackInitialInstall={userMeta.slackInitialInstall ?? null}
             />
           )}
           {workspaceManagerAssistant && (

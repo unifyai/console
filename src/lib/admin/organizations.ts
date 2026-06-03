@@ -15,6 +15,7 @@
 'use server';
 
 import { snakeToCamelObject } from '@/utils/casing';
+import { formatValidationDetail } from '@/utils/orchestra-error';
 import { requireUnifyAdmin } from '@/lib/admin/_guard';
 import type {
   AdminOrgListResponse,
@@ -43,7 +44,9 @@ const safeFetch = async (url: string, options: RequestInit, context: string): Pr
       const data = await response.json();
       if (!response.ok) {
         const errorMessage =
-          data.detail || data.error || `Operation failed: ${response.statusText}`;
+          formatValidationDetail(data.detail) ||
+          data.error ||
+          `Operation failed: ${response.statusText}`;
         return { detail: errorMessage, status: response.status };
       }
       return snakeToCamelObject(data as Record<string, unknown>);

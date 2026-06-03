@@ -161,7 +161,7 @@ function ChatMessageBubbleImpl({
         <div
           className={cn(
             'flex min-w-0 flex-col gap-2',
-            isProfile ? 'max-w-[85%] md:max-w-[55%]' : 'max-w-[85%]'
+            isProfile ? 'max-w-[85%] md:max-w-[66.6667%]' : 'max-w-[85%]'
           )}
         >
           {attachments && attachments.length > 0 && (
@@ -195,7 +195,7 @@ function ChatMessageBubbleImpl({
       data-testid={isProfile ? 'message-bubble' : undefined}
       data-role={isProfile ? 'assistant' : undefined}
       data-index={isProfile ? index : undefined}
-      className={cn('min-w-0', isProfile && 'md:max-w-[55%]')}
+      className={cn('min-w-0', isProfile && 'md:max-w-[66.6667%]')}
     >
       <div className="mb-2.5 flex items-center gap-2">
         {isCoordinator ? (

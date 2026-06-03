@@ -190,6 +190,7 @@ const Main = ({
             initialMfaRequired={initialMfaRequired}
             // Assistants per member
             memberAssistantsMap={memberAssistantsMap}
+            isUnifyMember={isUnifyMember}
           />
         ) : (
           <PersonalWorkspaceView

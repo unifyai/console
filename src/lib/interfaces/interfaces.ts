@@ -8,6 +8,7 @@ import {
   TemplateImportResponse,
   TemplateExportResponse,
 } from '@/types/interfaces/grid';
+import { formatValidationDetail } from '@/utils/orchestra-error';
 
 // create interface
 export const createInterface = async (apiKey: string) => {
@@ -212,7 +213,9 @@ export const createNewInterface = async (apiKey: string) => {
       try {
         const err = await response.json();
         const detail =
-          typeof err === 'string' ? err : err?.detail || err?.message || JSON.stringify(err);
+          typeof err === 'string'
+            ? err
+            : formatValidationDetail(err?.detail) || err?.message || JSON.stringify(err);
         return { error: `Failed to create interface: ${response.status}`, detail };
       } catch {
         const text = await response.text();
@@ -247,7 +250,9 @@ export const updateInterfaceByName = async (apiKey: string) => {
       try {
         const err = await response.json();
         const detail =
-          typeof err === 'string' ? err : err?.detail || err?.message || JSON.stringify(err);
+          typeof err === 'string'
+            ? err
+            : formatValidationDetail(err?.detail) || err?.message || JSON.stringify(err);
         return { error: `Failed to update interface: ${response.status}`, detail };
       } catch {
         const text = await response.text();
@@ -277,7 +282,9 @@ export const updateInterfaceById = async (apiKey: string) => {
       try {
         const err = await response.json();
         const detail =
-          typeof err === 'string' ? err : err?.detail || err?.message || JSON.stringify(err);
+          typeof err === 'string'
+            ? err
+            : formatValidationDetail(err?.detail) || err?.message || JSON.stringify(err);
         return { error: `Failed to update interface: ${response.status}`, detail };
       } catch {
         const text = await response.text();

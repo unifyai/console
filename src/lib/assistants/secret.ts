@@ -3,6 +3,7 @@ import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { Secret, SecretPayload, SecretUpdatePayload } from '@/types/assistants/secret';
 import { resolveOwnerApiKeyForAssistant } from '@/lib/assistants/owner';
 import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
+import { formatValidationDetail } from '@/utils/orchestra-error';
 
 const PROJECT = 'Assistants';
 const CONTEXT_SUFFIX = '/Secrets';
@@ -67,6 +68,65 @@ export const getSecrets = async (apiKey: string, orgId: number | null = null) =>
   };
 };
 
+/**
+ * Read a single secret's value via the Orchestra logs API.  The standard
+ * ``getSecrets`` call sets ``excludeFields=value`` so it returns names
+ * only; this factory keeps the value inline via a ``filterExpr=name == "..."``
+ * lookup against the assistant's ``Secrets`` context.
+ *
+ * Returns ``null`` for any failure — caller decides how to surface it.
+ * Used by ``/api/integrations/oauth/start`` to read the customer's
+ * ``CLIENT_ID`` and by the per-provider OAuth callbacks to read
+ * ``CLIENT_ID`` + ``CLIENT_SECRET`` before exchanging the auth code.
+ *
+ * Implementation note: the ``/api/logs`` proxy only honours a fixed
+ * list of query params (``projectName``, ``context``, ``filterExpr``,
+ * ``limit``, ``excludeFields``, etc.).  ``logIds`` is silently dropped
+ * and Orchestra falls back to a default unfiltered fetch — so we filter
+ * by ``filterExpr`` within the specific assistant's ``Secrets`` context,
+ * the same pattern used for contact-by-email lookup elsewhere.
+ */
+export const getSecretValue = async (apiKey: string, orgId: number | null = null) => {
+  return async (
+    assistantId: string,
+    ownerId: string,
+    secretName: string
+  ): Promise<string | null> => {
+    'use server';
+    try {
+      const effectiveKey =
+        orgId !== null
+          ? await resolveOwnerApiKeyForAssistant(ownerId, orgId).catch(() => apiKey)
+          : apiKey;
+
+      // Defensive escaping — secret names come from the provider registry,
+      // but a future config could include quotes.
+      const escapedName = secretName.replace(/"/g, '\\"');
+      const params = new URLSearchParams({
+        projectName: PROJECT,
+        context: `${ownerId}/${assistantId}${CONTEXT_SUFFIX}`,
+        filterExpr: `name == "${escapedName}"`,
+        limit: '1',
+      });
+      const url = `${process.env.NEXTAUTH_URL}/api/logs?${params.toString()}`;
+
+      const response = await fetch(url, { method: 'GET', headers: { apiKey: effectiveKey } });
+      if (!response.ok) return null;
+
+      const data = (await response.json()) as {
+        logs?: Array<{ entries?: { name?: string; value?: string } }>;
+      };
+      // Belt-and-braces: Orchestra's filterExpr should already enforce
+      // name equality, but match again here so a sloppy upstream filter
+      // can't return a sibling secret.
+      const log = data.logs?.find((l) => l.entries?.name === secretName);
+      return log?.entries?.value ?? null;
+    } catch {
+      return null;
+    }
+  };
+};
+
 export const createSecret = async (
   apiKey: string,
   orgId: number | null = null,
@@ -105,7 +165,11 @@ export const createSecret = async (
 
       if (!response.ok) {
         const data = await response.json();
-        return { detail: data.detail || `Failed to create secret: ${response.statusText}` };
+        return {
+          detail:
+            formatValidationDetail(data.detail) ||
+            `Failed to create secret: ${response.statusText}`,
+        };
       }
 
       return { info: 'Secret created successfully.' };
@@ -140,7 +204,11 @@ export const updateSecret = async (apiKey: string, orgId: number | null = null) 
 
       if (!response.ok) {
         const data = await response.json();
-        return { detail: data.detail || `Failed to update secret: ${response.statusText}` };
+        return {
+          detail:
+            formatValidationDetail(data.detail) ||
+            `Failed to update secret: ${response.statusText}`,
+        };
       }
 
       return { info: 'Secret updated successfully.' };

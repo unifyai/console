@@ -1,0 +1,47 @@
+---
+description: Run lint, typecheck, style checks, audit, and casing review before done
+alwaysApply: true
+---
+
+# Quality Gates
+
+Run before declaring done; fix issues in code, not with `eslint-disable` /
+`@ts-ignore` / `@ts-expect-error` (comment if a suppression is unavoidable).
+
+```bash
+npm run ci        # lint + typecheck + format:check + check:styles:all + build
+```
+
+## Security audit (when deps change)
+
+If `package.json` / lockfile changed, run `npm audit` (matches
+`.github/workflows/security.yml` — fails on critical, warns on high/moderate).
+Prefer upgrading the offending package over an override.
+
+## Casing — snake_case ↔ camelCase
+
+Orchestra speaks snake_case; the frontend uses camelCase. For every new call
+site, identify which side does the conversion and don't double-convert. Bugs
+here type-check fine but produce `undefined` fields at runtime.
+
+**Auto-handled (pass/read camelCase, no helpers):**
+
+- `createOrchestraClient(apiKey)` — `src/lib/orchestra/client.ts`
+- `OrchestraAdminClient`, `getOrchestraUserClient(apiKey)` —
+  `src/lib/orchestra/orchestra-client.ts`
+- `fetchOrchestra<T>` — `src/utils/casing.ts`
+
+**Manual (use `@/utils/casing` helpers):**
+
+- Raw `fetch`, `loggedFetch`, `fetchOrchestraRaw`, raw axios.
+- `/api/...` reads from `src/lib/client/*.ts` (route returns Orchestra's body
+  verbatim → `snakeToCamelObject` on read, `camelToSnakeObject` on write).
+- Non-Orchestra services — convert at the boundary per that service's casing.
+
+## E2E
+
+Per `testing-e2e-first.mdc`, run the touched specs locally:
+
+```bash
+npx playwright test src/tests/<feature>/<flow>.e2e.ts
+```
