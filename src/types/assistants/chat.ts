@@ -70,6 +70,7 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   messageId?: number;
+  sourceContext?: string;
   /** Pub/Sub ack ID for client-side acknowledgement after display */
   __ackId?: string;
   attachments?: Attachment[];
@@ -109,6 +110,8 @@ export interface CallPill {
   timestamp: Date;
   durationSeconds: number;
   exchangeId?: number;
+  sourceContext?: string;
+  selfContactId?: number;
   recordingUrl?: string;
 }
 
@@ -148,6 +151,7 @@ export interface ChatSearchResult {
   content: string;
   timestamp: Date;
   messageId?: number;
+  sourceContext?: string;
   medium: string;
   exchangeId?: number;
   attachments?: Attachment[];
@@ -158,7 +162,8 @@ export interface ChatSearchResult {
 // ---------------------------------------------------------------------------
 
 export interface HistoricalViewState {
-  anchorMessageId: number;
+  anchorMessageKey: string;
+  anchorMessageId?: number;
   messages: ChatMessage[];
   callPills: CallPill[];
   hasOlder: boolean;

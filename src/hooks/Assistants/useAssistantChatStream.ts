@@ -58,6 +58,8 @@ export type ChatStreamConnectionStatus = 'connecting' | 'connected' | 'reconnect
 export interface ChatStreamPair {
   assistantId: string;
   contactId: number;
+  rootKey: string;
+  sourceContext: string;
 }
 
 export interface UseAssistantChatStreamCallbacks {
@@ -141,7 +143,7 @@ export interface ChatStreamHandle {
    * SSE frame causes redelivery on the next connection instead of being
    * silently lost.
    */
-  ackMessage: (assistantId: string, ackId: string) => void;
+  ackMessage: (assistantId: string, contactId: number, rootKey: string, ackId: string) => void;
 }
 
 const SSE_MAX_RECONNECT_ATTEMPTS = 5;
@@ -275,7 +277,7 @@ export function useAssistantChatStream(
   const pairsSignature = React.useMemo(
     () =>
       pairs
-        .map((p) => `${p.assistantId}:${p.contactId}`)
+        .map((p) => `${p.assistantId}:${p.contactId}:${p.rootKey}`)
         .sort()
         .join(','),
     [pairs]
@@ -351,11 +353,13 @@ export function useAssistantChatStream(
     () => aggregateStatus(Object.values(connectionStatusByAssistant)),
     [connectionStatusByAssistant]
   );
-  const contactIdByAssistantRef = React.useRef<Map<string, number>>(new Map());
+  const pairContextsRef = React.useRef<Map<string, ChatStreamPair>>(new Map());
   React.useEffect(() => {
-    const next = new Map<string, number>();
-    for (const p of pairs) next.set(p.assistantId, p.contactId);
-    contactIdByAssistantRef.current = next;
+    const next = new Map<string, ChatStreamPair>();
+    for (const p of pairs) {
+      next.set(`${p.assistantId}:${p.contactId}:${p.rootKey}`, p);
+    }
+    pairContextsRef.current = next;
   }, [pairs]);
 
   // Unread accounting state. Two cooperating sources of truth, both
@@ -432,27 +436,30 @@ export function useAssistantChatStream(
     [userEmail]
   );
 
-  const ackMessage = React.useCallback((assistantId: string, ackId: string) => {
-    const contactId = contactIdByAssistantRef.current.get(assistantId);
-    if (contactId === undefined) {
-      // Pair was removed before we could ack. Safe to drop — the server
-      // will redeliver to whoever next subscribes to the same
-      // subscription name, which will be the next useAssistantChatStream
-      // attached to this assistant.
-      return;
-    }
-    // Fire-and-forget: if the request fails, Pub/Sub's lease will
-    // eventually expire and the message will be redelivered on reconnect.
-    // We don't want to block message rendering on an ack round-trip.
-    fetch('/api/assistant/events/chat-stream/ack', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assistantId, contactId, ackId }),
-      keepalive: true,
-    }).catch((err) => {
-      clientLog('CHAT_STREAM_ACK_FAIL', { assistantId, ackId, error: String(err) });
-    });
-  }, []);
+  const ackMessage = React.useCallback(
+    (assistantId: string, contactId: number, rootKey: string, ackId: string) => {
+      const pairKey = `${assistantId}:${contactId}:${rootKey}`;
+      if (!pairContextsRef.current.has(pairKey)) {
+        // Pair was removed before we could ack. Safe to drop — the server
+        // will redeliver to whoever next subscribes to the same
+        // subscription name, which will be the next useAssistantChatStream
+        // attached to this assistant.
+        return;
+      }
+      // Fire-and-forget: if the request fails, Pub/Sub's lease will
+      // eventually expire and the message will be redelivered on reconnect.
+      // We don't want to block message rendering on an ack round-trip.
+      fetch('/api/assistant/events/chat-stream/ack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assistantId, contactId, rootKey, ackId }),
+        keepalive: true,
+      }).catch((err) => {
+        clientLog('CHAT_STREAM_ACK_FAIL', { assistantId, rootKey, ackId, error: String(err) });
+      });
+    },
+    []
+  );
 
   // Tab visibility tracking. Read by the message handler to decide whether
   // the active chat suppression (`activeAssistantId`) should apply: a user
@@ -531,7 +538,9 @@ export function useAssistantChatStream(
     };
 
     const openShard = (shard: ShardState) => {
-      const pairsParam = shard.pairs.map((p) => `${p.assistantId}:${p.contactId}`).join(',');
+      const pairsParam = shard.pairs
+        .map((p) => `${p.assistantId}:${p.contactId}:${p.rootKey}`)
+        .join(',');
       const url = `/api/assistant/events/chat-stream?pairs=${encodeURIComponent(pairsParam)}&sid=${getSessionId()}&shard=${shard.id}`;
       const eventSource = new EventSource(url);
       shard.eventSource = eventSource;
@@ -573,14 +582,25 @@ export function useAssistantChatStream(
         // an `assistantId`; handle them before the demux.
         if (parsedHeader.__mux_control === 'subscription_status') {
           const skipped = Array.isArray(parsedHeader.skipped)
-            ? (parsedHeader.skipped as Array<{ assistantId: string; reason: string }>)
+            ? (parsedHeader.skipped as Array<{
+                assistantId: string;
+                contactId?: number;
+                rootKey?: string;
+                reason: string;
+              }>)
             : [];
           // Filter skipped entries to ones still in our current pair set —
           // there's no point retrying for an assistant the page has since
           // removed.
-          const stillRelevant = skipped.filter((s) =>
-            contactIdByAssistantRef.current.has(s.assistantId)
-          );
+          const stillRelevant = skipped.filter((s) => {
+            const contactId = typeof s.contactId === 'number' ? s.contactId : undefined;
+            const rootKey = typeof s.rootKey === 'string' ? s.rootKey : undefined;
+            return (
+              contactId !== undefined &&
+              rootKey !== undefined &&
+              pairContextsRef.current.has(`${s.assistantId}:${contactId}:${rootKey}`)
+            );
+          });
           clientLog('CHAT_STREAM_SUBS_STATUS', {
             shardId: shard.id,
             connected: Array.isArray(parsedHeader.connected) ? parsedHeader.connected : [],
@@ -648,8 +668,26 @@ export function useAssistantChatStream(
         }
 
         const assistantId = assistantIdFromFrame;
-        const myContactId = contactIdByAssistantRef.current.get(assistantId);
-        if (myContactId === undefined) {
+        const subscriptionContactIdRaw = parsedHeader.subscriptionContactId;
+        const subscriptionContactId =
+          typeof subscriptionContactIdRaw === 'number'
+            ? subscriptionContactIdRaw
+            : typeof subscriptionContactIdRaw === 'string'
+              ? Number.parseInt(subscriptionContactIdRaw, 10)
+              : undefined;
+        const subscriptionRootKey =
+          typeof parsedHeader.subscriptionRootKey === 'string'
+            ? parsedHeader.subscriptionRootKey
+            : undefined;
+        const pair =
+          subscriptionContactId !== undefined &&
+          !Number.isNaN(subscriptionContactId) &&
+          subscriptionRootKey !== undefined
+            ? pairContextsRef.current.get(
+                `${assistantId}:${subscriptionContactId}:${subscriptionRootKey}`
+              )
+            : undefined;
+        if (!pair) {
           // The server sent us a frame for a pair we didn't subscribe to, or
           // the pair was removed mid-stream. Drop it — since the server
           // holds ack until we call the ack endpoint, the message will be
@@ -658,6 +696,7 @@ export function useAssistantChatStream(
           clientLog('CHAT_STREAM_UNKNOWN_ASSISTANT', { shardId: shard.id, assistantId });
           return;
         }
+        const myContactId = pair.contactId;
 
         // NOTE: `onMessageActivity` is intentionally fired only for the
         // `'chat'` case below — it's used by the active chat panel to
@@ -674,6 +713,8 @@ export function useAssistantChatStream(
         const cutoff = optionsRef.current.getCutoff?.(assistantId) ?? 0;
         const frame = parseChatSseFrame(event.data, {
           myContactId,
+          rootKey: pair.rootKey,
+          sourceContext: pair.sourceContext,
           cutoffMs: cutoff,
         });
 
@@ -682,11 +723,13 @@ export function useAssistantChatStream(
             clientLog(
               frame.reason === 'contact'
                 ? 'CHAT_STREAM_FILTERED_CONTACT'
-                : 'CHAT_STREAM_FILTERED_CUTOFF',
+                : frame.reason === 'root'
+                  ? 'CHAT_STREAM_FILTERED_ROOT'
+                  : 'CHAT_STREAM_FILTERED_CUTOFF',
               { ...frame.details, assistantId, shardId: shard.id }
             );
             // Ack so Pub/Sub stops redelivering; we'll never render it.
-            if (frame.ackId) ackMessage(assistantId, frame.ackId);
+            if (frame.ackId) ackMessage(assistantId, myContactId, pair.rootKey, frame.ackId);
             return;
           }
           case 'desktop-ready': {
@@ -694,7 +737,7 @@ export function useAssistantChatStream(
             // Ack immediately: desktop-ready events are idempotent
             // BroadcastChannel signals; repeated delivery would just
             // re-write the same sessionStorage entry.
-            if (frame.ackId) ackMessage(assistantId, frame.ackId);
+            if (frame.ackId) ackMessage(assistantId, myContactId, pair.rootKey, frame.ackId);
             return;
           }
           case 'chat': {
@@ -743,7 +786,7 @@ export function useAssistantChatStream(
               msgId: frame.msgId,
               thread: frame.thread,
             });
-            if (envelopeAckId) ackMessage(assistantId, envelopeAckId);
+            if (envelopeAckId) ackMessage(assistantId, myContactId, pair.rootKey, envelopeAckId);
             return;
           }
           case 'error': {
@@ -752,7 +795,7 @@ export function useAssistantChatStream(
               assistantId,
               error: frame.error,
             });
-            if (envelopeAckId) ackMessage(assistantId, envelopeAckId);
+            if (envelopeAckId) ackMessage(assistantId, myContactId, pair.rootKey, envelopeAckId);
             return;
           }
         }

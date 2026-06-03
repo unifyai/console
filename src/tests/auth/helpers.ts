@@ -39,6 +39,11 @@ export type { SeededOrg } from '../helpers/seeds/types';
 
 /** Switch to the email auth tab (login page defaults to OAuth buttons). */
 export async function switchToEmailTab(page: Page) {
+  const emailForm = page.getByTestId('email-login-form');
+  if (await emailForm.isVisible({ timeout: 1000 }).catch(() => false)) {
+    return;
+  }
+
   const emailTab = page.getByTestId('email-auth-tab');
   if (await emailTab.isVisible({ timeout: 3000 }).catch(() => false)) {
     try {
@@ -46,8 +51,10 @@ export async function switchToEmailTab(page: Page) {
     } catch {
       await emailTab.click({ force: true });
     }
-    await expect(page.getByTestId('email-login-form')).toBeVisible({ timeout: 3000 });
+  } else {
+    await page.getByRole('button', { name: /continue with email/i }).click();
   }
+  await expect(emailForm).toBeVisible({ timeout: 10_000 });
 }
 
 async function fillLoginForm(page: Page, email: string, password: string) {

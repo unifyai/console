@@ -1,16 +1,14 @@
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { DashboardPaneData, DashboardRecord, TileRecord } from '@/types/assistants/dashboard';
+import type { Assistant } from '@/types/assistants/assistant';
 
 interface UseDashboardsOptions {
+  assistant: Assistant;
   ownerId: string;
   assistantId: string;
-  getMetadata: (ownerId: string, assistantId: string) => Promise<DashboardPaneData>;
-  getTileContent: (
-    ownerId: string,
-    assistantId: string,
-    tileToken: string
-  ) => Promise<string | null>;
+  getMetadata: (assistant: Assistant) => Promise<DashboardPaneData>;
+  getTileContent: (assistant: Assistant, tileToken: string) => Promise<string | null>;
   shouldPoll: boolean;
 }
 
@@ -29,6 +27,7 @@ interface UseDashboardsResult {
 }
 
 export function useDashboards({
+  assistant,
   ownerId,
   assistantId,
   getMetadata,
@@ -37,7 +36,7 @@ export function useDashboards({
 }: UseDashboardsOptions): UseDashboardsResult {
   const { data, isLoading, error, refetch, dataUpdatedAt } = useQuery<DashboardPaneData>({
     queryKey: ['dashboards', ownerId, assistantId],
-    queryFn: () => getMetadata(ownerId, assistantId),
+    queryFn: () => getMetadata(assistant),
     refetchInterval: shouldPoll ? 5000 : false,
     enabled: !!ownerId && !!assistantId,
   });
@@ -73,7 +72,7 @@ export function useDashboards({
       const pending = pendingRef.current.get(token);
       if (pending) return pending;
 
-      const promise = getTileContent(ownerId, assistantId, token).then((html) => {
+      const promise = getTileContent(assistant, token).then((html) => {
         pendingRef.current.delete(token);
         if (html) htmlCacheRef.current.set(token, html);
         return html;
@@ -82,7 +81,7 @@ export function useDashboards({
       pendingRef.current.set(token, promise);
       return promise;
     },
-    [ownerId, assistantId, getTileContent]
+    [assistant, getTileContent]
   );
 
   return {

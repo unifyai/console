@@ -40,6 +40,7 @@ import {
   setUserCredits,
 } from './helpers';
 
+const ASSISTANT_CONTACT_ID = 0;
 const CONTACT_ID = 2;
 
 const user = createTestUser({ name: 'CallE2E', lastName: 'Tester', credits: 50_000 });
@@ -115,7 +116,9 @@ async function seedTranscript(
   const entries: Record<string, unknown> = {
     medium: opts.medium ?? 'unify_message',
     sender_id: opts.senderId,
-    receiver_ids: opts.receiverIds ?? (opts.senderId === 0 ? [CONTACT_ID] : [0]),
+    receiver_ids:
+      opts.receiverIds ??
+      (opts.senderId === ASSISTANT_CONTACT_ID ? [CONTACT_ID] : [ASSISTANT_CONTACT_ID]),
     content: opts.content,
     message_id: msgId,
     timestamp: ts,
@@ -366,7 +369,7 @@ test('historical call pill renders in the chat timeline', async ({ authedPage: p
     metadata: { call_utterance_timestamp: '00.00' },
   });
   await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: 0,
+    senderId: ASSISTANT_CONTACT_ID,
     content: 'Yes, I can hear you clearly!',
     timestamp: new Date(ts - 5000).toISOString(),
     medium: 'unify_meet',
@@ -401,7 +404,7 @@ test('clicking a call pill opens transcript dialog with utterances', async ({
     exchangeId,
   });
   await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: 0,
+    senderId: ASSISTANT_CONTACT_ID,
     content: `E2E pill click test assistant ${ts}`,
     timestamp: new Date(ts - 10000).toISOString(),
     medium: 'unify_meet',
@@ -441,7 +444,7 @@ test('two distinct calls show as separate pills', async ({ authedPage: page }) =
     exchangeId: exchangeA,
   });
   await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: 0,
+    senderId: ASSISTANT_CONTACT_ID,
     content: 'First call reply',
     timestamp: new Date(ts - 50000).toISOString(),
     medium: 'unify_meet',
@@ -457,7 +460,7 @@ test('two distinct calls show as separate pills', async ({ authedPage: page }) =
     exchangeId: exchangeB,
   });
   await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: 0,
+    senderId: ASSISTANT_CONTACT_ID,
     content: 'Second call reply',
     timestamp: new Date(ts - 10000).toISOString(),
     medium: 'unify_meet',
@@ -499,7 +502,7 @@ test('call pills interleave correctly with text messages by timestamp', async ({
     exchangeId,
   });
   await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: 0,
+    senderId: ASSISTANT_CONTACT_ID,
     content: 'Call reply',
     timestamp: new Date(ts - 20000).toISOString(),
     medium: 'unify_meet',
@@ -508,7 +511,7 @@ test('call pills interleave correctly with text messages by timestamp', async ({
 
   // Text message after
   await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: 0,
+    senderId: ASSISTANT_CONTACT_ID,
     content: `Text after call ${ts}`,
     timestamp: new Date(ts - 5000).toISOString(),
     medium: 'unify_message',

@@ -35,6 +35,7 @@ import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
 import { useAssistantOnboardingSummaries } from '@/hooks/Assistants/useAssistantOnboardingSummaries';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
@@ -50,6 +51,7 @@ import {
   useAssistantChatStream,
   type ChatStreamPair,
 } from '@/hooks/Assistants/useAssistantChatStream';
+import { contactScopedRootQueries } from '@/lib/assistants/scope';
 import {
   useAssistantTranscriptReconciler,
   type TranscriptReconcilerPair,
@@ -68,6 +70,9 @@ import { useSpendingGate } from '@/hooks/Assistants/useSpendingGate';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemErrors';
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
+import type { SpaceSummary } from '@/types/spaces/space';
+
+const EMPTY_SPACES: SpaceSummary[] = [];
 
 interface MainProps {
   assistantActions: AssistantActions;
@@ -91,6 +96,19 @@ interface MainProps {
     /** Server-prefetched shared Slack install for the active workspace. */
     slackInitialInstall?: SlackInstall | null;
   };
+}
+
+async function fetchVisibleSpaces(): Promise<SpaceSummary[]> {
+  const response = await fetch('/api/spaces', { cache: 'no-store' });
+  if (!response.ok) {
+    throw new Error('Failed to load spaces');
+  }
+
+  const data: unknown = await response.json();
+  if (!Array.isArray(data)) {
+    throw new Error('Unexpected spaces response');
+  }
+  return data as SpaceSummary[];
 }
 
 function isSignedMediaUrl(url: string | null | undefined): url is string {
@@ -272,6 +290,28 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     updateAssistantProfile,
   } = useAssistants(assistantActions, !!userMeta.isOrgContext);
 
+  // Pulled out of the workspace context so we can do strict ownership
+  // checks (e.g. who sees the setup roadmap) — `canWrite` is broader
+  // and includes org owners/admins, which isn't the same audience.
+  const { activeWorkspace, currentUserId } = useWorkspace();
+
+  const hasSpaceMemberships = React.useMemo(
+    () => assistants.some((assistant) => (assistant.spaceIds?.length ?? 0) > 0),
+    [assistants]
+  );
+
+  const spacesQuery = useQuery({
+    queryKey: ['visible-spaces', currentUserId ?? 'anonymous', activeWorkspace?.id ?? 'personal'],
+    queryFn: fetchVisibleSpaces,
+    enabled: hasSpaceMemberships,
+    staleTime: 5 * 60 * 1000,
+  });
+  const visibleSpaces = spacesQuery.data ?? EMPTY_SPACES;
+
+  const spacesById = React.useMemo<Record<number, SpaceSummary>>(() => {
+    return Object.fromEntries(visibleSpaces.map((space) => [space.spaceId, space]));
+  }, [visibleSpaces]);
+
   // --- Deep-link to a specific assistant via ?profile=<agentId> ---
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
@@ -292,10 +332,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   // --- Assistant Permissions ---
   const { canHire, canWrite, canDelete } = useAssistantPermissions();
-  // Pulled out of the workspace context so we can do strict ownership
-  // checks (e.g. who sees the setup roadmap) — `canWrite` is broader
-  // and includes org owners/admins, which isn't the same audience.
-  const { currentUserId } = useWorkspace();
 
   // --- Billing Status & Credit Grant Link ---
   const {
@@ -395,10 +431,23 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const chatStreamPairs = React.useMemo<ChatStreamPair[]>(
     () =>
       assistants
-        .map((a) => {
+        .flatMap((a) => {
           const cid = resolvedContactIds[a.agentId];
-          if (cid === undefined) return null;
-          return { assistantId: a.agentId, contactId: cid };
+          if (cid === undefined) return [];
+          const seenPairs = new Set<string>();
+          return contactScopedRootQueries(a, cid, 'Transcripts').flatMap((query) => {
+            const pairKey = `${query.contactId}:${query.rootKey}`;
+            if (seenPairs.has(pairKey)) return [];
+            seenPairs.add(pairKey);
+            return [
+              {
+                assistantId: a.agentId,
+                contactId: query.contactId,
+                rootKey: query.rootKey,
+                sourceContext: query.context,
+              },
+            ];
+          });
         })
         .filter((p): p is ChatStreamPair => p !== null),
     [assistants, resolvedContactIds]
@@ -421,7 +470,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // to reference it from inside `handleChatStreamMessage`, which is passed
   // INTO that hook. The ref sidesteps the temporal ordering: we update it
   // on every render once the hook has returned.
-  const ackMessageRef = React.useRef<(assistantId: string, ackId: string) => void>(() => {});
+  const ackMessageRef = React.useRef<
+    (assistantId: string, contactId: number, rootKey: string, ackId: string) => void
+  >(() => {});
 
   // Per-assistant publish-time cutoff for the chat SSE filter. The ref is
   // rebuilt from `profileChatHistories` whenever histories change, and
@@ -531,7 +582,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       // (whether by merging it or by letting the next transcript load
       // surface it) we have to release the lease.
       const ackId = message.__ackId;
-      if (ackId) ackMessageRef.current(assistantId, ackId);
+      if (ackId) ackMessageRef.current(assistantId, parsed.contactId, parsed.rootKey, ackId);
 
       if (mergeOutcome === 'duplicate') return;
 
@@ -626,7 +677,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         .map((a) => {
           const cid = resolvedContactIds[a.agentId];
           if (cid === undefined) return null;
-          return { assistantId: a.agentId, ownerId: a.userId, contactId: cid };
+          return { assistantId: a.agentId, contactId: cid, assistant: a };
         })
         .filter((p): p is TranscriptReconcilerPair => p !== null),
     [assistants, resolvedContactIds]
@@ -1406,6 +1457,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             canHire={canHire}
             onToggleFold={handleToggleListFold}
             unreadCounts={chatStreamUnreadCounts}
+            spacesById={spacesById}
           />
         </div>
         {/* List resize handle */}

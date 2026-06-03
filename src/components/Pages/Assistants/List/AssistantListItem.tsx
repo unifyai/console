@@ -55,6 +55,8 @@ interface AssistantListItemProps {
    * dot over the avatar in folded mode. `0` renders nothing.
    */
   unreadCount?: number;
+  isPrimary?: boolean;
+  alsoInSpaceLabels?: string[];
 }
 
 export function AssistantListItem({
@@ -70,9 +72,12 @@ export function AssistantListItem({
   isCallActive,
   unreadCount = 0,
   canEdit = true,
+  isPrimary = true,
+  alsoInSpaceLabels = [],
 }: AssistantListItemProps) {
   const hasUnread = unreadCount > 0;
   const unreadLabel = unreadCount > 99 ? '99+' : String(unreadCount);
+  const totalSpaceCount = alsoInSpaceLabels.length + 1;
   const [isEndContractAlertOpen, setIsEndContractAlertOpen] = React.useState(false);
   const [isEndingContract, setIsEndingContract] = React.useState(false);
 
@@ -99,6 +104,7 @@ export function AssistantListItem({
   if (isFolded) {
     return (
       <div
+        data-testid={isPrimary ? `assistant-list-item-${assistant.agentId}` : undefined}
         className={cn(
           'relative cursor-pointer rounded-full',
           isSelected && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
@@ -144,7 +150,7 @@ export function AssistantListItem({
     <div
       role="button"
       tabIndex={0}
-      data-testid={`assistant-list-item-${assistant.agentId}`}
+      data-testid={isPrimary ? `assistant-list-item-${assistant.agentId}` : undefined}
       className={cn(
         'group flex cursor-pointer items-center justify-between rounded-md p-2',
         !isSelected && 'hover:bg-muted',
@@ -177,6 +183,28 @@ export function AssistantListItem({
         <span className="text-body text-strong truncate">{displayName}</span>
       </div>
       <div className="flex items-center gap-1">
+        {alsoInSpaceLabels.length > 0 && (
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'h-5 cursor-default px-1.5 text-[10px] font-medium',
+                      isSelected && 'border-primary-foreground text-primary-foreground'
+                    )}
+                  >
+                    {totalSpaceCount} spaces
+                  </Badge>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>{`Also in ${alsoInSpaceLabels.join(', ')}`}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         {hasUnread && (
           <span
             data-testid={`assistant-unread-badge-${assistant.agentId}`}

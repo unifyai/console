@@ -17,6 +17,19 @@ export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
 export type UserLocalDesktop = 'ubuntu' | 'windows' | 'macos';
 export type DesktopMode = 'ubuntu' | 'windows' | 'macos';
 export type AssistantHiringSufficientFunds = { sufficient: boolean };
+export type ContactIdentityRoot =
+  | {
+      targetScope: 'personal';
+      targetSpaceId: null;
+      selfContactId: number;
+      bossContactId: number;
+    }
+  | {
+      targetScope: 'space';
+      targetSpaceId: number;
+      selfContactId: number;
+      bossContactId: number;
+    };
 
 export interface UserDesktop {
   id: number;
@@ -80,6 +93,23 @@ export interface Assistant {
   // Contract fields
   weeklyLimit: number | null;
   maxParallel: number | null;
+  /**
+   * Live shared spaces this assistant can read from and write to. An empty
+   * array means the assistant is currently personal-only.
+   */
+  spaceIds: number[];
+  /**
+   * Contact id representing the assistant in its own conversation data.
+   */
+  selfContactId: number;
+  /**
+   * Contact id representing the owning user in conversation data.
+   */
+  bossContactId: number;
+  /**
+   * Root-local contact ids for every readable root with a resolved identity.
+   */
+  contactIdentityRoots: ContactIdentityRoot[];
   // Meta fields
   createdAt: string;
   updatedAt: string;
@@ -115,6 +145,10 @@ export type AssistantPreset = Omit<
   | 'assistantDiscordBotId'
   | 'weeklyLimit'
   | 'maxParallel'
+  | 'spaceIds'
+  | 'selfContactId'
+  | 'bossContactId'
+  | 'contactIdentityRoots'
   | 'voiceId'
   | 'voiceProvider'
   | 'timezone'
@@ -189,6 +223,9 @@ export type AssistantFormData = Omit<
   | 'phoneCountry'
   | 'weeklyLimit'
   | 'maxParallel'
+  | 'spaceIds'
+  | 'selfContactId'
+  | 'bossContactId'
   | 'gender'
   | 'voiceId'
   | 'voiceProvider'
@@ -433,16 +470,11 @@ export interface AssistantActions {
     ) => Promise<(Voice & { info?: string; isPreset?: boolean }) | ResponseProps>;
   };
   chat: {
-    getContactId: (
-      userEmail: string,
-      ownerId: string,
-      assistantId: string
-    ) => Promise<number | null>;
+    getContactId: (userEmail: string, assistant: Assistant) => Promise<number | null>;
     getTranscripts: (
       contactId: number,
-      ownerId: string,
-      assistantId: string,
-      beforeMessageId?: number
+      assistant: Assistant,
+      before?: { timestamp: string; excludedKeys?: string[] }
     ) => Promise<ChatMessage[] | ResponseProps>;
     message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;
     getAssistantOwnerById: (
@@ -534,13 +566,8 @@ export interface AssistantActions {
   /** Dashboards pane - dashboard and tile data */
   dashboards?: {
     getMetadata: (
-      ownerId: string,
-      assistantId: string
+      assistant: Assistant
     ) => Promise<import('@/types/assistants/dashboard').DashboardPaneData>;
-    getTileContent: (
-      ownerId: string,
-      assistantId: string,
-      tileToken: string
-    ) => Promise<string | null>;
+    getTileContent: (assistant: Assistant, tileToken: string) => Promise<string | null>;
   };
 }

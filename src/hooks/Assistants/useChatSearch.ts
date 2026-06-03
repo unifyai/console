@@ -7,10 +7,18 @@ import type {
   AttachmentType,
   Attachment,
 } from '@/types/assistants/chat';
+import type { Assistant } from '@/types/assistants/assistant';
+import { mergeRootRows } from '@/lib/client/read_across_roots';
+import {
+  contactScopedRootQueries,
+  roleFromRootSenderId,
+  type ContactScopedRootQuery,
+} from '@/lib/assistants/scope';
 
 const SEARCH_PAGE_SIZE = 30;
 
 interface UseChatSearchOptions {
+  assistant: Assistant;
   ownerId: string | null;
   assistantId: string | null;
   contactId: number | null;
@@ -32,8 +40,12 @@ interface UseChatSearchReturn {
   reset: () => void;
 }
 
-function buildFilterExpr(filters: ChatSearchFilters, contactId: number): string {
+function buildFilterExpr(
+  filters: ChatSearchFilters,
+  query: Pick<ContactScopedRootQuery, 'contactId' | 'selfContactId'>
+): string {
   const clauses: string[] = [];
+  const { contactId, selfContactId: selfId } = query;
 
   // Medium filter
   if (filters.medium === 'chat') {
@@ -46,16 +58,16 @@ function buildFilterExpr(filters: ChatSearchFilters, contactId: number): string 
 
   // Sender filter
   if (filters.sender === 'assistant') {
-    clauses.push('sender_id == 0');
+    clauses.push(`sender_id == ${selfId}`);
   } else if (filters.sender === 'me') {
     clauses.push(`sender_id == ${contactId}`);
   } else {
-    clauses.push(`(sender_id == ${contactId} or sender_id == 0)`);
+    clauses.push(`(sender_id == ${contactId} or sender_id == ${selfId})`);
   }
 
   // Receiver scoping — only show messages relevant to this contact
   clauses.push(
-    `(${contactId} in receiver_ids or receiver_ids == [0] or sender_id == ${contactId})`
+    `(${contactId} in receiver_ids or receiver_ids == [${selfId}] or sender_id == ${contactId})`
   );
 
   // Content search (case-insensitive via .lower() on both sides)
@@ -84,41 +96,60 @@ function buildFilterExpr(filters: ChatSearchFilters, contactId: number): string 
 }
 
 async function executeSearch(
-  ownerId: string,
-  assistantId: string,
-  filterExpr: string,
+  assistant: Assistant,
+  filters: ChatSearchFilters,
+  contactId: number,
   limit: number,
   offset: number
-): Promise<ChatSearchResult[]> {
-  const params = new URLSearchParams({
-    projectName: 'Assistants',
-    context: `${ownerId}/${assistantId}/Transcripts`,
-    limit: String(limit),
-    offset: String(offset),
-    filterExpr,
-    sorting: JSON.stringify({ timestamp: 'descending' }),
+): Promise<{ results: ChatSearchResult[]; hasMore: boolean }> {
+  const queryLimit = offset + limit + 1;
+  const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
+  const rootLogs = await Promise.all(
+    queries.map(async (query) => {
+      const filterExpr = buildFilterExpr(filters, query);
+      const params = new URLSearchParams({
+        projectName: 'Assistants',
+        context: query.context,
+        limit: String(queryLimit),
+        filterExpr,
+        sorting: JSON.stringify({ timestamp: 'descending' }),
+      });
+
+      const response = await fetch(`/api/logs?${params.toString()}`, {
+        cache: 'no-store',
+      });
+
+      if (response.status === 404 || !response.ok) return [];
+
+      const data = await response.json();
+      const rootLogs = data?.logs;
+      return Array.isArray(rootLogs) ? rootLogs.map((log) => ({ log, query })) : [];
+    })
+  );
+
+  const mergedLogs = mergeRootRows(rootLogs.flat(), {
+    limit: limit + 1,
+    offset,
+    sortValue: ({ log }) => log.entries?.timestamp,
+    dedupeKey: ({ log, query }) => `${query.context}:${log.entries?.messageId ?? log.id}`,
   });
 
-  const response = await fetch(`/api/logs?${params.toString()}`, {
-    cache: 'no-store',
-  });
+  if (!Array.isArray(mergedLogs) || mergedLogs.length === 0) {
+    return { results: [], hasMore: false };
+  }
 
-  if (response.status === 404 || !response.ok) return [];
-
-  const data = await response.json();
-  const logs = data?.logs;
-  if (!Array.isArray(logs) || logs.length === 0) return [];
-
-  return logs
-    .map((log: Record<string, any>): ChatSearchResult | null => {
+  const results = mergedLogs
+    .slice(0, limit)
+    .map(({ log, query }): ChatSearchResult | null => {
       const { entries, id } = log;
       if (!entries || typeof entries.content !== 'string') return null;
       return {
         id: String(id),
-        role: entries.senderId === 0 ? 'assistant' : 'user',
+        role: roleFromRootSenderId(query, entries.senderId as number),
         content: entries.content,
         timestamp: new Date(entries.timestamp as string),
         messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
+        sourceContext: query.context,
         medium: (entries.medium as string) || 'unify_message',
         exchangeId: typeof entries.exchangeId === 'number' ? entries.exchangeId : undefined,
         attachments: Array.isArray(entries.attachments)
@@ -135,6 +166,8 @@ async function executeSearch(
       };
     })
     .filter((r: ChatSearchResult | null): r is ChatSearchResult => r !== null);
+
+  return { results, hasMore: mergedLogs.length > limit };
 }
 
 function matchesAttachmentType(
@@ -179,6 +212,7 @@ const DEFAULT_FILTERS: ChatSearchFilters = {
 export type { UseChatSearchReturn };
 
 export function useChatSearch({
+  assistant,
   ownerId,
   assistantId,
   contactId,
@@ -189,7 +223,6 @@ export function useChatSearch({
   const [hasSearched, setHasSearched] = React.useState(false);
   const [hasMore, setHasMore] = React.useState(false);
   const [offset, setOffset] = React.useState(0);
-  const filterExprRef = React.useRef('');
   const filtersRef = React.useRef(filters);
   filtersRef.current = filters;
 
@@ -210,9 +243,6 @@ export function useChatSearch({
     setHasSearched(true);
 
     try {
-      const expr = buildFilterExpr(snap, contactId);
-      filterExprRef.current = expr;
-
       let collected: ChatSearchResult[] = [];
       let serverOffset = 0;
       let serverExhausted = false;
@@ -223,9 +253,16 @@ export function useChatSearch({
         i < MAX_FETCHES && collected.length < SEARCH_PAGE_SIZE && !serverExhausted;
         i++
       ) {
-        let page = await executeSearch(ownerId, assistantId, expr, SEARCH_PAGE_SIZE, serverOffset);
+        const searchPage = await executeSearch(
+          assistant,
+          snap,
+          contactId,
+          SEARCH_PAGE_SIZE,
+          serverOffset
+        );
+        let page = searchPage.results;
         serverOffset += SEARCH_PAGE_SIZE;
-        if (page.length < SEARCH_PAGE_SIZE) serverExhausted = true;
+        if (!searchPage.hasMore) serverExhausted = true;
 
         if (snap.attachmentType) {
           page = page.filter((r) => matchesAttachmentType(r.attachments, snap.attachmentType!));
@@ -242,7 +279,7 @@ export function useChatSearch({
     } finally {
       setIsSearching(false);
     }
-  }, [ownerId, assistantId, contactId]);
+  }, [ownerId, assistantId, contactId, assistant]);
 
   const loadMore = React.useCallback(async () => {
     if (!ownerId || !assistantId || contactId === null || isSearching || !hasMore) return;
@@ -260,15 +297,16 @@ export function useChatSearch({
         i < MAX_FETCHES && collected.length < SEARCH_PAGE_SIZE && !serverExhausted;
         i++
       ) {
-        let page = await executeSearch(
-          ownerId,
-          assistantId,
-          filterExprRef.current,
+        const searchPage = await executeSearch(
+          assistant,
+          snap,
+          contactId,
           SEARCH_PAGE_SIZE,
           serverOffset
         );
+        let page = searchPage.results;
         serverOffset += SEARCH_PAGE_SIZE;
-        if (page.length < SEARCH_PAGE_SIZE) serverExhausted = true;
+        if (!searchPage.hasMore) serverExhausted = true;
 
         if (snap.attachmentType) {
           page = page.filter((r) => matchesAttachmentType(r.attachments, snap.attachmentType!));
@@ -284,7 +322,7 @@ export function useChatSearch({
     } finally {
       setIsSearching(false);
     }
-  }, [ownerId, assistantId, contactId, isSearching, hasMore, offset]);
+  }, [ownerId, assistantId, contactId, isSearching, hasMore, offset, assistant]);
 
   const reset = React.useCallback(() => {
     setFilters(DEFAULT_FILTERS);

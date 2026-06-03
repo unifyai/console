@@ -34,6 +34,9 @@ import {
 
 /* eslint-disable @typescript-eslint/naming-convention */
 
+const ASSISTANT_CONTACT_ID = 42;
+const OWNER_CONTACT_ID = 43;
+
 async function seedLogs(
   apiKey: string,
   userId: string,
@@ -69,7 +72,7 @@ function ts(daysAgo: number, hour: number, minute = 0): string {
 
 const CONTACTS: Record<string, unknown>[] = [
   {
-    contact_id: 0,
+    contact_id: ASSISTANT_CONTACT_ID,
     first_name: 'TaskBot',
     surname: 'Runner',
     email_address: 'taskbot@assistant.ai',
@@ -77,7 +80,7 @@ const CONTACTS: Record<string, unknown>[] = [
     timezone: 'UTC',
   },
   {
-    contact_id: 1,
+    contact_id: OWNER_CONTACT_ID,
     first_name: 'Alice',
     surname: 'Owner',
     email_address: 'alice@example.com',

@@ -27,15 +27,22 @@ export interface ContactSyncAssistantPayload {
 /**
  * Minimal log data needed for sync checking.
  * Passed to updateLogsWithSync for contact field synchronization.
+ *
+ * Table rows may carry Orchestra-origin snake/private fields such as
+ * `is_system`, `assistant_id`, `authoring_assistant_id`, `_assistantId`,
+ * `_assistant_id`, and `email_address`. The sync resolver accepts those
+ * through the index signature while keeping the public TypeScript shape in
+ * the repo's camelCase style.
  */
 export interface SyncableLogEntry {
   id: number; // Log row ID (database ID)
   entries: {
-    id?: number; // Contact ID: 0 = assistant, non-zero = user
+    id?: number; // Root-local contact ID
     contactId?: number; // Alternative contact ID field name
     isSystem?: boolean; // Only sync if true
     internalAssistantId?: number | string; // Assistant ID for sync routing
     assistantId?: number | string; // Alternative assistant ID field name
+    authoringAssistantId?: number | string; // Assistant attribution fallback
     email?: string; // User email (for user sync)
     emailAddress?: string; // Alternative email field
     [key: string]: any; // Other entry fields

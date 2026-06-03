@@ -202,6 +202,7 @@ export function AssistantProfileChatPanel({
 
   // Chat search
   const searchState = useChatSearch({
+    assistant,
     ownerId: assistant.userId,
     assistantId: assistant.agentId,
     contactId: currentContactId,
@@ -216,6 +217,7 @@ export function AssistantProfileChatPanel({
     loadOlderHistorical,
     loadNewerHistorical,
   } = useHistoricalView({
+    assistant,
     ownerId: assistant.userId,
     assistantId: assistant.agentId,
     contactId: currentContactId,
@@ -235,8 +237,9 @@ export function AssistantProfileChatPanel({
     (result: import('@/types/assistants/chat').ChatSearchResult) => {
       if (result.medium === 'unify_meet' && result.exchangeId != null) {
         requestAnimationFrame(() => {
+          const exchangeKey = `${result.sourceContext ?? ''}:${result.exchangeId}`;
           const el = scrollAreaRef.current?.querySelector<HTMLElement>(
-            `[data-exchange-id="${result.exchangeId}"]`
+            `[data-exchange-key="${CSS.escape(exchangeKey)}"]`
           );
           if (el) {
             el.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -533,19 +536,19 @@ export function AssistantProfileChatPanel({
   }, [messages, isAssistantReplying, isLoadingMore]);
 
   /* Scroll to anchor message when historical view loads */
-  const prevAnchorRef = React.useRef<number | null>(null);
+  const prevAnchorRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (!historicalView) {
       prevAnchorRef.current = null;
       return;
     }
     if (historicalView.messages.length === 0) return;
-    if (prevAnchorRef.current === historicalView.anchorMessageId) return;
-    prevAnchorRef.current = historicalView.anchorMessageId;
+    if (prevAnchorRef.current === historicalView.anchorMessageKey) return;
+    prevAnchorRef.current = historicalView.anchorMessageKey;
 
     requestAnimationFrame(() => {
       const el = scrollAreaRef.current?.querySelector(
-        `[data-message-id="${historicalView.anchorMessageId}"]`
+        `[data-message-key="${CSS.escape(historicalView.anchorMessageKey)}"]`
       );
       if (el) {
         el.scrollIntoView({ block: 'center' });
@@ -707,6 +710,7 @@ export function AssistantProfileChatPanel({
                           <ChatDateDivider date={item.timestamp} timezone={userTimezone} />
                         )}
                         <div
+                          data-message-key={`${item.sourceContext ?? ''}:${item.messageId ?? item.id}`}
                           data-message-id={item.messageId}
                           className="transition-colors duration-1000"
                         >

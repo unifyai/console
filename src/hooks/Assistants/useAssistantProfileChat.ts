@@ -38,11 +38,6 @@ type ChatPhase =
   | 'ready'
   | 'error';
 
-// Exponential backoff: 500ms → 1s → 2s → 4s → 8s → 16s (total ≈ 31.5s)
-// The owner (person who hired the assistant) always gets contact ID 1.
-// 0 = assistant AI, 1 = owner, 2+ = other contacts.
-const OWNER_CONTACT_ID = 1;
-
 const CONTACT_ID_RETRY_BASE_DELAY = 500;
 const CONTACT_ID_RETRY_MAX_DELAY = 16000;
 const CONTACT_ID_MAX_RETRIES = 6;
@@ -231,7 +226,7 @@ export function useAssistantProfileChat(
       });
       setChatHistories((prev) => ({ ...prev, [assistantId]: initialHistory }));
       onFirstViewCompleted?.();
-      const ownerId = cachedId ?? OWNER_CONTACT_ID;
+      const ownerId = cachedId ?? assistant.bossContactId;
       contactIdCacheRef.current.set(assistantId, ownerId);
       setSessionContactId(assistantId, ownerId, userEmail);
       setContactId(ownerId);
@@ -330,8 +325,7 @@ export function useAssistantProfileChat(
         const id = await getOrFetchContactId(
           assistantActions.chat.getContactId,
           userEmail,
-          currentAssistant.userId,
-          currentAssistantId
+          currentAssistant
         );
         if (cancelled) return;
 
@@ -414,8 +408,7 @@ export function useAssistantProfileChat(
         const result = await getOrFetchTranscripts(
           assistantActions.chat.getTranscripts,
           contactId,
-          assistant.userId,
-          currentAssistantId
+          assistant
         );
         if (cancelled) return;
 
@@ -533,7 +526,7 @@ export function useAssistantProfileChat(
     if (contactId === null) return;
 
     const oldestMessage = messages[0];
-    if (!oldestMessage || oldestMessage.messageId === undefined) {
+    if (!oldestMessage) {
       setHasMoreMessages(false);
       return;
     }
@@ -541,12 +534,12 @@ export function useAssistantProfileChat(
     setLoadMoreError(false);
     setIsLoadingMore(true);
     try {
-      const result = await assistantActions.chat.getTranscripts(
-        contactId,
-        assistant.userId,
-        assistantId,
-        oldestMessage.messageId
-      );
+      const result = await assistantActions.chat.getTranscripts(contactId, assistant, {
+        timestamp: oldestMessage.timestamp.toISOString(),
+        excludedKeys: messages.map(
+          (message) => `${message.sourceContext ?? ''}:${message.messageId ?? message.id}`
+        ),
+      });
       setHasFetchedHistory(true);
       if ('detail' in result) {
         setLoadMoreError(true);

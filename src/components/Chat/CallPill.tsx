@@ -35,6 +35,7 @@ export function CallPillBubble({ pill, timezone, onClick }: CallPillProps) {
         onClick={() => onClick(pill)}
         className="bg-muted/50 text-caption flex items-center gap-2 rounded-full border px-4 py-1.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         data-testid="call-pill-button"
+        data-exchange-key={`${pill.sourceContext ?? ''}:${pill.exchangeId ?? ''}`}
         data-exchange-id={pill.exchangeId}
       >
         <Phone className="h-3 w-3" />

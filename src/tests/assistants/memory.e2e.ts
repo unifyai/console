@@ -21,13 +21,28 @@ import {
   ensureProjectSync,
   orchestraFetch,
   setUserCredits,
+  dbExec,
+  dbExecBlock,
+  type SeededAssistant,
 } from './helpers';
 
-const user = createTestUser({ name: 'MemoryE2E', lastName: 'Tester', credits: 50_000 });
+function uniqueMemoryEmail(): string {
+  return `memory-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@unify.ai`;
+}
+
+const user = createTestUser({
+  email: uniqueMemoryEmail(),
+  name: 'MemoryE2E',
+  lastName: 'Tester',
+  credits: 50_000,
+});
 ensureProjectSync(user.apiKey);
 const test = createAssistantTest(user);
 test.setTimeout(120_000);
 test.describe.configure({ mode: 'serial' });
+
+const ASSISTANT_CONTACT_ID = 0;
+const OWNER_CONTACT_ID = 1;
 
 const emptyAssistant = createAssistant({
   userId: user.id,
@@ -39,6 +54,12 @@ const dataAssistant = createAssistant({
   userId: user.id,
   firstName: 'MemBot',
   surname: 'WithData',
+});
+
+const destinationAssistant = createAssistant({
+  userId: user.id,
+  firstName: 'ScopeBot',
+  surname: 'Drilldown',
 });
 
 test.afterAll(() => {
@@ -63,7 +84,8 @@ async function seedContacts(
     last_name: string;
     email_address: string;
     timezone?: string;
-  }[]
+  }[],
+  context = `${userId}/${assistantId}/Contacts`
 ) {
   for (const contact of contacts) {
     const res = await orchestraFetch(
@@ -72,7 +94,7 @@ async function seedContacts(
         method: 'POST',
         body: JSON.stringify({
           project_name: 'Assistants',
-          context: `${userId}/${assistantId}/Contacts`,
+          context,
           entries: [contact],
         }),
       },
@@ -80,6 +102,54 @@ async function seedContacts(
     );
     if (!res.ok) throw new Error(`Failed to seed contact: ${res.status} ${await res.text()}`);
   }
+}
+
+function createMemorySpaceForAssistant(
+  targetAssistant: SeededAssistant,
+  opts: {
+    selfContactId: number;
+    bossContactId: number;
+  }
+): number {
+  const suffix = Date.now();
+  const rawSpaceId = dbExec(`
+INSERT INTO spaces (name, description, owner_user_id, status, kind)
+VALUES (
+  'Memory Drill Space ${suffix}',
+  'Shared memory drill-down e2e space for destination dropdown coverage',
+  '${targetAssistant.userId}',
+  'active',
+  'team'
+)
+RETURNING space_id;
+`);
+  const spaceId = Number(rawSpaceId.match(/^\d+$/m)?.[0]);
+  if (!Number.isInteger(spaceId)) {
+    throw new Error(`Failed to parse seeded space id from psql output: ${rawSpaceId}`);
+  }
+
+  dbExecBlock(`
+INSERT INTO assistant_space_memberships (assistant_id, space_id, added_by)
+VALUES (${targetAssistant.agentId}, ${spaceId}, '${targetAssistant.userId}')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO contact_memberships (
+  assistant_id,
+  contact_id,
+  target_scope,
+  target_space_id,
+  relationship,
+  should_respond,
+  response_policy,
+  can_edit
+)
+VALUES
+  (${targetAssistant.agentId}, ${opts.selfContactId}, 'space', ${spaceId}, 'self', true, '', true),
+  (${targetAssistant.agentId}, ${opts.bossContactId}, 'space', ${spaceId}, 'boss', true, '', true)
+ON CONFLICT DO NOTHING;
+`);
+
+  return spaceId;
 }
 
 async function seedTranscripts(
@@ -121,14 +191,14 @@ async function ensureSeeded() {
 
   await seedContacts(user.apiKey, user.id, dataAssistant.agentId, [
     {
-      contact_id: 0,
+      contact_id: ASSISTANT_CONTACT_ID,
       first_name: 'MemBot',
       last_name: 'WithData',
       email_address: 'membot@test.ai',
       timezone: 'UTC',
     },
     {
-      contact_id: 1,
+      contact_id: OWNER_CONTACT_ID,
       first_name: 'Alice',
       last_name: 'Owner',
       email_address: 'alice@example.com',
@@ -147,8 +217,8 @@ async function ensureSeeded() {
     {
       message_id: 1,
       medium: 'unify_message',
-      sender_id: 1,
-      receiver_ids: [0],
+      sender_id: OWNER_CONTACT_ID,
+      receiver_ids: [ASSISTANT_CONTACT_ID],
       timestamp: '2025-06-01T10:00:00Z',
       content: 'Hello, can you help me with my schedule?',
       exchange_id: 1,
@@ -156,8 +226,8 @@ async function ensureSeeded() {
     {
       message_id: 2,
       medium: 'unify_message',
-      sender_id: 0,
-      receiver_ids: [1],
+      sender_id: ASSISTANT_CONTACT_ID,
+      receiver_ids: [OWNER_CONTACT_ID],
       timestamp: '2025-06-01T10:01:00Z',
       content: 'Of course! Let me check your calendar.',
       exchange_id: 1,
@@ -166,7 +236,7 @@ async function ensureSeeded() {
       message_id: 3,
       medium: 'unify_message',
       sender_id: 2,
-      receiver_ids: [0],
+      receiver_ids: [ASSISTANT_CONTACT_ID],
       timestamp: '2025-06-02T14:30:00Z',
       content: 'What is the status of the project?',
       exchange_id: 2,
@@ -174,6 +244,50 @@ async function ensureSeeded() {
   ]);
 
   seeded = true;
+}
+
+let destinationSeeded = false;
+async function ensureDestinationSeeded() {
+  if (destinationSeeded) return;
+
+  await seedContacts(user.apiKey, user.id, destinationAssistant.agentId, [
+    {
+      contact_id: ASSISTANT_CONTACT_ID,
+      first_name: 'ScopeBot',
+      last_name: 'Drilldown',
+      email_address: 'scopebot@test.ai',
+      timezone: 'UTC',
+    },
+    {
+      contact_id: OWNER_CONTACT_ID,
+      first_name: 'Alice',
+      last_name: 'Owner',
+      email_address: 'alice@example.com',
+      timezone: 'America/New_York',
+    },
+  ]);
+
+  const spaceId = createMemorySpaceForAssistant(destinationAssistant, {
+    selfContactId: 901,
+    bossContactId: 902,
+  });
+  await seedContacts(
+    user.apiKey,
+    user.id,
+    destinationAssistant.agentId,
+    [
+      {
+        contact_id: 701,
+        first_name: 'SharedOnly',
+        last_name: 'SpaceContact',
+        email_address: 'shared-only@example.com',
+        timezone: 'UTC',
+      },
+    ],
+    `Spaces/${spaceId}/Contacts`
+  );
+
+  destinationSeeded = true;
 }
 
 // ---------------------------------------------------------------------------
@@ -340,6 +454,39 @@ test('contacts sub-tab shows correct row count', async ({ authedPage: page }) =>
   const footer = page.getByTestId('memory-table-footer');
   await expect(footer).toBeVisible({ timeout: 10_000 });
   await expect(footer.locator('text=/3 of 3/')).toBeVisible({ timeout: 5_000 });
+});
+
+test('memory dropdown drills into personal and shared roots', async ({ authedPage: page }) => {
+  await ensureDestinationSeeded();
+  await selectAssistantAndOpenMemory(page, destinationAssistant.agentId);
+
+  const table = page.getByTestId('memory-table-contacts');
+  await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(table.getByRole('cell', { name: 'SharedOnly', exact: true })).toBeVisible({
+    timeout: 10_000,
+  });
+
+  await page.getByTestId('memory-destination-dropdown').click();
+  await page.getByRole('option', { name: /Memory Drill Space/ }).click();
+
+  await expect(table.getByRole('cell', { name: 'SharedOnly', exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(table.getByRole('cell', { name: 'Alice', exact: true })).not.toBeVisible({
+    timeout: 10_000,
+  });
+
+  await page.getByTestId('memory-destination-dropdown').click();
+  await page.getByRole('option', { name: 'Personal' }).click();
+
+  await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(table.getByRole('cell', { name: 'SharedOnly', exact: true })).not.toBeVisible({
+    timeout: 10_000,
+  });
 });
 
 // ===========================================================================

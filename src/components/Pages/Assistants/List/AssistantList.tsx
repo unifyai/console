@@ -9,6 +9,15 @@ import { AssistantListItemSkeleton } from './AssistantListItemSkeleton';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
+import type { SpaceSummary } from '@/types/spaces/space';
+import { AssistantListGroupHeader } from './AssistantListGroupHeader';
+import {
+  groupAssistantsBySpace,
+  type AssistantListEntry,
+  type AssistantListGroup,
+} from './assistantListGroups';
+
+const LIST_GROUP_FOLDS_STORAGE_KEY = 'console:assistants:listGroupFolds';
 
 interface AssistantListProps {
   assistants: Assistant[];
@@ -44,6 +53,7 @@ interface AssistantListProps {
    * multiplex stream. A missing key or `0` means no badge is shown.
    */
   unreadCounts?: Record<string, number>;
+  spacesById: Record<number, SpaceSummary>;
 }
 
 export function AssistantList({
@@ -67,8 +77,10 @@ export function AssistantList({
   canHire = true,
   onToggleFold,
   unreadCounts,
+  spacesById,
 }: AssistantListProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [foldedGroups, setFoldedGroups] = React.useState<Record<string, boolean>>({});
 
   const filteredAssistants = React.useMemo(() => {
     if (!searchTerm) return assistants;
@@ -82,10 +94,194 @@ export function AssistantList({
     );
   }, [assistants, searchTerm]);
 
+  const assistantGroups = React.useMemo(
+    () => groupAssistantsBySpace(filteredAssistants, spacesById),
+    [filteredAssistants, spacesById]
+  );
+
+  React.useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(LIST_GROUP_FOLDS_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as Record<string, unknown>;
+        if (parsed && typeof parsed === 'object') {
+          setFoldedGroups(
+            Object.fromEntries(
+              Object.entries(parsed).filter((entry): entry is [string, boolean] => {
+                return typeof entry[1] === 'boolean';
+              })
+            )
+          );
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const persistFoldedGroups = React.useCallback((nextFoldedGroups: Record<string, boolean>) => {
+    try {
+      window.localStorage.setItem(LIST_GROUP_FOLDS_STORAGE_KEY, JSON.stringify(nextFoldedGroups));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const toggleGroupFold = React.useCallback(
+    (groupId: string) => {
+      setFoldedGroups((current) => {
+        const next = {
+          ...current,
+          [groupId]: !current[groupId],
+        };
+        persistFoldedGroups(next);
+        return next;
+      });
+    },
+    [persistFoldedGroups]
+  );
+
   const canHireNewAssistant = !assistantError;
   // Hide hire button if user doesn't have permission (org members who aren't Owner)
   const showHireButton = canHire;
   const isHireButtonDisabled = isLoading || !canHireNewAssistant;
+
+  const renderAssistantRow = React.useCallback(
+    (entry: AssistantListEntry, key: string) => {
+      const item = (
+        <AssistantListItem
+          key={key}
+          assistant={entry.assistant}
+          status={assistantStatuses.get(entry.assistant.agentId) || null}
+          isSelected={profileAssistantId === entry.assistant.agentId}
+          onShowProfile={onShowProfile}
+          onOpenContactManager={onOpenContactManager}
+          onOpenWorkspaceManager={onOpenWorkspaceManager}
+          onEditAssistant={onEditAssistant}
+          onEndContract={canEndContract?.(entry.assistant) ? onEndContract : undefined}
+          canEdit={canEditAssistant ? canEditAssistant(entry.assistant) : true}
+          isFolded={isFolded}
+          isCallActive={activeCallAssistantId === entry.assistant.agentId}
+          unreadCount={unreadCounts?.[entry.assistant.agentId] ?? 0}
+          isPrimary={entry.isPrimarySpaceListing}
+          alsoInSpaceLabels={entry.alsoInSpaceLabels}
+        />
+      );
+
+      return item;
+    },
+    [
+      activeCallAssistantId,
+      assistantStatuses,
+      canEditAssistant,
+      canEndContract,
+      isFolded,
+      onEditAssistant,
+      onEndContract,
+      onOpenContactManager,
+      onOpenWorkspaceManager,
+      onShowProfile,
+      profileAssistantId,
+      unreadCounts,
+    ]
+  );
+
+  const renderFlatAssistants = React.useCallback(() => {
+    return filteredAssistants.map((assistant) =>
+      renderAssistantRow(
+        {
+          assistant,
+          isPrimarySpaceListing: true,
+          alsoInSpaceLabels: [],
+        },
+        assistant.agentId
+      )
+    );
+  }, [filteredAssistants, renderAssistantRow]);
+
+  const renderGroup = React.useCallback(
+    (group: AssistantListGroup) => {
+      const isGroupFolded = foldedGroups[group.id] === true;
+      const description = group.kind === 'space' ? spacesById[group.spaceId]?.description : null;
+      return (
+        <div key={group.id} data-testid={`assistant-list-group-${group.id}`}>
+          <AssistantListGroupHeader
+            label={group.label}
+            count={group.rows.length}
+            isFolded={isGroupFolded}
+            onToggleFold={() => toggleGroupFold(group.id)}
+            description={description}
+          />
+          {!isGroupFolded && (
+            <div className="space-y-1 pt-1">
+              {group.rows.map((entry) =>
+                renderAssistantRow(entry, `${group.id}:${entry.assistant.agentId}`)
+              )}
+            </div>
+          )}
+        </div>
+      );
+    },
+    [foldedGroups, renderAssistantRow, spacesById, toggleGroupFold]
+  );
+
+  const renderSection = React.useCallback(
+    (
+      sectionId: string,
+      label: string,
+      count: number,
+      children: React.ReactNode,
+      testId: string
+    ) => {
+      const isSectionFolded = foldedGroups[sectionId] === true;
+      return (
+        <div key={sectionId} data-testid={testId}>
+          <AssistantListGroupHeader
+            label={label}
+            count={count}
+            isFolded={isSectionFolded}
+            onToggleFold={() => toggleGroupFold(sectionId)}
+            variant="section"
+          />
+          {!isSectionFolded && <div className="space-y-2 pt-1">{children}</div>}
+        </div>
+      );
+    },
+    [foldedGroups, toggleGroupFold]
+  );
+
+  const shouldRenderFlatList =
+    isFolded || (assistantGroups.length === 1 && assistantGroups[0].kind === 'solo');
+  const pinnedGroup = assistantGroups.find((group) => group.kind === 'pinned');
+  const spaceGroups = assistantGroups.filter((group) => group.kind === 'space');
+  const soloGroup = assistantGroups.find((group) => group.kind === 'solo');
+  const groupedAssistantList = (
+    <div className="space-y-3">
+      {pinnedGroup ? renderGroup(pinnedGroup) : null}
+      {spaceGroups.length > 0
+        ? renderSection(
+            'section:spaces',
+            'Spaces',
+            spaceGroups.length,
+            spaceGroups.map(renderGroup),
+            'assistant-list-section-spaces'
+          )
+        : null}
+      {soloGroup
+        ? renderSection(
+            'section:solo',
+            'Solo',
+            soloGroup.rows.length,
+            <div className="space-y-1">
+              {soloGroup.rows.map((entry) =>
+                renderAssistantRow(entry, `${soloGroup.id}:${entry.assistant.agentId}`)
+              )}
+            </div>,
+            'assistant-list-section-solo'
+          )
+        : null}
+    </div>
+  );
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-background">
@@ -169,23 +365,11 @@ export function AssistantList({
               )}
             </div>
           ) : filteredAssistants.length > 0 ? (
-            filteredAssistants.map((assistant) => (
-              <AssistantListItem
-                key={assistant.agentId}
-                assistant={assistant}
-                status={assistantStatuses.get(assistant.agentId) || null}
-                isSelected={profileAssistantId === assistant.agentId}
-                onShowProfile={onShowProfile}
-                onOpenContactManager={onOpenContactManager}
-                onOpenWorkspaceManager={onOpenWorkspaceManager}
-                onEditAssistant={onEditAssistant}
-                onEndContract={canEndContract?.(assistant) ? onEndContract : undefined}
-                canEdit={canEditAssistant ? canEditAssistant(assistant) : true}
-                isFolded={isFolded}
-                isCallActive={activeCallAssistantId === assistant.agentId}
-                unreadCount={unreadCounts?.[assistant.agentId] ?? 0}
-              />
-            ))
+            shouldRenderFlatList ? (
+              renderFlatAssistants()
+            ) : (
+              groupedAssistantList
+            )
           ) : searchTerm && !isFolded ? (
             <p className="text-body p-4 text-center text-muted-foreground">
               No assistants match filters.

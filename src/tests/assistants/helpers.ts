@@ -24,10 +24,12 @@ export {
   addMember,
   orchestraFetch,
   createAssistant,
+  createSpaceForAssistant,
+  addAssistantToSpace,
   ensureVoicePreset,
   ensureProjectSync,
 } from '../helpers/seeds/client';
-export type { SeededOrg, SeededAssistant } from '../helpers/seeds/types';
+export type { SeededOrg, SeededAssistant, SeededSpace } from '../helpers/seeds/types';
 
 export { login, switchToEmailTab };
 

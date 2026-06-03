@@ -39,6 +39,18 @@ export interface SeededAssistant {
   userId: string;
   /** Organization ID (null for personal assistants) */
   organizationId: number | null;
+  /** Contact row used for assistant-authored messages. */
+  selfContactId: number;
+  /** Contact row used for owner-authored messages. */
+  bossContactId: number;
+}
+
+export interface SeededSpace {
+  /** space_id primary key */
+  spaceId: number;
+  name: string;
+  description: string;
+  ownerUserId: string;
 }
 
 export interface SeededSecret {
