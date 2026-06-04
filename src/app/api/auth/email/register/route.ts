@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: 'staging_restricted',
-          message: 'Registration on this environment is restricted to Unify AI members.',
+          message: 'Registration on this environment is restricted to approved email domains.',
         },
         { status: 403 }
       );
