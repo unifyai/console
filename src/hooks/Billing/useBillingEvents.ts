@@ -74,6 +74,7 @@ export function useBillingEvents(): void {
           queryClient.setQueryData<BillingStatusData>(BILLING_STATUS_QUERY_KEY, (old) => {
             const billingMode = old?.billingMode ?? 'CREDITS';
             return {
+              isBalanceKnown: true,
               hasBillingHistory: old?.hasBillingHistory ?? false,
               credits: eventBalance,
               // METERED accounts intentionally hold a $0 wallet — see

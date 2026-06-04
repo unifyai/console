@@ -570,6 +570,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     credits,
     accountStatus,
     billingMode,
+    isBalanceKnown,
     isLoading: isBillingLoading,
     refetch: refetchBillingStatus,
     startPolling: startBillingPolling,
@@ -1100,6 +1101,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       (isOrgSpendingEnabled ? orgSpendingData.isRefreshing : false),
     credits,
     isBillingLoading,
+    isBalanceKnown,
     billingMode,
     isFreeTrial: !!userMeta.isFreeTrial,
   });
@@ -1968,6 +1970,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         <AssistantsBanners
           credits={credits}
           isBillingLoading={isBillingLoading}
+          isBalanceKnown={isBalanceKnown}
           spendingGateStatus={spendingGateStatus}
           isOrgWorkspace={!!userMeta.orgId}
           isFreeTrial={!!userMeta.isFreeTrial}

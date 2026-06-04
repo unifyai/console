@@ -10,6 +10,8 @@ interface AssistantsBannersProps {
   credits: number;
   /** Whether billing data is still loading */
   isBillingLoading: boolean;
+  /** Whether the current balance came from a successful billing lookup */
+  isBalanceKnown: boolean;
   /** Spending gate status for limit-reached banners */
   spendingGateStatus: SpendingGateStatus;
   /** Whether the current workspace is an organization */
@@ -34,15 +36,14 @@ interface AssistantsBannersProps {
  *
  * Currently handles three mutually-exclusive cases (in priority order):
  * 1. **Account status** — account is PAST_DUE, SUSPENDED, or CLOSED.
- * 2. **Out of credits** — credit balance has gone negative (credits < 0).
- *    Brand-new users (credits === 0) are excluded because they haven't
- *    interacted with billing yet.
+ * 2. **Out of credits** — credit balance is zero or below (credits <= 0).
  * 3. **Spending limit reached** — a user, org, or assistant spending limit has
  *    been exceeded.
  */
 export function AssistantsBanners({
   credits,
   isBillingLoading,
+  isBalanceKnown,
   spendingGateStatus,
   isOrgWorkspace,
   isFreeTrial,
@@ -99,7 +100,7 @@ export function AssistantsBanners({
     }
   }
 
-  // Out of credits — shown when balance has gone negative (excludes brand-new users at 0).
+  // Out of credits — CREDITS-mode accounts cannot spend at zero or below.
   // The spending gate also detects credit exhaustion ('no_credits'), but the OOC banner
   // is the correct UI for this case, so we only suppress when a *spending limit* blocks.
   // Also suppressed for METERED accounts: usage is settled at month-end via the metered
@@ -108,7 +109,13 @@ export function AssistantsBanners({
   // (`accountStatus` flips to PAST_DUE / SUSPENDED, handled by the banner above).
   const blockedBySpendingLimit =
     spendingGateStatus.isBlocked && spendingGateStatus.blockReason !== 'no_credits';
-  if (billingMode !== 'METERED' && credits < 0 && !isBillingLoading && !blockedBySpendingLimit) {
+  if (
+    billingMode !== 'METERED' &&
+    isBalanceKnown &&
+    credits <= 0 &&
+    !isBillingLoading &&
+    !blockedBySpendingLimit
+  ) {
     return (
       <div
         className="flex items-center justify-center gap-3 border-b border-orange-200 bg-orange-50 px-4 py-2.5 dark:border-orange-800 dark:bg-orange-950"

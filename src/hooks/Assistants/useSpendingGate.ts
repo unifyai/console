@@ -53,11 +53,14 @@ export interface UseSpendingGateConfig {
   /** Whether any of the spending data is refreshing in background */
   isRefreshing?: boolean;
 
-  /** Current credit balance (negative = exhausted). Omit to skip credit gating. */
+  /** Current credit balance (zero or below = exhausted). Omit to skip credit gating. */
   credits?: number;
 
   /** Whether credit balance is still loading */
   isBillingLoading?: boolean;
+
+  /** Whether the current balance came from a successful billing lookup */
+  isBalanceKnown?: boolean;
 
   /**
    * Active billing model. METERED accounts settle usage at month-end
@@ -100,6 +103,7 @@ export function useSpendingGate({
   isRefreshing = false,
   credits,
   isBillingLoading = false,
+  isBalanceKnown = true,
   billingMode = 'CREDITS',
   isFreeTrial = false,
 }: UseSpendingGateConfig): SpendingGateStatus {
@@ -115,7 +119,11 @@ export function useSpendingGate({
     // for METERED is webhook-driven (`accountStatus` flips on
     // `invoice.payment_failed`) rather than balance-driven.
     const creditsExhausted =
-      billingMode === 'CREDITS' && credits !== undefined && !isBillingLoading && credits < 0;
+      billingMode === 'CREDITS' &&
+      credits !== undefined &&
+      isBalanceKnown &&
+      !isBillingLoading &&
+      credits <= 0;
 
     const blockReason: SpendingBlockReason = creditsExhausted
       ? 'no_credits'
@@ -143,6 +151,7 @@ export function useSpendingGate({
     isRefreshing,
     credits,
     isBillingLoading,
+    isBalanceKnown,
     billingMode,
     isFreeTrial,
   ]);

@@ -28,6 +28,8 @@ import type { BillingMode } from '@/types/billing';
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface BillingStatusData {
+  /** Whether the current balance came from a successful billing lookup */
+  isBalanceKnown: boolean;
   /** Whether the account has prior billing history (at least one paid recharge) */
   hasBillingHistory: boolean;
   /** Current credit balance */
@@ -72,6 +74,7 @@ export async function fetchBillingStatus(): Promise<BillingStatusData> {
   const res = await fetch('/api/billing/balance');
   if (!res.ok) {
     return {
+      isBalanceKnown: false,
       hasBillingHistory: false,
       credits: 0,
       hasCredits: false,
@@ -86,6 +89,7 @@ export async function fetchBillingStatus(): Promise<BillingStatusData> {
   const billingMode: BillingMode = data.billingMode === 'METERED' ? 'METERED' : 'CREDITS';
 
   return {
+    isBalanceKnown: true,
     hasBillingHistory: data.lastRechargeAt != null,
     credits,
     // METERED accounts settle usage at month-end via the metered
@@ -138,6 +142,7 @@ export function useBillingStatus(): UseBillingStatusReturn {
   }, [pollInterval]);
 
   const defaults: BillingStatusData = {
+    isBalanceKnown: false,
     hasBillingHistory: false,
     credits: 0,
     hasCredits: false,
