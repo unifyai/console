@@ -16,7 +16,7 @@ import { Card, CardContent } from '@/components/UI/card';
 import { Badge } from '@/components/UI/badge';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCostForDisplay } from '@/utils/usage/formatters';
 import {
@@ -28,6 +28,7 @@ import {
   SPENDING_CATEGORY_SET,
 } from '@/types/usage/transactions';
 import { TimeGranularity } from '@/types/usage';
+import { useBucketTransactions } from '@/hooks/Usage/useBucketTransactions';
 
 const CATEGORY_COLORS: Record<string, string> = {
   llm: 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
@@ -138,42 +139,169 @@ function TransactionRow({ transaction }: { transaction: CreditTransaction }) {
 }
 
 // ---------------------------------------------------------------------------
-// Aggregated transaction row
+// Per-transaction detail metadata (from the free-form `detail` JSON)
+// ---------------------------------------------------------------------------
+
+/**
+ * The richest available human-readable description of what a transaction
+ * was for. Prefers the free-form `detail.label` (e.g. "Action: research
+ * leads…"), falling back to the transaction description.
+ */
+function getDetailLabel(transaction: CreditTransaction): string {
+  const detail = transaction.detail;
+  const label = detail?.['label'];
+  if (typeof label === 'string' && label) return label;
+  if (transaction.description) return transaction.description;
+  return CATEGORY_LABELS[transaction.category as TransactionCategory] ?? transaction.category;
+}
+
+/**
+ * Build a compact list of human-readable metadata chips from a
+ * transaction's free-form `detail` JSON (e.g. model, token counts, and
+ * the source that drove the call).
+ */
+function getDetailMeta(detail: Record<string, unknown> | null): string[] {
+  if (!detail) return [];
+  const parts: string[] = [];
+
+  const model = detail['model'];
+  if (typeof model === 'string' && model) parts.push(model);
+
+  const source = detail['source'];
+  if (typeof source === 'string' && source) parts.push(source);
+
+  return parts;
+}
+
+// ---------------------------------------------------------------------------
+// Detail sub-row (an individual transaction inside an expanded bucket)
+// ---------------------------------------------------------------------------
+
+function DetailRow({ transaction }: { transaction: CreditTransaction }) {
+  const primary = getDetailLabel(transaction);
+  const meta = getDetailMeta(transaction.detail);
+
+  return (
+    <div
+      className="border-border/40 flex items-start gap-2 border-b py-2 pl-12 pr-3 last:border-b-0"
+      data-testid="transaction-detail-row"
+    >
+      <div className="min-w-0 flex-1">
+        <p className="text-body truncate text-xs">{primary}</p>
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+          <span className="text-body-muted text-[11px]">{formatTimestamp(transaction.at)}</span>
+          {meta.map((m, i) => (
+            <span key={i} className="text-body-muted text-[11px]">
+              &middot; {m}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <span className="text-body-muted shrink-0 text-xs tabular-nums">
+        {formatCostForDisplay(transaction.amount)}
+      </span>
+    </div>
+  );
+}
+
+function DetailSkeleton() {
+  return (
+    <div data-testid="transaction-detail-loading">
+      {Array.from({ length: 2 }).map((_, i) => (
+        <div
+          key={i}
+          className="border-border/40 flex items-center gap-2 border-b py-2 pl-12 pr-3 last:border-b-0"
+        >
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <ShimmerPill className="h-3 w-32" />
+            <ShimmerPill className="h-2.5 w-44" />
+          </div>
+          <ShimmerPill className="h-3 w-12 shrink-0" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Aggregated transaction row (expandable into individual transactions)
 // ---------------------------------------------------------------------------
 
 function AggregatedRow({
   row,
   granularity,
+  assistantId,
+  userId,
 }: {
   row: AggregatedTransaction;
   granularity: TimeGranularity;
+  assistantId?: string;
+  userId?: string;
 }) {
+  const [expanded, setExpanded] = React.useState(false);
   const label = CATEGORY_LABELS[row.category as TransactionCategory] ?? row.category;
   const description = CATEGORY_DESCRIPTIONS[row.category as TransactionCategory];
-  const colorClass = CATEGORY_COLORS[row.category] ?? CATEGORY_COLORS.other;
   const bucketLabel = formatBucketLabel(row.bucket, granularity);
 
+  const { transactions, isLoading, error } = useBucketTransactions({
+    bucket: row.bucket,
+    category: row.category,
+    granularity,
+    assistantId,
+    userId,
+    enabled: expanded,
+  });
+
   return (
-    <div
-      className="flex items-center gap-3 border-b border-border px-3 py-2.5 last:border-b-0"
-      data-testid="aggregated-row"
-    >
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-500/10">
-        <ArrowDownRight className="h-3.5 w-3.5 text-zinc-500" />
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <p className="text-body truncate text-sm">{description || label}</p>
-        <div className="flex items-center gap-1.5">
-          <span className="text-body-muted text-xs">{bucketLabel}</span>
-          <Badge className={cn('border-0 text-[10px] leading-tight', colorClass)}>{label}</Badge>
-          <span className="text-body-muted text-xs">({row.count})</span>
+    <div className="border-b border-border last:border-b-0" data-testid="aggregated-row">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="hover:bg-muted/50 flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors"
+        data-testid="aggregated-row-toggle"
+      >
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-500/10">
+          {expanded ? (
+            <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 text-zinc-500" />
+          )}
         </div>
-      </div>
 
-      <span className="text-body text-caption shrink-0 font-medium tabular-nums">
-        {formatCostForDisplay(-row.total)}
-      </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-body truncate text-sm">{description || label}</p>
+            <span className="text-body text-caption shrink-0 font-medium tabular-nums">
+              {formatCostForDisplay(-row.total)}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-body-muted text-xs">{bucketLabel}</span>
+            <span className="text-body-muted text-xs">({row.count})</span>
+          </div>
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="bg-muted/30" data-testid="aggregated-row-details">
+          {isLoading && <DetailSkeleton />}
+
+          {error && <p className="text-error py-2 pl-12 pr-3 text-xs">{error}</p>}
+
+          {!isLoading && !error && transactions.length === 0 && (
+            <p
+              className="text-body-muted py-2 pl-12 pr-3 text-xs"
+              data-testid="transaction-detail-empty"
+            >
+              No individual transactions found for this period.
+            </p>
+          )}
+
+          {!isLoading && transactions.map((tx) => <DetailRow key={tx.id} transaction={tx} />)}
+        </div>
+      )}
     </div>
   );
 }
@@ -236,6 +364,10 @@ export interface TransactionLedgerProps {
   hasMore: boolean;
   onLoadMore: () => void;
   granularity: TimeGranularity;
+  /** Assistant scope for expanded detail fetches (matches the ledger filter). */
+  assistantId?: string;
+  /** User scope for expanded detail fetches (matches the ledger filter). */
+  userId?: string;
 }
 
 export function TransactionLedger({
@@ -247,6 +379,8 @@ export function TransactionLedger({
   hasMore,
   onLoadMore,
   granularity,
+  assistantId,
+  userId,
 }: TransactionLedgerProps) {
   const spendingTxns = React.useMemo(
     () => transactions.filter((tx) => SPENDING_CATEGORY_SET.has(tx.category)),
@@ -282,6 +416,8 @@ export function TransactionLedger({
                       key={`${row.bucket}-${row.category}-${i}`}
                       row={row}
                       granularity={granularity}
+                      assistantId={assistantId}
+                      userId={userId}
                     />
                   ))
                 : spendingTxns.map((tx) => <TransactionRow key={tx.id} transaction={tx} />)}
