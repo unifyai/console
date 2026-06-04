@@ -18,7 +18,7 @@
 #   ./scripts/local.sh start --seed all               # Run all scenarios
 #   ./scripts/local.sh start --stripe                 # + Stripe webhook forwarding
 #   ./scripts/local.sh start --pubsub                 # + Pub/Sub emulator (billing events)
-#   ./scripts/local.sh start --chat                   # + Pub/Sub + chat (adapters + Unity)
+#   ./scripts/local.sh start --chat                   # + Pub/Sub + chat (Unity gateway)
 #   ./scripts/local.sh stop                           # Stop all services
 #   ./scripts/local.sh restart                        # Stop then start (wipes database)
 #   ./scripts/local.sh status                         # Show status of all services
@@ -30,11 +30,11 @@
 #   - Orchestra repo cloned as a sibling: ../orchestra
 #   - (--stripe) Stripe CLI installed and authenticated (`stripe login`)
 #   - (--pubsub) gcloud CLI with Pub/Sub emulator component
-#   - (--chat)   Everything for --pubsub, plus Communication repo: ../communication
+#   - (--chat)   Everything for --pubsub, plus Unity repo: ../unity
 #
 # Environment:
 #   ORCHESTRA_REPO_PATH       Path to orchestra repo (default: ../orchestra)
-#   COMMUNICATION_REPO_PATH   Path to communication repo (default: ../communication)
+#   UNITY_REPO_PATH           Path to unity repo (default: ../unity)
 #   CONSOLE_PORT              Next.js port (default: 3000)
 #   ORCHESTRA_PORT            Orchestra port (default: 8000)
 #
@@ -50,12 +50,9 @@ CONSOLE_REPO_PATH="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 ORCHESTRA_REPO_PATH="${ORCHESTRA_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../orchestra" 2>/dev/null && pwd -P || echo "")}"
 ORCHESTRA_LOCAL_SCRIPT="$ORCHESTRA_REPO_PATH/scripts/local.sh"
 
-COMMUNICATION_REPO_PATH="${COMMUNICATION_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../communication" 2>/dev/null && pwd -P || echo "")}"
-COMMUNICATION_LOCAL_SCRIPT="${COMMUNICATION_REPO_PATH:+$COMMUNICATION_REPO_PATH/scripts/local.sh}"
-COMMUNICATION_CONFIG_FILE="/tmp/communication-local.config"
-
 UNITY_REPO_PATH="${UNITY_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../unity" 2>/dev/null && pwd -P || echo "")}"
 UNITY_LOCAL_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/local.sh}"
+UNITY_GATEWAY_CONFIG_FILE="/tmp/unity-local.config"
 
 CONSOLE_PORT="${CONSOLE_PORT:-3000}"
 ORCHESTRA_PORT="${ORCHESTRA_PORT:-8000}"
@@ -175,14 +172,25 @@ check_gcloud() {
 }
 
 check_java() {
-  if ! command -v java &>/dev/null; then
-    log_error "Java is required for Pub/Sub emulator but not installed"
-    log_info "Install Java with one of:"
-    log_info "  macOS:  brew install openjdk"
-    log_info "  Ubuntu: sudo apt install default-jdk"
-    return 1
+  if command -v java &>/dev/null; then
+    return 0
   fi
-  return 0
+
+  if command -v brew &>/dev/null; then
+    local openjdk_prefix
+    openjdk_prefix="$(brew --prefix openjdk 2>/dev/null || true)"
+    if [[ -n "$openjdk_prefix" && -x "$openjdk_prefix/libexec/openjdk.jdk/Contents/Home/bin/java" ]]; then
+      export JAVA_HOME="$openjdk_prefix/libexec/openjdk.jdk/Contents/Home"
+      export PATH="$JAVA_HOME/bin:$PATH"
+      return 0
+    fi
+  fi
+
+  log_error "Java is required for Pub/Sub emulator but not installed"
+  log_info "Install Java with one of:"
+  log_info "  macOS:  brew install openjdk"
+  log_info "  Ubuntu: sudo apt install default-jdk"
+  return 1
 }
 
 check_pubsub_emulator() {
@@ -315,9 +323,9 @@ start_orchestra() {
   # (success_url / cancel_url) point to localhost instead of console.unify.ai
   export UNIFY_CONSOLE_FRONTEND_URL="http://localhost:${CONSOLE_PORT}"
 
-  # Wire Orchestra → Communication adapters so the unity_system_event
+  # Wire Orchestra to the Unity gateway so the unity_system_event
   # webhook is reachable in local dev. ``CHAT_ADAPTERS_URL`` is
-  # populated by ``load_communication_config`` (line 411) when --chat
+  # populated by ``configure_unity_gateway_urls`` when --chat
   # is on; without this export Orchestra would read the variable as
   # ``None`` at import time and every subsequent ``_post_unity_system_event``
   # (secret-landed narration, onboarding-session-started, ...) would
@@ -367,75 +375,44 @@ stop_orchestra() {
 }
 
 # =============================================================================
-# Communication Adapters Management (--chat mode, adapters only)
+# Unity Gateway Management (--chat mode)
 # =============================================================================
 
-check_communication_prerequisites() {
-  if [[ -z "$COMMUNICATION_REPO_PATH" || ! -f "$COMMUNICATION_LOCAL_SCRIPT" ]]; then
-    log_error "Communication repo not found. Expected at: $CONSOLE_REPO_PATH/../communication"
-    log_info "Set COMMUNICATION_REPO_PATH to override."
+check_unity_gateway_prerequisites() {
+  if ! is_unity_available; then
+    log_error "Unity repo not found. Expected at: $CONSOLE_REPO_PATH/../unity"
+    log_info "Set UNITY_REPO_PATH to override."
     log_info "(Only required for --chat; --pubsub works without it.)"
     return 1
   fi
-  log_success "Communication repo found at: $COMMUNICATION_REPO_PATH"
+  log_success "Unity repo found at: $UNITY_REPO_PATH"
 }
 
-is_communication_running() {
-  COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH" bash "$COMMUNICATION_LOCAL_SCRIPT" check &>/dev/null
+unity_gateway_base_url() {
+  if [[ -n "${UNITY_GATEWAY_PUBLIC_URL:-}" ]]; then
+    echo "$UNITY_GATEWAY_PUBLIC_URL"
+  else
+    echo "http://${UNITY_GATEWAY_HOST:-127.0.0.1}:${UNITY_GATEWAY_PORT:-8001}"
+  fi
 }
 
-start_communication_adapters() {
-  if is_communication_running; then
-    log_success "Communication adapters already running"
-    load_communication_config
-    return 0
+configure_unity_gateway_urls() {
+  CHAT_ADAPTERS_URL="$(unity_gateway_base_url)"
+  CHAT_TEST_ASSISTANT_ID="${CHAT_TEST_ASSISTANT_ID:-default-test-assistant}"
+
+  if [[ -f "$UNITY_GATEWAY_CONFIG_FILE" ]]; then
+    while IFS='=' read -r key value; do
+      case "$key" in
+        UNITY_COMMS_URL)     CHAT_ADAPTERS_URL="$value" ;;
+        UNITY_ADAPTERS_URL)  CHAT_ADAPTERS_URL="$value" ;;
+        TEST_ASSISTANT_ID)   CHAT_TEST_ASSISTANT_ID="$value" ;;
+      esac
+    done < "$UNITY_GATEWAY_CONFIG_FILE"
   fi
 
-  log_info "Starting Communication adapters (connecting to Console-managed emulator)..."
-
-  local comm_env=(COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH")
-  if [[ -n "$ADMIN_KEY" ]]; then
-    comm_env+=(ORCHESTRA_ADMIN_KEY="$ADMIN_KEY")
-  fi
-  if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
-    comm_env+=(ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0")
-  fi
-  comm_env+=(PUBSUB_EMULATOR_HOST="$LOCAL_PUBSUB_HOST")
-  comm_env+=(GCP_PROJECT_ID="$PUBSUB_GCP_PROJECT_ID")
-
-  if ! env "${comm_env[@]}" bash "$COMMUNICATION_LOCAL_SCRIPT" start --no-emulator; then
-    log_error "Failed to start Communication adapters"
-    return 1
-  fi
-
-  load_communication_config
-  log_success "Communication adapters are running"
-}
-
-load_communication_config() {
-  if [[ ! -f "$COMMUNICATION_CONFIG_FILE" ]]; then
-    log_warn "Communication config file not found at $COMMUNICATION_CONFIG_FILE"
-    return 1
-  fi
-
-  while IFS='=' read -r key value; do
-    case "$key" in
-      UNITY_ADAPTERS_URL)    CHAT_ADAPTERS_URL="$value" ;;
-      TEST_ASSISTANT_ID)     CHAT_TEST_ASSISTANT_ID="$value" ;;
-    esac
-  done < "$COMMUNICATION_CONFIG_FILE"
-
-  log_info "Loaded Communication config:"
-  log_info "  Adapters URL:      ${CHAT_ADAPTERS_URL:-<not set>}"
+  log_info "Configured Unity gateway:"
+  log_info "  Gateway URL:       ${CHAT_ADAPTERS_URL:-<not set>}"
   log_info "  Test Assistant ID: ${CHAT_TEST_ASSISTANT_ID:-<not set>}"
-}
-
-stop_communication() {
-  if [[ -n "$COMMUNICATION_REPO_PATH" && -f "$COMMUNICATION_LOCAL_SCRIPT" ]]; then
-    log_info "Stopping Communication adapters..."
-    COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH" bash "$COMMUNICATION_LOCAL_SCRIPT" stop 2>/dev/null || true
-    log_success "Communication adapters stopped"
-  fi
 }
 
 CHAT_ADAPTERS_URL=""
@@ -469,18 +446,19 @@ start_unity() {
 
   # Resolve the actual assistant agentId from the database.  The seed
   # creates assistants with auto-incremented IDs, so the first assistant
-  # is typically "1".  If the DB isn't available, fall back to the
-  # Communication TEST_ASSISTANT_ID.
+  # is typically "1". If the DB isn't available, fall back to the
+  # configured test assistant id.
   local resolved_assistant_id
   resolved_assistant_id=$(docker exec orchestra-local-db \
     psql -U orchestra -d orchestra -t -A \
     -c "SELECT agent_id FROM assistants ORDER BY agent_id LIMIT 1;" 2>/dev/null | head -1 || echo "")
   resolved_assistant_id="${resolved_assistant_id:-${CHAT_TEST_ASSISTANT_ID:-default-test-assistant}}"
+  CHAT_TEST_ASSISTANT_ID="$resolved_assistant_id"
 
   if [[ "$force_echo" == "true" ]]; then
     log_info "Starting Unity in echo mode (forced) — auto-discovers all unity-* topics ..."
   else
-    log_info "Starting Unity (auto-detecting mode) for assistant=$resolved_assistant_id ..."
+    log_info "Starting Unity gateway + ConversationManager for assistant=$resolved_assistant_id ..."
   fi
 
   local unity_env=(
@@ -523,7 +501,8 @@ start_unity() {
   # Populate full session details from the seeded assistant/user so the CM
   # knows who the assistant is and who the owner is (replicating what the
   # startup message provides in production).
-  local _a_first _a_surname _a_about _a_age _a_nat _a_tz _u_first _u_last _u_email _u_id
+  local _a_first="" _a_surname="" _a_about="" _a_age="" _a_nat="" _a_tz=""
+  local _u_first="" _u_last="" _u_email="" _u_id=""
   _a_first=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
     -c "SELECT first_name FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
   _a_surname=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
@@ -561,6 +540,8 @@ start_unity() {
   local unity_args=(start)
   if [[ "$force_echo" == "true" ]]; then
     unity_args+=(--echo)
+  else
+    unity_args+=(--full)
   fi
 
   if ! env "${unity_env[@]}" bash "$UNITY_LOCAL_SCRIPT" "${unity_args[@]}"; then
@@ -843,8 +824,12 @@ start_console() {
     log_info "  PUBSUB_TOPIC_SUFFIX=$PUBSUB_TOPIC_SUFFIX"
 
     if [[ "$with_chat" == "true" && -n "$CHAT_ADAPTERS_URL" ]]; then
+      export COMMUNICATION_URL="$CHAT_ADAPTERS_URL"
       export LOCAL_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
+      export UNITY_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
+      log_info "  COMMUNICATION_URL=$COMMUNICATION_URL"
       log_info "  LOCAL_ADAPTERS_URL=$LOCAL_ADAPTERS_URL"
+      log_info "  UNITY_ADAPTERS_URL=$UNITY_ADAPTERS_URL"
     fi
   fi
 
@@ -1043,14 +1028,14 @@ cmd_start() {
     start_pubsub_emulator || return 1
   fi
 
-  # If --chat, also start the Communication adapters (needs Communication repo).
+  # If --chat, point Console and Orchestra at the Unity gateway.
   if [[ "$with_chat" == "true" ]]; then
     echo ""
-    if ! check_communication_prerequisites; then
+    if ! check_unity_gateway_prerequisites; then
       return 1
     fi
     echo ""
-    start_communication_adapters || return 1
+    configure_unity_gateway_urls || return 1
   fi
 
   echo ""
@@ -1097,7 +1082,7 @@ cmd_start() {
     echo "  Pub/Sub:   $LOCAL_PUBSUB_HOST (emulator)"
   fi
   if [[ "$with_chat" == "true" ]]; then
-    echo "  Adapters:  ${CHAT_ADAPTERS_URL:-http://127.0.0.1:8081}"
+    echo "  Gateway:   ${CHAT_ADAPTERS_URL:-$(unity_gateway_base_url)}"
     echo "  Test asst: ${CHAT_TEST_ASSISTANT_ID:-default-test-assistant}"
   fi
   echo ""
@@ -1117,7 +1102,7 @@ cmd_start() {
     echo ""
     local unity_mode
     unity_mode=$(cat /tmp/unity-local.mode 2>/dev/null || echo "not running")
-    echo "  Chat:      Messages dispatched to local adapters via Pub/Sub emulator."
+    echo "  Chat:      Console dispatches through the local Unity gateway."
     echo "             Unity mode: $unity_mode"
     if [[ "$unity_mode" == "echo" ]]; then
       echo "             Messages are echoed back (no LLM). Set API keys for real responses."
@@ -1140,9 +1125,6 @@ cmd_stop() {
   stop_orchestra
   if is_unity_available && is_unity_running; then
     stop_unity
-  fi
-  if [[ -n "$COMMUNICATION_REPO_PATH" && -f "$COMMUNICATION_LOCAL_SCRIPT" ]] && is_communication_running; then
-    stop_communication
   fi
   if is_emulator_running; then
     stop_pubsub_emulator
@@ -1216,11 +1198,8 @@ cmd_status() {
   fi
 
   echo -n "  Chat:      "
-  if [[ -n "$COMMUNICATION_REPO_PATH" && -f "$COMMUNICATION_LOCAL_SCRIPT" ]] && is_communication_running; then
-    echo -e "${GREEN}running${NC} (Communication adapters)"
-    if [[ -f "$COMMUNICATION_CONFIG_FILE" ]]; then
-      load_communication_config 2>/dev/null
-    fi
+  if is_unity_available && is_unity_running; then
+    echo -e "${GREEN}running${NC} (Unity gateway: $(unity_gateway_base_url))"
   else
     echo -e "${YELLOW}not running${NC} (start with --chat)"
   fi
@@ -1278,7 +1257,7 @@ main() {
       echo ""
       echo "Commands:"
       echo "  start    Start Console + Orchestra + seed data (default)"
-      echo "  stop     Stop Console, Orchestra, Pub/Sub emulator, Communication, and Stripe listener"
+      echo "  stop     Stop Console, Orchestra, Pub/Sub emulator, Unity, and Stripe listener"
       echo "  restart  Stop then start (wipes database)"
       echo "  status   Show service status"
       echo ""
@@ -1296,9 +1275,9 @@ main() {
       echo "  --pubsub           Start Pub/Sub emulator for real-time billing events."
       echo "                     Creates billing topics for all seeded accounts."
       echo "                     Requires: gcloud CLI with pubsub-emulator component"
-      echo "  --chat             Start Pub/Sub emulator + Communication adapters + Unity."
+      echo "  --chat             Start Pub/Sub emulator + Unity gateway + Unity."
       echo "                     Includes everything --pubsub does, plus chat functionality."
-      echo "                     Requires: communication repo as sibling (../communication)"
+      echo "                     Requires: unity repo as sibling (../unity)"
       echo "                               + gcloud CLI with pubsub-emulator component"
       echo "  --echo             Force Unity to start in echo-responder mode even when LLM"
       echo "                     keys are present in .env.local. The echo responder auto-"
@@ -1308,7 +1287,9 @@ main() {
       echo ""
       echo "Environment:"
       echo "  ORCHESTRA_REPO_PATH       Path to orchestra repo (default: ../orchestra)"
-      echo "  COMMUNICATION_REPO_PATH   Path to communication repo (default: ../communication)"
+      echo "  UNITY_REPO_PATH           Path to unity repo (default: ../unity)"
+      echo "  UNITY_GATEWAY_PORT        Unity gateway port (default: 8001)"
+      echo "  UNITY_GATEWAY_PUBLIC_URL  Public callback URL for provider webhooks"
       echo "  CONSOLE_PORT              Console port (default: 3000)"
       echo "  ORCHESTRA_PORT            Orchestra port (default: 8000)"
       echo "  PUBSUB_EMULATOR_PORT      Pub/Sub emulator port (default: 8085)"
@@ -1326,7 +1307,7 @@ main() {
       echo "  $0 start --stripe                     # + Stripe webhook forwarding"
       echo "  $0 start --org --stripe               # org-basic + Stripe"
       echo "  $0 start --pubsub                     # + Pub/Sub emulator (billing events)"
-      echo "  $0 start --chat                       # + Pub/Sub + chat (adapters + Unity)"
+      echo "  $0 start --chat                       # + Pub/Sub + chat (Unity gateway)"
       echo "  $0 start --chat --org                 # org-basic + local chat"
       echo "  $0 start --chat --echo --seed personal-workspace-multi  # multi-assistant chat with echo responder"
       ;;
