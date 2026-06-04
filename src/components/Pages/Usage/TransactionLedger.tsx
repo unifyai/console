@@ -16,6 +16,7 @@ import { Card, CardContent } from '@/components/UI/card';
 import { Badge } from '@/components/UI/badge';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { ArrowDownRight, ArrowUpRight, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCostForDisplay } from '@/utils/usage/formatters';
@@ -155,31 +156,77 @@ function getDetailLabel(transaction: CreditTransaction): string {
   return CATEGORY_LABELS[transaction.category as TransactionCategory] ?? transaction.category;
 }
 
-/**
- * Build a compact list of human-readable metadata chips from a
- * transaction's free-form `detail` JSON (e.g. model, token counts, and
- * the source that drove the call).
- */
-function getDetailMeta(detail: Record<string, unknown> | null): string[] {
-  if (!detail) return [];
-  const parts: string[] = [];
+// ---------------------------------------------------------------------------
+// Grouping: collapse the many LLM calls behind a single action/turn into one
+// row keyed by label, so one action == one detail row (not N noisy rows).
+// ---------------------------------------------------------------------------
 
-  const model = detail['model'];
-  if (typeof model === 'string' && model) parts.push(model);
+interface DetailGroup {
+  key: string;
+  label: string;
+  /** Summed amount (debits, negative). */
+  total: number;
+  /** Number of underlying LLM calls. */
+  count: number;
+  models: Set<string>;
+  source: string | null;
+  /** Most recent timestamp in the group. */
+  lastAt: string;
+}
 
-  const source = detail['source'];
-  if (typeof source === 'string' && source) parts.push(source);
+function groupBucketTransactions(transactions: CreditTransaction[]): DetailGroup[] {
+  const groups = new Map<string, DetailGroup>();
 
-  return parts;
+  for (const tx of transactions) {
+    const label = getDetailLabel(tx);
+    const detail = tx.detail ?? {};
+    const model = typeof detail['model'] === 'string' ? (detail['model'] as string) : null;
+    const source = typeof detail['source'] === 'string' ? (detail['source'] as string) : null;
+
+    let group = groups.get(label);
+    if (!group) {
+      group = {
+        key: label,
+        label,
+        total: 0,
+        count: 0,
+        models: new Set<string>(),
+        source,
+        lastAt: tx.at,
+      };
+      groups.set(label, group);
+    }
+    group.total += tx.amount;
+    group.count += 1;
+    if (model) group.models.add(model);
+    if (!group.source && source) group.source = source;
+    if (tx.at > group.lastAt) group.lastAt = tx.at;
+  }
+
+  return Array.from(groups.values()).sort(
+    (a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime()
+  );
 }
 
 // ---------------------------------------------------------------------------
-// Detail sub-row (an individual transaction inside an expanded bucket)
+// Detail sub-row (one action/turn — its LLM calls aggregated)
 // ---------------------------------------------------------------------------
 
-function DetailRow({ transaction }: { transaction: CreditTransaction }) {
-  const primary = getDetailLabel(transaction);
-  const meta = getDetailMeta(transaction.detail);
+function GroupedDetailRow({ group }: { group: DetailGroup }) {
+  const meta: string[] = [];
+  // Calls (when more than one) or the single timestamp.
+  if (group.count > 1) {
+    meta.push(`${group.count} calls`);
+  } else {
+    meta.push(formatTimestamp(group.lastAt));
+  }
+  if (group.models.size === 1) {
+    const onlyModel = group.models.values().next().value;
+    if (onlyModel) meta.push(onlyModel);
+  } else if (group.models.size > 1) {
+    meta.push(`${group.models.size} models`);
+  }
+  if (group.source) meta.push(group.source);
 
   return (
     <div
@@ -187,19 +234,19 @@ function DetailRow({ transaction }: { transaction: CreditTransaction }) {
       data-testid="transaction-detail-row"
     >
       <div className="min-w-0 flex-1">
-        <p className="text-body truncate text-xs">{primary}</p>
-        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-          <span className="text-body-muted text-[11px]">{formatTimestamp(transaction.at)}</span>
-          {meta.map((m, i) => (
-            <span key={i} className="text-body-muted text-[11px]">
-              &middot; {m}
-            </span>
-          ))}
-        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <p className="text-body cursor-default truncate text-xs">{group.label}</p>
+          </TooltipTrigger>
+          <TooltipContent side="top" align="start" className="max-w-xs">
+            <p className="text-body whitespace-normal break-words text-xs">{group.label}</p>
+          </TooltipContent>
+        </Tooltip>
+        <p className="text-body-muted truncate text-[11px]">{meta.join(' \u00b7 ')}</p>
       </div>
 
       <span className="text-body-muted shrink-0 text-xs tabular-nums">
-        {formatCostForDisplay(transaction.amount)}
+        {formatCostForDisplay(group.total)}
       </span>
     </div>
   );
@@ -253,6 +300,8 @@ function AggregatedRow({
     enabled: expanded,
   });
 
+  const groups = React.useMemo(() => groupBucketTransactions(transactions), [transactions]);
+
   return (
     <div className="border-b border-border last:border-b-0" data-testid="aggregated-row">
       <button
@@ -299,7 +348,7 @@ function AggregatedRow({
             </p>
           )}
 
-          {!isLoading && transactions.map((tx) => <DetailRow key={tx.id} transaction={tx} />)}
+          {!isLoading && groups.map((g) => <GroupedDetailRow key={g.key} group={g} />)}
         </div>
       )}
     </div>
@@ -392,56 +441,58 @@ export function TransactionLedger({
   const isEmpty = !isLoading && rowCount === 0 && !error;
 
   return (
-    <Card className="flex h-full flex-col" data-testid="transaction-ledger">
-      <CardContent className="flex min-h-0 flex-1 flex-col p-0 pt-3">
-        {error && <p className="text-body text-error px-3 py-4 text-center">{error}</p>}
+    <TooltipProvider delayDuration={300}>
+      <Card className="flex h-full flex-col" data-testid="transaction-ledger">
+        <CardContent className="flex min-h-0 flex-1 flex-col p-0 pt-3">
+          {error && <p className="text-body text-error px-3 py-4 text-center">{error}</p>}
 
-        {showSkeleton && <LedgerSkeleton />}
+          {showSkeleton && <LedgerSkeleton />}
 
-        {isEmpty && (
-          <p
-            className="text-body-muted px-3 py-8 text-center text-sm"
-            data-testid="transaction-ledger-empty"
-          >
-            No usage yet
-          </p>
-        )}
+          {isEmpty && (
+            <p
+              className="text-body-muted px-3 py-8 text-center text-sm"
+              data-testid="transaction-ledger-empty"
+            >
+              No usage yet
+            </p>
+          )}
 
-        {rowCount > 0 && (
-          <ScrollArea className="flex-1">
-            <div>
-              {isAggregated
-                ? aggregated.map((row, i) => (
-                    <AggregatedRow
-                      key={`${row.bucket}-${row.category}-${i}`}
-                      row={row}
-                      granularity={granularity}
-                      assistantId={assistantId}
-                      userId={userId}
-                    />
-                  ))
-                : spendingTxns.map((tx) => <TransactionRow key={tx.id} transaction={tx} />)}
+          {rowCount > 0 && (
+            <ScrollArea className="flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block">
+              <div>
+                {isAggregated
+                  ? aggregated.map((row, i) => (
+                      <AggregatedRow
+                        key={`${row.bucket}-${row.category}-${i}`}
+                        row={row}
+                        granularity={granularity}
+                        assistantId={assistantId}
+                        userId={userId}
+                      />
+                    ))
+                  : spendingTxns.map((tx) => <TransactionRow key={tx.id} transaction={tx} />)}
 
-              {isLoading && <LedgerSkeleton count={3} />}
+                {isLoading && <LedgerSkeleton count={3} />}
 
-              {hasMore && !isLoading && (
-                <div className="p-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full text-xs"
-                    onClick={onLoadMore}
-                    data-testid="transaction-load-more"
-                  >
-                    Load more
-                  </Button>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        )}
-      </CardContent>
-    </Card>
+                {hasMore && !isLoading && (
+                  <div className="p-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={onLoadMore}
+                      data-testid="transaction-load-more"
+                    >
+                      Load more
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+    </TooltipProvider>
   );
 }
 
