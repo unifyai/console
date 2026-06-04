@@ -5,13 +5,12 @@
  * page rendered while ``Coordinator/State.mode === 'onboarding'``.
  *
  * Surface selection (left pane only — the onboarding sidebar on the
- * right is constant once the onboarding call has started):
+ * right is constant once the picker has been answered):
  *
  *   - **Picker** (``choice === null`` AND no active call): a
- *     centered, full-width call prompt. No sidebar, no skip
+ *     centered, full-width call-vs-chat prompt. No sidebar, no skip
  *     affordance. The picker decision is per-session and never
- *     persisted, so reloading before the call starts drops the user
- *     back here.
+ *     persisted, so reloading mid-flow drops the user back here.
  *
  *   - **Docked call** (``isCoordinatorCallActive``): the
  *     ``AssistantCommunicationDialog`` rendered inline via the
@@ -22,9 +21,10 @@
  *     this surface shows. Hanging up flips it back to false and we
  *     fall through to whatever the picker/chat state requires.
  *
- *   - **Connecting placeholder** (``choice === 'call'`` AND no
- *     active call yet): the normal ``AssistantProfileChatPanel``
- *     remains mounted while the call is being created.
+ *   - **Chat surface** (``choice === 'chat'`` AND no active call):
+ *     a brief artificial typing pause followed by the normal
+ *     ``AssistantProfileChatPanel`` so the seeded greeting reads as
+ *     if the coordinator is typing it live.
  */
 
 import * as React from 'react';
@@ -45,7 +45,7 @@ import type { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 
-type OnboardingPickerChoice = 'call' | null;
+type OnboardingPickerChoice = 'call' | 'chat' | null;
 
 /**
  * Identifiers for the right-section tabs that accumulate as the user
@@ -95,7 +95,7 @@ interface CoordinatorOnboardingProps {
    * here so the dialog mounts inside this surface instead of as a
    * fullscreen overlay. Required whenever
    * ``isCoordinatorCallActive`` is true. */
-  renderDockedCall?: (options: { onRequiredScreenShareActive: () => void }) => React.ReactNode;
+  renderDockedCall?: () => React.ReactNode;
   onStartCall: (assistant: Assistant, callType: 'video' | 'audio') => Promise<void> | void;
   /** Opens the workspace OAuth dialog (``AssistantWorkspaceManager``)
    * for this Coordinator. Hung off the "Give your coordinator
@@ -344,14 +344,15 @@ export function CoordinatorOnboarding({
     completedStepIdsRef.current = Array.from(onboardingCtx.completedStepIds);
   }, [onboardingCtx]);
 
-  // Fire the picker-resolution event only after the required screen
-  // share is active, so Unity does not begin the onboarding turn
-  // without the workspace view it needs. Best-effort: the call
-  // surface remains usable even if the event POST fails. The actual
-  // generated text arrives via the normal chat-streaming channel and
-  // lands in ``chatHistories[coordinator.agentId]`` automatically.
+  // Fire the picker-resolution event so Unity opens the session
+  // with the right kind of message (intro on a fresh transcript,
+  // recap on a resumed one). Best-effort: the chat surface still
+  // mounts even if the event POST fails — the user can always send
+  // a message themselves to unblock things. The actual generated
+  // text arrives via the normal chat-streaming channel and lands
+  // in ``chatHistories[coordinator.agentId]`` automatically.
   const notifySessionStarted = React.useCallback(
-    (medium: 'call') => {
+    (medium: 'chat' | 'call') => {
       const snapshot = completedStepIdsRef.current;
       void notifyOnboardingSessionStarted(
         coordinator.agentId,
@@ -361,12 +362,6 @@ export function CoordinatorOnboarding({
     },
     [coordinator.agentId]
   );
-  const hasNotifiedCallSessionStartedRef = React.useRef(false);
-  const handleRequiredScreenShareActive = React.useCallback(() => {
-    if (hasNotifiedCallSessionStartedRef.current) return;
-    hasNotifiedCallSessionStartedRef.current = true;
-    notifySessionStarted('call');
-  }, [notifySessionStarted]);
 
   const handleStartCall = React.useCallback(async () => {
     if (isStartingCall || isCoordinatorCallActive) return;
@@ -377,23 +372,30 @@ export function CoordinatorOnboarding({
       // flipping ``isCoordinatorCallActive`` to true, and we don't
       // want the picker to flash back in.
       setChoice('call');
+      notifySessionStarted('call');
       await onStartCall(coordinator, 'audio');
     } finally {
       setIsStartingCall(false);
     }
-  }, [coordinator, isCoordinatorCallActive, isStartingCall, onStartCall]);
+  }, [coordinator, isCoordinatorCallActive, isStartingCall, notifySessionStarted, onStartCall]);
+
+  const handlePickChat = React.useCallback(() => {
+    setChoice('chat');
+    notifySessionStarted('chat');
+  }, [notifySessionStarted]);
 
   // When a docked call ends (parent flips ``isCoordinatorCallActive``
   // back to false), the user lands without an active surface. If
   // they had clicked Start Call (``choice === 'call'``) reset back
-  // to the picker so they can re-dial.
+  // to the picker so they can re-pick — they may want to text-chat
+  // or re-dial. Skipped when the user picked chat, since the chat
+  // surface remains the right fallback.
   const prevCallActiveRef = React.useRef(isCoordinatorCallActive);
   React.useEffect(() => {
     const wasActive = prevCallActiveRef.current;
     prevCallActiveRef.current = isCoordinatorCallActive;
     if (wasActive && !isCoordinatorCallActive && choice === 'call') {
       setChoice(null);
-      hasNotifiedCallSessionStartedRef.current = false;
     }
   }, [isCoordinatorCallActive, choice]);
 
@@ -412,9 +414,9 @@ export function CoordinatorOnboarding({
 
   // ── Picker phase ──────────────────────────────────────────────
   // Picker shows only when nothing else is committed: no call is
-  // alive and the user hasn't just hit Start Call (``choice ===
-  // 'call'`` covers the connecting window before the parent flips
-  // ``isCoordinatorCallActive`` to true).
+  // alive, the user hasn't picked chat, and they haven't just hit
+  // Start Call (``choice === 'call'`` covers the connecting window
+  // before the parent flips ``isCoordinatorCallActive`` to true).
   if (!isCoordinatorCallActive && choice === null) {
     return (
       <div
@@ -423,6 +425,7 @@ export function CoordinatorOnboarding({
       >
         <CoordinatorOnboardingPicker
           onStartCall={handleStartCall}
+          onPickChat={handlePickChat}
           isStartingCall={isStartingCall}
         />
       </div>
@@ -441,10 +444,10 @@ export function CoordinatorOnboarding({
   //   2. ``choice === 'call'`` but not yet active → typing
   //      placeholder; the parent's call setup will flip
   //      ``isCoordinatorCallActive`` shortly and we'll re-render
-  //   3. Fallback while call setup is in progress → chat surface
+  //   3. ``choice === 'chat'`` → chat surface
   const mainPane =
     isCoordinatorCallActive && renderDockedCall ? (
-      renderDockedCall({ onRequiredScreenShareActive: handleRequiredScreenShareActive })
+      renderDockedCall()
     ) : (
       <CoordinatorOnboardingChatSurface
         coordinator={coordinator}
@@ -862,15 +865,17 @@ function OnboardingMobileTabStrip({
   );
 }
 
-/* ─── Picker (Start onboarding call) ────────────────────────────────────── */
+/* ─── Picker (Start Call / I'd rather chat) ─────────────────────────────── */
 
 interface CoordinatorOnboardingPickerProps {
   onStartCall: () => void;
+  onPickChat: () => void;
   isStartingCall: boolean;
 }
 
 function CoordinatorOnboardingPicker({
   onStartCall,
+  onPickChat,
   isStartingCall,
 }: CoordinatorOnboardingPickerProps) {
   return (
@@ -883,10 +888,6 @@ function CoordinatorOnboardingPicker({
     >
       <CoordinatorLogoAvatar className="h-20 w-20 rounded-full pt-2" logoClassName="h-10 w-10" />
       <p className="text-h3 font-medium text-foreground">Unity is calling to onboard you</p>
-      <p className="text-body-muted max-w-sm">
-        Screen sharing is required for the initial setup session so Unity can see your workspace
-        while guiding you.
-      </p>
       <div className="flex flex-col items-center gap-3 sm:flex-row">
         <Button
           size="lg"
@@ -902,9 +903,17 @@ function CoordinatorOnboardingPicker({
           ) : (
             <>
               <Phone className="mr-2 h-4 w-4" />
-              Start onboarding call
+              Start Call
             </>
           )}
+        </Button>
+        <Button
+          variant="link"
+          onClick={onPickChat}
+          disabled={isStartingCall}
+          data-testid="coordinator-onboarding-pick-chat"
+        >
+          I&apos;d rather chat for now
         </Button>
       </div>
     </motion.div>
