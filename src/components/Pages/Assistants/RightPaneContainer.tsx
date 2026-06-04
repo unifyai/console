@@ -38,6 +38,7 @@ import type { AssistantActionActions } from '@/types/assistants/action';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import type { ContactType } from '@/types/assistants/contact';
 import type { DashboardPaneData } from '@/types/assistants/dashboard';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { ChatMessage, CallPill } from '@/types/assistants/chat';
 import {
   type SpendingGateStatus,
@@ -474,9 +475,9 @@ export function RightPaneContainer({
         data-testid="coordinator-private"
         className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center"
       >
-        <p className="text-body-muted">Coordinator chat is private.</p>
+        <p className="text-body-muted">Unity chat is private.</p>
         <p className="text-caption text-muted-foreground">
-          Open your own Coordinator from this workspace to continue.
+          Open your own Unity from this workspace to continue.
         </p>
       </div>
     );
@@ -572,7 +573,10 @@ export function RightPaneContainer({
                 // to worry about.
                 const isActionsLive = id === 'actions' && hasActiveAction;
                 const unreadLabel = unreadChatCount > 99 ? '99+' : String(unreadChatCount);
-                const tooltipBase = describe(assistant.firstName || 'them');
+                const tooltipSubject = assistant.isCoordinator
+                  ? assistantDisplayName(assistant)
+                  : assistant.firstName || 'them';
+                const tooltipBase = describe(tooltipSubject);
                 const tooltipText = showUnreadInsteadOfIcon
                   ? `${tooltipBase} — ${unreadChatCount} unread`
                   : isActionsLive

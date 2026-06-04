@@ -6,19 +6,12 @@ import { ConnectionDetails } from '@/types/assistants/call';
 import { makeRoomName } from '@/utils/assistants/call-utils';
 import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
 import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 
 const ASSISTANT_JOIN_SLOW_THRESHOLD = 90000; // 90 seconds — soft warning, not an error
 const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
-
-function assistantDisplayName(
-  assistant: Pick<Assistant, 'firstName' | 'surname' | 'isCoordinator'>
-) {
-  return assistant.isCoordinator
-    ? 'Coordinator'
-    : [assistant.firstName, assistant.surname].filter(Boolean).join(' ');
-}
 
 export function useAssistantCall(room: Room, assistantActions: AssistantActions) {
   const [connectionDetails, setConnectionDetails] = React.useState<ConnectionDetails | null>(null);

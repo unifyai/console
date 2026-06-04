@@ -141,7 +141,7 @@ export function useCoordinatorActivity({
       );
     } catch (err) {
       if (requestSequence.current !== requestId) return;
-      setError(err instanceof Error ? err.message : 'Failed to load Coordinator activity');
+      setError(err instanceof Error ? err.message : 'Failed to load Unity activity');
     } finally {
       if (requestSequence.current === requestId) setIsLoading(false);
     }

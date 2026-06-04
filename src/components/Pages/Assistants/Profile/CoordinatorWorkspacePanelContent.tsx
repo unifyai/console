@@ -131,7 +131,7 @@ function CurrentWorkCard({
   if (activity) {
     const prompt = activity.chatPrompt?.trim();
     return (
-      <section className="space-y-2" aria-label="Current Coordinator setup work">
+      <section className="space-y-2" aria-label="Current Unity setup work">
         <h3 className="text-label text-semibold">Currently working on</h3>
         <div
           className={cn(
@@ -184,7 +184,7 @@ function CurrentWorkCard({
 
   if (fallback) {
     return (
-      <section className="space-y-2" aria-label="Current Coordinator setup work">
+      <section className="space-y-2" aria-label="Current Unity setup work">
         <h3 className="text-label text-semibold">Next step</h3>
         <div className="bg-primary/5 rounded-xl border p-3" data-testid="coordinator-now-checklist">
           <p className="text-caption text-muted-foreground">Next checklist item</p>
@@ -280,7 +280,7 @@ function EmptyNowCard() {
     >
       <p className="text-body-sm text-strong">Chat is the setup workspace.</p>
       <p className="text-caption mt-1 text-muted-foreground">
-        Ask the Coordinator what to set up next, or review the checklist as it takes shape.
+        Ask Unity what to set up next, or review the checklist as it takes shape.
       </p>
     </div>
   );
@@ -301,7 +301,7 @@ function RefreshWorkspaceButton({
       className="h-7 w-7 shrink-0"
       onClick={onRefresh}
       disabled={isLoading}
-      aria-label="Refresh Coordinator workspace"
+      aria-label="Refresh Unity workspace"
       data-testid="coordinator-workspace-refresh"
     >
       <RefreshCw className={cn('h-3.5 w-3.5', isLoading && 'animate-spin')} />
@@ -409,7 +409,7 @@ export function CoordinatorWorkspacePanelContent({
             <div className="min-w-0">
               <h2 className="text-title truncate">Team Setup</h2>
               <p className="text-caption mt-1 text-muted-foreground">
-                Your Coordinator is shaping the team, tools, and first handoffs.
+                Unity is shaping the team, tools, and first handoffs.
               </p>
             </div>
             <RefreshWorkspaceButton isLoading={isWorkspaceLoading} onRefresh={refreshWorkspace} />
@@ -422,7 +422,7 @@ export function CoordinatorWorkspacePanelContent({
             />
             <div className="min-w-0 flex-1">
               <div className="text-label truncate" data-testid="coordinator-workspace-name">
-                Coordinator
+                Unity
               </div>
             </div>
           </div>
@@ -441,7 +441,7 @@ export function CoordinatorWorkspacePanelContent({
         onSeedChatDraft={onSeedChatDraft}
       />
 
-      <section className="space-y-3" aria-label="Coordinator setup checklist">
+      <section className="space-y-3" aria-label="Unity setup checklist">
         <div className="flex items-center justify-between gap-2">
           <div>
             <h3 className="text-label text-semibold">Setup plan</h3>
@@ -468,7 +468,7 @@ export function CoordinatorWorkspacePanelContent({
           ))
         ) : (
           <p className="text-caption rounded-lg border border-dashed p-3 text-muted-foreground">
-            The setup checklist will appear here as the Coordinator learns what your team needs.
+            The setup checklist will appear here as Unity learns what your team needs.
           </p>
         )}
         {state?.mode === 'working' && (

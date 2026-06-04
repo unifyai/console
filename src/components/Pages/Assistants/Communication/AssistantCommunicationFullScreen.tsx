@@ -33,6 +33,7 @@ import {
 } from '@/hooks/Assistants/useAssistantChatStream';
 import { getOrFetchContactId } from '@/hooks/Assistants/useContactIdPrefetch';
 import { contactScopedRootQueries } from '@/lib/assistants/scope';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { ParsedInboundChatMessage } from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 
@@ -232,9 +233,7 @@ const FullScreenCallUI: React.FC<{
 
   const userTrackRef = screenShareTrack || localVideoTrackRef;
   const isCoordinator = assistant.isCoordinator === true;
-  const assistantName = isCoordinator
-    ? 'Coordinator'
-    : [assistant.firstName, assistant.surname].filter(Boolean).join(' ');
+  const assistantName = assistantDisplayName(assistant);
   const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
 
   return (
@@ -767,9 +766,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       // same participant identity and the old room may have been cleaned up
       // server-side after the dialog disconnected, so we need our own token
       // with a new identity to reliably join the room.
-      const assistantName = assistant.isCoordinator
-        ? 'Coordinator'
-        : [assistant.firstName, assistant.surname].filter(Boolean).join(' ');
+      const assistantName = assistantDisplayName(assistant);
       const connDetails = await assistantActions.call.getConnectionDetails(
         assistant.agentId,
         assistantName
@@ -853,9 +850,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       ? params.assistantId[0]
       : params.assistantId;
     if (assistant && assistantId) {
-      const displayName = assistant.isCoordinator
-        ? 'Coordinator'
-        : [assistant.firstName, assistant.surname].filter(Boolean).join(' ');
+      const displayName = assistantDisplayName(assistant);
       localStorage.setItem(
         'activePopOutCall',
         JSON.stringify({
@@ -954,9 +949,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
   }
 
   const showLoadingState = isConnecting || isWaitingForAssistant;
-  const displayName = assistant.isCoordinator
-    ? 'Coordinator'
-    : [assistant.firstName, assistant.surname].filter(Boolean).join(' ');
+  const displayName = assistantDisplayName(assistant);
   const loadingMessage = isConnecting
     ? 'Setting up a connection...'
     : `Waiting for ${displayName} to join...`;

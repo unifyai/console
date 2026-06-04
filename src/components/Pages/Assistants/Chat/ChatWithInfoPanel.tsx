@@ -15,6 +15,7 @@ import type { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { useCoordinatorActivity } from '@/hooks/Assistants/useCoordinatorActivity';
 import type { CoordinatorActivityRow } from '@/types/assistants/coordinatorActivity';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 
 // ---------------------------------------------------------------------------
 // Per-assistant info-panel dismissal persistence
@@ -209,6 +210,9 @@ export function ChatWithInfoPanel({
     enabled: assistant.isCoordinator === true,
     onActivity: onCoordinatorActivity,
   });
+  const searchDisplayName = assistant.isCoordinator
+    ? assistantDisplayName(assistant)
+    : assistant.firstName || assistantDisplayName(assistant);
   const [searchOpen, setSearchOpen] = React.useState(false);
   // Default-closed; the assistant-id init effect below flips it open
   // for any assistant the user hasn't explicitly dismissed the panel
@@ -382,7 +386,7 @@ export function ChatWithInfoPanel({
             type="text"
             readOnly
             className="h-7 w-full cursor-text rounded-md border bg-transparent pl-7 pr-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            placeholder={`Search chat with ${assistant.firstName}…`}
+            placeholder={`Search chat with ${searchDisplayName}…`}
             onFocus={(e) => {
               e.currentTarget.blur();
               setSearchOpen(true);

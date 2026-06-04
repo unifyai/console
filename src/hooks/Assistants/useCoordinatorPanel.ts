@@ -181,7 +181,7 @@ export function useCoordinatorPanel({
       setChecklist(checklistData.rows.map(normalizeCoordinatorChecklistRow));
     } catch (err) {
       if (requestSequence.current !== requestId) return;
-      setError(err instanceof Error ? err.message : 'Failed to load Coordinator workspace');
+      setError(err instanceof Error ? err.message : 'Failed to load Unity workspace');
     } finally {
       if (requestSequence.current === requestId) setIsLoading(false);
     }

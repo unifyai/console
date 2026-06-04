@@ -13,7 +13,7 @@ export function CoordinatorLogoAvatar({ className, logoClassName }: CoordinatorL
         'flex items-center justify-center rounded-md border bg-background text-primary shadow-sm',
         className
       )}
-      aria-label="Coordinator"
+      aria-label="Unity"
       role="img"
     >
       <svg

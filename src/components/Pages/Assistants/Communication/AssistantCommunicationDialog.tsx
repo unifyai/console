@@ -25,6 +25,7 @@ import {
 import { Room, Track } from 'livekit-client';
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 
 interface AssistantCommunicationDialogContentProps {
   assistant: Assistant;
@@ -267,9 +268,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
 
   const userTrackRef = screenShareTrack || localVideoTrackRef;
   const isCoordinator = assistant.isCoordinator === true;
-  const displayName = isCoordinator
-    ? 'Coordinator'
-    : [assistant.firstName, assistant.surname].filter(Boolean).join(' ');
+  const displayName = assistantDisplayName(assistant);
   const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
 
   const handleToggleSidePanel = (panel: 'chat' | 'settings') => {

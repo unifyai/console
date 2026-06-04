@@ -74,14 +74,14 @@ interface OnboardingChecklistItem {
 const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
   {
     id: 'meet',
-    title: 'Meet your coordinator',
+    title: 'Meet Unity',
     phaseLabel: 'Meet',
-    description: 'Say hi to your coordinator.',
+    description: 'Say hi to Unity.',
     estimatedTime: '~1 min',
   },
   {
     id: 'connect',
-    title: 'Connect your coordinator',
+    title: 'Connect Unity',
     phaseLabel: 'Connect',
     description: 'Plug it into your workspace and apps.',
     // No action: the parent row is purely a grouping header; the
@@ -89,7 +89,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
     children: [
       {
         id: 'workspace',
-        title: 'Give your coordinator access to your workspace',
+        title: 'Give Unity access to your workspace',
         description: 'Required for everything else in onboarding.',
         estimatedTime: '~30s',
         action: 'connect-workspace',
@@ -97,7 +97,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       },
       {
         id: 'apps',
-        title: 'Connect your coordinator with your apps',
+        title: 'Connect Unity with your apps',
         description: 'Hook up at least one app (Slack, Gmail…).',
         estimatedTime: '~2 min',
         action: 'connect-apps',
@@ -123,7 +123,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         // and guide" row is folded in: asking + watching it run is
         // a single moment on the Actions panel.
         id: 'act',
-        title: 'Ask your coordinator to do something now',
+        title: 'Ask Unity to do something now',
         description: 'Give it a one-off job and watch it run live.',
         estimatedTime: '~2 min',
         action: 'act',

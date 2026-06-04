@@ -20,6 +20,7 @@ import { RoomContext, useTrackToggle, useVoiceAssistant } from '@livekit/compone
 import { AssistantCommunicationMainView } from './AssistantCommunicationMainView';
 import { cn } from '@/lib/utils';
 import { motion, PanInfo, useMotionValue } from 'framer-motion';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 
 const MIN_WIDTH = 200;
 const MIN_HEIGHT = 160;
@@ -96,9 +97,7 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
   const camToggle = useTrackToggle({ source: Track.Source.Camera });
 
   const isCoordinator = assistant.isCoordinator === true;
-  const displayName = isCoordinator
-    ? 'Coordinator'
-    : [assistant.firstName, assistant.surname].filter(Boolean).join(' ');
+  const displayName = assistantDisplayName(assistant);
   const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
   const showLoadingState = isConnecting || isWaitingForAssistant;
   const loadingMessage = isConnecting

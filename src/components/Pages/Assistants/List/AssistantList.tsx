@@ -107,7 +107,7 @@ export function AssistantList({
     const lowerSearchTerm = searchTerm.toLowerCase();
     return assistants.filter(
       (a) =>
-        (a.isCoordinator === true && 'coordinator'.includes(lowerSearchTerm)) ||
+        (a.isCoordinator === true && 'unity coordinator'.includes(lowerSearchTerm)) ||
         (a.firstName &&
           a.surname &&
           `${a.firstName} ${a.surname}`.toLowerCase().includes(lowerSearchTerm)) ||
