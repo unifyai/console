@@ -10,8 +10,10 @@ import { AssistantCommunicationSidePanel } from './AssistantCommunicationSidePan
 import { MinimizedContent } from './AssistantCommunicationMinimized';
 import { AnimatePresence, motion, PanInfo } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/UI/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { Loader2, ScreenShare } from 'lucide-react';
 import {
   RoomAudioRenderer,
   RoomContext,
@@ -72,6 +74,8 @@ interface AssistantCommunicationDialogContentProps {
   chatStreamConnectionStatus: ChatStreamConnectionStatus;
   reconnectChatStream: () => void;
   chatStreamActivitySignal: number;
+  requireScreenShare?: boolean;
+  onRequiredScreenShareActive?: () => void;
 }
 
 const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialogContentProps> = ({
@@ -110,6 +114,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   chatStreamConnectionStatus,
   reconnectChatStream,
   chatStreamActivitySignal,
+  requireScreenShare = false,
+  onRequiredScreenShareActive,
 }) => {
   const room = React.useContext(RoomContext);
   if (!room)
@@ -270,15 +276,28 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   const isCoordinator = assistant.isCoordinator === true;
   const displayName = assistantDisplayName(assistant);
   const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
+  const isRequiredScreenShareMissing = requireScreenShare && !screenShareToggle.enabled;
+
+  React.useEffect(() => {
+    if (requireScreenShare && screenShareToggle.enabled) {
+      onRequiredScreenShareActive?.();
+    }
+  }, [onRequiredScreenShareActive, requireScreenShare, screenShareToggle.enabled]);
 
   const handleToggleSidePanel = (panel: 'chat' | 'settings') => {
     setActiveSidePanel((current) => (current === panel ? null : panel));
   };
 
+  const handleRequiredScreenShare = React.useCallback(() => {
+    if (!isCallConnected || screenShareToggle.enabled || screenShareToggle.pending) return;
+    void screenShareToggle.toggle();
+  }, [isCallConnected, screenShareToggle]);
+
   const showLoadingState = isConnecting || isWaitingForAssistant;
   const loadingMessage = isConnecting
     ? 'Setting up a connection...'
     : waitingMessage || `Waiting for ${displayName} to join...`;
+  const resolvedOnPopOut = isRequiredScreenShareMissing ? undefined : onPopOut;
 
   return (
     <>
@@ -287,12 +306,59 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         onHeaderPointerDown={onHeaderPointerDown}
         onExpand={onExpand}
         onMinimize={onMinimize}
-        onPopOut={onPopOut}
+        onPopOut={resolvedOnPopOut}
         onRedock={onRedock}
         onHangUp={onHangUp}
       />
       <div className="relative flex min-h-0 flex-1">
         <div className="bg-background/80 relative flex flex-1 flex-col items-center justify-center">
+          {isRequiredScreenShareMissing && (
+            <div
+              className="bg-background/95 absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 p-8 text-center"
+              data-testid="coordinator-onboarding-screen-share-required"
+            >
+              <div className="bg-primary/10 flex h-14 w-14 items-center justify-center rounded-full text-primary">
+                {screenShareToggle.pending ? (
+                  <Loader2 className="h-7 w-7 animate-spin" />
+                ) : (
+                  <ScreenShare className="h-7 w-7" />
+                )}
+              </div>
+              <div className="max-w-sm space-y-2">
+                <h2 className="text-h3 font-medium text-foreground">
+                  Share your screen to continue onboarding
+                </h2>
+                <p className="text-body-muted">
+                  Unity needs to see your workspace during the initial setup session. Onboarding
+                  will continue once screen sharing is active.
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="lg"
+                onClick={handleRequiredScreenShare}
+                disabled={!isCallConnected || screenShareToggle.pending}
+                data-testid="coordinator-onboarding-share-screen"
+              >
+                {screenShareToggle.pending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Opening screen picker...
+                  </>
+                ) : (
+                  <>
+                    <ScreenShare className="mr-2 h-4 w-4" />
+                    Share screen
+                  </>
+                )}
+              </Button>
+              {!isCallConnected && (
+                <p className="text-caption text-muted-foreground">
+                  The screen picker will be available once the call connects.
+                </p>
+              )}
+            </div>
+          )}
           {isUserViewMaximized && userTrackRef ? (
             <AssistantCommunicationUserView
               imageUrl={userImage}
@@ -450,6 +516,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         isScreenShareOn={screenShareToggle.enabled}
         onToggleScreenShare={() => screenShareToggle.toggle()}
         isScreenShareToggleDisabled={screenShareToggle.pending}
+        isScreenShareRequired={requireScreenShare}
         onHangUp={onHangUp}
         onToggleChat={() => handleToggleSidePanel('chat')}
         onToggleSettings={() => handleToggleSidePanel('settings')}
@@ -530,6 +597,8 @@ interface AssistantCommunicationDialogProps {
    *  slot. Wired by the header's "dock" button on modal & floating
    *  modes. */
   onRedock?: () => void;
+  requireScreenShare?: boolean;
+  onRequiredScreenShareActive?: () => void;
 }
 
 export function AssistantCommunicationDialog({
@@ -567,6 +636,8 @@ export function AssistantCommunicationDialog({
   docked = false,
   onPopOut,
   onRedock,
+  requireScreenShare = false,
+  onRequiredScreenShareActive,
 }: AssistantCommunicationDialogProps) {
   // --- Modal / Floating mode ---
   const [mode, setMode] = React.useState<'modal' | 'floating'>('modal');
@@ -778,6 +849,8 @@ export function AssistantCommunicationDialog({
           chatStreamConnectionStatus={chatStreamConnectionStatus}
           reconnectChatStream={reconnectChatStream}
           chatStreamActivitySignal={chatStreamActivitySignal}
+          requireScreenShare={requireScreenShare}
+          onRequiredScreenShareActive={onRequiredScreenShareActive}
         />
       </div>
     );
@@ -889,6 +962,8 @@ export function AssistantCommunicationDialog({
             chatStreamConnectionStatus={chatStreamConnectionStatus}
             reconnectChatStream={reconnectChatStream}
             chatStreamActivitySignal={chatStreamActivitySignal}
+            requireScreenShare={requireScreenShare}
+            onRequiredScreenShareActive={onRequiredScreenShareActive}
           />
         )}
 

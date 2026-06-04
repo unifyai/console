@@ -27,6 +27,7 @@ interface AssistantCommunicationControlsProps {
   isScreenShareOn: boolean;
   onToggleScreenShare: () => void;
   isScreenShareToggleDisabled?: boolean;
+  isScreenShareRequired?: boolean;
   onHangUp: () => void;
   onToggleChat: () => void;
   onToggleSettings: () => void;
@@ -89,6 +90,7 @@ export function AssistantCommunicationControls({
   isScreenShareOn,
   onToggleScreenShare,
   isScreenShareToggleDisabled,
+  isScreenShareRequired = false,
   onHangUp,
   onToggleChat,
   onToggleSettings,
@@ -166,12 +168,18 @@ export function AssistantCommunicationControls({
             tooltip={
               !isConnectionEstablished
                 ? 'Available after assistant joins'
-                : isScreenShareOn
-                  ? 'Stop sharing screen'
-                  : 'Share your screen'
+                : isScreenShareRequired && isScreenShareOn
+                  ? 'Screen sharing is required for onboarding'
+                  : isScreenShareOn
+                    ? 'Stop sharing screen'
+                    : 'Share your screen'
             }
             onClick={onToggleScreenShare}
-            disabled={isScreenShareToggleDisabled || !isConnectionEstablished}
+            disabled={
+              isScreenShareToggleDisabled ||
+              !isConnectionEstablished ||
+              (isScreenShareRequired && isScreenShareOn)
+            }
             className={cn(isScreenShareOn && 'bg-primary/10 hover:bg-primary/20 text-primary')}
             compact={compact}
           >

@@ -2023,7 +2023,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 activeCallAssistant.agentId === canonicalCoordinator.agentId &&
                 !isCommunicationDialogOpen
               }
-              renderDockedCall={() => (
+              renderDockedCall={({ onRequiredScreenShareActive }) => (
                 <RoomContext.Provider value={room}>
                   <AssistantCommunicationDialog
                     docked
@@ -2064,6 +2064,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     chatStreamActivitySignal={
                       chatActivityCounters[canonicalCoordinator.agentId] ?? 0
                     }
+                    requireScreenShare
+                    onRequiredScreenShareActive={onRequiredScreenShareActive}
                   />
                 </RoomContext.Provider>
               )}
@@ -2465,6 +2467,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               }
               reconnectChatStream={reconnectChatStream}
               chatStreamActivitySignal={chatActivityCounters[activeCallAssistant.agentId] ?? 0}
+              requireScreenShare={
+                showCoordinatorOnboarding && activeCallAssistant.agentId === canonicalCoordinatorId
+              }
             />
           </RoomContext.Provider>
         )}
