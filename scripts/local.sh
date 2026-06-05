@@ -19,6 +19,9 @@
 #   ./scripts/local.sh start --stripe                 # + Stripe webhook forwarding
 #   ./scripts/local.sh start --pubsub                 # + Pub/Sub emulator (billing events)
 #   ./scripts/local.sh start --chat                   # + Pub/Sub + chat (Unity gateway)
+#   ./scripts/local.sh gateway-setup                  # Unity gateway setup wizard
+#   ./scripts/local.sh gateway-doctor --check-credentials
+#   ./scripts/local.sh gateway-urls --public-url https://callbacks.example.com
 #   ./scripts/local.sh stop                           # Stop all services
 #   ./scripts/local.sh restart                        # Stop then start (wipes database)
 #   ./scripts/local.sh status                         # Show status of all services
@@ -386,6 +389,74 @@ check_unity_gateway_prerequisites() {
     return 1
   fi
   log_success "Unity repo found at: $UNITY_REPO_PATH"
+}
+
+unity_gateway_python() {
+  if [[ -x "$UNITY_REPO_PATH/.venv/bin/python" ]]; then
+    echo "$UNITY_REPO_PATH/.venv/bin/python"
+  else
+    echo "python3"
+  fi
+}
+
+cmd_gateway_setup() {
+  if ! check_unity_gateway_prerequisites; then
+    return 1
+  fi
+  local python_bin
+  python_bin="$(unity_gateway_python)"
+  local env_file="${UNITY_GATEWAY_ENV_FILE:-$ENV_LOCAL}"
+  local interactive_default="true"
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --interactive|--non-interactive|--write-env|--print)
+        interactive_default="false"
+        ;;
+    esac
+  done
+  local args=(setup --env-file "$env_file")
+  if [[ "$interactive_default" == "true" ]]; then
+    args+=(--interactive)
+  fi
+  if (( "$#" )); then
+    args+=("$@")
+  fi
+  log_info "Delegating to Unity gateway setup..."
+  (
+    cd "$UNITY_REPO_PATH"
+    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" "$python_bin" -m unity.gateway "${args[@]}"
+  )
+}
+
+cmd_gateway_doctor() {
+  if ! check_unity_gateway_prerequisites; then
+    return 1
+  fi
+  local python_bin
+  python_bin="$(unity_gateway_python)"
+  local env_file="${UNITY_GATEWAY_ENV_FILE:-$ENV_LOCAL}"
+  log_info "Delegating to Unity gateway doctor..."
+  (
+    cd "$UNITY_REPO_PATH"
+    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" "$python_bin" -m unity.gateway doctor --env-file "$env_file" "$@"
+  )
+}
+
+cmd_gateway_urls() {
+  if ! check_unity_gateway_prerequisites; then
+    return 1
+  fi
+  local python_bin
+  python_bin="$(unity_gateway_python)"
+  local env_file="${UNITY_GATEWAY_ENV_FILE:-$ENV_LOCAL}"
+  local public_url
+  public_url="${UNITY_GATEWAY_PUBLIC_URL:-$(read_env_value UNITY_GATEWAY_PUBLIC_URL "$env_file" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
+  log_info "Delegating to Unity gateway URL printer..."
+  (
+    cd "$UNITY_REPO_PATH"
+    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" UNITY_GATEWAY_PUBLIC_URL="$public_url" "$python_bin" -m unity.gateway urls "$@"
+  )
 }
 
 unity_gateway_base_url() {
@@ -1223,6 +1294,24 @@ cmd_status() {
 # =============================================================================
 
 main() {
+  case "${1:-}" in
+    gateway-setup)
+      shift
+      cmd_gateway_setup "$@"
+      return
+      ;;
+    gateway-doctor)
+      shift
+      cmd_gateway_doctor "$@"
+      return
+      ;;
+    gateway-urls)
+      shift
+      cmd_gateway_urls "$@"
+      return
+      ;;
+  esac
+
   local cmd=""
   local with_org="false"
   local with_stripe="false"
@@ -1253,13 +1342,16 @@ main() {
     restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" ;;
     status)  cmd_status ;;
     help)
-      echo "Usage: $0 [start|stop|restart|status] [--org] [--stripe] [--pubsub] [--chat] [--echo] [--seed <scenario>]"
+      echo "Usage: $0 [start|stop|restart|status|gateway-setup|gateway-doctor|gateway-urls] [--org] [--stripe] [--pubsub] [--chat] [--echo] [--seed <scenario>]"
       echo ""
       echo "Commands:"
       echo "  start    Start Console + Orchestra + seed data (default)"
       echo "  stop     Stop Console, Orchestra, Pub/Sub emulator, Unity, and Stripe listener"
       echo "  restart  Stop then start (wipes database)"
       echo "  status   Show service status"
+      echo "  gateway-setup   Run Unity gateway local setup wizard"
+      echo "  gateway-doctor  Run Unity gateway doctor using Console's local env"
+      echo "  gateway-urls    Print Unity gateway provider callback URLs"
       echo ""
       echo "Flags:"
       echo "  --seed <scenario>  Choose a seed scenario. Default: personal-workspace"

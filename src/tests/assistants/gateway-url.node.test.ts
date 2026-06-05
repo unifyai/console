@@ -1,4 +1,6 @@
 import { describe, expect, it, afterEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { createCommunicationClient } from '@/lib/communication/client';
 import { getAdaptersBaseUrl } from '@/utils/assistants/api-utils';
 
@@ -47,5 +49,18 @@ describe('local gateway URL resolution', () => {
     const client = createCommunicationClient();
 
     expect(client.defaults.baseURL).toBe('https://communication.example.com');
+  });
+});
+
+describe('local gateway script wrappers', () => {
+  it('exposes thin Unity gateway wrapper commands', () => {
+    const script = readFileSync(join(process.cwd(), 'scripts/local.sh'), 'utf8');
+
+    expect(script).toContain('gateway-setup');
+    expect(script).toContain('gateway-doctor');
+    expect(script).toContain('gateway-urls');
+    expect(script).toContain('args=(setup');
+    expect(script).toContain('-m unity.gateway doctor');
+    expect(script).toContain('-m unity.gateway urls');
   });
 });

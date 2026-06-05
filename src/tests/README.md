@@ -80,7 +80,7 @@ src/tests/
 # One command — starts PostgreSQL, Orchestra, seeds, and Console:
 ./scripts/local.sh start
 
-# Or with chat support (Pub/Sub emulator + Communication adapters):
+# Or with chat support (Pub/Sub emulator + local Unity gateway):
 ./scripts/local.sh start --chat
 ```
 
@@ -89,6 +89,19 @@ The `local.sh` script automatically:
 - Starts PostgreSQL (Docker) and Orchestra with `ORCHESTRA_ENVIRONMENT=dev`
 - Generates seed data (users, assistants, orgs)
 - Starts the Console dev server without cloud credentials (stubs activate)
+
+For full local chat smoke tests, configure the local gateway first:
+
+```bash
+./scripts/local.sh gateway-setup
+./scripts/local.sh gateway-doctor --check-credentials
+./scripts/local.sh gateway-urls --public-url "$UNITY_GATEWAY_PUBLIC_URL"
+./scripts/local.sh start --chat --echo --seed personal-workspace-multi
+```
+
+`--echo` keeps the smoke independent of LLM/provider credentials. Real provider
+channels still require provider accounts, API keys, and public HTTPS callback
+URLs configured through the Unity gateway wizard.
 
 See `./scripts/local.sh help` for all options.
 
