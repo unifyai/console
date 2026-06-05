@@ -96,7 +96,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
       const data = await res.json();
 
       if (!res.ok) {
-        if (data.providers && !data.providers.includes('email')) {
+        if (data.providers?.length && !data.providers.includes('email')) {
           setError(formatProviderError(data.providers));
         } else {
           setError(data.message || data.detail || 'Registration failed');
@@ -135,12 +135,14 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
       const preData = await preRes.json();
 
       if (!preRes.ok) {
-        if (preData.providers) {
-          setError(formatProviderError(preData.providers));
-        } else if (preData.error === 'invalid_credentials') {
+        const detail =
+          typeof preData?.detail === 'object' && preData.detail !== null ? preData.detail : preData;
+        if (detail.providers?.length) {
+          setError(formatProviderError(detail.providers));
+        } else if (detail.error === 'invalid_credentials') {
           setError('Invalid email or password.');
         } else {
-          setError(preData.message || 'Login failed');
+          setError(detail.message || detail.error || 'Login failed');
         }
         setIsLoading(false);
         return;
