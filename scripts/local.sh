@@ -142,8 +142,12 @@ check_prerequisites() {
   fi
 
   if [[ ! -f "$ENV_LOCAL" ]]; then
-    log_error "Missing .env.local — see README for setup instructions."
-    ok=false
+    if [[ "${SELF_HOST:-0}" == "1" && -f "$ENV_DEVELOPMENT" ]]; then
+      log_warn ".env.local missing — self-host will use .env.development defaults"
+    else
+      log_error "Missing .env.local — see README for setup instructions."
+      ok=false
+    fi
   fi
 
   if [[ "$ok" == "false" ]]; then
@@ -175,7 +179,7 @@ check_gcloud() {
 }
 
 check_java() {
-  if command -v java &>/dev/null; then
+  if command -v java &>/dev/null && java -version &>/dev/null 2>&1; then
     return 0
   fi
 
@@ -185,15 +189,29 @@ check_java() {
     if [[ -n "$openjdk_prefix" && -x "$openjdk_prefix/libexec/openjdk.jdk/Contents/Home/bin/java" ]]; then
       export JAVA_HOME="$openjdk_prefix/libexec/openjdk.jdk/Contents/Home"
       export PATH="$JAVA_HOME/bin:$PATH"
-      return 0
+      if java -version &>/dev/null 2>&1; then
+        return 0
+      fi
     fi
   fi
 
-  log_error "Java is required for Pub/Sub emulator but not installed"
-  log_info "Install Java with one of:"
-  log_info "  macOS:  brew install openjdk"
-  log_info "  Ubuntu: sudo apt install default-jdk"
-  return 1
+  if ! command -v java &>/dev/null; then
+    log_error "Java is required for Pub/Sub emulator but not installed"
+    log_info "Install Java with one of:"
+    log_info "  macOS:  brew install openjdk"
+    log_info "    then: export PATH=\"/opt/homebrew/opt/openjdk/bin:\$PATH\""
+    log_info "  Ubuntu: sudo apt install default-jdk"
+    return 1
+  fi
+  if ! java -version &>/dev/null 2>&1; then
+    log_error "Java is on PATH but no JRE is installed (macOS stub java)"
+    log_info "Install a JDK and put it on PATH:"
+    log_info "  brew install openjdk"
+    log_info "  export PATH=\"/opt/homebrew/opt/openjdk/bin:\$PATH\""
+    log_info "Optional system wrapper: sudo ln -sfn /opt/homebrew/opt/openjdk/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk.jdk"
+    return 1
+  fi
+  return 0
 }
 
 check_pubsub_emulator() {
@@ -337,6 +355,14 @@ start_orchestra() {
     export UNITY_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
     log_info "  UNITY_ADAPTERS_URL=$UNITY_ADAPTERS_URL"
   fi
+  if [[ -n "$CHAT_COMMS_URL" ]]; then
+    export UNITY_COMMS_URL="$CHAT_COMMS_URL"
+    log_info "  UNITY_COMMS_URL=$UNITY_COMMS_URL"
+  fi
+  if [[ "${SELF_HOST:-0}" == "1" ]]; then
+    export SELF_HOST=1
+    log_info "  SELF_HOST=1"
+  fi
 
   # When --stripe is requested, pass Stripe keys so Orchestra can create
   # checkout/portal sessions and process webhooks.
@@ -429,6 +455,65 @@ cmd_gateway_setup() {
   )
 }
 
+start_communication_adapters() {
+  local with_comms="${1:-false}"
+
+  if is_communication_running; then
+    log_success "Communication adapters already running"
+    load_communication_config
+    return 0
+  fi
+
+  if [[ "$with_comms" == "true" ]]; then
+    log_info "Starting Communication adapters + Comms App (Console-managed emulator)..."
+  else
+    log_info "Starting Communication adapters (connecting to Console-managed emulator)..."
+  fi
+
+  local comm_env=(COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH")
+  if [[ -n "$ADMIN_KEY" ]]; then
+    comm_env+=(ORCHESTRA_ADMIN_KEY="$ADMIN_KEY")
+  fi
+  if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
+    comm_env+=(ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0")
+  fi
+  comm_env+=(PUBSUB_EMULATOR_HOST="$LOCAL_PUBSUB_HOST")
+  comm_env+=(GCP_PROJECT_ID="$PUBSUB_GCP_PROJECT_ID")
+
+  local comm_args=(start --no-emulator)
+  if [[ "$with_comms" == "true" ]]; then
+    comm_args+=(--with-comms)
+  fi
+
+  if ! env "${comm_env[@]}" bash "$COMMUNICATION_LOCAL_SCRIPT" "${comm_args[@]}"; then
+    log_error "Failed to start Communication services"
+    return 1
+  fi
+
+  load_communication_config
+  log_success "Communication services are running"
+}
+
+load_communication_config() {
+  if [[ ! -f "$COMMUNICATION_CONFIG_FILE" ]]; then
+    log_warn "Communication config file not found at $COMMUNICATION_CONFIG_FILE"
+    return 1
+  fi
+
+  while IFS='=' read -r key value; do
+    case "$key" in
+      UNITY_ADAPTERS_URL)    CHAT_ADAPTERS_URL="$value" ;;
+      UNITY_COMMS_URL)       CHAT_COMMS_URL="$value" ;;
+      TEST_ASSISTANT_ID)     CHAT_TEST_ASSISTANT_ID="$value" ;;
+    esac
+  done < "$COMMUNICATION_CONFIG_FILE"
+
+  log_info "Loaded Communication config:"
+  log_info "  Adapters URL:      ${CHAT_ADAPTERS_URL:-<not set>}"
+  log_info "  Comms URL:         ${CHAT_COMMS_URL:-<not set>}"
+  log_info "  Test Assistant ID: ${CHAT_TEST_ASSISTANT_ID:-<not set>}"
+}
+
 cmd_gateway_doctor() {
   if ! check_unity_gateway_prerequisites; then
     return 1
@@ -487,6 +572,7 @@ configure_unity_gateway_urls() {
 }
 
 CHAT_ADAPTERS_URL=""
+CHAT_COMMS_URL=""
 CHAT_TEST_ASSISTANT_ID=""
 
 # =============================================================================
@@ -629,6 +715,192 @@ stop_unity() {
     bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
     log_success "Unity stopped"
   fi
+}
+
+# =============================================================================
+# Self-host bootstrap (--self-host mode)
+# =============================================================================
+
+SELF_HOST_BOOTSTRAP_EMAIL=""
+SELF_HOST_BOOTSTRAP_PASSWORD=""
+SELF_HOST_BOOTSTRAP_API_KEY=""
+SELF_HOST_BOOTSTRAP_COORDINATOR_ID=""
+
+read_self_host_bootstrap() {
+  SELF_HOST_BOOTSTRAP_EMAIL=""
+  SELF_HOST_BOOTSTRAP_PASSWORD=""
+  SELF_HOST_BOOTSTRAP_API_KEY=""
+  SELF_HOST_BOOTSTRAP_COORDINATOR_ID=""
+
+  if [[ ! -f /tmp/self-host-bootstrap.json ]]; then
+    return 1
+  fi
+
+  local parsed
+  parsed="$(python3 - <<'PY'
+import json
+import sys
+
+path = "/tmp/self-host-bootstrap.json"
+with open(path, encoding="utf-8") as fh:
+    raw = fh.read().strip()
+
+try:
+    data = json.loads(raw)
+except json.JSONDecodeError:
+    lines = [line.strip() for line in raw.splitlines() if line.strip().startswith("{")]
+    if not lines:
+        raise
+    data = json.loads(lines[-1])
+
+print(data["email"])
+print(data["password"])
+print(data["api_key"])
+print(data["coordinator_agent_id"])
+PY
+)" || return 1
+
+  SELF_HOST_BOOTSTRAP_EMAIL="$(echo "$parsed" | sed -n '1p')"
+  SELF_HOST_BOOTSTRAP_PASSWORD="$(echo "$parsed" | sed -n '2p')"
+  SELF_HOST_BOOTSTRAP_API_KEY="$(echo "$parsed" | sed -n '3p')"
+  SELF_HOST_BOOTSTRAP_COORDINATOR_ID="$(echo "$parsed" | sed -n '4p')"
+}
+
+run_self_host_bootstrap() {
+  log_info "Bootstrapping self-host owner (production coordinator path)..."
+  if [[ ! -x "$ORCHESTRA_REPO_PATH/scripts/bootstrap_self_host.sh" && ! -f "$ORCHESTRA_REPO_PATH/scripts/bootstrap_self_host.sh" ]]; then
+    log_error "Missing orchestra/scripts/bootstrap_self_host.sh"
+    return 1
+  fi
+
+  local bootstrap_env=(
+    ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH"
+    ORCHESTRA_DB_PORT="${ORCHESTRA_DB_PORT:-5432}"
+    SELF_HOST_OWNER_PASSWORD="${SELF_HOST_OWNER_PASSWORD:-}"
+    SELF_HOST=1
+  )
+  if [[ -n "${ADMIN_KEY:-}" ]]; then
+    bootstrap_env+=(ORCHESTRA_ADMIN_KEY="$ADMIN_KEY")
+  fi
+  if [[ -n "${CHAT_COMMS_URL:-}" ]]; then
+    bootstrap_env+=(UNITY_COMMS_URL="$CHAT_COMMS_URL")
+  fi
+  if [[ -n "${CHAT_ADAPTERS_URL:-}" ]]; then
+    bootstrap_env+=(UNITY_ADAPTERS_URL="$CHAT_ADAPTERS_URL")
+  fi
+
+  env "${bootstrap_env[@]}" \
+  bash "$ORCHESTRA_REPO_PATH/scripts/bootstrap_self_host.sh" || return 1
+
+  read_self_host_bootstrap || {
+    log_error "Failed to read bootstrap output from /tmp/self-host-bootstrap.json"
+    return 1
+  }
+  log_success "Self-host owner ready (Coordinator agent_id=$SELF_HOST_BOOTSTRAP_COORDINATOR_ID)"
+}
+
+start_unity_self_host() {
+  if ! is_unity_available; then
+    log_warn "Unity repo not found — skipping Coordinator runtime"
+    return 0
+  fi
+
+  read_self_host_bootstrap || {
+    log_error "Bootstrap credentials missing — cannot start Unity CM"
+    return 1
+  }
+
+  if is_unity_running; then
+    log_info "Restarting Unity so Coordinator runtime picks up bootstrap credentials..."
+    bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
+    sleep 1
+  fi
+
+  local resolved_assistant_id="$SELF_HOST_BOOTSTRAP_COORDINATOR_ID"
+  log_info "Starting Unity for Coordinator assistant=$resolved_assistant_id ..."
+
+  local unity_env=(
+    PUBSUB_EMULATOR_HOST="$LOCAL_PUBSUB_HOST"
+    GCP_PROJECT_ID="$PUBSUB_GCP_PROJECT_ID"
+    ASSISTANT_ID="$resolved_assistant_id"
+    DEPLOY_ENV="staging"
+    SELF_HOST=1
+    UNIFY_KEY="$SELF_HOST_BOOTSTRAP_API_KEY"
+    ASSISTANT_IS_COORDINATOR=True
+  )
+
+  if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
+    unity_env+=(ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0")
+  fi
+
+  local _voice_provider _voice_id
+  _voice_provider=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+    -c "SELECT COALESCE(voice_provider, '') FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+  _voice_id=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+    -c "SELECT COALESCE(voice_id, '') FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+  [[ -n "$_voice_provider" ]] && unity_env+=("VOICE_PROVIDER=$_voice_provider")
+  [[ -n "$_voice_id" ]] && unity_env+=("VOICE_ID=$_voice_id")
+
+  for key in OPENAI_API_KEY ANTHROPIC_API_KEY ORCHESTRA_ADMIN_KEY DEEPGRAM_API_KEY CARTESIA_API_KEY; do
+    local val="${!key:-}"
+    if [[ -z "$val" && -f "$ENV_LOCAL" ]]; then
+      val=$(grep -E "^${key}=" "$ENV_LOCAL" 2>/dev/null | sed 's/^[^=]*=//' | tr -d '"' || true)
+    fi
+    if [[ -n "$val" ]]; then
+      unity_env+=("$key=$val")
+    fi
+  done
+
+  unity_env+=(
+    LIVEKIT_URL="ws://localhost:7880"
+    LIVEKIT_API_KEY="devkey"
+    LIVEKIT_API_SECRET="secret"
+  )
+
+  local _a_first _a_surname _a_about _a_age _a_nat _a_tz _u_first _u_last _u_email _u_id
+  _u_first=""
+  _u_last=""
+  _u_email=""
+  _a_first=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+    -c "SELECT first_name FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+  _a_surname=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+    -c "SELECT surname FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+  _a_about=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+    -c "SELECT about FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+  _a_age=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+    -c "SELECT age FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+  _a_nat=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+    -c "SELECT nationality FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+  _a_tz=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+    -c "SELECT timezone FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+  _u_id=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+    -c "SELECT user_id FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+  if [[ -n "$_u_id" ]]; then
+    _u_first=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+      -c "SELECT name FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
+    _u_last=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+      -c "SELECT last_name FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
+    _u_email=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+      -c "SELECT email FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
+  fi
+
+  [[ -n "$_a_first" ]]   && unity_env+=("ASSISTANT_FIRST_NAME=$_a_first")
+  [[ -n "$_a_surname" ]] && unity_env+=("ASSISTANT_SURNAME=$_a_surname")
+  [[ -n "$_a_about" ]]   && unity_env+=("ASSISTANT_ABOUT=$_a_about")
+  [[ -n "$_a_age" ]]     && unity_env+=("ASSISTANT_AGE=$_a_age")
+  [[ -n "$_a_nat" ]]     && unity_env+=("ASSISTANT_NATIONALITY=$_a_nat")
+  [[ -n "$_a_tz" ]]      && unity_env+=("ASSISTANT_TIMEZONE=$_a_tz")
+  [[ -n "$_u_first" ]]   && unity_env+=("USER_FIRST_NAME=$_u_first")
+  [[ -n "$_u_last" ]]    && unity_env+=("USER_SURNAME=$_u_last")
+  [[ -n "$_u_email" ]]   && unity_env+=("USER_EMAIL=$_u_email")
+  [[ -n "$_u_id" ]]      && unity_env+=("USER_ID=$_u_id")
+
+  if ! env "${unity_env[@]}" bash "$UNITY_LOCAL_SCRIPT" start --full; then
+    log_warn "Unity failed to start — chat will not get Coordinator replies"
+    return 0
+  fi
+
+  log_success "Unity Coordinator runtime is running"
 }
 
 create_seeded_assistant_topics() {
@@ -848,6 +1120,7 @@ is_console_running() {
 start_console() {
   local with_pubsub="${1:-false}"
   local with_chat="${2:-false}"
+  local with_self_host="${3:-false}"
 
   # Kill any stale Console processes on the port before checking, so we
   # always start fresh with the correct environment variables.
@@ -902,6 +1175,17 @@ start_console() {
       log_info "  LOCAL_ADAPTERS_URL=$LOCAL_ADAPTERS_URL"
       log_info "  UNITY_ADAPTERS_URL=$UNITY_ADAPTERS_URL"
     fi
+  fi
+
+  if [[ "$with_self_host" == "true" ]]; then
+    export SELF_HOST=1
+    export NEXT_PUBLIC_SELF_HOST=1
+    export LIVEKIT_URL="ws://localhost:7880"
+    export LIVEKIT_API_KEY="devkey"
+    export LIVEKIT_API_SECRET="secret"
+    log_info "Console self-host env:"
+    log_info "  SELF_HOST=1"
+    log_info "  LIVEKIT_URL=$LIVEKIT_URL"
   fi
 
   nohup npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 &
@@ -1041,13 +1325,22 @@ cmd_start() {
   local with_chat="$4"
   local with_pubsub="$5"
   local unity_echo="${6:-false}"
+  local with_self_host="${7:-false}"
+
+  if [[ "$with_self_host" == "true" ]]; then
+    with_chat="true"
+    with_pubsub="true"
+    export SELF_HOST=1
+  fi
 
   # Resolve effective seed scenario:
   #   --seed X  → X                     (explicit)
   #   --org     → org-basic             (convenience alias)
   #   (default) → personal-workspace
   if [[ -z "$seed_scenario" ]]; then
-    if [[ "$with_org" == "true" ]]; then
+    if [[ "$with_self_host" == "true" ]]; then
+      seed_scenario=""
+    elif [[ "$with_org" == "true" ]]; then
       seed_scenario="org-basic"
     else
       seed_scenario="personal-workspace"
@@ -1055,11 +1348,14 @@ cmd_start() {
   fi
 
   # Validate seed scenario name early — before starting any services.
-  if ! validate_seed_scenario "$seed_scenario"; then
+  if [[ -n "$seed_scenario" ]] && ! validate_seed_scenario "$seed_scenario"; then
     return 1
   fi
 
-  local mode_label="seed:${seed_scenario}"
+  local mode_label="self-host"
+  if [[ "$with_self_host" != "true" ]]; then
+    mode_label="seed:${seed_scenario:-personal-workspace}"
+  fi
   if [[ "$with_stripe" == "true" ]]; then
     mode_label="$mode_label + stripe"
   fi
@@ -1099,40 +1395,59 @@ cmd_start() {
     start_pubsub_emulator || return 1
   fi
 
-  # If --chat, point Console and Orchestra at the Unity gateway.
-  if [[ "$with_chat" == "true" ]]; then
+  # Self-host uses Communication adapters + Comms App; --chat uses Unity gateway.
+  if [[ "$with_self_host" == "true" || "$with_chat" == "true" ]]; then
     echo ""
-    if ! check_unity_gateway_prerequisites; then
-      return 1
+    if [[ "$with_self_host" == "true" ]]; then
+      start_communication_adapters true || return 1
+    else
+      if ! check_unity_gateway_prerequisites; then
+        return 1
+      fi
+      echo ""
+      configure_unity_gateway_urls || return 1
     fi
-    echo ""
-    configure_unity_gateway_urls || return 1
   fi
 
   echo ""
+  if [[ "$with_self_host" == "true" ]] && is_orchestra_running; then
+    log_info "Restarting Orchestra so SELF_HOST=1 and UNITY_COMMS_URL apply..."
+    stop_orchestra
+  fi
   start_orchestra "$with_stripe" || return 1
 
-  # Install npm deps early — seed scenarios need tsx.
-  echo ""
-  ensure_npm_deps
+  if [[ "$with_self_host" == "true" ]]; then
+    echo ""
+    run_self_host_bootstrap || return 1
+  else
+    # Install npm deps early — seed scenarios need tsx.
+    echo ""
+    ensure_npm_deps
 
-  # Seed before Console so data is available on first page load.
-  echo ""
-  run_seed_scenario "$seed_scenario" || log_warn "Seed scenario failed — see output above"
+    # Seed before Console so data is available on first page load.
+    echo ""
+    run_seed_scenario "$seed_scenario" || log_warn "Seed scenario failed — see output above"
+  fi
 
-  # After seeding, create Pub/Sub topics for seeded assistants/billing accounts.
+  # After seeding/bootstrap, create Pub/Sub topics for assistants.
   if [[ "$with_pubsub" == "true" || "$with_chat" == "true" ]] && is_emulator_running; then
     echo ""
-    create_seeded_billing_topics
+    if [[ "$with_self_host" != "true" ]]; then
+      create_seeded_billing_topics
+    fi
     if [[ "$with_chat" == "true" ]]; then
       create_seeded_assistant_topics
       echo ""
-      start_unity "$unity_echo"
+      if [[ "$with_self_host" == "true" ]]; then
+        start_unity_self_host
+      else
+        start_unity "$unity_echo"
+      fi
     fi
   fi
 
   echo ""
-  start_console "$with_pubsub" "$with_chat" || return 1
+  start_console "$with_pubsub" "$with_chat" "$with_self_host" || return 1
 
   if [[ "$with_stripe" == "true" ]]; then
     echo ""
@@ -1153,13 +1468,25 @@ cmd_start() {
     echo "  Pub/Sub:   $LOCAL_PUBSUB_HOST (emulator)"
   fi
   if [[ "$with_chat" == "true" ]]; then
-    echo "  Gateway:   ${CHAT_ADAPTERS_URL:-$(unity_gateway_base_url)}"
-    echo "  Test asst: ${CHAT_TEST_ASSISTANT_ID:-default-test-assistant}"
+    if [[ "$with_self_host" == "true" ]]; then
+      echo "  Adapters:  ${CHAT_ADAPTERS_URL:-http://127.0.0.1:8081}"
+      echo "  Comms:     ${CHAT_COMMS_URL:-http://127.0.0.1:8082}"
+      echo "  Coordinator agent_id: ${SELF_HOST_BOOTSTRAP_COORDINATOR_ID:-unknown}"
+    else
+      echo "  Gateway:   ${CHAT_ADAPTERS_URL:-$(unity_gateway_base_url)}"
+      echo "  Test asst: ${CHAT_TEST_ASSISTANT_ID:-default-test-assistant}"
+    fi
   fi
   echo ""
-  echo "  Seed:      $seed_scenario"
-  echo "  Login:     Use the Quick Sign-In panel on the login page"
-  echo "  Password:  testpass123"
+  if [[ "$with_self_host" == "true" ]]; then
+    echo "  Mode:      self-host (no seed scenarios)"
+    echo "  Login:     ${SELF_HOST_BOOTSTRAP_EMAIL:-owner@selfhost.dev}"
+    echo "  Password:  ${SELF_HOST_BOOTSTRAP_PASSWORD:-<see /tmp/self-host-bootstrap.json>}"
+  else
+    echo "  Seed:      $seed_scenario"
+    echo "  Login:     Use the Quick Sign-In panel on the login page"
+    echo "  Password:  testpass123"
+  fi
   if [[ "$with_stripe" == "true" ]]; then
     echo ""
     echo "  Billing:   Stripe test mode active — use card 4242 4242 4242 4242"
@@ -1211,9 +1538,11 @@ cmd_restart() {
   local with_chat="$4"
   local with_pubsub="$5"
   local unity_echo="${6:-false}"
+  local with_self_host="${7:-false}"
 
-  # Resolve default early so validation works.
-  if [[ -z "$seed_scenario" ]]; then
+  if [[ "$with_self_host" == "true" ]]; then
+    seed_scenario=""
+  elif [[ -z "$seed_scenario" ]]; then
     if [[ "$with_org" == "true" ]]; then
       seed_scenario="org-basic"
     else
@@ -1221,14 +1550,13 @@ cmd_restart() {
     fi
   fi
 
-  # Validate seed scenario name early — before stopping/restarting anything.
-  if ! validate_seed_scenario "$seed_scenario"; then
+  if [[ -n "$seed_scenario" ]] && ! validate_seed_scenario "$seed_scenario"; then
     return 1
   fi
 
   cmd_stop
   echo ""
-  cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo"
+  cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" "$with_self_host"
 }
 
 cmd_status() {
@@ -1318,6 +1646,7 @@ main() {
   local with_chat="false"
   local with_pubsub="false"
   local unity_echo="false"
+  local with_self_host="false"
   local seed_scenario=""
 
   while (( "$#" )); do
@@ -1325,6 +1654,7 @@ main() {
       --org)    with_org="true"; shift ;;
       --stripe) with_stripe="true"; shift ;;
       --chat)   with_chat="true"; with_pubsub="true"; shift ;;
+      --self-host) with_self_host="true"; shift ;;
       --pubsub) with_pubsub="true"; shift ;;
       --echo|--unity-echo) unity_echo="true"; shift ;;
       --seed)   shift; seed_scenario="${1:-}"; shift ;;
@@ -1337,9 +1667,9 @@ main() {
   cmd="${cmd:-start}"
 
   case "$cmd" in
-    start)   cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" ;;
+    start)   cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" "$with_self_host" ;;
     stop)    cmd_stop ;;
-    restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" ;;
+    restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" "$with_self_host" ;;
     status)  cmd_status ;;
     help)
       echo "Usage: $0 [start|stop|restart|status|gateway-setup|gateway-doctor|gateway-urls] [--org] [--stripe] [--pubsub] [--chat] [--echo] [--seed <scenario>]"
