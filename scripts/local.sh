@@ -56,6 +56,8 @@ ORCHESTRA_LOCAL_SCRIPT="$ORCHESTRA_REPO_PATH/scripts/local.sh"
 UNITY_REPO_PATH="${UNITY_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../unity" 2>/dev/null && pwd -P || echo "")}"
 UNITY_LOCAL_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/local.sh}"
 UNITY_GATEWAY_CONFIG_FILE="/tmp/unity-local.config"
+ENSURE_PREREQS_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/ensure_prereqs.sh}"
+SELF_HOST_ENV_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/self_host_env.sh}"
 
 CONSOLE_PORT="${CONSOLE_PORT:-3000}"
 ORCHESTRA_PORT="${ORCHESTRA_PORT:-8000}"
@@ -178,40 +180,45 @@ check_gcloud() {
   return 0
 }
 
+load_self_host_runtime_env() {
+  if [[ -z "${UNITY_REPO_PATH:-}" || ! -f "$SELF_HOST_ENV_SCRIPT" ]]; then
+    return 0
+  fi
+  # shellcheck disable=SC1090
+  source "$SELF_HOST_ENV_SCRIPT"
+  export_workspace_oauth_env "$UNITY_REPO_PATH/.env"
+}
+
+append_workspace_oauth_env() {
+  local -n _target_array="$1"
+  local key val
+  for key in \
+    GOOGLE_OAUTH_CLIENT_ID \
+    GOOGLE_OAUTH_CLIENT_SECRET \
+    OAUTH_STATE_SIGNING_KEY \
+    MICROSOFT_BYOD_CLIENT_ID \
+    MS365_BYOD_CLIENT_ID \
+    MS365_BYOD_CLIENT_SECRET; do
+    val="${!key:-}"
+    if [[ -n "$val" ]]; then
+      _target_array+=("$key=$val")
+    fi
+  done
+}
+
 check_java() {
+  if [[ -f "$ENSURE_PREREQS_SCRIPT" ]]; then
+    # shellcheck disable=SC1090
+    source "$ENSURE_PREREQS_SCRIPT"
+    ensure_java
+    return $?
+  fi
+
   if command -v java &>/dev/null && java -version &>/dev/null 2>&1; then
     return 0
   fi
-
-  if command -v brew &>/dev/null; then
-    local openjdk_prefix
-    openjdk_prefix="$(brew --prefix openjdk 2>/dev/null || true)"
-    if [[ -n "$openjdk_prefix" && -x "$openjdk_prefix/libexec/openjdk.jdk/Contents/Home/bin/java" ]]; then
-      export JAVA_HOME="$openjdk_prefix/libexec/openjdk.jdk/Contents/Home"
-      export PATH="$JAVA_HOME/bin:$PATH"
-      if java -version &>/dev/null 2>&1; then
-        return 0
-      fi
-    fi
-  fi
-
-  if ! command -v java &>/dev/null; then
-    log_error "Java is required for Pub/Sub emulator but not installed"
-    log_info "Install Java with one of:"
-    log_info "  macOS:  brew install openjdk"
-    log_info "    then: export PATH=\"/opt/homebrew/opt/openjdk/bin:\$PATH\""
-    log_info "  Ubuntu: sudo apt install default-jdk"
-    return 1
-  fi
-  if ! java -version &>/dev/null 2>&1; then
-    log_error "Java is on PATH but no JRE is installed (macOS stub java)"
-    log_info "Install a JDK and put it on PATH:"
-    log_info "  brew install openjdk"
-    log_info "  export PATH=\"/opt/homebrew/opt/openjdk/bin:\$PATH\""
-    log_info "Optional system wrapper: sudo ln -sfn /opt/homebrew/opt/openjdk/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk.jdk"
-    return 1
-  fi
-  return 0
+  log_error "Java is required for Pub/Sub emulator"
+  return 1
 }
 
 check_pubsub_emulator() {
@@ -361,7 +368,19 @@ start_orchestra() {
   fi
   if [[ "${SELF_HOST:-0}" == "1" ]]; then
     export SELF_HOST=1
+    load_self_host_runtime_env
     log_info "  SELF_HOST=1"
+    if [[ -n "${GOOGLE_OAUTH_CLIENT_ID:-}" ]]; then
+      export GOOGLE_OAUTH_CLIENT_ID
+      log_info "  GOOGLE_OAUTH_CLIENT_ID set"
+    fi
+    if [[ -n "${OAUTH_STATE_SIGNING_KEY:-}" ]]; then
+      export OAUTH_STATE_SIGNING_KEY
+    fi
+    if [[ -n "${MICROSOFT_BYOD_CLIENT_ID:-}" ]]; then
+      export MICROSOFT_BYOD_CLIENT_ID
+      log_info "  MICROSOFT_BYOD_CLIENT_ID set"
+    fi
   fi
 
   # When --stripe is requested, pass Stripe keys so Orchestra can create
@@ -479,6 +498,11 @@ start_communication_adapters() {
   fi
   comm_env+=(PUBSUB_EMULATOR_HOST="$LOCAL_PUBSUB_HOST")
   comm_env+=(GCP_PROJECT_ID="$PUBSUB_GCP_PROJECT_ID")
+
+  if [[ "${SELF_HOST:-0}" == "1" ]]; then
+    load_self_host_runtime_env
+    append_workspace_oauth_env comm_env
+  fi
 
   local comm_args=(start --no-emulator)
   if [[ "$with_comms" == "true" ]]; then
@@ -1331,6 +1355,7 @@ cmd_start() {
     with_chat="true"
     with_pubsub="true"
     export SELF_HOST=1
+    load_self_host_runtime_env
   fi
 
   # Resolve effective seed scenario:
