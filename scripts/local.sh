@@ -38,6 +38,7 @@
 # Environment:
 #   ORCHESTRA_REPO_PATH       Path to orchestra repo (default: ../orchestra)
 #   UNITY_REPO_PATH           Path to unity repo (default: ../unity)
+#   COMMUNICATION_REPO_PATH   Path to unity-deploy hosted repo (default: ../unity-deploy)
 #   CONSOLE_PORT              Next.js port (default: 3000)
 #   ORCHESTRA_PORT            Orchestra port (default: 8000)
 #
@@ -59,8 +60,8 @@ UNITY_GATEWAY_CONFIG_FILE="/tmp/unity-local.config"
 ENSURE_PREREQS_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/ensure_prereqs.sh}"
 SELF_HOST_ENV_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/self_host_env.sh}"
 
-COMMUNICATION_REPO_PATH="${COMMUNICATION_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../communication" 2>/dev/null && pwd -P || echo "")}"
-COMMUNICATION_LOCAL_SCRIPT="${COMMUNICATION_REPO_PATH:+$COMMUNICATION_REPO_PATH/scripts/local.sh}"
+COMMUNICATION_REPO_PATH="${COMMUNICATION_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../unity-deploy" 2>/dev/null && pwd -P || echo "")}"
+COMMUNICATION_LOCAL_SCRIPT="${COMMUNICATION_REPO_PATH:+$COMMUNICATION_REPO_PATH/scripts/communication-local.sh}"
 COMMUNICATION_CONFIG_FILE="${COMMUNICATION_CONFIG_FILE:-/tmp/${COMMS_PREFIX:-communication}-local.config}"
 
 CONSOLE_PORT="${CONSOLE_PORT:-3000}"
@@ -493,7 +494,7 @@ start_communication_adapters() {
   fi
 
   if [[ -z "$COMMUNICATION_REPO_PATH" || ! -f "$COMMUNICATION_LOCAL_SCRIPT" ]]; then
-    log_error "Communication repo not found. Expected at: $CONSOLE_REPO_PATH/../communication"
+    log_error "Hosted communication repo not found. Expected at: $CONSOLE_REPO_PATH/../unity-deploy"
     log_info "Set COMMUNICATION_REPO_PATH to override."
     return 1
   fi

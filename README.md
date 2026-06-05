@@ -34,7 +34,7 @@ Related repositories:
 - [Orchestra](https://github.com/unifyai/orchestra) — Backend API that Console communicates with
 - [Unity](https://github.com/unifyai/unity) — AI assistant brain (operations displayed in Console)
 - [Unity Gateway](https://github.com/unifyai/unity/tree/staging/unity/gateway) — Local external communication gateway for self-hosted development
-- [Communication](https://github.com/unifyai/communication) — Hosted communication infrastructure wrapper
+- [Unity Deploy](https://github.com/unifyai/unity-deploy) — Hosted deployment and communication infrastructure
 
 ---
 
