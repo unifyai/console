@@ -107,7 +107,8 @@ export const dispatchAssistantToCall = async (_apiKey: string) => {
 
       const orchestraUrl = process.env.ORCHESTRA_URL ?? '';
       const isStaging = isStagingEnvironment(orchestraUrl);
-      const dispatchUrl = `${getAdaptersBaseUrl({ deployEnv, isStaging })}/unify/meet`;
+      const localAdaptersUrl = process.env.LOCAL_ADAPTERS_URL;
+      const dispatchUrl = `${getAdaptersBaseUrl({ deployEnv, isStaging, localAdaptersUrl })}/unify/meet`;
 
       const dispatchPayload = camelToSnakeObject({
         assistantId,

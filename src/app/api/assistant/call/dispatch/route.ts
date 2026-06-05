@@ -17,7 +17,8 @@ export async function POST(request: NextRequest) {
 
     const orchestraUrl = process.env.ORCHESTRA_URL || '';
     const isStaging = isStagingEnvironment(orchestraUrl);
-    const dispatchUrl = `${getAdaptersBaseUrl({ deployEnv, isStaging })}/unify/meet`;
+    const localAdaptersUrl = process.env.LOCAL_ADAPTERS_URL;
+    const dispatchUrl = `${getAdaptersBaseUrl({ deployEnv, isStaging, localAdaptersUrl })}/unify/meet`;
     const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
     if (!ADMIN_KEY) {
