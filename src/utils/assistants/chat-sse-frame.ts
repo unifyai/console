@@ -185,7 +185,7 @@ export function parseChatSseFrame(
     };
   }
 
-  if (thread === 'unify_message_outbound' || eventObj) {
+  if (thread === 'unify_message_outbound') {
     const content =
       (eventObj?.content as unknown) ??
       (eventObj?.body as unknown) ??

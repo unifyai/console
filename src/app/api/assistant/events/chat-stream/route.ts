@@ -315,6 +315,16 @@ export async function GET(request: NextRequest) {
             }
 
             const thread = payload.thread ?? message.attributes?.thread ?? 'unknown';
+
+            // Pub/Sub emulator subscriptions may deliver non-outbound frames despite
+            // the filter. Drop them here so inbound unify_message payloads are not
+            // rendered as assistant chat bubbles on the client.
+            if (thread !== 'unify_message_outbound' && thread !== 'assistant_desktop_ready') {
+              log('MSG_SKIP', { msgId: message.id, assistantId, thread });
+              message.ack();
+              return;
+            }
+
             const eventContactId = payload.event?.contact_id ?? payload.contact_id;
             const content = payload.event?.content ?? payload.event?.body ?? payload.content ?? '';
             const contentPreview =
