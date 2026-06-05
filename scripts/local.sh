@@ -59,6 +59,10 @@ UNITY_GATEWAY_CONFIG_FILE="/tmp/unity-local.config"
 ENSURE_PREREQS_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/ensure_prereqs.sh}"
 SELF_HOST_ENV_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/self_host_env.sh}"
 
+COMMUNICATION_REPO_PATH="${COMMUNICATION_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../communication" 2>/dev/null && pwd -P || echo "")}"
+COMMUNICATION_LOCAL_SCRIPT="${COMMUNICATION_REPO_PATH:+$COMMUNICATION_REPO_PATH/scripts/local.sh}"
+COMMUNICATION_CONFIG_FILE="${COMMUNICATION_CONFIG_FILE:-/tmp/${COMMS_PREFIX:-communication}-local.config}"
+
 CONSOLE_PORT="${CONSOLE_PORT:-3000}"
 ORCHESTRA_PORT="${ORCHESTRA_PORT:-8000}"
 
@@ -479,8 +483,19 @@ start_communication_adapters() {
 
   if is_communication_running; then
     log_success "Communication adapters already running"
-    load_communication_config
-    return 0
+    load_communication_config || true
+    if [[ "$with_comms" == "true" && -z "${CHAT_COMMS_URL:-}" ]]; then
+      log_warn "Communication Comms App is not configured; restarting Communication services"
+      stop_communication_services
+    else
+      return 0
+    fi
+  fi
+
+  if [[ -z "$COMMUNICATION_REPO_PATH" || ! -f "$COMMUNICATION_LOCAL_SCRIPT" ]]; then
+    log_error "Communication repo not found. Expected at: $CONSOLE_REPO_PATH/../communication"
+    log_info "Set COMMUNICATION_REPO_PATH to override."
+    return 1
   fi
 
   if [[ "$with_comms" == "true" ]]; then
@@ -514,8 +529,23 @@ start_communication_adapters() {
     return 1
   fi
 
-  load_communication_config
+  load_communication_config || return 1
   log_success "Communication services are running"
+}
+
+is_communication_running() {
+  if [[ -z "$COMMUNICATION_REPO_PATH" || ! -f "$COMMUNICATION_LOCAL_SCRIPT" ]]; then
+    return 1
+  fi
+  env COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH" bash "$COMMUNICATION_LOCAL_SCRIPT" check >/dev/null 2>&1
+}
+
+stop_communication_services() {
+  if [[ -z "$COMMUNICATION_REPO_PATH" || ! -f "$COMMUNICATION_LOCAL_SCRIPT" ]]; then
+    return 0
+  fi
+  log_info "Stopping Communication services..."
+  env COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH" bash "$COMMUNICATION_LOCAL_SCRIPT" stop 2>/dev/null || true
 }
 
 load_communication_config() {
@@ -1546,6 +1576,7 @@ cmd_stop() {
   fi
   stop_console
   stop_orchestra
+  stop_communication_services
   if is_unity_available && is_unity_running; then
     stop_unity
   fi
@@ -1622,7 +1653,9 @@ cmd_status() {
   fi
 
   echo -n "  Chat:      "
-  if is_unity_available && is_unity_running; then
+  if is_communication_running; then
+    echo -e "${GREEN}running${NC} (Communication services)"
+  elif is_unity_available && is_unity_running; then
     echo -e "${GREEN}running${NC} (Unity gateway: $(unity_gateway_base_url))"
   else
     echo -e "${YELLOW}not running${NC} (start with --chat)"
