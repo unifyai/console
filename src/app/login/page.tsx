@@ -186,7 +186,7 @@ const Login = () => {
                 onLogin={handleLogin}
                 error={error}
                 callbackUrl={callbackUrl ?? undefined}
-                previewOnly={isPreview}
+                previewOnly={isPreview || process.env.NEXT_PUBLIC_SELF_HOST === '1'}
                 key="login"
               />
               <LoadingElement key="loading" />

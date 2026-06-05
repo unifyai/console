@@ -16,6 +16,8 @@ const DevQuickLogin =
     ? dynamic(() => import('@/components/Dev/DevQuickLogin'), { ssr: false })
     : () => null;
 
+import { IS_SELF_HOST } from '@/lib/auth/self-host';
+
 /** Auth method tabs */
 type AuthTab = 'oauth' | 'email';
 
@@ -114,8 +116,8 @@ const LoginFragment = ({
             </>
           )}
 
-          {/* Dev-only quick login (tree-shaken in production) */}
-          <DevQuickLogin />
+          {/* Dev-only quick login (hidden for self-host installs) */}
+          {!IS_SELF_HOST && <DevQuickLogin />}
         </div>
 
         {/* Footer — disclaimer */}

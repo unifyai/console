@@ -39,7 +39,8 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
 
   // Check for on-prem mode
   const onPrem = process.env.ON_PREM;
-  if (onPrem) {
+  const selfHost = process.env.SELF_HOST === '1';
+  if (onPrem || selfHost) {
     return (
       <div className="h-full w-full overflow-auto p-1">
         <Suspense fallback={<SkeletonLoader />}>
