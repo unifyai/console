@@ -1,11 +1,11 @@
-import { currentSpaceIds } from '@/lib/assistants/scope';
+import { currentTeamIds } from '@/lib/assistants/scope';
 import type { Assistant } from '@/types/assistants/assistant';
-import type { SpaceSummary } from '@/types/spaces/space';
+import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 
 export interface AssistantListEntry {
   assistant: Assistant;
-  isPrimarySpaceListing: boolean;
-  alsoInSpaceLabels: string[];
+  isPrimaryTeamListing: boolean;
+  alsoInTeamLabels: string[];
 }
 
 export type AssistantListGroup =
@@ -16,9 +16,9 @@ export type AssistantListGroup =
       rows: AssistantListEntry[];
     }
   | {
-      id: `space:${number}`;
-      kind: 'space';
-      spaceId: number;
+      id: `team:${number}`;
+      kind: 'team';
+      teamId: number;
       label: string;
       rows: AssistantListEntry[];
     }
@@ -41,31 +41,31 @@ function isCoordinator(assistant: Assistant): boolean {
   return assistant.isCoordinator === true;
 }
 
-function spaceLabel(spaceId: number, spacesById: Record<number, SpaceSummary>): string {
-  return spacesById[spaceId]?.name ?? `Space ${spaceId}`;
+function teamLabel(teamId: number, teamsById: Record<number, SharedTeamSummary>): string {
+  return teamsById[teamId]?.name ?? `Team ${teamId}`;
 }
 
-function rowsForSpace(
-  rowsBySpace: Map<number, AssistantListEntry[]>,
-  spaceId: number
+function rowsForTeam(
+  rowsByTeam: Map<number, AssistantListEntry[]>,
+  teamId: number
 ): AssistantListEntry[] {
-  const existingRows = rowsBySpace.get(spaceId);
+  const existingRows = rowsByTeam.get(teamId);
   if (existingRows) {
     return existingRows;
   }
   const rows: AssistantListEntry[] = [];
-  rowsBySpace.set(spaceId, rows);
+  rowsByTeam.set(teamId, rows);
   return rows;
 }
 
-export function groupAssistantsBySpace(
+export function groupAssistantsByTeam(
   assistants: readonly Assistant[],
-  spacesById: Record<number, SpaceSummary>,
+  teamsById: Record<number, SharedTeamSummary>,
   options: { pinnedCoordinatorId?: string | null } = {}
 ): AssistantListGroup[] {
   const pinnedRows: AssistantListEntry[] = [];
   const soloRows: AssistantListEntry[] = [];
-  const rowsBySpace = new Map<number, AssistantListEntry[]>();
+  const rowsByTeam = new Map<number, AssistantListEntry[]>();
   const pinnedCoordinatorId = options.pinnedCoordinatorId ?? null;
 
   for (const assistant of assistants) {
@@ -76,30 +76,30 @@ export function groupAssistantsBySpace(
     if (shouldPinCoordinator) {
       pinnedRows.push({
         assistant,
-        isPrimarySpaceListing: true,
-        alsoInSpaceLabels: [],
+        isPrimaryTeamListing: true,
+        alsoInTeamLabels: [],
       });
       continue;
     }
 
-    const spaceIds = currentSpaceIds(assistant);
-    if (spaceIds.length === 0) {
+    const teamIds = currentTeamIds(assistant);
+    if (teamIds.length === 0) {
       soloRows.push({
         assistant,
-        isPrimarySpaceListing: true,
-        alsoInSpaceLabels: [],
+        isPrimaryTeamListing: true,
+        alsoInTeamLabels: [],
       });
       continue;
     }
 
-    const primarySpaceId = spaceIds[0];
-    for (const spaceId of spaceIds) {
-      rowsForSpace(rowsBySpace, spaceId).push({
+    const primaryTeamId = teamIds[0];
+    for (const teamId of teamIds) {
+      rowsForTeam(rowsByTeam, teamId).push({
         assistant,
-        isPrimarySpaceListing: spaceId === primarySpaceId,
-        alsoInSpaceLabels: spaceIds
-          .filter((otherSpaceId) => otherSpaceId !== spaceId)
-          .map((otherSpaceId) => spaceLabel(otherSpaceId, spacesById)),
+        isPrimaryTeamListing: teamId === primaryTeamId,
+        alsoInTeamLabels: teamIds
+          .filter((otherTeamId) => otherTeamId !== teamId)
+          .map((otherTeamId) => teamLabel(otherTeamId, teamsById)),
       });
     }
   }
@@ -114,15 +114,15 @@ export function groupAssistantsBySpace(
     });
   }
 
-  const sortedSpaceEntries = Array.from(rowsBySpace.entries()).sort(
-    ([leftSpaceId], [rightSpaceId]) => leftSpaceId - rightSpaceId
+  const sortedTeamEntries = Array.from(rowsByTeam.entries()).sort(
+    ([leftTeamId], [rightTeamId]) => leftTeamId - rightTeamId
   );
-  for (const [spaceId, rows] of sortedSpaceEntries) {
+  for (const [teamId, rows] of sortedTeamEntries) {
     groups.push({
-      id: `space:${spaceId}`,
-      kind: 'space',
-      spaceId,
-      label: spaceLabel(spaceId, spacesById),
+      id: `team:${teamId}`,
+      kind: 'team',
+      teamId,
+      label: teamLabel(teamId, teamsById),
       rows: rows.sort(sortEntries),
     });
   }

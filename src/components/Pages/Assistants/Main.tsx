@@ -87,13 +87,12 @@ import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import { fetchMemoryContext } from '@/lib/client/memory';
 import { isWorkspaceManagedSecretName } from '@/hooks/Assistants/useAssistantIntegrations';
 import type { Secret } from '@/types/assistants/secret';
-import type { SpaceSummary } from '@/types/spaces/space';
+import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import {
   type CoordinatorActivityRow,
   invalidatesCoordinatorSidebar,
 } from '@/types/assistants/coordinatorActivity';
 
-const EMPTY_SPACES: SpaceSummary[] = [];
 
 interface MainProps {
   assistantActions: AssistantActions;
@@ -119,17 +118,23 @@ interface MainProps {
   };
 }
 
-async function fetchVisibleSpaces(): Promise<SpaceSummary[]> {
-  const response = await fetch('/api/spaces', { cache: 'no-store' });
-  if (!response.ok) {
-    throw new Error('Failed to load spaces');
+function buildTeamsById(assistants: readonly Assistant[]): Record<number, SharedTeamSummary> {
+  const teamsById: Record<number, SharedTeamSummary> = {};
+  for (const assistant of assistants) {
+    for (const summary of assistant.teamSummaries ?? []) {
+      teamsById[summary.teamId] = summary;
+    }
+    for (const teamId of assistant.teamIds ?? []) {
+      if (!teamsById[teamId]) {
+        teamsById[teamId] = {
+          teamId,
+          name: `Team ${teamId}`,
+          description: null,
+        };
+      }
+    }
   }
-
-  const data: unknown = await response.json();
-  if (!Array.isArray(data)) {
-    throw new Error('Unexpected spaces response');
-  }
-  return data as SpaceSummary[];
+  return teamsById;
 }
 
 function isSignedMediaUrl(url: string | null | undefined): url is string {
@@ -383,19 +388,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
   const chatReadableAssistants = sidebarAssistants;
 
-  const hasSpaceMemberships = React.useMemo(
-    () => sidebarAssistants.some((assistant) => (assistant.spaceIds?.length ?? 0) > 0),
+  const teamsById = React.useMemo(
+    () => buildTeamsById(sidebarAssistants),
     [sidebarAssistants]
   );
-
-  const spacesQuery = useQuery({
-    queryKey: ['visible-spaces', currentUserId ?? 'anonymous', activeWorkspace?.id ?? 'personal'],
-    queryFn: fetchVisibleSpaces,
-    enabled: hasSpaceMemberships,
-    staleTime: 5 * 60 * 1000,
-  });
-  const visibleSpaces = spacesQuery.data ?? EMPTY_SPACES;
-  const { refetch: refetchVisibleSpaces } = spacesQuery;
   const coordinatorInvalidationTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleCoordinatorActivity = React.useCallback(
@@ -407,10 +403,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       coordinatorInvalidationTimerRef.current = setTimeout(() => {
         coordinatorInvalidationTimerRef.current = null;
         refreshAssistants(false);
-        void refetchVisibleSpaces();
       }, 500);
     },
-    [refreshAssistants, refetchVisibleSpaces]
+    [refreshAssistants]
   );
 
   React.useEffect(
@@ -422,9 +417,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     []
   );
 
-  const spacesById = React.useMemo<Record<number, SpaceSummary>>(() => {
-    return Object.fromEntries(visibleSpaces.map((space) => [space.spaceId, space]));
-  }, [visibleSpaces]);
 
   const canonicalCoordinator = React.useMemo(
     () => resolveCanonicalWorkspaceCoordinator(assistants, currentUserId, coordinatorWorkspace),
@@ -1925,7 +1917,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     const unsubscribe = subscribeOAuthComplete((detail) => {
       const refetch = () => {
         refreshAssistants(false);
-        void refetchVisibleSpaces();
       };
       refetch();
       retryTimers.push(setTimeout(refetch, 1500));
@@ -1953,7 +1944,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       unsubscribe();
       retryTimers.forEach(clearTimeout);
     };
-  }, [refreshAssistants, refetchVisibleSpaces]);
+  }, [refreshAssistants]);
 
   const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
 
@@ -2158,7 +2149,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 unreadCounts={chatStreamUnreadCounts}
                 currentUserId={currentUserId}
                 workspace={coordinatorWorkspace}
-                spacesById={spacesById}
+                teamsById={teamsById}
               />
             </div>
             {/* List resize handle */}

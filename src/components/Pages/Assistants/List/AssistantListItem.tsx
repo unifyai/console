@@ -58,7 +58,7 @@ interface AssistantListItemProps {
    */
   unreadCount?: number;
   isPrimary?: boolean;
-  alsoInSpaceLabels?: string[];
+  alsoInTeamLabels?: string[];
 }
 
 export function AssistantListItem({
@@ -75,11 +75,11 @@ export function AssistantListItem({
   unreadCount = 0,
   canEdit = true,
   isPrimary = true,
-  alsoInSpaceLabels = [],
+  alsoInTeamLabels = [],
 }: AssistantListItemProps) {
   const hasUnread = unreadCount > 0;
   const unreadLabel = unreadCount > 99 ? '99+' : String(unreadCount);
-  const totalSpaceCount = alsoInSpaceLabels.length + 1;
+  const totalTeamCount = alsoInTeamLabels.length + 1;
   const [isEndContractAlertOpen, setIsEndContractAlertOpen] = React.useState(false);
   const [isEndingContract, setIsEndingContract] = React.useState(false);
 
@@ -224,7 +224,7 @@ export function AssistantListItem({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
-        {alsoInSpaceLabels.length > 0 && (
+        {alsoInTeamLabels.length > 0 && (
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -236,12 +236,12 @@ export function AssistantListItem({
                       isSelected && 'border-primary-foreground text-primary-foreground'
                     )}
                   >
-                    {totalSpaceCount} spaces
+                    {totalTeamCount} teams
                   </Badge>
                 </span>
               </TooltipTrigger>
               <TooltipContent side="right">
-                <p>{`Also in ${alsoInSpaceLabels.join(', ')}`}</p>
+                <p>{`Also in ${alsoInTeamLabels.join(', ')}`}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

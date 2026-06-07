@@ -21,10 +21,10 @@ import {
   type CoordinatorWorkspaceScope,
   resolveCanonicalWorkspaceCoordinator,
 } from '@/lib/assistants/coordinatorIdentity';
-import type { SpaceSummary } from '@/types/spaces/space';
+import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { AssistantListGroupHeader } from './AssistantListGroupHeader';
 import {
-  groupAssistantsBySpace,
+  groupAssistantsByTeam,
   type AssistantListEntry,
   type AssistantListGroup,
 } from './assistantListGroups';
@@ -71,7 +71,7 @@ interface AssistantListProps {
   unreadCounts?: Record<string, number>;
   currentUserId?: string | null;
   workspace: CoordinatorWorkspaceScope;
-  spacesById: Record<number, SpaceSummary>;
+  teamsById: Record<number, SharedTeamSummary>;
 }
 
 export function AssistantList({
@@ -97,7 +97,7 @@ export function AssistantList({
   unreadCounts,
   currentUserId = null,
   workspace,
-  spacesById,
+  teamsById,
 }: AssistantListProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [foldedGroups, setFoldedGroups] = React.useState<Record<string, boolean>>({});
@@ -124,10 +124,10 @@ export function AssistantList({
 
   const assistantGroups = React.useMemo(
     () =>
-      groupAssistantsBySpace(filteredAssistants, spacesById, {
+      groupAssistantsByTeam(filteredAssistants, teamsById, {
         pinnedCoordinatorId: canonicalCoordinatorId,
       }),
-    [canonicalCoordinatorId, filteredAssistants, spacesById]
+    [canonicalCoordinatorId, filteredAssistants, teamsById]
   );
 
   const foldedAssistantRows = React.useMemo(() => {
@@ -219,8 +219,8 @@ export function AssistantList({
           isFolded={isFolded}
           isCallActive={activeCallAssistantId === entry.assistant.agentId}
           unreadCount={unreadCounts?.[entry.assistant.agentId] ?? 0}
-          isPrimary={entry.isPrimarySpaceListing}
-          alsoInSpaceLabels={entry.alsoInSpaceLabels}
+          isPrimary={entry.isPrimaryTeamListing}
+          alsoInTeamLabels={entry.alsoInTeamLabels}
         />
       );
 
@@ -251,8 +251,8 @@ export function AssistantList({
         renderAssistantRow(
           {
             assistant,
-            isPrimarySpaceListing: true,
-            alsoInSpaceLabels: [],
+            isPrimaryTeamListing: true,
+            alsoInTeamLabels: [],
           },
           assistant.agentId
         )
@@ -282,34 +282,34 @@ export function AssistantList({
   const renderGroup = React.useCallback(
     (group: AssistantListGroup) => {
       const isGroupFolded = foldedGroups[group.id] === true;
-      const description = group.kind === 'space' ? spacesById[group.spaceId]?.description : null;
-      const subtitle = group.kind === 'space' ? description?.trim() || 'Shared workspace' : null;
+      const description = group.kind === 'team' ? teamsById[group.teamId]?.description : null;
+      const subtitle = group.kind === 'team' ? description?.trim() || 'Shared team' : null;
       return (
         <div
           key={group.id}
-          className={cn('min-w-0', group.kind === 'space' && 'space-y-1')}
+          className={cn('min-w-0', group.kind === 'team' && 'space-y-1')}
           data-testid={`assistant-list-group-${group.id}`}
         >
           <AssistantListGroupHeader
             label={group.label}
             count={group.rows.length}
             countLabel={
-              group.kind === 'space' ? pluralize(group.rows.length, 'colleague') : undefined
+              group.kind === 'team' ? pluralize(group.rows.length, 'colleague') : undefined
             }
             isFolded={isGroupFolded}
             onToggleFold={() => toggleGroupFold(group.id)}
             description={description}
-            variant={group.kind === 'space' ? 'workspace' : 'group'}
+            variant={group.kind === 'team' ? 'workspace' : 'group'}
             subtitle={subtitle}
             icon={
-              group.kind === 'space' ? (
+              group.kind === 'team' ? (
                 <Building2 className="h-4 w-4" aria-hidden="true" />
               ) : undefined
             }
-            badgeLabel={group.kind === 'space' ? 'Team' : undefined}
+            badgeLabel={group.kind === 'team' ? 'Team' : undefined}
           />
           {!isGroupFolded && (
-            <div className={cn('min-w-0 space-y-1 pt-1', group.kind === 'space' && 'pl-3')}>
+            <div className={cn('min-w-0 space-y-1 pt-1', group.kind === 'team' && 'pl-3')}>
               {group.rows.map((entry) =>
                 renderAssistantRow(entry, `${group.id}:${entry.assistant.agentId}`)
               )}
@@ -318,7 +318,7 @@ export function AssistantList({
         </div>
       );
     },
-    [foldedGroups, renderAssistantRow, spacesById, toggleGroupFold]
+    [foldedGroups, renderAssistantRow, teamsById, toggleGroupFold]
   );
 
   const renderSection = React.useCallback(
@@ -352,10 +352,10 @@ export function AssistantList({
   const shouldRenderFlatList =
     isFolded || (assistantGroups.length === 1 && assistantGroups[0].kind === 'solo');
   const pinnedGroup = assistantGroups.find((group) => group.kind === 'pinned');
-  const spaceGroups = assistantGroups.filter((group) => group.kind === 'space');
+  const teamGroups = assistantGroups.filter((group) => group.kind === 'team');
   const soloGroup = assistantGroups.find((group) => group.kind === 'solo');
   const hasPinnedRows = (pinnedGroup?.rows.length ?? 0) > 0;
-  const hasGroupedRowsBelowCoordinator = spaceGroups.length > 0 || !!soloGroup;
+  const hasGroupedRowsBelowCoordinator = teamGroups.length > 0 || !!soloGroup;
   const soloRows = soloGroup?.rows ?? [];
   const groupedAssistantList = (
     <div className="w-full min-w-0 max-w-full space-y-3">
@@ -374,15 +374,15 @@ export function AssistantList({
           className="my-2 border-t border-border"
         />
       ) : null}
-      {spaceGroups.length > 0
+      {teamGroups.length > 0
         ? renderSection(
-            'section:spaces',
+            'section:teams',
             'Teams',
-            spaceGroups.length,
-            spaceGroups.map(renderGroup),
-            'assistant-list-section-spaces',
+            teamGroups.length,
+            teamGroups.map(renderGroup),
+            'assistant-list-section-teams',
             {
-              countLabel: pluralize(spaceGroups.length, 'workspace'),
+              countLabel: pluralize(teamGroups.length, 'team'),
               icon: <UsersRound className="h-3.5 w-3.5" aria-hidden="true" />,
             }
           )
