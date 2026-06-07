@@ -82,6 +82,10 @@ export function groupAssistantsByTeam(
       continue;
     }
 
+    if (isCoordinator(assistant)) {
+      continue;
+    }
+
     const teamIds = currentTeamIds(assistant);
     if (teamIds.length === 0) {
       soloRows.push({
