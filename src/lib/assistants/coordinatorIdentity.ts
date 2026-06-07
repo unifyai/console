@@ -22,6 +22,8 @@ function normalizeAssistantRows(assistants: readonly Assistant[]): Assistant[] {
     dedupedRows.push({
       ...assistant,
       isCoordinator: assistant.isCoordinator === true,
+      teamIds: assistant.teamIds ?? [],
+      teamSummaries: assistant.teamSummaries ?? [],
     });
   }
 

@@ -1,6 +1,6 @@
 import type { Assistant, ContactIdentityRoot } from '@/types/assistants/assistant';
 
-export type ContextRoot = { kind: 'personal' } | { kind: 'space'; spaceId: number };
+export type ContextRoot = { kind: 'personal' } | { kind: 'team'; teamId: number };
 
 export type ChatRole = 'assistant' | 'user';
 
@@ -61,7 +61,7 @@ export function authoringAssistantFilterForRoot(
   root: ContextRoot,
   assistantId: string
 ): string | null {
-  if (root.kind !== 'space') return null;
+  if (root.kind !== 'team') return null;
   const parsedAssistantId = parseAssistantIdForAuthoringFilter(assistantId);
   return `(authoring_assistant_id == ${parsedAssistantId} or authoring_assistant_id == None)`;
 }
@@ -118,22 +118,22 @@ export function rootContext(
   if (root.kind === 'personal') {
     return `${ownerId}/${assistantId}/${table}`;
   }
-  return `Spaces/${root.spaceId}/${table}`;
+  return `Teams/${root.teamId}/${table}`;
 }
 
 export function rootKey(root: ContextRoot): string {
   if (root.kind === 'personal') return 'personal';
-  return `space-${root.spaceId}`;
+  return `team-${root.teamId}`;
 }
 
-export function currentSpaceIds(assistant: Assistant): number[] {
-  return Array.from(new Set(assistant.spaceIds ?? [])).sort((left, right) => left - right);
+export function currentTeamIds(assistant: Assistant): number[] {
+  return Array.from(new Set(assistant.teamIds ?? [])).sort((left, right) => left - right);
 }
 
 export function roots(assistant: Assistant): readonly ContextRoot[] {
   return [
     { kind: 'personal' },
-    ...currentSpaceIds(assistant).map((spaceId): ContextRoot => ({ kind: 'space', spaceId })),
+    ...currentTeamIds(assistant).map((teamId): ContextRoot => ({ kind: 'team', teamId })),
   ];
 }
 
@@ -141,7 +141,7 @@ function identityMatchesRoot(identity: ContactIdentityRoot, root: ContextRoot): 
   if (root.kind === 'personal') {
     return identity.targetScope === 'personal';
   }
-  return identity.targetScope === 'space' && identity.targetSpaceId === root.spaceId;
+  return identity.targetScope === 'team' && identity.targetTeamId === root.teamId;
 }
 
 export function contactIdentityForRoot(
@@ -155,6 +155,7 @@ export function contactIdentityForRoot(
           {
             targetScope: 'personal' as const,
             targetSpaceId: null,
+            targetTeamId: null,
             selfContactId: assistant.selfContactId,
             bossContactId: assistant.bossContactId,
           },
