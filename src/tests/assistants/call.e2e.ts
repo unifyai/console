@@ -31,11 +31,12 @@ import {
   cleanupUser,
   createAssistantTest,
   createAssistant,
+  createOrg,
+  createTeamForAssistant,
   navigateToAssistants,
   closeHireDialogIfOpen,
   selectAssistantInList,
   deleteAllAssistantsForUser,
-  createSpaceForAssistant,
   ensureProjectSync,
   orchestraFetch,
   setUserCredits,
@@ -371,8 +372,20 @@ test('hanging up and re-calling the same assistant works', async ({ authedPage: 
 test('historical call pill renders in shared roots only for own or null authoring', async ({
   authedPage: page,
 }) => {
+  const callOrg = createOrg({ name: `CallSharedOrg_${Date.now()}`, ownerId: user.id });
+  await page.evaluate(async (orgId) => {
+    await fetch('/api/session/workspace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId: String(orgId) }),
+    });
+  }, callOrg.id);
+  await page.reload();
+  await closeHireDialogIfOpen(page);
+
   const sharedAssistant = createAssistant({
     userId: user.id,
+    orgId: callOrg.id,
     firstName: 'SharedCall',
     surname: `E2E${Date.now()}`,
   });
@@ -387,13 +400,13 @@ test('historical call pill renders in shared roots only for own or null authorin
   const sharedSelfContactId = 370;
   const sharedBossContactId = 377;
   const sharedAssistantId = sharedAssistant.agentId;
-  const { spaceId } = createSpaceForAssistant(sharedAssistant, {
+  const { teamId } = createTeamForAssistant(sharedAssistant, {
     name: `Call Root E2E ${Date.now()}`,
     description: 'Shared call root e2e description for visibility coverage',
     selfContactId: sharedSelfContactId,
     bossContactId: sharedBossContactId,
   });
-  const sharedContext = `Spaces/${spaceId}/Transcripts`;
+  const sharedContext = `Teams/${teamId}/Transcripts`;
 
   const ts = Date.now();
   const ownExchangeId = 12000 + Math.floor(Math.random() * 10000);

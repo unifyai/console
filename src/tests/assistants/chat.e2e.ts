@@ -34,7 +34,8 @@ import {
   navigateToAssistants,
   closeHireDialogIfOpen,
   deleteAllAssistantsForUser,
-  createSpaceForAssistant,
+  createOrg,
+  createTeamForAssistant,
   ensureProjectSync,
   orchestraFetch,
   setUserCredits,
@@ -334,8 +335,20 @@ test('historical transcript messages load when navigating to an assistant', asyn
 test('shared-root chat history merges root-local identities and paginates', async ({
   authedPage: page,
 }) => {
+  const chatOrg = createOrg({ name: `ChatSharedOrg_${Date.now()}`, ownerId: user.id });
+  await page.evaluate(async (orgId) => {
+    await fetch('/api/session/workspace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId: String(orgId) }),
+    });
+  }, chatOrg.id);
+  await page.reload();
+  await closeHireDialogIfOpen(page);
+
   const sharedAssistant = createAssistant({
     userId: user.id,
+    orgId: chatOrg.id,
     firstName: 'SharedChat',
     surname: `E2E${Date.now()}`,
   });
@@ -350,13 +363,13 @@ test('shared-root chat history merges root-local identities and paginates', asyn
   const sharedSelfContactId = 70;
   const sharedBossContactId = 77;
   const sharedAssistantId = sharedAssistant.agentId;
-  const { spaceId } = createSpaceForAssistant(sharedAssistant, {
+  const { teamId } = createTeamForAssistant(sharedAssistant, {
     name: `Chat Root E2E ${Date.now()}`,
     description: 'Shared chat root e2e description for pagination coverage',
     selfContactId: sharedSelfContactId,
     bossContactId: sharedBossContactId,
   });
-  const sharedContext = `Spaces/${spaceId}/Transcripts`;
+  const sharedContext = `Teams/${teamId}/Transcripts`;
 
   const stamp = Date.now();
   const boundaryTimestamp = new Date(stamp - 60_000).toISOString();
@@ -984,8 +997,20 @@ test('searching returns matching messages', async ({ authedPage: page }) => {
 test('shared-root search hides foreign-authored rows while keeping null-authored rows', async ({
   authedPage: page,
 }) => {
+  const chatOrg = createOrg({ name: `ChatSearchOrg_${Date.now()}`, ownerId: user.id });
+  await page.evaluate(async (orgId) => {
+    await fetch('/api/session/workspace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId: String(orgId) }),
+    });
+  }, chatOrg.id);
+  await page.reload();
+  await closeHireDialogIfOpen(page);
+
   const sharedAssistant = createAssistant({
     userId: user.id,
+    orgId: chatOrg.id,
     firstName: 'SharedSearch',
     surname: `E2E${Date.now()}`,
   });
@@ -1000,13 +1025,13 @@ test('shared-root search hides foreign-authored rows while keeping null-authored
   const sharedSelfContactId = 170;
   const sharedBossContactId = 177;
   const sharedAssistantId = sharedAssistant.agentId;
-  const { spaceId } = createSpaceForAssistant(sharedAssistant, {
+  const { teamId } = createTeamForAssistant(sharedAssistant, {
     name: `Chat Search Root E2E ${Date.now()}`,
     description: 'Shared chat-search root e2e description for visibility coverage',
     selfContactId: sharedSelfContactId,
     bossContactId: sharedBossContactId,
   });
-  const sharedContext = `Spaces/${spaceId}/Transcripts`;
+  const sharedContext = `Teams/${teamId}/Transcripts`;
 
   const stamp = Date.now();
   const marker = `SharedSearchAuthoring_${stamp}`;
@@ -1335,8 +1360,20 @@ test('historical view includes call pills when calls fall within message range',
 test('historical shared-root call pills hide foreign-authored exchanges', async ({
   authedPage: page,
 }) => {
+  const chatOrg = createOrg({ name: `ChatHistOrg_${Date.now()}`, ownerId: user.id });
+  await page.evaluate(async (orgId) => {
+    await fetch('/api/session/workspace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId: String(orgId) }),
+    });
+  }, chatOrg.id);
+  await page.reload();
+  await closeHireDialogIfOpen(page);
+
   const sharedAssistant = createAssistant({
     userId: user.id,
+    orgId: chatOrg.id,
     firstName: 'HistCallShared',
     surname: `E2E${Date.now()}`,
   });
@@ -1351,13 +1388,13 @@ test('historical shared-root call pills hide foreign-authored exchanges', async 
   const sharedSelfContactId = 270;
   const sharedBossContactId = 277;
   const sharedAssistantId = sharedAssistant.agentId;
-  const { spaceId } = createSpaceForAssistant(sharedAssistant, {
+  const { teamId } = createTeamForAssistant(sharedAssistant, {
     name: `Chat Hist Root E2E ${Date.now()}`,
     description: 'Shared historical call root e2e description for visibility coverage',
     selfContactId: sharedSelfContactId,
     bossContactId: sharedBossContactId,
   });
-  const sharedContext = `Spaces/${spaceId}/Transcripts`;
+  const sharedContext = `Teams/${teamId}/Transcripts`;
 
   const ts = Date.now();
   const marker = `SharedHistCall_${ts}`;

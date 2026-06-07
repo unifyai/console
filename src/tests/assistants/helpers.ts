@@ -24,12 +24,12 @@ export {
   addMember,
   orchestraFetch,
   createAssistant,
-  createSpaceForAssistant,
-  addAssistantToSpace,
+  createTeamForAssistant,
+  addAssistantToTeam,
   ensureVoicePreset,
   ensureProjectSync,
 } from '../helpers/seeds/client';
-export type { SeededOrg, SeededAssistant, SeededSpace } from '../helpers/seeds/types';
+export type { SeededOrg, SeededAssistant, SeededTeam } from '../helpers/seeds/types';
 
 export { login, switchToEmailTab };
 
@@ -102,6 +102,59 @@ export async function loginAndSaveState(
       });
     }
   }
+
+  await ctx.storageState({ path: stateFile });
+  await ctx.close();
+  return stateFile;
+}
+
+export async function loginAndSaveOrgState(
+  browser: Browser,
+  email: string,
+  password: string,
+  orgId: number
+): Promise<string> {
+  const stateFile = path.join(
+    os.tmpdir(),
+    `pw-assistant-org-${orgId}-${email.replace(/[^a-z0-9]/gi, '-')}.json`
+  );
+
+  const ctx = await browser.newContext({
+    permissions: ['clipboard-read', 'clipboard-write'],
+  });
+  const page = await ctx.newPage();
+
+  await page.goto('/login');
+  await loginAndWaitForRedirect(page, email, password, 45_000);
+
+  if (page.url().includes('/login/onboarding')) {
+    await page
+      .waitForURL((url) => !url.pathname.includes('onboarding'), {
+        timeout: 20_000,
+      })
+      .catch(async () => {
+        const personalBtn = page.getByTestId('workspace-personal');
+        if (await personalBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+          await personalBtn.click();
+          await page.getByTestId('workspace-continue').click();
+          await page.waitForURL((url) => !url.pathname.includes('onboarding'), {
+            timeout: 15_000,
+          });
+        }
+      });
+  }
+
+  await page.evaluate(async (workspaceId) => {
+    await fetch('/api/session/workspace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId: String(workspaceId) }),
+    });
+  }, orgId);
+
+  await page.goto('/assistants');
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await page.waitForTimeout(2_000);
 
   await ctx.storageState({ path: stateFile });
   await ctx.close();
