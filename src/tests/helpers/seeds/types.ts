@@ -58,12 +58,12 @@ export interface SeededAssistant {
   bossContactId: number;
 }
 
-export interface SeededSpace {
-  /** space_id primary key */
-  spaceId: number;
+export interface SeededTeam {
+  /** team.id primary key */
+  teamId: number;
   name: string;
   description: string;
-  ownerUserId: string;
+  organizationId: number;
 }
 
 export interface SeededSecret {

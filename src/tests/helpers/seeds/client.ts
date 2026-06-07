@@ -19,7 +19,7 @@ import type {
   SeededOrg,
   SeededAssistant,
   SeededSecret,
-  SeededSpace,
+  SeededTeam,
 } from './types';
 
 // =============================================================================
@@ -665,84 +665,87 @@ export function createPersonalCoordinator(
   });
 }
 
-export interface CreateSpaceForAssistantOpts {
+export interface CreateTeamForAssistantOpts {
   name?: string;
   description?: string;
   selfContactId?: number;
   bossContactId?: number;
 }
 
-function seedAssistantSpaceMembership(
+function seedAssistantTeamMembership(
   targetAssistant: SeededAssistant,
-  spaceId: number,
+  teamId: number,
   addedBy: string,
-  opts: Pick<CreateSpaceForAssistantOpts, 'selfContactId' | 'bossContactId'> = {}
+  opts: Pick<CreateTeamForAssistantOpts, 'selfContactId' | 'bossContactId'> = {}
 ): void {
   const selfContactId = opts.selfContactId ?? targetAssistant.selfContactId;
   const bossContactId = opts.bossContactId ?? targetAssistant.bossContactId;
 
   dbExecBlock(`
-INSERT INTO assistant_space_memberships (assistant_id, space_id, added_by)
-VALUES (${targetAssistant.agentId}, ${spaceId}, '${addedBy}')
+INSERT INTO team_assistant_memberships (team_id, assistant_id, added_by)
+VALUES (${teamId}, ${targetAssistant.agentId}, '${addedBy}')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO contact_memberships (
   assistant_id,
   contact_id,
   target_scope,
-  target_space_id,
+  target_team_id,
   relationship,
   should_respond,
   response_policy,
   can_edit
 )
 VALUES
-  (${targetAssistant.agentId}, ${selfContactId}, 'space', ${spaceId}, 'self', true, '', true),
-  (${targetAssistant.agentId}, ${bossContactId}, 'space', ${spaceId}, 'boss', true, '', true)
+  (${targetAssistant.agentId}, ${selfContactId}, 'team', ${teamId}, 'self', true, '', true),
+  (${targetAssistant.agentId}, ${bossContactId}, 'team', ${teamId}, 'boss', true, '', true)
 ON CONFLICT DO NOTHING;
 `);
 }
 
-export function createSpaceForAssistant(
+export function createTeamForAssistant(
   targetAssistant: SeededAssistant,
-  opts: CreateSpaceForAssistantOpts = {}
-): SeededSpace {
+  opts: CreateTeamForAssistantOpts = {}
+): SeededTeam {
+  if (targetAssistant.organizationId === null) {
+    throw new Error('createTeamForAssistant requires an org-scoped assistant');
+  }
+
   const suffix = Date.now();
-  const name = opts.name ?? `Assistant Space ${suffix}`;
+  const name = opts.name ?? `Assistant Team ${suffix}`;
   const description =
-    opts.description ?? 'Shared assistant space seeded for assistant browser coverage.';
-  const rawSpaceId = dbExec(`
-INSERT INTO spaces (name, description, owner_user_id, status, kind)
+    opts.description ?? 'Shared organization team seeded for assistant browser coverage.';
+  const rawTeamId = dbExec(`
+INSERT INTO team (name, description, organization_id, status)
 VALUES (
   '${sqlString(name)}',
   '${sqlString(description)}',
-  '${targetAssistant.userId}',
-  'active',
-  'team'
+  ${targetAssistant.organizationId},
+  'active'
 )
-RETURNING space_id;
+RETURNING id;
 `);
-  const spaceId = Number(rawSpaceId.match(/^\d+$/m)?.[0]);
-  if (!Number.isInteger(spaceId)) {
-    throw new Error(`Failed to parse seeded space id from psql output: ${rawSpaceId}`);
+  const teamId = Number(rawTeamId.match(/^\d+$/m)?.[0]);
+  if (!Number.isInteger(teamId)) {
+    throw new Error(`Failed to parse seeded team id from psql output: ${rawTeamId}`);
   }
 
-  seedAssistantSpaceMembership(targetAssistant, spaceId, targetAssistant.userId, opts);
+  seedAssistantTeamMembership(targetAssistant, teamId, targetAssistant.userId, opts);
 
   return {
-    spaceId,
+    teamId,
     name,
     description,
-    ownerUserId: targetAssistant.userId,
+    organizationId: targetAssistant.organizationId,
   };
 }
 
-export function addAssistantToSpace(
+export function addAssistantToTeam(
   targetAssistant: SeededAssistant,
-  space: SeededSpace,
-  opts: Pick<CreateSpaceForAssistantOpts, 'selfContactId' | 'bossContactId'> = {}
+  team: SeededTeam,
+  opts: Pick<CreateTeamForAssistantOpts, 'selfContactId' | 'bossContactId'> = {}
 ): void {
-  seedAssistantSpaceMembership(targetAssistant, space.spaceId, space.ownerUserId, opts);
+  seedAssistantTeamMembership(targetAssistant, team.teamId, targetAssistant.userId, opts);
 }
 
 // =============================================================================
