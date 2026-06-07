@@ -23,7 +23,7 @@ import {
   type MemoryDestinationValue,
 } from './DestinationDropdown';
 import type { CoordinatorWorkspaceScope } from '@/lib/assistants/coordinatorIdentity';
-import { currentSpaceIds } from '@/lib/assistants/scope';
+import { currentTeamIds } from '@/lib/assistants/scope';
 
 interface MemoryPaneProps {
   assistant: Assistant;
@@ -154,14 +154,14 @@ export function MemoryPane({
   const [destinationValue, setDestinationValue] =
     useState<MemoryDestinationValue>(MEMORY_DESTINATION_ALL);
   const identityKey = `${ownerId}:${assistantId}`;
-  const availableSpaceIds = useMemo(() => currentSpaceIds(assistant), [assistant]);
+  const availableTeamIds = useMemo(() => currentTeamIds(assistant), [assistant]);
   const effectiveDestinationValue = useMemo((): MemoryDestinationValue => {
     const root = memoryDestinationRoot(destinationValue);
-    if (root?.kind === 'space' && !availableSpaceIds.includes(root.spaceId)) {
+    if (root?.kind === 'team' && !availableTeamIds.includes(root.teamId)) {
       return MEMORY_DESTINATION_ALL;
     }
     return destinationValue;
-  }, [availableSpaceIds, destinationValue]);
+  }, [availableTeamIds, destinationValue]);
   const selectedRoot = useMemo(
     () => memoryDestinationRoot(effectiveDestinationValue),
     [effectiveDestinationValue]

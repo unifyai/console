@@ -10,8 +10,8 @@ import {
   SelectValue,
 } from '@/components/UI/select';
 import type { Assistant } from '@/types/assistants/assistant';
-import type { SpaceSummary } from '@/types/spaces/space';
-import { currentSpaceIds, type ContextRoot } from '@/lib/assistants/scope';
+import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
+import { currentTeamIds, type ContextRoot } from '@/lib/assistants/scope';
 
 export const MEMORY_DESTINATION_ALL = 'all';
 export const MEMORY_DESTINATION_PERSONAL = 'personal';
@@ -19,7 +19,7 @@ export const MEMORY_DESTINATION_PERSONAL = 'personal';
 export type MemoryDestinationValue =
   | typeof MEMORY_DESTINATION_ALL
   | typeof MEMORY_DESTINATION_PERSONAL
-  | `space:${number}`;
+  | `team:${number}`;
 
 interface DestinationDropdownProps {
   assistant: Assistant;
@@ -27,42 +27,49 @@ interface DestinationDropdownProps {
   onValueChange: (value: MemoryDestinationValue) => void;
 }
 
-async function fetchAssistantSpaces(assistantId: string): Promise<SpaceSummary[]> {
-  const response = await fetch(`/api/assistant/${assistantId}/spaces`, { cache: 'no-store' });
+async function fetchAssistantTeams(assistantId: string): Promise<SharedTeamSummary[]> {
+  const response = await fetch(`/api/assistant/${assistantId}/teams`, { cache: 'no-store' });
   if (!response.ok) {
-    throw new Error('Failed to load spaces');
+    throw new Error('Failed to load teams');
   }
 
   const data: unknown = await response.json();
   if (!Array.isArray(data)) {
-    throw new Error('Unexpected spaces response');
+    throw new Error('Unexpected teams response');
   }
-  return data as SpaceSummary[];
+  return data as SharedTeamSummary[];
 }
 
 export function memoryDestinationRoot(value: MemoryDestinationValue): ContextRoot | null {
   if (value === MEMORY_DESTINATION_ALL) return null;
   if (value === MEMORY_DESTINATION_PERSONAL) return { kind: 'personal' };
 
-  const spaceId = Number(value.slice('space:'.length));
-  return { kind: 'space', spaceId };
+  const teamId = Number(value.slice('team:'.length));
+  return { kind: 'team', teamId };
 }
 
 export function DestinationDropdown({ assistant, value, onValueChange }: DestinationDropdownProps) {
-  const spaceIds = useMemo(() => currentSpaceIds(assistant), [assistant]);
+  const teamIds = useMemo(() => currentTeamIds(assistant), [assistant]);
 
-  const { data: spaces = [] } = useQuery({
-    queryKey: ['assistant-spaces', assistant.agentId, spaceIds.join(',')],
-    queryFn: () => fetchAssistantSpaces(assistant.agentId),
-    enabled: spaceIds.length > 0,
+  const { data: teams = [] } = useQuery({
+    queryKey: ['assistant-teams', assistant.agentId, teamIds.join(',')],
+    queryFn: () => fetchAssistantTeams(assistant.agentId),
+    enabled: teamIds.length > 0,
     staleTime: 5 * 60 * 1000,
   });
 
-  const spaceNames = useMemo(() => {
-    return new Map(spaces.map((space) => [space.spaceId, space.name]));
-  }, [spaces]);
+  const teamNames = useMemo(() => {
+    const names = new Map<number, string>();
+    for (const summary of assistant.teamSummaries ?? []) {
+      names.set(summary.teamId, summary.name);
+    }
+    for (const team of teams) {
+      names.set(team.teamId, team.name);
+    }
+    return names;
+  }, [assistant.teamSummaries, teams]);
 
-  if (spaceIds.length === 0) {
+  if (teamIds.length === 0) {
     return null;
   }
 
@@ -82,13 +89,13 @@ export function DestinationDropdown({ assistant, value, onValueChange }: Destina
         <SelectItem value={MEMORY_DESTINATION_PERSONAL} data-testid="memory-destination-personal">
           Personal
         </SelectItem>
-        {spaceIds.map((spaceId) => (
+        {teamIds.map((teamId) => (
           <SelectItem
-            key={spaceId}
-            value={`space:${spaceId}`}
-            data-testid={`memory-destination-space-${spaceId}`}
+            key={teamId}
+            value={`team:${teamId}`}
+            data-testid={`memory-destination-team-${teamId}`}
           >
-            {spaceNames.get(spaceId) ?? `Space ${spaceId}`}
+            {teamNames.get(teamId) ?? `Team ${teamId}`}
           </SelectItem>
         ))}
       </SelectContent>
