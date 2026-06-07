@@ -21,14 +21,12 @@ export type AssistantHiringSufficientFunds = { sufficient: boolean };
 export type ContactIdentityRoot =
   | {
       targetScope: 'personal';
-      targetSpaceId: null;
       targetTeamId: null;
       selfContactId: number;
       bossContactId: number;
     }
   | {
       targetScope: 'team';
-      targetSpaceId: null;
       targetTeamId: number;
       selfContactId: number;
       bossContactId: number;

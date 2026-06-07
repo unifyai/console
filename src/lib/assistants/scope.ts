@@ -154,7 +154,6 @@ export function contactIdentityForRoot(
       : [
           {
             targetScope: 'personal' as const,
-            targetSpaceId: null,
             targetTeamId: null,
             selfContactId: assistant.selfContactId,
             bossContactId: assistant.bossContactId,

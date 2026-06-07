@@ -48,7 +48,7 @@ function canonicalAttachmentSignature(value: unknown): string {
  * Build a root-agnostic transcript key so fanout copies collapse in merged views.
  *
  * We intentionally exclude root-local sender/receiver ids because those differ
- * between personal and space roots for the same logical message.
+ * between personal and team roots for the same logical message.
  */
 export function transcriptMergeDedupeKey(
   transcript: TranscriptLike,
