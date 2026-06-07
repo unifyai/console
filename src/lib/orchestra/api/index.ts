@@ -7,7 +7,7 @@
  * Structure:
  * - user.ts         - User account, onboarding, business status, tax (typed client)
  * - organization.ts - Orgs, roles, teams, resource access (typed client)
- * - spaces.ts       - Shared-space read helpers (typed client)
+ * - teams.ts        - Shared-memory team read helpers (typed client)
  * - endpoints.ts    - Providers, models, endpoints (typed client)
  * - favourites.ts   - User favourites (typed client)
  * - logging.ts      - Metrics, queries, tags (user client - not in OpenAPI)
@@ -19,7 +19,7 @@ export * from './user';
 export * from './endpoints';
 export * from './favourites';
 export * from './organization';
-export * from './spaces';
+export * from './teams';
 
 // Admin/legacy client exports (not in public OpenAPI spec)
 export * from './logging';

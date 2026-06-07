@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { badRequest, getApiKeyFromRequest, unauthorized } from '@/app/api/_utils/auth';
-import { listSpacesForAssistant } from '@/lib/orchestra/api/spaces';
+import { listTeamsForAssistant } from '@/lib/orchestra/api/teams';
 
 export async function GET(request: NextRequest, { params }: { params: { assistantId: string } }) {
   const apiKey = await getApiKeyFromRequest(request);
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
   }
 
   try {
-    const result = await listSpacesForAssistant(apiKey, assistantId);
+    const result = await listTeamsForAssistant(apiKey, assistantId);
     if (Array.isArray(result)) {
       return NextResponse.json(result, { status: 200 });
     }
