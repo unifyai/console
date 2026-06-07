@@ -1,22 +1,24 @@
 /**
  * Assistant List Grouping E2E — verifies the sidebar groups colleagues by
- * spaces without turning the selected right pane into a space-scoped view.
+ * organization teams without turning the selected right pane into a team-scoped view.
  *
  * Run: npx playwright test src/tests/assistants/list-grouping.e2e.ts
  */
 
-import { expect } from '@playwright/test';
+import { test as base, expect, type Page } from '@playwright/test';
 import {
   createTestUser,
   cleanupUser,
-  createAssistantTest,
   createAssistant,
-  createSpaceForAssistant,
-  addAssistantToSpace,
+  createOrg,
+  deleteOrg,
+  createTeamForAssistant,
+  addAssistantToTeam,
   navigateToAssistants,
   closeHireDialogIfOpen,
   deleteAllAssistantsForUser,
   ensureProjectSync,
+  loginAndSaveOrgState,
 } from './helpers';
 
 function uniqueGroupingEmail(): string {
@@ -29,58 +31,78 @@ const user = createTestUser({
   lastName: 'Tester',
   credits: 50_000,
 });
-ensureProjectSync(user.apiKey);
-const test = createAssistantTest(user);
-test.setTimeout(120_000);
-test.describe.configure({ mode: 'serial' });
+const org = createOrg({ name: `ListGroupingOrg_${Date.now()}`, ownerId: user.id });
+ensureProjectSync(org.ownerOrgApiKey);
 
 const patchAssistant = createAssistant({
   userId: user.id,
+  orgId: org.id,
   firstName: 'Patch',
   surname: 'Only',
 });
 const multiAssistant = createAssistant({
   userId: user.id,
+  orgId: org.id,
   firstName: 'Mina',
   surname: 'Multi',
 });
 const soloAssistant = createAssistant({
   userId: user.id,
+  orgId: org.id,
   firstName: 'Solo',
   surname: 'Only',
 });
 
-const patchAlpha = createSpaceForAssistant(patchAssistant, {
+const patchAlpha = createTeamForAssistant(patchAssistant, {
   name: 'Patch Alpha',
-  description: 'Patch Alpha sidebar grouping coverage space.',
+  description: 'Patch Alpha sidebar grouping coverage team.',
   selfContactId: 801,
   bossContactId: 802,
 });
-const patchBeta = createSpaceForAssistant(multiAssistant, {
+const patchBeta = createTeamForAssistant(multiAssistant, {
   name: 'Patch Beta',
-  description: 'Patch Beta sidebar grouping coverage space.',
+  description: 'Patch Beta sidebar grouping coverage team.',
   selfContactId: 901,
   bossContactId: 902,
 });
-addAssistantToSpace(multiAssistant, patchAlpha, {
+addAssistantToTeam(multiAssistant, patchAlpha, {
   selfContactId: 903,
   bossContactId: 904,
 });
 
+let authFile: string | undefined;
+const test = base.extend<{ authedPage: Page }>({
+  authedPage: async ({ browser }, use, testInfo) => {
+    if (!authFile) {
+      authFile = await loginAndSaveOrgState(browser, user.email, user.password, org.id);
+    }
+    const ctx = await browser.newContext({
+      storageState: authFile,
+      permissions: ['clipboard-read', 'clipboard-write'],
+    });
+    const page = await ctx.newPage();
+    await use(page);
+    await ctx.close();
+  },
+});
+test.setTimeout(120_000);
+test.describe.configure({ mode: 'serial' });
+
 test.afterAll(() => {
   deleteAllAssistantsForUser(user.id);
+  deleteOrg(org.id);
   cleanupUser(user.id);
 });
 
-test('groups colleagues by space and keeps row selection assistant-scoped', async ({
+test('groups colleagues by team and keeps row selection assistant-scoped', async ({
   authedPage: page,
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const spacesSection = page.getByTestId('assistant-list-section-spaces');
+  const teamsSection = page.getByTestId('assistant-list-section-teams');
   const soloSection = page.getByTestId('assistant-list-section-solo');
-  await expect(spacesSection.getByRole('button', { name: /Teams/ })).toBeVisible({
+  await expect(teamsSection.getByRole('button', { name: /Teams/ })).toBeVisible({
     timeout: 15_000,
   });
   await expect(soloSection.getByRole('button', { name: /Independent colleagues.*1/ })).toBeVisible({
@@ -93,8 +115,8 @@ test('groups colleagues by space and keeps row selection assistant-scoped', asyn
   await expect(patchBetaHeader).toBeVisible({ timeout: 10_000 });
   await expect(soloSection.getByText('Solo Only')).toBeVisible();
 
-  const patchAlphaGroup = page.getByTestId(`assistant-list-group-space:${patchAlpha.spaceId}`);
-  const patchBetaGroup = page.getByTestId(`assistant-list-group-space:${patchBeta.spaceId}`);
+  const patchAlphaGroup = page.getByTestId(`assistant-list-group-team:${patchAlpha.teamId}`);
+  const patchBetaGroup = page.getByTestId(`assistant-list-group-team:${patchBeta.teamId}`);
 
   await expect(patchAlphaGroup.getByText('Patch Only')).toBeVisible();
   await expect(
@@ -102,15 +124,15 @@ test('groups colleagues by space and keeps row selection assistant-scoped', asyn
   ).toBeVisible();
   await patchAlphaHeader.hover();
   await expect(
-    page.getByRole('tooltip', { name: 'Patch Alpha sidebar grouping coverage space.' })
+    page.getByRole('tooltip', { name: 'Patch Alpha sidebar grouping coverage team.' })
   ).toBeVisible();
 
   const secondaryListing = patchBetaGroup.getByRole('button', { name: /Mina Multi/ });
   await expect(secondaryListing).toBeVisible();
   await expect(secondaryListing.getByText('Mina Multi')).not.toHaveClass(/opacity-60/);
-  const multiSpaceCue = secondaryListing.getByText('2 spaces');
-  await expect(multiSpaceCue).toBeVisible();
-  await multiSpaceCue.hover();
+  const multiTeamCue = secondaryListing.getByText('2 teams');
+  await expect(multiTeamCue).toBeVisible();
+  await multiTeamCue.hover();
   await expect(page.getByRole('tooltip', { name: 'Also in Patch Alpha' })).toBeVisible();
 
   await secondaryListing.click();
@@ -118,6 +140,7 @@ test('groups colleagues by space and keeps row selection assistant-scoped', asyn
   await expect(page.locator('text=Mina').first()).toBeVisible({ timeout: 10_000 });
 
   await page.getByTestId('right-pane-tab-memory').click();
+  await page.getByTestId('right-pane-tab-memory-menu-contacts').click();
   await expect(page.getByTestId('memory-destination-dropdown')).toBeVisible({ timeout: 10_000 });
   await page.getByTestId('memory-destination-dropdown').click();
   await expect(page.getByRole('option', { name: 'Patch Alpha' })).toBeVisible({
@@ -135,7 +158,7 @@ test('groups colleagues by space and keeps row selection assistant-scoped', asyn
       page.evaluate((groupId) => {
         const stored = window.localStorage.getItem('console:assistants:listGroupFolds');
         return stored ? JSON.parse(stored)[groupId] === true : false;
-      }, `space:${patchAlpha.spaceId}`)
+      }, `team:${patchAlpha.teamId}`)
     )
     .toBe(true);
 
@@ -174,7 +197,7 @@ test('kebab menu stays visible while Teams section is expanded', async ({ authed
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const teamsSection = page.getByTestId('assistant-list-section-spaces');
+  const teamsSection = page.getByTestId('assistant-list-section-teams');
   await expect(teamsSection).toBeVisible({ timeout: 15_000 });
   const teamsHeader = teamsSection.getByRole('button', { name: /Teams/ });
   if ((await teamsHeader.getAttribute('aria-expanded')) === 'false') {
@@ -192,7 +215,7 @@ test('kebab menu stays visible while Teams section is expanded', async ({ authed
       .poll(async () =>
         page.evaluate((testId) => {
           const menu = document.querySelector(`[data-testid="${testId}"]`);
-          const sidebar = document.querySelector('[data-testid="assistant-list-section-spaces"]');
+          const sidebar = document.querySelector('[data-testid="assistant-list-section-teams"]');
           if (!menu || !sidebar) return false;
           const menuRect = menu.getBoundingClientRect();
           const sidebarRect = sidebar.closest('.relative')?.getBoundingClientRect();
@@ -210,7 +233,7 @@ test('kebab menu stays visible while Teams section is expanded', async ({ authed
   await assertMenuInSidebar(soloAssistant.agentId);
 });
 
-test('kebab menu stays visible for multi-space assistant rows', async ({ authedPage: page }) => {
+test('kebab menu stays visible for multi-team assistant rows', async ({ authedPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
@@ -220,7 +243,7 @@ test('kebab menu stays visible for multi-space assistant rows', async ({ authedP
 
   const menuTrigger = page.getByTestId(`assistant-menu-${multiAssistant.agentId}`);
   await expect(menuTrigger).toBeVisible({ timeout: 5_000 });
-  await expect(groupedRow.getByText('2 spaces')).toBeVisible();
+  await expect(groupedRow.getByText('2 teams')).toBeVisible();
 
   const menuBox = await menuTrigger.boundingBox();
   expect(menuBox).not.toBeNull();

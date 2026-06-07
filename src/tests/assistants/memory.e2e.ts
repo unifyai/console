@@ -15,8 +15,11 @@ import {
   cleanupUser,
   createAssistantTest,
   createAssistant,
+  createOrg,
+  deleteOrg,
   navigateToAssistants,
   closeHireDialogIfOpen,
+  selectAssistantInList,
   deleteAllAssistantsForUser,
   ensureProjectSync,
   orchestraFetch,
@@ -24,6 +27,7 @@ import {
   dbExec,
   dbExecBlock,
   type SeededAssistant,
+  type SeededOrg,
 } from './helpers';
 
 function uniqueMemoryEmail(): string {
@@ -56,15 +60,29 @@ const dataAssistant = createAssistant({
   surname: 'WithData',
 });
 
-const destinationAssistant = createAssistant({
-  userId: user.id,
-  firstName: 'ScopeBot',
-  surname: 'Drilldown',
-});
+let memoryOrg: SeededOrg | undefined;
+let destinationAssistant: SeededAssistant | undefined;
+
+function ensureDestinationAssistant(): { org: SeededOrg; assistant: SeededAssistant } {
+  if (!memoryOrg || !destinationAssistant) {
+    memoryOrg = createOrg({ name: `MemoryOrg_${Date.now()}`, ownerId: user.id });
+    ensureProjectSync(memoryOrg.ownerOrgApiKey);
+    destinationAssistant = createAssistant({
+      userId: user.id,
+      orgId: memoryOrg.id,
+      firstName: 'ScopeBot',
+      surname: 'Drilldown',
+    });
+  }
+  return { org: memoryOrg, assistant: destinationAssistant };
+}
 
 test.afterAll(() => {
   setUserCredits(user.id, 50_000);
   deleteAllAssistantsForUser(user.id);
+  if (memoryOrg) {
+    deleteOrg(memoryOrg.id);
+  }
   cleanupUser(user.id);
 });
 
@@ -104,52 +122,55 @@ async function seedContacts(
   }
 }
 
-function createMemorySpaceForAssistant(
+function createMemoryTeamForAssistant(
   targetAssistant: SeededAssistant,
   opts: {
     selfContactId: number;
     bossContactId: number;
   }
 ): number {
+  if (targetAssistant.organizationId === null) {
+    throw new Error('createMemoryTeamForAssistant requires an org-scoped assistant');
+  }
+
   const suffix = Date.now();
-  const rawSpaceId = dbExec(`
-INSERT INTO spaces (name, description, owner_user_id, status, kind)
+  const rawTeamId = dbExec(`
+INSERT INTO team (name, description, organization_id, status)
 VALUES (
-  'Memory Drill Space ${suffix}',
-  'Shared memory drill-down e2e space for destination dropdown coverage',
-  '${targetAssistant.userId}',
-  'active',
-  'team'
+  'Memory Drill Team ${suffix}',
+  'Shared memory drill-down e2e team for destination dropdown coverage',
+  ${targetAssistant.organizationId},
+  'active'
 )
-RETURNING space_id;
+RETURNING id;
 `);
-  const spaceId = Number(rawSpaceId.match(/^\d+$/m)?.[0]);
-  if (!Number.isInteger(spaceId)) {
-    throw new Error(`Failed to parse seeded space id from psql output: ${rawSpaceId}`);
+  const teamId = Number(rawTeamId.match(/^\d+$/m)?.[0]);
+  if (!Number.isInteger(teamId)) {
+    throw new Error(`Failed to parse seeded team id from psql output: ${rawTeamId}`);
   }
 
   dbExecBlock(`
-INSERT INTO assistant_space_memberships (assistant_id, space_id, added_by)
-VALUES (${targetAssistant.agentId}, ${spaceId}, '${targetAssistant.userId}')
+INSERT INTO team_assistant_memberships (team_id, assistant_id, added_by)
+VALUES (${teamId}, ${targetAssistant.agentId}, '${targetAssistant.userId}')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO contact_memberships (
   assistant_id,
   contact_id,
   target_scope,
-  target_space_id,
+  target_team_id,
   relationship,
   should_respond,
   response_policy,
   can_edit
 )
 VALUES
-  (${targetAssistant.agentId}, ${opts.selfContactId}, 'space', ${spaceId}, 'self', true, '', true),
-  (${targetAssistant.agentId}, ${opts.bossContactId}, 'space', ${spaceId}, 'boss', true, '', true)
+  (${targetAssistant.agentId}, ${opts.selfContactId}, 'team', ${teamId}, 'self', true, '', true),
+  (${targetAssistant.agentId}, ${opts.bossContactId}, 'team', ${teamId}, 'boss', true, '', true)
 ON CONFLICT DO NOTHING;
 `);
 
-  return spaceId;
+  return teamId;
 }
 
 async function seedTranscripts(
@@ -250,7 +271,9 @@ let destinationSeeded = false;
 async function ensureDestinationSeeded() {
   if (destinationSeeded) return;
 
-  await seedContacts(user.apiKey, user.id, destinationAssistant.agentId, [
+  const { org, assistant: destination } = ensureDestinationAssistant();
+
+  await seedContacts(org.ownerOrgApiKey, user.id, destination.agentId, [
     {
       contact_id: ASSISTANT_CONTACT_ID,
       first_name: 'ScopeBot',
@@ -267,24 +290,24 @@ async function ensureDestinationSeeded() {
     },
   ]);
 
-  const spaceId = createMemorySpaceForAssistant(destinationAssistant, {
+  const teamId = createMemoryTeamForAssistant(destination, {
     selfContactId: 901,
     bossContactId: 902,
   });
   await seedContacts(
-    user.apiKey,
+    org.ownerOrgApiKey,
     user.id,
-    destinationAssistant.agentId,
+    destination.agentId,
     [
       {
         contact_id: 701,
         first_name: 'SharedOnly',
-        last_name: 'SpaceContact',
+        last_name: 'TeamContact',
         email_address: 'shared-only@example.com',
         timezone: 'UTC',
       },
     ],
-    `Spaces/${spaceId}/Contacts`
+    `Teams/${teamId}/Contacts`
   );
 
   destinationSeeded = true;
@@ -294,13 +317,30 @@ async function ensureDestinationSeeded() {
 // Navigation helpers
 // ---------------------------------------------------------------------------
 
+async function dismissCoordinatorOnboardingIfOpen(page: import('@playwright/test').Page) {
+  const pickChat = page.getByTestId('coordinator-onboarding-pick-chat');
+  if (!(await pickChat.isVisible({ timeout: 10_000 }).catch(() => false))) {
+    return;
+  }
+  await pickChat.click();
+  const skip = page.getByTestId('coordinator-onboarding-skip');
+  if (await skip.isVisible({ timeout: 10_000 }).catch(() => false)) {
+    await skip.click();
+    await page.waitForTimeout(1_000);
+  }
+}
+
 async function selectAssistantAndOpenMemory(
   page: import('@playwright/test').Page,
   agentId: number
 ) {
-  await page.goto(`/assistants?profile=${agentId}`);
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await dismissCoordinatorOnboardingIfOpen(page);
+
+  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
+  await expect(listItem).toBeVisible({ timeout: 15_000 });
+  await selectAssistantInList(page, agentId);
   await page.waitForTimeout(1_500);
 
   // Memory is now a dropdown trigger: click opens the sub-tab menu,
@@ -465,8 +505,22 @@ test('memory destination dropdown is hidden for solo assistants', async ({ authe
 });
 
 test('memory dropdown drills into personal and shared roots', async ({ authedPage: page }) => {
+  const { org, assistant: destination } = ensureDestinationAssistant();
+
+  await page.goto('/assistants');
+  await closeHireDialogIfOpen(page);
+  await page.evaluate(async (orgId) => {
+    await fetch('/api/session/workspace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId: String(orgId) }),
+    });
+  }, org.id);
+  await page.reload();
+  await closeHireDialogIfOpen(page);
+
   await ensureDestinationSeeded();
-  await selectAssistantAndOpenMemory(page, destinationAssistant.agentId);
+  await selectAssistantAndOpenMemory(page, destination.agentId);
 
   const table = page.getByTestId('memory-table-contacts');
   await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
@@ -477,7 +531,7 @@ test('memory dropdown drills into personal and shared roots', async ({ authedPag
   });
 
   await page.getByTestId('memory-destination-dropdown').click();
-  await page.getByRole('option', { name: /Memory Drill Space/ }).click();
+  await page.getByRole('option', { name: /Memory Drill Team/ }).click();
 
   await expect(table.getByRole('cell', { name: 'SharedOnly', exact: true })).toBeVisible({
     timeout: 20_000,
