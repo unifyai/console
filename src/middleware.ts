@@ -5,6 +5,8 @@ import { NextRequestWithAuth, withAuth } from 'next-auth/middleware';
 import { getToken } from 'next-auth/jwt';
 import authOptions from './app/api/auth/[...nextauth]/pages';
 
+const ENFORCE_ACCOUNT_ONBOARDING = false;
+
 /**
  * Carry a credit-grant `?token=` param through internal redirects
  * (onboarding, MFA) so it survives until the Assistants page renders.
@@ -110,7 +112,12 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
   // Onboarding check: redirect new users to the onboarding flow.
   // This runs AFTER the MFA check (security-first) and only when the user
   // doesn't have mfaPending (which takes priority).
-  if (token?.onboardingStep && token.onboardingStep !== 'completed' && !token?.mfaPending) {
+  if (
+    ENFORCE_ACCOUNT_ONBOARDING &&
+    token?.onboardingStep &&
+    token.onboardingStep !== 'completed' &&
+    !token?.mfaPending
+  ) {
     const onboardingAllowed = ['/login', '/api/auth', '/_next'];
     const isAllowed = onboardingAllowed.some((prefix) => pathname.startsWith(prefix));
     if (!isAllowed) {

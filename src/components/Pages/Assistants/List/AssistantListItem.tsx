@@ -130,14 +130,15 @@ export function AssistantListItem({
         tabIndex={0}
         aria-label={displayName}
         className={cn(
-          'relative cursor-pointer rounded-full',
-          isSelected && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+          'relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-transparent transition-colors',
+          isSelected && 'border-[color:var(--role-green-deep)] bg-primary text-primary-foreground',
+          !isSelected && 'hover:bg-[var(--surface-hover)]'
         )}
         onClick={handleProfileClick}
         onKeyDown={handleFoldedKeyDown}
       >
         {isCoordinator ? (
-          <CoordinatorLogoAvatar className="h-8 w-8 rounded-full" />
+          <CoordinatorLogoAvatar className="h-8 w-8" />
         ) : (
           <Avatar className="h-8 w-8">
             <AvatarImage src={photoSrc ?? undefined} alt={displayName} />

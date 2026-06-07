@@ -84,10 +84,7 @@ export function AssistantCommunicationMainView({
             )}
           >
             {isCoordinator ? (
-              <CoordinatorLogoAvatar
-                className="h-full w-full rounded-full border-0 bg-muted text-primary shadow-none"
-                logoClassName="h-[45%] w-[45%]"
-              />
+              <CoordinatorLogoAvatar className="h-full w-full" logoClassName="h-[70%] w-[70%]" />
             ) : (
               <Avatar className="h-full w-full">
                 <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
@@ -198,10 +195,7 @@ export function AssistantCommunicationMainView({
           ) : (
             <>
               {isCoordinator ? (
-                <CoordinatorLogoAvatar
-                  className="h-full w-full rounded-full border-0 bg-muted text-primary shadow-none"
-                  logoClassName="h-[45%] w-[45%]"
-                />
+                <CoordinatorLogoAvatar className="h-full w-full" logoClassName="h-[70%] w-[70%]" />
               ) : (
                 <Avatar className="h-full w-full">
                   <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />

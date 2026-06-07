@@ -27,15 +27,14 @@ import {
 } from '@/components/UI/select';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
+import { applyApprovedCharacterVoiceMetadata } from '@/constants/assistants/approved_character_voices';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/UI/accordion';
-import { allCountryNames } from '@/constants/assistants/countries';
 import { cn } from '@/lib/utils';
-import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
 import { FaUbuntu, FaWindows } from 'react-icons/fa';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 
@@ -86,13 +85,9 @@ export function HireForm({
     control,
   } = formMethods;
 
-  const [photoCustomizationTab, setPhotoCustomizationTab] = React.useState<
-    'upload' | 'create' | 'edit' | 'animate'
-  >('upload');
   const [voiceCustomizationTab, setVoiceCustomizationTab] = React.useState<
     'select' | 'clone' | 'design'
   >('select');
-  const [showAnimatePing, setShowAnimatePing] = React.useState(false);
   const [playedVideoUrls, setPlayedVideoUrls] = React.useState(new Set<string>());
   const setup = useWatch({ control, name: 'setup' });
   const operatingSystem = useWatch({ control, name: 'operatingSystem' });
@@ -110,60 +105,8 @@ export function HireForm({
   const photoFile = watch('photoFile');
   const videoFile = watch('videoFile');
   const isPresetPristine = watch('isPresetPristine');
-  const firstName = watch('firstName');
-  const surname = watch('surname');
-  const age = watch('age');
-  const rhfNationality = watch('nationality');
-  const nationalityRef = React.useRef(rhfNationality);
-
-  React.useEffect(() => {
-    const isPristine = getValues('isPresetPristine');
-    // Only trigger auto-selection if the nationality was changed manually, not by a preset.
-    if (isPristine || nationalityRef.current === rhfNationality) {
-      nationalityRef.current = rhfNationality;
-      return;
-    }
-    nationalityRef.current = rhfNationality;
-
-    if (allDisplayableVoices.length === 0) return;
-
-    const preferredLanguage = getLangCodeForNationality(rhfNationality);
-    if (!preferredLanguage) return;
-
-    const currentVoiceId = getValues('voiceId');
-    const currentVoice = allDisplayableVoices.find((v) => v.voiceId === currentVoiceId);
-
-    // If current voice already matches the new nationality's language, do nothing
-    if (currentVoice && currentVoice.language === preferredLanguage) return;
-
-    // Find the best new voice: a non-preset one is preferred
-    const bestNewVoice =
-      allDisplayableVoices.find((v) => v.language === preferredLanguage && !v.isPreset) ||
-      allDisplayableVoices.find((v) => v.language === preferredLanguage);
-
-    if (bestNewVoice) {
-      setValue('voiceId', bestNewVoice.voiceId, { shouldValidate: true });
-      setValue('voiceName', bestNewVoice.name, { shouldValidate: true });
-      setValue('voiceDescription', bestNewVoice.description ?? bestNewVoice.name, {
-        shouldValidate: true,
-      });
-      setValue('voiceGender', bestNewVoice.gender, { shouldValidate: true });
-      setValue('voiceLanguage', bestNewVoice.language, { shouldValidate: true });
-      setValue('voiceProvider', bestNewVoice.provider || PRIMARY_VOICE_PROVIDER, {
-        shouldValidate: true,
-      });
-      setValue('voiceExists', bestNewVoice.isUserVoiceInOrchestra ?? false, {
-        shouldValidate: true,
-      });
-    }
-  }, [rhfNationality, allDisplayableVoices, getValues, setValue]);
 
   const rhfVoiceId = watch('voiceId');
-  const rhfVoiceLanguage = watch('voiceLanguage');
-  const rhfVoiceGender = watch('voiceGender');
-  const rhfVoiceName = watch('voiceName');
-  const rhfVoiceDescription = watch('voiceDescription');
-  const rhfIsPresetPristine = watch('isPresetPristine');
   const rhfProfileVideoUrl = watch('profileVideoUrl');
   const videoSourceVoiceId = watch('videoSourceVoiceId');
   const hasExistingEditVideo =
@@ -208,38 +151,7 @@ export function HireForm({
 
   // --- End of Video Playability Logic ---
 
-  const selectedVoiceForPhotoCustomization: VoiceOption | null = React.useMemo(() => {
-    if (rhfVoiceId && rhfVoiceLanguage && rhfVoiceGender && rhfVoiceName) {
-      return {
-        voiceId: rhfVoiceId,
-        language: rhfVoiceLanguage as SupportedLanguage,
-        gender: rhfVoiceGender as Gender,
-        name: rhfVoiceName,
-        description: rhfVoiceDescription || '',
-        provider: getValues('voiceProvider') || PRIMARY_VOICE_PROVIDER,
-        isPreset: rhfIsPresetPristine,
-        isUserVoiceInOrchestra: getValues('voiceExists'),
-      };
-    }
-    return null;
-  }, [
-    rhfVoiceId,
-    rhfVoiceLanguage,
-    rhfVoiceGender,
-    rhfVoiceName,
-    rhfVoiceDescription,
-    rhfIsPresetPristine,
-    getValues,
-  ]);
-
   const isEditMode = mode === 'edit';
-  const shouldUseAnimateClickShortcut = !hasExistingEditVideo;
-  const handlePhotoViewerClick = () => {
-    // This handler is only called from the viewer when it's appropriate to switch to the animate tab.
-    setPhotoCustomizationTab('animate');
-    setShowAnimatePing(true);
-    setTimeout(() => setShowAnimatePing(false), 4000);
-  };
 
   const handleVideoAutoplayed = React.useCallback((url: string) => {
     setPlayedVideoUrls((prev) => new Set(prev).add(url));
@@ -263,9 +175,14 @@ export function HireForm({
 
     if (!voiceId) return;
 
-    const voiceDetails = (voicePresetsConstant as Voice[]).find(
-      (v) => v.voiceId === voiceId && v.provider === PRIMARY_VOICE_PROVIDER
-    );
+    const voiceDetails =
+      allDisplayableVoices.find(
+        (v) => v.voiceId === voiceId && v.provider === PRIMARY_VOICE_PROVIDER
+      ) ||
+      (voicePresetsConstant as Voice[])
+        .filter((v) => v.provider === PRIMARY_VOICE_PROVIDER)
+        .map(applyApprovedCharacterVoiceMetadata)
+        .find((v) => v.voiceId === voiceId);
     if (!voiceDetails) return;
 
     // Update voice fields
@@ -374,52 +291,6 @@ export function HireForm({
                           </p>
                         )}
                       </div>
-                      <div className="col-span-2 sm:col-span-1">
-                        <Label htmlFor="age">Age</Label>
-                        <Input
-                          id="age"
-                          type="number"
-                          {...register('age', {
-                            valueAsNumber: true,
-                            min: { value: 18, message: 'Age must be at least 18' },
-                            max: { value: 70, message: 'Age must be 70 or less' },
-                          })}
-                        />
-                        {errors.age && (
-                          <p className="text-body text-strong mt-1 text-destructive">
-                            {errors.age.message}
-                          </p>
-                        )}
-                      </div>
-                      <div className="col-span-2 sm:col-span-1">
-                        <Label htmlFor="nationality">Nationality</Label>
-                        <Select
-                          value={rhfNationality || ''}
-                          onValueChange={(value) =>
-                            setValue('nationality', value, { shouldValidate: true })
-                          }
-                          disabled={isSubmitting}
-                        >
-                          <SelectTrigger
-                            id="nationality"
-                            {...register('nationality', { required: 'Nationality is required.' })}
-                          >
-                            <SelectValue placeholder="Select a nationality..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {allCountryNames.map((countryName) => (
-                              <SelectItem key={countryName} value={countryName}>
-                                {countryName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {errors.nationality && (
-                          <p className="text-body text-strong mt-1 text-destructive">
-                            {errors.nationality.message}
-                          </p>
-                        )}
-                      </div>
                     </div>
                     <div className="pt-1">
                       <Label htmlFor="timezone">Timezone</Label>
@@ -504,25 +375,13 @@ export function HireForm({
                       className="flex-shrink-0"
                       isPlayable={isVideoPlayable}
                       disabled={isSubmitting}
-                      onClick={shouldUseAnimateClickShortcut ? handlePhotoViewerClick : undefined}
                       shouldAutoplay={shouldAutoplayVideo}
                       onAutoplay={handleVideoAutoplayed}
                     />
                     <PhotoCustomization
-                      assistantActions={assistantActions}
                       onNewMediaReady={onNewMediaReady}
-                      currentImageUrl={photoPreviewUrl ?? null}
-                      currentImageFile={photoFile ?? null}
                       disabled={isSubmitting}
-                      selectedVoice={selectedVoiceForPhotoCustomization}
-                      firstName={firstName}
-                      surname={surname}
-                      age={age as number | null}
-                      activeTab={photoCustomizationTab}
-                      setActiveTab={setPhotoCustomizationTab}
-                      showAnimatePing={showAnimatePing}
                       onProcessingStateChange={onPhotoProcessingStateChange}
-                      onAddPaymentMethod={onAddPaymentMethod}
                     />
                   </div>
                 </AccordionContent>

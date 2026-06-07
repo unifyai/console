@@ -52,7 +52,6 @@ import { CoordinatorOnboarding } from '@/components/Pages/Assistants/Coordinator
 import { IntegrationsPane } from '@/components/Pages/Assistants/Integrations';
 import { TasksPane } from '@/components/Pages/Assistants/Tasks';
 import { LiveActionsViewer } from '@/components/Pages/Assistants/LiveActions';
-import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
 import { subscribeOAuthComplete } from '@/utils/assistants/oauth';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
@@ -93,6 +92,7 @@ import {
   invalidatesCoordinatorSidebar,
 } from '@/types/assistants/coordinatorActivity';
 
+const ENABLE_COORDINATOR_ONBOARDING = false;
 
 interface MainProps {
   assistantActions: AssistantActions;
@@ -388,10 +388,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
   const chatReadableAssistants = sidebarAssistants;
 
-  const teamsById = React.useMemo(
-    () => buildTeamsById(sidebarAssistants),
-    [sidebarAssistants]
-  );
+  const teamsById = React.useMemo(() => buildTeamsById(sidebarAssistants), [sidebarAssistants]);
   const coordinatorInvalidationTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleCoordinatorActivity = React.useCallback(
@@ -417,7 +414,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     []
   );
 
-
   const canonicalCoordinator = React.useMemo(
     () => resolveCanonicalWorkspaceCoordinator(assistants, currentUserId, coordinatorWorkspace),
     [assistants, coordinatorWorkspace, currentUserId]
@@ -440,7 +436,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     refetch: refetchCoordinatorOnboardingState,
     updateState: updateCoordinatorOnboardingState,
   } = useCoordinatorOnboarding(canonicalCoordinatorId, {
-    enabled: isCanonicalCoordinatorOwned,
+    enabled: isCanonicalCoordinatorOwned && ENABLE_COORDINATOR_ONBOARDING,
   });
   // Tracks whether the user has clicked "Hire your first specialist
   // assistant" in the onboarding sidebar. While this is true we
@@ -456,6 +452,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // onboarding view to resume.
   const [isHireSpecialistEngaged, setIsHireSpecialistEngaged] = React.useState(false);
   const showCoordinatorOnboarding =
+    ENABLE_COORDINATOR_ONBOARDING &&
     isCanonicalCoordinatorOwned &&
     coordinatorOnboardingState?.mode === 'onboarding' &&
     !isHireSpecialistEngaged;
@@ -526,10 +523,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // Subsequent transitions update the React Query cache synchronously
   // so neither branch fires again after the initial bootstrap.
   const isCoordinatorOnboardingResolvePending =
-    (isLoadingAssistants && !canonicalCoordinator) ||
-    (isCanonicalCoordinatorOwned &&
-      coordinatorOnboardingState === null &&
-      isCoordinatorOnboardingStateLoading);
+    ENABLE_COORDINATOR_ONBOARDING &&
+    ((isLoadingAssistants && !canonicalCoordinator) ||
+      (isCanonicalCoordinatorOwned &&
+        coordinatorOnboardingState === null &&
+        isCoordinatorOnboardingStateLoading));
 
   React.useEffect(() => {
     if (!profileAssistantId || isLoadingAssistants) return;
@@ -1162,18 +1160,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     loadMorePresets,
     canLoadMorePresets,
     isLoadingMorePresets,
-    presetAgeFilter,
     setPresetAgeFilter,
-    presetNationalityFilter,
     setPresetNationalityFilter,
     presetGenderFilter,
     setPresetGenderFilter,
-    presetLanguageFilter,
     setPresetLanguageFilter,
-    availableAgeBrackets,
-    availableNationalities,
     availableGenders,
-    availableLanguages,
     currentFilteredPresets,
     allAssistantPresets,
     presetPhotoUrls,
@@ -1341,26 +1333,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
 
   // --- Voice Options  ---
-  const hireFormNationality = formMethods.watch('nationality');
-  const preferredLanguage = React.useMemo(
-    () => getLangCodeForNationality(hireFormNationality),
-    [hireFormNationality]
-  );
   const allDisplayableVoices = React.useMemo(() => {
     const filteredByProvider = unsortedVoices.filter((v) => v.provider !== 'openai');
 
     const sorted = [...filteredByProvider];
     sorted.sort((a, b) => {
-      const isAPreferred = preferredLanguage && a.language === preferredLanguage;
-      const isBPreferred = preferredLanguage && b.language === preferredLanguage;
-      if (isAPreferred && !isBPreferred) return -1;
-      if (!isAPreferred && isBPreferred) return 1;
       if (!a.isPreset && b.isPreset) return -1;
       if (a.isPreset && !b.isPreset) return 1;
       return (a.name || '').localeCompare(b.name || '');
     });
     return sorted;
-  }, [unsortedVoices, preferredLanguage]);
+  }, [unsortedVoices]);
 
   // --- Callbacks for UI interaction ---
   // Track whether we need to auto-select a preset when presets become available
@@ -2121,7 +2104,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           <div className="bg-background/85 flex min-h-0 flex-1 overflow-hidden">
             {/* Assistant List */}
             <div
-              className="bg-card/80 relative h-full flex-shrink-0 border-r border-border backdrop-blur-sm"
+              className="relative h-full flex-shrink-0 border-r border-border bg-card"
               style={{
                 width: computedListWidth,
                 transition: isResizingList ? 'none' : 'width 0.3s ease-in-out',
@@ -2325,18 +2308,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               onLoadMore={loadMorePresets}
               canLoadMore={canLoadMorePresets}
               isLoadingMore={isLoadingMorePresets}
-              ageFilter={presetAgeFilter}
-              onAgeFilterChange={setPresetAgeFilter}
-              availableAgeBrackets={availableAgeBrackets}
-              nationalityFilter={presetNationalityFilter}
-              onNationalityFilterChange={setPresetNationalityFilter}
-              availableNationalities={availableNationalities}
               genderFilter={presetGenderFilter}
               onGenderFilterChange={setPresetGenderFilter}
               availableGenders={availableGenders}
-              languageFilter={presetLanguageFilter}
-              onLanguageFilterChange={setPresetLanguageFilter}
-              availableLanguages={availableLanguages}
               layoutMode="split" // Dummy prop
               setLayoutMode={() => {}} // Dummy prop
               presetPhotoUrls={presetPhotoUrls}

@@ -6,6 +6,10 @@ import { SupportedLanguage, Gender as CartesiaGender } from '@cartesia/cartesia-
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { fetchVoices } from '@/lib/client/voice';
+import {
+  applyApprovedCharacterVoiceMetadata,
+  approvedCharacterVoiceIds,
+} from '@/constants/assistants/approved_character_voices';
 
 interface UseVoiceOptionsConfig {
   /**
@@ -106,7 +110,9 @@ export function useVoiceOptions(
       }
     });
 
-    const finalCombined = Array.from(finalMap.values());
+    const finalCombined = Array.from(finalMap.values())
+      .filter((voice) => approvedCharacterVoiceIds.has(voice.voiceId))
+      .map(applyApprovedCharacterVoiceMetadata);
 
     return finalCombined;
   }, [presetVoices, userVoicesFromOrchestra]);

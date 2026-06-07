@@ -199,10 +199,7 @@ function ChatMessageBubbleImpl({
     >
       <div className="mb-2.5 flex items-center gap-2">
         {isCoordinator ? (
-          <CoordinatorLogoAvatar
-            className="h-6 w-6 flex-shrink-0 rounded-full border"
-            logoClassName="h-3.5 w-3.5"
-          />
+          <CoordinatorLogoAvatar className="h-6 w-6 flex-shrink-0" logoClassName="h-3.5 w-3.5" />
         ) : (
           <Avatar className="h-6 w-6 flex-shrink-0 border">
             <AvatarImage src={assistantPhoto ?? undefined} alt={assistantName} />

@@ -121,10 +121,7 @@ export function LiveActionsHeader({
 
   return (
     <div
-      className={cn(
-        'flex flex-wrap items-center gap-1.5 border-b bg-background px-3 py-2',
-        className
-      )}
+      className={cn('flex flex-wrap items-center gap-1.5 border-b bg-card px-3 py-2', className)}
       data-testid="live-actions-header"
     >
       {/* Time Window Picker */}

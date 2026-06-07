@@ -794,13 +794,13 @@ function ChecklistMarker({ done }: { done: boolean }) {
     <span
       aria-hidden="true"
       className={cn(
-        'mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border',
+        'mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-none border',
         done
-          ? 'border-primary bg-primary text-primary-foreground'
+          ? 'border-[color:var(--role-green-deep)] bg-[color:var(--status-success-bg)] text-[color:var(--role-green-deep)]'
           : 'border-muted-foreground/40 bg-transparent'
       )}
     >
-      {done ? <Check className="h-3 w-3" /> : null}
+      {done ? <Check className="h-3 w-3 stroke-[3]" /> : null}
     </span>
   );
 }

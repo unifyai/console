@@ -13,8 +13,8 @@
  * production builds entirely.
  */
 
-import React, { useEffect, useState, useTransition } from 'react';
-import { ArrowRight, FlaskConical } from 'lucide-react';
+import React, { useCallback, useEffect, useState, useTransition } from 'react';
+import { ArrowRight, FlaskConical, RefreshCw } from 'lucide-react';
 import { getDevUsers, switchDevUser } from '@/lib/dev/actions';
 import type { DevUser } from '@/lib/dev/actions';
 
@@ -33,16 +33,31 @@ function getRoleColor(label: string): string {
 
 export default function DevQuickLogin() {
   const [users, setUsers] = useState<DevUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [switchingEmail, setSwitchingEmail] = useState<string | null>(null);
 
-  useEffect(() => {
-    getDevUsers()
-      .then(setUsers)
-      .catch(() => setUsers([]));
+  const loadUsers = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      setUsers(await getDevUsers());
+    } catch (error) {
+      console.error('[DevQuickLogin] Failed to load dev users:', error);
+      setUsers([]);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  if (users.length === 0) return null;
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  useEffect(() => {
+    if (users.length > 0) return;
+    const interval = window.setInterval(loadUsers, 5000);
+    return () => window.clearInterval(interval);
+  }, [loadUsers, users.length]);
 
   const handleLogin = (email: string) => {
     setSwitchingEmail(email);
@@ -71,36 +86,53 @@ export default function DevQuickLogin() {
 
       {/* User buttons */}
       <div className="flex flex-col gap-2">
-        {users.map((u) => {
-          const isLoading = switchingEmail === u.email;
-          return (
+        {users.length > 0 ? (
+          users.map((u) => {
+            const isSwitching = switchingEmail === u.email;
+            return (
+              <button
+                key={u.email}
+                type="button"
+                onClick={() => handleLogin(u.email)}
+                disabled={isPending}
+                className="group flex items-center justify-between rounded-lg border border-amber-200/60 bg-amber-50/50 px-3 py-2.5 text-left transition-all hover:border-amber-300 hover:bg-amber-50 disabled:opacity-50 dark:border-amber-800/40 dark:bg-amber-950/20 dark:hover:border-amber-700 dark:hover:bg-amber-950/40"
+                data-testid={`dev-login-${u.label}`}
+              >
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-title text-foreground">{u.name}</span>
+                  <span className="text-caption">{u.email}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${getRoleColor(u.label)}`}
+                  >
+                    {u.label}
+                  </span>
+                  {isSwitching ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
+                  ) : (
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  )}
+                </div>
+              </button>
+            );
+          })
+        ) : (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
+            <span className="text-caption text-muted-foreground">
+              {isLoading ? 'Looking for seeded dev users...' : 'No seeded dev users found yet.'}
+            </span>
             <button
-              key={u.email}
               type="button"
-              onClick={() => handleLogin(u.email)}
-              disabled={isPending}
-              className="group flex items-center justify-between rounded-lg border border-amber-200/60 bg-amber-50/50 px-3 py-2.5 text-left transition-all hover:border-amber-300 hover:bg-amber-50 disabled:opacity-50 dark:border-amber-800/40 dark:bg-amber-950/20 dark:hover:border-amber-700 dark:hover:bg-amber-950/40"
-              data-testid={`dev-login-${u.label}`}
+              onClick={loadUsers}
+              disabled={isLoading}
+              className="text-caption inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
             >
-              <div className="flex flex-col gap-0.5">
-                <span className="text-title text-foreground">{u.name}</span>
-                <span className="text-caption">{u.email}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${getRoleColor(u.label)}`}
-                >
-                  {u.label}
-                </span>
-                {isLoading ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
-                ) : (
-                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                )}
-              </div>
+              <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
             </button>
-          );
-        })}
+          </div>
+        )}
       </div>
     </div>
   );

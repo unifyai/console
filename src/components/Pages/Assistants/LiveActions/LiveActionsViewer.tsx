@@ -314,7 +314,7 @@ export function LiveActionsViewer({
   return (
     <div
       ref={containerRef}
-      className={cn('flex h-full flex-col bg-background', className)}
+      className={cn('flex h-full flex-col bg-transparent', className)}
       data-testid="live-actions-viewer"
     >
       {/* Header - always shown when assistant is selected */}

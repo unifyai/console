@@ -168,7 +168,7 @@ export function AssistantHireChatPanel({
       </div>
 
       {/* Chat Area */}
-      <ScrollArea className="flex-1 px-4 py-4 md:px-14" ref={scrollAreaRef}>
+      <ScrollArea className="brand-chat-stencil-bg flex-1 px-4 py-4 md:px-14" ref={scrollAreaRef}>
         <div className="mx-auto min-w-0 max-w-[720px] space-y-6">
           {(USE_MOCK_EMBEDS ? [...messages, ...getMockEmbedMessages()] : messages).map(
             (msg, i, arr) => {

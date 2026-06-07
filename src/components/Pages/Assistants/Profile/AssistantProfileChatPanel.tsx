@@ -662,7 +662,7 @@ export function AssistantProfileChatPanel({
         // `break-words` on bubbles do their job and stay within the
         // viewport bounds. Scoped to this scroll area so we don't
         // disturb any callsite that genuinely wants horizontal scroll.
-        className="flex-1 px-3 pb-4 md:px-6 [&>[data-radix-scroll-area-viewport]>div]:!block"
+        className="brand-chat-stencil-bg flex-1 px-3 pb-4 md:px-6 [&>[data-radix-scroll-area-viewport]>div]:!block"
         ref={scrollAreaRef}
         data-testid="chat-scroll-area"
       >

@@ -37,7 +37,6 @@ import { useFormContext, Controller } from 'react-hook-form';
 import { useVoiceCreator } from '@/hooks/Assistants/useVoiceCreator';
 import { useTTSPreview } from '@/hooks/Assistants/useTTSPreview';
 import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
-import { getLanguageFlag } from '@/utils/assistants/voice-utils';
 import {
   PRIMARY_VOICE_PROVIDER,
   DESIGN_VOICE_DESC_MIN_LENGTH,
@@ -287,7 +286,6 @@ export function VoiceCustomization({
           );
         }}
       >
-        <span className="text-body">{getLanguageFlag(voice.language)}</span>
         <span className="text-body text-strong flex-1 truncate" title={voice.name}>
           {voice.name}
         </span>

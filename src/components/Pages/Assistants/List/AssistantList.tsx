@@ -406,7 +406,7 @@ export function AssistantList({
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-transparent">
       {/* Header: Search Bar + New Assistant Button */}
-      <div className="bg-card/70 flex-shrink-0 overflow-hidden border-b border-border px-3 py-2">
+      <div className="flex-shrink-0 overflow-hidden border-b border-border bg-card px-3 py-2">
         {isFolded ? (
           <div className="flex min-h-7 items-center justify-center">
             {showHireButton && (

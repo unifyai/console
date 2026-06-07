@@ -461,7 +461,7 @@ export function IntegrationsPane({
     <div className="flex h-full flex-col" data-testid="integrations-pane">
       {/* Header — search + actions */}
       <div
-        className="flex shrink-0 items-center gap-2 border-b px-3 py-2"
+        className="flex shrink-0 items-center gap-2 border-b bg-card px-3 py-2"
         data-testid="integrations-header"
       >
         <div className="relative max-w-xs flex-1">

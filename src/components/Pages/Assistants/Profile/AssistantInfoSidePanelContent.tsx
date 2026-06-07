@@ -238,8 +238,8 @@ function CoordinatorAssistantInfoSidePanelContent({
           onEdit={canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined}
           avatarNode={
             <CoordinatorLogoAvatar
-              className="h-14 w-14 flex-shrink-0 rounded-md"
-              logoClassName="h-7 w-7"
+              className="h-20 w-20 flex-shrink-0"
+              logoClassName="h-full w-full"
             />
           }
         />

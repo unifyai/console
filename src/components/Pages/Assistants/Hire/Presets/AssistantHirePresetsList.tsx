@@ -12,7 +12,6 @@ import {
   SelectValue,
 } from '@/components/UI/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { getLanguageLabel } from '@/utils/assistants/voice-utils';
 import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
 import { PRE_HIRE_CHAT_MESSAGE_COST } from '@/constants/assistants/settings';
 
@@ -29,21 +28,9 @@ export interface PresetsPanelProps {
   isLoadingMore: boolean;
 
   // Filters
-  ageFilter: string;
-  onAgeFilterChange: (value: string) => void;
-  availableAgeBrackets: string[];
-
-  nationalityFilter: string;
-  onNationalityFilterChange: (value: string) => void;
-  availableNationalities: string[];
-
   genderFilter: string;
   onGenderFilterChange: (value: string) => void;
   availableGenders: string[];
-
-  languageFilter: string;
-  onLanguageFilterChange: (value: string) => void;
-  availableLanguages: string[];
 
   selectedPreset?: AssistantPreset | null;
   onToggleView?: () => void;
@@ -63,18 +50,9 @@ export function PresetsPanel({
   onLoadMore,
   canLoadMore,
   isLoadingMore,
-  ageFilter,
-  onAgeFilterChange,
-  availableAgeBrackets,
-  nationalityFilter,
-  onNationalityFilterChange,
-  availableNationalities,
   genderFilter,
   onGenderFilterChange,
   availableGenders,
-  languageFilter,
-  onLanguageFilterChange,
-  availableLanguages,
   onToggleView,
   onAddPaymentMethod,
   presetPhotoUrls,
@@ -175,39 +153,7 @@ export function PresetsPanel({
 
       {/* Filters */}
       <div className="flex-shrink-0 space-y-3 border-b p-3">
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
-          <div>
-            <Select value={ageFilter} onValueChange={onAgeFilterChange}>
-              <SelectTrigger className="text-caption h-8">
-                <SelectValue placeholder="Age" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableAgeBrackets.map((bracket) => (
-                  <SelectItem key={bracket} value={bracket} className="text-caption">
-                    {bracket === 'all' ? 'All Ages' : bracket}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Select
-              value={nationalityFilter}
-              onValueChange={onNationalityFilterChange}
-              disabled={availableNationalities.length <= 1}
-            >
-              <SelectTrigger className="text-caption h-8">
-                <SelectValue placeholder="Nationality" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableNationalities.map((nationality) => (
-                  <SelectItem key={nationality} value={nationality} className="text-caption">
-                    {nationality === 'all' ? 'All Nationalities' : nationality}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="grid grid-cols-1 gap-2">
           <div>
             <Select
               value={genderFilter}
@@ -221,24 +167,6 @@ export function PresetsPanel({
                 {availableGenders.map((gender) => (
                   <SelectItem key={gender} value={gender} className="text-caption capitalize">
                     {gender === 'all' ? 'All Genders' : gender}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Select
-              value={languageFilter}
-              onValueChange={onLanguageFilterChange}
-              disabled={availableLanguages.length <= 1}
-            >
-              <SelectTrigger className="text-caption h-8">
-                <SelectValue placeholder="Language" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableLanguages.map((lang) => (
-                  <SelectItem key={lang} value={lang} className="text-caption capitalize">
-                    {lang === 'all' ? 'All Languages' : getLanguageLabel(lang)}
                   </SelectItem>
                 ))}
               </SelectContent>

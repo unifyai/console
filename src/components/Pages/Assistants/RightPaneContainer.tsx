@@ -48,29 +48,19 @@ import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistant
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
 import type { CoordinatorActivityRow } from '@/types/assistants/coordinatorActivity';
 
-/**
- * Underline tab style — same shape as the assistant info side panel
- * (`PANEL_TAB_TRIGGER_CLASS`). Active = primary-coloured 2px bottom
- * border + `font-semibold` weight bump + `text-foreground` (i.e. full
- * black instead of the muted gray of inactive tabs). Three coordinated
- * cues so the active tab is readable even on the icon-only mobile
- * strip; coordinated stacking matters because each cue alone is
- * subtle (theme primary is a forest-green close to foreground black).
- */
+const ACTIVE_TAB_TRIGGER_CLASS =
+  'border border-[color:var(--role-green-deep)] bg-primary text-primary-foreground !shadow-none hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:shadow-none';
+
 const TAB_TRIGGER_CLASS = [
-  'flex h-full shrink-0 items-center gap-1.5 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent',
-  // `py-1` is load-bearing: the `TabsTrigger` variant inherits an
-  // identical `py-1` from Radix's default wrapper classes, but plain
-  // `<button>` triggers (the dropdown variant used for Memory / Tasks)
-  // don't get it for free. Making it explicit here keeps both variants
-  // visually aligned — without it, the dropdown tab's active underline
-  // sits flush against the text instead of leaving the same breathing
-  // room as the single-layer tabs (Chat, Actions, Dashboards, etc.).
-  'px-1 py-1 text-xs font-medium text-muted-foreground',
-  'shadow-none transition-colors hover:text-foreground',
-  'data-[state=active]:border-[color:var(--role-green-deep)] data-[state=active]:bg-transparent',
-  'data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:shadow-none',
+  'flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-transparent px-2 text-xs font-medium',
+  'bg-transparent text-muted-foreground shadow-none transition-colors',
+  'hover:bg-[var(--surface-hover)] hover:text-foreground',
+  'focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
+  'disabled:pointer-events-none disabled:opacity-50',
 ].join(' ');
+
+const TAB_CONTENT_CLASS =
+  'brand-chat-stencil-bg min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden';
 
 /**
  * Right-pane tab identifiers. Kept as a string-literal union so the split
@@ -463,7 +453,7 @@ export function RightPaneContainer({
       <LiveActionsViewer
         assistant={null}
         actions={null}
-        className="h-full"
+        className="brand-chat-stencil-bg h-full"
         onHasActiveActionChange={handleActiveActionChange}
       />
     );
@@ -534,25 +524,13 @@ export function RightPaneContainer({
         className="flex h-full min-w-0 flex-1 flex-col"
         data-slot={slot}
       >
-        <div
-          // Identical chrome on both slots so the bottom border reads as
-          // one continuous line across the splitter. The vertical
-          // splitter (rendered below) is what tells the two panes apart
-          // visually.
-          //
-          // `items-end` is load-bearing: the active TabsTrigger draws a
-          // 2px primary underline that needs to sit flush with this
-          // row's 1px bottom border for the "active tab continues the
-          // line" effect. `items-center` would float the underline
-          // mid-row.
-          className="bg-card/70 flex shrink-0 items-end justify-between gap-2 border-b border-border px-3 py-2"
-        >
-          <div className="flex min-w-0 flex-1 items-end overflow-x-auto">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-3 py-1.5">
+          <div className="flex min-w-0 flex-1 items-center overflow-x-auto">
             <TabsList
-              // `gap-6` reads well at full width; in split / mobile the
+              // `gap-3` reads well at full width; in split / mobile the
               // labels collapse to icon-only (`hidden sm:inline` below)
               // so the same gap stays comfortable for icon-only chips.
-              className="h-7 flex-nowrap gap-6 rounded-none bg-transparent p-0"
+              className="h-8 flex-nowrap gap-3 rounded-none bg-transparent p-0"
             >
               {RIGHT_PANE_TABS.map(({ id, label, Icon, describe, subTabs, dividerBefore }) => {
                 // "Active in this slot" — i.e. the tab the user is
@@ -569,8 +547,8 @@ export function RightPaneContainer({
                 // needing a separate dot. The pulse persists even when
                 // Actions is the visible tab: it's a *state* indicator
                 // (work in flight), not an attention bid, and with the
-                // underline-style active state there's no bg conflict
-                // to worry about.
+                // selected button state has enough contrast to carry both
+                // "selected" and "live" without a separate background.
                 const isActionsLive = id === 'actions' && hasActiveAction;
                 const unreadLabel = unreadChatCount > 99 ? '99+' : String(unreadChatCount);
                 const tooltipSubject = assistant.isCoordinator
@@ -586,14 +564,12 @@ export function RightPaneContainer({
                 // Subtle vertical separator drawn immediately before
                 // the tab when its config opts in via `dividerBefore`.
                 // The negative horizontal margin pulls the surrounding
-                // `gap-6` gap on the TabsList in a bit so the dividers
+                // `gap-3` gap on the TabsList in a bit so the dividers
                 // read as a *grouping cue* rather than a full extra
-                // tab-sized slot — between-group spacing ends up ~33px
-                // vs the ~24px within-group gap, which is enough to
+                // tab-sized slot, which is enough to
                 // suggest the grouping without breaking the flow.
                 // `self-center` keeps the 16px-tall line vertically
-                // centred in the 28px-tall tab row regardless of the
-                // parent row's `items-end` alignment.
+                // centred in the tab row.
                 const dividerNode = dividerBefore ? (
                   <span
                     aria-hidden="true"
@@ -612,10 +588,9 @@ export function RightPaneContainer({
                 // tab AND sets the matching sub-tab on the pane below.
                 // We render a plain button (not a TabsTrigger) so the
                 // click doesn't fight Radix's tab-switch handler — the
-                // `data-state` attribute is set manually so the same
-                // active-underline styling (driven by the
-                // `data-[state=active]` rules in TAB_TRIGGER_CLASS)
-                // still applies.
+                // `data-state` is still set manually for tests and
+                // assistive tooling that inspect active state on the
+                // trigger.
                 if (subTabs && subTabs.length > 0) {
                   const slotSubTabs = subTabBySlot[slot];
                   const currentSubTabValue: string =
@@ -665,7 +640,10 @@ export function RightPaneContainer({
                                   <button
                                     type="button"
                                     data-state={isActiveInThisSlot ? 'active' : 'inactive'}
-                                    className={TAB_TRIGGER_CLASS}
+                                    className={cn(
+                                      TAB_TRIGGER_CLASS,
+                                      isActiveInThisSlot && ACTIVE_TAB_TRIGGER_CLASS
+                                    )}
                                     data-testid={
                                       slot === 'primary'
                                         ? `right-pane-tab-${id}`
@@ -752,7 +730,10 @@ export function RightPaneContainer({
                           <span className="inline-flex">
                             <TabsTrigger
                               value={id}
-                              className={TAB_TRIGGER_CLASS}
+                              className={cn(
+                                TAB_TRIGGER_CLASS,
+                                isActiveInThisSlot && ACTIVE_TAB_TRIGGER_CLASS
+                              )}
                               // Primary slot keeps the legacy
                               // `right-pane-tab-{id}` id so existing e2e
                               // selectors (and the demo) keep working;
@@ -880,11 +861,7 @@ export function RightPaneContainer({
           </div>
         </div>
 
-        <TabsContent
-          value="chat"
-          className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
-          forceMount
-        >
+        <TabsContent value="chat" className={TAB_CONTENT_CLASS} forceMount>
           <ChatWithInfoPanel
             assistant={assistant}
             assistantActions={assistantActions}
@@ -931,11 +908,7 @@ export function RightPaneContainer({
           />
         </TabsContent>
 
-        <TabsContent
-          value="tasks"
-          className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
-          forceMount
-        >
+        <TabsContent value="tasks" className={TAB_CONTENT_CLASS} forceMount>
           <TasksPane
             assistant={assistant}
             ownerId={assistant.userId}
@@ -945,11 +918,7 @@ export function RightPaneContainer({
           />
         </TabsContent>
 
-        <TabsContent
-          value="dashboards"
-          className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
-          forceMount
-        >
+        <TabsContent value="dashboards" className={TAB_CONTENT_CLASS} forceMount>
           {dashboardActions ? (
             <DashboardsPane
               assistant={assistant}
@@ -966,11 +935,7 @@ export function RightPaneContainer({
           )}
         </TabsContent>
 
-        <TabsContent
-          value="memory"
-          className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
-          forceMount
-        >
+        <TabsContent value="memory" className={TAB_CONTENT_CLASS} forceMount>
           <MemoryPane
             assistant={assistant}
             ownerId={assistant.userId}
@@ -981,11 +946,7 @@ export function RightPaneContainer({
           />
         </TabsContent>
 
-        <TabsContent
-          value="integrations"
-          className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
-          forceMount
-        >
+        <TabsContent value="integrations" className={TAB_CONTENT_CLASS} forceMount>
           <IntegrationsPane
             ownerId={assistant.userId}
             assistantId={assistant.agentId}
@@ -994,11 +955,7 @@ export function RightPaneContainer({
           />
         </TabsContent>
 
-        <TabsContent
-          value="actions"
-          className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
-          forceMount
-        >
+        <TabsContent value="actions" className={TAB_CONTENT_CLASS} forceMount>
           {/* Only the *primary* actions tab feeds the dashboards-poll
               signal. Wiring both would double-count benign no-ops, and
               the two slots' streams are equivalent (same controller

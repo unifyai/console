@@ -376,7 +376,7 @@ export function ChatWithInfoPanel({
           info panel by popping the call out first. */}
       <div
         className={cn(
-          'flex items-center justify-between gap-2 border-b px-3 py-2',
+          'flex items-center justify-between gap-2 border-b bg-card px-3 py-2',
           isDockedCall && 'hidden'
         )}
       >
