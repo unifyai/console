@@ -34,9 +34,9 @@ const SaveResetOverlay: React.FC<SaveResetOverlayProps> = ({
       case 'loading':
         return <Loader2 className="h-8 w-8 animate-spin text-primary" />;
       case 'success':
-        return <CheckCircle className="h-8 w-8 text-green-500" />;
+        return <CheckCircle className="h-8 w-8 text-[color:var(--status-success)]" />;
       case 'error':
-        return <AlertCircle className="h-8 w-8 text-red-500" />;
+        return <AlertCircle className="h-8 w-8 text-[color:var(--status-danger)]" />;
       default:
         return <Loader2 className="h-8 w-8 animate-spin text-primary" />;
     }

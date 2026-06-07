@@ -122,8 +122,8 @@ const OrgPhoto = ({ orgName, currentImage, onFileSelect, previewUrl }: OrgPhotoP
           </span>
         )}
 
-        <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
-          <Camera className="h-7 w-7 text-white" />
+        <div className="absolute inset-0 flex items-center justify-center bg-transparent opacity-0 transition-all group-hover:bg-[color:var(--overlay)] group-hover:opacity-100">
+          <Camera className="h-7 w-7 text-[color:var(--cream-white)]" />
         </div>
       </button>
 

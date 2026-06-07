@@ -148,8 +148,8 @@ const SortableTab = React.memo(function SortableTab({
           'text-body-sm flex min-w-0 flex-1 cursor-pointer items-center gap-2 overflow-hidden rounded-md py-1.5 transition-all',
           isCollapsed ? 'justify-center px-0' : 'justify-start px-3 pr-10',
           isActive
-            ? 'text-strong text-primary hover:bg-black/5 dark:hover:bg-white/5'
-            : 'text-muted-foreground hover:bg-black/5 hover:text-foreground dark:hover:bg-white/5',
+            ? 'text-strong text-primary hover:bg-[var(--surface-hover)]'
+            : 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-foreground',
           isDragging && 'cursor-grabbing'
         )}
         data-testid={`tab-button-${tab.id}`}

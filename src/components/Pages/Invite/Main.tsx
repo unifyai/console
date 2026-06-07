@@ -126,7 +126,7 @@ const InviteContent = ({ token, onAccept, onPatchSession }: InviteContentProps) 
 
       {status === 'success' && (
         <>
-          <CheckCircle className="h-8 w-8 text-green-500" />
+          <CheckCircle className="h-8 w-8 text-[color:var(--status-success)]" />
           <div className="space-y-2">
             <h2 className="text-h2 font-bold">Welcome!</h2>
             <p className="text-body text-muted-foreground">
@@ -161,7 +161,7 @@ const InviteContent = ({ token, onAccept, onPatchSession }: InviteContentProps) 
 
       {status === 'mfa_required' && (
         <>
-          <ShieldCheck className="h-8 w-8 text-amber-500" />
+          <ShieldCheck className="h-8 w-8 text-[color:var(--status-warning)]" />
           <div className="space-y-2">
             <h2 className="text-h2 font-bold">Welcome!</h2>
             <p className="text-body text-muted-foreground">

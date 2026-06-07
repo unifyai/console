@@ -479,7 +479,7 @@ function InvoiceRow({ item }: { item: AdminInvoiceListItem }) {
   return (
     <tr
       className={`hover:bg-muted/40 border-b border-border transition-colors ${
-        isUpcoming ? 'bg-amber-50/30 dark:bg-amber-950/10' : ''
+        isUpcoming ? 'bg-[color:var(--status-warning-bg)]/50' : ''
       }`}
     >
       <td className="px-3 py-2 align-top">
@@ -487,7 +487,7 @@ function InvoiceRow({ item }: { item: AdminInvoiceListItem }) {
           {isUpcoming && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                <Clock className="h-3.5 w-3.5 text-[color:var(--status-warning)]" />
               </TooltipTrigger>
               <TooltipContent>Projected — actual amount finalised at period close.</TooltipContent>
             </Tooltip>

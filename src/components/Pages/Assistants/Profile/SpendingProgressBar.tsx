@@ -46,9 +46,9 @@ function getProgressColor(display: SpendingDisplayProps): string {
     return 'bg-destructive';
   }
   if (display.isNearLimit) {
-    return 'bg-amber-500';
+    return 'bg-[color:var(--status-warning)]';
   }
-  return 'bg-emerald-500';
+  return 'bg-[color:var(--status-success)]';
 }
 
 /**
@@ -62,9 +62,9 @@ function getTextColor(display: SpendingDisplayProps): string {
     return 'text-destructive';
   }
   if (display.isNearLimit) {
-    return 'text-amber-600 dark:text-amber-500';
+    return 'text-[color:var(--status-warning)]';
   }
-  return 'text-emerald-600 dark:text-emerald-500';
+  return 'text-[color:var(--status-success)]';
 }
 
 /**

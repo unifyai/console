@@ -153,7 +153,7 @@ const SecuritySettings = () => {
         <p
           className={`text-sm ${
             mfaStatus.recoveryCodesRemaining < 3
-              ? 'text-amber-600 dark:text-amber-400'
+              ? 'text-[color:var(--status-warning)]'
               : 'text-muted-foreground'
           }`}
         >

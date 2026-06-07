@@ -136,7 +136,7 @@ export const DisplayContactField: React.FC<{ label: string; value: string }> = (
                 onClick={handleCopy}
               >
                 {isCopied ? (
-                  <Check className="h-4 w-4 text-green-500" />
+                  <Check className="h-4 w-4 text-[color:var(--status-success)]" />
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}
@@ -718,7 +718,7 @@ const PhoneTabContent: React.FC<{
         {userPhoneNumber ? (
           <div className="flex items-center gap-2">
             <Input value={userPhoneNumber} readOnly disabled className="flex-1" />
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <CheckCircle2 className="h-5 w-5 text-[color:var(--status-success)]" />
           </div>
         ) : (
           <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
@@ -783,7 +783,7 @@ const WhatsAppTabContent: React.FC<{
         {userWhatsappNumber ? (
           <div className="flex items-center gap-2">
             <Input value={userWhatsappNumber} readOnly disabled className="flex-1" />
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <CheckCircle2 className="h-5 w-5 text-[color:var(--status-success)]" />
           </div>
         ) : (
           <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
@@ -852,7 +852,7 @@ const DiscordTabContent: React.FC<{
       {userDiscordId ? (
         <div className="flex items-center gap-2">
           <Input value={userDiscordId} readOnly disabled className="flex-1" />
-          <CheckCircle2 className="h-5 w-5 text-green-500" />
+          <CheckCircle2 className="h-5 w-5 text-[color:var(--status-success)]" />
         </div>
       ) : (
         <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
@@ -928,7 +928,7 @@ const SlackTabContent: React.FC<{
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <CheckCircle2 className="h-5 w-5 text-green-500" />
+        <CheckCircle2 className="h-5 w-5 text-[color:var(--status-success)]" />
         <span className="text-body">
           Connected to <strong>{install.slackTeamName ?? install.slackTeamId}</strong>
         </span>

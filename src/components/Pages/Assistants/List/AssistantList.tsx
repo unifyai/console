@@ -404,9 +404,9 @@ export function AssistantList({
   );
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-background">
+    <div className="relative flex h-full flex-col overflow-hidden bg-transparent">
       {/* Header: Search Bar + New Assistant Button */}
-      <div className="flex-shrink-0 overflow-hidden border-b px-3 py-2">
+      <div className="bg-card/70 flex-shrink-0 overflow-hidden border-b border-border px-3 py-2">
         {isFolded ? (
           <div className="flex min-h-7 items-center justify-center">
             {showHireButton && (
@@ -439,7 +439,7 @@ export function AssistantList({
               <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search..."
+                placeholder="Search teammates..."
                 className="h-7 w-full pl-7 text-xs"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -456,7 +456,7 @@ export function AssistantList({
                 aria-disabled={isHireButtonDisabled}
               >
                 <UserPlus className="h-4 w-4" />
-                New
+                Hire
               </Button>
             )}
           </div>

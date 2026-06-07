@@ -340,7 +340,7 @@ const NumericColumnFilter = ({
               e.stopPropagation();
               onReset();
             }}
-            className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-gray-400 text-white opacity-0 transition-opacity hover:bg-gray-500 group-hover:opacity-100"
+            className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-[color:var(--status-neutral)] text-[color:var(--cream-white)] opacity-0 transition-opacity hover:bg-[color:var(--foreground)] group-hover:opacity-100"
           >
             <X className="h-2 w-2" />
           </button>
@@ -363,7 +363,7 @@ const NumericColumnFilter = ({
       {['And', 'Or'].map((method, index) => (
         <DropdownMenuItem
           key={index}
-          className="cursor-pointer p-2 hover:bg-primary hover:text-white"
+          className="cursor-pointer p-2 hover:bg-primary hover:text-primary-foreground"
           onClick={() => {
             const newFilters = [...filters];
             newFilters.push({
@@ -392,7 +392,7 @@ const NumericColumnFilter = ({
       {['And', 'Or'].map((method, index) => (
         <DropdownMenuItem
           key={index}
-          className="cursor-pointer p-2 hover:bg-primary hover:text-white"
+          className="cursor-pointer p-2 hover:bg-primary hover:text-primary-foreground"
           onClick={() => {
             const newFilters = [...filters];
             const join = method === 'And' ? '&&' : '||';

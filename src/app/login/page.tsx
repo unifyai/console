@@ -170,7 +170,7 @@ const Login = () => {
         {/* Banner for invite/credit token context */}
         {isInviteFlow && (
           <div
-            className="rounded-lg border border-green-200 bg-green-50 p-3 text-center text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
+            className="text-body border-[color:var(--status-success)]/25 rounded-lg border bg-[color:var(--status-success-bg)] p-3 text-center text-[color:var(--status-success)]"
             data-testid="invite-banner"
           >
             You&apos;ve been invited to join an organization. Please sign in with the email address

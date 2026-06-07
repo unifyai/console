@@ -300,11 +300,11 @@ const InvoiceStatusBadge = ({ status }: { status: string }) => {
   // on a server-side enum addition.
   const tone =
     status === 'PAID'
-      ? 'bg-emerald-100 text-emerald-800'
+      ? 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]'
       : status === 'INVOICE_CREATED'
-        ? 'bg-amber-100 text-amber-800'
+        ? 'bg-[color:var(--status-warning-bg)] text-[color:var(--status-warning)]'
         : status === 'FAILED' || status === 'DISPUTED'
-          ? 'bg-red-100 text-red-800'
+          ? 'bg-[color:var(--status-danger-bg)] text-[color:var(--status-danger)]'
           : 'bg-secondary text-secondary-foreground';
   return (
     <span className={`text-caption rounded px-2 py-0.5 ${tone}`}>{prettifyStatus(status)}</span>

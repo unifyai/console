@@ -20,11 +20,11 @@ export function GithubDeprecationBanner() {
 
   return (
     <div
-      className="flex items-center justify-center gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-950"
+      className="border-[color:var(--status-warning)]/25 flex items-center justify-center gap-3 border-b bg-[color:var(--status-warning-bg)] px-4 py-2.5"
       data-testid="github-deprecation-banner"
     >
-      <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-      <p className="text-sm text-amber-800 dark:text-amber-200">
+      <AlertTriangle className="h-4 w-4 flex-shrink-0 text-[color:var(--status-warning)]" />
+      <p className="text-body text-[color:var(--status-warning)]">
         <span className="font-medium">GitHub sign-in is being retired</span>
         {' — '}
         Please sign in with another provider or{' '}

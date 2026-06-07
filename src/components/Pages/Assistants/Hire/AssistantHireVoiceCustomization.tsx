@@ -371,7 +371,7 @@ export function VoiceCustomization({
                     'h-7 w-7',
                     isSelected
                       ? 'hover:bg-primary/80 text-primary-foreground hover:text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-green-600/10 hover:text-green-600'
+                      : 'text-muted-foreground hover:bg-[color:var(--status-success-bg)] hover:text-[color:var(--status-success)]'
                   )}
                   onClick={(e) => {
                     e.stopPropagation();

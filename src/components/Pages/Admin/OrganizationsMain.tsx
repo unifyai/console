@@ -162,8 +162,10 @@ function useToast() {
 
   const Toast = message ? (
     <div
-      className={`fixed bottom-4 right-4 z-[100] rounded-lg px-4 py-2 text-sm shadow-lg ${
-        message.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+      className={`text-body fixed bottom-4 right-4 z-[100] rounded-lg px-4 py-2 shadow-lg ${
+        message.type === 'success'
+          ? 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]'
+          : 'bg-[color:var(--status-danger-bg)] text-[color:var(--status-danger)]'
       }`}
     >
       {message.text}
@@ -651,7 +653,7 @@ export default function OrganizationsAdminMain({
                         </p>
                         <p className="text-caption truncate">{lookupResult.email}</p>
                         {lookupResult.organizations && lookupResult.organizations.length > 0 && (
-                          <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
+                          <p className="mt-0.5 text-xs text-[color:var(--status-warning)]">
                             Already in: {lookupResult.organizations.map((o) => o.name).join(', ')}
                           </p>
                         )}
@@ -883,7 +885,7 @@ export default function OrganizationsAdminMain({
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle className="flex items-center gap-2">
-                            <AlertTriangle className="h-5 w-5 text-amber-500" />
+                            <AlertTriangle className="h-5 w-5 text-[color:var(--status-warning)]" />
                             {isFrozen ? 'Unfreeze Account?' : 'Freeze Account?'}
                           </AlertDialogTitle>
                           <AlertDialogDescription>
@@ -1013,14 +1015,14 @@ export default function OrganizationsAdminMain({
                             isMetered
                               ? 'text-muted-foreground'
                               : orgDetail.credits > 0
-                                ? 'text-green-600 dark:text-green-400'
+                                ? 'text-[color:var(--status-success)]'
                                 : 'text-foreground'
                           }`}
                         >
                           {orgDetail.credits.toFixed(2)} credits
                         </p>
                         {isMetered && orgDetail.credits > 0 && (
-                          <p className="text-caption mt-0.5 text-amber-600 dark:text-amber-400">
+                          <p className="text-caption mt-0.5 text-[color:var(--status-warning)]">
                             Stranded balance from a previous CREDITS plan.
                           </p>
                         )}
@@ -1225,7 +1227,7 @@ export default function OrganizationsAdminMain({
                       </div>
                       <div className="flex items-center gap-2">
                         {orgDetail.stripeCustomerId ? (
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <CheckCircle2 className="h-4 w-4 text-[color:var(--status-success)]" />
                         ) : (
                           <Tooltip>
                             <TooltipTrigger asChild>

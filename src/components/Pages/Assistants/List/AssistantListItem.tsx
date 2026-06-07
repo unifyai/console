@@ -149,7 +149,7 @@ export function AssistantListItem({
             role="status"
             className={cn(
               'absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background',
-              isOnline ? 'bg-green-500' : 'bg-gray-400'
+              isOnline ? 'bg-[var(--role-green)]' : 'bg-muted-foreground'
             )}
           />
         )}
@@ -179,9 +179,9 @@ export function AssistantListItem({
       tabIndex={0}
       data-testid={isPrimary ? `assistant-list-item-${assistant.agentId}` : undefined}
       className={cn(
-        'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-md p-2',
-        !isSelected && 'hover:bg-muted',
-        isSelected && 'bg-primary text-primary-foreground'
+        'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-lg border border-transparent p-2 transition-colors',
+        !isSelected && 'hover:border-border hover:bg-[var(--surface-hover)]',
+        isSelected && 'border-[color:var(--role-green-deep)] bg-primary text-primary-foreground'
       )}
       onClick={handleProfileClick}
       onKeyDown={handleRowKeyDown}
@@ -202,7 +202,7 @@ export function AssistantListItem({
               data-testid={`status-indicator-${assistant.agentId}`}
               className={cn(
                 'absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background',
-                isOnline ? 'bg-green-500' : 'bg-gray-400'
+                isOnline ? 'bg-[var(--role-green)]' : 'bg-muted-foreground'
               )}
             />
           )}

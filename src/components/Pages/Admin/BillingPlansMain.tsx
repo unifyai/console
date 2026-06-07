@@ -140,8 +140,8 @@ function formatDate(iso: string) {
 }
 
 const MODE_COLORS: Record<string, string> = {
-  CREDITS: 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200',
-  METERED: 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-200',
+  CREDITS: 'bg-[color:var(--status-warning-bg)] text-[color:var(--status-warning)]',
+  METERED: 'bg-[color:var(--status-info-bg)] text-[color:var(--status-info)]',
 };
 
 /**
@@ -226,8 +226,10 @@ function useToast() {
 
   const Toast = message ? (
     <div
-      className={`fixed bottom-4 right-4 z-[100] rounded-lg px-4 py-2 text-sm shadow-lg ${
-        message.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+      className={`text-body fixed bottom-4 right-4 z-[100] rounded-lg px-4 py-2 shadow-lg ${
+        message.type === 'success'
+          ? 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]'
+          : 'bg-[color:var(--status-danger-bg)] text-[color:var(--status-danger)]'
       }`}
     >
       {message.text}
@@ -974,7 +976,7 @@ export default function BillingPlansAdminMain({ actions }: Props) {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <AlertTriangle className="h-5 w-5 text-[color:var(--status-warning)]" />
                 Deprecate "{deprecateTarget?.name}"?
               </AlertDialogTitle>
               <AlertDialogDescription>

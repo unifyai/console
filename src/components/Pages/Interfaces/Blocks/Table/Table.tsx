@@ -1832,7 +1832,7 @@ const LogsTable = ({
                   {Array.from({ length: panelCount }).map((_, idx) => (
                     <div
                       key={idx}
-                      className="relative flex-1 snap-y snap-mandatory flex-col gap-2 border-l border-gray-200 first:border-none"
+                      className="relative flex-1 snap-y snap-mandatory flex-col gap-2 border-l border-border first:border-none"
                       style={{
                         overflowX: 'visible',
                         overflowY: 'visible',

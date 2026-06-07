@@ -21,7 +21,7 @@ const DarkModeToggle = () => {
       variant="ghost"
       size="sm"
       onClick={cycleTheme}
-      className="relative h-6 w-6 hover:bg-primary hover:text-primary-foreground"
+      className="relative h-6 w-6 hover:bg-[var(--surface-hover)] hover:text-foreground"
     >
       <Sun className="system:scale-0 h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
       <Moon className="system:scale-0 absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />

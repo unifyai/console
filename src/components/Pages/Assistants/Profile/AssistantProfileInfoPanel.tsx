@@ -540,7 +540,7 @@ export function AssistantProfileInfoPanel({
                     }}
                   >
                     {isIdCopied ? (
-                      <Check className="h-3 w-3 text-green-500" />
+                      <Check className="h-3 w-3 text-[color:var(--status-success)]" />
                     ) : (
                       <Copy className="h-3 w-3 text-muted-foreground transition-colors group-hover/id:text-foreground" />
                     )}

@@ -378,7 +378,7 @@ const InterfaceTabs = ({
                         const isPrefetched = prefetchedTabs?.has(tabNameToShow) || false;
                         return (
                           <div
-                            className={`absolute -left-1 -top-1 h-1.5 w-1.5 bg-green-500 ${isPrefetched ? '' : 'animate-pulse'} rounded-full`}
+                            className={`absolute -left-1 -top-1 h-1.5 w-1.5 bg-[color:var(--status-success)] ${isPrefetched ? '' : 'animate-pulse'} rounded-full`}
                             title="Tab Prefetched"
                           />
                         );

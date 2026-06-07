@@ -1,4 +1,5 @@
 import { ButtonHTMLAttributes, DetailedHTMLProps } from 'react';
+import { cn } from '@/lib/utils';
 
 const HallowButton = (
   params: DetailedHTMLProps<ButtonHTMLAttributes<HTMLButtonElement>, HTMLButtonElement>
@@ -6,13 +7,12 @@ const HallowButton = (
   return (
     <button
       {...params}
-      className="w-full rounded-[10px] bg-gradient-to-r from-[var(--brand-green-light)] to-[var(--brand-green)] p-0.5"
+      className={cn(
+        'w-full rounded-lg bg-primary text-primary-foreground shadow-[0_2px_0_var(--role-green-deep)] transition-all hover:-translate-y-px hover:shadow-[0_4px_0_var(--role-green-deep)]',
+        params.className
+      )}
     >
-      <div className="rounded-[8px] bg-background">
-        <div className="whitespace-nowrap bg-gradient-to-r from-[var(--brand-green-light)] to-[var(--brand-green)] bg-clip-text px-6 py-3 font-bold uppercase text-transparent">
-          {params.children}
-        </div>
-      </div>
+      <div className="whitespace-nowrap px-6 py-3 font-semibold">{params.children}</div>
     </button>
   );
 };

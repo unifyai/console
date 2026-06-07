@@ -12,17 +12,31 @@
 // =============================================================================
 
 export const baseColors = {
-  forestGreen: '#2a862a',
-  limeGreen: '#4cc552',
-  darkSlateGray: '#2f4f4f',
-  whiteSmoke: '#f5f5f5',
-  eerieBlack: '#1b1b1b',
-  lightNeutralGrey: '#b0bec5',
-  alertRed: '#e53935',
-  softAmber: '#f6a623',
-  englishViolet: '#5c415d',
-  lavender: '#b39ddb',
-  celeste: '#bcf4f5',
+  ink: '#0a1410',
+  ink2: '#1a2a23',
+  paper: '#f5f1ea',
+  paper2: '#ebe6dc',
+  rule: '#d9d2c4',
+  muted: '#6b6a64',
+  creamWhite: '#fffaf1',
+  roleGreen: '#00d747',
+  roleGreenDeep: '#0a8a35',
+  roleBlue: '#3478f6',
+  roleOrange: '#ff8a2a',
+  rolePurple: '#8557ff',
+  roleYellow: '#ffcf33',
+  roleTeal: '#14c8c8',
+  alertRed: '#d94a3d',
+  softAmber: '#c47a00',
+  forestGreen: '#0a8a35',
+  limeGreen: '#00d747',
+  darkSlateGray: '#1a2a23',
+  whiteSmoke: '#f5f1ea',
+  eerieBlack: '#0a1410',
+  lightNeutralGrey: '#d9d2c4',
+  englishViolet: '#8557ff',
+  lavender: '#ded1ff',
+  celeste: '#d6f2ef',
 } as const;
 
 // =============================================================================
@@ -30,14 +44,14 @@ export const baseColors = {
 // =============================================================================
 
 export const darkTheme = {
-  background: baseColors.eerieBlack,
-  foreground: baseColors.whiteSmoke,
-  primary: baseColors.limeGreen,
-  primaryForeground: baseColors.eerieBlack,
-  secondary: baseColors.celeste,
-  muted: baseColors.darkSlateGray,
-  mutedForeground: baseColors.lightNeutralGrey,
-  border: baseColors.darkSlateGray,
+  background: '#0d0f12',
+  foreground: '#eef0ea',
+  primary: baseColors.roleGreen,
+  primaryForeground: baseColors.ink,
+  secondary: 'rgba(255, 255, 255, 0.05)',
+  muted: 'rgba(255, 255, 255, 0.05)',
+  mutedForeground: 'rgba(238, 240, 234, 0.68)',
+  border: 'rgba(238, 240, 234, 0.12)',
   destructive: baseColors.alertRed,
   warning: baseColors.softAmber,
 } as const;
@@ -47,14 +61,14 @@ export const darkTheme = {
 // =============================================================================
 
 export const lightTheme = {
-  background: baseColors.whiteSmoke,
-  foreground: baseColors.eerieBlack,
-  primary: baseColors.forestGreen,
-  primaryForeground: baseColors.whiteSmoke,
-  secondary: baseColors.lavender,
-  muted: baseColors.lightNeutralGrey,
-  mutedForeground: baseColors.darkSlateGray,
-  border: baseColors.lightNeutralGrey,
+  background: baseColors.paper,
+  foreground: baseColors.ink,
+  primary: baseColors.roleGreen,
+  primaryForeground: baseColors.ink,
+  secondary: baseColors.paper2,
+  muted: 'rgba(10, 20, 16, 0.04)',
+  mutedForeground: baseColors.muted,
+  border: baseColors.rule,
   destructive: baseColors.alertRed,
   warning: baseColors.softAmber,
 } as const;
@@ -65,18 +79,18 @@ export const lightTheme = {
 
 export const chartColors = {
   dark: {
-    1: '#264cb2', // Blue
-    2: '#2db88f', // Teal
-    3: '#ef921c', // Orange
-    4: '#cb5de8', // Purple
-    5: '#eb2483', // Pink
+    1: baseColors.roleGreen,
+    2: '#7aa7ff',
+    3: '#ffad6b',
+    4: '#a88cff',
+    5: '#ffdb66',
   },
   light: {
-    1: '#e8623c', // Orange-red
-    2: '#2aa096', // Teal
-    3: '#274654', // Dark teal
-    4: '#f3c45a', // Yellow
-    5: '#f2ab35', // Amber
+    1: baseColors.roleGreenDeep,
+    2: baseColors.roleBlue,
+    3: baseColors.roleOrange,
+    4: baseColors.rolePurple,
+    5: baseColors.roleYellow,
   },
 } as const;
 
@@ -86,24 +100,24 @@ export const chartColors = {
 
 export const ogColors = {
   // Background gradient (slightly lighter than pure eerieBlack for depth)
-  backgroundGradient: `linear-gradient(135deg, ${baseColors.eerieBlack} 0%, #252525 50%, #2a2a2a 100%)`,
+  backgroundGradient: `linear-gradient(135deg, #0d0f12 0%, #111714 50%, ${baseColors.ink} 100%)`,
 
   // Text colors
-  title: baseColors.whiteSmoke,
-  subtitle: baseColors.lightNeutralGrey,
-  muted: baseColors.darkSlateGray,
+  title: '#eef0ea',
+  subtitle: 'rgba(238, 240, 234, 0.68)',
+  muted: baseColors.rule,
 
-  // Primary accent (lime green)
-  primary: baseColors.limeGreen,
-  primaryLight: 'rgba(76, 197, 82, 0.2)', // limeGreen with alpha
-  primaryBorder: 'rgba(76, 197, 82, 0.3)',
+  // Primary accent
+  primary: baseColors.roleGreen,
+  primaryLight: 'rgba(0, 215, 71, 0.2)',
+  primaryBorder: 'rgba(0, 215, 71, 0.3)',
 
   // Table/data colors
-  tableHeader: baseColors.limeGreen,
-  tableHeaderBg: 'rgba(76, 197, 82, 0.1)',
-  tableCellText: baseColors.whiteSmoke,
-  tableCellMuted: baseColors.lightNeutralGrey,
-  tableBorder: 'rgba(47, 79, 79, 0.5)', // darkSlateGray with alpha
+  tableHeader: baseColors.roleGreen,
+  tableHeaderBg: 'rgba(0, 215, 71, 0.12)',
+  tableCellText: '#eef0ea',
+  tableCellMuted: 'rgba(238, 240, 234, 0.68)',
+  tableBorder: 'rgba(238, 240, 234, 0.12)',
   tableRowAlt: 'rgba(255, 255, 255, 0.02)',
 
   // Chart colors for OG
@@ -111,14 +125,14 @@ export const ogColors = {
 
   // Badge/pill
   badge: {
-    bg: 'rgba(76, 197, 82, 0.15)',
-    border: 'rgba(76, 197, 82, 0.3)',
-    text: baseColors.limeGreen,
+    bg: 'rgba(0, 215, 71, 0.15)',
+    border: 'rgba(0, 215, 71, 0.3)',
+    text: baseColors.roleGreen,
   },
 
   // Footer
-  brandColor: baseColors.limeGreen,
-  footerText: baseColors.darkSlateGray,
+  brandColor: baseColors.roleGreen,
+  footerText: 'rgba(238, 240, 234, 0.46)',
 } as const;
 
 // =============================================================================

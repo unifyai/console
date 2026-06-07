@@ -1253,7 +1253,7 @@ export function TableViewer({
                 <Button variant="outline" size="sm" onClick={handleCopyTable}>
                   {copied ? (
                     <>
-                      <Check className="mr-2 h-4 w-4 text-green-500" />
+                      <Check className="mr-2 h-4 w-4 text-[color:var(--status-success)]" />
                       Copied!
                     </>
                   ) : (
@@ -1344,8 +1344,8 @@ export function TableViewer({
                 {/* Copy toast notification */}
                 {copied && (
                   <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2 duration-200 animate-in fade-in slide-in-from-bottom-2">
-                    <div className="flex items-center gap-2 rounded-full border border-green-500/30 bg-green-500/10 px-4 py-2 shadow-lg backdrop-blur-sm">
-                      <Check className="h-4 w-4 text-green-500" />
+                    <div className="border-[color:var(--status-success)]/30 flex items-center gap-2 rounded-full border bg-[color:var(--status-success-bg)] px-4 py-2 shadow-lg backdrop-blur-sm">
+                      <Check className="h-4 w-4 text-[color:var(--status-success)]" />
                       <span className="text-title text-success">
                         {selectedCells.length > 0
                           ? `Copied ${selectedCells.length} cell${selectedCells.length > 1 ? 's' : ''}`

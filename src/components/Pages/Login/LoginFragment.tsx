@@ -9,6 +9,7 @@ import { Mail } from 'lucide-react';
 import EmailLoginForm from './EmailLoginForm';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import dynamic from 'next/dynamic';
+import { TeammateCreature } from '@/components/Brand';
 
 // Dev-only quick login panel — lazy-loaded and tree-shaken in production builds.
 const DevQuickLogin =
@@ -47,20 +48,25 @@ const LoginFragment = ({
   return (
     <div className="flex flex-wrap">
       <div className="flex flex-1 flex-col gap-14">
-        {/* Header — tagline */}
-        <div className="flex flex-col gap-4">
+        {/* Header */}
+        <div className="relative flex flex-col gap-5">
+          <TeammateCreature
+            className="pointer-events-none absolute -right-3 -top-6 hidden w-24 rotate-6 opacity-95 md:block"
+            color="green"
+            shape="clawd"
+          />
           <div className="flex justify-center">
             <UnifyLogo />
           </div>
-          <h1 className="text-center text-4xl leading-[1] tracking-[-0.02em] text-gray-800 dark:text-white sm:text-5xl">
-            Hire AI <span className="font-serif italic">— Not APIs</span>
+          <h1 className="text-brand-display text-center text-foreground">
+            AI <span className="text-brand-serif-accent">teammates</span> for your business.
           </h1>
         </div>
 
         {/* Content — auth buttons / email form */}
         <div className="flex flex-col gap-3">
           {error && authTab === 'oauth' && (
-            <div className="text-red-500" data-testid="oauth-error">
+            <div className="text-body text-error" data-testid="oauth-error">
               {error}
             </div>
           )}
@@ -81,9 +87,9 @@ const LoginFragment = ({
               </HallowButton>
 
               <div className="my-1 flex items-center gap-3">
-                <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
+                <div className="h-px flex-1 bg-border" />
                 <span className="text-caption text-muted-foreground">or</span>
-                <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
+                <div className="h-px flex-1 bg-border" />
               </div>
 
               <HallowButton onClick={() => setAuthTab('email')} data-testid="email-auth-tab">
@@ -99,9 +105,9 @@ const LoginFragment = ({
               {!previewOnly && (
                 <>
                   <div className="my-1 flex items-center gap-3">
-                    <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
+                    <div className="h-px flex-1 bg-border" />
                     <span className="text-caption text-muted-foreground">or</span>
-                    <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
+                    <div className="h-px flex-1 bg-border" />
                   </div>
                   <button
                     type="button"
@@ -121,7 +127,7 @@ const LoginFragment = ({
         </div>
 
         {/* Footer — disclaimer */}
-        <div className="text-branding-grey text-body">
+        <div className="text-body-muted">
           {'By signing up you agree to our '}
           <a
             href="https://unify.ai/privacy-policy"
@@ -134,7 +140,7 @@ const LoginFragment = ({
             href="https://unify.ai/terms-of-service"
             className="font-semibold text-primary underline"
           >
-            Terms Of Service
+            Terms of Service
           </a>
           {'.'}
         </div>

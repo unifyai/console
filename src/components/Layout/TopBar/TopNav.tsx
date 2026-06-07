@@ -40,12 +40,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import DarkModeToggle from '@/components/Layout/NavBar/DarkModeToggle';
-import ivyLogoOnly from '@/public/ivy_logo_only.png';
 import { getCurrentUser } from '@/lib/user/user';
 import Image from 'next/image';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import { UserOrganization } from '@/types/user';
 import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog';
+import { UnifyBlockMark } from '@/components/Brand';
 
 export default function TopNav() {
   const pathname = usePathname();
@@ -204,17 +204,16 @@ export default function TopNav() {
   );
 
   return (
-    <div className="bg-[color:var(--background)]/80 fixed left-0 right-0 top-0 z-50 h-10 border-b border-[color:var(--border)] backdrop-blur-lg">
+    <div className="fixed left-0 right-0 top-0 z-50 h-10 border-b border-[color:var(--frosted-border)] bg-[color:var(--frosted-bg)] backdrop-blur-lg">
       <div className="flex h-full items-center justify-between px-3.5">
         {/* Logo + Workspace + Nav */}
         <div className="flex items-center">
-          <Link href="/" className="flex items-center px-1">
-            <Image
-              src={ivyLogoOnly}
-              alt="Logo (collapsed)"
-              priority
-              className={`h-5 w-5 object-contain transition-opacity duration-300`}
-            />
+          <Link
+            href="/"
+            className="flex items-center rounded-md px-1 transition-transform hover:-translate-y-px"
+            aria-label="Unify Console"
+          >
+            <UnifyBlockMark className="h-6" />
           </Link>
 
           {/* Workspace Pill — hidden for personal-only users to avoid duplicating the profile avatar */}
@@ -485,7 +484,7 @@ export default function TopNav() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              <AlertTriangle className="h-5 w-5 text-[color:var(--status-warning)]" />
               Switch to Personal Workspace?
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3 text-left">

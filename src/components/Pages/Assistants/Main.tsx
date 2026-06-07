@@ -2118,10 +2118,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             />
           </div>
         ) : (
-          <div className="flex min-h-0 flex-1 overflow-hidden bg-background">
+          <div className="bg-background/85 flex min-h-0 flex-1 overflow-hidden">
             {/* Assistant List */}
             <div
-              className="relative h-full flex-shrink-0 border-r"
+              className="bg-card/80 relative h-full flex-shrink-0 border-r border-border backdrop-blur-sm"
               style={{
                 width: computedListWidth,
                 transition: isResizingList ? 'none' : 'width 0.3s ease-in-out',
@@ -2160,7 +2160,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             />
 
             {/* Right Pane: Chat + Actions + Dashboards */}
-            <div className="relative h-full min-w-0 flex-1 overflow-hidden bg-background">
+            <div className="bg-background/70 relative h-full min-w-0 flex-1 overflow-hidden">
               <RightPaneContainer
                 assistant={profileAssistant}
                 actions={assistantActions.actions || null}

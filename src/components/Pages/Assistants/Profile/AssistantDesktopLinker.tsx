@@ -210,7 +210,7 @@ export function AssistantDesktopLinker({
               }}
             >
               {keyCopied ? (
-                <Check className="h-3.5 w-3.5 text-green-500" />
+                <Check className="h-3.5 w-3.5 text-[color:var(--status-success)]" />
               ) : isCopyingKey ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (

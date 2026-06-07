@@ -404,7 +404,7 @@ export const ShareProjectDialog = React.memo(function ShareProjectDialog({
               <Input value={projectLink} readOnly className="flex-1 text-muted-foreground" />
               <Button variant="outline" size="icon" onClick={handleCopyLink} className="shrink-0">
                 {copied ? (
-                  <Check className="h-4 w-4 text-green-500" />
+                  <Check className="h-4 w-4 text-[color:var(--status-success)]" />
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}

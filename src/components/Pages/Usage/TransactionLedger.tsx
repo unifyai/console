@@ -32,16 +32,16 @@ import { TimeGranularity } from '@/types/usage';
 import { useBucketTransactions } from '@/hooks/Usage/useBucketTransactions';
 
 const CATEGORY_COLORS: Record<string, string> = {
-  llm: 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
-  hire: 'bg-purple-500/15 text-purple-700 dark:text-purple-400',
-  resources: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
-  media: 'bg-pink-500/15 text-pink-700 dark:text-pink-400',
-  recharge: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
-  promo: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
-  refund: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
-  void: 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-400',
-  dispute: 'bg-red-500/15 text-red-700 dark:text-red-400',
-  other: 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-400',
+  llm: 'bg-[color:var(--status-info-bg)] text-[color:var(--status-info)]',
+  hire: 'bg-[color:var(--role-purple)]/15 text-[color:var(--role-purple)]',
+  resources: 'bg-[color:var(--status-warning-bg)] text-[color:var(--status-warning)]',
+  media: 'bg-[color:var(--role-teal)]/15 text-[color:var(--role-teal)]',
+  recharge: 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]',
+  promo: 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]',
+  refund: 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]',
+  void: 'bg-[color:var(--status-neutral-bg)] text-[color:var(--status-neutral)]',
+  dispute: 'bg-[color:var(--status-danger-bg)] text-[color:var(--status-danger)]',
+  other: 'bg-[color:var(--status-neutral-bg)] text-[color:var(--status-neutral)]',
 };
 
 // ---------------------------------------------------------------------------
@@ -108,13 +108,13 @@ function TransactionRow({ transaction }: { transaction: CreditTransaction }) {
       <div
         className={cn(
           'flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
-          isCredit ? 'bg-emerald-500/15' : 'bg-zinc-500/10'
+          isCredit ? 'bg-[color:var(--status-success-bg)]' : 'bg-[color:var(--status-neutral-bg)]'
         )}
       >
         {isCredit ? (
-          <ArrowUpRight className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+          <ArrowUpRight className="h-3.5 w-3.5 text-[color:var(--status-success)]" />
         ) : (
-          <ArrowDownRight className="h-3.5 w-3.5 text-zinc-500" />
+          <ArrowDownRight className="h-3.5 w-3.5 text-[color:var(--status-neutral)]" />
         )}
       </div>
 
@@ -129,7 +129,7 @@ function TransactionRow({ transaction }: { transaction: CreditTransaction }) {
       <span
         className={cn(
           'shrink-0 text-sm font-medium tabular-nums',
-          isCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-body'
+          isCredit ? 'text-[color:var(--status-success)]' : 'text-body'
         )}
       >
         {isCredit ? '+' : ''}
@@ -311,11 +311,11 @@ function AggregatedRow({
         className="hover:bg-muted/50 flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors"
         data-testid="aggregated-row-toggle"
       >
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-500/10">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color:var(--status-neutral-bg)]">
           {expanded ? (
-            <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
+            <ChevronDown className="h-3.5 w-3.5 text-[color:var(--status-neutral)]" />
           ) : (
-            <ChevronRight className="h-3.5 w-3.5 text-zinc-500" />
+            <ChevronRight className="h-3.5 w-3.5 text-[color:var(--status-neutral)]" />
           )}
         </div>
 

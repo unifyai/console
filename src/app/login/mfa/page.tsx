@@ -142,7 +142,7 @@ const MfaPage = () => {
       setError('Recovery code verification failed. Please try again.');
       setIsLoading(false);
     }
-  }, [recoveryCode, router]);
+  }, [assistantsUrl, recoveryCode, router]);
 
   // --- Setup complete handler (new MFA) ---
 
@@ -240,7 +240,10 @@ const MfaPage = () => {
         )}
 
         {recoveryWarning && (
-          <p className="text-sm text-amber-600 dark:text-amber-400" data-testid="recovery-warning">
+          <p
+            className="text-body text-[color:var(--status-warning)]"
+            data-testid="recovery-warning"
+          >
             {recoveryWarning}
           </p>
         )}

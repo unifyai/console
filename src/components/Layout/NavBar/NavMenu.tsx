@@ -22,8 +22,6 @@ import { NavItem } from '@/types/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/UI/avatar';
-import ivyLogoOnly from '@/public/ivy_logo_only.png';
-import Image from 'next/image';
 import { User, Menu, HelpCircle, Star, ChevronDown, ChevronRight, ChartLine } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core';
@@ -36,6 +34,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Icon } from '@/components/UI/icon-picker';
 import { showErrorToast, showSuccessToast } from '@/components/Common/Toasts/notifications'; // Added notification imports
+import { UnifyBlockMark } from '@/components/Brand';
 
 /** A single nav item with an icon and label. */
 function renderMenuItem(
@@ -442,11 +441,8 @@ export default function NavMenu() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="relative flex h-14 w-full items-center justify-center overflow-hidden">
-        <Image
-          src={ivyLogoOnly}
-          alt="Logo (collapsed)"
-          priority
-          className={`absolute ml-2 h-5 w-5 object-contain transition-opacity duration-300 ${state === 'collapsed' ? 'opacity-100' : 'opacity-0'}`}
+        <UnifyBlockMark
+          className={`absolute ml-2 transition-opacity duration-300 ${state === 'collapsed' ? 'opacity-100' : 'opacity-0'}`}
         />
         <div
           className={`mr-8 transition-opacity duration-300 ${state === 'collapsed' ? 'opacity-0' : 'opacity-100'}`}

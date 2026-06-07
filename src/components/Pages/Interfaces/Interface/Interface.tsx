@@ -1462,7 +1462,7 @@ const Interface = ({
           },
         }}
       >
-        <div className="relative h-full w-full overflow-hidden">
+        <div className="bg-background/70 relative h-full w-full overflow-hidden">
           {/* New Interface Navigation Sidebar */}
           <InterfaceNav
             interfaceId={interfaceId}
@@ -1499,7 +1499,7 @@ const Interface = ({
           {isBootstrapError && projectQueryParam ? (
             /* Bootstrap Error Screen - Critical data failed to load */
             <div
-              className="absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center bg-background transition-all duration-300"
+              className="bg-background/95 absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center transition-all duration-300"
               style={{ left: 'var(--interface-nav-width, 256px)' }}
             >
               <div className="w-full max-w-md p-6">
@@ -1567,7 +1567,7 @@ const Interface = ({
           ) : isErrorInterfaces && shouldAutoSelectInterface && !showInterfaceSelection ? (
             /* Interface Error Screen - Show when interface fetch fails */
             <div
-              className="absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center bg-background transition-all duration-300"
+              className="bg-background/95 absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center transition-all duration-300"
               style={{ left: 'var(--interface-nav-width, 256px)' }}
             >
               <div className="w-full max-w-md p-6">
@@ -1638,7 +1638,7 @@ const Interface = ({
           ) : effectiveShowProjectSelection ? (
             /* Project Selection Screen - Full viewport, left-aligned */
             <div
-              className="absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center bg-background transition-all duration-300"
+              className="bg-background/95 absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center transition-all duration-300"
               style={{ left: 'var(--interface-nav-width, 256px)' }}
             >
               <div className="w-full max-w-sm p-4">
@@ -1695,7 +1695,7 @@ const Interface = ({
           ) : showInterfaceSelection ? (
             /* Interface Selection Screen - Full viewport, left-aligned */
             <div
-              className="absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center bg-background transition-all duration-300"
+              className="bg-background/95 absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center transition-all duration-300"
               style={{ left: 'var(--interface-nav-width, 256px)' }}
             >
               <div className="w-full max-w-sm p-4">
@@ -1828,7 +1828,7 @@ const Interface = ({
             >
               <div className="relative h-full min-w-0 flex-1">
                 <ScrollArea ref={pageScrollContainerRef} className="h-full min-w-0 flex-1">
-                  <div className="relative bg-background pt-3" ref={gridRef}>
+                  <div className="relative bg-transparent pt-3" ref={gridRef}>
                     {/* ---------------------------------------------------------
               Top-level Suspense: covers the whole Tabs area so that
               the user sees a Skeleton while the tabs are being loaded
@@ -1858,7 +1858,7 @@ const Interface = ({
 
                             <div className="flex flex-row items-center gap-2">
                               {tabUIState?.resetting && (
-                                <div className="bg-background/90 border-border/50 rounded-lg border p-2 shadow-md backdrop-blur-sm">
+                                <div className="bg-card/90 rounded-lg border border-border p-2 shadow-md backdrop-blur-sm">
                                   <Loader2 className="animate-spin" />
                                 </div>
                               )}
@@ -2020,7 +2020,7 @@ const Interface = ({
                                                 return (
                                                   <>
                                                     <div
-                                                      className={`h-2 w-2 rounded-full bg-green-500 ${isComplete ? '' : 'animate-pulse'}`}
+                                                      className={`h-2 w-2 rounded-full bg-[var(--role-green)] ${isComplete ? '' : 'animate-pulse'}`}
                                                     ></div>
                                                     <span>
                                                       Prefetched: {totalPrefetched}/
@@ -2090,7 +2090,7 @@ const Interface = ({
                     {/* Bootstrap/global fetch error overlay */}
                     {isProjectTreeError && (
                       <div className="bg-background/80 fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-sm">
-                        <div className="w-[min(520px,92vw)] rounded-lg border bg-card p-5 shadow-lg">
+                        <div className="w-[min(520px,92vw)] rounded-xl border bg-card p-5 shadow-lg">
                           <div className="flex items-start gap-3">
                             <div className="mt-0.5 text-destructive">⚠️</div>
                             <div className="flex-1">

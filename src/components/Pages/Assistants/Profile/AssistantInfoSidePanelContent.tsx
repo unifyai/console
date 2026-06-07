@@ -507,7 +507,7 @@ function IdentityHeader({
         >
           <span className="opacity-70">Assistant ID</span>
           {isIdCopied ? (
-            <Check className="h-3 w-3 flex-shrink-0 text-green-500" />
+            <Check className="h-3 w-3 flex-shrink-0 text-[color:var(--status-success)]" />
           ) : (
             <Copy className="h-3 w-3 flex-shrink-0 opacity-70 transition-opacity group-hover/id:opacity-100" />
           )}

@@ -156,11 +156,11 @@ const TileHeader = ({
 
   // Grab interface primary to support hierarchy fallback
   const interfacePrimary = useMemo(() => {
-    if (typeof window === 'undefined') return 'var(--forest-green)';
+    if (typeof window === 'undefined') return 'var(--role-green-deep)';
     const el = document.querySelector('[data-interface-color]') as HTMLElement | null;
     if (el) {
       const col = getComputedStyle(el).getPropertyValue('--primary').trim();
-      return col || 'var(--forest-green)';
+      return col || 'var(--role-green-deep)';
     }
     return getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
   }, []);

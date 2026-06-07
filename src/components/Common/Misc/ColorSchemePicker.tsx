@@ -20,35 +20,51 @@ const d3CategoricalSchemeNames = [
   'schemeTableau10',
 ] as const;
 type CategoricalSchemeName = (typeof d3CategoricalSchemeNames)[number];
-const colorSchemes = d3CategoricalSchemeNames
-  .map((name) => {
-    let palette: string[] | undefined;
-    const schemeData = d3Chromatic[name];
-    if (Array.isArray(schemeData)) {
-      palette = schemeData as string[];
-    } else if (typeof schemeData === 'object' && schemeData !== null) {
-      const lengths = Object.keys(schemeData)
-        .map(Number)
-        .sort((a, b) => b - a);
-      if (lengths.length > 0) {
-        palette = (schemeData as any)[lengths[0]] as string[];
+type ColorSchemeName = CategoricalSchemeName | 'brandRoles';
+const brandRoleScheme = {
+  name: 'brandRoles',
+  displayName: 'Brand roles',
+  palette: [
+    'var(--role-green-deep)',
+    'var(--role-blue)',
+    'var(--role-orange)',
+    'var(--role-purple)',
+    'var(--role-yellow)',
+    'var(--role-teal)',
+  ],
+} as const;
+const colorSchemes = [
+  brandRoleScheme,
+  ...d3CategoricalSchemeNames
+    .map((name) => {
+      let palette: string[] | undefined;
+      const schemeData = d3Chromatic[name];
+      if (Array.isArray(schemeData)) {
+        palette = schemeData as string[];
+      } else if (typeof schemeData === 'object' && schemeData !== null) {
+        const lengths = Object.keys(schemeData)
+          .map(Number)
+          .sort((a, b) => b - a);
+        if (lengths.length > 0) {
+          palette = (schemeData as any)[lengths[0]] as string[];
+        }
       }
-    }
 
-    return {
-      name: name,
-      displayName: name.replace('scheme', ''),
-      palette: palette || [], // Ensure palette is always an array
-    };
-  })
-  .filter((scheme) => scheme.palette.length > 0); // Filter out any potentially undefined/empty schemes
+      return {
+        name: name,
+        displayName: name.replace('scheme', ''),
+        palette: palette || [], // Ensure palette is always an array
+      };
+    })
+    .filter((scheme) => scheme.palette.length > 0),
+]; // Filter out any potentially undefined/empty schemes
 
 // --- ColorSchemePicker Component ---
 interface ColorSchemePickerProps {
   /** The currently selected scheme name (controlled component) */
   value?: CategoricalSchemeName | string;
   /** Callback function when the selection changes */
-  onChange?: (value: CategoricalSchemeName) => void;
+  onChange?: (value: ColorSchemeName) => void;
   /** Placeholder text for the trigger button when no value is selected */
   placeholder?: string;
   /** Optional additional className for the PopoverContent */
@@ -80,7 +96,7 @@ export function ColorSchemePicker({
   }, [value]);
 
   // Handler for when a scheme is clicked in the popover/dialog
-  const handleSchemeSelect = (schemeName: CategoricalSchemeName) => {
+  const handleSchemeSelect = (schemeName: ColorSchemeName) => {
     if (onChange) {
       onChange(schemeName);
     }

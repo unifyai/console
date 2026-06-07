@@ -169,7 +169,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
  */
 function PlotNotFoundMessage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background">
+    <main className="brand-pixel-grid flex min-h-screen items-center justify-center bg-background">
       <div className="max-w-md px-6 text-center">
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
           <svg
@@ -201,7 +201,7 @@ function PlotNotFoundMessage() {
  */
 function ErrorMessage({ message }: { message: string }) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background">
+    <main className="brand-pixel-grid flex min-h-screen items-center justify-center bg-background">
       <div className="max-w-md px-6 text-center">
         <div className="bg-destructive/10 mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full">
           <svg
@@ -251,7 +251,7 @@ export default async function PlotViewPage({ params, searchParams }: PageProps) 
   }
 
   return (
-    <main className="h-screen overflow-hidden bg-background">
+    <main className="brand-pixel-grid h-screen overflow-hidden bg-background">
       <PlotViewer
         config={plotData.config}
         data={plotData.data}

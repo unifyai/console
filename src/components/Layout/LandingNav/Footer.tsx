@@ -34,7 +34,7 @@ const footerLinks: { [id: string]: { name: string; href: string }[] } = {
 
 const Footer = () => {
   return (
-    <footer className="bg-[var(--background-color)] px-[20px] pb-[40px] pt-16">
+    <footer className="bg-background px-[20px] pb-[40px] pt-16">
       <div className="container">
         <div className="flex flex-wrap items-start justify-between gap-4 md:mr-[100px]">
           <Link href="/" aria-label="Unify logo">
@@ -44,7 +44,7 @@ const Footer = () => {
           <div className="flex w-full flex-row flex-wrap items-start justify-start gap-6 gap-y-4 md:w-[60%] lg:justify-between lg:gap-6">
             {Object.keys(footerLinks).map((key) => (
               <div key={key} className="flex flex-col gap-2">
-                <div className="text-branding-grey hover:text-branding-black text-label text-semibold uppercase transition-all">
+                <div className="text-label text-semibold text-muted-foreground transition-all hover:text-foreground">
                   {key}
                 </div>
                 {footerLinks[key].map((link) => (

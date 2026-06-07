@@ -206,21 +206,25 @@ export function OneTimeLinkTable({
 
           let statusText = 'Active';
           let StatusIcon = HelpCircle;
-          let statusColor = 'bg-blue-100 text-blue-800 border-blue-300';
+          let statusColor =
+            'border-[color:var(--status-info)]/25 bg-[color:var(--status-info-bg)] text-[color:var(--status-info)]';
 
           if (isFullyRedeemed) {
             statusText = link.maxClaims === 1 ? 'Claimed' : 'Exhausted';
 
             StatusIcon = CheckCircle;
-            statusColor = 'bg-green-100 text-green-800 border-green-300';
+            statusColor =
+              'border-[color:var(--status-success)]/25 bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]';
           } else if (isExpired) {
             statusText = 'Expired';
             StatusIcon = CircleOff;
-            statusColor = 'bg-gray-100 text-gray-800 border-gray-300 opacity-70';
+            statusColor =
+              'border-border bg-[color:var(--status-neutral-bg)] text-muted-foreground opacity-70';
           } else if (hasClaims) {
             statusText = 'Partial';
             StatusIcon = CheckCircle;
-            statusColor = 'bg-amber-100 text-amber-800 border-amber-300';
+            statusColor =
+              'border-[color:var(--status-warning)]/25 bg-[color:var(--status-warning-bg)] text-[color:var(--status-warning)]';
           }
 
           const claims = link.claims ?? [];
@@ -245,7 +249,7 @@ export function OneTimeLinkTable({
                           disabled={isDeletingThis}
                         >
                           {copiedToken === link.token ? (
-                            <Check className="h-3 w-3 text-green-500" />
+                            <Check className="h-3 w-3 text-[color:var(--status-success)]" />
                           ) : (
                             <Copy className="h-3 w-3" />
                           )}

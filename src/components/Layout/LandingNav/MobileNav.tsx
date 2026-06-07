@@ -37,11 +37,11 @@ const MobileNav = ({ children, menuOpen, mobileChildren }: MobileNavParams) => {
                   ? link.links.map((sublink, subindex) => (
                       <div
                         key={subindex}
-                        className="rounded-lg pl-4 pt-2 transition-all hover:bg-gray-100"
+                        className="rounded-lg pl-4 pt-2 transition-all hover:bg-[var(--surface-hover)]"
                       >
                         <a
                           href={sublink.href}
-                          className="text-h1 text-bold w-full text-[var(--text-gray)] no-underline transition-all hover:text-[var(--near-black)] dark:text-white/90 dark:hover:text-white"
+                          className="text-h1 text-bold w-full text-muted-foreground no-underline transition-all hover:text-foreground"
                         >
                           <p>{sublink.title}</p>
                         </a>

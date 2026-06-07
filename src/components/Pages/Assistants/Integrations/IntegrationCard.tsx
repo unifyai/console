@@ -42,21 +42,21 @@ export function IntegrationCard({
     switch (state.kind) {
       case 'connected':
         return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+          <span className="border-[color:var(--role-green-deep)]/20 bg-[color:var(--role-green)]/12 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[color:var(--role-green-deep)] dark:text-[color:var(--role-green)]">
             <CheckCircle2 className="h-3 w-3" />
             Connected
           </span>
         );
       case 'configured':
         return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+          <span className="border-[color:var(--role-blue)]/20 bg-[color:var(--role-blue)]/10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[color:var(--role-blue)]">
             <CheckCircle2 className="h-3 w-3" />
             Configured
           </span>
         );
       case 'needs_reconnect':
         return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
+          <span className="border-[color:var(--role-orange)]/25 bg-[color:var(--role-orange)]/10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[color:var(--role-orange)]">
             <AlertCircle className="h-3 w-3" />
             {isOAuth ? 'Reconnect' : 'Action needed'}
           </span>
@@ -80,7 +80,7 @@ export function IntegrationCard({
 
   return (
     <div
-      className="flex items-center justify-between gap-3 rounded-md border bg-card px-3 py-2 text-card-foreground"
+      className="flex items-center justify-between gap-3 rounded-xl border bg-card px-3 py-2 text-card-foreground shadow-sm"
       data-testid={`integration-card-${provider.id}`}
     >
       <div className="min-w-0 flex-1">

@@ -4,7 +4,7 @@ import * as d3 from 'd3';
 import { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
 import { getValue, hasProperty, inferDisplayType } from '../data';
 import { drawAxes, generateTicks, reverseOrKeepDomain } from '../axes';
-import { getPrimaryColorFromNode } from '../common';
+import { getPlotColorRange, getPrimaryColorFromNode } from '../common';
 import { renderGroupingKey } from '../key';
 import {
   RenderMode,
@@ -197,7 +197,7 @@ function prepareColors(
   groupByColors: string
 ): ColorContext {
   const primary = getPrimaryColorFromNode(svg.node());
-  const colorRange = d3[groupByColors as keyof typeof d3] as readonly string[];
+  const colorRange = getPlotColorRange(groupByColors, d3);
   const colorScale = d3.scaleOrdinal<string>().range(colorRange);
 
   if (groupBy) {

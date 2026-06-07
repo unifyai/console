@@ -137,7 +137,7 @@ function CurrentWorkCard({
           className={cn(
             'relative overflow-hidden rounded-xl border p-3 shadow-sm',
             activity.phase === 'needs_input' || activity.phase === 'blocked'
-              ? 'border-amber-500/30 bg-amber-500/10'
+              ? 'border-[color:var(--status-warning)]/30 bg-[color:var(--status-warning-bg)]'
               : 'border-primary/25 bg-primary/5'
           )}
           data-testid="coordinator-current-work-card"
@@ -211,7 +211,9 @@ function CurrentWorkCard({
 
 function ChecklistStatusIcon({ status }: { status: CoordinatorChecklistRow['status'] }) {
   if (status === 'done') {
-    return <CheckCircle2 className="h-4 w-4 text-green-600" aria-hidden="true" />;
+    return (
+      <CheckCircle2 className="h-4 w-4 text-[color:var(--status-success)]" aria-hidden="true" />
+    );
   }
   if (status === 'skipped') {
     return <CircleDashed className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;

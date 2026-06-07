@@ -385,7 +385,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
         )}
 
         {error && (
-          <p className="text-sm text-red-500" data-testid="email-auth-error">
+          <p className="text-body text-error" data-testid="email-auth-error">
             {error}
           </p>
         )}

@@ -58,15 +58,15 @@ const MfaEnforcementBanner = ({ orgName }: MfaEnforcementBannerProps) => {
         data-testid="mfa-enforcement-banner"
       >
         <DialogHeader>
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950/40">
+          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--status-warning-bg)]">
             {setupComplete ? (
               <ShieldCheck
-                className="h-6 w-6 text-green-600 dark:text-green-400"
+                className="h-6 w-6 text-[color:var(--status-success)]"
                 data-testid="shield-check-icon"
               />
             ) : (
               <ShieldAlert
-                className="h-6 w-6 text-amber-600 dark:text-amber-400"
+                className="h-6 w-6 text-[color:var(--status-warning)]"
                 data-testid="shield-alert-icon"
               />
             )}

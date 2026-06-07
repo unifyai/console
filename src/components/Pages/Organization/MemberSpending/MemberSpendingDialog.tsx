@@ -163,7 +163,7 @@ export function MemberSpendingDialog({
                         display.isOverLimit
                           ? 'bg-destructive'
                           : display.isNearLimit
-                            ? 'bg-amber-500'
+                            ? 'bg-[color:var(--status-warning)]'
                             : 'bg-primary'
                       )}
                       style={{ width: `${Math.min(display.percentUsed, 100)}%` }}
@@ -234,7 +234,7 @@ export function MemberSpendingDialog({
 
                 {/* Warning if limit would be exceeded */}
                 {wouldBeOverLimit && (
-                  <div className="flex items-start gap-2 rounded-md bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-500">
+                  <div className="text-body flex items-start gap-2 rounded-md bg-[color:var(--status-warning-bg)] p-3 text-[color:var(--status-warning)]">
                     <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
                     <span>
                       This limit is at or below current spend. Billable activity will be blocked

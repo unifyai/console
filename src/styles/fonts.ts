@@ -1,4 +1,4 @@
-import { Inter, Fira_Code } from 'next/font/google';
+import { Instrument_Serif, Inter, Roboto_Mono } from 'next/font/google';
 
 export const fontSans = Inter({
   subsets: ['latin'],
@@ -7,9 +7,17 @@ export const fontSans = Inter({
   weight: ['400', '500', '600', '700'],
 });
 
-export const fontMono = Fira_Code({
+export const fontMono = Roboto_Mono({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-mono',
-  weight: ['400', '500', '700'],
+  weight: ['400', '500', '600', '700'],
+});
+
+export const fontSerif = Instrument_Serif({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-serif',
+  weight: ['400'],
+  style: ['normal', 'italic'],
 });

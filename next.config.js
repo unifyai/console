@@ -1,4 +1,23 @@
 /** @type {import('next').NextConfig} */
+const landingOrigins = (process.env.LANDING_AUTH_ALLOWED_ORIGINS ?? '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const serverActionAllowedOrigins = [
+  'unify.ai',
+  'www.unify.ai',
+  'staging.unify.ai',
+  'internal.example.com',
+  ...landingOrigins.map((origin) => {
+    try {
+      return new URL(origin).host;
+    } catch {
+      return origin.replace(/^https?:\/\//, '');
+    }
+  }),
+];
+
 const nextConfig = {
   images: {
     remotePatterns: [
@@ -38,7 +57,7 @@ const nextConfig = {
     instrumentationHook: true,
     serverMinification: false,
     serverActions: {
-      allowedOrigins: ['unify.ai'],
+      allowedOrigins: Array.from(new Set(serverActionAllowedOrigins)),
       bodySizeLimit: '100mb',
     },
   },

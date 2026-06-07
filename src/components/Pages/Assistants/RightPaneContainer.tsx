@@ -68,7 +68,7 @@ const TAB_TRIGGER_CLASS = [
   // room as the single-layer tabs (Chat, Actions, Dashboards, etc.).
   'px-1 py-1 text-xs font-medium text-muted-foreground',
   'shadow-none transition-colors hover:text-foreground',
-  'data-[state=active]:border-primary data-[state=active]:bg-transparent',
+  'data-[state=active]:border-[color:var(--role-green-deep)] data-[state=active]:bg-transparent',
   'data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:shadow-none',
 ].join(' ');
 
@@ -545,7 +545,7 @@ export function RightPaneContainer({
           // row's 1px bottom border for the "active tab continues the
           // line" effect. `items-center` would float the underline
           // mid-row.
-          className="flex shrink-0 items-end justify-between gap-2 border-b border-border px-3 py-2"
+          className="bg-card/70 flex shrink-0 items-end justify-between gap-2 border-b border-border px-3 py-2"
         >
           <div className="flex min-w-0 flex-1 items-end overflow-x-auto">
             <TabsList
@@ -1018,7 +1018,7 @@ export function RightPaneContainer({
   const splitRatio = Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, paneState.splitRatio));
 
   return (
-    <div ref={splitContainerRef} className="flex h-full w-full">
+    <div ref={splitContainerRef} className="bg-background/40 flex h-full w-full">
       <div
         className="flex h-full min-w-0 flex-col"
         style={{ width: hasSplit ? `${splitRatio * 100}%` : '100%' }}

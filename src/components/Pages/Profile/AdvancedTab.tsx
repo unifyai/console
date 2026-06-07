@@ -66,7 +66,7 @@ const ApiKeyField: React.FC<{ apiKey: string }> = ({ apiKey }) => {
           onClick={() => setIsVisible(!isVisible)}
         >
           {isCopied ? (
-            <Check className="h-4 w-4 text-green-500" />
+            <Check className="h-4 w-4 text-[color:var(--status-success)]" />
           ) : isVisible ? (
             <EyeOff className="h-4 w-4" />
           ) : (

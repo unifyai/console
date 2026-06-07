@@ -25,11 +25,11 @@ const Menus = ({ selected }: MenusParams) => {
             ? link.links.map((sublink, subindex) => (
                 <div
                   key={subindex}
-                  className="rounded-lg pl-4 pt-2 transition-all hover:bg-gray-100"
+                  className="rounded-lg pl-4 pt-2 transition-all hover:bg-[var(--surface-hover)]"
                 >
                   <a
                     href={sublink.href}
-                    className="font-bold text-[var(--near-black)] no-underline hover:text-[var(--near-black)] dark:text-white/90 dark:hover:text-white"
+                    className="font-bold text-foreground no-underline hover:text-foreground"
                   >
                     <p>{sublink.title}</p>
                   </a>

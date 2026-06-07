@@ -17,35 +17,35 @@ import { fetchPlotData } from '@/lib/plotData';
 
 const colors = {
   // Base colors from globals.css
-  eerieBlack: '#1b1b1b',
-  whiteSmoke: '#f5f5f5',
-  limeGreen: '#4cc552',
-  darkSlateGray: '#2f4f4f',
-  lightNeutralGrey: '#b0bec5',
+  eerieBlack: '#0a1410',
+  whiteSmoke: '#eef0ea',
+  limeGreen: '#00d747',
+  darkSlateGray: '#1a2a23',
+  lightNeutralGrey: '#d9d2c4',
 
   // Derived colors
-  background: '#1b1b1b',
-  backgroundGradient: 'linear-gradient(135deg, #1b1b1b 0%, #252525 50%, #2a2a2a 100%)',
-  title: '#f5f5f5',
-  subtitle: '#b0bec5',
-  muted: '#2f4f4f',
+  background: '#0d0f12',
+  backgroundGradient: 'linear-gradient(135deg, #0d0f12 0%, #111714 50%, #0a1410 100%)',
+  title: '#eef0ea',
+  subtitle: 'rgba(238, 240, 234, 0.68)',
+  muted: '#d9d2c4',
 
   // Primary accent
-  primary: '#4cc552',
-  primaryLight: 'rgba(76, 197, 82, 0.15)',
-  primaryBorder: 'rgba(76, 197, 82, 0.3)',
+  primary: '#00d747',
+  primaryLight: 'rgba(0, 215, 71, 0.15)',
+  primaryBorder: 'rgba(0, 215, 71, 0.3)',
 
   // Chart colors (dark theme from globals.css)
   chart: {
-    1: '#264cb2', // Blue
-    2: '#2db88f', // Teal
-    3: '#ef921c', // Orange
-    4: '#cb5de8', // Purple
-    5: '#eb2483', // Pink
+    1: '#00d747',
+    2: '#7aa7ff',
+    3: '#ffad6b',
+    4: '#a88cff',
+    5: '#ffdb66',
   },
 
   // Logo green
-  logoGreen: '#00B828',
+  logoGreen: '#00d747',
 };
 
 // OG Image dimensions (standard for social sharing)

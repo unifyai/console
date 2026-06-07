@@ -141,7 +141,7 @@ const TotpSetup = ({
         </p>
 
         {qrDataUrl && (
-          <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-white p-4">
+          <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-4">
             <Image
               src={qrDataUrl}
               alt="TOTP QR Code"

@@ -53,6 +53,6 @@ export default function ChatView(
 
   // fallback => mention not recognized
   return (
-    <p className="text-red-500">ChatView: Value is not recognized as chat-in or chat-out shape.</p>
+    <p className="text-error">ChatView: Value is not recognized as chat-in or chat-out shape.</p>
   );
 }

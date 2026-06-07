@@ -66,7 +66,7 @@ const EmptyTableOverlay: React.FC<EmptyTableOverlayProps> = ({
               {actionButton}
               {withPulse && (
                 <span className="absolute -left-1 -top-1 flex h-3 w-3">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[color:var(--status-success)] opacity-75"></span>
                   <span className="relative inline-flex h-3 w-3 rounded-full bg-primary"></span>
                 </span>
               )}

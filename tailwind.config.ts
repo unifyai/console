@@ -19,6 +19,8 @@ module.exports = {
     },
     extend: {
       backgroundImage: {
+        'pixel-grid': 'var(--pixel-grid)',
+        checkerboard: 'var(--checkerboard)',
         searchbar:
           'linear-gradient(90deg, var(--searchbar-gradient-start) -0.53%, var(--searchbar-gradient-end) 100%)',
         'searchbar-light':
@@ -82,6 +84,15 @@ module.exports = {
           4: 'var(--chart-4)',
           5: 'var(--chart-5)',
         },
+        role: {
+          green: 'var(--role-green)',
+          'green-deep': 'var(--role-green-deep)',
+          blue: 'var(--role-blue)',
+          orange: 'var(--role-orange)',
+          purple: 'var(--role-purple)',
+          yellow: 'var(--role-yellow)',
+          teal: 'var(--role-teal)',
+        },
         sidebar: {
           DEFAULT: 'var(--sidebar-background)',
           foreground: 'var(--sidebar-foreground)',
@@ -120,6 +131,7 @@ module.exports = {
           'DejaVu Sans Mono',
           'monospace',
         ],
+        serif: ['var(--font-serif)', 'Georgia', 'Cambria', 'Times New Roman', 'Times', 'serif'],
       },
     },
     data: {

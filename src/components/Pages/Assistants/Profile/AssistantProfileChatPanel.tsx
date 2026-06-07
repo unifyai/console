@@ -920,7 +920,7 @@ export function AssistantProfileChatPanel({
               size="icon"
               className={cn(
                 'absolute bottom-1 left-8 h-7 w-7',
-                isRecording && 'animate-pulse text-red-500'
+                isRecording && 'animate-pulse text-[color:var(--status-danger)]'
               )}
               onClick={toggleRecording}
               disabled={

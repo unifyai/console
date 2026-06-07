@@ -99,18 +99,18 @@ export default function RowBadge({
     switch (mode) {
       case 'insert':
         colorClasses = isDarkMode
-          ? 'insert bg-green-800 text-foreground border border-muted'
-          : 'insert bg-green-200 text-foreground border border-muted';
+          ? 'insert border border-muted bg-[color:var(--status-success)] text-primary-foreground'
+          : 'insert border border-muted bg-[color:var(--status-success-bg)] text-foreground';
         break;
       case 'delete':
         colorClasses = isDarkMode
-          ? 'delete bg-red-800 text-foreground border border-muted'
-          : 'delete bg-red-200 text-foreground border border-muted';
+          ? 'delete border border-muted bg-[color:var(--status-danger)] text-destructive-foreground'
+          : 'delete border border-muted bg-[color:var(--status-danger-bg)] text-foreground';
         break;
       case 'base':
         colorClasses = isDarkMode
-          ? 'base bg-red-800 text-foreground border border-muted'
-          : 'base bg-red-200 text-foreground border border-muted';
+          ? 'base border border-muted bg-[color:var(--status-danger)] text-destructive-foreground'
+          : 'base border border-muted bg-[color:var(--status-danger-bg)] text-foreground';
         break;
       default:
         // mode="none"

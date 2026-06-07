@@ -131,7 +131,7 @@ const ColumnGroupBy = ({
       {isGrouped && (
         <button
           onClick={onClick}
-          className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-gray-400 text-white opacity-0 transition-opacity hover:bg-gray-500 group-hover:opacity-100"
+          className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-[color:var(--status-neutral)] text-[color:var(--cream-white)] opacity-0 transition-opacity hover:bg-[color:var(--foreground)] group-hover:opacity-100"
         >
           <X className="h-2 w-2" />
         </button>

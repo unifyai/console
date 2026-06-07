@@ -161,7 +161,7 @@ export const SwitchPlanSection = ({
 
       {lastResult && lastResult.status === 'scheduled' && (
         <div
-          className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900"
+          className="text-body border-[color:var(--status-success)]/25 rounded-md border bg-[color:var(--status-success-bg)] px-4 py-3 text-[color:var(--status-success)]"
           data-testid="switch-plan-success"
         >
           Switch scheduled — your new plan starts on {formatDate(lastResult.effectiveAt)}.
@@ -237,7 +237,7 @@ export const SwitchPlanSection = ({
             </DialogDescription>
           </DialogHeader>
           {error && (
-            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
+            <div className="text-body border-[color:var(--status-danger)]/25 rounded-md border bg-[color:var(--status-danger-bg)] px-3 py-2 text-[color:var(--status-danger)]">
               {error}
             </div>
           )}

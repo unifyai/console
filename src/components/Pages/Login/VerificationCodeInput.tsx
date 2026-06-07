@@ -134,7 +134,7 @@ const VerificationCodeInput = ({
       </div>
 
       {error && (
-        <p className="text-sm text-red-500" data-testid="verification-error">
+        <p className="text-body text-error" data-testid="verification-error">
           {error}
         </p>
       )}

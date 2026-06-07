@@ -249,8 +249,8 @@ const SortableTab = React.memo(function SortableTab({
           'text-body-sm flex min-w-0 flex-1 cursor-pointer items-center gap-2 overflow-hidden rounded-md py-1.5 transition-all',
           isCollapsed ? 'justify-center px-0' : 'justify-start px-3 pr-10',
           isActive
-            ? 'text-strong text-primary hover:bg-black/5 dark:hover:bg-white/5'
-            : 'text-muted-foreground hover:bg-black/5 hover:text-foreground dark:hover:bg-white/5',
+            ? 'text-strong text-primary hover:bg-[var(--surface-hover)]'
+            : 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-foreground',
           isDragging && 'cursor-grabbing'
         )}
       >
@@ -1640,8 +1640,8 @@ export default function InterfaceNav({
   const getDefaultPrimary = () =>
     typeof window !== 'undefined'
       ? getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() ||
-        'var(--forest-green)'
-      : 'var(--forest-green)';
+        'var(--role-green-deep)'
+      : 'var(--role-green-deep)';
 
   const pickerColor = themeColor && themeColor.trim() !== '' ? themeColor : getDefaultPrimary();
   // Only show mode controls when there's a project, interface AND at least one tab
@@ -2095,7 +2095,7 @@ export default function InterfaceNav({
                 onClick={() => {
                   toggleSidebar();
                 }}
-                className="bg-background/95 h-8 w-8 border shadow-sm backdrop-blur-sm"
+                className="bg-card/95 h-8 w-8 border shadow-sm backdrop-blur-sm"
               >
                 <PanelLeft className="h-4 w-4" />
               </Button>
@@ -2109,7 +2109,7 @@ export default function InterfaceNav({
       <div
         data-interface-color
         className={cn(
-          'fixed left-0 top-10 z-20 flex h-[calc(100vh-2.5rem)] flex-col overflow-hidden border-r border-[color:var(--border)] bg-[color:var(--background)]',
+          'bg-card/85 fixed left-0 top-10 z-20 flex h-[calc(100vh-2.5rem)] flex-col overflow-hidden border-r border-[color:var(--border)] backdrop-blur-sm',
           isCollapsed ? 'w-12' : '',
           isDraggingSidebar ? '' : 'transition-all duration-300 ease-in-out',
           isCompletelyHidden && 'pointer-events-none !w-0 border-0 opacity-0'
@@ -2710,7 +2710,7 @@ export default function InterfaceNav({
                               if (!activeTab) return null;
 
                               return (
-                                <div className="pointer-events-none cursor-grabbing rounded-md border bg-background shadow-lg">
+                                <div className="pointer-events-none cursor-grabbing rounded-md border bg-card shadow-lg">
                                   <div
                                     className={cn(
                                       'flex items-center gap-2 py-2',
@@ -2955,7 +2955,7 @@ export default function InterfaceNav({
               <div className="space-y-4 pt-4">
                 <div className="flex justify-center">
                   <HexColorPicker
-                    color={newTabColor || 'var(--forest-green)'}
+                    color={newTabColor || 'var(--role-green-deep)'}
                     onChange={setNewTabColor}
                   />
                 </div>
@@ -3346,7 +3346,7 @@ export default function InterfaceNav({
                       }
                     }
                   }}
-                  className="text-body file:text-label hover:file:bg-primary/90 block w-full text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:font-semibold file:text-primary-foreground"
+                  className="text-body file:text-label hover:file:bg-primary/90 block w-full text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:font-semibold file:text-primary-foreground"
                 />
               </div>
             }
@@ -3367,7 +3367,7 @@ export default function InterfaceNav({
           className="pointer-events-none fixed z-40 transition-all duration-300 ease-linear animate-in fade-in slide-in-from-bottom-2"
           style={{ left: 'calc(var(--interface-nav-width) + 1rem)', bottom: '1rem' }}
         >
-          <div className="bg-background/90 border-border/50 pointer-events-auto rounded-lg border p-1 shadow-md backdrop-blur-sm">
+          <div className="bg-card/90 pointer-events-auto rounded-lg border border-border p-1 shadow-md backdrop-blur-sm">
             <ActionButton
               className="text-caption h-7 px-1.5"
               size="sm"
