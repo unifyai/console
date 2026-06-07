@@ -1,4 +1,5 @@
 import { ResponseProps } from '../common';
+import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { SupportedLanguage, Gender as CartesiaGender, Gender } from '@cartesia/cartesia-js/api'; // LocalizeTargetLanguage removed, Literal added (if needed from API spec)
 import { ChatMessage, UnifyMessage, AttachmentUploadResponse } from './chat';
 import { SecretActions } from './secret';
@@ -21,12 +22,14 @@ export type ContactIdentityRoot =
   | {
       targetScope: 'personal';
       targetSpaceId: null;
+      targetTeamId: null;
       selfContactId: number;
       bossContactId: number;
     }
   | {
-      targetScope: 'space';
-      targetSpaceId: number;
+      targetScope: 'team';
+      targetSpaceId: null;
+      targetTeamId: number;
       selfContactId: number;
       bossContactId: number;
     };
@@ -95,10 +98,12 @@ export interface Assistant {
   weeklyLimit: number | null;
   maxParallel: number | null;
   /**
-   * Live shared spaces this assistant can read from and write to. An empty
-   * array means the assistant is currently personal-only.
+   * Live shared organization teams this assistant can read from and write to.
+   * An empty array means the assistant is currently personal-only.
    */
-  spaceIds: number[];
+  teamIds: number[];
+  /** Human-readable metadata for each shared-memory team membership. */
+  teamSummaries: SharedTeamSummary[];
   /**
    * Contact id representing the assistant in its own conversation data.
    */
@@ -147,7 +152,8 @@ export type AssistantPreset = Omit<
   | 'assistantDiscordBotId'
   | 'weeklyLimit'
   | 'maxParallel'
-  | 'spaceIds'
+  | 'teamIds'
+  | 'teamSummaries'
   | 'selfContactId'
   | 'bossContactId'
   | 'contactIdentityRoots'
@@ -226,7 +232,8 @@ export type AssistantFormData = Omit<
   | 'phoneCountry'
   | 'weeklyLimit'
   | 'maxParallel'
-  | 'spaceIds'
+  | 'teamIds'
+  | 'teamSummaries'
   | 'selfContactId'
   | 'bossContactId'
   | 'gender'
