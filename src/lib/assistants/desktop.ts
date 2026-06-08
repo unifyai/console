@@ -44,9 +44,11 @@ export const getLiveviewUrl = async () => {
     'use server';
 
     try {
-      const sharedUnifyKey = process.env.SHARED_UNIFY_KEY;
+      const { resolveOrchestraApiKeyForServerOps } =
+        await import('@/lib/auth/orchestra-server-key');
+      const sharedUnifyKey = await resolveOrchestraApiKeyForServerOps();
       if (!sharedUnifyKey) {
-        console.error('[getLiveviewUrl] Server configuration error: SHARED_UNIFY_KEY is not set.');
+        console.error('[getLiveviewUrl] Server configuration error: Orchestra API key is not set.');
         return { detail: 'Server configuration error: Shared key not found.' };
       }
 
