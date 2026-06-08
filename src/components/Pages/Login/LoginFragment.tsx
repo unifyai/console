@@ -47,20 +47,31 @@ const LoginFragment = ({
 
   return (
     <div className="flex flex-wrap">
-      <div className="flex flex-1 flex-col gap-14">
+      <div className="flex flex-1 flex-col gap-10">
         {/* Header */}
-        <div className="relative flex flex-col gap-5">
-          <TeammateCreature
-            className="pointer-events-none absolute -right-3 -top-6 hidden w-24 rotate-6 opacity-95 md:block"
-            color="green"
-            shape="clawd"
-          />
+        <div className="relative flex flex-col items-center gap-6 text-center">
+          <div className="pointer-events-none absolute -left-4 top-14 hidden -rotate-6 opacity-90 md:block">
+            <TeammateCreature className="w-20" color="blue" shape="notch" />
+          </div>
+          <div className="pointer-events-none absolute -right-5 top-8 hidden rotate-6 opacity-95 md:block">
+            <TeammateCreature className="w-24" color="green" shape="clawd" />
+          </div>
           <div className="flex justify-center">
             <UnifyLogo />
           </div>
-          <h1 className="text-brand-display text-center text-foreground">
-            AI <span className="text-brand-serif-accent">teammates</span> for your business.
-          </h1>
+          <div className="inline-flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+            <span className="h-2 w-2 rounded-[2px] bg-primary" />
+            Welcome aboard
+          </div>
+          <div className="grid gap-4">
+            <h1 className="text-brand-display text-foreground">
+              Meet your first <span className="text-brand-serif-accent">martian.</span>
+            </h1>
+            <p className="mx-auto max-w-[34rem] text-[15px] leading-6 text-muted-foreground">
+              No prompting, no setup, no jargon. Sign in and hop on a call with the teammate who
+              takes tedious work off your plate.
+            </p>
+          </div>
         </div>
 
         {/* Content — auth buttons / email form */}

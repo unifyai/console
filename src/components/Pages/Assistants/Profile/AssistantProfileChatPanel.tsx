@@ -651,7 +651,7 @@ export function AssistantProfileChatPanel({
   );
 
   return (
-    <div className="flex h-full w-full flex-col bg-background">
+    <div className="flex h-full w-full flex-col bg-transparent">
       {/* Chat Area */}
       <ScrollArea
         // Radix wraps viewport children in a `display:table` div, which

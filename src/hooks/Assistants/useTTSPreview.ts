@@ -50,6 +50,32 @@ export function useTTSPreview({ generateSpeechAction, onSpeechLevelChange }: Use
     onSpeechLevelChangeRef.current?.(0);
   }, []);
 
+  const disposeAudioGraph = React.useCallback(() => {
+    audioSourceRef.current?.disconnect();
+    analyserRef.current?.disconnect();
+    audioSourceRef.current = null;
+    analyserRef.current = null;
+    analyserDataRef.current = null;
+  }, []);
+
+  const clearAudioPreview = React.useCallback(() => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.onended = null;
+      audio.onerror = null;
+      audio.pause();
+      audio.currentTime = 0;
+      if (audio.src.startsWith('blob:')) {
+        URL.revokeObjectURL(audio.src);
+      }
+      audio.removeAttribute('src');
+      audio.load();
+      audioRef.current = null;
+    }
+
+    disposeAudioGraph();
+  }, [disposeAudioGraph]);
+
   const ensureSpeechAnalyser = React.useCallback(async () => {
     const audio = audioRef.current;
     if (!audio) return null;
@@ -121,52 +147,16 @@ export function useTTSPreview({ generateSpeechAction, onSpeechLevelChange }: Use
     sampleSpeechLevel();
   }, [ensureSpeechAnalyser, stopSpeechLevelMonitoring]);
 
-  const clearAudioPreview = React.useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    audio.pause();
-    audio.currentTime = 0;
-    if (audio.src.startsWith('blob:')) {
-      URL.revokeObjectURL(audio.src);
-    }
-    audio.removeAttribute('src');
-    audio.load();
-  }, []);
-
   React.useEffect(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio();
-      audioRef.current.onended = () => {
-        setIsPlayingPreviewForVoiceId(null);
-        setIsLoadingPreviewForVoiceId(null);
-        stopSpeechLevelMonitoring();
-        if (audioRef.current?.src.startsWith('blob:')) {
-          URL.revokeObjectURL(audioRef.current.src);
-        }
-      };
-      audioRef.current.onerror = (e) => {
-        toast.error('Error playing audio preview.');
-        setIsPlayingPreviewForVoiceId(null);
-        setIsLoadingPreviewForVoiceId(null);
-        stopSpeechLevelMonitoring();
-      };
-    }
     return () => {
       stopSpeechLevelMonitoring();
       clearAudioPreview();
-      audioRef.current = null;
       audioContextRef.current?.close();
       audioContextRef.current = null;
-      audioSourceRef.current = null;
-      analyserRef.current = null;
-      analyserDataRef.current = null;
     };
   }, [clearAudioPreview, stopSpeechLevelMonitoring]);
 
   const playPreview = async (voice: VoiceOption) => {
-    if (!audioRef.current) return;
-
     if (isPlayingPreviewForVoiceId === voice.voiceId) {
       previewRequestIdRef.current += 1;
       clearAudioPreview();
@@ -235,10 +225,28 @@ export function useTTSPreview({ generateSpeechAction, onSpeechLevelChange }: Use
           URL.revokeObjectURL(audioURL);
           return;
         }
-        audioRef.current.src = audioURL;
+
+        const audio = new Audio(audioURL);
+        audioRef.current = audio;
+        audio.onended = () => {
+          if (previewRequestIdRef.current !== requestId) return;
+          setIsPlayingPreviewForVoiceId(null);
+          setIsLoadingPreviewForVoiceId(null);
+          stopSpeechLevelMonitoring();
+          clearAudioPreview();
+        };
+        audio.onerror = () => {
+          if (previewRequestIdRef.current !== requestId) return;
+          toast.error('Error playing audio preview.');
+          setIsPlayingPreviewForVoiceId(null);
+          setIsLoadingPreviewForVoiceId(null);
+          stopSpeechLevelMonitoring();
+          clearAudioPreview();
+        };
+
         await ensureSpeechAnalyser();
         if (previewRequestIdRef.current !== requestId) return;
-        await audioRef.current.play();
+        await audio.play();
         if (previewRequestIdRef.current !== requestId) {
           clearAudioPreview();
           return;

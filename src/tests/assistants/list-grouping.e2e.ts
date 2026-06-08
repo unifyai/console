@@ -106,7 +106,7 @@ test('groups colleagues by team and keeps row selection assistant-scoped', async
   await expect(teamsSection.getByRole('button', { name: /Teams/ })).toBeVisible({
     timeout: 15_000,
   });
-  await expect(soloSection.getByRole('button', { name: /Independent colleagues.*1/ })).toBeVisible({
+  await expect(soloSection.getByRole('button', { name: /Team.*1/ })).toBeVisible({
     timeout: 10_000,
   });
 

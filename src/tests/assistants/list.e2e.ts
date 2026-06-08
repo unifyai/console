@@ -91,6 +91,12 @@ test('clicking an assistant in the list selects it and shows the Chat tab', asyn
     timeout: 5_000,
   });
   await expect(page.locator(`text=${dbAssistant.surname}`).first()).toBeVisible({ timeout: 5_000 });
+
+  await listItem.click();
+  await expect(page.getByTestId('right-pane-tab-chat')).not.toBeVisible({ timeout: 3_000 });
+  await expect(page.locator('text=Select a martian and watch them fly 🛸')).toBeVisible({
+    timeout: 5_000,
+  });
 });
 
 test('an assistant with a job title shows it in the chat info side panel', async ({

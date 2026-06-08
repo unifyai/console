@@ -140,9 +140,11 @@ export function AssistantListItem({
         {isCoordinator ? (
           <CoordinatorLogoAvatar className="h-8 w-8" />
         ) : (
-          <Avatar className="h-8 w-8">
+          <Avatar className="rounded-control h-8 w-8">
             <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
-            <AvatarFallback>{assistantInitials(assistant)}</AvatarFallback>
+            <AvatarFallback className="rounded-control">
+              {assistantInitials(assistant)}
+            </AvatarFallback>
           </Avatar>
         )}
         {status !== null && (
@@ -192,9 +194,11 @@ export function AssistantListItem({
           {isCoordinator ? (
             <CoordinatorLogoAvatar className="h-8 w-8 flex-shrink-0" />
           ) : (
-            <Avatar className="h-8 w-8 flex-shrink-0 cursor-default">
+            <Avatar className="rounded-control h-8 w-8 flex-shrink-0 cursor-default">
               <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
-              <AvatarFallback>{assistantInitials(assistant)}</AvatarFallback>
+              <AvatarFallback className="rounded-control">
+                {assistantInitials(assistant)}
+              </AvatarFallback>
             </Avatar>
           )}
           {status !== null && (

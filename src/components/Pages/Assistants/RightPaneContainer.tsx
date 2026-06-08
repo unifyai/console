@@ -47,7 +47,7 @@ import {
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
 const ACTIVE_TAB_TRIGGER_CLASS =
-  'border border-[color:var(--role-green-deep)] bg-primary text-primary-foreground !shadow-none hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:shadow-none';
+  'border-transparent bg-primary text-primary-foreground !shadow-none hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:shadow-none';
 
 const TAB_TRIGGER_CLASS = [
   'flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-transparent px-2 text-xs font-medium',
@@ -109,6 +109,29 @@ interface RightPaneTabConfig {
   dividerBefore?: boolean;
 }
 
+function JoystickIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={cn(className, '!h-4 !w-4')}
+      fill="none"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M12 13.25V6.75" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+      <circle cx="12" cy="5.25" r="2.25" fill="currentColor" />
+      <path
+        d="M6.5 13.25h11l1.35 5.35A2.25 2.25 0 0 1 16.67 21H7.33a2.25 2.25 0 0 1-2.18-2.4l1.35-5.35Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path d="M9 17h3.25M10.62 15.38v3.25" stroke="currentColor" strokeLinecap="round" />
+      <circle cx="15.75" cy="16.75" r="0.9" fill="currentColor" />
+    </svg>
+  );
+}
+
 const MEMORY_SUB_TABS: ReadonlyArray<RightPaneSubTab> = [
   { id: 'Contacts', label: 'Contacts', Icon: Users },
   { id: 'Transcripts', label: 'Transcripts', Icon: MessageSquare },
@@ -157,7 +180,7 @@ export const RIGHT_PANE_TABS: ReadonlyArray<RightPaneTabConfig> = [
   {
     id: 'actions',
     label: 'Actions',
-    Icon: Activity,
+    Icon: JoystickIcon,
     describe: (name) => `What ${name} is doing right now`,
   },
   {
@@ -445,12 +468,14 @@ export function RightPaneContainer({
 
   if (!assistant) {
     return (
-      <LiveActionsViewer
-        assistant={null}
-        actions={null}
-        className="brand-chat-stencil-bg h-full"
-        onHasActiveActionChange={handleActiveActionChange}
-      />
+      <div className="brand-chat-stencil-bg h-full w-full bg-background">
+        <LiveActionsViewer
+          assistant={null}
+          actions={null}
+          className="h-full"
+          onHasActiveActionChange={handleActiveActionChange}
+        />
+      </div>
     );
   }
 
@@ -520,14 +545,12 @@ export function RightPaneContainer({
         data-slot={slot}
       >
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-3 py-1.5">
-          <div className="flex min-w-0 flex-1 items-center overflow-x-auto">
+          <div className="right-pane-tabs-container flex min-w-0 flex-1 items-center overflow-hidden">
             <TabsList
-              // `gap-3` reads well at full width; in split / mobile the
-              // labels collapse to icon-only (`hidden sm:inline` below)
-              // so the same gap stays comfortable for icon-only chips.
-              className="h-8 flex-nowrap gap-3 rounded-none bg-transparent p-0"
+              // Labels are visually hidden; tooltips carry the short titles.
+              className="right-pane-tabs-list h-8 flex-nowrap gap-2 rounded-none bg-transparent p-0"
             >
-              {RIGHT_PANE_TABS.map(({ id, label, Icon, describe, subTabs, dividerBefore }) => {
+              {RIGHT_PANE_TABS.map(({ id, label, Icon, subTabs, dividerBefore }) => {
                 // "Active in this slot" — i.e. the tab the user is
                 // currently looking at. Used to suppress the unread
                 // chip while chat is visible (defensive: `Main` also
@@ -546,15 +569,11 @@ export function RightPaneContainer({
                 // "selected" and "live" without a separate background.
                 const isActionsLive = id === 'actions' && hasActiveAction;
                 const unreadLabel = unreadChatCount > 99 ? '99+' : String(unreadChatCount);
-                const tooltipSubject = assistant.isCoordinator
-                  ? assistantDisplayName(assistant)
-                  : assistant.firstName || 'them';
-                const tooltipBase = describe(tooltipSubject);
-                const tooltipText = showUnreadInsteadOfIcon
-                  ? `${tooltipBase} — ${unreadChatCount} unread`
+                const ariaLabel = showUnreadInsteadOfIcon
+                  ? `${label} — ${unreadChatCount} unread`
                   : isActionsLive
-                    ? `${tooltipBase} — live`
-                    : tooltipBase;
+                    ? `${label} — live`
+                    : label;
 
                 // Subtle vertical separator drawn immediately before
                 // the tab when its config opts in via `dividerBefore`.
@@ -568,7 +587,7 @@ export function RightPaneContainer({
                 const dividerNode = dividerBefore ? (
                   <span
                     aria-hidden="true"
-                    className="-mx-2 h-4 w-px self-center bg-border"
+                    className="right-pane-tab-divider -mx-2 h-4 w-px self-center bg-border"
                     data-testid={
                       slot === 'primary'
                         ? `right-pane-tab-divider-${id}`
@@ -602,12 +621,7 @@ export function RightPaneContainer({
                   const currentSubTab = subTabs.find((st) => st.id === currentSubTabValue);
                   const DisplayIcon = currentSubTab?.Icon ?? Icon;
                   const displayLabel = currentSubTab?.label ?? label;
-                  // Surface the resolved sub-tab in the tooltip too so
-                  // the AT label and hover bubble stay accurate after
-                  // the in-place swap.
-                  const dropdownTooltipText = currentSubTab
-                    ? `${tooltipText} — ${currentSubTab.label}`
-                    : tooltipText;
+                  const dropdownTitle = displayLabel;
                   const handleSubTabSelect = (next: string) => {
                     if (id === 'memory') {
                       setSlotSubTab(slot, 'memory', next as MemoryTabContext);
@@ -644,11 +658,11 @@ export function RightPaneContainer({
                                         ? `right-pane-tab-${id}`
                                         : `right-pane-secondary-tab-${id}`
                                     }
-                                    aria-label={dropdownTooltipText}
+                                    aria-label={dropdownTitle}
                                     aria-haspopup="menu"
                                   >
                                     <DisplayIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                                    <span className="hidden sm:inline">{displayLabel}</span>
+                                    <span className="right-pane-tab-label">{displayLabel}</span>
                                     <ChevronDown
                                       className="h-3 w-3 opacity-60"
                                       aria-hidden="true"
@@ -658,7 +672,7 @@ export function RightPaneContainer({
                               </span>
                             </TooltipTrigger>
                             <TooltipContent side="bottom">
-                              <p>{dropdownTooltipText}</p>
+                              <p>{dropdownTitle}</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -740,11 +754,7 @@ export function RightPaneContainer({
                                   ? `right-pane-tab-${id}`
                                   : `right-pane-secondary-tab-${id}`
                               }
-                              // Mirror the visual indicator into the AT
-                              // layer so screen-reader users hear "Chat,
-                              // 3 unread" / "Actions, live" instead of
-                              // just the bare label.
-                              aria-label={tooltipText}
+                              aria-label={ariaLabel}
                             >
                               {showUnreadInsteadOfIcon ? (
                                 // Numeric chip *replaces* the icon (same
@@ -786,16 +796,14 @@ export function RightPaneContainer({
                                   }
                                 />
                               )}
-                              {/* Same icon-only-on-mobile pattern as
-                                  the memory/tasks sub-tabs. The Radix
-                                  tooltip carries the name on hover
-                                  regardless. */}
-                              <span className="hidden sm:inline">{label}</span>
+                              {/* Labels remain in the DOM for layout consistency,
+                                  but CSS keeps the strip icon-only. */}
+                              <span className="right-pane-tab-label">{label}</span>
                             </TabsTrigger>
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
-                          <p>{tooltipText}</p>
+                          <p>{label}</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -969,7 +977,7 @@ export function RightPaneContainer({
   const splitRatio = Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, paneState.splitRatio));
 
   return (
-    <div ref={splitContainerRef} className="bg-background/40 flex h-full w-full">
+    <div ref={splitContainerRef} className="brand-chat-stencil-bg flex h-full w-full bg-background">
       <div
         className="flex h-full min-w-0 flex-col"
         style={{ width: hasSplit ? `${splitRatio * 100}%` : '100%' }}

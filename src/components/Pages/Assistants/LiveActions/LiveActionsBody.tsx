@@ -169,7 +169,7 @@ export function LiveActionsBody({
         )}
         data-testid="live-actions-no-assistant"
       >
-        <p className="text-center">Select a martian and watch em cook</p>
+        <p className="text-center">Select a martian and watch them fly 🛸</p>
       </div>
     );
   }

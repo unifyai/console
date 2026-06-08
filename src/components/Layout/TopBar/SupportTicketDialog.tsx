@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CircleHelp, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import {
   Dialog,
@@ -18,6 +18,25 @@ import { useSupportTicket } from '@/hooks/Support/useSupportTicket';
 import { submitSupportTicket } from '@/lib/support/ticket';
 
 const MAX_DESCRIPTION_LENGTH = 2000;
+
+function HelpSquareIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3.25" y="3.25" width="17.5" height="17.5" rx="4" />
+      <path d="M9.4 9a2.65 2.65 0 0 1 5.15.88c0 1.78-2.55 2.5-2.55 3.98" />
+      <path d="M12 17.1h.01" />
+    </svg>
+  );
+}
 
 export default function SupportTicketDialog() {
   const {
@@ -59,7 +78,7 @@ export default function SupportTicketDialog() {
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
-              className="relative h-6 w-6 rounded-full p-0"
+              className="rounded-control relative h-6 w-6 p-0"
               onClick={openDialog}
               disabled={isCapturing}
               data-testid="support-ticket-trigger"
@@ -67,7 +86,7 @@ export default function SupportTicketDialog() {
               {isCapturing ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <CircleHelp className="h-4 w-4" />
+                <HelpSquareIcon className="h-[17px] w-[17px] translate-y-px" />
               )}
             </Button>
           </TooltipTrigger>

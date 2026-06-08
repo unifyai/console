@@ -7,23 +7,30 @@ type UnifyBlockMarkProps = {
 
 export function UnifyBlockMark({ className, showWordmark = false }: UnifyBlockMarkProps) {
   return (
-    <span className={cn('group inline-flex items-center gap-2 text-foreground', className)}>
+    <span
+      className={cn('unify-block-mark inline-flex items-center gap-2 text-foreground', className)}
+    >
       <svg
         aria-hidden="true"
-        className="h-6 w-6 overflow-visible"
+        className="glyph h-6 w-6 overflow-visible"
         role="img"
-        viewBox="0 0 32 32"
+        viewBox="0 0 31 31"
         xmlns="http://www.w3.org/2000/svg"
       >
-        <g className="origin-center transition-transform duration-300 ease-out group-hover:-translate-x-0.5 group-hover:-translate-y-0.5">
-          <rect fill="var(--role-green)" height="12" rx="3" width="12" x="2" y="2" />
-          <rect fill="var(--role-green)" height="12" rx="3" width="12" x="2" y="18" />
+        <g className="lg lg-green">
+          <rect fill="var(--role-green)" height="7.6" rx="2.4" width="7.6" x="1.5" y="1.5" />
+          <rect fill="var(--role-green)" height="7.6" rx="2.4" width="7.6" x="10.5" y="1.5" />
+          <rect fill="var(--role-green)" height="7.6" rx="2.4" width="7.6" x="1.5" y="10.5" />
         </g>
-        <g className="origin-center transition-transform duration-300 ease-out group-hover:-translate-y-0.5 group-hover:translate-x-0.5">
-          <rect fill="var(--role-blue)" height="12" rx="3" width="12" x="18" y="2" />
+        <g className="lg lg-blue">
+          <rect fill="var(--role-blue)" height="7.6" rx="2.4" width="7.6" x="19.5" y="1.5" />
+          <rect fill="var(--role-blue)" height="7.6" rx="2.4" width="7.6" x="10.5" y="10.5" />
+          <rect fill="var(--role-blue)" height="7.6" rx="2.4" width="7.6" x="19.5" y="10.5" />
         </g>
-        <g className="origin-center transition-transform duration-300 ease-out group-hover:translate-y-0.5">
-          <rect fill="var(--role-orange)" height="12" rx="3" width="12" x="18" y="18" />
+        <g className="lg lg-orange">
+          <rect fill="var(--role-orange)" height="7.6" rx="2.4" width="7.6" x="1.5" y="19.5" />
+          <rect fill="var(--role-orange)" height="7.6" rx="2.4" width="7.6" x="10.5" y="19.5" />
+          <rect fill="var(--role-orange)" height="7.6" rx="2.4" width="7.6" x="19.5" y="19.5" />
         </g>
       </svg>
       {showWordmark ? (

@@ -194,6 +194,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     clearPanelProfileAssistant();
     syncProfileQueryParam(null);
   }, [clearPanelProfileAssistant, syncProfileQueryParam]);
+  const handleAssistantListSelect = React.useCallback(
+    (assistantId: string) => {
+      if (assistantId === profileAssistantId) {
+        handleProfileClose();
+        return;
+      }
+
+      handleShowProfile(assistantId);
+    },
+    [handleProfileClose, handleShowProfile, profileAssistantId]
+  );
 
   // Right-pane state (primary tab, optional secondary tab for split-view,
   // splitter ratio) is lifted out of `RightPaneContainer` for two reasons:
@@ -2087,7 +2098,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 isLoading={isLoadingAssistants}
                 error={assistantError}
                 profileAssistantId={profileAssistantId}
-                onShowProfile={handleShowProfile}
+                onShowProfile={handleAssistantListSelect}
                 onOpenHireDialog={handleOpenHireDialog}
                 onOpenContactManager={handleOpenContactManager}
                 onOpenWorkspaceManager={handleOpenWorkspaceManager}
@@ -2113,7 +2124,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             />
 
             {/* Right Pane: Chat + Actions + Dashboards */}
-            <div className="bg-background/70 relative h-full min-w-0 flex-1 overflow-hidden">
+            <div className="relative h-full min-w-0 flex-1 overflow-hidden bg-background">
               <RightPaneContainer
                 assistant={profileAssistant}
                 actions={assistantActions.actions || null}

@@ -390,7 +390,7 @@ export function AssistantList({
       {soloGroup
         ? renderSection(
             'section:solo',
-            'Independent colleagues',
+            'Team',
             soloRows.length,
             <div className="min-w-0 space-y-1">
               {soloRows.map((entry) =>
@@ -439,7 +439,7 @@ export function AssistantList({
               <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search teammates..."
+                placeholder="Search"
                 className="h-7 w-full pl-7 text-xs"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}

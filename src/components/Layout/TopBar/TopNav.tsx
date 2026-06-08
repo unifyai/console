@@ -158,9 +158,11 @@ export default function TopNav() {
 
           const resolvedAvatarUrl = photos['personal'] || imageUrl;
           setAvatarJSX(
-            <Avatar className="h-6 w-6">
+            <Avatar className="rounded-control h-6 w-6">
               <AvatarImage src={resolvedAvatarUrl} alt="User Avatar" />
-              <AvatarFallback className="text-label">{getInitials(userName)}</AvatarFallback>
+              <AvatarFallback className="rounded-control text-label">
+                {getInitials(userName)}
+              </AvatarFallback>
             </Avatar>
           );
         }
@@ -208,12 +210,8 @@ export default function TopNav() {
       <div className="flex h-full items-center justify-between px-3.5">
         {/* Logo + Workspace + Nav */}
         <div className="flex items-center">
-          <Link
-            href="/"
-            className="flex items-center rounded-md px-1 transition-transform hover:-translate-y-px"
-            aria-label="Unify Console"
-          >
-            <UnifyBlockMark className="h-6" />
+          <Link href="/" className="flex items-center rounded-md px-1" aria-label="Unify Console">
+            <UnifyBlockMark showWordmark />
           </Link>
 
           {/* Workspace Pill — hidden for personal-only users to avoid duplicating the profile avatar */}
@@ -398,7 +396,7 @@ export default function TopNav() {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="relative h-6 w-6 rounded-full p-0"
+                className="rounded-control relative h-6 w-6 p-0"
                 data-testid="profile-dropdown-trigger"
               >
                 {isWorkspaceSwitchable && activeWorkspace?.type === 'personal' ? (
