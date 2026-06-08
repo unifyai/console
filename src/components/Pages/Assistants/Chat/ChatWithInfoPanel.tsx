@@ -97,6 +97,7 @@ export interface ChatWithInfoPanelProps {
   // --- Assistant-contextual props for info side panel ---
   onEditProfile?: (assistant: Assistant) => void;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
+  currentUserId?: string | null;
   /** Drives the visibility of every edit affordance the info side
    *  panel surfaces (profile pencil, Contact Info "Edit" button,
    *  per-channel "Add …" CTAs). Defaults to `true`. */
@@ -182,6 +183,7 @@ export function ChatWithInfoPanel({
   spendingBlockedMessage,
   onEditProfile,
   onOpenContactManager,
+  currentUserId,
   canWrite = true,
   hasUserMessage = false,
   hasHistoricalCall = false,
@@ -512,6 +514,7 @@ export function ChatWithInfoPanel({
           >
             <AssistantInfoSidePanelContent
               assistant={assistant}
+              currentUserId={currentUserId}
               onEditProfile={onEditProfile}
               onOpenContactManager={onOpenContactManager}
               roadmap={roadmap}

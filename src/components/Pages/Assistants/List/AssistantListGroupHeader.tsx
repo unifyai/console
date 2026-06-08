@@ -5,12 +5,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 interface AssistantListGroupHeaderProps {
   label: string;
-  count: number;
   isFolded: boolean;
   onToggleFold: () => void;
   description?: string | null;
   variant?: 'section' | 'group' | 'workspace';
-  countLabel?: string;
   subtitle?: string | null;
   icon?: React.ReactNode;
   badgeLabel?: string;
@@ -18,12 +16,10 @@ interface AssistantListGroupHeaderProps {
 
 export function AssistantListGroupHeader({
   label,
-  count,
   isFolded,
   onToggleFold,
   description,
   variant = 'group',
-  countLabel,
   subtitle,
   icon,
   badgeLabel,
@@ -76,7 +72,6 @@ export function AssistantListGroupHeader({
             {badgeLabel}
           </span>
         ) : null}
-        <span className="tabular-nums">{countLabel ?? count}</span>
       </span>
     </button>
   );

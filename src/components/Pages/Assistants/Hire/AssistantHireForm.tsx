@@ -12,9 +12,10 @@ import {
   Voice,
 } from '@/types/assistants/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
-import { Volume2, Settings, Laptop, Shuffle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Volume2, Laptop, Shuffle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import {
@@ -26,12 +27,6 @@ import {
 } from '@/components/UI/select';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { getDefaultVoiceForProvider } from '@/utils/assistants/voice-utils';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/UI/accordion';
 import { cn } from '@/lib/utils';
 import { FaUbuntu, FaWindows } from 'react-icons/fa';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
@@ -40,7 +35,7 @@ import { getCreatureMetrics, type CreatureEyes } from '@/components/Brand/Teamma
 import { roleColorVars, type BrandRole, type CreatureShape } from '@/components/Brand/shapes';
 
 const staticSkillsText = `The bio doesn't influence the martian's abilities. All martians come with the same foundational skills and can specialize in whichever area you want them to.`;
-const MARTIAN_PREVIEW_SIZE = 192;
+const MARTIAN_PREVIEW_SIZE = 160;
 const APPEARANCE_HOVER_CONTROL_CLASS = 'transition-opacity duration-150';
 
 const appearanceEyeOptions = ['up', 'down', 'square'] as const satisfies readonly CreatureEyes[];
@@ -91,78 +86,15 @@ function getSpeakingEyes(baseEyes: CreatureEyes, frame: number): CreatureEyes {
   return sequenceByBaseEyes[baseEyes][frame % sequenceByBaseEyes[baseEyes].length];
 }
 
-function SpaceshipIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      fill="none"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <g transform="rotate(-12 12 12)">
-        <path
-          d="M8.1 10.3C8.8 7.9 10.2 6.5 12 6.5s3.2 1.4 3.9 3.8"
-          stroke="var(--muted-foreground)"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.8}
-        />
-        <path
-          d="M3 13.1c2.2-1.6 5.4-2.5 9-2.5s6.8.9 9 2.5c-1.2 2.4-4.7 3.9-9 3.9s-7.8-1.5-9-3.9Z"
-          fill="var(--muted-foreground)"
-        />
-      </g>
-    </svg>
-  );
-}
-
-function MartianOutlineIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      fill="none"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M7 5h10v3h3v5h-3v6h-4v-4h-2v4H7v-6H4V8h3V5Z"
-        stroke="var(--muted-foreground)"
-        strokeLinejoin="round"
-        strokeWidth={1.8}
-      />
-    </svg>
-  );
-}
-
-function AccordionIconSlot({ children }: { children: React.ReactNode }) {
+function SectionIconSlot({ children }: { children: React.ReactNode }) {
   return (
     <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">{children}</span>
   );
 }
 
-const InfoSquareButton = React.forwardRef<
-  HTMLButtonElement,
-  React.ComponentPropsWithoutRef<'button'>
->(({ className, ...props }, ref) => (
-  <button
-    ref={ref}
-    type="button"
-    aria-label="More information"
-    className={cn(
-      'text-caption rounded-control inline-flex h-4 w-4 shrink-0 scale-90 cursor-help items-center justify-center border border-muted-foreground text-muted-foreground',
-      className
-    )}
-    {...props}
-  >
-    <span aria-hidden="true" className="flex h-2.5 w-1 flex-col items-center justify-between">
-      <span className="rounded-control h-0.5 w-0.5 bg-current" />
-      <span className="rounded-control h-[7px] w-0.5 bg-current" />
-    </span>
-  </button>
-));
-InfoSquareButton.displayName = 'InfoSquareButton';
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return <div className="mb-2 flex items-center gap-2 text-muted-foreground">{children}</div>;
+}
 
 export interface HireFormProps {
   formMethods: UseFormReturn<AssistantFormData>;
@@ -254,6 +186,11 @@ export function HireForm({
     setMartianColor((current) => pickOption(appearanceColorOptions, current));
   }, []);
 
+  const randomizeProfileAndAppearance = React.useCallback(() => {
+    onRandomizeProfile?.();
+    randomizeMartianAppearance();
+  }, [onRandomizeProfile, randomizeMartianAppearance]);
+
   const handlePreviewSpeechLevelChange = React.useCallback((level: number) => {
     const martian = martianSpeechRef.current;
     if (!martian) return;
@@ -313,377 +250,364 @@ export function HireForm({
     <FormProvider {...formMethods}>
       <form onSubmit={onSubmit} className="flex h-full flex-col space-y-6">
         <ScrollArea className="min-h-0 flex-1">
-          <fieldset disabled={isSubmitting} className="group px-4 py-2">
-            <Accordion type="multiple" defaultValue={['photo', 'voice']} className="w-full">
-              {/* Profile Section */}
-              <AccordionItem value="profile" aria-label="profile trigger">
-                <AccordionTrigger className="text-title">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <AccordionIconSlot>
-                      <SpaceshipIcon className="h-[18px] w-[18px]" />
-                    </AccordionIconSlot>
-                    <span className="text-body">Profile</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pt-2">
-                  <div className="space-y-2">
-                    {onRandomizeProfile && (
-                      <div className="flex justify-start pb-1">
-                        <TooltipProvider delayDuration={100}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                aria-label="Randomize martian profile"
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="h-8 gap-1.5"
-                                disabled={isSubmitting}
-                                onClick={onRandomizeProfile}
-                              >
-                                <Shuffle className="h-3.5 w-3.5" />
-                                Randomize
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Randomize name, role, and bio</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    )}
-                    <div className="grid flex-1 grid-cols-2 gap-x-4 gap-y-1">
-                      <div className="col-span-2 sm:col-span-1">
-                        <Label htmlFor="firstName">First Name</Label>
-                        <Input
-                          id="firstName"
-                          {...register('firstName', {
-                            required: 'First name is required',
-                          })}
-                        />
-                        {errors.firstName && (
-                          <p className="text-body text-strong mt-1 text-destructive">
-                            {errors.firstName.message}
-                          </p>
-                        )}
-                      </div>
-                      <div className="col-span-2 sm:col-span-1">
-                        <Label htmlFor="surname">Last Name</Label>
-                        <Input
-                          id="surname"
-                          {...register('surname', {
-                            required: 'Last name is required',
-                          })}
-                        />
-                        {errors.surname && (
-                          <p className="text-body text-strong mt-1 text-destructive">
-                            {errors.surname.message}
-                          </p>
-                        )}
-                      </div>
-                      <div className="col-span-2 flex flex-col space-y-2 pt-1">
-                        <div className="flex flex-row items-center gap-2">
-                          <Label htmlFor="jobTitle">Role</Label>
-                          <TooltipProvider delayDuration={100}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <InfoSquareButton />
-                              </TooltipTrigger>
-                              <TooltipContent
-                                side="right"
-                                align="end"
-                                className="text-caption max-w-xs"
-                              >
-                                <p>
-                                  Optional short label to remember what this martian is for (e.g.
-                                  &quot;Growth marketing&quot;, &quot;QA engineer&quot;). Shown in
-                                  the martians list hover card.
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                        <Input
-                          id="jobTitle"
-                          placeholder="e.g. Growth marketing"
-                          maxLength={120}
-                          {...register('jobTitle', {
-                            maxLength: {
-                              value: 120,
-                              message: 'Role must be 120 characters or less',
-                            },
-                            setValueAs: (v) => {
-                              if (v === undefined || v === null) return null;
-                              const trimmed = String(v).trim();
-                              return trimmed.length > 0 ? trimmed : null;
-                            },
-                          })}
-                        />
-                        {errors.jobTitle && (
-                          <p className="text-body text-strong mt-1 text-destructive">
-                            {errors.jobTitle.message}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="pt-1">
-                      <Label htmlFor="timezone">Timezone</Label>
-                      <Controller
-                        name="timezone"
-                        control={control}
-                        rules={{ required: 'Timezone is required.' }}
-                        render={({ field }) => (
-                          <Select
-                            value={field.value || ''}
-                            onValueChange={field.onChange}
-                            disabled={isSubmitting}
-                          >
-                            <SelectTrigger id="timezone">
-                              <SelectValue placeholder="Select a timezone..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {timezoneOptions.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {errors.timezone && (
-                        <p className="text-body text-strong mt-1 text-destructive">
-                          {errors.timezone.message}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex w-full flex-col space-y-2 pt-1">
-                      <div className="flex flex-row items-center gap-2">
-                        <Label htmlFor="about">About</Label>
-                        <TooltipProvider delayDuration={100}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <InfoSquareButton />
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="right"
-                              align="end"
-                              className="text-caption max-w-xs"
+          <fieldset
+            disabled={isSubmitting}
+            className="brand-page-stencil-bg group overflow-hidden rounded-lg px-4 py-2"
+          >
+            <div>
+              <section className="min-w-0">
+                <div className="space-y-3">
+                  {onRandomizeProfile && (
+                    <div className="flex justify-start">
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              aria-label="Randomize martian profile"
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 gap-1.5"
+                              disabled={isSubmitting}
+                              onClick={randomizeProfileAndAppearance}
                             >
-                              <p>{staticSkillsText}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      <Textarea
-                        id="about"
-                        placeholder="Describe the persona's background, personality, etc..."
-                        className="min-h-[100px] pr-8"
-                        {...register('about', { required: 'About description is required' })}
-                      />
-                      {errors.about && (
-                        <p className="text-body text-strong mt-1 text-destructive">
-                          {errors.about.message}
-                        </p>
-                      )}
+                              <Shuffle className="h-3.5 w-3.5" />
+                              Randomize
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Randomize name, role, and bio</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
+                  )}
 
-              {/* Photo Section */}
-              <AccordionItem
-                value="photo"
-                aria-label="photo trigger"
-                onMouseEnter={() => setIsAppearanceControlsVisible(true)}
-                onMouseLeave={() => setIsAppearanceControlsVisible(false)}
-              >
-                <AccordionTrigger className="text-title">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <AccordionIconSlot>
-                      <MartianOutlineIcon className="h-4 w-4" />
-                    </AccordionIconSlot>
-                    <span className="text-body">Appearance</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pt-2">
-                  <div className="flex justify-center py-1">
-                    <div className="flex w-full max-w-sm flex-col items-center gap-1">
-                      <div className="relative flex h-48 w-72 max-w-full items-center justify-center overflow-visible">
-                        <Button
-                          aria-label="Previous eye style"
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className={cn(
-                            'absolute left-5 h-9 w-9 bg-transparent hover:bg-transparent',
-                            APPEARANCE_HOVER_CONTROL_CLASS,
-                            appearanceControlVisibilityClass
-                          )}
-                          disabled={isSubmitting}
-                          onClick={() =>
-                            setMartianEyes((current) =>
-                              cycleOption(appearanceEyeOptions, current, -1)
-                            )
-                          }
-                          style={{ top: eyeArrowTop }}
-                        >
-                          <ChevronLeft className="!h-7 !w-7" />
-                        </Button>
-                        <Button
-                          aria-label="Next eye style"
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className={cn(
-                            'absolute right-5 h-9 w-9 bg-transparent hover:bg-transparent',
-                            APPEARANCE_HOVER_CONTROL_CLASS,
-                            appearanceControlVisibilityClass
-                          )}
-                          disabled={isSubmitting}
-                          onClick={() =>
-                            setMartianEyes((current) =>
-                              cycleOption(appearanceEyeOptions, current, 1)
-                            )
-                          }
-                          style={{ top: eyeArrowTop }}
-                        >
-                          <ChevronRight className="!h-7 !w-7" />
-                        </Button>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="firstName">First Name</Label>
 
-                        <Button
-                          aria-label="Previous body shape"
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className={cn(
-                            'absolute left-1 top-[55%] h-9 w-9 bg-transparent hover:bg-transparent',
-                            APPEARANCE_HOVER_CONTROL_CLASS,
-                            appearanceControlVisibilityClass
+                    <div className="grid gap-5 md:grid-cols-2 md:items-stretch">
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Input
+                            id="firstName"
+                            {...register('firstName', {
+                              required: 'First name is required',
+                              setValueAs: (v) => String(v ?? '').trim(),
+                            })}
+                          />
+                          {errors.firstName && (
+                            <p className="text-body text-strong text-destructive">
+                              {errors.firstName.message}
+                            </p>
                           )}
-                          disabled={isSubmitting}
-                          onClick={() =>
-                            setMartianShape((current) =>
-                              cycleOption(appearanceShapeOptions, current, -1)
-                            )
-                          }
-                        >
-                          <ChevronLeft className="!h-7 !w-7" />
-                        </Button>
-                        <Button
-                          aria-label="Next body shape"
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className={cn(
-                            'absolute right-1 top-[55%] h-9 w-9 bg-transparent hover:bg-transparent',
-                            APPEARANCE_HOVER_CONTROL_CLASS,
-                            appearanceControlVisibilityClass
-                          )}
-                          disabled={isSubmitting}
-                          onClick={() =>
-                            setMartianShape((current) =>
-                              cycleOption(appearanceShapeOptions, current, 1)
-                            )
-                          }
-                        >
-                          <ChevronRight className="!h-7 !w-7" />
-                        </Button>
+                        </div>
 
-                        <button
-                          aria-label="Randomize martian appearance"
-                          className="flex h-full w-52 items-center justify-center bg-transparent p-0 outline-none transition-transform hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring"
-                          disabled={isSubmitting}
-                          onClick={randomizeMartianAppearance}
-                          type="button"
-                        >
-                          <span
-                            ref={martianSpeechRef}
-                            className="block h-full w-full transform-gpu"
-                            style={{ '--martian-speech-level': 0 } as React.CSSProperties}
-                          >
-                            <TeammateCreature
-                              className="h-full w-full"
-                              color={martianColor}
-                              eyes={displayedMartianEyes}
-                              label="Martian avatar"
-                              shape={martianShape}
-                            />
-                          </span>
-                        </button>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="surname">Last Name</Label>
+                          <Input
+                            id="surname"
+                            {...register('surname', {
+                              setValueAs: (v) => String(v ?? '').trim(),
+                            })}
+                          />
+                          {errors.surname && (
+                            <p className="text-body text-strong text-destructive">
+                              {errors.surname.message}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex flex-row items-center gap-2">
+                            <Label htmlFor="jobTitle">Role</Label>
+                            <TooltipProvider delayDuration={100}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <InfoSquareButton />
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  side="right"
+                                  align="end"
+                                  className="text-caption max-w-xs"
+                                >
+                                  <p>
+                                    Optional short label to remember what this martian is for (e.g.
+                                    &quot;Growth marketing&quot;, &quot;QA engineer&quot;). Shown in
+                                    the martians list hover card.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          <Input
+                            id="jobTitle"
+                            placeholder="e.g. Growth marketing"
+                            maxLength={120}
+                            {...register('jobTitle', {
+                              maxLength: {
+                                value: 120,
+                                message: 'Role must be 120 characters or less',
+                              },
+                              setValueAs: (v) => {
+                                if (v === undefined || v === null) return null;
+                                const trimmed = String(v).trim();
+                                return trimmed.length > 0 ? trimmed : null;
+                              },
+                            })}
+                          />
+                          {errors.jobTitle && (
+                            <p className="text-body text-strong text-destructive">
+                              {errors.jobTitle.message}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="timezone">Timezone</Label>
+                          <Controller
+                            name="timezone"
+                            control={control}
+                            rules={{ required: 'Timezone is required.' }}
+                            render={({ field }) => (
+                              <Select
+                                value={field.value || ''}
+                                onValueChange={field.onChange}
+                                disabled={isSubmitting}
+                              >
+                                <SelectTrigger id="timezone" className="bg-card">
+                                  <SelectValue placeholder="Select a timezone..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {timezoneOptions.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {errors.timezone && (
+                            <p className="text-body text-strong text-destructive">
+                              {errors.timezone.message}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
                       <div
-                        className={cn(
-                          'flex items-center gap-2',
-                          APPEARANCE_HOVER_CONTROL_CLASS,
-                          appearanceControlVisibilityClass
-                        )}
+                        className="flex min-h-64 w-full flex-col items-center justify-center rounded-lg border border-border bg-card p-4 sm:min-h-72 md:min-h-0"
+                        onMouseEnter={() => setIsAppearanceControlsVisible(true)}
+                        onMouseLeave={() => setIsAppearanceControlsVisible(false)}
                       >
-                        <Button
-                          aria-label="Previous martian color"
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 bg-transparent hover:bg-transparent"
-                          disabled={isSubmitting}
-                          onClick={() =>
-                            setMartianColor((current) =>
-                              cycleOption(appearanceColorOptions, current, -1)
-                            )
-                          }
-                        >
-                          <ChevronLeft className="!h-7 !w-7" />
-                        </Button>
-                        <div
-                          aria-label={`Current martian color: ${martianColor}`}
-                          className="flex items-center gap-1.5 px-1 py-1"
-                          role="img"
-                        >
-                          {[previousColor, martianColor, nextColor].map((color) => (
-                            <span
-                              aria-hidden="true"
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-3">
+                          <div className="relative flex h-44 w-64 max-w-full items-center justify-center overflow-visible sm:h-56 sm:w-72 md:h-40 md:w-64">
+                            <Button
+                              aria-label="Previous eye style"
+                              type="button"
+                              variant="ghost"
+                              size="icon"
                               className={cn(
-                                'rounded-control block border border-border',
-                                color === martianColor ? 'h-5 w-5' : 'h-3.5 w-3.5 opacity-65'
+                                'absolute left-0 h-8 w-8 bg-transparent hover:bg-transparent md:left-4',
+                                APPEARANCE_HOVER_CONTROL_CLASS,
+                                appearanceControlVisibilityClass
                               )}
-                              key={color}
-                              style={{ backgroundColor: roleColorVars[color] }}
-                            />
-                          ))}
+                              disabled={isSubmitting}
+                              onClick={() =>
+                                setMartianEyes((current) =>
+                                  cycleOption(appearanceEyeOptions, current, -1)
+                                )
+                              }
+                              style={{ top: eyeArrowTop }}
+                            >
+                              <ChevronLeft className="!h-6 !w-6" />
+                            </Button>
+                            <Button
+                              aria-label="Next eye style"
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className={cn(
+                                'absolute right-0 h-8 w-8 bg-transparent hover:bg-transparent md:right-4',
+                                APPEARANCE_HOVER_CONTROL_CLASS,
+                                appearanceControlVisibilityClass
+                              )}
+                              disabled={isSubmitting}
+                              onClick={() =>
+                                setMartianEyes((current) =>
+                                  cycleOption(appearanceEyeOptions, current, 1)
+                                )
+                              }
+                              style={{ top: eyeArrowTop }}
+                            >
+                              <ChevronRight className="!h-6 !w-6" />
+                            </Button>
+
+                            <Button
+                              aria-label="Previous body shape"
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className={cn(
+                                'absolute left-0 top-[55%] h-8 w-8 bg-transparent hover:bg-transparent md:left-4',
+                                APPEARANCE_HOVER_CONTROL_CLASS,
+                                appearanceControlVisibilityClass
+                              )}
+                              disabled={isSubmitting}
+                              onClick={() =>
+                                setMartianShape((current) =>
+                                  cycleOption(appearanceShapeOptions, current, -1)
+                                )
+                              }
+                            >
+                              <ChevronLeft className="!h-6 !w-6" />
+                            </Button>
+                            <Button
+                              aria-label="Next body shape"
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className={cn(
+                                'absolute right-0 top-[55%] h-8 w-8 bg-transparent hover:bg-transparent md:right-4',
+                                APPEARANCE_HOVER_CONTROL_CLASS,
+                                appearanceControlVisibilityClass
+                              )}
+                              disabled={isSubmitting}
+                              onClick={() =>
+                                setMartianShape((current) =>
+                                  cycleOption(appearanceShapeOptions, current, 1)
+                                )
+                              }
+                            >
+                              <ChevronRight className="!h-6 !w-6" />
+                            </Button>
+
+                            <button
+                              aria-label="Randomize martian appearance"
+                              className="flex h-full w-40 items-center justify-center bg-transparent p-0 outline-none transition-transform hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring sm:w-52 md:w-40"
+                              disabled={isSubmitting}
+                              onClick={randomizeMartianAppearance}
+                              type="button"
+                            >
+                              <span
+                                ref={martianSpeechRef}
+                                className="block h-full w-full transform-gpu"
+                                style={{ '--martian-speech-level': 0 } as React.CSSProperties}
+                              >
+                                <TeammateCreature
+                                  className="h-full w-full"
+                                  color={martianColor}
+                                  eyes={displayedMartianEyes}
+                                  label="Martian avatar"
+                                  shape={martianShape}
+                                />
+                              </span>
+                            </button>
+                          </div>
+
+                          <div
+                            className={cn(
+                              'flex items-center gap-2',
+                              APPEARANCE_HOVER_CONTROL_CLASS,
+                              appearanceControlVisibilityClass
+                            )}
+                          >
+                            <Button
+                              aria-label="Previous martian color"
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 bg-transparent hover:bg-transparent"
+                              disabled={isSubmitting}
+                              onClick={() =>
+                                setMartianColor((current) =>
+                                  cycleOption(appearanceColorOptions, current, -1)
+                                )
+                              }
+                            >
+                              <ChevronLeft className="!h-6 !w-6" />
+                            </Button>
+                            <div
+                              aria-label={`Current martian color: ${martianColor}`}
+                              className="flex items-center gap-1.5 px-1 py-1"
+                              role="img"
+                            >
+                              {[previousColor, martianColor, nextColor].map((color) => (
+                                <span
+                                  aria-hidden="true"
+                                  className={cn(
+                                    'rounded-control block border border-border',
+                                    color === martianColor ? 'h-5 w-5' : 'h-3.5 w-3.5 opacity-65'
+                                  )}
+                                  key={color}
+                                  style={{ backgroundColor: roleColorVars[color] }}
+                                />
+                              ))}
+                            </div>
+                            <Button
+                              aria-label="Next martian color"
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 bg-transparent hover:bg-transparent"
+                              disabled={isSubmitting}
+                              onClick={() =>
+                                setMartianColor((current) =>
+                                  cycleOption(appearanceColorOptions, current, 1)
+                                )
+                              }
+                            >
+                              <ChevronRight className="!h-6 !w-6" />
+                            </Button>
+                          </div>
                         </div>
-                        <Button
-                          aria-label="Next martian color"
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 bg-transparent hover:bg-transparent"
-                          disabled={isSubmitting}
-                          onClick={() =>
-                            setMartianColor((current) =>
-                              cycleOption(appearanceColorOptions, current, 1)
-                            )
-                          }
-                        >
-                          <ChevronRight className="!h-7 !w-7" />
-                        </Button>
                       </div>
                     </div>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
 
-              {/* Voice Section */}
-              <AccordionItem value="voice" aria-label="voice trigger">
-                <AccordionTrigger className="text-title">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <AccordionIconSlot>
-                      <Volume2 className="h-4 w-4" />
-                    </AccordionIconSlot>
-                    <span className="text-body">Voice</span>
+                  <div className="flex w-full flex-col space-y-2">
+                    <div className="flex flex-row items-center gap-2">
+                      <Label htmlFor="about">About</Label>
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <InfoSquareButton />
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="right"
+                            align="end"
+                            className="text-caption max-w-xs"
+                          >
+                            <p>{staticSkillsText}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <Textarea
+                      id="about"
+                      placeholder="Describe the persona's background, personality, etc..."
+                      className="min-h-[100px] pr-8"
+                      {...register('about', { required: 'About description is required' })}
+                    />
+                    {errors.about && (
+                      <p className="text-body text-strong mt-1 text-destructive">
+                        {errors.about.message}
+                      </p>
+                    )}
                   </div>
-                </AccordionTrigger>
-                <AccordionContent className="pt-2">
+                </div>
+              </section>
+
+              <div className="mt-6 grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(260px,360px)] md:items-start">
+                {/* Voice Section */}
+                <section className="min-w-0">
+                  <SectionHeader>
+                    <SectionIconSlot>
+                      <Volume2 className="h-4 w-4" />
+                    </SectionIconSlot>
+                    <span className="text-body">Voice</span>
+                  </SectionHeader>
                   <VoiceCustomization
                     assistantActions={assistantActions}
                     onAddPaymentMethod={onAddPaymentMethod}
@@ -739,45 +663,17 @@ export function HireForm({
                       {errors.voiceProvider.message}
                     </p>
                   )}
-                </AccordionContent>
-              </AccordionItem>
+                </section>
 
-              <AccordionItem value="advanced" className="border-b-0" aria-label="advanced trigger">
-                <AccordionTrigger className="text-title">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <AccordionIconSlot>
-                      <Settings className="h-4 w-4" />
-                    </AccordionIconSlot>
-                    <span className="text-body">Advanced</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pt-2">
+                <section className="min-w-0">
+                  <SectionHeader>
+                    <SectionIconSlot>
+                      <Laptop className="h-4 w-4" />
+                    </SectionIconSlot>
+                    <span className="text-body">Computer</span>
+                  </SectionHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2 pl-2">
-                        <Laptop className="mb-1 h-4 w-4 text-muted-foreground" />
-                        <Label htmlFor="operatingSystem" className="text-muted-foreground">
-                          Martian&apos;s Setup
-                        </Label>
-                        <TooltipProvider delayDuration={100}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <InfoSquareButton />
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="right"
-                              align="end"
-                              className="text-caption max-w-xs"
-                            >
-                              <p>
-                                {isEditMode
-                                  ? 'Desktop mode cannot be changed after the martian is created.'
-                                  : 'Choose to run the martian on a remote virtual machine (default) or connect it to a local desktop.'}
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
                       <Controller
                         name="setup"
                         control={control}
@@ -799,18 +695,18 @@ export function HireForm({
                               <div className="flex items-center space-x-2">
                                 <div
                                   className={cn(
-                                    'rounded-control flex h-3.5 w-3.5 items-center justify-center border border-muted-foreground',
+                                    'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
                                     field.value === 'remote' && 'border-primary'
                                   )}
                                 >
                                   {field.value === 'remote' && (
-                                    <div className="rounded-control h-1.5 w-1.5 bg-primary" />
+                                    <div className="rounded-control h-2 w-2 bg-primary" />
                                   )}
                                 </div>
                                 <Label
                                   htmlFor="setup-remote"
                                   className={cn(
-                                    'text-label font-normal',
+                                    'text-body font-normal',
                                     !isEditMode && 'cursor-pointer'
                                   )}
                                 >
@@ -835,19 +731,19 @@ export function HireForm({
                                       >
                                         <div
                                           className={cn(
-                                            'rounded-control flex h-3.5 w-3.5 items-center justify-center border border-muted-foreground',
+                                            'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
                                             osField.value === 'ubuntu' && 'border-primary'
                                           )}
                                         >
                                           {osField.value === 'ubuntu' && (
-                                            <div className="rounded-control h-1.5 w-1.5 bg-primary" />
+                                            <div className="rounded-control h-2 w-2 bg-primary" />
                                           )}
                                         </div>
                                         <FaUbuntu className="h-4 w-4" />
                                         <Label
                                           htmlFor="os-remote-ubuntu"
                                           className={cn(
-                                            'text-label font-normal',
+                                            'text-body font-normal',
                                             !isEditMode && 'cursor-pointer'
                                           )}
                                         >
@@ -866,19 +762,19 @@ export function HireForm({
                                       >
                                         <div
                                           className={cn(
-                                            'rounded-control flex h-3.5 w-3.5 items-center justify-center border border-muted-foreground',
+                                            'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
                                             osField.value === 'windows' && 'border-primary'
                                           )}
                                         >
                                           {osField.value === 'windows' && (
-                                            <div className="rounded-control h-1.5 w-1.5 bg-primary" />
+                                            <div className="rounded-control h-2 w-2 bg-primary" />
                                           )}
                                         </div>
                                         <FaWindows className="h-4 w-4" />
                                         <Label
                                           htmlFor="os-remote-windows"
                                           className={cn(
-                                            'text-label font-normal',
+                                            'text-body font-normal',
                                             !isEditMode && 'cursor-pointer'
                                           )}
                                         >
@@ -895,9 +791,9 @@ export function HireForm({
                       />
                     </div>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+                </section>
+              </div>
+            </div>
           </fieldset>
         </ScrollArea>
       </form>

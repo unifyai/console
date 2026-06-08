@@ -19,7 +19,6 @@ module.exports = {
     },
     extend: {
       backgroundImage: {
-        'pixel-grid': 'var(--pixel-grid)',
         checkerboard: 'var(--checkerboard)',
         searchbar:
           'linear-gradient(90deg, var(--searchbar-gradient-start) -0.53%, var(--searchbar-gradient-end) 100%)',

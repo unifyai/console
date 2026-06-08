@@ -256,6 +256,7 @@ interface RightPaneContainerProps {
   callPillHistories: Record<string, CallPill[]>;
   setCallPillHistories: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
   userEmail: string | null | undefined;
+  currentUserId?: string | null;
   isFirstView?: boolean;
   preHireChat?: ChatMessage[];
   onFirstViewCompleted?: () => void;
@@ -346,6 +347,7 @@ export function RightPaneContainer({
   callPillHistories,
   setCallPillHistories,
   userEmail,
+  currentUserId,
   isFirstView = false,
   preHireChat,
   onFirstViewCompleted,
@@ -873,6 +875,7 @@ export function RightPaneContainer({
             callPillHistories={callPillHistories}
             setCallPillHistories={setCallPillHistories}
             userEmail={userEmail}
+            currentUserId={currentUserId}
             userTimezone={userTimezone}
             isFirstView={isFirstView}
             preHireChat={preHireChat}

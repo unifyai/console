@@ -667,8 +667,8 @@ export function VoiceCustomization({
         (disabled || isProcessingCreate || isGeneratingPreviews) && 'cursor-not-allowed opacity-70'
       )}
     >
-      <div className="h-[276px] rounded-md border">
-        <ScrollArea className="h-full w-full">
+      <div className="h-[276px] overflow-hidden rounded-md border bg-card">
+        <ScrollArea className="h-full w-full rounded-[inherit]">
           {isLoadingUserVoices ? (
             <div className="space-y-1 p-2">
               {[...Array(5)].map((_, i) => (
@@ -678,7 +678,7 @@ export function VoiceCustomization({
           ) : (
             <div>
               {selectedVoice && (
-                <div className="sticky top-0 z-10 border-b bg-background p-2">
+                <div className="sticky top-0 z-10 border-b bg-card p-2">
                   <VoiceListItem placement="pinned" voice={selectedVoice} />
                 </div>
               )}

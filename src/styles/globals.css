@@ -115,9 +115,6 @@
     --sidebar-border: var(--rule);
     --sidebar-ring: var(--role-green-deep);
 
-    --pixel-grid:
-      linear-gradient(to right, rgba(10, 20, 16, 0.035) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(10, 20, 16, 0.035) 1px, transparent 1px);
     --checkerboard:
       linear-gradient(45deg, rgba(10, 20, 16, 0.045) 25%, transparent 25%),
       linear-gradient(-45deg, rgba(10, 20, 16, 0.045) 25%, transparent 25%),
@@ -208,9 +205,6 @@
     --status-danger-bg: color-mix(in srgb, var(--destructive) 16%, transparent);
     --status-neutral: rgba(238, 240, 234, 0.68);
     --status-neutral-bg: var(--surface);
-    --pixel-grid:
-      linear-gradient(to right, rgba(238, 240, 234, 0.035) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(238, 240, 234, 0.035) 1px, transparent 1px);
     --checkerboard:
       linear-gradient(45deg, rgba(238, 240, 234, 0.045) 25%, transparent 25%),
       linear-gradient(-45deg, rgba(238, 240, 234, 0.045) 25%, transparent 25%),
@@ -485,10 +479,6 @@
     font-family: var(--font-serif), Georgia, Cambria, 'Times New Roman', Times, serif;
     @apply font-normal italic tracking-[-0.02em];
   }
-  .brand-pixel-grid {
-    background-image: var(--pixel-grid);
-    background-size: 28px 28px;
-  }
   .brand-checkerboard {
     background-image: var(--checkerboard);
     background-position:
@@ -498,12 +488,14 @@
       -8px 0;
     background-size: 16px 16px;
   }
+  .brand-page-stencil-bg,
   .brand-chat-stencil-bg {
     position: relative;
     background-color: var(--background);
     background-image: none;
     --chat-stencil-pattern: var(--chat-maze-pattern);
   }
+  .brand-page-stencil-bg::before,
   .brand-chat-stencil-bg::before {
     pointer-events: none;
     position: absolute;
@@ -520,6 +512,7 @@
     -webkit-mask-size: var(--chat-maze-size);
     mask-size: var(--chat-maze-size);
   }
+  .brand-page-stencil-bg > *,
   .brand-chat-stencil-bg > * {
     position: relative;
     z-index: 1;

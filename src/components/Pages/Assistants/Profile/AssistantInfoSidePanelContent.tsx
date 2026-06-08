@@ -4,7 +4,7 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { Button } from '@/components/UI/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { Mail, Phone, Copy, Check, Pencil } from 'lucide-react';
+import { Mail, Phone, Copy, Check, Pencil, Lock } from 'lucide-react';
 
 // Underlined-tabs styling, mirrored from the right-pane TAB_TRIGGER_CLASS
 // so the side-panel tabs read with the same visual grammar (active tab
@@ -36,6 +36,7 @@ import { CoordinatorOnboardingChecklist } from '@/components/Pages/Assistants/Co
 
 export interface AssistantInfoSidePanelContentProps {
   assistant: Assistant;
+  currentUserId?: string | null;
   /** Open the edit-profile dialog (wired from page-level Main).
    *  Suppressed when `canWrite === false` regardless of whether a
    *  handler is provided — the affordance vanishes from the header. */
@@ -177,9 +178,6 @@ function CoordinatorAssistantInfoSidePanelContent({
   }, [showOnboardingTab, activeTab]);
 
   const copyResetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const supervisorName = [assistant.userFirstName, assistant.userLastName]
-    .filter(Boolean)
-    .join(' ');
 
   React.useEffect(
     () => () => {
@@ -205,7 +203,13 @@ function CoordinatorAssistantInfoSidePanelContent({
           name="Unity"
           photoSrc={undefined}
           initials="CO"
-          supervisorName={supervisorName}
+          summary="Your personal helper"
+          visibilityLabel={
+            <span className="inline-flex items-center gap-1">
+              Only you
+              <Lock className="h-3 w-3" aria-hidden="true" />
+            </span>
+          }
           isIdCopied={isIdCopied}
           onCopyId={copyId}
           onEdit={canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined}
@@ -289,6 +293,7 @@ function RegularAssistantInfoSidePanelContent({
   roadmap,
   className,
   canWrite = true,
+  currentUserId,
 }: AssistantInfoSidePanelContentProps) {
   const [isIdCopied, setIsIdCopied] = React.useState(false);
 
@@ -329,9 +334,10 @@ function RegularAssistantInfoSidePanelContent({
 
   const displayName = assistantDisplayName(assistant);
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
-  const supervisorName = [assistant.userFirstName, assistant.userLastName]
-    .filter(Boolean)
-    .join(' ');
+  const supervisorName =
+    currentUserId && assistant.userId === currentUserId
+      ? 'You'
+      : [assistant.userFirstName, assistant.userLastName].filter(Boolean).join(' ');
 
   const copyId = () => {
     navigator.clipboard.writeText(assistant.agentId);
@@ -355,6 +361,7 @@ function RegularAssistantInfoSidePanelContent({
           photoSrc={photoSrc}
           initials={assistantInitials(assistant)}
           supervisorName={supervisorName}
+          visibilityLabel="Everyone"
           isIdCopied={isIdCopied}
           onCopyId={copyId}
           onEdit={canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined}
@@ -425,7 +432,9 @@ interface IdentityHeaderProps {
   name: string;
   photoSrc: string | undefined;
   initials: string;
-  supervisorName: string;
+  supervisorName?: string;
+  summary?: React.ReactNode;
+  visibilityLabel: React.ReactNode;
   isIdCopied: boolean;
   onCopyId: () => void;
   onEdit?: () => void;
@@ -437,11 +446,16 @@ function IdentityHeader({
   photoSrc,
   initials,
   supervisorName,
+  summary,
+  visibilityLabel,
   isIdCopied,
   onCopyId,
   onEdit,
   avatarNode,
 }: IdentityHeaderProps) {
+  const metadataRowClass =
+    'text-caption grid min-w-0 grid-cols-[10ch_minmax(0,1fr)] items-center gap-x-1 text-muted-foreground';
+
   return (
     <div className="flex items-start gap-3">
       {avatarNode ?? (
@@ -454,25 +468,36 @@ function IdentityHeader({
         <div className="text-title truncate" data-testid="assistant-info-name">
           {name}
         </div>
-        {supervisorName && (
-          <div className="text-caption truncate text-muted-foreground">
-            <span className="opacity-70">Supervisor: </span>
-            <span>{supervisorName}</span>
+        {summary ? (
+          <div className={metadataRowClass}>
+            <span className="opacity-70">Role:</span>
+            <span className="truncate">{summary}</span>
           </div>
-        )}
+        ) : supervisorName ? (
+          <div className={metadataRowClass}>
+            <span className="opacity-70">Supervisor:</span>
+            <span className="truncate">{supervisorName}</span>
+          </div>
+        ) : null}
+        <div className={metadataRowClass}>
+          <span className="opacity-70">Visibility:</span>
+          <span className="truncate">{visibilityLabel}</span>
+        </div>
         <button
           type="button"
           onClick={onCopyId}
-          className="group/id text-caption flex min-w-0 cursor-pointer items-center gap-1 text-muted-foreground"
+          className={cn(metadataRowClass, 'group/id w-full cursor-pointer text-left')}
           data-testid="assistant-info-copy-id"
-          aria-label="Copy assistant ID"
+          aria-label="Copy martian ID"
         >
-          <span className="opacity-70">Assistant ID</span>
-          {isIdCopied ? (
-            <Check className="h-3 w-3 flex-shrink-0 text-[color:var(--status-success)]" />
-          ) : (
-            <Copy className="h-3 w-3 flex-shrink-0 opacity-70 transition-opacity group-hover/id:opacity-100" />
-          )}
+          <span className="opacity-70">Martian ID:</span>
+          <span className="flex min-w-0 items-center">
+            {isIdCopied ? (
+              <Check className="h-3 w-3 flex-shrink-0 text-[color:var(--status-success)]" />
+            ) : (
+              <Copy className="h-3 w-3 flex-shrink-0 opacity-70 transition-opacity group-hover/id:opacity-100" />
+            )}
+          </span>
         </button>
       </div>
       {onEdit && (

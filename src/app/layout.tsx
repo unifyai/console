@@ -13,6 +13,10 @@ export const metadata: Metadata = {
     template: 'Unify Console: %s',
     default: 'Unify Console',
   },
+  icons: {
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    shortcut: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

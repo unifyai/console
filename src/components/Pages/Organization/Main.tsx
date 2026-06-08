@@ -147,7 +147,7 @@ const Main = ({
 
   return (
     <>
-      <div className="relative flex h-full overflow-auto bg-background">
+      <div className="relative flex h-full overflow-auto bg-transparent">
         {currentOrg ? (
           <OrganizationWorkspaceView
             organization={currentOrg}

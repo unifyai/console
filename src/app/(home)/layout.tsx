@@ -32,12 +32,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <ThemeLoader>
               {/* Static skeleton bar to avoid brief blank before navbar hydration */}
               <div
-                className="fixed left-0 right-0 top-0 z-40 h-10 border-b border-[color:var(--frosted-border)] bg-[color:var(--frosted-bg)] backdrop-blur-lg"
+                className="fixed left-0 right-0 top-0 z-40 h-10 border-b border-border bg-card"
                 aria-hidden="true"
               />
               <Suspense
                 fallback={
-                  <div className="fixed left-0 right-0 top-0 z-50 flex h-10 items-center border-b border-[color:var(--frosted-border)] bg-[color:var(--frosted-bg)] px-3.5 backdrop-blur-lg">
+                  <div className="fixed left-0 right-0 top-0 z-50 flex h-10 items-center border-b border-border bg-card px-3.5">
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                     <span className="text-caption ml-2 text-muted-foreground">Loading…</span>
                   </div>
@@ -46,7 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <TopNav />
               </Suspense>
               <Suspense fallback={<LoadingScreen />}>
-                <main className="brand-pixel-grid relative top-10 h-[calc(100vh-2.5rem)] overflow-hidden bg-background">
+                <main className="brand-page-stencil-bg relative top-10 h-[calc(100vh-2.5rem)] overflow-hidden bg-background">
                   <MfaEnforcementGate>
                     <NuqsAdapter>{children}</NuqsAdapter>
                   </MfaEnforcementGate>

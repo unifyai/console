@@ -486,6 +486,9 @@ export function useAssistantForm(
     clearErrors();
 
     try {
+      data.firstName = String(data.firstName ?? '').trim();
+      data.surname = String(data.surname ?? '').trim();
+
       // Input validity checks (same as creation path)
       if (!data.firstName) {
         setError('firstName', {
@@ -493,13 +496,6 @@ export function useAssistantForm(
           message: 'Missing assistant first name.',
         });
         throw new Error('Missing assistant first name.');
-      }
-      if (!data.surname) {
-        setError('surname', {
-          type: 'manual',
-          message: 'Missing assistant surname.',
-        });
-        throw new Error('Missing assistant surname.');
       }
       const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
       if (
@@ -540,7 +536,8 @@ export function useAssistantForm(
       // send them as a pair when either one has changed.
       const voiceIdChanged = data.voiceId !== editingAssistant.voiceId;
       const voiceProviderChanged = data.voiceProvider !== editingAssistant.voiceProvider;
-      if (voiceIdChanged || voiceProviderChanged) {
+      const voiceChanged = voiceIdChanged || voiceProviderChanged;
+      if (voiceChanged) {
         payload.voiceId = data.voiceId;
         payload.voiceProvider = data.voiceProvider;
       }
@@ -568,7 +565,7 @@ export function useAssistantForm(
         payload.profileVideo = (videoUploadResult as PhotoUploadResponse).gcsUrl;
       }
 
-      if (data.voiceId && !data.voiceExists) {
+      if (voiceChanged && data.voiceId && !data.voiceExists) {
         const provider = data?.voiceProvider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER;
         const voiceCreationResponse = await assistantActions.voice.register(
           data.voiceId,
@@ -621,6 +618,9 @@ export function useAssistantForm(
     clearErrors();
 
     try {
+      data.firstName = String(data.firstName ?? '').trim();
+      data.surname = String(data.surname ?? '').trim();
+
       // Input validity checks
       if (!data.firstName) {
         setError('firstName', {
@@ -628,13 +628,6 @@ export function useAssistantForm(
           message: 'Missing assistant first name.',
         });
         throw new Error('Missing assistant first name.');
-      }
-      if (!data.surname) {
-        setError('surname', {
-          type: 'manual',
-          message: 'Missing assistant surname.',
-        });
-        throw new Error('Missing assistant surname.');
       }
       const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
       if (
@@ -663,12 +656,14 @@ export function useAssistantForm(
         throw new Error('No voice selected.');
       }
 
+      const assistantDisplayName = [data.firstName, data.surname].filter(Boolean).join(' ');
+
       // Generate initial greeting if no pre-hire chat exists
       let finalChatHistory = chatHistory;
       if (!chatHistory || chatHistory.length === 0) {
         try {
           const greetingResult = await generatePostHireGreeting(
-            `${data.firstName} ${data.surname}`,
+            assistantDisplayName,
             data.age,
             data.about,
             data.nationality
@@ -806,7 +801,7 @@ export function useAssistantForm(
         ...(mediaUpdate.profileVideo ? { profileVideo: mediaUpdate.profileVideo } : {}),
       };
 
-      toast.success(`Assistant ${data.firstName} ${data.surname} hired!`);
+      toast.success(`Assistant ${assistantDisplayName} hired!`);
       resetFormAndHints();
       if (onHireSuccess) onHireSuccess(assistantForSuccess, data, finalChatHistory);
     } catch (error: any) {

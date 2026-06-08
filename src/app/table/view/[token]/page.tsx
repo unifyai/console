@@ -124,7 +124,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
  */
 function TableNotFoundMessage() {
   return (
-    <main className="brand-pixel-grid flex min-h-screen items-center justify-center bg-background">
+    <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background">
       <div className="text-center">
         <div className="mb-4 text-6xl">📊</div>
         <h1 className="text-display text-semibold mb-2 text-foreground">Table Not Found</h1>
@@ -141,7 +141,7 @@ function TableNotFoundMessage() {
  */
 function ErrorMessage({ message }: { message: string }) {
   return (
-    <main className="brand-pixel-grid flex min-h-screen items-center justify-center bg-background">
+    <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background">
       <div className="text-center">
         <div className="mb-4 text-6xl">⚠️</div>
         <h1 className="text-display text-semibold mb-2 text-foreground">Error Loading Table</h1>
@@ -156,7 +156,7 @@ function ErrorMessage({ message }: { message: string }) {
  */
 function EmptyDataMessage() {
   return (
-    <main className="brand-pixel-grid flex min-h-screen items-center justify-center bg-background">
+    <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background">
       <div className="text-center">
         <div className="mb-4 text-6xl">📭</div>
         <h1 className="text-display text-semibold mb-2 text-foreground">No Data</h1>
@@ -188,7 +188,7 @@ export default async function TableViewPage({ params }: PageProps) {
   }
 
   return (
-    <main className="brand-pixel-grid min-h-screen bg-background">
+    <main className="brand-page-stencil-bg min-h-screen bg-background">
       <TableViewer
         token={params.token}
         config={tableData.config}

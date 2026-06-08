@@ -9,7 +9,6 @@ import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -141,7 +140,7 @@ export function AssistantEdit({
     if (isSubmitting) return 'Updating...';
     if (isProcessingVoice) return 'Processing Voice...';
     if (isProcessingPhoto) return 'Processing Photo...';
-    return 'Update Assistant';
+    return 'Update Martian';
   };
 
   const displayName = assistantDisplayName(assistant);
@@ -166,9 +165,6 @@ export function AssistantEdit({
           <div className="flex items-start justify-between">
             <div>
               <DialogTitle className="text-title">Edit {displayName}</DialogTitle>
-              <DialogDescription className="text-subtitle pt-2">
-                Modify your assistant details.
-              </DialogDescription>
             </div>
             <TooltipProvider delayDuration={100}>
               <Tooltip open={isCloseTooltipOpen} onOpenChange={setIsCloseTooltipOpen}>

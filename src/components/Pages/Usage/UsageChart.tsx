@@ -70,7 +70,7 @@ function useChartColors(): ChartColors {
 function EmptyState({ message }: { message: string }) {
   return (
     <div
-      className="bg-muted/20 flex h-full min-h-[200px] flex-col items-center justify-center rounded-lg border border-dashed border-border"
+      className="flex h-full min-h-[200px] flex-col items-center justify-center rounded-lg border border-border bg-card"
       data-testid="usage-chart-empty"
     >
       <BarChart3 className="text-muted-foreground/50 mb-4 h-12 w-12" />
@@ -82,7 +82,7 @@ function EmptyState({ message }: { message: string }) {
 function LoadingState() {
   return (
     <div
-      className="bg-muted/10 flex h-full min-h-[200px] items-center justify-center rounded-lg border border-border"
+      className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-border bg-card"
       data-testid="usage-chart-loading"
     >
       <div className="flex flex-col items-center">

@@ -2135,6 +2135,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 callPillHistories={callPillHistories}
                 setCallPillHistories={setCallPillHistories}
                 userEmail={userMeta.email}
+                currentUserId={currentUserId}
                 isFirstView={isFirstViewAfterHire}
                 preHireChat={isFirstViewAfterHire ? newlyHiredInfo?.preHireChat : undefined}
                 onFirstViewCompleted={handleFirstViewCompleted}

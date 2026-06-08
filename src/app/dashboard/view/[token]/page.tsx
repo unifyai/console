@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 function DashboardNotFoundMessage() {
   return (
-    <main className="brand-pixel-grid flex min-h-screen items-center justify-center bg-background">
+    <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background">
       <div className="max-w-md px-6 text-center">
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
           <svg
@@ -75,7 +75,7 @@ function DashboardNotFoundMessage() {
 
 function ErrorMessage({ message }: { message: string }) {
   return (
-    <main className="brand-pixel-grid flex min-h-screen items-center justify-center bg-background">
+    <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background">
       <div className="max-w-md px-6 text-center">
         <div className="bg-destructive/10 mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full">
           <svg
@@ -113,7 +113,7 @@ export default async function DashboardViewPage({ params, searchParams }: PagePr
   const { data } = result;
 
   return (
-    <main className="brand-pixel-grid min-h-screen bg-background">
+    <main className="brand-page-stencil-bg min-h-screen bg-background">
       <DashboardViewer
         token={params.token}
         title={data.title}

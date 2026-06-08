@@ -11,7 +11,7 @@ export function BrandPattern({ children, className, variant = 'grid' }: BrandPat
     <div
       className={cn(
         'relative overflow-hidden',
-        variant === 'grid' ? 'brand-pixel-grid' : 'brand-checkerboard',
+        variant === 'grid' ? 'brand-page-stencil-bg' : 'brand-checkerboard',
         className
       )}
     >

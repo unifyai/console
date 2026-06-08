@@ -22,7 +22,7 @@ import { motion } from 'framer-motion';
  */
 const LoginCardShell = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="brand-pixel-grid fixed inset-0 bg-[var(--paper)]">
+    <div className="brand-page-stencil-bg fixed inset-0 bg-[var(--paper)]">
       <motion.div
         initial={{ y: '100vh' }}
         animate={{ y: 0 }}

@@ -57,9 +57,9 @@ async function openEditDialogForAssistant(
   await editItem.click();
   await page.waitForTimeout(1_500);
 
-  await expect(
-    page.locator('[role="dialog"]').locator('text=Modify your assistant details.')
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('[role="dialog"]').locator(`text=Edit ${firstName} Now`)).toBeVisible({
+    timeout: 10_000,
+  });
 }
 
 test('deleting an assistant removes it from the list and the database', async ({

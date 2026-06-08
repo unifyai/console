@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Image from 'next/image';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +20,6 @@ import {
   Phone,
   CheckCircle2,
   AlertCircle,
-  Info,
   Copy,
   Check,
   Pencil,
@@ -57,11 +57,14 @@ import { toast } from 'sonner';
 import { WhatsApp } from '@mui/icons-material';
 import { FaDiscord } from 'react-icons/fa';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/UI/tooltip';
+import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { useAssistantContactManager } from '@/hooks/Assistants/useAssistantContactManager';
 import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
 import { Badge } from '@/components/UI/badge';
 import { Checkbox } from '@/components/UI/checkbox';
 import { cn } from '@/lib/utils';
+import GoogleIcon from '@/public/icons/google-icon.png';
+import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 
 interface AssistantContactManagerProps {
   isOpen: boolean;
@@ -186,27 +189,41 @@ export const ByodProviderCard: React.FC<{
   isSelected: boolean;
   onSelect: () => void;
   disabled?: boolean;
-}> = ({ provider, isSelected, onSelect, disabled }) => (
-  <button
-    type="button"
-    onClick={onSelect}
-    disabled={disabled}
-    className={cn(
-      'flex flex-1 flex-col items-center rounded-lg border p-3 transition-colors',
-      isSelected
-        ? 'bg-primary/5 border-primary ring-1 ring-primary'
-        : 'hover:border-muted-foreground/50 border-border',
-      disabled && 'cursor-not-allowed opacity-50'
-    )}
-  >
-    <span className="text-body text-strong">
-      {provider === 'google' ? 'Google' : 'Microsoft 365'}
-    </span>
-    <span className="text-caption text-muted-foreground">
-      {provider === 'google' ? 'Gmail, Calendar, Drive' : 'Outlook, Teams, Calendar'}
-    </span>
-  </button>
-);
+}> = ({ provider, isSelected, onSelect, disabled }) => {
+  const isGoogle = provider === 'google';
+  const title = isGoogle ? 'Google Workspace' : 'Microsoft 365';
+  const subtitle = isGoogle ? 'Gmail, Calendar, Drive' : 'Outlook, Teams, Calendar';
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      disabled={disabled}
+      className={cn(
+        'flex flex-1 flex-col items-center gap-2 rounded-lg border p-4 text-center shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--role-green-deep)] focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        isSelected
+          ? 'border-[color:var(--role-green-deep)] bg-[color:var(--status-success-bg)] ring-1 ring-[color:var(--role-green-deep)]'
+          : 'border-border bg-card hover:border-[color:var(--role-green-deep)] hover:bg-[color:var(--status-success-bg)]',
+        disabled && 'cursor-not-allowed opacity-50'
+      )}
+      aria-label={title}
+    >
+      <span className="flex h-12 w-12 items-center justify-center rounded-md bg-background shadow-sm ring-1 ring-border">
+        <Image
+          src={isGoogle ? GoogleIcon : MicrosoftIcon}
+          alt={`${title} logo`}
+          width={28}
+          height={28}
+          className="h-7 w-7"
+        />
+      </span>
+      <span className="flex flex-col">
+        <span className="text-body text-strong">{title}</span>
+        <span className="text-caption text-muted-foreground">{subtitle}</span>
+      </span>
+    </button>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Feature checklist
@@ -653,7 +670,7 @@ const PhoneTabContent: React.FC<{
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+                <InfoSquareButton />
               </TooltipTrigger>
               <TooltipContent side="right" align="end" className="text-caption max-w-xs">
                 <p>{"The country where your assistant's phone number will be based."}</p>
@@ -703,7 +720,7 @@ const PhoneTabContent: React.FC<{
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+                <InfoSquareButton />
               </TooltipTrigger>
               <TooltipContent side="right" align="end" className="text-caption max-w-xs">
                 <p>
@@ -769,7 +786,7 @@ const WhatsAppTabContent: React.FC<{
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+                <InfoSquareButton />
               </TooltipTrigger>
               <TooltipContent side="right" align="end" className="text-caption max-w-xs">
                 <p>
@@ -838,7 +855,7 @@ const DiscordTabContent: React.FC<{
         <TooltipProvider delayDuration={100}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+              <InfoSquareButton />
             </TooltipTrigger>
             <TooltipContent side="right" align="end" className="text-caption max-w-xs">
               <p>

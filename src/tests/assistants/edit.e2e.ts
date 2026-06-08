@@ -24,12 +24,14 @@ const user = createTestUser({ name: 'EditE2E', lastName: 'Tester', credits: 50_0
 ensureProjectSync(user.apiKey);
 const test = createAssistantTest(user);
 test.setTimeout(120_000);
+test.describe.configure({ mode: 'serial' });
 
 const assistant = createAssistant({
   userId: user.id,
   firstName: 'EditBot',
   surname: 'Original',
 });
+const EDIT_DIALOG_TITLE = /^Edit /;
 
 test.afterAll(() => {
   deleteAllAssistantsForUser(user.id);
@@ -60,9 +62,9 @@ async function openEditDialog(page: import('@playwright/test').Page) {
   await page.waitForTimeout(1_500);
 
   // Verify the edit dialog opened
-  await expect(
-    page.locator('[role="dialog"]').locator('text=Modify your assistant details.')
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE })).toBeVisible({
+    timeout: 10_000,
+  });
 }
 
 test('updating the first name and surname via the edit dialog persists to DB', async ({
@@ -83,15 +85,13 @@ test('updating the first name and surname via the edit dialog persists to DB', a
   const surnameInput = page.locator('#surname');
   await surnameInput.fill(newLast);
 
-  // Click "Update Assistant" button and wait for the dialog to close
-  const updateBtn = page.getByRole('button', { name: /Update Assistant/i });
+  // Click "Update Martian" button and wait for the dialog to close
+  const updateBtn = page.getByRole('button', { name: /Update Martian/i });
   await updateBtn.scrollIntoViewIfNeeded();
   await updateBtn.click();
 
   // Wait for the edit dialog to close (indicates update completed)
-  const editDialog = page
-    .locator('[role="dialog"]')
-    .filter({ hasText: 'Modify your assistant details.' });
+  const editDialog = page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE });
   await expect(editDialog).not.toBeVisible({ timeout: 30_000 });
   await page.waitForTimeout(1_000);
 
@@ -103,6 +103,32 @@ test('updating the first name and surname via the edit dialog persists to DB', a
   // Verify the updated name is visible in the list
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: newFirst });
   await expect(listItem).toBeVisible({ timeout: 10_000 });
+});
+
+test('clearing the surname via the edit dialog persists an empty string', async ({
+  authedPage: page,
+}) => {
+  await openEditDialog(page);
+  await openAccordionSection(page, 'profile');
+
+  const firstNameInput = page.locator('#firstName');
+  await expect(firstNameInput).toBeVisible({ timeout: 5_000 });
+  await firstNameInput.fill(`SingleName${Date.now()}`);
+
+  const surnameInput = page.locator('#surname');
+  await expect(surnameInput).toBeVisible({ timeout: 5_000 });
+  await surnameInput.fill('   ');
+
+  const updateBtn = page.getByRole('button', { name: /Update Martian/i });
+  await updateBtn.scrollIntoViewIfNeeded();
+  await updateBtn.click();
+
+  const editDialog = page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE });
+  await expect(editDialog).not.toBeVisible({ timeout: 30_000 });
+  await page.waitForTimeout(1_000);
+
+  const dbAfter = getAssistantFromDb(assistant.agentId);
+  expect(dbAfter.surname).toBe('');
 });
 
 test('updating the about field via the edit dialog persists to DB', async ({
@@ -118,41 +144,16 @@ test('updating the about field via the edit dialog persists to DB', async ({
   await expect(aboutInput).toBeVisible({ timeout: 5_000 });
   await aboutInput.fill(newAbout);
 
-  const updateBtn = page.getByRole('button', { name: /Update Assistant/i });
+  const updateBtn = page.getByRole('button', { name: /Update Martian/i });
   await updateBtn.scrollIntoViewIfNeeded();
   await updateBtn.click();
 
-  const editDialog = page
-    .locator('[role="dialog"]')
-    .filter({ hasText: 'Modify your assistant details.' });
+  const editDialog = page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE });
   await expect(editDialog).not.toBeVisible({ timeout: 30_000 });
   await page.waitForTimeout(1_000);
 
   const dbAfter = getAssistantFromDb(assistant.agentId);
   expect(dbAfter.about).toBe(newAbout);
-});
-
-test('updating the age via the edit dialog persists to DB', async ({ authedPage: page }) => {
-  await openEditDialog(page);
-
-  await openAccordionSection(page, 'profile');
-
-  const ageInput = page.locator('#age');
-  await expect(ageInput).toBeVisible({ timeout: 5_000 });
-  await ageInput.fill('55');
-
-  const updateBtn = page.getByRole('button', { name: /Update Assistant/i });
-  await updateBtn.scrollIntoViewIfNeeded();
-  await updateBtn.click();
-
-  const editDialog = page
-    .locator('[role="dialog"]')
-    .filter({ hasText: 'Modify your assistant details.' });
-  await expect(editDialog).not.toBeVisible({ timeout: 30_000 });
-  await page.waitForTimeout(1_000);
-
-  const dbAfter = getAssistantFromDb(assistant.agentId);
-  expect(dbAfter.age).toBe('55');
 });
 
 test('setting a job title via the edit dialog persists job_title to DB', async ({
@@ -167,13 +168,11 @@ test('setting a job title via the edit dialog persists job_title to DB', async (
   await expect(jobTitleInput).toBeVisible({ timeout: 5_000 });
   await jobTitleInput.fill(newJobTitle);
 
-  const updateBtn = page.getByRole('button', { name: /Update Assistant/i });
+  const updateBtn = page.getByRole('button', { name: /Update Martian/i });
   await updateBtn.scrollIntoViewIfNeeded();
   await updateBtn.click();
 
-  const editDialog = page
-    .locator('[role="dialog"]')
-    .filter({ hasText: 'Modify your assistant details.' });
+  const editDialog = page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE });
   await expect(editDialog).not.toBeVisible({ timeout: 30_000 });
   await page.waitForTimeout(1_000);
 
@@ -191,10 +190,12 @@ test('clearing the job title via the edit dialog sets job_title to NULL', async 
     await openEditDialog(page);
     await openAccordionSection(page, 'profile');
     await page.locator('#jobTitle').fill('Temporary Title');
-    await page.getByRole('button', { name: /Update Assistant/i }).click();
+    await page.getByRole('button', { name: /Update Martian/i }).click();
     await expect(
-      page.locator('[role="dialog"]').filter({ hasText: 'Modify your assistant details.' })
-    ).not.toBeVisible({ timeout: 30_000 });
+      page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE })
+    ).not.toBeVisible({
+      timeout: 30_000,
+    });
     await page.waitForTimeout(1_000);
   }
 
@@ -206,13 +207,11 @@ test('clearing the job title via the edit dialog sets job_title to NULL', async 
   // Clear the field — backend should normalize empty / whitespace to NULL.
   await jobTitleInput.fill('   ');
 
-  const updateBtn = page.getByRole('button', { name: /Update Assistant/i });
+  const updateBtn = page.getByRole('button', { name: /Update Martian/i });
   await updateBtn.scrollIntoViewIfNeeded();
   await updateBtn.click();
 
-  const editDialog = page
-    .locator('[role="dialog"]')
-    .filter({ hasText: 'Modify your assistant details.' });
+  const editDialog = page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE });
   await expect(editDialog).not.toBeVisible({ timeout: 30_000 });
   await page.waitForTimeout(1_000);
 

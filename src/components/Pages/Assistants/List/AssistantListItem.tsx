@@ -138,9 +138,9 @@ export function AssistantListItem({
         onKeyDown={handleFoldedKeyDown}
       >
         {isCoordinator ? (
-          <CoordinatorLogoAvatar className="h-8 w-8" />
+          <CoordinatorLogoAvatar className="h-9 w-9" />
         ) : (
-          <Avatar className="rounded-control h-8 w-8">
+          <Avatar className="rounded-control h-9 w-9">
             <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
             <AvatarFallback className="rounded-control">
               {assistantInitials(assistant)}
@@ -151,7 +151,7 @@ export function AssistantListItem({
           <span
             role="status"
             className={cn(
-              'absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background',
+              'absolute bottom-0.5 right-0.5 block h-2 w-2 rounded-full ring-2 ring-background',
               isOnline ? 'bg-[var(--role-green)]' : 'bg-muted-foreground'
             )}
           />
@@ -192,9 +192,9 @@ export function AssistantListItem({
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="relative">
           {isCoordinator ? (
-            <CoordinatorLogoAvatar className="h-8 w-8 flex-shrink-0" />
+            <CoordinatorLogoAvatar className="h-9 w-9 flex-shrink-0" />
           ) : (
-            <Avatar className="rounded-control h-8 w-8 flex-shrink-0 cursor-default">
+            <Avatar className="rounded-control h-9 w-9 flex-shrink-0 cursor-default">
               <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
               <AvatarFallback className="rounded-control">
                 {assistantInitials(assistant)}
@@ -206,7 +206,7 @@ export function AssistantListItem({
               role="status"
               data-testid={`status-indicator-${assistant.agentId}`}
               className={cn(
-                'absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background',
+                'absolute bottom-0.5 right-0.5 block h-2 w-2 rounded-full ring-2 ring-background',
                 isOnline ? 'bg-[var(--role-green)]' : 'bg-muted-foreground'
               )}
             />

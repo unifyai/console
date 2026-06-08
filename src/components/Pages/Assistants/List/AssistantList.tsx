@@ -31,10 +31,6 @@ import {
 
 const LIST_GROUP_FOLDS_STORAGE_KEY = 'console:assistants:listGroupFolds';
 
-function pluralize(count: number, singular: string, plural = `${singular}s`): string {
-  return `${count} ${count === 1 ? singular : plural}`;
-}
-
 interface AssistantListProps {
   assistants: Assistant[];
   assistantStatuses: Map<string, AssistantStatus | null>;
@@ -292,10 +288,6 @@ export function AssistantList({
         >
           <AssistantListGroupHeader
             label={group.label}
-            count={group.rows.length}
-            countLabel={
-              group.kind === 'team' ? pluralize(group.rows.length, 'colleague') : undefined
-            }
             isFolded={isGroupFolded}
             onToggleFold={() => toggleGroupFold(group.id)}
             description={description}
@@ -328,15 +320,13 @@ export function AssistantList({
       count: number,
       children: React.ReactNode,
       testId: string,
-      options: { countLabel?: string; icon?: React.ReactNode } = {}
+      options: { icon?: React.ReactNode } = {}
     ) => {
       const isSectionFolded = foldedGroups[sectionId] === true;
       return (
         <div key={sectionId} data-testid={testId} className="min-w-0 max-w-full">
           <AssistantListGroupHeader
             label={label}
-            count={count}
-            countLabel={options.countLabel}
             isFolded={isSectionFolded}
             onToggleFold={() => toggleGroupFold(sectionId)}
             variant="section"
@@ -382,7 +372,6 @@ export function AssistantList({
             teamGroups.map(renderGroup),
             'assistant-list-section-teams',
             {
-              countLabel: pluralize(teamGroups.length, 'team'),
               icon: <UsersRound className="h-3.5 w-3.5" aria-hidden="true" />,
             }
           )

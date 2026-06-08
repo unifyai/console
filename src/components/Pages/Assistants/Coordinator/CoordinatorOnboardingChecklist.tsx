@@ -29,8 +29,9 @@
  */
 
 import * as React from 'react';
-import { ArrowLeft, Check, Info } from 'lucide-react';
+import { ArrowLeft, Check } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { cn } from '@/lib/utils';
 import { useCoordinatorOnboardingContext } from './CoordinatorOnboardingContext';
 
@@ -590,8 +591,7 @@ function ChecklistRow({
   const rowClassName = (variant: 'done' | 'actionable' | 'blocked' | 'static') =>
     cn(
       'flex w-full items-start gap-2 rounded-md px-1.5 py-1 -mx-1.5',
-      variant === 'actionable' && 'cursor-pointer hover:bg-muted/50',
-      variant === 'blocked' && 'cursor-not-allowed'
+      variant === 'actionable' && 'cursor-pointer hover:bg-muted/50'
       // "Next" anchor: the Next pill + the row label going
       // ``font-medium`` carries the affordance — we leave the row
       // chrome flat so the highlight reads as a guide rather than
@@ -628,19 +628,16 @@ function ChecklistRow({
       <TooltipProvider delayDuration={150}>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
-              type="button"
+            <InfoSquareButton
               // ``span``-like click target nested inside the
               // actionable button isn't valid HTML — stop the
               // propagation so opening the tooltip never
               // double-fires the row action.
               onClick={(e) => e.stopPropagation()}
               aria-label={`What is "${item.title}"?`}
-              className="text-muted-foreground/60 ml-0.5 inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full transition-colors hover:text-foreground"
+              className="border-muted-foreground/60 text-muted-foreground/60 ml-0.5"
               data-testid={`coordinator-onboarding-info-${item.id}`}
-            >
-              <Info className="h-3 w-3" />
-            </button>
+            />
           </TooltipTrigger>
           <TooltipContent side="left" className="max-w-[220px]">
             <p className="text-caption leading-snug">
@@ -681,30 +678,14 @@ function ChecklistRow({
       </button>
     );
   } else if (isBlocked) {
-    // Wrapping the disabled button in a Tooltip trigger mirrors
-    // ``AssistantSetupRoadmap``'s pattern — keyboard + mouse users
-    // both get the prereq hint, AT users still hear "button,
-    // dimmed".
     row = (
-      <TooltipProvider delayDuration={200}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              disabled
-              aria-disabled="true"
-              data-testid={`coordinator-onboarding-item-${item.id}`}
-              data-status="pending-blocked"
-              className="w-full text-left"
-            >
-              {rowBody('blocked')}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="left">
-            <p className="text-caption">{item.disabledReason}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <div
+        data-testid={`coordinator-onboarding-item-${item.id}`}
+        data-status="pending-blocked"
+        aria-disabled="true"
+      >
+        {rowBody('blocked')}
+      </div>
     );
   } else {
     // Static informational row: a non-actionable grouping header
@@ -794,13 +775,13 @@ function ChecklistMarker({ done }: { done: boolean }) {
     <span
       aria-hidden="true"
       className={cn(
-        'mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-none border',
+        'rounded-control mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center border',
         done
           ? 'border-[color:var(--role-green-deep)] bg-[color:var(--status-success-bg)] text-[color:var(--role-green-deep)]'
           : 'border-muted-foreground/40 bg-transparent'
       )}
     >
-      {done ? <Check className="h-3 w-3 stroke-[3]" /> : null}
+      {done ? <Check className="h-3 w-3 stroke-[4]" /> : null}
     </span>
   );
 }
