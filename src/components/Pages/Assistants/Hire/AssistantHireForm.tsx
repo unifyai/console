@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Image from 'next/image';
 import { UseFormReturn, FormProvider, Controller, useWatch } from 'react-hook-form';
 import { Input } from '@/components/UI/input';
 import { Textarea } from '@/components/UI/textarea';
@@ -12,8 +13,17 @@ import {
   Voice,
 } from '@/types/assistants/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
-import { Volume2, Laptop, Shuffle, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Volume2,
+  Laptop,
+  Shuffle,
+  ChevronLeft,
+  ChevronRight,
+  BriefcaseBusiness,
+  Check,
+} from 'lucide-react';
 import { Button } from '@/components/UI/button';
+import { Checkbox } from '@/components/UI/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { ScrollArea } from '@/components/UI/scroll-area';
@@ -33,6 +43,9 @@ import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 import { TeammateCreature } from '@/components/Brand';
 import { getCreatureMetrics, type CreatureEyes } from '@/components/Brand/TeammateCreature';
 import { roleColorVars, type BrandRole, type CreatureShape } from '@/components/Brand/shapes';
+import GoogleIcon from '@/public/icons/google-icon.png';
+import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
+import type { OAuthProvider } from '@/types/assistants/contact';
 
 const staticSkillsText = `The bio doesn't influence the martian's abilities. All martians come with the same foundational skills and can specialize in whichever area you want them to.`;
 const MARTIAN_PREVIEW_SIZE = 160;
@@ -114,6 +127,11 @@ export interface HireFormProps {
   /** Whether the user has explicitly selected/changed a preset (not the initial auto-select) */
   userHasChangedPreset?: boolean;
   onRandomizeProfile?: () => void;
+  workspaceProvider?: OAuthProvider | null;
+  onWorkspaceProviderSelect?: (provider: OAuthProvider) => void;
+  skipWorkspaceSetup?: boolean;
+  onSkipWorkspaceSetupChange?: (skip: boolean) => void;
+  showWorkspaceWarning?: boolean;
 }
 
 export function HireForm({
@@ -129,6 +147,11 @@ export function HireForm({
   mode = 'hire',
   onAddPaymentMethod,
   onRandomizeProfile,
+  workspaceProvider,
+  onWorkspaceProviderSelect,
+  skipWorkspaceSetup = false,
+  onSkipWorkspaceSetupChange,
+  showWorkspaceWarning = false,
 }: HireFormProps) {
   const {
     register,
@@ -152,6 +175,7 @@ export function HireForm({
   const martianSpeechRef = React.useRef<HTMLSpanElement | null>(null);
   const setup = useWatch({ control, name: 'setup' });
   const operatingSystem = useWatch({ control, name: 'operatingSystem' });
+  const firstName = useWatch({ control, name: 'firstName' });
   const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
   const defaultVoice = React.useMemo(() => getDefaultVoiceForProvider(), []);
   const isEditMode = mode === 'edit';
@@ -168,6 +192,11 @@ export function HireForm({
   const displayedMartianEyes = isVoicePreviewPlaying
     ? getSpeakingEyes(speakingEyeBaseRef.current, speakingEyeFrame)
     : martianEyes;
+  const workspaceAssistantName =
+    typeof firstName === 'string' && firstName.trim().length > 0
+      ? firstName.trim()
+      : 'this martian';
+  const isWorkspaceWarning = mode === 'hire' && showWorkspaceWarning;
   const eyeArrowTop = React.useMemo(() => {
     const metrics = getCreatureMetrics(martianShape);
     const scale = Math.min(
@@ -665,133 +694,323 @@ export function HireForm({
                   )}
                 </section>
 
-                <section className="min-w-0">
-                  <SectionHeader>
-                    <SectionIconSlot>
-                      <Laptop className="h-4 w-4" />
-                    </SectionIconSlot>
-                    <span className="text-body">Computer</span>
-                  </SectionHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Controller
-                        name="setup"
-                        control={control}
-                        render={({ field }) => (
-                          <div
-                            className={cn(
-                              'space-y-2',
-                              isEditMode && 'pointer-events-none opacity-60'
-                            )}
-                          >
+                <div className="min-w-0 space-y-5">
+                  <section className="min-w-0">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <div
+                        className={cn(
+                          'flex items-center gap-2 text-muted-foreground',
+                          isWorkspaceWarning && 'text-destructive'
+                        )}
+                      >
+                        <SectionIconSlot>
+                          <BriefcaseBusiness className="h-4 w-4" />
+                        </SectionIconSlot>
+                        <span className="text-body">Workspace</span>
+                        <TooltipProvider delayDuration={100}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <InfoSquareButton
+                                aria-label={
+                                  isWorkspaceWarning
+                                    ? 'Workspace setup warning'
+                                    : 'More information'
+                                }
+                                className={cn(
+                                  isWorkspaceWarning &&
+                                    'border-destructive text-destructive hover:text-destructive'
+                                )}
+                              >
+                                {isWorkspaceWarning ? (
+                                  <span
+                                    aria-hidden="true"
+                                    className="flex h-2.5 w-1 flex-col items-center justify-between"
+                                  >
+                                    <span className="rounded-control h-[7px] w-0.5 bg-current" />
+                                    <span className="rounded-control h-0.5 w-0.5 bg-current" />
+                                  </span>
+                                ) : undefined}
+                              </InfoSquareButton>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="left"
+                              align="start"
+                              className={cn(
+                                'max-w-sm',
+                                isWorkspaceWarning ? 'text-body text-destructive' : 'text-caption'
+                              )}
+                            >
+                              {isWorkspaceWarning && (
+                                <>
+                                  <span className="block">
+                                    It&apos;s advised to create a workspace for your new martian{' '}
+                                    <strong className="font-bold">now</strong>, so they can get
+                                    started right away. If you don&apos;t want to create one yet,
+                                    click skip.
+                                  </span>
+                                  <span className="my-3 block">----</span>
+                                </>
+                              )}
+                              <span className="block">
+                                Create a{' '}
+                                <strong
+                                  className={cn(
+                                    'font-bold',
+                                    !isWorkspaceWarning && 'text-foreground'
+                                  )}
+                                >
+                                  new
+                                </strong>{' '}
+                                Google or Microsoft account for {workspaceAssistantName}, so they
+                                can join your team, gain their own unique access controls to the
+                                files and applications you use via{' '}
+                                <strong
+                                  className={cn(
+                                    'font-bold',
+                                    !isWorkspaceWarning && 'text-foreground'
+                                  )}
+                                >
+                                  their own
+                                </strong>{' '}
+                                new account, and can work alongside your team.
+                              </span>
+                              <span className="mt-2 block">
+                                Do{' '}
+                                <strong
+                                  className={cn(
+                                    'font-bold',
+                                    !isWorkspaceWarning && 'text-foreground'
+                                  )}
+                                >
+                                  not
+                                </strong>{' '}
+                                connect {workspaceAssistantName} to your own Google/Microsoft
+                                account. Only Unity should have access to your personal account.
+                              </span>
+                              <span
+                                className={cn(
+                                  'mt-4 block font-bold',
+                                  !isWorkspaceWarning && 'text-title text-foreground'
+                                )}
+                              >
+                                Steps
+                              </span>
+                              <ol className="mt-2 list-decimal space-y-1 pl-5">
+                                <li>Log out of your own account.</li>
+                                <li>
+                                  Create a new account for {workspaceAssistantName}, or ask your IT
+                                  team to do so.
+                                </li>
+                                <li>
+                                  Log into the new account for {workspaceAssistantName} on your
+                                  machine.
+                                </li>
+                                <li>
+                                  Click the corresponding workspace below to auto-sync for{' '}
+                                  {workspaceAssistantName}.
+                                </li>
+                              </ol>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      {mode === 'hire' && (
+                        <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
+                          <Checkbox
+                            checked={skipWorkspaceSetup}
+                            onCheckedChange={(checked) =>
+                              onSkipWorkspaceSetupChange?.(checked === true)
+                            }
+                            disabled={isSubmitting || !onSkipWorkspaceSetupChange}
+                          />
+                          <span className="text-body">Skip</span>
+                        </label>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => onWorkspaceProviderSelect?.('google')}
+                        disabled={isSubmitting || !onWorkspaceProviderSelect}
+                        className={cn(
+                          'relative flex h-28 flex-col items-center justify-center rounded-md border bg-card px-3 text-center transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
+                          workspaceProvider === 'google'
+                            ? 'border-primary ring-1 ring-primary'
+                            : 'border-border'
+                        )}
+                        aria-label={
+                          mode === 'hire'
+                            ? 'Select Google Workspace'
+                            : 'Open Google Workspace integration'
+                        }
+                      >
+                        {workspaceProvider === 'google' && (
+                          <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            <Check className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                        <Image src={GoogleIcon} alt="Google logo" width={32} height={32} />
+                        <span className="text-body text-strong mt-3 text-foreground">
+                          Google Workspace
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onWorkspaceProviderSelect?.('microsoft')}
+                        disabled={isSubmitting || !onWorkspaceProviderSelect}
+                        className={cn(
+                          'relative flex h-28 flex-col items-center justify-center rounded-md border bg-card px-3 text-center transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
+                          workspaceProvider === 'microsoft'
+                            ? 'border-primary ring-1 ring-primary'
+                            : 'border-border'
+                        )}
+                        aria-label={
+                          mode === 'hire'
+                            ? 'Select Microsoft 365'
+                            : 'Open Microsoft 365 integration'
+                        }
+                      >
+                        {workspaceProvider === 'microsoft' && (
+                          <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            <Check className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                        <Image src={MicrosoftIcon} alt="Microsoft logo" width={32} height={32} />
+                        <span className="text-body text-strong mt-3 text-foreground">
+                          Microsoft 365
+                        </span>
+                      </button>
+                    </div>
+                  </section>
+
+                  <section className="min-w-0">
+                    <SectionHeader>
+                      <SectionIconSlot>
+                        <Laptop className="h-4 w-4" />
+                      </SectionIconSlot>
+                      <span className="text-body">Computer</span>
+                    </SectionHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Controller
+                          name="setup"
+                          control={control}
+                          render={({ field }) => (
                             <div
                               className={cn(
-                                'flex flex-col space-y-3 rounded-md border p-3',
-                                !isEditMode && 'cursor-pointer',
-                                field.value === 'remote' && 'border-primary'
+                                'space-y-2',
+                                isEditMode && 'pointer-events-none opacity-60'
                               )}
-                              onClick={() => !isEditMode && field.onChange('remote')}
                             >
-                              <div className="flex items-center space-x-2">
-                                <div
-                                  className={cn(
-                                    'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
-                                    field.value === 'remote' && 'border-primary'
-                                  )}
-                                >
-                                  {field.value === 'remote' && (
-                                    <div className="rounded-control h-2 w-2 bg-primary" />
-                                  )}
+                              <div
+                                className={cn(
+                                  'flex flex-col space-y-3 rounded-md border p-3',
+                                  !isEditMode && 'cursor-pointer',
+                                  field.value === 'remote' && 'border-primary'
+                                )}
+                                onClick={() => !isEditMode && field.onChange('remote')}
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <div
+                                    className={cn(
+                                      'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                      field.value === 'remote' && 'border-primary'
+                                    )}
+                                  >
+                                    {field.value === 'remote' && (
+                                      <div className="rounded-control h-2 w-2 bg-primary" />
+                                    )}
+                                  </div>
+                                  <Label
+                                    htmlFor="setup-remote"
+                                    className={cn(
+                                      'text-body font-normal',
+                                      !isEditMode && 'cursor-pointer'
+                                    )}
+                                  >
+                                    Remote - Use a virtual machine
+                                  </Label>
                                 </div>
-                                <Label
-                                  htmlFor="setup-remote"
-                                  className={cn(
-                                    'text-body font-normal',
-                                    !isEditMode && 'cursor-pointer'
-                                  )}
-                                >
-                                  Remote - Use a virtual machine
-                                </Label>
+                                {field.value === 'remote' && (
+                                  <Controller
+                                    name="operatingSystem"
+                                    control={control}
+                                    render={({ field: osField }) => (
+                                      <div className="space-y-2 pl-6">
+                                        <div
+                                          className={cn(
+                                            'flex items-center space-x-2',
+                                            !isEditMode && 'cursor-pointer'
+                                          )}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (!isEditMode) osField.onChange('ubuntu');
+                                          }}
+                                        >
+                                          <div
+                                            className={cn(
+                                              'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                              osField.value === 'ubuntu' && 'border-primary'
+                                            )}
+                                          >
+                                            {osField.value === 'ubuntu' && (
+                                              <div className="rounded-control h-2 w-2 bg-primary" />
+                                            )}
+                                          </div>
+                                          <FaUbuntu className="h-4 w-4" />
+                                          <Label
+                                            htmlFor="os-remote-ubuntu"
+                                            className={cn(
+                                              'text-body font-normal',
+                                              !isEditMode && 'cursor-pointer'
+                                            )}
+                                          >
+                                            Ubuntu
+                                          </Label>
+                                        </div>
+                                        <div
+                                          className={cn(
+                                            'flex items-center space-x-2',
+                                            !isEditMode && 'cursor-pointer'
+                                          )}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (!isEditMode) osField.onChange('windows');
+                                          }}
+                                        >
+                                          <div
+                                            className={cn(
+                                              'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                              osField.value === 'windows' && 'border-primary'
+                                            )}
+                                          >
+                                            {osField.value === 'windows' && (
+                                              <div className="rounded-control h-2 w-2 bg-primary" />
+                                            )}
+                                          </div>
+                                          <FaWindows className="h-4 w-4" />
+                                          <Label
+                                            htmlFor="os-remote-windows"
+                                            className={cn(
+                                              'text-body font-normal',
+                                              !isEditMode && 'cursor-pointer'
+                                            )}
+                                          >
+                                            Windows
+                                          </Label>
+                                        </div>
+                                      </div>
+                                    )}
+                                  />
+                                )}
                               </div>
-                              {field.value === 'remote' && (
-                                <Controller
-                                  name="operatingSystem"
-                                  control={control}
-                                  render={({ field: osField }) => (
-                                    <div className="space-y-2 pl-6">
-                                      <div
-                                        className={cn(
-                                          'flex items-center space-x-2',
-                                          !isEditMode && 'cursor-pointer'
-                                        )}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (!isEditMode) osField.onChange('ubuntu');
-                                        }}
-                                      >
-                                        <div
-                                          className={cn(
-                                            'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
-                                            osField.value === 'ubuntu' && 'border-primary'
-                                          )}
-                                        >
-                                          {osField.value === 'ubuntu' && (
-                                            <div className="rounded-control h-2 w-2 bg-primary" />
-                                          )}
-                                        </div>
-                                        <FaUbuntu className="h-4 w-4" />
-                                        <Label
-                                          htmlFor="os-remote-ubuntu"
-                                          className={cn(
-                                            'text-body font-normal',
-                                            !isEditMode && 'cursor-pointer'
-                                          )}
-                                        >
-                                          Ubuntu
-                                        </Label>
-                                      </div>
-                                      <div
-                                        className={cn(
-                                          'flex items-center space-x-2',
-                                          !isEditMode && 'cursor-pointer'
-                                        )}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (!isEditMode) osField.onChange('windows');
-                                        }}
-                                      >
-                                        <div
-                                          className={cn(
-                                            'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
-                                            osField.value === 'windows' && 'border-primary'
-                                          )}
-                                        >
-                                          {osField.value === 'windows' && (
-                                            <div className="rounded-control h-2 w-2 bg-primary" />
-                                          )}
-                                        </div>
-                                        <FaWindows className="h-4 w-4" />
-                                        <Label
-                                          htmlFor="os-remote-windows"
-                                          className={cn(
-                                            'text-body font-normal',
-                                            !isEditMode && 'cursor-pointer'
-                                          )}
-                                        >
-                                          Windows
-                                        </Label>
-                                      </div>
-                                    </div>
-                                  )}
-                                />
-                              )}
                             </div>
-                          </div>
-                        )}
-                      />
+                          )}
+                        />
+                      </div>
                     </div>
-                  </div>
-                </section>
+                  </section>
+                </div>
               </div>
             </div>
           </fieldset>

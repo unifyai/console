@@ -16,7 +16,7 @@ import {
   AssistantUpdatePayload,
   VoiceOption,
 } from '@/types/assistants/assistant';
-import { ContactType } from '@/types/assistants/contact';
+import { ContactType, type OAuthProvider } from '@/types/assistants/contact';
 import { toast } from 'sonner';
 import { AssistantHire } from './Hire/AssistantHire';
 import { AssistantEdit } from './Edit/AssistantEdit';
@@ -578,6 +578,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     React.useState<ContactType>('email');
   const [workspaceManagerAssistant, setWorkspaceManagerAssistant] =
     React.useState<Assistant | null>(null);
+  const [workspaceManagerInitialProvider, setWorkspaceManagerInitialProvider] =
+    React.useState<OAuthProvider | null>(null);
+  const [hireWorkspaceProvider, setHireWorkspaceProvider] = React.useState<OAuthProvider | null>(
+    null
+  );
+  const [skipHireWorkspaceSetup, setSkipHireWorkspaceSetup] = React.useState(false);
+  const [showHireWorkspaceWarning, setShowHireWorkspaceWarning] = React.useState(false);
   const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
   const [isDialogBusyProcessingPhoto, setIsDialogBusyProcessingPhoto] = React.useState(false);
   const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false);
@@ -1254,6 +1261,15 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       });
       setNewlyHiredInfo({ assistant: optimisticAssistant, preHireChat });
       handleShowProfile(optimisticAssistant.agentId);
+
+      if (hireWorkspaceProvider) {
+        setWorkspaceManagerInitialProvider(hireWorkspaceProvider);
+        setWorkspaceManagerAssistant(optimisticAssistant);
+        setHireWorkspaceProvider(null);
+        setSkipHireWorkspaceSetup(false);
+        setShowHireWorkspaceWarning(false);
+      }
+
       // Capture the OS for local-mode hires so the setup roadmap's
       // "Show install instructions" step can re-open the dialog later
       // with the correct platform — we don't auto-pop here anymore;
@@ -1295,6 +1311,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       fetchUserVoices,
       setAssistants,
       coordinatorOnboardingState?.mode,
+      hireWorkspaceProvider,
       updateCoordinatorOnboardingState,
     ]
   );
@@ -1331,6 +1348,29 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     isHireDialogOpen || !!assistantToEdit || !!contactManagerAssistant
   );
 
+  const handleHireWorkspaceProviderSelect = React.useCallback((provider: OAuthProvider) => {
+    setHireWorkspaceProvider(provider);
+    setSkipHireWorkspaceSetup(false);
+    setShowHireWorkspaceWarning(false);
+  }, []);
+
+  const handleSkipHireWorkspaceSetupChange = React.useCallback((skip: boolean) => {
+    setSkipHireWorkspaceSetup(skip);
+    if (skip) {
+      setHireWorkspaceProvider(null);
+      setShowHireWorkspaceWarning(false);
+    }
+  }, []);
+
+  const handleHireAttempt = React.useCallback(async () => {
+    if (!hireWorkspaceProvider && !skipHireWorkspaceSetup) {
+      setShowHireWorkspaceWarning(true);
+      return;
+    }
+
+    await initiateHireSequence();
+  }, [hireWorkspaceProvider, initiateHireSequence, skipHireWorkspaceSetup]);
+
   // --- Voice Options  ---
   const allDisplayableVoices = React.useMemo(() => {
     const filteredByProvider = unsortedVoices.filter((v) => v.provider !== 'openai');
@@ -1357,6 +1397,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setPresetGenderFilter('all');
     setPresetLanguageFilter('all');
     setIsDialogBusyProcessingVoice(false);
+    setHireWorkspaceProvider(null);
+    setSkipHireWorkspaceSetup(false);
+    setShowHireWorkspaceWarning(false);
 
     // Mark that we need to select a preset once they're loaded
     setNeedsPresetSelection(true);
@@ -1422,6 +1465,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   const handleOpenWorkspaceManager = (assistant: Assistant) => {
     loadAssistantForEdit(assistant);
+    setWorkspaceManagerInitialProvider(null);
     setWorkspaceManagerAssistant(assistant);
   };
 
@@ -1918,6 +1962,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           );
         } else {
           setWorkspaceManagerAssistant(null);
+          setWorkspaceManagerInitialProvider(null);
           setContactManagerAssistant(null);
           toast.success('Workspace connected.');
         }
@@ -2257,7 +2302,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             isAssistantPresetsOpen={isAssistantPresetsOpen}
             setIsAssistantPresetsOpen={setIsAssistantPresetsOpen}
             currentFilteredPresets={currentFilteredPresets}
-            onHireAttempt={initiateHireSequence}
+            onHireAttempt={handleHireAttempt}
             isProcessingPhoto={isDialogBusyProcessingPhoto}
             isProcessingVoice={isDialogBusyProcessingVoice}
             isCheckingBalance={isCheckingBalance}
@@ -2280,6 +2325,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               onAddPaymentMethod={goToBilling}
               userHasChangedPreset={userHasChangedPreset}
               onRandomizeProfile={handleRandomizeProfile}
+              workspaceProvider={hireWorkspaceProvider}
+              onWorkspaceProviderSelect={handleHireWorkspaceProviderSelect}
+              skipWorkspaceSetup={skipHireWorkspaceSetup}
+              onSkipWorkspaceSetupChange={handleSkipHireWorkspaceSetupChange}
+              showWorkspaceWarning={showHireWorkspaceWarning}
             />
             <PresetsPanel
               displayedPresets={displayedPresets}
@@ -2325,6 +2375,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 onNewMediaReady={onNewMediaReady}
                 mode="edit"
                 onAddPaymentMethod={goToBilling}
+                onWorkspaceProviderSelect={(provider) => {
+                  if (!assistantToEdit) return;
+                  setWorkspaceManagerInitialProvider(provider);
+                  setWorkspaceManagerAssistant(assistantToEdit);
+                  setAssistantToEdit(null);
+                }}
               />
             </AssistantEdit>
           )}
@@ -2355,11 +2411,15 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           {workspaceManagerAssistant && (
             <AssistantWorkspaceManager
               isOpen={!!workspaceManagerAssistant}
-              onClose={() => setWorkspaceManagerAssistant(null)}
+              onClose={() => {
+                setWorkspaceManagerAssistant(null);
+                setWorkspaceManagerInitialProvider(null);
+              }}
               assistant={workspaceManagerAssistant}
               assistantActions={assistantActions}
               onSuccess={handleUpdateSuccess}
               canWrite={canWrite(workspaceManagerAssistant)}
+              initialProvider={workspaceManagerInitialProvider}
             />
           )}
         </FormProvider>

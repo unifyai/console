@@ -23,6 +23,7 @@ import {
   PROVIDER_LABELS,
   ProviderBadge,
 } from './AssistantContactManager';
+import type { OAuthProvider } from '@/types/assistants/contact';
 
 interface AssistantWorkspaceManagerProps {
   isOpen: boolean;
@@ -32,6 +33,8 @@ interface AssistantWorkspaceManagerProps {
   onSuccess: () => void;
   /** Whether the current user can edit workspace details. */
   canWrite?: boolean;
+  /** Provider to preselect when the dialog is opened from a provider-specific CTA. */
+  initialProvider?: OAuthProvider | null;
 }
 
 /**
@@ -55,6 +58,7 @@ export function AssistantWorkspaceManager({
   assistantActions,
   onSuccess,
   canWrite = true,
+  initialProvider = null,
 }: AssistantWorkspaceManagerProps) {
   const assistantName = assistantDisplayName(assistant);
   const workspaceDescription = assistant.isCoordinator ? (
@@ -113,6 +117,12 @@ export function AssistantWorkspaceManager({
   });
 
   const isBusy = isConnecting || isDisconnecting;
+
+  React.useEffect(() => {
+    if (isOpen && initialProvider && !isByodEmail) {
+      setByodProvider(initialProvider);
+    }
+  }, [isOpen, initialProvider, isByodEmail, setByodProvider]);
 
   const handleDialogClose = (open: boolean) => {
     if (!isBusy && !open) onClose();
