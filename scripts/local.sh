@@ -773,115 +773,103 @@ stop_unity() {
 }
 
 # =============================================================================
-# Self-host bootstrap (--self-host mode)
+# Self-host Coordinator runtime (Auth B — logged-in user)
 # =============================================================================
 
-SELF_HOST_BOOTSTRAP_EMAIL=""
-SELF_HOST_BOOTSTRAP_PASSWORD=""
-SELF_HOST_BOOTSTRAP_API_KEY=""
-SELF_HOST_BOOTSTRAP_COORDINATOR_ID=""
+create_assistant_pubsub_topics() {
+  local agent_id="$1"
+  local emulator_host="$LOCAL_PUBSUB_HOST"
+  local project_id="$PUBSUB_GCP_PROJECT_ID"
+  local suffix="$PUBSUB_TOPIC_SUFFIX_VAL"
 
-read_self_host_bootstrap() {
-  SELF_HOST_BOOTSTRAP_EMAIL=""
-  SELF_HOST_BOOTSTRAP_PASSWORD=""
-  SELF_HOST_BOOTSTRAP_API_KEY=""
-  SELF_HOST_BOOTSTRAP_COORDINATOR_ID=""
+  if [[ -z "$agent_id" || -z "$emulator_host" ]]; then
+    return 0
+  fi
 
-  if [[ ! -f /tmp/self-host-bootstrap.json ]]; then
+  local emulator_url="$emulator_host"
+  if [[ ! "$emulator_url" =~ ^http ]]; then
+    emulator_url="http://$emulator_url"
+  fi
+
+  local topic_name="unity-${agent_id}${suffix}"
+  log_info "Ensuring Pub/Sub topic for assistant $agent_id ..."
+
+  local status
+  status=$(curl -s -o /dev/null -w "%{http_code}" \
+    -X PUT "${emulator_url}/v1/projects/${project_id}/topics/${topic_name}" 2>/dev/null || echo "000")
+
+  if [[ "$status" == "200" || "$status" == "409" ]]; then
+    log_success "Topic ready: $topic_name"
+  else
+    log_warn "Failed to create topic $topic_name (HTTP $status)"
     return 1
   fi
 
-  local parsed
-  parsed="$(python3 - <<'PY'
-import json
-import sys
+  local outbound_sub="${topic_name}-outbound-sub"
+  curl -s -o /dev/null \
+    -X PUT "${emulator_url}/v1/projects/${project_id}/subscriptions/${outbound_sub}" \
+    -H "Content-Type: application/json" \
+    -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\",\"filter\":\"attributes.thread = \\\"unify_message_outbound\\\"\"}" \
+    2>/dev/null || true
 
-path = "/tmp/self-host-bootstrap.json"
-with open(path, encoding="utf-8") as fh:
-    raw = fh.read().strip()
+  local syserr_sub="${topic_name}-system-error-sub"
+  curl -s -o /dev/null \
+    -X PUT "${emulator_url}/v1/projects/${project_id}/subscriptions/${syserr_sub}" \
+    -H "Content-Type: application/json" \
+    -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\",\"filter\":\"attributes.thread = \\\"system_error\\\"\"}" \
+    2>/dev/null || true
 
-try:
-    data = json.loads(raw)
-except json.JSONDecodeError:
-    lines = [line.strip() for line in raw.splitlines() if line.strip().startswith("{")]
-    if not lines:
-        raise
-    data = json.loads(lines[-1])
+  local actions_sub="${topic_name}-actions-sub"
+  curl -s -o /dev/null \
+    -X PUT "${emulator_url}/v1/projects/${project_id}/subscriptions/${actions_sub}" \
+    -H "Content-Type: application/json" \
+    -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\",\"filter\":\"attributes.thread = \\\"action_event\\\"\",\"messageRetentionDuration\":\"1800s\"}" \
+    2>/dev/null || true
 
-print(data["email"])
-print(data["password"])
-print(data["api_key"])
-print(data["coordinator_agent_id"])
-PY
-)" || return 1
-
-  SELF_HOST_BOOTSTRAP_EMAIL="$(echo "$parsed" | sed -n '1p')"
-  SELF_HOST_BOOTSTRAP_PASSWORD="$(echo "$parsed" | sed -n '2p')"
-  SELF_HOST_BOOTSTRAP_API_KEY="$(echo "$parsed" | sed -n '3p')"
-  SELF_HOST_BOOTSTRAP_COORDINATOR_ID="$(echo "$parsed" | sed -n '4p')"
+  local inbound_sub="${topic_name}-sub"
+  curl -s -o /dev/null \
+    -X PUT "${emulator_url}/v1/projects/${project_id}/subscriptions/${inbound_sub}" \
+    -H "Content-Type: application/json" \
+    -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\"}" \
+    2>/dev/null || true
 }
 
-run_self_host_bootstrap() {
-  log_info "Bootstrapping self-host owner (production coordinator path)..."
-  if [[ ! -x "$ORCHESTRA_REPO_PATH/scripts/bootstrap_self_host.sh" && ! -f "$ORCHESTRA_REPO_PATH/scripts/bootstrap_self_host.sh" ]]; then
-    log_error "Missing orchestra/scripts/bootstrap_self_host.sh"
+start_unity_coordinator() {
+  local unify_key="${1:-${SELF_HOST_UNIFY_KEY:-}}"
+  local coordinator_agent_id="${2:-${SELF_HOST_COORDINATOR_AGENT_ID:-}}"
+
+  if [[ -z "$unify_key" || -z "$coordinator_agent_id" ]]; then
+    log_error "UNIFY_KEY and Coordinator agent_id are required"
     return 1
   fi
 
-  local bootstrap_env=(
-    ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH"
-    ORCHESTRA_DB_PORT="${ORCHESTRA_DB_PORT:-5432}"
-    SELF_HOST_OWNER_PASSWORD="${SELF_HOST_OWNER_PASSWORD:-}"
-    SELF_HOST=1
-  )
-  if [[ -n "${ADMIN_KEY:-}" ]]; then
-    bootstrap_env+=(ORCHESTRA_ADMIN_KEY="$ADMIN_KEY")
-  fi
-  if [[ -n "${CHAT_COMMS_URL:-}" ]]; then
-    bootstrap_env+=(UNITY_COMMS_URL="$CHAT_COMMS_URL")
-  fi
-  if [[ -n "${CHAT_ADAPTERS_URL:-}" ]]; then
-    bootstrap_env+=(UNITY_ADAPTERS_URL="$CHAT_ADAPTERS_URL")
-  fi
-
-  env "${bootstrap_env[@]}" \
-  bash "$ORCHESTRA_REPO_PATH/scripts/bootstrap_self_host.sh" || return 1
-
-  read_self_host_bootstrap || {
-    log_error "Failed to read bootstrap output from /tmp/self-host-bootstrap.json"
-    return 1
-  }
-  log_success "Self-host owner ready (Coordinator agent_id=$SELF_HOST_BOOTSTRAP_COORDINATOR_ID)"
-}
-
-start_unity_self_host() {
   if ! is_unity_available; then
     log_warn "Unity repo not found — skipping Coordinator runtime"
     return 0
   fi
 
-  read_self_host_bootstrap || {
-    log_error "Bootstrap credentials missing — cannot start Unity CM"
-    return 1
-  }
-
   if is_unity_running; then
-    log_info "Restarting Unity so Coordinator runtime picks up bootstrap credentials..."
+    log_info "Restarting Unity so Coordinator runtime picks up the signed-in user..."
     bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
     sleep 1
   fi
 
-  local resolved_assistant_id="$SELF_HOST_BOOTSTRAP_COORDINATOR_ID"
-  log_info "Starting Unity for Coordinator assistant=$resolved_assistant_id ..."
+  log_info "Starting Unity for Coordinator assistant=$coordinator_agent_id ..."
+
+  load_self_host_runtime_env
 
   local unity_env=(
     PUBSUB_EMULATOR_HOST="$LOCAL_PUBSUB_HOST"
     GCP_PROJECT_ID="$PUBSUB_GCP_PROJECT_ID"
-    ASSISTANT_ID="$resolved_assistant_id"
+    ASSISTANT_ID="$coordinator_agent_id"
     DEPLOY_ENV="staging"
     SELF_HOST=1
-    UNIFY_KEY="$SELF_HOST_BOOTSTRAP_API_KEY"
+    UNIFY_KEY="$unify_key"
+    SHARED_UNIFY_KEY="$unify_key"
     ASSISTANT_IS_COORDINATOR=True
+    EVENTBUS_PUBLISHING_ENABLED="${EVENTBUS_PUBLISHING_ENABLED:-true}"
+    EVENTBUS_PUBSUB_STREAMING="${EVENTBUS_PUBSUB_STREAMING:-true}"
+    UNITY_LOCAL_SCHEDULER="${UNITY_LOCAL_SCHEDULER:-true}"
   )
 
   if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
@@ -890,13 +878,13 @@ start_unity_self_host() {
 
   local _voice_provider _voice_id
   _voice_provider=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
-    -c "SELECT COALESCE(voice_provider, '') FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+    -c "SELECT COALESCE(voice_provider, '') FROM assistants WHERE agent_id = $coordinator_agent_id;" 2>/dev/null || echo "")
   _voice_id=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
-    -c "SELECT COALESCE(voice_id, '') FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+    -c "SELECT COALESCE(voice_id, '') FROM assistants WHERE agent_id = $coordinator_agent_id;" 2>/dev/null || echo "")
   [[ -n "$_voice_provider" ]] && unity_env+=("VOICE_PROVIDER=$_voice_provider")
   [[ -n "$_voice_id" ]] && unity_env+=("VOICE_ID=$_voice_id")
 
-  for key in OPENAI_API_KEY ANTHROPIC_API_KEY ORCHESTRA_ADMIN_KEY DEEPGRAM_API_KEY CARTESIA_API_KEY; do
+  for key in OPENAI_API_KEY ANTHROPIC_API_KEY DEEPSEEK_API_KEY ORCHESTRA_ADMIN_KEY DEEPGRAM_API_KEY CARTESIA_API_KEY; do
     local val="${!key:-}"
     if [[ -z "$val" && -f "$ENV_LOCAL" ]]; then
       val=$(grep -E "^${key}=" "$ENV_LOCAL" 2>/dev/null | sed 's/^[^=]*=//' | tr -d '"' || true)
@@ -905,6 +893,12 @@ start_unity_self_host() {
       unity_env+=("$key=$val")
     fi
   done
+
+  if [[ -f "$SELF_HOST_ENV_SCRIPT" ]]; then
+    # shellcheck disable=SC1090
+    source "$SELF_HOST_ENV_SCRIPT"
+    append_self_host_unity_runtime_env unity_env
+  fi
 
   unity_env+=(
     LIVEKIT_URL="ws://localhost:7880"
@@ -917,19 +911,19 @@ start_unity_self_host() {
   _u_last=""
   _u_email=""
   _a_first=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
-    -c "SELECT first_name FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+    -c "SELECT first_name FROM assistants WHERE agent_id = $coordinator_agent_id;" 2>/dev/null || echo "")
   _a_surname=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
-    -c "SELECT surname FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+    -c "SELECT surname FROM assistants WHERE agent_id = $coordinator_agent_id;" 2>/dev/null || echo "")
   _a_about=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
-    -c "SELECT about FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+    -c "SELECT about FROM assistants WHERE agent_id = $coordinator_agent_id;" 2>/dev/null || echo "")
   _a_age=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
-    -c "SELECT age FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+    -c "SELECT age FROM assistants WHERE agent_id = $coordinator_agent_id;" 2>/dev/null || echo "")
   _a_nat=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
-    -c "SELECT nationality FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+    -c "SELECT nationality FROM assistants WHERE agent_id = $coordinator_agent_id;" 2>/dev/null || echo "")
   _a_tz=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
-    -c "SELECT timezone FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+    -c "SELECT timezone FROM assistants WHERE agent_id = $coordinator_agent_id;" 2>/dev/null || echo "")
   _u_id=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
-    -c "SELECT user_id FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
+    -c "SELECT user_id FROM assistants WHERE agent_id = $coordinator_agent_id;" 2>/dev/null || echo "")
   if [[ -n "$_u_id" ]]; then
     _u_first=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
       -c "SELECT name FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
@@ -952,10 +946,58 @@ start_unity_self_host() {
 
   if ! env "${unity_env[@]}" bash "$UNITY_LOCAL_SCRIPT" start --full; then
     log_warn "Unity failed to start — chat will not get Coordinator replies"
-    return 0
+    return 1
   fi
 
-  log_success "Unity Coordinator runtime is running"
+  log_success "Unity Coordinator runtime is running (assistant=$coordinator_agent_id)"
+}
+
+cmd_start_coordinator() {
+  export SELF_HOST=1
+  load_self_host_runtime_env
+
+  local unify_key="${SELF_HOST_UNIFY_KEY:-}"
+  local coordinator_id="${SELF_HOST_COORDINATOR_AGENT_ID:-}"
+  local runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-/tmp/self-host-coordinator-runtime.json}"
+
+  if [[ (-z "$unify_key" || -z "$coordinator_id") && -f "$runtime_file" ]]; then
+    local parsed
+    parsed="$(python3 - "$runtime_file" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as fh:
+    data = json.load(fh)
+print(data.get("api_key") or data.get("apiKey") or "")
+print(data.get("coordinator_agent_id") or data.get("coordinatorAgentId") or "")
+PY
+)" || true
+    if [[ -z "$unify_key" ]]; then
+      unify_key="$(echo "$parsed" | sed -n '1p')"
+    fi
+    if [[ -z "$coordinator_id" ]]; then
+      coordinator_id="$(echo "$parsed" | sed -n '2p')"
+    fi
+  fi
+
+  if [[ -z "$unify_key" || -z "$coordinator_id" ]]; then
+    log_error "Coordinator runtime credentials missing."
+    log_info "Register or sign in at /login first, or set SELF_HOST_UNIFY_KEY and SELF_HOST_COORDINATOR_AGENT_ID."
+    return 1
+  fi
+
+  if ! is_orchestra_running; then
+    log_error "Orchestra is not running — start the stack first (unity stack up)"
+    return 1
+  fi
+
+  if ! is_emulator_running; then
+    log_error "Pub/Sub emulator is not running — start the stack first (unity stack up)"
+    return 1
+  fi
+
+  create_assistant_pubsub_topics "$coordinator_id" || return 1
+  start_unity_coordinator "$unify_key" "$coordinator_id"
 }
 
 create_seeded_assistant_topics() {
@@ -985,52 +1027,7 @@ create_seeded_assistant_topics() {
 
   log_info "Creating Pub/Sub topics for seeded assistants ..."
   for agent_id in $agent_ids; do
-    local topic_name="unity-${agent_id}${suffix}"
-
-    # Create topic (ignore if exists)
-    local status
-    status=$(curl -s -o /dev/null -w "%{http_code}" \
-      -X PUT "${emulator_url}/v1/projects/${project_id}/topics/${topic_name}" 2>/dev/null || echo "000")
-
-    if [[ "$status" == "200" || "$status" == "409" ]]; then
-      log_success "Topic ready: $topic_name"
-    else
-      log_warn "Failed to create topic $topic_name (HTTP $status)"
-      continue
-    fi
-
-    # Create the outbound subscription (for Console's chat SSE to receive replies)
-    local outbound_sub="${topic_name}-outbound-sub"
-    curl -s -o /dev/null \
-      -X PUT "${emulator_url}/v1/projects/${project_id}/subscriptions/${outbound_sub}" \
-      -H "Content-Type: application/json" \
-      -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\",\"filter\":\"attributes.thread = \\\"unify_message_outbound\\\"\"}" \
-      2>/dev/null || true
-
-    # Create the system-error subscription
-    local syserr_sub="${topic_name}-system-error-sub"
-    curl -s -o /dev/null \
-      -X PUT "${emulator_url}/v1/projects/${project_id}/subscriptions/${syserr_sub}" \
-      -H "Content-Type: application/json" \
-      -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\",\"filter\":\"attributes.thread = \\\"system_error\\\"\"}" \
-      2>/dev/null || true
-
-    # Create the actions subscription
-    local actions_sub="${topic_name}-actions-sub"
-    curl -s -o /dev/null \
-      -X PUT "${emulator_url}/v1/projects/${project_id}/subscriptions/${actions_sub}" \
-      -H "Content-Type: application/json" \
-      -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\",\"filter\":\"attributes.thread = \\\"action_event\\\"\",\"messageRetentionDuration\":\"1800s\"}" \
-      2>/dev/null || true
-
-    # Create the CM's inbound subscription (unfiltered — receives all
-    # messages so the ConversationManager can process them).
-    local inbound_sub="${topic_name}-sub"
-    curl -s -o /dev/null \
-      -X PUT "${emulator_url}/v1/projects/${project_id}/subscriptions/${inbound_sub}" \
-      -H "Content-Type: application/json" \
-      -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\"}" \
-      2>/dev/null || true
+    create_assistant_pubsub_topics "$agent_id" || true
   done
 }
 
@@ -1474,7 +1471,7 @@ cmd_start() {
 
   if [[ "$with_self_host" == "true" ]]; then
     echo ""
-    run_self_host_bootstrap || return 1
+    ensure_npm_deps
   else
     # Install npm deps early — seed scenarios need tsx.
     echo ""
@@ -1491,14 +1488,10 @@ cmd_start() {
     if [[ "$with_self_host" != "true" ]]; then
       create_seeded_billing_topics
     fi
-    if [[ "$with_chat" == "true" ]]; then
+    if [[ "$with_chat" == "true" && "$with_self_host" != "true" ]]; then
       create_seeded_assistant_topics
       echo ""
-      if [[ "$with_self_host" == "true" ]]; then
-        start_unity_self_host
-      else
-        start_unity "$unity_echo"
-      fi
+      start_unity "$unity_echo"
     fi
   fi
 
@@ -1527,7 +1520,7 @@ cmd_start() {
     if [[ "$with_self_host" == "true" ]]; then
       echo "  Adapters:  ${CHAT_ADAPTERS_URL:-http://127.0.0.1:8081}"
       echo "  Comms:     ${CHAT_COMMS_URL:-http://127.0.0.1:8082}"
-      echo "  Coordinator agent_id: ${SELF_HOST_BOOTSTRAP_COORDINATOR_ID:-unknown}"
+      echo "  Unity CM:  starts after register/login (or: unity stack coordinator)"
     else
       echo "  Gateway:   ${CHAT_ADAPTERS_URL:-$(unity_gateway_base_url)}"
       echo "  Test asst: ${CHAT_TEST_ASSISTANT_ID:-default-test-assistant}"
@@ -1535,9 +1528,8 @@ cmd_start() {
   fi
   echo ""
   if [[ "$with_self_host" == "true" ]]; then
-    echo "  Mode:      self-host (no seed scenarios)"
-    echo "  Login:     ${SELF_HOST_BOOTSTRAP_EMAIL:-owner@selfhost.dev}"
-    echo "  Password:  ${SELF_HOST_BOOTSTRAP_PASSWORD:-<see /tmp/self-host-bootstrap.json>}"
+    echo "  Mode:      self-host (register on /login — no pre-seeded owner)"
+    echo "  Unity CM:  starts automatically after register/login"
   else
     echo "  Seed:      $seed_scenario"
     echo "  Login:     Use the Quick Sign-In panel on the login page"
@@ -1552,7 +1544,7 @@ cmd_start() {
     echo "  Pub/Sub:   Emulator running for real-time billing events."
     echo "             Billing topics created for all seeded accounts."
   fi
-  if [[ "$with_chat" == "true" ]]; then
+  if [[ "$with_chat" == "true" && "$with_self_host" != "true" ]]; then
     echo ""
     local unity_mode
     unity_mode=$(cat /tmp/unity-local.mode 2>/dev/null || echo "not running")
@@ -1726,14 +1718,16 @@ main() {
   cmd="${cmd:-start}"
 
   case "$cmd" in
+    start-coordinator) cmd_start_coordinator ;;
     start)   cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" "$with_self_host" ;;
     stop)    cmd_stop ;;
     restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" "$with_self_host" ;;
     status)  cmd_status ;;
     help)
-      echo "Usage: $0 [start|stop|restart|status|gateway-setup|gateway-doctor|gateway-urls] [--org] [--stripe] [--pubsub] [--chat] [--echo] [--seed <scenario>]"
+      echo "Usage: $0 [start|stop|restart|status|start-coordinator|gateway-setup|gateway-doctor|gateway-urls] [--org] [--stripe] [--pubsub] [--chat] [--self-host] [--echo] [--seed <scenario>]"
       echo ""
       echo "Commands:"
+      echo "  start-coordinator  Start Unity CM for the signed-in user (self-host; requires env vars)"
       echo "  start    Start Console + Orchestra + seed data (default)"
       echo "  stop     Stop Console, Orchestra, Pub/Sub emulator, Unity, and Stripe listener"
       echo "  restart  Stop then start (wipes database)"
