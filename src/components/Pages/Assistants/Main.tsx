@@ -87,10 +87,6 @@ import { fetchMemoryContext } from '@/lib/client/memory';
 import { isWorkspaceManagedSecretName } from '@/hooks/Assistants/useAssistantIntegrations';
 import type { Secret } from '@/types/assistants/secret';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
-import {
-  type CoordinatorActivityRow,
-  invalidatesCoordinatorSidebar,
-} from '@/types/assistants/coordinatorActivity';
 
 const ENABLE_COORDINATOR_ONBOARDING = false;
 
@@ -389,30 +385,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const chatReadableAssistants = sidebarAssistants;
 
   const teamsById = React.useMemo(() => buildTeamsById(sidebarAssistants), [sidebarAssistants]);
-  const coordinatorInvalidationTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleCoordinatorActivity = React.useCallback(
-    (activity: CoordinatorActivityRow) => {
-      if (!invalidatesCoordinatorSidebar(activity)) return;
-      if (coordinatorInvalidationTimerRef.current) {
-        clearTimeout(coordinatorInvalidationTimerRef.current);
-      }
-      coordinatorInvalidationTimerRef.current = setTimeout(() => {
-        coordinatorInvalidationTimerRef.current = null;
-        refreshAssistants(false);
-      }, 500);
-    },
-    [refreshAssistants]
-  );
-
-  React.useEffect(
-    () => () => {
-      if (coordinatorInvalidationTimerRef.current) {
-        clearTimeout(coordinatorInvalidationTimerRef.current);
-      }
-    },
-    []
-  );
 
   const canonicalCoordinator = React.useMemo(
     () => resolveCanonicalWorkspaceCoordinator(assistants, currentUserId, coordinatorWorkspace),
@@ -457,17 +429,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     coordinatorOnboardingState?.mode === 'onboarding' &&
     !isHireSpecialistEngaged;
 
-  // Shared per-session checklist progress for the Coordinator
+  // Shared per-session onboarding step progress for the Coordinator
   // onboarding flow. Lifted out of ``CoordinatorOnboarding`` so the
   // same set survives the gradual ↔ info-panel layout transition —
   // when the user clicks "Hire your first specialist" the layout
-  // swaps to the base /assistants shell and the checklist relocates
-  // into the coordinator's assistant info panel "Onboarding"
-  // sub-tab. ``'meet'`` is seeded because the picker is always
-  // resolved by the time we render anything substantive. When the
-  // orchestra ``Coordinator/Checklist`` write path lands, this set
-  // should be sourced from the backend snapshot instead so the
-  // chain reflects real progress (and persists across reloads).
+  // swaps to the base /assistants shell and the Onboarding tab
+  // follows them into the coordinator's assistant info panel.
+  // ``'meet'`` is seeded because the picker is always resolved by
+  // the time we render anything substantive. Persisting this snapshot
+  // server-side would let progress survive reloads; today it is
+  // session-local in the console.
   const [completedStepIds, setCompletedStepIds] = React.useState<ReadonlySet<string>>(
     () => new Set(['meet'])
   );
@@ -1423,7 +1394,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // Engages the "Hire your first specialist" milestone. Wired to
   // both surfaces — the gradual onboarding sidebar (which calls
   // this when the user clicks the row) and the coordinator's
-  // info-panel checklist (so the user can re-pop the dialog after
+  // info-panel Onboarding tab (so the user can re-pop the dialog after
   // dismissing it without leaving onboarding mode). Selecting the
   // coordinator and flipping ``isHireSpecialistEngaged`` is
   // idempotent so calling this from the info panel — where the
@@ -1442,7 +1413,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // are typically already marked done (the user reached
   // ``hire-specialist`` by completing them), so their rows render
   // as strikethrough and the handlers wouldn't fire. Re-engaging
-  // ``hire-specialist`` from the info-panel checklist re-opens the
+  // ``hire-specialist`` from the info-panel Onboarding tab re-opens the
   // dialog without surprises; ``connect-workspace`` is kept wired as
   // a defensive fallback in case a future flow lets users reach the
   // info panel with that step still pending.
@@ -1604,7 +1575,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // which happens *after* the picker (it auto-engages off ``workspace``).
   // That late timing is exactly what produces the user-visible mismatch:
   // a pre-existing app integration (a custom secret already on the
-  // Coordinator) flips the checklist row to done a beat after the
+  // Coordinator) flips the onboarding step to done a beat after the
   // picker, while the coordinator's session-start narration — built from
   // the completed-step snapshot captured at picker time — still tells the
   // user to "connect an app". Running a page-level existence probe before
@@ -1891,7 +1862,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // tab that bounces through ``/oauth/complete`` and broadcasts when it's
   // done. Refetch the assistant rows + spaces so any landed connection
   // (e.g. the Coordinator's new workspace email) shows up — and the
-  // onboarding checklist crosses the step off — without a manual refresh.
+  // onboarding step crosses off — without a manual refresh.
   // The connection row can lag the callback redirect slightly, so refetch
   // a couple of times. For the workspace flow we also dismiss the connect
   // dialogs, which the user left open in the original tab.
@@ -2049,7 +2020,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               // Auto-completion observers — these turn each
               // count/active-state change from the pane's own data
               // source into a ``markStepCompleted`` call, so the
-              // checklist row only flips to done once the real
+              // onboarding step only flips to done once the real
               // underlying action lands (a token saved, a task
               // created, a workflow run observed) instead of the
               // moment the user clicks into the pane.
@@ -2176,7 +2147,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 onPaneStateChange={setPaneState}
                 onEditAssistant={handleOpenEditDialog}
                 onOpenContactManager={handleOpenContactManager}
-                onCoordinatorActivity={handleCoordinatorActivity}
                 hasUserMessage={profiledHasUserMessage}
                 hasHistoricalCall={profiledHasHistoricalCall}
                 hasUserPhoneNumber={hasUserPhoneNumber}

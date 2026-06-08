@@ -46,8 +46,6 @@ import {
 } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
-import type { CoordinatorActivityRow } from '@/types/assistants/coordinatorActivity';
-
 const ACTIVE_TAB_TRIGGER_CLASS =
   'border border-[color:var(--role-green-deep)] bg-primary text-primary-foreground !shadow-none hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:shadow-none';
 
@@ -265,8 +263,6 @@ interface RightPaneContainerProps {
   onEditAssistant?: (assistant: Assistant) => void;
   /** Open the Contact Manager dialog for the given assistant (wired from Main). */
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
-  /** Notify Main when live Coordinator activity should invalidate page-level data. */
-  onCoordinatorActivity?: (activity: CoordinatorActivityRow) => void;
   /** True iff the user has sent ≥1 message in this assistant's chat. */
   hasUserMessage?: boolean;
   /** True iff this assistant has ≥1 historical call recorded. */
@@ -344,7 +340,6 @@ export function RightPaneContainer({
   onPaneStateChange,
   onEditAssistant,
   onOpenContactManager,
-  onCoordinatorActivity,
   hasUserMessage,
   hasHistoricalCall,
   hasUserPhoneNumber,
@@ -886,7 +881,6 @@ export function RightPaneContainer({
             spendingBlockedMessage={spendingGate.blockedMessage}
             onEditProfile={onEditAssistant}
             onOpenContactManager={onOpenContactManager}
-            onCoordinatorActivity={onCoordinatorActivity}
             canWrite={canWrite}
             hasUserMessage={hasUserMessage}
             hasHistoricalCall={hasHistoricalCall}

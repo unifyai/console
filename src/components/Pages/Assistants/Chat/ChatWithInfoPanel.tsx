@@ -13,8 +13,6 @@ import type { ContactType } from '@/types/assistants/contact';
 import type { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
-import { useCoordinatorActivity } from '@/hooks/Assistants/useCoordinatorActivity';
-import type { CoordinatorActivityRow } from '@/types/assistants/coordinatorActivity';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 
 // ---------------------------------------------------------------------------
@@ -99,7 +97,6 @@ export interface ChatWithInfoPanelProps {
   // --- Assistant-contextual props for info side panel ---
   onEditProfile?: (assistant: Assistant) => void;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
-  onCoordinatorActivity?: (activity: CoordinatorActivityRow) => void;
   /** Drives the visibility of every edit affordance the info side
    *  panel surfaces (profile pencil, Contact Info "Edit" button,
    *  per-channel "Add …" CTAs). Defaults to `true`. */
@@ -185,7 +182,6 @@ export function ChatWithInfoPanel({
   spendingBlockedMessage,
   onEditProfile,
   onOpenContactManager,
-  onCoordinatorActivity,
   canWrite = true,
   hasUserMessage = false,
   hasHistoricalCall = false,
@@ -205,11 +201,6 @@ export function ChatWithInfoPanel({
   // check keeps both surfaces in lockstep.
   const showOnboardingDot =
     hasIncompleteOnboarding && !!onShowInstallInstructions && !!onOpenUserSettings;
-  const coordinatorActivity = useCoordinatorActivity({
-    assistant,
-    enabled: assistant.isCoordinator === true,
-    onActivity: onCoordinatorActivity,
-  });
   const searchDisplayName = assistant.isCoordinator
     ? assistantDisplayName(assistant)
     : assistant.firstName || assistantDisplayName(assistant);
@@ -524,10 +515,7 @@ export function ChatWithInfoPanel({
               onEditProfile={onEditProfile}
               onOpenContactManager={onOpenContactManager}
               roadmap={roadmap}
-              onSeedChatDraft={seedChatDraft}
               canWrite={canWrite}
-              onCoordinatorActivity={onCoordinatorActivity}
-              coordinatorActivity={coordinatorActivity}
               coordinatorOnboarding={coordinatorOnboarding}
             />
           </ChatSidePanel>
