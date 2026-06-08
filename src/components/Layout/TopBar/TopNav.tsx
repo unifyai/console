@@ -239,7 +239,7 @@ export default function TopNav() {
                               unoptimized
                               src={workspacePhotos['personal']}
                               alt=""
-                              className="h-4 w-4 shrink-0 rounded-full object-cover"
+                              className="rounded-control h-4 w-4 shrink-0 object-cover"
                             />
                           ) : (
                             <User className="h-3.5 w-3.5" />
@@ -251,7 +251,7 @@ export default function TopNav() {
                             unoptimized
                             src={orgLogoUrl}
                             alt=""
-                            className="h-5 w-5 shrink-0 rounded-full object-cover"
+                            className="rounded-control h-5 w-5 shrink-0 object-cover"
                           />
                         ) : (
                           <Building2 className="h-3.5 w-3.5" />
@@ -279,7 +279,7 @@ export default function TopNav() {
                                 unoptimized
                                 src={workspacePhotos['personal']}
                                 alt=""
-                                className="h-4 w-4 shrink-0 rounded-full object-cover"
+                                className="rounded-control h-4 w-4 shrink-0 object-cover"
                               />
                             ) : (
                               <User className="h-4 w-4" />
@@ -312,7 +312,7 @@ export default function TopNav() {
                                 unoptimized
                                 src={workspacePhotos[w.id]}
                                 alt=""
-                                className="h-4 w-4 shrink-0 rounded-full object-cover"
+                                className="rounded-control h-4 w-4 shrink-0 object-cover"
                               />
                             ) : (
                               <Building2 className="h-4 w-4" />
@@ -340,7 +340,7 @@ export default function TopNav() {
                                 unoptimized
                                 src={workspacePhotos['personal']}
                                 alt=""
-                                className="h-4 w-4 shrink-0 rounded-full object-cover"
+                                className="rounded-control h-4 w-4 shrink-0 object-cover"
                               />
                             ) : (
                               <User className="h-3.5 w-3.5" />
@@ -352,7 +352,7 @@ export default function TopNav() {
                               unoptimized
                               src={orgLogoUrl}
                               alt=""
-                              className="h-5 w-5 shrink-0 rounded-full object-cover"
+                              className="rounded-control h-5 w-5 shrink-0 object-cover"
                             />
                           ) : (
                             <Building2 className="h-3.5 w-3.5" />

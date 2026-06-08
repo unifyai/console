@@ -9,6 +9,7 @@ import {
   useTrackToggle,
   useVoiceAssistant,
   useLocalParticipant,
+  useIsSpeaking,
   TrackReference,
   useTracks,
   useMediaDeviceSelect,
@@ -104,6 +105,7 @@ const FullScreenCallUI: React.FC<{
   // Standard LiveKit hooks
   const { state: agentState, videoTrack: agentVideoTrack } = useVoiceAssistant();
   const { localParticipant } = useLocalParticipant();
+  const isUserSpeaking = useIsSpeaking(localParticipant);
   const micToggle = useTrackToggle({ source: Track.Source.Microphone });
   const camToggle = useTrackToggle({ source: Track.Source.Camera });
   const screenShareToggle = useTrackToggle({ source: Track.Source.ScreenShare });
@@ -269,6 +271,8 @@ const FullScreenCallUI: React.FC<{
                 loadingMessage={loadingMessage}
                 connectionError={connectionError}
                 onRetry={onRetry}
+                isCallActive={room.state === 'connected'}
+                isUserSpeaking={isUserSpeaking}
               />
               <AnimatePresence>
                 {isUserViewVisible && !isLoading && !connectionError && (

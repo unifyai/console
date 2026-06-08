@@ -46,6 +46,11 @@ import { roleColorVars, type BrandRole, type CreatureShape } from '@/components/
 import GoogleIcon from '@/public/icons/google-icon.png';
 import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 import type { OAuthProvider } from '@/types/assistants/contact';
+import {
+  clampMartianSpeechLevel,
+  getMartianSpeechTransform,
+  getSpeakingEyes,
+} from '@/utils/assistants/martian-animation';
 
 const staticSkillsText = `The bio doesn't influence the martian's abilities. All martians come with the same foundational skills and can specialize in whichever area you want them to.`;
 const MARTIAN_PREVIEW_SIZE = 160;
@@ -89,16 +94,6 @@ function pickOption<T>(items: readonly T[], current: T): T {
   return next;
 }
 
-function getSpeakingEyes(baseEyes: CreatureEyes, frame: number): CreatureEyes {
-  const sequenceByBaseEyes: Record<CreatureEyes, CreatureEyes[]> = {
-    up: ['up', 'square', 'down', 'square'],
-    down: ['down', 'square', 'up', 'square'],
-    square: ['square', 'up', 'square', 'down'],
-  };
-
-  return sequenceByBaseEyes[baseEyes][frame % sequenceByBaseEyes[baseEyes].length];
-}
-
 function SectionIconSlot({ children }: { children: React.ReactNode }) {
   return (
     <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">{children}</span>
@@ -132,6 +127,7 @@ export interface HireFormProps {
   skipWorkspaceSetup?: boolean;
   onSkipWorkspaceSetupChange?: (skip: boolean) => void;
   showWorkspaceWarning?: boolean;
+  lockIdentityFields?: boolean;
 }
 
 export function HireForm({
@@ -152,6 +148,7 @@ export function HireForm({
   skipWorkspaceSetup = false,
   onSkipWorkspaceSetupChange,
   showWorkspaceWarning = false,
+  lockIdentityFields = false,
 }: HireFormProps) {
   const {
     register,
@@ -224,9 +221,9 @@ export function HireForm({
     const martian = martianSpeechRef.current;
     if (!martian) return;
 
-    const speechLevel = Math.max(0, Math.min(1, level));
+    const speechLevel = clampMartianSpeechLevel(level);
     martian.style.setProperty('--martian-speech-level', speechLevel.toFixed(3));
-    martian.style.transform = `translateY(${-speechLevel * 3}px) scale(${1 + speechLevel * 0.004})`;
+    martian.style.transform = getMartianSpeechTransform(speechLevel);
   }, []);
 
   React.useEffect(() => {
@@ -320,6 +317,14 @@ export function HireForm({
                         <div className="space-y-1.5">
                           <Input
                             id="firstName"
+                            readOnly={lockIdentityFields}
+                            aria-readonly={lockIdentityFields}
+                            tabIndex={lockIdentityFields ? -1 : undefined}
+                            title={lockIdentityFields ? "Unity's name is fixed" : undefined}
+                            className={cn(
+                              lockIdentityFields &&
+                                'cursor-not-allowed border-muted bg-muted text-muted-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0'
+                            )}
                             {...register('firstName', {
                               required: 'First name is required',
                               setValueAs: (v) => String(v ?? '').trim(),
@@ -336,6 +341,14 @@ export function HireForm({
                           <Label htmlFor="surname">Last Name</Label>
                           <Input
                             id="surname"
+                            readOnly={lockIdentityFields}
+                            aria-readonly={lockIdentityFields}
+                            tabIndex={lockIdentityFields ? -1 : undefined}
+                            title={lockIdentityFields ? "Unity's name is fixed" : undefined}
+                            className={cn(
+                              lockIdentityFields &&
+                                'cursor-not-allowed border-muted bg-muted text-muted-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0'
+                            )}
                             {...register('surname', {
                               setValueAs: (v) => String(v ?? '').trim(),
                             })}

@@ -169,7 +169,12 @@ export function LiveActionsBody({
         )}
         data-testid="live-actions-no-assistant"
       >
-        <p className="text-center">Select a martian and watch them fly 🛸</p>
+        <p className="group cursor-default text-center">
+          Select a martian and watch them fly{' '}
+          <span className="hover-float-saucer group-hover-float-saucer" aria-hidden="true">
+            🛸
+          </span>
+        </p>
       </div>
     );
   }

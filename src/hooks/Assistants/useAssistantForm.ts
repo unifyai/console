@@ -405,8 +405,8 @@ export function useAssistantForm(
         ...getValues(),
 
         // Profile
-        firstName: assistant.firstName,
-        surname: assistant.surname,
+        firstName: assistant.isCoordinator ? 'Unity' : assistant.firstName,
+        surname: assistant.isCoordinator ? '' : assistant.surname,
         jobTitle: assistant.jobTitle ?? null,
         age: assistant.age,
         nationality: assistant.nationality,
@@ -520,8 +520,10 @@ export function useAssistantForm(
       // Note: Contact details (email, phone, whatsapp) are managed via AssistantContactManager
       const payload: Partial<AssistantUpdatePayload> = {};
 
-      if (data.firstName !== editingAssistant.firstName) payload.firstName = data.firstName;
-      if (data.surname !== editingAssistant.surname) payload.surname = data.surname;
+      if (!editingAssistant.isCoordinator) {
+        if (data.firstName !== editingAssistant.firstName) payload.firstName = data.firstName;
+        if (data.surname !== editingAssistant.surname) payload.surname = data.surname;
+      }
       // Normalize empty string to null so an emptied input clears the value
       // server-side (the backend trims/normalizes too, but be explicit).
       const normalizedJobTitle = data.jobTitle?.trim() ? data.jobTitle.trim() : null;

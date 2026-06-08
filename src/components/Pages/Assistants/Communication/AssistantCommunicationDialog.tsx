@@ -18,6 +18,7 @@ import {
   useTrackToggle,
   useVoiceAssistant,
   useLocalParticipant,
+  useIsSpeaking,
   TrackReference,
   useTracks,
   useMediaDeviceSelect,
@@ -117,6 +118,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
 
   const { state: agentState, videoTrack: agentVideoTrack } = useVoiceAssistant();
   const { localParticipant } = useLocalParticipant();
+  const isUserSpeaking = useIsSpeaking(localParticipant);
   const micToggle = useTrackToggle({ source: Track.Source.Microphone });
   const camToggle = useTrackToggle({ source: Track.Source.Camera });
   const screenShareToggle = useTrackToggle({ source: Track.Source.ScreenShare });
@@ -324,6 +326,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 onRetry={onRetry}
                 isRingMuted={isSpeakerMuted}
                 onToggleRingMute={onToggleSpeaker}
+                isCallActive={isCallConnected}
+                isUserSpeaking={isUserSpeaking}
               />
               <AnimatePresence>
                 {isUserViewVisible && !isConnecting && (

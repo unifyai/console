@@ -16,7 +16,13 @@ import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { Assistant } from '@/types/assistants/assistant';
 import { Track, Room } from 'livekit-client';
-import { RoomContext, useTrackToggle, useVoiceAssistant } from '@livekit/components-react';
+import {
+  RoomContext,
+  useIsSpeaking,
+  useLocalParticipant,
+  useTrackToggle,
+  useVoiceAssistant,
+} from '@livekit/components-react';
 import { AssistantCommunicationMainView } from './AssistantCommunicationMainView';
 import { cn } from '@/lib/utils';
 import { motion, PanInfo, useMotionValue } from 'framer-motion';
@@ -93,6 +99,8 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
   callType,
 }) => {
   const { state: agentState, videoTrack: agentVideoTrack } = useVoiceAssistant();
+  const { localParticipant } = useLocalParticipant();
+  const isUserSpeaking = useIsSpeaking(localParticipant);
   const micToggle = useTrackToggle({ source: Track.Source.Microphone });
   const camToggle = useTrackToggle({ source: Track.Source.Camera });
 
@@ -159,6 +167,8 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
         loadingMessage={loadingMessage}
         isRingMuted={isSpeakerMuted}
         onToggleRingMute={onToggleSpeaker}
+        isCallActive={isCallConnected}
+        isUserSpeaking={isUserSpeaking}
       />
 
       {/* Controls */}

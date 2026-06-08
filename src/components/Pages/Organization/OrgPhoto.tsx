@@ -106,7 +106,7 @@ const OrgPhoto = ({ orgName, currentImage, onFileSelect, previewUrl }: OrgPhotoP
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className={`hover:border-muted-foreground/40 group relative h-32 w-32 shrink-0 cursor-pointer overflow-hidden rounded-full border border-border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${displayUrl ? 'bg-transparent' : 'bg-muted'}`}
+        className={`hover:border-muted-foreground/40 rounded-control group relative h-32 w-32 shrink-0 cursor-pointer overflow-hidden border border-border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${displayUrl ? 'bg-transparent' : 'bg-muted'}`}
       >
         {displayUrl ? (
           <Image

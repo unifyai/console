@@ -7,6 +7,13 @@ import { cn } from '@/lib/utils';
 import { Loader2, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
+import { TeammateCreature } from '@/components/Brand';
+import type { CreatureEyes } from '@/components/Brand/TeammateCreature';
+import {
+  clampMartianSpeechLevel,
+  getMartianSpeechTransform,
+  getSpeakingEyes,
+} from '@/utils/assistants/martian-animation';
 
 interface AssistantCommunicationMainViewProps {
   assistantName: string;
@@ -25,6 +32,8 @@ interface AssistantCommunicationMainViewProps {
   isInteractive?: boolean;
   isRingMuted?: boolean;
   onToggleRingMute?: () => void;
+  isCallActive?: boolean;
+  isUserSpeaking?: boolean;
 }
 
 export function AssistantCommunicationMainView({
@@ -44,10 +53,57 @@ export function AssistantCommunicationMainView({
   isInteractive = false,
   isRingMuted = false,
   onToggleRingMute,
+  isCallActive = false,
+  isUserSpeaking = false,
 }: AssistantCommunicationMainViewProps) {
   const fallback = assistantName
     ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
     : 'A';
+  const baseEyes = 'up' satisfies CreatureEyes;
+  const [eyeFrame, setEyeFrame] = React.useState(0);
+  const [speechLevel, setSpeechLevel] = React.useState(0);
+  const [isMartianHovered, setIsMartianHovered] = React.useState(false);
+  const shouldAnimateCreatureEyes = isSpeaking && !isLoading && !connectionError;
+  const displayedCreatureEyes = isMartianHovered
+    ? 'square'
+    : shouldAnimateCreatureEyes
+      ? getSpeakingEyes(baseEyes, eyeFrame)
+      : isCallActive || isUserSpeaking
+        ? 'square'
+        : baseEyes;
+  const animatedVisualStyle = {
+    '--martian-speech-level': speechLevel.toFixed(3),
+    transform: getMartianSpeechTransform(speechLevel),
+  } as React.CSSProperties;
+
+  React.useEffect(() => {
+    if (!shouldAnimateCreatureEyes) {
+      setEyeFrame(0);
+      return;
+    }
+
+    const eyeTimer = window.setInterval(() => {
+      setEyeFrame((current) => (current + 1) % 4);
+    }, 2000);
+
+    return () => window.clearInterval(eyeTimer);
+  }, [shouldAnimateCreatureEyes]);
+
+  React.useEffect(() => {
+    if (!isSpeaking) {
+      setSpeechLevel(0);
+      return;
+    }
+
+    let frame = 0;
+    setSpeechLevel(0.65);
+    const speechTimer = window.setInterval(() => {
+      frame += 1;
+      setSpeechLevel(clampMartianSpeechLevel(0.24 + Math.abs(Math.sin(frame * 0.82)) * 0.76));
+    }, 80);
+
+    return () => window.clearInterval(speechTimer);
+  }, [isSpeaking]);
 
   if (isLoading) {
     const spinnerSize = avatarContainerClassName || 'h-32 w-32';
@@ -162,30 +218,15 @@ export function AssistantCommunicationMainView({
         className || 'h-48 w-48'
       )}
     >
-      {/* Inner container: sized to avatar + margin, constrains the pulsating circles */}
       <div className="relative flex items-center justify-center">
-        {/* Pulsating Circle — sized relative to avatar, not the outer container */}
-        <div
-          className={cn(
-            'absolute aspect-square rounded-full border-2 border-primary transition-all duration-300',
-            avatarContainerClassName || 'h-32 w-32',
-            isSpeaking ? 'scale-[1.25] animate-pulse' : 'scale-[1.15] opacity-50'
-          )}
-        />
-        <div
-          className={cn(
-            'bg-primary/10 absolute aspect-square rounded-full transition-all duration-300',
-            avatarContainerClassName || 'h-32 w-32',
-            isSpeaking ? 'scale-[1.1] animate-pulse' : 'scale-105'
-          )}
-        />
-
         {/* Video or Avatar */}
         <div
           className={cn(
-            'z-10 flex items-center justify-center overflow-hidden rounded-full border-4 border-background',
+            'z-10 flex items-center justify-center overflow-visible transition-transform duration-75',
             avatarContainerClassName || 'h-32 w-32'
           )}
+          onMouseEnter={() => setIsMartianHovered(true)}
+          onMouseLeave={() => setIsMartianHovered(false)}
         >
           {videoTrack &&
           videoTrack.publication &&
@@ -195,9 +236,18 @@ export function AssistantCommunicationMainView({
           ) : (
             <>
               {isCoordinator ? (
-                <CoordinatorLogoAvatar className="h-full w-full" logoClassName="h-[70%] w-[70%]" />
+                <span
+                  className="flex h-full w-full items-center justify-center overflow-visible"
+                  style={animatedVisualStyle}
+                >
+                  <TeammateCreature
+                    className="h-full w-full"
+                    eyes={displayedCreatureEyes}
+                    label="Unity"
+                  />
+                </span>
               ) : (
-                <Avatar className="h-full w-full">
+                <Avatar className="h-full w-full" style={animatedVisualStyle}>
                   <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
                   <AvatarFallback className="bg-muted text-4xl text-muted-foreground">
                     {fallback}
