@@ -24,6 +24,7 @@
  */
 
 import * as React from 'react';
+import { IS_SELF_HOST } from '@/lib/auth/self-host';
 import type { BillingMode } from '@/types/billing';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 import {
@@ -108,6 +109,21 @@ export function useSpendingGate({
   isFreeTrial = false,
 }: UseSpendingGateConfig): SpendingGateStatus {
   return React.useMemo(() => {
+    if (IS_SELF_HOST) {
+      return {
+        isBlocked: false,
+        blockReason: null,
+        blockedMessage: null,
+        isLoading: false,
+        isRefreshing: false,
+        limits: {
+          assistant: toLimitStatus(assistantSpending),
+          user: toLimitStatus(userSpending),
+          org: toLimitStatus(orgSpending),
+        },
+      };
+    }
+
     // Convert to limit status objects
     const assistantLimit = toLimitStatus(assistantSpending);
     const userLimit = toLimitStatus(userSpending);

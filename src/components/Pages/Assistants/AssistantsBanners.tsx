@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertTriangle, ShieldAlert } from 'lucide-react';
+import { IS_SELF_HOST } from '@/lib/auth/self-host';
 import { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import { formatSpendAmount } from '@/types/assistants/spending';
 import type { BillingMode } from '@/types/billing';
@@ -50,6 +51,10 @@ export function AssistantsBanners({
   accountStatus,
   billingMode = 'CREDITS',
 }: AssistantsBannersProps) {
+  if (IS_SELF_HOST) {
+    return null;
+  }
+
   // Account status banners — highest priority
   if (!isBillingLoading && accountStatus && accountStatus !== 'ACTIVE') {
     const statusConfig: Record<string, { label: string; description: string; variant: string }> = {

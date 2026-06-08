@@ -40,6 +40,7 @@
 
 import * as React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { IS_SELF_HOST } from '@/lib/auth/self-host';
 import { useBillingStatus } from '@/hooks/Billing/useBillingStatus';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import type { BillingMode } from '@/types/billing';
@@ -115,7 +116,6 @@ export function BillableActionGuard({
   tooltipMessage,
   tooltipSide = 'top',
 }: BillableActionGuardProps) {
-  // All hooks called unconditionally (React rules of hooks)
   const billingStatus = useBillingStatus();
   const { activeOrganization } = useWorkspace();
 
@@ -130,10 +130,12 @@ export function BillableActionGuard({
   // We still consult ``billingStatus.billingMode`` even when the caller passed
   // an explicit ``hasCredits`` prop — a parent computing ``hasCredits`` from
   // raw balance might not know the account is METERED.
-  const decision = computeGuardDecision(hasCredits, billingStatus.billingMode);
+  const decision = IS_SELF_HOST
+    ? { blocked: false, reason: null, message: '' }
+    : computeGuardDecision(hasCredits, billingStatus.billingMode);
 
   // Still loading and no explicit props → render children as-is (not blocked)
-  if (billingStatus.isLoading && hasCreditsProp === undefined) {
+  if (!IS_SELF_HOST && billingStatus.isLoading && hasCreditsProp === undefined) {
     return <>{children}</>;
   }
 

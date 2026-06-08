@@ -23,6 +23,7 @@
 
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { IS_SELF_HOST } from '@/lib/auth/self-host';
 import type { BillingMode } from '@/types/billing';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -107,6 +108,15 @@ export async function fetchBillingStatus(): Promise<BillingStatusData> {
 
 export const BILLING_STATUS_QUERY_KEY = ['billing', 'status'] as const;
 
+const SELF_HOST_BILLING_STATUS: BillingStatusData = {
+  isBalanceKnown: false,
+  hasBillingHistory: false,
+  credits: 1,
+  hasCredits: true,
+  accountStatus: 'ACTIVE',
+  billingMode: 'CREDITS',
+};
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /** How often to poll while waiting for credits to land (ms) */
@@ -122,6 +132,7 @@ export function useBillingStatus(): UseBillingStatusReturn {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: BILLING_STATUS_QUERY_KEY,
     queryFn: fetchBillingStatus,
+    enabled: !IS_SELF_HOST,
     staleTime: 60_000, // 1 minute
     refetchOnWindowFocus: true,
     refetchInterval: pollInterval || 60_000,
@@ -154,6 +165,16 @@ export function useBillingStatus(): UseBillingStatusReturn {
   const startPolling = React.useCallback(() => {
     setPollInterval(POLL_INTERVAL_MS);
   }, []);
+
+  if (IS_SELF_HOST) {
+    return {
+      ...SELF_HOST_BILLING_STATUS,
+      isLoading: false,
+      error: null,
+      refetch: () => {},
+      startPolling: () => {},
+    };
+  }
 
   return {
     ...(data ?? defaults),
