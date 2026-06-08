@@ -81,6 +81,7 @@ const test = base.extend<{ authedPage: Page }>({
       permissions: ['clipboard-read', 'clipboard-write'],
     });
     const page = await ctx.newPage();
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     await use(page);
     await ctx.close();
   },
