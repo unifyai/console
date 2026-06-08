@@ -8,6 +8,7 @@ import { PasswordInput } from '@/components/Common/Input/Password';
 import TurnstileWidget, { TurnstileWidgetHandle } from '@/components/Common/Auth/TurnstileWidget';
 import PasswordStrengthIndicator from '@/components/Common/Auth/PasswordStrengthIndicator';
 import { getPasswordError } from '@/lib/auth/password';
+import { IS_SELF_HOST } from '@/lib/auth/self-host';
 import VerificationCodeInput from './VerificationCodeInput';
 import ForgotPasswordForm from './ForgotPasswordForm';
 
@@ -22,6 +23,15 @@ type EmailView = 'login' | 'register' | 'verify' | 'forgot-password';
  * preview revisions whose canonical `NEXTAUTH_URL` points elsewhere).
  * Navigating same-origin keeps the freshly-minted session cookie in scope.
  */
+async function triggerSelfHostCoordinatorStart() {
+  if (!IS_SELF_HOST) return;
+  try {
+    await fetch('/api/self-host/start-coordinator', { method: 'POST' });
+  } catch {
+    // Non-blocking — user can run `unity stack coordinator` manually.
+  }
+}
+
 function sameOriginRedirect(callbackUrl: string | undefined): string {
   const origin = window.location.origin;
   if (!callbackUrl) return `${origin}/`;
@@ -101,13 +111,47 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
         } else {
           setError(data.message || data.detail || 'Registration failed');
         }
-        // Reset CAPTCHA widget so the next attempt gets a fresh token
         captchaRef.current?.reset();
         setIsLoading(false);
         return;
       }
 
-      // Success — show verification code input
+      const requiresVerification = data.requiresVerification ?? data.requires_verification ?? true;
+
+      if (requiresVerification === false) {
+        const preRes = await fetch('/api/auth/email/authenticate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const preData = await preRes.json();
+        if (!preRes.ok) {
+          setError(
+            preData.message || preData.detail?.message || 'Account created but sign-in failed'
+          );
+          setIsLoading(false);
+          return;
+        }
+
+        const result = await signIn('credentials', {
+          email,
+          password,
+          preAuthToken: preData.preAuthToken,
+          redirect: false,
+          callbackUrl: callbackUrl ?? '/',
+        });
+
+        if (result?.error) {
+          setError('Account created but sign-in failed. Try signing in manually.');
+          setIsLoading(false);
+          return;
+        }
+
+        await triggerSelfHostCoordinatorStart();
+        window.location.href = sameOriginRedirect(callbackUrl);
+        return;
+      }
+
       setView('verify');
     } catch {
       setError('Network error. Please try again.');
@@ -164,6 +208,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
         return;
       }
 
+      await triggerSelfHostCoordinatorStart();
       window.location.href = sameOriginRedirect(callbackUrl);
     } catch {
       setError('Network error. Please try again.');
@@ -375,7 +420,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
           {isRegister && <PasswordStrengthIndicator password={password} className="mt-4" />}
         </div>
 
-        {isRegister && (
+        {isRegister && !IS_SELF_HOST && (
           <TurnstileWidget
             ref={captchaRef}
             onVerify={handleCaptchaVerify}
