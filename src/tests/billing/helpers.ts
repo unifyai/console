@@ -154,20 +154,26 @@ export function createBillingTest(user: { email: string; password: string }) {
 // DB Seed Helpers
 // =============================================================================
 
-export function setAutoRecharge(
-  userId: string,
-  opts: { enabled: boolean; threshold?: number; qty?: number }
-) {
+/**
+ * Toggle subscription auto-increment for a user's billing account.
+ *
+ * Replaces the legacy ``setAutoRecharge`` helper: the one-time
+ * auto-recharge columns (``autorecharge`` / ``autorecharge_threshold`` /
+ * ``autorecharge_qty``) were dropped in the self-serve subscription
+ * overhaul. ``auto_increment`` is the surviving "top me up automatically
+ * on depletion" toggle (bumps to the next tier).
+ */
+export function setAutoIncrement(userId: string, enabled: boolean) {
   dbExec(
-    `UPDATE billing_account SET
-       autorecharge = ${opts.enabled},
-       autorecharge_threshold = ${opts.threshold ?? 10},
-       autorecharge_qty = ${opts.qty ?? 25}
+    `UPDATE billing_account SET auto_increment = ${enabled}
      WHERE id = (SELECT billing_account_id FROM "user" WHERE id = '${userId}')`
   );
 }
 
-export function setAccountStatus(userId: string, status: 'ACTIVE' | 'SUSPENDED' | 'CLOSED') {
+export function setAccountStatus(
+  userId: string,
+  status: 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'CLOSED'
+) {
   dbExec(
     `UPDATE billing_account SET account_status = '${status}'
      WHERE id = (SELECT billing_account_id FROM "user" WHERE id = '${userId}')`
@@ -176,6 +182,210 @@ export function setAccountStatus(userId: string, status: 'ACTIVE' | 'SUSPENDED' 
 
 export function getBillingAccountId(userId: string): number {
   return parseInt(dbExec(`SELECT billing_account_id FROM "user" WHERE id = '${userId}'`), 10);
+}
+
+/**
+ * Mark (or clear) a subscription as scheduled to cancel at period end —
+ * the post-`customer.subscription.updated` state the console renders as
+ * "Canceling / Cancels on …" with a "Resume subscription" affordance.
+ *
+ * Mirrors the `subscription_cancel_at_period_end` flag the webhook flips
+ * when a holder cancels (Stripe keeps the sub active until the period end).
+ * `/v0/billing/account-info` only surfaces it when the account is actually
+ * subscribed, so call this *after* {@link subscribeUserToTier}.
+ */
+export function setCancelAtPeriodEnd(userId: string, scheduled: boolean) {
+  dbExec(
+    `UPDATE billing_account SET subscription_cancel_at_period_end = ${scheduled} ` +
+      `WHERE id = (SELECT billing_account_id FROM "user" WHERE id = '${userId}')`
+  );
+}
+
+// =============================================================================
+// Self-serve subscription seed helpers
+// =============================================================================
+
+/**
+ * Resolve a seeded self-serve tier template id by its canonical name
+ * (e.g. `tier_50`, `tier_200_annual`). These rows are created by the
+ * `self_serve_sub_tiers` / `annual_sub_tiers` migrations, so the lookup
+ * fails loudly if migrations haven't run against the local DB.
+ */
+export function getTierTemplateId(tierName: string): number {
+  const raw = dbExec(`SELECT id FROM billing_plan_template WHERE name = '${tierName}' LIMIT 1`);
+  const id = parseInt(raw, 10);
+  if (!Number.isFinite(id)) {
+    throw new Error(
+      `Tier template '${tierName}' not found — run Orchestra migrations against the local DB.`
+    );
+  }
+  return id;
+}
+
+export interface SubscribeTierOptions {
+  /** Seeded tier template name, e.g. `tier_50` (monthly) or `tier_200_annual`. */
+  tierName: string;
+  /** Wallet balance (canonical USD value) to show as remaining this cycle. */
+  credits?: number;
+  /** Days until the current period ends (renewal). Defaults 30 (monthly) / 365 (annual). */
+  periodEndDays?: number;
+  /** Stripe subscription id to attach (any non-empty value marks the account subscribed). */
+  subscriptionId?: string;
+  /** Opt into auto-increment-on-depletion. */
+  autoIncrement?: boolean;
+}
+
+/**
+ * Put a user's billing account onto a live self-serve subscription tier —
+ * the post-`invoice.paid` steady state the console renders for a
+ * subscribed account.
+ *
+ * Mirrors what the subscribe + `invoice.paid` webhook path leaves behind:
+ *   * an active `billing_plan_assignment` pointing at the tier template;
+ *   * `billing_account.stripe_subscription_id` set (the backend's
+ *     `is_subscribed` gate requires BOTH this AND a CREDITS /
+ *     STRIPE_SUBSCRIPTION tier — see `/v0/billing/account-info`);
+ *   * `current_period_end` (drives the "Renews on …" date);
+ *   * `plan_credits_granted_period` = the tier's commit amount (so a later
+ *     upgrade grants only the delta);
+ *   * a wallet balance to render against the allowance meter.
+ *
+ * The credit-grant *ledger* itself (the ×400-framed grant rows) is written
+ * by the backend webhook and is covered by the Orchestra `test_billing`
+ * suite; here we seed the account-level facts the console reads back.
+ */
+export function subscribeUserToTier(
+  userId: string,
+  opts: SubscribeTierOptions
+): { templateId: number; assignmentId: number; commitAmount: number } {
+  const isAnnual = opts.tierName.endsWith('_annual');
+  const periodEndDays = opts.periodEndDays ?? (isAnnual ? 365 : 30);
+  const credits = opts.credits ?? 0;
+  const subId = opts.subscriptionId ?? `sub_e2e_${require('crypto').randomUUID().slice(0, 8)}`;
+  const autoInc = opts.autoIncrement ?? false;
+
+  dbExecBlock(`
+DO \\$\\$
+DECLARE
+  _ba_id integer;
+  _template_id bigint;
+  _commit numeric;
+  _assignment_id bigint;
+BEGIN
+  SELECT billing_account_id INTO _ba_id FROM "user" WHERE id = '${userId}';
+
+  SELECT id, commit_amount INTO _template_id, _commit
+  FROM billing_plan_template
+  WHERE name = '${opts.tierName}'
+  LIMIT 1;
+
+  IF _template_id IS NULL THEN
+    RAISE EXCEPTION 'Tier template % not found (run migrations?)', '${opts.tierName}';
+  END IF;
+
+  UPDATE billing_plan_assignment
+     SET ended_at = NOW()
+   WHERE billing_account_id = _ba_id
+     AND ended_at IS NULL;
+
+  INSERT INTO billing_plan_assignment (billing_account_id, template_id, started_at, change_reason)
+  VALUES (_ba_id, _template_id, NOW(), 'e2e subscribeUserToTier')
+  RETURNING id INTO _assignment_id;
+
+  UPDATE billing_account
+     SET plan_assignment_id = _assignment_id,
+         stripe_subscription_id = '${subId}',
+         stripe_customer_id = COALESCE(stripe_customer_id, 'cus_e2e_' || _ba_id::text),
+         current_period_end = NOW() + (INTERVAL '1 day' * ${periodEndDays}),
+         plan_credits_granted_period = _commit,
+         auto_increment = ${autoInc},
+         credits = ${credits}
+   WHERE id = _ba_id;
+END
+\\$\\$;
+`);
+
+  const templateId = getTierTemplateId(opts.tierName);
+  const assignmentId = parseInt(
+    dbExec(
+      `SELECT id FROM billing_plan_assignment ` +
+        `WHERE billing_account_id = (SELECT billing_account_id FROM "user" WHERE id = '${userId}') ` +
+        `AND ended_at IS NULL ORDER BY id DESC LIMIT 1`
+    ),
+    10
+  );
+  const commitAmount = parseFloat(
+    dbExec(`SELECT commit_amount FROM billing_plan_template WHERE id = ${templateId}`)
+  );
+  return { templateId, assignmentId, commitAmount };
+}
+
+/**
+ * Seed an expiring **trial** credit grant on a (still-unsubscribed)
+ * account — the signup grant the console surfaces as a countdown.
+ *
+ * Writes the same expiring-grant ledger shape `compute_grant_lots` reads
+ * (`amount > 0`, `detail.grant_kind = 'trial'`, `detail.expires_at`) and
+ * sets the wallet balance to match. Pass a negative `daysUntilExpiry` to
+ * model the *pre-sweep* expired state (remainder still on the wallet, so
+ * `/v0/billing/account-info` still reports `trialExpiresAt` in the past →
+ * the console shows the "expired" copy). The forfeiting sweep + the
+ * pre-expiry reminder email are backend routines covered by the Orchestra
+ * `test_billing` suite.
+ */
+export function grantTrialCredits(
+  userId: string,
+  opts: { usd: number; daysUntilExpiry: number }
+): void {
+  const expiresAt = new Date(Date.now() + opts.daysUntilExpiry * 86_400_000)
+    .toISOString()
+    .replace('Z', '+00:00');
+  dbExecBlock(`
+DO \\$\\$
+DECLARE
+  _ba_id integer;
+BEGIN
+  SELECT billing_account_id INTO _ba_id FROM "user" WHERE id = '${userId}';
+  INSERT INTO credit_transaction (billing_account_id, amount, category, at, description, detail)
+  VALUES (
+    _ba_id, ${opts.usd}, 'grant', NOW() - INTERVAL '7 days', 'e2e trial grant',
+    jsonb_build_object('grant_kind', 'trial', 'expires_at', '${expiresAt}')
+  );
+  UPDATE billing_account SET credits = ${opts.usd} WHERE id = _ba_id;
+END
+\\$\\$;
+`);
+}
+
+/**
+ * Toggle the subscribe-time tax gate for a user's billing account.
+ *
+ * Billing address PII now lives on the Stripe customer, not locally — the
+ * subscribe gate (backend) and the Subscribe CTA gate (FE `hasBillingAddress`)
+ * both key off the derived `billing_setup_complete` flag, which the
+ * `PATCH /billing/billing-profile` endpoint sets once a *complete* address
+ * (line1 + city + postal_code + country) has been synced to Stripe.
+ *
+ * This helper mirrors that: a full address sets the flag (CTA enabled), an
+ * incomplete one clears it (gated state) — without needing a live Stripe
+ * customer in the e2e environment.
+ */
+export function setBillingAddress(
+  userId: string,
+  addr: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  }
+): void {
+  const complete = Boolean(addr.line1 && addr.city && addr.postalCode && addr.country);
+  dbExec(
+    `UPDATE billing_account SET billing_setup_complete = ${complete} ` +
+      `WHERE id = (SELECT billing_account_id FROM "user" WHERE id = '${userId}')`
+  );
 }
 
 export function createCreditGrantLink(opts: {

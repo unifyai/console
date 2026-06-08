@@ -37,7 +37,10 @@ const CATEGORY_COLORS: Record<string, string> = {
   resources: 'bg-[color:var(--status-warning-bg)] text-[color:var(--status-warning)]',
   media: 'bg-[color:var(--role-teal)]/15 text-[color:var(--role-teal)]',
   recharge: 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]',
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- backend credit-ledger category value
+  subscription_recharge: 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]',
   promo: 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]',
+  grant: 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]',
   refund: 'bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]',
   void: 'bg-[color:var(--status-neutral-bg)] text-[color:var(--status-neutral)]',
   dispute: 'bg-[color:var(--status-danger-bg)] text-[color:var(--status-danger)]',

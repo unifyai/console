@@ -30,7 +30,6 @@ import { useCreditGrantLink } from '@/hooks/Billing/useCreditGrantLink';
 import { useBillingStatus } from '@/hooks/Billing/useBillingStatus';
 import { useBillingEvents } from '@/hooks/Billing/useBillingEvents';
 import { AssistantsBanners } from './AssistantsBanners';
-import { StripeSidePanel } from '@/components/Billing/StripeSidePanel';
 import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
 import { useAssistantOnboardingSummaries } from '@/hooks/Assistants/useAssistantOnboardingSummaries';
@@ -538,8 +537,25 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     startPolling: startBillingPolling,
   } = useBillingStatus();
   useBillingEvents();
-  const { pendingToken, claimPendingToken } = useCreditGrantLink();
-  const [isStripePanelOpen, setIsStripePanelOpen] = React.useState(false);
+  // Auto-claims any pending credit-grant link token on mount (promo links).
+  useCreditGrantLink();
+
+  // Self-serve depletion is a hard stop resolved on the Billing page
+  // (upgrade a tier or enable auto-increment) — there is no in-app
+  // one-time top-up flow anymore.
+  //
+  // Open Billing in a *new tab* so the user keeps their in-progress work on
+  // this page (drafts, open dialogs, chat state) instead of navigating away
+  // and losing it. This tab stays live-aware of the balance: it listens for
+  // ``credits_restored`` SSE (useBillingEvents), refetches on window focus,
+  // and we kick off aggressive short-interval polling here as a belt-and-
+  // braces bridge — so once they subscribe in the other tab the
+  // BillableActionGuard unblocks automatically, no reload required.
+  const goToBilling = React.useCallback(() => {
+    if (typeof window === 'undefined') return;
+    window.open('/billing', '_blank', 'noopener,noreferrer');
+    startBillingPolling();
+  }, [startBillingPolling]);
 
   // --- Dialogs & Forms ---
   const [isHireDialogOpen, setIsHireDialogOpen] = React.useState(false);
@@ -1925,25 +1941,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           billingMode={billingMode}
         />
 
-        {/* StripeSidePanel — for adding payment method */}
-        <StripeSidePanel
-          open={isStripePanelOpen}
-          onOpenChange={setIsStripePanelOpen}
-          onSuccess={() => {
-            // Kick off aggressive polling (every 2 s) to bridge the gap
-            // between Stripe confirming payment and the webhook crediting
-            // the balance.  Polling auto-stops once credits appear or
-            // after 30 s.
-            refetchBillingStatus();
-            startBillingPolling();
-            // Auto-claim pending credit grant token after payment method added
-            if (pendingToken) {
-              claimPendingToken();
-            }
-          }}
-          pendingCreditToken={pendingToken}
-        />
-
         {isCoordinatorOnboardingResolvePending ? (
           <div className="flex min-h-0 flex-1 items-center justify-center bg-background">
             <span className="sr-only">Loading workspace…</span>
@@ -2254,8 +2251,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             isCheckingBalance={isCheckingBalance}
             showInsufficientFundsHint={showInsufficientFundsHint}
             setShowInsufficientFundsHint={setShowInsufficientFundsHint}
-            onAddPaymentMethod={() => setIsStripePanelOpen(true)}
-            isStripePanelOpen={isStripePanelOpen}
+            onAddPaymentMethod={goToBilling}
           >
             <HireForm
               formMethods={formMethods}
@@ -2269,7 +2265,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               handleDeleteVoice={handleDeleteVoice}
               onNewMediaReady={onNewMediaReady}
               mode="hire"
-              onAddPaymentMethod={() => setIsStripePanelOpen(true)}
+              onAddPaymentMethod={goToBilling}
               userHasChangedPreset={userHasChangedPreset}
               onRandomizeProfile={handleRandomizeProfile}
             />
@@ -2299,8 +2295,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               isSubmitting={isFormSubmitting}
               isProcessingPhoto={isDialogBusyProcessingPhoto}
               isProcessingVoice={isDialogBusyProcessingVoice}
-              onAddPaymentMethod={() => setIsStripePanelOpen(true)}
-              isStripePanelOpen={isStripePanelOpen}
+              onAddPaymentMethod={goToBilling}
               onDeleteAssistant={onDeleteAssistantSubmit}
               canDelete={canEndContract(assistantToEdit)}
             >
@@ -2317,7 +2312,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 handleDeleteVoice={handleDeleteVoice}
                 onNewMediaReady={onNewMediaReady}
                 mode="edit"
-                onAddPaymentMethod={() => setIsStripePanelOpen(true)}
+                onAddPaymentMethod={goToBilling}
               />
             </AssistantEdit>
           )}
@@ -2330,7 +2325,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               onSuccess={handleUpdateSuccess}
               initialTab={contactManagerInitialTab}
               canWrite={canWrite(contactManagerAssistant)}
-              onAddPaymentMethod={() => setIsStripePanelOpen(true)}
+              onAddPaymentMethod={goToBilling}
               onOpenWorkspaceManager={(a) => {
                 // Email tab CTA — close ContactManager and open the
                 // Workspace modal as a sibling.

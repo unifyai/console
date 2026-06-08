@@ -31,6 +31,35 @@ const CONSOLE_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3
 const ASSISTANT_CONTACT_ID = 42;
 const OWNER_CONTACT_ID = 43;
 
+/**
+ * Default starting credit balance for seeded billing accounts.
+ *
+ * Falls back to 10000 but can be overridden by `SEED_CREDITS` (set by
+ * `scripts/local.sh --credits N`) so local testers can spin up users with a
+ * specific balance — e.g. `--credits 0` to exercise the out-of-credits /
+ * subscribe flows. Scenarios that pass an explicit `credits` value still win;
+ * this only changes the default used when a caller doesn't specify one.
+ */
+function defaultSeedCredits(): number {
+  const raw = process.env.SEED_CREDITS;
+  if (raw == null || raw.trim() === '') return 10000;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : 10000;
+}
+
+/**
+ * Whether `SEED_CREDITS` was explicitly provided (via `--credits`).
+ *
+ * When set, the user creation primitives also *force* the balance on an
+ * already-seeded account — their insert blocks are idempotent and skip
+ * existing users, so without this a re-run of `local.sh --credits N` on a
+ * non-wiped DB would silently keep the old balance.
+ */
+function seedCreditsOverrideActive(): boolean {
+  const raw = process.env.SEED_CREDITS;
+  return raw != null && raw.trim() !== '';
+}
+
 // Personal Coordinator contact rows mirror Orchestra's
 // `contact_membership_service`: every Coordinator's `self` is contact_id=0
 // and its `boss` (= the owning user) is contact_id=1. Keeping these in
@@ -204,7 +233,7 @@ export interface CreateUserOpts {
   lastName?: string;
   /** API key (auto-generated if omitted) */
   apiKey?: string;
-  /** Initial credits (default: 10000) */
+  /** Initial credits (default: 10000, or `SEED_CREDITS` env override) */
   credits?: number;
   /**
    * Skip auto-provisioning the user's personal Coordinator.
@@ -235,17 +264,18 @@ export function createUser(opts: CreateUserOpts = {}): SeededUser {
   const name = opts.name ?? 'Seed';
   const lastName = opts.lastName ?? 'User';
   const apiKey = opts.apiKey ?? uniqueApiKey();
-  const credits = opts.credits ?? 10000;
+  const credits = opts.credits ?? defaultSeedCredits();
 
   dbExecBlock(`
 DO \\$\\$
 DECLARE
   _ba_id integer;
   _default_plan_template_id bigint;
+  _assignment_id integer;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM "user" WHERE id = '${id}') THEN
-    INSERT INTO billing_account (credits, autorecharge, autorecharge_threshold, autorecharge_qty, account_status, tier)
-    VALUES (${credits}, false, 0, 25, 'ACTIVE', 'developer')
+    INSERT INTO billing_account (credits, account_status)
+    VALUES (${credits}, 'ACTIVE')
     RETURNING id INTO _ba_id;
 
     SELECT id
@@ -260,7 +290,14 @@ BEGIN
     END IF;
 
     INSERT INTO billing_plan_assignment (billing_account_id, template_id, change_reason)
-    VALUES (_ba_id, _default_plan_template_id, 'seed user bootstrap');
+    VALUES (_ba_id, _default_plan_template_id, 'seed user bootstrap')
+    RETURNING id INTO _assignment_id;
+
+    -- Point the account at its active assignment. Without this the
+    -- available-plans endpoint can't resolve a "current" plan (it reads
+    -- billing_account.plan_assignment_id), flags no member is_current, and
+    -- empties the whole tier list — so the Subscribe picker never renders.
+    UPDATE billing_account SET plan_assignment_id = _assignment_id WHERE id = _ba_id;
 
     INSERT INTO "user" (id, email, name, last_name, billing_account_id, store_prompts)
     VALUES ('${id}', '${email}', '${name}', '${lastName}', _ba_id, true);
@@ -272,6 +309,17 @@ BEGIN
 END
 \\$\\$;
 `);
+
+  // Honour an explicit --credits/SEED_CREDITS override even for an already
+  // seeded account (the block above skips existing users). Only when the
+  // caller didn't pass an explicit credits value, so scenario-specific
+  // balances still win.
+  if (opts.credits === undefined && seedCreditsOverrideActive()) {
+    dbExec(
+      `UPDATE billing_account SET credits = ${credits} ` +
+        `WHERE id = (SELECT billing_account_id FROM "user" WHERE id = '${id}');`
+    );
+  }
 
   const coordinator = opts.skipCoordinator ? null : createPersonalCoordinator(id);
 
@@ -285,7 +333,7 @@ END
 export interface CreateOrgOpts {
   name?: string;
   ownerId: string;
-  /** Credits for the org billing account (default: 10000) */
+  /** Credits for the org billing account (default: 10000, or `SEED_CREDITS`) */
   credits?: number;
 }
 
@@ -298,7 +346,7 @@ export interface CreateOrgOpts {
  */
 export function createOrg(opts: CreateOrgOpts): SeededOrg {
   const name = opts.name ?? `Seed Org ${Date.now()}`;
-  const credits = opts.credits ?? 10000;
+  const credits = opts.credits ?? defaultSeedCredits();
 
   // Check if org already exists for this owner
   const existingId = dbExec(
@@ -309,6 +357,14 @@ export function createOrg(opts: CreateOrgOpts): SeededOrg {
     const existingKey = dbExec(
       `SELECT key FROM api_key WHERE user_id = '${opts.ownerId}' AND organization_id = ${existingId} LIMIT 1;`
     );
+    // Re-apply an explicit --credits/SEED_CREDITS override to the existing
+    // org's billing account (see createUser for rationale).
+    if (opts.credits === undefined && seedCreditsOverrideActive()) {
+      dbExec(
+        `UPDATE billing_account SET credits = ${credits} ` +
+          `WHERE id = (SELECT billing_account_id FROM organization WHERE id = ${parseInt(existingId, 10)});`
+      );
+    }
     return {
       id: parseInt(existingId, 10),
       name,
@@ -325,10 +381,11 @@ DECLARE
   _org_id integer;
   _ba_id integer;
   _default_plan_template_id bigint;
+  _assignment_id integer;
   _owner_role_id integer;
 BEGIN
-  INSERT INTO billing_account (credits, autorecharge, autorecharge_threshold, autorecharge_qty, account_status, tier)
-  VALUES (${credits}, false, 0, 25, 'ACTIVE', 'developer')
+  INSERT INTO billing_account (credits, account_status)
+  VALUES (${credits}, 'ACTIVE')
   RETURNING id INTO _ba_id;
 
   SELECT id
@@ -343,7 +400,14 @@ BEGIN
   END IF;
 
   INSERT INTO billing_plan_assignment (billing_account_id, template_id, change_reason)
-  VALUES (_ba_id, _default_plan_template_id, 'seed org bootstrap');
+  VALUES (_ba_id, _default_plan_template_id, 'seed org bootstrap')
+  RETURNING id INTO _assignment_id;
+
+  -- Link the account to its active assignment (see createUser): the
+  -- available-plans endpoint resolves the current plan via
+  -- billing_account.plan_assignment_id, and without it the tier picker
+  -- renders empty.
+  UPDATE billing_account SET plan_assignment_id = _assignment_id WHERE id = _ba_id;
 
   INSERT INTO organization (owner_id, name, billing_account_id, verified)
   VALUES ('${opts.ownerId}', '${name.replace(/'/g, "''")}', _ba_id, true)

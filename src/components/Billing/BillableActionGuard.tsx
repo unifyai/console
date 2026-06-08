@@ -7,8 +7,9 @@
  * account lacks sufficient credits, disables the element and shows a
  * tooltip explaining the requirement.
  *
- * The tooltip contains a clickable "purchase credits" link that opens
- * the Stripe side panel.
+ * The tooltip contains a clickable "upgrade your plan" link that sends
+ * the customer to the Billing page (self-serve depletion is a hard stop
+ * resolved by upgrading a tier or enabling auto-increment).
  *
  * By default the guard fetches billing status automatically via the
  * `useBillingStatus` hook (React Query deduplicates across all guards
@@ -99,7 +100,7 @@ export function computeGuardDecision(
     return {
       blocked: true,
       reason: 'no_credits',
-      message: 'You need to purchase credits to use this feature.',
+      message: 'Upgrade your plan to use this feature.',
     };
   }
   return { blocked: false, reason: null, message: '' };
@@ -125,6 +126,15 @@ export function BillableActionGuard({
   const hasCredits =
     hasCreditsProp ??
     (creditsRequired > 0 ? billingStatus.credits >= creditsRequired : billingStatus.hasCredits);
+
+  // Depletion is a hard stop the customer resolves by upgrading their
+  // plan (or enabling auto-increment). The default action sends them to
+  // the Billing page; callers may still override via `onAddPaymentMethod`.
+  const goToUpgrade =
+    onAddPaymentMethod ??
+    (() => {
+      if (typeof window !== 'undefined') window.location.assign('/billing');
+    });
 
   // METERED accounts always pass the credits gate (see computeGuardDecision).
   // We still consult ``billingStatus.billingMode`` even when the caller passed
@@ -165,7 +175,7 @@ export function BillableActionGuard({
           <span
             data-testid="billable-action-guard"
             className="inline-flex cursor-pointer"
-            onClick={onAddPaymentMethod}
+            onClick={goToUpgrade}
           >
             {React.cloneElement(children, {
               disabled: true,
@@ -192,11 +202,11 @@ export function BillableActionGuard({
                 about deployment, or{' '}
                 <button
                   type="button"
-                  onClick={onAddPaymentMethod}
+                  onClick={goToUpgrade}
                   className="hover:text-primary/80 inline cursor-pointer font-medium text-primary underline underline-offset-2"
-                  data-testid="buy-credits-link"
+                  data-testid="upgrade-plan-link"
                 >
-                  add credits
+                  choose a plan
                 </button>{' '}
                 to keep exploring.
               </>
@@ -205,11 +215,11 @@ export function BillableActionGuard({
                 You need to{' '}
                 <button
                   type="button"
-                  onClick={onAddPaymentMethod}
+                  onClick={goToUpgrade}
                   className="hover:text-primary/80 inline cursor-pointer font-medium text-primary underline underline-offset-2"
-                  data-testid="buy-credits-link"
+                  data-testid="upgrade-plan-link"
                 >
-                  purchase credits
+                  upgrade your plan
                 </button>{' '}
                 to use this feature.
               </>

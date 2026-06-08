@@ -14,7 +14,9 @@ export type TransactionCategory =
   | 'resources'
   | 'media'
   | 'recharge'
+  | 'subscription_recharge'
   | 'promo'
+  | 'grant'
   | 'void'
   | 'refund'
   | 'dispute'
@@ -29,7 +31,9 @@ export const CATEGORY_LABELS: Record<TransactionCategory, string> = {
   resources: 'Resources',
   media: 'Media',
   recharge: 'Recharge',
+  subscription_recharge: 'Subscription',
   promo: 'Promo',
+  grant: 'Grant',
   void: 'Void',
   refund: 'Refund',
   dispute: 'Dispute',

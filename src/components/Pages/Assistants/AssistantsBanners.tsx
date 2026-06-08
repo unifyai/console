@@ -149,15 +149,15 @@ export function AssistantsBanners({
               </a>
               {' or '}
               <a href="/billing" className="font-medium underline underline-offset-2">
-                add credits
+                choose a plan
               </a>
               {' to keep exploring.'}
             </>
           ) : (
             <>
               {isOrgWorkspace
-                ? 'An organization owner or admin can add credits on the '
-                : 'You can add credits on the '}
+                ? 'An organization owner or admin can upgrade your plan on the '
+                : 'You can upgrade your plan on the '}
               <a href="/billing" className="font-medium underline underline-offset-2">
                 Billing page
               </a>

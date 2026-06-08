@@ -1,13 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import { Separator } from '../../UI/separator';
-import { Alert, AlertDescription, AlertTitle } from '../../UI/alert';
-import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useBilling } from '@/hooks/Billing/useBilling';
 import type { BillingActions, BillingOrgContext } from '@/types/billing';
 import { BillingProfileSection } from './BillingProfileSection';
 import { CreditsBillingSection } from './CreditsBillingSection';
-import { InvoicesTable } from './InvoicesTable';
+import { PlansBillingSection } from './PlansBillingSection';
+import { PaymentMethodsSection } from './PaymentMethodsManager';
+import { InvoicesSection } from './InvoicesSection';
 import { MeteredBillingSection } from './MeteredBillingSection';
 import { SwitchPlanSection } from './SwitchPlanSection';
 
@@ -29,59 +31,52 @@ export interface BillingMainProps {
 const Main = ({ actions, orgContext }: BillingMainProps) => {
   const {
     dataLoaded,
-    balance,
+    fullBalance,
     loadingBalance,
     isRefreshingBalance,
     billingMode,
     plan,
+    isSubscribed,
+    monthlyCreditAllowance,
+    trialExpiresAt,
+    nextRenewalAt,
+    cancelAtPeriodEnd,
+    displayCurrency,
+    hasBillingAddress,
+    refetchBillingProfile,
+    hasPaymentMethod,
+    refreshPaymentMethods,
     invoices,
     loadingInvoices,
     invoicesError,
     refetchInvoices,
     currentPeriodUsage,
     loadingCurrentPeriodUsage,
-    checkoutStatus,
-    handleBuyCredits,
     handleManagePaymentMethods,
-    autoRechargeData,
-    isAutoRechargeEnabled,
-    minBalance,
-    rechargeAmount,
-    hasAutoRechargeChanges,
-    isIneligibleForAutoRecharge,
-    autoRechargeIneligibilityReason,
-    autoRechargeAlert,
-    setMinBalance,
-    setRechargeAmount,
-    handleToggleAutoRecharge,
-    handleSaveAutoRecharge,
     isProfileDialogOpen,
     setIsProfileDialogOpen,
     availablePlans,
     loadingAvailablePlans,
     planGroupDisplayName,
     nextPeriodStart,
+    handleSubscribe,
+    handleCancelSubscription,
+    handleResumeSubscription,
     handleSwitchPlan,
+    isAutoIncrementEnabled,
+    isAtTopTier,
+    handleToggleAutoIncrement,
   } = useBilling(actions, orgContext);
 
   const isMetered = billingMode === 'METERED';
 
+  // The payment-methods panel is normally self-managed, but the subscribe
+  // prerequisites checklist needs to pop it open, so its open state is lifted
+  // here and shared between the two surfaces.
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+
   return (
     <div className="w-full max-w-4xl space-y-6 p-8">
-      {checkoutStatus && (
-        <Alert variant={checkoutStatus.type === 'success' ? 'default' : 'destructive'}>
-          {checkoutStatus.type === 'success' ? (
-            <CheckCircle2 className="h-4 w-4" />
-          ) : (
-            <AlertCircle className="h-4 w-4" />
-          )}
-          <AlertTitle>
-            {checkoutStatus.type === 'success' ? 'Payment Successful' : 'Payment Issue'}
-          </AlertTitle>
-          <AlertDescription>{checkoutStatus.message}</AlertDescription>
-        </Alert>
-      )}
-
       {!dataLoaded ? (
         <div className="flex h-[50vh] flex-col items-center justify-center">
           <Loader2 className="mb-2 h-8 w-8 animate-spin text-primary" />
@@ -112,7 +107,17 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
 
           <Separator />
 
-          <InvoicesTable
+          <BillingProfileSection
+            actions={actions}
+            orgContext={orgContext}
+            isProfileDialogOpen={isProfileDialogOpen}
+            setIsProfileDialogOpen={setIsProfileDialogOpen}
+            onProfileSaved={refetchBillingProfile}
+          />
+
+          <Separator />
+
+          <InvoicesSection
             invoices={invoices}
             loading={loadingInvoices}
             variant="metered"
@@ -120,6 +125,43 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
             error={invoicesError}
             onRetry={refetchInvoices}
           />
+        </>
+      ) : (
+        <>
+          <CreditsBillingSection
+            orgContext={orgContext}
+            fullBalance={fullBalance}
+            loadingBalance={loadingBalance}
+            isRefreshingBalance={isRefreshingBalance}
+            isSubscribed={isSubscribed}
+            monthlyCreditAllowance={monthlyCreditAllowance}
+            trialExpiresAt={trialExpiresAt}
+            plan={plan}
+          />
+
+          <Separator />
+
+          <PlansBillingSection
+            orgContext={orgContext}
+            isSubscribed={isSubscribed}
+            plan={plan}
+            nextRenewalAt={nextRenewalAt}
+            cancelAtPeriodEnd={cancelAtPeriodEnd}
+            displayCurrency={displayCurrency}
+            availablePlans={availablePlans}
+            loadingAvailablePlans={loadingAvailablePlans}
+            onSubscribe={handleSubscribe}
+            onSwitchPlan={handleSwitchPlan}
+            onCancelSubscription={handleCancelSubscription}
+            onResumeSubscription={handleResumeSubscription}
+            isAutoIncrementEnabled={isAutoIncrementEnabled}
+            isAtTopTier={isAtTopTier}
+            handleToggleAutoIncrement={handleToggleAutoIncrement}
+            hasBillingAddress={hasBillingAddress}
+            hasPaymentMethod={hasPaymentMethod}
+            onEditBillingProfile={() => setIsProfileDialogOpen(true)}
+            onManagePaymentMethods={() => setIsPaymentDialogOpen(true)}
+          />
 
           <Separator />
 
@@ -128,59 +170,50 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
             orgContext={orgContext}
             isProfileDialogOpen={isProfileDialogOpen}
             setIsProfileDialogOpen={setIsProfileDialogOpen}
-          />
-        </>
-      ) : (
-        <>
-          <CreditsBillingSection
-            orgContext={orgContext}
-            balance={balance}
-            loadingBalance={loadingBalance}
-            isRefreshingBalance={isRefreshingBalance}
-            handleBuyCredits={handleBuyCredits}
-            handleManagePaymentMethods={handleManagePaymentMethods}
-            autoRechargeData={autoRechargeData}
-            isAutoRechargeEnabled={isAutoRechargeEnabled}
-            minBalance={minBalance}
-            rechargeAmount={rechargeAmount}
-            hasAutoRechargeChanges={hasAutoRechargeChanges}
-            isIneligibleForAutoRecharge={isIneligibleForAutoRecharge}
-            autoRechargeIneligibilityReason={autoRechargeIneligibilityReason}
-            autoRechargeAlert={autoRechargeAlert}
-            setMinBalance={setMinBalance}
-            setRechargeAmount={setRechargeAmount}
-            handleToggleAutoRecharge={handleToggleAutoRecharge}
-            handleSaveAutoRecharge={handleSaveAutoRecharge}
+            onProfileSaved={refetchBillingProfile}
           />
 
           <Separator />
 
           {/*
-            Invoices for CREDITS accounts: historical autorecharge
-            invoices only. Admin-driven wallet credits (promo / manual
-            top-ups) are excluded server-side because they don't have
-            a Stripe invoice — they're visible in the credits-balance
-            card. The Stripe customer portal (linked from "Manage
-            Payment Methods" above) remains the canonical invoice
-            receipt source; this table is a convenience view alongside
-            it.
+            Always-on payment-methods section: cards are collected with
+            Stripe Elements against a SetupIntent (the card never touches our
+            servers — PCI SAQ-A). A card can be added before subscribing,
+            and the default backs renewals + plan changes. ``onChanged``
+            re-checks the subscribe gate when the card set mutates.
           */}
-          <InvoicesTable
+          <PaymentMethodsSection
+            actions={{
+              createSetupIntent: actions.createSetupIntent,
+              listPaymentMethods: actions.listPaymentMethods,
+              setDefaultPaymentMethod: actions.setDefaultPaymentMethod,
+              detachPaymentMethod: actions.detachPaymentMethod,
+              getProfile: actions.getProfile,
+            }}
+            isSubscribed={isSubscribed}
+            canEdit={orgContext ? orgContext.canEdit : true}
+            onChanged={refreshPaymentMethods}
+            open={isPaymentDialogOpen}
+            onOpenChange={setIsPaymentDialogOpen}
+          />
+
+          <Separator />
+
+          {/*
+            Invoices for CREDITS accounts: self-serve subscription
+            invoices (monthly/annual credit-tier payments). Admin-driven
+            wallet credits (promo / manual top-ups) are excluded
+            server-side because they don't have a Stripe invoice —
+            they're visible in the credits-balance card. Each row links to
+            its Stripe-hosted receipt.
+          */}
+          <InvoicesSection
             invoices={invoices}
             loading={loadingInvoices}
             variant="credits"
             actions={actions}
             error={invoicesError}
             onRetry={refetchInvoices}
-          />
-
-          <Separator />
-
-          <BillingProfileSection
-            actions={actions}
-            orgContext={orgContext}
-            isProfileDialogOpen={isProfileDialogOpen}
-            setIsProfileDialogOpen={setIsProfileDialogOpen}
           />
         </>
       )}

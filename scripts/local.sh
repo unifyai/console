@@ -17,6 +17,7 @@
 #   ./scripts/local.sh start --seed org-multi-role    # Specific scenario
 #   ./scripts/local.sh start --seed all               # Run all scenarios
 #   ./scripts/local.sh start --stripe                 # + Stripe webhook forwarding
+#   ./scripts/local.sh start --credits 0              # seed users with a 0 credit balance
 #   ./scripts/local.sh start --pubsub                 # + Pub/Sub emulator (billing events)
 #   ./scripts/local.sh start --chat                   # + Pub/Sub + chat (Unity gateway)
 #   ./scripts/local.sh gateway-setup                  # Unity gateway setup wizard
@@ -402,15 +403,37 @@ start_orchestra() {
     # would break unless Orchestra is restarted each time.
     export SKIP_STRIPE_SIGNATURE_VERIFICATION=true
 
-    # Also export any Stripe price/product IDs so checkout sessions work
+    # Also export any Stripe price/product IDs so billing flows work.
+    #   * CREDITS_* — legacy one-time credit checkout (kept for back-compat).
+    #   * SUBSCRIPTION_*_MONTHLY/_ANNUAL + ANNUAL_COUPON_ID — the self-serve
+    #     subscription plans. Without these the /billing/subscribe endpoint
+    #     fails with "Stripe subscription price ID not configured", so the
+    #     subscribe / annual / upgrade journeys can't be exercised locally.
+    #     Mint them once with: orchestra/scripts/create_subscription_prices.py
+    #     and store the printed ids (drop the _TEST suffix) in .env.local.
     for var in STRIPE_UNIFY_CREDITS_PRICE_ID_PERSONAL STRIPE_UNIFY_CREDITS_PRICE_ID_BUSINESS \
-               STRIPE_UNIFY_CREDITS_PRODUCT_ID_PERSONAL STRIPE_UNIFY_CREDITS_PRODUCT_ID_BUSINESS; do
+               STRIPE_UNIFY_CREDITS_PRODUCT_ID_PERSONAL STRIPE_UNIFY_CREDITS_PRODUCT_ID_BUSINESS \
+               STRIPE_UNIFY_SUBSCRIPTION_PRICE_ID_PERSONAL_MONTHLY \
+               STRIPE_UNIFY_SUBSCRIPTION_PRICE_ID_BUSINESS_MONTHLY \
+               STRIPE_UNIFY_SUBSCRIPTION_PRICE_ID_PERSONAL_ANNUAL \
+               STRIPE_UNIFY_SUBSCRIPTION_PRICE_ID_BUSINESS_ANNUAL \
+               STRIPE_UNIFY_ANNUAL_COUPON_ID; do
       local val
       val=$(grep -E "^${var}=" "$ENV_LOCAL" 2>/dev/null | sed 's/^[^=]*=//' | tr -d '"' || true)
       if [[ -n "$val" ]]; then
         export "$var=$val"
       fi
     done
+
+    # Surface which subscription prices made it through so a missing/typo'd
+    # id is obvious before you click Subscribe.
+    if [[ -n "${STRIPE_UNIFY_SUBSCRIPTION_PRICE_ID_PERSONAL_MONTHLY:-}" ]]; then
+      log_info "Self-serve subscription prices configured (monthly/annual)"
+    else
+      log_warn "No STRIPE_UNIFY_SUBSCRIPTION_PRICE_ID_* in .env.local — the subscribe journey will 500."
+      log_warn "  Mint them: cd ../orchestra && python scripts/create_subscription_prices.py"
+      log_warn "  Then add the printed ids (without the _TEST suffix) to console/.env.local"
+    fi
   fi
 
   if ! ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" start; then
@@ -425,6 +448,17 @@ stop_orchestra() {
   log_info "Stopping Orchestra..."
   ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" stop 2>/dev/null || true
   log_success "Orchestra stopped"
+}
+
+# Destroy Orchestra's local Postgres volume so the next start comes up with a
+# fresh, empty database (migrations + a single seed run). Used by `restart` so
+# it lives up to its "wipes database" contract — without this the DB is
+# preserved and every reseed mints another random seed user, accumulating
+# stale logins (and stale credit balances) in the Quick Sign-In panel.
+purge_orchestra_db() {
+  log_info "Wiping Orchestra database (fresh schema + single seed on start)..."
+  ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" purge 2>/dev/null || true
+  log_success "Orchestra database wiped"
 }
 
 # =============================================================================
@@ -1537,7 +1571,17 @@ cmd_start() {
   fi
   if [[ "$with_stripe" == "true" ]]; then
     echo ""
-    echo "  Billing:   Stripe test mode active — use card 4242 4242 4242 4242"
+    echo "  Billing (Stripe test mode) — self-serve subscription journeys:"
+    echo "    1. Open /billing, add a full billing address (needed for tax) → enables Subscribe."
+    echo "    2. Subscribe (monthly or annual) → Stripe checkout → pay with a test card below."
+    echo "       invoice.paid is forwarded back and credits are granted (shown ×400)."
+    echo "    3. Change tier / cancel / let it renew to exercise upgrade, downgrade, cancel."
+    echo ""
+    echo "    Test cards (https://docs.stripe.com/testing):"
+    echo "      4242 4242 4242 4242  success"
+    echo "      4000 0000 0000 0341  attaches but fails on charge → invoice.payment_failed → PAST_DUE"
+    echo "      4000 0027 6000 3184  requires 3DS authentication"
+    echo "    Subscription + dispute events are forwarded (see orchestra/scripts/stripe.sh)."
   fi
   if [[ "$with_pubsub" == "true" && "$with_chat" != "true" ]]; then
     echo ""
@@ -1604,6 +1648,11 @@ cmd_restart() {
   fi
 
   cmd_stop
+  echo ""
+  # `restart` is the documented clean-slate path ("wipes database"): purge the
+  # DB so seeding produces exactly one fresh user (no accumulation of stale
+  # seed logins / balances). Use `start` to keep existing data.
+  purge_orchestra_db
   echo ""
   cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" "$with_self_host"
 }
@@ -1709,6 +1758,17 @@ main() {
       --pubsub) with_pubsub="true"; shift ;;
       --echo|--unity-echo) unity_echo="true"; shift ;;
       --seed)   shift; seed_scenario="${1:-}"; shift ;;
+      --credits)
+        shift
+        if [[ -z "${1:-}" || ! "${1}" =~ ^-?[0-9]+$ ]]; then
+          log_error "--credits requires an integer (e.g. --credits 0)"
+          exit 1
+        fi
+        # Forward to the TS seed client (client.ts defaultSeedCredits()),
+        # which uses it as the starting balance for seeded billing accounts.
+        export SEED_CREDITS="$1"
+        shift
+        ;;
       -h|--help|help) cmd="help"; shift ;;
       -*)      log_error "Unknown flag: $1"; echo "Run '$0 help' for usage"; exit 1 ;;
       *)       [[ -z "$cmd" ]] && cmd="$1"; shift ;;
@@ -1724,7 +1784,7 @@ main() {
     restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" "$with_self_host" ;;
     status)  cmd_status ;;
     help)
-      echo "Usage: $0 [start|stop|restart|status|start-coordinator|gateway-setup|gateway-doctor|gateway-urls] [--org] [--stripe] [--pubsub] [--chat] [--self-host] [--echo] [--seed <scenario>]"
+      echo "Usage: $0 [start|stop|restart|status|start-coordinator|gateway-setup|gateway-doctor|gateway-urls] [--org] [--stripe] [--pubsub] [--chat] [--self-host] [--echo] [--seed <scenario>] [--credits <n>]"
       echo ""
       echo "Commands:"
       echo "  start-coordinator  Start Unity CM for the signed-in user (self-host; requires env vars)"
@@ -1744,9 +1804,17 @@ main() {
       echo "                               managed-billing, all"
       echo "                     See: src/tests/helpers/seeds/run.ts --list"
       echo "  --org              Shorthand for --seed org-basic"
+      echo "  --credits <n>      Starting credit balance for seeded users/orgs whose"
+      echo "                     scenario doesn't set an explicit value (default: 10000)."
+      echo "                     e.g. --credits 0 to land on the out-of-credits/subscribe"
+      echo "                     flow. Accepts negatives (e.g. -2) for overdraft states."
       echo "  --stripe           Start Stripe webhook forwarding for E2E billing flows"
       echo "                     Requires Stripe CLI: brew install stripe/stripe-cli/stripe"
       echo "                     Then authenticate:   stripe login"
+      echo "                     For the subscription journeys, first mint the test-mode"
+      echo "                     prices/coupon (orchestra/scripts/create_subscription_prices.py)"
+      echo "                     and add the STRIPE_UNIFY_SUBSCRIPTION_PRICE_ID_* +"
+      echo "                     STRIPE_UNIFY_ANNUAL_COUPON_ID ids to console/.env.local."
       echo "  --pubsub           Start Pub/Sub emulator for real-time billing events."
       echo "                     Creates billing topics for all seeded accounts."
       echo "                     Requires: gcloud CLI with pubsub-emulator component"
@@ -1780,6 +1848,7 @@ main() {
       echo "  $0 start --seed personal-workspace-multi # personal workspace with several assistants"
       echo "  $0 start --seed all                   # all scenarios"
       echo "  $0 start --stripe                     # + Stripe webhook forwarding"
+      echo "  $0 start --stripe --credits 0         # subscribe flow from a 0-credit balance"
       echo "  $0 start --org --stripe               # org-basic + Stripe"
       echo "  $0 start --pubsub                     # + Pub/Sub emulator (billing events)"
       echo "  $0 start --chat                       # + Pub/Sub + chat (Unity gateway)"

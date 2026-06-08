@@ -28,6 +28,7 @@ import { Label } from '@/components/UI/label';
 import { cn } from '@/lib/utils';
 import { formatSpendAmount } from '@/types/assistants/spending';
 import { SpendingDisplayProps } from '@/types/organization';
+import { fromDisplayCredits, toDisplayCredits } from '@/lib/billing/currency';
 
 export interface MemberSpendingDialogProps {
   /** Whether the dialog is open */
@@ -69,11 +70,13 @@ export function MemberSpendingDialog({
   const [isSaving, setIsSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  // Reset state when dialog opens
+  // Reset state when dialog opens. The input is denominated in displayed
+  // credits (USD × DISPLAY_CREDITS_PER_USD); prefill the credit count and
+  // convert back to canonical USD on save.
   React.useEffect(() => {
     if (open) {
       setIsUnlimited(currentLimit === null);
-      setLimitValue(currentLimit !== null ? currentLimit.toString() : '');
+      setLimitValue(currentLimit !== null ? toDisplayCredits(currentLimit).toString() : '');
       setError(null);
     }
   }, [open, currentLimit]);
@@ -94,12 +97,14 @@ export function MemberSpendingDialog({
         setError('Limit must be a positive number');
         return;
       }
-      // Validate against org limit
-      if (orgLimit !== null && orgLimit !== undefined && parsed > orgLimit) {
+      // The field is in displayed credits; the API expects canonical USD.
+      const parsedUsd = fromDisplayCredits(parsed);
+      // Validate against org limit (both compared in USD).
+      if (orgLimit !== null && orgLimit !== undefined && parsedUsd > orgLimit) {
         setError(`Member limit cannot exceed organization limit (${formatSpendAmount(orgLimit)})`);
         return;
       }
-      newLimit = parsed;
+      newLimit = parsedUsd;
     }
 
     setIsSaving(true);
@@ -122,10 +127,15 @@ export function MemberSpendingDialog({
     setError(null);
   };
 
-  // Check if new limit would be below current spend
+  // Check if new limit would be below current spend. ``parsedLimit`` is
+  // in displayed credits; convert back to USD to compare with
+  // ``currentSpend`` (USD) in the same unit.
   const parsedLimit = parseFloat(limitValue);
   const wouldBeOverLimit =
-    !isUnlimited && !isNaN(parsedLimit) && parsedLimit > 0 && currentSpend >= parsedLimit;
+    !isUnlimited &&
+    !isNaN(parsedLimit) &&
+    parsedLimit > 0 &&
+    currentSpend >= fromDisplayCredits(parsedLimit);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

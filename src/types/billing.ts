@@ -69,7 +69,7 @@ export interface CurrentPlanSummary {
 export interface BalanceData {
   /** Formatted string balance (e.g. "25.00") */
   balance: string;
-  /** Raw numeric balance */
+  /** Raw numeric balance — remaining credits in the current cycle */
   fullBalance: number;
   /** ISO-8601 timestamp of last paid recharge, or null */
   lastRechargeAt: string | null;
@@ -77,21 +77,44 @@ export interface BalanceData {
   accountStatus: string;
   /**
    * Active billing model. Frontend gates on this — METERED accounts
-   * hide the credits wallet UI (Buy Credits, Auto-Recharge) and show
-   * a plan + invoices view instead.
+   * hide the self-serve credits/subscription UI and show a plan +
+   * invoices view instead.
    */
   billingMode: BillingMode;
-  /** Active plan summary, always populated (default PAYG for pristine accounts) */
+  /** Active plan summary, always populated (default for pristine accounts) */
   plan: CurrentPlanSummary | null;
   /**
-   * Self-serve switch catalog id. Always set — every account is on
-   * at least the platform-default group (NOT NULL by schema
-   * invariant). The "Switch plan" section is hidden by the
-   * server-side response (empty `available` list) when there's
-   * nothing useful to switch to (group of one, or current plan
-   * not in the assigned group).
+   * Self-serve plan catalog id. Always set — every account is on at
+   * least the platform-default group (NOT NULL by schema invariant).
    */
   planGroupId: number;
+  /**
+   * Whether the self-serve account holds an active paid subscription
+   * to a monthly credit tier. ``false`` for free/trial accounts that
+   * have never subscribed. Drives the subscribed vs. unsubscribed
+   * split of the CREDITS billing view.
+   */
+  isSubscribed: boolean;
+  // The monthly credit allowance is NOT a separate field: it is exactly
+  // `plan.commitAmount` (1 credit = $1), so read it off `plan` above.
+  /**
+   * ISO-8601 timestamp at which free signup/trial credits expire (one
+   * week after signup). ``null`` once the account is subscribed (paid
+   * tiers reset monthly rather than expiring).
+   */
+  trialExpiresAt: string | null;
+  /**
+   * ISO-8601 timestamp of the next subscription renewal (the start of
+   * the next credit cycle). ``null`` for unsubscribed accounts.
+   */
+  nextRenewalAt: string | null;
+  /**
+   * Whether the active subscription is scheduled to cancel at the end of
+   * the current period. When ``true`` the UI shows a persistent "cancels
+   * on {nextRenewalAt}" indicator instead of "renews on". ``false`` for
+   * unsubscribed accounts.
+   */
+  cancelAtPeriodEnd: boolean;
 }
 
 // =============================================================================
@@ -134,8 +157,14 @@ export interface AvailablePlansResponse {
 }
 
 export interface SwitchPlanResponse {
-  /** "scheduled" when a future assignment was created; "noop" when no-op. */
-  status: 'scheduled' | 'noop';
+  /**
+   * Outcome of a `POST /v0/billing/plan` change for an already-subscribed
+   * account:
+   *   * "switched"  — applied immediately (anniversary-anchored, Stripe-prorated)
+   *   * "scheduled" — deferred to a future boundary (legacy/metered paths)
+   *   * "noop"      — target equals the current tier; nothing changed
+   */
+  status: 'switched' | 'scheduled' | 'noop';
   billingAccountId: number;
   templateId: number;
   /** ISO-8601 effective date — null on noop. */
@@ -144,36 +173,67 @@ export interface SwitchPlanResponse {
 }
 
 // =============================================================================
-// Auto-Recharge
+// Subscribe (self-serve first subscription)
 // =============================================================================
 
-export type AutoRechargeBlockedReason =
-  | 'account_status'
-  | 'unpaid_invoice'
-  | 'spending'
-  | 'payment_method';
-
-export interface AutoRechargeData {
-  // Settings
-  autoRechargeEnabled: boolean;
-  autoRechargeThreshold: number;
-  autoRechargeQty: number;
-  minRechargeAmount: number;
-  // Eligibility
-  totalSpending: number;
-  canEnableAutoRecharge: boolean;
-  minimumSpendRequired: number;
-  remainingSpendNeeded: number;
-  // Whether the user has a default payment method on file
-  hasPaymentMethod: boolean;
-  // If non-null, auto-recharge cannot be enabled and this explains why
-  blockedReason: AutoRechargeBlockedReason | null;
+/**
+ * Result of `POST /v0/billing/subscribe`.
+ *
+ * When `hostedInvoiceUrl` is present the customer must complete the
+ * first payment on the Stripe-hosted invoice page — the console has no
+ * Stripe.js, so the UI redirects there (`window.location.assign`).
+ * Otherwise (no hosted invoice, e.g. card already on file) the account
+ * is treated as subscribed immediately.
+ */
+export interface SubscribeResponse {
+  status: string;
+  billingAccountId: number;
+  templateId: number;
+  stripeSubscriptionId: string | null;
+  subscriptionStatus: string;
+  /** Stripe PaymentIntent client secret (unused — console has no Stripe.js). */
+  clientSecret: string | null;
+  /** Stripe-hosted invoice URL to complete the first payment, when required. */
+  hostedInvoiceUrl: string | null;
 }
 
-export interface AutoRechargeUpdatePayload {
+// =============================================================================
+// Auto-Increment (replaces Auto-Recharge for self-serve)
+// =============================================================================
+
+/**
+ * Auto-increment opt-in state, mirrored from `GET/PUT /v0/billing/auto-increment`.
+ *
+ * When enabled, depleting the cycle's credits auto-upgrades the
+ * subscription to the next tier (capped at the top tier — never an
+ * auto-downgrade). Only meaningful for subscribed accounts.
+ */
+export interface AutoIncrementData {
+  /** Whether auto-increment to the next tier is enabled. */
   enabled: boolean;
-  threshold: number;
-  qty: number;
+  /** Whether the account currently holds a paid subscription. */
+  isSubscribed: boolean;
+  /** Whether the account is already on the top (largest) tier. */
+  atTopTier: boolean;
+}
+
+export interface AutoIncrementUpdatePayload {
+  enabled: boolean;
+}
+
+/**
+ * Result of `DELETE /v0/billing/subscription`.
+ *
+ * Default cancellation is scheduled for the end of the current billing
+ * period (`status: "canceling"`) — the customer keeps credits + service
+ * until `effectiveAt`. An immediate cancel returns `status: "canceled"`
+ * with a null `effectiveAt`.
+ */
+export interface CancelSubscriptionResponse {
+  status: string;
+  billingAccountId: number;
+  /** ISO timestamp when the subscription ends (null for immediate cancels). */
+  effectiveAt: string | null;
 }
 
 // =============================================================================
@@ -252,25 +312,33 @@ export interface TaxIdValidationResponse {
 // Stripe
 // =============================================================================
 
-export interface CheckoutSessionResponse {
-  url: string;
-}
-
 export interface PortalSessionResponse {
   url: string;
 }
 
-export interface CheckoutStatusResponse {
-  paymentStatus: string;
+// =============================================================================
+// Payment methods (in-app card management)
+// =============================================================================
+
+/** Client secret used to confirm a new card via Stripe Elements. */
+export interface SetupIntentResponse {
+  clientSecret: string;
 }
 
-// =============================================================================
-// Checkout Return Status (UI)
-// =============================================================================
+/** One saved card on the Stripe customer. */
+export interface PaymentMethodCard {
+  id: string;
+  brand: string | null;
+  last4: string | null;
+  expMonth: number | null;
+  expYear: number | null;
+  /** Backs subscription renewals (customer default for invoices). */
+  isDefault: boolean;
+}
 
-export interface CheckoutStatus {
-  message: string;
-  type: 'success' | 'error';
+/** The customer's saved cards. */
+export interface PaymentMethodListResponse {
+  paymentMethods: PaymentMethodCard[];
 }
 
 // =============================================================================
@@ -297,7 +365,10 @@ export interface InvoiceListItem {
   invoiceGroup: string | null;
   stripeInvoiceId: string | null;
   planAssignmentId: number | null;
+  /** Backend plan identifier (e.g. ``tier_50_annual``). */
   planTemplateName: string | null;
+  /** Customer-facing plan label (e.g. ``$600 / yr``); prefer for display. */
+  planTemplateDisplayName: string | null;
   /** Free-form audit detail (raw usage, commit, overage, …) */
   detail: Record<string, unknown> | null;
 }
@@ -372,14 +443,34 @@ export interface BillingActions {
   /** Fetch current balance */
   getBalance: () => Promise<BalanceData | BillingErrorResponse>;
 
-  /** Fetch auto-recharge settings + eligibility */
-  getAutoRecharge: () => Promise<AutoRechargeData | BillingErrorResponse>;
+  /**
+   * Subscribe the self-serve account to a monthly credit tier. When the
+   * response carries a `hostedInvoiceUrl` the caller must redirect there
+   * so the customer can complete the first payment.
+   */
+  subscribe: (templateId: number) => Promise<SubscribeResponse | BillingErrorResponse>;
 
-  /** Update auto-recharge settings */
-  updateAutoRecharge: (payload: AutoRechargeUpdatePayload) => Promise<void | BillingErrorResponse>;
+  /**
+   * Cancel the active self-serve subscription. Defaults to cancelling at
+   * the end of the current period (pass `immediate` to cancel now).
+   */
+  cancelSubscription: (
+    immediate?: boolean
+  ) => Promise<CancelSubscriptionResponse | BillingErrorResponse>;
 
-  /** Toggle auto-recharge enabled/disabled */
-  toggleAutoRecharge: (enabled: boolean) => Promise<void | BillingErrorResponse>;
+  /**
+   * Resume a subscription that's scheduled to cancel at period end — clears
+   * the pending cancellation so it renews normally.
+   */
+  reactivateSubscription: () => Promise<CancelSubscriptionResponse | BillingErrorResponse>;
+
+  /** Fetch auto-increment opt-in state. */
+  getAutoIncrement: () => Promise<AutoIncrementData | BillingErrorResponse>;
+
+  /** Update the auto-increment opt-in. */
+  updateAutoIncrement: (
+    payload: AutoIncrementUpdatePayload
+  ) => Promise<AutoIncrementData | BillingErrorResponse>;
 
   /** Fetch billing profile */
   getProfile: () => Promise<BillingProfileApiResponse | BillingErrorResponse>;
@@ -389,14 +480,24 @@ export interface BillingActions {
     data: BillingProfileData
   ) => Promise<BillingProfileApiResponse | BillingErrorResponse>;
 
-  /** Create Stripe checkout session URL */
-  createCheckoutSession: () => Promise<CheckoutSessionResponse | BillingErrorResponse>;
-
   /** Create Stripe customer portal session URL */
   createPortalSession: () => Promise<PortalSessionResponse | BillingErrorResponse>;
 
-  /** Check Stripe checkout session status */
-  getCheckoutStatus: (sessionId: string) => Promise<CheckoutStatusResponse | BillingErrorResponse>;
+  /** Start adding a card: create a SetupIntent and return its client secret. */
+  createSetupIntent: () => Promise<SetupIntentResponse | BillingErrorResponse>;
+
+  /** List the customer's saved cards. */
+  listPaymentMethods: () => Promise<PaymentMethodListResponse | BillingErrorResponse>;
+
+  /** Make a saved card the default for renewals; returns the updated list. */
+  setDefaultPaymentMethod: (
+    paymentMethodId: string
+  ) => Promise<PaymentMethodListResponse | BillingErrorResponse>;
+
+  /** Remove a saved card; returns the updated list. */
+  detachPaymentMethod: (
+    paymentMethodId: string
+  ) => Promise<PaymentMethodListResponse | BillingErrorResponse>;
 
   /** Fetch supported tax countries */
   getSupportedTaxCountries: () => Promise<SupportedTaxCountriesResponse | BillingErrorResponse>;
@@ -439,13 +540,12 @@ export interface BillingActions {
   getAvailablePlans: () => Promise<AvailablePlansResponse | BillingErrorResponse>;
 
   /**
-   * Schedule a self-serve switch to `templateId` (must be an active
-   * member of the account's plan group). Always lands on the next
-   * AT_BOUNDARY (next-month start UTC); the response surfaces both
-   * the effective date and the server-derived classification so the
-   * UI can render a confirmation toast that matches the rule
-   * exactly. Returns 403 when the account has no plan group or the
-   * template isn't a member.
+   * Change an already-subscribed account to another tier in its plan
+   * group via `POST /v0/billing/plan`. For subscription tiers the
+   * change is immediate (anniversary-anchored, Stripe-prorated) and the
+   * response `status` is "switched"; the UI shows immediate-effect copy.
+   * Returns 403 when the account has no plan group or the template
+   * isn't a member.
    */
   switchPlan: (
     templateId: number,

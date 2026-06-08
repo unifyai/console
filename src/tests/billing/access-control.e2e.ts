@@ -34,8 +34,8 @@ test.afterAll(() => cleanupUser(user.id));
 
 test('billing page shows all main sections', async ({ authedPage: page }) => {
   await page.goto('/billing');
-  await expect(page.locator('text=Balance')).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('text=Auto-Recharge')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('credits-balance-section')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('tier-select-trigger')).toBeVisible({ timeout: 10_000 });
   await expect(page.locator('text=Billing Profile')).toBeVisible({ timeout: 10_000 });
 });
 

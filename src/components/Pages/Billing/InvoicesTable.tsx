@@ -22,10 +22,11 @@ export interface InvoicesTableProps {
    *
    * - 'metered' — month-end invoices from the metered invoicer.
    *   Empty state copy mentions the upcoming month-end run.
-   * - 'credits' — historical autorecharge invoices. (Admin-driven
-   *   wallet credits — promo grants, manual top-ups — are excluded
-   *   server-side because they don't produce a Stripe invoice; they
-   *   show up in the credits-balance card instead.)
+   * - 'credits' — self-serve subscription invoices (the monthly/annual
+   *   credit-tier payments collected by Stripe). (Admin-driven wallet
+   *   credits — promo grants, manual top-ups — are excluded server-side
+   *   because they don't produce a Stripe invoice; they show up in the
+   *   credits-balance card instead.)
    *   Empty state copy explains there's no billing history yet.
    *
    * Defaults to 'metered' for back-compat with the original call site.
@@ -47,6 +48,12 @@ export interface InvoicesTableProps {
   error?: string | null;
   /** Re-runs the invoice fetch — wired to the inline retry button. */
   onRetry?: () => void;
+  /**
+   * When true, render only the table body (loading / empty / error / table)
+   * without the section header + description. Used when the table is hosted
+   * inside the ``InvoicesSection`` side panel, which owns its own heading.
+   */
+  headless?: boolean;
 }
 
 // =============================================================================
@@ -75,16 +82,82 @@ export function InvoicesTable({
   actions,
   error = null,
   onRetry,
+  headless = false,
 }: InvoicesTableProps) {
   const heading = 'Invoices';
   const description =
     variant === 'metered'
       ? 'Newest first. Each invoice covers one billing period.'
-      : 'Newest first. Auto-recharge invoices appear here.';
+      : 'Newest first. Your subscription invoices appear here.';
   const emptyCopy =
     variant === 'metered'
       ? 'No invoices yet. The first one will appear after the end of your current billing period.'
-      : 'No invoices yet. Auto-recharge invoices will appear here once your first payment is processed.';
+      : 'No invoices yet. Subscription invoices will appear here once your first payment is processed.';
+
+  const body = (
+    <Card>
+      <CardContent className="p-0">
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          </div>
+        ) : error && invoices.length === 0 ? (
+          // Distinct from the empty state: an empty list is "no
+          // invoices yet" (a normal lifecycle state for new
+          // accounts) whereas this branch is "we tried and failed
+          // to fetch", which the user otherwise has no way to
+          // tell apart from the legitimate empty case.
+          <div
+            className="flex flex-col items-center gap-3 px-6 py-8 text-center"
+            data-testid="invoices-error"
+            role="alert"
+          >
+            <AlertCircle className="h-5 w-5 text-destructive" />
+            <p className="text-body-muted">{error}</p>
+            {onRetry && (
+              <Button variant="outline" size="sm" onClick={onRetry} data-testid="invoices-retry">
+                Try again
+              </Button>
+            )}
+          </div>
+        ) : invoices.length === 0 ? (
+          <p className="text-body-muted px-6 py-8 text-center" data-testid="invoices-empty">
+            {emptyCopy}
+          </p>
+        ) : (
+          <table className="text-body w-full" data-testid="invoices-table">
+            <thead>
+              <tr className="text-caption border-b text-muted-foreground">
+                <th className="px-4 py-2 text-left font-medium">Period</th>
+                <th className="px-4 py-2 text-left font-medium">Plan</th>
+                <th className="px-4 py-2 text-right font-medium">Amount</th>
+                <th className="px-4 py-2 text-left font-medium">Status</th>
+                {/*
+                    Two side-by-side actions per row: View opens the
+                    Stripe-hosted invoice page (which includes
+                    bank-transfer funding instructions for
+                    customer_balance accounts; this is the only
+                    customer-facing surface where those appear).
+                    PDF downloads the static receipt.
+                  */}
+                <th className="px-4 py-2 text-right font-medium">Invoice</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invoices.map((inv) => (
+                <InvoiceRow key={inv.id} invoice={inv} actions={actions} />
+              ))}
+            </tbody>
+          </table>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  // Hosted inside the ``InvoicesSection`` panel — the panel owns the heading.
+  if (headless) {
+    return body;
+  }
 
   return (
     <section className="space-y-4" data-testid={`${variant}-invoices-section`}>
@@ -95,64 +168,7 @@ export function InvoicesTable({
         </h2>
         <p className="text-body-muted mt-1">{description}</p>
       </div>
-
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            </div>
-          ) : error && invoices.length === 0 ? (
-            // Distinct from the empty state: an empty list is "no
-            // invoices yet" (a normal lifecycle state for new
-            // accounts) whereas this branch is "we tried and failed
-            // to fetch", which the user otherwise has no way to
-            // tell apart from the legitimate empty case.
-            <div
-              className="flex flex-col items-center gap-3 px-6 py-8 text-center"
-              data-testid="invoices-error"
-              role="alert"
-            >
-              <AlertCircle className="h-5 w-5 text-destructive" />
-              <p className="text-body-muted">{error}</p>
-              {onRetry && (
-                <Button variant="outline" size="sm" onClick={onRetry} data-testid="invoices-retry">
-                  Try again
-                </Button>
-              )}
-            </div>
-          ) : invoices.length === 0 ? (
-            <p className="text-body-muted px-6 py-8 text-center" data-testid="invoices-empty">
-              {emptyCopy}
-            </p>
-          ) : (
-            <table className="text-body w-full" data-testid="invoices-table">
-              <thead>
-                <tr className="text-caption border-b text-muted-foreground">
-                  <th className="px-4 py-2 text-left font-medium">Period</th>
-                  <th className="px-4 py-2 text-left font-medium">Plan</th>
-                  <th className="px-4 py-2 text-right font-medium">Amount</th>
-                  <th className="px-4 py-2 text-left font-medium">Status</th>
-                  {/*
-                    Two side-by-side actions per row: View opens the
-                    Stripe-hosted invoice page (which includes
-                    bank-transfer funding instructions for
-                    customer_balance accounts; this is the only
-                    customer-facing surface where those appear).
-                    PDF downloads the static receipt.
-                  */}
-                  <th className="px-4 py-2 text-right font-medium">Invoice</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoices.map((inv) => (
-                  <InvoiceRow key={inv.id} invoice={inv} actions={actions} />
-                ))}
-              </tbody>
-            </table>
-          )}
-        </CardContent>
-      </Card>
+      {body}
     </section>
   );
 }
@@ -231,7 +247,9 @@ const InvoiceRow = ({ invoice: inv, actions }: InvoiceRowProps) => {
         data-testid={`invoice-row-${inv.id}`}
       >
         <td className="px-4 py-3">{formatInvoicePeriod(inv, isMeteredRow)}</td>
-        <td className="px-4 py-3 text-muted-foreground">{inv.planTemplateName ?? '—'}</td>
+        <td className="px-4 py-3 text-muted-foreground">
+          {inv.planTemplateDisplayName ?? inv.planTemplateName ?? '—'}
+        </td>
         <td className="px-4 py-3 text-right font-medium tabular-nums">
           {formatInvoiceAmount(inv, breakdown)}
         </td>

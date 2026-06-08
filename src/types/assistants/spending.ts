@@ -5,6 +5,7 @@
  */
 
 import { ResponseProps } from '../common';
+import { toDisplayCredits } from '@/lib/billing/currency';
 
 /**
  * Cumulative spend data for an assistant in a given month.
@@ -120,16 +121,19 @@ export function calculateSpendingDisplay(spend: AssistantSpend): SpendingDisplay
 }
 
 /**
- * Format a credit amount for display.
+ * Format a USD spend/limit value as a customer-facing *credit count*.
  *
- * The wallet ledger denominates in credits (1 credit ≡ 1 USD on the
- * Stripe side today); customer-facing surfaces show "credits" rather
- * than a currency so the unit stays stable across plan currencies.
- * Plan-currency rendering belongs on invoice surfaces only — see
- * ``InvoicesTable.tsx`` and ``MeteredBillingSection.tsx``.
+ * The wallet ledger denominates in a canonical USD value (1 internal
+ * unit ≡ $1 in the Stripe ledger); customer-facing surfaces show
+ * "credits" = USD × ``DISPLAY_CREDITS_PER_USD`` (display-only framing,
+ * shared with the billing and usage pages). The multiplier is never
+ * sent to the API; inputs displayed in credits convert back via
+ * ``fromDisplayCredits`` at their save boundary. Plan-currency rendering
+ * belongs on invoice surfaces only — see ``InvoicesTable.tsx`` and
+ * ``MeteredBillingSection.tsx``.
  */
 export function formatSpendAmount(amount: number): string {
-  return `${amount.toFixed(2)} credits`;
+  return `${toDisplayCredits(amount).toLocaleString('en-US')} credits`;
 }
 
 /**

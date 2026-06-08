@@ -29,8 +29,8 @@
  * | User / Org                     | Plan                              | Notes                                   |
  * |--------------------------------|-----------------------------------|-----------------------------------------|
  * | `unify_admin`  (Owner of Unify)| default (org)                | Has access to /admin/*                  |
- * | `payg_user`                    | default (personal)           | $50 credits, autorecharge OFF           |
- * | `auto_user`                    | default (personal)           | $25 credits, autorecharge ON ($10 → $50)|
+ * | `payg_user`                    | default (personal)           | $50 credits, auto-increment OFF         |
+ * | `auto_user`                    | default (personal)           | $25 credits, auto-increment ON          |
  * | `low_user`                     | default (personal)           | -$2 credits — out-of-credits banner     |
  * | `pilot_user`                   | Pilot Free (personal)             | STANDARD non-default CREDITS plan       |
  * | `ClientGamma Health` (org)         | ClientGamma Credits Monthly           | $1,000/mo COMMITMENT+CREDITS, history   |
@@ -747,9 +747,12 @@ export async function seedManagedBilling(): Promise<SeededState> {
   });
   createEmailLogin({ userId: autoUser.id });
   ensureDefaultPaygAssignment(billingAccountFor({ userId: autoUser.id }));
-  // Flip auto-recharge ON for this user.
+  // Flip auto-increment ON for this user. (The legacy one-time
+  // auto-recharge columns were dropped in the self-serve subscription
+  // overhaul; ``auto_increment`` is the surviving "top me up automatically"
+  // toggle.)
   dbExec(
-    `UPDATE billing_account SET autorecharge = true, autorecharge_threshold = 10, autorecharge_qty = 50 WHERE id = ${billingAccountFor({ userId: autoUser.id })};`
+    `UPDATE billing_account SET auto_increment = true WHERE id = ${billingAccountFor({ userId: autoUser.id })};`
   );
   // Add one historical PAID recharge so the InvoicesTable shows something.
   dbExecBlock(`

@@ -18,14 +18,16 @@ import type {
   BalanceData,
   BillingMode,
   CurrentPlanSummary,
-  AutoRechargeData,
-  AutoRechargeUpdatePayload,
+  AutoIncrementData,
+  AutoIncrementUpdatePayload,
+  CancelSubscriptionResponse,
   BillingErrorResponse,
   BillingProfileApiResponse,
   BillingProfileData,
-  CheckoutSessionResponse,
   PortalSessionResponse,
-  CheckoutStatusResponse,
+  PaymentMethodListResponse,
+  SetupIntentResponse,
+  SubscribeResponse,
   SupportedTaxCountriesResponse,
   SwitchPlanResponse,
   TaxIdValidationRequest,
@@ -95,6 +97,10 @@ export const getBalance = async (apiKey: string) => {
         billingMode,
         plan,
         planGroupId: typeof data.planGroupId === 'number' ? data.planGroupId : 1,
+        isSubscribed: !!data.isSubscribed,
+        trialExpiresAt: data.trialExpiresAt ?? null,
+        nextRenewalAt: data.nextRenewalAt ?? null,
+        cancelAtPeriodEnd: !!data.subscriptionCancelAtPeriodEnd,
       };
     } catch (error) {
       return errorResponse(error, 'Failed to fetch balance');
@@ -103,59 +109,128 @@ export const getBalance = async (apiKey: string) => {
 };
 
 // =============================================================================
-// Auto-Recharge
+// Subscribe (self-serve first subscription)
 // =============================================================================
 
-export const getAutoRecharge = async (apiKey: string) => {
-  return async (): Promise<AutoRechargeData | BillingErrorResponse> => {
+/**
+ * Wraps `POST /v0/billing/subscribe`. Subscribes the account to the
+ * monthly credit tier identified by `templateId`. When the response
+ * carries a `hostedInvoiceUrl` the customer must complete the first
+ * payment there (the console has no Stripe.js).
+ */
+export const subscribe = async (apiKey: string) => {
+  return async (templateId: number): Promise<SubscribeResponse | BillingErrorResponse> => {
     'use server';
     try {
       const client = await getOrchestraUserClient(apiKey);
-      const response = await client.get('/billing/auto-recharge');
+      const response = await client.post('/billing/subscribe', { templateId });
       const data = response.data;
-
       return {
-        autoRechargeEnabled: data.enabled,
-        autoRechargeThreshold: data.threshold,
-        autoRechargeQty: data.qty,
-        minRechargeAmount: data.minRechargeAmount,
-        totalSpending: data.totalSpending,
-        canEnableAutoRecharge: data.eligible,
-        minimumSpendRequired: data.minimumSpendRequired,
-        remainingSpendNeeded: data.remainingSpendNeeded,
-        hasPaymentMethod: data.hasPaymentMethod ?? false,
-        blockedReason: data.blockedReason ?? null,
+        status: data.status,
+        billingAccountId: data.billingAccountId,
+        templateId: data.templateId,
+        stripeSubscriptionId: data.stripeSubscriptionId ?? null,
+        subscriptionStatus: data.subscriptionStatus,
+        clientSecret: data.clientSecret ?? null,
+        hostedInvoiceUrl: data.hostedInvoiceUrl ?? null,
       };
     } catch (error) {
-      return errorResponse(error, 'Failed to fetch auto-recharge data');
+      return errorResponse(error, 'Failed to subscribe');
     }
   };
 };
 
-export const updateAutoRecharge = async (apiKey: string) => {
-  return async (payload: AutoRechargeUpdatePayload): Promise<void | BillingErrorResponse> => {
+// =============================================================================
+// Cancel subscription
+// =============================================================================
+
+/**
+ * Wraps `DELETE /v0/billing/subscription`. Cancels the active self-serve
+ * subscription — at period end by default, or immediately when `immediate`
+ * is set. The local plan reverts to free once Stripe emits the deletion
+ * webhook.
+ */
+export const cancelSubscription = async (apiKey: string) => {
+  return async (immediate = false): Promise<CancelSubscriptionResponse | BillingErrorResponse> => {
     'use server';
     try {
       const client = await getOrchestraUserClient(apiKey);
-      await client.put('/billing/auto-recharge', {
-        enabled: payload.enabled,
-        threshold: payload.threshold,
-        qty: payload.qty,
+      const response = await client.delete('/billing/subscription', {
+        params: { immediate },
       });
+      const data = response.data;
+      return {
+        status: data.status,
+        billingAccountId: data.billingAccountId,
+        effectiveAt: data.effectiveAt ?? null,
+      };
     } catch (error) {
-      return errorResponse(error, 'Failed to update auto-recharge settings');
+      return errorResponse(error, 'Failed to cancel subscription');
     }
   };
 };
 
-export const toggleAutoRecharge = async (apiKey: string) => {
-  return async (enabled: boolean): Promise<void | BillingErrorResponse> => {
+/**
+ * Wraps `POST /v0/billing/subscription/reactivate`. Undoes a scheduled
+ * end-of-period cancellation so the subscription renews normally. Only
+ * valid while the subscription is still flagged to cancel at period end.
+ */
+export const reactivateSubscription = async (apiKey: string) => {
+  return async (): Promise<CancelSubscriptionResponse | BillingErrorResponse> => {
     'use server';
     try {
       const client = await getOrchestraUserClient(apiKey);
-      await client.put('/billing/auto-recharge', { enabled });
+      const response = await client.post('/billing/subscription/reactivate');
+      const data = response.data;
+      return {
+        status: data.status,
+        billingAccountId: data.billingAccountId,
+        effectiveAt: data.effectiveAt ?? null,
+      };
     } catch (error) {
-      return errorResponse(error, 'Failed to toggle auto-recharge');
+      return errorResponse(error, 'Failed to resume subscription');
+    }
+  };
+};
+
+// =============================================================================
+// Auto-Increment (replaces Auto-Recharge for self-serve)
+// =============================================================================
+
+function mapAutoIncrement(data: any): AutoIncrementData {
+  return {
+    enabled: !!data.enabled,
+    isSubscribed: !!data.isSubscribed,
+    atTopTier: !!data.atTopTier,
+  };
+}
+
+export const getAutoIncrement = async (apiKey: string) => {
+  return async (): Promise<AutoIncrementData | BillingErrorResponse> => {
+    'use server';
+    try {
+      const client = await getOrchestraUserClient(apiKey);
+      const response = await client.get('/billing/auto-increment');
+      return mapAutoIncrement(response.data);
+    } catch (error) {
+      return errorResponse(error, 'Failed to fetch auto-increment settings');
+    }
+  };
+};
+
+export const updateAutoIncrement = async (apiKey: string) => {
+  return async (
+    payload: AutoIncrementUpdatePayload
+  ): Promise<AutoIncrementData | BillingErrorResponse> => {
+    'use server';
+    try {
+      const client = await getOrchestraUserClient(apiKey);
+      const response = await client.put('/billing/auto-increment', {
+        enabled: payload.enabled,
+      });
+      return mapAutoIncrement(response.data);
+    } catch (error) {
+      return errorResponse(error, 'Failed to update auto-increment settings');
     }
   };
 };
@@ -213,19 +288,6 @@ export const updateProfile = async (apiKey: string) => {
 // Stripe Sessions
 // =============================================================================
 
-export const createCheckoutSession = async (apiKey: string) => {
-  return async (): Promise<CheckoutSessionResponse | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.post('/billing/checkout-session');
-      return response.data as CheckoutSessionResponse;
-    } catch (error) {
-      return errorResponse(error, 'Failed to create checkout session');
-    }
-  };
-};
-
 export const createPortalSession = async (apiKey: string) => {
   return async (): Promise<PortalSessionResponse | BillingErrorResponse> => {
     'use server';
@@ -239,17 +301,74 @@ export const createPortalSession = async (apiKey: string) => {
   };
 };
 
-export const getCheckoutStatus = async (apiKey: string) => {
-  return async (sessionId: string): Promise<CheckoutStatusResponse | BillingErrorResponse> => {
+// =============================================================================
+// Payment methods (in-app card management)
+// =============================================================================
+
+/**
+ * Create a Stripe SetupIntent so the browser can confirm a new card via
+ * Elements. The orchestra client interceptor camelCases the response, so
+ * `client_secret` arrives as `clientSecret`.
+ */
+export const createSetupIntent = async (apiKey: string) => {
+  return async (): Promise<SetupIntentResponse | BillingErrorResponse> => {
     'use server';
     try {
       const client = await getOrchestraUserClient(apiKey);
-      const response = await client.get('/billing/checkout-status', {
-        params: { sessionId },
-      });
-      return response.data as CheckoutStatusResponse;
+      const response = await client.post('/billing/payment-methods/setup-intent');
+      return response.data as SetupIntentResponse;
     } catch (error) {
-      return errorResponse(error, 'Failed to get checkout status');
+      return errorResponse(error, 'Failed to start adding a card');
+    }
+  };
+};
+
+/** List the customer's saved cards (newest first). */
+export const listPaymentMethods = async (apiKey: string) => {
+  return async (): Promise<PaymentMethodListResponse | BillingErrorResponse> => {
+    'use server';
+    try {
+      const client = await getOrchestraUserClient(apiKey);
+      const response = await client.get('/billing/payment-methods');
+      return response.data as PaymentMethodListResponse;
+    } catch (error) {
+      return errorResponse(error, 'Failed to load payment methods');
+    }
+  };
+};
+
+/** Make a saved card the renewal default; returns the refreshed list. */
+export const setDefaultPaymentMethod = async (apiKey: string) => {
+  return async (
+    paymentMethodId: string
+  ): Promise<PaymentMethodListResponse | BillingErrorResponse> => {
+    'use server';
+    try {
+      const client = await getOrchestraUserClient(apiKey);
+      const response = await client.post(
+        `/billing/payment-methods/${encodeURIComponent(paymentMethodId)}/default`
+      );
+      return response.data as PaymentMethodListResponse;
+    } catch (error) {
+      return errorResponse(error, 'Failed to set default card');
+    }
+  };
+};
+
+/** Remove a saved card; returns the refreshed list. */
+export const detachPaymentMethod = async (apiKey: string) => {
+  return async (
+    paymentMethodId: string
+  ): Promise<PaymentMethodListResponse | BillingErrorResponse> => {
+    'use server';
+    try {
+      const client = await getOrchestraUserClient(apiKey);
+      const response = await client.delete(
+        `/billing/payment-methods/${encodeURIComponent(paymentMethodId)}`
+      );
+      return response.data as PaymentMethodListResponse;
+    } catch (error) {
+      return errorResponse(error, 'Failed to remove card');
     }
   };
 };
@@ -419,11 +538,11 @@ export const getAvailablePlans = async (apiKey: string) => {
 };
 
 /**
- * Wraps `POST /v0/billing/plan`. The switch is always scheduled at
- * the next AT_BOUNDARY (next-month start UTC) — there is no
- * `effectiveAt` parameter on the wire format because we want the rule
- * to be a server-enforced invariant, not a client preference. The
- * `changeReason` is optional and recorded on the new assignment row
+ * Wraps `POST /v0/billing/plan`. For subscription tiers the change is
+ * applied immediately (anniversary-anchored, Stripe-prorated) and the
+ * response `status` is "switched"; "scheduled" survives for legacy /
+ * metered paths and "noop" when the target equals the current tier.
+ * The `changeReason` is optional and recorded on the new assignment row
  * for audit clarity.
  */
 export const switchPlan = async (apiKey: string) => {
@@ -439,8 +558,10 @@ export const switchPlan = async (apiKey: string) => {
         changeReason: changeReason ?? null,
       });
       const data = response.data;
+      const status: SwitchPlanResponse['status'] =
+        data.status === 'noop' ? 'noop' : data.status === 'scheduled' ? 'scheduled' : 'switched';
       return {
-        status: data.status === 'noop' ? 'noop' : 'scheduled',
+        status,
         billingAccountId: data.billingAccountId,
         templateId: data.templateId,
         effectiveAt: data.effectiveAt ?? null,
