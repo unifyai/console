@@ -13,10 +13,7 @@
  * abuse by external scripts.
  *
  * Schema note: ``Coordinator/State`` uses the vocabulary
- * ``onboarding`` / ``working`` for ``mode``. The checklist context
- * (``Coordinator/Checklist``) has its own ``mode`` field with
- * ``active`` / ``ready_to_go`` values — the two vocabularies are
- * deliberately distinct so values alone disambiguate the source.
+ * ``onboarding`` / ``working`` for ``mode``.
  */
 
 import { getCurrentUser } from '@/lib/user/user';

@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Shared checklist state for the Coordinator gradual-onboarding flow.
- * The two surfaces that render the checklist — the gradual-view
+ * Shared onboarding-step state for the Coordinator gradual-onboarding flow.
+ * The two surfaces that render the step list — the gradual-view
  * sidebar and the coordinator's assistant info panel "Onboarding"
  * sub-tab — both consume this context so the user's per-session
  * progress survives the gradual ↔ info-panel layout transition
@@ -18,16 +18,15 @@
  * The provider lives in ``Main.tsx`` so the underlying state is
  * always mounted while the user is on the assistants page.
  * Consumers fall through gracefully when the context isn't
- * provided — checklist UI shows everything as pending against an
+ * provided — onboarding UI shows everything as pending against an
  * empty completed set and silently ignores ``markStepCompleted``.
  */
 
 import * as React from 'react';
 
 export interface CoordinatorOnboardingContextValue {
-  /** Per-session record of which checklist steps the user has
-   * *actually* finished. Drives the strikethrough on the checklist
-   * row and the prereq-satisfaction logic for downstream rows.
+  /** Per-session record of which onboarding steps the user has
+   * *actually* finished. Drives the strikethrough on the step row and the prereq-satisfaction logic for downstream rows.
    * Lives in ``Main.tsx`` so the set survives the gradual-view →
    * info-panel layout swap.
    *
@@ -41,7 +40,7 @@ export interface CoordinatorOnboardingContextValue {
   /** Idempotently records a step as completed. Re-marking a step
    * already in the set is a no-op (no extra render). */
   markStepCompleted: (stepId: string) => void;
-  /** Per-session record of which checklist steps the user has
+  /** Per-session record of which onboarding steps the user has
    * *entered* — i.e. clicked into the corresponding surface
    * (integrations / tasks / actions tab in the gradual view).
    * Drives right-section tab visibility so the tab unlocks the

@@ -335,10 +335,7 @@ test('owner sees the Coordinator pinned with workspace chrome and no contract te
   await page.keyboard.press('Escape');
 
   await expectCoordinatorChatOpen(page, coordinator.agentId);
-  if ((await page.getByTestId('coordinator-workspace-panel').count()) === 0) {
-    await page.getByTestId('assistant-info-button').click();
-  }
-  await expect(page.getByTestId('coordinator-workspace-panel')).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId('assistant-info-button').click();
   await expect(page.getByTestId('assistant-info-tab-onboarding')).toContainText('Onboarding');
   await expect(page.getByTestId('assistant-info-tab-contact')).toContainText('Contact info');
 });

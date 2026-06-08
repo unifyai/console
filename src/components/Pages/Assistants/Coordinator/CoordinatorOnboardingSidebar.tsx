@@ -11,22 +11,18 @@
  * swap in once onboarding finishes — same 380px width (driven by
  * the parent ``<aside>``), same underlined tab strip, same padding
  * — but stripped down to a single "Onboarding" subtab. That visual
- * continuity is intentional: the rail's contents (the checklist)
- * survive into the post-onboarding info panel via the
- * ``CoordinatorOnboardingContext``, so the user shouldn't perceive
- * a layout jump when the page swaps shells.
+ * continuity is intentional: the rail's onboarding steps survive into
+ * the post-onboarding info panel via the ``CoordinatorOnboardingContext``,
+ * so the user shouldn't perceive a layout jump when the page swaps shells.
  *
  * Two zones inside:
  *
- *   1. A tab-stripped checklist body (the only subtab is
- *      "Onboarding" — no Planning, no Contact info, both of which
- *      are reserved for the working-mode panel). Reads progress
- *      from the shared context so the same state surfaces in the
- *      info-panel checklist later.
+ *   1. The onboarding step list (the only subtab is "Onboarding").
+ *      Reads progress from the shared context so the same state surfaces
+ *      in the info-panel Onboarding tab later.
  *   2. A "Skip onboarding" affordance pinned to the bottom — only
  *      lives on this surface because skipping past hire-specialist
- *      (which is when the info-panel checklist appears) doesn't
- *      make UX sense.
+ *      (when the info-panel Onboarding tab appears) doesn't make UX sense.
  */
 
 import * as React from 'react';
