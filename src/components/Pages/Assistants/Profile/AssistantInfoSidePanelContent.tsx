@@ -25,14 +25,11 @@ import { FaDiscord } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 import type { Assistant } from '@/types/assistants/assistant';
 import type { ContactType } from '@/types/assistants/contact';
-import type { CoordinatorActivityState } from '@/hooks/Assistants/useCoordinatorActivity';
-import type { CoordinatorActivityRow } from '@/types/assistants/coordinatorActivity';
 import { AssistantSetupRoadmap } from '@/components/Pages/Assistants/Onboarding/AssistantSetupRoadmap';
 import {
   useAssistantOnboardingState,
   type OnboardingDerivationContext,
 } from '@/hooks/Assistants/useAssistantOnboardingState';
-import { CoordinatorWorkspacePanelContent } from './CoordinatorWorkspacePanelContent';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { CoordinatorOnboardingChecklist } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
@@ -81,13 +78,10 @@ export interface AssistantInfoSidePanelContentProps {
     onOpenUserSettings: (tab?: string) => void;
     onSeedChatDraft: (text: string) => void;
   };
-  onSeedChatDraft?: (text: string) => void;
-  onCoordinatorActivity?: (activity: CoordinatorActivityRow) => void;
-  coordinatorActivity?: CoordinatorActivityState;
   /** Coordinator-specific onboarding wiring. When this assistant is
    * the canonical workspace Coordinator and ``Coordinator/State.mode
    * === 'onboarding'``, the info panel surfaces an "Onboarding"
-   * sub-tab that renders the gradual-onboarding checklist (the same
+   * sub-tab that renders the gradual-onboarding steps (the same
    * one that lives in ``CoordinatorOnboarding`` while the alternate
    * /assistants shell is mounted). The hook bag carries the action
    * handlers the rows need — the actual progress state is read from
@@ -114,7 +108,6 @@ export interface AssistantInfoSidePanelContentProps {
   className?: string;
 }
 
-const noopSeedChatDraft = () => {};
 const COORDINATOR_COPY_RESET_MS = 2000;
 
 /**
@@ -138,7 +131,6 @@ const COORDINATOR_COPY_RESET_MS = 2000;
  */
 export function AssistantInfoSidePanelContent({
   assistant,
-  onSeedChatDraft = noopSeedChatDraft,
   ...props
 }: AssistantInfoSidePanelContentProps) {
   if (assistant.isCoordinator === true) {
@@ -147,9 +139,6 @@ export function AssistantInfoSidePanelContent({
         assistant={assistant}
         onEditProfile={props.onEditProfile}
         className={props.className}
-        onSeedChatDraft={onSeedChatDraft}
-        onCoordinatorActivity={props.onCoordinatorActivity}
-        coordinatorActivity={props.coordinatorActivity}
         onOpenContactManager={props.onOpenContactManager}
         canWrite={props.canWrite}
         coordinatorOnboarding={props.coordinatorOnboarding}
@@ -160,14 +149,11 @@ export function AssistantInfoSidePanelContent({
   return <RegularAssistantInfoSidePanelContent assistant={assistant} {...props} />;
 }
 
-type CoordinatorPanelTab = 'onboarding' | 'planning' | 'contact';
+type CoordinatorPanelTab = 'onboarding' | 'contact';
 
 function CoordinatorAssistantInfoSidePanelContent({
   assistant,
   onEditProfile,
-  onSeedChatDraft,
-  onCoordinatorActivity,
-  coordinatorActivity,
   onOpenContactManager,
   className,
   canWrite = true,
@@ -175,32 +161,19 @@ function CoordinatorAssistantInfoSidePanelContent({
 }: {
   assistant: Assistant;
   onEditProfile?: (assistant: Assistant) => void;
-  onSeedChatDraft: (text: string) => void;
-  onCoordinatorActivity?: (activity: CoordinatorActivityRow) => void;
-  coordinatorActivity?: CoordinatorActivityState;
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   className?: string;
   canWrite?: boolean;
   coordinatorOnboarding?: AssistantInfoSidePanelContentProps['coordinatorOnboarding'];
 }) {
-  // The "Onboarding" tab (gradual-flow checklist) renders whenever
-  // the caller wires up onboarding handlers — regardless of the
-  // Coordinator's current ``mode``. Skipping onboarding flips the
-  // state to ``working`` but the user may still want to resume the
-  // checklist from the info panel, so the tab survives that flip
-  // and only disappears when the page-level wiring stops handing us
-  // ``coordinatorOnboarding``.
   const showOnboardingTab = !!coordinatorOnboarding;
 
   const [isIdCopied, setIsIdCopied] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<CoordinatorPanelTab>(
-    showOnboardingTab ? 'onboarding' : 'planning'
+    showOnboardingTab ? 'onboarding' : 'contact'
   );
-  // If the onboarding tab vanishes (caller stops providing
-  // ``coordinatorOnboarding``) while it's the active tab, fall
-  // back to Planning so the user isn't stranded on an empty body.
   React.useEffect(() => {
-    if (!showOnboardingTab && activeTab === 'onboarding') setActiveTab('planning');
+    if (!showOnboardingTab && activeTab === 'onboarding') setActiveTab('contact');
   }, [showOnboardingTab, activeTab]);
 
   const copyResetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -244,13 +217,13 @@ function CoordinatorAssistantInfoSidePanelContent({
           }
         />
 
-        <Tabs
-          value={activeTab}
-          onValueChange={(value) => setActiveTab(value as CoordinatorPanelTab)}
-          className="flex min-h-0 flex-1 flex-col gap-3"
-        >
-          <TabsList className="h-8 w-full items-end justify-start gap-6 rounded-none border-b border-border bg-transparent p-0">
-            {showOnboardingTab && (
+        {showOnboardingTab ? (
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value as CoordinatorPanelTab)}
+            className="flex min-h-0 flex-1 flex-col gap-3"
+          >
+            <TabsList className="h-8 w-full items-end justify-start gap-6 rounded-none border-b border-border bg-transparent p-0">
               <TabsTrigger
                 value="onboarding"
                 data-testid="assistant-info-tab-onboarding"
@@ -258,63 +231,52 @@ function CoordinatorAssistantInfoSidePanelContent({
               >
                 Onboarding
               </TabsTrigger>
+              <TabsTrigger
+                value="contact"
+                data-testid="assistant-info-tab-contact"
+                className={PANEL_TAB_TRIGGER_CLASS}
+              >
+                Contact info
+              </TabsTrigger>
+            </TabsList>
+            {coordinatorOnboarding && (
+              <TabsContent value="onboarding" className="mt-0">
+                <CoordinatorOnboardingChecklist
+                  onConnectWorkspace={coordinatorOnboarding.onConnectWorkspace}
+                  onConnectApps={coordinatorOnboarding.onConnectApps}
+                  onActNow={coordinatorOnboarding.onActNow}
+                  onScheduleTask={coordinatorOnboarding.onScheduleTask}
+                  onHireSpecialist={coordinatorOnboarding.onHireSpecialist}
+                />
+                {coordinatorOnboarding.onResumeOnboarding && (
+                  <div className="mt-4 flex justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={coordinatorOnboarding.onResumeOnboarding}
+                      data-testid="coordinator-onboarding-resume"
+                    >
+                      Resume onboarding →
+                    </Button>
+                  </div>
+                )}
+              </TabsContent>
             )}
-            <TabsTrigger
-              value="planning"
-              data-testid="assistant-info-tab-planning"
-              className={PANEL_TAB_TRIGGER_CLASS}
-            >
-              Planning
-            </TabsTrigger>
-            <TabsTrigger
-              value="contact"
-              data-testid="assistant-info-tab-contact"
-              className={PANEL_TAB_TRIGGER_CLASS}
-            >
-              Contact info
-            </TabsTrigger>
-          </TabsList>
-          {showOnboardingTab && coordinatorOnboarding && (
-            <TabsContent value="onboarding" className="mt-0">
-              <CoordinatorOnboardingChecklist
-                onConnectWorkspace={coordinatorOnboarding.onConnectWorkspace}
-                onConnectApps={coordinatorOnboarding.onConnectApps}
-                onActNow={coordinatorOnboarding.onActNow}
-                onScheduleTask={coordinatorOnboarding.onScheduleTask}
-                onHireSpecialist={coordinatorOnboarding.onHireSpecialist}
+            <TabsContent value="contact" className="mt-0">
+              <ContactInfoGrid
+                assistant={assistant}
+                onOpenContactManager={onOpenContactManager}
+                canWrite={canWrite}
               />
-              {coordinatorOnboarding.onResumeOnboarding && (
-                <div className="mt-4 flex justify-end">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={coordinatorOnboarding.onResumeOnboarding}
-                    data-testid="coordinator-onboarding-resume"
-                  >
-                    Resume onboarding →
-                  </Button>
-                </div>
-              )}
             </TabsContent>
-          )}
-          <TabsContent value="planning" className="mt-0">
-            <CoordinatorWorkspacePanelContent
-              assistant={assistant}
-              onSeedChatDraft={onSeedChatDraft}
-              onCoordinatorActivity={onCoordinatorActivity}
-              coordinatorActivity={coordinatorActivity}
-              withScrollArea={false}
-              showHeader={false}
-            />
-          </TabsContent>
-          <TabsContent value="contact" className="mt-0">
-            <ContactInfoGrid
-              assistant={assistant}
-              onOpenContactManager={onOpenContactManager}
-              canWrite={canWrite}
-            />
-          </TabsContent>
-        </Tabs>
+          </Tabs>
+        ) : (
+          <ContactInfoGrid
+            assistant={assistant}
+            onOpenContactManager={onOpenContactManager}
+            canWrite={canWrite}
+          />
+        )}
       </div>
     </ScrollArea>
   );
