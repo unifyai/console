@@ -44,6 +44,7 @@ interface IntegrationsPaneProps {
   assistantId: string;
   secretActions: SecretActions;
   canWrite?: boolean;
+  isVisible?: boolean;
   /**
    * Notifies the parent of the number of "connected an app" signals — used
    * by the Coordinator onboarding flow to auto-mark the "Connect your
@@ -85,6 +86,7 @@ export function IntegrationsPane({
   assistantId,
   secretActions,
   canWrite = true,
+  isVisible = true,
   onSecretsCountChange,
 }: IntegrationsPaneProps) {
   const {
@@ -107,7 +109,7 @@ export function IntegrationsPane({
     clearSearch,
     onSubmit,
     fetchSecrets,
-  } = useAssistantSecrets(assistantId, ownerId, secretActions);
+  } = useAssistantSecrets(assistantId, ownerId, secretActions, { enabled: isVisible });
 
   // Local UI state.
   const [searchValue, setSearchValue] = React.useState(searchQuery);

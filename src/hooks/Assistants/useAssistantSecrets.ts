@@ -53,8 +53,10 @@ function checkNameFolderConflict(name: string, existingNames: string[]): string 
 export function useAssistantSecrets(
   assistantId: string | null,
   ownerId: string | null,
-  secretActions: SecretActions
+  secretActions: SecretActions,
+  options: { enabled?: boolean } = {}
 ) {
+  const enabled = options.enabled ?? true;
   const [secrets, setSecrets] = React.useState<Secret[]>([]);
   const [selectedSecret, setSelectedSecret] = React.useState<Secret | null>(null);
   // Start as loading unconditionally so the skeleton is visible for the full
@@ -76,41 +78,49 @@ export function useAssistantSecrets(
   });
   const { reset } = formMethods;
 
-  const fetchSecrets = React.useCallback(async () => {
-    if (!assistantId || !ownerId) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const sortingParam = sorting
-        ? buildSortingParam(sorting.field, sorting.direction)
-        : undefined;
-      const trimmedQuery = searchQuery.trim();
-      const filterExprParam = trimmedQuery
-        ? buildSearchFilterExpr(trimmedQuery, SEARCH_FIELDS)
-        : undefined;
-      const result = await secretActions.get(assistantId, ownerId, sortingParam, filterExprParam);
-      if ('detail' in result) throw new Error((result as ResponseProps).detail);
-      const fetched = result as Secret[];
-      setSecrets(fetched);
-      // Re-select the currently selected secret if it still exists (e.g. after update),
-      // otherwise clear the selection (e.g. after create or delete).
-      setSelectedSecret((prev) => {
-        if (!prev) return null;
-        return fetched.find((s) => s.logId === prev.logId) || null;
-      });
-    } catch (err: any) {
-      setError(err.message);
-      toast.error('Failed to load secrets.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [assistantId, ownerId, secretActions, sorting, searchQuery]);
+  const fetchSecrets = React.useCallback(
+    async (request?: { isStale?: () => boolean }) => {
+      if (!assistantId || !ownerId) return;
+      setIsLoading(true);
+      setError(null);
+      try {
+        const sortingParam = sorting
+          ? buildSortingParam(sorting.field, sorting.direction)
+          : undefined;
+        const trimmedQuery = searchQuery.trim();
+        const filterExprParam = trimmedQuery
+          ? buildSearchFilterExpr(trimmedQuery, SEARCH_FIELDS)
+          : undefined;
+        const result = await secretActions.get(assistantId, ownerId, sortingParam, filterExprParam);
+        if (request?.isStale?.()) return;
+        if ('detail' in result) throw new Error((result as ResponseProps).detail);
+        const fetched = result as Secret[];
+        setSecrets(fetched);
+        // Re-select the currently selected secret if it still exists (e.g. after update),
+        // otherwise clear the selection (e.g. after create or delete).
+        setSelectedSecret((prev) => {
+          if (!prev) return null;
+          return fetched.find((s) => s.logId === prev.logId) || null;
+        });
+      } catch (err: any) {
+        if (request?.isStale?.()) return;
+        setError(err.message);
+        toast.error('Failed to load secrets.');
+      } finally {
+        if (!request?.isStale?.()) setIsLoading(false);
+      }
+    },
+    [assistantId, ownerId, secretActions, sorting, searchQuery]
+  );
 
   React.useEffect(() => {
-    if (assistantId) {
-      fetchSecrets();
-    }
-  }, [assistantId, fetchSecrets]);
+    if (!assistantId || !enabled) return;
+    let stale = false;
+    void fetchSecrets({ isStale: () => stale });
+    return () => {
+      stale = true;
+    };
+  }, [assistantId, enabled, fetchSecrets]);
 
   // Clear the cached rows and flip loading on synchronously so there's no
   // intermediate "No secrets found" flash between the state change and the

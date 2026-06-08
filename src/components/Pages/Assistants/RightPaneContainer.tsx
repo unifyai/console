@@ -954,6 +954,7 @@ export function RightPaneContainer({
             assistantId={assistant.agentId}
             secretActions={assistantActions.secret}
             canWrite={canWrite}
+            isVisible={tab === 'integrations'}
           />
         </TabsContent>
 
