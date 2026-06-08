@@ -1274,6 +1274,24 @@ start_console() {
     export LIVEKIT_URL="ws://localhost:7880"
     export LIVEKIT_API_KEY="devkey"
     export LIVEKIT_API_SECRET="secret"
+    # Never inherit stale cloud keys from unity/.env — session or runtime file only.
+    unset SHARED_UNIFY_KEY
+    local _runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-/tmp/self-host-coordinator-runtime.json}"
+    if [[ -f "$_runtime_file" ]]; then
+      local _resume_key
+      _resume_key="$(python3 - "$_runtime_file" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as fh:
+    data = json.load(fh)
+print(data.get("apiKey") or data.get("api_key") or "")
+PY
+)" || true
+      if [[ -n "$_resume_key" ]]; then
+        export SHARED_UNIFY_KEY="$_resume_key"
+      fi
+    fi
     log_info "Console self-host env:"
     log_info "  SELF_HOST=1"
     log_info "  LIVEKIT_URL=$LIVEKIT_URL"
