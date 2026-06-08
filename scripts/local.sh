@@ -910,6 +910,11 @@ start_unity_coordinator() {
     unity_env+=(ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0")
   fi
 
+  unity_env+=(
+    "UNITY_COMMS_URL=${CHAT_COMMS_URL:-http://127.0.0.1:8082}"
+    "UNITY_ADAPTERS_URL=${CHAT_ADAPTERS_URL:-http://127.0.0.1:8081}"
+  )
+
   local _voice_provider _voice_id
   _voice_provider=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
     -c "SELECT COALESCE(voice_provider, '') FROM assistants WHERE agent_id = $coordinator_agent_id;" 2>/dev/null || echo "")
