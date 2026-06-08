@@ -14,10 +14,6 @@ import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
-import {
-  applyApprovedCharacterVoiceMetadata,
-  approvedCharacterVoiceIds,
-} from '@/constants/assistants/approved_character_voices';
 import { getDefaultVoiceForProvider } from '@/utils/assistants/voice-utils';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
@@ -264,35 +260,12 @@ export function useAssistantForm(
         preset.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
       );
 
-      const providerSpecificVoiceId = preset.voiceIds[PRIMARY_VOICE_PROVIDER] ?? null;
-
-      let selectedPresetVoiceDetails: VoiceOption | undefined =
-        registeredVoices.find(
-          (voice) =>
-            voice.voiceId === providerSpecificVoiceId &&
-            voice.provider === PRIMARY_VOICE_PROVIDER &&
-            approvedCharacterVoiceIds.has(voice.voiceId)
-        ) ||
-        (voicePresetsConstant as VoiceOption[])
-          .filter(
-            (voice) =>
-              voice.provider === PRIMARY_VOICE_PROVIDER &&
-              approvedCharacterVoiceIds.has(voice.voiceId)
-          )
-          .map(applyApprovedCharacterVoiceMetadata)
-          .find((voice) => voice.voiceId === providerSpecificVoiceId);
-
-      if (!selectedPresetVoiceDetails) {
-        selectedPresetVoiceDetails = defaultVoice as VoiceOption;
-        if (selectedPresetVoiceDetails) {
-          selectedPresetVoiceDetails.isUserVoiceInOrchestra = false;
-          selectedPresetVoiceDetails.isPreset = true;
-        }
-      } else {
-        selectedPresetVoiceDetails = applyApprovedCharacterVoiceMetadata(
-          selectedPresetVoiceDetails
-        );
-      }
+      const providerSpecificVoiceId = defaultVoice.voiceId;
+      const selectedPresetVoiceDetails = {
+        ...(defaultVoice as VoiceOption),
+        isUserVoiceInOrchestra: false,
+        isPreset: true,
+      };
 
       setValue('voiceId', selectedPresetVoiceDetails.voiceId);
       setValue('voiceName', selectedPresetVoiceDetails.name);

@@ -48,23 +48,9 @@ export const approvedCharacterVoiceMetadata: Record<string, ApprovedVoiceMetadat
     language: 'en',
     provider: 'elevenlabs',
   },
-  ErXwobaYiN019PkySvjV: {
-    name: 'Buddy Beam',
-    description: 'Friendly, balanced, and approachable for upbeat team assistants.',
-    gender: 'male',
-    language: 'en',
-    provider: 'elevenlabs',
-  },
   CYw3kZ02Hs0563khs1Fj: {
     name: 'Chatter Chip',
     description: 'Light, conversational, and personable with cartoon-sidekick warmth.',
-    gender: 'male',
-    language: 'en',
-    provider: 'elevenlabs',
-  },
-  GBv7mTt0atIp3Br8iCZE: {
-    name: 'Gentle Glow',
-    description: 'Calm, bright, and easygoing for reassuring assistant moments.',
     gender: 'male',
     language: 'en',
     provider: 'elevenlabs',
@@ -105,6 +91,8 @@ export const approvedCharacterVoiceMetadata: Record<string, ApprovedVoiceMetadat
     provider: 'elevenlabs',
   },
 };
+
+export const defaultCharacterVoiceId = 'cgSgspJ2msm6clMCkdW9';
 
 export const approvedCharacterVoiceIds = new Set(Object.keys(approvedCharacterVoiceMetadata));
 

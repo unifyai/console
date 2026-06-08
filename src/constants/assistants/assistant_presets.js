@@ -218,7 +218,7 @@ const assistantPresets = [
     profilePhoto: 'preset_assistants/photos/Jordan_Owusu.jpg',
     voiceIds: {
       cartesia: '87bc56aa-ab01-4baa-9071-77d497064686', // Jordan (en, male, "smooth and friendly... natural, easygoing tone")
-      elevenlabs: 'ErXwobaYiN019PkySvjV', // Antoni (en, male, young, well-rounded)
+      elevenlabs: 'CYw3kZ02Hs0563khs1Fj', // Dave (en, male, light conversational)
       openai: 'verse',
     },
     videoTranscript: 'Hey! What can I help you with today?',
@@ -778,7 +778,7 @@ const assistantPresets = [
     profilePhoto: 'preset_assistants/photos/Grant_Adu.jpg',
     voiceIds: {
       cartesia: '63406bbd-ce1b-4fff-8beb-86d3da9891b9', // Grant (en, male, "clear, well-paced male voice with a steady and professional tone")
-      elevenlabs: 'GBv7mTt0atIp3Br8iCZE', // Thomas (en, male, young, calm)
+      elevenlabs: 'CYw3kZ02Hs0563khs1Fj', // Dave (en, male, light conversational)
       openai: 'ash',
     },
     videoTranscript: "Hello. I'm ready to assist you.",
@@ -1092,7 +1092,7 @@ const assistantPresets = [
     nationality: 'United Kingdom',
     profilePhoto: 'preset_assistants/photos/Andrew_Scott.jpg',
     voiceIds: {
-      elevenlabs: 'ErXwobaYiN019PkySvjV', // Antoni (en, male, young, well-rounded)
+      elevenlabs: 'CYw3kZ02Hs0563khs1Fj', // Dave (en, male, light conversational)
     },
     videoTranscript: 'Hey there. Would you like me to start with anything?',
   },

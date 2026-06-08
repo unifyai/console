@@ -68,6 +68,28 @@ function CreatureEye({
   );
 }
 
+function CreatureMouth({ cx, cy, fill }: { cx: number; cy: number; fill: string }) {
+  const width = 21;
+  const topDip = 3;
+  const bottomDip = 9;
+  const leftX = cx - width / 2;
+  const rightX = cx + width / 2;
+
+  return (
+    <path
+      d={`M ${leftX} ${cy} Q ${cx} ${cy + topDip} ${rightX} ${cy} Q ${cx} ${cy + bottomDip} ${leftX} ${cy} Z`}
+      fill={fill}
+      style={{
+        opacity: 'calc(var(--martian-speech-level, 0) * 0.95)',
+        transform:
+          'scaleX(calc(0.72 + var(--martian-speech-level, 0) * 0.42)) scaleY(calc(0.35 + var(--martian-speech-level, 0) * 0.65))',
+        transformBox: 'fill-box',
+        transformOrigin: 'center',
+      }}
+    />
+  );
+}
+
 export function TeammateCreature({
   className,
   color = 'green',
@@ -89,6 +111,8 @@ export function TeammateCreature({
   const px = (n: number) => margin + n * cell;
   const leftEyeX = margin + gridWidth * 0.32;
   const rightEyeX = margin + gridWidth * 0.6;
+  const mouthX = (leftEyeX + rightEyeX) / 2;
+  const mouthY = eyeY + cell * 1.02;
 
   return (
     <svg
@@ -139,6 +163,7 @@ export function TeammateCreature({
         ))}
       <CreatureEye cx={leftEyeX} cy={eyeY} dir={eyes} stroke={eyeStroke} />
       <CreatureEye cx={rightEyeX} cy={eyeY} dir={eyes} stroke={eyeStroke} />
+      <CreatureMouth cx={mouthX} cy={mouthY} fill={eyeStroke} />
     </svg>
   );
 }

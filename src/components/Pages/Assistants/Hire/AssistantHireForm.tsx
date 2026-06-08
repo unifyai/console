@@ -25,8 +25,7 @@ import {
   SelectValue,
 } from '@/components/UI/select';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
-import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
-import { applyApprovedCharacterVoiceMetadata } from '@/constants/assistants/approved_character_voices';
+import { getDefaultVoiceForProvider } from '@/utils/assistants/voice-utils';
 import {
   Accordion,
   AccordionContent,
@@ -41,7 +40,8 @@ import { getCreatureMetrics, type CreatureEyes } from '@/components/Brand/Teamma
 import { roleColorVars, type BrandRole, type CreatureShape } from '@/components/Brand/shapes';
 
 const staticSkillsText = `The bio doesn't influence the martian's abilities. All martians come with the same foundational skills and can specialize in whichever area you want them to.`;
-const MARTIAN_PREVIEW_SIZE = 224;
+const MARTIAN_PREVIEW_SIZE = 192;
+const APPEARANCE_HOVER_CONTROL_CLASS = 'transition-opacity duration-150';
 
 const appearanceEyeOptions = ['up', 'down', 'square'] as const satisfies readonly CreatureEyes[];
 const appearanceShapeOptions = [
@@ -79,6 +79,16 @@ function pickOption<T>(items: readonly T[], current: T): T {
     next = items[Math.floor(Math.random() * items.length)];
   }
   return next;
+}
+
+function getSpeakingEyes(baseEyes: CreatureEyes, frame: number): CreatureEyes {
+  const sequenceByBaseEyes: Record<CreatureEyes, CreatureEyes[]> = {
+    up: ['up', 'square', 'down', 'square'],
+    down: ['down', 'square', 'up', 'square'],
+    square: ['square', 'up', 'square', 'down'],
+  };
+
+  return sequenceByBaseEyes[baseEyes][frame % sequenceByBaseEyes[baseEyes].length];
 }
 
 function SpaceshipIcon({ className }: { className?: string }) {
@@ -203,10 +213,19 @@ export function HireForm({
   const [martianEyes, setMartianEyes] = React.useState<CreatureEyes>('up');
   const [martianShape, setMartianShape] = React.useState<CreatureShape>('clawd');
   const [martianColor, setMartianColor] = React.useState<BrandRole>('green');
+  const [isAppearanceControlsVisible, setIsAppearanceControlsVisible] = React.useState(false);
+  const [isVoicePreviewPlaying, setIsVoicePreviewPlaying] = React.useState(false);
+  const [speakingEyeFrame, setSpeakingEyeFrame] = React.useState(0);
+  const speakingEyeBaseRef = React.useRef<CreatureEyes>(martianEyes);
+  const martianSpeechRef = React.useRef<HTMLSpanElement | null>(null);
   const setup = useWatch({ control, name: 'setup' });
   const operatingSystem = useWatch({ control, name: 'operatingSystem' });
   const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
+  const defaultVoice = React.useMemo(() => getDefaultVoiceForProvider(), []);
   const isEditMode = mode === 'edit';
+  const appearanceControlVisibilityClass = isAppearanceControlsVisible
+    ? 'pointer-events-auto opacity-100'
+    : 'pointer-events-none opacity-0';
 
   const colorIndex = appearanceColorOptions.indexOf(martianColor);
   const previousColor =
@@ -214,6 +233,9 @@ export function HireForm({
       (colorIndex - 1 + appearanceColorOptions.length) % appearanceColorOptions.length
     ];
   const nextColor = appearanceColorOptions[(colorIndex + 1) % appearanceColorOptions.length];
+  const displayedMartianEyes = isVoicePreviewPlaying
+    ? getSpeakingEyes(speakingEyeBaseRef.current, speakingEyeFrame)
+    : martianEyes;
   const eyeArrowTop = React.useMemo(() => {
     const metrics = getCreatureMetrics(martianShape);
     const scale = Math.min(
@@ -232,6 +254,31 @@ export function HireForm({
     setMartianColor((current) => pickOption(appearanceColorOptions, current));
   }, []);
 
+  const handlePreviewSpeechLevelChange = React.useCallback((level: number) => {
+    const martian = martianSpeechRef.current;
+    if (!martian) return;
+
+    const speechLevel = Math.max(0, Math.min(1, level));
+    martian.style.setProperty('--martian-speech-level', speechLevel.toFixed(3));
+    martian.style.transform = `translateY(${-speechLevel * 3}px) scale(${1 + speechLevel * 0.004})`;
+  }, []);
+
+  React.useEffect(() => {
+    if (!isVoicePreviewPlaying) {
+      setSpeakingEyeFrame(0);
+      speakingEyeBaseRef.current = martianEyes;
+      return;
+    }
+
+    speakingEyeBaseRef.current = martianEyes;
+    setSpeakingEyeFrame(0);
+    const eyeTimer = window.setInterval(() => {
+      setSpeakingEyeFrame((current) => (current + 1) % 4);
+    }, 2000);
+
+    return () => window.clearInterval(eyeTimer);
+  }, [isVoicePreviewPlaying, martianEyes]);
+
   // Reset OS to 'ubuntu' when switching from local to remote if 'macos' is selected (macos is only available for local)
   React.useEffect(() => {
     if (setup === 'remote' && operatingSystem === 'macos') {
@@ -245,36 +292,22 @@ export function HireForm({
 
     if (!isPristine || !currentPreset) return;
 
-    const voiceId = currentPreset.voiceIds[PRIMARY_VOICE_PROVIDER];
-
-    if (!voiceId) return;
-
-    const voiceDetails =
-      allDisplayableVoices.find(
-        (v) => v.voiceId === voiceId && v.provider === PRIMARY_VOICE_PROVIDER
-      ) ||
-      (voicePresetsConstant as Voice[])
-        .filter((v) => v.provider === PRIMARY_VOICE_PROVIDER)
-        .map(applyApprovedCharacterVoiceMetadata)
-        .find((v) => v.voiceId === voiceId);
-    if (!voiceDetails) return;
-
     // Update voice fields
-    setValue('voiceId', voiceDetails.voiceId);
-    setValue('voiceName', voiceDetails.name);
-    setValue('voiceDescription', voiceDetails.description);
-    setValue('voiceLanguage', voiceDetails.language as SupportedLanguage);
-    setValue('voiceGender', voiceDetails.gender as Gender);
-    setValue('voiceProvider', voiceDetails.provider);
+    setValue('voiceId', defaultVoice.voiceId);
+    setValue('voiceName', defaultVoice.name);
+    setValue('voiceDescription', defaultVoice.description);
+    setValue('voiceLanguage', defaultVoice.language as SupportedLanguage);
+    setValue('voiceGender', defaultVoice.gender as Gender);
+    setValue('voiceProvider', defaultVoice.provider || PRIMARY_VOICE_PROVIDER);
 
     const userHasVoice = allDisplayableVoices.some(
       (v) =>
-        v.voiceId === voiceDetails.voiceId &&
-        v.provider === voiceDetails.provider &&
+        v.voiceId === defaultVoice.voiceId &&
+        v.provider === (defaultVoice.provider || PRIMARY_VOICE_PROVIDER) &&
         v.isUserVoiceInOrchestra
     );
     setValue('voiceExists', userHasVoice, { shouldValidate: true });
-  }, [getValues, setValue, allDisplayableVoices]);
+  }, [getValues, setValue, allDisplayableVoices, defaultVoice]);
 
   return (
     <FormProvider {...formMethods}>
@@ -459,7 +492,12 @@ export function HireForm({
               </AccordionItem>
 
               {/* Photo Section */}
-              <AccordionItem value="photo" aria-label="photo trigger">
+              <AccordionItem
+                value="photo"
+                aria-label="photo trigger"
+                onMouseEnter={() => setIsAppearanceControlsVisible(true)}
+                onMouseLeave={() => setIsAppearanceControlsVisible(false)}
+              >
                 <AccordionTrigger className="text-title">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <AccordionIconSlot>
@@ -469,28 +507,19 @@ export function HireForm({
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pt-2">
-                  <div className="flex justify-center py-3">
-                    <div className="flex w-full max-w-sm flex-col items-center gap-3">
-                      <Button
-                        aria-label="Randomize martian appearance"
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-1.5"
-                        disabled={isSubmitting}
-                        onClick={randomizeMartianAppearance}
-                      >
-                        <Shuffle className="h-3.5 w-3.5" />
-                        Randomize
-                      </Button>
-
-                      <div className="relative flex h-56 w-80 max-w-full items-center justify-center overflow-visible">
+                  <div className="flex justify-center py-1">
+                    <div className="flex w-full max-w-sm flex-col items-center gap-1">
+                      <div className="relative flex h-48 w-72 max-w-full items-center justify-center overflow-visible">
                         <Button
                           aria-label="Previous eye style"
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="absolute left-5 h-9 w-9 bg-transparent hover:bg-transparent"
+                          className={cn(
+                            'absolute left-5 h-9 w-9 bg-transparent hover:bg-transparent',
+                            APPEARANCE_HOVER_CONTROL_CLASS,
+                            appearanceControlVisibilityClass
+                          )}
                           disabled={isSubmitting}
                           onClick={() =>
                             setMartianEyes((current) =>
@@ -506,7 +535,11 @@ export function HireForm({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="absolute right-5 h-9 w-9 bg-transparent hover:bg-transparent"
+                          className={cn(
+                            'absolute right-5 h-9 w-9 bg-transparent hover:bg-transparent',
+                            APPEARANCE_HOVER_CONTROL_CLASS,
+                            appearanceControlVisibilityClass
+                          )}
                           disabled={isSubmitting}
                           onClick={() =>
                             setMartianEyes((current) =>
@@ -523,7 +556,11 @@ export function HireForm({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="absolute left-1 top-[55%] h-9 w-9 bg-transparent hover:bg-transparent"
+                          className={cn(
+                            'absolute left-1 top-[55%] h-9 w-9 bg-transparent hover:bg-transparent',
+                            APPEARANCE_HOVER_CONTROL_CLASS,
+                            appearanceControlVisibilityClass
+                          )}
                           disabled={isSubmitting}
                           onClick={() =>
                             setMartianShape((current) =>
@@ -538,7 +575,11 @@ export function HireForm({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="absolute right-1 top-[55%] h-9 w-9 bg-transparent hover:bg-transparent"
+                          className={cn(
+                            'absolute right-1 top-[55%] h-9 w-9 bg-transparent hover:bg-transparent',
+                            APPEARANCE_HOVER_CONTROL_CLASS,
+                            appearanceControlVisibilityClass
+                          )}
                           disabled={isSubmitting}
                           onClick={() =>
                             setMartianShape((current) =>
@@ -549,16 +590,36 @@ export function HireForm({
                           <ChevronRight className="!h-7 !w-7" />
                         </Button>
 
-                        <TeammateCreature
-                          className="h-full w-56"
-                          color={martianColor}
-                          eyes={martianEyes}
-                          label="Martian avatar"
-                          shape={martianShape}
-                        />
+                        <button
+                          aria-label="Randomize martian appearance"
+                          className="flex h-full w-52 items-center justify-center bg-transparent p-0 outline-none transition-transform hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring"
+                          disabled={isSubmitting}
+                          onClick={randomizeMartianAppearance}
+                          type="button"
+                        >
+                          <span
+                            ref={martianSpeechRef}
+                            className="block h-full w-full transform-gpu"
+                            style={{ '--martian-speech-level': 0 } as React.CSSProperties}
+                          >
+                            <TeammateCreature
+                              className="h-full w-full"
+                              color={martianColor}
+                              eyes={displayedMartianEyes}
+                              label="Martian avatar"
+                              shape={martianShape}
+                            />
+                          </span>
+                        </button>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div
+                        className={cn(
+                          'flex items-center gap-2',
+                          APPEARANCE_HOVER_CONTROL_CLASS,
+                          appearanceControlVisibilityClass
+                        )}
+                      >
                         <Button
                           aria-label="Previous martian color"
                           type="button"
@@ -656,6 +717,8 @@ export function HireForm({
                     initialVoiceId={getValues('voiceId')}
                     disabled={isSubmitting}
                     onProcessingStateChange={onVoiceProcessingStateChange}
+                    onPreviewPlayingChange={setIsVoicePreviewPlaying}
+                    onPreviewSpeechLevelChange={handlePreviewSpeechLevelChange}
                     allDisplayableVoices={allDisplayableVoices}
                     isLoadingUserVoices={isLoadingUserVoices}
                     fetchUserVoices={fetchUserVoices}
