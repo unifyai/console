@@ -201,7 +201,7 @@ export async function sendPreHireChatMessage(
  * This is used AFTER an assistant is hired to generate their first message.
  *
  * Note: This operation is considered part of the assistant onboarding process
- * and is covered by the ASSISTANT_ONBOARDING_FEE, not charged separately.
+ * and is not charged separately.
  */
 export async function generatePostHireGreeting(
   assistantName: string,

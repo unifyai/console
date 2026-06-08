@@ -426,7 +426,7 @@ export function AssistantList({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="right">
-                      <p>Hire new assistant</p>
+                      <p>Onboard new martian</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -456,7 +456,7 @@ export function AssistantList({
                 aria-disabled={isHireButtonDisabled}
               >
                 <UserPlus className="h-4 w-4" />
-                Hire
+                Onboard
               </Button>
             )}
           </div>

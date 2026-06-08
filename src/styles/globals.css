@@ -19,6 +19,8 @@
     --role-purple: #8557ff;
     --role-yellow: #ffcf33;
     --role-teal: #14c8c8;
+    --role-pink: #ff5dbd;
+    --role-cyan: #42c6ff;
 
     --alert-red: #d94a3d;
     --soft-amber: #c47a00;
@@ -96,6 +98,7 @@
     --code-fg: var(--role-green-deep);
 
     --radius: 0.75rem;
+    --radius-control: calc(var(--radius) - 9px);
 
     --chart-1: var(--role-green-deep);
     --chart-2: var(--role-blue);
@@ -135,6 +138,8 @@
     /* Dark theme variables */
     --background: #0d0f12;
     --foreground: #eef0ea;
+    --role-pink: #ff5dbd;
+    --role-cyan: #42c6ff;
 
     --primary: var(--role-green);
     --primary-foreground: var(--ink);
@@ -169,6 +174,7 @@
     --code-fg: var(--role-green);
 
     --radius: 0.75rem;
+    --radius-control: calc(var(--radius) - 9px);
 
     --chart-1: var(--role-green);
     --chart-2: #7aa7ff;
@@ -645,6 +651,10 @@
 }
 
 @layer utilities {
+  .rounded-control {
+    border-radius: var(--radius-control);
+  }
+
   @keyframes accordion-down {
     from {
       height: 0;

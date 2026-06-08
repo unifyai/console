@@ -34,7 +34,7 @@ export function AssistantHireChatPanel({
   const { watch } = useFormContext<AssistantFormData>();
   const photoPreviewUrl = watch('photoPreviewUrl');
   const firstName = watch('firstName', 'New');
-  const surname = watch('surname', 'Assistant');
+  const surname = watch('surname', 'Martian');
   const age = watch('age');
   const bio = watch('about');
   const displayName = `${firstName} ${surname}`;

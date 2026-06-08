@@ -1,4 +1,4 @@
-export const ASSISTANT_ONBOARDING_FEE = 10;
+export const ASSISTANT_ONBOARDING_FEE = 0;
 
 export const PHOTO_OPERATION_COST = 0.05;
 export const VIDEO_ANIMATION_COST = 0.2;

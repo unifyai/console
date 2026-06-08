@@ -65,6 +65,65 @@ interface VoiceCustomizationProps {
   setActiveTab: (tab: ActiveCreatorTab) => void;
 }
 
+function VoiceGenderIcon({ gender, className }: { gender?: string; className?: string }) {
+  if (gender === 'male') {
+    return (
+      <svg
+        aria-hidden="true"
+        className={className}
+        fill="none"
+        viewBox="0 0 24 24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle cx="9" cy="15" r="5" stroke="currentColor" strokeWidth={2} />
+        <path
+          d="M13 11L20 4M16 4h4v4"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle cx="12" cy="8" r="5" stroke="currentColor" strokeWidth={2} />
+      <path
+        d="M12 13v7M8.5 17h7"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+    </svg>
+  );
+}
+
+function interleaveVoicesByGender(voices: VoiceOption[]): VoiceOption[] {
+  const femaleVoices = voices.filter((voice) => voice.gender === 'female');
+  const maleVoices = voices.filter((voice) => voice.gender === 'male');
+  const otherVoices = voices.filter(
+    (voice) => voice.gender !== 'female' && voice.gender !== 'male'
+  );
+  const interleaved: VoiceOption[] = [];
+  const maxLength = Math.max(femaleVoices.length, maleVoices.length);
+
+  for (let index = 0; index < maxLength; index++) {
+    if (femaleVoices[index]) interleaved.push(femaleVoices[index]);
+    if (maleVoices[index]) interleaved.push(maleVoices[index]);
+  }
+
+  return [...interleaved, ...otherVoices];
+}
+
 export function VoiceCustomization({
   assistantActions,
   onVoiceSelected,
@@ -100,7 +159,8 @@ export function VoiceCustomization({
   );
 
   const otherVoices = React.useMemo(
-    () => allDisplayableVoices.filter((v) => v.voiceId !== selectedVoiceId),
+    () =>
+      interleaveVoicesByGender(allDisplayableVoices.filter((v) => v.voiceId !== selectedVoiceId)),
     [allDisplayableVoices, selectedVoiceId]
   );
 
@@ -286,9 +346,15 @@ export function VoiceCustomization({
           );
         }}
       >
-        <span className="text-body text-strong flex-1 truncate" title={voice.name}>
-          {voice.name}
-        </span>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <VoiceGenderIcon
+            className={cn('h-4 w-4 shrink-0', isSelected ? 'opacity-95' : 'text-muted-foreground')}
+            gender={voice.gender}
+          />
+          <span className="text-body text-strong flex-1 truncate" title={voice.name}>
+            {voice.name}
+          </span>
+        </div>
 
         <div
           className={cn(

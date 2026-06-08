@@ -117,12 +117,12 @@ export function PresetsPanel({
           <BillableActionGuard
             onAddPaymentMethod={onAddPaymentMethod}
             creditsRequired={PRE_HIRE_CHAT_MESSAGE_COST}
-            tooltipMessage="Chat with Assistant"
+            tooltipMessage="Chat with martian"
             tooltipSide="top"
           >
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleView}>
               <MessageSquare className="h-4 w-4" />
-              <span className="sr-only">Chat with Assistant</span>
+              <span className="sr-only">Chat with martian</span>
             </Button>
           </BillableActionGuard>
           <TooltipProvider delayDuration={100}>

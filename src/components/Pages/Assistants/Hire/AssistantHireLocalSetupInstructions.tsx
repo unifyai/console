@@ -123,7 +123,7 @@ export function AssistantHireLocalSetupInstructionsDialog({
             Local Desktop Setup Instructions
           </DialogTitle>
           <DialogDescription>
-            Follow these steps to complete your assistant&apos;s local setup for {os}.
+            Follow these steps to complete your martian&apos;s local setup for {os}.
           </DialogDescription>
         </DialogHeader>
 

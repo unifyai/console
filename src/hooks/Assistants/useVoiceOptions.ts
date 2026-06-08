@@ -20,6 +20,23 @@ interface UseVoiceOptionsConfig {
   enabled?: boolean;
 }
 
+function interleaveVoicesByGender(voices: VoiceOption[]): VoiceOption[] {
+  const femaleVoices = voices.filter((voice) => voice.gender === 'female');
+  const maleVoices = voices.filter((voice) => voice.gender === 'male');
+  const otherVoices = voices.filter(
+    (voice) => voice.gender !== 'female' && voice.gender !== 'male'
+  );
+  const interleaved: VoiceOption[] = [];
+  const maxLength = Math.max(femaleVoices.length, maleVoices.length);
+
+  for (let index = 0; index < maxLength; index++) {
+    if (femaleVoices[index]) interleaved.push(femaleVoices[index]);
+    if (maleVoices[index]) interleaved.push(maleVoices[index]);
+  }
+
+  return [...interleaved, ...otherVoices];
+}
+
 export function useVoiceOptions(
   assistantVoiceActions: AssistantActions['voice'],
   options?: UseVoiceOptionsConfig
@@ -114,7 +131,7 @@ export function useVoiceOptions(
       .filter((voice) => approvedCharacterVoiceIds.has(voice.voiceId))
       .map(applyApprovedCharacterVoiceMetadata);
 
-    return finalCombined;
+    return interleaveVoicesByGender(finalCombined);
   }, [presetVoices, userVoicesFromOrchestra]);
 
   const deleteUserVoice = async (voiceToDelete: VoiceOption): Promise<string | null> => {

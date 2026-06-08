@@ -9,7 +9,6 @@ import {
   VoiceOption,
   AssistantUpdatePayload,
   DesktopMode,
-  AssistantHiringSufficientFunds,
 } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
@@ -20,7 +19,7 @@ import {
   approvedCharacterVoiceIds,
 } from '@/constants/assistants/approved_character_voices';
 import { getDefaultVoiceForProvider } from '@/utils/assistants/voice-utils';
-import { ASSISTANT_ONBOARDING_FEE, PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
+import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
 import { v4 as uuidv4 } from 'uuid';
 import { generatePostHireGreeting } from '@/lib/assistants/preHireChat';
@@ -107,7 +106,7 @@ export function useAssistantForm(
   /* -------------------------
         General form utilities
     ------------------------- */
-  const [isCheckingBalance, setIsCheckingBalance] = React.useState(false);
+  const [isCheckingBalance] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showInsufficientFundsHint, setShowInsufficientFundsHint] = React.useState(false);
 
@@ -858,7 +857,7 @@ export function useAssistantForm(
     reactHookFormHandleSubmit((data) => submitAssistantData(data, chatHistory));
 
   const initiateHireSequence = async (chatHistory?: ChatMessage[]) => {
-    if (isSubmitting || isCheckingBalance) {
+    if (isSubmitting) {
       return;
     }
 
@@ -867,30 +866,9 @@ export function useAssistantForm(
       return;
     }
 
-    setIsCheckingBalance(true);
     setShowInsufficientFundsHint(false);
 
-    try {
-      const hiringFundsResponse = await assistantActions.assistant.check(ASSISTANT_ONBOARDING_FEE);
-
-      if ('detail' in hiringFundsResponse || !hiringFundsResponse) {
-        toast.error('Failed to check balance.');
-        setIsCheckingBalance(false);
-        return;
-      }
-
-      const hasSufficientFunds = hiringFundsResponse as AssistantHiringSufficientFunds;
-      if (!hasSufficientFunds.sufficient) {
-        setShowInsufficientFundsHint(true);
-      } else {
-        setIsCheckingBalance(false);
-        await RHFSubmitHandler(chatHistory)();
-      }
-    } catch (error) {
-      toast.error('Error during balance check process.');
-    } finally {
-      setIsCheckingBalance(false);
-    }
+    await RHFSubmitHandler(chatHistory)();
   };
 
   return {

@@ -144,7 +144,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       },
       {
         id: 'hire-specialist',
-        title: 'Hire your first specialist assistant',
+        title: 'Onboard your first specialist martian',
         description: 'Spin up a focused specialist for recurring work.',
         estimatedTime: '~3 min',
         action: 'hire-specialist',

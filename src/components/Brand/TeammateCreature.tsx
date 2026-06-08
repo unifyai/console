@@ -7,12 +7,29 @@ import {
   type CreatureShape,
 } from './shapes';
 
-type EyeDirection = 'up' | 'down';
+export type CreatureEyes = 'up' | 'down' | 'square';
+
+const CREATURE_CELL = 18;
+const CREATURE_MARGIN = 12;
+
+export function getCreatureMetrics(shape: CreatureShape) {
+  const cells = creatureShapes[shape];
+  const maxX = Math.max(...cells.map(([x]) => x));
+  const maxY = Math.max(...cells.map(([, y]) => y));
+  const gridWidth = (maxX + 1) * CREATURE_CELL;
+  const gridHeight = (maxY + 1) * CREATURE_CELL;
+
+  return {
+    width: gridWidth + CREATURE_MARGIN * 2,
+    height: gridHeight + CREATURE_MARGIN * 2,
+    eyeY: CREATURE_MARGIN + CREATURE_CELL * 0.98,
+  };
+}
 
 type TeammateCreatureProps = {
   className?: string;
   color?: BrandRole;
-  eyes?: EyeDirection;
+  eyes?: CreatureEyes;
   label?: string;
   shape?: CreatureShape;
 };
@@ -25,9 +42,13 @@ function CreatureEye({
 }: {
   cx: number;
   cy: number;
-  dir?: EyeDirection;
+  dir?: CreatureEyes;
   stroke: string;
 }) {
+  if (dir === 'square') {
+    return <rect fill={stroke} height={9} rx={2} width={9} x={cx - 4.5} y={cy - 4.5} />;
+  }
+
   const d =
     dir === 'down'
       ? `M ${cx - 6} ${cy - 4} L ${cx} ${cy + 4} L ${cx + 6} ${cy - 4}`
@@ -57,19 +78,17 @@ export function TeammateCreature({
   const cells = creatureShapes[shape];
   const fill = roleColorVars[color];
   const eyeStroke = roleEyeVars[color];
-  const cell = 18;
+  const cell = CREATURE_CELL;
   const halo = 5;
-  const margin = 12;
+  const margin = CREATURE_MARGIN;
   const maxX = Math.max(...cells.map(([x]) => x));
   const maxY = Math.max(...cells.map(([, y]) => y));
   const gridWidth = (maxX + 1) * cell;
   const gridHeight = (maxY + 1) * cell;
-  const width = gridWidth + margin * 2;
-  const height = gridHeight + margin * 2;
+  const { width, height, eyeY } = getCreatureMetrics(shape);
   const px = (n: number) => margin + n * cell;
   const leftEyeX = margin + gridWidth * 0.32;
   const rightEyeX = margin + gridWidth * 0.6;
-  const eyeY = margin + cell * 0.98;
 
   return (
     <svg

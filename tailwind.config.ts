@@ -92,6 +92,8 @@ module.exports = {
           purple: 'var(--role-purple)',
           yellow: 'var(--role-yellow)',
           teal: 'var(--role-teal)',
+          pink: 'var(--role-pink)',
+          cyan: 'var(--role-cyan)',
         },
         sidebar: {
           DEFAULT: 'var(--sidebar-background)',

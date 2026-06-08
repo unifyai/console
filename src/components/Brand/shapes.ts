@@ -1,4 +1,12 @@
-export type BrandRole = 'green' | 'blue' | 'orange' | 'purple' | 'yellow' | 'teal';
+export type BrandRole =
+  | 'green'
+  | 'blue'
+  | 'orange'
+  | 'purple'
+  | 'yellow'
+  | 'teal'
+  | 'pink'
+  | 'cyan';
 export type CreatureCell = readonly [number, number];
 
 export const roleColorVars: Record<BrandRole, string> = {
@@ -8,6 +16,8 @@ export const roleColorVars: Record<BrandRole, string> = {
   purple: 'var(--role-purple)',
   yellow: 'var(--role-yellow)',
   teal: 'var(--role-teal)',
+  pink: 'var(--role-pink)',
+  cyan: 'var(--role-cyan)',
 };
 
 export const roleEyeVars: Record<BrandRole, string> = {
@@ -17,6 +27,8 @@ export const roleEyeVars: Record<BrandRole, string> = {
   purple: 'color-mix(in srgb, var(--role-purple) 62%, var(--ink))',
   yellow: 'color-mix(in srgb, var(--role-yellow) 62%, var(--ink))',
   teal: 'color-mix(in srgb, var(--role-teal) 62%, var(--ink))',
+  pink: 'color-mix(in srgb, var(--role-pink) 62%, var(--ink))',
+  cyan: 'color-mix(in srgb, var(--role-cyan) 62%, var(--ink))',
 };
 
 export const creatureShapes = {
@@ -109,6 +121,39 @@ export const creatureShapes = {
     [1, 1],
     [2, 1],
     [3, 1],
+    [0, 2],
+    [1, 2],
+    [2, 2],
+    [3, 2],
+    [4, 2],
+    [1, 3],
+    [2, 3],
+    [3, 3],
+    [1, 4],
+    [3, 4],
+  ],
+  hopper: [
+    [1, 0],
+    [2, 0],
+    [3, 0],
+    [0, 1],
+    [1, 1],
+    [2, 1],
+    [3, 1],
+    [4, 1],
+    [1, 2],
+    [2, 2],
+    [3, 2],
+    [1, 3],
+    [3, 3],
+  ],
+  pebble: [
+    [2, 0],
+    [0, 1],
+    [1, 1],
+    [2, 1],
+    [3, 1],
+    [4, 1],
     [0, 2],
     [1, 2],
     [2, 2],

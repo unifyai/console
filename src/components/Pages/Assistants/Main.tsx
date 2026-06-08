@@ -87,6 +87,7 @@ import { fetchMemoryContext } from '@/lib/client/memory';
 import { isWorkspaceManagedSecretName } from '@/hooks/Assistants/useAssistantIntegrations';
 import type { Secret } from '@/types/assistants/secret';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
+import { createRandomMartianProfile } from '@/utils/assistants/martian-profile-randomizer';
 
 const ENABLE_COORDINATOR_ONBOARDING = false;
 
@@ -1344,13 +1345,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setPresetLanguageFilter,
   ]);
 
-  // Auto-select the first filtered preset (top of the "Available Hires" list)
-  // whenever the filtered list changes (e.g. the async geo lookup narrows by
-  // region) — but only while the dialog is freshly opened and the user hasn't
-  // manually picked a preset yet.
-  // If a preset is already selected and still exists in the new filtered list
-  // (e.g. after geo narrows the list), skip re-selection to avoid a visual
-  // "reload" where photos/videos are cleared and re-fetched.
+  const applyRandomMartianProfile = React.useCallback(() => {
+    const profile = createRandomMartianProfile();
+    formMethods.setValue('firstName', profile.firstName, { shouldValidate: true });
+    formMethods.setValue('surname', profile.surname, { shouldValidate: true });
+    formMethods.setValue('jobTitle', profile.jobTitle, { shouldValidate: true });
+    formMethods.setValue('about', profile.about, { shouldValidate: true });
+    formMethods.setValue('isPresetPristine', false);
+  }, [formMethods]);
+
+  // Auto-select the first filtered preset for hidden defaults like voice, then
+  // replace the visible profile fields with a branded martian profile.
   React.useEffect(() => {
     if (needsPresetSelection && currentFilteredPresets.length > 0 && !userHasChangedPreset) {
       const current = formMethods.getValues('currentPreset');
@@ -1363,6 +1368,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         return; // already selected and still valid — nothing to do
       }
       selectPresetForHireForm(currentFilteredPresets[0]);
+      applyRandomMartianProfile();
     }
   }, [
     needsPresetSelection,
@@ -1370,6 +1376,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     userHasChangedPreset,
     selectPresetForHireForm,
     formMethods,
+    applyRandomMartianProfile,
   ]);
 
   const handleOpenEditDialog = React.useCallback(
@@ -1612,14 +1619,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     })();
   }, [showCoordinatorOnboarding, canonicalCoordinator, secretActions, markStepCompleted]);
 
-  const handleRandomizePreset = () => {
-    if (currentFilteredPresets.length === 0) {
-      toast.info('No presets match filters.');
-      return;
-    }
+  const handleRandomizeProfile = () => {
     setUserHasChangedPreset(true);
-    const randomIndex = Math.floor(Math.random() * currentFilteredPresets.length);
-    selectPresetForHireForm(currentFilteredPresets[randomIndex]);
+    applyRandomMartianProfile();
   };
 
   const handleUserPresetSelect = React.useCallback(
@@ -2245,7 +2247,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             setIsHireDialogOpen={setIsHireDialogOpen}
             isAssistantPresetsOpen={isAssistantPresetsOpen}
             setIsAssistantPresetsOpen={setIsAssistantPresetsOpen}
-            handleRandomizePreset={handleRandomizePreset}
             currentFilteredPresets={currentFilteredPresets}
             onHireAttempt={initiateHireSequence}
             isProcessingPhoto={isDialogBusyProcessingPhoto}
@@ -2270,6 +2271,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               mode="hire"
               onAddPaymentMethod={() => setIsStripePanelOpen(true)}
               userHasChangedPreset={userHasChangedPreset}
+              onRandomizeProfile={handleRandomizeProfile}
             />
             <PresetsPanel
               displayedPresets={displayedPresets}
