@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 import { validatePassword } from '@/lib/auth/password';
+import { IS_SELF_HOST } from '@/lib/auth/self-host';
 import { IS_STAGING, isStagingAllowedEmail } from '@/lib/auth/staging-gate';
 
 /**
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, name, lastName, password, captchaToken } = body;
 
-    if (IS_STAGING && !isStagingAllowedEmail(email)) {
+    if (!IS_SELF_HOST && IS_STAGING && !isStagingAllowedEmail(email)) {
       return NextResponse.json(
         {
           error: 'staging_restricted',
@@ -40,7 +41,17 @@ export async function POST(request: NextRequest) {
       password,
       captchaToken,
     });
-    return NextResponse.json(res.data, { status: 200 });
+    const payload = res.data as Record<string, unknown>;
+    const requiresVerification =
+      payload.requiresVerification ?? payload.requires_verification ?? true;
+    return NextResponse.json(
+      {
+        ...payload,
+        requiresVerification,
+        requires_verification: requiresVerification,
+      },
+      { status: 200 }
+    );
   } catch (error: any) {
     const status = error?.response?.status ?? 500;
     const rawData = error?.response?.data;

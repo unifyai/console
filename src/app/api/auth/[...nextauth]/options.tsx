@@ -7,6 +7,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { jwtVerify } from 'jose';
 import { OrchestraAdapter } from '@/lib/orchestra/orchestra-adapter';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { IS_SELF_HOST } from '@/lib/auth/self-host';
 import { IS_STAGING, isStagingAllowedEmail } from '@/lib/auth/staging-gate';
 import { baseColors } from '@/lib/design-tokens';
 
@@ -190,7 +191,7 @@ const authOptions: AuthOptions = {
      * enabled, so they are skipped here.
      */
     async signIn({ user, account }) {
-      if (IS_STAGING && !isStagingAllowedEmail(user.email)) {
+      if (!IS_SELF_HOST && IS_STAGING && !isStagingAllowedEmail(user.email)) {
         return '/login?error=StagingRestricted';
       }
 
@@ -258,7 +259,7 @@ const authOptions: AuthOptions = {
       // Forcibly sign out any existing session whose email is not allowed
       // in the current environment. Read by the middleware to clear the
       // session cookie and redirect the user back to /login.
-      if (IS_STAGING && !isStagingAllowedEmail(token.email ?? user?.email)) {
+      if (!IS_SELF_HOST && IS_STAGING && !isStagingAllowedEmail(token.email ?? user?.email)) {
         return { restrictedSignOut: true };
       }
 
