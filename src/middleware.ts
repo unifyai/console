@@ -19,8 +19,10 @@ function preserveCreditToken(source: URLSearchParams, target: URL): void {
 export async function middleware(request: NextRequestWithAuth, event: NextFetchEvent) {
   const { pathname, searchParams } = request.nextUrl;
 
-  // Allow public access to shareable view pages (no auth required)
+  // Allow public access to shareable/embed/auth helper pages (no auth required)
   if (
+    pathname === '/auth/popup-start' ||
+    pathname === '/auth/popup-complete' ||
     pathname.startsWith('/plot/view/') ||
     pathname.startsWith('/table/view/') ||
     pathname.startsWith('/tile/view/') ||
