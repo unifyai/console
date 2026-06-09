@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { execFile } from 'child_process';
 import fs from 'fs/promises';
+import os from 'os';
 import path from 'path';
 import { promisify } from 'util';
 import { resolveCanonicalPersonalCoordinator } from '@/lib/assistants/coordinatorIdentity';
@@ -12,7 +13,8 @@ import type { Assistant } from '@/types/assistants/assistant';
 const execFileAsync = promisify(execFile);
 
 const RUNTIME_FILE =
-  process.env.SELF_HOST_COORDINATOR_RUNTIME_FILE ?? '/tmp/self-host-coordinator-runtime.json';
+  process.env.SELF_HOST_COORDINATOR_RUNTIME_FILE ??
+  path.join(os.homedir(), '.unity', 'coordinator-runtime.json');
 
 function parseAssistantList(raw: unknown): Assistant[] {
   if (!raw || typeof raw !== 'object') return [];
@@ -23,6 +25,7 @@ function parseAssistantList(raw: unknown): Assistant[] {
 }
 
 async function persistCoordinatorRuntime(agentId: string, apiKey: string): Promise<void> {
+  await fs.mkdir(path.dirname(RUNTIME_FILE), { recursive: true });
   await fs.writeFile(
     RUNTIME_FILE,
     JSON.stringify({ coordinatorAgentId: agentId, apiKey }, null, 2),
