@@ -442,7 +442,7 @@ export function useAssistantForm(
         voiceExists: !!assistantVoiceDetails,
 
         // Setup
-        setup: assistant.isUserDesktop ? 'local' : 'remote',
+        setup: 'remote',
         operatingSystem: (assistant.desktopMode as DesktopMode | null) || 'ubuntu',
       });
       setShowInsufficientFundsHint(false);
@@ -747,7 +747,9 @@ export function useAssistantForm(
         if (data.videoFile) finalVideoUrlToSend = null;
       }
 
-      const isUserDesktop = data.setup === 'local';
+      // Assistants always run on a managed remote VM; users link their own
+      // machines post-hire via the desktop linker.
+      const isUserDesktop = false;
       const desktopModePayload = data.operatingSystem as DesktopMode;
       const formattedPreHireChat = finalChatHistory?.map(({ role, content }) => ({
         role,

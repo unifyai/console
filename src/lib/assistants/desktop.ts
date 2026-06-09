@@ -256,3 +256,74 @@ export const listUserDesktops = async (apiKey: string) => {
     }
   };
 };
+
+export const linkDesktop = async (apiKey: string) => {
+  return async (
+    assistantId: string,
+    desktopId: number,
+    filesysSync: boolean = false
+  ): Promise<ResponseProps> => {
+    'use server';
+
+    const orchestraUrl = process.env.ORCHESTRA_URL;
+    if (!orchestraUrl) {
+      return { detail: 'Server configuration error: ORCHESTRA_URL is not set.' };
+    }
+
+    try {
+      const response = await fetch(`${orchestraUrl}/v0/desktop/link`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(
+          camelToSnakeObject({
+            assistantId: parseInt(assistantId, 10),
+            desktopId,
+            filesysSync,
+          })
+        ),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        return (data as ResponseProps) || { detail: 'Failed to link desktop' };
+      }
+      return { info: 'Desktop linked successfully' };
+    } catch (e: unknown) {
+      console.error('[linkDesktop] Error:', e instanceof Error ? e.message : e);
+      return { detail: 'Failed to connect to backend' };
+    }
+  };
+};
+
+export const unlinkDesktop = async (apiKey: string) => {
+  return async (assistantId: string): Promise<ResponseProps> => {
+    'use server';
+
+    const orchestraUrl = process.env.ORCHESTRA_URL;
+    if (!orchestraUrl) {
+      return { detail: 'Server configuration error: ORCHESTRA_URL is not set.' };
+    }
+
+    try {
+      const response = await fetch(`${orchestraUrl}/v0/desktop/link/${parseInt(assistantId, 10)}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        return (data as ResponseProps) || { detail: 'Failed to unlink desktop' };
+      }
+      return { info: 'Desktop unlinked' };
+    } catch (e: unknown) {
+      console.error('[unlinkDesktop] Error:', e instanceof Error ? e.message : e);
+      return { detail: 'Failed to connect to backend' };
+    }
+  };
+};

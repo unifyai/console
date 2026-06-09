@@ -25,12 +25,19 @@ export {
   orchestraFetch,
   createAssistant,
   createPersonalCoordinator,
+  createUserDesktop,
+  linkUserDesktop,
   createTeamForAssistant,
   addAssistantToTeam,
   ensureVoicePreset,
   ensureProjectSync,
 } from '../helpers/seeds/client';
-export type { SeededOrg, SeededAssistant, SeededTeam } from '../helpers/seeds/types';
+export type {
+  SeededOrg,
+  SeededAssistant,
+  SeededTeam,
+  SeededUserDesktop,
+} from '../helpers/seeds/types';
 
 export { login, switchToEmailTab };
 
@@ -535,5 +542,34 @@ export function getAssistantContactProvisionedBy(
     return result || null;
   } catch {
     return null;
+  }
+}
+
+// =============================================================================
+// User Desktop Link Helpers
+// =============================================================================
+
+/** Desktop ids linked to an assistant for a given owner (usually 0 or 1). */
+export function getLinkedDesktopIds(agentId: number, ownerUserId: string): number[] {
+  const result = dbExec(
+    `SELECT user_desktop_id FROM assistant_user_desktops WHERE assistant_id = ${agentId} AND owner_user_id = '${ownerUserId}' ORDER BY user_desktop_id`
+  );
+  if (!result) return [];
+  return result.split('\n').map((id) => parseInt(id, 10));
+}
+
+/** Count of assistants a desktop is linked to (across the owner's assistants). */
+export function getDesktopLinkCount(desktopId: number): number {
+  return parseInt(
+    dbExec(`SELECT count(*) FROM assistant_user_desktops WHERE user_desktop_id = ${desktopId}`),
+    10
+  );
+}
+
+export function deleteUserDesktopsForUser(userId: string): void {
+  try {
+    dbExec(`DELETE FROM user_desktops WHERE user_id = '${userId}'`);
+  } catch {
+    /* best effort — cascade also removes assistant_user_desktops */
   }
 }

@@ -36,7 +36,8 @@ export interface UserDesktop {
   id: number;
   name: string;
   os: string;
-  assignedToAssistantId: number | null;
+  /** Agent IDs of every assistant this desktop is currently linked to. */
+  assignedToAssistantIds: number[];
 }
 
 // Type for the pre_hire_chat payload
@@ -88,10 +89,12 @@ export interface Assistant {
   isUserDesktop?: boolean;
   desktopMode?: DesktopMode | null;
   desktopUrl?: string | null;
+  // Per-user desktop link of the *requesting* user (the desktop they linked to
+  // this assistant), resolved server-side. Null when this user has not linked
+  // a machine.
   userDesktopMode?: DesktopMode | null;
   userDesktopUrl?: string | null;
   userDesktopFilesysSync?: boolean | null;
-  userDesktopId?: number | null;
   // Contract fields
   weeklyLimit: number | null;
   maxParallel: number | null;
@@ -264,8 +267,9 @@ export type AssistantFormData = Omit<
   > | null;
   currentPreset?: AssistantPreset | null;
 
-  // Setup fields
-  setup?: 'remote' | 'local';
+  // Setup fields. The assistant always runs on a managed remote VM; users link
+  // their own machines post-hire via the desktop linker, not at creation time.
+  setup?: 'remote';
   operatingSystem?: 'ubuntu' | 'windows' | 'macos';
 
   // UI state fields
@@ -333,8 +337,8 @@ export interface AssistantUpdatePayload {
   timezone?: string | null;
   profilePhoto?: string | null;
   profileVideo?: string | null;
-  userDesktopId?: number | null;
-  // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated
+  // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated.
+  // User-desktop links are managed via the dedicated desktop link/unlink actions, not here.
 }
 
 // Assistant voice types
@@ -556,6 +560,12 @@ export interface AssistantActions {
       message: string
     ) => Promise<ResponseProps>;
     listUserDesktops: () => Promise<UserDesktop[] | ResponseProps>;
+    linkDesktop: (
+      assistantId: string,
+      desktopId: number,
+      filesysSync?: boolean
+    ) => Promise<ResponseProps>;
+    unlinkDesktop: (assistantId: string) => Promise<ResponseProps>;
   };
   spending: {
     setLimit: (

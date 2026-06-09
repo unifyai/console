@@ -29,6 +29,7 @@ export type {
   SeededAssistant,
   SeededTeam,
   SeededSecret,
+  SeededUserDesktop,
   SeededCredentials,
   OrgRole,
   SeedScenario,
@@ -49,6 +50,8 @@ export {
   createOrg,
   addMember,
   createAssistant,
+  createUserDesktop,
+  linkUserDesktop,
   createTeamForAssistant,
   addAssistantToTeam,
   createSecret,
@@ -72,6 +75,7 @@ export {
 
 // Scenarios
 export { seedPersonalWorkspace } from './scenarios/personal-workspace';
+export { seedDesktopLinked } from './scenarios/desktop-linked';
 export { seedOrgBasic } from './scenarios/org-basic';
 export { seedOrgMultiRole } from './scenarios/org-multi-role';
 export { seedOrgAndOutsider } from './scenarios/org-unify';

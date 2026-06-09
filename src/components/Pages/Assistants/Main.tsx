@@ -55,7 +55,7 @@ import { LiveActionsViewer } from '@/components/Pages/Assistants/LiveActions';
 import { subscribeOAuthComplete } from '@/utils/assistants/oauth';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
-import { AssistantHireLocalSetupInstructionsDialog } from './Hire/AssistantHireLocalSetupInstructions';
+import { AssistantDesktopLinker } from './Profile/AssistantDesktopLinker';
 import { AssistantContactManager } from './Profile/AssistantContactManager';
 import { AssistantWorkspaceManager } from './Profile/AssistantWorkspaceManager';
 import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
@@ -988,10 +988,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     ? (chatActivityCounters[profileAssistantId] ?? 0)
     : 0;
 
-  const [setupInstructions, setSetupInstructions] = React.useState<{
-    os: string;
-    isOpen: boolean;
-  } | null>(null);
+  // Assistant whose "Link your desktop" dialog is currently open. The linker
+  // lets the owner connect their own machine and bundles the per-OS setup
+  // instructions, replacing the old creation-time local-desktop flow.
+  const [desktopLinkerAssistant, setDesktopLinkerAssistant] = React.useState<Assistant | null>(
+    null
+  );
   const [popOutCallAssistantId, setPopOutCallAssistantId] = React.useState<string | null>(null);
 
   const pongTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -1283,17 +1285,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         setHireWorkspaceProvider(null);
         setSkipHireWorkspaceSetup(false);
         setShowHireWorkspaceWarning(false);
-      }
-
-      // Capture the OS for local-mode hires so the setup roadmap's
-      // "Show install instructions" step can re-open the dialog later
-      // with the correct platform — we don't auto-pop here anymore;
-      // the user opts in from the in-panel roadmap when ready.
-      if (formData.setup === 'local' && formData.operatingSystem) {
-        setHireOsByAgentId((prev) => ({
-          ...prev,
-          [optimisticAssistant.agentId]: formData.operatingSystem as string,
-        }));
       }
 
       refreshAssistants(false);
@@ -1796,10 +1787,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
 
   // --- Setup roadmap derivations (live-derived from existing state) ---
-  // Captured on local hires so the roadmap's "Show install
-  // instructions" step can re-open the dialog with the right OS
-  // without us having to round-trip through the form again.
-  const [hireOsByAgentId, setHireOsByAgentId] = React.useState<Record<string, string>>({});
   // True iff the user has sent ≥1 message in the currently-profiled
   // assistant's chat — drives the "Say hi" sub-step completion.
   const profiledHasUserMessage = React.useMemo(() => {
@@ -1898,13 +1885,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // Falls back to a sane default if we don't have an OS captured (e.g.
   // the assistant was hired in a previous session before this feature
   // shipped).
-  const handleShowInstallInstructions = React.useCallback(
-    (assistant: Assistant) => {
-      const os = hireOsByAgentId[assistant.agentId] || 'ubuntu';
-      setSetupInstructions({ os, isOpen: true });
-    },
-    [hireOsByAgentId]
-  );
+  const handleShowInstallInstructions = React.useCallback((assistant: Assistant) => {
+    setDesktopLinkerAssistant(assistant);
+  }, []);
   // Open the user's account settings in a new tab so the chat session
   // isn't disrupted while they configure their profile. Optional `tab`
   // mirrors the /account page's `?tab=` param (see ProfileTabs) so
@@ -2457,11 +2440,15 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           )}
         </FormProvider>
 
-        <AssistantHireLocalSetupInstructionsDialog
-          isOpen={setupInstructions?.isOpen || false}
-          os={setupInstructions?.os || 'ubuntu'}
-          onClose={() => setSetupInstructions(null)}
-        />
+        {desktopLinkerAssistant && (
+          <AssistantDesktopLinker
+            isOpen={!!desktopLinkerAssistant}
+            onClose={() => setDesktopLinkerAssistant(null)}
+            assistant={desktopLinkerAssistant}
+            assistantActions={assistantActions}
+            onLinked={() => refreshAssistants(false)}
+          />
+        )}
 
         {/* Page-level dialog — only mounted when the user has popped
          *  the call out of its docked slot. The docked render lives

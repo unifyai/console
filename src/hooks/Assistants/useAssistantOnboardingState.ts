@@ -175,9 +175,11 @@ const GROUPS: ReadonlyArray<{ id: OnboardingGroupId; steps: OnboardingStepId[] }
 ];
 
 function getActiveGroups(
-  assistant: Assistant
+  _assistant: Assistant
 ): ReadonlyArray<{ id: OnboardingGroupId; steps: OnboardingStepId[] }> {
-  return GROUPS.filter((g) => (g.id === 'install' ? !!assistant.isUserDesktop : true));
+  // Linking a personal machine is an optional step available for any assistant
+  // the owner controls — it is no longer a creation-time desktop-mode property.
+  return GROUPS;
 }
 
 /**

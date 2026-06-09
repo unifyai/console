@@ -20,6 +20,7 @@ import type {
   SeededAssistant,
   SeededSecret,
   SeededTeam,
+  SeededUserDesktop,
 } from './types';
 import {
   approvedCharacterVoiceMetadata,
@@ -671,6 +672,70 @@ ON CONFLICT DO NOTHING;
     selfContactId,
     bossContactId,
   };
+}
+
+// =============================================================================
+// User Desktops (local machines linked to assistants)
+// =============================================================================
+
+export interface CreateUserDesktopOpts {
+  /** Owner of the registered machine. */
+  userId: string;
+  name?: string;
+  os?: 'ubuntu' | 'windows' | 'macos';
+  /** Public tunnel URL. Defaults to a unique seed URL. */
+  url?: string;
+}
+
+/**
+ * Register a user desktop via direct SQL (mirrors the desktop app's
+ * registration after it obtains a public tunnel hostname).
+ */
+export function createUserDesktop(opts: CreateUserDesktopOpts): SeededUserDesktop {
+  const name = opts.name ?? 'Seed Desktop';
+  const os = opts.os ?? 'macos';
+  const url =
+    opts.url ?? `https://seed-${Date.now()}-${Math.floor(Math.random() * 1e6)}.tunnel.unify.ai`;
+
+  dbExecBlock(`
+INSERT INTO user_desktops (user_id, name, url, os)
+VALUES (${sqlLiteral(opts.userId)}, ${sqlLiteral(name)}, ${sqlLiteral(url)}, ${sqlLiteral(os)});
+`);
+
+  const idStr = dbExec(
+    `SELECT id FROM user_desktops WHERE user_id = ${sqlLiteral(opts.userId)} AND name = ${sqlLiteral(name)} ORDER BY id DESC LIMIT 1;`
+  );
+  const id = parseInt(idStr, 10);
+  if (!Number.isFinite(id)) {
+    throw new Error(`Failed to parse seeded desktop id for ${opts.userId}/${name}: ${idStr}`);
+  }
+  return { id, userId: opts.userId, name, os, url };
+}
+
+export interface LinkUserDesktopOpts {
+  assistantId: number;
+  desktopId: number;
+  /** User who owns the desktop being linked. */
+  ownerUserId: string;
+  filesysSync?: boolean;
+}
+
+/**
+ * Link a registered user desktop to an assistant for a specific owner,
+ * mirroring `POST /v0/desktop/link`. One machine may be linked to several
+ * of the owner's assistants.
+ */
+export function linkUserDesktop(opts: LinkUserDesktopOpts): void {
+  dbExecBlock(`
+INSERT INTO assistant_user_desktops (assistant_id, user_desktop_id, owner_user_id, filesys_sync)
+VALUES (
+  ${opts.assistantId},
+  ${opts.desktopId},
+  ${sqlLiteral(opts.ownerUserId)},
+  ${sqlLiteral(opts.filesysSync ?? false)}
+)
+ON CONFLICT DO NOTHING;
+`);
 }
 
 // =============================================================================

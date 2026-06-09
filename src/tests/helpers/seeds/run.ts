@@ -16,6 +16,7 @@
 import type { SeedScenario, SeededState } from './types';
 import { seedPersonalWorkspace } from './scenarios/personal-workspace';
 import { seedPersonalWorkspaceMulti } from './scenarios/personal-workspace-multi';
+import { seedDesktopLinked } from './scenarios/desktop-linked';
 import { seedOrgBasic } from './scenarios/org-basic';
 import { seedOrgMultiRole } from './scenarios/org-multi-role';
 import { seedOrgAndOutsider } from './scenarios/org-unify';
@@ -33,6 +34,7 @@ import { seedSidebarTeamGrouping } from './scenarios/sidebar-team-grouping';
 const SCENARIOS: Record<string, SeedScenario> = {
   'personal-workspace': seedPersonalWorkspace,
   'personal-workspace-multi': seedPersonalWorkspaceMulti,
+  'desktop-linked': seedDesktopLinked,
   'sidebar-team-grouping': seedSidebarTeamGrouping,
   'org-basic': seedOrgBasic,
   'org-multi-role': seedOrgMultiRole,

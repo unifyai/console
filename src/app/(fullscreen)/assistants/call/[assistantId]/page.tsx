@@ -19,6 +19,8 @@ import {
   checkLiveviewHealth,
   sendSystemEvent,
   listUserDesktops,
+  linkDesktop,
+  unlinkDesktop,
 } from '@/lib/assistants/desktop';
 import { listAssistants, updateAssistant } from '@/lib/assistants/assistant';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
@@ -65,6 +67,8 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
       checkLiveviewHealth: await checkLiveviewHealth(),
       sendSystemEvent: await sendSystemEvent(),
       listUserDesktops: await listUserDesktops(apiKey),
+      linkDesktop: await linkDesktop(apiKey),
+      unlinkDesktop: await unlinkDesktop(apiKey),
     },
   };
 

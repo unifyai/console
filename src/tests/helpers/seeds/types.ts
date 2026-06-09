@@ -73,6 +73,16 @@ export interface SeededSecret {
   logId?: number;
 }
 
+export interface SeededUserDesktop {
+  /** user_desktops.id primary key */
+  id: number;
+  /** Owner of the registered machine */
+  userId: string;
+  name: string;
+  os: string;
+  url: string;
+}
+
 // =============================================================================
 // Credential Bag
 // =============================================================================
@@ -107,6 +117,9 @@ export interface SeededState {
 
   /** Secrets created (via Console API, not raw SQL) */
   secrets?: SeededSecret[];
+
+  /** Registered user desktops created by this scenario */
+  desktops?: SeededUserDesktop[];
 
   /**
    * Named credentials for quick access in tests.

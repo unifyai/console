@@ -7,12 +7,7 @@ import { Button } from '@/components/UI/button';
 import { AssistantHireLocalSetupInstructionsDialog } from '@/components/Pages/Assistants/Hire/AssistantHireLocalSetupInstructions';
 import { cn } from '@/lib/utils';
 import { FaApple, FaWindows, FaUbuntu } from 'react-icons/fa';
-import type {
-  Assistant,
-  AssistantActions,
-  UserDesktop,
-  AssistantUpdatePayload,
-} from '@/types/assistants/assistant';
+import type { Assistant, AssistantActions, UserDesktop } from '@/types/assistants/assistant';
 import type { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 
@@ -67,11 +62,11 @@ export function AssistantDesktopLinker({
     });
   }, [isOpen, assistantActions.desktop]);
 
+  const assistantIdNum = Number(assistant.agentId);
+
   const handleAssign = async (desktopId: number) => {
     setAssigningId(desktopId);
-    const result = await assistantActions.assistant.update(assistant.agentId, {
-      userDesktopId: desktopId,
-    } as Partial<AssistantUpdatePayload>);
+    const result = await assistantActions.desktop.linkDesktop(assistant.agentId, desktopId);
     setAssigningId(null);
 
     if ('detail' in result && result.detail) {
@@ -85,9 +80,7 @@ export function AssistantDesktopLinker({
 
   const handleUnlink = async () => {
     setAssigningId(-1);
-    const result = await assistantActions.assistant.update(assistant.agentId, {
-      userDesktopId: null,
-    } as Partial<AssistantUpdatePayload>);
+    const result = await assistantActions.desktop.unlinkDesktop(assistant.agentId);
     setAssigningId(null);
 
     if ('detail' in result && result.detail) {
@@ -99,8 +92,13 @@ export function AssistantDesktopLinker({
     onClose();
   };
 
-  const currentDesktopId = assistant.userDesktopId ?? null;
-  const currentDesktop = desktops.find((d) => d.id === currentDesktopId);
+  // The current user's desktop linked to *this* assistant: the one whose
+  // assigned-assistant list includes this assistant. The desktop list is
+  // already scoped to the requesting user, so at most one will match.
+  const currentDesktop = desktops.find((d) =>
+    (d.assignedToAssistantIds ?? []).includes(assistantIdNum)
+  );
+  const currentDesktopId = currentDesktop?.id ?? null;
   const currentDesktopLabel = currentDesktop?.name ?? `#${currentDesktopId}`;
 
   return (
@@ -146,23 +144,22 @@ export function AssistantDesktopLinker({
           ) : (
             <div className="space-y-1 p-1">
               {desktops.map((desktop) => {
-                const isCurrentlyLinked = desktop.id === currentDesktopId;
-                const isAssignedElsewhere =
-                  desktop.assignedToAssistantId !== null &&
-                  desktop.assignedToAssistantId.toString() !== assistant.agentId;
+                const assignedIds = desktop.assignedToAssistantIds ?? [];
+                const isCurrentlyLinked = assignedIds.includes(assistantIdNum);
+                // One machine may serve several of the user's assistants, so a
+                // desktop linked elsewhere is still selectable here.
+                const otherLinkCount = assignedIds.filter((id) => id !== assistantIdNum).length;
 
                 return (
                   <button
                     key={desktop.id}
-                    disabled={isAssignedElsewhere || isCurrentlyLinked || assigningId !== null}
+                    disabled={isCurrentlyLinked || assigningId !== null}
                     onClick={() => handleAssign(desktop.id)}
                     className={cn(
                       'flex w-full items-center gap-3 rounded-md border px-3 py-2.5 text-left transition-colors',
                       isCurrentlyLinked
                         ? 'border-primary/40 bg-primary/5'
-                        : isAssignedElsewhere
-                          ? 'bg-muted/30 cursor-not-allowed border-border opacity-50'
-                          : 'hover:border-primary/30 border-border hover:bg-accent'
+                        : 'hover:border-primary/30 border-border hover:bg-accent'
                     )}
                   >
                     <Monitor className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
@@ -170,7 +167,11 @@ export function AssistantDesktopLinker({
                       <p className="text-title truncate">{desktop.name}</p>
                       <p className="text-caption truncate">
                         {osLabels[desktop.os] ?? desktop.os}
-                        {isAssignedElsewhere && ' · Assigned to another assistant'}
+                        {!isCurrentlyLinked &&
+                          otherLinkCount > 0 &&
+                          ` · Also linked to ${otherLinkCount} other assistant${
+                            otherLinkCount === 1 ? '' : 's'
+                          }`}
                       </p>
                     </div>
                     <div className="flex-shrink-0">

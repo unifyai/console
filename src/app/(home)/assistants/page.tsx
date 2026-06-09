@@ -58,6 +58,8 @@ import {
   checkLiveviewHealth,
   sendSystemEvent,
   listUserDesktops,
+  linkDesktop,
+  unlinkDesktop,
 } from '@/lib/assistants/desktop';
 import { setAssistantSpendingLimit } from '@/lib/assistants/spending';
 import {
@@ -157,6 +159,8 @@ const AssistantsPage = async ({
       checkLiveviewHealth: await checkLiveviewHealth(),
       sendSystemEvent: await sendSystemEvent(),
       listUserDesktops: await listUserDesktops(apiKey),
+      linkDesktop: await linkDesktop(apiKey),
+      unlinkDesktop: await unlinkDesktop(apiKey),
     },
     spending: {
       setLimit: await setAssistantSpendingLimit(apiKey),
