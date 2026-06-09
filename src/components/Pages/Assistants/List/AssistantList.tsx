@@ -4,7 +4,6 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import {
   Search,
   WifiOff,
-  UserPlus,
   PanelLeftClose,
   PanelLeftOpen,
   Building2,
@@ -30,6 +29,51 @@ import {
 } from './assistantListGroups';
 
 const LIST_GROUP_FOLDS_STORAGE_KEY = 'console:assistants:listGroupFolds';
+
+function OnboardPlusIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M12 4.5v15M4.5 12h15"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth={2.4}
+      />
+    </svg>
+  );
+}
+
+function MartianOnboardIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M4.5 7h8.2v2.5H15v4h-2.3v5H9.8v-3.6H7.4v3.6H4.5v-5H2.2v-4h2.3V7Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.65}
+      />
+      <path
+        d="M20.5 5.5V11M23.25 8.25h-5.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth={1.8}
+      />
+    </svg>
+  );
+}
 
 interface AssistantListProps {
   assistants: Assistant[];
@@ -395,9 +439,14 @@ export function AssistantList({
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-transparent">
       {/* Header: Search Bar + New Assistant Button */}
-      <div className="flex-shrink-0 overflow-hidden border-b border-border bg-card px-3 py-2">
+      <div
+        className={cn(
+          'flex-shrink-0 overflow-hidden border-b border-border bg-card px-3',
+          isFolded ? 'py-1' : 'py-2'
+        )}
+      >
         {isFolded ? (
-          <div className="flex min-h-7 items-center justify-center">
+          <div className="flex h-9 items-center justify-center">
             {showHireButton && (
               <div className="hidden md:flex">
                 <TooltipProvider delayDuration={100}>
@@ -411,7 +460,7 @@ export function AssistantList({
                         disabled={isHireButtonDisabled}
                         aria-disabled={isHireButtonDisabled}
                       >
-                        <UserPlus className="h-4 w-4" />
+                        <OnboardPlusIcon className="h-6 w-6" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="right">
@@ -444,7 +493,7 @@ export function AssistantList({
                 disabled={isHireButtonDisabled}
                 aria-disabled={isHireButtonDisabled}
               >
-                <UserPlus className="h-4 w-4" />
+                <MartianOnboardIcon className="h-5 w-5" />
                 Onboard
               </Button>
             )}
