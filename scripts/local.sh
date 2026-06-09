@@ -192,6 +192,7 @@ load_self_host_runtime_env() {
   fi
   # shellcheck disable=SC1090
   source "$SELF_HOST_ENV_SCRIPT"
+  export_self_host_coordinator_runtime_file
   export_workspace_oauth_env "$UNITY_REPO_PATH/.env"
 }
 
@@ -868,6 +869,15 @@ create_assistant_pubsub_topics() {
     2>/dev/null || true
 }
 
+_running_coordinator_agent_id() {
+  local pidfile="/tmp/unity-local.pid"
+  [[ -f "$pidfile" ]] || return 1
+  local pid
+  pid="$(cat "$pidfile" 2>/dev/null)" || return 1
+  [[ -n "$pid" ]] || return 1
+  ps eww -p "$pid" 2>/dev/null | tr ' ' '\n' | sed -n 's/^ASSISTANT_ID=//p' | head -1
+}
+
 start_unity_coordinator() {
   local unify_key="${1:-${SELF_HOST_UNIFY_KEY:-}}"
   local coordinator_agent_id="${2:-${SELF_HOST_COORDINATOR_AGENT_ID:-}}"
@@ -883,7 +893,14 @@ start_unity_coordinator() {
   fi
 
   if is_unity_running; then
-    log_info "Restarting Unity so Coordinator runtime picks up the signed-in user..."
+    local running_id=""
+    running_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
+    if [[ "$running_id" == "$coordinator_agent_id" ]]; then
+      create_assistant_pubsub_topics "$coordinator_agent_id" || true
+      log_success "Unity Coordinator runtime already running (assistant=$coordinator_agent_id)"
+      return 0
+    fi
+    log_info "Restarting Unity for Coordinator assistant=$coordinator_agent_id ..."
     bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
     sleep 1
   fi
@@ -997,7 +1014,7 @@ cmd_start_coordinator() {
 
   local unify_key="${SELF_HOST_UNIFY_KEY:-}"
   local coordinator_id="${SELF_HOST_COORDINATOR_AGENT_ID:-}"
-  local runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-/tmp/self-host-coordinator-runtime.json}"
+  local runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${UNITY_HOME:-$HOME/.unity}/coordinator-runtime.json}"
 
   if [[ (-z "$unify_key" || -z "$coordinator_id") && -f "$runtime_file" ]]; then
     local parsed
@@ -1276,7 +1293,8 @@ start_console() {
     export LIVEKIT_API_SECRET="secret"
     # Never inherit stale cloud keys from unity/.env — session or runtime file only.
     unset SHARED_UNIFY_KEY
-    local _runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-/tmp/self-host-coordinator-runtime.json}"
+    load_self_host_runtime_env
+    local _runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${UNITY_HOME:-$HOME/.unity}/coordinator-runtime.json}"
     if [[ -f "$_runtime_file" ]]; then
       local _resume_key
       _resume_key="$(python3 - "$_runtime_file" <<'PY'
@@ -1577,7 +1595,7 @@ cmd_start() {
     if [[ "$with_self_host" == "true" ]]; then
       echo "  Adapters:  ${CHAT_ADAPTERS_URL:-http://127.0.0.1:8081}"
       echo "  Comms:     ${CHAT_COMMS_URL:-http://127.0.0.1:8082}"
-      echo "  Unity CM:  starts after register/login (or: unity stack coordinator)"
+      echo "  Unity CM:  starts after register/login (or on next Console visit when signed in)"
     else
       echo "  Gateway:   ${CHAT_ADAPTERS_URL:-$(unity_gateway_base_url)}"
       echo "  Test asst: ${CHAT_TEST_ASSISTANT_ID:-default-test-assistant}"
