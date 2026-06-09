@@ -7,7 +7,7 @@ import {
   type CreatureShape,
 } from './shapes';
 
-export type CreatureEyes = 'up' | 'down' | 'square';
+export type CreatureEyes = 'up' | 'down' | 'square' | 'blink';
 export type CreatureMouthShape =
   | 'amplitude'
   | 'closed'
@@ -54,6 +54,10 @@ function CreatureEye({
   dir?: CreatureEyes;
   stroke: string;
 }) {
+  if (dir === 'blink') {
+    return <rect fill={stroke} height={4} rx={2} width={15} x={cx - 7.5} y={cy - 2} />;
+  }
+
   if (dir === 'square') {
     return <rect fill={stroke} height={9} rx={2} width={9} x={cx - 4.5} y={cy - 4.5} />;
   }

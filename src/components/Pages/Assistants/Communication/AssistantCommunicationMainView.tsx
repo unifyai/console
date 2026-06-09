@@ -7,8 +7,9 @@ import { cn } from '@/lib/utils';
 import { Loader2, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { MartyCallAvatar } from '@/components/Pages/Assistants/Communication/MartyCallAvatar';
+import { useMartianEyeExpression } from '@/hooks/Assistants/useMartianEyeExpression';
 import { useMartianAudioLipsync } from '@/hooks/Assistants/useMartianAudioLipsync';
-import type { CreatureMouthShape } from '@/components/Brand/TeammateCreature';
+import type { CreatureEyes, CreatureMouthShape } from '@/components/Brand/TeammateCreature';
 import { getMartianSpeechTransform } from '@/utils/assistants/martian-animation';
 import { COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION } from '@/utils/assistants/coordinator-onboarding-intro';
 
@@ -66,6 +67,45 @@ function ImageAvatarMouth({
   );
 }
 
+function ImageAvatarEye({ cx, cy, eyes }: { cx: number; cy: number; eyes: CreatureEyes }) {
+  if (eyes === 'blink') {
+    return <rect fill="currentColor" height={4} rx={2} width={15} x={cx - 7.5} y={cy - 2} />;
+  }
+
+  if (eyes === 'square') {
+    return <rect fill="currentColor" height={9} rx={2} width={9} x={cx - 4.5} y={cy - 4.5} />;
+  }
+
+  const d =
+    eyes === 'down'
+      ? `M ${cx - 6} ${cy - 4} L ${cx} ${cy + 4} L ${cx + 6} ${cy - 4}`
+      : `M ${cx - 6} ${cy + 4} L ${cx} ${cy - 4} L ${cx + 6} ${cy + 4}`;
+
+  return (
+    <path
+      d={d}
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={4.5}
+    />
+  );
+}
+
+function ImageAvatarEyes({ eyes }: { eyes: CreatureEyes }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className="pointer-events-none absolute left-1/2 top-[34%] h-[22%] w-[54%] -translate-x-1/2 text-primary"
+      viewBox="0 0 64 32"
+    >
+      <ImageAvatarEye cx={22} cy={15} eyes={eyes} />
+      <ImageAvatarEye cx={42} cy={15} eyes={eyes} />
+    </svg>
+  );
+}
+
 interface AssistantCommunicationMainViewProps {
   assistantName: string;
   isCoordinator?: boolean;
@@ -117,6 +157,14 @@ export function AssistantCommunicationMainView({
   const [introAudioMouthShape, setIntroAudioMouthShape] =
     React.useState<CreatureMouthShape>('closed');
   const liveLipsyncFrame = useMartianAudioLipsync(audioTrack, !isLoading && !connectionError);
+  const isImageAvatarSpeaking =
+    liveLipsyncFrame.isActive || (isSpeaking && !isLoading && !connectionError);
+  const imageAvatarEyes = useMartianEyeExpression({
+    isCallActive,
+    isSpeaking: isImageAvatarSpeaking,
+    isUserSpeaking,
+    speechLevel: liveLipsyncFrame.speechLevel,
+  });
 
   React.useEffect(() => {
     if (!isCoordinator) return;
@@ -305,6 +353,7 @@ export function AssistantCommunicationMainView({
                       {fallback}
                     </AvatarFallback>
                   </Avatar>
+                  <ImageAvatarEyes eyes={imageAvatarEyes} />
                   <ImageAvatarMouth
                     mouthShape={imageAvatarMouthShape}
                     speechLevel={imageAvatarSpeechLevel}

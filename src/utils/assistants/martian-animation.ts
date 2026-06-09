@@ -4,6 +4,7 @@ const SPEAKING_EYES_BY_BASE: Record<CreatureEyes, CreatureEyes[]> = {
   up: ['up', 'square', 'down', 'square'],
   down: ['down', 'square', 'up', 'square'],
   square: ['square', 'up', 'square', 'down'],
+  blink: ['blink', 'up', 'square', 'up'],
 };
 
 export function getSpeakingEyes(baseEyes: CreatureEyes, frame: number): CreatureEyes {
