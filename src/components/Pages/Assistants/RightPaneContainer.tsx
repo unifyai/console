@@ -297,8 +297,6 @@ interface RightPaneContainerProps {
   latestUserMessageAt?: Date | null;
   /** User's own phone number for chat prefill personalisation. */
   userPhoneNumber?: string | null;
-  /** Open the local-install instructions dialog (used by the setup roadmap). */
-  onShowInstallInstructions?: (assistant: Assistant) => void;
   /** Open the logged-in user's account settings page. Optional `tab`
    *  mirrors the /account `?tab=` query param so callers can deep-link
    *  to a specific section (e.g. `'contact-info'`). */
@@ -369,7 +367,6 @@ export function RightPaneContainer({
   hasUserPhoneNumber,
   latestUserMessageAt,
   userPhoneNumber,
-  onShowInstallInstructions,
   onOpenUserSettings,
   hasIncompleteOnboarding,
   coordinatorOnboarding,
@@ -897,7 +894,6 @@ export function RightPaneContainer({
             hasUserPhoneNumber={hasUserPhoneNumber}
             latestUserMessageAt={latestUserMessageAt}
             userPhoneNumber={userPhoneNumber}
-            onShowInstallInstructions={onShowInstallInstructions}
             onOpenUserSettings={onOpenUserSettings}
             hasIncompleteOnboarding={hasIncompleteOnboarding}
             coordinatorOnboarding={coordinatorOnboarding}

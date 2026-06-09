@@ -9,6 +9,7 @@ import {
   Trash2,
   Loader2,
   AlertTriangle,
+  Monitor,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
@@ -45,6 +46,10 @@ interface AssistantListItemProps {
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager: (assistant: Assistant) => void;
   onEditAssistant: (assistant: Assistant) => void;
+  /** When provided, shows a "Connect your desktop" entry that opens the
+   *  desktop linker. Gated upstream so it only appears for assistants the
+   *  current user owns. */
+  onConnectDesktop?: (assistant: Assistant) => void;
   onEndContract?: (assistant: Assistant) => Promise<void>;
   /** When false, the row's "Profile" / "Workspace" / "Contact Details"
    *  menu entries are hidden — non-write viewers don't get edit
@@ -70,6 +75,7 @@ export function AssistantListItem({
   onOpenContactManager,
   onOpenWorkspaceManager,
   onEditAssistant,
+  onConnectDesktop,
   onEndContract,
   isFolded,
   isCallActive,
@@ -304,7 +310,7 @@ export function AssistantListItem({
             menu just adds noise. With canEdit and onEndContract
             both gated, a viewer with neither permission gets a
             cleaner row. */}
-        {(canEdit || canEndContract) && (
+        {(canEdit || canEndContract || onConnectDesktop) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -346,9 +352,21 @@ export function AssistantListItem({
                   </DropdownMenuItem>
                 </>
               )}
-              {canEndContract && (
+              {onConnectDesktop && (
                 <>
                   {canEdit && <DropdownMenuSeparator />}
+                  <DropdownMenuItem
+                    onClick={() => onConnectDesktop(assistant)}
+                    data-testid="menu-connect-desktop"
+                  >
+                    <Monitor className="mr-2 h-4 w-4" />
+                    Connect your desktop
+                  </DropdownMenuItem>
+                </>
+              )}
+              {canEndContract && (
+                <>
+                  {(canEdit || onConnectDesktop) && <DropdownMenuSeparator />}
                   <DropdownMenuItem
                     onClick={() => setIsEndContractAlertOpen(true)}
                     data-testid="menu-end-contract"

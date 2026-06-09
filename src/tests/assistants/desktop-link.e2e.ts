@@ -2,8 +2,8 @@
  * User Desktop Linking E2E.
  *
  * Exercises the per-user "link your desktop" flow reached from the
- * assistant setup roadmap's "Install on your machine" step. The flow
- * lets an owner connect their own registered machine to any of their
+ * assistant row's "Connect your desktop" menu entry. The flow lets an
+ * owner connect their own registered machine to any of their
  * assistants, and the same machine may serve several of them (N×M):
  *
  *   - A registered desktop ("Owner's MacBook") is seeded linked to one
@@ -31,6 +31,7 @@ import {
   deleteUserDesktopsForUser,
   getLinkedDesktopIds,
   getDesktopLinkCount,
+  getAssistantSecretNames,
   ensureProjectSync,
 } from './helpers';
 
@@ -51,47 +52,24 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-/**
- * Navigate to /assistants WITHOUT setting the global onboarding-disabled
- * flag, so the setup roadmap (which hosts the desktop linker entry point)
- * actually renders.
- */
 async function navigateForLinker(page: Page) {
-  await page.addInitScript(() => {
-    try {
-      window.localStorage.removeItem('console:assistants:onboarding:disabled');
-    } catch {
-      /* private mode — ignore */
-    }
-  });
   await page.goto('/assistants');
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await page.waitForTimeout(2_000);
 }
 
 /**
- * Select an assistant, open its info side panel, switch to the Onboarding
- * tab, expand the "Install on your machine" group, and click the step to
- * open the desktop linker dialog.
+ * Open the desktop linker from the assistant row's overflow ("⋯") menu via
+ * the "Connect your desktop" entry. The kebab is owner-only and revealed on
+ * row hover.
  */
 async function openDesktopLinker(page: Page, agentId: number) {
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
   await expect(listItem).toBeVisible({ timeout: 20_000 });
-  await listItem.click();
-  await page.waitForTimeout(1_000);
+  await listItem.hover();
 
-  const infoSheet = page.getByTestId('assistant-info-sheet');
-  if (!(await infoSheet.isVisible({ timeout: 3_000 }).catch(() => false))) {
-    await page.getByTestId('assistant-info-button').click();
-  }
-  await expect(infoSheet).toBeVisible({ timeout: 5_000 });
-
-  await page.getByTestId('assistant-info-tab-onboarding').click();
-
-  // The install group is not the first incomplete group, so it starts
-  // collapsed — expand it to reveal the step row.
-  await page.getByTestId('assistant-setup-roadmap-group-install-toggle').click();
-  await page.getByTestId('assistant-setup-roadmap-step-install-action').click();
+  await page.getByTestId(`assistant-menu-${agentId}`).click();
+  await page.getByTestId('menu-connect-desktop').click();
 
   await expect(page.getByRole('dialog')).toContainText('Link User Desktop', { timeout: 5_000 });
 }
@@ -143,4 +121,36 @@ test('shows the currently-linked machine and unlinks only that assistant', async
     .toEqual([]);
   expect(getLinkedDesktopIds(alan.agentId, user.id)).toEqual([macbook.id]);
   expect(getDesktopLinkCount(macbook.id)).toBe(1);
+});
+
+test('saves the macOS user password as a per-assistant secret', async ({ authedPage: page }) => {
+  // Precondition: the assistant has no macOS password secret yet.
+  expect(await getAssistantSecretNames(user.apiKey, user.id, alan.agentId)).not.toContain(
+    'MACOS_USER_DESKTOP_PASSWORD'
+  );
+
+  await navigateForLinker(page);
+  await openDesktopLinker(page, alan.agentId);
+
+  const dialog = page.getByRole('dialog');
+
+  // "Save User Password" is macOS-only: hidden until macOS is selected.
+  await expect(dialog.getByRole('button', { name: /save user password/i })).toHaveCount(0);
+
+  await dialog.getByRole('button', { name: 'macOS', exact: true }).click();
+
+  const saveTrigger = dialog.getByRole('button', { name: /save user password/i });
+  await expect(saveTrigger).toBeVisible();
+  await saveTrigger.click();
+
+  // Enter the password into the popover and submit.
+  await page.getByPlaceholder('Your Mac login password').fill('hunter2-secret');
+  await page.getByRole('button', { name: /save securely/i }).click();
+
+  await expect(page.getByText('Password saved')).toBeVisible({ timeout: 10_000 });
+
+  // Backend: the secret now exists under the assistant's Secrets context.
+  await expect
+    .poll(() => getAssistantSecretNames(user.apiKey, user.id, alan.agentId), { timeout: 10_000 })
+    .toContain('MACOS_USER_DESKTOP_PASSWORD');
 });

@@ -87,6 +87,9 @@ interface AssistantListProps {
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager: (assistant: Assistant) => void;
   onEditAssistant: (assistant: Assistant) => void;
+  /** Opens the desktop linker for an assistant. Surfaced as a row
+   *  dropdown entry only for assistants the current user owns. */
+  onConnectDesktop?: (assistant: Assistant) => void;
   onEndContract?: (assistant: Assistant) => Promise<void>;
   canEndContract?: (assistant: Assistant) => boolean;
   /**
@@ -126,6 +129,7 @@ export function AssistantList({
   onOpenContactManager,
   onOpenWorkspaceManager,
   onEditAssistant,
+  onConnectDesktop,
   onEndContract,
   canEndContract,
   canEditAssistant,
@@ -254,6 +258,9 @@ export function AssistantList({
           onOpenContactManager={onOpenContactManager}
           onOpenWorkspaceManager={onOpenWorkspaceManager}
           onEditAssistant={onEditAssistant}
+          onConnectDesktop={
+            currentUserId && entry.assistant.userId === currentUserId ? onConnectDesktop : undefined
+          }
           onEndContract={canEndContract?.(entry.assistant) ? onEndContract : undefined}
           canEdit={canEditAssistant ? canEditAssistant(entry.assistant) : true}
           isFolded={isFolded}
@@ -271,7 +278,9 @@ export function AssistantList({
       assistantStatuses,
       canEditAssistant,
       canEndContract,
+      currentUserId,
       isFolded,
+      onConnectDesktop,
       onEditAssistant,
       onEndContract,
       onOpenContactManager,

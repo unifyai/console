@@ -73,7 +73,6 @@ export interface AssistantInfoSidePanelContentProps {
     userEmail?: string | null;
     userPhoneNumber?: string | null;
     onStartCall: (assistant: Assistant, type: 'audio' | 'video') => void;
-    onShowInstallInstructions: (assistant: Assistant) => void;
     /** Optionally accepts a tab id (mirrors `/account?tab=…`) so
      *  callers can deep-link into a specific section of the account
      *  page — e.g. the phone-on-profile step uses `'contact-info'`. */
@@ -406,7 +405,6 @@ function RegularAssistantInfoSidePanelContent({
                 state={onboardingState}
                 onOpenContactManager={onOpenContactManager}
                 onStartCall={roadmap.onStartCall}
-                onShowInstallInstructions={roadmap.onShowInstallInstructions}
                 onOpenUserSettings={roadmap.onOpenUserSettings}
                 onSeedChatDraft={roadmap.onSeedChatDraft}
                 userEmail={roadmap.userEmail}

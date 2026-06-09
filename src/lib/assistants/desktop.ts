@@ -224,6 +224,13 @@ export const sendSystemEvent = async () => {
   };
 };
 
+export const getDesktopApiKey = async (apiKey: string) => {
+  return async (): Promise<string> => {
+    'use server';
+    return apiKey;
+  };
+};
+
 export const listUserDesktops = async (apiKey: string) => {
   return async (): Promise<UserDesktop[] | ResponseProps> => {
     'use server';

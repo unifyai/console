@@ -10,6 +10,7 @@ import { test as base, expect, type Page, type Browser } from '@playwright/test'
 import path from 'path';
 import os from 'os';
 import { login, loginAndWaitForRedirect, switchToEmailTab } from '../auth/helpers';
+import { orchestraFetch as _orchestraFetch } from '../helpers/seeds/client';
 
 export { createTestUser, cleanupUser, setUserCredits } from '../helpers/e2e-helpers';
 export type { TestUser } from '../helpers/e2e-helpers';
@@ -572,4 +573,28 @@ export function deleteUserDesktopsForUser(userId: string): void {
   } catch {
     /* best effort — cascade also removes assistant_user_desktops */
   }
+}
+
+// =============================================================================
+// Assistant Secret Helpers
+// =============================================================================
+
+/**
+ * Names of the secrets persisted for an assistant, read back through
+ * Orchestra's logs API (the same store the Console secrets UI writes to).
+ * Secrets live as logs in the "Assistants" project under the per-assistant
+ * `{userId}/{assistantId}/Secrets` context.
+ */
+export async function getAssistantSecretNames(
+  apiKey: string,
+  userId: string,
+  assistantId: number
+): Promise<string[]> {
+  const context = `${userId}/${assistantId}/Secrets`;
+  const params = new URLSearchParams({ project_name: 'Assistants', context });
+  const res = await _orchestraFetch(`/v0/logs?${params.toString()}`, { method: 'GET' }, apiKey);
+  if (!res.ok) return [];
+  const data = await res.json().catch(() => null);
+  const logs = (data?.logs ?? []) as Array<{ entries?: { name?: string } }>;
+  return logs.map((log) => log.entries?.name).filter((name): name is string => Boolean(name));
 }

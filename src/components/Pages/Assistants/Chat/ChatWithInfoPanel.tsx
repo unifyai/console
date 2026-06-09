@@ -104,18 +104,17 @@ export interface ChatWithInfoPanelProps {
    *  per-channel "Add …" CTAs). Defaults to `true`. */
   canWrite?: boolean;
   /**
-   * Setup-roadmap wiring. When `onShowInstallInstructions` is
-   * provided, the info panel surfaces an Onboarding tab with the
-   * post-hire checklist. The other props feed step-completion
-   * detection (hasUserMessage / hasHistoricalCall / phone-on-profile
-   * / latest-msg timestamp) and chat-prefill text personalisation.
+   * Setup-roadmap wiring. When `onOpenUserSettings` is provided, the
+   * info panel surfaces an Onboarding tab with the post-hire checklist.
+   * The other props feed step-completion detection (hasUserMessage /
+   * hasHistoricalCall / phone-on-profile / latest-msg timestamp) and
+   * chat-prefill text personalisation.
    */
   hasUserMessage?: boolean;
   hasHistoricalCall?: boolean;
   hasUserPhoneNumber?: boolean;
   latestUserMessageAt?: Date | null;
   userPhoneNumber?: string | null;
-  onShowInstallInstructions?: (assistant: Assistant) => void;
   /** Open the logged-in user's account settings (e.g. /account).
    *  Optional `tab` deep-links into a specific account-page section
    *  (e.g. `'contact-info'` for the phone-on-profile roadmap step). */
@@ -127,7 +126,7 @@ export interface ChatWithInfoPanelProps {
    * attention without us having to auto-pop it on every visit.
    *
    * Computed at the page level (single source of truth across all
-   * assistants), and ignored entirely when `onShowInstallInstructions`
+   * assistants), and ignored entirely when `onOpenUserSettings`
    * isn't provided — i.e. for non-owners who can't see the panel.
    */
   hasIncompleteOnboarding?: boolean;
@@ -185,7 +184,6 @@ export function ChatWithInfoPanel({
   hasUserPhoneNumber = false,
   latestUserMessageAt = null,
   userPhoneNumber,
-  onShowInstallInstructions,
   onOpenUserSettings,
   hasIncompleteOnboarding = false,
   coordinatorOnboarding,
@@ -196,8 +194,7 @@ export function ChatWithInfoPanel({
   // wouldn't want a hint pointing at a panel that has nothing to act
   // on. The same prop pair also gates the roadmap memo below, so this
   // check keeps both surfaces in lockstep.
-  const showOnboardingDot =
-    hasIncompleteOnboarding && !!onShowInstallInstructions && !!onOpenUserSettings;
+  const showOnboardingDot = hasIncompleteOnboarding && !!onOpenUserSettings;
   const searchDisplayName = assistant.isCoordinator
     ? assistantDisplayName(assistant)
     : assistant.firstName || assistantDisplayName(assistant);
@@ -257,7 +254,7 @@ export function ChatWithInfoPanel({
 
   const roadmap = React.useMemo(
     () =>
-      onShowInstallInstructions && onOpenUserSettings
+      onOpenUserSettings
         ? {
             hasUserMessage,
             hasHistoricalCall,
@@ -266,7 +263,6 @@ export function ChatWithInfoPanel({
             userEmail,
             userPhoneNumber,
             onStartCall,
-            onShowInstallInstructions,
             onOpenUserSettings,
             onSeedChatDraft: seedChatDraft,
           }
@@ -279,7 +275,6 @@ export function ChatWithInfoPanel({
       userEmail,
       userPhoneNumber,
       onStartCall,
-      onShowInstallInstructions,
       onOpenUserSettings,
       seedChatDraft,
     ]

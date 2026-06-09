@@ -2,8 +2,20 @@ import * as React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/UI/dialog';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Skeleton } from '@/components/UI/skeleton';
-import { Loader2, Monitor, Link2, Unlink, ClipboardCopy, Check } from 'lucide-react';
+import {
+  Loader2,
+  Monitor,
+  Link2,
+  Unlink,
+  ClipboardCopy,
+  Check,
+  KeyRound,
+  Info,
+} from 'lucide-react';
 import { Button } from '@/components/UI/button';
+import { Input } from '@/components/UI/input';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/UI/popover';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/UI/tooltip';
 import { AssistantHireLocalSetupInstructionsDialog } from '@/components/Pages/Assistants/Hire/AssistantHireLocalSetupInstructions';
 import { cn } from '@/lib/utils';
 import { FaApple, FaWindows, FaUbuntu } from 'react-icons/fa';
@@ -45,8 +57,13 @@ export function AssistantDesktopLinker({
   const [isLoading, setIsLoading] = React.useState(true);
   const [assigningId, setAssigningId] = React.useState<number | null>(null);
   const [setupOs, setSetupOs] = React.useState<string | null>(null);
+  const [selectedOs, setSelectedOs] = React.useState<'macos' | 'windows' | 'ubuntu' | null>(null);
   const [keyCopied, setKeyCopied] = React.useState(false);
   const [isCopyingKey, setIsCopyingKey] = React.useState(false);
+  const [passwordOpen, setPasswordOpen] = React.useState(false);
+  const [passwordValue, setPasswordValue] = React.useState('');
+  const [isSavingPassword, setIsSavingPassword] = React.useState(false);
+  const [passwordSaved, setPasswordSaved] = React.useState(false);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -90,6 +107,34 @@ export function AssistantDesktopLinker({
     toast.success('Desktop unlinked');
     onLinked?.(null);
     onClose();
+  };
+
+  const handleSavePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordValue.trim()) return;
+    setIsSavingPassword(true);
+    try {
+      const result = await assistantActions.secret.create(assistant.agentId, assistant.userId, {
+        name: 'MACOS_USER_DESKTOP_PASSWORD',
+        value: passwordValue,
+        description: 'macOS login password for local desktop control',
+      });
+      if ('detail' in result && result.detail) {
+        console.error('[AssistantDesktopLinker] save password failed:', result.detail);
+        toast.error('Could not save password. Please try again.');
+        return;
+      }
+      setPasswordValue('');
+      setPasswordOpen(false);
+      setPasswordSaved(true);
+      setTimeout(() => setPasswordSaved(false), 2000);
+      toast.success('Password saved');
+    } catch (err) {
+      console.error('[AssistantDesktopLinker] save password error:', err);
+      toast.error('Could not save password. Please try again.');
+    } finally {
+      setIsSavingPassword(false);
+    }
   };
 
   // The current user's desktop linked to *this* assistant: the one whose
@@ -190,49 +235,129 @@ export function AssistantDesktopLinker({
 
         <div className="border-t border-border pt-3">
           <p className="text-title leading-none tracking-tight">Local Setup Instructions</p>
-          {getApiKey && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-1.5 h-7 gap-1.5 px-2 text-muted-foreground"
-              disabled={isCopyingKey}
-              onClick={async () => {
-                setIsCopyingKey(true);
-                try {
-                  const key = await getApiKey();
-                  navigator.clipboard.writeText(key);
-                  setKeyCopied(true);
-                  setTimeout(() => setKeyCopied(false), 2000);
-                } catch {
-                  toast.error('Failed to retrieve API key');
-                } finally {
-                  setIsCopyingKey(false);
-                }
-              }}
-            >
-              {keyCopied ? (
-                <Check className="h-3.5 w-3.5 text-[color:var(--status-success)]" />
-              ) : isCopyingKey ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <ClipboardCopy className="h-3.5 w-3.5" />
-              )}
-              {keyCopied ? 'Copied!' : 'Copy API Key'}
-            </Button>
-          )}
+
           <div className="mt-2 flex gap-2">
             {(['macos', 'windows', 'ubuntu'] as const).map((os) => (
               <Button
                 key={os}
                 variant="outline"
                 size="sm"
-                className="flex-1 gap-1.5"
-                onClick={() => setSetupOs(os)}
+                className={cn(
+                  'flex-1 gap-1.5',
+                  selectedOs === os && 'border-primary/40 bg-primary/5 text-primary'
+                )}
+                onClick={() => setSelectedOs(os)}
               >
                 {osIcons[os]}
                 {osLabels[os]}
               </Button>
             ))}
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+            {getApiKey && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 px-2 text-muted-foreground"
+                disabled={isCopyingKey}
+                onClick={async () => {
+                  setIsCopyingKey(true);
+                  try {
+                    const key = await getApiKey();
+                    navigator.clipboard.writeText(key);
+                    setKeyCopied(true);
+                    setTimeout(() => setKeyCopied(false), 2000);
+                  } catch {
+                    toast.error('Failed to retrieve API key');
+                  } finally {
+                    setIsCopyingKey(false);
+                  }
+                }}
+              >
+                {keyCopied ? (
+                  <Check className="h-3.5 w-3.5 text-[color:var(--status-success)]" />
+                ) : isCopyingKey ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ClipboardCopy className="h-3.5 w-3.5" />
+                )}
+                {keyCopied ? 'Copied!' : 'Copy API Key'}
+              </Button>
+            )}
+
+            {selectedOs === 'macos' && (
+              <div className="flex items-center gap-0.5">
+                <Popover open={passwordOpen} onOpenChange={setPasswordOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1.5 px-2 text-muted-foreground"
+                    >
+                      {passwordSaved ? (
+                        <Check className="h-3.5 w-3.5 text-[color:var(--status-success)]" />
+                      ) : (
+                        <KeyRound className="h-3.5 w-3.5" />
+                      )}
+                      {passwordSaved ? 'Saved!' : 'Save User Password'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-72">
+                    <form onSubmit={handleSavePassword} className="space-y-2">
+                      <p className="text-title leading-none">macOS login password</p>
+                      <Input
+                        type="password"
+                        autoComplete="off"
+                        placeholder="Your Mac login password"
+                        value={passwordValue}
+                        onChange={(e) => setPasswordValue(e.target.value)}
+                        autoFocus
+                      />
+                      <Button
+                        type="submit"
+                        size="sm"
+                        className="w-full gap-1.5"
+                        disabled={!passwordValue.trim() || isSavingPassword}
+                      >
+                        {isSavingPassword && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        Save securely
+                      </Button>
+                    </form>
+                  </PopoverContent>
+                </Popover>
+
+                <TooltipProvider delayDuration={150}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="Why is my password needed?"
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+                      >
+                        <Info className="h-3.5 w-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" align="start" className="text-caption max-w-xs">
+                      macOS needs your Mac login password so your assistant can control this machine
+                      during local desktop sessions — granting accessibility/automation permission
+                      and unlocking the screen when needed. It&apos;s stored as an encrypted secret
+                      and only used on the Mac you link.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            )}
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              disabled={!selectedOs}
+              onClick={() => selectedOs && setSetupOs(selectedOs)}
+            >
+              View setup instructions
+            </Button>
           </div>
         </div>
       </DialogContent>

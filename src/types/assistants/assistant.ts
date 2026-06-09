@@ -559,6 +559,7 @@ export interface AssistantActions {
       eventType: import('@/lib/assistants/desktop').SystemEventType,
       message: string
     ) => Promise<ResponseProps>;
+    getApiKey: () => Promise<string>;
     listUserDesktops: () => Promise<UserDesktop[] | ResponseProps>;
     linkDesktop: (
       assistantId: string,

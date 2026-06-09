@@ -1881,10 +1881,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // they have no actionable steps to tick off here.
   const isAssistantOwner =
     !!profileAssistant && !!currentUserId && profileAssistant.userId === currentUserId;
-  // Open the local-install instructions dialog from the setup roadmap.
-  // Falls back to a sane default if we don't have an OS captured (e.g.
-  // the assistant was hired in a previous session before this feature
-  // shipped).
+  // Open the desktop linker (registered-machine list + local setup
+  // instructions). Surfaced from the assistant row's "Connect your
+  // desktop" menu entry.
   const handleShowInstallInstructions = React.useCallback((assistant: Assistant) => {
     setDesktopLinkerAssistant(assistant);
   }, []);
@@ -2161,6 +2160,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 onOpenContactManager={handleOpenContactManager}
                 onOpenWorkspaceManager={handleOpenWorkspaceManager}
                 onEditAssistant={handleOpenEditDialog}
+                onConnectDesktop={handleShowInstallInstructions}
                 onEndContract={onDeleteAssistantSubmit}
                 canEndContract={canEndContract}
                 isFolded={isAssistantListFolded}
@@ -2221,14 +2221,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 hasUserPhoneNumber={hasUserPhoneNumber}
                 latestUserMessageAt={profiledLatestUserMessageAt}
                 userPhoneNumber={userMeta.phoneNumber}
-                // The roadmap activates downstream only when BOTH of the
-                // owner-only handlers are provided (see ChatWithInfoPanel
-                // — it gates the `roadmap` prop bag on their presence).
-                // Withholding them for non-owners cleanly hides the
-                // Onboarding tab without bespoke prop drilling.
-                onShowInstallInstructions={
-                  isAssistantOwner ? handleShowInstallInstructions : undefined
-                }
+                // The roadmap activates downstream only when the
+                // owner-only settings handler is provided (see
+                // ChatWithInfoPanel — it gates the `roadmap` prop bag on
+                // its presence). Withholding it for non-owners cleanly
+                // hides the Onboarding tab without bespoke prop drilling.
                 onOpenUserSettings={isAssistantOwner ? handleOpenUserSettings : undefined}
                 // Drives the dot on the chat header's "Assistant info"
                 // button. Pulled from the same cross-assistant summary
@@ -2447,6 +2444,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             assistant={desktopLinkerAssistant}
             assistantActions={assistantActions}
             onLinked={() => refreshAssistants(false)}
+            getApiKey={assistantActions.desktop.getApiKey}
           />
         )}
 

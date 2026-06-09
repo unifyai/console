@@ -31,7 +31,6 @@ import {
   PhoneCall,
   Mail,
   MailPlus,
-  Download,
   UserCog,
   Plug,
   Check,
@@ -133,10 +132,6 @@ const STEP_META: Record<Exclude<OnboardingStepId, 'integrations'>, StepMeta> = {
     label: (a) => `Ask ${a.firstName || 'them'} to give you a phone call`,
     Icon: PhoneCall,
   },
-  install: {
-    label: () => 'Install the desktop agent on your machine',
-    Icon: Download,
-  },
 };
 
 const GROUP_TITLES: Record<OnboardingGroupId, (assistant: Assistant) => string> = {
@@ -144,7 +139,6 @@ const GROUP_TITLES: Record<OnboardingGroupId, (assistant: Assistant) => string> 
   breakIce: () => 'Break the ice',
   exchangeEmails: () => 'Exchange emails',
   getOnCall: () => 'Get on a call',
-  install: () => 'Install on your machine',
   integrations: (a) => `Give ${a.firstName || 'them'} access to your platforms`,
 };
 
@@ -153,7 +147,6 @@ const GROUP_ICONS: Record<OnboardingGroupId, React.ComponentType<{ className?: s
   breakIce: MessageSquare,
   exchangeEmails: Inbox,
   getOnCall: Phone,
-  install: Download,
   integrations: Plug,
 };
 
@@ -205,7 +198,6 @@ export interface AssistantSetupRoadmapProps {
   // Action handlers ------------------------------------------------------
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onStartCall: (assistant: Assistant, type: 'audio' | 'video') => void;
-  onShowInstallInstructions: (assistant: Assistant) => void;
   /**
    * Open the user's account settings, optionally on a specific
    * sub-tab (mirrors `/account?tab=...`). The phone-on-profile step
@@ -229,14 +221,12 @@ export function AssistantSetupRoadmap({
   state,
   onOpenContactManager,
   onStartCall,
-  onShowInstallInstructions,
   onOpenUserSettings,
   onSeedChatDraft,
   userEmail,
   userPhoneNumber,
 }: AssistantSetupRoadmapProps) {
-  const { groups, totalSteps, resolvedSteps, shouldShowRoadmap, markResolved, recordPrefillClick } =
-    state;
+  const { groups, totalSteps, resolvedSteps, shouldShowRoadmap, recordPrefillClick } = state;
 
   // Controlled accordion state. Initialise to the first incomplete
   // group so the user lands directly on actionable work; auto-collapse
@@ -341,13 +331,6 @@ export function AssistantSetupRoadmap({
           `Hi ${assistant.firstName || 'there'}, can you give me a quick call${target}?`
         );
         recordPrefillClick(step.id);
-        return;
-      }
-      case 'install': {
-        onShowInstallInstructions(assistant);
-        // Showing the instructions counts as resolving — the user
-        // has at least seen what to run.
-        markResolved(step.id);
         return;
       }
       case 'integrations':
