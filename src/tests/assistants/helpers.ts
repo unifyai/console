@@ -24,6 +24,7 @@ export {
   addMember,
   orchestraFetch,
   createAssistant,
+  createPersonalCoordinator,
   createTeamForAssistant,
   addAssistantToTeam,
   ensureVoicePreset,

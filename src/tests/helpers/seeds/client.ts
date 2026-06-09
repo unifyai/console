@@ -580,7 +580,7 @@ export function createAssistant(opts: CreateAssistantOpts): SeededAssistant {
     opts.bossResponsePolicy === undefined ? DEFAULT_BOSS_RESPONSE_POLICY : opts.bossResponsePolicy;
 
   dbExecBlock(`
-INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel, organization_id, is_local, profile_photo, job_title, is_coordinator, desktop_mode)
+INSERT INTO assistants (user_id, first_name, surname, age, nationality, timezone, about, voice_id, voice_provider, weekly_limit, max_parallel, organization_id, is_local, profile_photo, job_title, is_coordinator, desktop_mode, user_desktop_filesys_sync)
 VALUES (
   ${sqlLiteral(opts.userId)},
   ${sqlLiteral(firstName)},
@@ -598,7 +598,8 @@ VALUES (
   ${sqlLiteral(opts.profilePhoto ?? null)},
   ${sqlLiteral(opts.jobTitle ?? null)},
   ${sqlLiteral(opts.isCoordinator === true)},
-  ${sqlLiteral(desktopMode)}
+  ${sqlLiteral(desktopMode)},
+  FALSE
 );
 `);
 

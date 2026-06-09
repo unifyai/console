@@ -370,6 +370,30 @@ export function AssistantContactManager({
   };
 
   const renderEmailTab = () => {
+    if (assistant.isCoordinator) {
+      if (!assistant.email) {
+        return (
+          <p className="text-body text-muted-foreground">
+            Marty email is managed automatically and will appear here once configured.
+          </p>
+        );
+      }
+
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center">
+            <Label>Marty Email Address</Label>
+            <ProviderBadge provider="Platform-managed" />
+          </div>
+          <DisplayContactField label="Marty Email Address" value={assistant.email} />
+          <p className="text-caption text-muted-foreground">
+            Marty email is managed automatically. Messages to this shared address are routed by
+            verified sender identity.
+          </p>
+        </div>
+      );
+    }
+
     if (assistant.email) {
       return (
         <div className="space-y-3">
@@ -431,6 +455,9 @@ export function AssistantContactManager({
 
     // BYOD confirm-disconnect / connect / update-features actions live
     // in the Workspace modal now — the Email tab is display-only.
+    if (selectedTab === 'email' && assistant.isCoordinator) {
+      return null;
+    }
 
     // Delete button for platform email or other contacts
     if (showDeleteButton && canWrite) {
