@@ -1295,6 +1295,8 @@ start_console() {
     unset SHARED_UNIFY_KEY
     load_self_host_runtime_env
     local _runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${UNITY_HOME:-$HOME/.unity}/coordinator-runtime.json}"
+    # Console expects ORCHESTRA_URL without a /v0 suffix; self-host env must not override.
+    export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
     if [[ -f "$_runtime_file" ]]; then
       local _resume_key
       _resume_key="$(python3 - "$_runtime_file" <<'PY'
