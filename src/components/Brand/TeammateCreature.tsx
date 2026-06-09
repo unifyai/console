@@ -8,7 +8,7 @@ import {
 } from './shapes';
 
 export type CreatureEyes = 'up' | 'down' | 'square' | 'blink';
-export type CreatureMood = 'happy' | 'sad';
+export type CreatureMood = 'happy' | 'sad' | 'frustrated';
 export type CreatureMouthShape =
   | 'amplitude'
   | 'closed'
@@ -21,6 +21,7 @@ export type CreatureMouthShape =
 const CREATURE_CELL = 18;
 const CREATURE_MARGIN = 12;
 const SAD_MOUTH_ANCHOR_OFFSET = 8;
+const FRUSTRATED_MOUTH_ANCHOR_OFFSET = 7;
 
 export function getCreatureMetrics(shape: CreatureShape) {
   const cells = creatureShapes[shape];
@@ -50,13 +51,60 @@ function CreatureEye({
   cx,
   cy,
   dir = 'up',
+  mood,
+  side,
   stroke,
 }: {
   cx: number;
   cy: number;
   dir?: CreatureEyes;
+  mood: CreatureMood;
+  side: 'left' | 'right';
   stroke: string;
 }) {
+  if (mood === 'frustrated') {
+    if (dir === 'blink') {
+      return <rect fill={stroke} height={4} rx={2} width={15} x={cx - 7.5} y={cy - 2} />;
+    }
+
+    if (dir === 'square') {
+      const browD =
+        side === 'left'
+          ? `M ${cx - 8} ${cy - 8} L ${cx + 6} ${cy - 4}`
+          : `M ${cx - 6} ${cy - 4} L ${cx + 8} ${cy - 8}`;
+
+      return (
+        <g>
+          <rect fill={stroke} height={8} rx={2} width={8} x={cx - 4} y={cy - 2} />
+          <path
+            d={browD}
+            fill="none"
+            stroke={stroke}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={3.5}
+          />
+        </g>
+      );
+    }
+
+    const inwardD =
+      side === 'left'
+        ? `M ${cx - 6} ${cy - 6} L ${cx + 6} ${cy} L ${cx - 6} ${cy + 6}`
+        : `M ${cx + 6} ${cy - 6} L ${cx - 6} ${cy} L ${cx + 6} ${cy + 6}`;
+
+    return (
+      <path
+        d={inwardD}
+        fill="none"
+        stroke={stroke}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={4.5}
+      />
+    );
+  }
+
   if (dir === 'blink') {
     return <rect fill={stroke} height={4} rx={2} width={15} x={cx - 7.5} y={cy - 2} />;
   }
@@ -104,10 +152,13 @@ function CreatureMouth({
     topDip: number,
     bottomDip: number
   ) => {
-    if (mood === 'sad') {
-      const anchorY = topY + SAD_MOUTH_ANCHOR_OFFSET;
-      return `M ${leftX} ${anchorY} Q ${cx} ${anchorY - topDip} ${rightX} ${anchorY} Q ${cx} ${
-        anchorY - bottomDip
+    if (mood === 'sad' || mood === 'frustrated') {
+      const anchorY =
+        topY + (mood === 'frustrated' ? FRUSTRATED_MOUTH_ANCHOR_OFFSET : SAD_MOUTH_ANCHOR_OFFSET);
+      const moodTopDip = mood === 'frustrated' ? topDip + 1 : topDip;
+      const moodBottomDip = mood === 'frustrated' ? bottomDip * 0.82 : bottomDip;
+      return `M ${leftX} ${anchorY} Q ${cx} ${anchorY - moodTopDip} ${rightX} ${anchorY} Q ${cx} ${
+        anchorY - moodBottomDip
       } ${leftX} ${anchorY} Z`;
     }
 
@@ -138,7 +189,7 @@ function CreatureMouth({
           opacity: 'calc(0.78 + var(--martian-speech-level, 0) * 0.22)',
           transform: 'scaleY(calc(0.9 + var(--martian-speech-level, 0) * 0.12))',
           transformBox: 'fill-box',
-          transformOrigin: mood === 'sad' ? 'center bottom' : 'center top',
+          transformOrigin: mood === 'happy' ? 'center top' : 'center bottom',
         }}
       />
     );
@@ -159,7 +210,7 @@ function CreatureMouth({
         transform:
           'scaleX(calc(0.72 + var(--martian-speech-level, 0) * 0.42)) scaleY(calc(0.35 + var(--martian-speech-level, 0) * 0.65))',
         transformBox: 'fill-box',
-        transformOrigin: mood === 'sad' ? 'center bottom' : 'center',
+        transformOrigin: mood === 'happy' ? 'center' : 'center bottom',
       }}
     />
   );
@@ -238,8 +289,15 @@ export function TeammateCreature({
             y={px(y)}
           />
         ))}
-      <CreatureEye cx={leftEyeX} cy={eyeY} dir={eyes} stroke={eyeStroke} />
-      <CreatureEye cx={rightEyeX} cy={eyeY} dir={eyes} stroke={eyeStroke} />
+      <CreatureEye cx={leftEyeX} cy={eyeY} dir={eyes} mood={mood} side="left" stroke={eyeStroke} />
+      <CreatureEye
+        cx={rightEyeX}
+        cy={eyeY}
+        dir={eyes}
+        mood={mood}
+        side="right"
+        stroke={eyeStroke}
+      />
       <CreatureMouth cx={mouthX} cy={mouthY} fill={eyeStroke} mood={mood} shape={mouthShape} />
     </svg>
   );
