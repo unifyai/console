@@ -12,6 +12,10 @@ const EXPRESSION_SEQUENCE = [
   'down',
 ] as const satisfies readonly CreatureEyes[];
 
+function getSpeechStartEyes(restingEyes: CreatureEyes): CreatureEyes {
+  return restingEyes === 'up' ? 'square' : 'up';
+}
+
 function nextDelay(minMs: number, maxMs: number): number {
   return minMs + Math.random() * (maxMs - minMs);
 }
@@ -34,7 +38,15 @@ export function useMartianEyeExpression({
   const expressionIndexRef = React.useRef(0);
   const blinkTimeoutRef = React.useRef<number | null>(null);
   const speechLevelRef = React.useRef(speechLevel);
+  const restingEyes = isCallActive || isUserSpeaking ? 'square' : baseEyes;
+  const lastRestingEyesRef = React.useRef<CreatureEyes>(restingEyes);
   speechLevelRef.current = speechLevel;
+
+  React.useEffect(() => {
+    if (!isSpeaking) {
+      lastRestingEyesRef.current = restingEyes;
+    }
+  }, [isSpeaking, restingEyes]);
 
   React.useEffect(() => {
     if (!isSpeaking) {
@@ -47,6 +59,8 @@ export function useMartianEyeExpression({
       }
       return;
     }
+
+    setSettledEyes(getSpeechStartEyes(lastRestingEyesRef.current));
 
     let animationFrame = 0;
     let nextBlinkAt = performance.now() + nextDelay(2_400, 4_600);
@@ -95,6 +109,5 @@ export function useMartianEyeExpression({
 
   if (isBlinking) return 'blink';
   if (isSpeaking) return settledEyes;
-  if (isCallActive || isUserSpeaking) return 'square';
-  return baseEyes;
+  return restingEyes;
 }
