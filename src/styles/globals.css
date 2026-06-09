@@ -766,6 +766,29 @@
     animation: nudge 0.12s ease-in-out;
   }
 
+  @keyframes onboarding-ring-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 32%, transparent);
+      transform: scale(1);
+    }
+    42% {
+      box-shadow: 0 0 0 12px color-mix(in srgb, var(--primary) 0%, transparent);
+      transform: scale(1.045);
+    }
+  }
+
+  .animate-onboarding-ring-pulse {
+    animation: onboarding-ring-pulse 2.4s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-onboarding-ring-pulse {
+      animation: none;
+    }
+  }
+
   @keyframes saucer-float {
     0%,
     100% {

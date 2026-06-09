@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import callRingingSrc from '@/public/sounds/call-ringing.mp3';
+import callRingingSrc from '@/public/sounds/call-ringing-warm-mobile.wav';
 import callEndSrc from '@/public/sounds/call-end.mp3';
 import recordStartSrc from '@/public/sounds/record-start.mp3';
 import recordStopSrc from '@/public/sounds/record-stop.mp3';

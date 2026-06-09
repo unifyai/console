@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import callRingingSrc from '@/public/sounds/call-ringing.mp3';
+import callRingingSrc from '@/public/sounds/call-ringing-warm-mobile.wav';
 import callEndSrc from '@/public/sounds/call-end.mp3';
 
 export function useCallSounds() {
@@ -11,7 +11,7 @@ export function useCallSounds() {
     if (!ringingRef.current) {
       const audio = new Audio(callRingingSrc);
       audio.loop = true;
-      audio.volume = 0.5;
+      audio.volume = 0.35;
       ringingRef.current = audio;
     }
     return ringingRef.current;

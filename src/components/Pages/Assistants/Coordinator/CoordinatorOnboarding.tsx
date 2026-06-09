@@ -38,6 +38,7 @@ import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile
 import { CoordinatorOnboardingSidebar } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingSidebar';
 import { useCoordinatorOnboardingContext } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingContext';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
+import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 import { useIsMobile } from '@/hooks/Common/useMobile';
 import { notifyOnboardingSessionStarted } from '@/lib/client/coordinator';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
@@ -219,6 +220,18 @@ export function CoordinatorOnboarding({
   // mobile the right section isn't a separate column.
   const [activeMobileTab, setActiveMobileTab] = React.useState<MobileTab>('chat');
   const isMobile = useIsMobile();
+  const { startRinging: startPickerRinging, stopRinging: stopPickerRinging } = useCallSounds();
+  const isPickerVisible = !isCoordinatorCallActive && choice === null;
+
+  React.useEffect(() => {
+    if (!isPickerVisible) {
+      stopPickerRinging();
+      return;
+    }
+
+    startPickerRinging();
+    return stopPickerRinging;
+  }, [isPickerVisible, startPickerRinging, stopPickerRinging]);
 
   // Workspace OAuth is engagement-only on click — the dialog
   // opens but the step stays pending until ``Assistant.email`` +
@@ -417,10 +430,10 @@ export function CoordinatorOnboarding({
   // alive, the user hasn't picked chat, and they haven't just hit
   // Start Call (``choice === 'call'`` covers the connecting window
   // before the parent flips ``isCoordinatorCallActive`` to true).
-  if (!isCoordinatorCallActive && choice === null) {
+  if (isPickerVisible) {
     return (
       <div
-        className="flex h-full w-full items-center justify-center bg-background"
+        className="brand-page-stencil-bg flex h-full w-full items-center justify-center bg-background"
         data-testid="coordinator-onboarding"
       >
         <CoordinatorOnboardingPicker
@@ -898,6 +911,7 @@ function CoordinatorOnboardingPicker({
           size="lg"
           onClick={onStartCall}
           disabled={isStartingCall}
+          className={cn(!isStartingCall && 'animate-onboarding-ring-pulse')}
           data-testid="coordinator-onboarding-start-call"
         >
           {isStartingCall ? (

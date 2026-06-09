@@ -88,7 +88,7 @@ import type { Secret } from '@/types/assistants/secret';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { createRandomMartianProfile } from '@/utils/assistants/martian-profile-randomizer';
 
-const ENABLE_COORDINATOR_ONBOARDING = false;
+const ENABLE_COORDINATOR_ONBOARDING = true;
 
 interface MainProps {
   assistantActions: AssistantActions;
