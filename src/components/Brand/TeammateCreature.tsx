@@ -8,6 +8,7 @@ import {
 } from './shapes';
 
 export type CreatureEyes = 'up' | 'down' | 'square' | 'blink';
+export type CreatureMood = 'happy' | 'sad';
 export type CreatureMouthShape =
   | 'amplitude'
   | 'closed'
@@ -19,6 +20,7 @@ export type CreatureMouthShape =
 
 const CREATURE_CELL = 18;
 const CREATURE_MARGIN = 12;
+const SAD_MOUTH_ANCHOR_OFFSET = 8;
 
 export function getCreatureMetrics(shape: CreatureShape) {
   const cells = creatureShapes[shape];
@@ -39,6 +41,7 @@ type TeammateCreatureProps = {
   color?: BrandRole;
   eyes?: CreatureEyes;
   label?: string;
+  mood?: CreatureMood;
   mouthShape?: CreatureMouthShape;
   shape?: CreatureShape;
 };
@@ -85,13 +88,34 @@ function CreatureMouth({
   cx,
   cy,
   fill,
+  mood,
   shape,
 }: {
   cx: number;
   cy: number;
   fill: string;
+  mood: CreatureMood;
   shape: CreatureMouthShape;
 }) {
+  const getMouthPath = (
+    leftX: number,
+    rightX: number,
+    topY: number,
+    topDip: number,
+    bottomDip: number
+  ) => {
+    if (mood === 'sad') {
+      const anchorY = topY + SAD_MOUTH_ANCHOR_OFFSET;
+      return `M ${leftX} ${anchorY} Q ${cx} ${anchorY - topDip} ${rightX} ${anchorY} Q ${cx} ${
+        anchorY - bottomDip
+      } ${leftX} ${anchorY} Z`;
+    }
+
+    return `M ${leftX} ${topY} Q ${cx} ${topY + topDip} ${rightX} ${topY} Q ${cx} ${
+      topY + bottomDip
+    } ${leftX} ${topY} Z`;
+  };
+
   if (shape !== 'amplitude') {
     const mouthByShape = {
       closed: { width: 24, topDip: 2, bottomDip: 8 },
@@ -108,15 +132,13 @@ function CreatureMouth({
 
     return (
       <path
-        d={`M ${leftX} ${topY} Q ${cx} ${topY + mouth.topDip} ${rightX} ${topY} Q ${cx} ${
-          topY + mouth.bottomDip
-        } ${leftX} ${topY} Z`}
+        d={getMouthPath(leftX, rightX, topY, mouth.topDip, mouth.bottomDip)}
         fill={fill}
         style={{
           opacity: 'calc(0.78 + var(--martian-speech-level, 0) * 0.22)',
           transform: 'scaleY(calc(0.9 + var(--martian-speech-level, 0) * 0.12))',
           transformBox: 'fill-box',
-          transformOrigin: 'center top',
+          transformOrigin: mood === 'sad' ? 'center bottom' : 'center top',
         }}
       />
     );
@@ -130,14 +152,14 @@ function CreatureMouth({
 
   return (
     <path
-      d={`M ${leftX} ${cy} Q ${cx} ${cy + topDip} ${rightX} ${cy} Q ${cx} ${cy + bottomDip} ${leftX} ${cy} Z`}
+      d={getMouthPath(leftX, rightX, cy, topDip, bottomDip)}
       fill={fill}
       style={{
         opacity: 'calc(var(--martian-speech-level, 0) * 0.95)',
         transform:
           'scaleX(calc(0.72 + var(--martian-speech-level, 0) * 0.42)) scaleY(calc(0.35 + var(--martian-speech-level, 0) * 0.65))',
         transformBox: 'fill-box',
-        transformOrigin: 'center',
+        transformOrigin: mood === 'sad' ? 'center bottom' : 'center',
       }}
     />
   );
@@ -148,6 +170,7 @@ export function TeammateCreature({
   color = 'green',
   eyes = 'up',
   label = 'Unify teammate',
+  mood = 'happy',
   mouthShape = 'amplitude',
   shape = 'clawd',
 }: TeammateCreatureProps) {
@@ -217,7 +240,7 @@ export function TeammateCreature({
         ))}
       <CreatureEye cx={leftEyeX} cy={eyeY} dir={eyes} stroke={eyeStroke} />
       <CreatureEye cx={rightEyeX} cy={eyeY} dir={eyes} stroke={eyeStroke} />
-      <CreatureMouth cx={mouthX} cy={mouthY} fill={eyeStroke} shape={mouthShape} />
+      <CreatureMouth cx={mouthX} cy={mouthY} fill={eyeStroke} mood={mood} shape={mouthShape} />
     </svg>
   );
 }

@@ -4,7 +4,11 @@ import * as React from 'react';
 import { motion } from 'framer-motion';
 import type { Transition } from 'framer-motion';
 import { TeammateCreature } from '@/components/Brand';
-import type { CreatureEyes, CreatureMouthShape } from '@/components/Brand/TeammateCreature';
+import type {
+  CreatureEyes,
+  CreatureMood,
+  CreatureMouthShape,
+} from '@/components/Brand/TeammateCreature';
 import { cn } from '@/lib/utils';
 import { useMartianEyeExpression } from '@/hooks/Assistants/useMartianEyeExpression';
 import {
@@ -17,6 +21,7 @@ interface MartyCallAvatarProps {
   isCallActive?: boolean;
   isUserSpeaking?: boolean;
   animateBodyMotion?: boolean;
+  mood?: CreatureMood;
   mouthShape?: CreatureMouthShape;
   speechLevel?: number;
   className?: string;
@@ -30,6 +35,7 @@ export function MartyCallAvatar({
   isCallActive = false,
   isUserSpeaking = false,
   animateBodyMotion = true,
+  mood = 'happy',
   mouthShape,
   speechLevel,
   className,
@@ -70,6 +76,7 @@ export function MartyCallAvatar({
         className={cn('h-full w-full', creatureClassName)}
         eyes={displayedCreatureEyes}
         label="Marty"
+        mood={mood}
         mouthShape={displayedMouthShape}
       />
     </motion.span>
