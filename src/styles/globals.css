@@ -221,6 +221,51 @@
       pointer;
   }
 
+  /*
+   * Force the light "paper" palette on a subtree, regardless of the active
+   * (possibly dark) root theme. Used by always-light surfaces like the login
+   * card, whose background is hardcoded to cream paper — under a dark root theme
+   * the foreground/muted/card tokens would otherwise stay light, rendering the
+   * copy and inputs nearly invisible. Custom properties resolve to the nearest
+   * ancestor, so re-declaring the light semantic tokens here overrides `.dark`
+   * for everything inside (no JS, no provider conflict, no flash).
+   */
+  .theme-paper {
+    /* Re-establish the text color at this level. `body` already computed its
+       `color` from the root (dark) `--foreground`, and that computed value
+       inherits into descendants that don't set their own color (e.g. input
+       value text) — re-declaring the variable alone wouldn't re-run it. */
+    color: var(--foreground);
+
+    --surface: rgba(10, 20, 16, 0.04);
+    --surface-hover: rgba(10, 20, 16, 0.08);
+    --frosted-bg: rgba(245, 241, 234, 0.78);
+    --frosted-border: rgba(10, 20, 16, 0.12);
+    --overlay: rgba(10, 20, 16, 0.45);
+    --overlay-strong: rgba(10, 20, 16, 0.72);
+    --shadow-soft: rgba(10, 20, 16, 0.1);
+
+    --background: var(--paper);
+    --foreground: var(--ink);
+    --primary: var(--role-green);
+    --primary-foreground: var(--ink);
+    --secondary: var(--paper-2);
+    --secondary-foreground: var(--ink);
+    --accent: var(--role-green);
+    --accent-foreground: var(--ink);
+    --muted: var(--surface);
+    --muted-foreground: var(--muted-ink);
+    --destructive: var(--alert-red);
+    --destructive-foreground: var(--cream-white);
+    --popover: var(--cream-white);
+    --popover-foreground: var(--ink);
+    --border: var(--rule);
+    --input: var(--rule);
+    --card: color-mix(in srgb, var(--cream-white) 72%, var(--paper));
+    --card-foreground: var(--ink);
+    --ring: var(--role-green-deep);
+  }
+
   /* Ensure all elements have the correct border color */
   * {
     border-color: var(--border);

@@ -465,7 +465,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
                 setView('login');
                 setError(undefined);
               }}
-              className="font-semibold transition-colors hover:text-foreground"
+              className="font-semibold text-foreground underline underline-offset-2 transition-colors hover:text-primary"
               data-testid="switch-to-login"
             >
               Sign in
@@ -480,7 +480,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
                 setView('register');
                 setError(undefined);
               }}
-              className="font-semibold transition-colors hover:text-foreground"
+              className="font-semibold text-foreground underline underline-offset-2 transition-colors hover:text-primary"
               data-testid="switch-to-register"
             >
               Create one
