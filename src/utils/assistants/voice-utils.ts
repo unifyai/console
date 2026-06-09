@@ -5,7 +5,9 @@ import { SupportedLanguage, Gender as CartesiaGender } from '@cartesia/cartesia-
 import { Voice } from '@/types/assistants/assistant';
 import {
   applyApprovedCharacterVoiceMetadata,
+  approvedCharacterVoiceMetadata,
   approvedCharacterVoiceIds,
+  coordinatorFixedVoiceId,
   defaultCharacterVoiceId,
 } from '@/constants/assistants/approved_character_voices';
 
@@ -179,6 +181,19 @@ export const getDefaultVoiceForProvider = () => {
     };
   }
   return applyApprovedCharacterVoiceMetadata(suitableDefault);
+};
+
+export const getCoordinatorFixedVoice = (): Voice => {
+  const presetVoice = (voice_presets as Voice[]).find(
+    (vp) => vp.voiceId === coordinatorFixedVoiceId
+  );
+  if (presetVoice) return applyApprovedCharacterVoiceMetadata(presetVoice);
+
+  const metadata = approvedCharacterVoiceMetadata[coordinatorFixedVoiceId];
+  return {
+    voiceId: coordinatorFixedVoiceId,
+    ...metadata,
+  };
 };
 
 export const getAudioDuration = (blob: Blob): Promise<number> => {

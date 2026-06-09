@@ -285,6 +285,9 @@ export async function openAccordionSection(
     // Fall back to accordion trigger containing the section text
     trigger = page.locator(`button[data-state]:has-text("${labels[section]}")`).first();
   }
+  if (!(await trigger.isVisible({ timeout: 1_000 }).catch(() => false))) {
+    return;
+  }
 
   const state = await trigger.getAttribute('data-state').catch(() => null);
   if (state !== 'open') {

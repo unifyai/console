@@ -1,4 +1,5 @@
 import type { Assistant } from '@/types/assistants/assistant';
+import { getCoordinatorFixedVoice } from '@/utils/assistants/voice-utils';
 
 export interface CoordinatorWorkspaceScope {
   type: 'personal' | 'organization';
@@ -14,14 +15,18 @@ export function isCoordinatorAssistant(
 function normalizeAssistantRows(assistants: readonly Assistant[]): Assistant[] {
   const dedupedRows: Assistant[] = [];
   const seenAgentIds = new Set<string>();
+  const coordinatorFixedVoice = getCoordinatorFixedVoice();
 
   for (const assistant of assistants) {
     if (!assistant || !assistant.agentId) continue;
     if (seenAgentIds.has(assistant.agentId)) continue;
     seenAgentIds.add(assistant.agentId);
+    const isCoordinator = assistant.isCoordinator === true;
     dedupedRows.push({
       ...assistant,
-      isCoordinator: assistant.isCoordinator === true,
+      isCoordinator,
+      voiceId: isCoordinator ? coordinatorFixedVoice.voiceId : assistant.voiceId,
+      voiceProvider: isCoordinator ? coordinatorFixedVoice.provider : assistant.voiceProvider,
       teamIds: assistant.teamIds ?? [],
       teamSummaries: assistant.teamSummaries ?? [],
     });

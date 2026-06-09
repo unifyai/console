@@ -21,6 +21,10 @@ import type {
   SeededSecret,
   SeededTeam,
 } from './types';
+import {
+  approvedCharacterVoiceMetadata,
+  coordinatorFixedVoiceId,
+} from '../../../constants/assistants/approved_character_voices';
 
 // =============================================================================
 // Configuration
@@ -486,17 +490,28 @@ END
  * Ensure at least one voice preset exists (required FK for assistants).
  */
 export function ensureVoicePreset(userId: string): void {
+  const coordinatorVoice = approvedCharacterVoiceMetadata[coordinatorFixedVoiceId];
   dbExecBlock(`
 INSERT INTO voices (voice_id, user_id, name, description, gender, language, is_preset, provider)
 VALUES (
   '9BWtsMINqrJLrRacOk9x',
-  '${userId}',
+  ${sqlLiteral(userId)},
   'English Female Husky 1',
   'A middle-aged female with an African-American accent.',
   'female',
   'en',
   true,
   'elevenlabs'
+),
+(
+  ${sqlLiteral(coordinatorFixedVoiceId)},
+  ${sqlLiteral(userId)},
+  ${sqlLiteral(coordinatorVoice.name)},
+  ${sqlLiteral(coordinatorVoice.description)},
+  ${sqlLiteral(coordinatorVoice.gender)},
+  ${sqlLiteral(coordinatorVoice.language)},
+  true,
+  ${sqlLiteral(coordinatorVoice.provider)}
 ) ON CONFLICT DO NOTHING;
 `);
 }
@@ -676,7 +691,7 @@ export type CreatePersonalCoordinatorOpts = Pick<
  * Mirrors Orchestra's `create_coordinator_assistant`:
  *   - `first_name = 'Marty'`, `surname = NULL`, `job_title = 'Marty'`
  *   - `nationality = 'United States'`, `desktop_mode = 'ubuntu'`
- *   - All numeric/voice fields default to NULL (no weekly limit, no voice yet)
+ *   - Numeric limits default to NULL; voice uses Marty's fixed ElevenLabs profile
  *   - `is_coordinator = TRUE`, `organization_id = NULL`
  *   - Personal contact memberships pinned to `self=0` / `boss=1`
  *
@@ -694,6 +709,10 @@ export function createPersonalCoordinator(
   if (existingId) {
     const parsed = parseInt(existingId, 10);
     if (Number.isFinite(parsed)) {
+      ensureVoicePreset(userId);
+      dbExec(
+        `UPDATE assistants SET voice_id = ${sqlLiteral(coordinatorFixedVoiceId)}, voice_provider = ${sqlLiteral(approvedCharacterVoiceMetadata[coordinatorFixedVoiceId].provider)} WHERE agent_id = ${parsed};`
+      );
       return {
         agentId: parsed,
         firstName: 'Marty',
@@ -717,13 +736,13 @@ export function createPersonalCoordinator(
     nationality: opts.nationality ?? 'United States',
     timezone: opts.timezone ?? null,
     age: null,
-    voiceId: null,
-    voiceProvider: null,
     weeklyLimit: null,
     maxParallel: null,
     desktopMode: opts.desktopMode ?? 'ubuntu',
     isLocal: false,
     profilePhoto: opts.profilePhoto,
+    voiceId: coordinatorFixedVoiceId,
+    voiceProvider: approvedCharacterVoiceMetadata[coordinatorFixedVoiceId].provider,
     selfContactId: COORDINATOR_SELF_CONTACT_ID,
     bossContactId: COORDINATOR_BOSS_CONTACT_ID,
     bossResponsePolicy: null, // Coordinator uses an empty response policy

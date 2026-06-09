@@ -19,6 +19,10 @@ import {
   deleteAllAssistantsForUser,
   ensureProjectSync,
 } from './helpers';
+import {
+  approvedCharacterVoiceMetadata,
+  coordinatorFixedVoiceId,
+} from '../../constants/assistants/approved_character_voices';
 
 const user = createTestUser({ name: 'EditE2E', lastName: 'Tester', credits: 50_000 });
 ensureProjectSync(user.apiKey);
@@ -41,15 +45,18 @@ test.afterAll(() => {
 /**
  * Open the edit dialog for the seeded assistant via the list item dropdown menu.
  */
-async function openEditDialog(page: import('@playwright/test').Page) {
+async function openEditDialog(
+  page: import('@playwright/test').Page,
+  targetAssistant: { agentId: number } = assistant
+) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
+  const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
 
   // Open the dropdown menu on the list item
-  const menuBtn = page.getByTestId(`assistant-menu-${assistant.agentId}`);
+  const menuBtn = page.getByTestId(`assistant-menu-${targetAssistant.agentId}`);
   await listItem.hover();
   await expect(menuBtn).toBeVisible({ timeout: 5_000 });
   await menuBtn.click();
@@ -154,6 +161,25 @@ test('updating the about field via the edit dialog persists to DB', async ({
 
   const dbAfter = getAssistantFromDb(assistant.agentId);
   expect(dbAfter.about).toBe(newAbout);
+});
+
+test('Marty voice section is hidden and seeded DB uses fixed voice', async ({
+  authedPage: page,
+}) => {
+  const coordinator = user.coordinator;
+  if (!coordinator) throw new Error('Expected seeded user to have a personal coordinator.');
+
+  await openEditDialog(page, coordinator);
+
+  const editDialog = page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE });
+  await expect(editDialog.getByTestId('assistant-voice-section')).toHaveCount(0);
+  await expect(editDialog.locator('[data-testid^="voice-option-"]')).toHaveCount(0);
+
+  const dbAfter = getAssistantFromDb(coordinator.agentId);
+  expect(dbAfter.voiceId).toBe(coordinatorFixedVoiceId);
+  expect(dbAfter.voiceProvider).toBe(
+    approvedCharacterVoiceMetadata[coordinatorFixedVoiceId].provider
+  );
 });
 
 test('setting a job title via the edit dialog persists job_title to DB', async ({

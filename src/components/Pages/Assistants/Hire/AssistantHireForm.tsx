@@ -36,7 +36,10 @@ import {
   SelectValue,
 } from '@/components/UI/select';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
-import { getDefaultVoiceForProvider } from '@/utils/assistants/voice-utils';
+import {
+  getCoordinatorFixedVoice,
+  getDefaultVoiceForProvider,
+} from '@/utils/assistants/voice-utils';
 import { cn } from '@/lib/utils';
 import { FaUbuntu, FaWindows } from 'react-icons/fa';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
@@ -186,6 +189,20 @@ export function HireForm({
   const firstName = useWatch({ control, name: 'firstName' });
   const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
   const defaultVoice = React.useMemo(() => getDefaultVoiceForProvider(), []);
+  const coordinatorFixedVoice = React.useMemo(() => getCoordinatorFixedVoice(), []);
+  const displayedCoordinatorFixedVoice = React.useMemo<VoiceOption>(
+    () =>
+      allDisplayableVoices.find(
+        (voice) =>
+          voice.voiceId === coordinatorFixedVoice.voiceId &&
+          voice.provider === coordinatorFixedVoice.provider
+      ) ?? {
+        ...coordinatorFixedVoice,
+        isPreset: true,
+        isUserVoiceInOrchestra: false,
+      },
+    [allDisplayableVoices, coordinatorFixedVoice]
+  );
   const isEditMode = mode === 'edit';
   const selectedMartianEyes = lockAppearanceControls ? DEFAULT_MARTY_APPEARANCE.eyes : martianEyes;
   const selectedMartianShape = lockAppearanceControls
@@ -236,6 +253,28 @@ export function HireForm({
     onRandomizeProfile?.();
     randomizeMartianAppearance();
   }, [onRandomizeProfile, randomizeMartianAppearance]);
+
+  React.useEffect(() => {
+    if (!lockIdentityFields) return;
+
+    setValue('voiceId', displayedCoordinatorFixedVoice.voiceId, { shouldValidate: true });
+    setValue('voiceName', displayedCoordinatorFixedVoice.name, { shouldValidate: true });
+    setValue('voiceDescription', displayedCoordinatorFixedVoice.description, {
+      shouldValidate: true,
+    });
+    setValue('voiceGender', displayedCoordinatorFixedVoice.gender as Gender, {
+      shouldValidate: true,
+    });
+    setValue('voiceLanguage', displayedCoordinatorFixedVoice.language as SupportedLanguage, {
+      shouldValidate: true,
+    });
+    setValue('voiceProvider', displayedCoordinatorFixedVoice.provider || PRIMARY_VOICE_PROVIDER, {
+      shouldValidate: true,
+    });
+    setValue('voiceExists', displayedCoordinatorFixedVoice.isUserVoiceInOrchestra ?? false, {
+      shouldValidate: true,
+    });
+  }, [displayedCoordinatorFixedVoice, lockIdentityFields, setValue]);
 
   const handlePreviewSpeechLevelChange = React.useCallback((level: number) => {
     const martian = martianSpeechRef.current;
@@ -690,70 +729,75 @@ export function HireForm({
               </section>
 
               <div className="mt-6 grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(260px,360px)] md:items-start">
-                {/* Voice Section */}
-                <section className="min-w-0">
-                  <SectionHeader>
-                    <SectionIconSlot>
-                      <Volume2 className="h-4 w-4" />
-                    </SectionIconSlot>
-                    <span className="text-body">Voice</span>
-                  </SectionHeader>
-                  <VoiceCustomization
-                    assistantActions={assistantActions}
-                    onAddPaymentMethod={onAddPaymentMethod}
-                    activeTab={voiceCustomizationTab}
-                    setActiveTab={setVoiceCustomizationTab}
-                    onVoiceSelected={(selectedVoice) => {
-                      setValue('voiceId', selectedVoice?.voiceId, {
-                        shouldValidate: !!selectedVoice?.voiceId,
-                      });
-                      setValue('voiceName', selectedVoice?.name, {
-                        shouldValidate: !!selectedVoice?.name,
-                      });
-                      setValue(
-                        'voiceDescription',
-                        selectedVoice?.description ?? selectedVoice?.name,
-                        { shouldValidate: !!selectedVoice?.description }
-                      );
-                      setValue('voiceGender', selectedVoice?.gender, {
-                        shouldValidate: !!selectedVoice?.gender,
-                      });
-                      setValue('voiceLanguage', selectedVoice?.language, {
-                        shouldValidate: !!selectedVoice?.language,
-                      });
-                      setValue('voiceProvider', selectedVoice?.provider || PRIMARY_VOICE_PROVIDER, {
-                        shouldValidate: true,
-                      });
-                      setValue('voiceExists', selectedVoice?.isUserVoiceInOrchestra ?? false, {
-                        shouldValidate: true,
-                      });
-                    }}
-                    initialVoiceId={getValues('voiceId')}
-                    disabled={isSubmitting}
-                    onProcessingStateChange={onVoiceProcessingStateChange}
-                    onPreviewPlayingChange={setIsVoicePreviewPlaying}
-                    onPreviewSpeechLevelChange={handlePreviewSpeechLevelChange}
-                    allDisplayableVoices={allDisplayableVoices}
-                    isLoadingUserVoices={isLoadingUserVoices}
-                    fetchUserVoices={fetchUserVoices}
-                    handleDeleteVoice={handleDeleteVoice}
-                  />
-                  {errors.voiceId && (
-                    <p className="text-body text-strong mt-1 text-destructive">
-                      {errors.voiceId.message}
-                    </p>
-                  )}
-                  {errors.voiceLanguage && !errors.voiceId && (
-                    <p className="text-body text-strong mt-1 text-destructive">
-                      {errors.voiceLanguage.message}
-                    </p>
-                  )}
-                  {errors.voiceProvider && !errors.voiceId && (
-                    <p className="text-body text-strong mt-1 text-destructive">
-                      {errors.voiceProvider.message}
-                    </p>
-                  )}
-                </section>
+                {!lockIdentityFields && (
+                  <section className="min-w-0" data-testid="assistant-voice-section">
+                    <SectionHeader>
+                      <SectionIconSlot>
+                        <Volume2 className="h-4 w-4" />
+                      </SectionIconSlot>
+                      <span className="text-body">Voice</span>
+                    </SectionHeader>
+                    <VoiceCustomization
+                      assistantActions={assistantActions}
+                      onAddPaymentMethod={onAddPaymentMethod}
+                      activeTab={voiceCustomizationTab}
+                      setActiveTab={setVoiceCustomizationTab}
+                      onVoiceSelected={(selectedVoice) => {
+                        setValue('voiceId', selectedVoice?.voiceId, {
+                          shouldValidate: !!selectedVoice?.voiceId,
+                        });
+                        setValue('voiceName', selectedVoice?.name, {
+                          shouldValidate: !!selectedVoice?.name,
+                        });
+                        setValue(
+                          'voiceDescription',
+                          selectedVoice?.description ?? selectedVoice?.name,
+                          { shouldValidate: !!selectedVoice?.description }
+                        );
+                        setValue('voiceGender', selectedVoice?.gender, {
+                          shouldValidate: !!selectedVoice?.gender,
+                        });
+                        setValue('voiceLanguage', selectedVoice?.language, {
+                          shouldValidate: !!selectedVoice?.language,
+                        });
+                        setValue(
+                          'voiceProvider',
+                          selectedVoice?.provider || PRIMARY_VOICE_PROVIDER,
+                          {
+                            shouldValidate: true,
+                          }
+                        );
+                        setValue('voiceExists', selectedVoice?.isUserVoiceInOrchestra ?? false, {
+                          shouldValidate: true,
+                        });
+                      }}
+                      initialVoiceId={getValues('voiceId')}
+                      disabled={isSubmitting}
+                      onProcessingStateChange={onVoiceProcessingStateChange}
+                      onPreviewPlayingChange={setIsVoicePreviewPlaying}
+                      onPreviewSpeechLevelChange={handlePreviewSpeechLevelChange}
+                      allDisplayableVoices={allDisplayableVoices}
+                      isLoadingUserVoices={isLoadingUserVoices}
+                      fetchUserVoices={fetchUserVoices}
+                      handleDeleteVoice={handleDeleteVoice}
+                    />
+                    {errors.voiceId && (
+                      <p className="text-body text-strong mt-1 text-destructive">
+                        {errors.voiceId.message}
+                      </p>
+                    )}
+                    {errors.voiceLanguage && !errors.voiceId && (
+                      <p className="text-body text-strong mt-1 text-destructive">
+                        {errors.voiceLanguage.message}
+                      </p>
+                    )}
+                    {errors.voiceProvider && !errors.voiceId && (
+                      <p className="text-body text-strong mt-1 text-destructive">
+                        {errors.voiceProvider.message}
+                      </p>
+                    )}
+                  </section>
+                )}
 
                 <div className="min-w-0 space-y-5">
                   <section className="min-w-0">
