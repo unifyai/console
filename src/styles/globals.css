@@ -505,8 +505,8 @@
     content: '';
     -webkit-mask-image: var(--chat-maze-pattern);
     mask-image: var(--chat-maze-pattern);
-    -webkit-mask-position: 0 0;
-    mask-position: 0 0;
+    -webkit-mask-position: 0 var(--coordinator-intro-stencil-offset, 0);
+    mask-position: 0 var(--coordinator-intro-stencil-offset, 0);
     -webkit-mask-repeat: repeat;
     mask-repeat: repeat;
     -webkit-mask-size: var(--chat-maze-size);
@@ -522,6 +522,9 @@
   }
   .brand-chat-stencil-bg .brand-chat-stencil-bg::before {
     display: none;
+  }
+  .coordinator-onboarding-intro-bg {
+    --coordinator-intro-stencil-offset: 0px;
   }
   .unify-block-mark:hover {
     cursor: pointer;

@@ -28,12 +28,14 @@
  */
 
 import * as React from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Activity, ListTodo, Loader2, MessageSquare, Phone, Plug2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
+import { MartyCallAvatar } from '@/components/Pages/Assistants/Communication/MartyCallAvatar';
+import { CoordinatorOnboardingCallIntro } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingCallIntro';
 import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
 import { CoordinatorOnboardingSidebar } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingSidebar';
 import { useCoordinatorOnboardingContext } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingContext';
@@ -46,7 +48,8 @@ import type { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 
-type OnboardingPickerChoice = 'call' | 'chat' | null;
+type OnboardingPhase = 'picker' | 'intro' | 'startingCall' | 'call' | 'chat';
+type IntroAvatarOffset = { x: number; y: number };
 
 /**
  * Identifiers for the right-section tabs that accumulate as the user
@@ -70,6 +73,10 @@ type MobileTab = 'chat' | RightSectionTab;
  * surface doesn't pretend the assistant is typing forever. Sized
  * to feel like a slow-but-real assistant response time. */
 const TYPING_INDICATOR_FALLBACK_MS = 8_000;
+const ONBOARDING_REVEAL_TRANSITION = {
+  duration: 2.8,
+  ease: [0.16, 1, 0.3, 1],
+} as const;
 
 interface CoordinatorOnboardingProps {
   coordinator: Assistant;
@@ -97,7 +104,11 @@ interface CoordinatorOnboardingProps {
    * fullscreen overlay. Required whenever
    * ``isCoordinatorCallActive`` is true. */
   renderDockedCall?: () => React.ReactNode;
-  onStartCall: (assistant: Assistant, callType: 'video' | 'audio') => Promise<void> | void;
+  onStartCall: (
+    assistant: Assistant,
+    callType: 'video' | 'audio',
+    options?: { suppressRinging?: boolean }
+  ) => Promise<void> | void;
   /** Opens the workspace OAuth dialog (``AssistantWorkspaceManager``)
    * for this Coordinator. Hung off the "Give your coordinator
    * access to your workspace" sub-item. Wired up from the parent
@@ -190,11 +201,17 @@ export function CoordinatorOnboarding({
     [onboardingCtx]
   );
 
-  // Ephemeral per-session choice: a reload always returns to the
+  // Ephemeral per-session phase: a reload always returns to the
   // picker so a resumed onboarding lets the user re-decide between
   // call and chat. Persisting this on Coordinator/State was the
   // earlier design; we removed it on purpose.
-  const [choice, setChoice] = React.useState<OnboardingPickerChoice>(null);
+  const [phase, setPhase] = React.useState<OnboardingPhase>('picker');
+  const [introAvatarOffset, setIntroAvatarOffset] = React.useState<IntroAvatarOffset>({
+    x: 0,
+    y: -72,
+  });
+  const hasTriggeredCallStartRef = React.useRef(false);
+  const isCoordinatorCallActiveRef = React.useRef(isCoordinatorCallActive);
 
   const [isStartingCall, setIsStartingCall] = React.useState(false);
   const [isSkipping, setIsSkipping] = React.useState(false);
@@ -221,7 +238,7 @@ export function CoordinatorOnboarding({
   const [activeMobileTab, setActiveMobileTab] = React.useState<MobileTab>('chat');
   const isMobile = useIsMobile();
   const { startRinging: startPickerRinging, stopRinging: stopPickerRinging } = useCallSounds();
-  const isPickerVisible = !isCoordinatorCallActive && choice === null;
+  const isPickerVisible = !isCoordinatorCallActive && phase === 'picker';
 
   React.useEffect(() => {
     if (!isPickerVisible) {
@@ -357,13 +374,14 @@ export function CoordinatorOnboarding({
     completedStepIdsRef.current = Array.from(onboardingCtx.completedStepIds);
   }, [onboardingCtx]);
 
-  // Fire the picker-resolution event so Unity opens the session
-  // with the right kind of message (intro on a fresh transcript,
-  // recap on a resumed one). Best-effort: the chat surface still
-  // mounts even if the event POST fails — the user can always send
-  // a message themselves to unblock things. The actual generated
-  // text arrives via the normal chat-streaming channel and lands
-  // in ``chatHistories[coordinator.agentId]`` automatically.
+  // Fire the chat picker-resolution event so Unity opens the text
+  // session with the right kind of message (intro on a fresh
+  // transcript, recap on a resumed one). Best-effort: the chat
+  // surface still mounts even if the event POST fails — the user
+  // can always send a message themselves to unblock things. The
+  // call path deliberately skips this: the spoken intro owns that
+  // first turn, and sending a parallel text while on a call feels
+  // like Marty is talking over himself.
   const notifySessionStarted = React.useCallback(
     (medium: 'chat' | 'call') => {
       const snapshot = completedStepIdsRef.current;
@@ -376,41 +394,61 @@ export function CoordinatorOnboarding({
     [coordinator.agentId]
   );
 
-  const handleStartCall = React.useCallback(async () => {
-    if (isStartingCall || isCoordinatorCallActive) return;
+  const triggerCoordinatorCallStart = React.useCallback(async () => {
+    if (hasTriggeredCallStartRef.current || isCoordinatorCallActiveRef.current) return;
+    hasTriggeredCallStartRef.current = true;
     setIsStartingCall(true);
     try {
-      // ``choice`` is set so the picker hides immediately — there's
-      // typically a brief window between this click and the parent
-      // flipping ``isCoordinatorCallActive`` to true, and we don't
-      // want the picker to flash back in.
-      setChoice('call');
-      notifySessionStarted('call');
-      await onStartCall(coordinator, 'audio');
+      await onStartCall(coordinator, 'audio', { suppressRinging: true });
+    } catch (error) {
+      console.error('[CoordinatorOnboarding] Failed to start intro call:', error);
+      hasTriggeredCallStartRef.current = false;
+      setPhase('picker');
     } finally {
       setIsStartingCall(false);
     }
-  }, [coordinator, isCoordinatorCallActive, isStartingCall, notifySessionStarted, onStartCall]);
+  }, [coordinator, onStartCall]);
+
+  const handleStartCall = React.useCallback(
+    (avatarOffset: IntroAvatarOffset) => {
+      if (phase !== 'picker' || isCoordinatorCallActive) return;
+      setIntroAvatarOffset(avatarOffset);
+      setPhase('intro');
+    },
+    [isCoordinatorCallActive, phase]
+  );
+
+  const handleIntroFinished = React.useCallback(() => {
+    setPhase(isCoordinatorCallActiveRef.current ? 'call' : 'startingCall');
+  }, []);
 
   const handlePickChat = React.useCallback(() => {
-    setChoice('chat');
+    setPhase('chat');
     notifySessionStarted('chat');
   }, [notifySessionStarted]);
 
+  React.useEffect(() => {
+    isCoordinatorCallActiveRef.current = isCoordinatorCallActive;
+    if (isCoordinatorCallActive && phase === 'startingCall') {
+      setPhase('call');
+    }
+  }, [isCoordinatorCallActive, phase]);
+
   // When a docked call ends (parent flips ``isCoordinatorCallActive``
-  // back to false), the user lands without an active surface. If
-  // they had clicked Start Call (``choice === 'call'``) reset back
-  // to the picker so they can re-pick — they may want to text-chat
-  // or re-dial. Skipped when the user picked chat, since the chat
-  // surface remains the right fallback.
+  // back to false), the user lands without an active surface. If the
+  // call path had taken over, reset back to the picker so they can
+  // re-pick — they may want to text-chat or re-dial. Skipped when
+  // the user picked chat, since the chat surface remains the right
+  // fallback.
   const prevCallActiveRef = React.useRef(isCoordinatorCallActive);
   React.useEffect(() => {
     const wasActive = prevCallActiveRef.current;
     prevCallActiveRef.current = isCoordinatorCallActive;
-    if (wasActive && !isCoordinatorCallActive && choice === 'call') {
-      setChoice(null);
+    if (wasActive && !isCoordinatorCallActive && (phase === 'call' || phase === 'startingCall')) {
+      hasTriggeredCallStartRef.current = false;
+      setPhase('picker');
     }
-  }, [isCoordinatorCallActive, choice]);
+  }, [isCoordinatorCallActive, phase]);
 
   const handleSkipOnboarding = React.useCallback(async () => {
     if (isSkipping) return;
@@ -445,6 +483,18 @@ export function CoordinatorOnboarding({
     );
   }
 
+  if (phase === 'intro') {
+    return (
+      <AnimatePresence mode="wait">
+        <CoordinatorOnboardingCallIntro
+          initialAvatarOffset={introAvatarOffset}
+          onReadyToStartCall={triggerCoordinatorCallStart}
+          onFinished={handleIntroFinished}
+        />
+      </AnimatePresence>
+    );
+  }
+
   // ── Post-picker phase: main surface + onboarding sidebar ──────
   // The sidebar is a fixed 380px column on tablet/desktop —
   // matching the long-term ``ChatSidePanel`` width so the layout
@@ -467,18 +517,29 @@ export function CoordinatorOnboarding({
       reconnectChatStream={reconnectChatStream}
       chatStreamActivitySignal={chatStreamActivitySignal}
       isCallConnected={isCallConnected}
+      showTypingPlaceholder={phase === 'chat'}
     />
   );
 
   const mainPane =
     isCoordinatorCallActive && renderDockedCall ? (
-      <div className="flex h-full min-h-0 w-full flex-col">
-        <div className="min-h-0 flex-1 border-b" data-testid="coordinator-call-docked-region">
+      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+        <motion.div
+          initial={false}
+          animate={{ y: 0 }}
+          className="min-h-0 flex-1 border-b"
+          data-testid="coordinator-call-docked-region"
+        >
           {renderDockedCall()}
-        </div>
-        <div className="min-h-0 flex-1" data-testid="coordinator-chat-during-call-region">
+        </motion.div>
+        <motion.div
+          initial={false}
+          animate={{ y: 0 }}
+          className="min-h-0 flex-1"
+          data-testid="coordinator-chat-during-call-region"
+        >
           {chatSurface}
-        </div>
+        </motion.div>
       </div>
     ) : (
       chatSurface
@@ -595,15 +656,21 @@ export function CoordinatorOnboarding({
         className="flex h-full w-full flex-col bg-background"
         data-testid="coordinator-onboarding"
       >
-        <OnboardingMobileTabStrip
-          activeTab={resolvedActiveMobileTab}
-          onSelectTab={setActiveMobileTab}
-          chatLabel={mainPaneTabLabel}
-          ChatIcon={MainPaneTabIcon}
-          showActions={showActions}
-          showTasks={showTasks}
-          showIntegrations={showIntegrations}
-        />
+        <motion.div
+          initial={{ y: -48 }}
+          animate={{ y: 0 }}
+          transition={ONBOARDING_REVEAL_TRANSITION}
+        >
+          <OnboardingMobileTabStrip
+            activeTab={resolvedActiveMobileTab}
+            onSelectTab={setActiveMobileTab}
+            chatLabel={mainPaneTabLabel}
+            ChatIcon={MainPaneTabIcon}
+            showActions={showActions}
+            showTasks={showTasks}
+            showIntegrations={showIntegrations}
+          />
+        </motion.div>
         {/* Flex-col so the active pane (Tasks / Actions /
          *  Integrations) stretches to the container's full width.
          *  A row flex container would leave the child sized to
@@ -619,12 +686,15 @@ export function CoordinatorOnboarding({
                 ? renderIntegrationsPane()
                 : mainPane}
         </div>
-        <aside
+        <motion.aside
+          initial={{ y: 220 }}
+          animate={{ y: 0 }}
+          transition={{ ...ONBOARDING_REVEAL_TRANSITION, delay: 0.55 }}
           className="flex min-h-0 flex-[2] flex-col border-t"
           data-testid="coordinator-onboarding-sidebar"
         >
           {onboardingSidebar}
-        </aside>
+        </motion.aside>
       </div>
     );
   }
@@ -636,7 +706,12 @@ export function CoordinatorOnboarding({
        * right section is open we use a 2:1 flex-grow ratio so chat
        * gets twice the remaining width as the right pane,
        * matching the wireframe. */}
-      <div className={cn('flex min-w-0 flex-col', hasRightSection ? 'flex-[2]' : 'flex-1')}>
+      <motion.div
+        initial={isCoordinatorCallActive ? false : { x: -120 }}
+        animate={{ x: 0 }}
+        transition={ONBOARDING_REVEAL_TRANSITION}
+        className={cn('flex min-w-0 flex-col', hasRightSection ? 'flex-[2]' : 'flex-1')}
+      >
         {hasRightSection && (
           <OnboardingPanelTabHeader
             label={mainPaneTabLabel}
@@ -646,16 +721,22 @@ export function CoordinatorOnboarding({
         )}
         <div className="flex min-h-0 flex-1">
           <div className="flex min-w-0 flex-1">{mainPane}</div>
-          <aside
+          <motion.aside
+            initial={{ x: 420 }}
+            animate={{ x: 0 }}
+            transition={{ ...ONBOARDING_REVEAL_TRANSITION, delay: 0.55 }}
             className="h-full w-[380px] flex-shrink-0 border-l"
             data-testid="coordinator-onboarding-sidebar"
           >
             {onboardingSidebar}
-          </aside>
+          </motion.aside>
         </div>
-      </div>
+      </motion.div>
       {hasRightSection && (
-        <aside
+        <motion.aside
+          initial={{ x: 520 }}
+          animate={{ x: 0 }}
+          transition={{ ...ONBOARDING_REVEAL_TRANSITION, delay: 0.85 }}
           className="flex h-full min-w-0 flex-1 flex-col border-l"
           data-testid="coordinator-onboarding-right-section"
         >
@@ -675,7 +756,7 @@ export function CoordinatorOnboarding({
                   ? renderIntegrationsPane()
                   : null}
           </div>
-        </aside>
+        </motion.aside>
       )}
     </div>
   );
@@ -886,7 +967,7 @@ function OnboardingMobileTabStrip({
 /* ─── Picker (Start Call / I'd rather chat) ─────────────────────────────── */
 
 interface CoordinatorOnboardingPickerProps {
-  onStartCall: () => void;
+  onStartCall: (avatarOffset: IntroAvatarOffset) => void;
   onPickChat: () => void;
   isStartingCall: boolean;
 }
@@ -896,6 +977,23 @@ function CoordinatorOnboardingPicker({
   onPickChat,
   isStartingCall,
 }: CoordinatorOnboardingPickerProps) {
+  const avatarRef = React.useRef<HTMLDivElement | null>(null);
+
+  const handleStartCall = React.useCallback(() => {
+    const rect = avatarRef.current?.getBoundingClientRect();
+    const containerRect = avatarRef.current
+      ?.closest('[data-testid="coordinator-onboarding"]')
+      ?.getBoundingClientRect();
+    const avatarOffset =
+      rect && containerRect
+        ? {
+            x: rect.left + rect.width / 2 - (containerRect.left + containerRect.width / 2),
+            y: rect.top + rect.height / 2 - (containerRect.top + containerRect.height / 2),
+          }
+        : { x: 0, y: -72 };
+    onStartCall(avatarOffset);
+  }, [onStartCall]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -904,12 +1002,14 @@ function CoordinatorOnboardingPicker({
       className="align-center flex max-w-md flex-col items-center gap-6 px-6 text-center"
       data-testid="coordinator-onboarding-picker"
     >
-      <CoordinatorLogoAvatar className="h-32 w-32" logoClassName="h-28 w-28" />
+      <div ref={avatarRef} className="h-32 w-32">
+        <MartyCallAvatar creatureClassName="h-28 w-28" isSpeaking={false} />
+      </div>
       <p className="text-h3 font-medium text-foreground">Marty is calling to onboard you</p>
       <div className="flex flex-col items-center gap-3 sm:flex-row">
         <Button
           size="lg"
-          onClick={onStartCall}
+          onClick={handleStartCall}
           disabled={isStartingCall}
           className={cn(!isStartingCall && 'animate-onboarding-ring-pulse')}
           data-testid="coordinator-onboarding-start-call"
@@ -955,6 +1055,7 @@ interface CoordinatorOnboardingChatSurfaceProps {
   reconnectChatStream: () => void;
   chatStreamActivitySignal: number;
   isCallConnected: boolean;
+  showTypingPlaceholder: boolean;
 }
 
 function CoordinatorOnboardingChatSurface({
@@ -971,6 +1072,7 @@ function CoordinatorOnboardingChatSurface({
   reconnectChatStream,
   chatStreamActivitySignal,
   isCallConnected,
+  showTypingPlaceholder,
 }: CoordinatorOnboardingChatSurfaceProps) {
   // Mount the real chat panel immediately so the input bar is
   // visible from the very first render — what we hold back is the
@@ -1031,7 +1133,8 @@ function CoordinatorOnboardingChatSurface({
   // onboarding with a prior recap line still in history) — the
   // user just picked chat again, so they're waiting for *this*
   // session's opener.
-  const isTypingPlaceholderVisible = !hasNewAssistantMessage && !hasFallbackElapsed;
+  const isTypingPlaceholderVisible =
+    showTypingPlaceholder && !hasNewAssistantMessage && !hasFallbackElapsed;
 
   // Reference variable so eslint doesn't flag ``hasAssistantMessage``
   // as unused — kept around as a clear name for readers tracing the

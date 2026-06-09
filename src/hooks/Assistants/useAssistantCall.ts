@@ -13,6 +13,10 @@ const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
 
+interface AssistantCallConnectOptions {
+  suppressRinging?: boolean;
+}
+
 export function useAssistantCall(room: Room, assistantActions: AssistantActions) {
   const [connectionDetails, setConnectionDetails] = React.useState<ConnectionDetails | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -100,7 +104,11 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   }, [clearAssistantJoinTimeout, stopRemoteControl, stopRinging, playHangup]);
 
   const connect = React.useCallback(
-    async (assistant: Assistant, type: 'video' | 'audio') => {
+    async (
+      assistant: Assistant,
+      type: 'video' | 'audio',
+      options?: AssistantCallConnectOptions
+    ) => {
       connectionAttemptIdRef.current += 1;
       const thisAttemptId = connectionAttemptIdRef.current;
       isCancelledRef.current = false;
@@ -118,7 +126,9 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       setActiveCallAssistant(assistant);
       setError(null);
       setConnectionError(null);
-      startRinging();
+      if (!options?.suppressRinging) {
+        startRinging();
+      }
       try {
         const expectedRoomName = makeRoomName(assistant.agentId, 'meet');
 

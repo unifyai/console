@@ -1113,7 +1113,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // floating/modal dialog overlay. The flag is reset to ``false`` on
   // hangup and on disconnect so the next call starts docked again.
   const handleStartCall = React.useCallback(
-    async (assistant: Assistant, callType: 'video' | 'audio') => {
+    async (
+      assistant: Assistant,
+      callType: 'video' | 'audio',
+      options?: { suppressRinging?: boolean }
+    ) => {
       const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
       if (activeCallId) {
         if (activeCallId === assistant.agentId) {
@@ -1133,7 +1137,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
       // Fresh call: stay docked by default.
       setIsCommunicationDialogOpen(false);
-      await startCall(assistant, callType);
+      await startCall(assistant, callType, options);
     },
     [startCall, activeCallAssistant, popOutCallAssistantId]
   );

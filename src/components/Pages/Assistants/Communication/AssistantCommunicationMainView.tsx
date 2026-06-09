@@ -6,13 +6,10 @@ import { VideoTrack, TrackReference } from '@livekit/components-react';
 import { cn } from '@/lib/utils';
 import { Loader2, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/UI/button';
-import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
-import { TeammateCreature } from '@/components/Brand';
-import type { CreatureEyes } from '@/components/Brand/TeammateCreature';
+import { MartyCallAvatar } from '@/components/Pages/Assistants/Communication/MartyCallAvatar';
 import {
   clampMartianSpeechLevel,
   getMartianSpeechTransform,
-  getSpeakingEyes,
 } from '@/utils/assistants/martian-animation';
 
 interface AssistantCommunicationMainViewProps {
@@ -59,35 +56,11 @@ export function AssistantCommunicationMainView({
   const fallback = assistantName
     ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
     : 'A';
-  const baseEyes = 'up' satisfies CreatureEyes;
-  const [eyeFrame, setEyeFrame] = React.useState(0);
   const [speechLevel, setSpeechLevel] = React.useState(0);
-  const [isMartianHovered, setIsMartianHovered] = React.useState(false);
-  const shouldAnimateCreatureEyes = isSpeaking && !isLoading && !connectionError;
-  const displayedCreatureEyes = isMartianHovered
-    ? 'square'
-    : shouldAnimateCreatureEyes
-      ? getSpeakingEyes(baseEyes, eyeFrame)
-      : isCallActive || isUserSpeaking
-        ? 'square'
-        : baseEyes;
   const animatedVisualStyle = {
     '--martian-speech-level': speechLevel.toFixed(3),
     transform: getMartianSpeechTransform(speechLevel),
   } as React.CSSProperties;
-
-  React.useEffect(() => {
-    if (!shouldAnimateCreatureEyes) {
-      setEyeFrame(0);
-      return;
-    }
-
-    const eyeTimer = window.setInterval(() => {
-      setEyeFrame((current) => (current + 1) % 4);
-    }, 2000);
-
-    return () => window.clearInterval(eyeTimer);
-  }, [shouldAnimateCreatureEyes]);
 
   React.useEffect(() => {
     if (!isSpeaking) {
@@ -107,6 +80,32 @@ export function AssistantCommunicationMainView({
 
   if (isLoading) {
     const spinnerSize = avatarContainerClassName || 'h-32 w-32';
+    if (isCoordinator) {
+      return (
+        <div className={cn('flex flex-col items-center justify-center p-4 text-center', className)}>
+          <div className="relative h-32 w-32">
+            <MartyCallAvatar
+              animateBodyMotion={false}
+              className="drop-shadow-sm"
+              creatureClassName="h-28 w-28"
+              isSpeaking={false}
+              layoutId="marty-onboarding-call-avatar"
+            />
+          </div>
+          <p className="text-body-muted mt-4">{loadingMessage}</p>
+          {onToggleRingMute && (
+            <button
+              onClick={onToggleRingMute}
+              className="mt-3 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label={isRingMuted ? 'Unmute ring tone' : 'Mute ring tone'}
+            >
+              {isRingMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+            </button>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className={cn('flex flex-col items-center justify-center p-4 text-center', className)}>
         <div className="relative flex items-center justify-center">
@@ -139,16 +138,12 @@ export function AssistantCommunicationMainView({
               spinnerSize
             )}
           >
-            {isCoordinator ? (
-              <CoordinatorLogoAvatar className="h-full w-full" logoClassName="h-[70%] w-[70%]" />
-            ) : (
-              <Avatar className="h-full w-full">
-                <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
-                <AvatarFallback className="bg-muted text-4xl text-muted-foreground">
-                  {fallback}
-                </AvatarFallback>
-              </Avatar>
-            )}
+            <Avatar className="h-full w-full">
+              <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
+              <AvatarFallback className="bg-muted text-4xl text-muted-foreground">
+                {fallback}
+              </AvatarFallback>
+            </Avatar>
           </div>
         </div>
         <p className="text-body-muted mt-4">{loadingMessage}</p>
@@ -225,8 +220,6 @@ export function AssistantCommunicationMainView({
             'z-10 flex items-center justify-center overflow-visible transition-transform duration-75',
             avatarContainerClassName || 'h-32 w-32'
           )}
-          onMouseEnter={() => setIsMartianHovered(true)}
-          onMouseLeave={() => setIsMartianHovered(false)}
         >
           {videoTrack &&
           videoTrack.publication &&
@@ -236,16 +229,12 @@ export function AssistantCommunicationMainView({
           ) : (
             <>
               {isCoordinator ? (
-                <span
-                  className="flex h-full w-full items-center justify-center overflow-visible"
-                  style={animatedVisualStyle}
-                >
-                  <TeammateCreature
-                    className="h-full w-full"
-                    eyes={displayedCreatureEyes}
-                    label="Marty"
-                  />
-                </span>
+                <MartyCallAvatar
+                  isSpeaking={isSpeaking && !isLoading && !connectionError}
+                  isCallActive={isCallActive}
+                  isUserSpeaking={isUserSpeaking}
+                  layoutId="marty-onboarding-call-avatar"
+                />
               ) : (
                 <Avatar className="h-full w-full" style={animatedVisualStyle}>
                   <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />

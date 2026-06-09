@@ -5,6 +5,8 @@
  * the workspace Coordinator's state is in ``onboarding`` mode:
  *
  *   - The unskippable call-vs-chat picker shows on a fresh visit
+ *   - Choosing "Start Call" plays the Marty intro before docking
+ *     the real call surface
  *   - The skip-onboarding affordance is suppressed until the user
  *     has answered the picker
  *   - Choosing "I'd rather chat for now" reveals the chat surface
@@ -70,6 +72,36 @@ test('picker shows on first visit and hides the skip affordance', async ({ authe
   // The picker is intentionally unskippable: until the user answers
   // call-or-chat there is no Skip button.
   await expect(page.getByTestId('coordinator-onboarding-skip')).toHaveCount(0);
+});
+
+test('starting a call plays the Marty intro before docking the call', async ({
+  authedPage: page,
+}) => {
+  await page.addInitScript(() => {
+    Object.assign(window, {
+      __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 700,
+      __COORDINATOR_ONBOARDING_INTRO_CALL_LEAD_MS: 200,
+    });
+  });
+  await gotoAssistants(page);
+  await expectPickerVisible(page);
+
+  await page.getByTestId('coordinator-onboarding-start-call').click({ force: true });
+
+  const intro = page.getByTestId('coordinator-onboarding-call-intro');
+  await expect(intro).toBeVisible({ timeout: 10_000 });
+  await expect(intro).toHaveAttribute('data-background-motion', 'idle');
+  await expect(intro).toHaveAttribute('data-background-motion', 'scrolling');
+  await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
+
+  await expect(page.getByTestId('coordinator-call-docked-region')).toBeVisible({
+    timeout: 40_000,
+  });
+  await expect(page.getByTestId('assistant-call-docked')).toBeVisible();
+  await expect(page.getByTestId('coordinator-chat-during-call-region')).toBeVisible();
+
+  await page.getByRole('button', { name: 'End call' }).click();
+  await expectPickerVisible(page);
 });
 
 test('picking chat reveals the chat surface and the skip affordance', async ({
