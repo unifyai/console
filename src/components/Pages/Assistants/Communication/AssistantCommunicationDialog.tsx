@@ -269,6 +269,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   }, [localParticipant, camToggle.track]);
 
   const userTrackRef = screenShareTrack || localVideoTrackRef;
+  const hasUserSelfView = Boolean(userTrackRef && (camToggle.enabled || screenShareToggle.enabled));
   const isCoordinator = assistant.isCoordinator === true;
   const displayName = assistantDisplayName(assistant);
   const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
@@ -295,7 +296,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
       />
       <div className="relative flex min-h-0 flex-1">
         <div className="bg-background/80 relative flex flex-1 flex-col items-center justify-center">
-          {isUserViewMaximized && userTrackRef ? (
+          {isUserViewMaximized && hasUserSelfView ? (
             <AssistantCommunicationUserView
               imageUrl={userImage}
               trackRef={userTrackRef}
@@ -330,7 +331,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 isUserSpeaking={isUserSpeaking}
               />
               <AnimatePresence>
-                {isUserViewVisible && !isConnecting && (
+                {hasUserSelfView && isUserViewVisible && !isConnecting && (
                   <motion.div
                     key="user-view-pip"
                     initial={{ opacity: 0, y: 20 }}
@@ -360,7 +361,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
               </AnimatePresence>
             </>
           )}
-          {!isUserViewMaximized && !isUserViewVisible && !isConnecting && (
+          {hasUserSelfView && !isUserViewMaximized && !isUserViewVisible && !isConnecting && (
             <motion.div
               key="user-view-minimized"
               initial={{ opacity: 0, scale: 0.8 }}

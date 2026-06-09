@@ -234,6 +234,7 @@ const FullScreenCallUI: React.FC<{
   }, [localParticipant, camToggle.track]);
 
   const userTrackRef = screenShareTrack || localVideoTrackRef;
+  const hasUserSelfView = Boolean(userTrackRef && (camToggle.enabled || screenShareToggle.enabled));
   const isCoordinator = assistant.isCoordinator === true;
   const assistantName = assistantDisplayName(assistant);
   const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
@@ -242,7 +243,7 @@ const FullScreenCallUI: React.FC<{
     <div className="flex h-full w-full flex-col bg-background text-foreground">
       <div className="relative flex min-h-0 flex-1">
         <div className="bg-background/80 relative flex flex-1 flex-col items-center justify-center">
-          {isUserViewMaximized && userTrackRef ? (
+          {isUserViewMaximized && hasUserSelfView ? (
             <AssistantCommunicationUserView
               imageUrl={userImage}
               trackRef={userTrackRef}
@@ -275,7 +276,7 @@ const FullScreenCallUI: React.FC<{
                 isUserSpeaking={isUserSpeaking}
               />
               <AnimatePresence>
-                {isUserViewVisible && !isLoading && !connectionError && (
+                {hasUserSelfView && isUserViewVisible && !isLoading && !connectionError && (
                   <motion.div
                     key="user-view-pip"
                     initial={{ opacity: 0, y: 20 }}
@@ -302,37 +303,41 @@ const FullScreenCallUI: React.FC<{
               </AnimatePresence>
             </>
           )}
-          {!isUserViewMaximized && !isUserViewVisible && !isLoading && !connectionError && (
-            <motion.div
-              key="user-view-minimized"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.2 }}
-              className="absolute bottom-4 left-4"
-            >
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setIsUserViewVisible(true)}
-                      className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                    >
-                      <Avatar className="h-12 w-12 border-2 border-border">
-                        <AvatarImage src={userImage || undefined} alt="Your profile" />
-                        <AvatarFallback className="bg-muted text-muted-foreground">
-                          U
-                        </AvatarFallback>
-                      </Avatar>
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    <p>Show self-view</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </motion.div>
-          )}
+          {hasUserSelfView &&
+            !isUserViewMaximized &&
+            !isUserViewVisible &&
+            !isLoading &&
+            !connectionError && (
+              <motion.div
+                key="user-view-minimized"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.2 }}
+                className="absolute bottom-4 left-4"
+              >
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setIsUserViewVisible(true)}
+                        className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      >
+                        <Avatar className="h-12 w-12 border-2 border-border">
+                          <AvatarImage src={userImage || undefined} alt="Your profile" />
+                          <AvatarFallback className="bg-muted text-muted-foreground">
+                            U
+                          </AvatarFallback>
+                        </Avatar>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p>Show self-view</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </motion.div>
+            )}
         </div>
 
         <AnimatePresence>

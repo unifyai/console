@@ -329,10 +329,9 @@ interface RightPaneContainerProps {
   /**
    * Renderer for the docked call surface (the
    * ``AssistantCommunicationDialog`` in ``docked`` mode). Threaded
-   * straight through to ``ChatWithInfoPanel`` which swaps it in for
-   * the chat panel; passed by ``Main`` only when a call is active
-   * for *this* assistant and hasn't been popped out. Undefined →
-   * regular chat is rendered.
+   * straight through to ``ChatWithInfoPanel`` which stacks it above
+   * the chat panel; passed by ``Main`` only when a call is active for
+   * *this* assistant and hasn't been popped out.
    */
   renderDockedCall?: () => React.ReactNode;
 }
@@ -903,12 +902,9 @@ export function RightPaneContainer({
             hasIncompleteOnboarding={hasIncompleteOnboarding}
             coordinatorOnboarding={coordinatorOnboarding}
             // The docked call lives in a single slot — the primary
-            // one — so a split layout can run chat in one pane and
-            // a call in the other without the two mirroring each
-            // other. The secondary slot always renders the regular
-            // chat panel; popping the call out is the path to
-            // having both visible side-by-side in any other
-            // arrangement.
+            // one — so split layouts do not mirror the same call UI
+            // into both panes. The secondary slot always renders the
+            // regular chat panel.
             renderDockedCall={slot === 'primary' ? renderDockedCall : undefined}
           />
         </TabsContent>

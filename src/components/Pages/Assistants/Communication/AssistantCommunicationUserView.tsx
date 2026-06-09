@@ -34,7 +34,10 @@ export function AssistantCommunicationUserView({
 
   if (maximized) {
     return (
-      <div className="group relative h-full w-full rounded-lg bg-black">
+      <div
+        data-testid="assistant-call-self-view"
+        className="group relative h-full w-full rounded-lg bg-black"
+      >
         {isCameraOn && trackRef ? (
           <VideoTrack trackRef={trackRef} className="h-full w-full object-contain" />
         ) : (
@@ -85,6 +88,7 @@ export function AssistantCommunicationUserView({
 
   return (
     <div
+      data-testid="assistant-call-self-view"
       className={cn(
         'group relative h-32 w-48 overflow-hidden rounded-lg border bg-muted shadow-2xl transition-all duration-300',
         isSpeaking && 'ring-2 ring-primary ring-offset-2 ring-offset-background'

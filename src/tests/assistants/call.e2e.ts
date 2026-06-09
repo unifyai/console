@@ -209,6 +209,12 @@ test('clicking audio call button opens the communication dialog', async ({ authe
   const hangUpControl = page.getByRole('button', { name: 'Hang up' });
   await expect(hangUpControl).toBeVisible({ timeout: 10_000 });
 
+  await expect(page.getByTestId('assistant-call-docked-region')).toBeVisible();
+  await expect(page.getByTestId('assistant-chat-during-call-region')).toBeVisible();
+  await expect(page.getByTestId('chat-scroll-area')).toBeVisible();
+
+  await expect(page.getByTestId('assistant-call-self-view')).toHaveCount(0);
+
   // End the call for cleanup
   const endCallBtn = page.getByRole('button', { name: 'End call' });
   await endCallBtn.click();

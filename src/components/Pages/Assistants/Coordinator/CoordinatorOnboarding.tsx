@@ -86,9 +86,9 @@ interface CoordinatorOnboardingProps {
   isCallConnected: boolean;
   /** True while the parent is hosting an active (connecting or
    * connected) call session for *this* Coordinator. When true the
-   * docked call surface replaces the chat surface in the main pane;
-   * the parent is responsible for actually mounting the call UI via
-   * ``renderDockedCall`` below. */
+   * docked call surface is stacked above the chat surface in the main
+   * pane; the parent is responsible for actually mounting the call UI
+   * via ``renderDockedCall`` below. */
   isCoordinatorCallActive?: boolean;
   /** Renders the docked ``AssistantCommunicationDialog`` inline. The
    * parent owns the RoomContext + call props and pipes them through
@@ -439,31 +439,36 @@ export function CoordinatorOnboarding({
   // after onboarding. On narrow viewports the sidebar collapses
   // and the main surface goes full width; the skip affordance is
   // unreachable there, but onboarding doesn't target mobile anyway.
-  // Main-pane selection priority (top wins):
-  //   1. Active call → docked call surface
-  //   2. ``choice === 'call'`` but not yet active → typing
-  //      placeholder; the parent's call setup will flip
-  //      ``isCoordinatorCallActive`` shortly and we'll re-render
-  //   3. ``choice === 'chat'`` → chat surface
+  const chatSurface = (
+    <CoordinatorOnboardingChatSurface
+      coordinator={coordinator}
+      assistantActions={assistantActions}
+      chatHistories={chatHistories}
+      setChatHistories={setChatHistories}
+      callPillHistories={callPillHistories}
+      setCallPillHistories={setCallPillHistories}
+      userEmail={userEmail}
+      userTimezone={userTimezone}
+      spendingGate={spendingGate}
+      chatStreamConnectionStatus={chatStreamConnectionStatus}
+      reconnectChatStream={reconnectChatStream}
+      chatStreamActivitySignal={chatStreamActivitySignal}
+      isCallConnected={isCallConnected}
+    />
+  );
+
   const mainPane =
     isCoordinatorCallActive && renderDockedCall ? (
-      renderDockedCall()
+      <div className="flex h-full min-h-0 w-full flex-col">
+        <div className="min-h-0 flex-1 border-b" data-testid="coordinator-call-docked-region">
+          {renderDockedCall()}
+        </div>
+        <div className="min-h-0 flex-1" data-testid="coordinator-chat-during-call-region">
+          {chatSurface}
+        </div>
+      </div>
     ) : (
-      <CoordinatorOnboardingChatSurface
-        coordinator={coordinator}
-        assistantActions={assistantActions}
-        chatHistories={chatHistories}
-        setChatHistories={setChatHistories}
-        callPillHistories={callPillHistories}
-        setCallPillHistories={setCallPillHistories}
-        userEmail={userEmail}
-        userTimezone={userTimezone}
-        spendingGate={spendingGate}
-        chatStreamConnectionStatus={chatStreamConnectionStatus}
-        reconnectChatStream={reconnectChatStream}
-        chatStreamActivitySignal={chatStreamActivitySignal}
-        isCallConnected={isCallConnected}
-      />
+      chatSurface
     );
 
   // Layout proportions match the progressive-build wireframe:

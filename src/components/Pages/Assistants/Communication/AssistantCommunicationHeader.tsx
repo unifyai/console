@@ -12,11 +12,10 @@ interface AssistantCommunicationHeaderProps {
   onExpand?: () => void;
   onMinimize?: () => void;
   /** Lift the docked call out of the page layout into a floating /
-   *  modal dialog. Only meaningful in docked mode — the chat returns
-   *  to its slot once we pop out. */
+   *  modal dialog. Only meaningful in docked mode. */
   onPopOut?: () => void;
   /** Inverse of ``onPopOut`` — return the floating / modal call
-   *  surface to its docked position in the chat slot. Wired on the
+   *  surface to its docked position above the chat. Wired on the
    *  modal & floating modes so users who popped out can re-dock
    *  without having to hang up first. */
   onRedock?: () => void;
@@ -60,14 +59,14 @@ export function AssistantCommunicationHeader({
                   size="icon"
                   className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground"
                   onClick={onRedock}
-                  aria-label="Dock call in place of chat"
+                  aria-label="Dock call above chat"
                   data-testid="call-redock-button"
                 >
                   <PictureInPicture2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                <p>Dock in chat</p>
+                <p>Dock above chat</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

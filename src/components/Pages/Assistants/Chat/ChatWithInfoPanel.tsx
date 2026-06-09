@@ -146,15 +146,9 @@ export interface ChatWithInfoPanelProps {
   /**
    * When a call with *this* assistant is active and not popped out,
    * the parent supplies a renderer for the docked
-   * ``AssistantCommunicationDialog`` (in ``docked`` mode). We swap
-   * it in for the chat panel while leaving the chat sub-header and
-   * the assistant-info side panel untouched, so the user can still
-   * toggle the info panel and the layout doesn't reflow around the
-   * call.
-   *
-   * Undefined means "render the regular chat" — either no call is
-   * active for this assistant, or the user popped the call out and
-   * the page-level modal/floating dialog is showing it instead.
+   * ``AssistantCommunicationDialog`` (in ``docked`` mode). The call
+   * is stacked above the chat so the text channel stays available
+   * during the conversation.
    */
   renderDockedCall?: () => React.ReactNode;
 }
@@ -352,7 +346,29 @@ export function ChatWithInfoPanel({
               ? 'Start audio call'
               : 'Start video call';
 
-  const isDockedCall = !!renderDockedCall;
+  const chatPanel = (
+    <AssistantProfileChatPanel
+      assistant={assistant}
+      assistantActions={assistantActions}
+      chatHistories={chatHistories}
+      setChatHistories={setChatHistories}
+      callPillHistories={callPillHistories}
+      setCallPillHistories={setCallPillHistories}
+      userEmail={userEmail}
+      userTimezone={userTimezone}
+      isFirstView={isFirstView}
+      preHireChat={preHireChat}
+      onFirstViewCompleted={onFirstViewCompleted}
+      spendingGate={spendingGate}
+      chatStreamConnectionStatus={chatStreamConnectionStatus}
+      reconnectChatStream={reconnectChatStream}
+      chatStreamActivitySignal={chatStreamActivitySignal}
+      isCallConnected={isInThisCall && isCallConnected}
+      searchOpen={searchOpen}
+      onSearchOpenChange={setSearchOpen}
+      draftSeed={draftSeed}
+    />
+  );
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -360,19 +376,8 @@ export function ChatWithInfoPanel({
           `py-2` (rather than `py-1.5`) is load-bearing in split mode —
           it matches the LiveActionsHeader's vertical padding so that
           when Chat is in one slot and Actions in the other, the bottom
-          border of each pane's sub-header lands on the same Y.
-          Suppressed while a call is docked into this slot — the call
-          surface owns its own header (with the popout / hangup
-          controls) and the call's bottom toolbar replaces the
-          composer, so the sub-header would just stack redundant
-          chrome above it. The user can still toggle the assistant
-          info panel by popping the call out first. */}
-      <div
-        className={cn(
-          'flex items-center justify-between gap-2 border-b bg-card px-3 py-2',
-          isDockedCall && 'hidden'
-        )}
-      >
+          border of each pane's sub-header lands on the same Y. */}
+      <div className="flex items-center justify-between gap-2 border-b bg-card px-3 py-2">
         <div className="relative max-w-xs flex-1">
           <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -480,29 +485,16 @@ export function ChatWithInfoPanel({
       <div className="flex min-h-0 flex-1">
         <div className={cn('flex min-w-0 flex-1 flex-col', isInfoOpen && 'hidden sm:flex')}>
           {renderDockedCall ? (
-            renderDockedCall()
+            <>
+              <div className="min-h-0 flex-1 border-b" data-testid="assistant-call-docked-region">
+                {renderDockedCall()}
+              </div>
+              <div className="min-h-0 flex-1" data-testid="assistant-chat-during-call-region">
+                {chatPanel}
+              </div>
+            </>
           ) : (
-            <AssistantProfileChatPanel
-              assistant={assistant}
-              assistantActions={assistantActions}
-              chatHistories={chatHistories}
-              setChatHistories={setChatHistories}
-              callPillHistories={callPillHistories}
-              setCallPillHistories={setCallPillHistories}
-              userEmail={userEmail}
-              userTimezone={userTimezone}
-              isFirstView={isFirstView}
-              preHireChat={preHireChat}
-              onFirstViewCompleted={onFirstViewCompleted}
-              spendingGate={spendingGate}
-              chatStreamConnectionStatus={chatStreamConnectionStatus}
-              reconnectChatStream={reconnectChatStream}
-              chatStreamActivitySignal={chatStreamActivitySignal}
-              isCallConnected={isInThisCall && isCallConnected}
-              searchOpen={searchOpen}
-              onSearchOpenChange={setSearchOpen}
-              draftSeed={draftSeed}
-            />
+            chatPanel
           )}
         </div>
 

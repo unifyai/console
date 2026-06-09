@@ -1108,8 +1108,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, [profileAssistantId]);
 
   // ``isCommunicationDialogOpen`` doubles as the call-popped-out
-  // flag now: ``false`` (the default) renders the call docked in
-  // place of the chat panel, ``true`` lifts it back into the
+  // flag now: ``false`` (the default) renders the call docked above
+  // the chat panel, ``true`` lifts it back into the
   // floating/modal dialog overlay. The flag is reset to ``false`` on
   // hangup and on disconnect so the next call starts docked again.
   const handleStartCall = React.useCallback(
