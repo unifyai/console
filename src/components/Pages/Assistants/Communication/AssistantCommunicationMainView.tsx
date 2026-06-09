@@ -11,6 +11,7 @@ import {
   clampMartianSpeechLevel,
   getMartianSpeechTransform,
 } from '@/utils/assistants/martian-animation';
+import { COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION } from '@/utils/assistants/coordinator-onboarding-intro';
 
 interface AssistantCommunicationMainViewProps {
   assistantName: string;
@@ -89,6 +90,7 @@ export function AssistantCommunicationMainView({
               className="drop-shadow-sm"
               creatureClassName="h-28 w-28"
               isSpeaking={false}
+              layoutTransition={COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION}
               layoutId="marty-onboarding-call-avatar"
             />
           </div>
@@ -233,6 +235,7 @@ export function AssistantCommunicationMainView({
                   isSpeaking={isSpeaking && !isLoading && !connectionError}
                   isCallActive={isCallActive}
                   isUserSpeaking={isUserSpeaking}
+                  layoutTransition={COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION}
                   layoutId="marty-onboarding-call-avatar"
                 />
               ) : (

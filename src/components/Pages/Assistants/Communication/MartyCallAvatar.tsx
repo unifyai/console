@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { motion } from 'framer-motion';
+import type { Transition } from 'framer-motion';
 import { TeammateCreature } from '@/components/Brand';
 import type { CreatureEyes } from '@/components/Brand/TeammateCreature';
 import { cn } from '@/lib/utils';
@@ -20,6 +21,7 @@ interface MartyCallAvatarProps {
   className?: string;
   creatureClassName?: string;
   layoutId?: string;
+  layoutTransition?: Transition;
 }
 
 export function MartyCallAvatar({
@@ -31,6 +33,7 @@ export function MartyCallAvatar({
   className,
   creatureClassName,
   layoutId,
+  layoutTransition,
 }: MartyCallAvatarProps) {
   const baseEyes = 'up' satisfies CreatureEyes;
   const [eyeFrame, setEyeFrame] = React.useState(0);
@@ -91,6 +94,7 @@ export function MartyCallAvatar({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={animatedVisualStyle}
+      transition={layoutTransition}
     >
       <TeammateCreature
         className={cn('h-full w-full', creatureClassName)}

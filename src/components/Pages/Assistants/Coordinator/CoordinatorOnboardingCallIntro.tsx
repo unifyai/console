@@ -3,9 +3,12 @@
 import * as React from 'react';
 import { motion } from 'framer-motion';
 import { MartyCallAvatar } from '@/components/Pages/Assistants/Communication/MartyCallAvatar';
-import { COORDINATOR_ONBOARDING_INTRO } from '@/utils/assistants/coordinator-onboarding-intro';
+import {
+  COORDINATOR_ONBOARDING_INTRO,
+  COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION,
+} from '@/utils/assistants/coordinator-onboarding-intro';
 
-type IntroStage = 'pause' | 'speaking' | 'landing';
+type IntroStage = 'pause' | 'speaking' | 'flying' | 'landing';
 type BrowserWindowWithWebkitAudio = Window & {
   webkitAudioContext?: typeof AudioContext;
 };
@@ -41,8 +44,17 @@ function parseStencilTileHeight(value: string): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 560;
 }
 
-function easeOutCubic(progress: number): number {
-  return 1 - Math.pow(1 - progress, 3);
+function getAcceleratedScrollProgress(elapsedMs: number, totalMs: number, accelerationMs: number) {
+  const elapsed = Math.min(elapsedMs, totalMs);
+  const rampMs = Math.min(accelerationMs, totalMs);
+  if (rampMs <= 0) return elapsed / totalMs;
+
+  const denominator = totalMs - rampMs / 2;
+  if (elapsed < rampMs) {
+    return (elapsed * elapsed) / (2 * rampMs * denominator);
+  }
+
+  return (elapsed - rampMs / 2) / denominator;
 }
 
 export function CoordinatorOnboardingCallIntro({
@@ -75,6 +87,11 @@ export function CoordinatorOnboardingCallIntro({
     const speakingStartTimer = window.setTimeout(
       () => setStage('speaking'),
       COORDINATOR_ONBOARDING_INTRO.initialPauseMs
+    );
+    const backgroundStartTimer = window.setTimeout(
+      () => setStage((currentStage) => (currentStage === 'speaking' ? 'flying' : currentStage)),
+      COORDINATOR_ONBOARDING_INTRO.initialPauseMs +
+        COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs
     );
     const landingTimer = window.setTimeout(
       () => setStage('landing'),
@@ -119,8 +136,8 @@ export function CoordinatorOnboardingCallIntro({
           sumSquares += centered * centered;
         }
         const rms = Math.sqrt(sumSquares / samples.length);
-        const level = Math.max(0, Math.min(1, (rms - 0.018) * 7.8));
-        smoothedLevel = smoothedLevel * 0.58 + level * 0.42;
+        const level = Math.max(0, Math.min(1, (rms - 0.012) * 10.5));
+        smoothedLevel = smoothedLevel * 0.5 + level * 0.5;
         setAudioSpeechLevel(smoothedLevel);
         animationFrame = window.requestAnimationFrame(tick);
       };
@@ -169,6 +186,7 @@ export function CoordinatorOnboardingCallIntro({
 
     return () => {
       window.clearTimeout(speakingStartTimer);
+      window.clearTimeout(backgroundStartTimer);
       window.clearTimeout(landingTimer);
       if (audioTimer !== null) window.clearTimeout(audioTimer);
       stopAudioAnalysis();
@@ -186,21 +204,33 @@ export function CoordinatorOnboardingCallIntro({
 
   React.useEffect(() => {
     const root = rootRef.current;
-    if (!root || stage !== 'speaking') return;
+    if (!root || stage !== 'flying') return;
 
+    const { durationMs } = getRuntimeTiming();
+    const motionDurationMs = Math.max(
+      1,
+      durationMs - COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs
+    );
     const computed = window.getComputedStyle(root);
     const tileHeight = parseStencilTileHeight(computed.getPropertyValue('--chat-maze-size'));
-    let previousTimestamp: number | null = null;
+    const loopCount = Math.max(
+      1,
+      Math.round(
+        (COORDINATOR_ONBOARDING_INTRO.backgroundPixelsPerSecond * (motionDurationMs / 1_000)) /
+          tileHeight
+      )
+    );
+    let startTimestamp: number | null = null;
     let animationFrame = 0;
 
     const tick = (timestamp: number) => {
-      if (previousTimestamp === null) previousTimestamp = timestamp;
-      const elapsedSeconds = (timestamp - previousTimestamp) / 1000;
-      previousTimestamp = timestamp;
-      offsetRef.current =
-        (offsetRef.current +
-          elapsedSeconds * COORDINATOR_ONBOARDING_INTRO.backgroundPixelsPerSecond) %
-        tileHeight;
+      if (startTimestamp === null) startTimestamp = timestamp;
+      const progress = getAcceleratedScrollProgress(
+        timestamp - startTimestamp,
+        motionDurationMs,
+        COORDINATOR_ONBOARDING_INTRO.backgroundAccelerationMs
+      );
+      offsetRef.current = (progress * loopCount * tileHeight) % tileHeight;
       root.style.setProperty('--coordinator-intro-stencil-offset', `${offsetRef.current}px`);
       animationFrame = window.requestAnimationFrame(tick);
     };
@@ -213,32 +243,13 @@ export function CoordinatorOnboardingCallIntro({
     const root = rootRef.current;
     if (!root || stage !== 'landing') return;
 
-    const computed = window.getComputedStyle(root);
-    const tileHeight = parseStencilTileHeight(computed.getPropertyValue('--chat-maze-size'));
-    const startOffset = offsetRef.current;
-    const endOffset = tileHeight;
-    const duration = COORDINATOR_ONBOARDING_INTRO.landingDurationMs;
-    let startTimestamp: number | null = null;
-    let animationFrame = 0;
-
-    const tick = (timestamp: number) => {
-      if (startTimestamp === null) startTimestamp = timestamp;
-      const progress = Math.min(1, (timestamp - startTimestamp) / duration);
-      const nextOffset = startOffset + (endOffset - startOffset) * easeOutCubic(progress);
-      root.style.setProperty('--coordinator-intro-stencil-offset', `${nextOffset}px`);
-
-      if (progress < 1) {
-        animationFrame = window.requestAnimationFrame(tick);
-        return;
-      }
-
-      offsetRef.current = 0;
-      root.style.setProperty('--coordinator-intro-stencil-offset', '0px');
+    offsetRef.current = 0;
+    root.style.setProperty('--coordinator-intro-stencil-offset', '0px');
+    const handle = window.setTimeout(() => {
       finishOnce();
-    };
+    }, COORDINATOR_ONBOARDING_INTRO.landingDurationMs);
 
-    animationFrame = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(animationFrame);
+    return () => window.clearTimeout(handle);
   }, [finishOnce, stage]);
 
   return (
@@ -246,7 +257,7 @@ export function CoordinatorOnboardingCallIntro({
       ref={rootRef}
       className="brand-page-stencil-bg coordinator-onboarding-intro-bg flex h-full w-full items-center justify-center overflow-hidden bg-background"
       data-background-motion={
-        stage === 'pause' ? 'idle' : stage === 'speaking' ? 'scrolling' : 'landing'
+        stage === 'flying' ? 'scrolling' : stage === 'landing' ? 'landing' : 'idle'
       }
       data-testid="coordinator-onboarding-call-intro"
     >
@@ -267,7 +278,8 @@ export function CoordinatorOnboardingCallIntro({
             animateBodyMotion={false}
             className="drop-shadow-sm"
             creatureClassName="h-28 w-28"
-            isSpeaking={stage === 'speaking'}
+            isSpeaking={stage === 'speaking' || stage === 'flying'}
+            layoutTransition={COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION}
             layoutId="marty-onboarding-call-avatar"
             speechLevel={COORDINATOR_ONBOARDING_INTRO.audioSrc ? audioSpeechLevel : undefined}
           />

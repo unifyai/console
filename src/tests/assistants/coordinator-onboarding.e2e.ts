@@ -79,7 +79,7 @@ test('starting a call plays the Marty intro before docking the call', async ({
 }) => {
   await page.addInitScript(() => {
     Object.assign(window, {
-      __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 700,
+      __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 1_400,
       __COORDINATOR_ONBOARDING_INTRO_CALL_LEAD_MS: 200,
     });
   });
