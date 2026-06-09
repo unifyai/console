@@ -37,6 +37,11 @@ import { contactScopedRootQueries } from '@/lib/assistants/scope';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { ParsedInboundChatMessage } from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
+import type { CreatureMood } from '@/components/Brand/TeammateCreature';
+import {
+  DEFAULT_AVATAR_MOOD,
+  parseMoodClassificationMessage,
+} from '@/utils/assistants/martian-mood';
 
 type AssistantActionsSubset = Pick<AssistantActions, 'chat' | 'call' | 'desktop'> &
   Partial<Pick<AssistantActions, 'voice'>>;
@@ -73,6 +78,7 @@ const FullScreenCallUI: React.FC<{
   toggleRemoteControlInteractive: () => void;
   isWaitingForAssistant: boolean;
   isDesktopReady: boolean;
+  avatarMood: CreatureMood;
   chatStreamConnectionStatus: ChatStreamConnectionStatus;
   reconnectChatStream: () => void;
   chatStreamActivitySignal: number;
@@ -98,6 +104,7 @@ const FullScreenCallUI: React.FC<{
   toggleRemoteControlInteractive,
   isWaitingForAssistant,
   isDesktopReady,
+  avatarMood,
   chatStreamConnectionStatus,
   reconnectChatStream,
   chatStreamActivitySignal,
@@ -279,6 +286,7 @@ const FullScreenCallUI: React.FC<{
                 onRetry={onRetry}
                 isCallActive={room.state === 'connected'}
                 isUserSpeaking={isUserSpeaking}
+                mood={avatarMood}
               />
               <AnimatePresence>
                 {hasUserSelfView && isUserViewVisible && !isLoading && !connectionError && (
@@ -454,6 +462,8 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
   // Track whether the assistant ever joined — used to decide if we should
   // auto-close the tab on disconnect (only close if we had an active call).
   const assistantEverJoinedRef = React.useRef(false);
+  const [avatarMood, setAvatarMood] = React.useState<CreatureMood>(DEFAULT_AVATAR_MOOD);
+  const moodTurnIndexRef = React.useRef(-1);
   const [error, setError] = React.useState<string | null>(null);
   const [chatHistories, setChatHistories] = React.useState<Record<string, ChatMessage[]>>({});
   const [chatContactId, setChatContactId] = React.useState<number | null>(null);
@@ -774,6 +784,8 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
 
     setIsConnecting(true);
     setError(null);
+    setAvatarMood(DEFAULT_AVATAR_MOOD);
+    moodTurnIndexRef.current = -1;
 
     try {
       // Get fresh connection details for this tab. The dialog's token used the
@@ -904,6 +916,12 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
         const data = JSON.parse(new TextDecoder().decode(payload));
         if (data.type === 'ready_to_speak') {
           clearWaitingState();
+          return;
+        }
+        const moodMessage = parseMoodClassificationMessage(data, moodTurnIndexRef.current);
+        if (moodMessage) {
+          moodTurnIndexRef.current = moodMessage.turnIndex;
+          setAvatarMood(moodMessage.mood);
         }
       } catch {
         // ignore malformed data messages
@@ -993,6 +1011,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
         toggleRemoteControlInteractive={toggleRemoteControlInteractive}
         isWaitingForAssistant={isWaitingForAssistant}
         isDesktopReady={isDesktopReady}
+        avatarMood={avatarMood}
         chatStreamConnectionStatus={chatStreamConnectionStatus}
         reconnectChatStream={reconnectChatStream}
         chatStreamActivitySignal={chatStreamActivityCounter}

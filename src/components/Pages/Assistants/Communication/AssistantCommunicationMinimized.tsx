@@ -27,6 +27,7 @@ import { AssistantCommunicationMainView } from './AssistantCommunicationMainView
 import { cn } from '@/lib/utils';
 import { motion, PanInfo, useMotionValue } from 'framer-motion';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
+import type { CreatureMood } from '@/components/Brand/TeammateCreature';
 
 const MIN_WIDTH = 200;
 const MIN_HEIGHT = 160;
@@ -47,6 +48,7 @@ interface AssistantCommunicationMinimizedProps {
   onRetry: () => void;
   isCallConnected: boolean;
   callType: 'video' | 'audio' | null;
+  avatarMood: CreatureMood;
 }
 
 const ControlButton: React.FC<{
@@ -97,6 +99,7 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
   onRetry,
   isCallConnected,
   callType,
+  avatarMood,
 }) => {
   const {
     state: agentState,
@@ -174,6 +177,7 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
         onToggleRingMute={onToggleSpeaker}
         isCallActive={isCallConnected}
         isUserSpeaking={isUserSpeaking}
+        mood={avatarMood}
       />
 
       {/* Controls */}

@@ -27,6 +27,7 @@ import { Room, Track } from 'livekit-client';
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
+import type { CreatureMood } from '@/components/Brand/TeammateCreature';
 
 interface AssistantCommunicationDialogContentProps {
   assistant: Assistant;
@@ -70,6 +71,7 @@ interface AssistantCommunicationDialogContentProps {
   callType: 'video' | 'audio' | null;
   isSpeakerMuted: boolean;
   onToggleSpeaker: () => void;
+  avatarMood: CreatureMood;
   chatStreamConnectionStatus: ChatStreamConnectionStatus;
   reconnectChatStream: () => void;
   chatStreamActivitySignal: number;
@@ -108,6 +110,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   callType,
   isSpeakerMuted,
   onToggleSpeaker,
+  avatarMood,
   chatStreamConnectionStatus,
   reconnectChatStream,
   chatStreamActivitySignal,
@@ -334,6 +337,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 onToggleRingMute={onToggleSpeaker}
                 isCallActive={isCallConnected}
                 isUserSpeaking={isUserSpeaking}
+                mood={avatarMood}
               />
               <AnimatePresence>
                 {hasUserSelfView && isUserViewVisible && !isConnecting && (
@@ -534,6 +538,7 @@ interface AssistantCommunicationDialogProps {
   callType: 'video' | 'audio' | null;
   isSpeakerMuted: boolean;
   onToggleSpeaker: () => void;
+  avatarMood: CreatureMood;
   chatStreamConnectionStatus: ChatStreamConnectionStatus;
   reconnectChatStream: () => void;
   chatStreamActivitySignal: number;
@@ -592,6 +597,7 @@ export function AssistantCommunicationDialog({
   callType,
   isSpeakerMuted,
   onToggleSpeaker,
+  avatarMood,
   chatStreamConnectionStatus,
   reconnectChatStream,
   chatStreamActivitySignal,
@@ -807,6 +813,7 @@ export function AssistantCommunicationDialog({
           callType={callType}
           isSpeakerMuted={isSpeakerMuted}
           onToggleSpeaker={onToggleSpeaker}
+          avatarMood={avatarMood}
           chatStreamConnectionStatus={chatStreamConnectionStatus}
           reconnectChatStream={reconnectChatStream}
           chatStreamActivitySignal={chatStreamActivitySignal}
@@ -883,6 +890,7 @@ export function AssistantCommunicationDialog({
               onRetry={onRetry}
               isCallConnected={isCallConnected}
               callType={callType}
+              avatarMood={avatarMood}
             />
           </div>
         ) : (
@@ -918,6 +926,7 @@ export function AssistantCommunicationDialog({
             callType={callType}
             isSpeakerMuted={isSpeakerMuted}
             onToggleSpeaker={onToggleSpeaker}
+            avatarMood={avatarMood}
             chatStreamConnectionStatus={chatStreamConnectionStatus}
             reconnectChatStream={reconnectChatStream}
             chatStreamActivitySignal={chatStreamActivitySignal}

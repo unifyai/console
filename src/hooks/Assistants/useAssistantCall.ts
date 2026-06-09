@@ -7,6 +7,11 @@ import { makeRoomName } from '@/utils/assistants/call-utils';
 import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
 import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
+import type { CreatureMood } from '@/components/Brand/TeammateCreature';
+import {
+  DEFAULT_AVATAR_MOOD,
+  parseMoodClassificationMessage,
+} from '@/utils/assistants/martian-mood';
 
 const ASSISTANT_JOIN_SLOW_THRESHOLD = 90000; // 90 seconds — soft warning, not an error
 const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
@@ -28,10 +33,12 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   const [isWaitingForAssistant, setIsWaitingForAssistant] = React.useState(false);
   const [waitingMessage, setWaitingMessage] = React.useState<string | null>(null);
   const [connectionError, setConnectionError] = React.useState<string | null>(null);
+  const [avatarMood, setAvatarMood] = React.useState<CreatureMood>(DEFAULT_AVATAR_MOOD);
   const assistantJoinTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const assistantRejoinTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const isCancelledRef = React.useRef(false);
   const isRedispatchingRef = React.useRef(false);
+  const moodTurnIndexRef = React.useRef(-1);
   // Unique ID for each connection attempt - used to detect stale operations
   const connectionAttemptIdRef = React.useRef(0);
 
@@ -98,6 +105,8 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     setActiveCallAssistant(null);
     setCallType(null);
     setIsSpeakerMuted(false);
+    setAvatarMood(DEFAULT_AVATAR_MOOD);
+    moodTurnIndexRef.current = -1;
     isRedispatchingRef.current = false;
     stopRemoteControl();
     clearAssistantJoinTimeout();
@@ -126,6 +135,8 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       setActiveCallAssistant(assistant);
       setError(null);
       setConnectionError(null);
+      setAvatarMood(DEFAULT_AVATAR_MOOD);
+      moodTurnIndexRef.current = -1;
       if (!options?.suppressRinging) {
         startRinging();
       }
@@ -509,6 +520,12 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         const data = JSON.parse(new TextDecoder().decode(payload));
         if (data.type === 'ready_to_speak') {
           clearWaitingState();
+          return;
+        }
+        const moodMessage = parseMoodClassificationMessage(data, moodTurnIndexRef.current);
+        if (moodMessage) {
+          moodTurnIndexRef.current = moodMessage.turnIndex;
+          setAvatarMood(moodMessage.mood);
         }
       } catch {
         // ignore malformed data messages
@@ -612,5 +629,6 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     isRemoteControlInteractive,
     isRemoteControlInteractiveLoading,
     toggleRemoteControlInteractive,
+    avatarMood,
   };
 }

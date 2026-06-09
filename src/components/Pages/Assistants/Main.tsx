@@ -650,6 +650,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     isRemoteControlInteractive,
     isRemoteControlInteractiveLoading,
     toggleRemoteControlInteractive,
+    avatarMood,
   } = useAssistantCall(room, assistantActions);
 
   // --- Page-level chat SSE stream ---
@@ -2072,6 +2073,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     callType={callType}
                     isSpeakerMuted={isSpeakerMuted}
                     onToggleSpeaker={toggleSpeakerMute}
+                    avatarMood={avatarMood}
                     chatStreamConnectionStatus={
                       chatStreamConnectionStatusByAssistant[canonicalCoordinator.agentId] ??
                       'connecting'
@@ -2291,6 +2293,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                             callType={callType}
                             isSpeakerMuted={isSpeakerMuted}
                             onToggleSpeaker={toggleSpeakerMute}
+                            avatarMood={avatarMood}
                             chatStreamConnectionStatus={
                               chatStreamConnectionStatusByAssistant[activeCallAssistant.agentId] ??
                               'connecting'
@@ -2486,6 +2489,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               callType={callType}
               isSpeakerMuted={isSpeakerMuted}
               onToggleSpeaker={toggleSpeakerMute}
+              avatarMood={avatarMood}
               chatStreamConnectionStatus={
                 chatStreamConnectionStatusByAssistant[activeCallAssistant.agentId] ?? 'connecting'
               }

@@ -8,7 +8,7 @@ import {
 } from './shapes';
 
 export type CreatureEyes = 'up' | 'down' | 'square' | 'blink';
-export type CreatureMood = 'happy' | 'sad' | 'frustrated' | 'apologetic';
+export type CreatureMood = 'happy' | 'sad' | 'frustrated' | 'apologetic' | 'bored';
 export type CreatureMouthShape =
   | 'amplitude'
   | 'closed'
@@ -153,6 +153,23 @@ function CreatureEye({
     );
   }
 
+  if (mood === 'bored') {
+    if (dir === 'blink') {
+      return <rect fill={stroke} height={3} rx={1.5} width={15} x={cx - 7.5} y={cy + 2} />;
+    }
+
+    return (
+      <path
+        d={`M ${cx - 8} ${cy + 2} Q ${cx} ${cy + 4} ${cx + 8} ${cy + 2}`}
+        fill="none"
+        stroke={stroke}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={3.75}
+      />
+    );
+  }
+
   if (dir === 'blink') {
     return <rect fill={stroke} height={4} rx={2} width={15} x={cx - 7.5} y={cy - 2} />;
   }
@@ -220,6 +237,16 @@ function CreatureMouth({
       return `M ${apologeticLeftX} ${anchorY} Q ${cx} ${anchorY - apologeticTopDip} ${apologeticRightX} ${anchorY} Q ${cx} ${
         anchorY - apologeticBottomDip
       } ${apologeticLeftX} ${anchorY} Z`;
+    }
+
+    if (mood === 'bored') {
+      const anchorY = topY + 6;
+      const width = rightX - leftX;
+      const boredLeftX = cx - width * 0.38;
+      const boredRightX = cx + width * 0.38;
+      return `M ${boredLeftX} ${anchorY} Q ${cx} ${anchorY + 2} ${boredRightX} ${anchorY} Q ${cx} ${
+        anchorY + 1
+      } ${boredLeftX} ${anchorY} Z`;
     }
 
     return `M ${leftX} ${topY} Q ${cx} ${topY + topDip} ${rightX} ${topY} Q ${cx} ${

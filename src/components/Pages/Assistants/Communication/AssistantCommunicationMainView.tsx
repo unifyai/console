@@ -9,7 +9,11 @@ import { Button } from '@/components/UI/button';
 import { MartyCallAvatar } from '@/components/Pages/Assistants/Communication/MartyCallAvatar';
 import { useMartianEyeExpression } from '@/hooks/Assistants/useMartianEyeExpression';
 import { useMartianAudioLipsync } from '@/hooks/Assistants/useMartianAudioLipsync';
-import type { CreatureEyes, CreatureMouthShape } from '@/components/Brand/TeammateCreature';
+import type {
+  CreatureEyes,
+  CreatureMood,
+  CreatureMouthShape,
+} from '@/components/Brand/TeammateCreature';
 import { getMartianSpeechTransform } from '@/utils/assistants/martian-animation';
 import { COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION } from '@/utils/assistants/coordinator-onboarding-intro';
 
@@ -126,6 +130,7 @@ interface AssistantCommunicationMainViewProps {
   onToggleRingMute?: () => void;
   isCallActive?: boolean;
   isUserSpeaking?: boolean;
+  mood?: CreatureMood;
 }
 
 export function AssistantCommunicationMainView({
@@ -148,6 +153,7 @@ export function AssistantCommunicationMainView({
   onToggleRingMute,
   isCallActive = false,
   isUserSpeaking = false,
+  mood = 'happy',
 }: AssistantCommunicationMainViewProps) {
   const fallback = assistantName
     ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
@@ -342,6 +348,7 @@ export function AssistantCommunicationMainView({
                   isUserSpeaking={isUserSpeaking}
                   layoutTransition={COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION}
                   layoutId="marty-onboarding-call-avatar"
+                  mood={mood}
                   mouthShape={martyMouthShape}
                   speechLevel={martySpeechLevel}
                 />
