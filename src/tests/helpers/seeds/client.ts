@@ -673,7 +673,7 @@ export type CreatePersonalCoordinatorOpts = Pick<
  * Create the user's personal Coordinator.
  *
  * Mirrors Orchestra's `create_coordinator_assistant`:
- *   - `first_name = 'Unity'`, `surname = NULL`, `job_title = 'Unity'`
+ *   - `first_name = 'Marty'`, `surname = NULL`, `job_title = 'Marty'`
  *   - `nationality = 'United States'`, `desktop_mode = 'ubuntu'`
  *   - All numeric/voice fields default to NULL (no weekly limit, no voice yet)
  *   - `is_coordinator = TRUE`, `organization_id = NULL`
@@ -695,7 +695,7 @@ export function createPersonalCoordinator(
     if (Number.isFinite(parsed)) {
       return {
         agentId: parsed,
-        firstName: 'Unity',
+        firstName: 'Marty',
         surname: '',
         userId,
         organizationId: null,
@@ -708,9 +708,9 @@ export function createPersonalCoordinator(
 
   return createAssistant({
     userId,
-    firstName: 'Unity',
+    firstName: 'Marty',
     surname: null,
-    jobTitle: 'Unity',
+    jobTitle: 'Marty',
     isCoordinator: true,
     about: opts.about ?? 'Coordinates setup and shared assistant memory.',
     nationality: opts.nationality ?? 'United States',

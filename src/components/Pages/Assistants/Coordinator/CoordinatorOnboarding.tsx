@@ -887,7 +887,7 @@ function CoordinatorOnboardingPicker({
       data-testid="coordinator-onboarding-picker"
     >
       <CoordinatorLogoAvatar className="h-32 w-32" logoClassName="h-28 w-28" />
-      <p className="text-h3 font-medium text-foreground">Unity is calling to onboard you</p>
+      <p className="text-h3 font-medium text-foreground">Marty is calling to onboard you</p>
       <div className="flex flex-col items-center gap-3 sm:flex-row">
         <Button
           size="lg"

@@ -189,7 +189,7 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
     // Not in react-icons/si — falls through to the generic Plug2 glyph
     // in ``ProviderIcon``, matching Employment Hero and Matterport.
     setupNote:
-      "Two steps: (1) email your regional Salto Business Unit to request OAuth client credentials for the \"Backend Server\" integration type (scope: user_api.full_access). (2) In your Salto KS dashboard, create a dedicated service-account user (e.g. svc-unity@yourco.com) with the KS roles the integration needs — this user's email and password are the third and fourth required fields below. Don't reuse a real person's login — passwords are held long-term in SecretManager. For non-EU regions or sandbox environments, set SALTO_KS_IDENTITY_HOST (and usually SALTO_KS_BASE_URL) via the Custom secret flow.",
+      "Two steps: (1) email your regional Salto Business Unit to request OAuth client credentials for the \"Backend Server\" integration type (scope: user_api.full_access). (2) In your Salto KS dashboard, create a dedicated service-account user (e.g. svc-marty@yourco.com) with the KS roles the integration needs — this user's email and password are the third and fourth required fields below. Don't reuse a real person's login — passwords are held long-term in SecretManager. For non-EU regions or sandbox environments, set SALTO_KS_IDENTITY_HOST (and usually SALTO_KS_BASE_URL) via the Custom secret flow.",
     auth: {
       // Salto KS uses OAuth 2.0 Resource Owner Password Credentials
       // (ROPC) layered with OpenID Connect — Salto's documented
@@ -223,7 +223,7 @@ export const INTEGRATION_PROVIDERS: IntegrationProviderConfig[] = [
           label: 'Service account email',
           secretKey: 'SALTO_KS_USERNAME',
           sensitive: false,
-          placeholder: 'svc-unity@yourco.com',
+          placeholder: 'svc-marty@yourco.com',
           helpText:
             "Email of the Salto KS user that acts as the resource owner. Use a dedicated service-account user, not a real person's login.",
         },

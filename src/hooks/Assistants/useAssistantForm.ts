@@ -405,7 +405,7 @@ export function useAssistantForm(
         ...getValues(),
 
         // Profile
-        firstName: assistant.isCoordinator ? 'Unity' : assistant.firstName,
+        firstName: assistant.isCoordinator ? 'Marty' : assistant.firstName,
         surname: assistant.isCoordinator ? '' : assistant.surname,
         jobTitle: assistant.jobTitle ?? null,
         age: assistant.age,

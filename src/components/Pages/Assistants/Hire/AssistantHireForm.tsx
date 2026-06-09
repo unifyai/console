@@ -320,7 +320,7 @@ export function HireForm({
                             readOnly={lockIdentityFields}
                             aria-readonly={lockIdentityFields}
                             tabIndex={lockIdentityFields ? -1 : undefined}
-                            title={lockIdentityFields ? "Unity's name is fixed" : undefined}
+                            title={lockIdentityFields ? "Marty's name is fixed" : undefined}
                             className={cn(
                               lockIdentityFields &&
                                 'cursor-not-allowed border-muted bg-muted text-muted-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0'
@@ -344,7 +344,7 @@ export function HireForm({
                             readOnly={lockIdentityFields}
                             aria-readonly={lockIdentityFields}
                             tabIndex={lockIdentityFields ? -1 : undefined}
-                            title={lockIdentityFields ? "Unity's name is fixed" : undefined}
+                            title={lockIdentityFields ? "Marty's name is fixed" : undefined}
                             className={cn(
                               lockIdentityFields &&
                                 'cursor-not-allowed border-muted bg-muted text-muted-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0'
@@ -798,7 +798,7 @@ export function HireForm({
                                   not
                                 </strong>{' '}
                                 connect {workspaceAssistantName} to your own Google/Microsoft
-                                account. Only Unity should have access to your personal account.
+                                account. Only Marty should have access to your personal account.
                               </span>
                               <span
                                 className={cn(

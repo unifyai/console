@@ -487,9 +487,9 @@ export function RightPaneContainer({
         data-testid="coordinator-private"
         className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center"
       >
-        <p className="text-body-muted">Unity chat is private.</p>
+        <p className="text-body-muted">Marty chat is private.</p>
         <p className="text-caption text-muted-foreground">
-          Open your own Unity from this workspace to continue.
+          Open your own Marty from this workspace to continue.
         </p>
       </div>
     );

@@ -243,7 +243,7 @@ export function AssistantCommunicationMainView({
                   <TeammateCreature
                     className="h-full w-full"
                     eyes={displayedCreatureEyes}
-                    label="Unity"
+                    label="Marty"
                   />
                 </span>
               ) : (
