@@ -15,6 +15,10 @@ import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import {
+  resolveCoordinatorAbout,
+  resolveCoordinatorJobTitle,
+} from '@/constants/assistants/coordinator_profile';
+import {
   getCoordinatorFixedVoice,
   getDefaultVoiceForProvider,
 } from '@/utils/assistants/voice-utils';
@@ -416,10 +420,14 @@ export function useAssistantForm(
         // Profile
         firstName: assistant.isCoordinator ? 'Marty' : assistant.firstName,
         surname: assistant.isCoordinator ? '' : assistant.surname,
-        jobTitle: assistant.jobTitle ?? null,
+        jobTitle: assistant.isCoordinator
+          ? resolveCoordinatorJobTitle(assistant.jobTitle)
+          : (assistant.jobTitle ?? null),
         age: assistant.age,
         nationality: assistant.nationality,
-        about: assistant.about || '',
+        about: assistant.isCoordinator
+          ? resolveCoordinatorAbout(assistant.about)
+          : assistant.about || '',
         timezone: assistant.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 
         // Media

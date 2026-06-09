@@ -116,6 +116,10 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   return <div className="mb-2 flex items-center gap-2 text-muted-foreground">{children}</div>;
 }
 
+function getHoverEyes(eyes: CreatureEyes): CreatureEyes {
+  return eyes === 'square' ? 'up' : 'square';
+}
+
 export interface HireFormProps {
   formMethods: UseFormReturn<AssistantFormData>;
   onSubmit?: (e?: React.BaseSyntheticEvent) => Promise<void>;
@@ -180,6 +184,7 @@ export function HireForm({
   const [martianShape, setMartianShape] = React.useState<CreatureShape>('clawd');
   const [martianColor, setMartianColor] = React.useState<BrandRole>('green');
   const [isAppearanceControlsVisible, setIsAppearanceControlsVisible] = React.useState(false);
+  const [isLockedMartianHovered, setIsLockedMartianHovered] = React.useState(false);
   const [isVoicePreviewPlaying, setIsVoicePreviewPlaying] = React.useState(false);
   const [speakingEyeFrame, setSpeakingEyeFrame] = React.useState(0);
   const speakingEyeBaseRef = React.useRef<CreatureEyes>(martianEyes);
@@ -221,9 +226,13 @@ export function HireForm({
       (colorIndex - 1 + appearanceColorOptions.length) % appearanceColorOptions.length
     ];
   const nextColor = appearanceColorOptions[(colorIndex + 1) % appearanceColorOptions.length];
+  const lockedHoverEyes =
+    lockAppearanceControls && isLockedMartianHovered
+      ? getHoverEyes(selectedMartianEyes)
+      : selectedMartianEyes;
   const displayedMartianEyes = isVoicePreviewPlaying
     ? getSpeakingEyes(speakingEyeBaseRef.current, speakingEyeFrame)
-    : selectedMartianEyes;
+    : lockedHoverEyes;
   const workspaceAssistantName =
     typeof firstName === 'string' && firstName.trim().length > 0
       ? firstName.trim()
@@ -591,7 +600,11 @@ export function HireForm({
                             )}
 
                             {lockAppearanceControls ? (
-                              <span className="flex h-full w-40 items-center justify-center sm:w-52 md:w-40">
+                              <span
+                                className="flex h-full w-40 items-center justify-center sm:w-52 md:w-40"
+                                onMouseEnter={() => setIsLockedMartianHovered(true)}
+                                onMouseLeave={() => setIsLockedMartianHovered(false)}
+                              >
                                 <span
                                   ref={martianSpeechRef}
                                   className="block h-full w-full transform-gpu"
@@ -728,7 +741,14 @@ export function HireForm({
                 </div>
               </section>
 
-              <div className="mt-6 grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(260px,360px)] md:items-start">
+              <div
+                className={cn(
+                  'mt-6 grid gap-5 md:items-start',
+                  lockIdentityFields
+                    ? 'md:grid-cols-2'
+                    : 'md:grid-cols-[minmax(0,1fr)_minmax(260px,360px)]'
+                )}
+              >
                 {!lockIdentityFields && (
                   <section className="min-w-0" data-testid="assistant-voice-section">
                     <SectionHeader>
@@ -799,7 +819,12 @@ export function HireForm({
                   </section>
                 )}
 
-                <div className="min-w-0 space-y-5">
+                <div
+                  className={cn(
+                    'min-w-0 space-y-5',
+                    lockIdentityFields && 'grid grid-cols-2 gap-5 space-y-0 md:col-span-2'
+                  )}
+                >
                   <section className="min-w-0">
                     <div className="mb-2 flex items-center justify-between gap-3">
                       <div
@@ -994,123 +1019,157 @@ export function HireForm({
                         <Laptop className="h-4 w-4" />
                       </SectionIconSlot>
                       <span className="text-body">Computer</span>
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <InfoSquareButton />
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="right"
+                            align="start"
+                            className="text-caption max-w-xs"
+                          >
+                            <p>
+                              The operating system installed on {workspaceAssistantName}&apos;s
+                              personal computer, which they use to complete tasks.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </SectionHeader>
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <Controller
                           name="setup"
                           control={control}
-                          render={({ field }) => (
-                            <div
-                              className={cn(
-                                'space-y-2',
-                                isEditMode && 'pointer-events-none opacity-60'
-                              )}
-                            >
+                          render={({ field }) => {
+                            const computerControls = (
                               <div
-                                className={cn(
-                                  'flex flex-col space-y-3 rounded-md border p-3',
-                                  !isEditMode && 'cursor-pointer',
-                                  field.value === 'remote' && 'border-primary'
-                                )}
-                                onClick={() => !isEditMode && field.onChange('remote')}
+                                aria-disabled={isEditMode}
+                                className={cn('space-y-2', isEditMode && 'cursor-not-allowed')}
                               >
-                                <div className="flex items-center space-x-2">
-                                  <div
-                                    className={cn(
-                                      'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
-                                      field.value === 'remote' && 'border-primary'
-                                    )}
-                                  >
-                                    {field.value === 'remote' && (
-                                      <div className="rounded-control h-2 w-2 bg-primary" />
-                                    )}
+                                <div
+                                  className={cn(
+                                    'flex h-28 flex-col justify-center space-y-3 rounded-md border p-3',
+                                    isEditMode ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+                                    field.value === 'remote' && 'border-primary'
+                                  )}
+                                  onClick={() => !isEditMode && field.onChange('remote')}
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    <div
+                                      className={cn(
+                                        'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                        field.value === 'remote' && 'border-primary'
+                                      )}
+                                    >
+                                      {field.value === 'remote' && (
+                                        <div className="rounded-control h-2 w-2 bg-primary" />
+                                      )}
+                                    </div>
+                                    <Label
+                                      htmlFor="setup-remote"
+                                      className={cn(
+                                        'text-body font-normal',
+                                        !isEditMode && 'cursor-pointer'
+                                      )}
+                                    >
+                                      Remote - Use a virtual machine
+                                    </Label>
                                   </div>
-                                  <Label
-                                    htmlFor="setup-remote"
-                                    className={cn(
-                                      'text-body font-normal',
-                                      !isEditMode && 'cursor-pointer'
-                                    )}
-                                  >
-                                    Remote - Use a virtual machine
-                                  </Label>
+                                  {field.value === 'remote' && (
+                                    <Controller
+                                      name="operatingSystem"
+                                      control={control}
+                                      render={({ field: osField }) => (
+                                        <div className="space-y-2 pl-6">
+                                          <div
+                                            className={cn(
+                                              'flex items-center space-x-2',
+                                              isEditMode ? 'cursor-not-allowed' : 'cursor-pointer'
+                                            )}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (!isEditMode) osField.onChange('ubuntu');
+                                            }}
+                                          >
+                                            <div
+                                              className={cn(
+                                                'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                                osField.value === 'ubuntu' && 'border-primary'
+                                              )}
+                                            >
+                                              {osField.value === 'ubuntu' && (
+                                                <div className="rounded-control h-2 w-2 bg-primary" />
+                                              )}
+                                            </div>
+                                            <FaUbuntu className="h-4 w-4" />
+                                            <Label
+                                              htmlFor="os-remote-ubuntu"
+                                              className={cn(
+                                                'text-body font-normal',
+                                                !isEditMode && 'cursor-pointer'
+                                              )}
+                                            >
+                                              Ubuntu
+                                            </Label>
+                                          </div>
+                                          <div
+                                            className={cn(
+                                              'flex items-center space-x-2',
+                                              isEditMode ? 'cursor-not-allowed' : 'cursor-pointer'
+                                            )}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (!isEditMode) osField.onChange('windows');
+                                            }}
+                                          >
+                                            <div
+                                              className={cn(
+                                                'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                                osField.value === 'windows' && 'border-primary'
+                                              )}
+                                            >
+                                              {osField.value === 'windows' && (
+                                                <div className="rounded-control h-2 w-2 bg-primary" />
+                                              )}
+                                            </div>
+                                            <FaWindows className="h-4 w-4" />
+                                            <Label
+                                              htmlFor="os-remote-windows"
+                                              className={cn(
+                                                'text-body font-normal',
+                                                !isEditMode && 'cursor-pointer'
+                                              )}
+                                            >
+                                              Windows
+                                            </Label>
+                                          </div>
+                                        </div>
+                                      )}
+                                    />
+                                  )}
                                 </div>
-                                {field.value === 'remote' && (
-                                  <Controller
-                                    name="operatingSystem"
-                                    control={control}
-                                    render={({ field: osField }) => (
-                                      <div className="space-y-2 pl-6">
-                                        <div
-                                          className={cn(
-                                            'flex items-center space-x-2',
-                                            !isEditMode && 'cursor-pointer'
-                                          )}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (!isEditMode) osField.onChange('ubuntu');
-                                          }}
-                                        >
-                                          <div
-                                            className={cn(
-                                              'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
-                                              osField.value === 'ubuntu' && 'border-primary'
-                                            )}
-                                          >
-                                            {osField.value === 'ubuntu' && (
-                                              <div className="rounded-control h-2 w-2 bg-primary" />
-                                            )}
-                                          </div>
-                                          <FaUbuntu className="h-4 w-4" />
-                                          <Label
-                                            htmlFor="os-remote-ubuntu"
-                                            className={cn(
-                                              'text-body font-normal',
-                                              !isEditMode && 'cursor-pointer'
-                                            )}
-                                          >
-                                            Ubuntu
-                                          </Label>
-                                        </div>
-                                        <div
-                                          className={cn(
-                                            'flex items-center space-x-2',
-                                            !isEditMode && 'cursor-pointer'
-                                          )}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (!isEditMode) osField.onChange('windows');
-                                          }}
-                                        >
-                                          <div
-                                            className={cn(
-                                              'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
-                                              osField.value === 'windows' && 'border-primary'
-                                            )}
-                                          >
-                                            {osField.value === 'windows' && (
-                                              <div className="rounded-control h-2 w-2 bg-primary" />
-                                            )}
-                                          </div>
-                                          <FaWindows className="h-4 w-4" />
-                                          <Label
-                                            htmlFor="os-remote-windows"
-                                            className={cn(
-                                              'text-body font-normal',
-                                              !isEditMode && 'cursor-pointer'
-                                            )}
-                                          >
-                                            Windows
-                                          </Label>
-                                        </div>
-                                      </div>
-                                    )}
-                                  />
-                                )}
                               </div>
-                            </div>
-                          )}
+                            );
+
+                            if (!isEditMode) return computerControls;
+
+                            return (
+                              <TooltipProvider delayDuration={100}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>{computerControls}</TooltipTrigger>
+                                  <TooltipContent
+                                    side="top"
+                                    align="start"
+                                    className="text-caption max-w-xs"
+                                  >
+                                    <p>Computer can only be configured during onboarding.</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          }}
                         />
                       </div>
                     </div>

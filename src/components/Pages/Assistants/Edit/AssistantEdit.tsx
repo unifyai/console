@@ -140,6 +140,7 @@ export function AssistantEdit({
     if (isSubmitting) return 'Updating...';
     if (isProcessingVoice) return 'Processing Voice...';
     if (isProcessingPhoto) return 'Processing Photo...';
+    if (assistant.isCoordinator) return 'Update Marty';
     return 'Update Martian';
   };
 
@@ -148,7 +149,7 @@ export function AssistantEdit({
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogClose}>
       <DialogContent
-        className="flex h-[90vh] max-w-5xl flex-col gap-0 p-0"
+        className="flex max-h-[90vh] max-w-5xl flex-col gap-0 overflow-hidden p-0"
         onInteractOutside={handleDialogInteractOutside}
         onPointerDownOutside={(e) => {
           const target = e.target as HTMLElement;
@@ -188,7 +189,7 @@ export function AssistantEdit({
           </div>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+        <div className="min-h-0 overflow-hidden">{children}</div>
 
         <DialogFooter className="flex flex-shrink-0 items-center border-t px-6 py-3">
           <div className="flex w-full items-center justify-between">

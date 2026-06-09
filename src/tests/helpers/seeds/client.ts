@@ -25,6 +25,10 @@ import {
   approvedCharacterVoiceMetadata,
   coordinatorFixedVoiceId,
 } from '../../../constants/assistants/approved_character_voices';
+import {
+  COORDINATOR_DEFAULT_ABOUT,
+  COORDINATOR_DEFAULT_JOB_TITLE,
+} from '../../../constants/assistants/coordinator_profile';
 
 // =============================================================================
 // Configuration
@@ -559,6 +563,7 @@ export interface CreateAssistantOpts {
 
 const DEFAULT_BOSS_RESPONSE_POLICY =
   'Your immediate manager, please do whatever they ask you to do within reason, and do *not* withhold any information from them.';
+const COORDINATOR_LEGACY_ABOUT = 'Coordinates setup and shared assistant memory.';
 
 /**
  * Create an assistant via direct SQL (bypasses billing checks).
@@ -689,7 +694,7 @@ export type CreatePersonalCoordinatorOpts = Pick<
  * Create the user's personal Coordinator.
  *
  * Mirrors Orchestra's `create_coordinator_assistant`:
- *   - `first_name = 'Marty'`, `surname = NULL`, `job_title = 'Marty'`
+ *   - `first_name = 'Marty'`, `surname = NULL`, `job_title = 'Personal helper'`
  *   - `nationality = 'United States'`, `desktop_mode = 'ubuntu'`
  *   - Numeric limits default to NULL; voice uses Marty's fixed ElevenLabs profile
  *   - `is_coordinator = TRUE`, `organization_id = NULL`
@@ -711,7 +716,7 @@ export function createPersonalCoordinator(
     if (Number.isFinite(parsed)) {
       ensureVoicePreset(userId);
       dbExec(
-        `UPDATE assistants SET voice_id = ${sqlLiteral(coordinatorFixedVoiceId)}, voice_provider = ${sqlLiteral(approvedCharacterVoiceMetadata[coordinatorFixedVoiceId].provider)} WHERE agent_id = ${parsed};`
+        `UPDATE assistants SET voice_id = ${sqlLiteral(coordinatorFixedVoiceId)}, voice_provider = ${sqlLiteral(approvedCharacterVoiceMetadata[coordinatorFixedVoiceId].provider)}, job_title = ${sqlLiteral(COORDINATOR_DEFAULT_JOB_TITLE)}, about = CASE WHEN about IS NULL OR about = ${sqlLiteral(COORDINATOR_LEGACY_ABOUT)} THEN ${sqlLiteral(COORDINATOR_DEFAULT_ABOUT)} ELSE about END WHERE agent_id = ${parsed};`
       );
       return {
         agentId: parsed,
@@ -730,9 +735,9 @@ export function createPersonalCoordinator(
     userId,
     firstName: 'Marty',
     surname: null,
-    jobTitle: 'Marty',
+    jobTitle: COORDINATOR_DEFAULT_JOB_TITLE,
     isCoordinator: true,
-    about: opts.about ?? 'Coordinates setup and shared assistant memory.',
+    about: opts.about ?? COORDINATOR_DEFAULT_ABOUT,
     nationality: opts.nationality ?? 'United States',
     timezone: opts.timezone ?? null,
     age: null,
