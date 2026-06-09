@@ -362,18 +362,20 @@ function findNextActionableId(
   return null;
 }
 
-function findNextChildTargetId(
+function findNextChildAction(
   item: ResolvedChecklistItem,
   isActionWired: (action: ChecklistAction | undefined) => boolean
-): string | null {
+): ChecklistAction | null {
   const children = item.children ?? [];
   for (const child of children) {
     if (child.children?.length) {
-      const inner = findNextChildTargetId(child, isActionWired);
+      const inner = findNextChildAction(child, isActionWired);
       if (inner) return inner;
       continue;
     }
-    if (!child.done && isActionWired(child.action)) return child.id;
+    if (!child.done && !child.disabledReason && child.action && isActionWired(child.action)) {
+      return child.action;
+    }
   }
   return null;
 }
@@ -467,31 +469,8 @@ export function CoordinatorOnboardingChecklist({
     () => findNextActionableId(resolved, isActionWired),
     [resolved, isActionWired]
   );
-  const [attentionTargetId, setAttentionTargetId] = React.useState<string | null>(null);
-  React.useEffect(() => {
-    if (!attentionTargetId) return;
-    const timeout = window.setTimeout(() => setAttentionTargetId(null), 900);
-    return () => window.clearTimeout(timeout);
-  }, [attentionTargetId]);
-
   return (
     <div className={cn('flex flex-col gap-3', className)}>
-      <style jsx global>{`
-        @keyframes coordinator-next-wiggle {
-          0% {
-            transform: translateX(0);
-          }
-          33% {
-            transform: translateX(-4px);
-          }
-          66% {
-            transform: translateX(4px);
-          }
-          100% {
-            transform: translateX(0);
-          }
-        }
-      `}</style>
       <PhaseProgressBar phases={phases} done={done} total={total} percent={percent} />
       <ul className="space-y-2.5" data-testid="coordinator-onboarding-checklist">
         {resolved.map((item) => (
@@ -501,8 +480,6 @@ export function CoordinatorOnboardingChecklist({
             onAction={handleAction}
             isActionWired={isActionWired}
             nextActionableId={nextActionableId}
-            attentionTargetId={attentionTargetId}
-            onRequestAttention={setAttentionTargetId}
             isOnCall={isOnCall}
           />
         ))}
@@ -589,8 +566,6 @@ interface ChecklistRowProps {
    * thread it down rather than recomputing per-row so the lookup
    * stays O(checklist-size) in total. */
   nextActionableId: string | null;
-  attentionTargetId: string | null;
-  onRequestAttention: (itemId: string | null) => void;
   /** Whether the user is on a call — selects the call vs. chat
    * "Act now" suggestion chips. */
   isOnCall: boolean;
@@ -602,20 +577,17 @@ function ChecklistRow({
   onAction,
   isActionWired,
   nextActionableId,
-  attentionTargetId,
-  onRequestAttention,
   isOnCall,
 }: ChecklistRowProps) {
   const hasWiredAction = isActionWired(item.action);
   const isBlocked = !!item.disabledReason;
   const isActionable = hasWiredAction && !item.done && !isBlocked;
   const isNext = nextActionableId === item.id;
-  const attentionChildId = React.useMemo(
-    () => findNextChildTargetId(item, isActionWired),
+  const nextChildAction = React.useMemo(
+    () => findNextChildAction(item, isActionWired),
     [item, isActionWired]
   );
-  const canFocusChild = !!attentionChildId && !item.done;
-  const isAttentionTarget = attentionTargetId === item.id;
+  const canOpenChildAction = !!nextChildAction && !item.done;
   // Whether the next actionable leaf sits somewhere inside this
   // row's subtree. Parents on the path to "Next" stay at full
   // opacity so the user's eye flows from the phase header straight
@@ -639,9 +611,9 @@ function ChecklistRow({
   }, [item.action, onAction]);
 
   const handleParentClick = React.useCallback(() => {
-    if (!attentionChildId) return;
-    onRequestAttention(attentionChildId);
-  }, [attentionChildId, onRequestAttention]);
+    if (!nextChildAction) return;
+    onAction(nextChildAction);
+  }, [nextChildAction, onAction]);
 
   const handleParentKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -656,7 +628,7 @@ function ChecklistRow({
     cn(
       'flex w-full items-start gap-2 rounded-md px-1.5 py-1 -mx-1.5',
       variant === 'actionable' && 'cursor-pointer hover:bg-muted/50',
-      variant === 'static' && canFocusChild && 'cursor-pointer hover:bg-muted/50'
+      variant === 'static' && canOpenChildAction && 'cursor-pointer hover:bg-muted/50'
       // "Next" anchor: the Next pill + the row label going
       // ``font-medium`` carries the affordance — we leave the row
       // chrome flat so the highlight reads as a guide rather than
@@ -681,8 +653,7 @@ function ChecklistRow({
     isNext ? (
       <span
         className={cn(
-          'bg-primary/15 text-caption ml-1 inline-flex flex-shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 font-medium text-primary',
-          isAttentionTarget && 'motion-safe:animate-[coordinator-next-wiggle_530ms_ease-in-out_1]'
+          'bg-primary/15 text-caption ml-1 inline-flex flex-shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 font-medium text-primary'
         )}
         data-testid={`coordinator-onboarding-next-${item.id}`}
       >
@@ -732,14 +703,7 @@ function ChecklistRow({
 
   let row: React.ReactNode;
   if (item.done) {
-    row = (
-      <div
-        data-testid={`coordinator-onboarding-item-${item.id}`}
-        data-attention={isAttentionTarget ? 'true' : undefined}
-      >
-        {rowBody('done')}
-      </div>
-    );
+    row = <div data-testid={`coordinator-onboarding-item-${item.id}`}>{rowBody('done')}</div>;
   } else if (isActionable) {
     row = (
       <button
@@ -748,7 +712,6 @@ function ChecklistRow({
         className="w-full text-left"
         data-testid={`coordinator-onboarding-item-${item.id}`}
         data-next={isNext ? 'true' : undefined}
-        data-attention={isAttentionTarget ? 'true' : undefined}
       >
         {rowBody('actionable')}
       </button>
@@ -758,7 +721,6 @@ function ChecklistRow({
       <div
         data-testid={`coordinator-onboarding-item-${item.id}`}
         data-status="pending-blocked"
-        data-attention={isAttentionTarget ? 'true' : undefined}
         aria-disabled="true"
       >
         {rowBody('blocked')}
@@ -768,7 +730,7 @@ function ChecklistRow({
     // Static informational row: a non-actionable grouping header
     // ("Connect your coordinator") or a pending step with no
     // unblocked / wired action.
-    row = canFocusChild ? (
+    row = canOpenChildAction ? (
       <div
         role="button"
         tabIndex={0}
@@ -776,18 +738,12 @@ function ChecklistRow({
         onKeyDown={handleParentKeyDown}
         className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         data-testid={`coordinator-onboarding-item-${item.id}`}
-        data-attention={isAttentionTarget ? 'true' : undefined}
-        aria-label={`Show next step in ${item.title}`}
+        aria-label={`Open next step in ${item.title}`}
       >
         {rowBody('static')}
       </div>
     ) : (
-      <div
-        data-testid={`coordinator-onboarding-item-${item.id}`}
-        data-attention={isAttentionTarget ? 'true' : undefined}
-      >
-        {rowBody('static')}
-      </div>
+      <div data-testid={`coordinator-onboarding-item-${item.id}`}>{rowBody('static')}</div>
     );
   }
 
@@ -858,8 +814,6 @@ function ChecklistRow({
               onAction={onAction}
               isActionWired={isActionWired}
               nextActionableId={nextActionableId}
-              attentionTargetId={attentionTargetId}
-              onRequestAttention={onRequestAttention}
               isOnCall={isOnCall}
             />
           ))}

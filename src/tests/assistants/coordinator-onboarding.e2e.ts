@@ -92,10 +92,9 @@ test('picking chat reveals the chat surface and the skip affordance', async ({
   await expect(page.locator('textarea').first()).toBeVisible({ timeout: 10_000 });
 
   await page.getByTestId('coordinator-onboarding-item-connect').click();
-  await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveAttribute(
-    'data-attention',
-    'true'
-  );
+  await expect(page.getByRole('dialog', { name: 'Workspace' })).toBeVisible({
+    timeout: 10_000,
+  });
 });
 
 test('reloading after picking chat returns the user to the picker', async ({
@@ -132,11 +131,10 @@ test('skipping onboarding swaps in the regular assistants layout', async ({ auth
   await expect(page.getByTestId('coordinator-onboarding')).toHaveCount(0, {
     timeout: 15_000,
   });
-  // Regular layout's coordinator-divider is the canonical signal of
-  // the standard /assistants shell — the divider lives between the
-  // pinned coordinator section and the rest of the list, and is
-  // only mounted by the non-onboarding view.
-  await expect(page.getByTestId('coordinator-divider')).toBeVisible({ timeout: 15_000 });
+  // The standard assistants shell exposes the hire entry point even
+  // when Marty is the only assistant, whereas the onboarding view
+  // suppresses it behind the picker/sidebar flow.
+  await expect(page.getByRole('button', { name: /^Onboard$/ })).toBeVisible({ timeout: 15_000 });
 });
 
 test('the promotion is persistent across reloads', async ({ authedPage: page }) => {
@@ -147,5 +145,5 @@ test('the promotion is persistent across reloads', async ({ authedPage: page }) 
   await expect(page.getByTestId('coordinator-onboarding')).toHaveCount(0, {
     timeout: 15_000,
   });
-  await expect(page.getByTestId('coordinator-divider')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('button', { name: /^Onboard$/ })).toBeVisible({ timeout: 15_000 });
 });
