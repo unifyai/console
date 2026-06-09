@@ -13,6 +13,11 @@ import {
 } from '@/utils/assistants/martian-animation';
 import { COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION } from '@/utils/assistants/coordinator-onboarding-intro';
 
+type BrowserWindowWithMartyIntroAudio = Window & {
+  __martyOnboardingIntroAudio?: HTMLAudioElement;
+  __martyOnboardingIntroSpeechLevel?: number;
+};
+
 interface AssistantCommunicationMainViewProps {
   assistantName: string;
   isCoordinator?: boolean;
@@ -58,6 +63,8 @@ export function AssistantCommunicationMainView({
     ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
     : 'A';
   const [speechLevel, setSpeechLevel] = React.useState(0);
+  const [isIntroAudioPlaying, setIsIntroAudioPlaying] = React.useState(false);
+  const [introAudioSpeechLevel, setIntroAudioSpeechLevel] = React.useState(0);
   const animatedVisualStyle = {
     '--martian-speech-level': speechLevel.toFixed(3),
     transform: getMartianSpeechTransform(speechLevel),
@@ -79,35 +86,23 @@ export function AssistantCommunicationMainView({
     return () => window.clearInterval(speechTimer);
   }, [isSpeaking]);
 
-  if (isLoading) {
-    const spinnerSize = avatarContainerClassName || 'h-32 w-32';
-    if (isCoordinator) {
-      return (
-        <div className={cn('flex flex-col items-center justify-center p-4 text-center', className)}>
-          <div className="relative h-32 w-32">
-            <MartyCallAvatar
-              animateBodyMotion={false}
-              className="drop-shadow-sm"
-              creatureClassName="h-28 w-28"
-              isSpeaking={false}
-              layoutTransition={COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION}
-              layoutId="marty-onboarding-call-avatar"
-            />
-          </div>
-          <p className="text-body-muted mt-4">{loadingMessage}</p>
-          {onToggleRingMute && (
-            <button
-              onClick={onToggleRingMute}
-              className="mt-3 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label={isRingMuted ? 'Unmute ring tone' : 'Mute ring tone'}
-            >
-              {isRingMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-            </button>
-          )}
-        </div>
-      );
-    }
+  React.useEffect(() => {
+    if (!isCoordinator) return;
 
+    const updateIntroAudioState = () => {
+      const martyWindow = window as BrowserWindowWithMartyIntroAudio;
+      const audio = martyWindow.__martyOnboardingIntroAudio;
+      setIsIntroAudioPlaying(!!audio && !audio.paused && !audio.ended);
+      setIntroAudioSpeechLevel(martyWindow.__martyOnboardingIntroSpeechLevel ?? 0);
+    };
+
+    updateIntroAudioState();
+    const interval = window.setInterval(updateIntroAudioState, 100);
+    return () => window.clearInterval(interval);
+  }, [isCoordinator]);
+
+  if (isLoading && !isCoordinator) {
+    const spinnerSize = avatarContainerClassName || 'h-32 w-32';
     return (
       <div className={cn('flex flex-col items-center justify-center p-4 text-center', className)}>
         <div className="relative flex items-center justify-center">
@@ -211,10 +206,24 @@ export function AssistantCommunicationMainView({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center text-center',
+        'relative flex flex-col items-center justify-center text-center',
         className || 'h-48 w-48'
       )}
     >
+      {isCoordinator && isLoading && (
+        <div className="pointer-events-none absolute top-[calc(50%+4.75rem)] flex flex-col items-center">
+          <p className="text-body-muted whitespace-nowrap">{loadingMessage}</p>
+          {onToggleRingMute && (
+            <button
+              onClick={onToggleRingMute}
+              className="pointer-events-auto mt-3 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label={isRingMuted ? 'Unmute ring tone' : 'Mute ring tone'}
+            >
+              {isRingMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+            </button>
+          )}
+        </div>
+      )}
       <div className="relative flex items-center justify-center">
         {/* Video or Avatar */}
         <div
@@ -232,11 +241,12 @@ export function AssistantCommunicationMainView({
             <>
               {isCoordinator ? (
                 <MartyCallAvatar
-                  isSpeaking={isSpeaking && !isLoading && !connectionError}
+                  isSpeaking={(isSpeaking && !isLoading && !connectionError) || isIntroAudioPlaying}
                   isCallActive={isCallActive}
                   isUserSpeaking={isUserSpeaking}
                   layoutTransition={COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION}
                   layoutId="marty-onboarding-call-avatar"
+                  speechLevel={isIntroAudioPlaying ? introAudioSpeechLevel : undefined}
                 />
               ) : (
                 <Avatar className="h-full w-full" style={animatedVisualStyle}>

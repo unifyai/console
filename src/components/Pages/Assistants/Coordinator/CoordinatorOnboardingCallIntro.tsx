@@ -14,6 +14,7 @@ type BrowserWindowWithWebkitAudio = Window & {
 };
 type BrowserWindowWithMartyIntroAudio = Window & {
   __martyOnboardingIntroAudio?: HTMLAudioElement;
+  __martyOnboardingIntroSpeechLevel?: number;
 };
 
 interface CoordinatorOnboardingCallIntroProps {
@@ -57,6 +58,13 @@ function getAcceleratedScrollProgress(elapsedMs: number, totalMs: number, accele
   return (elapsed - rampMs / 2) / denominator;
 }
 
+function getVisualHandoffOffsetMs(durationMs: number) {
+  return Math.max(
+    COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs + 500,
+    durationMs - COORDINATOR_ONBOARDING_INTRO.handoffLeadMs
+  );
+}
+
 export function CoordinatorOnboardingCallIntro({
   initialAvatarOffset,
   onReadyToStartCall,
@@ -64,26 +72,40 @@ export function CoordinatorOnboardingCallIntro({
 }: CoordinatorOnboardingCallIntroProps) {
   const rootRef = React.useRef<HTMLDivElement | null>(null);
   const offsetRef = React.useRef(0);
+  const onReadyToStartCallRef = React.useRef(onReadyToStartCall);
+  const onFinishedRef = React.useRef(onFinished);
   const hasStartedCallRef = React.useRef(false);
   const hasFinishedRef = React.useRef(false);
+  const keepAudioAfterUnmountRef = React.useRef(false);
   const [stage, setStage] = React.useState<IntroStage>('pause');
   const [audioSpeechLevel, setAudioSpeechLevel] = React.useState(0);
+
+  React.useEffect(() => {
+    onReadyToStartCallRef.current = onReadyToStartCall;
+    onFinishedRef.current = onFinished;
+  }, [onFinished, onReadyToStartCall]);
 
   const startCallOnce = React.useCallback(() => {
     if (hasStartedCallRef.current) return;
     hasStartedCallRef.current = true;
-    onReadyToStartCall();
-  }, [onReadyToStartCall]);
+    onReadyToStartCallRef.current();
+  }, []);
 
   const finishOnce = React.useCallback(() => {
     if (hasFinishedRef.current) return;
     hasFinishedRef.current = true;
+    keepAudioAfterUnmountRef.current = true;
     startCallOnce();
-    onFinished();
-  }, [onFinished, startCallOnce]);
+    onFinishedRef.current();
+  }, [startCallOnce]);
 
   React.useEffect(() => {
     const { durationMs } = getRuntimeTiming();
+    const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs);
+    const callWarmupOffsetMs = Math.max(
+      0,
+      handoffOffsetMs - COORDINATOR_ONBOARDING_INTRO.callWarmupLeadMs
+    );
     const speakingStartTimer = window.setTimeout(
       () => setStage('speaking'),
       COORDINATOR_ONBOARDING_INTRO.initialPauseMs
@@ -93,9 +115,13 @@ export function CoordinatorOnboardingCallIntro({
       COORDINATOR_ONBOARDING_INTRO.initialPauseMs +
         COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs
     );
+    const callWarmupTimer = window.setTimeout(
+      () => startCallOnce(),
+      COORDINATOR_ONBOARDING_INTRO.initialPauseMs + callWarmupOffsetMs
+    );
     const landingTimer = window.setTimeout(
       () => setStage('landing'),
-      COORDINATOR_ONBOARDING_INTRO.initialPauseMs + durationMs
+      COORDINATOR_ONBOARDING_INTRO.initialPauseMs + handoffOffsetMs
     );
     let audio: HTMLAudioElement | null = null;
     let audioTimer: number | null = null;
@@ -103,14 +129,19 @@ export function CoordinatorOnboardingCallIntro({
     let animationFrame = 0;
     let smoothedLevel = 0;
     let hasStartedAudio = false;
+    let shouldPublishToComponent = true;
 
-    const stopAudioAnalysis = () => {
+    const stopAudioAnalysis = (resetSpeechLevel = true) => {
       if (animationFrame) {
         window.cancelAnimationFrame(animationFrame);
         animationFrame = 0;
       }
       smoothedLevel = 0;
-      setAudioSpeechLevel(0);
+      const martyWindow = window as BrowserWindowWithMartyIntroAudio;
+      martyWindow.__martyOnboardingIntroSpeechLevel = 0;
+      if (resetSpeechLevel) {
+        setAudioSpeechLevel(0);
+      }
     };
 
     const startAudioAnalysis = (audioElement: HTMLAudioElement) => {
@@ -138,7 +169,11 @@ export function CoordinatorOnboardingCallIntro({
         const rms = Math.sqrt(sumSquares / samples.length);
         const level = Math.max(0, Math.min(1, (rms - 0.012) * 10.5));
         smoothedLevel = smoothedLevel * 0.5 + level * 0.5;
-        setAudioSpeechLevel(smoothedLevel);
+        const martyWindow = window as BrowserWindowWithMartyIntroAudio;
+        martyWindow.__martyOnboardingIntroSpeechLevel = smoothedLevel;
+        if (shouldPublishToComponent) {
+          setAudioSpeechLevel(smoothedLevel);
+        }
         animationFrame = window.requestAnimationFrame(tick);
       };
 
@@ -177,8 +212,11 @@ export function CoordinatorOnboardingCallIntro({
           if (martyWindow.__martyOnboardingIntroAudio === audio) {
             martyWindow.__martyOnboardingIntroAudio = undefined;
           }
-          stopAudioAnalysis();
-          setStage('landing');
+          stopAudioAnalysis(!hasFinishedRef.current);
+          audioContext?.close().catch(() => {});
+          if (!hasFinishedRef.current) {
+            setStage('landing');
+          }
         },
         { once: true }
       );
@@ -187,18 +225,27 @@ export function CoordinatorOnboardingCallIntro({
     return () => {
       window.clearTimeout(speakingStartTimer);
       window.clearTimeout(backgroundStartTimer);
+      window.clearTimeout(callWarmupTimer);
       window.clearTimeout(landingTimer);
       if (audioTimer !== null) window.clearTimeout(audioTimer);
-      stopAudioAnalysis();
+      const keepAudioPlaying = keepAudioAfterUnmountRef.current && !!audio && !audio.ended;
+      shouldPublishToComponent = false;
+      if (!keepAudioPlaying) {
+        stopAudioAnalysis();
+      }
       if (audio) {
         const martyWindow = window as BrowserWindowWithMartyIntroAudio;
-        if (martyWindow.__martyOnboardingIntroAudio === audio) {
+        if (!keepAudioPlaying && martyWindow.__martyOnboardingIntroAudio === audio) {
           martyWindow.__martyOnboardingIntroAudio = undefined;
         }
-        audio.pause();
-        audio.currentTime = 0;
+        if (!keepAudioPlaying) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
       }
-      audioContext?.close().catch(() => {});
+      if (!keepAudioPlaying) {
+        audioContext?.close().catch(() => {});
+      }
     };
   }, [startCallOnce]);
 
@@ -207,9 +254,10 @@ export function CoordinatorOnboardingCallIntro({
     if (!root || stage !== 'flying') return;
 
     const { durationMs } = getRuntimeTiming();
+    const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs);
     const motionDurationMs = Math.max(
       1,
-      durationMs - COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs
+      handoffOffsetMs - COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs
     );
     const computed = window.getComputedStyle(root);
     const tileHeight = parseStencilTileHeight(computed.getPropertyValue('--chat-maze-size'));

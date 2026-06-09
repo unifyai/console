@@ -479,6 +479,27 @@ const MIN_FLOATING_HEIGHT = 160;
 const COMPACT_WIDTH_THRESHOLD = 480;
 const COMPACT_HEIGHT_THRESHOLD = 380;
 
+type BrowserWindowWithMartyIntroAudio = Window & {
+  __martyOnboardingIntroAudio?: HTMLAudioElement;
+};
+
+function useIsMartyIntroAudioPlaying() {
+  const [isIntroAudioPlaying, setIsIntroAudioPlaying] = React.useState(false);
+
+  React.useEffect(() => {
+    const updateIntroAudioState = () => {
+      const audio = (window as BrowserWindowWithMartyIntroAudio).__martyOnboardingIntroAudio;
+      setIsIntroAudioPlaying(!!audio && !audio.paused && !audio.ended);
+    };
+
+    updateIntroAudioState();
+    const interval = window.setInterval(updateIntroAudioState, 100);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  return isIntroAudioPlaying;
+}
+
 interface AssistantCommunicationDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -584,6 +605,7 @@ export function AssistantCommunicationDialog({
   const [isResizing, setIsResizing] = React.useState(false);
 
   const isModal = mode === 'modal';
+  const isMartyIntroAudioPlaying = useIsMartyIntroAudioPlaying();
 
   // Reset to modal every time the dialog opens.
   React.useEffect(() => {
@@ -750,7 +772,7 @@ export function AssistantCommunicationDialog({
         className="relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground"
         data-testid="assistant-call-docked"
       >
-        <RoomAudioRenderer />
+        {!isMartyIntroAudioPlaying && <RoomAudioRenderer />}
         <AssistantCommunicationDialogContent
           assistant={assistant}
           onHangUp={onClose}
@@ -838,7 +860,7 @@ export function AssistantCommunicationDialog({
         }
         onPointerDown={isCompact ? handleHeaderPointerDown : undefined}
       >
-        <RoomAudioRenderer />
+        {!isMartyIntroAudioPlaying && <RoomAudioRenderer />}
 
         {isCompact ? (
           /* Compact / simplified view */
