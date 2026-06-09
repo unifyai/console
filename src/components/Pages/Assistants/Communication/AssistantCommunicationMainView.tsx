@@ -7,12 +7,9 @@ import { cn } from '@/lib/utils';
 import { Loader2, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { MartyCallAvatar } from '@/components/Pages/Assistants/Communication/MartyCallAvatar';
-import { useMartyAudioLipsync } from '@/hooks/Assistants/useMartyAudioLipsync';
+import { useMartianAudioLipsync } from '@/hooks/Assistants/useMartianAudioLipsync';
 import type { CreatureMouthShape } from '@/components/Brand/TeammateCreature';
-import {
-  clampMartianSpeechLevel,
-  getMartianSpeechTransform,
-} from '@/utils/assistants/martian-animation';
+import { getMartianSpeechTransform } from '@/utils/assistants/martian-animation';
 import { COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION } from '@/utils/assistants/coordinator-onboarding-intro';
 
 type BrowserWindowWithMartyIntroAudio = Window & {
@@ -20,6 +17,54 @@ type BrowserWindowWithMartyIntroAudio = Window & {
   __martyOnboardingIntroSpeechLevel?: number;
   __martyOnboardingIntroMouthShape?: CreatureMouthShape;
 };
+
+const IMAGE_AVATAR_MOUTH: Record<
+  Exclude<CreatureMouthShape, 'amplitude'>,
+  { width: number; topDip: number; bottomDip: number }
+> = {
+  closed: { width: 24, topDip: 2, bottomDip: 8 },
+  pinched: { width: 22, topDip: 2, bottomDip: 15 },
+  narrow: { width: 26, topDip: 3, bottomDip: 17 },
+  round: { width: 24, topDip: 3, bottomDip: 19 },
+  wide: { width: 34, topDip: 3, bottomDip: 16 },
+  open: { width: 30, topDip: 4, bottomDip: 22 },
+};
+
+function ImageAvatarMouth({
+  mouthShape,
+  speechLevel,
+}: {
+  mouthShape: CreatureMouthShape;
+  speechLevel: number;
+}) {
+  const shape = mouthShape === 'amplitude' ? 'closed' : mouthShape;
+  const mouth = IMAGE_AVATAR_MOUTH[shape];
+  const cx = 22;
+  const topY = 4;
+  const leftX = cx - mouth.width / 2;
+  const rightX = cx + mouth.width / 2;
+
+  return (
+    <svg
+      aria-hidden="true"
+      className="pointer-events-none absolute left-1/2 top-[58%] h-[24%] w-[42%] -translate-x-1/2 text-primary"
+      viewBox="0 0 44 28"
+    >
+      <path
+        d={`M ${leftX} ${topY} Q ${cx} ${topY + mouth.topDip} ${rightX} ${topY} Q ${cx} ${
+          topY + mouth.bottomDip
+        } ${leftX} ${topY} Z`}
+        fill="currentColor"
+        style={{
+          opacity: 0.78 + speechLevel * 0.22,
+          transform: `scaleY(${0.9 + speechLevel * 0.12})`,
+          transformBox: 'fill-box',
+          transformOrigin: 'center top',
+        }}
+      />
+    </svg>
+  );
+}
 
 interface AssistantCommunicationMainViewProps {
   assistantName: string;
@@ -67,35 +112,11 @@ export function AssistantCommunicationMainView({
   const fallback = assistantName
     ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
     : 'A';
-  const [speechLevel, setSpeechLevel] = React.useState(0);
   const [isIntroAudioPlaying, setIsIntroAudioPlaying] = React.useState(false);
   const [introAudioSpeechLevel, setIntroAudioSpeechLevel] = React.useState(0);
   const [introAudioMouthShape, setIntroAudioMouthShape] =
     React.useState<CreatureMouthShape>('closed');
-  const liveLipsyncFrame = useMartyAudioLipsync(
-    audioTrack,
-    isCoordinator && !isLoading && !connectionError
-  );
-  const animatedVisualStyle = {
-    '--martian-speech-level': speechLevel.toFixed(3),
-    transform: getMartianSpeechTransform(speechLevel),
-  } as React.CSSProperties;
-
-  React.useEffect(() => {
-    if (!isSpeaking) {
-      setSpeechLevel(0);
-      return;
-    }
-
-    let frame = 0;
-    setSpeechLevel(0.65);
-    const speechTimer = window.setInterval(() => {
-      frame += 1;
-      setSpeechLevel(clampMartianSpeechLevel(0.24 + Math.abs(Math.sin(frame * 0.82)) * 0.76));
-    }, 80);
-
-    return () => window.clearInterval(speechTimer);
-  }, [isSpeaking]);
+  const liveLipsyncFrame = useMartianAudioLipsync(audioTrack, !isLoading && !connectionError);
 
   React.useEffect(() => {
     if (!isCoordinator) return;
@@ -223,6 +244,12 @@ export function AssistantCommunicationMainView({
     isIntroAudioPlaying ||
     liveLipsyncFrame.isActive ||
     (isSpeaking && !isLoading && !connectionError);
+  const imageAvatarSpeechLevel = liveLipsyncFrame.speechLevel;
+  const imageAvatarMouthShape = liveLipsyncFrame.mouthShape;
+  const imageAvatarVisualStyle = {
+    '--martian-speech-level': imageAvatarSpeechLevel.toFixed(3),
+    transform: getMartianSpeechTransform(imageAvatarSpeechLevel * 0.45),
+  } as React.CSSProperties;
 
   return (
     <div
@@ -271,12 +298,18 @@ export function AssistantCommunicationMainView({
                   speechLevel={martySpeechLevel}
                 />
               ) : (
-                <Avatar className="h-full w-full" style={animatedVisualStyle}>
-                  <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
-                  <AvatarFallback className="bg-muted text-4xl text-muted-foreground">
-                    {fallback}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative h-full w-full" style={imageAvatarVisualStyle}>
+                  <Avatar className="h-full w-full">
+                    <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
+                    <AvatarFallback className="bg-muted text-4xl text-muted-foreground">
+                      {fallback}
+                    </AvatarFallback>
+                  </Avatar>
+                  <ImageAvatarMouth
+                    mouthShape={imageAvatarMouthShape}
+                    speechLevel={imageAvatarSpeechLevel}
+                  />
+                </div>
               )}
             </>
           )}

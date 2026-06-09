@@ -18,7 +18,7 @@ type AudioTrackWithMedia = {
   mediaStreamTrack?: MediaStreamTrack;
 };
 
-export function useMartyAudioLipsync(
+export function useMartianAudioLipsync(
   audioTrack: TrackReference | undefined,
   enabled: boolean
 ): MartianLipsyncFrame {
