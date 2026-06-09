@@ -110,6 +110,7 @@ function ChatMessageBubbleImpl({
 
   const timeString = timestamp ? formatMessageTime(timestamp, timezone) : null;
   const isProfile = variant === 'profile';
+  const isTypingIndicator = !isUser && isLoading && !message;
 
   // Copy lives on the message header row so it sits next to the audio
   // affordance with matching geometry. Disabled while the bubble is
@@ -119,10 +120,10 @@ function ChatMessageBubbleImpl({
     text: message,
     copyMessage: 'Message copied',
   });
-  const canCopy = !isUser && !!message && !(isLoading && !message);
+  const canCopy = !isUser && !!message && !isTypingIndicator;
 
   const bubbleContent = () => {
-    if (!isUser && isLoading && !message) {
+    if (isTypingIndicator) {
       return (
         <div className="text-body-muted flex items-center gap-1.5">
           <span className="text-caption">Typing</span>
@@ -199,7 +200,10 @@ function ChatMessageBubbleImpl({
     >
       <div className="mb-2.5 flex items-center gap-2">
         {isCoordinator ? (
-          <CoordinatorLogoAvatar className="h-6 w-6 flex-shrink-0" logoClassName="h-3.5 w-3.5" />
+          <CoordinatorLogoAvatar
+            className={cn('flex-shrink-0', isTypingIndicator ? 'h-7 w-7' : 'h-6 w-6')}
+            logoClassName={isTypingIndicator ? 'h-7 w-7' : 'h-3.5 w-3.5'}
+          />
         ) : (
           <Avatar className="h-6 w-6 flex-shrink-0 border">
             <AvatarImage src={assistantPhoto ?? undefined} alt={assistantName} />
