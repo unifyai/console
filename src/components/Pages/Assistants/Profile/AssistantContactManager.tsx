@@ -765,14 +765,22 @@ const WhatsAppTabContent: React.FC<{
     return (
       <div className="space-y-2">
         <DisplayContactField
-          label="Assistant WhatsApp Number"
+          label={assistant.isCoordinator ? 'Unity WhatsApp Number' : 'Assistant WhatsApp Number'}
           value={assistant.assistantWhatsappNumber}
         />
         <p className="text-caption text-muted-foreground">
-          Send a message first — your assistant can only call you on WhatsApp after you start a
-          conversation.
+          {assistant.isCoordinator
+            ? 'Unity WhatsApp is managed automatically. Messages to this shared number are routed by verified sender identity.'
+            : 'Send a message first — your assistant can only call you on WhatsApp after you start a conversation.'}
         </p>
       </div>
+    );
+  }
+  if (assistant.isCoordinator) {
+    return (
+      <p className="text-body text-muted-foreground">
+        Unity WhatsApp is managed automatically and will appear here once configured.
+      </p>
     );
   }
   if (!canWrite) {
