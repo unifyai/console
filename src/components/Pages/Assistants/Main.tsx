@@ -2376,6 +2376,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 mode="edit"
                 onAddPaymentMethod={goToBilling}
                 lockIdentityFields={assistantToEdit.isCoordinator}
+                lockAppearanceControls={assistantToEdit.isCoordinator}
                 onWorkspaceProviderSelect={(provider) => {
                   if (!assistantToEdit) return;
                   setWorkspaceManagerInitialProvider(provider);

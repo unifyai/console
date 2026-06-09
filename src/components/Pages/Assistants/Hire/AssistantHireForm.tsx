@@ -77,6 +77,15 @@ const appearanceColorOptions = [
   'pink',
   'cyan',
 ] as const satisfies readonly BrandRole[];
+const DEFAULT_MARTY_APPEARANCE = {
+  eyes: 'up',
+  shape: 'clawd',
+  color: 'green',
+} as const satisfies {
+  eyes: CreatureEyes;
+  shape: CreatureShape;
+  color: BrandRole;
+};
 
 function cycleOption<T>(items: readonly T[], current: T, direction: -1 | 1): T {
   const currentIndex = items.indexOf(current);
@@ -128,6 +137,7 @@ export interface HireFormProps {
   onSkipWorkspaceSetupChange?: (skip: boolean) => void;
   showWorkspaceWarning?: boolean;
   lockIdentityFields?: boolean;
+  lockAppearanceControls?: boolean;
 }
 
 export function HireForm({
@@ -149,6 +159,7 @@ export function HireForm({
   onSkipWorkspaceSetupChange,
   showWorkspaceWarning = false,
   lockIdentityFields = false,
+  lockAppearanceControls = false,
 }: HireFormProps) {
   const {
     register,
@@ -176,11 +187,18 @@ export function HireForm({
   const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
   const defaultVoice = React.useMemo(() => getDefaultVoiceForProvider(), []);
   const isEditMode = mode === 'edit';
+  const selectedMartianEyes = lockAppearanceControls ? DEFAULT_MARTY_APPEARANCE.eyes : martianEyes;
+  const selectedMartianShape = lockAppearanceControls
+    ? DEFAULT_MARTY_APPEARANCE.shape
+    : martianShape;
+  const selectedMartianColor = lockAppearanceControls
+    ? DEFAULT_MARTY_APPEARANCE.color
+    : martianColor;
   const appearanceControlVisibilityClass = isAppearanceControlsVisible
     ? 'pointer-events-auto opacity-100'
     : 'pointer-events-none opacity-0';
 
-  const colorIndex = appearanceColorOptions.indexOf(martianColor);
+  const colorIndex = appearanceColorOptions.indexOf(selectedMartianColor);
   const previousColor =
     appearanceColorOptions[
       (colorIndex - 1 + appearanceColorOptions.length) % appearanceColorOptions.length
@@ -188,14 +206,14 @@ export function HireForm({
   const nextColor = appearanceColorOptions[(colorIndex + 1) % appearanceColorOptions.length];
   const displayedMartianEyes = isVoicePreviewPlaying
     ? getSpeakingEyes(speakingEyeBaseRef.current, speakingEyeFrame)
-    : martianEyes;
+    : selectedMartianEyes;
   const workspaceAssistantName =
     typeof firstName === 'string' && firstName.trim().length > 0
       ? firstName.trim()
       : 'this martian';
   const isWorkspaceWarning = mode === 'hire' && showWorkspaceWarning;
   const eyeArrowTop = React.useMemo(() => {
-    const metrics = getCreatureMetrics(martianShape);
+    const metrics = getCreatureMetrics(selectedMartianShape);
     const scale = Math.min(
       MARTIAN_PREVIEW_SIZE / metrics.width,
       MARTIAN_PREVIEW_SIZE / metrics.height
@@ -204,13 +222,15 @@ export function HireForm({
     const renderedTop = (MARTIAN_PREVIEW_SIZE - renderedHeight) / 2;
 
     return renderedTop + metrics.eyeY * scale - 18;
-  }, [martianShape]);
+  }, [selectedMartianShape]);
 
   const randomizeMartianAppearance = React.useCallback(() => {
+    if (lockAppearanceControls) return;
+
     setMartianEyes((current) => pickOption(appearanceEyeOptions, current));
     setMartianShape((current) => pickOption(appearanceShapeOptions, current));
     setMartianColor((current) => pickOption(appearanceColorOptions, current));
-  }, []);
+  }, [lockAppearanceControls]);
 
   const randomizeProfileAndAppearance = React.useCallback(() => {
     onRandomizeProfile?.();
@@ -229,18 +249,18 @@ export function HireForm({
   React.useEffect(() => {
     if (!isVoicePreviewPlaying) {
       setSpeakingEyeFrame(0);
-      speakingEyeBaseRef.current = martianEyes;
+      speakingEyeBaseRef.current = selectedMartianEyes;
       return;
     }
 
-    speakingEyeBaseRef.current = martianEyes;
+    speakingEyeBaseRef.current = selectedMartianEyes;
     setSpeakingEyeFrame(0);
     const eyeTimer = window.setInterval(() => {
       setSpeakingEyeFrame((current) => (current + 1) % 4);
     }, 2000);
 
     return () => window.clearInterval(eyeTimer);
-  }, [isVoicePreviewPlaying, martianEyes]);
+  }, [isVoicePreviewPlaying, selectedMartianEyes]);
 
   // Reset OS to 'ubuntu' when switching from local to remote if 'macos' is selected (macos is only available for local)
   React.useEffect(() => {
@@ -440,169 +460,197 @@ export function HireForm({
 
                       <div
                         className="flex min-h-64 w-full flex-col items-center justify-center rounded-lg border border-border bg-card p-4 sm:min-h-72 md:min-h-0"
-                        onMouseEnter={() => setIsAppearanceControlsVisible(true)}
+                        onMouseEnter={() =>
+                          !lockAppearanceControls && setIsAppearanceControlsVisible(true)
+                        }
                         onMouseLeave={() => setIsAppearanceControlsVisible(false)}
                       >
                         <div className="flex h-full w-full flex-col items-center justify-center gap-3">
                           <div className="relative flex h-44 w-64 max-w-full items-center justify-center overflow-visible sm:h-56 sm:w-72 md:h-40 md:w-64">
-                            <Button
-                              aria-label="Previous eye style"
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className={cn(
-                                'absolute left-0 h-8 w-8 bg-transparent hover:bg-transparent md:left-4',
-                                APPEARANCE_HOVER_CONTROL_CLASS,
-                                appearanceControlVisibilityClass
-                              )}
-                              disabled={isSubmitting}
-                              onClick={() =>
-                                setMartianEyes((current) =>
-                                  cycleOption(appearanceEyeOptions, current, -1)
-                                )
-                              }
-                              style={{ top: eyeArrowTop }}
-                            >
-                              <ChevronLeft className="!h-6 !w-6" />
-                            </Button>
-                            <Button
-                              aria-label="Next eye style"
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className={cn(
-                                'absolute right-0 h-8 w-8 bg-transparent hover:bg-transparent md:right-4',
-                                APPEARANCE_HOVER_CONTROL_CLASS,
-                                appearanceControlVisibilityClass
-                              )}
-                              disabled={isSubmitting}
-                              onClick={() =>
-                                setMartianEyes((current) =>
-                                  cycleOption(appearanceEyeOptions, current, 1)
-                                )
-                              }
-                              style={{ top: eyeArrowTop }}
-                            >
-                              <ChevronRight className="!h-6 !w-6" />
-                            </Button>
-
-                            <Button
-                              aria-label="Previous body shape"
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className={cn(
-                                'absolute left-0 top-[55%] h-8 w-8 bg-transparent hover:bg-transparent md:left-4',
-                                APPEARANCE_HOVER_CONTROL_CLASS,
-                                appearanceControlVisibilityClass
-                              )}
-                              disabled={isSubmitting}
-                              onClick={() =>
-                                setMartianShape((current) =>
-                                  cycleOption(appearanceShapeOptions, current, -1)
-                                )
-                              }
-                            >
-                              <ChevronLeft className="!h-6 !w-6" />
-                            </Button>
-                            <Button
-                              aria-label="Next body shape"
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className={cn(
-                                'absolute right-0 top-[55%] h-8 w-8 bg-transparent hover:bg-transparent md:right-4',
-                                APPEARANCE_HOVER_CONTROL_CLASS,
-                                appearanceControlVisibilityClass
-                              )}
-                              disabled={isSubmitting}
-                              onClick={() =>
-                                setMartianShape((current) =>
-                                  cycleOption(appearanceShapeOptions, current, 1)
-                                )
-                              }
-                            >
-                              <ChevronRight className="!h-6 !w-6" />
-                            </Button>
-
-                            <button
-                              aria-label="Randomize martian appearance"
-                              className="flex h-full w-40 items-center justify-center bg-transparent p-0 outline-none transition-transform hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring sm:w-52 md:w-40"
-                              disabled={isSubmitting}
-                              onClick={randomizeMartianAppearance}
-                              type="button"
-                            >
-                              <span
-                                ref={martianSpeechRef}
-                                className="block h-full w-full transform-gpu"
-                                style={{ '--martian-speech-level': 0 } as React.CSSProperties}
-                              >
-                                <TeammateCreature
-                                  className="h-full w-full"
-                                  color={martianColor}
-                                  eyes={displayedMartianEyes}
-                                  label="Martian avatar"
-                                  shape={martianShape}
-                                />
-                              </span>
-                            </button>
-                          </div>
-
-                          <div
-                            className={cn(
-                              'flex items-center gap-2',
-                              APPEARANCE_HOVER_CONTROL_CLASS,
-                              appearanceControlVisibilityClass
-                            )}
-                          >
-                            <Button
-                              aria-label="Previous martian color"
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 bg-transparent hover:bg-transparent"
-                              disabled={isSubmitting}
-                              onClick={() =>
-                                setMartianColor((current) =>
-                                  cycleOption(appearanceColorOptions, current, -1)
-                                )
-                              }
-                            >
-                              <ChevronLeft className="!h-6 !w-6" />
-                            </Button>
-                            <div
-                              aria-label={`Current martian color: ${martianColor}`}
-                              className="flex items-center gap-1.5 px-1 py-1"
-                              role="img"
-                            >
-                              {[previousColor, martianColor, nextColor].map((color) => (
-                                <span
-                                  aria-hidden="true"
+                            {!lockAppearanceControls && (
+                              <>
+                                <Button
+                                  aria-label="Previous eye style"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
                                   className={cn(
-                                    'rounded-control block border border-border',
-                                    color === martianColor ? 'h-5 w-5' : 'h-3.5 w-3.5 opacity-65'
+                                    'absolute left-0 h-8 w-8 bg-transparent hover:bg-transparent md:left-4',
+                                    APPEARANCE_HOVER_CONTROL_CLASS,
+                                    appearanceControlVisibilityClass
                                   )}
-                                  key={color}
-                                  style={{ backgroundColor: roleColorVars[color] }}
-                                />
-                              ))}
-                            </div>
-                            <Button
-                              aria-label="Next martian color"
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 bg-transparent hover:bg-transparent"
-                              disabled={isSubmitting}
-                              onClick={() =>
-                                setMartianColor((current) =>
-                                  cycleOption(appearanceColorOptions, current, 1)
-                                )
-                              }
-                            >
-                              <ChevronRight className="!h-6 !w-6" />
-                            </Button>
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setMartianEyes((current) =>
+                                      cycleOption(appearanceEyeOptions, current, -1)
+                                    )
+                                  }
+                                  style={{ top: eyeArrowTop }}
+                                >
+                                  <ChevronLeft className="!h-6 !w-6" />
+                                </Button>
+                                <Button
+                                  aria-label="Next eye style"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    'absolute right-0 h-8 w-8 bg-transparent hover:bg-transparent md:right-4',
+                                    APPEARANCE_HOVER_CONTROL_CLASS,
+                                    appearanceControlVisibilityClass
+                                  )}
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setMartianEyes((current) =>
+                                      cycleOption(appearanceEyeOptions, current, 1)
+                                    )
+                                  }
+                                  style={{ top: eyeArrowTop }}
+                                >
+                                  <ChevronRight className="!h-6 !w-6" />
+                                </Button>
+
+                                <Button
+                                  aria-label="Previous body shape"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    'absolute left-0 top-[55%] h-8 w-8 bg-transparent hover:bg-transparent md:left-4',
+                                    APPEARANCE_HOVER_CONTROL_CLASS,
+                                    appearanceControlVisibilityClass
+                                  )}
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setMartianShape((current) =>
+                                      cycleOption(appearanceShapeOptions, current, -1)
+                                    )
+                                  }
+                                >
+                                  <ChevronLeft className="!h-6 !w-6" />
+                                </Button>
+                                <Button
+                                  aria-label="Next body shape"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    'absolute right-0 top-[55%] h-8 w-8 bg-transparent hover:bg-transparent md:right-4',
+                                    APPEARANCE_HOVER_CONTROL_CLASS,
+                                    appearanceControlVisibilityClass
+                                  )}
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setMartianShape((current) =>
+                                      cycleOption(appearanceShapeOptions, current, 1)
+                                    )
+                                  }
+                                >
+                                  <ChevronRight className="!h-6 !w-6" />
+                                </Button>
+                              </>
+                            )}
+
+                            {lockAppearanceControls ? (
+                              <span className="flex h-full w-40 items-center justify-center sm:w-52 md:w-40">
+                                <span
+                                  ref={martianSpeechRef}
+                                  className="block h-full w-full transform-gpu"
+                                  style={{ '--martian-speech-level': 0 } as React.CSSProperties}
+                                >
+                                  <TeammateCreature
+                                    className="h-full w-full"
+                                    color={selectedMartianColor}
+                                    eyes={displayedMartianEyes}
+                                    label="Marty avatar"
+                                    shape={selectedMartianShape}
+                                  />
+                                </span>
+                              </span>
+                            ) : (
+                              <button
+                                aria-label="Randomize martian appearance"
+                                className="flex h-full w-40 items-center justify-center bg-transparent p-0 outline-none transition-transform hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring sm:w-52 md:w-40"
+                                disabled={isSubmitting}
+                                onClick={randomizeMartianAppearance}
+                                type="button"
+                              >
+                                <span
+                                  ref={martianSpeechRef}
+                                  className="block h-full w-full transform-gpu"
+                                  style={{ '--martian-speech-level': 0 } as React.CSSProperties}
+                                >
+                                  <TeammateCreature
+                                    className="h-full w-full"
+                                    color={selectedMartianColor}
+                                    eyes={displayedMartianEyes}
+                                    label="Martian avatar"
+                                    shape={selectedMartianShape}
+                                  />
+                                </span>
+                              </button>
+                            )}
                           </div>
+
+                          {!lockAppearanceControls && (
+                            <div
+                              className={cn(
+                                'flex items-center gap-2',
+                                APPEARANCE_HOVER_CONTROL_CLASS,
+                                appearanceControlVisibilityClass
+                              )}
+                            >
+                              <Button
+                                aria-label="Previous martian color"
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 bg-transparent hover:bg-transparent"
+                                disabled={isSubmitting}
+                                onClick={() =>
+                                  setMartianColor((current) =>
+                                    cycleOption(appearanceColorOptions, current, -1)
+                                  )
+                                }
+                              >
+                                <ChevronLeft className="!h-6 !w-6" />
+                              </Button>
+                              <div
+                                aria-label={`Current martian color: ${selectedMartianColor}`}
+                                className="flex items-center gap-1.5 px-1 py-1"
+                                role="img"
+                              >
+                                {[previousColor, selectedMartianColor, nextColor].map((color) => (
+                                  <span
+                                    aria-hidden="true"
+                                    className={cn(
+                                      'rounded-control block border border-border',
+                                      color === selectedMartianColor
+                                        ? 'h-5 w-5'
+                                        : 'h-3.5 w-3.5 opacity-65'
+                                    )}
+                                    key={color}
+                                    style={{ backgroundColor: roleColorVars[color] }}
+                                  />
+                                ))}
+                              </div>
+                              <Button
+                                aria-label="Next martian color"
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 bg-transparent hover:bg-transparent"
+                                disabled={isSubmitting}
+                                onClick={() =>
+                                  setMartianColor((current) =>
+                                    cycleOption(appearanceColorOptions, current, 1)
+                                  )
+                                }
+                              >
+                                <ChevronRight className="!h-6 !w-6" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
