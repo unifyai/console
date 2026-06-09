@@ -93,7 +93,7 @@ export const approvedCharacterVoiceMetadata: Record<string, ApprovedVoiceMetadat
 };
 
 export const defaultCharacterVoiceId = 'cgSgspJ2msm6clMCkdW9';
-export const coordinatorFixedVoiceId = 'cjVigY5qzO86Huf0OWal';
+export const coordinatorFixedVoiceId = 'iP95p4xoKVk53GoZ742B';
 
 export const approvedCharacterVoiceIds = new Set(Object.keys(approvedCharacterVoiceMetadata));
 
