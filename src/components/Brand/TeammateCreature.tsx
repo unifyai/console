@@ -8,7 +8,7 @@ import {
 } from './shapes';
 
 export type CreatureEyes = 'up' | 'down' | 'square' | 'blink';
-export type CreatureMood = 'happy' | 'sad' | 'frustrated';
+export type CreatureMood = 'happy' | 'sad' | 'frustrated' | 'apologetic';
 export type CreatureMouthShape =
   | 'amplitude'
   | 'closed'
@@ -22,6 +22,7 @@ const CREATURE_CELL = 18;
 const CREATURE_MARGIN = 12;
 const SAD_MOUTH_ANCHOR_OFFSET = 8;
 const FRUSTRATED_MOUTH_ANCHOR_OFFSET = 7;
+const APOLOGETIC_MOUTH_ANCHOR_OFFSET = 7;
 
 export function getCreatureMetrics(shape: CreatureShape) {
   const cells = creatureShapes[shape];
@@ -105,6 +106,53 @@ function CreatureEye({
     );
   }
 
+  if (mood === 'apologetic') {
+    if (dir === 'blink') {
+      return (
+        <path
+          d={`M ${cx - 9} ${cy + 1} Q ${cx} ${cy + 4} ${cx + 9} ${cy + 1}`}
+          fill="none"
+          stroke={stroke}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={4}
+        />
+      );
+    }
+
+    const browD =
+      side === 'left'
+        ? `M ${cx - 12} ${cy - 3} Q ${cx - 4} ${cy - 4} ${cx + 3} ${cy - 11}`
+        : `M ${cx - 3} ${cy - 11} Q ${cx + 4} ${cy - 4} ${cx + 12} ${cy - 3}`;
+    const eye =
+      dir === 'square' ? (
+        <rect fill={stroke} height={6} rx={3} width={10} x={cx - 5} y={cy + 2.5} />
+      ) : (
+        <path
+          d={`M ${cx - 7} ${cy + 4} Q ${cx} ${cy + 8} ${cx + 7} ${cy + 4}`}
+          fill="none"
+          stroke={stroke}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={3.5}
+        />
+      );
+
+    return (
+      <g>
+        <path
+          d={browD}
+          fill="none"
+          stroke={stroke}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={3.25}
+        />
+        {eye}
+      </g>
+    );
+  }
+
   if (dir === 'blink') {
     return <rect fill={stroke} height={4} rx={2} width={15} x={cx - 7.5} y={cy - 2} />;
   }
@@ -160,6 +208,18 @@ function CreatureMouth({
       return `M ${leftX} ${anchorY} Q ${cx} ${anchorY - moodTopDip} ${rightX} ${anchorY} Q ${cx} ${
         anchorY - moodBottomDip
       } ${leftX} ${anchorY} Z`;
+    }
+
+    if (mood === 'apologetic') {
+      const anchorY = topY + APOLOGETIC_MOUTH_ANCHOR_OFFSET;
+      const width = rightX - leftX;
+      const apologeticLeftX = cx - width * 0.42;
+      const apologeticRightX = cx + width * 0.42;
+      const apologeticTopDip = Math.max(2, topDip * 0.58);
+      const apologeticBottomDip = Math.max(6, bottomDip * 0.5);
+      return `M ${apologeticLeftX} ${anchorY} Q ${cx} ${anchorY - apologeticTopDip} ${apologeticRightX} ${anchorY} Q ${cx} ${
+        anchorY - apologeticBottomDip
+      } ${apologeticLeftX} ${anchorY} Z`;
     }
 
     return `M ${leftX} ${topY} Q ${cx} ${topY + topDip} ${rightX} ${topY} Q ${cx} ${
