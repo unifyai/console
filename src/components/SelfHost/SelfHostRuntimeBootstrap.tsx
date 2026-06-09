@@ -6,7 +6,7 @@ import { IS_SELF_HOST } from '@/lib/auth/self-host';
 /**
  * Ensures the local Unity Coordinator runtime is running whenever an
  * authenticated user opens Console in a self-host install. Idempotent —
- * safe on every page load and after stack restarts wipe Pub/Sub topics.
+ * safe on every page load; Pub/Sub topics are owned by unity stack up.
  */
 export function SelfHostRuntimeBootstrap() {
   const started = useRef(false);

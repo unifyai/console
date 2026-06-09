@@ -623,7 +623,9 @@ stop_communication_services() {
     return 0
   fi
   log_info "Stopping Communication services..."
-  env COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH" bash "$COMMUNICATION_LOCAL_SCRIPT" stop 2>/dev/null || true
+  env COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH" \
+    COMMS_STOP_PUBSUB="${COMMS_STOP_PUBSUB:-1}" \
+    bash "$COMMUNICATION_LOCAL_SCRIPT" stop 2>/dev/null || true
 }
 
 load_communication_config() {
@@ -845,6 +847,11 @@ stop_unity() {
   if [[ "${UNITY_ALLOW_RUNTIME_STOP:-0}" != "1" ]] \
     && declare -F self_host_should_preserve_runtime_on_interactive_stop &>/dev/null \
     && self_host_should_preserve_runtime_on_interactive_stop; then
+    if declare -F self_host_adopt_coordinator_for_service &>/dev/null; then
+      local preserved_assistant_id=""
+      preserved_assistant_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
+      self_host_adopt_coordinator_for_service "$preserved_assistant_id" || true
+    fi
     log_info "Keeping service-managed Coordinator runtime running"
     return 0
   fi
@@ -863,19 +870,60 @@ stop_unity() {
 # Self-host Coordinator runtime (Auth B — logged-in user)
 # =============================================================================
 
-create_assistant_pubsub_topics() {
-  local agent_id="$1"
+_INBOUND_SUBSCRIPTION_FILTER='attributes.thread = "inbound"'
+
+_pubsub_emulator_base_url() {
   local emulator_host="$LOCAL_PUBSUB_HOST"
+  if [[ -z "$emulator_host" ]]; then
+    return 1
+  fi
+  if [[ ! "$emulator_host" =~ ^http ]]; then
+    echo "http://$emulator_host"
+  else
+    echo "$emulator_host"
+  fi
+}
+
+_inbound_subscription_filter_matches() {
+  local emulator_url="$1"
+  local project_id="$2"
+  local inbound_sub="$3"
+  local body
+
+  body="$(curl -s "${emulator_url}/v1/projects/${project_id}/subscriptions/${inbound_sub}" 2>/dev/null || true)"
+  [[ -n "$body" ]] || return 1
+
+  EXPECTED_FILTER="$_INBOUND_SUBSCRIPTION_FILTER" python3 -c "
+import json
+import os
+import sys
+
+try:
+    data = json.load(sys.stdin)
+except json.JSONDecodeError:
+    sys.exit(1)
+sys.exit(0 if data.get('filter') == os.environ['EXPECTED_FILTER'] else 1)
+" <<<"$body"
+}
+
+# Ensure assistant Pub/Sub topics/subscriptions exist on the local emulator.
+# Inbound sub is recreated only when missing or mis-filtered. If Coordinator CM
+# is already subscribed, callers must refresh CM after a recreate (see
+# refresh_coordinator_ingress_if_running).
+ensure_assistant_pubsub_topics() {
+  local agent_id="$1"
   local project_id="$PUBSUB_GCP_PROJECT_ID"
   local suffix="$PUBSUB_TOPIC_SUFFIX_VAL"
+  local emulator_url
 
-  if [[ -z "$agent_id" || -z "$emulator_host" ]]; then
+  UNITY_INBOUND_SUB_RECREATED=0
+  export UNITY_INBOUND_SUB_RECREATED
+
+  if [[ -z "$agent_id" ]]; then
     return 0
   fi
-
-  local emulator_url="$emulator_host"
-  if [[ ! "$emulator_url" =~ ^http ]]; then
-    emulator_url="http://$emulator_url"
+  if ! emulator_url="$(_pubsub_emulator_base_url)"; then
+    return 0
   fi
 
   local topic_name="unity-${agent_id}${suffix}"
@@ -917,6 +965,19 @@ create_assistant_pubsub_topics() {
   # messages (Adapters / gateway). Unfiltered subs also receive action_event
   # and outbound threads, which CommsManager acks as unknown noise.
   local inbound_sub="${topic_name}-sub"
+  if _inbound_subscription_filter_matches "$emulator_url" "$project_id" "$inbound_sub"; then
+    log_success "Inbound subscription ready: $inbound_sub"
+    return 0
+  fi
+
+  if is_unity_running; then
+    local running_id=""
+    running_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
+    if [[ -n "$running_id" && "$running_id" == "$agent_id" ]]; then
+      log_info "Recreating inbound subscription — Coordinator CM will resubscribe afterward"
+    fi
+  fi
+
   curl -s -o /dev/null \
     -X DELETE "${emulator_url}/v1/projects/${project_id}/subscriptions/${inbound_sub}" \
     2>/dev/null || true
@@ -925,6 +986,14 @@ create_assistant_pubsub_topics() {
     -H "Content-Type: application/json" \
     -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\",\"filter\":\"attributes.thread = \\\"inbound\\\"\"}" \
     2>/dev/null || true
+
+  UNITY_INBOUND_SUB_RECREATED=1
+  export UNITY_INBOUND_SUB_RECREATED
+  log_success "Inbound subscription ready: $inbound_sub"
+}
+
+create_assistant_pubsub_topics() {
+  ensure_assistant_pubsub_topics "$@"
 }
 
 _running_coordinator_agent_id() {
@@ -936,11 +1005,11 @@ _running_coordinator_agent_id() {
   ps eww -p "$pid" 2>/dev/null | tr ' ' '\n' | sed -n 's/^ASSISTANT_ID=//p' | head -1
 }
 
-maybe_refresh_coordinator_ingress_before_start() {
-  local coordinator_agent_id="${1:-}"
+refresh_coordinator_ingress_if_running() {
+  local unify_key="${1:-}"
+  local coordinator_agent_id="${2:-}"
 
-  [[ "${UNITY_ENSURE_COORDINATOR_INGRESS:-0}" == "1" ]] || return 0
-  [[ -n "$coordinator_agent_id" ]] || return 0
+  [[ -n "$unify_key" && -n "$coordinator_agent_id" ]] || return 0
   is_emulator_running || return 0
   is_unity_running || return 0
 
@@ -948,8 +1017,40 @@ maybe_refresh_coordinator_ingress_before_start() {
   running_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
   [[ "$running_id" == "$coordinator_agent_id" ]] || return 0
 
-  log_info "Restarting Coordinator so Pub/Sub ingress matches the emulator..."
+  log_info "Refreshing Coordinator Pub/Sub ingress..."
   export UNITY_REFRESH_INBOUND_SUBSCRIPTION=1
+  export UNITY_ALLOW_RUNTIME_STOP=1
+  start_unity_coordinator "$unify_key" "$coordinator_agent_id"
+}
+
+_load_self_host_coordinator_credentials() {
+  local unify_key="${SELF_HOST_UNIFY_KEY:-}"
+  local coordinator_id="${SELF_HOST_COORDINATOR_AGENT_ID:-}"
+  local runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${UNITY_HOME:-$HOME/.unity}/coordinator-runtime.json}"
+
+  if [[ (-z "$unify_key" || -z "$coordinator_id") && -f "$runtime_file" ]]; then
+    local parsed
+    parsed="$(python3 - "$runtime_file" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as fh:
+    data = json.load(fh)
+print(data.get("api_key") or data.get("apiKey") or "")
+print(data.get("coordinator_agent_id") or data.get("coordinatorAgentId") or "")
+PY
+)" || true
+    if [[ -z "$unify_key" ]]; then
+      unify_key="$(echo "$parsed" | sed -n '1p')"
+    fi
+    if [[ -z "$coordinator_id" ]]; then
+      coordinator_id="$(echo "$parsed" | sed -n '2p')"
+    fi
+  fi
+
+  SELF_HOST_UNIFY_KEY="$unify_key"
+  SELF_HOST_COORDINATOR_AGENT_ID="$coordinator_id"
+  export SELF_HOST_UNIFY_KEY SELF_HOST_COORDINATOR_AGENT_ID
 }
 
 start_unity_coordinator() {
@@ -971,14 +1072,18 @@ start_unity_coordinator() {
     local running_id=""
     running_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
     if [[ "$running_id" == "$coordinator_agent_id" ]]; then
+      if declare -F self_host_adopt_coordinator_for_service &>/dev/null \
+        && declare -F self_host_service_is_enabled &>/dev/null \
+        && self_host_service_is_enabled \
+        && declare -F self_host_service_supervisor_is_running &>/dev/null \
+        && self_host_service_supervisor_is_running; then
+        self_host_adopt_coordinator_for_service "$coordinator_agent_id" || true
+      fi
       if [[ "${UNITY_REFRESH_INBOUND_SUBSCRIPTION:-0}" == "1" ]]; then
         log_info "Restarting Coordinator to refresh Pub/Sub subscription..."
         UNITY_ALLOW_RUNTIME_STOP=1 bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
         sleep 1
       else
-        if is_emulator_running; then
-          create_assistant_pubsub_topics "$coordinator_agent_id" || true
-        fi
         log_success "Unity Coordinator runtime already running (assistant=$coordinator_agent_id)"
         return 0
       fi
@@ -1118,60 +1223,45 @@ start_unity_coordinator() {
   log_success "Unity Coordinator runtime is running (assistant=$coordinator_agent_id)"
 }
 
-cmd_start_coordinator() {
+cmd_ensure_coordinator_topics() {
   export SELF_HOST=1
   load_self_host_runtime_env
+  _load_self_host_coordinator_credentials
 
   local unify_key="${SELF_HOST_UNIFY_KEY:-}"
   local coordinator_id="${SELF_HOST_COORDINATOR_AGENT_ID:-}"
-  local runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${UNITY_HOME:-$HOME/.unity}/coordinator-runtime.json}"
 
-  if [[ "${UNITY_REUSE_SERVICE_CM:-0}" == "1" ]]; then
-    local cm_count
-    cm_count="$(unity_cm_instance_count)"
-    local state_owner=""
-    if [[ "$cm_count" -eq 1 ]]; then
-      state_owner="$(self_host_read_runtime_state 2>/dev/null | sed -n '1p' || true)"
-    fi
-    if [[ "$cm_count" -eq 1 && "$state_owner" == "${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}" ]]; then
-      local running_id=""
-      running_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
-      if [[ (-z "$unify_key" || -z "$coordinator_id") && -f "$runtime_file" ]]; then
-        unify_key="$(self_host_load_coordinator_credentials "$runtime_file" | sed -n '1p')"
-        coordinator_id="$(self_host_load_coordinator_credentials "$runtime_file" | sed -n '2p')"
-      fi
-      if [[ -n "$coordinator_id" && "$running_id" == "$coordinator_id" ]]; then
-        if [[ "${UNITY_ENSURE_COORDINATOR_INGRESS:-0}" != "1" ]]; then
-          if is_emulator_running; then
-            create_assistant_pubsub_topics "$coordinator_id" || true
-          fi
-          log_success "Reusing service-managed Coordinator runtime (assistant=$coordinator_id)"
-          return 0
-        fi
-        log_info "Reconciling service-managed Coordinator ingress for stack up..."
-      fi
-    fi
+  if [[ -z "$coordinator_id" ]]; then
+    log_error "Coordinator agent_id is required"
+    log_info "Register or sign in at /login first, or set SELF_HOST_COORDINATOR_AGENT_ID."
+    return 1
   fi
 
-  if [[ (-z "$unify_key" || -z "$coordinator_id") && -f "$runtime_file" ]]; then
-    local parsed
-    parsed="$(python3 - "$runtime_file" <<'PY'
-import json
-import sys
+  if ! is_emulator_running; then
+    log_error "Pub/Sub emulator is not running — start the stack first (unity stack up)"
+    return 1
+  fi
 
-with open(sys.argv[1], encoding="utf-8") as fh:
-    data = json.load(fh)
-print(data.get("api_key") or data.get("apiKey") or "")
-print(data.get("coordinator_agent_id") or data.get("coordinatorAgentId") or "")
-PY
-)" || true
+  if ! ensure_assistant_pubsub_topics "$coordinator_id"; then
+    return 1
+  fi
+
+  if [[ "${UNITY_INBOUND_SUB_RECREATED:-0}" == "1" ]]; then
     if [[ -z "$unify_key" ]]; then
-      unify_key="$(echo "$parsed" | sed -n '1p')"
-    fi
-    if [[ -z "$coordinator_id" ]]; then
-      coordinator_id="$(echo "$parsed" | sed -n '2p')"
+      log_warn "Inbound subscription recreated — sign in and run start-coordinator to refresh CM ingress"
+    else
+      refresh_coordinator_ingress_if_running "$unify_key" "$coordinator_id" || return 1
     fi
   fi
+}
+
+cmd_start_coordinator() {
+  export SELF_HOST=1
+  load_self_host_runtime_env
+  _load_self_host_coordinator_credentials
+
+  local unify_key="${SELF_HOST_UNIFY_KEY:-}"
+  local coordinator_id="${SELF_HOST_COORDINATOR_AGENT_ID:-}"
 
   if [[ -z "$unify_key" || -z "$coordinator_id" ]]; then
     log_error "Coordinator runtime credentials missing."
@@ -1189,8 +1279,30 @@ PY
     return 1
   fi
 
-  create_assistant_pubsub_topics "$coordinator_id" || return 1
-  maybe_refresh_coordinator_ingress_before_start "$coordinator_id"
+  if declare -F self_host_apply_service_coordinator_context &>/dev/null; then
+    self_host_apply_service_coordinator_context
+  fi
+
+  if is_unity_running; then
+    local running_id=""
+    running_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
+    if [[ "$running_id" == "$coordinator_id" ]]; then
+      if declare -F self_host_adopt_coordinator_for_service &>/dev/null \
+        && declare -F self_host_service_is_enabled &>/dev/null \
+        && self_host_service_is_enabled \
+        && declare -F self_host_service_supervisor_is_running &>/dev/null \
+        && self_host_service_supervisor_is_running; then
+        self_host_adopt_coordinator_for_service "$coordinator_id" || true
+      fi
+      log_success "Coordinator runtime already running (assistant=$coordinator_id)"
+      return 0
+    fi
+  fi
+
+  if ! ensure_assistant_pubsub_topics "$coordinator_id"; then
+    return 1
+  fi
+
   start_unity_coordinator "$unify_key" "$coordinator_id"
 }
 
@@ -1248,7 +1360,7 @@ cmd_start_runtime_backend() {
   fi
 
   if is_emulator_running; then
-    create_assistant_pubsub_topics "$coordinator_id" || true
+    ensure_assistant_pubsub_topics "$coordinator_id" || true
   fi
   start_unity_coordinator "$unify_key" "$coordinator_id"
 }
@@ -1875,8 +1987,21 @@ cmd_stop() {
     esac
   done
 
+  if [[ "$interactive_only" == "true" ]]; then
+    export SELF_HOST=1
+    load_self_host_runtime_env
+  fi
+
   echo "Stopping local environment..."
   echo ""
+
+  local preserve_runtime="false"
+  if [[ "$interactive_only" == "true" ]] \
+    && declare -F self_host_should_preserve_runtime_on_interactive_stop &>/dev/null \
+    && self_host_should_preserve_runtime_on_interactive_stop; then
+    preserve_runtime="true"
+  fi
+
   if is_stripe_listener_running; then
     stop_stripe_listener
   fi
@@ -1888,23 +2013,28 @@ cmd_stop() {
   else
     log_info "Keeping Orchestra running (runtime service)"
   fi
-  stop_communication_services
   if is_unity_available && is_unity_running; then
-    if [[ "$interactive_only" == "true" ]] \
-      && declare -F self_host_should_preserve_runtime_on_interactive_stop &>/dev/null \
-      && self_host_should_preserve_runtime_on_interactive_stop; then
+    if [[ "$preserve_runtime" == "true" ]]; then
+      if declare -F self_host_adopt_coordinator_for_service &>/dev/null; then
+        local preserved_assistant_id=""
+        preserved_assistant_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
+        self_host_adopt_coordinator_for_service "$preserved_assistant_id" || true
+      fi
       log_info "Keeping service-managed Coordinator runtime running"
     else
       stop_unity
     fi
   fi
-  if is_emulator_running; then
+  if [[ "$preserve_runtime" == "true" ]]; then
+    COMMS_STOP_PUBSUB=0 stop_communication_services
+  else
+    stop_communication_services
+  fi
+  if is_emulator_running && [[ "$preserve_runtime" != "true" ]]; then
     stop_pubsub_emulator
   fi
   echo ""
-  if [[ "$interactive_only" == "true" ]] \
-    && declare -F self_host_service_is_enabled &>/dev/null \
-    && self_host_service_is_enabled; then
+  if [[ "$interactive_only" == "true" ]] && [[ "$preserve_runtime" == "true" ]]; then
     log_success "Interactive stack stopped (runtime service still running)"
     log_info "Scheduled tasks and outbound comms continue until: unity service stop"
   else
@@ -2074,6 +2204,7 @@ main() {
   cmd="${cmd:-start}"
 
   case "$cmd" in
+    ensure-coordinator-topics) cmd_ensure_coordinator_topics ;;
     start-coordinator) cmd_start_coordinator ;;
     start-runtime-backend) cmd_start_runtime_backend ;;
     stop-runtime-backend) cmd_stop_runtime_backend ;;
@@ -2088,10 +2219,11 @@ main() {
     restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" "$with_self_host" ;;
     status)  cmd_status ;;
     help)
-      echo "Usage: $0 [start|stop|restart|status|start-coordinator|gateway-setup|gateway-doctor|gateway-urls] [--org] [--stripe] [--pubsub] [--chat] [--self-host] [--echo] [--seed <scenario>] [--credits <n>]"
+      echo "Usage: $0 [start|stop|restart|status|ensure-coordinator-topics|start-coordinator|gateway-setup|gateway-doctor|gateway-urls] [--org] [--stripe] [--pubsub] [--chat] [--self-host] [--echo] [--seed <scenario>] [--credits <n>]"
       echo ""
       echo "Commands:"
-      echo "  start-coordinator  Start Unity CM for the signed-in user (self-host; requires env vars)"
+      echo "  ensure-coordinator-topics  Ensure Pub/Sub topics/subscriptions for the Coordinator"
+      echo "  start-coordinator          Start Unity CM only (self-host; requires env vars)"
       echo "  start    Start Console + Orchestra + seed data (default)"
       echo "  stop     Stop Console, Orchestra, Pub/Sub emulator, Unity, and Stripe listener"
       echo "  restart  Stop then start (wipes database)"
