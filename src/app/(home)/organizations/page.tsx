@@ -10,12 +10,19 @@ import * as OrgSpendingActions from '@/lib/organizations/spending';
 import * as MfaSettingsActions from '@/lib/orchestra/api/organization';
 import { Organization, isOrgSpendingLimitData } from '@/types/organization';
 import { redirect } from 'next/navigation';
+import { isSelfHost } from '@/lib/environment/environment';
 
 const OrganizationPage = async () => {
   const user = await getCurrentUser();
 
   if (!user) {
     redirect('/login');
+  }
+
+  // Organizations are a multi-tenant/team construct that doesn't apply to a
+  // single-owner self-host install — send these users back to their assistants.
+  if (isSelfHost()) {
+    redirect('/assistants');
   }
 
   const apiKey = user.apiKey;

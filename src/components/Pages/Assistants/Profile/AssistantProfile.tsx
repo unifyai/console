@@ -8,6 +8,7 @@ import { ChatMessage, CallPill } from '@/types/assistants/chat';
 import { AssistantProfileChatPanel } from './AssistantProfileChatPanel';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 
 interface AssistantProfilePanelProps {
   assistant: Assistant;
@@ -58,23 +59,26 @@ export function AssistantProfilePanel({
   reconnectChatStream,
   chatStreamActivitySignal,
 }: AssistantProfilePanelProps) {
+  const { voiceCalls } = useFeatures();
   const isInThisCall = activeCallAssistantId === assistant.agentId;
   const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
   const isSpendingBlocked = spendingGate.isBlocked && !isInThisCall;
-  const isCallButtonDisabled = isAnotherCallActive || isSpendingBlocked;
+  const isCallButtonDisabled = !voiceCalls || isAnotherCallActive || isSpendingBlocked;
 
   const callButtonTooltip = (type: 'audio' | 'video') =>
-    isInThisCall && isConnectingCall
-      ? 'Connecting call...'
-      : isInThisCall
-        ? 'Return to call'
-        : isSpendingBlocked
-          ? spendingGate.blockedMessage || 'Spending limit reached'
-          : isAnotherCallActive
-            ? 'Another call is in progress'
-            : type === 'audio'
-              ? 'Start audio call'
-              : 'Start video call';
+    !voiceCalls
+      ? "Voice calls aren't enabled on this deployment"
+      : isInThisCall && isConnectingCall
+        ? 'Connecting call...'
+        : isInThisCall
+          ? 'Return to call'
+          : isSpendingBlocked
+            ? spendingGate.blockedMessage || 'Spending limit reached'
+            : isAnotherCallActive
+              ? 'Another call is in progress'
+              : type === 'audio'
+                ? 'Start audio call'
+                : 'Start video call';
 
   const [searchOpen, setSearchOpen] = React.useState(false);
 
@@ -107,24 +111,30 @@ export function AssistantProfilePanel({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+          {/* Call buttons stay visible even when voice calls aren't configured
+              on the deployment — disabled with an explanatory tooltip instead
+              of hidden. The span wrapper is load-bearing: a disabled Button has
+              `pointer-events-none`, so the tooltip triggers off the span. */}
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => onStartCall(assistant, 'audio')}
-                  disabled={isCallButtonDisabled}
-                  data-testid="call-audio-button"
-                >
-                  {isInThisCall && isConnectingCall ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Phone className="h-4 w-4" />
-                  )}
-                </Button>
+                <span className="inline-flex">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => onStartCall(assistant, 'audio')}
+                    disabled={isCallButtonDisabled}
+                    data-testid="call-audio-button"
+                  >
+                    {isInThisCall && isConnectingCall ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Phone className="h-4 w-4" />
+                    )}
+                  </Button>
+                </span>
               </TooltipTrigger>
               <TooltipContent side="top">
                 <p>{callButtonTooltip('audio')}</p>
@@ -134,17 +144,19 @@ export function AssistantProfilePanel({
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => onStartCall(assistant, 'video')}
-                  disabled={isCallButtonDisabled}
-                  data-testid="call-video-button"
-                >
-                  <Video className="h-4 w-4" />
-                </Button>
+                <span className="inline-flex">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => onStartCall(assistant, 'video')}
+                    disabled={isCallButtonDisabled}
+                    data-testid="call-video-button"
+                  >
+                    <Video className="h-4 w-4" />
+                  </Button>
+                </span>
               </TooltipTrigger>
               <TooltipContent side="top">
                 <p>{callButtonTooltip('video')}</p>

@@ -43,6 +43,7 @@ import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ContactType, OAuthProvider } from '@/types/assistants/contact';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
 import { useSlackIntegration } from '@/hooks/Slack/useSlackIntegration';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { FormProvider, useWatch } from 'react-hook-form';
 import { FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/settings';
 import {
@@ -189,22 +190,29 @@ export const ByodProviderCard: React.FC<{
   isSelected: boolean;
   onSelect: () => void;
   disabled?: boolean;
-}> = ({ provider, isSelected, onSelect, disabled }) => {
+  /**
+   * When set, the card is disabled and the reason is shown on hover. Used to keep
+   * a provider visible (so users know it exists) when the deployment hasn't
+   * configured its OAuth client, rather than hiding it.
+   */
+  unavailableReason?: string;
+}> = ({ provider, isSelected, onSelect, disabled, unavailableReason }) => {
   const isGoogle = provider === 'google';
   const title = isGoogle ? 'Google Workspace' : 'Microsoft 365';
   const subtitle = isGoogle ? 'Gmail, Calendar, Drive' : 'Outlook, Teams, Calendar';
+  const isDisabled = disabled || !!unavailableReason;
 
-  return (
+  const card = (
     <button
       type="button"
       onClick={onSelect}
-      disabled={disabled}
+      disabled={isDisabled}
       className={cn(
         'flex flex-1 flex-col items-center gap-2 rounded-lg border p-4 text-center shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--role-green-deep)] focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         isSelected
           ? 'border-[color:var(--role-green-deep)] bg-[color:var(--status-success-bg)] ring-1 ring-[color:var(--role-green-deep)]'
           : 'border-border bg-card hover:border-[color:var(--role-green-deep)] hover:bg-[color:var(--status-success-bg)]',
-        disabled && 'cursor-not-allowed opacity-50'
+        isDisabled && 'cursor-not-allowed opacity-50'
       )}
       aria-label={title}
     >
@@ -222,6 +230,23 @@ export const ByodProviderCard: React.FC<{
         <span className="text-caption text-muted-foreground">{subtitle}</span>
       </span>
     </button>
+  );
+
+  if (!unavailableReason) return card;
+
+  // A disabled <button> doesn't emit hover events, so the tooltip has to trigger
+  // off a wrapping span (which keeps the card's flex sizing).
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="flex flex-1">{card}</span>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <p>{unavailableReason}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
@@ -334,10 +359,31 @@ export function AssistantContactManager({
   // We overlay a widened local tab and forward only real contact types
   // back to the hook so its footer/cost logic stays consistent.
   const slackAvailable = !!assistantActions.slack && !!slackOwner;
+
+  // Channel availability is reported by Orchestra (which probes the comms layer
+  // for the underlying provider credentials). A deployment without Twilio /
+  // Discord configured can't provision those channels, so we hide their tabs
+  // rather than letting a user reach a CTA that would fail at runtime. Email
+  // stays visible (it's BYOD workspace OAuth, gated inside the Workspace modal).
+  const { contactPhone, contactWhatsapp, contactDiscord } = useFeatures();
+
   const [selectedTab, setSelectedTab] = React.useState<ContactManagerTab>(initialTab ?? activeTab);
   React.useEffect(() => {
     if (isOpen && initialTab) setSelectedTab(initialTab);
   }, [isOpen, initialTab]);
+
+  // If the active/requested tab points at a channel that isn't available on
+  // this deployment, fall back to email so the picker never shows a blank tab.
+  React.useEffect(() => {
+    const unavailable =
+      (selectedTab === 'phone' && !contactPhone) ||
+      (selectedTab === 'whatsapp' && !contactWhatsapp) ||
+      (selectedTab === 'discord' && !contactDiscord);
+    if (unavailable) {
+      setSelectedTab('email');
+      setActiveTab('email');
+    }
+  }, [selectedTab, contactPhone, contactWhatsapp, contactDiscord, setActiveTab]);
   const handleTabChange = (value: ContactManagerTab) => {
     setSelectedTab(value);
     if (value !== 'slack') setActiveTab(value);
@@ -548,21 +594,27 @@ export function AssistantContactManager({
                       <Mail className="mr-2 h-4 w-4" /> Email
                     </span>
                   </SelectItem>
-                  <SelectItem value="phone">
-                    <span className="flex items-center">
-                      <Phone className="mr-2 h-4 w-4" /> Phone
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="whatsapp">
-                    <span className="flex items-center">
-                      <WhatsApp sx={{ fontSize: '18px', marginRight: '8px' }} /> WhatsApp
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="discord">
-                    <span className="flex items-center">
-                      <FaDiscord className="mr-2 h-4 w-4" /> Discord
-                    </span>
-                  </SelectItem>
+                  {contactPhone && (
+                    <SelectItem value="phone">
+                      <span className="flex items-center">
+                        <Phone className="mr-2 h-4 w-4" /> Phone
+                      </span>
+                    </SelectItem>
+                  )}
+                  {contactWhatsapp && (
+                    <SelectItem value="whatsapp">
+                      <span className="flex items-center">
+                        <WhatsApp sx={{ fontSize: '18px', marginRight: '8px' }} /> WhatsApp
+                      </span>
+                    </SelectItem>
+                  )}
+                  {contactDiscord && (
+                    <SelectItem value="discord">
+                      <span className="flex items-center">
+                        <FaDiscord className="mr-2 h-4 w-4" /> Discord
+                      </span>
+                    </SelectItem>
+                  )}
                   {slackAvailable && (
                     <SelectItem value="slack">
                       <span className="flex items-center">

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Metadata } from 'next';
-import OnPrem from '@/components/Shared/OnPrem';
+import BillingUnavailable from '@/components/Shared/BillingUnavailable';
 import UsageMain from '@/components/Pages/Usage/Main';
 import FreeTrialUsageLock from '@/components/Pages/Usage/FreeTrialUsageLock';
 import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
@@ -11,6 +11,7 @@ import { createUsageActions } from '@/lib/usage/actions';
 import { listAssistants } from '@/lib/assistants/assistant';
 import { getMembersAction } from '@/lib/orchestra/api/organization';
 import { resolveWorkspaceContext } from '@/lib/user/workspace';
+import { getServerFeatures } from '@/lib/features/server';
 
 export const metadata: Metadata = {
   title: 'Usage',
@@ -37,14 +38,13 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
     redirect('/login');
   }
 
-  // Check for on-prem mode
-  const onPrem = process.env.ON_PREM;
-  const selfHost = process.env.SELF_HOST === '1';
-  if (onPrem || selfHost) {
+  // No billing feature (self-host / external-auth / no Stripe) → usage off.
+  // `features.billing` already accounts for these via the credential authority.
+  if (!(await getServerFeatures()).billing) {
     return (
       <div className="h-full w-full overflow-auto p-1">
         <Suspense fallback={<SkeletonLoader />}>
-          <OnPrem />
+          <BillingUnavailable />
         </Suspense>
       </div>
     );

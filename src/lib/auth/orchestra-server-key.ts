@@ -1,4 +1,4 @@
-import { IS_SELF_HOST } from '@/lib/auth/self-host';
+import { isSelfHost } from '@/lib/environment/environment';
 import { getCurrentUser } from '@/lib/user/user';
 
 /**
@@ -8,7 +8,7 @@ import { getCurrentUser } from '@/lib/user/user';
  * Self-host uses the signed-in user's key instead of SHARED_UNIFY_KEY from env.
  */
 export async function resolveOrchestraApiKeyForServerOps(): Promise<string | null> {
-  if (IS_SELF_HOST) {
+  if (isSelfHost()) {
     const user = await getCurrentUser();
     if (user?.apiKey) {
       return user.apiKey;

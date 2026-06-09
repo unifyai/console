@@ -6,7 +6,7 @@ import path from 'path';
 import { promisify } from 'util';
 import { resolveCanonicalPersonalCoordinator } from '@/lib/assistants/coordinatorIdentity';
 import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
-import { IS_SELF_HOST } from '@/lib/auth/self-host';
+import { isSelfHost } from '@/lib/environment/environment';
 import { getCurrentUser } from '@/lib/user/user';
 import type { Assistant } from '@/types/assistants/assistant';
 
@@ -40,7 +40,7 @@ async function persistCoordinatorRuntime(agentId: string, apiKey: string): Promi
  * personal Coordinator. Self-host installs only.
  */
 export async function POST() {
-  if (!IS_SELF_HOST) {
+  if (!isSelfHost()) {
     return NextResponse.json({ error: 'not_self_host' }, { status: 404 });
   }
 

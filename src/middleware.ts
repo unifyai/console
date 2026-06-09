@@ -4,6 +4,7 @@ import type { NextFetchEvent } from 'next/server';
 import { NextRequestWithAuth, withAuth } from 'next-auth/middleware';
 import { getToken } from 'next-auth/jwt';
 import authOptions from './app/api/auth/[...nextauth]/pages';
+import { resolveAuthMode } from '@/lib/environment/environment';
 
 const ENFORCE_ACCOUNT_ONBOARDING = false;
 
@@ -51,9 +52,11 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
     }
   }
 
-  if (process.env.ON_PREM) {
+  // External-auth deployments (legacy ON_PREM) inject identity upstream, so
+  // NextAuth is bypassed here. Guard against this ever being enabled in cloud.
+  if (resolveAuthMode() === 'external') {
     if (process.env.NEXT_PUBLIC_APP_URL?.includes('unify.ai')) {
-      console.error('ON_PREM must not be set in cloud deployments');
+      console.error('External auth mode (AUTH_MODE/ON_PREM) must not be set in cloud deployments');
       return new Response('Misconfiguration detected', { status: 500 });
     }
     return NextResponse.next();

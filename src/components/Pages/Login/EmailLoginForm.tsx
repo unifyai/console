@@ -8,7 +8,7 @@ import { PasswordInput } from '@/components/Common/Input/Password';
 import TurnstileWidget, { TurnstileWidgetHandle } from '@/components/Common/Auth/TurnstileWidget';
 import PasswordStrengthIndicator from '@/components/Common/Auth/PasswordStrengthIndicator';
 import { getPasswordError } from '@/lib/auth/password';
-import { IS_SELF_HOST } from '@/lib/auth/self-host';
+import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import VerificationCodeInput from './VerificationCodeInput';
 import ForgotPasswordForm from './ForgotPasswordForm';
 
@@ -23,8 +23,8 @@ type EmailView = 'login' | 'register' | 'verify' | 'forgot-password';
  * preview revisions whose canonical `NEXTAUTH_URL` points elsewhere).
  * Navigating same-origin keeps the freshly-minted session cookie in scope.
  */
-async function triggerSelfHostCoordinatorStart() {
-  if (!IS_SELF_HOST) return;
+async function triggerSelfHostCoordinatorStart(selfHost: boolean) {
+  if (!selfHost) return;
   try {
     await fetch('/api/self-host/start-coordinator', { method: 'POST' });
   } catch {
@@ -61,7 +61,11 @@ const formatProviderError = (providers: string[]): string => {
 };
 
 const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => {
-  const [view, setView] = useState<EmailView>('login');
+  const { captcha: captchaEnabled } = useFeatures();
+  const { isSelfHost: selfHost } = useEnvironment();
+  // Self-host has no SSO and auto-verifies accounts (no SMTP), so creating the
+  // account is the primary first action — open directly on the register view.
+  const [view, setView] = useState<EmailView>(selfHost ? 'register' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -147,7 +151,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
           return;
         }
 
-        await triggerSelfHostCoordinatorStart();
+        await triggerSelfHostCoordinatorStart(selfHost);
         window.location.href = sameOriginRedirect(callbackUrl);
         return;
       }
@@ -208,7 +212,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
         return;
       }
 
-      await triggerSelfHostCoordinatorStart();
+      await triggerSelfHostCoordinatorStart(selfHost);
       window.location.href = sameOriginRedirect(callbackUrl);
     } catch {
       setError('Network error. Please try again.');
@@ -420,7 +424,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
           {isRegister && <PasswordStrengthIndicator password={password} className="mt-4" />}
         </div>
 
-        {isRegister && !IS_SELF_HOST && (
+        {isRegister && captchaEnabled && (
           <TurnstileWidget
             ref={captchaRef}
             onVerify={handleCaptchaVerify}

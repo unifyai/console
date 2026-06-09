@@ -12,7 +12,7 @@ import AdvancedTab from './AdvancedTab';
 const VALID_TABS = ['profile', 'contact-info', 'preferences', 'security', 'advanced'] as const;
 type TabValue = (typeof VALID_TABS)[number];
 
-const ProfileTabs = ({ user, onPrem }: { user: User; onPrem: string | undefined }) => {
+const ProfileTabs = ({ user, externalIdentity }: { user: User; externalIdentity: boolean }) => {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab') as TabValue | null;
   const initialTab: TabValue = tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'profile';
@@ -38,7 +38,7 @@ const ProfileTabs = ({ user, onPrem }: { user: User; onPrem: string | undefined 
       </TabsList>
 
       <TabsContent value="profile" className="mt-4">
-        <ProfileForm onPrem={onPrem} user={user} />
+        <ProfileForm externalIdentity={externalIdentity} user={user} />
       </TabsContent>
 
       <TabsContent value="contact-info" className="mt-4">

@@ -15,6 +15,7 @@ import { Badge } from '@/components/UI/badge';
 import { AlertCircle, Link2, Loader2 } from 'lucide-react';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { useAssistantContactManager } from '@/hooks/Assistants/useAssistantContactManager';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import {
   ByodProviderCard,
@@ -60,6 +61,7 @@ export function AssistantWorkspaceManager({
   canWrite = true,
   initialProvider = null,
 }: AssistantWorkspaceManagerProps) {
+  const { workspaceGoogle, workspaceMicrosoft } = useFeatures();
   const assistantName = assistantDisplayName(assistant);
   const workspaceDescription = assistant.isCoordinator ? (
     <>
@@ -207,7 +209,9 @@ export function AssistantWorkspaceManager({
       );
     }
 
-    // No connection yet — pick a provider
+    // No connection yet — pick a provider. Each provider stays visible even when
+    // the deployment hasn't configured its OAuth client (reported by Orchestra);
+    // it's disabled with an explanatory tooltip rather than hidden.
     return (
       <div className="space-y-6">
         <div className="space-y-3">
@@ -217,12 +221,22 @@ export function AssistantWorkspaceManager({
               isSelected={byodProvider === 'google'}
               onSelect={() => setByodProvider(byodProvider === 'google' ? null : 'google')}
               disabled={isConnecting}
+              unavailableReason={
+                workspaceGoogle
+                  ? undefined
+                  : "Google workspace connect isn't configured on this deployment"
+              }
             />
             <ByodProviderCard
               provider="microsoft"
               isSelected={byodProvider === 'microsoft'}
               onSelect={() => setByodProvider(byodProvider === 'microsoft' ? null : 'microsoft')}
               disabled={isConnecting}
+              unavailableReason={
+                workspaceMicrosoft
+                  ? undefined
+                  : "Microsoft workspace connect isn't configured on this deployment"
+              }
             />
           </div>
 

@@ -2,6 +2,8 @@ import React from 'react';
 import type { Metadata } from 'next';
 import { SessionProvider } from '@/components/Pages/Providers/SessionProvider';
 import { EnvironmentProvider } from '@/components/Pages/Providers/EnvironmentProvider';
+import { resolveFeatures } from '@/lib/features/features';
+import { resolveEnvironment } from '@/lib/environment/environment';
 import LoginCardShell from '@/components/Pages/Login/LoginCardShell';
 
 export const metadata: Metadata = {
@@ -17,10 +19,11 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default function LoginLayout({ children }: { children: React.ReactNode }) {
-  // Resolve environment config server-side (env vars aren't available in client components)
+  // Resolve config server-side (env vars aren't available in client components)
+  const environment = resolveEnvironment();
   const envConfig = {
-    isStaging: (process.env.ORCHESTRA_URL ?? '').includes('staging'),
-    turnstileSiteKey: process.env.TURNSTILE_SITE_KEY,
+    environment,
+    features: resolveFeatures(process.env, environment),
   };
 
   return (

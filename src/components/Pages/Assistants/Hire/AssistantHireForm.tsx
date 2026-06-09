@@ -25,6 +25,7 @@ import {
 import { Button } from '@/components/UI/button';
 import { Checkbox } from '@/components/UI/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
@@ -176,6 +177,12 @@ export function HireForm({
     trigger,
     control,
   } = formMethods;
+
+  // Workspace connect needs an OAuth client configured on the deployment. Mirror
+  // the workspace manager: keep each provider visible but disabled with an
+  // explanatory tooltip when its client isn't configured.
+  const { workspaceGoogle, workspaceMicrosoft } = useFeatures();
+  const workspaceUnavailableReason = "isn't configured on this deployment";
 
   const [voiceCustomizationTab, setVoiceCustomizationTab] = React.useState<
     'select' | 'clone' | 'design'
@@ -958,58 +965,102 @@ export function HireForm({
                       )}
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => onWorkspaceProviderSelect?.('google')}
-                        disabled={isSubmitting || !onWorkspaceProviderSelect}
-                        className={cn(
-                          'relative flex h-28 flex-col items-center justify-center rounded-md border bg-card px-3 text-center transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
-                          workspaceProvider === 'google'
-                            ? 'border-primary ring-1 ring-primary'
-                            : 'border-border'
-                        )}
-                        aria-label={
-                          mode === 'hire'
-                            ? 'Select Google Workspace'
-                            : 'Open Google Workspace integration'
-                        }
-                      >
-                        {workspaceProvider === 'google' && (
-                          <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                            <Check className="h-3.5 w-3.5" />
-                          </span>
-                        )}
-                        <Image src={GoogleIcon} alt="Google logo" width={32} height={32} />
-                        <span className="text-body text-strong mt-3 text-foreground">
-                          Google Workspace
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onWorkspaceProviderSelect?.('microsoft')}
-                        disabled={isSubmitting || !onWorkspaceProviderSelect}
-                        className={cn(
-                          'relative flex h-28 flex-col items-center justify-center rounded-md border bg-card px-3 text-center transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
-                          workspaceProvider === 'microsoft'
-                            ? 'border-primary ring-1 ring-primary'
-                            : 'border-border'
-                        )}
-                        aria-label={
-                          mode === 'hire'
-                            ? 'Select Microsoft 365'
-                            : 'Open Microsoft 365 integration'
-                        }
-                      >
-                        {workspaceProvider === 'microsoft' && (
-                          <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                            <Check className="h-3.5 w-3.5" />
-                          </span>
-                        )}
-                        <Image src={MicrosoftIcon} alt="Microsoft logo" width={32} height={32} />
-                        <span className="text-body text-strong mt-3 text-foreground">
-                          Microsoft 365
-                        </span>
-                      </button>
+                      {(() => {
+                        const googleButton = (
+                          <button
+                            type="button"
+                            onClick={() => onWorkspaceProviderSelect?.('google')}
+                            disabled={
+                              isSubmitting || !onWorkspaceProviderSelect || !workspaceGoogle
+                            }
+                            className={cn(
+                              'relative flex h-28 w-full flex-col items-center justify-center rounded-md border bg-card px-3 text-center transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
+                              workspaceProvider === 'google'
+                                ? 'border-primary ring-1 ring-primary'
+                                : 'border-border'
+                            )}
+                            aria-label={
+                              mode === 'hire'
+                                ? 'Select Google Workspace'
+                                : 'Open Google Workspace integration'
+                            }
+                          >
+                            {workspaceProvider === 'google' && (
+                              <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                <Check className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+                            <Image src={GoogleIcon} alt="Google logo" width={32} height={32} />
+                            <span className="text-body text-strong mt-3 text-foreground">
+                              Google Workspace
+                            </span>
+                          </button>
+                        );
+                        if (workspaceGoogle) return googleButton;
+                        // Disabled buttons don't emit hover, so the tooltip triggers off a span.
+                        return (
+                          <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="flex">{googleButton}</span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <p>{`Google Workspace ${workspaceUnavailableReason}`}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
+                      {(() => {
+                        const microsoftButton = (
+                          <button
+                            type="button"
+                            onClick={() => onWorkspaceProviderSelect?.('microsoft')}
+                            disabled={
+                              isSubmitting || !onWorkspaceProviderSelect || !workspaceMicrosoft
+                            }
+                            className={cn(
+                              'relative flex h-28 w-full flex-col items-center justify-center rounded-md border bg-card px-3 text-center transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
+                              workspaceProvider === 'microsoft'
+                                ? 'border-primary ring-1 ring-primary'
+                                : 'border-border'
+                            )}
+                            aria-label={
+                              mode === 'hire'
+                                ? 'Select Microsoft 365'
+                                : 'Open Microsoft 365 integration'
+                            }
+                          >
+                            {workspaceProvider === 'microsoft' && (
+                              <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                <Check className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+                            <Image
+                              src={MicrosoftIcon}
+                              alt="Microsoft logo"
+                              width={32}
+                              height={32}
+                            />
+                            <span className="text-body text-strong mt-3 text-foreground">
+                              Microsoft 365
+                            </span>
+                          </button>
+                        );
+                        if (workspaceMicrosoft) return microsoftButton;
+                        return (
+                          <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="flex">{microsoftButton}</span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <p>{`Microsoft 365 ${workspaceUnavailableReason}`}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
                     </div>
                   </section>
 

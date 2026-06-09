@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 
 import { getCurrentUser } from '@/lib/user/user';
+import { resolveAuthMode } from '@/lib/environment/environment';
 
 import Main from '@/components/Pages/Profile/Main';
 import { GithubDeprecationBanner } from '@/components/Pages/Profile/GithubDeprecationBanner';
@@ -15,7 +16,9 @@ import { redirect } from 'next/navigation';
  * @returns {JSX.Element} The AccountPage component.
  */
 const AccountPage = async () => {
-  const onPrem = process.env.ON_PREM;
+  // External-auth deployments manage identity upstream, so profile fields are
+  // read-only here.
+  const externalIdentity = resolveAuthMode() === 'external';
 
   // Get current user
   const user = await getCurrentUser();
@@ -29,7 +32,7 @@ const AccountPage = async () => {
       <GithubDeprecationBanner />
       <div className="p-1">
         <Suspense fallback={<SkeletonLoader />}>
-          <Main user={user} onPrem={onPrem} />
+          <Main user={user} externalIdentity={externalIdentity} />
         </Suspense>
       </div>
     </div>

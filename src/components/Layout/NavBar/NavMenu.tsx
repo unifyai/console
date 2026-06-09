@@ -33,6 +33,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Icon } from '@/components/UI/icon-picker';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { showErrorToast, showSuccessToast } from '@/components/Common/Toasts/notifications'; // Added notification imports
 import { UnifyBlockMark } from '@/components/Brand';
 
@@ -137,6 +138,7 @@ export default function NavMenu() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { state, setOpen } = useSidebar();
+  const { billing: billingEnabled } = useFeatures();
   const [profileName, setProfileName] = useState('Profile');
   const [avatarJSX, setAvatarJSX] = useState<JSX.Element | null>(null);
 
@@ -221,7 +223,11 @@ export default function NavMenu() {
   const navItemsFromList = NavListSource();
   const assistantsItem = navItemsFromList.find((item) => item.title === 'Assistants');
   const interfacesMainItem = navItemsFromList.find((item) => item.title === 'Interfaces');
-  const billingItem = navItemsFromList.find((item) => item.title === 'Billing');
+  // Billing nav entry only when this deployment can actually transact (Stripe +
+  // Orchestra plans configured). Self-host / no-Stripe installs hide it.
+  const billingItem = billingEnabled
+    ? navItemsFromList.find((item) => item.title === 'Billing')
+    : undefined;
 
   const profileItem: NavItem = {
     title: profileName,

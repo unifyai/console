@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { Metadata } from 'next';
-import OnPrem from '@/components/Shared/OnPrem';
+import BillingUnavailable from '@/components/Shared/BillingUnavailable';
 import Main from '@/components/Pages/Billing/Main';
 import FreeTrialBillingLock from '@/components/Pages/Billing/FreeTrialBillingLock';
 import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
@@ -9,6 +9,7 @@ import { redirect } from 'next/navigation';
 import * as BillingLib from '@/lib/billing/billing';
 import type { BillingActions, BillingOrgContext } from '@/types/billing';
 import { resolveWorkspaceContext } from '@/lib/user/workspace';
+import { getServerFeatures } from '@/lib/features/server';
 
 export const metadata: Metadata = {
   title: 'Billing',
@@ -20,13 +21,13 @@ const BillingPage: React.FC = async () => {
     redirect('/login');
   }
 
-  const onPrem = process.env.ON_PREM;
-  const selfHost = process.env.SELF_HOST === '1';
-  if (onPrem || selfHost) {
+  // No billing feature (self-host / external-auth / no Stripe) → nothing to show.
+  // `features.billing` already accounts for these via the credential authority.
+  if (!(await getServerFeatures()).billing) {
     return (
       <div className="h-full w-full overflow-auto p-1">
         <Suspense fallback={<SkeletonLoader />}>
-          <OnPrem />
+          <BillingUnavailable />
         </Suspense>
       </div>
     );

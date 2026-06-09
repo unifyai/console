@@ -10,14 +10,13 @@ import EmailLoginForm from './EmailLoginForm';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import dynamic from 'next/dynamic';
 import { TeammateCreature } from '@/components/Brand';
+import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 
 // Dev-only quick login panel — lazy-loaded and tree-shaken in production builds.
 const DevQuickLogin =
   process.env.NODE_ENV === 'development'
     ? dynamic(() => import('@/components/Dev/DevQuickLogin'), { ssr: false })
     : () => null;
-
-import { IS_SELF_HOST } from '@/lib/auth/self-host';
 
 /** Auth method tabs */
 type AuthTab = 'oauth' | 'email';
@@ -43,7 +42,19 @@ const LoginFragment = ({
   callbackUrl,
   previewOnly = false,
 }: LoginProps) => {
-  const [authTab, setAuthTab] = useState<AuthTab>(previewOnly ? 'email' : 'oauth');
+  const { loginGoogle, loginMicrosoft } = useFeatures();
+  const env = useEnvironment();
+  // Topology-driven (not credential-driven): dev seed quick-login only in local dev.
+  const devQuickLogin = env.isDev;
+
+  // Only offer OAuth when at least one provider is actually configured for this
+  // deployment (self-host may run email/password only).
+  const hasOAuth = loginGoogle || loginMicrosoft;
+  const oauthLabel = [loginGoogle && 'Google', loginMicrosoft && 'Microsoft']
+    .filter(Boolean)
+    .join(' or ');
+
+  const [authTab, setAuthTab] = useState<AuthTab>(previewOnly || !hasOAuth ? 'email' : 'oauth');
 
   return (
     <div className="flex flex-wrap">
@@ -84,18 +95,22 @@ const LoginFragment = ({
 
           {authTab === 'oauth' ? (
             <>
-              <HallowButton onClick={handleLogin('google')}>
-                <div className="flex items-center justify-center gap-2">
-                  <Image src={GoogleIcon} alt="Google" height={20} width={20} />
-                  Continue with Google
-                </div>
-              </HallowButton>
-              <HallowButton onClick={handleLogin('azure-ad')}>
-                <div className="flex items-center justify-center gap-2">
-                  <Image src={MicrosoftIcon} alt="Microsoft" height={20} width={20} />
-                  Continue with Microsoft
-                </div>
-              </HallowButton>
+              {loginGoogle && (
+                <HallowButton onClick={handleLogin('google')}>
+                  <div className="flex items-center justify-center gap-2">
+                    <Image src={GoogleIcon} alt="Google" height={20} width={20} />
+                    Continue with Google
+                  </div>
+                </HallowButton>
+              )}
+              {loginMicrosoft && (
+                <HallowButton onClick={handleLogin('azure-ad')}>
+                  <div className="flex items-center justify-center gap-2">
+                    <Image src={MicrosoftIcon} alt="Microsoft" height={20} width={20} />
+                    Continue with Microsoft
+                  </div>
+                </HallowButton>
+              )}
 
               <div className="my-1 flex items-center gap-3">
                 <div className="h-px flex-1 bg-border" />
@@ -113,7 +128,7 @@ const LoginFragment = ({
           ) : (
             <>
               <EmailLoginForm callbackUrl={callbackUrl} externalError={error} />
-              {!previewOnly && (
+              {!previewOnly && hasOAuth && (
                 <>
                   <div className="my-1 flex items-center gap-3">
                     <div className="h-px flex-1 bg-border" />
@@ -126,7 +141,7 @@ const LoginFragment = ({
                     className="text-caption text-center text-muted-foreground transition-colors hover:text-foreground"
                     data-testid="switch-to-oauth"
                   >
-                    Sign in with Google or Microsoft
+                    {`Sign in with ${oauthLabel}`}
                   </button>
                 </>
               )}
@@ -134,7 +149,7 @@ const LoginFragment = ({
           )}
 
           {/* Dev-only quick login (hidden for self-host installs) */}
-          {!IS_SELF_HOST && <DevQuickLogin />}
+          {devQuickLogin && <DevQuickLogin />}
         </div>
 
         {/* Footer — disclaimer */}

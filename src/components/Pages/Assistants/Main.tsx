@@ -34,6 +34,7 @@ import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
 import { useAssistantOnboardingSummaries } from '@/hooks/Assistants/useAssistantOnboardingSummaries';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
@@ -142,6 +143,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
   const { activeWorkspace, currentUserId } = useWorkspace();
+  // Workspace connect (Gmail/Outlook BYOD) needs an OAuth client configured on
+  // the deployment. When neither provider is available, the onboarding
+  // "Connect workspace" step is suppressed rather than leading to a dead end.
+  const { workspaceGoogle, workspaceMicrosoft } = useFeatures();
+  const workspaceConnectAvailable = workspaceGoogle || workspaceMicrosoft;
   const coordinatorWorkspace = React.useMemo<CoordinatorWorkspaceScope>(() => {
     if (activeWorkspace?.type === 'organization') {
       const parsedOrganizationId = Number.parseInt(activeWorkspace.id, 10);
@@ -1516,10 +1522,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     // in case the user got into ``working`` via the hire path.
     const isWorkingMode = coordinatorOnboardingState?.mode === 'working';
     return {
-      onConnectWorkspace: () => {
-        markStepEngaged('workspace');
-        handleOpenWorkspaceManager(canonicalCoordinator);
-      },
+      onConnectWorkspace: workspaceConnectAvailable
+        ? () => {
+            markStepEngaged('workspace');
+            handleOpenWorkspaceManager(canonicalCoordinator);
+          }
+        : undefined,
       onHireSpecialist: handleHireSpecialistEngage,
       onResumeOnboarding: isWorkingMode
         ? () => {
@@ -1540,6 +1548,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleHireSpecialistEngage,
     coordinatorOnboardingState?.mode,
     updateCoordinatorOnboardingState,
+    workspaceConnectAvailable,
   ]);
 
   // Auto-complete the workspace step the moment the Coordinator
@@ -2075,7 +2084,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 </RoomContext.Provider>
               )}
               onStartCall={handleStartCall}
-              onConnectWorkspace={() => handleOpenWorkspaceManager(canonicalCoordinator)}
+              onConnectWorkspace={
+                workspaceConnectAvailable
+                  ? () => handleOpenWorkspaceManager(canonicalCoordinator)
+                  : undefined
+              }
               // Auto-completion observers — these turn each
               // count/active-state change from the pane's own data
               // source into a ``markStepCompleted`` call, so the

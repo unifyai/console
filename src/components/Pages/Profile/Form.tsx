@@ -66,7 +66,7 @@ function buildFormState(user: User): FormState {
   };
 }
 
-const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined }) => {
+const ProfileForm = ({ user, externalIdentity }: { user: User; externalIdentity: boolean }) => {
   const router = useRouter();
   const [formState, setFormState] = useState<FormState>(() => buildFormState(user));
   const [initialFormState, setInitialFormState] = useState<FormState>(() => buildFormState(user));
@@ -191,7 +191,7 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
                 value={formState.name}
                 className="w-full"
                 onChange={handleInputChange}
-                readOnly={Boolean(onPrem)}
+                readOnly={externalIdentity}
               />
             </div>
             <div>
@@ -202,7 +202,7 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
                 value={formState.lastName}
                 className="w-full"
                 onChange={handleInputChange}
-                readOnly={Boolean(onPrem)}
+                readOnly={externalIdentity}
               />
             </div>
             <div>
@@ -210,7 +210,7 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
               <TimezoneSelect
                 value={formState.timezone}
                 onValueChange={handleTimezoneChange}
-                disabled={Boolean(onPrem)}
+                disabled={externalIdentity}
               />
             </div>
             <div>
@@ -221,12 +221,16 @@ const ProfileForm = ({ user, onPrem }: { user: User; onPrem: string | undefined 
                 value={formState.jobTitle}
                 className="w-full"
                 onChange={handleInputChange}
-                readOnly={Boolean(onPrem)}
+                readOnly={externalIdentity}
               />
             </div>
           </div>
         </div>
-        <UserInfo bio={formState.bio} handleInputChange={handleInputChange} onPrem={onPrem} />
+        <UserInfo
+          bio={formState.bio}
+          handleInputChange={handleInputChange}
+          externalIdentity={externalIdentity}
+        />
         {changeMade && (
           <div className="mt-5 flex w-fit gap-2">
             <SecondaryButton onClick={handleCancel} disabled={!changeMade} label="Cancel" />

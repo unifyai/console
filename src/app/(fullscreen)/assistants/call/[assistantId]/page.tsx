@@ -1,4 +1,5 @@
 import { getCurrentUser } from '@/lib/user/user';
+import { getServerFeatures } from '@/lib/features/server';
 import { redirect } from 'next/navigation';
 import {
   getTranscripts,
@@ -29,6 +30,13 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
   const user = await getCurrentUser();
   if (!user) {
     redirect('/login');
+  }
+
+  // Voice calls require LiveKit credentials (Console-owned). A deployment
+  // without them can't service this route — don't render a call surface that
+  // would only fail to connect.
+  if (!(await getServerFeatures()).voiceCalls) {
+    notFound();
   }
   const apiKey = user.apiKey;
   const isOrgContext = getActiveOrganization(user) !== null;

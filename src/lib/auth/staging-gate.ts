@@ -13,9 +13,12 @@
  * Mirrors orchestra/orchestra/web/api/dependencies.py — keep both in sync.
  */
 
+import { resolveEnvironment } from '@/lib/environment/environment';
+
 const UNIFY_EMAIL_DOMAIN = '@unify.ai';
 
-export const IS_STAGING: boolean = process.env.ORCHESTRA_URL?.includes('staging') ?? false;
+/** Whether this deployment is hosted staging (see `resolveEnvironment`). */
+export const IS_STAGING: boolean = resolveEnvironment().isStaging;
 
 const STAGING_EMAIL_ALLOWLIST: ReadonlySet<string> = new Set(
   (process.env.STAGING_EMAIL_ALLOWLIST ?? '')

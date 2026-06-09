@@ -32,8 +32,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Activity, ListTodo, Loader2, MessageSquare, Phone, Plug2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/UI/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
-import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 import { MartyCallAvatar } from '@/components/Pages/Assistants/Communication/MartyCallAvatar';
 import { CoordinatorOnboardingCallIntro } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingCallIntro';
 import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
@@ -42,6 +42,7 @@ import { useCoordinatorOnboardingContext } from '@/components/Pages/Assistants/C
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 import { useIsMobile } from '@/hooks/Common/useMobile';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { notifyOnboardingSessionStarted } from '@/lib/client/coordinator';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import type { ChatMessage, CallPill } from '@/types/assistants/chat';
@@ -180,6 +181,9 @@ export function CoordinatorOnboarding({
   onOnboardingComplete,
 }: CoordinatorOnboardingProps) {
   const { updateState } = useCoordinatorOnboarding(coordinator.agentId);
+  // Voice calls require LiveKit (Console-owned). Without it the picker's
+  // "Start Call" is shown disabled (with a reason) and chat is the only path.
+  const { voiceCalls } = useFeatures();
   // Shared checklist state lives in the page-level provider so
   // both ``completedStepIds`` and ``engagedStepIds`` survive the
   // gradual ↔ info-panel layout swap. The checklist body reads
@@ -475,6 +479,7 @@ export function CoordinatorOnboarding({
         data-testid="coordinator-onboarding"
       >
         <CoordinatorOnboardingPicker
+          voiceCalls={voiceCalls}
           onStartCall={handleStartCall}
           onPickChat={handlePickChat}
           isStartingCall={isStartingCall}
@@ -967,12 +972,15 @@ function OnboardingMobileTabStrip({
 /* ─── Picker (Start Call / I'd rather chat) ─────────────────────────────── */
 
 interface CoordinatorOnboardingPickerProps {
+  /** Whether voice calls are configured on this deployment (LiveKit). */
+  voiceCalls: boolean;
   onStartCall: (avatarOffset: IntroAvatarOffset) => void;
   onPickChat: () => void;
   isStartingCall: boolean;
 }
 
 function CoordinatorOnboardingPicker({
+  voiceCalls,
   onStartCall,
   onPickChat,
   isStartingCall,
@@ -994,6 +1002,28 @@ function CoordinatorOnboardingPicker({
     onStartCall(avatarOffset);
   }, [onStartCall]);
 
+  const startCallButton = (
+    <Button
+      size="lg"
+      onClick={handleStartCall}
+      disabled={isStartingCall || !voiceCalls}
+      className={cn(!isStartingCall && voiceCalls && 'animate-onboarding-ring-pulse')}
+      data-testid="coordinator-onboarding-start-call"
+    >
+      {isStartingCall ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Starting call…
+        </>
+      ) : (
+        <>
+          <Phone className="mr-2 h-4 w-4" />
+          Start Call
+        </>
+      )}
+    </Button>
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -1005,27 +1035,26 @@ function CoordinatorOnboardingPicker({
       <div ref={avatarRef} className="h-32 w-32">
         <MartyCallAvatar creatureClassName="h-28 w-28" isSpeaking={false} />
       </div>
-      <p className="text-h3 font-medium text-foreground">Marty is calling to onboard you</p>
+      <p className="text-h3 font-medium text-foreground">
+        {voiceCalls ? 'Marty is calling to onboard you' : 'Start onboarding with Marty'}
+      </p>
       <div className="flex flex-col items-center gap-3 sm:flex-row">
-        <Button
-          size="lg"
-          onClick={handleStartCall}
-          disabled={isStartingCall}
-          className={cn(!isStartingCall && 'animate-onboarding-ring-pulse')}
-          data-testid="coordinator-onboarding-start-call"
-        >
-          {isStartingCall ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Starting call…
-            </>
-          ) : (
-            <>
-              <Phone className="mr-2 h-4 w-4" />
-              Start Call
-            </>
-          )}
-        </Button>
+        {voiceCalls ? (
+          startCallButton
+        ) : (
+          // Keep the call option visible but disabled, with a reason. The span
+          // wrapper lets the tooltip fire over the disabled button.
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">{startCallButton}</span>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>Voice calls aren&apos;t enabled on this deployment</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         <Button
           variant="link"
           onClick={onPickChat}

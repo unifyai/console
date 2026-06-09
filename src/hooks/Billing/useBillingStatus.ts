@@ -23,7 +23,7 @@
 
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { IS_SELF_HOST } from '@/lib/auth/self-host';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import type { BillingMode } from '@/types/billing';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -108,7 +108,9 @@ export async function fetchBillingStatus(): Promise<BillingStatusData> {
 
 export const BILLING_STATUS_QUERY_KEY = ['billing', 'status'] as const;
 
-const SELF_HOST_BILLING_STATUS: BillingStatusData = {
+// When billing is not a feature of this deployment (e.g. self-host: no Stripe,
+// Orchestra bypasses credit enforcement) every billable action passes.
+const BILLING_DISABLED_STATUS: BillingStatusData = {
   isBalanceKnown: false,
   hasBillingHistory: false,
   credits: 1,
@@ -127,12 +129,13 @@ const POLL_TIMEOUT_MS = 30_000;
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useBillingStatus(): UseBillingStatusReturn {
+  const { billing: billingEnabled } = useFeatures();
   const [pollInterval, setPollInterval] = React.useState<number | false>(false);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: BILLING_STATUS_QUERY_KEY,
     queryFn: fetchBillingStatus,
-    enabled: !IS_SELF_HOST,
+    enabled: billingEnabled,
     staleTime: 60_000, // 1 minute
     refetchOnWindowFocus: true,
     refetchInterval: pollInterval || 60_000,
@@ -166,9 +169,9 @@ export function useBillingStatus(): UseBillingStatusReturn {
     setPollInterval(POLL_INTERVAL_MS);
   }, []);
 
-  if (IS_SELF_HOST) {
+  if (!billingEnabled) {
     return {
-      ...SELF_HOST_BILLING_STATUS,
+      ...BILLING_DISABLED_STATUS,
       isLoading: false,
       error: null,
       refetch: () => {},

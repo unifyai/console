@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import SecondaryButton from '@/components/Common/Buttons/Secondary';
 import PrimaryButton from '@/components/Common/Buttons/Primary';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 
 interface VerificationState {
   value: string;
@@ -178,6 +179,10 @@ const VerificationField = ({
 
 const ContactInfoTab = ({ user }: { user: User }) => {
   const router = useRouter();
+  // Phone/WhatsApp verification sends codes over Twilio (reported by Orchestra
+  // via the comms-layer probe). Without those credentials the verification
+  // request 503s, so hide the fields rather than offer a flow that can't work.
+  const { contactPhone, contactWhatsapp } = useFeatures();
   const [phoneState, setPhoneState] = useState<VerificationState>(
     createVerificationState(user.phoneNumber)
   );
@@ -431,37 +436,41 @@ const ContactInfoTab = ({ user }: { user: User }) => {
         <Input type="email" value={user.email} disabled className="mt-2" />
       </div>
 
-      <VerificationField
-        label="Phone Number"
-        icon={<span className="text-muted-foreground">📱</span>}
-        inputId="phone-number-input"
-        countryTestId="phone-country-select"
-        state={phoneState}
-        onValueChange={(v) => handleValueChange(setPhoneState, initialPhone, whatsappState, v)}
-        onVerify={(isRetry) => handleVerify(setPhoneState, 'phone', phoneState, isRetry)}
-        onCancel={() => handleCancel(setPhoneState)}
-        onSubmitCode={() => handleSubmitCode(setPhoneState, phoneState, 'phone')}
-        onCodeChange={(v) =>
-          setPhoneState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
-        }
-        onEdit={() => handleEdit(setPhoneState)}
-      />
+      {contactPhone && (
+        <VerificationField
+          label="Phone Number"
+          icon={<span className="text-muted-foreground">📱</span>}
+          inputId="phone-number-input"
+          countryTestId="phone-country-select"
+          state={phoneState}
+          onValueChange={(v) => handleValueChange(setPhoneState, initialPhone, whatsappState, v)}
+          onVerify={(isRetry) => handleVerify(setPhoneState, 'phone', phoneState, isRetry)}
+          onCancel={() => handleCancel(setPhoneState)}
+          onSubmitCode={() => handleSubmitCode(setPhoneState, phoneState, 'phone')}
+          onCodeChange={(v) =>
+            setPhoneState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
+          }
+          onEdit={() => handleEdit(setPhoneState)}
+        />
+      )}
 
-      <VerificationField
-        label="WhatsApp Number"
-        icon={<WhatsApp sx={{ fontSize: '18px' }} className="text-muted-foreground" />}
-        inputId="whatsapp-number-input"
-        countryTestId="whatsapp-country-select"
-        state={whatsappState}
-        onValueChange={(v) => handleValueChange(setWhatsappState, initialWhatsapp, phoneState, v)}
-        onVerify={(isRetry) => handleVerify(setWhatsappState, 'whatsapp', whatsappState, isRetry)}
-        onCancel={() => handleCancel(setWhatsappState)}
-        onSubmitCode={() => handleSubmitCode(setWhatsappState, whatsappState, 'whatsapp')}
-        onCodeChange={(v) =>
-          setWhatsappState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
-        }
-        onEdit={() => handleEdit(setWhatsappState)}
-      />
+      {contactWhatsapp && (
+        <VerificationField
+          label="WhatsApp Number"
+          icon={<WhatsApp sx={{ fontSize: '18px' }} className="text-muted-foreground" />}
+          inputId="whatsapp-number-input"
+          countryTestId="whatsapp-country-select"
+          state={whatsappState}
+          onValueChange={(v) => handleValueChange(setWhatsappState, initialWhatsapp, phoneState, v)}
+          onVerify={(isRetry) => handleVerify(setWhatsappState, 'whatsapp', whatsappState, isRetry)}
+          onCancel={() => handleCancel(setWhatsappState)}
+          onSubmitCode={() => handleSubmitCode(setWhatsappState, whatsappState, 'whatsapp')}
+          onCodeChange={(v) =>
+            setWhatsappState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
+          }
+          onEdit={() => handleEdit(setWhatsappState)}
+        />
+      )}
 
       <div className="space-y-2">
         <div className="flex items-center gap-2">

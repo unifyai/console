@@ -43,12 +43,15 @@ import DarkModeToggle from '@/components/Layout/NavBar/DarkModeToggle';
 import { getCurrentUser } from '@/lib/user/user';
 import Image from 'next/image';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
+import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { UserOrganization } from '@/types/user';
 import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog';
 import { UnifyBlockMark } from '@/components/Brand';
 
 export default function TopNav() {
   const pathname = usePathname();
+  const { billing: billingEnabled, support: supportEnabled } = useFeatures();
+  const { isSelfHost } = useEnvironment();
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [profileName, setProfileName] = useState('Profile');
@@ -385,8 +388,8 @@ export default function TopNav() {
             </Button>
           )/*}
 
-          {/* Support Ticket */}
-          <SupportTicketDialog />
+          {/* Support Ticket — only when a support delivery channel is configured */}
+          {supportEnabled && <SupportTicketDialog />}
 
           {/* Dark Mode Toggle */}
           <DarkModeToggle />
@@ -416,16 +419,18 @@ export default function TopNav() {
                   <span>Account</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">
-                <Link
-                  href="/organizations"
-                  className="text-body flex items-center hover:text-[color:var(--foreground)]"
-                >
-                  <Building className="mr-2 h-4 w-4" />
-                  <span>Organizations</span>
-                </Link>
-              </DropdownMenuItem>
-              {!isOrgInFreeTrial && (
+              {!isSelfHost && (
+                <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">
+                  <Link
+                    href="/organizations"
+                    className="text-body flex items-center hover:text-[color:var(--foreground)]"
+                  >
+                    <Building className="mr-2 h-4 w-4" />
+                    <span>Organizations</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              {billingEnabled && !isOrgInFreeTrial && (
                 <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">
                   <Link
                     href="/usage"
@@ -436,7 +441,7 @@ export default function TopNav() {
                   </Link>
                 </DropdownMenuItem>
               )}
-              {canManageBilling && !isOrgInFreeTrial && (
+              {billingEnabled && canManageBilling && !isOrgInFreeTrial && (
                 <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">
                   <Link
                     href="/billing"
@@ -490,7 +495,9 @@ export default function TopNav() {
               <ul className="text-body list-inside list-disc space-y-1">
                 <li>You will only see resources in your personal account</li>
                 <li>Organization resources will not be visible until you switch back</li>
-                <li>Any billable usage will be billed to your personal account</li>
+                {billingEnabled && (
+                  <li>Any billable usage will be billed to your personal account</li>
+                )}
                 <li>You won&apos;t have access to shared team resources</li>
               </ul>
             </AlertDialogDescription>

@@ -14,6 +14,7 @@ import type { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 
 // ---------------------------------------------------------------------------
 // Per-assistant info-panel dismissal persistence
@@ -322,6 +323,7 @@ export function ChatWithInfoPanel({
     setIsInfoOpen(!dismissed.has(assistant.agentId));
   }, [assistant.agentId]);
 
+  const { voiceCalls } = useFeatures();
   const isInThisCall = activeCallAssistantId === assistant.agentId;
   const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
   // Disable the call buttons whenever ANY call is active —
@@ -331,20 +333,22 @@ export function ChatWithInfoPanel({
   // cases, and leaving the buttons enabled implied "click to do
   // something" when there was nothing to do.
   const isCallButtonDisabled =
-    isAnotherCallActive || isInThisCall || (isSpendingBlocked && !isInThisCall);
+    !voiceCalls || isAnotherCallActive || isInThisCall || (isSpendingBlocked && !isInThisCall);
 
   const callButtonTooltip = (type: 'audio' | 'video') =>
-    isInThisCall && isConnectingCall
-      ? 'Connecting call...'
-      : isInThisCall
-        ? 'Call in progress'
-        : isSpendingBlocked && !isInThisCall
-          ? spendingBlockedMessage || 'Spending limit reached'
-          : isAnotherCallActive
-            ? 'Another call is in progress'
-            : type === 'audio'
-              ? 'Start audio call'
-              : 'Start video call';
+    !voiceCalls
+      ? "Voice calls aren't enabled on this deployment"
+      : isInThisCall && isConnectingCall
+        ? 'Connecting call...'
+        : isInThisCall
+          ? 'Call in progress'
+          : isSpendingBlocked && !isInThisCall
+            ? spendingBlockedMessage || 'Spending limit reached'
+            : isAnotherCallActive
+              ? 'Another call is in progress'
+              : type === 'audio'
+                ? 'Start audio call'
+                : 'Start video call';
 
   const chatPanel = (
     <AssistantProfileChatPanel
@@ -395,24 +399,31 @@ export function ChatWithInfoPanel({
           />
         </div>
         <div className="flex items-center gap-0.5">
+          {/* Call buttons stay visible even when voice calls aren't configured
+              on the deployment — they're disabled with an explanatory tooltip
+              instead of hidden. The span wrapper is load-bearing: a disabled
+              Button has `pointer-events-none`, so the tooltip has to trigger
+              off the span rather than the button. */}
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => onStartCall(assistant, 'audio')}
-                  disabled={isCallButtonDisabled}
-                  data-testid="call-audio-button"
-                >
-                  {isInThisCall && isConnectingCall ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Phone className="h-4 w-4" />
-                  )}
-                </Button>
+                <span className="inline-flex">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => onStartCall(assistant, 'audio')}
+                    disabled={isCallButtonDisabled}
+                    data-testid="call-audio-button"
+                  >
+                    {isInThisCall && isConnectingCall ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Phone className="h-4 w-4" />
+                    )}
+                  </Button>
+                </span>
               </TooltipTrigger>
               <TooltipContent side="top">
                 <p>{callButtonTooltip('audio')}</p>
@@ -422,17 +433,19 @@ export function ChatWithInfoPanel({
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => onStartCall(assistant, 'video')}
-                  disabled={isCallButtonDisabled}
-                  data-testid="call-video-button"
-                >
-                  <Video className="h-4 w-4" />
-                </Button>
+                <span className="inline-flex">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => onStartCall(assistant, 'video')}
+                    disabled={isCallButtonDisabled}
+                    data-testid="call-video-button"
+                  >
+                    <Video className="h-4 w-4" />
+                  </Button>
+                </span>
               </TooltipTrigger>
               <TooltipContent side="top">
                 <p>{callButtonTooltip('video')}</p>

@@ -8,6 +8,7 @@ import { cookies, headers } from 'next/headers';
 import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 import { populateApiKeyCache, invalidateApiKeyCache } from '@/app/api/_utils/api-key-cache';
+import { resolveAuthMode } from '@/lib/environment/environment';
 
 // Note: getUserByID, getUserByEmail, updateUser, deleteUser are defined here
 // but also available from '@/lib/orchestra/api/admin' for new code
@@ -74,7 +75,7 @@ export async function deleteUser(userID: string) {
 export const getServerSessionCached = cache(() => getServerSession(authOptions));
 
 export async function getSession() {
-  if (process.env.ON_PREM) {
+  if (resolveAuthMode() === 'external') {
     const sessionResponse = await fetch(`${process.env.NEXTAUTH_URL}/sessionInfo.json`);
     const sessionInfo = snakeToCamelObject<Session>(await sessionResponse.json());
     return sessionInfo;
@@ -96,12 +97,14 @@ export async function getCurrentUserEmail() {
 }
 
 /**
- * Fetches the user information for an on-premise setup.
+ * Fetches the user information when identity is injected externally
+ * (`authMode === 'external'`, e.g. behind an enterprise SSO proxy). Reads a
+ * user dict served by the deployment rather than resolving via Orchestra.
  *
  * @returns {Promise<User | null>} The user information as a
  * User object if available, otherwise null.
  */
-export async function getOnPremUser(): Promise<User | null> {
+export async function getExternalIdentityUser(): Promise<User | null> {
   const userResponse = await fetch(`${process.env.NEXTAUTH_URL}/userInfo.json`);
   const userInfo = snakeToCamelObject<User>(await userResponse.json());
   return userInfo;
@@ -110,9 +113,9 @@ export async function getOnPremUser(): Promise<User | null> {
 /**
  * Retrieves the current user's information.
  *
- * For on-premise setups, fetches the user information from a local file.
- * For other setups, retrieves the user information based on the user's email
- * from the session.
+ * For external-auth deployments (`authMode === 'external'`), fetches the user
+ * from the externally-injected dict. Otherwise resolves the user by the
+ * session email via Orchestra (managed auth — cloud and self-host).
  *
  * @returns {Promise<User | null>} The user information as a
  * User object if available, otherwise null.
@@ -122,8 +125,8 @@ export async function getCurrentUser(): Promise<User | null> {
   let user: User | null = null;
 
   // 1. Fetch User Identity
-  if (process.env.ON_PREM) {
-    user = await getOnPremUser();
+  if (resolveAuthMode() === 'external') {
+    user = await getExternalIdentityUser();
   } else {
     if (session && session.user?.email) {
       try {

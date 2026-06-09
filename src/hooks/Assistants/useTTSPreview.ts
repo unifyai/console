@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { VoiceOption, AssistantActions, GenerateSpeechPayload } from '@/types/assistants/assistant';
 import { getRandomSampleLine } from '@/utils/assistants/voice-utils';
 import { SupportedLanguage } from '@cartesia/cartesia-js/api';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 
 // Helper to convert Base64 to Uint8Array
 function base64ToUint8Array(base64: string): Uint8Array {
@@ -21,6 +22,10 @@ interface UseTTSPreviewProps {
 }
 
 export function useTTSPreview({ generateSpeechAction, onSpeechLevelChange }: UseTTSPreviewProps) {
+  // Speech synthesis requires a TTS provider (Cartesia/ElevenLabs). When none is
+  // configured, generation fails with an opaque backend error — short-circuit
+  // with a clear message instead.
+  const { voiceSynthesis } = useFeatures();
   const [isLoadingPreviewForVoiceId, setIsLoadingPreviewForVoiceId] = React.useState<string | null>(
     null
   );
@@ -167,6 +172,11 @@ export function useTTSPreview({ generateSpeechAction, onSpeechLevelChange }: Use
     }
 
     if (isLoadingPreviewForVoiceId === voice.voiceId) return;
+
+    if (!voiceSynthesis) {
+      toast.warning("Voice preview isn't available — no speech provider configured.");
+      return;
+    }
 
     const requestId = previewRequestIdRef.current + 1;
     previewRequestIdRef.current = requestId;

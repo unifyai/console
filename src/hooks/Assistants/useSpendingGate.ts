@@ -24,7 +24,7 @@
  */
 
 import * as React from 'react';
-import { IS_SELF_HOST } from '@/lib/auth/self-host';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import type { BillingMode } from '@/types/billing';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 import {
@@ -108,8 +108,10 @@ export function useSpendingGate({
   billingMode = 'CREDITS',
   isFreeTrial = false,
 }: UseSpendingGateConfig): SpendingGateStatus {
+  const { billing: billingEnabled } = useFeatures();
   return React.useMemo(() => {
-    if (IS_SELF_HOST) {
+    // No billing feature → nothing to gate (self-host / no Stripe).
+    if (!billingEnabled) {
       return {
         isBlocked: false,
         blockReason: null,
@@ -160,6 +162,7 @@ export function useSpendingGate({
       },
     };
   }, [
+    billingEnabled,
     assistantSpending,
     userSpending,
     orgSpending,

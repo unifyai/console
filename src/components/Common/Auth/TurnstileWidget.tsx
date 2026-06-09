@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 
 /**
  * Global type declarations for the Cloudflare Turnstile API.
@@ -61,12 +61,13 @@ const TURNSTILE_SCRIPT_ID = 'cf-turnstile-script';
  * The widget automatically refreshes expired tokens so that a valid
  * token is always available when the user submits the form.
  *
- * The site key is read server-side in `Base.tsx` and injected via
+ * The public site key is the value of the `captcha` feature (`useFeatures()`),
+ * resolved server-side from `TURNSTILE_SITE_KEY` and injected via
  * `EnvironmentProvider`, so no `NEXT_PUBLIC_` prefix is needed.
  */
 const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
   ({ onVerify, onExpire, onError }, ref) => {
-    const { turnstileSiteKey } = useEnvironment();
+    const turnstileSiteKey = useFeatures().captcha;
     const containerRef = useRef<HTMLDivElement>(null);
     const widgetIdRef = useRef<string | null>(null);
 

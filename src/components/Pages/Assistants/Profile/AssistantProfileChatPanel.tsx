@@ -46,6 +46,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { useChatTTS } from '@/hooks/Assistants/useChatTTS';
 import { ChatMessageSkeletons } from '@/components/Chat/ChatMessageSkeleton';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
@@ -315,6 +316,10 @@ export function AssistantProfileChatPanel({
     },
     [setInputValue]
   );
+  // Voice-note dictation requires the transcription provider (Deepgram). Hide
+  // the mic entirely on deployments without it rather than surface a button
+  // that 500s.
+  const { transcription: transcriptionEnabled } = useFeatures();
   const { recorderError, toggleRecording, stopRecording, isRecording, isTranscribing } =
     useVoiceRecorder({
       onTranscript: handleVoiceTranscript,
@@ -914,35 +919,37 @@ export function AssistantProfileChatPanel({
             </DropdownMenu>
 
             {/* Voice recorder button */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn(
-                'absolute bottom-1 left-8 h-7 w-7',
-                isRecording && 'animate-pulse text-[color:var(--status-danger)]'
-              )}
-              onClick={toggleRecording}
-              disabled={
-                !canChat ||
-                isLoading ||
-                isUploading ||
-                initialLoadError ||
-                sseBlocked ||
-                isSpendingBlocked ||
-                isTranscribing
-              }
-              aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
-              data-testid="voice-record-button"
-            >
-              {isTranscribing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : isRecording ? (
-                <Square className="h-3 w-3 fill-current" />
-              ) : (
-                <Mic className="h-4 w-4" />
-              )}
-            </Button>
+            {transcriptionEnabled && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  'absolute bottom-1 left-8 h-7 w-7',
+                  isRecording && 'animate-pulse text-[color:var(--status-danger)]'
+                )}
+                onClick={toggleRecording}
+                disabled={
+                  !canChat ||
+                  isLoading ||
+                  isUploading ||
+                  initialLoadError ||
+                  sseBlocked ||
+                  isSpendingBlocked ||
+                  isTranscribing
+                }
+                aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
+                data-testid="voice-record-button"
+              >
+                {isTranscribing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : isRecording ? (
+                  <Square className="h-3 w-3 fill-current" />
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
+              </Button>
+            )}
 
             <Textarea
               ref={textareaRef}

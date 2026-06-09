@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { IS_SELF_HOST } from '@/lib/auth/self-host';
+import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
 
 /**
  * Ensures the local Unity Coordinator runtime is running whenever an
@@ -9,16 +9,17 @@ import { IS_SELF_HOST } from '@/lib/auth/self-host';
  * safe on every page load; Pub/Sub topics are owned by unity stack up.
  */
 export function SelfHostRuntimeBootstrap() {
+  const { isSelfHost } = useEnvironment();
   const started = useRef(false);
 
   useEffect(() => {
-    if (!IS_SELF_HOST || started.current) return;
+    if (!isSelfHost || started.current) return;
     started.current = true;
 
     fetch('/api/self-host/start-coordinator', { method: 'POST' }).catch(() => {
       // Unauthenticated or transient failure — login flow retries on sign-in.
     });
-  }, []);
+  }, [isSelfHost]);
 
   return null;
 }
