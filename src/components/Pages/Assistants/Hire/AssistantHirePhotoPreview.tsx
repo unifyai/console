@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/UI/skeleton';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { showErrorToast } from '@/components/Common/Toasts/notifications';
+import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
 
 interface AssistantPhotoViewerProps {
   photoUrl?: string | null;
@@ -64,7 +65,10 @@ export function AssistantPhotoViewer({
     }
   };
 
-  const shouldRenderVideo = videoUrl && !videoError;
+  // A `appearance://` photo encodes the martian's appearance rather than a real
+  // image — reconstruct and render the SVG creature instead of an <img>.
+  const creatureAppearance = parseCreatureSentinel(photoUrl);
+  const shouldRenderVideo = videoUrl && !videoError && !creatureAppearance;
   const showDownloadButton = photoFile || videoFile;
   const hasClickAction = shouldRenderVideo || !!onClick;
 
@@ -159,7 +163,13 @@ export function AssistantPhotoViewer({
                   <Skeleton className="absolute inset-0 z-10 h-full w-full animate-pulse rounded-lg bg-muted" />
                 )}
 
-                {shouldRenderVideo ? (
+                {creatureAppearance ? (
+                  <CreatureAvatar
+                    appearance={creatureAppearance}
+                    className="rounded-lg"
+                    label="Martian avatar"
+                  />
+                ) : shouldRenderVideo ? (
                   <video
                     key={videoUrl}
                     ref={videoRef}

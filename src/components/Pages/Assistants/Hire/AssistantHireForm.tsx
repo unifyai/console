@@ -44,8 +44,9 @@ import {
 import { cn } from '@/lib/utils';
 import { FaUbuntu, FaWindows } from 'react-icons/fa';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
-import { TeammateCreature } from '@/components/Brand';
+import { TeammateCreature, buildCreatureSentinel, parseCreatureSentinel } from '@/components/Brand';
 import { getCreatureMetrics, type CreatureEyes } from '@/components/Brand/TeammateCreature';
+import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
 import { roleColorVars, type BrandRole, type CreatureShape } from '@/components/Brand/shapes';
 import GoogleIcon from '@/public/icons/google-icon.png';
 import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
@@ -168,6 +169,7 @@ export function HireForm({
   showWorkspaceWarning = false,
   lockIdentityFields = false,
   lockAppearanceControls = false,
+  userHasChangedPreset = false,
 }: HireFormProps) {
   const {
     register,
@@ -182,6 +184,7 @@ export function HireForm({
   // the workspace manager: keep each provider visible but disabled with an
   // explanatory tooltip when its client isn't configured.
   const { workspaceGoogle, workspaceMicrosoft } = useFeatures();
+  const workspaceConnectAvailable = workspaceGoogle || workspaceMicrosoft;
   const workspaceUnavailableReason = "isn't configured on this deployment";
 
   const [voiceCustomizationTab, setVoiceCustomizationTab] = React.useState<
@@ -190,6 +193,32 @@ export function HireForm({
   const [martianEyes, setMartianEyes] = React.useState<CreatureEyes>('up');
   const [martianShape, setMartianShape] = React.useState<CreatureShape>('clawd');
   const [martianColor, setMartianColor] = React.useState<BrandRole>('green');
+
+  // The avatar shown in this form is the live creature. We persist it by keeping
+  // `profilePhotoUrl` in sync with an `appearance://` sentinel, since hiring/edit
+  // are submitted by external dialog buttons (not this form's onSubmit) so we
+  // can't hook submission — the form data must already carry the sentinel.
+  const watchedProfilePhotoUrl = useWatch({ control, name: 'profilePhotoUrl' });
+  const watchedPhotoFile = useWatch({ control, name: 'photoFile' });
+  const watchedPhotoPreviewUrl = useWatch({ control, name: 'photoPreviewUrl' });
+  const watchedProfileVideoUrl = useWatch({ control, name: 'profileVideoUrl' });
+
+  // Seed the appearance controls once from an existing sentinel (edit), so the
+  // form shows the saved look instead of resetting to the default creature, then
+  // mark seeding complete so the live-sync below can write back. The edit form is
+  // reset synchronously before this mounts, so the saved value is already present
+  // on first render (and may legitimately be null/GCS — we don't wait for it).
+  const [appearanceSeeded, setAppearanceSeeded] = React.useState(false);
+  React.useEffect(() => {
+    if (appearanceSeeded) return;
+    const parsed = parseCreatureSentinel(watchedProfilePhotoUrl);
+    if (parsed) {
+      setMartianShape(parsed.shape);
+      setMartianColor(parsed.color);
+      setMartianEyes(parsed.eyes);
+    }
+    setAppearanceSeeded(true);
+  }, [appearanceSeeded, watchedProfilePhotoUrl]);
   const [isAppearanceControlsVisible, setIsAppearanceControlsVisible] = React.useState(false);
   const [isLockedMartianHovered, setIsLockedMartianHovered] = React.useState(false);
   const [isVoicePreviewPlaying, setIsVoicePreviewPlaying] = React.useState(false);
@@ -226,6 +255,59 @@ export function HireForm({
   const appearanceControlVisibilityClass = isAppearanceControlsVisible
     ? 'pointer-events-auto opacity-100'
     : 'pointer-events-none opacity-0';
+
+  // Persist the live creature as the avatar by syncing it into `profilePhotoUrl`
+  // as an `appearance://` sentinel. We defer to a real image only when the user
+  // uploaded one or explicitly picked a preset persona's photo. This keeps the
+  // saved value current regardless of how the dialog triggers submission.
+  const creatureSentinel = buildCreatureSentinel({
+    shape: selectedMartianShape,
+    color: selectedMartianColor,
+    eyes: selectedMartianEyes,
+  });
+
+  // Detect when the user actively changes the appearance controls (vs. the value
+  // we seeded). This lets an edit replace an existing real photo with a creature
+  // — otherwise editing the appearance of a photo-backed assistant is a no-op.
+  const appearanceBaselineRef = React.useRef<string | null>(null);
+  const [userEditedAppearance, setUserEditedAppearance] = React.useState(false);
+  React.useEffect(() => {
+    if (!appearanceSeeded) return;
+    if (appearanceBaselineRef.current === null) {
+      appearanceBaselineRef.current = creatureSentinel;
+      return;
+    }
+    if (!userEditedAppearance && creatureSentinel !== appearanceBaselineRef.current) {
+      setUserEditedAppearance(true);
+    }
+  }, [appearanceSeeded, creatureSentinel, userEditedAppearance]);
+
+  const creatureIsAvatar =
+    !lockAppearanceControls &&
+    !watchedPhotoFile &&
+    !userHasChangedPreset &&
+    (mode === 'hire' ||
+      !isGcsPhoto(watchedProfilePhotoUrl) ||
+      parseCreatureSentinel(watchedProfilePhotoUrl) !== null ||
+      userEditedAppearance);
+  React.useEffect(() => {
+    if (!appearanceSeeded || !creatureIsAvatar) return;
+    if (watchedProfilePhotoUrl !== creatureSentinel) {
+      setValue('profilePhotoUrl', creatureSentinel, { shouldDirty: true });
+    }
+    // The creature is self-contained — drop any preset-seeded preview/video so we
+    // don't persist a mismatched image/clip alongside the sentinel.
+    if (watchedPhotoPreviewUrl) setValue('photoPreviewUrl', null);
+    if (watchedProfileVideoUrl) setValue('profileVideoUrl', null);
+  }, [
+    appearanceSeeded,
+    creatureIsAvatar,
+    creatureSentinel,
+    watchedProfilePhotoUrl,
+    watchedPhotoPreviewUrl,
+    watchedProfileVideoUrl,
+    setValue,
+  ]);
 
   const colorIndex = appearanceColorOptions.indexOf(selectedMartianColor);
   const previousColor =
@@ -958,7 +1040,13 @@ export function HireForm({
                             onCheckedChange={(checked) =>
                               onSkipWorkspaceSetupChange?.(checked === true)
                             }
-                            disabled={isSubmitting || !onSkipWorkspaceSetupChange}
+                            // Nothing to connect when no provider is configured —
+                            // keep it checked so the hire flow isn't blocked.
+                            disabled={
+                              isSubmitting ||
+                              !onSkipWorkspaceSetupChange ||
+                              !workspaceConnectAvailable
+                            }
                           />
                           <span className="text-body">Skip</span>
                         </label>

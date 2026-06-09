@@ -28,6 +28,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { generatePostHireGreeting } from '@/lib/assistants/preHireChat';
 import { fetchMediaSignedUrls } from '@/lib/client/assistant';
 import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
+import { isCreatureSentinel } from '@/components/Brand';
 
 export function useAssistantForm(
   assistantActions: AssistantActions,
@@ -604,6 +605,13 @@ export function useAssistantForm(
         if ((photoUploadResult as ResponseProps).detail)
           throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
         payload.profilePhoto = (photoUploadResult as PhotoUploadResponse).gcsUrl;
+      } else if (
+        // Creature appearance edits have no file upload — they're encoded as a
+        // appearance:// sentinel in profilePhotoUrl. Persist it when it changed.
+        isCreatureSentinel(data.profilePhotoUrl) &&
+        data.profilePhotoUrl !== editingAssistant.profilePhoto
+      ) {
+        payload.profilePhoto = data.profilePhotoUrl;
       }
       if (data.videoFile) {
         const formData = new FormData();

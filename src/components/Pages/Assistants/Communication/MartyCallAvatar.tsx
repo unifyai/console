@@ -4,6 +4,7 @@ import * as React from 'react';
 import { motion } from 'framer-motion';
 import type { Transition } from 'framer-motion';
 import { TeammateCreature } from '@/components/Brand';
+import type { BrandRole, CreatureShape } from '@/components/Brand/shapes';
 import type {
   CreatureEyes,
   CreatureMood,
@@ -28,6 +29,11 @@ interface MartyCallAvatarProps {
   creatureClassName?: string;
   layoutId?: string;
   layoutTransition?: Transition;
+  /** Creature appearance — defaults to Marty (the coordinator). */
+  shape?: CreatureShape;
+  color?: BrandRole;
+  baseEyes?: CreatureEyes;
+  label?: string;
 }
 
 export function MartyCallAvatar({
@@ -42,8 +48,11 @@ export function MartyCallAvatar({
   creatureClassName,
   layoutId,
   layoutTransition,
+  shape = 'clawd',
+  color = 'green',
+  baseEyes = 'up',
+  label = 'Marty',
 }: MartyCallAvatarProps) {
-  const baseEyes = 'up' satisfies CreatureEyes;
   const [isHovered, setIsHovered] = React.useState(false);
   const displayedSpeechLevel = clampMartianSpeechLevel(speechLevel ?? 0);
   const displayedMouthShape =
@@ -74,10 +83,12 @@ export function MartyCallAvatar({
     >
       <TeammateCreature
         className={cn('h-full w-full', creatureClassName)}
+        color={color}
         eyes={displayedCreatureEyes}
-        label="Marty"
+        label={label}
         mood={mood}
         mouthShape={displayedMouthShape}
+        shape={shape}
       />
     </motion.span>
   );

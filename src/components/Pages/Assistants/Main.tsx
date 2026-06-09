@@ -589,7 +589,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [hireWorkspaceProvider, setHireWorkspaceProvider] = React.useState<OAuthProvider | null>(
     null
   );
-  const [skipHireWorkspaceSetup, setSkipHireWorkspaceSetup] = React.useState(false);
+  // When no workspace provider is configured on the deployment there's nothing
+  // to connect, so default to "skip" — otherwise the hire flow would block on a
+  // step the user can't complete.
+  const [skipHireWorkspaceSetup, setSkipHireWorkspaceSetup] =
+    React.useState(!workspaceConnectAvailable);
   const [showHireWorkspaceWarning, setShowHireWorkspaceWarning] = React.useState(false);
   const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
   const [isDialogBusyProcessingPhoto, setIsDialogBusyProcessingPhoto] = React.useState(false);
@@ -1374,13 +1378,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, []);
 
   const handleHireAttempt = React.useCallback(async () => {
-    if (!hireWorkspaceProvider && !skipHireWorkspaceSetup) {
+    if (workspaceConnectAvailable && !hireWorkspaceProvider && !skipHireWorkspaceSetup) {
       setShowHireWorkspaceWarning(true);
       return;
     }
 
     await initiateHireSequence();
-  }, [hireWorkspaceProvider, initiateHireSequence, skipHireWorkspaceSetup]);
+  }, [
+    workspaceConnectAvailable,
+    hireWorkspaceProvider,
+    initiateHireSequence,
+    skipHireWorkspaceSetup,
+  ]);
 
   // --- Voice Options  ---
   const allDisplayableVoices = React.useMemo(() => {
@@ -1409,7 +1418,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setPresetLanguageFilter('all');
     setIsDialogBusyProcessingVoice(false);
     setHireWorkspaceProvider(null);
-    setSkipHireWorkspaceSetup(false);
+    // No configurable workspace provider → pre-skip so the flow isn't blocked.
+    setSkipHireWorkspaceSetup(!workspaceConnectAvailable);
     setShowHireWorkspaceWarning(false);
 
     // Mark that we need to select a preset once they're loaded
@@ -1424,6 +1434,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setPresetNationalityFilter,
     setPresetGenderFilter,
     setPresetLanguageFilter,
+    workspaceConnectAvailable,
   ]);
 
   const applyRandomMartianProfile = React.useCallback(() => {

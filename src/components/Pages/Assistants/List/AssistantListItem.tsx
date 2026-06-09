@@ -23,6 +23,7 @@ import {
 } from '@/components/UI/dropdown-menu';
 import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
+import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import {
   AlertDialog,
@@ -107,8 +108,25 @@ export function AssistantListItem({
   const displayName = assistantDisplayName(assistant);
   const subtitle = assistant.jobTitle?.trim() || null;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
+  // A `appearance://` photo encodes the martian's appearance — render the SVG
+  // creature; otherwise fall back to the photo URL (or initials).
+  const creatureAppearance = parseCreatureSentinel(photoSrc);
   const isOnline = status?.running === true;
   const canEndContract = !!onEndContract && !isCoordinator;
+
+  const renderPhotoAvatar = (className: string) =>
+    creatureAppearance ? (
+      <CreatureAvatar
+        appearance={creatureAppearance}
+        className={cn('rounded-control', className)}
+        label={displayName}
+      />
+    ) : (
+      <Avatar className={className}>
+        <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
+        <AvatarFallback className="rounded-control">{assistantInitials(assistant)}</AvatarFallback>
+      </Avatar>
+    );
 
   const handleFoldedKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -140,12 +158,7 @@ export function AssistantListItem({
         {isCoordinator ? (
           <CoordinatorLogoAvatar className="h-9 w-9" />
         ) : (
-          <Avatar className="rounded-control h-9 w-9">
-            <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
-            <AvatarFallback className="rounded-control">
-              {assistantInitials(assistant)}
-            </AvatarFallback>
-          </Avatar>
+          renderPhotoAvatar('rounded-control h-9 w-9')
         )}
         {status !== null && (
           <span
@@ -194,12 +207,7 @@ export function AssistantListItem({
           {isCoordinator ? (
             <CoordinatorLogoAvatar className="h-9 w-9 flex-shrink-0" />
           ) : (
-            <Avatar className="rounded-control h-9 w-9 flex-shrink-0 cursor-default">
-              <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
-              <AvatarFallback className="rounded-control">
-                {assistantInitials(assistant)}
-              </AvatarFallback>
-            </Avatar>
+            renderPhotoAvatar('rounded-control h-9 w-9 flex-shrink-0 cursor-default')
           )}
           {status !== null && (
             <span

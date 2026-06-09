@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Volume2, Loader2, Square, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
 import { Attachment } from '@/types/assistants/chat';
 import { ChatMarkdown } from './ChatMarkdown';
 import { RenderContentWithEmbeds, containsEmbedUrl } from './InlineEmbed';
@@ -203,6 +204,12 @@ function ChatMessageBubbleImpl({
           <CoordinatorLogoAvatar
             className={cn('flex-shrink-0', isTypingIndicator ? 'h-7 w-7' : 'h-6 w-6')}
             logoClassName={isTypingIndicator ? 'h-7 w-7' : 'h-3.5 w-3.5'}
+          />
+        ) : parseCreatureSentinel(assistantPhoto) ? (
+          <CreatureAvatar
+            appearance={assistantPhoto as string}
+            className="h-6 w-6 flex-shrink-0 rounded-full border"
+            label={assistantName}
           />
         ) : (
           <Avatar className="h-6 w-6 flex-shrink-0 border">

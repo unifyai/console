@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { Loader2, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { MartyCallAvatar } from '@/components/Pages/Assistants/Communication/MartyCallAvatar';
+import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
 import { useMartianEyeExpression } from '@/hooks/Assistants/useMartianEyeExpression';
 import { useMartianAudioLipsync } from '@/hooks/Assistants/useMartianAudioLipsync';
 import type {
@@ -158,6 +159,9 @@ export function AssistantCommunicationMainView({
   const fallback = assistantName
     ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
     : 'A';
+  // A `appearance://` photo means this assistant is a creature — render the
+  // animated SVG instead of a (broken) <img> + overlaid eyes/mouth.
+  const creatureAppearance = parseCreatureSentinel(imageUrl);
   const [isIntroAudioPlaying, setIsIntroAudioPlaying] = React.useState(false);
   const [introAudioSpeechLevel, setIntroAudioSpeechLevel] = React.useState(0);
   const [introAudioMouthShape, setIntroAudioMouthShape] =
@@ -222,12 +226,20 @@ export function AssistantCommunicationMainView({
               spinnerSize
             )}
           >
-            <Avatar className="h-full w-full">
-              <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
-              <AvatarFallback className="bg-muted text-4xl text-muted-foreground">
-                {fallback}
-              </AvatarFallback>
-            </Avatar>
+            {creatureAppearance ? (
+              <CreatureAvatar
+                appearance={creatureAppearance}
+                className="rounded-full"
+                label={assistantName}
+              />
+            ) : (
+              <Avatar className="h-full w-full">
+                <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
+                <AvatarFallback className="bg-muted text-4xl text-muted-foreground">
+                  {fallback}
+                </AvatarFallback>
+              </Avatar>
+            )}
           </div>
         </div>
         <p className="text-body-muted mt-4">{loadingMessage}</p>
@@ -351,6 +363,18 @@ export function AssistantCommunicationMainView({
                   mood={mood}
                   mouthShape={martyMouthShape}
                   speechLevel={martySpeechLevel}
+                />
+              ) : creatureAppearance ? (
+                <MartyCallAvatar
+                  isSpeaking={isImageAvatarSpeaking}
+                  isCallActive={isCallActive}
+                  isUserSpeaking={isUserSpeaking}
+                  mouthShape={imageAvatarMouthShape}
+                  speechLevel={imageAvatarSpeechLevel}
+                  shape={creatureAppearance.shape}
+                  color={creatureAppearance.color}
+                  baseEyes={creatureAppearance.eyes}
+                  label={assistantName}
                 />
               ) : (
                 <div className="relative h-full w-full" style={imageAvatarVisualStyle}>

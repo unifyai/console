@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
+import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Button } from '@/components/UI/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
@@ -458,12 +459,19 @@ function IdentityHeader({
 
   return (
     <div className="flex items-start gap-3">
-      {avatarNode ?? (
-        <Avatar className="h-14 w-14 flex-shrink-0 rounded-md">
-          <AvatarImage src={photoSrc} alt={name} className="rounded-md" />
-          <AvatarFallback className="rounded-md">{initials}</AvatarFallback>
-        </Avatar>
-      )}
+      {avatarNode ??
+        (parseCreatureSentinel(photoSrc) ? (
+          <CreatureAvatar
+            appearance={photoSrc as string}
+            className="h-14 w-14 flex-shrink-0 rounded-md"
+            label={name}
+          />
+        ) : (
+          <Avatar className="h-14 w-14 flex-shrink-0 rounded-md">
+            <AvatarImage src={photoSrc} alt={name} className="rounded-md" />
+            <AvatarFallback className="rounded-md">{initials}</AvatarFallback>
+          </Avatar>
+        ))}
       <div className="min-w-0 flex-1 space-y-0.5">
         <div className="text-title truncate" data-testid="assistant-info-name">
           {name}
