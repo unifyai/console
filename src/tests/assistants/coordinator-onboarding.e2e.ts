@@ -90,6 +90,12 @@ test('picking chat reveals the chat surface and the skip affordance', async ({
   // its presence is the canonical signal that the chat surface is
   // wired up and ready for input.
   await expect(page.locator('textarea').first()).toBeVisible({ timeout: 10_000 });
+
+  await page.getByTestId('coordinator-onboarding-item-connect').click();
+  await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveAttribute(
+    'data-attention',
+    'true'
+  );
 });
 
 test('reloading after picking chat returns the user to the picker', async ({
