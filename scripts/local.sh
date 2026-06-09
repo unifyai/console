@@ -196,6 +196,48 @@ load_self_host_runtime_env() {
   export_workspace_oauth_env "$UNITY_REPO_PATH/.env"
 }
 
+ensure_service_gateway() {
+  if ! is_unity_available; then
+    log_error "Unity repo not found — cannot start gateway"
+    return 1
+  fi
+
+  local gateway_url
+  if declare -F self_host_gateway_base_url &>/dev/null; then
+    gateway_url="$(self_host_gateway_base_url)"
+  else
+    gateway_url="http://${UNITY_GATEWAY_HOST:-127.0.0.1}:${UNITY_GATEWAY_PORT:-8001}"
+  fi
+
+  export UNITY_RUNTIME_GATEWAY_OWNER="${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}"
+  if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
+    export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0"
+  fi
+  export ORCHESTRA_ADMIN_KEY="$ADMIN_KEY"
+
+  if declare -F self_host_gateway_is_healthy &>/dev/null \
+    && self_host_gateway_is_healthy; then
+    if declare -F self_host_write_gateway_state &>/dev/null; then
+      local gateway_pid=""
+      gateway_pid="$(self_host_gateway_process_pid 2>/dev/null || true)"
+      if [[ -n "$gateway_pid" ]]; then
+        self_host_write_gateway_state \
+          "${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}" \
+          "$gateway_pid"
+      fi
+    fi
+    log_success "Unity gateway already running ($gateway_url)"
+    return 0
+  fi
+
+  log_info "Starting Unity gateway for service runtime ($gateway_url) ..."
+  if ! bash "$UNITY_LOCAL_SCRIPT" start-gateway; then
+    log_error "Failed to start Unity gateway"
+    return 1
+  fi
+  log_success "Unity gateway ready ($gateway_url)"
+}
+
 append_workspace_oauth_env() {
   local -n _target_array="$1"
   local key val
@@ -800,9 +842,19 @@ start_unity() {
 }
 
 stop_unity() {
+  if [[ "${UNITY_ALLOW_RUNTIME_STOP:-0}" != "1" ]] \
+    && declare -F self_host_should_preserve_runtime_on_interactive_stop &>/dev/null \
+    && self_host_should_preserve_runtime_on_interactive_stop; then
+    log_info "Keeping service-managed Coordinator runtime running"
+    return 0
+  fi
+
   if is_unity_available; then
     log_info "Stopping Unity..."
-    bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
+    UNITY_ALLOW_RUNTIME_STOP=1 bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
+    if declare -F self_host_clear_runtime_state &>/dev/null; then
+      self_host_clear_runtime_state
+    fi
     log_success "Unity stopped"
   fi
 }
@@ -884,9 +936,26 @@ _running_coordinator_agent_id() {
   ps eww -p "$pid" 2>/dev/null | tr ' ' '\n' | sed -n 's/^ASSISTANT_ID=//p' | head -1
 }
 
+maybe_refresh_coordinator_ingress_before_start() {
+  local coordinator_agent_id="${1:-}"
+
+  [[ "${UNITY_ENSURE_COORDINATOR_INGRESS:-0}" == "1" ]] || return 0
+  [[ -n "$coordinator_agent_id" ]] || return 0
+  is_emulator_running || return 0
+  is_unity_running || return 0
+
+  local running_id=""
+  running_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
+  [[ "$running_id" == "$coordinator_agent_id" ]] || return 0
+
+  log_info "Restarting Coordinator so Pub/Sub ingress matches the emulator..."
+  export UNITY_REFRESH_INBOUND_SUBSCRIPTION=1
+}
+
 start_unity_coordinator() {
   local unify_key="${1:-${SELF_HOST_UNIFY_KEY:-}}"
   local coordinator_agent_id="${2:-${SELF_HOST_COORDINATOR_AGENT_ID:-}}"
+  local runtime_owner="${UNITY_RUNTIME_OWNER:-${SELF_HOST_RUNTIME_OWNER_STACK:-stack}}"
 
   if [[ -z "$unify_key" || -z "$coordinator_agent_id" ]]; then
     log_error "UNIFY_KEY and Coordinator agent_id are required"
@@ -902,18 +971,46 @@ start_unity_coordinator() {
     local running_id=""
     running_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
     if [[ "$running_id" == "$coordinator_agent_id" ]]; then
-      create_assistant_pubsub_topics "$coordinator_agent_id" || true
-      log_success "Unity Coordinator runtime already running (assistant=$coordinator_agent_id)"
-      return 0
+      if [[ "${UNITY_REFRESH_INBOUND_SUBSCRIPTION:-0}" == "1" ]]; then
+        log_info "Restarting Coordinator to refresh Pub/Sub subscription..."
+        UNITY_ALLOW_RUNTIME_STOP=1 bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
+        sleep 1
+      else
+        if is_emulator_running; then
+          create_assistant_pubsub_topics "$coordinator_agent_id" || true
+        fi
+        log_success "Unity Coordinator runtime already running (assistant=$coordinator_agent_id)"
+        return 0
+      fi
+    fi
+    if declare -F self_host_runtime_owner_for_pid &>/dev/null; then
+      local running_pid
+      running_pid="$(cat /tmp/unity-local.pid 2>/dev/null || true)"
+      if [[ "$(self_host_runtime_owner_for_pid "$running_pid")" == "${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}" \
+        && "${UNITY_ALLOW_RUNTIME_STOP:-0}" != "1" ]]; then
+        log_error "Coordinator CM is owned by the runtime service (assistant=$running_id)"
+        log_info "Stop it with: unity service stop"
+        return 1
+      fi
     fi
     log_info "Restarting Unity for Coordinator assistant=$coordinator_agent_id ..."
-    bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
+    UNITY_ALLOW_RUNTIME_STOP=1 bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
     sleep 1
   fi
 
   log_info "Starting Unity for Coordinator assistant=$coordinator_agent_id ..."
 
   load_self_host_runtime_env
+
+  local service_gateway_url=""
+  if [[ "${UNITY_SERVICE_RUNTIME:-0}" == "1" ]]; then
+    ensure_service_gateway || return 1
+    if declare -F self_host_gateway_base_url &>/dev/null; then
+      service_gateway_url="$(self_host_gateway_base_url)"
+    else
+      service_gateway_url="http://${UNITY_GATEWAY_HOST:-127.0.0.1}:${UNITY_GATEWAY_PORT:-8001}"
+    fi
+  fi
 
   local unity_env=(
     PUBSUB_EMULATOR_HOST="$LOCAL_PUBSUB_HOST"
@@ -927,6 +1024,7 @@ start_unity_coordinator() {
     EVENTBUS_PUBLISHING_ENABLED="${EVENTBUS_PUBLISHING_ENABLED:-true}"
     EVENTBUS_PUBSUB_STREAMING="${EVENTBUS_PUBSUB_STREAMING:-true}"
     UNITY_LOCAL_SCHEDULER="${UNITY_LOCAL_SCHEDULER:-true}"
+    UNITY_RUNTIME_OWNER="$runtime_owner"
   )
 
   if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
@@ -934,8 +1032,8 @@ start_unity_coordinator() {
   fi
 
   unity_env+=(
-    "UNITY_COMMS_URL=${CHAT_COMMS_URL:-http://127.0.0.1:8082}"
-    "UNITY_ADAPTERS_URL=${CHAT_ADAPTERS_URL:-http://127.0.0.1:8081}"
+    "UNITY_COMMS_URL=${service_gateway_url:-${CHAT_COMMS_URL:-http://127.0.0.1:8082}}"
+    "UNITY_ADAPTERS_URL=${service_gateway_url:-${CHAT_ADAPTERS_URL:-http://127.0.0.1:8081}}"
   )
 
   local _voice_provider _voice_id
@@ -1011,6 +1109,12 @@ start_unity_coordinator() {
     return 1
   fi
 
+  local cm_pid
+  cm_pid="$(cat /tmp/unity-local.pid 2>/dev/null || true)"
+  if [[ -n "$cm_pid" ]]; then
+    self_host_write_runtime_state "$runtime_owner" "$cm_pid" "$coordinator_agent_id"
+  fi
+
   log_success "Unity Coordinator runtime is running (assistant=$coordinator_agent_id)"
 }
 
@@ -1021,6 +1125,33 @@ cmd_start_coordinator() {
   local unify_key="${SELF_HOST_UNIFY_KEY:-}"
   local coordinator_id="${SELF_HOST_COORDINATOR_AGENT_ID:-}"
   local runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${UNITY_HOME:-$HOME/.unity}/coordinator-runtime.json}"
+
+  if [[ "${UNITY_REUSE_SERVICE_CM:-0}" == "1" ]]; then
+    local cm_count
+    cm_count="$(unity_cm_instance_count)"
+    local state_owner=""
+    if [[ "$cm_count" -eq 1 ]]; then
+      state_owner="$(self_host_read_runtime_state 2>/dev/null | sed -n '1p' || true)"
+    fi
+    if [[ "$cm_count" -eq 1 && "$state_owner" == "${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}" ]]; then
+      local running_id=""
+      running_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
+      if [[ (-z "$unify_key" || -z "$coordinator_id") && -f "$runtime_file" ]]; then
+        unify_key="$(self_host_load_coordinator_credentials "$runtime_file" | sed -n '1p')"
+        coordinator_id="$(self_host_load_coordinator_credentials "$runtime_file" | sed -n '2p')"
+      fi
+      if [[ -n "$coordinator_id" && "$running_id" == "$coordinator_id" ]]; then
+        if [[ "${UNITY_ENSURE_COORDINATOR_INGRESS:-0}" != "1" ]]; then
+          if is_emulator_running; then
+            create_assistant_pubsub_topics "$coordinator_id" || true
+          fi
+          log_success "Reusing service-managed Coordinator runtime (assistant=$coordinator_id)"
+          return 0
+        fi
+        log_info "Reconciling service-managed Coordinator ingress for stack up..."
+      fi
+    fi
+  fi
 
   if [[ (-z "$unify_key" || -z "$coordinator_id") && -f "$runtime_file" ]]; then
     local parsed
@@ -1059,7 +1190,83 @@ PY
   fi
 
   create_assistant_pubsub_topics "$coordinator_id" || return 1
+  maybe_refresh_coordinator_ingress_before_start "$coordinator_id"
   start_unity_coordinator "$unify_key" "$coordinator_id"
+}
+
+cmd_start_runtime_backend() {
+  export SELF_HOST=1
+  export UNITY_SERVICE_RUNTIME=1
+  export UNITY_RUNTIME_OWNER="${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}"
+  load_self_host_runtime_env
+
+  local unify_key=""
+  local coordinator_id=""
+  local runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${UNITY_HOME:-$HOME/.unity}/coordinator-runtime.json}"
+
+  if [[ -f "$runtime_file" ]]; then
+    unify_key="$(self_host_load_coordinator_credentials "$runtime_file" | sed -n '1p')"
+    coordinator_id="$(self_host_load_coordinator_credentials "$runtime_file" | sed -n '2p')"
+  fi
+
+  if [[ -z "$unify_key" || -z "$coordinator_id" ]]; then
+    log_warn "Coordinator credentials missing — register at Console (/login) first"
+    return 1
+  fi
+
+  if ! is_orchestra_running; then
+    start_orchestra false || return 1
+  fi
+
+  ensure_service_gateway || return 1
+
+  if ! is_emulator_running; then
+    log_info "Pub/Sub emulator not running — Coordinator CM deferred until unity stack up"
+    return 0
+  fi
+
+  if is_unity_running; then
+    local running_id=""
+    running_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
+    if [[ "$running_id" == "$coordinator_id" ]]; then
+      local cm_pid=""
+      cm_pid="$(cat /tmp/unity-local.pid 2>/dev/null || true)"
+      if [[ -n "$cm_pid" ]]; then
+        self_host_write_runtime_state \
+          "${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}" \
+          "$cm_pid" \
+          "$coordinator_id"
+      fi
+      if declare -F self_host_gateway_is_healthy &>/dev/null \
+        && ! self_host_gateway_is_healthy; then
+        log_warn "Service gateway unhealthy — restarting gateway"
+        export UNITY_RUNTIME_GATEWAY_OWNER="${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}"
+        bash "$UNITY_LOCAL_SCRIPT" start-gateway || return 1
+      fi
+      return 0
+    fi
+  fi
+
+  if is_emulator_running; then
+    create_assistant_pubsub_topics "$coordinator_id" || true
+  fi
+  start_unity_coordinator "$unify_key" "$coordinator_id"
+}
+
+cmd_stop_runtime_backend() {
+  export SELF_HOST=1
+  load_self_host_runtime_env
+  export UNITY_ALLOW_RUNTIME_STOP=1
+
+  if is_unity_available && is_unity_running; then
+    log_info "Stopping service-managed Coordinator runtime..."
+    bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
+  fi
+  self_host_clear_runtime_state
+
+  if is_orchestra_running && ! is_console_running; then
+    stop_orchestra
+  fi
 }
 
 create_seeded_assistant_topics() {
@@ -1547,7 +1754,12 @@ cmd_start() {
 
   echo ""
   if [[ "$with_self_host" == "true" ]] && is_orchestra_running; then
-    log_info "Restarting Orchestra so SELF_HOST=1 and UNITY_COMMS_URL apply..."
+    if declare -F self_host_should_preserve_runtime_on_interactive_stop &>/dev/null \
+      && self_host_should_preserve_runtime_on_interactive_stop; then
+      log_info "Restarting Orchestra for interactive stack (service CM keeps running)..."
+    else
+      log_info "Restarting Orchestra so SELF_HOST=1 and UNITY_COMMS_URL apply..."
+    fi
     stop_orchestra
   fi
   start_orchestra "$with_stripe" || return 1
@@ -1655,22 +1867,49 @@ cmd_start() {
 }
 
 cmd_stop() {
+  local interactive_only="false"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --interactive-only) interactive_only="true"; shift ;;
+      *) shift ;;
+    esac
+  done
+
   echo "Stopping local environment..."
   echo ""
   if is_stripe_listener_running; then
     stop_stripe_listener
   fi
   stop_console
-  stop_orchestra
+  if [[ "$interactive_only" != "true" ]] \
+    || ! { declare -F self_host_should_preserve_orchestra_on_interactive_stop &>/dev/null \
+      && self_host_should_preserve_orchestra_on_interactive_stop; }; then
+    stop_orchestra
+  else
+    log_info "Keeping Orchestra running (runtime service)"
+  fi
   stop_communication_services
   if is_unity_available && is_unity_running; then
-    stop_unity
+    if [[ "$interactive_only" == "true" ]] \
+      && declare -F self_host_should_preserve_runtime_on_interactive_stop &>/dev/null \
+      && self_host_should_preserve_runtime_on_interactive_stop; then
+      log_info "Keeping service-managed Coordinator runtime running"
+    else
+      stop_unity
+    fi
   fi
   if is_emulator_running; then
     stop_pubsub_emulator
   fi
   echo ""
-  log_success "Local environment stopped"
+  if [[ "$interactive_only" == "true" ]] \
+    && declare -F self_host_service_is_enabled &>/dev/null \
+    && self_host_service_is_enabled; then
+    log_success "Interactive stack stopped (runtime service still running)"
+    log_info "Scheduled tasks and outbound comms continue until: unity service stop"
+  else
+    log_success "Local environment stopped"
+  fi
 }
 
 cmd_restart() {
@@ -1763,6 +2002,12 @@ cmd_status() {
     echo -e "${YELLOW}not found${NC} (set UNITY_REPO_PATH)"
   fi
 
+  if declare -F self_host_runtime_doctor_line &>/dev/null; then
+    echo ""
+    echo "  Runtime service"
+    self_host_runtime_doctor_line | sed 's/^/    /'
+  fi
+
   echo ""
 }
 
@@ -1797,6 +2042,7 @@ main() {
   local unity_echo="false"
   local with_self_host="false"
   local seed_scenario=""
+  local interactive_stop="false"
 
   while (( "$#" )); do
     case "$1" in
@@ -1806,6 +2052,7 @@ main() {
       --self-host) with_self_host="true"; shift ;;
       --pubsub) with_pubsub="true"; shift ;;
       --echo|--unity-echo) unity_echo="true"; shift ;;
+      --interactive-only) interactive_stop="true"; shift ;;
       --seed)   shift; seed_scenario="${1:-}"; shift ;;
       --credits)
         shift
@@ -1828,8 +2075,16 @@ main() {
 
   case "$cmd" in
     start-coordinator) cmd_start_coordinator ;;
+    start-runtime-backend) cmd_start_runtime_backend ;;
+    stop-runtime-backend) cmd_stop_runtime_backend ;;
     start)   cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" "$with_self_host" ;;
-    stop)    cmd_stop ;;
+    stop)
+      if [[ "$interactive_stop" == "true" ]]; then
+        cmd_stop --interactive-only
+      else
+        cmd_stop
+      fi
+      ;;
     restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" "$with_self_host" ;;
     status)  cmd_status ;;
     help)
