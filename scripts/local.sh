@@ -861,11 +861,17 @@ create_assistant_pubsub_topics() {
     -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\",\"filter\":\"attributes.thread = \\\"action_event\\\"\",\"messageRetentionDuration\":\"1800s\"}" \
     2>/dev/null || true
 
+  # CM inbound subscription — match hosted production: only ``thread=inbound``
+  # messages (Adapters / gateway). Unfiltered subs also receive action_event
+  # and outbound threads, which CommsManager acks as unknown noise.
   local inbound_sub="${topic_name}-sub"
+  curl -s -o /dev/null \
+    -X DELETE "${emulator_url}/v1/projects/${project_id}/subscriptions/${inbound_sub}" \
+    2>/dev/null || true
   curl -s -o /dev/null \
     -X PUT "${emulator_url}/v1/projects/${project_id}/subscriptions/${inbound_sub}" \
     -H "Content-Type: application/json" \
-    -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\"}" \
+    -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\",\"filter\":\"attributes.thread = \\\"inbound\\\"\"}" \
     2>/dev/null || true
 }
 
