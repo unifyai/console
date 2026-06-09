@@ -203,7 +203,7 @@ function CoordinatorAssistantInfoSidePanelContent({
           name="Marty"
           photoSrc={undefined}
           initials="CO"
-          summary="Your personal helper"
+          summary="Your personal martian"
           visibilityLabel={
             <span className="inline-flex items-center gap-1">
               Only you
