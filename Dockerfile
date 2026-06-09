@@ -51,6 +51,7 @@ RUN apk add --no-cache python3
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+COPY --from=builder /app/public ./src/public
 COPY --from=builder /app/src/public ./src/public
 COPY --from=builder /app/src/styles ./src/styles
 
