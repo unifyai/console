@@ -1865,13 +1865,20 @@ cmd_start() {
   fi
 
   echo ""
+  local restart_orchestra="false"
   if [[ "$with_self_host" == "true" ]] && is_orchestra_running; then
-    if declare -F self_host_should_preserve_runtime_on_interactive_stop &>/dev/null \
-      && self_host_should_preserve_runtime_on_interactive_stop; then
-      log_info "Restarting Orchestra for interactive stack (service CM keeps running)..."
+    if declare -F self_host_headless_scheduling_ready &>/dev/null \
+      && self_host_headless_scheduling_ready; then
+      log_info "Reusing Orchestra (background runtime still running)..."
+    elif declare -F self_host_should_preserve_orchestra_on_interactive_stop &>/dev/null \
+      && self_host_should_preserve_orchestra_on_interactive_stop; then
+      log_info "Reusing Orchestra (background runtime still running)..."
     else
       log_info "Restarting Orchestra so SELF_HOST=1 and UNITY_COMMS_URL apply..."
+      restart_orchestra="true"
     fi
+  fi
+  if [[ "$restart_orchestra" == "true" ]]; then
     stop_orchestra
   fi
   start_orchestra "$with_stripe" || return 1
