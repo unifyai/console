@@ -28,7 +28,7 @@ async function triggerSelfHostCoordinatorStart() {
   try {
     await fetch('/api/self-host/start-coordinator', { method: 'POST' });
   } catch {
-    // Non-blocking — user can run `unity stack coordinator` manually.
+    // Non-blocking — bootstrap on app load retries for returning sessions.
   }
 }
 
