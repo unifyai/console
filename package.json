@@ -143,6 +143,7 @@
     "use-context-selector": "^2.0.0",
     "usehooks-ts": "^3.1.1",
     "uuid": "^11.0.3",
+    "wawa-lipsync": "^0.0.2",
     "yet-another-react-lightbox": "^3.21.7",
     "zod": "^3.23.8",
     "zustand": "^5.0.12"

@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils';
 import { Loader2, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { MartyCallAvatar } from '@/components/Pages/Assistants/Communication/MartyCallAvatar';
+import { useMartyAudioLipsync } from '@/hooks/Assistants/useMartyAudioLipsync';
+import type { CreatureMouthShape } from '@/components/Brand/TeammateCreature';
 import {
   clampMartianSpeechLevel,
   getMartianSpeechTransform,
@@ -16,6 +18,7 @@ import { COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION } from '@/utils/assistan
 type BrowserWindowWithMartyIntroAudio = Window & {
   __martyOnboardingIntroAudio?: HTMLAudioElement;
   __martyOnboardingIntroSpeechLevel?: number;
+  __martyOnboardingIntroMouthShape?: CreatureMouthShape;
 };
 
 interface AssistantCommunicationMainViewProps {
@@ -23,6 +26,7 @@ interface AssistantCommunicationMainViewProps {
   isCoordinator?: boolean;
   isSpeaking: boolean;
   imageUrl: string | null | undefined;
+  audioTrack?: TrackReference;
   videoTrack?: TrackReference;
   className?: string;
   isRemoteControlActive?: boolean;
@@ -44,6 +48,7 @@ export function AssistantCommunicationMainView({
   isCoordinator = false,
   isSpeaking,
   imageUrl,
+  audioTrack,
   videoTrack,
   className,
   isRemoteControlActive = false,
@@ -65,6 +70,12 @@ export function AssistantCommunicationMainView({
   const [speechLevel, setSpeechLevel] = React.useState(0);
   const [isIntroAudioPlaying, setIsIntroAudioPlaying] = React.useState(false);
   const [introAudioSpeechLevel, setIntroAudioSpeechLevel] = React.useState(0);
+  const [introAudioMouthShape, setIntroAudioMouthShape] =
+    React.useState<CreatureMouthShape>('closed');
+  const liveLipsyncFrame = useMartyAudioLipsync(
+    audioTrack,
+    isCoordinator && !isLoading && !connectionError
+  );
   const animatedVisualStyle = {
     '--martian-speech-level': speechLevel.toFixed(3),
     transform: getMartianSpeechTransform(speechLevel),
@@ -94,6 +105,7 @@ export function AssistantCommunicationMainView({
       const audio = martyWindow.__martyOnboardingIntroAudio;
       setIsIntroAudioPlaying(!!audio && !audio.paused && !audio.ended);
       setIntroAudioSpeechLevel(martyWindow.__martyOnboardingIntroSpeechLevel ?? 0);
+      setIntroAudioMouthShape(martyWindow.__martyOnboardingIntroMouthShape ?? 'closed');
     };
 
     updateIntroAudioState();
@@ -203,6 +215,15 @@ export function AssistantCommunicationMainView({
     );
   }
 
+  const martySpeechLevel = isIntroAudioPlaying
+    ? introAudioSpeechLevel
+    : liveLipsyncFrame.speechLevel;
+  const martyMouthShape = isIntroAudioPlaying ? introAudioMouthShape : liveLipsyncFrame.mouthShape;
+  const isMartySpeaking =
+    isIntroAudioPlaying ||
+    liveLipsyncFrame.isActive ||
+    (isSpeaking && !isLoading && !connectionError);
+
   return (
     <div
       className={cn(
@@ -241,12 +262,13 @@ export function AssistantCommunicationMainView({
             <>
               {isCoordinator ? (
                 <MartyCallAvatar
-                  isSpeaking={(isSpeaking && !isLoading && !connectionError) || isIntroAudioPlaying}
+                  isSpeaking={isMartySpeaking}
                   isCallActive={isCallActive}
                   isUserSpeaking={isUserSpeaking}
                   layoutTransition={COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION}
                   layoutId="marty-onboarding-call-avatar"
-                  speechLevel={isIntroAudioPlaying ? introAudioSpeechLevel : undefined}
+                  mouthShape={martyMouthShape}
+                  speechLevel={martySpeechLevel}
                 />
               ) : (
                 <Avatar className="h-full w-full" style={animatedVisualStyle}>

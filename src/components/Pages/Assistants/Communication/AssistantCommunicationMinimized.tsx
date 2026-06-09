@@ -98,7 +98,11 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
   isCallConnected,
   callType,
 }) => {
-  const { state: agentState, videoTrack: agentVideoTrack } = useVoiceAssistant();
+  const {
+    state: agentState,
+    audioTrack: agentAudioTrack,
+    videoTrack: agentVideoTrack,
+  } = useVoiceAssistant();
   const { localParticipant } = useLocalParticipant();
   const isUserSpeaking = useIsSpeaking(localParticipant);
   const micToggle = useTrackToggle({ source: Track.Source.Microphone });
@@ -162,6 +166,7 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
         isCoordinator={isCoordinator}
         isSpeaking={agentState === 'speaking'}
         imageUrl={assistantPhoto}
+        audioTrack={agentAudioTrack}
         videoTrack={agentVideoTrack}
         isLoading={showLoadingState}
         loadingMessage={loadingMessage}

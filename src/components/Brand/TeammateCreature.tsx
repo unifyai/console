@@ -8,6 +8,14 @@ import {
 } from './shapes';
 
 export type CreatureEyes = 'up' | 'down' | 'square';
+export type CreatureMouthShape =
+  | 'amplitude'
+  | 'closed'
+  | 'pinched'
+  | 'wide'
+  | 'open'
+  | 'round'
+  | 'narrow';
 
 const CREATURE_CELL = 18;
 const CREATURE_MARGIN = 12;
@@ -31,6 +39,7 @@ type TeammateCreatureProps = {
   color?: BrandRole;
   eyes?: CreatureEyes;
   label?: string;
+  mouthShape?: CreatureMouthShape;
   shape?: CreatureShape;
 };
 
@@ -68,7 +77,47 @@ function CreatureEye({
   );
 }
 
-function CreatureMouth({ cx, cy, fill }: { cx: number; cy: number; fill: string }) {
+function CreatureMouth({
+  cx,
+  cy,
+  fill,
+  shape,
+}: {
+  cx: number;
+  cy: number;
+  fill: string;
+  shape: CreatureMouthShape;
+}) {
+  if (shape !== 'amplitude') {
+    const mouthByShape = {
+      closed: { width: 24, topDip: 2, bottomDip: 8 },
+      pinched: { width: 22, topDip: 2, bottomDip: 15 },
+      narrow: { width: 26, topDip: 3, bottomDip: 17 },
+      round: { width: 24, topDip: 3, bottomDip: 19 },
+      wide: { width: 34, topDip: 3, bottomDip: 16 },
+      open: { width: 30, topDip: 4, bottomDip: 22 },
+    } satisfies Record<Exclude<CreatureMouthShape, 'amplitude'>, Record<string, number>>;
+    const mouth = mouthByShape[shape];
+    const leftX = cx - mouth.width / 2;
+    const rightX = cx + mouth.width / 2;
+    const topY = cy + 1;
+
+    return (
+      <path
+        d={`M ${leftX} ${topY} Q ${cx} ${topY + mouth.topDip} ${rightX} ${topY} Q ${cx} ${
+          topY + mouth.bottomDip
+        } ${leftX} ${topY} Z`}
+        fill={fill}
+        style={{
+          opacity: 'calc(0.78 + var(--martian-speech-level, 0) * 0.22)',
+          transform: 'scaleY(calc(0.9 + var(--martian-speech-level, 0) * 0.12))',
+          transformBox: 'fill-box',
+          transformOrigin: 'center top',
+        }}
+      />
+    );
+  }
+
   const width = 21;
   const topDip = 3;
   const bottomDip = 9;
@@ -95,6 +144,7 @@ export function TeammateCreature({
   color = 'green',
   eyes = 'up',
   label = 'Unify teammate',
+  mouthShape = 'amplitude',
   shape = 'clawd',
 }: TeammateCreatureProps) {
   const cells = creatureShapes[shape];
@@ -163,7 +213,7 @@ export function TeammateCreature({
         ))}
       <CreatureEye cx={leftEyeX} cy={eyeY} dir={eyes} stroke={eyeStroke} />
       <CreatureEye cx={rightEyeX} cy={eyeY} dir={eyes} stroke={eyeStroke} />
-      <CreatureMouth cx={mouthX} cy={mouthY} fill={eyeStroke} />
+      <CreatureMouth cx={mouthX} cy={mouthY} fill={eyeStroke} shape={mouthShape} />
     </svg>
   );
 }

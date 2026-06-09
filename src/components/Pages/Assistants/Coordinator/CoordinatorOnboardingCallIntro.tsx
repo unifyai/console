@@ -2,19 +2,23 @@
 
 import * as React from 'react';
 import { motion } from 'framer-motion';
+import { Lipsync } from 'wawa-lipsync';
 import { MartyCallAvatar } from '@/components/Pages/Assistants/Communication/MartyCallAvatar';
 import {
   COORDINATOR_ONBOARDING_INTRO,
   COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION,
 } from '@/utils/assistants/coordinator-onboarding-intro';
+import type { CreatureMouthShape } from '@/components/Brand/TeammateCreature';
+import { getMartianLipsyncFrame } from '@/utils/assistants/martian-lipsync';
 
 type IntroStage = 'pause' | 'speaking' | 'flying' | 'landing';
-type BrowserWindowWithWebkitAudio = Window & {
-  webkitAudioContext?: typeof AudioContext;
+type LipsyncInternals = {
+  audioContext: AudioContext;
 };
 type BrowserWindowWithMartyIntroAudio = Window & {
   __martyOnboardingIntroAudio?: HTMLAudioElement;
   __martyOnboardingIntroSpeechLevel?: number;
+  __martyOnboardingIntroMouthShape?: CreatureMouthShape;
 };
 
 interface CoordinatorOnboardingCallIntroProps {
@@ -79,6 +83,7 @@ export function CoordinatorOnboardingCallIntro({
   const keepAudioAfterUnmountRef = React.useRef(false);
   const [stage, setStage] = React.useState<IntroStage>('pause');
   const [audioSpeechLevel, setAudioSpeechLevel] = React.useState(0);
+  const [audioMouthShape, setAudioMouthShape] = React.useState<CreatureMouthShape>('closed');
 
   React.useEffect(() => {
     onReadyToStartCallRef.current = onReadyToStartCall;
@@ -125,7 +130,7 @@ export function CoordinatorOnboardingCallIntro({
     );
     let audio: HTMLAudioElement | null = null;
     let audioTimer: number | null = null;
-    let audioContext: AudioContext | null = null;
+    let lipsync: Lipsync | null = null;
     let animationFrame = 0;
     let smoothedLevel = 0;
     let hasStartedAudio = false;
@@ -139,40 +144,34 @@ export function CoordinatorOnboardingCallIntro({
       smoothedLevel = 0;
       const martyWindow = window as BrowserWindowWithMartyIntroAudio;
       martyWindow.__martyOnboardingIntroSpeechLevel = 0;
+      martyWindow.__martyOnboardingIntroMouthShape = 'closed';
       if (resetSpeechLevel) {
         setAudioSpeechLevel(0);
+        setAudioMouthShape('closed');
       }
     };
 
     const startAudioAnalysis = (audioElement: HTMLAudioElement) => {
-      const AudioContextClass =
-        window.AudioContext || (window as BrowserWindowWithWebkitAudio).webkitAudioContext;
-      if (!AudioContextClass) return;
+      lipsync = new Lipsync({ fftSize: 2048, historySize: 12 });
+      lipsync.connectAudio(audioElement);
 
-      audioContext = new AudioContextClass();
-      const source = audioContext.createMediaElementSource(audioElement);
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 1024;
-      analyser.smoothingTimeConstant = 0.35;
-      source.connect(analyser);
-      analyser.connect(audioContext.destination);
-
-      const samples = new Uint8Array(analyser.fftSize);
       const tick = () => {
-        analyser.getByteTimeDomainData(samples);
-        let sumSquares = 0;
-        for (let index = 0; index < samples.length; index += 1) {
-          const sample = samples[index];
-          const centered = (sample - 128) / 128;
-          sumSquares += centered * centered;
-        }
-        const rms = Math.sqrt(sumSquares / samples.length);
-        const level = Math.max(0, Math.min(1, (rms - 0.012) * 10.5));
-        smoothedLevel = smoothedLevel * 0.5 + level * 0.5;
+        if (!lipsync) return;
+        lipsync.processAudio();
+        const frame = getMartianLipsyncFrame(lipsync.viseme, lipsync.features?.volume ?? 0);
+        smoothedLevel = smoothedLevel * 0.72 + frame.speechLevel * 0.28;
+        const mouthShape =
+          frame.isActive || smoothedLevel > 0.08
+            ? frame.isActive
+              ? frame.mouthShape
+              : 'narrow'
+            : 'closed';
         const martyWindow = window as BrowserWindowWithMartyIntroAudio;
         martyWindow.__martyOnboardingIntroSpeechLevel = smoothedLevel;
+        martyWindow.__martyOnboardingIntroMouthShape = mouthShape;
         if (shouldPublishToComponent) {
           setAudioSpeechLevel(smoothedLevel);
+          setAudioMouthShape(mouthShape);
         }
         animationFrame = window.requestAnimationFrame(tick);
       };
@@ -200,7 +199,7 @@ export function CoordinatorOnboardingCallIntro({
         martyWindow.__martyOnboardingIntroAudio = audio;
 
         startAudioAnalysis(audio);
-        audioContext?.resume().catch(() => {});
+        (lipsync as unknown as LipsyncInternals | null)?.audioContext?.resume().catch(() => {});
         audio.play().catch(() => {
           stopAudioAnalysis();
         });
@@ -213,7 +212,7 @@ export function CoordinatorOnboardingCallIntro({
             martyWindow.__martyOnboardingIntroAudio = undefined;
           }
           stopAudioAnalysis(!hasFinishedRef.current);
-          audioContext?.close().catch(() => {});
+          (lipsync as unknown as LipsyncInternals | null)?.audioContext?.close().catch(() => {});
           if (!hasFinishedRef.current) {
             setStage('landing');
           }
@@ -244,7 +243,7 @@ export function CoordinatorOnboardingCallIntro({
         }
       }
       if (!keepAudioPlaying) {
-        audioContext?.close().catch(() => {});
+        (lipsync as unknown as LipsyncInternals | null)?.audioContext?.close().catch(() => {});
       }
     };
   }, [startCallOnce]);
@@ -329,6 +328,7 @@ export function CoordinatorOnboardingCallIntro({
             isSpeaking={stage === 'speaking' || stage === 'flying'}
             layoutTransition={COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION}
             layoutId="marty-onboarding-call-avatar"
+            mouthShape={audioMouthShape}
             speechLevel={COORDINATOR_ONBOARDING_INTRO.audioSrc ? audioSpeechLevel : undefined}
           />
         </div>

@@ -4,7 +4,7 @@ import * as React from 'react';
 import { motion } from 'framer-motion';
 import type { Transition } from 'framer-motion';
 import { TeammateCreature } from '@/components/Brand';
-import type { CreatureEyes } from '@/components/Brand/TeammateCreature';
+import type { CreatureEyes, CreatureMouthShape } from '@/components/Brand/TeammateCreature';
 import { cn } from '@/lib/utils';
 import {
   clampMartianSpeechLevel,
@@ -17,6 +17,7 @@ interface MartyCallAvatarProps {
   isCallActive?: boolean;
   isUserSpeaking?: boolean;
   animateBodyMotion?: boolean;
+  mouthShape?: CreatureMouthShape;
   speechLevel?: number;
   className?: string;
   creatureClassName?: string;
@@ -29,6 +30,7 @@ export function MartyCallAvatar({
   isCallActive = false,
   isUserSpeaking = false,
   animateBodyMotion = true,
+  mouthShape,
   speechLevel,
   className,
   creatureClassName,
@@ -37,10 +39,10 @@ export function MartyCallAvatar({
 }: MartyCallAvatarProps) {
   const baseEyes = 'up' satisfies CreatureEyes;
   const [eyeFrame, setEyeFrame] = React.useState(0);
-  const [animatedSpeechLevel, setAnimatedSpeechLevel] = React.useState(0);
   const [isHovered, setIsHovered] = React.useState(false);
-  const displayedSpeechLevel =
-    speechLevel === undefined ? animatedSpeechLevel : clampMartianSpeechLevel(speechLevel);
+  const displayedSpeechLevel = clampMartianSpeechLevel(speechLevel ?? 0);
+  const displayedMouthShape =
+    mouthShape ?? (displayedSpeechLevel > 0.08 && isSpeaking ? 'narrow' : 'closed');
   const shouldAnimateCreatureEyes = isSpeaking;
   const displayedCreatureEyes = isHovered
     ? 'square'
@@ -51,7 +53,9 @@ export function MartyCallAvatar({
         : baseEyes;
   const animatedVisualStyle = {
     '--martian-speech-level': displayedSpeechLevel.toFixed(3),
-    transform: animateBodyMotion ? getMartianSpeechTransform(displayedSpeechLevel) : undefined,
+    transform: animateBodyMotion
+      ? getMartianSpeechTransform(displayedSpeechLevel * 0.45)
+      : undefined,
   } as React.CSSProperties;
 
   React.useEffect(() => {
@@ -67,26 +71,6 @@ export function MartyCallAvatar({
     return () => window.clearInterval(eyeTimer);
   }, [shouldAnimateCreatureEyes]);
 
-  React.useEffect(() => {
-    if (speechLevel !== undefined) return;
-
-    if (!isSpeaking) {
-      setAnimatedSpeechLevel(0);
-      return;
-    }
-
-    let frame = 0;
-    setAnimatedSpeechLevel(0.65);
-    const speechTimer = window.setInterval(() => {
-      frame += 1;
-      setAnimatedSpeechLevel(
-        clampMartianSpeechLevel(0.24 + Math.abs(Math.sin(frame * 0.82)) * 0.76)
-      );
-    }, 80);
-
-    return () => window.clearInterval(speechTimer);
-  }, [isSpeaking, speechLevel]);
-
   return (
     <motion.span
       className={cn('flex h-full w-full items-center justify-center overflow-visible', className)}
@@ -100,6 +84,7 @@ export function MartyCallAvatar({
         className={cn('h-full w-full', creatureClassName)}
         eyes={displayedCreatureEyes}
         label="Marty"
+        mouthShape={displayedMouthShape}
       />
     </motion.span>
   );

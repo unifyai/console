@@ -116,7 +116,11 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   if (!room)
     throw new Error('AssistantCommunicationDialogContent must be used within a RoomContext');
 
-  const { state: agentState, videoTrack: agentVideoTrack } = useVoiceAssistant();
+  const {
+    state: agentState,
+    audioTrack: agentAudioTrack,
+    videoTrack: agentVideoTrack,
+  } = useVoiceAssistant();
   const { localParticipant } = useLocalParticipant();
   const isUserSpeaking = useIsSpeaking(localParticipant);
   const micToggle = useTrackToggle({ source: Track.Source.Microphone });
@@ -317,6 +321,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 isCoordinator={isCoordinator}
                 isSpeaking={agentState === 'speaking'}
                 imageUrl={assistantPhoto}
+                audioTrack={agentAudioTrack}
                 videoTrack={agentVideoTrack}
                 isRemoteControlActive={isRemoteControlActive}
                 remoteControlUrl={liveviewUrl}
