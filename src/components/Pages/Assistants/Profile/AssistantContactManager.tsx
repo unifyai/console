@@ -455,7 +455,10 @@ export function AssistantContactManager({
 
     // BYOD confirm-disconnect / connect / update-features actions live
     // in the Workspace modal now — the Email tab is display-only.
-    if (selectedTab === 'email' && assistant.isCoordinator) {
+    if (
+      assistant.isCoordinator &&
+      (selectedTab === 'email' || selectedTab === 'phone' || selectedTab === 'whatsapp')
+    ) {
       return null;
     }
 
@@ -683,6 +686,30 @@ const PhoneTabContent: React.FC<{
   availablePhoneCountries,
   userPhoneNumber,
 }) => {
+  if (assistant.isCoordinator) {
+    if (!assistant.phone) {
+      return (
+        <p className="text-body text-muted-foreground">
+          Marty phone is managed automatically and will appear here once configured.
+        </p>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center">
+          <Label>Marty Phone Number</Label>
+          <ProviderBadge provider="Platform-managed" />
+        </div>
+        <DisplayContactField label="Marty Phone Number" value={assistant.phone} />
+        <p className="text-caption text-muted-foreground">
+          Marty phone is managed automatically. SMS messages and calls to this shared number are
+          routed by verified sender identity.
+        </p>
+      </div>
+    );
+  }
+
   if (assistant.phone) {
     return <DisplayContactField label="Assistant Phone Number" value={assistant.phone} />;
   }

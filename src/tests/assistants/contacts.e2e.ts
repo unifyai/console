@@ -47,7 +47,7 @@ const coordinator = createPersonalCoordinator(user.id);
 dbExecBlock(`
 DELETE FROM assistant_contacts
 WHERE assistant_id = ${coordinator.agentId}
-  AND contact_type = 'email';
+  AND contact_type IN ('email', 'phone');
 
 INSERT INTO assistant_contacts (
   assistant_id,
@@ -66,6 +66,15 @@ VALUES (
   'platform',
   'active',
   '{"universal_unity": true}'::jsonb
+),
+(
+  ${coordinator.agentId},
+  'phone',
+  '+14155552671',
+  'twilio',
+  'platform',
+  'active',
+  '{"universal_unity": true, "country": "US"}'::jsonb
 );
 `);
 
@@ -292,6 +301,29 @@ test('coordinator email tab shows shared Marty address as managed routing', asyn
     page.locator('text=Messages to this shared address are routed by verified sender identity')
   ).toBeVisible({ timeout: 5_000 });
   await expect(page.getByRole('button', { name: 'Configure' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
+});
+
+test('coordinator phone tab shows shared Marty number as managed routing', async ({
+  authedPage: page,
+}) => {
+  await openContactManager(page, coordinator);
+
+  await selectContactType(page, 'phone');
+
+  await expect(page.getByText('Marty Phone Number', { exact: true }).first()).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(page.locator('input[value="+14155552671"]')).toBeVisible({ timeout: 5_000 });
+  await expect(
+    page
+      .getByText(
+        'Marty phone is managed automatically. SMS messages and calls to this shared number are routed by verified sender identity.',
+        { exact: true }
+      )
+      .first()
+  ).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByRole('button', { name: 'Create' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
 });
 

@@ -503,6 +503,12 @@ export function useAssistantContactManager({
    */
   const submitContact = React.useCallback(async () => {
     if (isSubmittingContact) return;
+    if (
+      assistant.isCoordinator &&
+      (activeTab === 'email' || activeTab === 'phone' || activeTab === 'whatsapp')
+    ) {
+      return;
+    }
 
     setIsSubmittingContact(true);
     toastIdRef.current = toast.loading('Creating contact...', { id: toastIdRef.current });
@@ -544,6 +550,7 @@ export function useAssistantContactManager({
   }, [
     isSubmittingContact,
     activeTab,
+    assistant.isCoordinator,
     getValues,
     assistant.agentId,
     assistantActions.contact,
@@ -584,6 +591,12 @@ export function useAssistantContactManager({
 
   const isCreateButtonDisabled = React.useMemo(() => {
     if (isSubmittingContact) return true;
+    if (
+      assistant.isCoordinator &&
+      (activeTab === 'email' || activeTab === 'phone' || activeTab === 'whatsapp')
+    ) {
+      return true;
+    }
 
     switch (activeTab) {
       case 'phone':
@@ -599,6 +612,7 @@ export function useAssistantContactManager({
     }
   }, [
     isSubmittingContact,
+    assistant.isCoordinator,
     activeTab,
     isLoadingPhoneCountries,
     userPhoneNumber,
@@ -607,15 +621,17 @@ export function useAssistantContactManager({
   ]);
 
   const showCreateButton =
-    (activeTab === 'phone' && !assistant.phone) ||
-    (activeTab === 'whatsapp' && !assistant.assistantWhatsappNumber) ||
-    (activeTab === 'discord' && !assistant.assistantDiscordBotId);
+    !assistant.isCoordinator &&
+    ((activeTab === 'phone' && !assistant.phone) ||
+      (activeTab === 'whatsapp' && !assistant.assistantWhatsappNumber) ||
+      (activeTab === 'discord' && !assistant.assistantDiscordBotId));
 
   const showDeleteButton =
-    (activeTab === 'email' && !!isPlatformEmail) ||
-    (activeTab === 'phone' && !!assistant.phone) ||
-    (activeTab === 'whatsapp' && !!assistant.assistantWhatsappNumber) ||
-    (activeTab === 'discord' && !!assistant.assistantDiscordBotId);
+    !assistant.isCoordinator &&
+    ((activeTab === 'email' && !!isPlatformEmail) ||
+      (activeTab === 'phone' && !!assistant.phone) ||
+      (activeTab === 'whatsapp' && !!assistant.assistantWhatsappNumber) ||
+      (activeTab === 'discord' && !!assistant.assistantDiscordBotId));
 
   return {
     // Form methods for component bindings

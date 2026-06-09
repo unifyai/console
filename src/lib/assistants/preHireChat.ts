@@ -20,6 +20,7 @@ import { generateText, LanguageModel } from 'ai';
 import { checkCreditsBalance, deductCredits } from '@/lib/user/credits';
 import { PRE_HIRE_CHAT_MESSAGE_COST } from '@/constants/assistants/settings';
 import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
+import { resolveServerVisitorCountry } from '@/lib/server/geo';
 
 // Use custom env variable for OpenAI API key
 const openai = createOpenAI({
@@ -267,10 +268,16 @@ export async function seedWorkspaceCoordinatorOpener(
   const orchestraClient = await getOrchestraUserClient(user.apiKey);
   const organizationId =
     request.workspaceType === 'organization' ? (request.organizationId ?? null) : null;
-  const coordinatorRoute =
-    organizationId == null
-      ? `/user/${user.id}/coordinator`
-      : `/user/${user.id}/coordinator?organization_id=${encodeURIComponent(String(organizationId))}`;
+  const params = new URLSearchParams();
+  if (organizationId != null) {
+    params.set('organization_id', String(organizationId));
+  }
+  const visitorCountry = await resolveServerVisitorCountry();
+  if (visitorCountry) {
+    params.set('preferred_phone_country', visitorCountry);
+  }
+  const query = params.toString();
+  const coordinatorRoute = `/user/${user.id}/coordinator${query ? `?${query}` : ''}`;
   const provisionResponse = await orchestraClient.post(coordinatorRoute);
   const coordinatorId = readProvisionedCoordinatorId(provisionResponse.data);
   if (!coordinatorId) {

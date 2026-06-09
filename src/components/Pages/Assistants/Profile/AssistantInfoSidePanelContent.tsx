@@ -547,6 +547,7 @@ interface ContactInfoGridProps {
  * about why the action isn't allowed.
  */
 function ContactInfoGrid({ assistant, onOpenContactManager, canWrite }: ContactInfoGridProps) {
+  const canManuallyManagePhone = !assistant.isCoordinator;
   const canManuallyManageWhatsapp = !assistant.isCoordinator;
   return (
     <section className="flex flex-col gap-2.5" data-testid="assistant-info-contact-grid">
@@ -572,7 +573,7 @@ function ContactInfoGrid({ assistant, onOpenContactManager, canWrite }: ContactI
           icon={<Phone className="h-3.5 w-3.5" aria-hidden="true" />}
           label="Phone"
           value={assistant.phone}
-          canWrite={canWrite}
+          canWrite={canWrite && canManuallyManagePhone}
           onAdd={() => onOpenContactManager(assistant, 'phone')}
         />
         <ContactRow
