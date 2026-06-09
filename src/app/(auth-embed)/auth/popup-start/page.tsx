@@ -2,43 +2,59 @@
 
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
-
-const ALLOWED_PROVIDERS = new Set(['google', 'azure-ad']);
+import { isAuthPopupProvider, safeAuthPopupCallbackUrl } from '@/lib/auth/popup';
 
 function PopupStart() {
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | undefined>();
+  const hasStartedRef = useRef(false);
   const provider = searchParams?.get('provider');
-  const callbackUrl = searchParams?.get('callbackUrl') ?? '/auth/popup-complete';
-  const isAllowedProvider = useMemo(
-    () => !!provider && ALLOWED_PROVIDERS.has(provider),
-    [provider]
-  );
 
   useEffect(() => {
-    if (!isAllowedProvider || !provider) {
+    if (!isAuthPopupProvider(provider)) {
       setError('Unsupported auth provider.');
       return;
     }
-
     const providerId = provider;
+
+    const safeCallbackUrl = safeAuthPopupCallbackUrl(
+      searchParams?.get('callbackUrl') ?? null,
+      window.location.origin
+    );
+
+    if (!safeCallbackUrl) {
+      setError('Invalid sign-in callback.');
+      return;
+    }
+    const callbackUrl = safeCallbackUrl;
+
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
+
     let cancelled = false;
 
     async function startOAuth() {
-      const result = await signIn(providerId, { callbackUrl, redirect: false });
+      try {
+        const result = await signIn(providerId, { callbackUrl, redirect: false });
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      if (!result?.url || result.error || result.url.includes('/api/auth/error')) {
+        if (!result?.url || result.error || result.url.includes('/api/auth/error')) {
+          setError(
+            'Could not start this sign-in method. Check the OAuth credentials for this environment.'
+          );
+          return;
+        }
+
+        window.location.href = result.url;
+      } catch {
+        if (cancelled) return;
         setError(
           'Could not start this sign-in method. Check the OAuth credentials for this environment.'
         );
-        return;
       }
-
-      window.location.href = result.url;
     }
 
     void startOAuth();
@@ -46,7 +62,7 @@ function PopupStart() {
     return () => {
       cancelled = true;
     };
-  }, [callbackUrl, isAllowedProvider, provider]);
+  }, [provider, searchParams]);
 
   if (error) {
     return (

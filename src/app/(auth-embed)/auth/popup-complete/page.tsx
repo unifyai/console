@@ -1,58 +1,33 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
-
-const POPUP_MESSAGE_TYPE = 'unify.auth.popup.success';
-const STATIC_ALLOWED_OPENER_ORIGINS = [
-  'https://unify.ai',
-  'https://www.unify.ai',
-  'https://staging.unify.ai',
-  'https://internal.example.com',
-  'http://localhost:3007',
-];
-
-function allowedOpenerOrigin(rawOrigin: string | null): string | null {
-  if (!rawOrigin) return null;
-
-  try {
-    const origin = new URL(rawOrigin).origin;
-    const allowed = new Set(
-      [...STATIC_ALLOWED_OPENER_ORIGINS, process.env.NEXT_PUBLIC_SITE_URL].filter(Boolean)
-    );
-
-    return allowed.has(origin) ? origin : null;
-  } catch {
-    return null;
-  }
-}
+import {
+  AUTH_POPUP_ERROR_MESSAGE,
+  AUTH_POPUP_SUCCESS_MESSAGE,
+  allowedAuthPopupOpenerOrigin,
+  authPopupErrorMessage,
+  safeAuthPopupRedirectUrl,
+} from '@/lib/auth/popup';
 
 function PopupComplete() {
   const searchParams = useSearchParams();
   const [canClose, setCanClose] = useState(false);
-  const openerOrigin = useMemo(
-    () => allowedOpenerOrigin(searchParams?.get('openerOrigin') ?? null),
-    [searchParams]
-  );
-  const redirectUrl = useMemo(() => {
-    const redirectTo = searchParams?.get('redirectTo');
-    if (!redirectTo) return null;
-
-    try {
-      const parsed = new URL(redirectTo);
-      return parsed.origin === window.location.origin ? parsed.toString() : null;
-    } catch {
-      return null;
-    }
-  }, [searchParams]);
 
   useEffect(() => {
-    const safeRedirectUrl = redirectUrl ?? `${window.location.origin}/assistants`;
+    const openerOrigin = allowedAuthPopupOpenerOrigin(searchParams?.get('openerOrigin') ?? null);
+    const safeRedirectUrl = safeAuthPopupRedirectUrl(
+      searchParams?.get('redirectTo') ?? null,
+      window.location.origin
+    );
+    const authError = searchParams?.get('error') ?? null;
 
     if (window.opener && !window.opener.closed && openerOrigin) {
       window.opener.postMessage(
-        { type: POPUP_MESSAGE_TYPE, redirectUrl: safeRedirectUrl },
+        authError
+          ? { type: AUTH_POPUP_ERROR_MESSAGE, message: authPopupErrorMessage(authError) }
+          : { type: AUTH_POPUP_SUCCESS_MESSAGE, redirectUrl: safeRedirectUrl },
         openerOrigin
       );
       setCanClose(true);
@@ -60,8 +35,15 @@ function PopupComplete() {
       return;
     }
 
+    if (authError) {
+      const loginUrl = new URL('/login', window.location.origin);
+      loginUrl.searchParams.set('error', authError);
+      window.location.href = loginUrl.toString();
+      return;
+    }
+
     window.location.href = safeRedirectUrl;
-  }, [openerOrigin, redirectUrl]);
+  }, [searchParams]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-8 text-center text-foreground">
