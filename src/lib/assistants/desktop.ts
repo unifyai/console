@@ -4,11 +4,7 @@ import { ResponseProps } from '@/types/common';
 import { UserDesktop } from '@/types/assistants/assistant';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
-import {
-  getAdaptersBaseUrl,
-  getInternalApiBaseUrl,
-  isStagingEnvironment,
-} from '@/utils/assistants/api-utils';
+import { getAdaptersBaseUrl, getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 import { resolveOwnerApiKeyForAssistant } from '@/lib/assistants/owner';
 
 const LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS = 5000;
@@ -149,8 +145,7 @@ export const sendSystemEvent = async () => {
   return async (
     assistantId: string,
     eventType: SystemEventType,
-    message: string,
-    deployEnv?: string | null
+    message: string
   ): Promise<ResponseProps> => {
     'use server';
 
@@ -162,10 +157,7 @@ export const sendSystemEvent = async () => {
       return { detail: 'Server configuration error.' };
     }
 
-    const orchestraUrl = process.env.ORCHESTRA_URL || '';
-    const isStaging = isStagingEnvironment(orchestraUrl);
-
-    const webhookUrl = `${getAdaptersBaseUrl({ deployEnv, isStaging })}/unity/system-event`;
+    const webhookUrl = `${getAdaptersBaseUrl()}/unity/system-event`;
 
     // API expects snake_case - convert camelCase to snake_case
     const payload = camelToSnakeObject({

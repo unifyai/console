@@ -4,7 +4,7 @@ import { AccessToken, RoomServiceClient, type VideoGrant } from 'livekit-server-
 import { getCurrentUser } from '@/lib/user/user';
 import { makeRoomName } from '@/utils/assistants/call-utils';
 import { camelToSnakeObject } from '@/utils/casing';
-import { getAdaptersBaseUrl, isStagingEnvironment } from '@/utils/assistants/api-utils';
+import { getAdaptersBaseUrl } from '@/utils/assistants/api-utils';
 
 const API_KEY = process.env.LIVEKIT_API_KEY;
 const API_SECRET = process.env.LIVEKIT_API_SECRET;
@@ -93,11 +93,7 @@ export const deleteCallRoom = async () => {
 };
 
 export const dispatchAssistantToCall = async (_apiKey: string) => {
-  return async (
-    assistantId: string,
-    roomName: string,
-    deployEnv?: string | null
-  ): Promise<ResponseProps> => {
+  return async (assistantId: string, roomName: string): Promise<ResponseProps> => {
     'use server';
     try {
       const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
@@ -105,10 +101,8 @@ export const dispatchAssistantToCall = async (_apiKey: string) => {
         return { info: 'Dispatch skipped (no LiveKit or backend configured)' };
       }
 
-      const orchestraUrl = process.env.ORCHESTRA_URL ?? '';
-      const isStaging = isStagingEnvironment(orchestraUrl);
       const localAdaptersUrl = process.env.LOCAL_ADAPTERS_URL;
-      const dispatchUrl = `${getAdaptersBaseUrl({ deployEnv, isStaging, localAdaptersUrl })}/unify/meet`;
+      const dispatchUrl = `${getAdaptersBaseUrl({ localAdaptersUrl })}/unify/meet`;
 
       const dispatchPayload = camelToSnakeObject({
         assistantId,

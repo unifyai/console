@@ -245,8 +245,7 @@ export const messageAssistant = async (apiKey: string) => {
 export const uploadAttachment = async (apiKey: string) => {
   return async (
     assistantId: string,
-    file: File,
-    deployEnv?: string | null
+    file: File
   ): Promise<AttachmentUploadResponse | ResponseProps> => {
     'use server';
     try {
@@ -254,9 +253,6 @@ export const uploadAttachment = async (apiKey: string) => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('assistant_id', assistantId);
-      if (deployEnv) {
-        formData.append('deploy_env', deployEnv);
-      }
 
       const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/attachment`, {
         method: 'POST',

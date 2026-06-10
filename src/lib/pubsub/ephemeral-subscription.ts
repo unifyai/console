@@ -13,6 +13,7 @@
 import { GoogleAuth } from 'google-auth-library';
 import { PubSub } from '@google-cloud/pubsub';
 import fs from 'fs';
+import { topicSuffix } from '@/lib/environment/comms-env';
 
 /** Ephemeral subscriptions auto-delete after this much inactivity. */
 export const EPHEMERAL_EXPIRATION_TTL = '86400s'; // 1 day
@@ -253,24 +254,7 @@ export async function getOrCreateSubscription(
   return subscriptionUrl;
 }
 
-/**
- * Derives the Pub/Sub topic name for an assistant.
- *
- * Resolution order:
- *   1. PUBSUB_TOPIC_SUFFIX env var (explicit override, e.g. "-staging")
- *   2. ORCHESTRA_URL heuristic — localhost / staging → "-staging"
- *   3. Production → no suffix
- */
+/** Derives the Pub/Sub topic name for an assistant. */
 export function getTopicName(assistantId: string): string {
-  const explicitSuffix = process.env.PUBSUB_TOPIC_SUFFIX;
-  if (explicitSuffix !== undefined) {
-    return `unity-${assistantId}${explicitSuffix}`;
-  }
-
-  const orchestraUrl = process.env.ORCHESTRA_URL || '';
-  const isStaging =
-    orchestraUrl.includes('staging') ||
-    orchestraUrl.includes('localhost') ||
-    orchestraUrl.includes('127.0.0.1');
-  return `unity-${assistantId}${isStaging ? '-staging' : ''}`;
+  return `unity-${assistantId}${topicSuffix()}`;
 }

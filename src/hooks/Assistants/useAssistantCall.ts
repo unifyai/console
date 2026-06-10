@@ -158,11 +158,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
             // doesn't need to wait for connection details.
             const [details, dispatchResult] = await Promise.all([
               assistantActions.call.getConnectionDetails(assistant.agentId, assistantName),
-              assistantActions.call.dispatchToCall(
-                assistant.agentId,
-                expectedRoomName,
-                assistant.deployEnv
-              ),
+              assistantActions.call.dispatchToCall(assistant.agentId, expectedRoomName),
             ]);
             if (isStaleAttempt()) return;
 
@@ -327,8 +323,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
           .sendSystemEvent(
             activeCallAssistant.agentId,
             'user_remote_control_stopped',
-            'User released remote control of assistant desktop',
-            activeCallAssistant.deployEnv
+            'User released remote control of assistant desktop'
           )
           .catch(console.error);
       }
@@ -336,8 +331,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         .sendSystemEvent(
           activeCallAssistant.agentId,
           'assistant_screen_share_stopped',
-          'User disabled assistant screen sharing',
-          activeCallAssistant.deployEnv
+          'User disabled assistant screen sharing'
         )
         .catch(console.error);
       stopRemoteControl();
@@ -378,8 +372,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
           .sendSystemEvent(
             activeCallAssistant.agentId,
             'assistant_screen_share_started',
-            'User enabled assistant screen sharing',
-            activeCallAssistant.deployEnv
+            'User enabled assistant screen sharing'
           )
           .catch(console.error);
         toast.success('Assistant screen sharing started.', { id: toastId });
@@ -417,8 +410,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       const result = await assistantActions.desktop.sendSystemEvent(
         activeCallAssistant.agentId,
         eventType,
-        message,
-        activeCallAssistant.deployEnv
+        message
       );
       if (result.detail) {
         throw new Error(result.detail);
@@ -455,8 +447,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       try {
         const dispatchResult = await assistantActions.call.dispatchToCall(
           activeCallAssistant.agentId,
-          connectionDetails.roomName,
-          activeCallAssistant.deployEnv
+          connectionDetails.roomName
         );
 
         if (dispatchResult.detail) {

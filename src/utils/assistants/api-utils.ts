@@ -1,31 +1,12 @@
 import { formatValidationDetail } from '@/utils/orchestra-error';
+import { isStagingEnvironment } from '@/lib/environment/comms-env';
 
-/**
- * Returns the service-name prefix for the unity-adapters Cloud Run host.
- *
- * Priority:
- *   1. deploy_env === 'preview' → 'preview-'
- *   2. ORCHESTRA_URL contains 'staging' (or localhost for some callers) → 'staging-'
- *   3. Otherwise → '' (production)
- */
-export function getAdaptersPrefix(deployEnv?: string | null, isStaging?: boolean): string {
-  if (deployEnv === 'preview') return 'preview-';
-  return isStaging ? 'staging-' : '';
-}
+export { isStagingEnvironment };
 
 function cleanUrl(url?: string | null): string {
   return String(url || '')
     .trim()
     .replace(/\/+$/, '');
-}
-
-export function isStagingEnvironment(orchestraUrl?: string | null): boolean {
-  const normalizedUrl = cleanUrl(orchestraUrl).toLowerCase();
-  return (
-    normalizedUrl.includes('staging') ||
-    normalizedUrl.includes('localhost') ||
-    normalizedUrl.includes('127.0.0.1')
-  );
 }
 
 /**
@@ -54,14 +35,10 @@ export function getInternalApiBaseUrl(): string {
 /**
  * Returns the adapters base URL for server-side dispatch to Communication.
  *
- * Preview revisions inject UNITY_ADAPTERS_URL with the tagged adapters host.
- * If that env var is unavailable we fall back to the legacy prefix-based host.
+ * UNITY_ADAPTERS_URL overrides when injected (e.g. local stacks); otherwise
+ * the canonical Cloud Run host for the resolved comms environment is used.
  */
-export function getAdaptersBaseUrl(params?: {
-  deployEnv?: string | null;
-  isStaging?: boolean;
-  localAdaptersUrl?: string | null;
-}): string {
+export function getAdaptersBaseUrl(params?: { localAdaptersUrl?: string | null }): string {
   const explicitLocalAdaptersUrl = cleanUrl(params?.localAdaptersUrl);
   if (explicitLocalAdaptersUrl) {
     return explicitLocalAdaptersUrl;
@@ -72,7 +49,7 @@ export function getAdaptersBaseUrl(params?: {
     return configuredAdaptersUrl;
   }
 
-  const prefix = getAdaptersPrefix(params?.deployEnv, params?.isStaging);
+  const prefix = isStagingEnvironment() ? 'staging-' : '';
   return `https://unity-adapters-${prefix}ky4ja5fxna-uc.a.run.app`;
 }
 

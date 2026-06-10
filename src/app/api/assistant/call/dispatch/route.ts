@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { badRequest, internalError } from '../../../_utils/auth';
 import { camelToSnakeObject } from '@/utils/casing';
-import { getAdaptersBaseUrl, isStagingEnvironment } from '@/utils/assistants/api-utils';
+import { getAdaptersBaseUrl } from '@/utils/assistants/api-utils';
 
 // This route dispatches an agent to join a LiveKit room for a voice call.
 // It proxies to your backend/agents orchestrator.
@@ -9,16 +9,14 @@ import { getAdaptersBaseUrl, isStagingEnvironment } from '@/utils/assistants/api
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { assistantId, roomName, deployEnv } = body;
+    const { assistantId, roomName } = body;
 
     if (!assistantId || !roomName) {
       return badRequest('assistantId and roomName are required');
     }
 
-    const orchestraUrl = process.env.ORCHESTRA_URL || '';
-    const isStaging = isStagingEnvironment(orchestraUrl);
     const localAdaptersUrl = process.env.LOCAL_ADAPTERS_URL;
-    const dispatchUrl = `${getAdaptersBaseUrl({ deployEnv, isStaging, localAdaptersUrl })}/unify/meet`;
+    const dispatchUrl = `${getAdaptersBaseUrl({ localAdaptersUrl })}/unify/meet`;
     const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
     if (!ADMIN_KEY) {

@@ -4,7 +4,12 @@ import { join } from 'node:path';
 import { createCommunicationClient } from '@/lib/communication/client';
 import { getAdaptersBaseUrl } from '@/utils/assistants/api-utils';
 
-const ENV_KEYS = ['COMMUNICATION_URL', 'LOCAL_ADAPTERS_URL', 'UNITY_ADAPTERS_URL'] as const;
+const ENV_KEYS = [
+  'COMMUNICATION_URL',
+  'UNITY_COMMS_URL',
+  'LOCAL_ADAPTERS_URL',
+  'UNITY_ADAPTERS_URL',
+] as const;
 
 function clearGatewayEnv() {
   for (const key of ENV_KEYS) {
@@ -23,7 +28,6 @@ describe('local gateway URL resolution', () => {
     expect(
       getAdaptersBaseUrl({
         localAdaptersUrl: 'http://127.0.0.1:8001/',
-        isStaging: true,
       })
     ).toBe('http://127.0.0.1:8001');
   });
@@ -31,7 +35,16 @@ describe('local gateway URL resolution', () => {
   it('uses UNITY_ADAPTERS_URL when no local override is provided', () => {
     process.env.UNITY_ADAPTERS_URL = 'http://127.0.0.1:8001/';
 
-    expect(getAdaptersBaseUrl({ isStaging: true })).toBe('http://127.0.0.1:8001');
+    expect(getAdaptersBaseUrl()).toBe('http://127.0.0.1:8001');
+  });
+
+  it('prefers UNITY_COMMS_URL over adapter URLs for Communication clients', () => {
+    process.env.UNITY_COMMS_URL = 'https://comms.example.com';
+    process.env.UNITY_ADAPTERS_URL = 'http://127.0.0.1:8001';
+
+    const client = createCommunicationClient();
+
+    expect(client.defaults.baseURL).toBe('https://comms.example.com');
   });
 
   it('lets Communication-shaped clients target the local Unity gateway', () => {

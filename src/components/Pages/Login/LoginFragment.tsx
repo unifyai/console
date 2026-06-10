@@ -29,18 +29,17 @@ interface LoginProps {
   callbackUrl?: string;
   /**
    * When true, only the email + password form is shown and the user
-   * cannot switch to OAuth providers. Used on slug-tagged preview hosts
-   * where Google/Microsoft callback URIs are not (and cannot reasonably
-   * be) registered against the OAuth client.
+   * cannot switch to OAuth providers (e.g. self-host deployments that
+   * have no OAuth client registered).
    */
-  previewOnly?: boolean;
+  emailOnly?: boolean;
 }
 
 const LoginFragment = ({
   onLogin: handleLogin,
   error,
   callbackUrl,
-  previewOnly = false,
+  emailOnly = false,
 }: LoginProps) => {
   const { loginGoogle, loginMicrosoft } = useFeatures();
   const env = useEnvironment();
@@ -54,7 +53,7 @@ const LoginFragment = ({
     .filter(Boolean)
     .join(' or ');
 
-  const [authTab, setAuthTab] = useState<AuthTab>(previewOnly || !hasOAuth ? 'email' : 'oauth');
+  const [authTab, setAuthTab] = useState<AuthTab>(emailOnly || !hasOAuth ? 'email' : 'oauth');
 
   return (
     <div className="flex flex-wrap">
@@ -128,7 +127,7 @@ const LoginFragment = ({
           ) : (
             <>
               <EmailLoginForm callbackUrl={callbackUrl} externalError={error} />
-              {!previewOnly && hasOAuth && (
+              {!emailOnly && hasOAuth && (
                 <>
                   <div className="my-1 flex items-center gap-3">
                     <div className="h-px flex-1 bg-border" />

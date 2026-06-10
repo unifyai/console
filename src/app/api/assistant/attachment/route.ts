@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '../../_utils/auth';
-import { getAdaptersBaseUrl, isStagingEnvironment } from '@/utils/assistants/api-utils';
+import { getAdaptersBaseUrl } from '@/utils/assistants/api-utils';
 
 /**
  * POST /api/assistant/attachment
@@ -45,7 +45,6 @@ export async function POST(request: NextRequest) {
 
   const file = formData.get('file') as File | null;
   const assistantId = formData.get('assistant_id') as string | null;
-  const deployEnv = formData.get('deploy_env') as string | null;
 
   if (!file) {
     return badRequest('Missing file');
@@ -56,10 +55,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Build the URL for the Communication Adapters
-  const orchestraUrl = process.env.ORCHESTRA_URL || '';
-  const isStaging = isStagingEnvironment(orchestraUrl);
   const localAdaptersUrl = process.env.LOCAL_ADAPTERS_URL;
-  const adaptersBaseUrl = getAdaptersBaseUrl({ deployEnv, isStaging, localAdaptersUrl });
+  const adaptersBaseUrl = getAdaptersBaseUrl({ localAdaptersUrl });
   const webhookUrl = `${adaptersBaseUrl}/unify/attachment`;
 
   // Forward the file to Communication Adapters

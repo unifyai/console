@@ -73,11 +73,12 @@ function addAllInterceptors(client: AxiosInstance): AxiosInstance {
 export function createCommunicationClient(apiKey?: string): AxiosInstance {
   const baseUrl =
     process.env.COMMUNICATION_URL ||
+    process.env.UNITY_COMMS_URL ||
     process.env.LOCAL_ADAPTERS_URL ||
     process.env.UNITY_ADAPTERS_URL;
   if (!baseUrl) {
     throw new Error(
-      'COMMUNICATION_URL, LOCAL_ADAPTERS_URL, or UNITY_ADAPTERS_URL environment variable is not set'
+      'COMMUNICATION_URL, UNITY_COMMS_URL, LOCAL_ADAPTERS_URL, or UNITY_ADAPTERS_URL environment variable is not set'
     );
   }
 

@@ -703,29 +703,24 @@ export function useAssistantProfileChat(
         let uploadedAttachments: Attachment[] | undefined;
 
         if (attachments && attachments.length > 0) {
-          const handle = uploadAttachmentBatch(
-            attachments,
-            currentAssistant.agentId,
-            {
-              onStatusChange: updateChipStatus,
-              onUploaded: (id, result) => {
-                if (isStale()) return;
-                setPendingAttachments?.((prev) =>
-                  prev.map((a) =>
-                    a.id === id
-                      ? {
-                          ...a,
-                          gsUrl: result.gsUrl,
-                          contentType: result.contentType,
-                          sizeBytes: result.sizeBytes,
-                        }
-                      : a
-                  )
-                );
-              },
+          const handle = uploadAttachmentBatch(attachments, currentAssistant.agentId, {
+            onStatusChange: updateChipStatus,
+            onUploaded: (id, result) => {
+              if (isStale()) return;
+              setPendingAttachments?.((prev) =>
+                prev.map((a) =>
+                  a.id === id
+                    ? {
+                        ...a,
+                        gsUrl: result.gsUrl,
+                        contentType: result.contentType,
+                        sizeBytes: result.sizeBytes,
+                      }
+                    : a
+                )
+              );
             },
-            currentAssistant.deployEnv
-          );
+          });
           uploadHandleRef.current = handle;
           const succeeded = await handle.promise;
           uploadHandleRef.current = null;
@@ -816,7 +811,6 @@ export function useAssistantProfileChat(
             contactId: currentContactId,
             message: messageToSend,
             attachments: uploadedAttachments,
-            deployEnv: currentAssistant.deployEnv,
           });
 
           if (response.detail) {
