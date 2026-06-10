@@ -154,6 +154,16 @@ export function parseChatSseFrame(
     };
   }
 
+  // Lifecycle events are idempotent and not chat history — never apply the
+  // transcript cutoff (self-host desktop_ready can predate voice-call lines).
+  if (thread === 'assistant_desktop_ready') {
+    return {
+      kind: 'desktop-ready',
+      ackId,
+      eventData: (eventObj ?? {}) as Record<string, unknown>,
+    };
+  }
+
   // cutoff filter: client-recorded high-water mark for already-seen history.
   // Anything strictly older is a redelivery of a message we already rendered
   // via the REST transcript fetch, so drop it (and ack so Pub/Sub stops
@@ -175,14 +185,6 @@ export function parseChatSseFrame(
         },
       };
     }
-  }
-
-  if (thread === 'assistant_desktop_ready') {
-    return {
-      kind: 'desktop-ready',
-      ackId,
-      eventData: (eventObj ?? {}) as Record<string, unknown>,
-    };
   }
 
   if (thread === 'unify_message_outbound') {
