@@ -72,6 +72,8 @@ async function openDesktopLinker(page: Page, agentId: number) {
   await page.getByTestId('menu-connect-desktop').click();
 
   await expect(page.getByRole('dialog')).toContainText('Link User Desktop', { timeout: 5_000 });
+  // The full-control disclaimer is always shown when the linker opens.
+  await expect(page.getByRole('dialog')).toContainText(/see and control that machine/i);
 }
 
 test('links one machine to a second assistant (N×M), keeping the first link', async ({

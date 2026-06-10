@@ -67,3 +67,6 @@ public/userInfo.json
 
 # Workflow recording outputs
 src/workflows/recordings/
+
+# Service-account credential files
+comm-sa.json

@@ -153,6 +153,15 @@ export function AssistantDesktopLinker({
           <DialogTitle>Link User Desktop</DialogTitle>
         </DialogHeader>
 
+        <div className="bg-muted/50 flex items-start gap-2 rounded-md border border-border px-3 py-2">
+          <Info className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+          <p className="text-caption text-muted-foreground">
+            Linking a desktop lets this assistant see and control that machine — its apps, files,
+            and logged-in sessions — during local desktop sessions. Only link a computer you&apos;re
+            comfortable giving full control of.
+          </p>
+        </div>
+
         {currentDesktopId && (
           <div className="bg-muted/50 flex items-center justify-between rounded-md border border-border px-3 py-2">
             <span className="text-caption text-muted-foreground">
