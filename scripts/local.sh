@@ -60,6 +60,7 @@ UNITY_LOCAL_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/local.sh}"
 UNITY_GATEWAY_CONFIG_FILE="/tmp/unity-local.config"
 ENSURE_PREREQS_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/ensure_prereqs.sh}"
 SELF_HOST_ENV_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/self_host_env.sh}"
+SELF_HOST_DESKTOP_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/self_host_desktop.sh}"
 
 COMMUNICATION_REPO_PATH="${COMMUNICATION_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../unity-deploy" 2>/dev/null && pwd -P || echo "")}"
 COMMUNICATION_LOCAL_SCRIPT="${COMMUNICATION_REPO_PATH:+$COMMUNICATION_REPO_PATH/scripts/communication-local.sh}"
@@ -859,6 +860,9 @@ stop_unity() {
   if is_unity_available; then
     log_info "Stopping Unity..."
     UNITY_ALLOW_RUNTIME_STOP=1 bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
+    if [[ -n "${SELF_HOST_DESKTOP_SCRIPT:-}" && -f "$SELF_HOST_DESKTOP_SCRIPT" ]]; then
+      bash "$SELF_HOST_DESKTOP_SCRIPT" stop 2>/dev/null || true
+    fi
     if declare -F self_host_clear_runtime_state &>/dev/null; then
       self_host_clear_runtime_state
     fi
@@ -1107,6 +1111,14 @@ start_unity_coordinator() {
 
   load_self_host_runtime_env
 
+  if [[ "${SELF_HOST_DESKTOP:-1}" == "1" && -n "${SELF_HOST_DESKTOP_SCRIPT:-}" && -f "$SELF_HOST_DESKTOP_SCRIPT" ]]; then
+    export ORCHESTRA_URL="${ORCHESTRA_URL:-http://127.0.0.1:${ORCHESTRA_PORT:-8000}/v0}"
+    if ! bash "$SELF_HOST_DESKTOP_SCRIPT" ensure "$coordinator_agent_id" "$unify_key"; then
+      log_error "Self-host desktop failed to start"
+      return 1
+    fi
+  fi
+
   local service_gateway_url=""
   if [[ "${UNITY_SERVICE_RUNTIME:-0}" == "1" ]]; then
     ensure_service_gateway || return 1
@@ -1130,6 +1142,10 @@ start_unity_coordinator() {
     EVENTBUS_PUBSUB_STREAMING="${EVENTBUS_PUBSUB_STREAMING:-true}"
     UNITY_LOCAL_SCHEDULER="${UNITY_LOCAL_SCHEDULER:-true}"
     UNITY_RUNTIME_OWNER="$runtime_owner"
+    # The CM spawns subprocesses (rclone, agent tooling) while gRPC channels
+    # are live; gRPC's fork handlers log a warning on every spawn, flooding
+    # /tmp/unity-local.log. Only errors are actionable here.
+    GRPC_VERBOSITY="${GRPC_VERBOSITY:-ERROR}"
   )
 
   if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
@@ -1209,6 +1225,10 @@ start_unity_coordinator() {
   [[ -n "$_u_email" ]]   && unity_env+=("USER_EMAIL=$_u_email")
   [[ -n "$_u_id" ]]      && unity_env+=("USER_ID=$_u_id")
 
+  if [[ "${SELF_HOST_DESKTOP:-1}" == "1" ]]; then
+    unity_env+=("ASSISTANT_DESKTOP_URL=${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}")
+  fi
+
   if ! env "${unity_env[@]}" bash "$UNITY_LOCAL_SCRIPT" start --full; then
     log_warn "Unity failed to start — chat will not get Coordinator replies"
     return 1
@@ -1221,6 +1241,15 @@ start_unity_coordinator() {
   fi
 
   log_success "Unity Coordinator runtime is running (assistant=$coordinator_agent_id)"
+
+  if [[ "${SELF_HOST_DESKTOP:-1}" == "1" && -n "${SELF_HOST_DESKTOP_SCRIPT:-}" && -f "$SELF_HOST_DESKTOP_SCRIPT" ]]; then
+    sleep 8
+    if ! bash "$SELF_HOST_DESKTOP_SCRIPT" publish-ready "$coordinator_agent_id"; then
+      log_warn "Failed to publish assistant_desktop_ready — file sync and liveview may stay pending"
+    else
+      log_success "Published assistant_desktop_ready for desktop at ${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}"
+    fi
+  fi
 }
 
 cmd_ensure_coordinator_topics() {
@@ -1613,6 +1642,7 @@ start_console() {
   if [[ "$with_self_host" == "true" ]]; then
     export SELF_HOST=1
     export NEXT_PUBLIC_SELF_HOST=1
+    export SELF_HOST_DESKTOP_URL="${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}"
     export LIVEKIT_URL="ws://localhost:7880"
     export LIVEKIT_API_KEY="devkey"
     export LIVEKIT_API_SECRET="secret"
@@ -1639,6 +1669,7 @@ PY
     fi
     log_info "Console self-host env:"
     log_info "  SELF_HOST=1"
+    log_info "  SELF_HOST_DESKTOP_URL=$SELF_HOST_DESKTOP_URL"
     log_info "  LIVEKIT_URL=$LIVEKIT_URL"
   fi
 

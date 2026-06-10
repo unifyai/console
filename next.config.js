@@ -4,6 +4,9 @@ const landingOrigins = (process.env.LANDING_AUTH_ALLOWED_ORIGINS ?? '')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+const isSelfHost = process.env.SELF_HOST === '1' || process.env.NEXT_PUBLIC_SELF_HOST === '1';
+const selfHostDesktopFrameSrc = isSelfHost ? ' http://127.0.0.1:* http://localhost:*' : '';
+
 const serverActionAllowedOrigins = [
   'unify.ai',
   'www.unify.ai',
@@ -126,7 +129,7 @@ const nextConfig = {
               "img-src 'self' data: blob: https:",
               "media-src 'self' blob: https://storage.googleapis.com",
               `connect-src 'self' https://api.unify.ai https://*.unify.ai https://js.stripe.com https://challenges.cloudflare.com wss://*.unify.ai https://*.livekit.cloud wss://*.livekit.cloud https://replicate.delivery https://*.replicate.delivery${process.env.NODE_ENV === 'development' ? ' ws://localhost:* http://localhost:* webpack://*' : ''}`,
-              "frame-src 'self' blob: https://js.stripe.com https://challenges.cloudflare.com https://*.vm.unify.ai https://storage.googleapis.com",
+              `frame-src 'self' blob: https://js.stripe.com https://challenges.cloudflare.com https://*.vm.unify.ai https://storage.googleapis.com${selfHostDesktopFrameSrc}`,
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",

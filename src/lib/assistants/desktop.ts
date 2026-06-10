@@ -6,8 +6,28 @@ import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 import { getAdaptersBaseUrl, getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 import { resolveOwnerApiKeyForAssistant } from '@/lib/assistants/owner';
+import { IS_SELF_HOST } from '@/lib/auth/self-host';
 
 const LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS = 5000;
+const DEFAULT_SELF_HOST_DESKTOP_URL = 'http://127.0.0.1:8090';
+
+async function resolveSelfHostLiveviewUrl(
+  ownerId: string,
+  organizationId: number | null
+): Promise<{ liveviewUrl: string } | null> {
+  const desktopBase = (
+    process.env.SELF_HOST_DESKTOP_URL?.trim() || DEFAULT_SELF_HOST_DESKTOP_URL
+  ).replace(/\/$/, '');
+  const rawLiveviewUrl = `${desktopBase}/desktop/custom.html`;
+  const ownerKey = await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
+  const urlObj = new URL(rawLiveviewUrl);
+  urlObj.searchParams.set('password', ownerKey);
+  const liveviewUrl = urlObj.toString();
+  if (!(await isLiveviewReachable(liveviewUrl))) {
+    return null;
+  }
+  return { liveviewUrl };
+}
 
 async function isLiveviewReachable(liveviewUrl: string): Promise<boolean> {
   try {
@@ -40,6 +60,13 @@ export const getLiveviewUrl = async () => {
     'use server';
 
     try {
+      if (IS_SELF_HOST) {
+        const selfHostLiveview = await resolveSelfHostLiveviewUrl(ownerId, organizationId);
+        if (selfHostLiveview) {
+          return selfHostLiveview;
+        }
+      }
+
       const { resolveOrchestraApiKeyForServerOps } =
         await import('@/lib/auth/orchestra-server-key');
       const sharedUnifyKey = await resolveOrchestraApiKeyForServerOps();
@@ -93,6 +120,13 @@ export const getLiveviewUrl = async () => {
         const urlObj = new URL(liveviewUrlValue);
         urlObj.searchParams.set('password', ownerKey);
         return { liveviewUrl: urlObj.toString() };
+      }
+
+      if (IS_SELF_HOST) {
+        const selfHostLiveview = await resolveSelfHostLiveviewUrl(ownerId, organizationId);
+        if (selfHostLiveview) {
+          return selfHostLiveview;
+        }
       }
 
       return { detail: 'Liveview URL not yet available.' };
