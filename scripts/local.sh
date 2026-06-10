@@ -1494,85 +1494,6 @@ validate_seed_scenario() {
   return 1
 }
 
-ensure_local_default_billing_catalog() {
-  local db_container="${ORCHESTRA_DB_CONTAINER:-orchestra-local-db}"
-  if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${db_container}$"; then
-    log_error "Local Orchestra DB container '$db_container' is not running"
-    return 1
-  fi
-
-  log_info "Ensuring local default billing catalog..."
-  docker exec "$db_container" psql -U orchestra -d orchestra -c "
-DO \$\$
-DECLARE
-  _default_template_id bigint;
-BEGIN
-  INSERT INTO plan_group (id, name, display_name, description, is_active)
-  VALUES (1, 'default', 'Default', 'Default plan group for local dev / test users', true)
-  ON CONFLICT (id) DO UPDATE
-  SET name = EXCLUDED.name,
-      display_name = EXCLUDED.display_name,
-      description = EXCLUDED.description,
-      is_active = EXCLUDED.is_active;
-
-  PERFORM setval('plan_group_id_seq', GREATEST((SELECT MAX(id) FROM plan_group), 1));
-
-  SELECT id INTO _default_template_id
-  FROM billing_plan_template
-  WHERE name = 'default'
-  ORDER BY id
-  LIMIT 1;
-
-  IF _default_template_id IS NULL THEN
-    INSERT INTO billing_plan_template (
-      id, name, display_name, description,
-      billing_mode, commit_amount, currency,
-      base_pricing_factor, overage_pricing_factor,
-      collection_method, proration_policy,
-      is_custom, is_active
-    )
-    VALUES (
-      1, 'default', 'Default', 'Default local development PAYG credits plan',
-      'CREDITS', NULL, 'USD',
-      1.0, 1.0,
-      'AUTO_CARD', 'PRORATE',
-      false, true
-    )
-    ON CONFLICT (id) DO NOTHING;
-
-    SELECT id INTO _default_template_id
-    FROM billing_plan_template
-    WHERE name = 'default'
-    ORDER BY id
-    LIMIT 1;
-  ELSE
-    UPDATE billing_plan_template
-    SET is_active = true
-    WHERE id = _default_template_id;
-  END IF;
-
-  IF _default_template_id IS NULL THEN
-    RAISE EXCEPTION 'Could not seed default billing_plan_template';
-  END IF;
-
-  PERFORM setval('billing_plan_template_id_seq', GREATEST((SELECT MAX(id) FROM billing_plan_template), 1));
-
-  INSERT INTO plan_group_member (group_id, template_id, position)
-  VALUES (1, _default_template_id, 0)
-  ON CONFLICT (group_id, template_id) DO UPDATE
-  SET position = EXCLUDED.position;
-END
-\$\$;
-" >/dev/null
-
-  if [[ $? -eq 0 ]]; then
-    log_success "Local default billing catalog ensured"
-    return 0
-  fi
-  log_error "Failed to ensure local default billing catalog"
-  return 1
-}
-
 run_seed_scenario() {
   local scenario="$1"
   log_info "Running seed scenario: $scenario ..."
@@ -1591,8 +1512,6 @@ run_seed_scenario() {
   export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
   export ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH"
   export ORCHESTRA_ADMIN_KEY="$ADMIN_KEY"
-
-  ensure_local_default_billing_catalog || return 1
 
   if npx tsx src/tests/helpers/seeds/run.ts "$scenario"; then
     log_success "Seed scenario '$scenario' completed"
