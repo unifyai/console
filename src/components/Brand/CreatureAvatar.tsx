@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { TeammateCreature } from './TeammateCreature';
-import { parseCreatureSentinel, type CreatureAppearance } from './creatureAvatar';
+import { parseCreatureSentinel, type CreatureAppearance } from './creatureAppearance';
 
 interface CreatureAvatarProps {
   /** A parsed appearance, or a raw `appearance://` sentinel string. */

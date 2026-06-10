@@ -11,4 +11,4 @@ export {
   isCreatureSentinel,
   parseCreatureSentinel,
   type CreatureAppearance,
-} from './creatureAvatar';
+} from './creatureAppearance';
