@@ -112,6 +112,7 @@ function ChatMessageBubbleImpl({
   const timeString = timestamp ? formatMessageTime(timestamp, timezone) : null;
   const isProfile = variant === 'profile';
   const isTypingIndicator = !isUser && isLoading && !message;
+  const assistantAvatarClassName = 'h-7 w-7 flex-shrink-0';
 
   // Copy lives on the message header row so it sits next to the audio
   // affordance with matching geometry. Disabled while the bubble is
@@ -201,18 +202,15 @@ function ChatMessageBubbleImpl({
     >
       <div className="mb-2.5 flex items-center gap-2">
         {isCoordinator ? (
-          <CoordinatorLogoAvatar
-            className={cn('flex-shrink-0', isTypingIndicator ? 'h-7 w-7' : 'h-6 w-6')}
-            logoClassName={isTypingIndicator ? 'h-7 w-7' : 'h-3.5 w-3.5'}
-          />
+          <CoordinatorLogoAvatar className={assistantAvatarClassName} logoClassName="h-7 w-7" />
         ) : parseCreatureSentinel(assistantPhoto) ? (
           <CreatureAvatar
             appearance={assistantPhoto as string}
-            className="h-6 w-6 flex-shrink-0 rounded-full border"
+            className={cn(assistantAvatarClassName, 'rounded-full border')}
             label={assistantName}
           />
         ) : (
-          <Avatar className="h-6 w-6 flex-shrink-0 border">
+          <Avatar className={cn(assistantAvatarClassName, 'border')}>
             <AvatarImage src={assistantPhoto ?? undefined} alt={assistantName} />
             <AvatarFallback className="text-[10px]">{fallback}</AvatarFallback>
           </Avatar>
