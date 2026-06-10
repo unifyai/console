@@ -6,7 +6,7 @@ import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 import { getAdaptersBaseUrl, getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 import { resolveOwnerApiKeyForAssistant } from '@/lib/assistants/owner';
-import { IS_SELF_HOST } from '@/lib/auth/self-host';
+import { isSelfHost } from '@/lib/environment/environment';
 
 const LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS = 5000;
 const DEFAULT_SELF_HOST_DESKTOP_URL = 'http://127.0.0.1:8090';
@@ -60,7 +60,7 @@ export const getLiveviewUrl = async () => {
     'use server';
 
     try {
-      if (IS_SELF_HOST) {
+      if (isSelfHost()) {
         const selfHostLiveview = await resolveSelfHostLiveviewUrl(ownerId, organizationId);
         if (selfHostLiveview) {
           return selfHostLiveview;
@@ -122,7 +122,7 @@ export const getLiveviewUrl = async () => {
         return { liveviewUrl: urlObj.toString() };
       }
 
-      if (IS_SELF_HOST) {
+      if (isSelfHost()) {
         const selfHostLiveview = await resolveSelfHostLiveviewUrl(ownerId, organizationId);
         if (selfHostLiveview) {
           return selfHostLiveview;
