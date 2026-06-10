@@ -18,10 +18,7 @@ import {
   resolveCoordinatorAbout,
   resolveCoordinatorJobTitle,
 } from '@/constants/assistants/coordinator_profile';
-import {
-  getCoordinatorFixedVoice,
-  getDefaultVoiceForProvider,
-} from '@/utils/assistants/voice-utils';
+import { getDefaultVoiceForProvider } from '@/utils/assistants/voice-utils';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
 import { v4 as uuidv4 } from 'uuid';
@@ -49,7 +46,6 @@ export function useAssistantForm(
   const editMediaRefreshRequestIdRef = React.useRef(0);
 
   const defaultVoice = getDefaultVoiceForProvider();
-  const coordinatorFixedVoice = getCoordinatorFixedVoice();
 
   const [editingAssistant, setEditingAssistant] = React.useState<Assistant | null>(null);
 
@@ -399,11 +395,6 @@ export function useAssistantForm(
       const assistantVoiceDetails = registeredVoices.find(
         (v) => v.voiceId === assistant.voiceId && v.provider === assistant.voiceProvider
       );
-      const coordinatorVoiceExists = registeredVoices.some(
-        (v) =>
-          v.voiceId === coordinatorFixedVoice.voiceId &&
-          v.provider === coordinatorFixedVoice.provider
-      );
       const profilePhotoPath = assistant.profilePhoto ?? null;
       const profileVideoPath = assistant.profileVideo ?? null;
       const photoRefreshPath = profilePhotoPath ?? assistant.signedProfilePhotoUrl ?? null;
@@ -439,27 +430,16 @@ export function useAssistantForm(
         photoFile: null,
         videoFile: null,
 
-        // Voice
-        voiceId: assistant.isCoordinator
-          ? coordinatorFixedVoice.voiceId
-          : assistant.voiceId || undefined,
-        voiceName: assistant.isCoordinator
-          ? coordinatorFixedVoice.name
-          : assistantVoiceDetails?.name,
-        voiceDescription: assistant.isCoordinator
-          ? coordinatorFixedVoice.description
-          : assistantVoiceDetails?.description,
-        voiceGender: assistant.isCoordinator
-          ? (coordinatorFixedVoice.gender as Gender)
-          : assistantVoiceDetails?.gender,
-        voiceLanguage: assistant.isCoordinator
-          ? (coordinatorFixedVoice.language as SupportedLanguage)
-          : assistantVoiceDetails?.language,
+        // Voice — the Coordinator's fixed voice is enforced server-side, so
+        // every assistant (Marty included) simply reflects its DB row here.
+        voiceId: assistant.voiceId || undefined,
+        voiceName: assistantVoiceDetails?.name,
+        voiceDescription: assistantVoiceDetails?.description,
+        voiceGender: assistantVoiceDetails?.gender,
+        voiceLanguage: assistantVoiceDetails?.language,
         voiceProvider:
-          (assistant.isCoordinator
-            ? coordinatorFixedVoice.provider
-            : assistant.voiceProvider || assistantVoiceDetails?.provider) || PRIMARY_VOICE_PROVIDER,
-        voiceExists: assistant.isCoordinator ? coordinatorVoiceExists : !!assistantVoiceDetails,
+          assistant.voiceProvider || assistantVoiceDetails?.provider || PRIMARY_VOICE_PROVIDER,
+        voiceExists: !!assistantVoiceDetails,
 
         // Setup
         setup: assistant.isUserDesktop ? 'local' : 'remote',
@@ -500,7 +480,7 @@ export function useAssistantForm(
         }
       })();
     },
-    [reset, getValues, registeredVoices, setValue, coordinatorFixedVoice]
+    [reset, getValues, registeredVoices, setValue]
   );
 
   const initiateUpdateSequence = reactHookFormHandleSubmit(async (data: AssistantFormData) => {
@@ -546,25 +526,6 @@ export function useAssistantForm(
         throw new Error('Missing assistant nationality.');
       }
 
-      const fixedCoordinatorVoice = editingAssistant.isCoordinator ? coordinatorFixedVoice : null;
-      const nextVoiceId = fixedCoordinatorVoice?.voiceId ?? data.voiceId;
-      const nextVoiceProvider =
-        fixedCoordinatorVoice?.provider ?? data.voiceProvider ?? PRIMARY_VOICE_PROVIDER;
-      const nextVoiceName = fixedCoordinatorVoice?.name ?? data.voiceName!;
-      const nextVoiceDescription =
-        fixedCoordinatorVoice?.description ?? data.voiceDescription ?? data.voiceName!;
-      const nextVoiceGender = (fixedCoordinatorVoice?.gender ?? data.voiceGender!) as Gender;
-      const nextVoiceLanguage = (fixedCoordinatorVoice?.language ??
-        data.voiceLanguage!) as SupportedLanguage;
-      const nextVoiceExists =
-        fixedCoordinatorVoice !== null
-          ? registeredVoices.some(
-              (v) =>
-                v.voiceId === fixedCoordinatorVoice.voiceId &&
-                v.provider === fixedCoordinatorVoice.provider
-            )
-          : data.voiceExists;
-
       // Construct payload with only changed fields
       // Note: Contact details (email, phone, whatsapp) are managed via AssistantContactManager
       const payload: Partial<AssistantUpdatePayload> = {};
@@ -584,12 +545,15 @@ export function useAssistantForm(
       if (data.about !== editingAssistant.about) payload.about = data.about;
       if (data.timezone !== editingAssistant.timezone) payload.timezone = data.timezone;
       // Orchestra requires both voice_id and voice_provider together — always
-      // send them as a pair when either one has changed.
-      const voiceIdChanged = nextVoiceId !== editingAssistant.voiceId;
+      // send them as a pair when either one has changed. The Coordinator's
+      // fixed voice is enforced server-side and its picker is hidden, so
+      // this never fires for Marty.
+      const nextVoiceProvider = data.voiceProvider ?? PRIMARY_VOICE_PROVIDER;
+      const voiceIdChanged = data.voiceId !== editingAssistant.voiceId;
       const voiceProviderChanged = nextVoiceProvider !== editingAssistant.voiceProvider;
-      const voiceChanged = fixedCoordinatorVoice !== null || voiceIdChanged || voiceProviderChanged;
+      const voiceChanged = voiceIdChanged || voiceProviderChanged;
       if (voiceChanged) {
-        payload.voiceId = nextVoiceId;
+        payload.voiceId = data.voiceId;
         payload.voiceProvider = nextVoiceProvider;
       }
       // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated
@@ -623,18 +587,18 @@ export function useAssistantForm(
         payload.profileVideo = (videoUploadResult as PhotoUploadResponse).gcsUrl;
       }
 
-      if (voiceChanged && nextVoiceId && !nextVoiceExists) {
+      if (voiceChanged && data.voiceId && !data.voiceExists) {
         const provider = nextVoiceProvider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER;
         const isPresetVoice = voicePresetsConstant.some(
-          (voice) => voice.voiceId === nextVoiceId && voice.provider === provider
+          (voice) => voice.voiceId === data.voiceId && voice.provider === provider
         );
         const voiceCreationResponse = await assistantActions.voice.register(
-          nextVoiceId,
+          data.voiceId,
           provider,
-          nextVoiceName,
-          nextVoiceDescription,
-          nextVoiceGender,
-          nextVoiceLanguage,
+          data.voiceName!,
+          data.voiceDescription ?? data.voiceName!,
+          data.voiceGender!,
+          data.voiceLanguage!,
           isPresetVoice
         );
         if (

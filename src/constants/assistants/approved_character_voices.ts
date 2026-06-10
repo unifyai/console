@@ -93,6 +93,9 @@ export const approvedCharacterVoiceMetadata: Record<string, ApprovedVoiceMetadat
 };
 
 export const defaultCharacterVoiceId = 'cgSgspJ2msm6clMCkdW9';
+// The Coordinator's voice is pinned server-side (Orchestra enforces it at the
+// ORM layer — see orchestra/db/models/coordinator_voice.py). This mirror is
+// for test seeds and assertions only.
 export const coordinatorFixedVoiceId = 'iP95p4xoKVk53GoZ742B';
 
 export const approvedCharacterVoiceIds = new Set(Object.keys(approvedCharacterVoiceMetadata));
