@@ -118,13 +118,20 @@ interface FetchForKeyOptions {
   sorting?: SortState | null;
   offset?: number;
   filterExpr?: string | null;
+  searchQuery?: string;
   root?: ContextRoot | null;
 }
 
 function fetchForKey(
   assistant: Assistant,
   context: MemoryTabContext,
-  { sorting = null, offset = 0, filterExpr = null, root = null }: FetchForKeyOptions = {}
+  {
+    sorting = null,
+    offset = 0,
+    filterExpr = null,
+    searchQuery = '',
+    root = null,
+  }: FetchForKeyOptions = {}
 ) {
   const sortingParam = sorting ? buildSortingParam(sorting.field, sorting.direction) : undefined;
 
@@ -133,6 +140,8 @@ function fetchForKey(
   }
 
   if (context === 'Functions') {
+    void searchQuery;
+    void offset;
     return fetchFunctionsTables(assistant, root);
   }
 
@@ -291,6 +300,7 @@ export function useMemoryData({
         const data = await fetchForKey(assistant, activeContext, {
           sorting: newSorting,
           filterExpr: current.filterExpr,
+          searchQuery: current.searchQuery,
           root,
         });
         if (!isLatestRequest(requestId)) return;
@@ -337,6 +347,7 @@ export function useMemoryData({
         const data = await fetchForKey(assistant, activeContext, {
           sorting: currentSorting,
           filterExpr,
+          searchQuery: trimmed,
           root,
         });
         if (!isLatestRequest(requestId)) return;
@@ -373,6 +384,7 @@ export function useMemoryData({
     try {
       const data = await fetchForKey(assistant, activeContext, {
         sorting: currentSorting,
+        searchQuery: '',
         root,
       });
       if (!isLatestRequest(requestId)) return;
@@ -407,17 +419,22 @@ export function useMemoryData({
     const current = states[activeContext];
     if (!current.hasMore || isLoadingMore) return;
 
-    if (activeContext === 'Knowledge' || activeContext === 'Functions') return;
+    if (activeContext === 'Knowledge') return;
 
     const requestId = nextPageRequestId();
     setIsLoadingMore(true);
 
     try {
-      const offset = current.rows.length;
+      const offset =
+        activeContext === 'Functions'
+          ? current.rows.filter((row) => (row as Record<string, unknown>)._table === 'Integrations')
+              .length
+          : current.rows.length;
       const data = await fetchForKey(assistant, activeContext, {
         sorting: current.sorting,
         offset,
         filterExpr: current.filterExpr,
+        searchQuery: current.searchQuery,
         root,
       });
       if (!isLatestPageRequest(requestId)) return;
@@ -432,7 +449,9 @@ export function useMemoryData({
             ? hasMore
               ? Math.max(prevCtx.count, merged.length + 1)
               : merged.length
-            : data.count;
+            : activeContext === 'Functions'
+              ? merged.length + (hasMore ? 1 : 0)
+              : data.count;
         return {
           ...prev,
           [activeContext]: {
@@ -478,6 +497,7 @@ export function useMemoryData({
       const data = await fetchForKey(assistant, activeContext, {
         sorting: current.sorting,
         filterExpr: current.filterExpr,
+        searchQuery: current.searchQuery,
         root,
       });
       if (!isLatestRequest(requestId)) return;

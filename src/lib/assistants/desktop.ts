@@ -3,10 +3,11 @@
 import { ResponseProps } from '@/types/common';
 import { UserDesktop } from '@/types/assistants/assistant';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
-import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
-import { getAdaptersBaseUrl, getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
+import { snakeToCamelObject } from '@/utils/casing';
+import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 import { resolveOwnerApiKeyForAssistant } from '@/lib/assistants/owner';
 import { isSelfHost } from '@/lib/environment/environment';
+import { dispatchUnitySystemEvent } from '@/lib/assistants/system-event';
 
 const LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS = 5000;
 const DEFAULT_SELF_HOST_DESKTOP_URL = 'http://127.0.0.1:8090';
@@ -183,44 +184,17 @@ export const sendSystemEvent = async () => {
   ): Promise<ResponseProps> => {
     'use server';
 
-    const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
-    if (!ADMIN_KEY) {
-      console.error(
-        '[sendSystemEvent] Server configuration error: ORCHESTRA_ADMIN_KEY is not set.'
-      );
-      return { detail: 'Server configuration error.' };
-    }
-
-    const webhookUrl = `${getAdaptersBaseUrl()}/unity/system-event`;
-
-    // API expects snake_case - convert camelCase to snake_case
-    const payload = camelToSnakeObject({
+    const result = await dispatchUnitySystemEvent({
       assistantId: parseInt(assistantId),
-      eventType: eventType,
-      message: message,
+      eventType,
+      message,
     });
 
-    try {
-      const webhookResponse = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${ADMIN_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!webhookResponse.ok) {
-        const errorText = await webhookResponse.text();
-        console.error(`[sendSystemEvent] Webhook error (${webhookResponse.status}): ${errorText}`);
-        return { detail: `Failed to send system event: ${errorText}` };
-      }
-
-      return { info: 'System event sent successfully.' };
-    } catch (error: any) {
-      console.error('[sendSystemEvent] Error calling webhook:', error.message);
-      return { detail: 'Failed to connect to system event service.' };
+    if (!result.ok) {
+      console.error(`[sendSystemEvent] Webhook error (${result.status}): ${result.detail}`);
+      return { detail: `Failed to send system event: ${result.detail}` };
     }
+    return { info: 'System event sent successfully.' };
   };
 };
 
