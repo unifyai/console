@@ -191,6 +191,8 @@ load_self_host_runtime_env() {
   if [[ -z "${UNITY_REPO_PATH:-}" || ! -f "$SELF_HOST_ENV_SCRIPT" ]]; then
     return 0
   fi
+  export UNITY_HOME="${UNITY_HOME:-$HOME/.unity}"
+  export SELF_HOST_STATE_DIR="${SELF_HOST_STATE_DIR:-$UNITY_HOME}"
   # shellcheck disable=SC1090
   source "$SELF_HOST_ENV_SCRIPT"
   export_self_host_coordinator_runtime_file
@@ -383,12 +385,25 @@ is_orchestra_running() {
   curl -s --connect-timeout 2 --max-time 5 "http://127.0.0.1:${ORCHESTRA_PORT}/v0" &>/dev/null
 }
 
+orchestra_listens_on_lan() {
+  local port="${ORCHESTRA_PORT:-8000}"
+  lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null \
+    | grep -qE '(\*|0\.0\.0\.0|\[::\]):'"$port"
+}
+
 start_orchestra() {
   local with_stripe="${1:-false}"
 
   if is_orchestra_running; then
-    log_success "Orchestra already running on port $ORCHESTRA_PORT"
-    return 0
+    if [[ "${SELF_HOST:-0}" == "1" && "${SELF_HOST_DESKTOP:-1}" == "1" ]] \
+      && ! orchestra_listens_on_lan; then
+      log_info "Restarting Orchestra so desktop containers can reach it on 0.0.0.0 ..."
+      bash "$ORCHESTRA_LOCAL_SCRIPT" stop 2>/dev/null || true
+      sleep 1
+    else
+      log_success "Orchestra already running on port $ORCHESTRA_PORT"
+      return 0
+    fi
   fi
 
   log_info "Starting Orchestra via $ORCHESTRA_LOCAL_SCRIPT ..."
@@ -1904,6 +1919,8 @@ cmd_start() {
     elif declare -F self_host_should_preserve_orchestra_on_interactive_stop &>/dev/null \
       && self_host_should_preserve_orchestra_on_interactive_stop; then
       log_info "Reusing Orchestra (background runtime still running)..."
+    elif orchestra_listens_on_lan; then
+      log_info "Reusing Orchestra (already reachable for self-host)..."
     else
       log_info "Restarting Orchestra so SELF_HOST=1 and UNITY_COMMS_URL apply..."
       restart_orchestra="true"
@@ -2033,26 +2050,30 @@ cmd_stop() {
   echo "Stopping local environment..."
   echo ""
 
-  local preserve_runtime="false"
+  local preserve_background="false"
+  local preserve_cm="false"
   if [[ "$interactive_only" == "true" ]] \
+    && declare -F self_host_should_preserve_background_on_interactive_stop &>/dev/null \
+    && self_host_should_preserve_background_on_interactive_stop; then
+    preserve_background="true"
+  fi
+  if [[ "$preserve_background" == "true" ]] \
     && declare -F self_host_should_preserve_runtime_on_interactive_stop &>/dev/null \
     && self_host_should_preserve_runtime_on_interactive_stop; then
-    preserve_runtime="true"
+    preserve_cm="true"
   fi
 
   if is_stripe_listener_running; then
     stop_stripe_listener
   fi
   stop_console
-  if [[ "$interactive_only" != "true" ]] \
-    || ! { declare -F self_host_should_preserve_orchestra_on_interactive_stop &>/dev/null \
-      && self_host_should_preserve_orchestra_on_interactive_stop; }; then
+  if [[ "$preserve_background" != "true" ]]; then
     stop_orchestra
   else
     log_info "Keeping Orchestra running (runtime service)"
   fi
   if is_unity_available && is_unity_running; then
-    if [[ "$preserve_runtime" == "true" ]]; then
+    if [[ "$preserve_cm" == "true" ]]; then
       if declare -F self_host_adopt_coordinator_for_service &>/dev/null; then
         local preserved_assistant_id=""
         preserved_assistant_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
@@ -2063,18 +2084,22 @@ cmd_stop() {
       stop_unity
     fi
   fi
-  if [[ "$preserve_runtime" == "true" ]]; then
+  if [[ "$preserve_background" == "true" ]]; then
     COMMS_STOP_PUBSUB=0 stop_communication_services
   else
     stop_communication_services
   fi
-  if is_emulator_running && [[ "$preserve_runtime" != "true" ]]; then
+  if is_emulator_running && [[ "$preserve_background" != "true" ]]; then
     stop_pubsub_emulator
   fi
   echo ""
-  if [[ "$interactive_only" == "true" ]] && [[ "$preserve_runtime" == "true" ]]; then
+  if [[ "$interactive_only" == "true" ]] && [[ "$preserve_background" == "true" ]]; then
     log_success "Interactive stack stopped (runtime service still running)"
-    log_info "Scheduled tasks and outbound comms continue until: unity service stop"
+    if [[ "$preserve_cm" == "true" ]]; then
+      log_info "Scheduled tasks and outbound comms continue until: unity service stop"
+    else
+      log_info "Runtime supervisor will restart Coordinator CM while the UI is down"
+    fi
   else
     log_success "Local environment stopped"
   fi
