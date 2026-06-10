@@ -25,6 +25,8 @@ import * as React from 'react';
 import { broadcastOAuthComplete } from '@/utils/assistants/oauth';
 
 export default function OAuthCompletePage() {
+  const [showFallback, setShowFallback] = React.useState(false);
+
   React.useEffect(() => {
     if (typeof window === 'undefined') return undefined;
 
@@ -43,9 +45,12 @@ export default function OAuthCompletePage() {
     broadcastOAuthComplete({ query: resultQuery, kind });
 
     // 2. Try to close — focus returns to the original tab. Give the
-    //    broadcast a beat to flush before tearing the tab down (closing
-    //    synchronously can drop the BroadcastChannel message mid-send).
-    const closeTimer = window.setTimeout(() => window.close(), 150);
+    //    broadcast a short beat to flush before tearing the tab down.
+    const closeTimer = window.setTimeout(() => {
+      window.close();
+      // If the browser refuses to close this tab, surface fallback UI.
+      window.setTimeout(() => setShowFallback(true), 150);
+    }, 50);
 
     // ``close()`` does nothing when this tab wasn't script-opened (the
     // popup-blocked same-tab fallback). After a short grace period, finish
@@ -55,7 +60,7 @@ export default function OAuthCompletePage() {
       const sep = returnTo.includes('?') ? '&' : '?';
       const dest = resultQuery ? `${returnTo}${sep}${resultQuery}` : returnTo;
       window.location.replace(dest);
-    }, 600);
+    }, 900);
 
     return () => {
       window.clearTimeout(closeTimer);
@@ -63,11 +68,13 @@ export default function OAuthCompletePage() {
     };
   }, []);
 
+  if (!showFallback) return null;
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="flex flex-col items-center gap-3 text-center text-muted-foreground">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent" />
-        <p className="text-sm">Finishing sign-in… you can close this tab.</p>
+        <p className="text-sm">Returning to Console...</p>
       </div>
     </div>
   );

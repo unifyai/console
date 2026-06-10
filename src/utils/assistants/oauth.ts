@@ -1,12 +1,12 @@
 /**
  * Helpers for sending the user through a provider OAuth consent screen
- * in a *separate* browser tab instead of navigating the current one.
+ * in a short-lived popup instead of navigating the current page.
  *
- * Why a new tab at all: navigating the current tab
+ * Why a separate popup at all: navigating the current tab
  * (``window.location.href = url``) tears down the whole single-page
  * app, which drops anything live on the page — most notably an
  * in-progress assistant call during the Coordinator onboarding flow.
- * A separate tab keeps the original surface (and its call) intact while
+ * A popup keeps the original surface (and its call) intact while
  * the user completes the provider's consent screen.
  *
  * Why this is split into "open" + "navigate": browsers only let
@@ -18,8 +18,8 @@
  * caller would then fall back to a same-tab redirect, which is exactly
  * the SPA teardown we were trying to avoid.
  *
- * The fix: open a blank tab synchronously on click via
- * ``openPendingOAuthTab()``, do the async work, then point that tab at
+ * The fix: open a blank popup synchronously on click via
+ * ``openPendingOAuthTab()``, do the async work, then point that popup at
  * the URL with ``handle.navigate(url)``.
  *
  * Coming back to the original tab: instead of pointing the provider
@@ -135,32 +135,42 @@ export function subscribeOAuthComplete(handler: (detail: OAuthCompleteDetail) =>
 }
 
 export interface PendingOAuthTab {
-  /** Whether the browser actually granted us a tab (false ⇒ popup blocked). */
+  /** Whether the browser actually granted us a popup (false ⇒ popup blocked). */
   readonly opened: boolean;
-  /** Point the pre-opened tab at the authorize URL once it's known. */
+  /** Point the pre-opened popup at the authorize URL once it's known. */
   navigate(url: string): void;
-  /** Close the pre-opened tab (e.g. if the URL fetch failed). */
+  /** Close the pre-opened popup (e.g. if the URL fetch failed). */
   close(): void;
 }
 
 /**
- * Synchronously open a blank tab within a click gesture, to be
+ * Synchronously open a blank popup within a click gesture, to be
  * navigated to an OAuth authorize URL once it has been fetched.
  *
  * MUST be called synchronously in the event handler — before any
  * ``await`` — otherwise the popup blocker will reject it.
  */
 export function openPendingOAuthTab(): PendingOAuthTab {
-  const tab = typeof window !== 'undefined' ? window.open('', '_blank') : null;
-  // Drop the opener reference for hardening; some browsers throw on
-  // cross-origin opener writes, so guard it.
-  if (tab) {
-    try {
-      tab.opener = null;
-    } catch {
-      // Best-effort hardening only.
-    }
-  }
+  const width = 560;
+  const height = 720;
+  const left =
+    typeof window !== 'undefined'
+      ? Math.max(0, window.screenX + (window.outerWidth - width) / 2)
+      : 0;
+  const top =
+    typeof window !== 'undefined'
+      ? Math.max(0, window.screenY + (window.outerHeight - height) / 2)
+      : 0;
+  const features = [
+    'popup=yes',
+    `width=${width}`,
+    `height=${height}`,
+    `left=${Math.round(left)}`,
+    `top=${Math.round(top)}`,
+    'resizable=yes',
+    'scrollbars=yes',
+  ].join(',');
+  const tab = typeof window !== 'undefined' ? window.open('', 'unify-oauth-popup', features) : null;
   return {
     opened: !!tab,
     navigate(url: string) {
