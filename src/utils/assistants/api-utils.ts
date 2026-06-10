@@ -35,8 +35,12 @@ export function getInternalApiBaseUrl(): string {
 /**
  * Returns the adapters base URL for server-side dispatch to Communication.
  *
- * UNITY_ADAPTERS_URL overrides when injected (e.g. local stacks); otherwise
- * the canonical Cloud Run host for the resolved comms environment is used.
+ * Resolution order:
+ *   1. params.localAdaptersUrl  - explicit override for local stacks
+ *   2. UNITY_ADAPTERS_URL       - per-environment host (staging vs production)
+ *
+ * There is intentionally no baked-in default: each environment must set
+ * UNITY_ADAPTERS_URL so the Cloud Run host is never hardcoded in source.
  */
 export function getAdaptersBaseUrl(params?: { localAdaptersUrl?: string | null }): string {
   const explicitLocalAdaptersUrl = cleanUrl(params?.localAdaptersUrl);
@@ -49,8 +53,10 @@ export function getAdaptersBaseUrl(params?: { localAdaptersUrl?: string | null }
     return configuredAdaptersUrl;
   }
 
-  const prefix = isStagingEnvironment() ? 'staging-' : '';
-  return `https://unity-adapters-${prefix}ky4ja5fxna-uc.a.run.app`;
+  throw new Error(
+    'UNITY_ADAPTERS_URL is not set. Configure it per environment ' +
+      '(staging vs production adapters host), or pass localAdaptersUrl for local stacks.'
+  );
 }
 
 export function formatFastApiError(detail: any): string {
