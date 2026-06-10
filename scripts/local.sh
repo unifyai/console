@@ -20,15 +20,19 @@
 #   ./scripts/local.sh start --credits 0              # seed users with a 0 credit balance
 #   ./scripts/local.sh start --pubsub                 # + Pub/Sub emulator (billing events)
 #   ./scripts/local.sh start --chat                   # + Pub/Sub + chat (Unity gateway)
+#   ./scripts/local.sh start --integrations           # + Composio provider catalog sync
+#   ./scripts/local.sh start --integrations --integrations-functions
+#                                                     # + local-only curated Function rows
 #   ./scripts/local.sh gateway-setup                  # Unity gateway setup wizard
 #   ./scripts/local.sh gateway-doctor --check-credentials
 #   ./scripts/local.sh gateway-urls --public-url https://callbacks.example.com
 #   ./scripts/local.sh stop                           # Stop all services
 #   ./scripts/local.sh restart                        # Stop then start (wipes database)
+#   ./scripts/local.sh console                        # Restart Console only (skip seed/bootstrap)
 #   ./scripts/local.sh status                         # Show status of all services
 #
 # Prerequisites:
-#   - Node.js 20+ and npm 10+
+#   - Node.js 22 and npm 10+
 #   - Docker (for PostgreSQL)
 #   - Poetry (for Orchestra)
 #   - Orchestra repo cloned as a sibling: ../orchestra
@@ -452,6 +456,16 @@ start_orchestra() {
   # Pass the admin key so Orchestra authenticates Console's admin calls.
   export ORCHESTRA_ADMIN_KEY="$ADMIN_KEY"
   export ORCHESTRA_PORT="$ORCHESTRA_PORT"
+  local composio_key="${COMPOSIO_API_KEY:-$(read_env_value COMPOSIO_API_KEY "$ENV_LOCAL" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
+  if [[ -n "$composio_key" ]]; then
+    export COMPOSIO_API_KEY="$composio_key"
+  fi
+  local pipedream_client_id="${PIPEDREAM_CLIENT_ID:-$(read_env_value PIPEDREAM_CLIENT_ID "$ENV_LOCAL" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
+  local pipedream_client_secret="${PIPEDREAM_CLIENT_SECRET:-$(read_env_value PIPEDREAM_CLIENT_SECRET "$ENV_LOCAL" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
+  local pipedream_project_id="${PIPEDREAM_PROJECT_ID:-$(read_env_value PIPEDREAM_PROJECT_ID "$ENV_LOCAL" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
+  if [[ -n "$pipedream_client_id" ]]; then export PIPEDREAM_CLIENT_ID="$pipedream_client_id"; fi
+  if [[ -n "$pipedream_client_secret" ]]; then export PIPEDREAM_CLIENT_SECRET="$pipedream_client_secret"; fi
+  if [[ -n "$pipedream_project_id" ]]; then export PIPEDREAM_PROJECT_ID="$pipedream_project_id"; fi
 
   # Tell Orchestra where Console is running so Stripe checkout redirects
   # (success_url / cancel_url) point to localhost instead of console.unify.ai
@@ -1480,6 +1494,85 @@ validate_seed_scenario() {
   return 1
 }
 
+ensure_local_default_billing_catalog() {
+  local db_container="${ORCHESTRA_DB_CONTAINER:-orchestra-local-db}"
+  if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${db_container}$"; then
+    log_error "Local Orchestra DB container '$db_container' is not running"
+    return 1
+  fi
+
+  log_info "Ensuring local default billing catalog..."
+  docker exec "$db_container" psql -U orchestra -d orchestra -c "
+DO \$\$
+DECLARE
+  _default_template_id bigint;
+BEGIN
+  INSERT INTO plan_group (id, name, display_name, description, is_active)
+  VALUES (1, 'default', 'Default', 'Default plan group for local dev / test users', true)
+  ON CONFLICT (id) DO UPDATE
+  SET name = EXCLUDED.name,
+      display_name = EXCLUDED.display_name,
+      description = EXCLUDED.description,
+      is_active = EXCLUDED.is_active;
+
+  PERFORM setval('plan_group_id_seq', GREATEST((SELECT MAX(id) FROM plan_group), 1));
+
+  SELECT id INTO _default_template_id
+  FROM billing_plan_template
+  WHERE name = 'default'
+  ORDER BY id
+  LIMIT 1;
+
+  IF _default_template_id IS NULL THEN
+    INSERT INTO billing_plan_template (
+      id, name, display_name, description,
+      billing_mode, commit_amount, currency,
+      base_pricing_factor, overage_pricing_factor,
+      collection_method, proration_policy,
+      is_custom, is_active
+    )
+    VALUES (
+      1, 'default', 'Default', 'Default local development PAYG credits plan',
+      'CREDITS', NULL, 'USD',
+      1.0, 1.0,
+      'AUTO_CARD', 'PRORATE',
+      false, true
+    )
+    ON CONFLICT (id) DO NOTHING;
+
+    SELECT id INTO _default_template_id
+    FROM billing_plan_template
+    WHERE name = 'default'
+    ORDER BY id
+    LIMIT 1;
+  ELSE
+    UPDATE billing_plan_template
+    SET is_active = true
+    WHERE id = _default_template_id;
+  END IF;
+
+  IF _default_template_id IS NULL THEN
+    RAISE EXCEPTION 'Could not seed default billing_plan_template';
+  END IF;
+
+  PERFORM setval('billing_plan_template_id_seq', GREATEST((SELECT MAX(id) FROM billing_plan_template), 1));
+
+  INSERT INTO plan_group_member (group_id, template_id, position)
+  VALUES (1, _default_template_id, 0)
+  ON CONFLICT (group_id, template_id) DO UPDATE
+  SET position = EXCLUDED.position;
+END
+\$\$;
+" >/dev/null
+
+  if [[ $? -eq 0 ]]; then
+    log_success "Local default billing catalog ensured"
+    return 0
+  fi
+  log_error "Failed to ensure local default billing catalog"
+  return 1
+}
+
 run_seed_scenario() {
   local scenario="$1"
   log_info "Running seed scenario: $scenario ..."
@@ -1498,6 +1591,8 @@ run_seed_scenario() {
   export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
   export ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH"
   export ORCHESTRA_ADMIN_KEY="$ADMIN_KEY"
+
+  ensure_local_default_billing_catalog || return 1
 
   if npx tsx src/tests/helpers/seeds/run.ts "$scenario"; then
     log_success "Seed scenario '$scenario' completed"
@@ -1528,6 +1623,137 @@ run_seed_scenario() {
 }
 
 # =============================================================================
+# Provider Integration Bootstrap
+# =============================================================================
+
+setup_provider_integrations() {
+  local provider="${1:-composio}"
+  if [[ "$provider" != "composio" && "$provider" != "pipedream" ]]; then
+    log_error "Unsupported provider integration bootstrap: $provider"
+    log_info "Supported providers: composio, pipedream"
+    return 1
+  fi
+
+  if [[ "$provider" == "composio" ]]; then
+    local composio_key="${COMPOSIO_API_KEY:-$(read_env_value COMPOSIO_API_KEY "$ENV_LOCAL" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
+    if [[ -z "$composio_key" ]]; then
+      log_error "COMPOSIO_API_KEY is required for --integrations --provider composio"
+      log_info "Add COMPOSIO_API_KEY to .env.local or export it before running this script."
+      return 1
+    fi
+    export COMPOSIO_API_KEY="$composio_key"
+  fi
+  if [[ "$provider" == "pipedream" ]]; then
+    local pipedream_client_id="${PIPEDREAM_CLIENT_ID:-$(read_env_value PIPEDREAM_CLIENT_ID "$ENV_LOCAL" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
+    local pipedream_client_secret="${PIPEDREAM_CLIENT_SECRET:-$(read_env_value PIPEDREAM_CLIENT_SECRET "$ENV_LOCAL" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
+    local pipedream_project_id="${PIPEDREAM_PROJECT_ID:-$(read_env_value PIPEDREAM_PROJECT_ID "$ENV_LOCAL" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
+    if [[ -z "$pipedream_client_id" || -z "$pipedream_client_secret" || -z "$pipedream_project_id" ]]; then
+      log_error "PIPEDREAM_CLIENT_ID, PIPEDREAM_CLIENT_SECRET, and PIPEDREAM_PROJECT_ID are required for --integrations --provider pipedream"
+      log_info "Add them to .env.local or export them before running this script."
+      return 1
+    fi
+    export PIPEDREAM_CLIENT_ID="$pipedream_client_id"
+    export PIPEDREAM_CLIENT_SECRET="$pipedream_client_secret"
+    export PIPEDREAM_PROJECT_ID="$pipedream_project_id"
+  fi
+
+  log_info "Configuring ${provider} provider backend..."
+  local orchestra_base="http://127.0.0.1:${ORCHESTRA_PORT}/v0"
+  local backend_status
+  backend_status=$(curl -s -o "/tmp/console-${provider}-backend.json" -w "%{http_code}" \
+    -X POST "${orchestra_base}/admin/integrations/backends" \
+    -H "Authorization: Bearer ${ADMIN_KEY}" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"backend_id\": \"${provider}\",
+      \"kind\": \"${provider}\",
+      \"environment\": \"prod\",
+      \"display_name\": \"${provider}\",
+      \"status\": \"enabled\",
+      \"default_priority\": 10,
+      \"config_json\": {
+        \"timeout_seconds\": 30,
+        \"max_pages\": 100,
+        \"max_items\": 10000
+      }
+    }" 2>/dev/null || echo "000")
+  if [[ "$backend_status" != "200" ]]; then
+    log_error "Failed to upsert ${provider} backend (HTTP $backend_status)"
+    [[ -f "/tmp/console-${provider}-backend.json" ]] && sed 's/^/  /' "/tmp/console-${provider}-backend.json" || true
+    return 1
+  fi
+
+  log_info "Syncing ${provider} partial catalog..."
+  local sync_status
+  if [[ "$provider" == "composio" ]]; then
+    sync_status=$(curl -s -o /tmp/console-composio-sync.json -w "%{http_code}" \
+      -X POST "${orchestra_base}/admin/integrations/sync" \
+      -H "Authorization: Bearer ${ADMIN_KEY}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "backend_id": "composio",
+        "app_slugs": ["GMAIL", "SLACK", "HUBSPOT"],
+        "tool_limit_per_app": 50,
+        "include_all_managed_apps": false,
+        "create_auth_configs": true,
+        "cache_version": "local-composio-partial"
+      }' 2>/dev/null || echo "000")
+  else
+    sync_status=$(curl -s -o /tmp/console-pipedream-sync.json -w "%{http_code}" \
+      -X POST "${orchestra_base}/admin/integrations/sync" \
+      -H "Authorization: Bearer ${ADMIN_KEY}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "backend_id": "pipedream",
+        "app_slugs": ["slack", "github", "hubspot"],
+        "component_limit_per_app": 50,
+        "include_all_apps": false,
+        "cache_version": "local-pipedream-partial"
+      }' 2>/dev/null || echo "000")
+  fi
+  if [[ "$sync_status" != "200" ]]; then
+    log_error "Failed to sync ${provider} catalog (HTTP $sync_status)"
+    [[ -f "/tmp/console-${provider}-sync.json" ]] && sed 's/^/  /' "/tmp/console-${provider}-sync.json" || true
+    return 1
+  fi
+  log_success "${provider} catalog sync complete"
+  sed 's/^/  /' "/tmp/console-${provider}-sync.json" || true
+}
+
+sync_local_integration_functions() {
+  local apps="${LOCAL_INTEGRATION_FUNCTION_SYNC_APPS:-discord,slack,gmail,google_drive,google_calendar,github,linear,salesforce}"
+  log_info "Warming local-only FunctionManager integration primitives for active apps: $apps"
+  log_warn "This shortcut is for local experimentation only; inactive apps remain hidden until connected."
+
+  cd "$CONSOLE_REPO_PATH"
+  export ORCHESTRA_DB_CONTAINER="orchestra-local-db"
+  export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
+  export LOCAL_INTEGRATION_FUNCTION_SYNC_APPS="$apps"
+
+  if npx tsx src/tests/helpers/seeds/sync-integration-functions.ts; then
+    log_success "Local integration FunctionManager shortcut completed"
+  else
+    log_error "Local integration FunctionManager shortcut failed"
+    return 1
+  fi
+}
+
+start_local_integration_functions_sync() {
+  local apps="${LOCAL_INTEGRATION_FUNCTION_SYNC_APPS:-discord,slack,gmail,google_drive,google_calendar,github,linear,salesforce}"
+  local log_file="/tmp/console-integration-functions-sync.log"
+
+  log_info "Starting local integration FunctionManager warmup in the background for active apps: $apps"
+  (
+    cd "$CONSOLE_REPO_PATH" || exit 1
+    export ORCHESTRA_DB_CONTAINER="orchestra-local-db"
+    export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
+    export LOCAL_INTEGRATION_FUNCTION_SYNC_APPS="$apps"
+    npx tsx src/tests/helpers/seeds/sync-integration-functions.ts
+  ) >"$log_file" 2>&1 &
+  log_success "Local integration FunctionManager warmup started (PID $!, log: $log_file)"
+}
+
+# =============================================================================
 # Console Management
 # =============================================================================
 
@@ -1538,9 +1764,48 @@ is_console_running() {
     if kill -0 "$pid" 2>/dev/null; then
       return 0
     fi
+    rm -f "$CONSOLE_PIDFILE"
   fi
   # Also check if something is listening on the port
-  lsof -i ":${CONSOLE_PORT}" -sTCP:LISTEN &>/dev/null
+  [[ -n "$(console_port_pids)" ]]
+}
+
+console_port_pids() {
+  {
+    if command -v lsof &>/dev/null; then
+      lsof -t -i ":${CONSOLE_PORT}" -sTCP:LISTEN 2>/dev/null | sed 's/[^0-9].*$//' || true
+      printf '\n'
+    fi
+    if command -v fuser &>/dev/null; then
+      fuser "${CONSOLE_PORT}/tcp" 2>/dev/null | tr -cs '0-9' '\n' || true
+      printf '\n'
+    fi
+    if command -v ss &>/dev/null; then
+      ss -ltnp "sport = :${CONSOLE_PORT}" 2>/dev/null | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' || true
+      printf '\n'
+    fi
+  } | sed -n '/^[0-9][0-9]*$/p' | sort -u
+}
+
+wait_for_console_port_to_clear() {
+  local attempts=10
+  local attempt=0
+  while (( attempt < attempts )); do
+    if [[ -z "$(console_port_pids)" ]]; then
+      return 0
+    fi
+    sleep 1
+    ((attempt++)) || true
+  done
+  return 1
+}
+
+console_log_has_startup_failure() {
+  grep -Eq "EADDRINUSE|Failed to start server|Error: listen" "$CONSOLE_LOGFILE" 2>/dev/null
+}
+
+console_log_has_ready_signal() {
+  grep -Eq "Ready in|Local:|started server|Next.js .*ready" "$CONSOLE_LOGFILE" 2>/dev/null
 }
 
 start_console() {
@@ -1551,11 +1816,26 @@ start_console() {
   # Kill any stale Console processes on the port before checking, so we
   # always start fresh with the correct environment variables.
   local stale_pids
-  stale_pids=$(lsof -t -i ":${CONSOLE_PORT}" 2>/dev/null || true)
+  stale_pids=$(console_port_pids)
   if [[ -n "$stale_pids" ]]; then
     log_info "Cleaning up stale processes on port $CONSOLE_PORT ..."
-    echo "$stale_pids" | xargs kill -9 2>/dev/null || true
-    sleep 1
+    echo "$stale_pids" | xargs kill 2>/dev/null || true
+    if ! wait_for_console_port_to_clear; then
+      stale_pids=$(console_port_pids)
+      if [[ -n "$stale_pids" ]]; then
+        echo "$stale_pids" | xargs kill -9 2>/dev/null || true
+      fi
+    fi
+    if ! wait_for_console_port_to_clear; then
+      log_error "Port $CONSOLE_PORT is still in use; cannot start Console safely."
+      log_info "Processes still listening on port $CONSOLE_PORT:"
+      if command -v lsof &>/dev/null; then
+        lsof -i ":${CONSOLE_PORT}" -sTCP:LISTEN || true
+      else
+        console_port_pids || true
+      fi
+      return 1
+    fi
     rm -f "$CONSOLE_PIDFILE"
   fi
 
@@ -1644,7 +1924,11 @@ PY
     fi
   fi
 
-  nohup npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 &
+  if command -v setsid &>/dev/null; then
+    setsid npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 < /dev/null &
+  else
+    nohup npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 < /dev/null &
+  fi
   local pid=$!
   echo "$pid" > "$CONSOLE_PIDFILE"
 
@@ -1653,7 +1937,35 @@ PY
   local max_attempts=60
   local attempt=0
   while (( attempt < max_attempts )); do
-    if curl -s --connect-timeout 2 --max-time 5 "http://localhost:${CONSOLE_PORT}" &>/dev/null; then
+    if console_log_has_startup_failure; then
+      rm -f "$CONSOLE_PIDFILE"
+      log_error "Console failed during startup."
+      if grep -q "EADDRINUSE" "$CONSOLE_LOGFILE" 2>/dev/null; then
+        log_error "Port $CONSOLE_PORT is already in use."
+        local listeners
+        listeners=$(console_port_pids)
+        if [[ -n "$listeners" ]]; then
+          log_info "Processes listening on port $CONSOLE_PORT: $listeners"
+        fi
+      fi
+      log_info "Check logs: $CONSOLE_LOGFILE"
+      return 1
+    fi
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$CONSOLE_PIDFILE"
+      log_error "Console process exited before it became ready."
+      if grep -q "EADDRINUSE" "$CONSOLE_LOGFILE" 2>/dev/null; then
+        log_error "Port $CONSOLE_PORT is already in use."
+      fi
+      log_info "Check logs: $CONSOLE_LOGFILE"
+      return 1
+    fi
+    if console_log_has_ready_signal && curl -s --connect-timeout 2 --max-time 5 "http://localhost:${CONSOLE_PORT}" &>/dev/null; then
+      local listener_pids
+      listener_pids=$(console_port_pids)
+      if [[ -n "$listener_pids" ]]; then
+        echo "$listener_pids" | head -1 > "$CONSOLE_PIDFILE"
+      fi
       log_success "Console is ready at http://localhost:${CONSOLE_PORT}"
       return 0
     fi
@@ -1663,6 +1975,8 @@ PY
 
   log_error "Console failed to start within 60 seconds"
   log_info "Check logs: $CONSOLE_LOGFILE"
+  kill "$pid" 2>/dev/null || true
+  rm -f "$CONSOLE_PIDFILE"
   return 1
 }
 
@@ -1679,12 +1993,23 @@ stop_console() {
     rm -f "$CONSOLE_PIDFILE"
   fi
 
-  # Kill any remaining next-server processes on the port
+  # Kill any remaining next-server processes on the port. In WSL, lsof can
+  # miss Node listeners that ss/fuser still see, so use the shared detector.
   local port_pids
-  port_pids=$(lsof -t -i ":${CONSOLE_PORT}" 2>/dev/null || true)
+  port_pids=$(console_port_pids)
   if [[ -n "$port_pids" ]]; then
-    echo "$port_pids" | xargs kill -9 2>/dev/null || true
-    sleep 1
+    log_info "Stopping remaining Console listener(s) on port $CONSOLE_PORT: $port_pids"
+    echo "$port_pids" | xargs kill 2>/dev/null || true
+    if ! wait_for_console_port_to_clear; then
+      port_pids=$(console_port_pids)
+      if [[ -n "$port_pids" ]]; then
+        echo "$port_pids" | xargs kill -9 2>/dev/null || true
+      fi
+    fi
+    if ! wait_for_console_port_to_clear; then
+      log_error "Console port $CONSOLE_PORT is still occupied after stop."
+      return 1
+    fi
   fi
 
   log_success "Console stopped"
@@ -1780,8 +2105,11 @@ cmd_start() {
   local seed_scenario="$3"
   local with_chat="$4"
   local with_pubsub="$5"
-  local unity_echo="${6:-false}"
-  local with_self_host="${7:-false}"
+  local with_integrations="${6:-false}"
+  local integrations_provider="${7:-composio}"
+  local unity_echo="${8:-false}"
+  local with_integration_functions="${9:-false}"
+  local with_self_host="${10:-false}"
 
   if [[ "$with_self_host" == "true" ]]; then
     with_chat="true"
@@ -1821,6 +2149,12 @@ cmd_start() {
   fi
   if [[ "$with_chat" == "true" ]]; then
     mode_label="$mode_label + chat"
+  fi
+  if [[ "$with_integrations" == "true" ]]; then
+    mode_label="$mode_label + integrations:${integrations_provider}"
+  fi
+  if [[ "$with_integration_functions" == "true" ]]; then
+    mode_label="$mode_label + local integration functions"
   fi
 
   echo ""
@@ -1895,7 +2229,18 @@ cmd_start() {
 
     # Seed before Console so data is available on first page load.
     echo ""
-    run_seed_scenario "$seed_scenario" || log_warn "Seed scenario failed — see output above"
+    if ! run_seed_scenario "$seed_scenario"; then
+      if [[ "$with_integrations" == "true" ]]; then
+        log_error "Seed scenario failed; aborting integrations E2E startup."
+        return 1
+      fi
+      log_warn "Seed scenario failed — see output above"
+    fi
+
+    if [[ "$with_integrations" == "true" ]]; then
+      echo ""
+      setup_provider_integrations "$integrations_provider" || return 1
+    fi
   fi
 
   # After seeding/bootstrap, create Pub/Sub topics for assistants.
@@ -1913,6 +2258,15 @@ cmd_start() {
 
   echo ""
   start_console "$with_pubsub" "$with_chat" "$with_self_host" || return 1
+
+  if [[ "$with_integration_functions" == "true" ]]; then
+    echo ""
+    if [[ "$with_integrations" != "true" ]]; then
+      log_error "--integrations-functions requires --integrations so the provider catalog exists."
+      return 1
+    fi
+    start_local_integration_functions_sync
+  fi
 
   if [[ "$with_stripe" == "true" ]]; then
     echo ""
@@ -1940,6 +2294,12 @@ cmd_start() {
       echo "  Gateway:   ${CHAT_ADAPTERS_URL:-$(unity_gateway_base_url)}"
       echo "  Test asst: ${CHAT_TEST_ASSISTANT_ID:-default-test-assistant}"
     fi
+  fi
+  if [[ "$with_integrations" == "true" ]]; then
+    echo "  Integrations: ${integrations_provider} catalog synced"
+  fi
+  if [[ "$with_integration_functions" == "true" ]]; then
+    echo "  Functions:    active integration primitives warming in background"
   fi
   echo ""
   if [[ "$with_self_host" == "true" ]]; then
@@ -2003,6 +2363,7 @@ cmd_stop() {
   echo "Stopping local environment..."
   echo ""
 
+  local failed=false
   local preserve_background="false"
   local preserve_cm="false"
   if [[ "$interactive_only" == "true" ]] \
@@ -2017,11 +2378,11 @@ cmd_stop() {
   fi
 
   if is_stripe_listener_running; then
-    stop_stripe_listener
+    stop_stripe_listener || failed=true
   fi
-  stop_console
+  stop_console || failed=true
   if [[ "$preserve_background" != "true" ]]; then
-    stop_orchestra
+    stop_orchestra || failed=true
   else
     log_info "Keeping Orchestra running (runtime service)"
   fi
@@ -2034,16 +2395,20 @@ cmd_stop() {
       fi
       log_info "Keeping service-managed Coordinator runtime running"
     else
-      stop_unity
+      stop_unity || failed=true
     fi
   fi
   if [[ "$preserve_background" != "true" ]] && is_unity_available; then
     bash "$UNITY_LOCAL_SCRIPT" stop-gateway 2>/dev/null || true
   fi
   if is_emulator_running && [[ "$preserve_background" != "true" ]]; then
-    stop_pubsub_emulator
+    stop_pubsub_emulator || failed=true
   fi
   echo ""
+  if [[ "$failed" == "true" ]]; then
+    log_error "Local environment stop completed with one or more cleanup errors"
+    return 1
+  fi
   if [[ "$interactive_only" == "true" ]] && [[ "$preserve_background" == "true" ]]; then
     log_success "Interactive stack stopped (runtime service still running)"
     if [[ "$preserve_cm" == "true" ]]; then
@@ -2062,8 +2427,11 @@ cmd_restart() {
   local seed_scenario="$3"
   local with_chat="$4"
   local with_pubsub="$5"
-  local unity_echo="${6:-false}"
-  local with_self_host="${7:-false}"
+  local with_integrations="${6:-false}"
+  local integrations_provider="${7:-composio}"
+  local unity_echo="${8:-false}"
+  local with_integration_functions="${9:-false}"
+  local with_self_host="${10:-false}"
 
   if [[ "$with_self_host" == "true" ]]; then
     seed_scenario=""
@@ -2086,7 +2454,57 @@ cmd_restart() {
   # seed logins / balances). Use `start` to keep existing data.
   purge_orchestra_db
   echo ""
-  cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" "$with_self_host"
+  cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$with_integrations" "$integrations_provider" "$unity_echo" "$with_integration_functions" "$with_self_host"
+}
+
+cmd_console() {
+  local with_chat="${1:-false}"
+  local with_pubsub="${2:-false}"
+
+  echo ""
+  echo "=============================================="
+  echo "  Restarting Console only (skipping seed/bootstrap)"
+  echo "=============================================="
+  echo ""
+
+  if ! check_prerequisites; then
+    return 1
+  fi
+
+  ensure_npm_deps
+
+  if ! is_orchestra_running; then
+    log_warn "Orchestra is not running at http://127.0.0.1:${ORCHESTRA_PORT}; Console backend calls may fail."
+  fi
+
+  if [[ -f "$COMMUNICATION_CONFIG_FILE" ]]; then
+    load_communication_config 2>/dev/null || true
+  fi
+
+  # Preserve local chat/billing wiring when those services are already up.
+  if [[ "$with_chat" != "true" ]] && [[ -n "$COMMUNICATION_REPO_PATH" && -f "$COMMUNICATION_LOCAL_SCRIPT" ]] && is_communication_running; then
+    with_chat="true"
+  fi
+  if [[ "$with_pubsub" != "true" && "$with_chat" != "true" ]] && is_emulator_running; then
+    with_pubsub="true"
+  fi
+  if [[ "$with_chat" == "true" ]]; then
+    with_pubsub="true"
+  fi
+
+  stop_console || return 1
+  start_console "$with_pubsub" "$with_chat" || return 1
+
+  echo ""
+  log_success "Console restarted at http://localhost:${CONSOLE_PORT}"
+  echo ""
+  echo "  Skipped: seed scenario, provider catalog sync, local integration Function rows"
+  if [[ "$with_pubsub" == "true" ]]; then
+    echo "  Pub/Sub: $LOCAL_PUBSUB_HOST"
+  fi
+  if [[ "$with_chat" == "true" && -n "$CHAT_ADAPTERS_URL" ]]; then
+    echo "  Adapters: $CHAT_ADAPTERS_URL"
+  fi
 }
 
 cmd_status() {
@@ -2156,6 +2574,40 @@ cmd_status() {
   echo ""
 }
 
+cmd_logs() {
+  local service="${1:-console}"
+  local logfile=""
+
+  case "$service" in
+    console)
+      logfile="$CONSOLE_LOGFILE"
+      ;;
+    pubsub)
+      logfile="$EMULATOR_LOGFILE"
+      ;;
+    stripe)
+      logfile="/tmp/stripe-listen-orchestra.log"
+      ;;
+    orchestra)
+      logfile="/tmp/orchestra-local.log"
+      ;;
+    *)
+      log_error "Unknown log service: $service"
+      log_info "Supported services: console, orchestra, pubsub, stripe"
+      return 1
+      ;;
+  esac
+
+  if [[ ! -f "$logfile" ]]; then
+    log_error "Log file does not exist yet: $logfile"
+    log_info "Start the local environment first."
+    return 1
+  fi
+
+  log_info "Following $service logs: $logfile"
+  tail -n 200 -F "$logfile"
+}
+
 # =============================================================================
 # Entry Point
 # =============================================================================
@@ -2184,10 +2636,14 @@ main() {
   local with_stripe="false"
   local with_chat="false"
   local with_pubsub="false"
+  local with_integrations="false"
+  local integrations_provider="composio"
   local unity_echo="false"
   local with_self_host="false"
+  local with_integration_functions="false"
   local seed_scenario=""
   local interactive_stop="false"
+  local logs_service="console"
 
   while (( "$#" )); do
     case "$1" in
@@ -2196,6 +2652,9 @@ main() {
       --chat)   with_chat="true"; with_pubsub="true"; shift ;;
       --self-host) with_self_host="true"; shift ;;
       --pubsub) with_pubsub="true"; shift ;;
+      --integrations) with_integrations="true"; shift ;;
+      --integrations-functions) with_integration_functions="true"; shift ;;
+      --provider) shift; integrations_provider="${1:-composio}"; shift ;;
       --echo|--unity-echo) unity_echo="true"; shift ;;
       --interactive-only) interactive_stop="true"; shift ;;
       --seed)   shift; seed_scenario="${1:-}"; shift ;;
@@ -2210,9 +2669,10 @@ main() {
         export SEED_CREDITS="$1"
         shift
         ;;
+      --service) shift; logs_service="${1:-console}"; shift ;;
       -h|--help|help) cmd="help"; shift ;;
       -*)      log_error "Unknown flag: $1"; echo "Run '$0 help' for usage"; exit 1 ;;
-      *)       [[ -z "$cmd" ]] && cmd="$1"; shift ;;
+      *)       if [[ -z "$cmd" ]]; then cmd="$1"; else logs_service="$1"; fi; shift ;;
     esac
   done
 
@@ -2223,7 +2683,7 @@ main() {
     start-coordinator) cmd_start_coordinator ;;
     start-runtime-backend) cmd_start_runtime_backend ;;
     stop-runtime-backend) cmd_stop_runtime_backend ;;
-    start)   cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" "$with_self_host" ;;
+    start)   cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$with_integrations" "$integrations_provider" "$unity_echo" "$with_integration_functions" "$with_self_host" ;;
     stop)
       if [[ "$interactive_stop" == "true" ]]; then
         cmd_stop --interactive-only
@@ -2231,10 +2691,13 @@ main() {
         cmd_stop
       fi
       ;;
-    restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$unity_echo" "$with_self_host" ;;
+    restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$with_integrations" "$integrations_provider" "$unity_echo" "$with_integration_functions" "$with_self_host" ;;
+    console)      cmd_console "$with_chat" "$with_pubsub" ;;
+    console-only) cmd_console "$with_chat" "$with_pubsub" ;;
     status)  cmd_status ;;
+    logs)    cmd_logs "$logs_service" ;;
     help)
-      echo "Usage: $0 [start|stop|restart|status|ensure-coordinator-topics|start-coordinator|gateway-setup|gateway-doctor|gateway-urls] [--org] [--stripe] [--pubsub] [--chat] [--self-host] [--echo] [--seed <scenario>] [--credits <n>]"
+      echo "Usage: $0 [start|stop|restart|console|status|logs|ensure-coordinator-topics|start-coordinator|gateway-setup|gateway-doctor|gateway-urls] [--org] [--stripe] [--pubsub] [--chat] [--self-host] [--integrations] [--integrations-functions] [--provider composio] [--echo] [--seed <scenario>] [--credits <n>]"
       echo ""
       echo "Commands:"
       echo "  ensure-coordinator-topics  Ensure Pub/Sub topics/subscriptions for the Coordinator"
@@ -2242,10 +2705,12 @@ main() {
       echo "  start    Start Console + Orchestra + seed data (default)"
       echo "  stop     Stop Console, Orchestra, Pub/Sub emulator, Unity, and Stripe listener"
       echo "  restart  Stop then start (wipes database)"
+      echo "  console  Restart only the Console dev server; skip seed/catalog/function sync"
       echo "  status   Show service status"
       echo "  gateway-setup   Run Unity gateway local setup wizard"
       echo "  gateway-doctor  Run Unity gateway doctor using Console's local env"
       echo "  gateway-urls    Print Unity gateway provider callback URLs"
+      echo "  logs     Follow logs. Usage: $0 logs [console|orchestra|pubsub|stripe]"
       echo ""
       echo "Flags:"
       echo "  --seed <scenario>  Choose a seed scenario. Default: personal-workspace"
@@ -2273,6 +2738,13 @@ main() {
       echo "                     Includes everything --pubsub does, plus chat functionality."
       echo "                     Requires: unity repo as sibling (../unity)"
       echo "                               + gcloud CLI with pubsub-emulator component"
+      echo "  --integrations     Configure local Orchestra with provider-backed integrations"
+      echo "                     and sync a partial provider catalog."
+      echo "  --integrations-functions"
+      echo "                     Local-only shortcut: seed curated integration primitive"
+      echo "                     rows into Functions/Primitives after provider catalog sync."
+      echo "                     Override apps with LOCAL_INTEGRATION_FUNCTION_SYNC_APPS."
+      echo "  --provider <name>  Provider to bootstrap with --integrations: composio or pipedream. Default: composio"
       echo "  --echo             Force Unity to start in echo-responder mode even when LLM"
       echo "                     keys are present in .env.local. The echo responder auto-"
       echo "                     discovers all unity-* topics, making it suitable for multi-"
@@ -2303,6 +2775,11 @@ main() {
       echo "  $0 start --org --stripe               # org-basic + Stripe"
       echo "  $0 start --pubsub                     # + Pub/Sub emulator (billing events)"
       echo "  $0 start --chat                       # + Pub/Sub + chat (Unity gateway)"
+      echo "  $0 start --integrations --provider composio # + Composio partial catalog sync"
+      echo "  $0 start --integrations --provider pipedream # + Pipedream partial catalog sync"
+      echo "  $0 start --integrations --integrations-functions # + curated local Function rows"
+      echo "  $0 console                           # restart only Console for UI/hot-reload work"
+      echo "  $0 console --chat                    # restart only Console with local chat env"
       echo "  $0 start --chat --org                 # org-basic + local chat"
       echo "  $0 start --chat --echo --seed personal-workspace-multi  # multi-assistant chat with echo responder"
       ;;

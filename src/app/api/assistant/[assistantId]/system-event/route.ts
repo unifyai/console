@@ -28,7 +28,6 @@ export async function POST(request: NextRequest, { params }: { params: { assista
     assistantId,
     eventType,
     message: typeof body?.message === 'string' ? body.message : '',
-    deployEnv: body?.deployEnv,
     extraEventFields:
       body?.extraEventFields && typeof body.extraEventFields === 'object'
         ? body.extraEventFields

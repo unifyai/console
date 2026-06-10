@@ -1,11 +1,10 @@
 import { camelToSnakeObject } from '@/utils/casing';
-import { getAdaptersBaseUrl, isStagingEnvironment } from '@/utils/assistants/api-utils';
+import { getAdaptersBaseUrl } from '@/utils/assistants/api-utils';
 
 export interface UnitySystemEventDispatch {
   assistantId: string | number;
   eventType: string;
   message?: string;
-  deployEnv?: string | null;
   extraEventFields?: Record<string, unknown>;
 }
 
@@ -33,10 +32,7 @@ export async function dispatchUnitySystemEvent(
     return { ok: false, status: 500, detail: 'Server configuration error' };
   }
 
-  const orchestraUrl = process.env.ORCHESTRA_URL || '';
   const webhookUrl = `${getAdaptersBaseUrl({
-    deployEnv: args.deployEnv,
-    isStaging: isStagingEnvironment(orchestraUrl),
     localAdaptersUrl: process.env.LOCAL_ADAPTERS_URL,
   })}/unity/system-event`;
 
