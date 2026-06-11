@@ -47,7 +47,10 @@ export function ConnectedAccountsSection({
   }
 
   return (
-    <div className="space-y-2" data-testid="integration-connected-accounts">
+    <div
+      className="min-w-0 max-w-full space-y-2 overflow-x-hidden"
+      data-testid="integration-connected-accounts"
+    >
       {visibleConnections.map((connection, index) => {
         const busy = busyConnectionId === connection.id;
         const isPending = connection.status === 'pending';
@@ -75,8 +78,11 @@ export function ConnectedAccountsSection({
               ? 'Needs attention'
               : connection.healthLabel;
         return (
-          <div key={connection.id} className="rounded-lg border bg-card p-3">
-            <div className="flex items-start justify-between gap-3">
+          <div
+            key={connection.id}
+            className="min-w-0 max-w-full overflow-hidden rounded-lg border bg-card p-3"
+          >
+            <div className="flex min-w-0 items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 {isEditing ? (
                   <form
@@ -127,7 +133,7 @@ export function ConnectedAccountsSection({
                     </Button>
                   </form>
                 ) : (
-                  <div className="flex min-w-0 items-center gap-1.5">
+                  <div className="flex min-w-0 max-w-full items-center gap-1.5">
                     <p className="text-title truncate text-sm">{accountLabel}</p>
                     {onUpdateLabel && (
                       <Button
@@ -154,7 +160,7 @@ export function ConnectedAccountsSection({
               </div>
               <IntegrationStatusBadge status={connection.status} />
             </div>
-            <div className="mt-3 flex flex-wrap gap-1.5">
+            <div className="mt-3 flex min-w-0 max-w-full flex-wrap gap-1.5">
               {healthLabel && (
                 <Badge variant="outline" className="rounded-full text-muted-foreground">
                   {healthLabel}

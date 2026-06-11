@@ -115,16 +115,20 @@ function PermissionList({
   }
 
   return (
-    <div className="space-y-2" data-testid="integration-permission-list">
-      <div className="flex min-w-0 flex-wrap gap-2">
+    <div
+      className="min-w-0 max-w-full space-y-2 overflow-x-hidden"
+      data-testid="integration-permission-list"
+    >
+      <div className="flex w-full min-w-0 max-w-full flex-wrap gap-2 overflow-x-hidden">
         {scopes.map((scope) => {
           const selected = selectedScopeIds.has(scope.id);
           return (
             <button
               key={scope.id}
               type="button"
+              title={scope.id}
               className={cn(
-                'max-w-full break-all rounded-full border px-2.5 py-1 font-mono text-xs leading-4 transition',
+                'max-w-full overflow-hidden truncate whitespace-nowrap rounded-full border px-2.5 py-1 font-mono text-xs leading-4 transition',
                 selected
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'bg-muted/40 hover:border-primary/50 text-muted-foreground hover:text-foreground'
@@ -152,19 +156,11 @@ function ToolMetadataTags({
   const actionLabel = actionBadgeLabel(actionClass);
   if ((!scopes || scopes.length === 0) && !actionLabel) return null;
   return (
-    <div className="mt-1 flex min-w-0 gap-1.5 overflow-hidden">
-      {(scopes ?? []).map((scope) => (
-        <span
-          key={scope.id}
-          className="bg-muted/40 max-w-[180px] shrink-0 truncate rounded-full border px-2 py-0.5 font-mono text-[10px] leading-4 text-muted-foreground"
-        >
-          {scope.id}
-        </span>
-      ))}
+    <div className="mt-1 flex min-w-0 max-w-full flex-wrap gap-1.5 overflow-hidden">
       {actionLabel && (
         <span
           className={cn(
-            'shrink-0 rounded-full border px-2 py-0.5 text-[10px] leading-4',
+            'shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] leading-4',
             actionClass === 'destructive'
               ? 'border-destructive/30 bg-destructive/10 text-destructive'
               : 'border-warning/30 bg-warning/10 text-warning'
@@ -173,6 +169,15 @@ function ToolMetadataTags({
           {actionLabel}
         </span>
       )}
+      {(scopes ?? []).map((scope) => (
+        <span
+          key={scope.id}
+          title={scope.id}
+          className="bg-muted/40 max-w-full truncate whitespace-nowrap rounded-full border px-2 py-0.5 font-mono text-[10px] leading-4 text-muted-foreground sm:max-w-[220px]"
+        >
+          {scope.id}
+        </span>
+      ))}
     </div>
   );
 }
@@ -221,9 +226,12 @@ function AvailableToolsList({
   }, [query, selectedScopeIds, tools]);
 
   return (
-    <div className="min-w-0 space-y-3" data-testid="integration-tool-preview">
-      <div className="flex items-center justify-between gap-3">
-        <div>
+    <div
+      className="min-w-0 max-w-full space-y-3 overflow-x-hidden"
+      data-testid="integration-tool-preview"
+    >
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <div className="min-w-0">
           <h3 className="text-title text-base">Available tools</h3>
           <p className="text-caption">These are the tools this app can support.</p>
         </div>
@@ -232,12 +240,13 @@ function AvailableToolsList({
         </Badge>
       </div>
       {selectedScopeIds.length > 0 && (
-        <div className="text-caption bg-muted/20 flex min-w-0 flex-wrap items-center gap-2 rounded-lg border px-3 py-2">
+        <div className="text-caption bg-muted/20 flex min-w-0 max-w-full flex-wrap items-center gap-2 overflow-x-hidden rounded-lg border px-3 py-2">
           <span>Showing tools requiring</span>
           {selectedScopeIds.map((scopeId) => (
             <span
               key={scopeId}
-              className="max-w-full break-all rounded-full border bg-background px-2 py-0.5 font-mono"
+              title={scopeId}
+              className="max-w-full truncate whitespace-nowrap rounded-full border bg-background px-2 py-0.5 font-mono"
             >
               {scopeId}
             </span>
@@ -253,7 +262,7 @@ function AvailableToolsList({
           </button>
         </div>
       )}
-      <div className="flex gap-2">
+      <div className="flex min-w-0 max-w-full gap-2">
         <div className="relative min-w-0 flex-1">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -349,16 +358,20 @@ function AvailableToolsList({
           {policyError}
         </p>
       )}
-      <div className="min-w-0 rounded-xl border bg-card">
-        <ol className="min-w-0 divide-y">
+      <div className="min-w-0 max-w-full overflow-hidden rounded-xl border bg-card">
+        <ol className="min-w-0 max-w-full divide-y">
           {filteredTools.map((tool, index) => {
             const expanded = expandedToolId === tool.id;
             const policyLevel = policyByToolId[tool.id] ?? defaultApprovalLevel(tool);
             return (
-              <li key={tool.id} data-testid={`integration-tool-row-${tool.id}`}>
+              <li
+                key={tool.id}
+                className="min-w-0 max-w-full"
+                data-testid={`integration-tool-row-${tool.id}`}
+              >
                 <div
                   className={cn(
-                    'hover:bg-muted/40 flex w-full min-w-0 gap-3 px-4 py-3 transition',
+                    'hover:bg-muted/40 flex w-full min-w-0 max-w-full gap-3 overflow-hidden px-4 py-3 transition',
                     expanded ? 'min-h-[72px]' : 'h-[72px]'
                   )}
                 >
@@ -366,10 +379,10 @@ function AvailableToolsList({
                     {index + 1}.
                   </span>
                   <div className="min-w-0 flex-1 overflow-hidden">
-                    <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="flex min-w-0 max-w-full items-start justify-between gap-3">
                       <button
                         type="button"
-                        className="min-w-0 flex-1 text-left"
+                        className="min-w-0 max-w-full flex-1 overflow-hidden text-left"
                         onClick={() => setExpandedToolId(expanded ? null : tool.id)}
                       >
                         <p className="text-title truncate">{tool.displayName}</p>
@@ -727,27 +740,27 @@ export function ProviderIntegrationDetailSheet({
                   {displayItem.description ||
                     'Review what this integration exposes before connecting it.'}
                 </p>
-                <div
-                  className="bg-muted/20 mt-3 flex gap-2 rounded-lg border p-3 text-left"
-                  data-testid="integration-secure-connection-summary"
-                >
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                  <div className="text-xs leading-5 text-muted-foreground">
-                    <p className="font-medium text-foreground">Secure connection</p>
-                    <p>
-                      Unify stores provider credentials outside prompts and only uses this
-                      connection when your assistant invokes an allowed integration tool.
-                    </p>
-                    {policyConnection && (
-                      <p className="mt-1">
-                        Usable by this assistant · {displayItem.scopes.length} access scopes ·{' '}
-                        {policySummary.automatic} automatic, {policySummary.confirmation} ask first,{' '}
-                        {policySummary.off} off.
-                      </p>
-                    )}
-                  </div>
-                </div>
               </SheetHeader>
+              <div
+                className="bg-muted/20 mt-3 flex gap-2 rounded-lg border p-3 text-left"
+                data-testid="integration-secure-connection-summary"
+              >
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="text-xs leading-5 text-muted-foreground">
+                  <p className="font-medium text-foreground">Secure connection</p>
+                  <p>
+                    Unify stores provider credentials outside prompts and only uses this connection
+                    when your assistant invokes an allowed integration tool.
+                  </p>
+                  {policyConnection && (
+                    <p className="mt-1">
+                      Usable by this assistant · {displayItem.scopes.length} access scopes ·{' '}
+                      {policySummary.automatic} automatic, {policySummary.confirmation} ask first,{' '}
+                      {policySummary.off} off.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
 
             <ScrollArea className="min-h-0 flex-1 overflow-x-hidden">

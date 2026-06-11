@@ -20,12 +20,16 @@ export function ScopeChipGroup({
   const remaining = scopes.length - visible.length;
 
   return (
-    <div className="flex flex-wrap gap-1.5" data-testid="integration-scope-chips">
+    <div
+      className="flex min-w-0 max-w-full flex-wrap gap-1.5 overflow-x-hidden"
+      data-testid="integration-scope-chips"
+    >
       {visible.map((scope) => (
         <Badge
           key={scope.id}
           variant="secondary"
-          className="rounded-full bg-muted text-muted-foreground"
+          title={scope.label}
+          className="max-w-full truncate whitespace-nowrap rounded-full bg-muted text-muted-foreground"
         >
           {scope.label}
         </Badge>
