@@ -38,7 +38,7 @@ describe('provider integration proxy route', () => {
       )
     );
     const request = new NextRequest(
-      'http://localhost/api/integrations/provider/apps?owner_scope=assistant&assistant_id=123&query=slack&source_type=third_party&limit=50&offset=100',
+      'http://localhost/api/integrations/provider/apps?owner_scope=assistant&assistant_id=123&query=slack&source_type=third_party&status_group=connected&detail_level=summary&limit=50&offset=100',
       { headers: { apiKey: 'test-api-key' } }
     );
 
@@ -53,7 +53,7 @@ describe('provider integration proxy route', () => {
     });
     const [target, init] = fetchSpy.mock.calls[0];
     expect(String(target)).toBe(
-      'http://127.0.0.1:8000/v0/integrations/apps?owner_scope=assistant&assistant_id=123&query=slack&source_type=third_party&limit=50&offset=100'
+      'http://127.0.0.1:8000/v0/integrations/apps?owner_scope=assistant&assistant_id=123&query=slack&source_type=third_party&status_group=connected&detail_level=summary&limit=50&offset=100'
     );
     expect(init).toMatchObject({
       method: 'GET',

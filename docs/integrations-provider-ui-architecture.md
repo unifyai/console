@@ -58,7 +58,8 @@ The main Integrations pane should have:
 
 Console reads provider-backed catalog data through:
 
-- `GET /api/integrations/provider/apps` with `limit` / `offset` pagination
+- `GET /api/integrations/provider/apps` with `limit` / `offset` pagination, `query`,
+  `source_type`, `status_group`, `detail_level=summary`, and catalog `facets`
 - `GET /api/integrations/provider/connections`
 - `POST /api/integrations/provider/connect/start`
 - `POST /api/integrations/provider/connections/{connection_id}/complete`

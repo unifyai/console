@@ -18,7 +18,7 @@ function providerApp(slug: string, overrides: Record<string, unknown> = {}) {
     auth_modes: ['oauth'],
     available_scopes: [],
     available_actions: [],
-    connection_status: 'not_connected',
+    connection_status: 'connected',
     ...overrides,
   };
 }
@@ -45,7 +45,7 @@ describe('useProviderIntegrationCatalog', () => {
   });
 
   it('loads provider apps and connections through the Console proxy', async () => {
-    vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+    const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
       if (url.startsWith('/api/integrations/provider/apps')) {
         return new Response(
@@ -60,7 +60,7 @@ describe('useProviderIntegrationCatalog', () => {
                 auth_modes: ['oauth'],
                 available_scopes: [{ id: 'chat:write', label: 'Send messages' }],
                 available_actions: ['send_message'],
-                connection_status: 'not_connected',
+                connection_status: 'connected',
               },
             ],
             total: 1,
@@ -101,6 +101,9 @@ describe('useProviderIntegrationCatalog', () => {
       accountLabel: 'Team Slack',
     });
     expect(result.current.hasLoaded).toBe(true);
+    expect(
+      fetchSpy.mock.calls.some(([input]) => String(input).includes('status_group=connected'))
+    ).toBe(true);
   });
 
   it('loads additional catalog pages with limit, offset, and total metadata', async () => {
@@ -181,12 +184,17 @@ describe('useProviderIntegrationCatalog', () => {
     });
 
     const { result, rerender } = renderHook(
-      ({ query }) => useProviderIntegrationCatalog('123', { query, sourceType: 'third_party' }),
-      { initialProps: { query: '' } }
+      ({ query, statusGroups }) =>
+        useProviderIntegrationCatalog('123', {
+          query,
+          sourceType: 'third_party',
+          statusGroups,
+        }),
+      { initialProps: { query: '', statusGroups: ['connected' as const] } }
     );
 
     await waitFor(() => expect(result.current.definitions[0].canonicalSlug).toBe('discord'));
-    rerender({ query: 'slack' });
+    rerender({ query: 'slack', statusGroups: ['connected'] });
     await waitFor(() => expect(result.current.definitions[0].canonicalSlug).toBe('slack'));
 
     expect(
@@ -194,6 +202,7 @@ describe('useProviderIntegrationCatalog', () => {
         ([input]) =>
           String(input).includes('query=slack') &&
           String(input).includes('source_type=third_party') &&
+          String(input).includes('status_group=connected') &&
           String(input).includes('offset=0')
       )
     ).toBe(true);
@@ -207,6 +216,29 @@ describe('useProviderIntegrationCatalog', () => {
           total: 40,
           limit: 20,
           offset: 20,
+          facets: {
+            total: 40,
+            source_type: { native: 0, third_party: 40 },
+            status: {
+              connected: 4,
+              configured: 2,
+              pending: 0,
+              missing_scope: 0,
+              missing_secrets: 0,
+              needs_reconnect: 0,
+              expired: 0,
+              revoked: 0,
+              error: 0,
+              not_connected: 34,
+            },
+            status_group: {
+              connected: 6,
+              needs_attention: 0,
+              not_connected: 34,
+            },
+          },
+          catalog_version: 'catalog-v1',
+          generated_at: '2026-06-11T16:00:00Z',
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       )
@@ -217,6 +249,8 @@ describe('useProviderIntegrationCatalog', () => {
       assistantId: 123,
       query: 'notion',
       sourceType: 'third_party',
+      statusGroups: ['connected'],
+      detailLevel: 'summary',
       limit: 20,
       offset: 20,
     });
@@ -225,10 +259,20 @@ describe('useProviderIntegrationCatalog', () => {
       total: 40,
       limit: 20,
       offset: 20,
+      facets: {
+        total: 40,
+        statusGroup: {
+          connected: 6,
+          needsAttention: 0,
+          notConnected: 34,
+        },
+      },
+      catalogVersion: 'catalog-v1',
+      generatedAt: '2026-06-11T16:00:00Z',
       definitions: [{ canonicalSlug: 'notion' }],
     });
     expect(String(fetchSpy.mock.calls[0][0])).toContain(
-      '/api/integrations/provider/apps?owner_scope=assistant&limit=20&offset=20&assistant_id=123&query=notion&source_type=third_party'
+      '/api/integrations/provider/apps?owner_scope=assistant&limit=20&offset=20&detail_level=summary&assistant_id=123&query=notion&source_type=third_party&status_group=connected'
     );
   });
 

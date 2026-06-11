@@ -54,6 +54,47 @@ interface ProviderAppPagePayload {
   total?: number;
   limit?: number;
   offset?: number;
+  facets?: ProviderAppCatalogFacets;
+  catalogVersion?: string | null;
+  generatedAt?: string | null;
+}
+
+export type ProviderAppStatusGroup = 'connected' | 'needs_attention' | 'not_connected';
+export type ProviderAppDetailLevel = 'full' | 'summary';
+
+export interface ProviderAppCatalogFacets {
+  total: number;
+  sourceType: {
+    native: number;
+    thirdParty: number;
+  };
+  status: {
+    connected: number;
+    configured: number;
+    pending: number;
+    missingScope: number;
+    missingSecrets: number;
+    needsReconnect: number;
+    expired: number;
+    revoked: number;
+    error: number;
+    notConnected: number;
+  };
+  statusGroup: {
+    connected: number;
+    needsAttention: number;
+    notConnected: number;
+  };
+}
+
+export interface ProviderIntegrationDefinitionsPage {
+  definitions: IntegrationDefinition[];
+  total: number;
+  limit: number;
+  offset: number;
+  facets: ProviderAppCatalogFacets | null;
+  catalogVersion: string | null;
+  generatedAt: string | null;
 }
 
 interface ProviderConnectionPayload {
@@ -313,23 +354,28 @@ export async function listProviderIntegrationDefinitionsPage(args: {
   assistantId?: string | number;
   query?: string;
   sourceType?: 'native' | 'third_party' | null;
+  statuses?: IntegrationConnectionStatus[];
+  statusGroups?: ProviderAppStatusGroup[];
+  detailLevel?: ProviderAppDetailLevel;
   limit?: number;
   offset?: number;
-}): Promise<{
-  definitions: IntegrationDefinition[];
-  total: number;
-  limit: number;
-  offset: number;
-}> {
+}): Promise<ProviderIntegrationDefinitionsPage> {
   const params = new URLSearchParams();
   const limit = args.limit ?? 100;
   const offset = args.offset ?? 0;
   params.set('owner_scope', args.ownerScope);
   params.set('limit', String(limit));
   params.set('offset', String(offset));
+  params.set('detail_level', args.detailLevel ?? 'summary');
   if (args.assistantId !== undefined) params.set('assistant_id', String(args.assistantId));
   if (args.query?.trim()) params.set('query', args.query.trim());
   if (args.sourceType) params.set('source_type', args.sourceType);
+  for (const status of args.statuses ?? []) {
+    params.append('status', status);
+  }
+  for (const statusGroup of args.statusGroups ?? []) {
+    params.append('status_group', statusGroup);
+  }
   const data = await integrationFetch<ProviderAppPagePayload | ProviderAppPayload[]>(
     `apps?${params.toString()}`
   );
@@ -340,6 +386,9 @@ export async function listProviderIntegrationDefinitionsPage(args: {
     total: typeof page?.total === 'number' ? page.total : items.length,
     limit: typeof page?.limit === 'number' ? page.limit : limit,
     offset: typeof page?.offset === 'number' ? page.offset : offset,
+    facets: page?.facets ?? null,
+    catalogVersion: page?.catalogVersion ?? null,
+    generatedAt: page?.generatedAt ?? null,
   };
 }
 

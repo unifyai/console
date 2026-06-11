@@ -9,6 +9,8 @@ import {
   listProviderIntegrationDefinitionsPage,
   requestUnityIntegrationToolsSync,
   startProviderIntegrationConnect,
+  type ProviderAppCatalogFacets,
+  type ProviderAppStatusGroup,
 } from '@/lib/client/integrations';
 import {
   MOCK_PROVIDER_INTEGRATION_DEFINITIONS,
@@ -24,6 +26,7 @@ import type {
 } from '@/types/integrations';
 
 const PROVIDER_CATALOG_PAGE_SIZE = 100;
+const PROVIDER_CONNECTED_PREFETCH_LIMIT = 500;
 
 type ProviderCatalogSourceType = 'native' | 'third_party';
 
@@ -31,6 +34,7 @@ interface UseProviderIntegrationCatalogOptions {
   ownerScope?: IntegrationOwnerScope;
   query?: string;
   sourceType?: ProviderCatalogSourceType | null;
+  statusGroups?: ProviderAppStatusGroup[];
 }
 
 function buildProviderIntegrationCallbackUrl(returnTo: string, assistantId: string): string {
@@ -63,7 +67,7 @@ function mergeDefinitionsWithConnections(
     if (connections.length === 0) return definition;
     return {
       ...definition,
-      status: connections[0].status,
+      status: definition.status,
       connections: [
         ...connections,
         ...definition.connections.filter(
@@ -76,6 +80,14 @@ function mergeDefinitionsWithConnections(
   });
 }
 
+function mergeUniqueDefinitions(definitions: IntegrationDefinition[]): IntegrationDefinition[] {
+  const bySlug = new Map<string, IntegrationDefinition>();
+  for (const definition of definitions) {
+    bySlug.set(definition.canonicalSlug, definition);
+  }
+  return Array.from(bySlug.values());
+}
+
 export function useProviderIntegrationCatalog(
   assistantId: string,
   options: UseProviderIntegrationCatalogOptions = {}
@@ -83,6 +95,11 @@ export function useProviderIntegrationCatalog(
   const ownerScope = options.ownerScope ?? 'assistant';
   const query = options.query ?? '';
   const sourceType = options.sourceType ?? null;
+  const statusGroupsKey = (options.statusGroups ?? []).join(',');
+  const statusGroups = React.useMemo(
+    () => (statusGroupsKey ? (statusGroupsKey.split(',') as ProviderAppStatusGroup[]) : []),
+    [statusGroupsKey]
+  );
   const [definitions, setDefinitions] = React.useState<IntegrationDefinition[]>([]);
   const [detailsBySlug, setDetailsBySlug] = React.useState<Record<string, IntegrationDefinition>>(
     {}
@@ -95,6 +112,9 @@ export function useProviderIntegrationCatalog(
   const [isMock, setIsMock] = React.useState(false);
   const [total, setTotal] = React.useState(0);
   const [nextOffset, setNextOffset] = React.useState(0);
+  const [facets, setFacets] = React.useState<ProviderAppCatalogFacets | null>(null);
+  const [catalogVersion, setCatalogVersion] = React.useState<string | null>(null);
+  const [generatedAt, setGeneratedAt] = React.useState<string | null>(null);
   const providerConnectionsRef = React.useRef<IntegrationConnection[]>([]);
   const isLoadingMoreRef = React.useRef(false);
 
@@ -112,45 +132,79 @@ export function useProviderIntegrationCatalog(
       setHasLoaded(true);
       setTotal(MOCK_PROVIDER_INTEGRATION_DEFINITIONS.length);
       setNextOffset(MOCK_PROVIDER_INTEGRATION_DEFINITIONS.length);
+      setFacets(null);
+      setCatalogVersion(null);
+      setGeneratedAt(null);
       providerConnectionsRef.current = [];
       isLoadingMoreRef.current = false;
       return;
     }
     setIsLoading(true);
     setIsLoadingMore(false);
+    setHasLoaded(false);
+    setDefinitions([]);
     isLoadingMoreRef.current = false;
     try {
-      const [page, providerConnections] = await Promise.all([
+      const shouldPrefetchConnected = statusGroups.length === 0;
+      const [page, connectedPage, providerConnections] = await Promise.all([
         listProviderIntegrationDefinitionsPage({
           ownerScope,
           assistantId,
           query,
           sourceType,
+          statusGroups,
+          detailLevel: 'summary',
           limit: PROVIDER_CATALOG_PAGE_SIZE,
           offset: 0,
         }),
+        shouldPrefetchConnected
+          ? listProviderIntegrationDefinitionsPage({
+              ownerScope,
+              assistantId,
+              query,
+              sourceType,
+              statusGroups: ['connected'],
+              detailLevel: 'summary',
+              limit: PROVIDER_CONNECTED_PREFETCH_LIMIT,
+              offset: 0,
+            }).catch((error) => {
+              console.error('Failed to prefetch connected provider integrations', error);
+              return null;
+            })
+          : Promise.resolve(null),
         listProviderIntegrationConnections({ ownerScope, assistantId }).catch((error) => {
           console.error('Failed to load provider integration connections', error);
           return [];
         }),
       ]);
       providerConnectionsRef.current = providerConnections;
-      setDefinitions(mergeDefinitionsWithConnections(page.definitions, providerConnections));
+      setDefinitions(
+        mergeDefinitionsWithConnections(
+          mergeUniqueDefinitions([...(connectedPage?.definitions ?? []), ...page.definitions]),
+          providerConnections
+        )
+      );
       setTotal(page.total);
       setNextOffset(
         Math.min(page.offset + Math.max(page.definitions.length, page.limit), page.total)
       );
+      setFacets(page.facets);
+      setCatalogVersion(page.catalogVersion);
+      setGeneratedAt(page.generatedAt);
     } catch (error) {
       console.error('Failed to load provider integration catalog', error);
       toast.error('Could not load integrations. Please try again.');
       setDefinitions([]);
       setTotal(0);
       setNextOffset(0);
+      setFacets(null);
+      setCatalogVersion(null);
+      setGeneratedAt(null);
     } finally {
       setIsLoading(false);
       setHasLoaded(true);
     }
-  }, [assistantId, ownerScope, query, sourceType]);
+  }, [assistantId, ownerScope, query, sourceType, statusGroups]);
 
   const loadMore = React.useCallback(async () => {
     if (!assistantId || isMock || isLoadingMoreRef.current || isLoading || nextOffset >= total) {
@@ -164,6 +218,8 @@ export function useProviderIntegrationCatalog(
         assistantId,
         query,
         sourceType,
+        statusGroups,
+        detailLevel: 'summary',
         limit: PROVIDER_CATALOG_PAGE_SIZE,
         offset: nextOffset,
       });
@@ -182,6 +238,9 @@ export function useProviderIntegrationCatalog(
       setNextOffset(
         Math.min(page.offset + Math.max(page.definitions.length, page.limit), page.total)
       );
+      setFacets(page.facets);
+      setCatalogVersion(page.catalogVersion);
+      setGeneratedAt(page.generatedAt);
     } catch (error) {
       console.error('Failed to load more provider integrations', error);
       toast.error('Could not load more integrations. Please try again.');
@@ -189,7 +248,17 @@ export function useProviderIntegrationCatalog(
       isLoadingMoreRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [assistantId, isLoading, isMock, nextOffset, ownerScope, query, sourceType, total]);
+  }, [
+    assistantId,
+    isLoading,
+    isMock,
+    nextOffset,
+    ownerScope,
+    query,
+    sourceType,
+    statusGroups,
+    total,
+  ]);
 
   React.useEffect(() => {
     void fetchCatalog();
@@ -343,6 +412,9 @@ export function useProviderIntegrationCatalog(
     hasLoaded,
     hasMore,
     total,
+    facets,
+    catalogVersion,
+    generatedAt,
     isDetailLoading,
     isConnecting,
     refresh: fetchCatalog,
