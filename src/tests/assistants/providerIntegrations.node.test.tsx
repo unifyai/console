@@ -179,10 +179,11 @@ describe('provider integrations gallery model', () => {
     expect(screen.getByTestId('integration-gallery-refresh')).toBeInTheDocument();
     expect(screen.getByTestId('integration-virtual-list')).toBeInTheDocument();
     expect(screen.getByTestId('integration-status-filter')).toBeInTheDocument();
-    expect(screen.getByText('All (24)')).toBeInTheDocument();
-    expect(screen.getByText('Connected (3)')).toBeInTheDocument();
-    expect(screen.getByText('Needs attention (2)')).toBeInTheDocument();
-    expect(screen.getByText('Not connected (19)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Connected' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Needs attention' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Not connected' })).toBeInTheDocument();
+    expect(screen.queryByText('All (24)')).not.toBeInTheDocument();
     expect(screen.getByText(/Scroll to browse the full catalog/)).toBeInTheDocument();
     expect(screen.queryByTestId('integration-page-size')).not.toBeInTheDocument();
     expect(screen.queryByText(/marketplace/i)).not.toBeInTheDocument();
@@ -203,13 +204,14 @@ describe('provider integrations gallery model', () => {
     render(
       <IntegrationGalleryShell
         items={buildLargeGalleryItems(template!, 60)}
-        total={60}
+        total={100}
         onOpen={vi.fn()}
         onPrimaryAction={vi.fn()}
       />
     );
 
-    expect(screen.getByText(/Showing 60 available apps/)).toBeInTheDocument();
+    expect(screen.getByText(/Showing 60 of 100 available apps/)).toBeInTheDocument();
+    expect(screen.getByText('100 available')).toBeInTheDocument();
     expect(screen.getAllByTestId('integration-virtual-row')).toHaveLength(3);
     expect(screen.getByTestId('provider-integration-card-virtual-app-0')).toBeInTheDocument();
     expect(

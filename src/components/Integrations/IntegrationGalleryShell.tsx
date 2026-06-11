@@ -153,15 +153,15 @@ export function IntegrationGalleryShell({
   const isInitialLoading = Boolean(isLoading && items.length === 0);
   const hasConnectedSection = connectedItems.length > 0;
   const hasBrowsableSection = browsableItems.length > 0;
-  const availableCount = browsableItems.length;
-  const getStatusFilterCount = React.useCallback(
-    (status: IntegrationGalleryFilters['status']) => {
-      if (status === 'all') return facets?.total ?? total;
-      if (status === 'connected') return facets?.statusGroup.connected;
-      if (status === 'needs_attention') return facets?.statusGroup.needsAttention;
-      return facets?.statusGroup.notConnected;
-    },
-    [facets, total]
+  const loadedAvailableCount = browsableItems.length;
+  const catalogTotal = total ?? filteredItems.length;
+  const connectedTotal =
+    filters.status === 'all'
+      ? Math.max(connectedItems.length, facets?.statusGroup.connected ?? 0)
+      : 0;
+  const totalAvailableCount = Math.max(
+    loadedAvailableCount,
+    Math.max(catalogTotal - connectedTotal, 0)
   );
 
   return (
@@ -281,9 +281,6 @@ export function IntegrationGalleryShell({
                   }
                 >
                   {label}
-                  {getStatusFilterCount(value) !== undefined
-                    ? ` (${getStatusFilterCount(value)})`
-                    : ''}
                 </Button>
               ))}
             </div>
@@ -340,14 +337,15 @@ export function IntegrationGalleryShell({
                     <div>
                       <h3 className="text-title text-base">Available apps</h3>
                       <p className="text-caption">
-                        Showing {availableCount} available apps. Scroll to browse the full catalog.
+                        Showing {loadedAvailableCount} of {totalAvailableCount} available apps.
+                        Scroll to browse the full catalog.
                       </p>
                     </div>
                     <Badge
                       variant="outline"
                       className="rounded-full bg-background text-muted-foreground"
                     >
-                      {availableCount} available
+                      {totalAvailableCount} available
                     </Badge>
                   </div>
                   <IntegrationGalleryVirtualGrid
