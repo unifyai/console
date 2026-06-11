@@ -1,12 +1,14 @@
+# syntax=docker/dockerfile:1
+
 # Self-host Console image — bakes NEXT_PUBLIC_SELF_HOST for client bundle.
 FROM node:20-alpine AS base
 
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
-COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
+COPY package.json .npmrc yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 RUN npm i -g npm@10.5.1
-RUN \
+RUN --mount=type=cache,id=console-selfhost-npm,target=/root/.npm,sharing=locked \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
   elif [ -f package-lock.json ]; then npm ci --legacy-peer-deps; \
   elif [ -f pnpm-lock.yaml ]; then yarn global add pnpm && pnpm i --frozen-lockfile; \
@@ -18,12 +20,14 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NEXT_TELEMETRY_DISABLED=1
 ENV SELF_HOST=1
 ENV NEXT_PUBLIC_SELF_HOST=1
 ARG NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
 ENV NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY}
-RUN npx next telemetry disable
-RUN npm run build
+RUN npm run check:styles:all
+RUN --mount=type=cache,id=console-selfhost-next,target=/app/.next/cache npx next build
 RUN mkdir -p ./src/public ./src/styles
 
 FROM base AS runner

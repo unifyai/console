@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM node:20-alpine AS base
 
 # Install dependencies only when needed
@@ -7,9 +9,9 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
-COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
+COPY package.json .npmrc yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 RUN npm i -g npm@10.5.1
-RUN \
+RUN --mount=type=cache,id=console-npm,target=/root/.npm,sharing=locked \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
   elif [ -f package-lock.json ]; then npm ci --legacy-peer-deps; \
   elif [ -f pnpm-lock.yaml ]; then yarn global add pnpm && pnpm i --frozen-lockfile; \
@@ -24,6 +26,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # Stable key so server action closures survive across deployments and instances.
 # Without this, each build generates a random key — any client page rendered by
@@ -31,8 +34,8 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 ARG NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
 ENV NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY}
 
-RUN npx next telemetry disable
-RUN npm run build
+RUN npm run check:styles:all
+RUN --mount=type=cache,id=console-next,target=/app/.next/cache npx next build
 
 # Make sure public folder exists
 RUN mkdir -p ./src/public

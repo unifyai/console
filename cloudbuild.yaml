@@ -4,40 +4,23 @@ steps:
     args:
       - '-c'
       - |
-        docker pull $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:latest || true
-    id: Pull Cache
+        set -euo pipefail
+        IMAGE_URI="$_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME"
+        CACHE_REF="$${IMAGE_URI}:buildcache"
 
-  - name: gcr.io/cloud-builders/docker
-    entrypoint: bash
-    args:
-      - '-c'
-      - |
-        DOCKER_BUILDKIT=1 docker build \
-          --cache-from $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:latest \
-          --build-arg BUILDKIT_INLINE_CACHE=1 \
+        docker buildx create --use --name console-cloud-builder --driver docker-container
+        docker buildx build \
+          --builder console-cloud-builder \
+          --progress=plain \
+          --cache-from type=registry,ref="$${CACHE_REF}" \
+          --cache-to type=registry,ref="$${CACHE_REF}",mode=max \
           --build-arg NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=$$NEXT_SERVER_ACTIONS_ENCRYPTION_KEY \
           -f Dockerfile \
-          -t $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA \
-          -t $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:latest .
+          -t "$${IMAGE_URI}:$COMMIT_SHA" \
+          -t "$${IMAGE_URI}:latest" \
+          --push .
     id: Build
     secretEnv: ['NEXT_SERVER_ACTIONS_ENCRYPTION_KEY']
-    waitFor: ['Pull Cache']
-
-  - name: gcr.io/cloud-builders/docker
-    args:
-      - push
-      - >-
-        $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
-    id: Push
-    waitFor: ['Build']
-
-  - name: gcr.io/cloud-builders/docker
-    args:
-      - push
-      - >-
-        $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:latest
-    id: Push Latest
-    waitFor: ['Build']
 
   - id: Proxy Install
     name: gcr.io/cloud-builders/npm
@@ -137,7 +120,7 @@ steps:
         run_cloud_run_with_retry repair_traffic_state
     id: Repair Traffic State
     entrypoint: bash
-    waitFor: ['Push', 'Push Latest']
+    waitFor: ['Build']
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
     id: Deploy
@@ -257,9 +240,6 @@ steps:
         fi
     secretEnv: ['GITHUB_TOKEN']
 
-images:
-  - $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
-  - $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:latest
 options:
   substitutionOption: ALLOW_LOOSE
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
