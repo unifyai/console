@@ -525,6 +525,7 @@ export async function requestUnityIntegrationToolsSync(args: {
           appSlug: args.connection.canonicalSlug,
           connectionId: args.connection.id,
           backendId: args.connection.sourceMetadata?.backendId,
+          operation: reason === 'disconnected' ? 'cleanup' : 'materialize',
         },
       }),
     }

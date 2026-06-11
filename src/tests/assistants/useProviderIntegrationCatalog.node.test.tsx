@@ -515,6 +515,7 @@ describe('useProviderIntegrationCatalog', () => {
             appSlug: 'clay',
             connectionId: 'conn-clay',
             backendId: 'composio-dev',
+            operation: 'materialize',
           },
         });
         return new Response(JSON.stringify({ ok: true }), {

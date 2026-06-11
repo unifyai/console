@@ -65,10 +65,11 @@ describe('assistant system-event route', () => {
     const response = await POST(
       request({
         eventType: 'integration_tools_sync_requested',
-        message: 'Slack connected',
+        message: 'Slack disconnected',
         extraEventFields: {
           appSlug: 'slack',
           connectionId: 'conn-slack',
+          operation: 'cleanup',
         },
       }),
       { params: { assistantId: '123' } }
@@ -86,10 +87,11 @@ describe('assistant system-event route', () => {
         body: JSON.stringify({
           assistant_id: 123,
           event_type: 'integration_tools_sync_requested',
-          message: 'Slack connected',
+          message: 'Slack disconnected',
           extra_event_fields: {
             app_slug: 'slack',
             connection_id: 'conn-slack',
+            operation: 'cleanup',
           },
         }),
       })

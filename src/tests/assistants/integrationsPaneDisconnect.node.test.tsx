@@ -255,6 +255,7 @@ describe('IntegrationsPane provider disconnect sync', () => {
         appSlug: 'slack',
         backendId: 'composio-dev',
         connectionId: 'conn-slack',
+        operation: 'cleanup',
       },
     });
     expect(refreshProviderCatalog).toHaveBeenCalledTimes(1);
