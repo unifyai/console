@@ -34,19 +34,24 @@ describe('useProviderIntegrationCatalog', () => {
       const url = String(input);
       if (url.startsWith('/api/integrations/provider/apps')) {
         return new Response(
-          JSON.stringify([
-            {
-              backend_id: 'composio-dev',
-              provider_app_id: 'slack',
-              canonical_app_slug: 'slack',
-              display_name: 'Slack',
-              category: 'Communication',
-              auth_modes: ['oauth'],
-              available_scopes: [{ id: 'chat:write', label: 'Send messages' }],
-              available_actions: ['send_message'],
-              connection_status: 'not_connected',
-            },
-          ]),
+          JSON.stringify({
+            items: [
+              {
+                backend_id: 'composio-dev',
+                provider_app_id: 'slack',
+                canonical_app_slug: 'slack',
+                display_name: 'Slack',
+                category: 'Communication',
+                auth_modes: ['oauth'],
+                available_scopes: [{ id: 'chat:write', label: 'Send messages' }],
+                available_actions: ['send_message'],
+                connection_status: 'not_connected',
+              },
+            ],
+            total: 1,
+            limit: 100,
+            offset: 0,
+          }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
@@ -88,18 +93,23 @@ describe('useProviderIntegrationCatalog', () => {
       const url = String(input);
       if (url.startsWith('/api/integrations/provider/apps')) {
         return new Response(
-          JSON.stringify([
-            {
-              backend_id: 'unity_native',
-              provider_app_id: 'matterport',
-              canonical_app_slug: 'matterport',
-              display_name: 'Matterport',
-              source_type: 'native',
-              source_label: 'Native',
-              auth_modes: ['native'],
-              native_metadata: { tier: 'api', function_names: ['matterport_sync'] },
-            },
-          ]),
+          JSON.stringify({
+            items: [
+              {
+                backend_id: 'unity_native',
+                provider_app_id: 'matterport',
+                canonical_app_slug: 'matterport',
+                display_name: 'Matterport',
+                source_type: 'native',
+                source_label: 'Native',
+                auth_modes: ['native'],
+                native_metadata: { tier: 'api', function_names: ['matterport_sync'] },
+              },
+            ],
+            total: 1,
+            limit: 100,
+            offset: 0,
+          }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
@@ -138,7 +148,7 @@ describe('useProviderIntegrationCatalog', () => {
     const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
       if (url.startsWith('/api/integrations/provider/apps')) {
-        return new Response(JSON.stringify([]), {
+        return new Response(JSON.stringify({ items: [], total: 0, limit: 100, offset: 0 }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
@@ -195,18 +205,23 @@ describe('useProviderIntegrationCatalog', () => {
       const url = String(input);
       if (url.startsWith('/api/integrations/provider/apps')) {
         return new Response(
-          JSON.stringify([
-            {
-              backend_id: 'composio-dev',
-              provider_app_id: 'clay',
-              canonical_app_slug: 'clay',
-              display_name: 'Clay',
-              auth_modes: ['api_key'],
-              available_scopes: [],
-              available_actions: [],
-              connection_status: 'not_connected',
-            },
-          ]),
+          JSON.stringify({
+            items: [
+              {
+                backend_id: 'composio-dev',
+                provider_app_id: 'clay',
+                canonical_app_slug: 'clay',
+                display_name: 'Clay',
+                auth_modes: ['api_key'],
+                available_scopes: [],
+                available_actions: [],
+                connection_status: 'not_connected',
+              },
+            ],
+            total: 1,
+            limit: 100,
+            offset: 0,
+          }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
@@ -262,18 +277,23 @@ describe('useProviderIntegrationCatalog', () => {
       const url = String(input);
       if (url.startsWith('/api/integrations/provider/apps')) {
         return new Response(
-          JSON.stringify([
-            {
-              backend_id: 'composio-dev',
-              provider_app_id: 'clay',
-              canonical_app_slug: 'clay',
-              display_name: 'Clay',
-              auth_modes: ['api_key'],
-              available_scopes: [],
-              available_actions: [],
-              connection_status: 'not_connected',
-            },
-          ]),
+          JSON.stringify({
+            items: [
+              {
+                backend_id: 'composio-dev',
+                provider_app_id: 'clay',
+                canonical_app_slug: 'clay',
+                display_name: 'Clay',
+                auth_modes: ['api_key'],
+                available_scopes: [],
+                available_actions: [],
+                connection_status: 'not_connected',
+              },
+            ],
+            total: 1,
+            limit: 100,
+            offset: 0,
+          }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }

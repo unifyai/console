@@ -294,9 +294,9 @@ export async function listProviderIntegrationDefinitions(args: {
   const params = new URLSearchParams();
   params.set('owner_scope', args.ownerScope);
   if (args.assistantId !== undefined) params.set('assistant_id', String(args.assistantId));
-  const data = await integrationFetch<ProviderAppPayload[] | { apps?: ProviderAppPayload[] }>(
-    `apps?${params.toString()}`
-  );
+  const data = await integrationFetch<
+    ProviderAppPayload[] | { apps?: ProviderAppPayload[]; items?: ProviderAppPayload[] }
+  >(`apps?${params.toString()}`);
   return asArray<ProviderAppPayload>(data).map(mapProviderAppToDefinition);
 }
 
