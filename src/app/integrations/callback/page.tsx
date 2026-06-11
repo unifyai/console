@@ -93,7 +93,7 @@ async function persistFailedConnection(params: URLSearchParams, reason: string):
   }
 }
 
-export default function ProviderIntegrationCallbackPage() {
+function ProviderIntegrationCallback() {
   const searchParams = useSearchParams();
   const hasSubmittedRef = React.useRef(false);
   const [message, setMessage] = React.useState('Completing integration connection...');
@@ -179,5 +179,22 @@ export default function ProviderIntegrationCallbackPage() {
         <p className="text-body-muted">{message}</p>
       </div>
     </main>
+  );
+}
+
+export default function ProviderIntegrationCallbackPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-background p-6">
+          <div className="flex flex-col items-center gap-3 text-center text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <p className="text-body-muted">Completing integration connection...</p>
+          </div>
+        </main>
+      }
+    >
+      <ProviderIntegrationCallback />
+    </React.Suspense>
   );
 }
