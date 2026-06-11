@@ -34,6 +34,7 @@ import {
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { CoordinatorOnboardingChecklist } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
+import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
 
 export interface AssistantInfoSidePanelContentProps {
   assistant: Assistant;
@@ -553,8 +554,31 @@ interface ContactInfoGridProps {
  * about why the action isn't allowed.
  */
 function ContactInfoGrid({ assistant, onOpenContactManager, canWrite }: ContactInfoGridProps) {
-  const canManuallyManagePhone = !assistant.isCoordinator;
-  const canManuallyManageWhatsapp = !assistant.isCoordinator;
+  const { isSelfHost } = useEnvironment();
+
+  // Coordinator contacts are platform-managed shared pools (universal email /
+  // phone / WhatsApp) — a hosted-cloud concept. In a self-hosted install those
+  // pools don't exist, so gate the section to a short explanation rather than
+  // surfacing empty rows or an Edit affordance that opens an inert dialog.
+  if (assistant.isCoordinator && isSelfHost) {
+    return (
+      <section className="flex flex-col gap-2.5" data-testid="assistant-info-contact-grid">
+        <div className="flex items-center justify-between border-b pb-1.5">
+          <h3 className="text-label text-semibold">Contact info</h3>
+        </div>
+        <p className="text-caption text-muted-foreground">
+          Coordinator droid contacts are managed by the hosted platform and aren&apos;t available in
+          self-hosted deployments.
+        </p>
+      </section>
+    );
+  }
+
+  // Coordinator contacts are platform-managed, so the per-channel manual "Add"
+  // CTAs don't apply — the platform provisions (and the backend rejects manual
+  // creation). The "Edit" button stays so the owner can still open the manager
+  // to view the managed contacts and what platform-managed means.
+  const canManuallyManage = !assistant.isCoordinator;
   return (
     <section className="flex flex-col gap-2.5" data-testid="assistant-info-contact-grid">
       <div className="flex items-center justify-between border-b pb-1.5">
@@ -579,14 +603,14 @@ function ContactInfoGrid({ assistant, onOpenContactManager, canWrite }: ContactI
           icon={<Phone className="h-3.5 w-3.5" aria-hidden="true" />}
           label="Phone"
           value={assistant.phone}
-          canWrite={canWrite && canManuallyManagePhone}
+          canWrite={canWrite && canManuallyManage}
           onAdd={() => onOpenContactManager(assistant, 'phone')}
         />
         <ContactRow
           icon={<Mail className="h-3.5 w-3.5" aria-hidden="true" />}
           label="Email"
           value={assistant.email}
-          canWrite={canWrite}
+          canWrite={canWrite && canManuallyManage}
           renderValue={(v) => (
             <a href={`mailto:${v}`} className="text-link min-w-0 truncate">
               {v}
@@ -598,14 +622,14 @@ function ContactInfoGrid({ assistant, onOpenContactManager, canWrite }: ContactI
           icon={<WhatsApp sx={{ fontSize: '14px', flexShrink: 0 }} aria-hidden="true" />}
           label="WhatsApp"
           value={assistant.assistantWhatsappNumber}
-          canWrite={canWrite && canManuallyManageWhatsapp}
+          canWrite={canWrite && canManuallyManage}
           onAdd={() => onOpenContactManager(assistant, 'whatsapp')}
         />
         <ContactRow
           icon={<FaDiscord className="h-3.5 w-3.5" aria-hidden="true" />}
           label="Discord"
           value={assistant.assistantDiscordBotId}
-          canWrite={canWrite}
+          canWrite={canWrite && canManuallyManage}
           onAdd={() => onOpenContactManager(assistant, 'discord')}
         />
       </div>
