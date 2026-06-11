@@ -88,18 +88,17 @@ async function searchTools(
   assistantId: number,
   offset: number
 ): Promise<ProviderTool[]> {
+  const params = new URLSearchParams({
+    owner_scope: 'assistant',
+    assistant_id: String(assistantId),
+    include_unconnected: 'false',
+    limit: '500',
+    offset: String(offset),
+  });
   const response = await orchestraFetch(
-    '/v0/integrations/tools/search',
+    `/v0/integrations/tools/search?${params.toString()}`,
     {
-      method: 'POST',
-      body: JSON.stringify({
-        owner_scope: 'assistant',
-        assistant_id: assistantId,
-        query: '',
-        include_unconnected: false,
-        limit: 500,
-        offset,
-      }),
+      method: 'GET',
     },
     apiKey
   );
