@@ -38,6 +38,10 @@ import {
 } from '@/components/UI/alert-dialog';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 
+// Temporarily hides the "Connect your desktop" row entry while the local
+// desktop flow is being verified. Flip to true (or remove the gate) to restore.
+const CONNECT_DESKTOP_VISIBLE = false;
+
 interface AssistantListItemProps {
   assistant: Assistant;
   status: AssistantStatus | null;
@@ -310,7 +314,7 @@ export function AssistantListItem({
             menu just adds noise. With canEdit and onEndContract
             both gated, a viewer with neither permission gets a
             cleaner row. */}
-        {(canEdit || canEndContract || onConnectDesktop) && (
+        {(canEdit || canEndContract || (onConnectDesktop && CONNECT_DESKTOP_VISIBLE)) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -352,7 +356,7 @@ export function AssistantListItem({
                   </DropdownMenuItem>
                 </>
               )}
-              {onConnectDesktop && (
+              {onConnectDesktop && CONNECT_DESKTOP_VISIBLE && (
                 <DropdownMenuItem
                   onClick={() => onConnectDesktop(assistant)}
                   data-testid="menu-connect-desktop"
@@ -363,7 +367,9 @@ export function AssistantListItem({
               )}
               {canEndContract && (
                 <>
-                  {(canEdit || onConnectDesktop) && <DropdownMenuSeparator />}
+                  {(canEdit || (onConnectDesktop && CONNECT_DESKTOP_VISIBLE)) && (
+                    <DropdownMenuSeparator />
+                  )}
                   <DropdownMenuItem
                     onClick={() => setIsEndContractAlertOpen(true)}
                     data-testid="menu-end-contract"
