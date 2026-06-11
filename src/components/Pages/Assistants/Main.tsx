@@ -644,6 +644,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     isSpeakerMuted,
     toggleSpeakerMute,
     isWaitingForAssistant,
+    isAssistantPreparing,
     waitingMessage,
     connectionError,
     retryConnection,
@@ -2052,6 +2053,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     userEmail={userMeta.email}
                     userImage={userMeta.image}
                     isWaitingForAssistant={isWaitingForAssistant}
+                    isAssistantPreparing={isAssistantPreparing}
                     waitingMessage={waitingMessage}
                     isCallConnected={isCallConnected}
                     connectionError={connectionError}
@@ -2270,6 +2272,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                             userEmail={userMeta.email}
                             userImage={userMeta.image}
                             isWaitingForAssistant={isWaitingForAssistant}
+                            isAssistantPreparing={isAssistantPreparing}
                             waitingMessage={waitingMessage}
                             isCallConnected={isCallConnected}
                             connectionError={connectionError}
@@ -2471,6 +2474,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               userEmail={userMeta.email}
               userImage={userMeta.image}
               isWaitingForAssistant={isWaitingForAssistant}
+              isAssistantPreparing={isAssistantPreparing}
               waitingMessage={waitingMessage}
               isCallConnected={isCallConnected}
               connectionError={connectionError}

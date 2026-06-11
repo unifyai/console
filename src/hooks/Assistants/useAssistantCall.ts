@@ -28,6 +28,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   const [callType, setCallType] = React.useState<'video' | 'audio' | null>(null);
   const [isSpeakerMuted, setIsSpeakerMuted] = React.useState(false);
   const [isWaitingForAssistant, setIsWaitingForAssistant] = React.useState(false);
+  const [isAssistantPreparing, setIsAssistantPreparing] = React.useState(false);
   const [waitingMessage, setWaitingMessage] = React.useState<string | null>(null);
   const [connectionError, setConnectionError] = React.useState<string | null>(null);
   const [avatarMood, setAvatarMood] = React.useState<CreatureMood>(DEFAULT_AVATAR_MOOD);
@@ -36,6 +37,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   const isCancelledRef = React.useRef(false);
   const isRedispatchingRef = React.useRef(false);
   const moodTurnIndexRef = React.useRef(-1);
+  const expectsReadyToSpeakRef = React.useRef(false);
   // Unique ID for each connection attempt - used to detect stale operations
   const connectionAttemptIdRef = React.useRef(0);
 
@@ -96,6 +98,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     setIsConnected(false);
     setIsConnecting(false);
     setIsWaitingForAssistant(false);
+    setIsAssistantPreparing(false);
     setWaitingMessage(null);
     setConnectionError(null);
     setConnectionDetails(null);
@@ -118,6 +121,8 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       connectionAttemptIdRef.current += 1;
       const thisAttemptId = connectionAttemptIdRef.current;
       isCancelledRef.current = false;
+      expectsReadyToSpeakRef.current =
+        !options?.openingConfig || options.openingConfig.mode === 'speak';
 
       const isStaleAttempt = () =>
         isCancelledRef.current || connectionAttemptIdRef.current !== thisAttemptId;
@@ -193,6 +198,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
           setIsConnecting(false);
           wasConnectedRef.current = true;
           setIsWaitingForAssistant(false);
+          setIsAssistantPreparing(false);
         } else {
           await room.connect(connDetails.serverUrl, connDetails.token);
           if (isStaleAttempt()) {
@@ -210,6 +216,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
 
           if (room.remoteParticipants.size < 1) {
             setIsWaitingForAssistant(true);
+            setIsAssistantPreparing(false);
             const timeoutDuration =
               (typeof window !== 'undefined' && (window as any)._TEST_ASSISTANT_JOIN_TIMEOUT) ||
               ASSISTANT_JOIN_SLOW_THRESHOLD;
@@ -221,6 +228,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
             }, timeoutDuration);
           } else {
             setIsWaitingForAssistant(false);
+            setIsAssistantPreparing(false);
             stopRinging();
           }
         }
@@ -280,6 +288,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     setIsConnected(false);
     setIsConnecting(false);
     setIsWaitingForAssistant(false);
+    setIsAssistantPreparing(false);
     setConnectionError(null);
     stopRemoteControl();
     clearAssistantJoinTimeout();
@@ -488,17 +497,25 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     const READY_FALLBACK_TIMEOUT = 10_000;
     let readyFallbackTimer: NodeJS.Timeout | null = null;
 
-    const clearWaitingState = () => {
+    const clearReadyFallbackTimer = () => {
+      if (readyFallbackTimer) {
+        clearTimeout(readyFallbackTimer);
+        readyFallbackTimer = null;
+      }
+    };
+
+    const clearJoinState = () => {
       setIsWaitingForAssistant(false);
       setWaitingMessage(null);
       setConnectionError(null);
       isRedispatchingRef.current = false;
       clearAssistantJoinTimeout();
       stopRinging();
-      if (readyFallbackTimer) {
-        clearTimeout(readyFallbackTimer);
-        readyFallbackTimer = null;
-      }
+    };
+
+    const clearPreparingState = () => {
+      setIsAssistantPreparing(false);
+      clearReadyFallbackTimer();
     };
 
     const onDataReceived = (
@@ -511,7 +528,8 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       try {
         const data = JSON.parse(new TextDecoder().decode(payload));
         if (data.type === 'ready_to_speak') {
-          clearWaitingState();
+          clearJoinState();
+          clearPreparingState();
           return;
         }
         const moodMessage = parseMoodClassificationMessage(data, moodTurnIndexRef.current);
@@ -525,9 +543,14 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     };
 
     const onParticipantConnected = () => {
-      clearAssistantJoinTimeout();
-      if (readyFallbackTimer) clearTimeout(readyFallbackTimer);
-      readyFallbackTimer = setTimeout(clearWaitingState, READY_FALLBACK_TIMEOUT);
+      clearJoinState();
+      if (!expectsReadyToSpeakRef.current) {
+        clearPreparingState();
+        return;
+      }
+      setIsAssistantPreparing(true);
+      clearReadyFallbackTimer();
+      readyFallbackTimer = setTimeout(clearPreparingState, READY_FALLBACK_TIMEOUT);
     };
 
     const onParticipantDisconnected = () => {
@@ -537,6 +560,8 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         const displayName = assistantDisplayName(activeCallAssistantRef.current);
         setWaitingMessage(`${displayName} disconnected, waiting for them to rejoin...`);
         setIsWaitingForAssistant(true);
+        setIsAssistantPreparing(false);
+        clearReadyFallbackTimer();
 
         // Try to redispatch the assistant
         redispatchAssistant();
@@ -575,7 +600,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       room.off(RoomEvent.ParticipantConnected, onParticipantConnected);
       room.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
       room.off(RoomEvent.Disconnected, onDisconnected);
-      if (readyFallbackTimer) clearTimeout(readyFallbackTimer);
+      clearReadyFallbackTimer();
       clearAssistantJoinTimeout();
     };
   }, [
@@ -609,6 +634,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     connect,
     disconnect,
     isWaitingForAssistant,
+    isAssistantPreparing,
     waitingMessage,
     connectionError,
     retryConnection,

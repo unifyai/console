@@ -454,6 +454,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
   const [room] = React.useState(() => new Room());
   const [isConnecting, setIsConnecting] = React.useState(true);
   const [isWaitingForAssistant, setIsWaitingForAssistant] = React.useState(false);
+  const [isAssistantPreparing, setIsAssistantPreparing] = React.useState(false);
   // Track whether the assistant ever joined — used to decide if we should
   // auto-close the tab on disconnect (only close if we had an active call).
   const assistantEverJoinedRef = React.useRef(false);
@@ -776,6 +777,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     setIsConnecting(true);
     setError(null);
     setAvatarMood(DEFAULT_AVATAR_MOOD);
+    setIsAssistantPreparing(false);
     moodTurnIndexRef.current = -1;
 
     try {
@@ -816,6 +818,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       // was joined, but it may have left during the pop-out transition.
       const assistantInRoom = room.remoteParticipants.size >= 1;
       setIsWaitingForAssistant(!assistantInRoom);
+      setIsAssistantPreparing(false);
 
       // If assistant isn't in the room (e.g. it left when the dialog disconnected
       // during the pop-out transition), redispatch it.
@@ -887,13 +890,21 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     const READY_FALLBACK_TIMEOUT = 10_000;
     let readyFallbackTimer: NodeJS.Timeout | null = null;
 
-    const clearWaitingState = () => {
-      assistantEverJoinedRef.current = true;
-      setIsWaitingForAssistant(false);
+    const clearReadyFallbackTimer = () => {
       if (readyFallbackTimer) {
         clearTimeout(readyFallbackTimer);
         readyFallbackTimer = null;
       }
+    };
+
+    const clearJoinState = () => {
+      assistantEverJoinedRef.current = true;
+      setIsWaitingForAssistant(false);
+    };
+
+    const clearPreparingState = () => {
+      setIsAssistantPreparing(false);
+      clearReadyFallbackTimer();
     };
 
     const onDataReceived = (
@@ -906,7 +917,8 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       try {
         const data = JSON.parse(new TextDecoder().decode(payload));
         if (data.type === 'ready_to_speak') {
-          clearWaitingState();
+          clearJoinState();
+          clearPreparingState();
           return;
         }
         const moodMessage = parseMoodClassificationMessage(data, moodTurnIndexRef.current);
@@ -920,8 +932,10 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     };
 
     const onParticipantConnected = () => {
-      if (readyFallbackTimer) clearTimeout(readyFallbackTimer);
-      readyFallbackTimer = setTimeout(clearWaitingState, READY_FALLBACK_TIMEOUT);
+      clearJoinState();
+      setIsAssistantPreparing(true);
+      clearReadyFallbackTimer();
+      readyFallbackTimer = setTimeout(clearPreparingState, READY_FALLBACK_TIMEOUT);
     };
 
     // Only auto-close the tab if the assistant had actually joined (i.e. we had
@@ -955,7 +969,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       room.off(RoomEvent.DataReceived, onDataReceived);
       room.off(RoomEvent.ParticipantConnected, onParticipantConnected);
       room.off(RoomEvent.Disconnected, handleDisconnect);
-      if (readyFallbackTimer) clearTimeout(readyFallbackTimer);
+      clearReadyFallbackTimer();
       if (room.state !== 'disconnected') {
         room.disconnect();
       }
@@ -971,11 +985,13 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     );
   }
 
-  const showLoadingState = isConnecting || isWaitingForAssistant;
+  const showLoadingState = isConnecting || isWaitingForAssistant || isAssistantPreparing;
   const displayName = assistantDisplayName(assistant);
   const loadingMessage = isConnecting
     ? 'Setting up a connection...'
-    : `Waiting for ${displayName} to join...`;
+    : isWaitingForAssistant
+      ? `Waiting for ${displayName} to join...`
+      : `${displayName} is getting ready...`;
 
   return (
     <RoomContext.Provider value={room}>

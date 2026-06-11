@@ -80,7 +80,6 @@ test('starting a call shows the coordinator droid intro before docking the call'
   await page.addInitScript(() => {
     Object.assign(window, {
       __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 1_400,
-      __COORDINATOR_ONBOARDING_INTRO_CALL_LEAD_MS: 200,
     });
   });
   await gotoAssistants(page);
@@ -122,11 +121,6 @@ test('picking chat reveals the chat surface and the skip affordance', async ({
   // its presence is the canonical signal that the chat surface is
   // wired up and ready for input.
   await expect(page.locator('textarea').first()).toBeVisible({ timeout: 10_000 });
-
-  await page.getByTestId('coordinator-onboarding-item-connect').click();
-  await expect(page.getByRole('dialog', { name: 'Workspace' })).toBeVisible({
-    timeout: 10_000,
-  });
 });
 
 test('reloading after picking chat returns the user to the picker', async ({

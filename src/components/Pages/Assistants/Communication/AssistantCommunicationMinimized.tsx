@@ -43,6 +43,7 @@ interface AssistantCommunicationMinimizedProps {
   onToggleSpeaker: () => void;
   isConnecting: boolean;
   isWaitingForAssistant: boolean;
+  isAssistantPreparing: boolean;
   waitingMessage?: string | null;
   connectionError: string | null;
   onRetry: () => void;
@@ -94,6 +95,7 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
   onToggleSpeaker,
   isConnecting,
   isWaitingForAssistant,
+  isAssistantPreparing,
   waitingMessage,
   connectionError,
   onRetry,
@@ -114,10 +116,12 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
   const isCoordinator = assistant.isCoordinator === true;
   const displayName = assistantDisplayName(assistant);
   const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
-  const showLoadingState = isConnecting || isWaitingForAssistant;
+  const showLoadingState = isConnecting || isWaitingForAssistant || isAssistantPreparing;
   const loadingMessage = isConnecting
     ? 'Connecting...'
-    : waitingMessage || `Waiting for ${displayName}...`;
+    : isWaitingForAssistant
+      ? waitingMessage || `Waiting for ${displayName}...`
+      : `${displayName} is getting ready...`;
 
   if (connectionError) {
     return (

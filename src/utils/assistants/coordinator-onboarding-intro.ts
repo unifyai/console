@@ -6,7 +6,7 @@ export const COORDINATOR_ONBOARDING_INTRO = {
   initialPauseMs: 1_000,
   backgroundStartDelayMs: 500,
   backgroundAccelerationMs: 2_400,
-  callWarmupLeadMs: 2_500,
+  callWarmupDelayMs: 0,
   handoffLeadMs: 6_500,
   landingDurationMs: 1_000,
   backgroundPixelsPerSecond: 36,

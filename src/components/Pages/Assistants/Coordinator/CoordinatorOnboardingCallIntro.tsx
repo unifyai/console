@@ -107,10 +107,6 @@ export function CoordinatorOnboardingCallIntro({
   React.useEffect(() => {
     const { durationMs } = getRuntimeTiming();
     const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs);
-    const callWarmupOffsetMs = Math.max(
-      0,
-      handoffOffsetMs - COORDINATOR_ONBOARDING_INTRO.callWarmupLeadMs
-    );
     const speakingStartTimer = window.setTimeout(
       () => setStage('speaking'),
       COORDINATOR_ONBOARDING_INTRO.initialPauseMs
@@ -122,7 +118,7 @@ export function CoordinatorOnboardingCallIntro({
     );
     const callWarmupTimer = window.setTimeout(
       () => startCallOnce(),
-      COORDINATOR_ONBOARDING_INTRO.initialPauseMs + callWarmupOffsetMs
+      COORDINATOR_ONBOARDING_INTRO.callWarmupDelayMs
     );
     const landingTimer = window.setTimeout(
       () => setStage('landing'),

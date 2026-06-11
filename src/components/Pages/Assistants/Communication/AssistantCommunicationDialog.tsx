@@ -56,6 +56,7 @@ interface AssistantCommunicationDialogContentProps {
   userEmail: string | null | undefined;
   userImage: string | null | undefined;
   isWaitingForAssistant: boolean;
+  isAssistantPreparing: boolean;
   waitingMessage?: string | null;
   connectionError: string | null;
   onRetry: () => void;
@@ -95,6 +96,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   userEmail,
   userImage,
   isWaitingForAssistant,
+  isAssistantPreparing,
   waitingMessage,
   connectionError,
   onRetry,
@@ -283,10 +285,12 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     setActiveSidePanel((current) => (current === panel ? null : panel));
   };
 
-  const showLoadingState = isConnecting || isWaitingForAssistant;
+  const showLoadingState = isConnecting || isWaitingForAssistant || isAssistantPreparing;
   const loadingMessage = isConnecting
     ? 'Setting up a connection...'
-    : waitingMessage || `Waiting for ${displayName} to join...`;
+    : isWaitingForAssistant
+      ? waitingMessage || `Waiting for ${displayName} to join...`
+      : `${displayName} is getting ready...`;
 
   return (
     <>
@@ -522,6 +526,7 @@ interface AssistantCommunicationDialogProps {
   userEmail: string | null | undefined;
   userImage: string | null | undefined;
   isWaitingForAssistant: boolean;
+  isAssistantPreparing: boolean;
   waitingMessage?: string | null;
   connectionError: string | null;
   onRetry: () => void;
@@ -581,6 +586,7 @@ export function AssistantCommunicationDialog({
   userEmail,
   userImage,
   isWaitingForAssistant,
+  isAssistantPreparing,
   waitingMessage,
   connectionError,
   onRetry,
@@ -797,6 +803,7 @@ export function AssistantCommunicationDialog({
           userEmail={userEmail}
           userImage={userImage}
           isWaitingForAssistant={isWaitingForAssistant}
+          isAssistantPreparing={isAssistantPreparing}
           waitingMessage={waitingMessage}
           connectionError={connectionError}
           onRetry={onRetry}
@@ -884,6 +891,7 @@ export function AssistantCommunicationDialog({
               onToggleSpeaker={onToggleSpeaker}
               isConnecting={isConnecting}
               isWaitingForAssistant={isWaitingForAssistant}
+              isAssistantPreparing={isAssistantPreparing}
               waitingMessage={waitingMessage}
               connectionError={connectionError}
               onRetry={onRetry}
@@ -910,6 +918,7 @@ export function AssistantCommunicationDialog({
             userEmail={userEmail}
             userImage={userImage}
             isWaitingForAssistant={isWaitingForAssistant}
+            isAssistantPreparing={isAssistantPreparing}
             waitingMessage={waitingMessage}
             connectionError={connectionError}
             onRetry={onRetry}
