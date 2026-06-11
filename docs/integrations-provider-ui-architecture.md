@@ -58,14 +58,14 @@ The main Integrations pane should have:
 
 Console reads provider-backed catalog data through:
 
-- `GET /api/integrations/provider/apps`
+- `GET /api/integrations/provider/apps` with `limit` / `offset` pagination
 - `GET /api/integrations/provider/connections`
 - `POST /api/integrations/provider/connect/start`
 - `POST /api/integrations/provider/connections/{connection_id}/complete`
 - `POST /api/integrations/provider/connections/{connection_id}/disconnect`
 - `POST /api/integrations/provider/connections/{connection_id}/reconnect`
 - `POST /api/integrations/provider/connections/{connection_id}/test`
-- `POST /api/integrations/provider/tools/search`
+- `GET /api/integrations/provider/tools/search`
 
 The Next routes proxy to Orchestra `/v0/integrations/*` using the authenticated API key. The browser must never receive provider tokens or raw API key values.
 
