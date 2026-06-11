@@ -1,11 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 31 31">
-  <rect fill="#00d747" height="7.6" rx="2.4" width="7.6" x="1.5" y="1.5" />
-  <rect fill="#00d747" height="7.6" rx="2.4" width="7.6" x="10.5" y="1.5" />
-  <rect fill="#00d747" height="7.6" rx="2.4" width="7.6" x="1.5" y="10.5" />
-  <rect fill="#3478f6" height="7.6" rx="2.4" width="7.6" x="19.5" y="1.5" />
-  <rect fill="#3478f6" height="7.6" rx="2.4" width="7.6" x="10.5" y="10.5" />
-  <rect fill="#3478f6" height="7.6" rx="2.4" width="7.6" x="19.5" y="10.5" />
-  <rect fill="#ff8a2a" height="7.6" rx="2.4" width="7.6" x="1.5" y="19.5" />
-  <rect fill="#ff8a2a" height="7.6" rx="2.4" width="7.6" x="10.5" y="19.5" />
-  <rect fill="#ff8a2a" height="7.6" rx="2.4" width="7.6" x="19.5" y="19.5" />
+<svg width="32" height="32" viewBox="0 0 31 31" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g>
+    <rect fill="#1c6460" height="7.6" rx="1.3" width="7.6" x="1.5" y="2.8" />
+    <rect fill="#2f9d97" height="7.6" rx="1.3" width="7.6" x="1.5" y="1.5" />
+  </g>
+  <g>
+    <rect fill="#1c6460" height="7.6" rx="1.3" width="7.6" x="10.5" y="2.8" />
+    <rect fill="#2f9d97" height="7.6" rx="1.3" width="7.6" x="10.5" y="1.5" />
+  </g>
+  <g>
+    <rect fill="#1c6460" height="7.6" rx="1.3" width="7.6" x="1.5" y="11.8" />
+    <rect fill="#2f9d97" height="7.6" rx="1.3" width="7.6" x="1.5" y="10.5" />
+  </g>
+  <g>
+    <rect fill="#8f3b39" height="7.6" rx="1.3" width="7.6" x="19.5" y="2.8" />
+    <rect fill="#c95f5a" height="7.6" rx="1.3" width="7.6" x="19.5" y="1.5" />
+  </g>
+  <g>
+    <rect fill="#8f3b39" height="7.6" rx="1.3" width="7.6" x="10.5" y="11.8" />
+    <rect fill="#c95f5a" height="7.6" rx="1.3" width="7.6" x="10.5" y="10.5" />
+  </g>
+  <g>
+    <rect fill="#8f3b39" height="7.6" rx="1.3" width="7.6" x="19.5" y="11.8" />
+    <rect fill="#c95f5a" height="7.6" rx="1.3" width="7.6" x="19.5" y="10.5" />
+  </g>
+  <g>
+    <rect fill="#8f6824" height="7.6" rx="1.3" width="7.6" x="1.5" y="20.8" />
+    <rect fill="#cf9a3e" height="7.6" rx="1.3" width="7.6" x="1.5" y="19.5" />
+  </g>
+  <g>
+    <rect fill="#8f6824" height="7.6" rx="1.3" width="7.6" x="10.5" y="20.8" />
+    <rect fill="#cf9a3e" height="7.6" rx="1.3" width="7.6" x="10.5" y="19.5" />
+  </g>
+  <g>
+    <rect fill="#8f6824" height="7.6" rx="1.3" width="7.6" x="19.5" y="20.8" />
+    <rect fill="#cf9a3e" height="7.6" rx="1.3" width="7.6" x="19.5" y="19.5" />
+  </g>
 </svg>

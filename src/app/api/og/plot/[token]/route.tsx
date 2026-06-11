@@ -19,7 +19,7 @@ const colors = {
   // Base colors from globals.css
   eerieBlack: '#0a1410',
   whiteSmoke: '#eef0ea',
-  limeGreen: '#00d747',
+  limeGreen: '#2f9d97',
   darkSlateGray: '#1a2a23',
   lightNeutralGrey: '#d9d2c4',
 
@@ -31,21 +31,21 @@ const colors = {
   muted: '#d9d2c4',
 
   // Primary accent
-  primary: '#00d747',
-  primaryLight: 'rgba(0, 215, 71, 0.15)',
-  primaryBorder: 'rgba(0, 215, 71, 0.3)',
+  primary: '#2f9d97',
+  primaryLight: 'rgba(47, 157, 151, 0.15)',
+  primaryBorder: 'rgba(47, 157, 151, 0.3)',
 
   // Chart colors (dark theme from globals.css)
   chart: {
-    1: '#00d747',
-    2: '#7aa7ff',
-    3: '#ffad6b',
-    4: '#a88cff',
-    5: '#ffdb66',
+    1: '#2f9d97',
+    2: '#c95f5a',
+    3: '#cf9a3e',
+    4: '#6e4a86',
+    5: '#ffb24a',
   },
 
   // Logo green
-  logoGreen: '#00d747',
+  logoGreen: '#2f9d97',
 };
 
 // OG Image dimensions (standard for social sharing)

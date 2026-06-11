@@ -42,7 +42,11 @@ import { cn } from '@/lib/utils';
 import { FaUbuntu, FaWindows } from 'react-icons/fa';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 import { TeammateCreature, buildCreatureSentinel, parseCreatureSentinel } from '@/components/Brand';
-import { getCreatureMetrics, type CreatureEyes } from '@/components/Brand/TeammateCreature';
+import {
+  getCreatureMetrics,
+  type CreatureAntenna,
+  type CreatureEyes,
+} from '@/components/Brand/TeammateCreature';
 import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
 import { roleColorVars, type BrandRole, type CreatureShape } from '@/components/Brand/shapes';
 import GoogleIcon from '@/public/icons/google-icon.png';
@@ -59,6 +63,13 @@ const DROID_PREVIEW_SIZE = 160;
 const APPEARANCE_HOVER_CONTROL_CLASS = 'transition-opacity duration-150';
 
 const appearanceEyeOptions = ['up', 'down', 'square'] as const satisfies readonly CreatureEyes[];
+const appearanceAntennaOptions = [
+  'none',
+  'rod',
+  'ball',
+  'bigball',
+  'twin',
+] as const satisfies readonly CreatureAntenna[];
 const appearanceShapeOptions = [
   'clawd',
   'notch',
@@ -81,10 +92,12 @@ const appearanceColorOptions = [
 ] as const satisfies readonly BrandRole[];
 const DEFAULT_COORDINATOR_APPEARANCE = {
   eyes: 'up',
+  antenna: 'ball',
   shape: 'clawd',
   color: 'green',
 } as const satisfies {
   eyes: CreatureEyes;
+  antenna: CreatureAntenna;
   shape: CreatureShape;
   color: BrandRole;
 };
@@ -188,6 +201,7 @@ export function HireForm({
     'select' | 'clone' | 'design'
   >('select');
   const [droidEyes, setDroidEyes] = React.useState<CreatureEyes>('up');
+  const [droidAntenna, setDroidAntenna] = React.useState<CreatureAntenna>('ball');
   const [droidShape, setDroidShape] = React.useState<CreatureShape>('clawd');
   const [droidColor, setDroidColor] = React.useState<BrandRole>('green');
 
@@ -213,6 +227,7 @@ export function HireForm({
       setDroidShape(parsed.shape);
       setDroidColor(parsed.color);
       setDroidEyes(parsed.eyes);
+      setDroidAntenna(parsed.antenna);
     }
     setAppearanceSeeded(true);
   }, [appearanceSeeded, watchedProfilePhotoUrl]);
@@ -231,6 +246,9 @@ export function HireForm({
   const selectedDroidEyes = lockAppearanceControls
     ? DEFAULT_COORDINATOR_APPEARANCE.eyes
     : droidEyes;
+  const selectedDroidAntenna = lockAppearanceControls
+    ? DEFAULT_COORDINATOR_APPEARANCE.antenna
+    : droidAntenna;
   const selectedDroidShape = lockAppearanceControls
     ? DEFAULT_COORDINATOR_APPEARANCE.shape
     : droidShape;
@@ -249,6 +267,7 @@ export function HireForm({
     shape: selectedDroidShape,
     color: selectedDroidColor,
     eyes: selectedDroidEyes,
+    antenna: selectedDroidAntenna,
   });
 
   // Detect when the user actively changes the appearance controls (vs. the value
@@ -311,18 +330,19 @@ export function HireForm({
     typeof firstName === 'string' && firstName.trim().length > 0 ? firstName.trim() : 'this droid';
   const isWorkspaceWarning = mode === 'hire' && showWorkspaceWarning;
   const eyeArrowTop = React.useMemo(() => {
-    const metrics = getCreatureMetrics(selectedDroidShape);
+    const metrics = getCreatureMetrics(selectedDroidShape, selectedDroidAntenna);
     const scale = Math.min(DROID_PREVIEW_SIZE / metrics.width, DROID_PREVIEW_SIZE / metrics.height);
     const renderedHeight = metrics.height * scale;
     const renderedTop = (DROID_PREVIEW_SIZE - renderedHeight) / 2;
 
-    return renderedTop + metrics.eyeY * scale - 18;
-  }, [selectedDroidShape]);
+    return renderedTop + metrics.eyeY * scale - 16;
+  }, [selectedDroidShape, selectedDroidAntenna]);
 
   const randomizeDroidAppearance = React.useCallback(() => {
     if (lockAppearanceControls) return;
 
     setDroidEyes((current) => pickOption(appearanceEyeOptions, current));
+    setDroidAntenna((current) => pickOption(appearanceAntennaOptions, current));
     setDroidShape((current) => pickOption(appearanceShapeOptions, current));
     setDroidColor((current) => pickOption(appearanceColorOptions, current));
   }, [lockAppearanceControls]);
@@ -573,6 +593,45 @@ export function HireForm({
                             {!lockAppearanceControls && (
                               <>
                                 <Button
+                                  aria-label="Previous antenna style"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    'absolute left-0 top-[8%] h-8 w-8 bg-transparent hover:bg-transparent md:left-4',
+                                    APPEARANCE_HOVER_CONTROL_CLASS,
+                                    appearanceControlVisibilityClass
+                                  )}
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setDroidAntenna((current) =>
+                                      cycleOption(appearanceAntennaOptions, current, -1)
+                                    )
+                                  }
+                                >
+                                  <ChevronLeft className="!h-6 !w-6" />
+                                </Button>
+                                <Button
+                                  aria-label="Next antenna style"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    'absolute right-0 top-[8%] h-8 w-8 bg-transparent hover:bg-transparent md:right-4',
+                                    APPEARANCE_HOVER_CONTROL_CLASS,
+                                    appearanceControlVisibilityClass
+                                  )}
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setDroidAntenna((current) =>
+                                      cycleOption(appearanceAntennaOptions, current, 1)
+                                    )
+                                  }
+                                >
+                                  <ChevronRight className="!h-6 !w-6" />
+                                </Button>
+
+                                <Button
                                   aria-label="Previous eye style"
                                   type="button"
                                   variant="ghost"
@@ -666,6 +725,7 @@ export function HireForm({
                                   style={{ '--droid-speech-level': 0 } as React.CSSProperties}
                                 >
                                   <TeammateCreature
+                                    antenna={selectedDroidAntenna}
                                     className="h-full w-full"
                                     color={selectedDroidColor}
                                     eyes={displayedDroidEyes}
@@ -688,6 +748,7 @@ export function HireForm({
                                   style={{ '--droid-speech-level': 0 } as React.CSSProperties}
                                 >
                                   <TeammateCreature
+                                    antenna={selectedDroidAntenna}
                                     className="h-full w-full"
                                     color={selectedDroidColor}
                                     eyes={displayedDroidEyes}

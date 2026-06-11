@@ -6,6 +6,7 @@ import type { Transition } from 'framer-motion';
 import { TeammateCreature } from '@/components/Brand';
 import type { BrandRole, CreatureShape } from '@/components/Brand/shapes';
 import type {
+  CreatureAntenna,
   CreatureEyes,
   CreatureMood,
   CreatureMouthShape,
@@ -26,6 +27,7 @@ interface DroidCallAvatarProps {
   creatureClassName?: string;
   layoutId?: string;
   layoutTransition?: Transition;
+  antenna?: CreatureAntenna;
   shape?: CreatureShape;
   color?: BrandRole;
   baseEyes?: CreatureEyes;
@@ -44,6 +46,7 @@ export function DroidCallAvatar({
   creatureClassName,
   layoutId,
   layoutTransition,
+  antenna,
   shape = 'clawd',
   color = 'green',
   baseEyes = 'up',
@@ -76,6 +79,7 @@ export function DroidCallAvatar({
       transition={layoutTransition}
     >
       <TeammateCreature
+        antenna={antenna}
         className={cn('h-full w-full', creatureClassName)}
         color={color}
         eyes={displayedCreatureEyes}

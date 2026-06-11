@@ -9,7 +9,6 @@ import { Mail } from 'lucide-react';
 import EmailLoginForm from './EmailLoginForm';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import dynamic from 'next/dynamic';
-import { TeammateCreature } from '@/components/Brand';
 import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 
 // Dev-only quick login panel — lazy-loaded and tree-shaken in production builds.
@@ -60,12 +59,6 @@ const LoginFragment = ({
       <div className="flex flex-1 flex-col gap-10">
         {/* Header */}
         <div className="relative flex flex-col items-center gap-6 text-center">
-          <div className="pointer-events-none absolute -left-4 top-14 hidden -rotate-6 opacity-90 md:block">
-            <TeammateCreature className="w-20" color="blue" shape="notch" />
-          </div>
-          <div className="pointer-events-none absolute -right-5 top-8 hidden rotate-6 opacity-95 md:block">
-            <TeammateCreature className="w-24" color="green" shape="clawd" />
-          </div>
           <div className="flex justify-center">
             <UnifyLogo />
           </div>

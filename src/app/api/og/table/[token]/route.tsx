@@ -19,7 +19,7 @@ const colors = {
   // Base colors from globals.css
   eerieBlack: '#0a1410',
   whiteSmoke: '#eef0ea',
-  limeGreen: '#00d747',
+  limeGreen: '#2f9d97',
   darkSlateGray: '#1a2a23',
   lightNeutralGrey: '#d9d2c4',
 
@@ -31,16 +31,16 @@ const colors = {
   muted: '#d9d2c4',
 
   // Primary accent
-  primary: '#00d747',
-  primaryLight: 'rgba(0, 215, 71, 0.15)',
-  primaryBorder: 'rgba(0, 215, 71, 0.3)',
+  primary: '#2f9d97',
+  primaryLight: 'rgba(47, 157, 151, 0.15)',
+  primaryBorder: 'rgba(47, 157, 151, 0.3)',
 
   // Logo green
-  logoGreen: '#00d747',
+  logoGreen: '#2f9d97',
 
   // Table colors
-  tableHeader: '#00d747',
-  tableHeaderBg: 'rgba(0, 215, 71, 0.12)',
+  tableHeader: '#2f9d97',
+  tableHeaderBg: 'rgba(47, 157, 151, 0.12)',
   tableCellText: '#eef0ea',
   tableBorder: 'rgba(238, 240, 234, 0.12)',
   tableRowAlt: 'rgba(255, 255, 255, 0.02)',

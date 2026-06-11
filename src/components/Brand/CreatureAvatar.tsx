@@ -35,6 +35,7 @@ export function CreatureAvatar({
     >
       <TeammateCreature
         className={cn('h-[72%] w-[72%]', creatureClassName)}
+        antenna={resolved.antenna}
         shape={resolved.shape}
         color={resolved.color}
         eyes={resolved.eyes}

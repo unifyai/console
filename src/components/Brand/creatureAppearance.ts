@@ -3,9 +3,9 @@
  * appearance.
  *
  * A droid avatar is a deterministic SVG (`TeammateCreature`) fully described
- * by three small enums (shape × color × eyes). Rather than rasterize and store
+ * by four small enums (shape × color × eyes × antenna). Rather than rasterize and store
  * an image per assistant, we persist the appearance inline in the existing
- * `profile_photo` field using a `appearance://<shape>/<color>/<eyes>` sentinel.
+ * `profile_photo` field using a `appearance://<shape>/<color>/<eyes>/<antenna>` sentinel.
  *
  * This keeps a single code path: anything that renders an assistant photo checks
  * for the sentinel and either reconstructs the droid locally (no fetch, works
@@ -16,7 +16,11 @@
  */
 
 import { creatureShapes, roleColorVars, type BrandRole, type CreatureShape } from './shapes';
-import type { CreatureEyes } from './TeammateCreature';
+import {
+  DEFAULT_ANTENNA_FOR_SHAPE,
+  type CreatureAntenna,
+  type CreatureEyes,
+} from './TeammateCreature';
 
 export const APPEARANCE_SENTINEL_PREFIX = 'appearance://';
 
@@ -24,26 +28,29 @@ export interface CreatureAppearance {
   shape: CreatureShape;
   color: BrandRole;
   eyes: CreatureEyes;
+  antenna: CreatureAntenna;
 }
 
 export const DEFAULT_CREATURE_APPEARANCE: CreatureAppearance = {
   shape: 'clawd',
   color: 'green',
   eyes: 'up',
+  antenna: 'ball',
 };
 
 const VALID_SHAPES = new Set<string>(Object.keys(creatureShapes));
 const VALID_COLORS = new Set<string>(Object.keys(roleColorVars));
 const VALID_EYES = new Set<string>(['up', 'down', 'square']);
+const VALID_ANTENNAS = new Set<string>(['none', 'rod', 'ball', 'bigball', 'twin']);
 
 /** Whether a stored photo value encodes a droid appearance (vs. a real URL). */
 export function isCreatureSentinel(value: string | null | undefined): value is string {
   return typeof value === 'string' && value.startsWith(APPEARANCE_SENTINEL_PREFIX);
 }
 
-/** Encode an appearance into the `appearance://shape/color/eyes` sentinel. */
+/** Encode an appearance into the `appearance://shape/color/eyes/antenna` sentinel. */
 export function buildCreatureSentinel(appearance: CreatureAppearance): string {
-  return `${APPEARANCE_SENTINEL_PREFIX}${appearance.shape}/${appearance.color}/${appearance.eyes}`;
+  return `${APPEARANCE_SENTINEL_PREFIX}${appearance.shape}/${appearance.color}/${appearance.eyes}/${appearance.antenna}`;
 }
 
 /**
@@ -54,10 +61,17 @@ export function buildCreatureSentinel(appearance: CreatureAppearance): string {
  */
 export function parseCreatureSentinel(value: string | null | undefined): CreatureAppearance | null {
   if (!isCreatureSentinel(value)) return null;
-  const [shape, color, eyes] = value.slice(APPEARANCE_SENTINEL_PREFIX.length).split('/');
+  const [shape, color, eyes, antenna] = value.slice(APPEARANCE_SENTINEL_PREFIX.length).split('/');
+  const resolvedShape = VALID_SHAPES.has(shape)
+    ? (shape as CreatureShape)
+    : DEFAULT_CREATURE_APPEARANCE.shape;
+
   return {
-    shape: VALID_SHAPES.has(shape) ? (shape as CreatureShape) : DEFAULT_CREATURE_APPEARANCE.shape,
+    shape: resolvedShape,
     color: VALID_COLORS.has(color) ? (color as BrandRole) : DEFAULT_CREATURE_APPEARANCE.color,
     eyes: VALID_EYES.has(eyes) ? (eyes as CreatureEyes) : DEFAULT_CREATURE_APPEARANCE.eyes,
+    antenna: VALID_ANTENNAS.has(antenna)
+      ? (antenna as CreatureAntenna)
+      : DEFAULT_ANTENNA_FOR_SHAPE[resolvedShape],
   };
 }

@@ -12,17 +12,26 @@
     --rule: #d9d2c4;
     --muted-ink: #6b6a64;
 
-    --role-green: #00d747;
-    --role-green-deep: #0a8a35;
-    --role-blue: #3478f6;
-    --role-orange: #ff8a2a;
-    --role-purple: #8557ff;
-    --role-yellow: #ffcf33;
-    --role-teal: #14c8c8;
-    --role-pink: #ff5dbd;
-    --role-cyan: #42c6ff;
+    --role-green: #2f9d97;
+    --role-green-deep: #1c6460;
+    --role-blue: #c95f5a;
+    --role-orange: #cf9a3e;
+    --role-purple: #6e4a86;
+    --role-yellow: #ffb24a;
+    --role-teal: #3c8f86;
+    --role-pink: #e85a8e;
+    --role-cyan: #4f7fa8;
     --droid-screen: #0e2027;
     --droid-glow: #79efdd;
+    --droid-outline: #173534;
+    --droid-shadow: #cdb89b;
+    --brand-grain-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23grain)' opacity='0.26'/%3E%3C/svg%3E");
+    --neo-teal: #2f9d97;
+    --neo-teal-dark: #1c6460;
+    --neo-coral: #c95f5a;
+    --neo-coral-dark: #8f3b39;
+    --neo-amber: #cf9a3e;
+    --neo-amber-dark: #8f6824;
 
     --alert-red: #d94a3d;
     --soft-amber: #c47a00;
@@ -65,13 +74,13 @@
     --foreground: var(--ink);
 
     --primary: var(--role-green);
-    --primary-foreground: var(--ink);
+    --primary-foreground: var(--cream-white);
 
     --secondary: var(--paper-2);
     --secondary-foreground: var(--ink);
 
     --accent: var(--role-green);
-    --accent-foreground: var(--ink);
+    --accent-foreground: var(--cream-white);
 
     --muted: var(--surface);
     --muted-foreground: var(--muted-ink);
@@ -111,7 +120,7 @@
     --sidebar-background: var(--paper);
     --sidebar-foreground: var(--ink);
     --sidebar-primary: var(--role-green);
-    --sidebar-primary-foreground: var(--ink);
+    --sidebar-primary-foreground: var(--cream-white);
     --sidebar-accent: var(--surface-hover);
     --sidebar-accent-foreground: var(--ink);
     --sidebar-border: var(--rule);
@@ -137,13 +146,21 @@
     /* Dark theme variables */
     --background: #0d0f12;
     --foreground: #eef0ea;
-    --role-pink: #ff5dbd;
-    --role-cyan: #42c6ff;
+    --role-pink: #e85a8e;
+    --role-cyan: #4f7fa8;
     --droid-screen: #0e2027;
     --droid-glow: #79efdd;
+    --droid-outline: #79c9bf;
+    --droid-shadow: rgba(0, 0, 0, 0.42);
+    --neo-teal: #2f9d97;
+    --neo-teal-dark: #1c6460;
+    --neo-coral: #c95f5a;
+    --neo-coral-dark: #8f3b39;
+    --neo-amber: #cf9a3e;
+    --neo-amber-dark: #8f6824;
 
     --primary: var(--role-green);
-    --primary-foreground: var(--ink);
+    --primary-foreground: #fffaf1;
 
     --secondary: rgba(255, 255, 255, 0.05);
     --secondary-foreground: #eef0ea;
@@ -186,7 +203,7 @@
     --sidebar-background: #0d0f12;
     --sidebar-foreground: #eef0ea;
     --sidebar-primary: var(--role-green);
-    --sidebar-primary-foreground: var(--ink);
+    --sidebar-primary-foreground: #fffaf1;
     --sidebar-accent: rgba(255, 255, 255, 0.06);
     --sidebar-accent-foreground: #eef0ea;
     --sidebar-border: rgba(238, 240, 234, 0.12);
@@ -252,11 +269,11 @@
     --background: var(--paper);
     --foreground: var(--ink);
     --primary: var(--role-green);
-    --primary-foreground: var(--ink);
+    --primary-foreground: var(--cream-white);
     --secondary: var(--paper-2);
     --secondary-foreground: var(--ink);
     --accent: var(--role-green);
-    --accent-foreground: var(--ink);
+    --accent-foreground: var(--cream-white);
     --muted: var(--surface);
     --muted-foreground: var(--muted-ink);
     --destructive: var(--alert-red);
@@ -561,6 +578,18 @@
     -webkit-mask-size: var(--chat-maze-size);
     mask-size: var(--chat-maze-size);
   }
+  .brand-page-stencil-bg::after,
+  .brand-chat-stencil-bg::after {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-image: var(--brand-grain-texture);
+    background-size: 160px 160px;
+    content: '';
+    mix-blend-mode: multiply;
+    opacity: 0.16;
+  }
   .brand-page-stencil-bg > *,
   .brand-chat-stencil-bg > * {
     position: relative;
@@ -570,6 +599,9 @@
     background-color: transparent;
   }
   .brand-chat-stencil-bg .brand-chat-stencil-bg::before {
+    display: none;
+  }
+  .brand-chat-stencil-bg .brand-chat-stencil-bg::after {
     display: none;
   }
   .coordinator-onboarding-intro-bg {

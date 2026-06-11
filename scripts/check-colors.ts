@@ -34,6 +34,8 @@ const SKIP_PATTERNS = [
   /emailTemplates/,
   // Design tokens file defines colors for export (mirrors globals.css)
   /design-tokens\.ts$/,
+  // Copied landing-page droid renderer keeps exact hex inputs for pixel parity.
+  /components\/Brand\/(RotatingBot|TeammateCreature)\.tsx$/,
   // Test fixtures may use arbitrary colors for visualization
   /fixtures\//,
   /\.test\./,

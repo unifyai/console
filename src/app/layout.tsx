@@ -14,8 +14,8 @@ export const metadata: Metadata = {
     default: 'Unify Console',
   },
   icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
-    shortcut: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    icon: [{ url: '/icon.svg?v=neo-droid', type: 'image/svg+xml' }],
+    shortcut: [{ url: '/icon.svg?v=neo-droid', type: 'image/svg+xml' }],
   },
 };
 

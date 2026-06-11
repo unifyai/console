@@ -373,6 +373,7 @@ export function AssistantCommunicationMainView({
                   isUserSpeaking={isUserSpeaking}
                   mouthShape={imageAvatarMouthShape}
                   speechLevel={imageAvatarSpeechLevel}
+                  antenna={creatureAppearance.antenna}
                   shape={creatureAppearance.shape}
                   color={creatureAppearance.color}
                   baseEyes={creatureAppearance.eyes}
