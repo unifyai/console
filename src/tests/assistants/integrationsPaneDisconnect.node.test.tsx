@@ -200,15 +200,19 @@ describe('IntegrationsPane provider disconnect sync', () => {
       fetchDetails: fetchDetails as ReturnType<
         typeof useProviderIntegrationCatalog
       >['fetchDetails'],
+      hasMore: false,
       hasLoaded: true,
       isConnecting: null,
       isDetailLoading: null,
+      isLoadingMore: false,
       isLoading: false,
       isMock: false,
+      loadMore: vi.fn(),
       refresh: refreshProviderCatalog as ReturnType<
         typeof useProviderIntegrationCatalog
       >['refresh'],
       startConnect: vi.fn(),
+      total: 1,
     });
 
     render(

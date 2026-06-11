@@ -2,11 +2,26 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useProviderIntegrationCatalog } from '@/hooks/Assistants/useProviderIntegrationCatalog';
 import {
+  listProviderIntegrationDefinitionsPage,
   listProviderIntegrationBackends,
   patchProviderIntegrationBackend,
   syncIntegrations,
   upsertProviderIntegrationBackend,
 } from '@/lib/client/integrations';
+
+function providerApp(slug: string, overrides: Record<string, unknown> = {}) {
+  return {
+    backend_id: 'composio-dev',
+    provider_app_id: slug,
+    canonical_app_slug: slug,
+    display_name: slug.replace(/_/g, ' '),
+    auth_modes: ['oauth'],
+    available_scopes: [],
+    available_actions: [],
+    connection_status: 'not_connected',
+    ...overrides,
+  };
+}
 
 describe('useProviderIntegrationCatalog', () => {
   beforeEach(() => {
@@ -86,6 +101,135 @@ describe('useProviderIntegrationCatalog', () => {
       accountLabel: 'Team Slack',
     });
     expect(result.current.hasLoaded).toBe(true);
+  });
+
+  it('loads additional catalog pages with limit, offset, and total metadata', async () => {
+    const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/integrations/provider/apps')) {
+        const params = new URL(url, window.location.origin).searchParams;
+        const offset = Number(params.get('offset') ?? 0);
+        const items =
+          offset === 0
+            ? Array.from({ length: 100 }, (_, index) => providerApp(`app_${index}`))
+            : [providerApp('app_100')];
+        return new Response(
+          JSON.stringify({
+            items,
+            total: 101,
+            limit: 100,
+            offset,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (url.startsWith('/api/integrations/provider/connections')) {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('{}', { status: 404 });
+    });
+
+    const { result } = renderHook(() => useProviderIntegrationCatalog('123'));
+
+    await waitFor(() => expect(result.current.definitions).toHaveLength(100));
+    expect(result.current.total).toBe(101);
+    expect(result.current.hasMore).toBe(true);
+
+    await act(async () => {
+      await result.current.loadMore();
+    });
+
+    await waitFor(() => expect(result.current.definitions).toHaveLength(101));
+    expect(result.current.hasMore).toBe(false);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/api/integrations/provider/apps?'),
+      expect.objectContaining({ cache: 'no-store' })
+    );
+    expect(
+      fetchSpy.mock.calls.some(
+        ([input]) => String(input).includes('limit=100') && String(input).includes('offset=100')
+      )
+    ).toBe(true);
+  });
+
+  it('resets catalog pagination when server-side filters change', async () => {
+    const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/integrations/provider/apps')) {
+        const params = new URL(url, window.location.origin).searchParams;
+        const query = params.get('query');
+        return new Response(
+          JSON.stringify({
+            items: [providerApp(query === 'slack' ? 'slack' : 'discord')],
+            total: 1,
+            limit: 100,
+            offset: 0,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (url.startsWith('/api/integrations/provider/connections')) {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('{}', { status: 404 });
+    });
+
+    const { result, rerender } = renderHook(
+      ({ query }) => useProviderIntegrationCatalog('123', { query, sourceType: 'third_party' }),
+      { initialProps: { query: '' } }
+    );
+
+    await waitFor(() => expect(result.current.definitions[0].canonicalSlug).toBe('discord'));
+    rerender({ query: 'slack' });
+    await waitFor(() => expect(result.current.definitions[0].canonicalSlug).toBe('slack'));
+
+    expect(
+      fetchSpy.mock.calls.some(
+        ([input]) =>
+          String(input).includes('query=slack') &&
+          String(input).includes('source_type=third_party') &&
+          String(input).includes('offset=0')
+      )
+    ).toBe(true);
+  });
+
+  it('maps a paginated app response through the explicit client helper', async () => {
+    const fetchSpy = vi.spyOn(window, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          items: [providerApp('notion')],
+          total: 40,
+          limit: 20,
+          offset: 20,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    );
+
+    const page = await listProviderIntegrationDefinitionsPage({
+      ownerScope: 'assistant',
+      assistantId: 123,
+      query: 'notion',
+      sourceType: 'third_party',
+      limit: 20,
+      offset: 20,
+    });
+
+    expect(page).toMatchObject({
+      total: 40,
+      limit: 20,
+      offset: 20,
+      definitions: [{ canonicalSlug: 'notion' }],
+    });
+    expect(String(fetchSpy.mock.calls[0][0])).toContain(
+      '/api/integrations/provider/apps?owner_scope=assistant&limit=20&offset=20&assistant_id=123&query=notion&source_type=third_party'
+    );
   });
 
   it('maps Orchestra native apps without provider connect semantics', async () => {

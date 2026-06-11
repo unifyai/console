@@ -6,7 +6,7 @@ import { openPendingOAuthTab } from '@/utils/assistants/oauth';
 import {
   getProviderIntegrationDetails,
   listProviderIntegrationConnections,
-  listProviderIntegrationDefinitions,
+  listProviderIntegrationDefinitionsPage,
   requestUnityIntegrationToolsSync,
   startProviderIntegrationConnect,
 } from '@/lib/client/integrations';
@@ -16,14 +16,21 @@ import {
 } from '@/utils/assistants/provider-integration-mock-data';
 import { subscribeOAuthComplete } from '@/utils/assistants/oauth';
 import type {
+  IntegrationConnection,
   IntegrationDefinition,
   IntegrationSourceKind,
   IntegrationOwnerScope,
   ProviderIntegrationConnectStartResponse,
 } from '@/types/integrations';
 
+const PROVIDER_CATALOG_PAGE_SIZE = 100;
+
+type ProviderCatalogSourceType = 'native' | 'third_party';
+
 interface UseProviderIntegrationCatalogOptions {
   ownerScope?: IntegrationOwnerScope;
+  query?: string;
+  sourceType?: ProviderCatalogSourceType | null;
 }
 
 function buildProviderIntegrationCallbackUrl(returnTo: string, assistantId: string): string {
@@ -37,20 +44,61 @@ function hasDeferredProviderDetails(source: IntegrationSourceKind): boolean {
   return source === 'provider_backed' || source === 'overlay_curated';
 }
 
+function mergeDefinitionsWithConnections(
+  providerDefinitions: IntegrationDefinition[],
+  providerConnections: IntegrationConnection[]
+): IntegrationDefinition[] {
+  const visibleConnections = providerConnections.filter(
+    (connection) => connection.status !== 'disconnected'
+  );
+  const connectionsBySlug = new Map<string, typeof visibleConnections>();
+  for (const connection of visibleConnections) {
+    connectionsBySlug.set(connection.canonicalSlug, [
+      ...(connectionsBySlug.get(connection.canonicalSlug) ?? []),
+      connection,
+    ]);
+  }
+  return providerDefinitions.map((definition) => {
+    const connections = connectionsBySlug.get(definition.canonicalSlug) ?? [];
+    if (connections.length === 0) return definition;
+    return {
+      ...definition,
+      status: connections[0].status,
+      connections: [
+        ...connections,
+        ...definition.connections.filter(
+          (item) =>
+            !connections.some((connection) => connection.id === item.id) &&
+            item.status !== 'disconnected'
+        ),
+      ],
+    };
+  });
+}
+
 export function useProviderIntegrationCatalog(
   assistantId: string,
   options: UseProviderIntegrationCatalogOptions = {}
 ) {
   const ownerScope = options.ownerScope ?? 'assistant';
+  const query = options.query ?? '';
+  const sourceType = options.sourceType ?? null;
   const [definitions, setDefinitions] = React.useState<IntegrationDefinition[]>([]);
   const [detailsBySlug, setDetailsBySlug] = React.useState<Record<string, IntegrationDefinition>>(
     {}
   );
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [hasLoaded, setHasLoaded] = React.useState(false);
   const [isDetailLoading, setIsDetailLoading] = React.useState<string | null>(null);
   const [isConnecting, setIsConnecting] = React.useState<string | null>(null);
   const [isMock, setIsMock] = React.useState(false);
+  const [total, setTotal] = React.useState(0);
+  const [nextOffset, setNextOffset] = React.useState(0);
+  const providerConnectionsRef = React.useRef<IntegrationConnection[]>([]);
+  const isLoadingMoreRef = React.useRef(false);
+
+  const hasMore = !isMock && hasLoaded && nextOffset < total;
 
   const fetchCatalog = React.useCallback(async () => {
     if (!assistantId) return;
@@ -60,55 +108,88 @@ export function useProviderIntegrationCatalog(
       setDefinitions(MOCK_PROVIDER_INTEGRATION_DEFINITIONS);
       setDetailsBySlug({});
       setIsLoading(false);
+      setIsLoadingMore(false);
       setHasLoaded(true);
+      setTotal(MOCK_PROVIDER_INTEGRATION_DEFINITIONS.length);
+      setNextOffset(MOCK_PROVIDER_INTEGRATION_DEFINITIONS.length);
+      providerConnectionsRef.current = [];
+      isLoadingMoreRef.current = false;
       return;
     }
     setIsLoading(true);
+    setIsLoadingMore(false);
+    isLoadingMoreRef.current = false;
     try {
-      const [providerDefinitions, providerConnections] = await Promise.all([
-        listProviderIntegrationDefinitions({ ownerScope, assistantId }),
+      const [page, providerConnections] = await Promise.all([
+        listProviderIntegrationDefinitionsPage({
+          ownerScope,
+          assistantId,
+          query,
+          sourceType,
+          limit: PROVIDER_CATALOG_PAGE_SIZE,
+          offset: 0,
+        }),
         listProviderIntegrationConnections({ ownerScope, assistantId }).catch((error) => {
           console.error('Failed to load provider integration connections', error);
           return [];
         }),
       ]);
-      const visibleConnections = providerConnections.filter(
-        (connection) => connection.status !== 'disconnected'
-      );
-      const connectionsBySlug = new Map<string, typeof visibleConnections>();
-      for (const connection of visibleConnections) {
-        connectionsBySlug.set(connection.canonicalSlug, [
-          ...(connectionsBySlug.get(connection.canonicalSlug) ?? []),
-          connection,
-        ]);
-      }
-      setDefinitions(
-        providerDefinitions.map((definition) => {
-          const connections = connectionsBySlug.get(definition.canonicalSlug) ?? [];
-          if (connections.length === 0) return definition;
-          return {
-            ...definition,
-            status: connections[0].status,
-            connections: [
-              ...connections,
-              ...definition.connections.filter(
-                (item) =>
-                  !connections.some((connection) => connection.id === item.id) &&
-                  item.status !== 'disconnected'
-              ),
-            ],
-          };
-        })
+      providerConnectionsRef.current = providerConnections;
+      setDefinitions(mergeDefinitionsWithConnections(page.definitions, providerConnections));
+      setTotal(page.total);
+      setNextOffset(
+        Math.min(page.offset + Math.max(page.definitions.length, page.limit), page.total)
       );
     } catch (error) {
       console.error('Failed to load provider integration catalog', error);
       toast.error('Could not load integrations. Please try again.');
       setDefinitions([]);
+      setTotal(0);
+      setNextOffset(0);
     } finally {
       setIsLoading(false);
       setHasLoaded(true);
     }
-  }, [assistantId, ownerScope]);
+  }, [assistantId, ownerScope, query, sourceType]);
+
+  const loadMore = React.useCallback(async () => {
+    if (!assistantId || isMock || isLoadingMoreRef.current || isLoading || nextOffset >= total) {
+      return;
+    }
+    isLoadingMoreRef.current = true;
+    setIsLoadingMore(true);
+    try {
+      const page = await listProviderIntegrationDefinitionsPage({
+        ownerScope,
+        assistantId,
+        query,
+        sourceType,
+        limit: PROVIDER_CATALOG_PAGE_SIZE,
+        offset: nextOffset,
+      });
+      const merged = mergeDefinitionsWithConnections(
+        page.definitions,
+        providerConnectionsRef.current
+      );
+      setDefinitions((current) => {
+        const bySlug = new Map(current.map((definition) => [definition.canonicalSlug, definition]));
+        for (const definition of merged) {
+          bySlug.set(definition.canonicalSlug, definition);
+        }
+        return Array.from(bySlug.values());
+      });
+      setTotal(page.total);
+      setNextOffset(
+        Math.min(page.offset + Math.max(page.definitions.length, page.limit), page.total)
+      );
+    } catch (error) {
+      console.error('Failed to load more provider integrations', error);
+      toast.error('Could not load more integrations. Please try again.');
+    } finally {
+      isLoadingMoreRef.current = false;
+      setIsLoadingMore(false);
+    }
+  }, [assistantId, isLoading, isMock, nextOffset, ownerScope, query, sourceType, total]);
 
   React.useEffect(() => {
     void fetchCatalog();
@@ -258,10 +339,14 @@ export function useProviderIntegrationCatalog(
     detailsBySlug,
     isMock,
     isLoading,
+    isLoadingMore,
     hasLoaded,
+    hasMore,
+    total,
     isDetailLoading,
     isConnecting,
     refresh: fetchCatalog,
+    loadMore,
     fetchDetails,
     startConnect,
   };

@@ -24,22 +24,36 @@ describe('provider integration proxy route', () => {
 
   it('forwards GET path, query params, and auth to Orchestra', async () => {
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify([{ canonical_app_slug: 'slack' }]), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      new Response(
+        JSON.stringify({
+          items: [{ canonical_app_slug: 'slack' }],
+          total: 1,
+          limit: 50,
+          offset: 100,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
     );
     const request = new NextRequest(
-      'http://localhost/api/integrations/provider/apps?owner_scope=assistant&assistant_id=123',
+      'http://localhost/api/integrations/provider/apps?owner_scope=assistant&assistant_id=123&query=slack&source_type=third_party&limit=50&offset=100',
       { headers: { apiKey: 'test-api-key' } }
     );
 
     const response = await GET(request, { params: { path: ['apps'] } });
 
     expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      items: [{ canonical_app_slug: 'slack' }],
+      total: 1,
+      limit: 50,
+      offset: 100,
+    });
     const [target, init] = fetchSpy.mock.calls[0];
     expect(String(target)).toBe(
-      'http://127.0.0.1:8000/v0/integrations/apps?owner_scope=assistant&assistant_id=123'
+      'http://127.0.0.1:8000/v0/integrations/apps?owner_scope=assistant&assistant_id=123&query=slack&source_type=third_party&limit=50&offset=100'
     );
     expect(init).toMatchObject({
       method: 'GET',

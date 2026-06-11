@@ -48,6 +48,14 @@ interface ProviderAppPayload {
   nativeMetadata?: UnknownRecord | null;
 }
 
+interface ProviderAppPagePayload {
+  items?: ProviderAppPayload[];
+  apps?: ProviderAppPayload[];
+  total?: number;
+  limit?: number;
+  offset?: number;
+}
+
 interface ProviderConnectionPayload {
   connectionId?: string;
   id?: string;
@@ -298,6 +306,41 @@ export async function listProviderIntegrationDefinitions(args: {
     ProviderAppPayload[] | { apps?: ProviderAppPayload[]; items?: ProviderAppPayload[] }
   >(`apps?${params.toString()}`);
   return asArray<ProviderAppPayload>(data).map(mapProviderAppToDefinition);
+}
+
+export async function listProviderIntegrationDefinitionsPage(args: {
+  ownerScope: IntegrationOwnerScope;
+  assistantId?: string | number;
+  query?: string;
+  sourceType?: 'native' | 'third_party' | null;
+  limit?: number;
+  offset?: number;
+}): Promise<{
+  definitions: IntegrationDefinition[];
+  total: number;
+  limit: number;
+  offset: number;
+}> {
+  const params = new URLSearchParams();
+  const limit = args.limit ?? 100;
+  const offset = args.offset ?? 0;
+  params.set('owner_scope', args.ownerScope);
+  params.set('limit', String(limit));
+  params.set('offset', String(offset));
+  if (args.assistantId !== undefined) params.set('assistant_id', String(args.assistantId));
+  if (args.query?.trim()) params.set('query', args.query.trim());
+  if (args.sourceType) params.set('source_type', args.sourceType);
+  const data = await integrationFetch<ProviderAppPagePayload | ProviderAppPayload[]>(
+    `apps?${params.toString()}`
+  );
+  const items = asArray<ProviderAppPayload>(data);
+  const page = data && typeof data === 'object' && !Array.isArray(data) ? data : null;
+  return {
+    definitions: items.map(mapProviderAppToDefinition),
+    total: typeof page?.total === 'number' ? page.total : items.length,
+    limit: typeof page?.limit === 'number' ? page.limit : limit,
+    offset: typeof page?.offset === 'number' ? page.offset : offset,
+  };
 }
 
 export async function getProviderIntegrationDetails(args: {
