@@ -361,11 +361,12 @@ export function AssistantContactManager({
   const slackAvailable = !!assistantActions.slack && !!slackOwner;
 
   // Channel availability is reported by Orchestra (which probes the comms layer
-  // for the underlying provider credentials). A deployment without Twilio /
-  // Discord configured can't provision those channels, so we hide their tabs
-  // rather than letting a user reach a CTA that would fail at runtime. Email
-  // stays visible (it's BYOD workspace OAuth, gated inside the Workspace modal).
-  const { contactPhone, contactWhatsapp, contactDiscord } = useFeatures();
+  // for the underlying provider credentials). A deployment without Twilio
+  // configured can't provision those channels, so we hide their tabs rather
+  // than letting a user reach a CTA that would fail at runtime. Email stays
+  // visible (it's BYOD workspace OAuth, gated inside the Workspace modal), and
+  // Discord stays visible so users can always install the assistant's bot.
+  const { contactPhone, contactWhatsapp } = useFeatures();
 
   const [selectedTab, setSelectedTab] = React.useState<ContactManagerTab>(initialTab ?? activeTab);
   React.useEffect(() => {
@@ -377,13 +378,12 @@ export function AssistantContactManager({
   React.useEffect(() => {
     const unavailable =
       (selectedTab === 'phone' && !contactPhone) ||
-      (selectedTab === 'whatsapp' && !contactWhatsapp) ||
-      (selectedTab === 'discord' && !contactDiscord);
+      (selectedTab === 'whatsapp' && !contactWhatsapp);
     if (unavailable) {
       setSelectedTab('email');
       setActiveTab('email');
     }
-  }, [selectedTab, contactPhone, contactWhatsapp, contactDiscord, setActiveTab]);
+  }, [selectedTab, contactPhone, contactWhatsapp, setActiveTab]);
   const handleTabChange = (value: ContactManagerTab) => {
     setSelectedTab(value);
     if (value !== 'slack') setActiveTab(value);
@@ -608,13 +608,11 @@ export function AssistantContactManager({
                       </span>
                     </SelectItem>
                   )}
-                  {contactDiscord && (
-                    <SelectItem value="discord">
-                      <span className="flex items-center">
-                        <FaDiscord className="mr-2 h-4 w-4" /> Discord
-                      </span>
-                    </SelectItem>
-                  )}
+                  <SelectItem value="discord">
+                    <span className="flex items-center">
+                      <FaDiscord className="mr-2 h-4 w-4" /> Discord
+                    </span>
+                  </SelectItem>
                   {slackAvailable && (
                     <SelectItem value="slack">
                       <span className="flex items-center">
@@ -945,11 +943,21 @@ const DiscordTabContent: React.FC<{
   userDiscordId?: string | null;
 }> = ({ assistant, canWrite, userDiscordId }) => {
   if (assistant.assistantDiscordBotId) {
+    const installUrl = `https://discord.com/oauth2/authorize?client_id=${assistant.assistantDiscordBotId}`;
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
         <DisplayContactField label="Discord Bot ID" value={assistant.assistantDiscordBotId} />
+        {canWrite && (
+          <Button asChild className="gap-2">
+            <a href={installUrl} target="_blank" rel="noopener noreferrer">
+              <FaDiscord className="h-4 w-4" />
+              Add to your server
+              <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+            </a>
+          </Button>
+        )}
         <p className="text-caption text-muted-foreground">
-          Join the{' '}
+          Install the bot into your Discord server, or join the{' '}
           <a
             href="https://discord.gg/kRtBDmBA"
             target="_blank"
@@ -958,7 +966,7 @@ const DiscordTabContent: React.FC<{
           >
             Unify server
           </a>{' '}
-          on Discord to start talking to your assistant.
+          to start talking to your assistant.
         </p>
       </div>
     );
