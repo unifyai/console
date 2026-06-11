@@ -758,9 +758,9 @@ export type CreatePersonalCoordinatorOpts = Pick<
  * Create the user's personal Coordinator.
  *
  * Mirrors Orchestra's `create_coordinator_assistant`:
- *   - `first_name = 'Marty'`, `surname = NULL`, `job_title = 'Personal helper'`
+ *   - `first_name = 'Coordinator'`, `surname = 'Droid'`, `job_title = 'Coordinator droid'`
  *   - `nationality = 'United States'`, `desktop_mode = 'ubuntu'`
- *   - Numeric limits default to NULL; voice uses Marty's fixed ElevenLabs profile
+ *   - Numeric limits default to NULL; voice uses the coordinator's fixed ElevenLabs profile
  *   - `is_coordinator = TRUE`, `organization_id = NULL`
  *   - Personal contact memberships pinned to `self=0` / `boss=1`
  *
@@ -780,12 +780,12 @@ export function createPersonalCoordinator(
     if (Number.isFinite(parsed)) {
       ensureVoicePreset(userId);
       dbExec(
-        `UPDATE assistants SET voice_id = ${sqlLiteral(coordinatorFixedVoiceId)}, voice_provider = ${sqlLiteral(approvedCharacterVoiceMetadata[coordinatorFixedVoiceId].provider)}, job_title = ${sqlLiteral(COORDINATOR_DEFAULT_JOB_TITLE)}, about = CASE WHEN about IS NULL OR about = ${sqlLiteral(COORDINATOR_LEGACY_ABOUT)} THEN ${sqlLiteral(COORDINATOR_DEFAULT_ABOUT)} ELSE about END WHERE agent_id = ${parsed};`
+        `UPDATE assistants SET first_name = 'Coordinator', surname = 'Droid', voice_id = ${sqlLiteral(coordinatorFixedVoiceId)}, voice_provider = ${sqlLiteral(approvedCharacterVoiceMetadata[coordinatorFixedVoiceId].provider)}, job_title = ${sqlLiteral(COORDINATOR_DEFAULT_JOB_TITLE)}, about = CASE WHEN about IS NULL OR about = ${sqlLiteral(COORDINATOR_LEGACY_ABOUT)} THEN ${sqlLiteral(COORDINATOR_DEFAULT_ABOUT)} ELSE about END WHERE agent_id = ${parsed};`
       );
       return {
         agentId: parsed,
-        firstName: 'Marty',
-        surname: '',
+        firstName: 'Coordinator',
+        surname: 'Droid',
         userId,
         organizationId: null,
         isCoordinator: true,
@@ -797,8 +797,8 @@ export function createPersonalCoordinator(
 
   return createAssistant({
     userId,
-    firstName: 'Marty',
-    surname: null,
+    firstName: 'Coordinator',
+    surname: 'Droid',
     jobTitle: COORDINATOR_DEFAULT_JOB_TITLE,
     isCoordinator: true,
     about: opts.about ?? COORDINATOR_DEFAULT_ABOUT,

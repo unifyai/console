@@ -9,7 +9,7 @@ export interface ParsedMoodClassification {
   turnIndex: number;
 }
 
-export function mapFastBrainMoodToCreatureMood(value: unknown): CreatureMood | null {
+export function mapFastBrainMoodToDroidMood(value: unknown): CreatureMood | null {
   switch (value) {
     case 'neutral/happy':
     case 'happy':
@@ -46,8 +46,7 @@ export function parseMoodClassificationMessage(
   if (!Number.isFinite(turnIndex) || turnIndex <= lastTurnIndex) return null;
 
   const mood =
-    mapFastBrainMoodToCreatureMood(payload.avatarMood) ??
-    mapFastBrainMoodToCreatureMood(payload.mood);
+    mapFastBrainMoodToDroidMood(payload.avatarMood) ?? mapFastBrainMoodToDroidMood(payload.mood);
   if (!mood) return null;
 
   return { mood, turnIndex };

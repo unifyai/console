@@ -1,5 +1,6 @@
 import { ResponseProps } from '@/types/common';
 import { ConnectionDetails } from '@/types/assistants/call';
+import type { CallOpeningConfig } from '@/types/assistants/assistant';
 import { AccessToken, RoomServiceClient, type VideoGrant } from 'livekit-server-sdk';
 import { getCurrentUser } from '@/lib/user/user';
 import { makeRoomName } from '@/utils/assistants/call-utils';
@@ -93,7 +94,11 @@ export const deleteCallRoom = async () => {
 };
 
 export const dispatchAssistantToCall = async (_apiKey: string) => {
-  return async (assistantId: string, roomName: string): Promise<ResponseProps> => {
+  return async (
+    assistantId: string,
+    roomName: string,
+    openingConfig?: CallOpeningConfig
+  ): Promise<ResponseProps> => {
     'use server';
     try {
       const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
@@ -108,6 +113,7 @@ export const dispatchAssistantToCall = async (_apiKey: string) => {
         assistantId,
         livekitAgentName: roomName,
         roomName,
+        ...(openingConfig ? { openingConfig } : {}),
       });
 
       const resp = await fetch(dispatchUrl, {

@@ -5,7 +5,7 @@
  * the workspace Coordinator's state is in ``onboarding`` mode:
  *
  *   - The unskippable call-vs-chat picker shows on a fresh visit
- *   - Choosing "Start Call" plays the Marty intro before docking
+ *   - Choosing "Start Call" shows the coordinator droid intro before docking
  *     the real call surface
  *   - The skip-onboarding affordance is suppressed until the user
  *     has answered the picker
@@ -74,7 +74,7 @@ test('picker shows on first visit and hides the skip affordance', async ({ authe
   await expect(page.getByTestId('coordinator-onboarding-skip')).toHaveCount(0);
 });
 
-test('starting a call plays the Marty intro before docking the call', async ({
+test('starting a call shows the coordinator droid intro before docking the call', async ({
   authedPage: page,
 }) => {
   await page.addInitScript(() => {
@@ -164,7 +164,7 @@ test('skipping onboarding swaps in the regular assistants layout', async ({ auth
     timeout: 15_000,
   });
   // The standard assistants shell exposes the hire entry point even
-  // when Marty is the only assistant, whereas the onboarding view
+  // when the coordinator droid is the only assistant, whereas the onboarding view
   // suppresses it behind the picker/sidebar flow.
   await expect(page.getByRole('button', { name: /^Onboard$/ })).toBeVisible({ timeout: 15_000 });
 });

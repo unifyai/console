@@ -112,6 +112,7 @@ module.exports = {
       },
       fontFamily: {
         sans: [
+          'var(--font-space-grotesk)',
           'var(--font-sans)',
           'ui-sans-serif',
           'system-ui',

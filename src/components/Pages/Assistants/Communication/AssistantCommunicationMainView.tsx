@@ -6,22 +6,22 @@ import { VideoTrack, TrackReference } from '@livekit/components-react';
 import { cn } from '@/lib/utils';
 import { Loader2, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/UI/button';
-import { MartyCallAvatar } from '@/components/Pages/Assistants/Communication/MartyCallAvatar';
+import { DroidCallAvatar } from '@/components/Pages/Assistants/Communication/DroidCallAvatar';
 import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
-import { useMartianEyeExpression } from '@/hooks/Assistants/useMartianEyeExpression';
-import { useMartianAudioLipsync } from '@/hooks/Assistants/useMartianAudioLipsync';
+import { useDroidEyeExpression } from '@/hooks/Assistants/useDroidEyeExpression';
+import { useDroidAudioLipsync } from '@/hooks/Assistants/useDroidAudioLipsync';
 import type {
   CreatureEyes,
   CreatureMood,
   CreatureMouthShape,
 } from '@/components/Brand/TeammateCreature';
-import { getMartianSpeechTransform } from '@/utils/assistants/martian-animation';
-import { COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION } from '@/utils/assistants/coordinator-onboarding-intro';
+import { getDroidSpeechTransform } from '@/utils/assistants/droid-animation';
+import { COORDINATOR_ONBOARDING_DROID_LAYOUT_TRANSITION } from '@/utils/assistants/coordinator-onboarding-intro';
 
-type BrowserWindowWithMartyIntroAudio = Window & {
-  __martyOnboardingIntroAudio?: HTMLAudioElement;
-  __martyOnboardingIntroSpeechLevel?: number;
-  __martyOnboardingIntroMouthShape?: CreatureMouthShape;
+type BrowserWindowWithCoordinatorIntroAudio = Window & {
+  __coordinatorOnboardingIntroAudio?: HTMLAudioElement;
+  __coordinatorOnboardingIntroSpeechLevel?: number;
+  __coordinatorOnboardingIntroMouthShape?: CreatureMouthShape;
 };
 
 const IMAGE_AVATAR_MOUTH: Record<
@@ -159,17 +159,17 @@ export function AssistantCommunicationMainView({
   const fallback = assistantName
     ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
     : 'A';
-  // A `appearance://` photo means this assistant is a creature — render the
+  // A `appearance://` photo means this assistant is a droid — render the
   // animated SVG instead of a (broken) <img> + overlaid eyes/mouth.
   const creatureAppearance = parseCreatureSentinel(imageUrl);
   const [isIntroAudioPlaying, setIsIntroAudioPlaying] = React.useState(false);
   const [introAudioSpeechLevel, setIntroAudioSpeechLevel] = React.useState(0);
   const [introAudioMouthShape, setIntroAudioMouthShape] =
     React.useState<CreatureMouthShape>('closed');
-  const liveLipsyncFrame = useMartianAudioLipsync(audioTrack, !isLoading && !connectionError);
+  const liveLipsyncFrame = useDroidAudioLipsync(audioTrack, !isLoading && !connectionError);
   const isImageAvatarSpeaking =
     liveLipsyncFrame.isActive || (isSpeaking && !isLoading && !connectionError);
-  const imageAvatarEyes = useMartianEyeExpression({
+  const imageAvatarEyes = useDroidEyeExpression({
     isCallActive,
     isSpeaking: isImageAvatarSpeaking,
     isUserSpeaking,
@@ -180,11 +180,11 @@ export function AssistantCommunicationMainView({
     if (!isCoordinator) return;
 
     const updateIntroAudioState = () => {
-      const martyWindow = window as BrowserWindowWithMartyIntroAudio;
-      const audio = martyWindow.__martyOnboardingIntroAudio;
+      const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
+      const audio = coordinatorWindow.__coordinatorOnboardingIntroAudio;
       setIsIntroAudioPlaying(!!audio && !audio.paused && !audio.ended);
-      setIntroAudioSpeechLevel(martyWindow.__martyOnboardingIntroSpeechLevel ?? 0);
-      setIntroAudioMouthShape(martyWindow.__martyOnboardingIntroMouthShape ?? 'closed');
+      setIntroAudioSpeechLevel(coordinatorWindow.__coordinatorOnboardingIntroSpeechLevel ?? 0);
+      setIntroAudioMouthShape(coordinatorWindow.__coordinatorOnboardingIntroMouthShape ?? 'closed');
     };
 
     updateIntroAudioState();
@@ -302,19 +302,21 @@ export function AssistantCommunicationMainView({
     );
   }
 
-  const martySpeechLevel = isIntroAudioPlaying
+  const coordinatorSpeechLevel = isIntroAudioPlaying
     ? introAudioSpeechLevel
     : liveLipsyncFrame.speechLevel;
-  const martyMouthShape = isIntroAudioPlaying ? introAudioMouthShape : liveLipsyncFrame.mouthShape;
-  const isMartySpeaking =
+  const coordinatorMouthShape = isIntroAudioPlaying
+    ? introAudioMouthShape
+    : liveLipsyncFrame.mouthShape;
+  const isCoordinatorSpeaking =
     isIntroAudioPlaying ||
     liveLipsyncFrame.isActive ||
     (isSpeaking && !isLoading && !connectionError);
   const imageAvatarSpeechLevel = liveLipsyncFrame.speechLevel;
   const imageAvatarMouthShape = liveLipsyncFrame.mouthShape;
   const imageAvatarVisualStyle = {
-    '--martian-speech-level': imageAvatarSpeechLevel.toFixed(3),
-    transform: getMartianSpeechTransform(imageAvatarSpeechLevel * 0.45),
+    '--droid-speech-level': imageAvatarSpeechLevel.toFixed(3),
+    transform: getDroidSpeechTransform(imageAvatarSpeechLevel * 0.45),
   } as React.CSSProperties;
 
   return (
@@ -354,18 +356,18 @@ export function AssistantCommunicationMainView({
           ) : (
             <>
               {isCoordinator ? (
-                <MartyCallAvatar
-                  isSpeaking={isMartySpeaking}
+                <DroidCallAvatar
+                  isSpeaking={isCoordinatorSpeaking}
                   isCallActive={isCallActive}
                   isUserSpeaking={isUserSpeaking}
-                  layoutTransition={COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION}
-                  layoutId="marty-onboarding-call-avatar"
+                  layoutTransition={COORDINATOR_ONBOARDING_DROID_LAYOUT_TRANSITION}
+                  layoutId="coordinator-onboarding-call-avatar"
                   mood={mood}
-                  mouthShape={martyMouthShape}
-                  speechLevel={martySpeechLevel}
+                  mouthShape={coordinatorMouthShape}
+                  speechLevel={coordinatorSpeechLevel}
                 />
               ) : creatureAppearance ? (
-                <MartyCallAvatar
+                <DroidCallAvatar
                   isSpeaking={isImageAvatarSpeaking}
                   isCallActive={isCallActive}
                   isUserSpeaking={isUserSpeaking}

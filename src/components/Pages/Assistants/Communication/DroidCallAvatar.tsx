@@ -11,13 +11,10 @@ import type {
   CreatureMouthShape,
 } from '@/components/Brand/TeammateCreature';
 import { cn } from '@/lib/utils';
-import { useMartianEyeExpression } from '@/hooks/Assistants/useMartianEyeExpression';
-import {
-  clampMartianSpeechLevel,
-  getMartianSpeechTransform,
-} from '@/utils/assistants/martian-animation';
+import { useDroidEyeExpression } from '@/hooks/Assistants/useDroidEyeExpression';
+import { clampDroidSpeechLevel, getDroidSpeechTransform } from '@/utils/assistants/droid-animation';
 
-interface MartyCallAvatarProps {
+interface DroidCallAvatarProps {
   isSpeaking: boolean;
   isCallActive?: boolean;
   isUserSpeaking?: boolean;
@@ -29,14 +26,13 @@ interface MartyCallAvatarProps {
   creatureClassName?: string;
   layoutId?: string;
   layoutTransition?: Transition;
-  /** Creature appearance — defaults to Marty (the coordinator). */
   shape?: CreatureShape;
   color?: BrandRole;
   baseEyes?: CreatureEyes;
   label?: string;
 }
 
-export function MartyCallAvatar({
+export function DroidCallAvatar({
   isSpeaking,
   isCallActive = false,
   isUserSpeaking = false,
@@ -51,13 +47,13 @@ export function MartyCallAvatar({
   shape = 'clawd',
   color = 'green',
   baseEyes = 'up',
-  label = 'Marty',
-}: MartyCallAvatarProps) {
+  label = 'Coordinator Droid',
+}: DroidCallAvatarProps) {
   const [isHovered, setIsHovered] = React.useState(false);
-  const displayedSpeechLevel = clampMartianSpeechLevel(speechLevel ?? 0);
+  const displayedSpeechLevel = clampDroidSpeechLevel(speechLevel ?? 0);
   const displayedMouthShape =
     mouthShape ?? (displayedSpeechLevel > 0.08 && isSpeaking ? 'narrow' : 'closed');
-  const animatedEyes = useMartianEyeExpression({
+  const animatedEyes = useDroidEyeExpression({
     baseEyes,
     isCallActive,
     isSpeaking,
@@ -66,10 +62,8 @@ export function MartyCallAvatar({
   });
   const displayedCreatureEyes = isHovered ? 'square' : animatedEyes;
   const animatedVisualStyle = {
-    '--martian-speech-level': displayedSpeechLevel.toFixed(3),
-    transform: animateBodyMotion
-      ? getMartianSpeechTransform(displayedSpeechLevel * 0.45)
-      : undefined,
+    '--droid-speech-level': displayedSpeechLevel.toFixed(3),
+    transform: animateBodyMotion ? getDroidSpeechTransform(displayedSpeechLevel * 0.45) : undefined,
   } as React.CSSProperties;
 
   return (

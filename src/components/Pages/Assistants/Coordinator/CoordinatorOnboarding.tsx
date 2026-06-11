@@ -34,8 +34,9 @@ import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
-import { MartyCallAvatar } from '@/components/Pages/Assistants/Communication/MartyCallAvatar';
+import { DroidCallAvatar } from '@/components/Pages/Assistants/Communication/DroidCallAvatar';
 import { CoordinatorOnboardingCallIntro } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingCallIntro';
+import { COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT } from '@/utils/assistants/coordinator-onboarding-intro';
 import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
 import { CoordinatorOnboardingSidebar } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingSidebar';
 import { useCoordinatorOnboardingContext } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingContext';
@@ -44,7 +45,11 @@ import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 import { useIsMobile } from '@/hooks/Common/useMobile';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { notifyOnboardingSessionStarted } from '@/lib/client/coordinator';
-import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
+import type {
+  Assistant,
+  AssistantActions,
+  AssistantCallConnectOptions,
+} from '@/types/assistants/assistant';
 import type { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
@@ -108,7 +113,7 @@ interface CoordinatorOnboardingProps {
   onStartCall: (
     assistant: Assistant,
     callType: 'video' | 'audio',
-    options?: { suppressRinging?: boolean }
+    options?: AssistantCallConnectOptions
   ) => Promise<void> | void;
   /** Opens the workspace OAuth dialog (``AssistantWorkspaceManager``)
    * for this Coordinator. Hung off the "Give your coordinator
@@ -385,7 +390,7 @@ export function CoordinatorOnboarding({
   // can always send a message themselves to unblock things. The
   // call path deliberately skips this: the spoken intro owns that
   // first turn, and sending a parallel text while on a call feels
-  // like Marty is talking over himself.
+  // like the coordinator droid is talking over itself.
   const notifySessionStarted = React.useCallback(
     (medium: 'chat' | 'call') => {
       const snapshot = completedStepIdsRef.current;
@@ -403,7 +408,14 @@ export function CoordinatorOnboarding({
     hasTriggeredCallStartRef.current = true;
     setIsStartingCall(true);
     try {
-      await onStartCall(coordinator, 'audio', { suppressRinging: true });
+      await onStartCall(coordinator, 'audio', {
+        suppressRinging: true,
+        openingConfig: {
+          mode: 'simulated',
+          simulatedUtterance: COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT,
+          source: 'coordinator_droid_onboarding_intro',
+        },
+      });
     } catch (error) {
       console.error('[CoordinatorOnboarding] Failed to start intro call:', error);
       hasTriggeredCallStartRef.current = false;
@@ -1033,10 +1045,12 @@ function CoordinatorOnboardingPicker({
       data-testid="coordinator-onboarding-picker"
     >
       <div ref={avatarRef} className="h-32 w-32">
-        <MartyCallAvatar creatureClassName="h-28 w-28" isSpeaking={false} />
+        <DroidCallAvatar creatureClassName="h-28 w-28" isSpeaking={false} />
       </div>
       <p className="text-h3 font-medium text-foreground">
-        {voiceCalls ? 'Marty is calling to onboard you' : 'Start onboarding with Marty'}
+        {voiceCalls
+          ? 'Your coordinator droid is calling to onboard you'
+          : 'Start onboarding with your coordinator droid'}
       </p>
       <div className="flex flex-col items-center gap-3 sm:flex-row">
         {voiceCalls ? (

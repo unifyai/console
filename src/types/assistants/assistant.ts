@@ -15,6 +15,19 @@ import {
 
 export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
 
+export type CallOpeningMode = 'speak' | 'simulated' | 'silent';
+
+export interface CallOpeningConfig {
+  mode: CallOpeningMode;
+  simulatedUtterance?: string;
+  source?: string;
+}
+
+export interface AssistantCallConnectOptions {
+  suppressRinging?: boolean;
+  openingConfig?: CallOpeningConfig;
+}
+
 export type UserLocalDesktop = 'ubuntu' | 'windows' | 'macos';
 export type DesktopMode = 'ubuntu' | 'windows' | 'macos';
 export type AssistantHiringSufficientFunds = { sufficient: boolean };
@@ -539,7 +552,11 @@ export interface AssistantActions {
       assistantId: string,
       assistantName: string
     ) => Promise<ConnectionDetails | ResponseProps>;
-    dispatchToCall: (assistantId: string, roomName: string) => Promise<ResponseProps>;
+    dispatchToCall: (
+      assistantId: string,
+      roomName: string,
+      openingConfig?: CallOpeningConfig
+    ) => Promise<ResponseProps>;
     deleteRoom: (roomName: string) => Promise<ResponseProps>;
   };
   desktop: {

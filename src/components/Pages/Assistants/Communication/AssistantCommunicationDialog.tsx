@@ -486,16 +486,17 @@ const MIN_FLOATING_HEIGHT = 160;
 const COMPACT_WIDTH_THRESHOLD = 480;
 const COMPACT_HEIGHT_THRESHOLD = 380;
 
-type BrowserWindowWithMartyIntroAudio = Window & {
-  __martyOnboardingIntroAudio?: HTMLAudioElement;
+type BrowserWindowWithCoordinatorIntroAudio = Window & {
+  __coordinatorOnboardingIntroAudio?: HTMLAudioElement;
 };
 
-function useIsMartyIntroAudioPlaying() {
+function useIsCoordinatorIntroAudioPlaying() {
   const [isIntroAudioPlaying, setIsIntroAudioPlaying] = React.useState(false);
 
   React.useEffect(() => {
     const updateIntroAudioState = () => {
-      const audio = (window as BrowserWindowWithMartyIntroAudio).__martyOnboardingIntroAudio;
+      const audio = (window as BrowserWindowWithCoordinatorIntroAudio)
+        .__coordinatorOnboardingIntroAudio;
       setIsIntroAudioPlaying(!!audio && !audio.paused && !audio.ended);
     };
 
@@ -614,7 +615,7 @@ export function AssistantCommunicationDialog({
   const [isResizing, setIsResizing] = React.useState(false);
 
   const isModal = mode === 'modal';
-  const isMartyIntroAudioPlaying = useIsMartyIntroAudioPlaying();
+  const isCoordinatorIntroAudioPlaying = useIsCoordinatorIntroAudioPlaying();
 
   // Reset to modal every time the dialog opens.
   React.useEffect(() => {
@@ -781,7 +782,7 @@ export function AssistantCommunicationDialog({
         className="relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground"
         data-testid="assistant-call-docked"
       >
-        {!isMartyIntroAudioPlaying && <RoomAudioRenderer />}
+        {!isCoordinatorIntroAudioPlaying && <RoomAudioRenderer />}
         <AssistantCommunicationDialogContent
           assistant={assistant}
           onHangUp={onClose}
@@ -870,7 +871,7 @@ export function AssistantCommunicationDialog({
         }
         onPointerDown={isCompact ? handleHeaderPointerDown : undefined}
       >
-        {!isMartyIntroAudioPlaying && <RoomAudioRenderer />}
+        {!isCoordinatorIntroAudioPlaying && <RoomAudioRenderer />}
 
         {isCompact ? (
           /* Compact / simplified view */

@@ -1,26 +1,23 @@
 import * as React from 'react';
 import { Room, RoomEvent } from 'livekit-client';
 import { toast } from 'sonner';
-import { Assistant, AssistantActions } from '@/types/assistants/assistant';
+import {
+  Assistant,
+  AssistantActions,
+  AssistantCallConnectOptions,
+} from '@/types/assistants/assistant';
 import { ConnectionDetails } from '@/types/assistants/call';
 import { makeRoomName } from '@/utils/assistants/call-utils';
 import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
 import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
-import {
-  DEFAULT_AVATAR_MOOD,
-  parseMoodClassificationMessage,
-} from '@/utils/assistants/martian-mood';
+import { DEFAULT_AVATAR_MOOD, parseMoodClassificationMessage } from '@/utils/assistants/droid-mood';
 
 const ASSISTANT_JOIN_SLOW_THRESHOLD = 90000; // 90 seconds — soft warning, not an error
 const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
-
-interface AssistantCallConnectOptions {
-  suppressRinging?: boolean;
-}
 
 export function useAssistantCall(room: Room, assistantActions: AssistantActions) {
   const [connectionDetails, setConnectionDetails] = React.useState<ConnectionDetails | null>(null);
@@ -158,7 +155,11 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
             // doesn't need to wait for connection details.
             const [details, dispatchResult] = await Promise.all([
               assistantActions.call.getConnectionDetails(assistant.agentId, assistantName),
-              assistantActions.call.dispatchToCall(assistant.agentId, expectedRoomName),
+              assistantActions.call.dispatchToCall(
+                assistant.agentId,
+                expectedRoomName,
+                options?.openingConfig
+              ),
             ]);
             if (isStaleAttempt()) return;
 

@@ -122,10 +122,10 @@ export function AssistantHire({
   };
 
   const hireButtonLabel = () => {
-    if (isHireSubmitting) return 'Onboarding Martian...';
+    if (isHireSubmitting) return 'Onboarding Droid...';
     if (isProcessingVoice) return 'Processing Voice...';
     if (isProcessingPhoto) return 'Processing Photo...';
-    return 'Onboard Martian';
+    return 'Onboard Droid';
   };
 
   return (
@@ -153,7 +153,7 @@ export function AssistantHire({
         <DialogHeader className="flex-shrink-0 border-b px-6 py-4">
           <div className="flex items-start justify-between">
             <div className="flex flex-col gap-2">
-              <DialogTitle className="text-h3">Onboard Martian</DialogTitle>
+              <DialogTitle className="text-h3">Onboard Droid</DialogTitle>
             </div>
             <TooltipProvider delayDuration={100}>
               <Tooltip open={isCloseTooltipOpen} onOpenChange={setIsCloseTooltipOpen}>

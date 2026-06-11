@@ -1,26 +1,26 @@
 import { VISEMES } from 'wawa-lipsync';
 import type { CreatureMouthShape } from '@/components/Brand/TeammateCreature';
-import { clampMartianSpeechLevel } from '@/utils/assistants/martian-animation';
+import { clampDroidSpeechLevel } from '@/utils/assistants/droid-animation';
 
-export interface MartianLipsyncFrame {
+export interface DroidLipsyncFrame {
   mouthShape: CreatureMouthShape;
   speechLevel: number;
   viseme: VISEMES;
   isActive: boolean;
 }
 
-export const MARTIAN_IDLE_LIPSYNC_FRAME: MartianLipsyncFrame = {
+export const DROID_IDLE_LIPSYNC_FRAME: DroidLipsyncFrame = {
   mouthShape: 'closed',
   speechLevel: 0,
   viseme: VISEMES.sil,
   isActive: false,
 };
 
-export function getMartianSpeechLevel(volume: number): number {
-  return clampMartianSpeechLevel(Math.sqrt(Math.max(0, volume - 0.045)) * 1.05);
+export function getDroidSpeechLevel(volume: number): number {
+  return clampDroidSpeechLevel(Math.sqrt(Math.max(0, volume - 0.045)) * 1.05);
 }
 
-export function getMartianMouthShape(viseme: VISEMES, speechLevel: number): CreatureMouthShape {
+export function getDroidMouthShape(viseme: VISEMES, speechLevel: number): CreatureMouthShape {
   switch (viseme) {
     case VISEMES.PP:
     case VISEMES.FF:
@@ -48,10 +48,10 @@ export function getMartianMouthShape(viseme: VISEMES, speechLevel: number): Crea
   }
 }
 
-export function getMartianLipsyncFrame(viseme: VISEMES, volume: number): MartianLipsyncFrame {
-  const speechLevel = getMartianSpeechLevel(volume);
+export function getDroidLipsyncFrame(viseme: VISEMES, volume: number): DroidLipsyncFrame {
+  const speechLevel = getDroidSpeechLevel(volume);
   return {
-    mouthShape: getMartianMouthShape(viseme, speechLevel),
+    mouthShape: getDroidMouthShape(viseme, speechLevel),
     speechLevel,
     viseme,
     isActive: speechLevel > 0.08 || viseme !== VISEMES.sil,

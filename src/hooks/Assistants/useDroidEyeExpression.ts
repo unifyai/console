@@ -20,7 +20,7 @@ function nextDelay(minMs: number, maxMs: number): number {
   return minMs + Math.random() * (maxMs - minMs);
 }
 
-export function useMartianEyeExpression({
+export function useDroidEyeExpression({
   baseEyes = 'up',
   isCallActive = false,
   isSpeaking,

@@ -38,10 +38,7 @@ import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { ParsedInboundChatMessage } from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
-import {
-  DEFAULT_AVATAR_MOOD,
-  parseMoodClassificationMessage,
-} from '@/utils/assistants/martian-mood';
+import { DEFAULT_AVATAR_MOOD, parseMoodClassificationMessage } from '@/utils/assistants/droid-mood';
 
 type AssistantActionsSubset = Pick<AssistantActions, 'chat' | 'call' | 'desktop'> &
   Partial<Pick<AssistantActions, 'voice'>>;

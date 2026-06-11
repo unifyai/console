@@ -3,22 +3,22 @@
 import * as React from 'react';
 import { motion } from 'framer-motion';
 import { Lipsync } from 'wawa-lipsync';
-import { MartyCallAvatar } from '@/components/Pages/Assistants/Communication/MartyCallAvatar';
+import { DroidCallAvatar } from '@/components/Pages/Assistants/Communication/DroidCallAvatar';
 import {
   COORDINATOR_ONBOARDING_INTRO,
-  COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION,
+  COORDINATOR_ONBOARDING_DROID_LAYOUT_TRANSITION,
 } from '@/utils/assistants/coordinator-onboarding-intro';
 import type { CreatureMouthShape } from '@/components/Brand/TeammateCreature';
-import { getMartianLipsyncFrame } from '@/utils/assistants/martian-lipsync';
+import { getDroidLipsyncFrame } from '@/utils/assistants/droid-lipsync';
 
 type IntroStage = 'pause' | 'speaking' | 'flying' | 'landing';
 type LipsyncInternals = {
   audioContext: AudioContext;
 };
-type BrowserWindowWithMartyIntroAudio = Window & {
-  __martyOnboardingIntroAudio?: HTMLAudioElement;
-  __martyOnboardingIntroSpeechLevel?: number;
-  __martyOnboardingIntroMouthShape?: CreatureMouthShape;
+type BrowserWindowWithCoordinatorIntroAudio = Window & {
+  __coordinatorOnboardingIntroAudio?: HTMLAudioElement;
+  __coordinatorOnboardingIntroSpeechLevel?: number;
+  __coordinatorOnboardingIntroMouthShape?: CreatureMouthShape;
 };
 
 interface CoordinatorOnboardingCallIntroProps {
@@ -142,9 +142,9 @@ export function CoordinatorOnboardingCallIntro({
         animationFrame = 0;
       }
       smoothedLevel = 0;
-      const martyWindow = window as BrowserWindowWithMartyIntroAudio;
-      martyWindow.__martyOnboardingIntroSpeechLevel = 0;
-      martyWindow.__martyOnboardingIntroMouthShape = 'closed';
+      const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
+      coordinatorWindow.__coordinatorOnboardingIntroSpeechLevel = 0;
+      coordinatorWindow.__coordinatorOnboardingIntroMouthShape = 'closed';
       if (resetSpeechLevel) {
         setAudioSpeechLevel(0);
         setAudioMouthShape('closed');
@@ -158,7 +158,7 @@ export function CoordinatorOnboardingCallIntro({
       const tick = () => {
         if (!lipsync) return;
         lipsync.processAudio();
-        const frame = getMartianLipsyncFrame(lipsync.viseme, lipsync.features?.volume ?? 0);
+        const frame = getDroidLipsyncFrame(lipsync.viseme, lipsync.features?.volume ?? 0);
         smoothedLevel = smoothedLevel * 0.72 + frame.speechLevel * 0.28;
         const mouthShape =
           frame.isActive || smoothedLevel > 0.08
@@ -166,9 +166,9 @@ export function CoordinatorOnboardingCallIntro({
               ? frame.mouthShape
               : 'narrow'
             : 'closed';
-        const martyWindow = window as BrowserWindowWithMartyIntroAudio;
-        martyWindow.__martyOnboardingIntroSpeechLevel = smoothedLevel;
-        martyWindow.__martyOnboardingIntroMouthShape = mouthShape;
+        const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
+        coordinatorWindow.__coordinatorOnboardingIntroSpeechLevel = smoothedLevel;
+        coordinatorWindow.__coordinatorOnboardingIntroMouthShape = mouthShape;
         if (shouldPublishToComponent) {
           setAudioSpeechLevel(smoothedLevel);
           setAudioMouthShape(mouthShape);
@@ -188,15 +188,15 @@ export function CoordinatorOnboardingCallIntro({
         if (hasStartedAudio) return;
         hasStartedAudio = true;
 
-        const martyWindow = window as BrowserWindowWithMartyIntroAudio;
-        const previousAudio = martyWindow.__martyOnboardingIntroAudio;
+        const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
+        const previousAudio = coordinatorWindow.__coordinatorOnboardingIntroAudio;
         if (previousAudio && previousAudio !== audio) {
           previousAudio.pause();
           previousAudio.currentTime = 0;
           previousAudio.removeAttribute('src');
           previousAudio.load();
         }
-        martyWindow.__martyOnboardingIntroAudio = audio;
+        coordinatorWindow.__coordinatorOnboardingIntroAudio = audio;
 
         startAudioAnalysis(audio);
         (lipsync as unknown as LipsyncInternals | null)?.audioContext?.resume().catch(() => {});
@@ -207,9 +207,9 @@ export function CoordinatorOnboardingCallIntro({
       audio.addEventListener(
         'ended',
         () => {
-          const martyWindow = window as BrowserWindowWithMartyIntroAudio;
-          if (martyWindow.__martyOnboardingIntroAudio === audio) {
-            martyWindow.__martyOnboardingIntroAudio = undefined;
+          const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
+          if (coordinatorWindow.__coordinatorOnboardingIntroAudio === audio) {
+            coordinatorWindow.__coordinatorOnboardingIntroAudio = undefined;
           }
           stopAudioAnalysis(!hasFinishedRef.current);
           (lipsync as unknown as LipsyncInternals | null)?.audioContext?.close().catch(() => {});
@@ -233,9 +233,9 @@ export function CoordinatorOnboardingCallIntro({
         stopAudioAnalysis();
       }
       if (audio) {
-        const martyWindow = window as BrowserWindowWithMartyIntroAudio;
-        if (!keepAudioPlaying && martyWindow.__martyOnboardingIntroAudio === audio) {
-          martyWindow.__martyOnboardingIntroAudio = undefined;
+        const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
+        if (!keepAudioPlaying && coordinatorWindow.__coordinatorOnboardingIntroAudio === audio) {
+          coordinatorWindow.__coordinatorOnboardingIntroAudio = undefined;
         }
         if (!keepAudioPlaying) {
           audio.pause();
@@ -321,13 +321,13 @@ export function CoordinatorOnboardingCallIntro({
         className="flex items-center justify-center"
       >
         <div className="relative h-32 w-32">
-          <MartyCallAvatar
+          <DroidCallAvatar
             animateBodyMotion={false}
             className="drop-shadow-sm"
             creatureClassName="h-28 w-28"
             isSpeaking={stage === 'speaking' || stage === 'flying'}
-            layoutTransition={COORDINATOR_ONBOARDING_MARTY_LAYOUT_TRANSITION}
-            layoutId="marty-onboarding-call-avatar"
+            layoutTransition={COORDINATOR_ONBOARDING_DROID_LAYOUT_TRANSITION}
+            layoutId="coordinator-onboarding-call-avatar"
             mouthShape={audioMouthShape}
             speechLevel={COORDINATOR_ONBOARDING_INTRO.audioSrc ? audioSpeechLevel : undefined}
           />

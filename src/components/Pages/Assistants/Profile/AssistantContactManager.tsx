@@ -420,7 +420,7 @@ export function AssistantContactManager({
       if (!assistant.email) {
         return (
           <p className="text-body text-muted-foreground">
-            Marty email is managed automatically and will appear here once configured.
+            Coordinator droid email is managed automatically and will appear here once configured.
           </p>
         );
       }
@@ -428,13 +428,13 @@ export function AssistantContactManager({
       return (
         <div className="space-y-2">
           <div className="flex items-center">
-            <Label>Marty Email Address</Label>
+            <Label>Coordinator Droid Email Address</Label>
             <ProviderBadge provider="Platform-managed" />
           </div>
-          <DisplayContactField label="Marty Email Address" value={assistant.email} />
+          <DisplayContactField label="Coordinator Droid Email Address" value={assistant.email} />
           <p className="text-caption text-muted-foreground">
-            Marty email is managed automatically. Messages to this shared address are routed by
-            verified sender identity.
+            Coordinator droid email is managed automatically. Messages to this shared address are
+            routed by verified sender identity.
           </p>
         </div>
       );
@@ -742,7 +742,7 @@ const PhoneTabContent: React.FC<{
     if (!assistant.phone) {
       return (
         <p className="text-body text-muted-foreground">
-          Marty phone is managed automatically and will appear here once configured.
+          Coordinator droid phone is managed automatically and will appear here once configured.
         </p>
       );
     }
@@ -750,13 +750,13 @@ const PhoneTabContent: React.FC<{
     return (
       <div className="space-y-2">
         <div className="flex items-center">
-          <Label>Marty Phone Number</Label>
+          <Label>Coordinator Droid Phone Number</Label>
           <ProviderBadge provider="Platform-managed" />
         </div>
-        <DisplayContactField label="Marty Phone Number" value={assistant.phone} />
+        <DisplayContactField label="Coordinator Droid Phone Number" value={assistant.phone} />
         <p className="text-caption text-muted-foreground">
-          Marty phone is managed automatically. SMS messages and calls to this shared number are
-          routed by verified sender identity.
+          Coordinator droid phone is managed automatically. SMS messages and calls to this shared
+          number are routed by verified sender identity.
         </p>
       </div>
     );
@@ -871,12 +871,16 @@ const WhatsAppTabContent: React.FC<{
     return (
       <div className="space-y-2">
         <DisplayContactField
-          label={assistant.isCoordinator ? 'Marty WhatsApp Number' : 'Assistant WhatsApp Number'}
+          label={
+            assistant.isCoordinator
+              ? 'Coordinator Droid WhatsApp Number'
+              : 'Assistant WhatsApp Number'
+          }
           value={assistant.assistantWhatsappNumber}
         />
         <p className="text-caption text-muted-foreground">
           {assistant.isCoordinator
-            ? 'Marty WhatsApp is managed automatically. Messages to this shared number are routed by verified sender identity.'
+            ? 'Coordinator droid WhatsApp is managed automatically. Messages to this shared number are routed by verified sender identity.'
             : 'Send a message first — your assistant can only call you on WhatsApp after you start a conversation.'}
         </p>
       </div>
@@ -885,7 +889,7 @@ const WhatsAppTabContent: React.FC<{
   if (assistant.isCoordinator) {
     return (
       <p className="text-body text-muted-foreground">
-        Marty WhatsApp is managed automatically and will appear here once configured.
+        Coordinator droid WhatsApp is managed automatically and will appear here once configured.
       </p>
     );
   }

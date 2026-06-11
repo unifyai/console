@@ -200,10 +200,10 @@ function CoordinatorAssistantInfoSidePanelContent({
     <ScrollArea className={cn('flex-1', className)}>
       <div className="flex flex-col gap-4 px-4 py-4">
         <IdentityHeader
-          name="Marty"
+          name="Coordinator Droid"
           photoSrc={undefined}
           initials="CO"
-          summary="Your personal martian"
+          summary="Your personal coordinator droid"
           visibilityLabel={
             <span className="inline-flex items-center gap-1">
               Only you
@@ -494,9 +494,9 @@ function IdentityHeader({
           onClick={onCopyId}
           className={cn(metadataRowClass, 'group/id w-full cursor-pointer text-left')}
           data-testid="assistant-info-copy-id"
-          aria-label="Copy martian ID"
+          aria-label="Copy droid ID"
         >
-          <span className="opacity-70">Martian ID:</span>
+          <span className="opacity-70">Droid ID:</span>
           <span className="flex min-w-0 items-center">
             {isIdCopied ? (
               <Check className="h-3 w-3 flex-shrink-0 text-[color:var(--status-success)]" />

@@ -79,7 +79,8 @@ export function AssistantWorkspaceManager({
       </span>
       <span className="mt-2 block">
         Do <strong className="font-bold text-foreground">not</strong> connect {assistantName} to
-        your own Google/Microsoft account. Only Marty should have access to your personal account.
+        your own Google/Microsoft account. Only the coordinator droid should have access to your
+        personal account.
       </span>
       <span className="text-title mt-4 block text-foreground">Steps</span>
       <ol className="mt-2 list-decimal space-y-1 pl-5">

@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
-  mapFastBrainMoodToCreatureMood,
+  mapFastBrainMoodToDroidMood,
   parseMoodClassificationMessage,
-} from '@/utils/assistants/martian-mood';
+} from '@/utils/assistants/droid-mood';
 
-describe('martian mood utilities', () => {
-  it('maps fast-brain mood labels to creature moods', () => {
-    expect(mapFastBrainMoodToCreatureMood('neutral/happy')).toBe('happy');
-    expect(mapFastBrainMoodToCreatureMood('apologetic/sad')).toBe('sad');
-    expect(mapFastBrainMoodToCreatureMood('frustrated/angry')).toBe('frustrated');
-    expect(mapFastBrainMoodToCreatureMood('bored')).toBe('happy');
+describe('droid mood utilities', () => {
+  it('maps fast-brain mood labels to droid moods', () => {
+    expect(mapFastBrainMoodToDroidMood('neutral/happy')).toBe('happy');
+    expect(mapFastBrainMoodToDroidMood('apologetic/sad')).toBe('sad');
+    expect(mapFastBrainMoodToDroidMood('frustrated/angry')).toBe('frustrated');
+    expect(mapFastBrainMoodToDroidMood('bored')).toBe('happy');
   });
 
   it('parses current mood classification messages', () => {

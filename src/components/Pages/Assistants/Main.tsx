@@ -11,6 +11,7 @@ import {
 import {
   Assistant,
   AssistantActions,
+  AssistantCallConnectOptions,
   AssistantFormData,
   AssistantPreset,
   AssistantUpdatePayload,
@@ -87,7 +88,7 @@ import { fetchMemoryContext } from '@/lib/client/memory';
 import { isWorkspaceManagedSecretName } from '@/hooks/Assistants/useAssistantIntegrations';
 import type { Secret } from '@/types/assistants/secret';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
-import { createRandomMartianProfile } from '@/utils/assistants/martian-profile-randomizer';
+import { createRandomDroidProfile } from '@/utils/assistants/droid-profile-randomizer';
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
 
@@ -1129,7 +1130,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     async (
       assistant: Assistant,
       callType: 'video' | 'audio',
-      options?: { suppressRinging?: boolean }
+      options?: AssistantCallConnectOptions
     ) => {
       const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
       if (activeCallId) {
@@ -1428,8 +1429,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     workspaceConnectAvailable,
   ]);
 
-  const applyRandomMartianProfile = React.useCallback(() => {
-    const profile = createRandomMartianProfile();
+  const applyRandomDroidProfile = React.useCallback(() => {
+    const profile = createRandomDroidProfile();
     formMethods.setValue('firstName', profile.firstName, { shouldValidate: true });
     formMethods.setValue('surname', profile.surname, { shouldValidate: true });
     formMethods.setValue('jobTitle', profile.jobTitle, { shouldValidate: true });
@@ -1438,7 +1439,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, [formMethods]);
 
   // Auto-select the first filtered preset for hidden defaults like voice, then
-  // replace the visible profile fields with a branded martian profile.
+  // Replace the visible profile fields with a branded droid profile.
   React.useEffect(() => {
     if (needsPresetSelection && currentFilteredPresets.length > 0 && !userHasChangedPreset) {
       const current = formMethods.getValues('currentPreset');
@@ -1451,7 +1452,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         return; // already selected and still valid — nothing to do
       }
       selectPresetForHireForm(currentFilteredPresets[0]);
-      applyRandomMartianProfile();
+      applyRandomDroidProfile();
     }
   }, [
     needsPresetSelection,
@@ -1459,7 +1460,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     userHasChangedPreset,
     selectPresetForHireForm,
     formMethods,
-    applyRandomMartianProfile,
+    applyRandomDroidProfile,
   ]);
 
   const handleOpenEditDialog = React.useCallback(
@@ -1708,7 +1709,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   const handleRandomizeProfile = () => {
     setUserHasChangedPreset(true);
-    applyRandomMartianProfile();
+    applyRandomDroidProfile();
   };
 
   const handleUserPresetSelect = React.useCallback(

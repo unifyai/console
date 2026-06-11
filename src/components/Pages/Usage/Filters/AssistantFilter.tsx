@@ -22,7 +22,7 @@ interface AssistantFilterProps {
   disabled?: boolean;
 }
 
-function MartianOutlineIcon({ className }: { className?: string }) {
+function DroidOutlineIcon({ className }: { className?: string }) {
   return (
     <svg
       aria-hidden="true"
@@ -50,23 +50,23 @@ export function AssistantFilter({
   // Get the display text for the current selection
   const displayText = React.useMemo(() => {
     if (value === 'all') {
-      return 'All Martians';
+      return 'All Droids';
     }
     const assistant = assistants.find((a) => a.agentId === value);
     if (assistant) {
       return assistantDisplayName(assistant);
     }
-    return 'All Martians';
+    return 'All Droids';
   }, [value, assistants]);
 
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled || assistants.length === 0}>
       <SelectTrigger className="h-8 w-full sm:w-[180px]" data-testid="assistant-filter">
-        <MartianOutlineIcon className="mr-2 h-4 w-4 shrink-0" />
+        <DroidOutlineIcon className="mr-2 h-4 w-4 shrink-0" />
         <span className="flex-1 truncate text-left">{displayText}</span>
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="all">All Martians</SelectItem>
+        <SelectItem value="all">All Droids</SelectItem>
         {assistants.map((assistant) => (
           <SelectItem key={assistant.agentId} value={assistant.agentId}>
             {assistantDisplayName(assistant)}

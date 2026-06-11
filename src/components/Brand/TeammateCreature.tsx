@@ -1,11 +1,5 @@
 import { cn } from '@/lib/utils';
-import {
-  creatureShapes,
-  roleColorVars,
-  roleEyeVars,
-  type BrandRole,
-  type CreatureShape,
-} from './shapes';
+import { roleColorVars, type BrandRole, type CreatureShape } from './shapes';
 
 export type CreatureEyes = 'up' | 'down' | 'square' | 'blink';
 export type CreatureMood = 'happy' | 'sad' | 'frustrated' | 'apologetic' | 'bored';
@@ -18,23 +12,36 @@ export type CreatureMouthShape =
   | 'round'
   | 'narrow';
 
-const CREATURE_CELL = 18;
-const CREATURE_MARGIN = 12;
-const SAD_MOUTH_ANCHOR_OFFSET = 8;
-const FRUSTRATED_MOUTH_ANCHOR_OFFSET = 7;
-const APOLOGETIC_MOUTH_ANCHOR_OFFSET = 7;
+type DroidForm = {
+  bodyWidth: number;
+  bodyHeight: number;
+  bodyY: number;
+  antenna: 'none' | 'rod' | 'ball' | 'twin' | 'bigball';
+  footInset: number;
+};
+
+const DROID_VIEWBOX = 128;
+const DROID_SAD_MOUTH_ANCHOR_OFFSET = 8;
+const DROID_FRUSTRATED_MOUTH_ANCHOR_OFFSET = 7;
+const DROID_APOLOGETIC_MOUTH_ANCHOR_OFFSET = 7;
+const DROID_FORMS: Record<CreatureShape, DroidForm> = {
+  clawd: { bodyWidth: 72, bodyHeight: 82, bodyY: 28, antenna: 'ball', footInset: 15 },
+  notch: { bodyWidth: 78, bodyHeight: 74, bodyY: 34, antenna: 'none', footInset: 18 },
+  runner: { bodyWidth: 66, bodyHeight: 88, bodyY: 24, antenna: 'rod', footInset: 12 },
+  wide: { bodyWidth: 92, bodyHeight: 62, bodyY: 42, antenna: 'twin', footInset: 22 },
+  tall: { bodyWidth: 60, bodyHeight: 94, bodyY: 18, antenna: 'rod', footInset: 12 },
+  sprout: { bodyWidth: 66, bodyHeight: 78, bodyY: 32, antenna: 'bigball', footInset: 14 },
+  hopper: { bodyWidth: 72, bodyHeight: 76, bodyY: 34, antenna: 'ball', footInset: 20 },
+  pebble: { bodyWidth: 80, bodyHeight: 70, bodyY: 36, antenna: 'none', footInset: 19 },
+};
 
 export function getCreatureMetrics(shape: CreatureShape) {
-  const cells = creatureShapes[shape];
-  const maxX = Math.max(...cells.map(([x]) => x));
-  const maxY = Math.max(...cells.map(([, y]) => y));
-  const gridWidth = (maxX + 1) * CREATURE_CELL;
-  const gridHeight = (maxY + 1) * CREATURE_CELL;
+  const form = DROID_FORMS[shape];
 
   return {
-    width: gridWidth + CREATURE_MARGIN * 2,
-    height: gridHeight + CREATURE_MARGIN * 2,
-    eyeY: CREATURE_MARGIN + CREATURE_CELL * 0.98,
+    width: DROID_VIEWBOX,
+    height: DROID_VIEWBOX,
+    eyeY: form.bodyY + form.bodyHeight * 0.36,
   };
 }
 
@@ -48,60 +55,48 @@ type TeammateCreatureProps = {
   shape?: CreatureShape;
 };
 
-function CreatureEye({
+function DroidEye({
   cx,
   cy,
   dir = 'up',
   mood,
-  side,
-  stroke,
 }: {
   cx: number;
   cy: number;
   dir?: CreatureEyes;
   mood: CreatureMood;
-  side: 'left' | 'right';
-  stroke: string;
 }) {
+  const stroke = 'var(--droid-glow)';
+
   if (mood === 'frustrated') {
     if (dir === 'blink') {
-      return <rect fill={stroke} height={4} rx={2} width={15} x={cx - 7.5} y={cy - 2} />;
+      return <rect fill={stroke} height={4} rx={2} width={16} x={cx - 8} y={cy - 2} />;
     }
 
     if (dir === 'square') {
-      const browD =
-        side === 'left'
-          ? `M ${cx - 8} ${cy - 8} L ${cx + 6} ${cy - 4}`
-          : `M ${cx - 6} ${cy - 4} L ${cx + 8} ${cy - 8}`;
-
       return (
         <g>
-          <rect fill={stroke} height={8} rx={2} width={8} x={cx - 4} y={cy - 2} />
+          <rect fill={stroke} height={10} rx={2.5} width={10} x={cx - 5} y={cy - 2} />
           <path
-            d={browD}
+            d={`M ${cx - 8} ${cy - 9} L ${cx + 8} ${cy - 5}`}
             fill="none"
             stroke={stroke}
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeWidth={3.5}
+            strokeWidth={3}
           />
         </g>
       );
     }
 
-    const inwardD =
-      side === 'left'
-        ? `M ${cx - 6} ${cy - 6} L ${cx + 6} ${cy} L ${cx - 6} ${cy + 6}`
-        : `M ${cx + 6} ${cy - 6} L ${cx - 6} ${cy} L ${cx + 6} ${cy + 6}`;
-
     return (
       <path
-        d={inwardD}
+        d={`M ${cx - 7} ${cy - 5} L ${cx + 7} ${cy} L ${cx - 7} ${cy + 5}`}
         fill="none"
         stroke={stroke}
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={4.5}
+        strokeWidth={4}
       />
     );
   }
@@ -110,7 +105,7 @@ function CreatureEye({
     if (dir === 'blink') {
       return (
         <path
-          d={`M ${cx - 9} ${cy + 1} Q ${cx} ${cy + 4} ${cx + 9} ${cy + 1}`}
+          d={`M ${cx - 9} ${cy + 2} Q ${cx} ${cy + 5} ${cx + 9} ${cy + 2}`}
           fill="none"
           stroke={stroke}
           strokeLinecap="round"
@@ -120,16 +115,12 @@ function CreatureEye({
       );
     }
 
-    const browD =
-      side === 'left'
-        ? `M ${cx - 12} ${cy - 3} Q ${cx - 4} ${cy - 4} ${cx + 3} ${cy - 11}`
-        : `M ${cx - 3} ${cy - 11} Q ${cx + 4} ${cy - 4} ${cx + 12} ${cy - 3}`;
     const eye =
       dir === 'square' ? (
-        <rect fill={stroke} height={6} rx={3} width={10} x={cx - 5} y={cy + 2.5} />
+        <rect fill={stroke} height={7} rx={3.5} width={11} x={cx - 5.5} y={cy + 2} />
       ) : (
         <path
-          d={`M ${cx - 7} ${cy + 4} Q ${cx} ${cy + 8} ${cx + 7} ${cy + 4}`}
+          d={`M ${cx - 8} ${cy + 3} Q ${cx} ${cy + 7} ${cx + 8} ${cy + 3}`}
           fill="none"
           stroke={stroke}
           strokeLinecap="round"
@@ -141,7 +132,7 @@ function CreatureEye({
     return (
       <g>
         <path
-          d={browD}
+          d={`M ${cx - 11} ${cy - 4} Q ${cx} ${cy - 9} ${cx + 11} ${cy - 4}`}
           fill="none"
           stroke={stroke}
           strokeLinecap="round"
@@ -155,12 +146,12 @@ function CreatureEye({
 
   if (mood === 'bored') {
     if (dir === 'blink') {
-      return <rect fill={stroke} height={3} rx={1.5} width={15} x={cx - 7.5} y={cy + 2} />;
+      return <rect fill={stroke} height={3} rx={1.5} width={16} x={cx - 8} y={cy + 2} />;
     }
 
     return (
       <path
-        d={`M ${cx - 8} ${cy + 2} Q ${cx} ${cy + 4} ${cx + 8} ${cy + 2}`}
+        d={`M ${cx - 9} ${cy + 2} Q ${cx} ${cy + 4} ${cx + 9} ${cy + 2}`}
         fill="none"
         stroke={stroke}
         strokeLinecap="round"
@@ -171,17 +162,17 @@ function CreatureEye({
   }
 
   if (dir === 'blink') {
-    return <rect fill={stroke} height={4} rx={2} width={15} x={cx - 7.5} y={cy - 2} />;
+    return <rect fill={stroke} height={4} rx={2} width={16} x={cx - 8} y={cy - 2} />;
   }
 
   if (dir === 'square') {
-    return <rect fill={stroke} height={9} rx={2} width={9} x={cx - 4.5} y={cy - 4.5} />;
+    return <rect fill={stroke} height={10} rx={2.5} width={10} x={cx - 5} y={cy - 5} />;
   }
 
   const d =
     dir === 'down'
-      ? `M ${cx - 6} ${cy - 4} L ${cx} ${cy + 4} L ${cx + 6} ${cy - 4}`
-      : `M ${cx - 6} ${cy + 4} L ${cx} ${cy - 4} L ${cx + 6} ${cy + 4}`;
+      ? `M ${cx - 7} ${cy - 5} L ${cx} ${cy + 5} L ${cx + 7} ${cy - 5}`
+      : `M ${cx - 7} ${cy + 5} L ${cx} ${cy - 5} L ${cx + 7} ${cy + 5}`;
 
   return (
     <g>
@@ -191,22 +182,20 @@ function CreatureEye({
         stroke={stroke}
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={4.5}
+        strokeWidth={4}
       />
     </g>
   );
 }
 
-function CreatureMouth({
+function DroidMouth({
   cx,
   cy,
-  fill,
   mood,
   shape,
 }: {
   cx: number;
   cy: number;
-  fill: string;
   mood: CreatureMood;
   shape: CreatureMouthShape;
 }) {
@@ -219,7 +208,10 @@ function CreatureMouth({
   ) => {
     if (mood === 'sad' || mood === 'frustrated') {
       const anchorY =
-        topY + (mood === 'frustrated' ? FRUSTRATED_MOUTH_ANCHOR_OFFSET : SAD_MOUTH_ANCHOR_OFFSET);
+        topY +
+        (mood === 'frustrated'
+          ? DROID_FRUSTRATED_MOUTH_ANCHOR_OFFSET
+          : DROID_SAD_MOUTH_ANCHOR_OFFSET);
       const moodTopDip = mood === 'frustrated' ? topDip + 1 : topDip;
       const moodBottomDip = mood === 'frustrated' ? bottomDip * 0.82 : bottomDip;
       return `M ${leftX} ${anchorY} Q ${cx} ${anchorY - moodTopDip} ${rightX} ${anchorY} Q ${cx} ${
@@ -228,7 +220,7 @@ function CreatureMouth({
     }
 
     if (mood === 'apologetic') {
-      const anchorY = topY + APOLOGETIC_MOUTH_ANCHOR_OFFSET;
+      const anchorY = topY + DROID_APOLOGETIC_MOUTH_ANCHOR_OFFSET;
       const width = rightX - leftX;
       const apologeticLeftX = cx - width * 0.42;
       const apologeticRightX = cx + width * 0.42;
@@ -271,10 +263,10 @@ function CreatureMouth({
     return (
       <path
         d={getMouthPath(leftX, rightX, topY, mouth.topDip, mouth.bottomDip)}
-        fill={fill}
+        fill="var(--droid-glow)"
         style={{
-          opacity: 'calc(0.78 + var(--martian-speech-level, 0) * 0.22)',
-          transform: 'scaleY(calc(0.9 + var(--martian-speech-level, 0) * 0.12))',
+          opacity: 'calc(0.78 + var(--droid-speech-level, 0) * 0.22)',
+          transform: 'scaleY(calc(0.9 + var(--droid-speech-level, 0) * 0.12))',
           transformBox: 'fill-box',
           transformOrigin: mood === 'happy' ? 'center top' : 'center bottom',
         }}
@@ -291,11 +283,11 @@ function CreatureMouth({
   return (
     <path
       d={getMouthPath(leftX, rightX, cy, topDip, bottomDip)}
-      fill={fill}
+      fill="var(--droid-glow)"
       style={{
-        opacity: 'calc(var(--martian-speech-level, 0) * 0.95)',
+        opacity: 'calc(var(--droid-speech-level, 0) * 0.95)',
         transform:
-          'scaleX(calc(0.72 + var(--martian-speech-level, 0) * 0.42)) scaleY(calc(0.35 + var(--martian-speech-level, 0) * 0.65))',
+          'scaleX(calc(0.72 + var(--droid-speech-level, 0) * 0.42)) scaleY(calc(0.35 + var(--droid-speech-level, 0) * 0.65))',
         transformBox: 'fill-box',
         transformOrigin: mood === 'happy' ? 'center' : 'center bottom',
       }}
@@ -312,80 +304,122 @@ export function TeammateCreature({
   mouthShape = 'amplitude',
   shape = 'clawd',
 }: TeammateCreatureProps) {
-  const cells = creatureShapes[shape];
+  const form = DROID_FORMS[shape];
   const fill = roleColorVars[color];
-  const eyeStroke = roleEyeVars[color];
-  const cell = CREATURE_CELL;
-  const halo = 5;
-  const margin = CREATURE_MARGIN;
-  const maxX = Math.max(...cells.map(([x]) => x));
-  const maxY = Math.max(...cells.map(([, y]) => y));
-  const gridWidth = (maxX + 1) * cell;
-  const gridHeight = (maxY + 1) * cell;
-  const { width, height, eyeY } = getCreatureMetrics(shape);
-  const px = (n: number) => margin + n * cell;
-  const leftEyeX = margin + gridWidth * 0.32;
-  const rightEyeX = margin + gridWidth * 0.6;
+  const { bodyWidth, bodyHeight, bodyY, footInset, antenna } = form;
+  const bodyX = (DROID_VIEWBOX - bodyWidth) / 2;
+  const screenX = bodyX + bodyWidth * 0.2;
+  const screenY = bodyY + bodyHeight * 0.22;
+  const screenWidth = bodyWidth * 0.6;
+  const screenHeight = bodyHeight * 0.32;
+  const eyeY = screenY + screenHeight * 0.42;
+  const leftEyeX = screenX + screenWidth * 0.33;
+  const rightEyeX = screenX + screenWidth * 0.67;
   const mouthX = (leftEyeX + rightEyeX) / 2;
-  const mouthY = eyeY + cell * 1.02;
+  const mouthY = screenY + screenHeight * 0.72;
+  const footY = bodyY + bodyHeight - 2;
+  const footWidth = (bodyWidth - footInset * 2) / 2 - 4;
 
   return (
     <svg
       aria-label={label}
       className={cn('block overflow-visible', className)}
       role="img"
-      viewBox={`0 0 ${width} ${height}`}
+      viewBox={`0 0 ${DROID_VIEWBOX} ${DROID_VIEWBOX}`}
       xmlns="http://www.w3.org/2000/svg"
     >
-      {cells.map(([x, y], index) => (
-        <rect
-          fill="var(--ink)"
-          height={cell + halo * 2}
-          key={`shadow-${index}`}
-          opacity={0.07}
-          rx={7}
-          width={cell + halo * 2}
-          x={px(x) - halo + 3}
-          y={px(y) - halo + 4}
-        />
-      ))}
-      {cells.map(([x, y], index) => (
-        <rect
-          fill="var(--cream-white)"
-          height={cell + halo * 2}
-          key={`halo-${index}`}
-          rx={7}
-          width={cell + halo * 2}
-          x={px(x) - halo}
-          y={px(y) - halo}
-        />
-      ))}
-      {cells.map(([x, y], index) => (
-        <rect key={`fill-${index}`} fill={fill} height={cell} width={cell} x={px(x)} y={px(y)} />
-      ))}
-      {cells
-        .filter(([, y]) => y >= maxY - 1)
-        .map(([x, y], index) => (
-          <rect
-            fill="var(--ink)"
-            height={cell}
-            key={`shade-${index}`}
-            opacity={y === maxY ? 0.26 : 0.1}
-            width={cell}
-            x={px(x)}
-            y={px(y)}
+      <ellipse cx="64" cy="114" fill="var(--ink)" opacity="0.1" rx={bodyWidth * 0.45} ry="8" />
+
+      {antenna === 'rod' && (
+        <g stroke={fill} strokeLinecap="round" strokeWidth="4">
+          <path d={`M 64 ${bodyY - 3} L 64 ${bodyY - 19}`} />
+          <circle cx="64" cy={bodyY - 22} fill={fill} r="5" stroke="none" />
+        </g>
+      )}
+      {antenna === 'ball' && (
+        <g stroke={fill} strokeLinecap="round" strokeWidth="4">
+          <path d={`M 64 ${bodyY - 3} L 64 ${bodyY - 14}`} />
+          <circle cx="64" cy={bodyY - 18} fill="var(--cream-white)" r="7" />
+          <circle cx="64" cy={bodyY - 18} fill={fill} r="4" stroke="none" />
+        </g>
+      )}
+      {antenna === 'bigball' && (
+        <g stroke={fill} strokeLinecap="round" strokeWidth="4">
+          <path d={`M 64 ${bodyY - 3} L 64 ${bodyY - 15}`} />
+          <circle cx="64" cy={bodyY - 21} fill="var(--cream-white)" r="10" />
+          <circle cx="64" cy={bodyY - 21} fill={fill} r="6" stroke="none" />
+        </g>
+      )}
+      {antenna === 'twin' && (
+        <g stroke={fill} strokeLinecap="round" strokeWidth="4">
+          <path
+            d={`M ${bodyX + bodyWidth * 0.35} ${bodyY - 2} L ${bodyX + bodyWidth * 0.22} ${bodyY - 15}`}
           />
-        ))}
-      <CreatureEye cx={leftEyeX} cy={eyeY} dir={eyes} mood={mood} side="left" stroke={eyeStroke} />
-      <CreatureEye
-        cx={rightEyeX}
-        cy={eyeY}
-        dir={eyes}
-        mood={mood}
-        side="right"
-        stroke={eyeStroke}
+          <path
+            d={`M ${bodyX + bodyWidth * 0.65} ${bodyY - 2} L ${bodyX + bodyWidth * 0.78} ${bodyY - 15}`}
+          />
+          <circle cx={bodyX + bodyWidth * 0.2} cy={bodyY - 17} fill={fill} r="4" stroke="none" />
+          <circle cx={bodyX + bodyWidth * 0.8} cy={bodyY - 17} fill={fill} r="4" stroke="none" />
+        </g>
+      )}
+
+      <rect
+        fill={fill}
+        height={bodyHeight}
+        rx="16"
+        stroke="var(--cream-white)"
+        strokeWidth="7"
+        width={bodyWidth}
+        x={bodyX}
+        y={bodyY}
       />
-      <CreatureMouth cx={mouthX} cy={mouthY} fill={eyeStroke} mood={mood} shape={mouthShape} />
+      <rect
+        fill="var(--ink)"
+        height={bodyHeight * 0.42}
+        opacity="0.14"
+        rx="14"
+        width={bodyWidth}
+        x={bodyX}
+        y={bodyY + bodyHeight * 0.58}
+      />
+      <rect
+        fill="var(--cream-white)"
+        height={screenHeight + 12}
+        opacity="0.92"
+        rx="13"
+        width={screenWidth + 12}
+        x={screenX - 6}
+        y={screenY - 6}
+      />
+      <rect
+        fill="var(--droid-screen)"
+        height={screenHeight}
+        rx="9"
+        width={screenWidth}
+        x={screenX}
+        y={screenY}
+      />
+      <DroidEye cx={leftEyeX} cy={eyeY} dir={eyes} mood={mood} />
+      <DroidEye cx={rightEyeX} cy={eyeY} dir={eyes} mood={mood} />
+      <DroidMouth cx={mouthX} cy={mouthY} mood={mood} shape={mouthShape} />
+      <rect
+        fill="var(--cream-white)"
+        height="5"
+        opacity="0.42"
+        rx="2.5"
+        width={bodyWidth * 0.36}
+        x={bodyX + bodyWidth * 0.32}
+        y={bodyY + bodyHeight * 0.72}
+      />
+      <rect fill={fill} height="11" rx="5" width={footWidth} x={bodyX + footInset} y={footY} />
+      <rect
+        fill={fill}
+        height="11"
+        rx="5"
+        width={footWidth}
+        x={bodyX + bodyWidth - footInset - footWidth}
+        y={footY}
+      />
     </svg>
   );
 }

@@ -11,11 +11,11 @@ export function getSpeakingEyes(baseEyes: CreatureEyes, frame: number): Creature
   return SPEAKING_EYES_BY_BASE[baseEyes][frame % SPEAKING_EYES_BY_BASE[baseEyes].length];
 }
 
-export function clampMartianSpeechLevel(level: number): number {
+export function clampDroidSpeechLevel(level: number): number {
   return Math.max(0, Math.min(1, level));
 }
 
-export function getMartianSpeechTransform(level: number): string {
-  const speechLevel = clampMartianSpeechLevel(level);
+export function getDroidSpeechTransform(level: number): string {
+  const speechLevel = clampDroidSpeechLevel(level);
   return `translateY(${-speechLevel * 3}px) scale(${1 + speechLevel * 0.004})`;
 }

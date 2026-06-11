@@ -410,8 +410,8 @@ export function useAssistantForm(
         ...getValues(),
 
         // Profile
-        firstName: assistant.isCoordinator ? 'Marty' : assistant.firstName,
-        surname: assistant.isCoordinator ? '' : assistant.surname,
+        firstName: assistant.isCoordinator ? 'Coordinator' : assistant.firstName,
+        surname: assistant.isCoordinator ? 'Droid' : assistant.surname,
         jobTitle: assistant.isCoordinator
           ? resolveCoordinatorJobTitle(assistant.jobTitle)
           : (assistant.jobTitle ?? null),
@@ -431,7 +431,7 @@ export function useAssistantForm(
         videoFile: null,
 
         // Voice — the Coordinator's fixed voice is enforced server-side, so
-        // every assistant (Marty included) simply reflects its DB row here.
+        // every assistant simply reflects its DB row here.
         voiceId: assistant.voiceId || undefined,
         voiceName: assistantVoiceDetails?.name,
         voiceDescription: assistantVoiceDetails?.description,
@@ -547,7 +547,7 @@ export function useAssistantForm(
       // Orchestra requires both voice_id and voice_provider together — always
       // send them as a pair when either one has changed. The Coordinator's
       // fixed voice is enforced server-side and its picker is hidden, so
-      // this never fires for Marty.
+      // this never fires for the coordinator droid.
       const nextVoiceProvider = data.voiceProvider ?? PRIMARY_VOICE_PROVIDER;
       const voiceIdChanged = data.voiceId !== editingAssistant.voiceId;
       const voiceProviderChanged = nextVoiceProvider !== editingAssistant.voiceProvider;

@@ -9,15 +9,15 @@ function normalizeNamePart(value: unknown): string {
 /**
  * Formats an assistant display name for UI surfaces.
  *
- * Coordinators always render with the public Marty product name. Non-coordinator names are
- * whitespace-trimmed and null-safe to avoid leaking placeholder strings.
+ * Coordinators always render with the public coordinator droid name. Non-coordinator names
+ * are whitespace-trimmed and null-safe to avoid leaking placeholder strings.
  */
 export function assistantDisplayName(
   assistant: AssistantIdentityLike | null | undefined,
   fallback = 'Assistant'
 ): string {
   if (!assistant) return fallback;
-  if (assistant.isCoordinator) return 'Marty';
+  if (assistant.isCoordinator) return 'Coordinator Droid';
 
   const fullName = [normalizeNamePart(assistant.firstName), normalizeNamePart(assistant.surname)]
     .filter(Boolean)

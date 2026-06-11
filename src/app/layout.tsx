@@ -5,7 +5,7 @@ import { ThemeProvider } from 'next-themes';
 import '@/styles/globals.css';
 import '@fortawesome/fontawesome-svg-core/styles.css';
 import 'yet-another-react-lightbox/styles.css';
-import { fontSans, fontMono, fontSerif } from '@/styles/fonts';
+import { fontSans, fontSpaceGrotesk, fontMono, fontSerif } from '@/styles/fonts';
 import { LandingEventBeacon } from '@/components/Integrations/LandingEventBeacon';
 
 export const metadata: Metadata = {
@@ -21,7 +21,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${fontSans.variable} ${fontMono.variable} ${fontSerif.variable}`}>
+    <html
+      lang="en"
+      className={`${fontSans.variable} ${fontSpaceGrotesk.variable} ${fontMono.variable} ${fontSerif.variable}`}
+    >
       <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}

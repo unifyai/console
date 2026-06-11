@@ -13,7 +13,7 @@ interface CreatureAvatarProps {
 }
 
 /**
- * Renders a martian creature avatar from an appearance descriptor (or a
+ * Renders a droid avatar from an appearance descriptor (or a
  * `appearance://` sentinel string) on a neutral, rounded backdrop so it sits
  * consistently wherever assistant photos appear.
  */

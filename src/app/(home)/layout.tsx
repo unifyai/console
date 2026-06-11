@@ -18,14 +18,14 @@ import { NetworkStatusToast } from '@/components/Layout/NetworkStatusToast';
 import { SelfHostRuntimeBootstrap } from '@/components/SelfHost/SelfHostRuntimeBootstrap';
 import { Toaster } from '@/components/UI/Chat/sonner';
 import { Loader2 } from 'lucide-react';
-import { fontSans, fontMono, fontSerif } from '@/styles/fonts';
+import { fontSans, fontSpaceGrotesk, fontMono, fontSerif } from '@/styles/fonts';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${fontSans.variable} ${fontMono.variable} ${fontSerif.variable} h-screen overflow-hidden`}
+      className={`${fontSans.variable} ${fontSpaceGrotesk.variable} ${fontMono.variable} ${fontSerif.variable} h-screen overflow-hidden`}
     >
       <body className="h-screen w-full overflow-hidden">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>

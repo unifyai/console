@@ -1,14 +1,14 @@
 /**
- * Creature avatar sentinel — a compact, storage-free encoding of a martian's
+ * Droid avatar sentinel — a compact, storage-free encoding of a droid's
  * appearance.
  *
- * A martian's avatar is a deterministic SVG (`TeammateCreature`) fully described
+ * A droid avatar is a deterministic SVG (`TeammateCreature`) fully described
  * by three small enums (shape × color × eyes). Rather than rasterize and store
  * an image per assistant, we persist the appearance inline in the existing
  * `profile_photo` field using a `appearance://<shape>/<color>/<eyes>` sentinel.
  *
  * This keeps a single code path: anything that renders an assistant photo checks
- * for the sentinel and either reconstructs the creature locally (no fetch, works
+ * for the sentinel and either reconstructs the droid locally (no fetch, works
  * offline / self-host with zero storage) or, when the value is a real URL,
  * renders the image as before. The backend treats it as an opaque string and the
  * signed-URL machinery ignores it (it isn't a `gs://` path), so no server change
@@ -36,7 +36,7 @@ const VALID_SHAPES = new Set<string>(Object.keys(creatureShapes));
 const VALID_COLORS = new Set<string>(Object.keys(roleColorVars));
 const VALID_EYES = new Set<string>(['up', 'down', 'square']);
 
-/** Whether a stored photo value encodes a creature appearance (vs. a real URL). */
+/** Whether a stored photo value encodes a droid appearance (vs. a real URL). */
 export function isCreatureSentinel(value: string | null | undefined): value is string {
   return typeof value === 'string' && value.startsWith(APPEARANCE_SENTINEL_PREFIX);
 }
@@ -48,8 +48,8 @@ export function buildCreatureSentinel(appearance: CreatureAppearance): string {
 
 /**
  * Decode a sentinel back into an appearance, or return `null` when the value is
- * not a creature sentinel (e.g. a real photo URL). Unknown/garbled parts fall
- * back to the defaults so a malformed value still renders a sensible creature
+ * not a droid sentinel (e.g. a real photo URL). Unknown/garbled parts fall
+ * back to the defaults so a malformed value still renders a sensible droid
  * rather than throwing.
  */
 export function parseCreatureSentinel(value: string | null | undefined): CreatureAppearance | null {

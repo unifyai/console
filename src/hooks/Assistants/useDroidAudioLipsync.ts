@@ -4,10 +4,10 @@ import * as React from 'react';
 import type { TrackReference } from '@livekit/components-react';
 import { Lipsync } from 'wawa-lipsync';
 import {
-  getMartianLipsyncFrame,
-  MARTIAN_IDLE_LIPSYNC_FRAME,
-  type MartianLipsyncFrame,
-} from '@/utils/assistants/martian-lipsync';
+  DROID_IDLE_LIPSYNC_FRAME,
+  getDroidLipsyncFrame,
+  type DroidLipsyncFrame,
+} from '@/utils/assistants/droid-lipsync';
 
 type LipsyncInternals = {
   audioContext: AudioContext;
@@ -18,11 +18,11 @@ type AudioTrackWithMedia = {
   mediaStreamTrack?: MediaStreamTrack;
 };
 
-export function useMartianAudioLipsync(
+export function useDroidAudioLipsync(
   audioTrack: TrackReference | undefined,
   enabled: boolean
-): MartianLipsyncFrame {
-  const [frame, setFrame] = React.useState<MartianLipsyncFrame>(MARTIAN_IDLE_LIPSYNC_FRAME);
+): DroidLipsyncFrame {
+  const [frame, setFrame] = React.useState<DroidLipsyncFrame>(DROID_IDLE_LIPSYNC_FRAME);
   const smoothedSpeechLevelRef = React.useRef(0);
 
   React.useEffect(() => {
@@ -31,7 +31,7 @@ export function useMartianAudioLipsync(
 
     if (!enabled || !mediaStreamTrack || mediaStreamTrack.readyState === 'ended') {
       smoothedSpeechLevelRef.current = 0;
-      setFrame(MARTIAN_IDLE_LIPSYNC_FRAME);
+      setFrame(DROID_IDLE_LIPSYNC_FRAME);
       return;
     }
 
@@ -45,7 +45,7 @@ export function useMartianAudioLipsync(
 
     const tick = () => {
       lipsync.processAudio();
-      const nextFrame = getMartianLipsyncFrame(lipsync.viseme, lipsync.features?.volume ?? 0);
+      const nextFrame = getDroidLipsyncFrame(lipsync.viseme, lipsync.features?.volume ?? 0);
       smoothedSpeechLevelRef.current =
         smoothedSpeechLevelRef.current * 0.72 + nextFrame.speechLevel * 0.28;
       setFrame({
@@ -70,7 +70,7 @@ export function useMartianAudioLipsync(
       source.disconnect();
       internals.audioContext.close().catch(() => {});
       smoothedSpeechLevelRef.current = 0;
-      setFrame(MARTIAN_IDLE_LIPSYNC_FRAME);
+      setFrame(DROID_IDLE_LIPSYNC_FRAME);
     };
   }, [audioTrack?.publication.track, enabled]);
 

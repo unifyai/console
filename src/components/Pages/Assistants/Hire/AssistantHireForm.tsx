@@ -49,13 +49,13 @@ import GoogleIcon from '@/public/icons/google-icon.png';
 import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 import type { OAuthProvider } from '@/types/assistants/contact';
 import {
-  clampMartianSpeechLevel,
-  getMartianSpeechTransform,
+  clampDroidSpeechLevel,
+  getDroidSpeechTransform,
   getSpeakingEyes,
-} from '@/utils/assistants/martian-animation';
+} from '@/utils/assistants/droid-animation';
 
-const staticSkillsText = `The bio doesn't influence the martian's abilities. All martians come with the same foundational skills and can specialize in whichever area you want them to.`;
-const MARTIAN_PREVIEW_SIZE = 160;
+const staticSkillsText = `The bio doesn't influence the droid's abilities. All droids come with the same foundational skills and can specialize in whichever area you want them to.`;
+const DROID_PREVIEW_SIZE = 160;
 const APPEARANCE_HOVER_CONTROL_CLASS = 'transition-opacity duration-150';
 
 const appearanceEyeOptions = ['up', 'down', 'square'] as const satisfies readonly CreatureEyes[];
@@ -79,7 +79,7 @@ const appearanceColorOptions = [
   'pink',
   'cyan',
 ] as const satisfies readonly BrandRole[];
-const DEFAULT_MARTY_APPEARANCE = {
+const DEFAULT_COORDINATOR_APPEARANCE = {
   eyes: 'up',
   shape: 'clawd',
   color: 'green',
@@ -187,9 +187,9 @@ export function HireForm({
   const [voiceCustomizationTab, setVoiceCustomizationTab] = React.useState<
     'select' | 'clone' | 'design'
   >('select');
-  const [martianEyes, setMartianEyes] = React.useState<CreatureEyes>('up');
-  const [martianShape, setMartianShape] = React.useState<CreatureShape>('clawd');
-  const [martianColor, setMartianColor] = React.useState<BrandRole>('green');
+  const [droidEyes, setDroidEyes] = React.useState<CreatureEyes>('up');
+  const [droidShape, setDroidShape] = React.useState<CreatureShape>('clawd');
+  const [droidColor, setDroidColor] = React.useState<BrandRole>('green');
 
   // The avatar shown in this form is the live creature. We persist it by keeping
   // `profilePhotoUrl` in sync with an `appearance://` sentinel, since hiring/edit
@@ -210,31 +210,33 @@ export function HireForm({
     if (appearanceSeeded) return;
     const parsed = parseCreatureSentinel(watchedProfilePhotoUrl);
     if (parsed) {
-      setMartianShape(parsed.shape);
-      setMartianColor(parsed.color);
-      setMartianEyes(parsed.eyes);
+      setDroidShape(parsed.shape);
+      setDroidColor(parsed.color);
+      setDroidEyes(parsed.eyes);
     }
     setAppearanceSeeded(true);
   }, [appearanceSeeded, watchedProfilePhotoUrl]);
   const [isAppearanceControlsVisible, setIsAppearanceControlsVisible] = React.useState(false);
-  const [isLockedMartianHovered, setIsLockedMartianHovered] = React.useState(false);
+  const [isLockedDroidHovered, setIsLockedDroidHovered] = React.useState(false);
   const [isVoicePreviewPlaying, setIsVoicePreviewPlaying] = React.useState(false);
   const [speakingEyeFrame, setSpeakingEyeFrame] = React.useState(0);
-  const speakingEyeBaseRef = React.useRef<CreatureEyes>(martianEyes);
-  const martianSpeechRef = React.useRef<HTMLSpanElement | null>(null);
+  const speakingEyeBaseRef = React.useRef<CreatureEyes>(droidEyes);
+  const droidSpeechRef = React.useRef<HTMLSpanElement | null>(null);
   const setup = useWatch({ control, name: 'setup' });
   const operatingSystem = useWatch({ control, name: 'operatingSystem' });
   const firstName = useWatch({ control, name: 'firstName' });
   const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
   const defaultVoice = React.useMemo(() => getDefaultVoiceForProvider(), []);
   const isEditMode = mode === 'edit';
-  const selectedMartianEyes = lockAppearanceControls ? DEFAULT_MARTY_APPEARANCE.eyes : martianEyes;
-  const selectedMartianShape = lockAppearanceControls
-    ? DEFAULT_MARTY_APPEARANCE.shape
-    : martianShape;
-  const selectedMartianColor = lockAppearanceControls
-    ? DEFAULT_MARTY_APPEARANCE.color
-    : martianColor;
+  const selectedDroidEyes = lockAppearanceControls
+    ? DEFAULT_COORDINATOR_APPEARANCE.eyes
+    : droidEyes;
+  const selectedDroidShape = lockAppearanceControls
+    ? DEFAULT_COORDINATOR_APPEARANCE.shape
+    : droidShape;
+  const selectedDroidColor = lockAppearanceControls
+    ? DEFAULT_COORDINATOR_APPEARANCE.color
+    : droidColor;
   const appearanceControlVisibilityClass = isAppearanceControlsVisible
     ? 'pointer-events-auto opacity-100'
     : 'pointer-events-none opacity-0';
@@ -244,9 +246,9 @@ export function HireForm({
   // uploaded one or explicitly picked a preset persona's photo. This keeps the
   // saved value current regardless of how the dialog triggers submission.
   const creatureSentinel = buildCreatureSentinel({
-    shape: selectedMartianShape,
-    color: selectedMartianColor,
-    eyes: selectedMartianEyes,
+    shape: selectedDroidShape,
+    color: selectedDroidColor,
+    eyes: selectedDroidEyes,
   });
 
   // Detect when the user actively changes the appearance controls (vs. the value
@@ -292,73 +294,68 @@ export function HireForm({
     setValue,
   ]);
 
-  const colorIndex = appearanceColorOptions.indexOf(selectedMartianColor);
+  const colorIndex = appearanceColorOptions.indexOf(selectedDroidColor);
   const previousColor =
     appearanceColorOptions[
       (colorIndex - 1 + appearanceColorOptions.length) % appearanceColorOptions.length
     ];
   const nextColor = appearanceColorOptions[(colorIndex + 1) % appearanceColorOptions.length];
   const lockedHoverEyes =
-    lockAppearanceControls && isLockedMartianHovered
-      ? getHoverEyes(selectedMartianEyes)
-      : selectedMartianEyes;
-  const displayedMartianEyes = isVoicePreviewPlaying
+    lockAppearanceControls && isLockedDroidHovered
+      ? getHoverEyes(selectedDroidEyes)
+      : selectedDroidEyes;
+  const displayedDroidEyes = isVoicePreviewPlaying
     ? getSpeakingEyes(speakingEyeBaseRef.current, speakingEyeFrame)
     : lockedHoverEyes;
   const workspaceAssistantName =
-    typeof firstName === 'string' && firstName.trim().length > 0
-      ? firstName.trim()
-      : 'this martian';
+    typeof firstName === 'string' && firstName.trim().length > 0 ? firstName.trim() : 'this droid';
   const isWorkspaceWarning = mode === 'hire' && showWorkspaceWarning;
   const eyeArrowTop = React.useMemo(() => {
-    const metrics = getCreatureMetrics(selectedMartianShape);
-    const scale = Math.min(
-      MARTIAN_PREVIEW_SIZE / metrics.width,
-      MARTIAN_PREVIEW_SIZE / metrics.height
-    );
+    const metrics = getCreatureMetrics(selectedDroidShape);
+    const scale = Math.min(DROID_PREVIEW_SIZE / metrics.width, DROID_PREVIEW_SIZE / metrics.height);
     const renderedHeight = metrics.height * scale;
-    const renderedTop = (MARTIAN_PREVIEW_SIZE - renderedHeight) / 2;
+    const renderedTop = (DROID_PREVIEW_SIZE - renderedHeight) / 2;
 
     return renderedTop + metrics.eyeY * scale - 18;
-  }, [selectedMartianShape]);
+  }, [selectedDroidShape]);
 
-  const randomizeMartianAppearance = React.useCallback(() => {
+  const randomizeDroidAppearance = React.useCallback(() => {
     if (lockAppearanceControls) return;
 
-    setMartianEyes((current) => pickOption(appearanceEyeOptions, current));
-    setMartianShape((current) => pickOption(appearanceShapeOptions, current));
-    setMartianColor((current) => pickOption(appearanceColorOptions, current));
+    setDroidEyes((current) => pickOption(appearanceEyeOptions, current));
+    setDroidShape((current) => pickOption(appearanceShapeOptions, current));
+    setDroidColor((current) => pickOption(appearanceColorOptions, current));
   }, [lockAppearanceControls]);
 
   const randomizeProfileAndAppearance = React.useCallback(() => {
     onRandomizeProfile?.();
-    randomizeMartianAppearance();
-  }, [onRandomizeProfile, randomizeMartianAppearance]);
+    randomizeDroidAppearance();
+  }, [onRandomizeProfile, randomizeDroidAppearance]);
 
   const handlePreviewSpeechLevelChange = React.useCallback((level: number) => {
-    const martian = martianSpeechRef.current;
-    if (!martian) return;
+    const droid = droidSpeechRef.current;
+    if (!droid) return;
 
-    const speechLevel = clampMartianSpeechLevel(level);
-    martian.style.setProperty('--martian-speech-level', speechLevel.toFixed(3));
-    martian.style.transform = getMartianSpeechTransform(speechLevel);
+    const speechLevel = clampDroidSpeechLevel(level);
+    droid.style.setProperty('--droid-speech-level', speechLevel.toFixed(3));
+    droid.style.transform = getDroidSpeechTransform(speechLevel);
   }, []);
 
   React.useEffect(() => {
     if (!isVoicePreviewPlaying) {
       setSpeakingEyeFrame(0);
-      speakingEyeBaseRef.current = selectedMartianEyes;
+      speakingEyeBaseRef.current = selectedDroidEyes;
       return;
     }
 
-    speakingEyeBaseRef.current = selectedMartianEyes;
+    speakingEyeBaseRef.current = selectedDroidEyes;
     setSpeakingEyeFrame(0);
     const eyeTimer = window.setInterval(() => {
       setSpeakingEyeFrame((current) => (current + 1) % 4);
     }, 2000);
 
     return () => window.clearInterval(eyeTimer);
-  }, [isVoicePreviewPlaying, selectedMartianEyes]);
+  }, [isVoicePreviewPlaying, selectedDroidEyes]);
 
   // Reset OS to 'ubuntu' when switching from local to remote if 'macos' is selected (macos is only available for local)
   React.useEffect(() => {
@@ -407,7 +404,7 @@ export function HireForm({
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
-                              aria-label="Randomize martian profile"
+                              aria-label="Randomize droid profile"
                               type="button"
                               variant="outline"
                               size="sm"
@@ -438,7 +435,11 @@ export function HireForm({
                             readOnly={lockIdentityFields}
                             aria-readonly={lockIdentityFields}
                             tabIndex={lockIdentityFields ? -1 : undefined}
-                            title={lockIdentityFields ? "Marty's name is fixed" : undefined}
+                            title={
+                              lockIdentityFields
+                                ? "The coordinator droid's name is fixed"
+                                : undefined
+                            }
                             className={cn(
                               lockIdentityFields &&
                                 'cursor-not-allowed border-muted bg-muted text-muted-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0'
@@ -462,7 +463,11 @@ export function HireForm({
                             readOnly={lockIdentityFields}
                             aria-readonly={lockIdentityFields}
                             tabIndex={lockIdentityFields ? -1 : undefined}
-                            title={lockIdentityFields ? "Marty's name is fixed" : undefined}
+                            title={
+                              lockIdentityFields
+                                ? "The coordinator droid's name is fixed"
+                                : undefined
+                            }
                             className={cn(
                               lockIdentityFields &&
                                 'cursor-not-allowed border-muted bg-muted text-muted-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0'
@@ -492,9 +497,9 @@ export function HireForm({
                                   className="text-caption max-w-xs"
                                 >
                                   <p>
-                                    Optional short label to remember what this martian is for (e.g.
+                                    Optional short label to remember what this droid is for (e.g.
                                     &quot;Growth marketing&quot;, &quot;QA engineer&quot;). Shown in
-                                    the martians list hover card.
+                                    the droids list hover card.
                                   </p>
                                 </TooltipContent>
                               </Tooltip>
@@ -579,7 +584,7 @@ export function HireForm({
                                   )}
                                   disabled={isSubmitting}
                                   onClick={() =>
-                                    setMartianEyes((current) =>
+                                    setDroidEyes((current) =>
                                       cycleOption(appearanceEyeOptions, current, -1)
                                     )
                                   }
@@ -599,7 +604,7 @@ export function HireForm({
                                   )}
                                   disabled={isSubmitting}
                                   onClick={() =>
-                                    setMartianEyes((current) =>
+                                    setDroidEyes((current) =>
                                       cycleOption(appearanceEyeOptions, current, 1)
                                     )
                                   }
@@ -620,7 +625,7 @@ export function HireForm({
                                   )}
                                   disabled={isSubmitting}
                                   onClick={() =>
-                                    setMartianShape((current) =>
+                                    setDroidShape((current) =>
                                       cycleOption(appearanceShapeOptions, current, -1)
                                     )
                                   }
@@ -639,7 +644,7 @@ export function HireForm({
                                   )}
                                   disabled={isSubmitting}
                                   onClick={() =>
-                                    setMartianShape((current) =>
+                                    setDroidShape((current) =>
                                       cycleOption(appearanceShapeOptions, current, 1)
                                     )
                                   }
@@ -652,42 +657,42 @@ export function HireForm({
                             {lockAppearanceControls ? (
                               <span
                                 className="flex h-full w-40 items-center justify-center sm:w-52 md:w-40"
-                                onMouseEnter={() => setIsLockedMartianHovered(true)}
-                                onMouseLeave={() => setIsLockedMartianHovered(false)}
+                                onMouseEnter={() => setIsLockedDroidHovered(true)}
+                                onMouseLeave={() => setIsLockedDroidHovered(false)}
                               >
                                 <span
-                                  ref={martianSpeechRef}
+                                  ref={droidSpeechRef}
                                   className="block h-full w-full transform-gpu"
-                                  style={{ '--martian-speech-level': 0 } as React.CSSProperties}
+                                  style={{ '--droid-speech-level': 0 } as React.CSSProperties}
                                 >
                                   <TeammateCreature
                                     className="h-full w-full"
-                                    color={selectedMartianColor}
-                                    eyes={displayedMartianEyes}
-                                    label="Marty avatar"
-                                    shape={selectedMartianShape}
+                                    color={selectedDroidColor}
+                                    eyes={displayedDroidEyes}
+                                    label="Coordinator droid avatar"
+                                    shape={selectedDroidShape}
                                   />
                                 </span>
                               </span>
                             ) : (
                               <button
-                                aria-label="Randomize martian appearance"
+                                aria-label="Randomize droid appearance"
                                 className="flex h-full w-40 items-center justify-center bg-transparent p-0 outline-none transition-transform hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring sm:w-52 md:w-40"
                                 disabled={isSubmitting}
-                                onClick={randomizeMartianAppearance}
+                                onClick={randomizeDroidAppearance}
                                 type="button"
                               >
                                 <span
-                                  ref={martianSpeechRef}
+                                  ref={droidSpeechRef}
                                   className="block h-full w-full transform-gpu"
-                                  style={{ '--martian-speech-level': 0 } as React.CSSProperties}
+                                  style={{ '--droid-speech-level': 0 } as React.CSSProperties}
                                 >
                                   <TeammateCreature
                                     className="h-full w-full"
-                                    color={selectedMartianColor}
-                                    eyes={displayedMartianEyes}
-                                    label="Martian avatar"
-                                    shape={selectedMartianShape}
+                                    color={selectedDroidColor}
+                                    eyes={displayedDroidEyes}
+                                    label="Droid avatar"
+                                    shape={selectedDroidShape}
                                   />
                                 </span>
                               </button>
@@ -703,14 +708,14 @@ export function HireForm({
                               )}
                             >
                               <Button
-                                aria-label="Previous martian color"
+                                aria-label="Previous droid color"
                                 type="button"
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 bg-transparent hover:bg-transparent"
                                 disabled={isSubmitting}
                                 onClick={() =>
-                                  setMartianColor((current) =>
+                                  setDroidColor((current) =>
                                     cycleOption(appearanceColorOptions, current, -1)
                                   )
                                 }
@@ -718,16 +723,16 @@ export function HireForm({
                                 <ChevronLeft className="!h-6 !w-6" />
                               </Button>
                               <div
-                                aria-label={`Current martian color: ${selectedMartianColor}`}
+                                aria-label={`Current droid color: ${selectedDroidColor}`}
                                 className="flex items-center gap-1.5 px-1 py-1"
                                 role="img"
                               >
-                                {[previousColor, selectedMartianColor, nextColor].map((color) => (
+                                {[previousColor, selectedDroidColor, nextColor].map((color) => (
                                   <span
                                     aria-hidden="true"
                                     className={cn(
                                       'rounded-control block border border-border',
-                                      color === selectedMartianColor
+                                      color === selectedDroidColor
                                         ? 'h-5 w-5'
                                         : 'h-3.5 w-3.5 opacity-65'
                                     )}
@@ -737,14 +742,14 @@ export function HireForm({
                                 ))}
                               </div>
                               <Button
-                                aria-label="Next martian color"
+                                aria-label="Next droid color"
                                 type="button"
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 bg-transparent hover:bg-transparent"
                                 disabled={isSubmitting}
                                 onClick={() =>
-                                  setMartianColor((current) =>
+                                  setDroidColor((current) =>
                                     cycleOption(appearanceColorOptions, current, 1)
                                   )
                                 }
@@ -923,7 +928,7 @@ export function HireForm({
                               {isWorkspaceWarning && (
                                 <>
                                   <span className="block">
-                                    It&apos;s advised to create a workspace for your new martian{' '}
+                                    It&apos;s advised to create a workspace for your new droid{' '}
                                     <strong className="font-bold">now</strong>, so they can get
                                     started right away. If you don&apos;t want to create one yet,
                                     click skip.
@@ -965,7 +970,8 @@ export function HireForm({
                                   not
                                 </strong>{' '}
                                 connect {workspaceAssistantName} to your own Google/Microsoft
-                                account. Only Marty should have access to your personal account.
+                                account. Only the coordinator droid should have access to your
+                                personal account.
                               </span>
                               <span
                                 className={cn(

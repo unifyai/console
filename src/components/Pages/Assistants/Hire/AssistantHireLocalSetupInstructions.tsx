@@ -123,7 +123,7 @@ export function AssistantHireLocalSetupInstructionsDialog({
             Local Desktop Setup Instructions
           </DialogTitle>
           <DialogDescription>
-            Follow these steps to complete your martian&apos;s local setup for {os}. Installing the
+            Follow these steps to complete your droid&apos;s local setup for {os}. Installing the
             desktop app lets your assistant see and control this machine — its apps, files, and
             logged-in sessions — during local desktop sessions.
           </DialogDescription>

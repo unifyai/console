@@ -317,8 +317,8 @@ test('owner sees the Coordinator pinned with workspace chrome and no contract te
   await expectPinnedBeforeSolo(page);
 
   const coordinatorRow = page.getByTestId(`assistant-list-item-${coordinator.agentId}`);
-  await expect(coordinatorRow).toContainText('Marty');
-  await expect(coordinatorRow.getByLabel('Marty')).toBeVisible();
+  await expect(coordinatorRow).toContainText('Coordinator Droid');
+  await expect(coordinatorRow.getByLabel('Coordinator Droid')).toBeVisible();
 
   await openAssistantMenu(page, coordinator.agentId);
   await expect(page.getByTestId('menu-end-contract')).toHaveCount(0);

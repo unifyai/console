@@ -118,8 +118,8 @@ export function AssistantListItem({
   const displayName = assistantDisplayName(assistant);
   const subtitle = assistant.jobTitle?.trim() || null;
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
-  // A `appearance://` photo encodes the martian's appearance — render the SVG
-  // creature; otherwise fall back to the photo URL (or initials).
+  // A `appearance://` photo encodes the droid appearance — render the SVG
+  // droid; otherwise fall back to the photo URL (or initials).
   const creatureAppearance = parseCreatureSentinel(photoSrc);
   const isOnline = status?.running === true;
   const canEndContract = !!onEndContract && !isCoordinator;

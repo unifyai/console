@@ -94,7 +94,7 @@ test('clicking an assistant in the list selects it and shows the Chat tab', asyn
 
   await listItem.click();
   await expect(page.getByTestId('right-pane-tab-chat')).not.toBeVisible({ timeout: 3_000 });
-  await expect(page.locator('text=Select a martian and watch them fly 🛸')).toBeVisible({
+  await expect(page.locator('text=Select a droid to watch live actions.')).toBeVisible({
     timeout: 5_000,
   });
 });

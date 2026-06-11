@@ -49,7 +49,7 @@ function OnboardPlusIcon({ className }: { className?: string }) {
   );
 }
 
-function MartianOnboardIcon({ className }: { className?: string }) {
+function DroidOnboardIcon({ className }: { className?: string }) {
   return (
     <svg
       aria-hidden="true"
@@ -151,7 +151,7 @@ export function AssistantList({
     const lowerSearchTerm = searchTerm.toLowerCase();
     return assistants.filter(
       (a) =>
-        (a.isCoordinator === true && 'marty coordinator'.includes(lowerSearchTerm)) ||
+        (a.isCoordinator === true && 'coordinator droid'.includes(lowerSearchTerm)) ||
         (a.firstName &&
           a.surname &&
           `${a.firstName} ${a.surname}`.toLowerCase().includes(lowerSearchTerm)) ||
@@ -473,7 +473,7 @@ export function AssistantList({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="right">
-                      <p>Onboard new martian</p>
+                      <p>Onboard new droid</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -502,7 +502,7 @@ export function AssistantList({
                 disabled={isHireButtonDisabled}
                 aria-disabled={isHireButtonDisabled}
               >
-                <MartianOnboardIcon className="h-5 w-5" />
+                <DroidOnboardIcon className="h-5 w-5" />
                 Onboard
               </Button>
             )}
