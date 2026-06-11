@@ -23,6 +23,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Stable key so server action closures survive across deployments and instances.
 # Without this, each build generates a random key — any client page rendered by
