@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
   }
 
   const expectedExtension = OS_TO_EXTENSION[os as ValidOS];
+  const isStaging = process.env.ORCHESTRA_URL?.toLowerCase().includes('staging') ?? false;
 
   try {
     // Step 1: Get the latest release
@@ -78,15 +79,25 @@ export async function GET(request: NextRequest) {
 
     const release: GitHubRelease = await releaseResponse.json();
 
-    // Step 2: Find the asset matching the OS
-    const asset = release.assets.find((a) => a.name.endsWith(expectedExtension));
+    // Step 2: Find the asset matching the OS and environment. Both the staging
+    // and prod builds share the OS extension, so we additionally require the
+    // "staging" substring on staging and forbid it on prod.
+    const asset = release.assets.find((a) => {
+      const name = a.name.toLowerCase();
+      if (!name.endsWith(expectedExtension)) return false;
+      return isStaging ? name.includes('staging') : !name.includes('staging');
+    });
 
     if (!asset) {
       console.error(
-        `[API /api/assistant/local/download] No ${expectedExtension} asset found in release ${release.tag_name}`
+        `[API /api/assistant/local/download] No ${
+          isStaging ? 'staging ' : ''
+        }${expectedExtension} asset found in release ${release.tag_name}`
       );
       return NextResponse.json(
-        { detail: `No ${os} binary (${expectedExtension}) found in the latest release` },
+        {
+          detail: `No ${isStaging ? 'staging ' : ''}${os} binary (${expectedExtension}) found in the latest release`,
+        },
         { status: 404 }
       );
     }
