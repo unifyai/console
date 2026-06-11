@@ -39,7 +39,6 @@
 # Environment:
 #   ORCHESTRA_REPO_PATH       Path to orchestra repo (default: ../orchestra)
 #   UNITY_REPO_PATH           Path to unity repo (default: ../unity)
-#   COMMUNICATION_REPO_PATH   Path to unity-deploy hosted repo (default: ../unity-deploy)
 #   CONSOLE_PORT              Next.js port (default: 3000)
 #   ORCHESTRA_PORT            Orchestra port (default: 8000)
 #
@@ -61,10 +60,6 @@ UNITY_GATEWAY_CONFIG_FILE="/tmp/unity-local.config"
 ENSURE_PREREQS_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/ensure_prereqs.sh}"
 SELF_HOST_ENV_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/self_host_env.sh}"
 SELF_HOST_DESKTOP_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/self_host_desktop.sh}"
-
-COMMUNICATION_REPO_PATH="${COMMUNICATION_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../unity-deploy" 2>/dev/null && pwd -P || echo "")}"
-COMMUNICATION_LOCAL_SCRIPT="${COMMUNICATION_REPO_PATH:+$COMMUNICATION_REPO_PATH/scripts/communication-local.sh}"
-COMMUNICATION_CONFIG_FILE="${COMMUNICATION_CONFIG_FILE:-/tmp/${COMMS_PREFIX:-communication}-local.config}"
 
 CONSOLE_PORT="${CONSOLE_PORT:-3000}"
 ORCHESTRA_PORT="${ORCHESTRA_PORT:-8000}"
@@ -238,6 +233,52 @@ ensure_service_gateway() {
     log_error "Failed to start Unity gateway"
     return 1
   fi
+  log_success "Unity gateway ready ($gateway_url)"
+}
+
+start_self_host_stack_gateway() {
+  if ! check_unity_gateway_prerequisites; then
+    return 1
+  fi
+
+  local gateway_url
+  gateway_url="$(unity_gateway_base_url)"
+
+  export UNITY_RUNTIME_GATEWAY_OWNER="${SELF_HOST_RUNTIME_OWNER_STACK:-stack}"
+  if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
+    export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0"
+  fi
+  export ORCHESTRA_ADMIN_KEY="$ADMIN_KEY"
+
+  if declare -F self_host_gateway_is_healthy &>/dev/null \
+    && self_host_gateway_is_healthy; then
+    configure_unity_gateway_urls || return 1
+    CHAT_COMMS_URL="$CHAT_ADAPTERS_URL"
+    log_success "Unity gateway already running ($gateway_url)"
+    return 0
+  fi
+
+  log_info "Starting Unity gateway for self-host ($gateway_url) ..."
+  local gateway_env=(
+    PUBSUB_EMULATOR_HOST="$LOCAL_PUBSUB_HOST"
+    GCP_PROJECT_ID="$PUBSUB_GCP_PROJECT_ID"
+    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY"
+  )
+  if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
+    gateway_env+=(ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0")
+  fi
+  if [[ "${SELF_HOST:-0}" == "1" ]]; then
+    load_self_host_runtime_env
+    append_workspace_oauth_env gateway_env
+  fi
+
+  if ! env "${gateway_env[@]}" bash "$UNITY_LOCAL_SCRIPT" start-gateway; then
+    log_error "Failed to start Unity gateway"
+    return 1
+  fi
+
+  configure_unity_gateway_urls || return 1
+  CHAT_COMMS_URL="$CHAT_ADAPTERS_URL"
   log_success "Unity gateway ready ($gateway_url)"
 }
 
@@ -570,98 +611,6 @@ cmd_gateway_setup() {
     cd "$UNITY_REPO_PATH"
     ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" "$python_bin" -m unity.gateway "${args[@]}"
   )
-}
-
-start_communication_adapters() {
-  local with_comms="${1:-false}"
-
-  if is_communication_running; then
-    log_success "Communication adapters already running"
-    load_communication_config || true
-    if [[ "$with_comms" == "true" && -z "${CHAT_COMMS_URL:-}" ]]; then
-      log_warn "Communication Comms App is not configured; restarting Communication services"
-      stop_communication_services
-    else
-      return 0
-    fi
-  fi
-
-  if [[ -z "$COMMUNICATION_REPO_PATH" || ! -f "$COMMUNICATION_LOCAL_SCRIPT" ]]; then
-    log_error "Hosted communication repo not found. Expected at: $CONSOLE_REPO_PATH/../unity-deploy"
-    log_info "Set COMMUNICATION_REPO_PATH to override."
-    return 1
-  fi
-
-  if [[ "$with_comms" == "true" ]]; then
-    log_info "Starting Communication adapters + Comms App (Console-managed emulator)..."
-  else
-    log_info "Starting Communication adapters (connecting to Console-managed emulator)..."
-  fi
-
-  local comm_env=(COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH")
-  if [[ -n "$ADMIN_KEY" ]]; then
-    comm_env+=(ORCHESTRA_ADMIN_KEY="$ADMIN_KEY")
-  fi
-  if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
-    comm_env+=(ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0")
-  fi
-  comm_env+=(PUBSUB_EMULATOR_HOST="$LOCAL_PUBSUB_HOST")
-  comm_env+=(GCP_PROJECT_ID="$PUBSUB_GCP_PROJECT_ID")
-
-  if [[ "${SELF_HOST:-0}" == "1" ]]; then
-    load_self_host_runtime_env
-    append_workspace_oauth_env comm_env
-  fi
-
-  local comm_args=(start --no-emulator)
-  if [[ "$with_comms" == "true" ]]; then
-    comm_args+=(--with-comms)
-  fi
-
-  if ! env "${comm_env[@]}" bash "$COMMUNICATION_LOCAL_SCRIPT" "${comm_args[@]}"; then
-    log_error "Failed to start Communication services"
-    return 1
-  fi
-
-  load_communication_config || return 1
-  log_success "Communication services are running"
-}
-
-is_communication_running() {
-  if [[ -z "$COMMUNICATION_REPO_PATH" || ! -f "$COMMUNICATION_LOCAL_SCRIPT" ]]; then
-    return 1
-  fi
-  env COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH" bash "$COMMUNICATION_LOCAL_SCRIPT" check >/dev/null 2>&1
-}
-
-stop_communication_services() {
-  if [[ -z "$COMMUNICATION_REPO_PATH" || ! -f "$COMMUNICATION_LOCAL_SCRIPT" ]]; then
-    return 0
-  fi
-  log_info "Stopping Communication services..."
-  env COMMS_REPO_PATH="$COMMUNICATION_REPO_PATH" \
-    COMMS_STOP_PUBSUB="${COMMS_STOP_PUBSUB:-1}" \
-    bash "$COMMUNICATION_LOCAL_SCRIPT" stop 2>/dev/null || true
-}
-
-load_communication_config() {
-  if [[ ! -f "$COMMUNICATION_CONFIG_FILE" ]]; then
-    log_warn "Communication config file not found at $COMMUNICATION_CONFIG_FILE"
-    return 1
-  fi
-
-  while IFS='=' read -r key value; do
-    case "$key" in
-      UNITY_ADAPTERS_URL)    CHAT_ADAPTERS_URL="$value" ;;
-      UNITY_COMMS_URL)       CHAT_COMMS_URL="$value" ;;
-      TEST_ASSISTANT_ID)     CHAT_TEST_ASSISTANT_ID="$value" ;;
-    esac
-  done < "$COMMUNICATION_CONFIG_FILE"
-
-  log_info "Loaded Communication config:"
-  log_info "  Adapters URL:      ${CHAT_ADAPTERS_URL:-<not set>}"
-  log_info "  Comms URL:         ${CHAT_COMMS_URL:-<not set>}"
-  log_info "  Test Assistant ID: ${CHAT_TEST_ASSISTANT_ID:-<not set>}"
 }
 
 cmd_gateway_doctor() {
@@ -1168,8 +1117,8 @@ start_unity_coordinator() {
   fi
 
   unity_env+=(
-    "UNITY_COMMS_URL=${service_gateway_url:-${CHAT_COMMS_URL:-http://127.0.0.1:8082}}"
-    "UNITY_ADAPTERS_URL=${service_gateway_url:-${CHAT_ADAPTERS_URL:-http://127.0.0.1:8081}}"
+    "UNITY_COMMS_URL=${service_gateway_url:-${CHAT_COMMS_URL:-${CHAT_ADAPTERS_URL:-http://127.0.0.1:8001}}}"
+    "UNITY_ADAPTERS_URL=${service_gateway_url:-${CHAT_ADAPTERS_URL:-http://127.0.0.1:8001}}"
   )
 
   local _voice_provider _voice_id
@@ -1686,6 +1635,13 @@ PY
     log_info "  SELF_HOST=1"
     log_info "  SELF_HOST_DESKTOP_URL=$SELF_HOST_DESKTOP_URL"
     log_info "  LIVEKIT_URL=$LIVEKIT_URL"
+    if [[ -n "$CHAT_ADAPTERS_URL" ]]; then
+      export COMMUNICATION_URL="$CHAT_ADAPTERS_URL"
+      export LOCAL_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
+      export UNITY_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
+      export UNITY_COMMS_URL="${CHAT_COMMS_URL:-$CHAT_ADAPTERS_URL}"
+      log_info "  UNITY_GATEWAY_URL=$CHAT_ADAPTERS_URL"
+    fi
   fi
 
   nohup npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 &
@@ -1896,16 +1852,14 @@ cmd_start() {
     start_pubsub_emulator || return 1
   fi
 
-  # Self-host uses Communication adapters + Comms App; --chat uses Unity gateway.
+  # Self-host and --chat both route Console through unity.gateway.
   if [[ "$with_self_host" == "true" || "$with_chat" == "true" ]]; then
     echo ""
     if [[ "$with_self_host" == "true" ]]; then
-      start_communication_adapters true || return 1
+      start_self_host_stack_gateway || return 1
+    elif ! check_unity_gateway_prerequisites; then
+      return 1
     else
-      if ! check_unity_gateway_prerequisites; then
-        return 1
-      fi
-      echo ""
       configure_unity_gateway_urls || return 1
     fi
   fi
@@ -1922,7 +1876,7 @@ cmd_start() {
     elif orchestra_listens_on_lan; then
       log_info "Reusing Orchestra (already reachable for self-host)..."
     else
-      log_info "Restarting Orchestra so SELF_HOST=1 and UNITY_COMMS_URL apply..."
+      log_info "Restarting Orchestra so SELF_HOST=1 and gateway URLs apply..."
       restart_orchestra="true"
     fi
   fi
@@ -1980,8 +1934,7 @@ cmd_start() {
   fi
   if [[ "$with_chat" == "true" ]]; then
     if [[ "$with_self_host" == "true" ]]; then
-      echo "  Adapters:  ${CHAT_ADAPTERS_URL:-http://127.0.0.1:8081}"
-      echo "  Comms:     ${CHAT_COMMS_URL:-http://127.0.0.1:8082}"
+      echo "  Gateway:   ${CHAT_ADAPTERS_URL:-$(unity_gateway_base_url)}"
       echo "  Unity CM:  starts after register/login (or on next Console visit when signed in)"
     else
       echo "  Gateway:   ${CHAT_ADAPTERS_URL:-$(unity_gateway_base_url)}"
@@ -2084,10 +2037,8 @@ cmd_stop() {
       stop_unity
     fi
   fi
-  if [[ "$preserve_background" == "true" ]]; then
-    COMMS_STOP_PUBSUB=0 stop_communication_services
-  else
-    stop_communication_services
+  if [[ "$preserve_background" != "true" ]] && is_unity_available; then
+    bash "$UNITY_LOCAL_SCRIPT" stop-gateway 2>/dev/null || true
   fi
   if is_emulator_running && [[ "$preserve_background" != "true" ]]; then
     stop_pubsub_emulator
@@ -2176,8 +2127,9 @@ cmd_status() {
   fi
 
   echo -n "  Chat:      "
-  if is_communication_running; then
-    echo -e "${GREEN}running${NC} (Communication services)"
+  if declare -F self_host_gateway_is_healthy &>/dev/null \
+    && self_host_gateway_is_healthy; then
+    echo -e "${GREEN}running${NC} (Unity gateway: $(unity_gateway_base_url))"
   elif is_unity_available && is_unity_running; then
     echo -e "${GREEN}running${NC} (Unity gateway: $(unity_gateway_base_url))"
   else
