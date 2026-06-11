@@ -391,9 +391,134 @@ describe('useProviderIntegrationCatalog', () => {
     });
   });
 
+  it('loads provider details before OAuth start when summary scopes are empty', async () => {
+    vi.spyOn(window, 'open').mockReturnValue({
+      location: { href: '', assign: vi.fn() },
+      close: vi.fn(),
+    } as unknown as Window);
+    const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.startsWith('/api/integrations/provider/apps/slack?')) {
+        return new Response(
+          JSON.stringify({
+            backend_id: 'composio-dev',
+            provider_app_id: 'slack',
+            canonical_app_slug: 'slack',
+            display_name: 'Slack',
+            auth_modes: ['oauth'],
+            derived_scopes: [{ id: 'chat:write', label: 'Send messages' }],
+            tools: [
+              {
+                id: 'composio:slack:send_message',
+                name: 'send_message',
+                display_name: 'Send message',
+                activation_state: 'not_connected',
+              },
+            ],
+            connection_status: 'not_connected',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (url.startsWith('/api/integrations/provider/apps?')) {
+        return new Response(
+          JSON.stringify({
+            items: [
+              {
+                backend_id: 'composio-dev',
+                provider_app_id: 'slack',
+                canonical_app_slug: 'slack',
+                display_name: 'Slack',
+                auth_modes: ['oauth'],
+                available_scopes: [],
+                available_actions: [],
+                connection_status: 'not_connected',
+              },
+            ],
+            total: 1,
+            limit: 100,
+            offset: 0,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (url.startsWith('/api/integrations/provider/connections')) {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === '/api/integrations/provider/connect/start') {
+        expect(JSON.parse(String(init?.body))).toMatchObject({
+          owner_scope: 'assistant',
+          assistant_id: 123,
+          canonical_app_slug: 'slack',
+          backend_id: 'composio-dev',
+          auth_mode: 'oauth',
+          requested_scopes: ['chat:write'],
+        });
+        return new Response(
+          JSON.stringify({
+            connection: {
+              connection_id: 'conn-slack',
+              status: 'pending',
+              canonical_app_slug: 'slack',
+              backend_id: 'composio-dev',
+              provider_app_id: 'slack',
+            },
+            connect_url: 'https://connect.example/slack',
+            auth_mode: 'oauth',
+            requires_browser_redirect: true,
+            requested_scopes: ['chat:write'],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response('{}', { status: 404 });
+    });
+
+    const { result } = renderHook(() => useProviderIntegrationCatalog('123'));
+    await waitFor(() => expect(result.current.definitions).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.startConnect(result.current.definitions[0]);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/api/integrations/provider/apps/slack?'),
+      expect.objectContaining({ cache: 'no-store' })
+    );
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/integrations/provider/connect/start',
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+
   it('starts API-key connections with a snake_case Orchestra payload', async () => {
     const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input, init) => {
       const url = String(input);
+      if (url.startsWith('/api/integrations/provider/apps/clay?')) {
+        return new Response(
+          JSON.stringify({
+            backend_id: 'composio-dev',
+            provider_app_id: 'clay',
+            canonical_app_slug: 'clay',
+            display_name: 'Clay',
+            auth_modes: ['api_key'],
+            derived_scopes: [{ id: 'records:read', label: 'Read records' }],
+            tools: [
+              {
+                id: 'composio:clay:lookup_record',
+                name: 'lookup_record',
+                display_name: 'Lookup record',
+                activation_state: 'not_connected',
+              },
+            ],
+            connection_status: 'not_connected',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
       if (url.startsWith('/api/integrations/provider/apps')) {
         return new Response(
           JSON.stringify({
@@ -429,6 +554,7 @@ describe('useProviderIntegrationCatalog', () => {
           canonical_app_slug: 'clay',
           backend_id: 'composio-dev',
           auth_mode: 'api_key',
+          requested_scopes: ['records:read'],
           api_key_fields: { CLAY_API_KEY: 'secret' },
         });
         return new Response(
@@ -466,6 +592,28 @@ describe('useProviderIntegrationCatalog', () => {
   it('requests Unity sync after API-key connect returns connected', async () => {
     const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input, init) => {
       const url = String(input);
+      if (url.startsWith('/api/integrations/provider/apps/clay?')) {
+        return new Response(
+          JSON.stringify({
+            backend_id: 'composio-dev',
+            provider_app_id: 'clay',
+            canonical_app_slug: 'clay',
+            display_name: 'Clay',
+            auth_modes: ['api_key'],
+            derived_scopes: [{ id: 'records:read', label: 'Read records' }],
+            tools: [
+              {
+                id: 'composio:clay:lookup_record',
+                name: 'lookup_record',
+                display_name: 'Lookup record',
+                activation_state: 'not_connected',
+              },
+            ],
+            connection_status: 'not_connected',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
       if (url.startsWith('/api/integrations/provider/apps')) {
         return new Response(
           JSON.stringify({

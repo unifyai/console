@@ -364,12 +364,17 @@ export function useProviderIntegrationCatalog(
       const pendingTab = primaryAuthMode === 'oauth' ? openPendingOAuthTab() : null;
       setIsConnecting(definition.canonicalSlug);
       try {
+        const detail =
+          definition.scopes.length === 0 && hasDeferredProviderDetails(definition.source)
+            ? detailsBySlug[definition.canonicalSlug] || (await fetchDetails(definition))
+            : null;
+        const connectDefinition = detail?.scopes.length ? detail : definition;
         const data = await startProviderIntegrationConnect({
           ownerScope,
           assistantId: Number.isNaN(Number(assistantId)) ? assistantId : Number(assistantId),
-          canonicalAppSlug: definition.canonicalSlug,
-          backendId: definition.sourceMetadata.backendId,
-          requestedScopes: definition.scopes.map((scope) => scope.id),
+          canonicalAppSlug: connectDefinition.canonicalSlug,
+          backendId: connectDefinition.sourceMetadata.backendId,
+          requestedScopes: connectDefinition.scopes.map((scope) => scope.id),
           authMode: primaryAuthMode,
           redirectUrl:
             primaryAuthMode === 'oauth'
@@ -405,7 +410,7 @@ export function useProviderIntegrationCatalog(
         await fetchCatalog();
         setDetailsBySlug((current) => {
           const next = { ...current };
-          delete next[definition.canonicalSlug];
+          delete next[connectDefinition.canonicalSlug];
           return next;
         });
         return data;
@@ -418,7 +423,7 @@ export function useProviderIntegrationCatalog(
         setIsConnecting(null);
       }
     },
-    [assistantId, fetchCatalog, isMock, ownerScope]
+    [assistantId, detailsBySlug, fetchCatalog, fetchDetails, isMock, ownerScope]
   );
 
   return {
