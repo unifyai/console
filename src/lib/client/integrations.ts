@@ -407,8 +407,20 @@ export async function completeProviderIntegrationConnectionByProviderId(request:
 export async function requestUnityIntegrationToolsSync(args: {
   assistantId: string | number;
   connection: IntegrationConnection;
+  reason?: 'connected' | 'disconnected';
 }): Promise<void> {
-  if (args.connection.status !== 'connected' && args.connection.status !== 'configured') return;
+  const reason = args.reason ?? 'connected';
+  if (
+    reason === 'connected' &&
+    args.connection.status !== 'connected' &&
+    args.connection.status !== 'configured'
+  ) {
+    return;
+  }
+  const message =
+    reason === 'disconnected'
+      ? `${args.connection.canonicalSlug} integration disconnected; removing tools.`
+      : `${args.connection.canonicalSlug} integration connected; preparing tools.`;
   const response = await fetch(
     `/api/assistant/${encodeURIComponent(String(args.assistantId))}/system-event`,
     {
@@ -416,7 +428,7 @@ export async function requestUnityIntegrationToolsSync(args: {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         eventType: 'integration_tools_sync_requested',
-        message: `${args.connection.canonicalSlug} integration connected; preparing tools.`,
+        message,
         extraEventFields: {
           appSlug: args.connection.canonicalSlug,
           connectionId: args.connection.id,

@@ -437,6 +437,13 @@ export function IntegrationsPane({
     setBusyConnectionId(connection.id);
     try {
       await disconnectProviderIntegration(connection.id);
+      await requestUnityIntegrationToolsSync({
+        assistantId,
+        connection,
+        reason: 'disconnected',
+      }).catch((error) => {
+        console.warn('Failed to request Unity integration tool sync after disconnect', error);
+      });
       toast.success('Disconnected.');
       await refreshProviderCatalog();
       if (selectedIntegration) await fetchDetails(selectedIntegration);
