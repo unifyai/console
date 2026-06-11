@@ -3,7 +3,7 @@
 import { ResponseProps } from '@/types/common';
 import { UserDesktop } from '@/types/assistants/assistant';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
-import { snakeToCamelObject } from '@/utils/casing';
+import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 import { resolveOwnerApiKeyForAssistant } from '@/lib/assistants/owner';
 import { isSelfHost } from '@/lib/environment/environment';
