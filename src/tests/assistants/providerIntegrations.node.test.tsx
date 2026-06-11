@@ -1,11 +1,33 @@
 import * as React from 'react';
 import { renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+
+const virtualizerMockState = vi.hoisted(() => ({
+  visibleRows: Number.POSITIVE_INFINITY,
+}));
+
+vi.mock('@tanstack/react-virtual', () => ({
+  useVirtualizer: ({ count }: { count: number }) => {
+    const visibleRows = Math.min(count, virtualizerMockState.visibleRows);
+    return {
+      getTotalSize: () => count * 226,
+      getVirtualItems: () =>
+        Array.from({ length: visibleRows }, (_, index) => ({
+          index,
+          key: index,
+          size: 226,
+          start: index * 226,
+        })),
+    };
+  },
+}));
+
 import { IntegrationGalleryShell, ProviderIntegrationDetailSheet } from '@/components/Integrations';
 import { useIntegrationGalleryModel } from '@/hooks/Integrations/useIntegrationGalleryModel';
 import { INTEGRATION_PROVIDERS } from '@/constants/assistants/integrations';
 import { MOCK_PROVIDER_INTEGRATION_DEFINITIONS } from '@/utils/assistants/provider-integration-mock-data';
+import type { IntegrationGalleryItem } from '@/types/integrations';
 
 const staticDefinitions = MOCK_PROVIDER_INTEGRATION_DEFINITIONS.filter(
   (definition) => definition.source === 'static_package'
@@ -22,7 +44,27 @@ function useMockGalleryItems() {
   });
 }
 
+function buildLargeGalleryItems(
+  template: IntegrationGalleryItem,
+  count: number
+): IntegrationGalleryItem[] {
+  return Array.from({ length: count }, (_, index) => ({
+    ...template,
+    id: `virtual-app-${index}`,
+    canonicalSlug: `virtual-app-${index}`,
+    displayName: `Virtual App ${index}`,
+    description: `Generated integration ${index}`,
+    connections: [],
+    primaryConnection: null,
+    status: 'not_connected' as const,
+  }));
+}
+
 describe('provider integrations gallery model', () => {
+  beforeEach(() => {
+    virtualizerMockState.visibleRows = Number.POSITIVE_INFINITY;
+  });
+
   it('merges built-in and dynamic provider-backed apps into one gallery model', () => {
     const { result } = renderHook(() => useMockGalleryItems());
 
@@ -124,6 +166,75 @@ describe('provider integrations gallery model', () => {
 
     fireEvent.click(screen.getByTestId('integration-gallery-refresh'));
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('mounts only the virtualized available-app window for large catalogs', () => {
+    const { result } = renderHook(() => useMockGalleryItems());
+    const template = result.current.find((item) => item.canonicalSlug === 'discord');
+    expect(template).toBeDefined();
+    virtualizerMockState.visibleRows = 3;
+
+    render(
+      <IntegrationGalleryShell
+        items={buildLargeGalleryItems(template!, 60)}
+        total={60}
+        onOpen={vi.fn()}
+        onPrimaryAction={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Showing 60 matching apps/)).toBeInTheDocument();
+    expect(screen.getAllByTestId('integration-virtual-row')).toHaveLength(3);
+    expect(screen.getByTestId('provider-integration-card-virtual-app-0')).toBeInTheDocument();
+    expect(
+      screen.queryByTestId('provider-integration-card-virtual-app-20')
+    ).not.toBeInTheDocument();
+  });
+
+  it('requests more apps when the virtualized window reaches the end', async () => {
+    const { result } = renderHook(() => useMockGalleryItems());
+    const template = result.current.find((item) => item.canonicalSlug === 'discord');
+    expect(template).toBeDefined();
+    const loadMore = vi.fn();
+    virtualizerMockState.visibleRows = Number.POSITIVE_INFINITY;
+
+    render(
+      <IntegrationGalleryShell
+        items={buildLargeGalleryItems(template!, 4)}
+        total={8}
+        hasMore
+        onLoadMore={loadMore}
+        onOpen={vi.fn()}
+        onPrimaryAction={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(loadMore).toHaveBeenCalledTimes(1));
+  });
+
+  it('does not request more apps while a load-more request is already in flight', async () => {
+    const { result } = renderHook(() => useMockGalleryItems());
+    const template = result.current.find((item) => item.canonicalSlug === 'discord');
+    expect(template).toBeDefined();
+    const loadMore = vi.fn();
+    virtualizerMockState.visibleRows = Number.POSITIVE_INFINITY;
+
+    render(
+      <IntegrationGalleryShell
+        items={buildLargeGalleryItems(template!, 4)}
+        total={8}
+        hasMore
+        isLoadingMore
+        onLoadMore={loadMore}
+        onOpen={vi.fn()}
+        onPrimaryAction={vi.fn()}
+      />
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId('integration-virtual-list-loading')).toBeInTheDocument()
+    );
+    expect(loadMore).not.toHaveBeenCalled();
   });
 
   it('shows a centered loading message while live integrations load', () => {

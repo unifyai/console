@@ -60,6 +60,11 @@ test('mock connected-apps page shows dynamic apps, permissions, tools, and conne
   await expect(page.getByTestId('provider-integration-card-slack')).toBeVisible();
   await expect(page.getByTestId('provider-integration-card-clay')).toBeVisible();
   await expect(page.getByTestId('provider-integration-card-hubspot')).toBeVisible();
+  await expect(page.getByTestId('integration-virtual-list')).toBeVisible();
+  await page.getByTestId('integration-virtual-list').evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    element.dispatchEvent(new Event('scroll'));
+  });
 
   await page.getByTestId('integration-card-primary-hubspot').click();
   await expect(page.getByTestId('provider-integration-detail-sheet')).toBeVisible();

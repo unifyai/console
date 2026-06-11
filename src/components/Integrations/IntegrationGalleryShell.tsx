@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
 import { ProviderIntegrationCard } from './ProviderIntegrationCard';
+import { IntegrationGalleryVirtualGrid } from './IntegrationGalleryVirtualGrid';
 import { integrationTypeFilterValue, integrationTypeLabel } from './integrationType';
 import type { IntegrationGalleryItem } from '@/types/integrations';
 
@@ -95,6 +96,12 @@ export function IntegrationGalleryShell({
   onRefresh,
   isRefreshing,
   addCustomControl,
+  filters: controlledFilters,
+  onFiltersChange,
+  total,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
 }: {
   items: IntegrationGalleryItem[];
   isLoading?: boolean;
@@ -105,8 +112,24 @@ export function IntegrationGalleryShell({
   onRefresh?: () => void | Promise<void>;
   isRefreshing?: boolean;
   addCustomControl?: React.ReactNode;
+  filters?: IntegrationGalleryFilters;
+  onFiltersChange?: (filters: IntegrationGalleryFilters) => void;
+  total?: number;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void | Promise<void>;
 }) {
-  const [filters, setFilters] = React.useState<IntegrationGalleryFilters>(DEFAULT_FILTERS);
+  const [localFilters, setLocalFilters] =
+    React.useState<IntegrationGalleryFilters>(DEFAULT_FILTERS);
+  const filters = controlledFilters ?? localFilters;
+  const setFilters = React.useCallback(
+    (updater: React.SetStateAction<IntegrationGalleryFilters>) => {
+      const next = typeof updater === 'function' ? updater(filters) : updater;
+      if (onFiltersChange) onFiltersChange(next);
+      else setLocalFilters(next);
+    },
+    [filters, onFiltersChange]
+  );
   const filteredItems = React.useMemo(
     () => items.filter((item) => matchesFilters(item, filters)),
     [filters, items]
@@ -122,6 +145,7 @@ export function IntegrationGalleryShell({
   const isInitialLoading = Boolean(isLoading && items.length === 0);
   const hasConnectedSection = connectedItems.length > 0;
   const hasBrowsableSection = browsableItems.length > 0;
+  const catalogTotal = total ?? filteredItems.length;
 
   return (
     <section className="space-y-4" data-testid="integration-gallery">
@@ -280,8 +304,9 @@ export function IntegrationGalleryShell({
                     <div>
                       <h3 className="text-title text-base">Available apps</h3>
                       <p className="text-caption">
-                        Showing {browsableItems.length} connectable apps. Scroll to browse the full
-                        catalog.
+                        Showing {filteredItems.length}
+                        {catalogTotal > filteredItems.length ? ` of ${catalogTotal}` : ''} matching
+                        apps. Scroll to browse the full catalog.
                       </p>
                     </div>
                     <Badge
@@ -291,20 +316,15 @@ export function IntegrationGalleryShell({
                       {browsableItems.length} available
                     </Badge>
                   </div>
-                  <div
-                    className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
-                    data-testid="integration-virtual-list"
-                  >
-                    {browsableItems.map((item) => (
-                      <ProviderIntegrationCard
-                        key={`${item.source}:${item.id}`}
-                        item={item}
-                        busy={busySlug === item.canonicalSlug}
-                        onOpen={onOpen}
-                        onPrimaryAction={onPrimaryAction}
-                      />
-                    ))}
-                  </div>
+                  <IntegrationGalleryVirtualGrid
+                    items={browsableItems}
+                    busySlug={busySlug}
+                    hasMore={hasMore}
+                    isLoadingMore={isLoadingMore}
+                    onEndReached={onLoadMore}
+                    onOpen={onOpen}
+                    onPrimaryAction={onPrimaryAction}
+                  />
                 </section>
               )}
             </>

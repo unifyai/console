@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { toast } from 'sonner';
+import { useDebounceValue } from 'usehooks-ts';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import { ScrollArea } from '@/components/UI/scroll-area';
@@ -52,7 +53,11 @@ import type {
   IntegrationProviderId,
 } from '@/types/assistants/integration';
 import type { IntegrationConnection, IntegrationGalleryItem } from '@/types/integrations';
-import { IntegrationGalleryShell, ProviderIntegrationDetailSheet } from '@/components/Integrations';
+import {
+  IntegrationGalleryShell,
+  ProviderIntegrationDetailSheet,
+  type IntegrationGalleryFilters,
+} from '@/components/Integrations';
 import { ApiKeyIntegrationDialog } from './ApiKeyIntegrationDialog';
 import { OAuthIntegrationDialog, type OAuthSubmitPayload } from './OAuthIntegrationDialog';
 import { getIntegrationProvider } from '@/constants/assistants/integrations';
@@ -87,6 +92,12 @@ type IntegrationDialog = null | {
   provider: IntegrationProviderConfig;
 };
 
+const DEFAULT_GALLERY_FILTERS: IntegrationGalleryFilters = {
+  query: '',
+  category: 'all',
+  status: 'all',
+};
+
 /**
  * The Integrations tab body.  Replaces the older ``SecretsPane`` —
  * adds a status-aware card row above the standard secrets table for
@@ -118,18 +129,34 @@ export function IntegrationsPane({
     onSubmit,
     fetchSecrets,
   } = useAssistantSecrets(assistantId, ownerId, secretActions, { enabled: isVisible });
-  const providerCatalog = useProviderIntegrationCatalog(assistantId);
+  const [galleryFilters, setGalleryFilters] =
+    React.useState<IntegrationGalleryFilters>(DEFAULT_GALLERY_FILTERS);
+  const [debouncedCatalogQuery] = useDebounceValue(galleryFilters.query, 250);
+  const catalogSourceType =
+    galleryFilters.category === 'native'
+      ? 'native'
+      : galleryFilters.category === 'third_party'
+        ? 'third_party'
+        : null;
+  const providerCatalog = useProviderIntegrationCatalog(assistantId, {
+    query: debouncedCatalogQuery,
+    sourceType: catalogSourceType,
+  });
   const {
     definitions: providerDefinitions,
     detailsBySlug,
     fetchDetails,
+    hasMore: hasMoreProviderIntegrations,
     hasLoaded: hasProviderCatalogLoaded,
     isConnecting: providerConnectingSlug,
     isDetailLoading,
+    isLoadingMore: isProviderCatalogLoadingMore,
     isLoading: isProviderCatalogLoading,
     isMock: isProviderCatalogMock,
+    loadMore: loadMoreProviderIntegrations,
     refresh: refreshProviderCatalog,
     startConnect: startProviderConnect,
+    total: providerCatalogTotal,
   } = providerCatalog;
 
   // Local UI state.
@@ -702,6 +729,12 @@ export function IntegrationsPane({
             isMock={isProviderCatalogMock}
             busySlug={providerConnectingSlug}
             isRefreshing={isProviderCatalogLoading}
+            filters={galleryFilters}
+            onFiltersChange={setGalleryFilters}
+            total={providerCatalogTotal + staticDefinitions.length}
+            hasMore={hasMoreProviderIntegrations}
+            isLoadingMore={isProviderCatalogLoadingMore}
+            onLoadMore={loadMoreProviderIntegrations}
             onOpen={setSelectedIntegration}
             onPrimaryAction={handleGalleryPrimaryAction}
             onRefresh={refreshProviderCatalog}

@@ -53,7 +53,7 @@ export function ProviderIntegrationCard({
     <Card
       role="button"
       tabIndex={0}
-      className="hover:border-primary/40 group relative cursor-pointer overflow-hidden shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      className="hover:border-primary/40 group relative min-h-[214px] cursor-pointer overflow-hidden shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
       onClick={() => onOpen(item)}
       onKeyDown={(event) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -69,7 +69,7 @@ export function ProviderIntegrationCard({
             <div className="bg-muted/40 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border">
               {item.iconUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.iconUrl} alt="" className="h-8 w-8 object-contain" />
+                <img src={item.iconUrl} alt="" loading="lazy" className="h-8 w-8 object-contain" />
               ) : item.source === 'static_package' ? (
                 <Layers3 className="h-5 w-5 text-primary" />
               ) : (
