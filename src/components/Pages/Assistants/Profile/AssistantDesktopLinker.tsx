@@ -348,10 +348,8 @@ export function AssistantDesktopLinker({
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="top" align="start" className="text-caption max-w-xs">
-                      macOS needs your Mac login password so your assistant can control this machine
-                      during local desktop sessions — granting accessibility/automation permission
-                      and unlocking the screen when needed. It&apos;s stored as an encrypted secret
-                      and only used on the Mac you link.
+                      Used to grant accessibility permission and unlock your Mac when needed. Stored
+                      as an encrypted secret, only used on the Mac you link.
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>

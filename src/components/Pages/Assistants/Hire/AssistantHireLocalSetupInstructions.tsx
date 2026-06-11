@@ -33,7 +33,7 @@ const LoadingSkeleton = () => (
 const OS_DISPLAY_NAMES: Record<string, string> = {
   ubuntu: 'Ubuntu (.deb)',
   windows: 'Windows (.exe)',
-  macos: 'macOS (.dmg)',
+  macos: 'macOS (.pkg)',
 };
 
 export function AssistantHireLocalSetupInstructionsDialog({

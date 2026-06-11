@@ -353,16 +353,13 @@ export function AssistantListItem({
                 </>
               )}
               {onConnectDesktop && (
-                <>
-                  {canEdit && <DropdownMenuSeparator />}
-                  <DropdownMenuItem
-                    onClick={() => onConnectDesktop(assistant)}
-                    data-testid="menu-connect-desktop"
-                  >
-                    <Monitor className="mr-2 h-4 w-4" />
-                    Connect your desktop
-                  </DropdownMenuItem>
-                </>
+                <DropdownMenuItem
+                  onClick={() => onConnectDesktop(assistant)}
+                  data-testid="menu-connect-desktop"
+                >
+                  <Monitor className="mr-2 h-4 w-4" />
+                  Connect your desktop
+                </DropdownMenuItem>
               )}
               {canEndContract && (
                 <>

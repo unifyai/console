@@ -7,7 +7,7 @@ type ValidOS = (typeof VALID_OS)[number];
 const OS_TO_EXTENSION: Record<ValidOS, string> = {
   ubuntu: '.deb',
   windows: '.exe',
-  macos: '.dmg',
+  macos: '.pkg',
 };
 
 interface GitHubAsset {
