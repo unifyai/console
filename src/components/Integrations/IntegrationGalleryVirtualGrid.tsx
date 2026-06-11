@@ -3,10 +3,12 @@
 import * as React from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Loader2 } from 'lucide-react';
+import { ScrollArea } from '@/components/UI/scroll-area';
 import { ProviderIntegrationCard } from './ProviderIntegrationCard';
 import type { IntegrationGalleryItem } from '@/types/integrations';
 
-const CARD_GAP_PX = 12;
+const CARD_ROW_GAP_PX = 16;
+const GRID_EDGE_PADDING_PX = 8;
 const ESTIMATED_CARD_HEIGHT_PX = 214;
 const LOAD_MORE_ROW_THRESHOLD = 3;
 
@@ -55,8 +57,14 @@ export function IntegrationGalleryVirtualGrid({
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => ESTIMATED_CARD_HEIGHT_PX + CARD_GAP_PX,
+    estimateSize: () => ESTIMATED_CARD_HEIGHT_PX + CARD_ROW_GAP_PX,
+    measureElement:
+      typeof window !== 'undefined' && !navigator.userAgent.includes('Firefox')
+        ? (element) => element?.getBoundingClientRect().height
+        : undefined,
     overscan: 5,
+    paddingEnd: GRID_EDGE_PADDING_PX,
+    paddingStart: GRID_EDGE_PADDING_PX,
   });
   const virtualRows = rowVirtualizer.getVirtualItems();
   const lastVirtualRow = virtualRows[virtualRows.length - 1];
@@ -69,13 +77,14 @@ export function IntegrationGalleryVirtualGrid({
   }, [hasMore, isLoadingMore, lastVirtualRow, onEndReached, rowCount]);
 
   return (
-    <div
-      ref={parentRef}
-      className="max-h-[min(72vh,900px)] overflow-auto pr-1"
-      data-testid="integration-virtual-list"
+    <ScrollArea
+      className="max-h-[min(72vh,900px)]"
+      viewportClassName="max-h-[min(72vh,900px)]"
+      viewportRef={parentRef}
+      viewportTestId="integration-virtual-list"
     >
       <div
-        className="relative w-full"
+        className="relative mx-2"
         style={{
           height: rowVirtualizer.getTotalSize(),
         }}
@@ -86,11 +95,14 @@ export function IntegrationGalleryVirtualGrid({
           return (
             <div
               key={virtualRow.key}
+              ref={rowVirtualizer.measureElement}
               className="absolute left-0 right-0 grid gap-3"
+              data-index={virtualRow.index}
               data-testid="integration-virtual-row"
               style={{
                 gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                minHeight: ESTIMATED_CARD_HEIGHT_PX,
+                minHeight: ESTIMATED_CARD_HEIGHT_PX + CARD_ROW_GAP_PX,
+                paddingBottom: CARD_ROW_GAP_PX,
                 transform: `translateY(${virtualRow.start}px)`,
               }}
             >
@@ -116,6 +128,6 @@ export function IntegrationGalleryVirtualGrid({
           Loading more integrations...
         </div>
       )}
-    </div>
+    </ScrollArea>
   );
 }
