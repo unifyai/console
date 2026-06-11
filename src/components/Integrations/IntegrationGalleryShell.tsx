@@ -16,6 +16,7 @@ import { ProviderIntegrationCard } from './ProviderIntegrationCard';
 import { IntegrationGalleryVirtualGrid } from './IntegrationGalleryVirtualGrid';
 import { integrationTypeFilterValue, integrationTypeLabel } from './integrationType';
 import type { IntegrationGalleryItem } from '@/types/integrations';
+import type { ProviderAppCatalogFacets } from '@/lib/client/integrations';
 
 export interface IntegrationGalleryFilters {
   query: string;
@@ -42,6 +43,7 @@ function matchesFilters(item: IntegrationGalleryItem, filters: IntegrationGaller
       item.category,
       integrationTypeLabel(item),
       item.canonicalSlug,
+      item.sourceMetadata.providerAppId,
       item.sourceMetadata.label,
       ...item.tools.map((tool) => `${tool.displayName} ${tool.description ?? ''}`),
     ]
@@ -102,6 +104,7 @@ export function IntegrationGalleryShell({
   hasMore,
   isLoadingMore,
   onLoadMore,
+  facets,
 }: {
   items: IntegrationGalleryItem[];
   isLoading?: boolean;
@@ -118,10 +121,15 @@ export function IntegrationGalleryShell({
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void | Promise<void>;
+  facets?: ProviderAppCatalogFacets | null;
 }) {
   const [localFilters, setLocalFilters] =
     React.useState<IntegrationGalleryFilters>(DEFAULT_FILTERS);
   const filters = controlledFilters ?? localFilters;
+  const [draftQuery, setDraftQuery] = React.useState(filters.query);
+  React.useEffect(() => {
+    setDraftQuery(filters.query);
+  }, [filters.query]);
   const setFilters = React.useCallback(
     (updater: React.SetStateAction<IntegrationGalleryFilters>) => {
       const next = typeof updater === 'function' ? updater(filters) : updater;
@@ -145,7 +153,16 @@ export function IntegrationGalleryShell({
   const isInitialLoading = Boolean(isLoading && items.length === 0);
   const hasConnectedSection = connectedItems.length > 0;
   const hasBrowsableSection = browsableItems.length > 0;
-  const catalogTotal = total ?? filteredItems.length;
+  const availableCount = browsableItems.length;
+  const getStatusFilterCount = React.useCallback(
+    (status: IntegrationGalleryFilters['status']) => {
+      if (status === 'all') return facets?.total ?? total;
+      if (status === 'connected') return facets?.statusGroup.connected;
+      if (status === 'needs_attention') return facets?.statusGroup.needsAttention;
+      return facets?.statusGroup.notConnected;
+    },
+    [facets, total]
+  );
 
   return (
     <section className="space-y-4" data-testid="integration-gallery">
@@ -189,28 +206,42 @@ export function IntegrationGalleryShell({
 
         <div className="space-y-3 p-4">
           <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_180px_auto]">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <form
+              className="relative"
+              onSubmit={(event) => {
+                event.preventDefault();
+                setFilters((current) => ({ ...current, query: draftQuery.trim() }));
+              }}
+            >
+              <button
+                type="submit"
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
+                aria-label="Search integrations"
+                data-testid="integration-gallery-search-submit"
+              >
+                <Search className="h-4 w-4" />
+              </button>
               <Input
-                value={filters.query}
+                value={draftQuery}
                 placeholder="Search apps and tools..."
                 className="pl-8 pr-8"
-                onChange={(event) =>
-                  setFilters((current) => ({ ...current, query: event.target.value }))
-                }
+                onChange={(event) => setDraftQuery(event.target.value)}
                 data-testid="integration-gallery-search"
               />
-              {filters.query && (
+              {draftQuery && (
                 <button
                   type="button"
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground hover:text-foreground"
                   aria-label="Clear integration search"
-                  onClick={() => setFilters((current) => ({ ...current, query: '' }))}
+                  onClick={() => {
+                    setDraftQuery('');
+                    setFilters((current) => ({ ...current, query: '' }));
+                  }}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
-            </div>
+            </form>
             <Select
               value={filters.category}
               onValueChange={(category) => setFilters((current) => ({ ...current, category }))}
@@ -228,12 +259,14 @@ export function IntegrationGalleryShell({
               className="inline-flex justify-self-end overflow-hidden rounded-full border bg-background p-0.5"
               data-testid="integration-status-filter"
             >
-              {[
-                ['all', 'All'],
-                ['connected', 'Connected'],
-                ['needs_attention', 'Needs attention'],
-                ['not_connected', 'Not connected'],
-              ].map(([value, label]) => (
+              {(
+                [
+                  ['all', 'All'],
+                  ['connected', 'Connected'],
+                  ['needs_attention', 'Needs attention'],
+                  ['not_connected', 'Not connected'],
+                ] as const
+              ).map(([value, label]) => (
                 <Button
                   key={value}
                   type="button"
@@ -248,6 +281,9 @@ export function IntegrationGalleryShell({
                   }
                 >
                   {label}
+                  {getStatusFilterCount(value) !== undefined
+                    ? ` (${getStatusFilterCount(value)})`
+                    : ''}
                 </Button>
               ))}
             </div>
@@ -304,16 +340,14 @@ export function IntegrationGalleryShell({
                     <div>
                       <h3 className="text-title text-base">Available apps</h3>
                       <p className="text-caption">
-                        Showing {filteredItems.length}
-                        {catalogTotal > filteredItems.length ? ` of ${catalogTotal}` : ''} matching
-                        apps. Scroll to browse the full catalog.
+                        Showing {availableCount} available apps. Scroll to browse the full catalog.
                       </p>
                     </div>
                     <Badge
                       variant="outline"
                       className="rounded-full bg-background text-muted-foreground"
                     >
-                      {browsableItems.length} available
+                      {availableCount} available
                     </Badge>
                   </div>
                   <IntegrationGalleryVirtualGrid

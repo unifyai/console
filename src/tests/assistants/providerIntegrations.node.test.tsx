@@ -94,6 +94,7 @@ describe('provider integrations gallery model', () => {
     fireEvent.change(screen.getByTestId('integration-gallery-search'), {
       target: { value: 'Slack' },
     });
+    fireEvent.click(screen.getByTestId('integration-gallery-search-submit'));
     expect(screen.getByTestId('provider-integration-card-slack')).toBeInTheDocument();
     expect(
       result.current
@@ -144,6 +145,27 @@ describe('provider integrations gallery model', () => {
       <IntegrationGalleryShell
         items={result.current}
         isMock
+        facets={{
+          total: 24,
+          sourceType: { native: 2, thirdParty: 22 },
+          status: {
+            connected: 2,
+            configured: 1,
+            pending: 1,
+            missingScope: 0,
+            missingSecrets: 0,
+            needsReconnect: 1,
+            expired: 0,
+            revoked: 0,
+            error: 0,
+            notConnected: 19,
+          },
+          statusGroup: {
+            connected: 3,
+            needsAttention: 2,
+            notConnected: 19,
+          },
+        }}
         onOpen={vi.fn()}
         onPrimaryAction={vi.fn()}
         onRefresh={refresh}
@@ -157,6 +179,10 @@ describe('provider integrations gallery model', () => {
     expect(screen.getByTestId('integration-gallery-refresh')).toBeInTheDocument();
     expect(screen.getByTestId('integration-virtual-list')).toBeInTheDocument();
     expect(screen.getByTestId('integration-status-filter')).toBeInTheDocument();
+    expect(screen.getByText('All (24)')).toBeInTheDocument();
+    expect(screen.getByText('Connected (3)')).toBeInTheDocument();
+    expect(screen.getByText('Needs attention (2)')).toBeInTheDocument();
+    expect(screen.getByText('Not connected (19)')).toBeInTheDocument();
     expect(screen.getByText(/Scroll to browse the full catalog/)).toBeInTheDocument();
     expect(screen.queryByTestId('integration-page-size')).not.toBeInTheDocument();
     expect(screen.queryByText(/marketplace/i)).not.toBeInTheDocument();
@@ -183,7 +209,7 @@ describe('provider integrations gallery model', () => {
       />
     );
 
-    expect(screen.getByText(/Showing 60 matching apps/)).toBeInTheDocument();
+    expect(screen.getByText(/Showing 60 available apps/)).toBeInTheDocument();
     expect(screen.getAllByTestId('integration-virtual-row')).toHaveLength(3);
     expect(screen.getByTestId('provider-integration-card-virtual-app-0')).toBeInTheDocument();
     expect(

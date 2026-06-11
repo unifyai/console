@@ -81,6 +81,7 @@ test('mock connected-apps page shows dynamic apps, permissions, tools, and conne
   });
 
   await page.getByTestId('integration-gallery-search').fill('Slack');
+  await page.getByTestId('integration-gallery-search-submit').click();
   await expect(page.getByTestId('provider-integration-card-slack')).toBeVisible();
   await page.getByTestId('integration-card-primary-slack').click();
   await expect(page.getByTestId('provider-integration-detail-sheet')).toBeVisible();

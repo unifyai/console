@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import { toast } from 'sonner';
-import { useDebounceValue } from 'usehooks-ts';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import { ScrollArea } from '@/components/UI/scroll-area';
@@ -41,6 +40,7 @@ import {
   requestUnityIntegrationToolsSync,
   testProviderIntegration,
   updateProviderIntegrationConnection,
+  type ProviderAppStatusGroup,
 } from '@/lib/client/integrations';
 import { buildStaticIntegrationDefinitions } from '@/utils/integrations/static-package-adapter';
 import { openPendingOAuthTab, subscribeOAuthComplete } from '@/utils/assistants/oauth';
@@ -98,6 +98,15 @@ const DEFAULT_GALLERY_FILTERS: IntegrationGalleryFilters = {
   status: 'all',
 };
 
+function statusGroupsForFilter(
+  status: IntegrationGalleryFilters['status']
+): ProviderAppStatusGroup[] {
+  if (status === 'connected') return ['connected'];
+  if (status === 'needs_attention') return ['needs_attention'];
+  if (status === 'not_connected') return ['not_connected'];
+  return [];
+}
+
 /**
  * The Integrations tab body.  Replaces the older ``SecretsPane`` —
  * adds a status-aware card row above the standard secrets table for
@@ -131,20 +140,25 @@ export function IntegrationsPane({
   } = useAssistantSecrets(assistantId, ownerId, secretActions, { enabled: isVisible });
   const [galleryFilters, setGalleryFilters] =
     React.useState<IntegrationGalleryFilters>(DEFAULT_GALLERY_FILTERS);
-  const [debouncedCatalogQuery] = useDebounceValue(galleryFilters.query, 250);
   const catalogSourceType =
     galleryFilters.category === 'native'
       ? 'native'
       : galleryFilters.category === 'third_party'
         ? 'third_party'
         : null;
+  const catalogStatusGroups = React.useMemo(
+    () => statusGroupsForFilter(galleryFilters.status),
+    [galleryFilters.status]
+  );
   const providerCatalog = useProviderIntegrationCatalog(assistantId, {
-    query: debouncedCatalogQuery,
+    query: galleryFilters.query,
     sourceType: catalogSourceType,
+    statusGroups: catalogStatusGroups,
   });
   const {
     definitions: providerDefinitions,
     detailsBySlug,
+    facets: providerCatalogFacets,
     fetchDetails,
     hasMore: hasMoreProviderIntegrations,
     hasLoaded: hasProviderCatalogLoaded,
@@ -732,6 +746,7 @@ export function IntegrationsPane({
             filters={galleryFilters}
             onFiltersChange={setGalleryFilters}
             total={providerCatalogTotal + staticDefinitions.length}
+            facets={providerCatalogFacets}
             hasMore={hasMoreProviderIntegrations}
             isLoadingMore={isProviderCatalogLoadingMore}
             onLoadMore={loadMoreProviderIntegrations}

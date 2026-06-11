@@ -195,11 +195,14 @@ describe('IntegrationsPane provider disconnect sync', () => {
     fetchDetails.mockResolvedValue(definition);
     mockUseProviderIntegrationCatalog.mockReturnValue({
       apps: [definition],
+      catalogVersion: null,
       definitions: [definition],
       detailsBySlug: {},
+      facets: null,
       fetchDetails: fetchDetails as ReturnType<
         typeof useProviderIntegrationCatalog
       >['fetchDetails'],
+      generatedAt: null,
       hasMore: false,
       hasLoaded: true,
       isConnecting: null,
