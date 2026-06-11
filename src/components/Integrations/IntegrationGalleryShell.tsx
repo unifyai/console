@@ -34,6 +34,18 @@ function isConnectedItem(item: IntegrationGalleryItem): boolean {
   return item.status === 'connected' || item.status === 'configured';
 }
 
+function isNeedsAttentionItem(item: IntegrationGalleryItem): boolean {
+  return [
+    'missing_scope',
+    'missing_secrets',
+    'needs_reconnect',
+    'expired',
+    'revoked',
+    'error',
+    'pending',
+  ].includes(item.status);
+}
+
 function matchesFilters(item: IntegrationGalleryItem, filters: IntegrationGalleryFilters): boolean {
   const query = filters.query.trim().toLowerCase();
   if (query) {
@@ -58,15 +70,7 @@ function matchesFilters(item: IntegrationGalleryItem, filters: IntegrationGaller
     return item.status === 'connected' || item.status === 'configured';
   }
   if (filters.status === 'needs_attention') {
-    return [
-      'missing_scope',
-      'missing_secrets',
-      'needs_reconnect',
-      'expired',
-      'revoked',
-      'error',
-      'pending',
-    ].includes(item.status);
+    return isNeedsAttentionItem(item);
   }
   if (filters.status === 'not_connected') {
     return item.status === 'not_connected';
@@ -146,12 +150,17 @@ export function IntegrationGalleryShell({
     () => filteredItems.filter(isConnectedItem),
     [filteredItems]
   );
+  const needsAttentionItems = React.useMemo(
+    () => filteredItems.filter((item) => !isConnectedItem(item) && isNeedsAttentionItem(item)),
+    [filteredItems]
+  );
   const browsableItems = React.useMemo(
-    () => filteredItems.filter((item) => !isConnectedItem(item)),
+    () => filteredItems.filter((item) => !isConnectedItem(item) && !isNeedsAttentionItem(item)),
     [filteredItems]
   );
   const isInitialLoading = Boolean(isLoading && items.length === 0);
   const hasConnectedSection = connectedItems.length > 0;
+  const hasNeedsAttentionSection = needsAttentionItems.length > 0;
   const hasBrowsableSection = browsableItems.length > 0;
   const loadedAvailableCount = browsableItems.length;
   const catalogTotal = total ?? filteredItems.length;
@@ -159,9 +168,13 @@ export function IntegrationGalleryShell({
     filters.status === 'all'
       ? Math.max(connectedItems.length, facets?.statusGroup.connected ?? 0)
       : 0;
+  const needsAttentionTotal =
+    filters.status === 'all'
+      ? Math.max(needsAttentionItems.length, facets?.statusGroup.needsAttention ?? 0)
+      : 0;
   const totalAvailableCount = Math.max(
     loadedAvailableCount,
-    Math.max(catalogTotal - connectedTotal, 0)
+    Math.max(catalogTotal - connectedTotal - needsAttentionTotal, 0)
   );
 
   return (
@@ -319,6 +332,36 @@ export function IntegrationGalleryShell({
                   </div>
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                     {connectedItems.map((item) => (
+                      <ProviderIntegrationCard
+                        key={`${item.source}:${item.id}`}
+                        item={item}
+                        busy={busySlug === item.canonicalSlug}
+                        onOpen={onOpen}
+                        onPrimaryAction={onPrimaryAction}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {hasNeedsAttentionSection && (
+                <section className="space-y-3" data-testid="needs-attention-integrations-section">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-title text-base">Needs attention</h3>
+                      <p className="text-caption">
+                        Apps that need a reconnect or configuration update.
+                      </p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className="rounded-full bg-background text-[color:var(--status-warning)]"
+                    >
+                      {needsAttentionItems.length} need attention
+                    </Badge>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                    {needsAttentionItems.map((item) => (
                       <ProviderIntegrationCard
                         key={`${item.source}:${item.id}`}
                         item={item}

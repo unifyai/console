@@ -26,7 +26,7 @@ import type {
 } from '@/types/integrations';
 
 const PROVIDER_CATALOG_PAGE_SIZE = 100;
-const PROVIDER_CONNECTED_PREFETCH_LIMIT = 500;
+const PROVIDER_PROMOTED_PREFETCH_LIMIT = 500;
 
 type ProviderCatalogSourceType = 'native' | 'third_party';
 
@@ -145,8 +145,8 @@ export function useProviderIntegrationCatalog(
     setDefinitions([]);
     isLoadingMoreRef.current = false;
     try {
-      const shouldPrefetchConnected = statusGroups.length === 0;
-      const [page, connectedPage, providerConnections] = await Promise.all([
+      const shouldPrefetchPromotedStatuses = statusGroups.length === 0;
+      const [page, connectedPage, needsAttentionPage, providerConnections] = await Promise.all([
         listProviderIntegrationDefinitionsPage({
           ownerScope,
           assistantId,
@@ -157,7 +157,7 @@ export function useProviderIntegrationCatalog(
           limit: PROVIDER_CATALOG_PAGE_SIZE,
           offset: 0,
         }),
-        shouldPrefetchConnected
+        shouldPrefetchPromotedStatuses
           ? listProviderIntegrationDefinitionsPage({
               ownerScope,
               assistantId,
@@ -165,10 +165,25 @@ export function useProviderIntegrationCatalog(
               sourceType,
               statusGroups: ['connected'],
               detailLevel: 'summary',
-              limit: PROVIDER_CONNECTED_PREFETCH_LIMIT,
+              limit: PROVIDER_PROMOTED_PREFETCH_LIMIT,
               offset: 0,
             }).catch((error) => {
               console.error('Failed to prefetch connected provider integrations', error);
+              return null;
+            })
+          : Promise.resolve(null),
+        shouldPrefetchPromotedStatuses
+          ? listProviderIntegrationDefinitionsPage({
+              ownerScope,
+              assistantId,
+              query,
+              sourceType,
+              statusGroups: ['needs_attention'],
+              detailLevel: 'summary',
+              limit: PROVIDER_PROMOTED_PREFETCH_LIMIT,
+              offset: 0,
+            }).catch((error) => {
+              console.error('Failed to prefetch needs-attention provider integrations', error);
               return null;
             })
           : Promise.resolve(null),
@@ -180,7 +195,11 @@ export function useProviderIntegrationCatalog(
       providerConnectionsRef.current = providerConnections;
       setDefinitions(
         mergeDefinitionsWithConnections(
-          mergeUniqueDefinitions([...(connectedPage?.definitions ?? []), ...page.definitions]),
+          mergeUniqueDefinitions([
+            ...(connectedPage?.definitions ?? []),
+            ...(needsAttentionPage?.definitions ?? []),
+            ...page.definitions,
+          ]),
           providerConnections
         )
       );

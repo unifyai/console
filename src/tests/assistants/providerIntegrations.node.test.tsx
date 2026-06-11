@@ -60,6 +60,20 @@ function buildLargeGalleryItems(
   }));
 }
 
+function buildGalleryItem(
+  template: IntegrationGalleryItem,
+  overrides: Partial<IntegrationGalleryItem>
+): IntegrationGalleryItem {
+  return {
+    ...template,
+    ...overrides,
+    sourceMetadata: {
+      ...template.sourceMetadata,
+      ...overrides.sourceMetadata,
+    },
+  };
+}
+
 describe('provider integrations gallery model', () => {
   beforeEach(() => {
     virtualizerMockState.visibleRows = Number.POSITIVE_INFINITY;
@@ -217,6 +231,68 @@ describe('provider integrations gallery model', () => {
     expect(
       screen.queryByTestId('provider-integration-card-virtual-app-20')
     ).not.toBeInTheDocument();
+  });
+
+  it('promotes needs-attention apps above the available catalog', () => {
+    const { result } = renderHook(() => useMockGalleryItems());
+    const template = result.current.find((item) => item.canonicalSlug === 'discord');
+    expect(template).toBeDefined();
+    const items = [
+      buildGalleryItem(template!, {
+        id: 'connected-app',
+        canonicalSlug: 'connected-app',
+        displayName: 'Connected App',
+        status: 'connected',
+      }),
+      buildGalleryItem(template!, {
+        id: 'attention-app',
+        canonicalSlug: 'attention-app',
+        displayName: 'Attention App',
+        status: 'needs_reconnect',
+      }),
+      ...buildLargeGalleryItems(template!, 4),
+    ];
+
+    render(
+      <IntegrationGalleryShell
+        items={items}
+        total={12}
+        facets={{
+          total: 12,
+          sourceType: { native: 0, thirdParty: 12 },
+          status: {
+            connected: 1,
+            configured: 1,
+            pending: 0,
+            missingScope: 0,
+            missingSecrets: 0,
+            needsReconnect: 3,
+            expired: 0,
+            revoked: 0,
+            error: 0,
+            notConnected: 7,
+          },
+          statusGroup: {
+            connected: 2,
+            needsAttention: 3,
+            notConnected: 7,
+          },
+        }}
+        onOpen={vi.fn()}
+        onPrimaryAction={vi.fn()}
+      />
+    );
+
+    const attentionSection = screen.getByTestId('needs-attention-integrations-section');
+    const availableSection = screen.getByTestId('available-integrations-section');
+    expect(attentionSection).toBeInTheDocument();
+    expect(screen.getByTestId('provider-integration-card-attention-app')).toBeInTheDocument();
+    expect(screen.getByText('1 need attention')).toBeInTheDocument();
+    expect(screen.getByText(/Showing 4 of 7 available apps/)).toBeInTheDocument();
+    expect(screen.getByText('7 available')).toBeInTheDocument();
+    expect(
+      attentionSection.compareDocumentPosition(availableSection) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
   it('requests more apps when the virtualized window reaches the end', async () => {

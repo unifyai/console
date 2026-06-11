@@ -104,6 +104,9 @@ describe('useProviderIntegrationCatalog', () => {
     expect(
       fetchSpy.mock.calls.some(([input]) => String(input).includes('status_group=connected'))
     ).toBe(true);
+    expect(
+      fetchSpy.mock.calls.some(([input]) => String(input).includes('status_group=needs_attention'))
+    ).toBe(true);
   });
 
   it('loads additional catalog pages with limit, offset, and total metadata', async () => {
