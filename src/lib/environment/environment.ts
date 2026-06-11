@@ -62,6 +62,11 @@ export function isSelfHost(env: EnvVars = process.env): boolean {
   return env.SELF_HOST === '1' || env.NEXT_PUBLIC_SELF_HOST === '1';
 }
 
+/** When set to ``compose``, Console writes coordinator runtime state only; CM runs in a container. */
+export function isComposeSelfHostRuntime(env: EnvVars = process.env): boolean {
+  return isSelfHost(env) && env.SELF_HOST_RUNTIME_MODE === 'compose';
+}
+
 /**
  * Resolve the auth mode. `external` is selected by the explicit
  * `AUTH_MODE=external` setting or the legacy `ON_PREM` flag (backward compat).

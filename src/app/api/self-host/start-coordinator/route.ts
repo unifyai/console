@@ -6,7 +6,7 @@ import path from 'path';
 import { promisify } from 'util';
 import { resolveCanonicalPersonalCoordinator } from '@/lib/assistants/coordinatorIdentity';
 import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
-import { isSelfHost } from '@/lib/environment/environment';
+import { isComposeSelfHostRuntime, isSelfHost } from '@/lib/environment/environment';
 import { getCurrentUser } from '@/lib/user/user';
 import type { Assistant } from '@/types/assistants/assistant';
 
@@ -60,6 +60,14 @@ export async function POST() {
 
   await persistCoordinatorRuntime(coordinator.agentId, user.apiKey);
 
+  if (isComposeSelfHostRuntime()) {
+    return NextResponse.json({
+      ok: true,
+      coordinatorAgentId: coordinator.agentId,
+      runtimeMode: 'compose',
+    });
+  }
+
   const script = path.join(process.cwd(), 'scripts', 'local.sh');
   try {
     await execFileAsync('bash', [script, 'start-coordinator'], {
@@ -75,6 +83,7 @@ export async function POST() {
     return NextResponse.json({
       ok: true,
       coordinatorAgentId: coordinator.agentId,
+      runtimeMode: 'host',
     });
   } catch (error: unknown) {
     const message =
