@@ -1,7 +1,7 @@
 import type { Transition } from 'framer-motion';
 
 export const COORDINATOR_ONBOARDING_INTRO = {
-  audioSrc: null as string | null,
+  audioSrc: '/sounds/marty-onboarding-intro.mp3?v=20260609-v3-verified',
   fallbackDurationMs: 33_570,
   initialPauseMs: 1_000,
   backgroundStartDelayMs: 500,
