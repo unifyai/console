@@ -5,6 +5,17 @@ import type {
 
 export type IntegrationOwnerScope = 'assistant' | 'user' | 'team' | 'org';
 export type IntegrationToolApprovalLevel = 'auto' | 'specific_approval' | 'forbidden';
+export type IntegrationToolBehaviorHint =
+  | 'read_only'
+  | 'mutates_state'
+  | 'destructive'
+  | 'sensitive_data'
+  | 'bulk_data'
+  | 'idempotent'
+  | 'external'
+  | 'creates_resource'
+  | 'updates_resource'
+  | 'unknown_effects';
 
 export type IntegrationSourceKind =
   | 'static_package'
@@ -70,6 +81,7 @@ export interface IntegrationToolPreview {
     | 'expired'
     | 'error';
   actionClass?: 'read' | 'write' | 'destructive' | 'bulk_export' | 'sensitive_read' | string;
+  behaviorHints?: IntegrationToolBehaviorHint[];
   requiredScopes?: IntegrationScope[];
   confirmationRequired?: boolean;
   approvalLevel?: IntegrationToolApprovalLevel;
@@ -179,6 +191,7 @@ export interface IntegrationToolPolicyItem {
   canonicalName: string;
   displayName: string;
   actionClass: IntegrationToolPreview['actionClass'];
+  behaviorHints?: IntegrationToolBehaviorHint[];
   defaultApprovalLevel: IntegrationToolApprovalLevel;
   approvalLevel: IntegrationToolApprovalLevel;
   activationState?: IntegrationToolPreview['activationState'];
@@ -188,5 +201,7 @@ export interface IntegrationToolPolicyItem {
 export interface IntegrationToolPolicyResponse {
   connectionId: string;
   canonicalAppSlug: string;
+  appDisplayName?: string | null;
+  accountLabel?: string | null;
   policies: IntegrationToolPolicyItem[];
 }

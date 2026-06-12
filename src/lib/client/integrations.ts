@@ -6,6 +6,7 @@ import type {
   IntegrationConnectionStatus,
   IntegrationDefinition,
   IntegrationOwnerScope,
+  IntegrationToolBehaviorHint,
   IntegrationScope,
   IntegrationSourceMetadata,
   IntegrationToolApprovalLevel,
@@ -154,6 +155,16 @@ async function integrationFetch<T>(path: string, init: RequestInit = {}): Promis
   return readJsonResponse<T>(response);
 }
 
+function buildOwnerQuery(args?: {
+  ownerScope?: IntegrationOwnerScope;
+  assistantId?: string | number;
+}): string {
+  const params = new URLSearchParams();
+  if (args?.ownerScope) params.set('owner_scope', args.ownerScope);
+  if (args?.assistantId !== undefined) params.set('assistant_id', String(args.assistantId));
+  return params.toString();
+}
+
 function normalizeScope(scope: ProviderScopePayload | string, index: number): IntegrationScope {
   if (typeof scope === 'string') {
     return { id: scope, label: scope };
@@ -205,6 +216,11 @@ function normalizeTool(
         : (action.summary as string) || null,
     activationState: action.activationState as IntegrationToolPreview['activationState'],
     actionClass: action.actionClass as IntegrationToolPreview['actionClass'],
+    behaviorHints: (Array.isArray(action.behaviorHints)
+      ? action.behaviorHints
+      : Array.isArray(action.behavior_hints)
+        ? action.behavior_hints
+        : []) as IntegrationToolBehaviorHint[],
     confirmationRequired: Boolean(action.confirmationRequired ?? action.confirmation_required),
     approvalLevel: (action.approvalLevel ?? action.approval_level) as
       | IntegrationToolApprovalLevel
@@ -536,9 +552,16 @@ export async function requestUnityIntegrationToolsSync(args: {
 }
 
 export async function getProviderIntegrationToolPolicy(
-  connectionId: string
+  connectionId: string,
+  args: {
+    ownerScope?: IntegrationOwnerScope;
+    assistantId?: string | number;
+  } = {}
 ): Promise<IntegrationToolPolicyResponse> {
-  return integrationFetch<IntegrationToolPolicyResponse>(`connections/${connectionId}/tool-policy`);
+  const query = buildOwnerQuery(args);
+  return integrationFetch<IntegrationToolPolicyResponse>(
+    `connections/${connectionId}/tool-policy${query ? `?${query}` : ''}`
+  );
 }
 
 export async function patchProviderIntegrationToolPolicy(
@@ -548,10 +571,15 @@ export async function patchProviderIntegrationToolPolicy(
     bulkApprovalLevel?: IntegrationToolApprovalLevel;
     actionClasses?: Array<NonNullable<IntegrationToolPreview['actionClass']>>;
     resetToDefaults?: boolean;
-  }
+  },
+  args: {
+    ownerScope?: IntegrationOwnerScope;
+    assistantId?: string | number;
+  } = {}
 ): Promise<IntegrationToolPolicyResponse> {
+  const query = buildOwnerQuery(args);
   return integrationFetch<IntegrationToolPolicyResponse>(
-    `connections/${connectionId}/tool-policy`,
+    `connections/${connectionId}/tool-policy${query ? `?${query}` : ''}`,
     {
       method: 'PATCH',
       body: JSON.stringify(camelToSnakeObject(request)),
