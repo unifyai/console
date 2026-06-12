@@ -1,6 +1,5 @@
-export const COORDINATOR_DEFAULT_JOB_TITLE = 'Coordinator droid';
-export const COORDINATOR_DEFAULT_ABOUT =
-  'A coordinator droid that learns your workflows, connects the right tools, and routes recurring work to the right specialist droids.';
+export const COORDINATOR_DEFAULT_JOB_TITLE = 'Coordinator';
+export const COORDINATOR_DEFAULT_ABOUT = '';
 
 export function resolveCoordinatorJobTitle(value: string | null | undefined): string {
   const trimmed = value?.trim();
@@ -11,9 +10,5 @@ export function resolveCoordinatorJobTitle(value: string | null | undefined): st
 }
 
 export function resolveCoordinatorAbout(value: string | null | undefined): string {
-  const trimmed = value?.trim();
-  if (!trimmed) {
-    return COORDINATOR_DEFAULT_ABOUT;
-  }
-  return trimmed;
+  return value?.trim() ?? '';
 }
