@@ -25,12 +25,18 @@ function parseAssistantList(raw: unknown): Assistant[] {
 }
 
 async function persistCoordinatorRuntime(agentId: string, apiKey: string): Promise<void> {
+  // In compose mode the Console and the Unity CM run as different uids and
+  // share this file over a volume, so it must be world-readable; the volume
+  // itself is the privacy boundary. Host mode keeps it owner-only.
+  const mode = isComposeSelfHostRuntime() ? 0o644 : 0o600;
   await fs.mkdir(path.dirname(RUNTIME_FILE), { recursive: true });
   await fs.writeFile(
     RUNTIME_FILE,
     JSON.stringify({ coordinatorAgentId: agentId, apiKey }, null, 2),
-    { mode: 0o600 }
+    { mode }
   );
+  // writeFile only applies mode on creation; fix up pre-existing files.
+  await fs.chmod(RUNTIME_FILE, mode);
 }
 
 /**
