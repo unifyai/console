@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest } from '../../_utils/auth';
 
 /**
+ * Path marker for URLs minted by Orchestra's local bucket service
+ * (self-host filesystem storage). Those URLs point at the in-cluster
+ * Orchestra host, which the browser cannot reach, so they are rewritten
+ * to the same-origin /api/storage/content proxy.
+ */
+const ORCHESTRA_LOCAL_OBJECT_PATH = '/v0/storage/local/';
+
+/**
  * POST /api/storage/signed-url
  *
  * Generate a signed URL from a gs:// URL for browser access.
@@ -70,6 +78,20 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json();
+
+    if (
+      typeof data.signed_url === 'string' &&
+      data.signed_url.includes(ORCHESTRA_LOCAL_OBJECT_PATH)
+    ) {
+      const proxyParams = new URLSearchParams({ gs_url });
+      if (download) proxyParams.set('download', '1');
+      if (filename) proxyParams.set('filename', filename);
+      return NextResponse.json(
+        { signed_url: `/api/storage/content?${proxyParams.toString()}` },
+        { status: 200 }
+      );
+    }
+
     return NextResponse.json({ signed_url: data.signed_url }, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
