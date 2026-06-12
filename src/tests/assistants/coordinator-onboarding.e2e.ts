@@ -6,7 +6,7 @@
  *
  *   - The unskippable call-vs-chat picker shows on a fresh visit
  *   - Choosing "Start Call" shows the coordinator droid intro before docking
- *     the real call surface
+ *     the real call surface, and hanging up continues in chat
  *   - The skip-onboarding affordance is suppressed until the user
  *     has answered the picker
  *   - Choosing "I'd rather chat for now" reveals the chat surface
@@ -74,7 +74,7 @@ test('picker shows on first visit and hides the skip affordance', async ({ authe
   await expect(page.getByTestId('coordinator-onboarding-skip')).toHaveCount(0);
 });
 
-test('starting a call shows the coordinator droid intro before docking the call', async ({
+test('starting a call shows the coordinator droid intro, docks the call, then falls back to chat on hangup', async ({
   authedPage: page,
 }) => {
   await page.addInitScript(() => {
@@ -100,7 +100,12 @@ test('starting a call shows the coordinator droid intro before docking the call'
   await expect(page.getByTestId('coordinator-chat-during-call-region')).toBeVisible();
 
   await page.getByRole('button', { name: 'End call' }).click();
-  await expectPickerVisible(page);
+  await expect(page.getByTestId('coordinator-onboarding-chat')).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
+  await expect(page.getByTestId('coordinator-onboarding-skip')).toBeVisible();
+  await expect(page.locator('textarea').first()).toBeVisible({ timeout: 10_000 });
 });
 
 test('picking chat reveals the chat surface and the skip affordance', async ({

@@ -2035,6 +2035,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 activeCallAssistant.agentId === canonicalCoordinator.agentId &&
                 !isCommunicationDialogOpen
               }
+              isCoordinatorCallSessionActive={
+                !!activeCallAssistant &&
+                activeCallAssistant.agentId === canonicalCoordinator.agentId
+              }
               renderDockedCall={() => (
                 <RoomContext.Provider value={room}>
                   <AssistantCommunicationDialog

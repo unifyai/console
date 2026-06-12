@@ -99,11 +99,16 @@ interface CoordinatorOnboardingProps {
   chatStreamActivitySignal: number;
   isCallConnected: boolean;
   /** True while the parent is hosting an active (connecting or
-   * connected) call session for *this* Coordinator. When true the
-   * docked call surface is stacked above the chat surface in the main
-   * pane; the parent is responsible for actually mounting the call UI
-   * via ``renderDockedCall`` below. */
+   * connected) docked call surface for *this* Coordinator. When true
+   * the docked call surface is stacked above the chat surface in the
+   * main pane; the parent is responsible for actually mounting the
+   * call UI via ``renderDockedCall`` below. */
   isCoordinatorCallActive?: boolean;
+  /** True while any call session for this Coordinator exists, whether
+   * docked in onboarding or popped out into the shared call overlay.
+   * Used to distinguish an actual call end from a presentation-mode
+   * change. */
+  isCoordinatorCallSessionActive?: boolean;
   /** Renders the docked ``AssistantCommunicationDialog`` inline. The
    * parent owns the RoomContext + call props and pipes them through
    * here so the dialog mounts inside this surface instead of as a
@@ -176,6 +181,7 @@ export function CoordinatorOnboarding({
   chatStreamActivitySignal,
   isCallConnected,
   isCoordinatorCallActive = false,
+  isCoordinatorCallSessionActive = isCoordinatorCallActive,
   renderDockedCall,
   onStartCall,
   onConnectWorkspace,
@@ -450,21 +456,24 @@ export function CoordinatorOnboarding({
     }
   }, [isCoordinatorCallActive, phase]);
 
-  // When a docked call ends (parent flips ``isCoordinatorCallActive``
-  // back to false), the user lands without an active surface. If the
-  // call path had taken over, reset back to the picker so they can
-  // re-pick — they may want to text-chat or re-dial. Skipped when
-  // the user picked chat, since the chat surface remains the right
-  // fallback.
-  const prevCallActiveRef = React.useRef(isCoordinatorCallActive);
+  // When the call session ends, continue the onboarding session in
+  // chat. Ending the call should behave like choosing the text path
+  // from the picker: the chat surface opens and Unity receives the
+  // chat picker-resolution event that drives the first text turn.
+  const prevCallSessionActiveRef = React.useRef(isCoordinatorCallSessionActive);
   React.useEffect(() => {
-    const wasActive = prevCallActiveRef.current;
-    prevCallActiveRef.current = isCoordinatorCallActive;
-    if (wasActive && !isCoordinatorCallActive && (phase === 'call' || phase === 'startingCall')) {
+    const wasActive = prevCallSessionActiveRef.current;
+    prevCallSessionActiveRef.current = isCoordinatorCallSessionActive;
+    if (
+      wasActive &&
+      !isCoordinatorCallSessionActive &&
+      (phase === 'call' || phase === 'startingCall')
+    ) {
       hasTriggeredCallStartRef.current = false;
-      setPhase('picker');
+      setPhase('chat');
+      notifySessionStarted('chat');
     }
-  }, [isCoordinatorCallActive, phase]);
+  }, [isCoordinatorCallSessionActive, notifySessionStarted, phase]);
 
   const handleSkipOnboarding = React.useCallback(async () => {
     if (isSkipping) return;
