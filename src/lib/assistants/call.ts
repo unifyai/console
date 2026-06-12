@@ -11,6 +11,15 @@ const API_KEY = process.env.LIVEKIT_API_KEY;
 const API_SECRET = process.env.LIVEKIT_API_SECRET;
 const LIVEKIT_URL = process.env.LIVEKIT_URL;
 
+/** Browser-facing WS URL is returned to clients; server-side Room APIs use HTTP on the Docker network. */
+function resolveLiveKitApiUrl(): string | undefined {
+  const apiUrl = process.env.LIVEKIT_API_URL?.trim();
+  if (apiUrl) return apiUrl;
+  const clientUrl = LIVEKIT_URL?.trim();
+  if (!clientUrl) return undefined;
+  return clientUrl.replace(/^ws/i, 'http');
+}
+
 export const getCallConnectionDetails = async (apiKey: string) => {
   return async (
     assistantId: string,
@@ -82,7 +91,11 @@ export const deleteCallRoom = async () => {
       if (!LIVEKIT_URL || !API_KEY || !API_SECRET) {
         return {};
       }
-      const roomService = new RoomServiceClient(LIVEKIT_URL, API_KEY, API_SECRET);
+      const apiUrl = resolveLiveKitApiUrl();
+      if (!apiUrl) {
+        return {};
+      }
+      const roomService = new RoomServiceClient(apiUrl, API_KEY, API_SECRET);
       await roomService.deleteRoom(roomName);
       return {};
     } catch (error) {
