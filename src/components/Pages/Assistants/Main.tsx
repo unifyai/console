@@ -459,6 +459,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [completedStepIds, setCompletedStepIds] = React.useState<ReadonlySet<string>>(
     () => new Set(['meet'])
   );
+  const [skippedStepIds, setSkippedStepIds] = React.useState<ReadonlySet<string>>(() => new Set());
   // Engagement is a strict superset of completion — engaging
   // ``apps`` (clicking "Connect apps") unlocks the integrations
   // tab even though the row stays pending until a secret actually
@@ -481,6 +482,20 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       return next;
     });
   }, []);
+  const markStepSkipped = React.useCallback((stepId: string) => {
+    setSkippedStepIds((prev) => {
+      if (prev.has(stepId)) return prev;
+      const next = new Set(prev);
+      next.add(stepId);
+      return next;
+    });
+    setEngagedStepIds((prev) => {
+      if (prev.has(stepId)) return prev;
+      const next = new Set(prev);
+      next.add(stepId);
+      return next;
+    });
+  }, []);
   const markStepEngaged = React.useCallback((stepId: string) => {
     setEngagedStepIds((prev) => {
       if (prev.has(stepId)) return prev;
@@ -489,9 +504,41 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       return next;
     });
   }, []);
+  const handleCoordinatorOnboardingStepSkip = React.useCallback(
+    async (stepId: string) => {
+      const skipped = await updateCoordinatorOnboardingState({ skipOnboardingStep: stepId });
+      if (!skipped) return;
+      markStepSkipped(stepId);
+      if (stepId === 'hire-specialist') {
+        const promoted = await updateCoordinatorOnboardingState({
+          mode: 'working',
+          clearOnboardingStep: true,
+        });
+        if (promoted?.mode === 'working') {
+          setIsHireSpecialistEngaged(false);
+          void refetchCoordinatorOnboardingState();
+        }
+      }
+    },
+    [markStepSkipped, refetchCoordinatorOnboardingState, updateCoordinatorOnboardingState]
+  );
   const coordinatorOnboardingCtxValue = React.useMemo<CoordinatorOnboardingContextValue>(
-    () => ({ completedStepIds, markStepCompleted, engagedStepIds, markStepEngaged }),
-    [completedStepIds, markStepCompleted, engagedStepIds, markStepEngaged]
+    () => ({
+      completedStepIds,
+      markStepCompleted,
+      skippedStepIds,
+      markStepSkipped,
+      engagedStepIds,
+      markStepEngaged,
+    }),
+    [
+      completedStepIds,
+      markStepCompleted,
+      skippedStepIds,
+      markStepSkipped,
+      engagedStepIds,
+      markStepEngaged,
+    ]
   );
   // While the state read is still in flight we can't make a confident
   // layout choice: rendering the regular shell only to swap to the
@@ -1533,6 +1580,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           }
         : undefined,
       onHireSpecialist: handleHireSpecialistEngage,
+      onSkipStep: handleCoordinatorOnboardingStepSkip,
       onResumeOnboarding: isWorkingMode
         ? () => {
             setIsHireSpecialistEngaged(false);
@@ -1549,6 +1597,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     isCanonicalCoordinatorOwned,
     canonicalCoordinator,
     markStepEngaged,
+    handleCoordinatorOnboardingStepSkip,
     handleHireSpecialistEngage,
     coordinatorOnboardingState?.mode,
     updateCoordinatorOnboardingState,
@@ -1568,12 +1617,19 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // ``markStepCompleted`` is idempotent so the two sources compose
   // freely.
   const serverCompletedStepIds = coordinatorOnboardingState?.completedStepIds;
+  const serverSkippedStepIds = coordinatorOnboardingState?.skippedStepIds;
   React.useEffect(() => {
     if (!serverCompletedStepIds) return;
     for (const stepId of serverCompletedStepIds) {
       markStepCompleted(stepId);
     }
   }, [serverCompletedStepIds, markStepCompleted]);
+  React.useEffect(() => {
+    if (!serverSkippedStepIds) return;
+    for (const stepId of serverSkippedStepIds) {
+      markStepSkipped(stepId);
+    }
+  }, [serverSkippedStepIds, markStepSkipped]);
 
   const handleRandomizeProfile = () => {
     setUserHasChangedPreset(true);
@@ -1958,6 +2014,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 </RoomContext.Provider>
               )}
               onStartCall={handleStartCall}
+              onSkipStep={handleCoordinatorOnboardingStepSkip}
               onConnectWorkspace={
                 workspaceConnectAvailable
                   ? () => handleOpenWorkspaceManager(canonicalCoordinator)

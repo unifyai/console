@@ -190,6 +190,46 @@ test('reloading after picking chat returns the user to the picker', async ({
   await expectPickerVisible(page);
 });
 
+test('skipping an inline checklist step persists and advances to the next step', async ({
+  authedPage: page,
+}) => {
+  const coordinator = createPersonalCoordinator(user.id);
+  connectWorkspaceEmail({ assistantId: coordinator.agentId });
+
+  await gotoAssistants(page);
+  await expectPickerVisible(page);
+  await page.getByTestId('coordinator-onboarding-pick-chat').click();
+
+  const appsRow = page.getByTestId('coordinator-onboarding-item-apps').first();
+  await expect(appsRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
+
+  await page.getByTestId('coordinator-onboarding-skip-step-apps').click();
+  await expect(appsRow).toHaveAttribute('data-status', 'skipped');
+  await expect(page.getByTestId('coordinator-onboarding-item-act').first()).toHaveAttribute(
+    'data-next',
+    'true'
+  );
+
+  const skippedState = dbExec(
+    `SELECT le.data->'skipped_step_ids' FROM log_event le ` +
+      `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
+      `JOIN context c ON c.id = lec.context_id ` +
+      `WHERE c.name = '${user.id}/${coordinator.agentId}/Coordinator/State' ` +
+      `ORDER BY le.id DESC LIMIT 1;`
+  );
+  expect(skippedState).toContain('apps');
+
+  await page.reload();
+  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+  await expectPickerVisible(page);
+  await page.getByTestId('coordinator-onboarding-pick-chat').click();
+  await expect(page.getByTestId('coordinator-onboarding-item-apps').first()).toHaveAttribute(
+    'data-status',
+    'skipped',
+    { timeout: 15_000 }
+  );
+});
+
 test('skipping onboarding swaps in the regular assistants layout', async ({ authedPage: page }) => {
   await gotoAssistants(page);
   await expectPickerVisible(page);

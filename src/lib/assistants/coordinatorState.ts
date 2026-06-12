@@ -37,12 +37,14 @@ export interface CoordinatorStateSnapshot {
    * onboarding mode, where derivation is skipped server-side.
    */
   completedStepIds: string[];
+  skippedStepIds: string[];
 }
 
 export interface CoordinatorStatePatch {
   mode?: CoordinatorMode;
   onboardingStep?: string;
   clearOnboardingStep?: boolean;
+  skipOnboardingStep?: string;
 }
 
 function normalizeMode(value: unknown): CoordinatorMode {
@@ -71,6 +73,7 @@ function normalizeSnapshot(coordinatorId: number, raw: unknown): CoordinatorStat
     startedAt: normalizeString(record.startedAt ?? record.started_at),
     endedAt: normalizeString(record.endedAt ?? record.ended_at),
     completedStepIds: normalizeStepIds(record.completedStepIds ?? record.completed_step_ids),
+    skippedStepIds: normalizeStepIds(record.skippedStepIds ?? record.skipped_step_ids),
   };
 }
 
@@ -113,6 +116,7 @@ export async function updateCoordinatorState(
   if (patch.mode !== undefined) body.mode = patch.mode;
   if (patch.onboardingStep !== undefined) body.onboardingStep = patch.onboardingStep;
   if (patch.clearOnboardingStep) body.clearOnboardingStep = true;
+  if (patch.skipOnboardingStep !== undefined) body.skipOnboardingStep = patch.skipOnboardingStep;
 
   const client = await getOrchestraUserClient(user.apiKey);
   const response = await client.patch(`/assistant/${numericId}/state`, body);

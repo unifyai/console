@@ -40,6 +40,12 @@ export interface CoordinatorOnboardingContextValue {
   /** Idempotently records a step as completed. Re-marking a step
    * already in the set is a no-op (no extra render). */
   markStepCompleted: (stepId: string) => void;
+  /** Per-session record of steps the user explicitly chose not to do.
+   * Skipped steps satisfy downstream prerequisites, but remain
+   * visually distinct from genuinely completed steps. */
+  skippedStepIds: ReadonlySet<string>;
+  /** Idempotently records a step as skipped. */
+  markStepSkipped: (stepId: string) => void;
   /** Per-session record of which onboarding steps the user has
    * *entered* — i.e. clicked into the corresponding surface
    * (integrations / tasks / actions tab in the gradual view).

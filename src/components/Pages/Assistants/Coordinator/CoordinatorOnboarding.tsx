@@ -160,6 +160,7 @@ interface CoordinatorOnboardingProps {
    * unmounts. Unset means the sub-item degrades to a static
    * checklist entry. */
   onHireSpecialist?: () => void;
+  onSkipStep?: (stepId: string) => void;
   /** Invoked after the Coordinator is promoted to ``working`` so the
    * page layout can swap back to the full /assistants shell without
    * waiting on a query refetch. */
@@ -189,6 +190,7 @@ export function CoordinatorOnboarding({
   renderTasksPane,
   renderActionsPane,
   onHireSpecialist,
+  onSkipStep,
   onOnboardingComplete,
 }: CoordinatorOnboardingProps) {
   const { updateState } = useCoordinatorOnboarding(coordinator.agentId);
@@ -629,6 +631,7 @@ export function CoordinatorOnboarding({
       onActNow={renderActionsPane ? handleActNow : undefined}
       onScheduleTask={renderTasksPane ? handleScheduleTask : undefined}
       onHireSpecialist={onHireSpecialist ? handleHireSpecialist : undefined}
+      onSkipStep={onSkipStep}
       // Drives the call- vs. chat-flavoured "Act now" suggestion
       // chips — same signal that labels the main pane Call/Chat.
       isOnCall={isCoordinatorCallActive}

@@ -96,6 +96,7 @@ export interface AssistantInfoSidePanelContentProps {
     onActNow?: () => void;
     onScheduleTask?: () => void;
     onHireSpecialist?: () => void;
+    onSkipStep?: (stepId: string) => void;
     /** Surfaces a "Resume onboarding" CTA at the bottom of the
      * onboarding sub-tab. Wired only when the Coordinator/State row
      * is in ``working`` mode — i.e. the user already skipped or
@@ -252,6 +253,7 @@ function CoordinatorAssistantInfoSidePanelContent({
                   onActNow={coordinatorOnboarding.onActNow}
                   onScheduleTask={coordinatorOnboarding.onScheduleTask}
                   onHireSpecialist={coordinatorOnboarding.onHireSpecialist}
+                  onSkipStep={coordinatorOnboarding.onSkipStep}
                 />
                 {coordinatorOnboarding.onResumeOnboarding && (
                   <div className="mt-4 flex justify-end">

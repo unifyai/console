@@ -29,7 +29,7 @@
  */
 
 import * as React from 'react';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, Minus } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { cn } from '@/lib/utils';
@@ -232,6 +232,8 @@ const SCHEDULE_SUGGESTED_WORKFLOWS: ReadonlyArray<{
 
 interface ResolvedChecklistItem extends OnboardingChecklistItem {
   done: boolean;
+  skipped: boolean;
+  status: 'pending' | 'done' | 'skipped';
   /** Human-readable prereq label used by the disabled tooltip.
    * ``undefined`` means the row is either done, has no prereq, or
    * its prereq is already satisfied. */
@@ -254,23 +256,37 @@ interface ResolvedChecklistItem extends OnboardingChecklistItem {
 function resolveChecklist(
   items: OnboardingChecklistItem[],
   completed: ReadonlySet<string>,
+  skipped: ReadonlySet<string>,
   titlesById: Map<string, string>
 ): ResolvedChecklistItem[] {
   return items.map((item) => {
     const resolvedChildren = item.children
-      ? resolveChecklist(item.children, completed, titlesById)
+      ? resolveChecklist(item.children, completed, skipped, titlesById)
       : undefined;
     const childrenAllDone =
-      !!resolvedChildren?.length && resolvedChildren.every((child) => child.done);
+      !!resolvedChildren?.length && resolvedChildren.every((child) => child.status === 'done');
+    const childrenAllResolved =
+      !!resolvedChildren?.length && resolvedChildren.every((child) => child.status !== 'pending');
+    const childrenHaveSkipped =
+      !!resolvedChildren?.length && resolvedChildren.some((child) => child.status === 'skipped');
     const done = completed.has(item.id) || childrenAllDone;
-    const prereqDone = !item.prerequisiteId || completed.has(item.prerequisiteId);
+    const skippedStep = !done && skipped.has(item.id);
+    const skippedByChildren = !done && childrenAllResolved && childrenHaveSkipped;
+    const skippedResolved = skippedStep || skippedByChildren;
+    const status = done ? 'done' : skippedResolved ? 'skipped' : 'pending';
+    const prereqDone =
+      !item.prerequisiteId ||
+      completed.has(item.prerequisiteId) ||
+      skipped.has(item.prerequisiteId);
     const disabledReason =
-      !done && !prereqDone && item.prerequisiteId
+      status === 'pending' && !prereqDone && item.prerequisiteId
         ? `Complete "${titlesById.get(item.prerequisiteId) ?? item.prerequisiteId}" first`
         : undefined;
     return {
       ...item,
       done,
+      skipped: skippedResolved,
+      status,
       disabledReason,
       children: resolvedChildren,
     };
@@ -288,9 +304,9 @@ function collectTitles(
   return out;
 }
 
-function countItems(items: ResolvedChecklistItem[]): { total: number; done: number } {
+function countItems(items: ResolvedChecklistItem[]): { total: number; resolved: number } {
   let total = 0;
-  let done = 0;
+  let resolved = 0;
   for (const item of items) {
     if (item.children?.length) {
       // Parent rows that have children aren't independently scored —
@@ -298,21 +314,21 @@ function countItems(items: ResolvedChecklistItem[]): { total: number; done: numb
       // the real granularity of remaining work.
       for (const child of item.children) {
         total += 1;
-        if (child.done) done += 1;
+        if (child.status !== 'pending') resolved += 1;
       }
     } else {
       total += 1;
-      if (item.done) done += 1;
+      if (item.status !== 'pending') resolved += 1;
     }
   }
-  return { total, done };
+  return { total, resolved };
 }
 
 interface PhaseProgress {
   id: string;
   label: string;
   total: number;
-  done: number;
+  resolved: number;
 }
 
 /**
@@ -330,10 +346,10 @@ function computePhases(items: ResolvedChecklistItem[]): PhaseProgress[] {
     const children = item.children ?? [];
     if (children.length) {
       const total = children.length;
-      const done = children.filter((child) => child.done).length;
-      return { id: item.id, label, total, done };
+      const resolved = children.filter((child) => child.status !== 'pending').length;
+      return { id: item.id, label, total, resolved };
     }
-    return { id: item.id, label, total: 1, done: item.done ? 1 : 0 };
+    return { id: item.id, label, total: 1, resolved: item.status !== 'pending' ? 1 : 0 };
   });
 }
 
@@ -355,7 +371,7 @@ function findNextActionableId(
       if (inner) return inner;
       continue;
     }
-    if (!item.done && !item.disabledReason && isActionWired(item.action)) {
+    if (item.status === 'pending' && !item.disabledReason && isActionWired(item.action)) {
       return item.id;
     }
   }
@@ -373,7 +389,12 @@ function findNextChildAction(
       if (inner) return inner;
       continue;
     }
-    if (!child.done && !child.disabledReason && child.action && isActionWired(child.action)) {
+    if (
+      child.status === 'pending' &&
+      !child.disabledReason &&
+      child.action &&
+      isActionWired(child.action)
+    ) {
       return child.action;
     }
   }
@@ -402,6 +423,7 @@ export interface CoordinatorOnboardingChecklistProps {
    * ``CoordinatorOnboarding`` for the exact contract. Unset means
    * the row degrades to a static entry. */
   onHireSpecialist?: () => void;
+  onSkipStep?: (stepId: string) => void;
   /** Whether the user is currently on a voice call (vs. chat).
    * Selects which "Act now" suggestion chips show: call-friendly
    * (spoken / interactive output) vs. chat-friendly (text output).
@@ -418,18 +440,20 @@ export function CoordinatorOnboardingChecklist({
   onActNow,
   onScheduleTask,
   onHireSpecialist,
+  onSkipStep,
   isOnCall = false,
   className,
 }: CoordinatorOnboardingChecklistProps) {
   const ctx = useCoordinatorOnboardingContext();
   const completedStepIds = ctx?.completedStepIds ?? EMPTY_SET;
+  const skippedStepIds = ctx?.skippedStepIds ?? EMPTY_SET;
   const titlesById = React.useMemo(() => collectTitles(ONBOARDING_CHECKLIST), []);
   const resolved = React.useMemo(
-    () => resolveChecklist(ONBOARDING_CHECKLIST, completedStepIds, titlesById),
-    [completedStepIds, titlesById]
+    () => resolveChecklist(ONBOARDING_CHECKLIST, completedStepIds, skippedStepIds, titlesById),
+    [completedStepIds, skippedStepIds, titlesById]
   );
-  const { total, done } = React.useMemo(() => countItems(resolved), [resolved]);
-  const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+  const { total, resolved: resolvedCount } = React.useMemo(() => countItems(resolved), [resolved]);
+  const percent = total > 0 ? Math.round((resolvedCount / total) * 100) : 0;
   const phases = React.useMemo(() => computePhases(resolved), [resolved]);
 
   const handleAction = React.useCallback(
@@ -471,7 +495,7 @@ export function CoordinatorOnboardingChecklist({
   );
   return (
     <div className={cn('flex flex-col gap-3', className)}>
-      <PhaseProgressBar phases={phases} done={done} total={total} percent={percent} />
+      <PhaseProgressBar phases={phases} resolved={resolvedCount} total={total} percent={percent} />
       <ul className="space-y-2.5" data-testid="coordinator-onboarding-checklist">
         {resolved.map((item) => (
           <ChecklistRow
@@ -481,6 +505,7 @@ export function CoordinatorOnboardingChecklist({
             isActionWired={isActionWired}
             nextActionableId={nextActionableId}
             isOnCall={isOnCall}
+            onSkipStep={onSkipStep}
           />
         ))}
       </ul>
@@ -490,7 +515,7 @@ export function CoordinatorOnboardingChecklist({
 
 interface PhaseProgressBarProps {
   phases: PhaseProgress[];
-  done: number;
+  resolved: number;
   total: number;
   percent: number;
 }
@@ -502,19 +527,19 @@ interface PhaseProgressBarProps {
  * left, not just how much. The legend underneath labels the
  * segments to keep the affordance discoverable without a tooltip.
  */
-function PhaseProgressBar({ phases, done, total, percent }: PhaseProgressBarProps) {
+function PhaseProgressBar({ phases, resolved, total, percent }: PhaseProgressBarProps) {
   if (!phases.length) return null;
   return (
     <div className="flex flex-col gap-1.5">
       <div className="text-caption flex items-center justify-between text-muted-foreground">
         <span>
-          {done} of {total} done
+          {resolved} of {total} resolved
         </span>
         <span>{percent}%</span>
       </div>
       <div
         role="progressbar"
-        aria-label={`Onboarding progress: ${done} of ${total} steps complete`}
+        aria-label={`Onboarding progress: ${resolved} of ${total} steps resolved`}
         aria-valuenow={percent}
         aria-valuemin={0}
         aria-valuemax={100}
@@ -522,12 +547,13 @@ function PhaseProgressBar({ phases, done, total, percent }: PhaseProgressBarProp
         data-testid="coordinator-onboarding-progress"
       >
         {phases.map((phase) => {
-          const phasePercent = phase.total > 0 ? Math.round((phase.done / phase.total) * 100) : 0;
+          const phasePercent =
+            phase.total > 0 ? Math.round((phase.resolved / phase.total) * 100) : 0;
           return (
             <div
               key={phase.id}
               data-testid={`coordinator-onboarding-progress-phase-${phase.id}`}
-              data-phase-done={phase.done}
+              data-phase-resolved={phase.resolved}
               data-phase-total={phase.total}
               className="relative h-full flex-1 overflow-hidden rounded-full bg-muted"
             >
@@ -545,7 +571,7 @@ function PhaseProgressBar({ phases, done, total, percent }: PhaseProgressBarProp
             key={phase.id}
             className={cn(
               'truncate',
-              phase.done === phase.total && phase.total > 0 && 'text-foreground'
+              phase.resolved === phase.total && phase.total > 0 && 'text-foreground'
             )}
           >
             {phase.label}
@@ -569,6 +595,7 @@ interface ChecklistRowProps {
   /** Whether the user is on a call — selects the call vs. chat
    * "Act now" suggestion chips. */
   isOnCall: boolean;
+  onSkipStep?: (stepId: string) => void;
 }
 
 function ChecklistRow({
@@ -578,16 +605,19 @@ function ChecklistRow({
   isActionWired,
   nextActionableId,
   isOnCall,
+  onSkipStep,
 }: ChecklistRowProps) {
   const hasWiredAction = isActionWired(item.action);
   const isBlocked = !!item.disabledReason;
-  const isActionable = hasWiredAction && !item.done && !isBlocked;
+  const isResolved = item.status !== 'pending';
+  const isActionable = hasWiredAction && !isResolved && !isBlocked;
   const isNext = nextActionableId === item.id;
   const nextChildAction = React.useMemo(
     () => findNextChildAction(item, isActionWired),
     [item, isActionWired]
   );
-  const canOpenChildAction = !!nextChildAction && !item.done;
+  const canOpenChildAction = !!nextChildAction && !isResolved;
+  const canSkip = !!onSkipStep && !item.children?.length && !isResolved && !isBlocked;
   // Whether the next actionable leaf sits somewhere inside this
   // row's subtree. Parents on the path to "Next" stay at full
   // opacity so the user's eye flows from the phase header straight
@@ -610,6 +640,15 @@ function ChecklistRow({
     if (item.action) onAction(item.action);
   }, [item.action, onAction]);
 
+  const handleKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      handleClick();
+    },
+    [handleClick]
+  );
+
   const handleParentClick = React.useCallback(() => {
     if (!nextChildAction) return;
     onAction(nextChildAction);
@@ -624,7 +663,15 @@ function ChecklistRow({
     [handleParentClick]
   );
 
-  const rowClassName = (variant: 'done' | 'actionable' | 'blocked' | 'static') =>
+  const handleSkipClick = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      onSkipStep?.(item.id);
+    },
+    [item.id, onSkipStep]
+  );
+
+  const rowClassName = (variant: 'done' | 'skipped' | 'actionable' | 'blocked' | 'static') =>
     cn(
       'flex w-full items-start gap-2 rounded-md px-1.5 py-1 -mx-1.5',
       variant === 'actionable' && 'cursor-pointer hover:bg-muted/50',
@@ -635,11 +682,12 @@ function ChecklistRow({
       // a competing call-to-action.
     );
 
-  const renderLabel = (variant: 'done' | 'actionable' | 'blocked' | 'static') => (
+  const renderLabel = (variant: 'done' | 'skipped' | 'actionable' | 'blocked' | 'static') => (
     <span
       className={cn(
         'text-body-sm flex-1 leading-5',
         variant === 'done' && 'text-muted-foreground line-through',
+        variant === 'skipped' && 'text-muted-foreground',
         variant === 'actionable' && (isNext ? 'font-medium text-foreground' : 'text-foreground'),
         variant === 'blocked' && 'text-muted-foreground/70',
         variant === 'static' && 'text-foreground'
@@ -648,6 +696,21 @@ function ChecklistRow({
       {item.title}
     </span>
   );
+
+  const renderSkipButton = () =>
+    canSkip ? (
+      <button
+        type="button"
+        onClick={handleSkipClick}
+        className={cn(
+          'text-caption rounded-control flex-shrink-0 px-1.5 py-0.5 text-muted-foreground',
+          'hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+        )}
+        data-testid={`coordinator-onboarding-skip-step-${item.id}`}
+      >
+        Skip
+      </button>
+    ) : null;
 
   const renderNextPill = () =>
     isNext ? (
@@ -692,33 +755,42 @@ function ChecklistRow({
       </TooltipProvider>
     ) : null;
 
-  const rowBody = (variant: 'done' | 'actionable' | 'blocked' | 'static') => (
+  const rowBody = (variant: 'done' | 'skipped' | 'actionable' | 'blocked' | 'static') => (
     <div className={rowClassName(variant)}>
-      <ChecklistMarker done={item.done} />
+      <ChecklistMarker status={item.status} />
       {renderLabel(variant)}
       {renderNextPill()}
       {renderInfoTooltip()}
+      {renderSkipButton()}
     </div>
   );
 
   let row: React.ReactNode;
-  if (item.done) {
+  if (item.status === 'done') {
     row = (
       <div data-testid={`coordinator-onboarding-item-${item.id}`} data-status="done">
         {rowBody('done')}
       </div>
     );
+  } else if (item.status === 'skipped') {
+    row = (
+      <div data-testid={`coordinator-onboarding-item-${item.id}`} data-status="skipped">
+        {rowBody('skipped')}
+      </div>
+    );
   } else if (isActionable) {
     row = (
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={handleClick}
-        className="w-full text-left"
+        onKeyDown={handleKeyDown}
+        className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         data-testid={`coordinator-onboarding-item-${item.id}`}
         data-next={isNext ? 'true' : undefined}
       >
         {rowBody('actionable')}
-      </button>
+      </div>
     );
   } else if (isBlocked) {
     row = (
@@ -771,7 +843,7 @@ function ChecklistRow({
       : item.id === 'schedule'
         ? SCHEDULE_SUGGESTED_WORKFLOWS
         : null;
-  const showSuggestions = !!suggestionsForItem && !item.done && !isBlocked;
+  const showSuggestions = !!suggestionsForItem && item.status === 'pending' && !isBlocked;
 
   return (
     <li
@@ -819,6 +891,7 @@ function ChecklistRow({
               isActionWired={isActionWired}
               nextActionableId={nextActionableId}
               isOnCall={isOnCall}
+              onSkipStep={onSkipStep}
             />
           ))}
         </ul>
@@ -827,18 +900,24 @@ function ChecklistRow({
   );
 }
 
-function ChecklistMarker({ done }: { done: boolean }) {
+function ChecklistMarker({ status }: { status: 'pending' | 'done' | 'skipped' }) {
   return (
     <span
       aria-hidden="true"
       className={cn(
         'rounded-control mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center border',
-        done
+        status === 'done'
           ? 'border-[color:var(--role-green-deep)] bg-[color:var(--status-success-bg)] text-[color:var(--role-green-deep)]'
-          : 'border-muted-foreground/40 bg-transparent'
+          : status === 'skipped'
+            ? 'border-muted-foreground/60 bg-muted text-muted-foreground'
+            : 'border-muted-foreground/40 bg-transparent'
       )}
     >
-      {done ? <Check className="h-3 w-3 stroke-[4]" /> : null}
+      {status === 'done' ? (
+        <Check className="h-3 w-3 stroke-[4]" />
+      ) : status === 'skipped' ? (
+        <Minus className="h-3 w-3 stroke-[4]" />
+      ) : null}
     </span>
   );
 }
