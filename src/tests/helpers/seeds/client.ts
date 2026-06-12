@@ -757,8 +757,8 @@ export type CreatePersonalCoordinatorOpts = Pick<
 /**
  * Create the user's personal Coordinator.
  *
- * Mirrors Orchestra's `create_coordinator_assistant`:
- *   - `first_name = 'Coordinator'`, `surname = 'Droid'`, `job_title = 'Coordinator droid'`
+ * Mirrors Orchestra's coordinator provisioning:
+ *   - `first_name = 'Marty'`, `job_title = 'Coordinator'`
  *   - `nationality = 'United States'`, `desktop_mode = 'ubuntu'`
  *   - Numeric limits default to NULL; voice uses the coordinator's fixed ElevenLabs profile
  *   - `is_coordinator = TRUE`, `organization_id = NULL`
@@ -780,12 +780,12 @@ export function createPersonalCoordinator(
     if (Number.isFinite(parsed)) {
       ensureVoicePreset(userId);
       dbExec(
-        `UPDATE assistants SET first_name = 'Coordinator', surname = 'Droid', voice_id = ${sqlLiteral(coordinatorFixedVoiceId)}, voice_provider = ${sqlLiteral(approvedCharacterVoiceMetadata[coordinatorFixedVoiceId].provider)}, job_title = ${sqlLiteral(COORDINATOR_DEFAULT_JOB_TITLE)}, about = CASE WHEN about IS NULL OR about = ${sqlLiteral(COORDINATOR_LEGACY_ABOUT)} THEN ${sqlLiteral(COORDINATOR_DEFAULT_ABOUT)} ELSE about END WHERE agent_id = ${parsed};`
+        `UPDATE assistants SET first_name = 'Marty', surname = NULL, voice_id = ${sqlLiteral(coordinatorFixedVoiceId)}, voice_provider = ${sqlLiteral(approvedCharacterVoiceMetadata[coordinatorFixedVoiceId].provider)}, job_title = ${sqlLiteral(COORDINATOR_DEFAULT_JOB_TITLE)}, about = CASE WHEN about IS NULL OR about = ${sqlLiteral(COORDINATOR_LEGACY_ABOUT)} THEN ${sqlLiteral(COORDINATOR_DEFAULT_ABOUT)} ELSE about END WHERE agent_id = ${parsed};`
       );
       return {
         agentId: parsed,
-        firstName: 'Coordinator',
-        surname: 'Droid',
+        firstName: 'Marty',
+        surname: '',
         userId,
         organizationId: null,
         isCoordinator: true,
@@ -797,8 +797,8 @@ export function createPersonalCoordinator(
 
   return createAssistant({
     userId,
-    firstName: 'Coordinator',
-    surname: 'Droid',
+    firstName: 'Marty',
+    surname: null,
     jobTitle: COORDINATOR_DEFAULT_JOB_TITLE,
     isCoordinator: true,
     about: opts.about ?? COORDINATOR_DEFAULT_ABOUT,
