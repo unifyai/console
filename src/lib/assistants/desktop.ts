@@ -12,32 +12,60 @@ import { dispatchUnitySystemEvent } from '@/lib/assistants/system-event';
 const LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS = 5000;
 const DEFAULT_SELF_HOST_DESKTOP_URL = 'http://127.0.0.1:8090';
 
+function selfHostDesktopBrowserBase(): string {
+  return (process.env.SELF_HOST_DESKTOP_URL?.trim() || DEFAULT_SELF_HOST_DESKTOP_URL).replace(
+    /\/$/,
+    ''
+  );
+}
+
+function selfHostDesktopHealthBase(): string {
+  const internal = process.env.SELF_HOST_DESKTOP_INTERNAL_URL?.trim();
+  if (internal) {
+    return internal.replace(/\/$/, '');
+  }
+  return selfHostDesktopBrowserBase();
+}
+
 async function resolveSelfHostLiveviewUrl(
   ownerId: string,
   organizationId: number | null
 ): Promise<{ liveviewUrl: string } | null> {
-  const desktopBase = (
-    process.env.SELF_HOST_DESKTOP_URL?.trim() || DEFAULT_SELF_HOST_DESKTOP_URL
-  ).replace(/\/$/, '');
+  const desktopBase = selfHostDesktopBrowserBase();
   const rawLiveviewUrl = `${desktopBase}/desktop/custom.html`;
   const ownerKey = await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
   const urlObj = new URL(rawLiveviewUrl);
   urlObj.searchParams.set('password', ownerKey);
   const liveviewUrl = urlObj.toString();
-  if (!(await isLiveviewReachable(liveviewUrl))) {
+  if (!(await isSelfHostDesktopHealthy())) {
     return null;
   }
   return { liveviewUrl };
 }
 
+async function isSelfHostDesktopHealthy(): Promise<boolean> {
+  const healthBase = selfHostDesktopHealthBase();
+  return isUrlReachable(`${healthBase}/desktop/vnc.html`);
+}
+
 async function isLiveviewReachable(liveviewUrl: string): Promise<boolean> {
+  if (isSelfHost()) {
+    return isSelfHostDesktopHealthy();
+  }
   try {
     const urlObj = new URL(liveviewUrl);
-    const baseUrl = `${urlObj.protocol}//${urlObj.host}/`;
+    return isUrlReachable(`${urlObj.protocol}//${urlObj.host}/`);
+  } catch {
+    return false;
+  }
+}
+
+async function isUrlReachable(url: string): Promise<boolean> {
+  try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS);
     try {
-      const resp = await fetch(baseUrl, {
+      const resp = await fetch(url, {
         method: 'HEAD',
         signal: controller.signal,
         // @ts-ignore — Node fetch supports this option in server actions
