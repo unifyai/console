@@ -56,15 +56,15 @@ export interface OnboardingSessionStartedResult {
 /**
  * Fire the picker-resolution event so the Coordinator opens the
  * onboarding session with the right kind of message (intro on a
- * fresh transcript, recap on a resumed one). Best-effort: callers
- * should NOT block UI on the response — the event drives a
- * background LLM run on the Unity side whose output arrives via
- * the normal chat-streaming channel.
+ * fresh transcript, recap on a resumed one). Orchestra derives the
+ * completed-step snapshot server-side at emission time, so only the
+ * medium travels. Best-effort: callers should NOT block UI on the
+ * response — the event drives a background LLM run on the Unity
+ * side whose output arrives via the normal chat-streaming channel.
  */
 export async function notifyOnboardingSessionStarted(
   coordinatorId: string | number,
-  medium: OnboardingSessionMedium,
-  completedStepIds?: string[]
+  medium: OnboardingSessionMedium
 ): Promise<OnboardingSessionStartedResult | ResponseProps> {
   try {
     const res = await fetch('/api/coordinator-onboarding-session-started', {
@@ -73,7 +73,6 @@ export async function notifyOnboardingSessionStarted(
       body: JSON.stringify({
         coordinatorId: String(coordinatorId),
         medium,
-        completedStepIds,
       }),
     });
     const contentType = res.headers.get('content-type');

@@ -379,32 +379,20 @@ export function CoordinatorOnboarding({
     onHireSpecialist?.();
   }, [onHireSpecialist]);
 
-  // Snapshot of completed step ids passed to Unity at picker time.
-  // Lives behind a ref so picker handlers don't rerun whenever the
-  // checklist progresses — the snapshot is captured at click time
-  // and that's the one Unity should see.
-  const completedStepIdsRef = React.useRef<string[]>([]);
-  React.useEffect(() => {
-    if (!onboardingCtx) return;
-    completedStepIdsRef.current = Array.from(onboardingCtx.completedStepIds);
-  }, [onboardingCtx]);
-
-  // Fire the chat picker-resolution event so Unity opens the text
-  // session with the right kind of message (intro on a fresh
-  // transcript, recap on a resumed one). Best-effort: the chat
-  // surface still mounts even if the event POST fails — the user
-  // can always send a message themselves to unblock things. The
-  // call path deliberately skips this: the spoken intro owns that
-  // first turn, and sending a parallel text while on a call feels
-  // like the coordinator droid is talking over itself.
+  // Fire the picker-resolution event so Unity opens the session with
+  // the right kind of message (intro on a fresh transcript, recap on
+  // a resumed one). Best-effort: the chat surface still mounts even
+  // if the event POST fails — the user can always send a message
+  // themselves to unblock things. The completed-step snapshot is
+  // derived server-side from durable state when the event is
+  // emitted, so nothing about checklist progress travels from here.
+  // On the call path the event is informational (the voice agent
+  // owns the spoken opener; Unity's handler skips the chat turn for
+  // ``medium == 'call'``) but still fires so the slow brain knows a
+  // session opened and the picker resolution stays auditable.
   const notifySessionStarted = React.useCallback(
     (medium: 'chat' | 'call') => {
-      const snapshot = completedStepIdsRef.current;
-      void notifyOnboardingSessionStarted(
-        coordinator.agentId,
-        medium,
-        snapshot.length > 0 ? snapshot : undefined
-      );
+      void notifyOnboardingSessionStarted(coordinator.agentId, medium);
     },
     [coordinator.agentId]
   );
@@ -422,6 +410,7 @@ export function CoordinatorOnboarding({
           source: 'coordinator_droid_onboarding_intro',
         },
       });
+      notifySessionStarted('call');
     } catch (error) {
       console.error('[CoordinatorOnboarding] Failed to start intro call:', error);
       hasTriggeredCallStartRef.current = false;
@@ -429,7 +418,7 @@ export function CoordinatorOnboarding({
     } finally {
       setIsStartingCall(false);
     }
-  }, [coordinator, onStartCall]);
+  }, [coordinator, onStartCall, notifySessionStarted]);
 
   const handleStartCall = React.useCallback(
     (avatarOffset: IntroAvatarOffset) => {

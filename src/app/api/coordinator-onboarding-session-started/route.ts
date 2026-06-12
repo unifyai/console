@@ -18,7 +18,6 @@ import { badRequest, getApiKeyFromRequest, unauthorized } from '../_utils/auth';
 interface OnboardingSessionStartedRequest {
   coordinatorId?: unknown;
   medium?: unknown;
-  completedStepIds?: unknown;
 }
 
 interface OnboardingSessionStartedInfo {
@@ -61,16 +60,6 @@ export async function POST(request: NextRequest) {
     return badRequest('medium must be "chat" or "call"');
   }
 
-  let completedStepIds: string[] | undefined;
-  if (Array.isArray(body.completedStepIds)) {
-    const sanitized = body.completedStepIds
-      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-      .map((item) => item.trim());
-    if (sanitized.length > 0) {
-      completedStepIds = sanitized;
-    }
-  }
-
   const orchestraUrl = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
 
   try {
@@ -82,10 +71,7 @@ export async function POST(request: NextRequest) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({
-          medium,
-          completed_step_ids: completedStepIds,
-        }),
+        body: JSON.stringify({ medium }),
       }
     );
 

@@ -28,6 +28,15 @@ export interface CoordinatorStateSnapshot {
   onboardingStep: string | null;
   startedAt: string | null;
   endedAt: string | null;
+  /**
+   * Onboarding checklist steps Orchestra derives as already complete
+   * from durable domain state (workspace email contact, integration
+   * secrets, action history, Tasks rows). Authoritative across
+   * sessions — steps completed last week surface here even though no
+   * transition event fired this session. Always empty outside
+   * onboarding mode, where derivation is skipped server-side.
+   */
+  completedStepIds: string[];
 }
 
 export interface CoordinatorStatePatch {
@@ -48,6 +57,11 @@ function normalizeString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null;
 }
 
+function normalizeStepIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+}
+
 function normalizeSnapshot(coordinatorId: number, raw: unknown): CoordinatorStateSnapshot {
   const record = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   return {
@@ -56,6 +70,7 @@ function normalizeSnapshot(coordinatorId: number, raw: unknown): CoordinatorStat
     onboardingStep: normalizeStep(record.onboardingStep ?? record.onboarding_step),
     startedAt: normalizeString(record.startedAt ?? record.started_at),
     endedAt: normalizeString(record.endedAt ?? record.ended_at),
+    completedStepIds: normalizeStepIds(record.completedStepIds ?? record.completed_step_ids),
   };
 }
 

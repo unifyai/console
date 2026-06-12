@@ -818,6 +818,40 @@ export function createPersonalCoordinator(
   });
 }
 
+// =============================================================================
+// Workspace (BYOD email) connection
+// =============================================================================
+
+export interface ConnectWorkspaceEmailOpts {
+  assistantId: number;
+  /** BYOD mailbox address. Defaults to a unique seed address. */
+  email?: string;
+  provider?: 'google_workspace' | 'microsoft_365';
+}
+
+/**
+ * Connect an assistant to a user-provisioned (BYOD) workspace mailbox,
+ * mirroring the contact row the workspace OAuth callback writes
+ * (`provisioned_by = 'user'`). Orchestra derives the Coordinator
+ * onboarding `workspace` step as complete from exactly this row, so
+ * seeding it reproduces "the user connected their workspace in an
+ * earlier session" without any OAuth flow.
+ */
+export function connectWorkspaceEmail(opts: ConnectWorkspaceEmailOpts): string {
+  const email = opts.email ?? `seed-workspace-${Date.now()}@example.com`;
+  const provider = opts.provider ?? 'google_workspace';
+  // Only one active row may exist per (assistant_id, contact_type) —
+  // retire any platform-provisioned mailbox first, exactly like the
+  // OAuth callback path does before writing the BYOD row.
+  dbExecBlock(`
+UPDATE assistant_contacts SET status = 'deleted', deleted_at = NOW()
+WHERE assistant_id = ${opts.assistantId} AND contact_type = 'email' AND status != 'deleted';
+INSERT INTO assistant_contacts (assistant_id, contact_type, contact_value, provider, provisioned_by, status)
+VALUES (${opts.assistantId}, 'email', ${sqlLiteral(email)}, ${sqlLiteral(provider)}, 'user', 'active');
+`);
+  return email;
+}
+
 export interface CreateTeamForAssistantOpts {
   name?: string;
   description?: string;

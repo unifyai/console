@@ -29,6 +29,9 @@ import {
   createAssistantTest,
   createTestUser,
   cleanupUser,
+  connectWorkspaceEmail,
+  createPersonalCoordinator,
+  dbExec,
   deleteAllAssistantsForUser,
 } from './helpers';
 
@@ -72,6 +75,47 @@ test('picker shows on first visit and hides the skip affordance', async ({ authe
   // The picker is intentionally unskippable: until the user answers
   // call-or-chat there is no Skip button.
   await expect(page.getByTestId('coordinator-onboarding-skip')).toHaveCount(0);
+});
+
+test('a workspace connected in an earlier session pre-completes the checklist step', async ({
+  authedPage: page,
+}) => {
+  // Simulate an earlier session's workspace OAuth: a BYOD email
+  // contact lands on the coordinator row directly, with no transition
+  // event fired this session. Orchestra derives the ``workspace``
+  // step as complete from this row on the Coordinator/State read, so
+  // the checklist must show it done from the very first render — the
+  // historical failure mode was the coordinator droid (and the
+  // checklist, briefly) telling the user to connect a workspace that
+  // was already connected.
+  const coordinator = createPersonalCoordinator(user.id);
+  connectWorkspaceEmail({ assistantId: coordinator.agentId });
+
+  // Pin the durable signal the derivation reads: an active,
+  // user-provisioned email contact with a provider.
+  const contactCount = dbExec(
+    `SELECT COUNT(*) FROM assistant_contacts WHERE assistant_id = ${coordinator.agentId} ` +
+      `AND contact_type = 'email' AND provisioned_by = 'user' AND status = 'active' ` +
+      `AND provider IS NOT NULL;`
+  );
+  expect(parseInt(contactCount, 10)).toBeGreaterThan(0);
+
+  await gotoAssistants(page);
+  await expectPickerVisible(page);
+  await page.getByTestId('coordinator-onboarding-pick-chat').click();
+
+  // The sidebar checklist mounts post-picker, already seeded from the
+  // server-derived snapshot — no pane needs to mount, no probe needs
+  // to resolve.
+  const workspaceRow = page.getByTestId('coordinator-onboarding-item-workspace').first();
+  await expect(workspaceRow).toBeVisible({ timeout: 15_000 });
+  await expect(workspaceRow).toHaveAttribute('data-status', 'done');
+
+  // With workspace done, the next actionable step is connecting apps.
+  await expect(page.getByTestId('coordinator-onboarding-item-apps').first()).toHaveAttribute(
+    'data-next',
+    'true'
+  );
 });
 
 test('starting a call shows the coordinator droid intro, docks the call, then falls back to chat on hangup', async ({

@@ -84,9 +84,6 @@ import { useSpendingGate } from '@/hooks/Assistants/useSpendingGate';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemErrors';
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
-import { fetchMemoryContext } from '@/lib/client/memory';
-import { isWorkspaceManagedSecretName } from '@/hooks/Assistants/useAssistantIntegrations';
-import type { Secret } from '@/types/assistants/secret';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { createRandomDroidProfile } from '@/utils/assistants/droid-profile-randomizer';
 
@@ -447,16 +444,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     coordinatorOnboardingState?.mode === 'onboarding' &&
     !isHireSpecialistEngaged;
 
-  // Shared per-session onboarding step progress for the Coordinator
-  // onboarding flow. Lifted out of ``CoordinatorOnboarding`` so the
-  // same set survives the gradual ↔ info-panel layout transition —
-  // when the user clicks "Hire your first specialist" the layout
-  // swaps to the base /assistants shell and the Onboarding tab
-  // follows them into the coordinator's assistant info panel.
+  // Shared onboarding step progress for the Coordinator onboarding
+  // flow. Lifted out of ``CoordinatorOnboarding`` so the same set
+  // survives the gradual ↔ info-panel layout transition — when the
+  // user clicks "Hire your first specialist" the layout swaps to the
+  // base /assistants shell and the Onboarding tab follows them into
+  // the coordinator's assistant info panel.
   // ``'meet'`` is seeded because the picker is always resolved by
-  // the time we render anything substantive. Persisting this snapshot
-  // server-side would let progress survive reloads; today it is
-  // session-local in the console.
+  // the time we render anything substantive; the durable steps
+  // (workspace/apps/act/schedule) are seeded from the server-derived
+  // ``completedStepIds`` on the Coordinator/State read (see the
+  // effect below), so progress survives reloads without a separate
+  // persisted copy.
   const [completedStepIds, setCompletedStepIds] = React.useState<ReadonlySet<string>>(
     () => new Set(['meet'])
   );
@@ -1556,157 +1555,25 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     workspaceConnectAvailable,
   ]);
 
-  // Auto-complete the workspace step the moment the Coordinator
-  // gains a BYOD workspace credential. Mirrors the ``apps`` /
-  // ``act`` / ``schedule`` flow (count callbacks from the
-  // rendered panes): real completion is observed from the data,
-  // not from the click that opened the dialog. We treat the
-  // presence of both ``email`` and ``emailProvider`` as the
-  // canonical "workspace connected" signal — the backend's
-  // ``handleUpdateSuccess`` refetch picks up the new row right
-  // after OAuth, and on subsequent sessions this also auto-marks
-  // for users who already connected before.
-  const coordinatorEmail = canonicalCoordinator?.email ?? null;
-  const coordinatorEmailProvider = canonicalCoordinator?.emailProvider ?? null;
+  // Seed durable step completion from the server-derived
+  // ``completedStepIds`` on the Coordinator/State read. Orchestra
+  // re-derives the set from domain data (BYOD email contact,
+  // integration secrets, action history, Tasks rows) on every state
+  // read, so steps completed in earlier sessions are marked done
+  // before the picker renders — the layout already blocks on that
+  // read via ``isCoordinatorOnboardingResolvePending``. Live
+  // in-session completion still comes from the pane observers
+  // (``onSecretsCountChange`` / ``onTasksCountChange`` /
+  // ``onHasActiveActionChange``) plus the OAuth-complete refetch;
+  // ``markStepCompleted`` is idempotent so the two sources compose
+  // freely.
+  const serverCompletedStepIds = coordinatorOnboardingState?.completedStepIds;
   React.useEffect(() => {
-    if (coordinatorEmail && coordinatorEmailProvider) {
-      markStepCompleted('workspace');
+    if (!serverCompletedStepIds) return;
+    for (const stepId of serverCompletedStepIds) {
+      markStepCompleted(stepId);
     }
-  }, [coordinatorEmail, coordinatorEmailProvider, markStepCompleted]);
-
-  // Backfill the "Ask your coordinator to do something now" (`act`)
-  // step from durable history so it survives a reload.
-  //
-  // workspace / apps / schedule all re-derive from durable domain
-  // data (a contact row, a secret, a scheduled task). "An action
-  // ran", by contrast, is otherwise only observed via the *live*
-  // ``onHasActiveActionChange`` signal off the Actions pane, which
-  // never re-fires for a *past* action after a reload — and because
-  // the Actions pane only mounts once ``act`` is engaged (and the
-  // pane reports only currently-running actions), a resumed session
-  // would strand the step, and with it everything gated behind it
-  // (schedule, hire). Here we run a one-shot, NON-time-windowed
-  // existence probe for any root action the Coordinator has ever
-  // dispatched (``len(hierarchy) == 1``, limit 1, no start bound)
-  // and mark the step done if one exists. The live observer still
-  // covers in-session completion; this only backfills.
-  //
-  // Probed once per coordinator (the ref guard); reset on error so a
-  // transient failure can retry on a later render. Deliberately NOT
-  // gated on (or depended on) ``completedStepIds``: that set changes
-  // rapidly on reload (meet → workspace → apps …), and tying the
-  // probe to it would let an unrelated step completing tear down an
-  // in-flight probe before it resolves. The ref guard already limits
-  // us to one probe per coordinator, and ``markStepCompleted`` is
-  // idempotent, so marking ``act`` when the live observer already did
-  // is a harmless no-op.
-  const actBackfillProbedRef = React.useRef<string | null>(null);
-  const actionActions = assistantActions.actions;
-  React.useEffect(() => {
-    if (!showCoordinatorOnboarding) return;
-    const coordinator = canonicalCoordinator;
-    if (!coordinator || !actionActions) return;
-    if (actBackfillProbedRef.current === coordinator.agentId) return;
-    actBackfillProbedRef.current = coordinator.agentId;
-
-    void (async () => {
-      try {
-        const response = await actionActions.getManagerMethodEvents(
-          coordinator.userId,
-          coordinator.agentId,
-          null, // no lower time bound — durable "ever acted?" check
-          1,
-          undefined,
-          ['len(hierarchy) == 1']
-        );
-        const hasAnyAction = !('detail' in response) && (response.logs?.length ?? 0) > 0;
-        if (hasAnyAction) markStepCompleted('act');
-      } catch {
-        // Best-effort — clear the guard so a later render can retry.
-        // The live observer still covers anything the user does this
-        // session.
-        actBackfillProbedRef.current = null;
-      }
-    })();
-  }, [showCoordinatorOnboarding, canonicalCoordinator, actionActions, markStepCompleted]);
-
-  // Backfill the "Schedule a task for later" (`schedule`) step from
-  // durable data, symmetric with the `act` probe above. Unlike `act`,
-  // a scheduled task IS durable domain state (it lives in the
-  // Coordinator's Tasks context), so the in-session signal already
-  // re-derives it — *if* the Tasks pane is mounted. But reaching the
-  // schedule step deliberately doesn't steal focus to the Tasks pane
-  // (so we don't yank the user off the action they just kicked off),
-  // which means on a resumed session the pane never auto-mounts and a
-  // previously-created task wouldn't re-tick the step. This page-level
-  // probe closes that gap with a one-shot Tasks-count check that's
-  // independent of which pane is rendered. ``readAcrossRoots`` mirrors
-  // the Tasks pane's own query (tasks live across the Coordinator's
-  // roots). Same once-per-coordinator + idempotent contract as `act`.
-  const scheduleBackfillProbedRef = React.useRef<string | null>(null);
-  React.useEffect(() => {
-    if (!showCoordinatorOnboarding) return;
-    const coordinator = canonicalCoordinator;
-    if (!coordinator) return;
-    if (scheduleBackfillProbedRef.current === coordinator.agentId) return;
-    scheduleBackfillProbedRef.current = coordinator.agentId;
-
-    void (async () => {
-      try {
-        const data = await fetchMemoryContext(coordinator, 'Tasks', {
-          limit: 1,
-          readAcrossRoots: true,
-        });
-        if (data.count > 0) markStepCompleted('schedule');
-      } catch {
-        scheduleBackfillProbedRef.current = null;
-      }
-    })();
-  }, [showCoordinatorOnboarding, canonicalCoordinator, markStepCompleted]);
-
-  // Backfill the "Connect your coordinator with your apps" (`apps`)
-  // step from durable data, symmetric with the `act`/`schedule` probes
-  // above. The live observer for this step is the Integrations pane's
-  // ``onSecretsCountChange`` — but that only fires once the pane mounts,
-  // which happens *after* the picker (it auto-engages off ``workspace``).
-  // That late timing is exactly what produces the user-visible mismatch:
-  // a pre-existing app integration (a custom secret already on the
-  // Coordinator) flips the onboarding step to done a beat after the
-  // picker, while the coordinator's session-start narration — built from
-  // the completed-step snapshot captured at picker time — still tells the
-  // user to "connect an app". Running a page-level existence probe before
-  // the picker folds ``apps`` into that snapshot so the two agree.
-  //
-  // Counts the same way the pane does: any owned secret that ISN'T a
-  // workspace-managed OAuth token (GOOGLE_/MICROSOFT_/AZURE_). Workspace
-  // secrets land via the "connect workspace" step and must not stand in
-  // for an actual app connection. Same once-per-coordinator + idempotent
-  // contract as the probes above.
-  const appsBackfillProbedRef = React.useRef<string | null>(null);
-  const secretActions = assistantActions.secret;
-  React.useEffect(() => {
-    if (!showCoordinatorOnboarding) return;
-    const coordinator = canonicalCoordinator;
-    if (!coordinator || !secretActions) return;
-    if (appsBackfillProbedRef.current === coordinator.agentId) return;
-    appsBackfillProbedRef.current = coordinator.agentId;
-
-    void (async () => {
-      try {
-        const result = await secretActions.get(coordinator.agentId, coordinator.userId);
-        if ('detail' in result) {
-          appsBackfillProbedRef.current = null;
-          return;
-        }
-        const hasAppSecret = result.some(
-          (secret: Secret) => !isWorkspaceManagedSecretName(secret.name)
-        );
-        if (hasAppSecret) markStepCompleted('apps');
-      } catch {
-        appsBackfillProbedRef.current = null;
-      }
-    })();
-  }, [showCoordinatorOnboarding, canonicalCoordinator, secretActions, markStepCompleted]);
+  }, [serverCompletedStepIds, markStepCompleted]);
 
   const handleRandomizeProfile = () => {
     setUserHasChangedPreset(true);
@@ -1953,6 +1820,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     const unsubscribe = subscribeOAuthComplete((detail) => {
       const refetch = () => {
         refreshAssistants(false);
+        // Re-read Coordinator/State so the server-derived
+        // ``completedStepIds`` picks up the credential that just
+        // landed (workspace OAuth → ``workspace``, integration
+        // OAuth → ``apps``) and the onboarding checklist advances.
+        void refetchCoordinatorOnboardingState();
       };
       refetch();
       retryTimers.push(setTimeout(refetch, 1500));
@@ -1981,7 +1853,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       unsubscribe();
       retryTimers.forEach(clearTimeout);
     };
-  }, [refreshAssistants]);
+  }, [refreshAssistants, refetchCoordinatorOnboardingState]);
 
   const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
 

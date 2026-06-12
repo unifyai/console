@@ -703,7 +703,11 @@ function ChecklistRow({
 
   let row: React.ReactNode;
   if (item.done) {
-    row = <div data-testid={`coordinator-onboarding-item-${item.id}`}>{rowBody('done')}</div>;
+    row = (
+      <div data-testid={`coordinator-onboarding-item-${item.id}`} data-status="done">
+        {rowBody('done')}
+      </div>
+    );
   } else if (isActionable) {
     row = (
       <button

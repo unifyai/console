@@ -7,9 +7,13 @@
  * **What it creates:**
  *   - 1 user ("owner") with billing account + API key
  *   - 1 personal assistant (organization_id = NULL)
+ *   - 1 user ("returningOwner") whose Coordinator is still onboarding
+ *     but already has a BYOD workspace connected — for walking the
+ *     "resume onboarding with pre-completed steps" flow
  *
  * **Credentials:**
  *   - `owner` — full access
+ *   - `returningOwner` — Coordinator onboarding with workspace done
  */
 
 import type { SeededState } from '../types';
@@ -17,6 +21,7 @@ import {
   createUser,
   createAssistant,
   createEmailLogin,
+  connectWorkspaceEmail,
   seedChatInfrastructure,
   seedCoordinatorChatForUsers,
   seedSecretsViaOrchestra,
@@ -25,6 +30,17 @@ import {
 export async function seedPersonalWorkspace(): Promise<SeededState> {
   const owner = createUser({ name: 'Personal', lastName: 'Owner' });
   createEmailLogin({ userId: owner.id });
+
+  // A returning user mid-onboarding: their Coordinator already holds a
+  // user-provisioned workspace mailbox (the row the workspace OAuth
+  // callback writes), so Orchestra derives the ``workspace`` step as
+  // complete and both the checklist and the droid's opener must pick
+  // up from "connect your apps" instead of re-pitching the workspace.
+  const returningOwner = createUser({ name: 'Returning', lastName: 'Owner' });
+  createEmailLogin({ userId: returningOwner.id });
+  if (returningOwner.coordinator) {
+    connectWorkspaceEmail({ assistantId: returningOwner.coordinator.agentId });
+  }
 
   const assistant = createAssistant({
     userId: owner.id,
@@ -65,7 +81,7 @@ export async function seedPersonalWorkspace(): Promise<SeededState> {
   });
 
   return {
-    users: { owner },
+    users: { owner, returningOwner },
     assistants: [assistant],
     secrets,
     credentials: {
@@ -74,6 +90,12 @@ export async function seedPersonalWorkspace(): Promise<SeededState> {
         password: 'testpass123',
         apiKey: owner.apiKey,
         userId: owner.id,
+      },
+      returningOwner: {
+        email: returningOwner.email,
+        password: 'testpass123',
+        apiKey: returningOwner.apiKey,
+        userId: returningOwner.id,
       },
     },
   };

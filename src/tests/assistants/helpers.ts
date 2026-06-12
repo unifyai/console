@@ -26,6 +26,7 @@ export {
   orchestraFetch,
   createAssistant,
   createPersonalCoordinator,
+  connectWorkspaceEmail,
   createUserDesktop,
   linkUserDesktop,
   createTeamForAssistant,
