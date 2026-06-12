@@ -793,6 +793,7 @@ export function IntegrationsPane({
       <ProviderIntegrationDetailSheet
         item={selectedDisplayItem}
         open={!!selectedDisplayItem}
+        assistantId={assistantId}
         busy={Boolean(providerConnectingSlug)}
         busyConnectionId={busyConnectionId}
         onOpenChange={(open) => {

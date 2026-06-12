@@ -43,6 +43,7 @@ import { cn } from '@/lib/utils';
 import type {
   IntegrationConnection,
   IntegrationGalleryItem,
+  IntegrationToolBehaviorHint,
   IntegrationToolApprovalLevel,
   IntegrationToolPreview,
 } from '@/types/integrations';
@@ -63,11 +64,27 @@ function actionLabel(item: IntegrationGalleryItem): string {
   return 'Connect';
 }
 
-function actionBadgeLabel(actionClass?: IntegrationToolPreview['actionClass']): string | null {
-  if (!actionClass || actionClass === 'read') return null;
-  if (actionClass === 'sensitive_read') return 'Sensitive';
-  if (actionClass === 'destructive') return 'Destructive';
-  return 'Can change data';
+function actionBadgeLabel({
+  actionClass,
+  behaviorHints = [],
+}: {
+  actionClass?: IntegrationToolPreview['actionClass'];
+  behaviorHints?: IntegrationToolBehaviorHint[];
+}): string | null {
+  if (actionClass === 'destructive' || behaviorHints.includes('destructive')) return 'Destructive';
+  if (actionClass === 'sensitive_read' || behaviorHints.includes('sensitive_data')) {
+    return 'Sensitive data';
+  }
+  if (actionClass === 'bulk_export' || behaviorHints.includes('bulk_data')) return 'Bulk data';
+  if (
+    actionClass === 'write' ||
+    behaviorHints.includes('mutates_state') ||
+    behaviorHints.includes('creates_resource') ||
+    behaviorHints.includes('updates_resource')
+  ) {
+    return 'Can change data';
+  }
+  return null;
 }
 
 function defaultApprovalLevel(tool: IntegrationToolPreview): IntegrationToolApprovalLevel {
@@ -81,10 +98,10 @@ function defaultApprovalLevel(tool: IntegrationToolPreview): IntegrationToolAppr
   return 'auto';
 }
 
-function shortApprovalLabel(level: IntegrationToolApprovalLevel): string {
-  if (level === 'auto') return 'Allow';
-  if (level === 'specific_approval') return 'Confirm';
-  return 'Block';
+function approvalLabel(level: IntegrationToolApprovalLevel): string {
+  if (level === 'auto') return 'Allow for this account';
+  if (level === 'specific_approval') return 'Ask every time for this account';
+  return 'Block for this account';
 }
 
 function LoadingSkeleton() {
@@ -149,11 +166,14 @@ function PermissionList({
 function ToolMetadataTags({
   scopes,
   actionClass,
+  behaviorHints,
 }: {
   scopes?: IntegrationToolPreview['requiredScopes'];
   actionClass?: IntegrationToolPreview['actionClass'];
+  behaviorHints?: IntegrationToolPreview['behaviorHints'];
 }) {
-  const actionLabel = actionBadgeLabel(actionClass);
+  const actionLabel = actionBadgeLabel({ actionClass, behaviorHints });
+  const isDestructive = actionClass === 'destructive' || behaviorHints?.includes('destructive');
   if ((!scopes || scopes.length === 0) && !actionLabel) return null;
   return (
     <div className="mt-1 flex min-w-0 max-w-full flex-wrap gap-1.5 overflow-hidden">
@@ -161,7 +181,7 @@ function ToolMetadataTags({
         <span
           className={cn(
             'shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] leading-4',
-            actionClass === 'destructive'
+            isDestructive
               ? 'border-destructive/30 bg-destructive/10 text-destructive'
               : 'border-warning/30 bg-warning/10 text-warning'
           )}
@@ -188,6 +208,7 @@ function AvailableToolsList({
   onClearScopes,
   policyByToolId,
   policyEnabled,
+  policyNotice,
   savingToolIds,
   policyError,
   onPolicyChange,
@@ -198,6 +219,7 @@ function AvailableToolsList({
   onClearScopes: () => void;
   policyByToolId: Record<string, IntegrationToolApprovalLevel>;
   policyEnabled: boolean;
+  policyNotice?: string | null;
   savingToolIds: Set<string>;
   policyError?: string | null;
   onPolicyChange: (tool: IntegrationToolPreview, level: IntegrationToolApprovalLevel) => void;
@@ -291,7 +313,7 @@ function AvailableToolsList({
                   </DropdownMenuTrigger>
                 </TooltipTrigger>
                 <TooltipContent size="sm">
-                  Apply a policy preset across this app’s tools.
+                  Apply a policy preset across this account’s tools.
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -303,7 +325,7 @@ function AvailableToolsList({
                 <RotateCcw className="h-4 w-4" />
                 <div>
                   <p className="text-title">Reset all to defaults</p>
-                  <p className="text-caption">Use the recommended policy for every tool.</p>
+                  <p className="text-caption">Use the recommended policy for this account.</p>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -315,7 +337,7 @@ function AvailableToolsList({
                 <Zap className="h-4 w-4" />
                 <div>
                   <p className="text-title">Allow read tools</p>
-                  <p className="text-caption">Low-risk lookups can run without asking first.</p>
+                  <p className="text-caption">Read-only tools can run for this account.</p>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -331,9 +353,7 @@ function AvailableToolsList({
                 <ShieldQuestion className="h-4 w-4" />
                 <div>
                   <p className="text-title">Confirm write actions</p>
-                  <p className="text-caption">
-                    Require confirmation for tools that can change data.
-                  </p>
+                  <p className="text-caption">Ask before tools can change data for this account.</p>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -345,7 +365,7 @@ function AvailableToolsList({
                 <div>
                   <p className="text-title">Block all tools</p>
                   <p className="text-caption text-error">
-                    Disable every tool until you turn specific ones back on.
+                    Disable every tool for this account until you turn specific ones back on.
                   </p>
                 </div>
               </DropdownMenuItem>
@@ -357,6 +377,12 @@ function AvailableToolsList({
         <p className="text-caption text-error" data-testid="integration-policy-error">
           {policyError}
         </p>
+      )}
+      {policyNotice && (
+        <Alert className="bg-muted/20" data-testid="integration-policy-account-required">
+          <AlertTitle>Choose an account</AlertTitle>
+          <AlertDescription>{policyNotice}</AlertDescription>
+        </Alert>
       )}
       <div className="min-w-0 max-w-full overflow-hidden rounded-xl border bg-card">
         <ol className="min-w-0 max-w-full divide-y">
@@ -389,6 +415,7 @@ function AvailableToolsList({
                         <ToolMetadataTags
                           scopes={tool.requiredScopes}
                           actionClass={tool.actionClass}
+                          behaviorHints={tool.behaviorHints}
                         />
                       </button>
                       <div className="flex shrink-0 items-center gap-2">
@@ -410,8 +437,10 @@ function AvailableToolsList({
                                     <button
                                       type="button"
                                       disabled={savingToolIds.has(tool.id)}
+                                      aria-pressed={policyLevel === level}
+                                      data-testid={`integration-tool-policy-${tool.id}-${level}`}
                                       className={cn(
-                                        'h-7 rounded-full px-2.5 text-xs transition',
+                                        'min-h-7 max-w-[136px] whitespace-normal rounded-full px-2.5 py-1 text-[10px] leading-3 transition',
                                         policyLevel === level
                                           ? level === 'forbidden'
                                             ? 'bg-destructive text-destructive-foreground'
@@ -420,15 +449,15 @@ function AvailableToolsList({
                                       )}
                                       onClick={() => onPolicyChange(tool, level)}
                                     >
-                                      {shortApprovalLabel(level)}
+                                      {approvalLabel(level)}
                                     </button>
                                   </TooltipTrigger>
                                   <TooltipContent size="sm">
                                     {level === 'auto'
-                                      ? 'Run this tool without asking first.'
+                                      ? 'Run this tool for the selected account without asking first.'
                                       : level === 'specific_approval'
-                                        ? 'Require confirmation before this tool runs.'
-                                        : 'Block this tool for this connection.'}
+                                        ? 'Ask every time before this tool runs for the selected account.'
+                                        : 'Block this tool for the selected account.'}
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
@@ -476,6 +505,7 @@ function AvailableToolsList({
 export function ProviderIntegrationDetailSheet({
   item,
   open,
+  assistantId,
   busy,
   busyConnectionId,
   onOpenChange,
@@ -490,6 +520,7 @@ export function ProviderIntegrationDetailSheet({
 }: {
   item: IntegrationGalleryItem | null;
   open: boolean;
+  assistantId?: string | number;
   busy?: boolean;
   busyConnectionId?: string | null;
   onOpenChange: (open: boolean) => void;
@@ -542,16 +573,55 @@ export function ProviderIntegrationDetailSheet({
       ),
     [displayItem?.connections]
   );
-  const policyConnection = React.useMemo(
+  const connectedPolicyConnections = React.useMemo(
     () =>
-      (displayItem?.connections ?? []).find((connection) =>
+      (displayItem?.connections ?? []).filter((connection) =>
         ['connected', 'configured'].includes(connection.status)
-      ) ?? null,
+      ),
     [displayItem?.connections]
+  );
+  const connectedPolicyConnectionIds = React.useMemo(
+    () => connectedPolicyConnections.map((connection) => connection.id).join('|'),
+    [connectedPolicyConnections]
+  );
+  const [selectedPolicyConnectionId, setSelectedPolicyConnectionId] = React.useState<string | null>(
+    null
+  );
+  React.useEffect(() => {
+    setSelectedPolicyConnectionId((current) => {
+      if (!open) return null;
+      if (connectedPolicyConnections.length === 1) return connectedPolicyConnections[0]?.id ?? null;
+      if (connectedPolicyConnections.some((connection) => connection.id === current)) {
+        return current;
+      }
+      return null;
+    });
+  }, [connectedPolicyConnectionIds, connectedPolicyConnections, open]);
+  const policyConnection = React.useMemo(() => {
+    if (connectedPolicyConnections.length === 1) return connectedPolicyConnections[0] ?? null;
+    return (
+      connectedPolicyConnections.find(
+        (connection) => connection.id === selectedPolicyConnectionId
+      ) ?? null
+    );
+  }, [connectedPolicyConnections, selectedPolicyConnectionId]);
+  const policyOwnerContext = React.useMemo(
+    () =>
+      assistantId === undefined
+        ? undefined
+        : {
+            ownerScope: 'assistant' as const,
+            assistantId,
+          },
+    [assistantId]
   );
   const [policyByToolId, setPolicyByToolId] = React.useState<
     Record<string, IntegrationToolApprovalLevel>
   >({});
+  const [policyContext, setPolicyContext] = React.useState<{
+    appDisplayName?: string | null;
+    accountLabel?: string | null;
+  } | null>(null);
   const [savingToolIds, setSavingToolIds] = React.useState<Set<string>>(new Set());
   const [policyError, setPolicyError] = React.useState<string | null>(null);
   const policySummary = React.useMemo(() => {
@@ -566,13 +636,19 @@ export function ProviderIntegrationDetailSheet({
     const connectionId = policyConnection?.id;
     if (!connectionId) {
       setPolicyByToolId({});
+      setPolicyContext(null);
       return;
     }
     let cancelled = false;
     setPolicyError(null);
-    void getProviderIntegrationToolPolicy(connectionId)
+    setPolicyContext(null);
+    void getProviderIntegrationToolPolicy(connectionId, policyOwnerContext)
       .then((response) => {
         if (cancelled) return;
+        setPolicyContext({
+          appDisplayName: response.appDisplayName,
+          accountLabel: response.accountLabel,
+        });
         setPolicyByToolId(
           Object.fromEntries(
             response.policies.map((policy) => [policy.toolId, policy.approvalLevel])
@@ -587,7 +663,7 @@ export function ProviderIntegrationDetailSheet({
     return () => {
       cancelled = true;
     };
-  }, [policyConnection?.id]);
+  }, [policyConnection?.id, policyOwnerContext]);
   const handlePolicyChange = React.useCallback(
     (tool: IntegrationToolPreview, level: IntegrationToolApprovalLevel) => {
       const connectionId = policyConnection?.id;
@@ -596,10 +672,18 @@ export function ProviderIntegrationDetailSheet({
       setPolicyError(null);
       setPolicyByToolId((current) => ({ ...current, [tool.id]: level }));
       setSavingToolIds((current) => new Set(current).add(tool.id));
-      void patchProviderIntegrationToolPolicy(connectionId, {
-        toolPolicies: { [tool.id]: level },
-      })
+      void patchProviderIntegrationToolPolicy(
+        connectionId,
+        {
+          toolPolicies: { [tool.id]: level },
+        },
+        policyOwnerContext
+      )
         .then((response) => {
+          setPolicyContext({
+            appDisplayName: response.appDisplayName,
+            accountLabel: response.accountLabel,
+          });
           setPolicyByToolId(
             Object.fromEntries(
               response.policies.map((policy) => [policy.toolId, policy.approvalLevel])
@@ -618,7 +702,7 @@ export function ProviderIntegrationDetailSheet({
           });
         });
     },
-    [policyByToolId, policyConnection?.id]
+    [policyByToolId, policyConnection?.id, policyOwnerContext]
   );
   const handleBulkPolicyChange = React.useCallback(
     (
@@ -654,9 +738,14 @@ export function ProviderIntegrationDetailSheet({
           : {
               bulkApprovalLevel: action.level,
               actionClasses: action.actionClasses,
-            }
+            },
+        policyOwnerContext
       )
         .then((response) => {
+          setPolicyContext({
+            appDisplayName: response.appDisplayName,
+            accountLabel: response.accountLabel,
+          });
           setPolicyByToolId(
             Object.fromEntries(
               response.policies.map((policy) => [policy.toolId, policy.approvalLevel])
@@ -668,8 +757,15 @@ export function ProviderIntegrationDetailSheet({
           setPolicyError('Could not save bulk policy changes. Please try again.');
         });
     },
-    [displayItem?.tools, policyByToolId, policyConnection?.id]
+    [displayItem?.tools, policyByToolId, policyConnection?.id, policyOwnerContext]
   );
+  const policyNotice =
+    connectedPolicyConnections.length > 1 && !policyConnection
+      ? `Select which ${displayItem?.displayName ?? 'integration'} account to edit. Each connected account has its own tool permissions.`
+      : null;
+  const policyAppDisplayName = policyContext?.appDisplayName ?? displayItem?.displayName ?? 'App';
+  const policyAccountLabel =
+    policyContext?.accountLabel ?? policyConnection?.accountLabel ?? 'Selected account';
   const renderAccountSection = (mode: 'management' | 'account') =>
     displayItem ? (
       <section className="space-y-3" data-testid="integration-account-management">
@@ -697,10 +793,13 @@ export function ProviderIntegrationDetailSheet({
         <ConnectedAccountsSection
           connections={displayItem.connections}
           busyConnectionId={busyConnectionId}
+          selectedConnectionId={policyConnection?.id ?? null}
+          selectableConnectionIds={connectedPolicyConnections.map((connection) => connection.id)}
           onReconnect={onReconnectConnection}
           onDisconnect={onDisconnectConnection}
           onCancel={onCancelConnection}
           onTest={onTestConnection}
+          onSelectConnection={(connection) => setSelectedPolicyConnectionId(connection.id)}
           onUpdateLabel={onUpdateConnectionLabel}
         />
       </section>
@@ -754,11 +853,12 @@ export function ProviderIntegrationDetailSheet({
                   </p>
                   {policyConnection && (
                     <p className="mt-1">
-                      Usable by this assistant · {displayItem.scopes.length} access scopes ·{' '}
-                      {policySummary.automatic} automatic, {policySummary.confirmation} ask first,{' '}
-                      {policySummary.off} off.
+                      Tool permissions for {policyAppDisplayName} · {policyAccountLabel} ·{' '}
+                      {policySummary.automatic} allow, {policySummary.confirmation} ask every time,{' '}
+                      {policySummary.off} blocked.
                     </p>
                   )}
+                  {policyNotice && <p className="mt-1">{policyNotice}</p>}
                 </div>
               </div>
             </div>
@@ -831,6 +931,7 @@ export function ProviderIntegrationDetailSheet({
                           onClearScopes={() => setSelectedScopeIds([])}
                           policyByToolId={policyByToolId}
                           policyEnabled={Boolean(policyConnection)}
+                          policyNotice={policyNotice}
                           savingToolIds={savingToolIds}
                           policyError={policyError}
                           onPolicyChange={handlePolicyChange}

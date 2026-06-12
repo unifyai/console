@@ -6,23 +6,30 @@ import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
 import { Input } from '@/components/UI/input';
 import { IntegrationStatusBadge } from './IntegrationStatusBadge';
+import { cn } from '@/lib/utils';
 import type { IntegrationConnection } from '@/types/integrations';
 
 export function ConnectedAccountsSection({
   connections,
   busyConnectionId,
+  selectedConnectionId,
+  selectableConnectionIds,
   onReconnect,
   onDisconnect,
   onCancel,
   onTest,
+  onSelectConnection,
   onUpdateLabel,
 }: {
   connections: IntegrationConnection[];
   busyConnectionId?: string | null;
+  selectedConnectionId?: string | null;
+  selectableConnectionIds?: string[];
   onReconnect?: (connection: IntegrationConnection) => void;
   onDisconnect?: (connection: IntegrationConnection) => void;
   onCancel?: (connection: IntegrationConnection) => void;
   onTest?: (connection: IntegrationConnection) => void;
+  onSelectConnection?: (connection: IntegrationConnection) => void;
   onUpdateLabel?: (connection: IntegrationConnection, accountLabel: string) => Promise<void> | void;
 }) {
   const visibleConnections = connections.filter(
@@ -71,6 +78,11 @@ export function ConnectedAccountsSection({
           (isPending ? 'Authorization in progress' : `Account ${index + 1}`);
         const isEditing = editingConnectionId === connection.id;
         const isSaving = savingConnectionId === connection.id;
+        const isSelected = selectedConnectionId === connection.id;
+        const canSelect =
+          Boolean(onSelectConnection) &&
+          isConnected &&
+          (!selectableConnectionIds || selectableConnectionIds.includes(connection.id));
         const healthLabel =
           connection.healthLabel === 'ok'
             ? 'Healthy'
@@ -80,7 +92,11 @@ export function ConnectedAccountsSection({
         return (
           <div
             key={connection.id}
-            className="min-w-0 max-w-full overflow-hidden rounded-lg border bg-card p-3"
+            className={cn(
+              'min-w-0 max-w-full overflow-hidden rounded-lg border bg-card p-3',
+              isSelected && 'bg-primary/5 border-primary'
+            )}
+            data-testid={`integration-account-card-${connection.id}`}
           >
             <div className="flex min-w-0 items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
@@ -171,6 +187,15 @@ export function ConnectedAccountsSection({
                   Checked {connection.lastCheckedAt}
                 </Badge>
               )}
+              {isSelected && (
+                <Badge
+                  variant="outline"
+                  className="border-primary/40 rounded-full text-foreground"
+                  data-testid={`integration-account-selected-${connection.id}`}
+                >
+                  Permissions account
+                </Badge>
+              )}
             </div>
             {hasFailed && (
               <p className="text-caption mt-2 text-destructive">
@@ -178,6 +203,20 @@ export function ConnectedAccountsSection({
               </p>
             )}
             <div className="mt-3 flex flex-wrap justify-end gap-2">
+              {canSelect && (
+                <Button
+                  type="button"
+                  variant={isSelected ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-8 gap-1 text-xs"
+                  disabled={busy || isSaving || isSelected}
+                  onClick={() => onSelectConnection?.(connection)}
+                  aria-pressed={isSelected}
+                  data-testid={`integration-account-select-${connection.id}`}
+                >
+                  {isSelected ? 'Selected for permissions' : 'Use for permissions'}
+                </Button>
+              )}
               {onTest && isConnected && (
                 <Button
                   type="button"
