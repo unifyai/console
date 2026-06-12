@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 const virtualizerMockState = vi.hoisted(() => ({
   visibleRows: Number.POSITIVE_INFINITY,
@@ -22,6 +22,20 @@ vi.mock('@tanstack/react-virtual', () => ({
     };
   },
 }));
+
+const integrationClientMocks = vi.hoisted(() => ({
+  getProviderIntegrationToolPolicy: vi.fn(),
+  patchProviderIntegrationToolPolicy: vi.fn(),
+}));
+
+vi.mock('@/lib/client/integrations', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/client/integrations')>();
+  return {
+    ...actual,
+    getProviderIntegrationToolPolicy: integrationClientMocks.getProviderIntegrationToolPolicy,
+    patchProviderIntegrationToolPolicy: integrationClientMocks.patchProviderIntegrationToolPolicy,
+  };
+});
 
 import { IntegrationGalleryShell, ProviderIntegrationDetailSheet } from '@/components/Integrations';
 import { useIntegrationGalleryModel } from '@/hooks/Integrations/useIntegrationGalleryModel';
@@ -77,6 +91,22 @@ function buildGalleryItem(
 describe('provider integrations gallery model', () => {
   beforeEach(() => {
     virtualizerMockState.visibleRows = Number.POSITIVE_INFINITY;
+    integrationClientMocks.getProviderIntegrationToolPolicy.mockReset();
+    integrationClientMocks.patchProviderIntegrationToolPolicy.mockReset();
+    integrationClientMocks.getProviderIntegrationToolPolicy.mockResolvedValue({
+      connectionId: 'mock-connection',
+      canonicalAppSlug: 'hubspot',
+      appDisplayName: 'HubSpot',
+      accountLabel: 'Mock account',
+      policies: [],
+    });
+    integrationClientMocks.patchProviderIntegrationToolPolicy.mockResolvedValue({
+      connectionId: 'mock-connection',
+      canonicalAppSlug: 'hubspot',
+      appDisplayName: 'HubSpot',
+      accountLabel: 'Mock account',
+      policies: [],
+    });
   });
 
   it('merges built-in and dynamic provider-backed apps into one gallery model', () => {
@@ -561,6 +591,163 @@ describe('provider integrations gallery model', () => {
       management.compareDocumentPosition(screen.getByText('Access scopes')) &
         Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
+  });
+
+  it('requires an account before editing per-connection tool policy', async () => {
+    const { result } = renderHook(() => useMockGalleryItems());
+    const hubspot = result.current.find((item) => item.canonicalSlug === 'hubspot');
+    expect(hubspot).toBeDefined();
+    const policyForConnection = (connectionId: string) => ({
+      connectionId,
+      canonicalAppSlug: 'hubspot',
+      appDisplayName: 'HubSpot',
+      accountLabel:
+        connectionId === 'mock-hubspot-personal-connection' ? 'Personal HubSpot' : 'Work HubSpot',
+      policies: [
+        {
+          toolId: 'hubspot.search_contacts',
+          providerToolId: 'HUBSPOT_SEARCH_CONTACTS',
+          canonicalName: 'primitives.integrations.hubspot.search_contacts',
+          displayName: 'Search contacts',
+          actionClass: 'read',
+          behaviorHints: ['read_only'],
+          defaultApprovalLevel: 'auto',
+          approvalLevel: connectionId === 'mock-hubspot-personal-connection' ? 'forbidden' : 'auto',
+          activationState: 'connected_ready',
+          confirmationRequired: false,
+        },
+        {
+          toolId: 'hubspot.update_contact',
+          providerToolId: 'HUBSPOT_UPDATE_CONTACT',
+          canonicalName: 'primitives.integrations.hubspot.update_contact',
+          displayName: 'Update contact',
+          actionClass: 'write',
+          behaviorHints: ['mutates_state'],
+          defaultApprovalLevel: 'specific_approval',
+          approvalLevel: 'specific_approval',
+          activationState: 'connected_ready',
+          confirmationRequired: true,
+        },
+      ],
+    });
+    integrationClientMocks.getProviderIntegrationToolPolicy.mockImplementation((connectionId) =>
+      Promise.resolve(policyForConnection(String(connectionId)))
+    );
+    integrationClientMocks.patchProviderIntegrationToolPolicy.mockImplementation((connectionId) =>
+      Promise.resolve({
+        ...policyForConnection(String(connectionId)),
+        policies: policyForConnection(String(connectionId)).policies.map((policy) =>
+          policy.toolId === 'hubspot.search_contacts'
+            ? { ...policy, approvalLevel: 'forbidden' }
+            : policy
+        ),
+      })
+    );
+
+    render(
+      <ProviderIntegrationDetailSheet
+        item={hubspot ?? null}
+        open={Boolean(hubspot)}
+        assistantId="123"
+        onOpenChange={vi.fn()}
+        onPrimaryAction={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('integration-policy-account-required')).toHaveTextContent(
+      'Select which HubSpot account to edit'
+    );
+    expect(integrationClientMocks.getProviderIntegrationToolPolicy).not.toHaveBeenCalled();
+    expect(
+      screen.queryByTestId('integration-tool-policy-hubspot.search_contacts')
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('integration-account-select-mock-hubspot-work-connection'));
+
+    await waitFor(() => {
+      expect(integrationClientMocks.getProviderIntegrationToolPolicy).toHaveBeenCalledWith(
+        'mock-hubspot-work-connection',
+        { ownerScope: 'assistant', assistantId: '123' }
+      );
+    });
+    expect(screen.getByTestId('integration-secure-connection-summary')).toHaveTextContent(
+      'Tool permissions for HubSpot · Work HubSpot'
+    );
+    const searchPolicy = screen.getByTestId('integration-tool-policy-hubspot.search_contacts');
+    fireEvent.click(within(searchPolicy).getByRole('button', { name: 'Block for this account' }));
+
+    await waitFor(() => {
+      expect(integrationClientMocks.patchProviderIntegrationToolPolicy).toHaveBeenCalledWith(
+        'mock-hubspot-work-connection',
+        { toolPolicies: { 'hubspot.search_contacts': 'forbidden' } },
+        { ownerScope: 'assistant', assistantId: '123' }
+      );
+    });
+
+    fireEvent.click(
+      screen.getByTestId('integration-account-select-mock-hubspot-personal-connection')
+    );
+
+    await waitFor(() => {
+      expect(integrationClientMocks.getProviderIntegrationToolPolicy).toHaveBeenCalledWith(
+        'mock-hubspot-personal-connection',
+        { ownerScope: 'assistant', assistantId: '123' }
+      );
+    });
+    expect(screen.getByTestId('integration-secure-connection-summary')).toHaveTextContent(
+      'Tool permissions for HubSpot · Personal HubSpot'
+    );
+  });
+
+  it('derives risk badges from public action and behavior fields only', () => {
+    const { result } = renderHook(() => useMockGalleryItems());
+    const clay = result.current.find((item) => item.canonicalSlug === 'clay');
+    expect(clay).toBeDefined();
+    const providerAgnosticItem = {
+      ...clay!,
+      tools: [
+        {
+          id: 'provider.noisy_read',
+          name: 'dangerous_destroy_everything',
+          displayName: 'Noisy read',
+          description: 'Provider text says destructive and sensitive, but metadata says read-only.',
+          providerToolId: 'COMPOSIO_DANGEROUS_DELETE',
+          activationState: 'not_connected' as const,
+          actionClass: 'read' as const,
+          behaviorHints: ['read_only' as const],
+          requiredScopes: [],
+        },
+        {
+          id: 'provider.sensitive_lookup',
+          name: 'lookup',
+          displayName: 'Sensitive lookup',
+          description: 'Read private records.',
+          providerToolId: 'LOOKUP',
+          activationState: 'not_connected' as const,
+          actionClass: 'read' as const,
+          behaviorHints: ['sensitive_data' as const],
+          requiredScopes: [],
+        },
+      ],
+    };
+
+    render(
+      <ProviderIntegrationDetailSheet
+        item={providerAgnosticItem}
+        open
+        onOpenChange={vi.fn()}
+        onPrimaryAction={vi.fn()}
+        onApiKeySubmit={vi.fn()}
+      />
+    );
+
+    const noisyRead = screen.getByTestId('integration-tool-row-provider.noisy_read');
+    expect(noisyRead).not.toHaveTextContent('Destructive');
+    expect(noisyRead).not.toHaveTextContent('Sensitive data');
+    expect(noisyRead).not.toHaveTextContent('Can change data');
+    expect(screen.getByTestId('integration-tool-row-provider.sensitive_lookup')).toHaveTextContent(
+      'Sensitive data'
+    );
   });
 
   it('starts the same connect flow from the detail sheet primary action', () => {
