@@ -25,6 +25,7 @@ const serverActionAllowedOrigins = [
 ];
 
 const nextConfig = {
+  transpilePackages: ['@droid/brand'],
   images: {
     remotePatterns: [
       {
