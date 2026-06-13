@@ -88,6 +88,7 @@ export function DroidCallAvatar({
         eyes={displayedCreatureEyes}
         label={label}
         mood={mood}
+        mouthLevel={displayedSpeechLevel}
         mouthShape={displayedMouthShape}
         shape={shape}
         active={isometricRest ? isCallActive : undefined}
