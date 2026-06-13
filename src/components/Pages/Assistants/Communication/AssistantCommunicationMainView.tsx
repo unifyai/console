@@ -25,7 +25,7 @@ type BrowserWindowWithCoordinatorIntroAudio = Window & {
 };
 
 const IMAGE_AVATAR_MOUTH: Record<
-  Exclude<CreatureMouthShape, 'amplitude'>,
+  CreatureMouthShape,
   { width: number; topDip: number; bottomDip: number }
 > = {
   closed: { width: 24, topDip: 2, bottomDip: 8 },
@@ -43,8 +43,7 @@ function ImageAvatarMouth({
   mouthShape: CreatureMouthShape;
   speechLevel: number;
 }) {
-  const shape = mouthShape === 'amplitude' ? 'closed' : mouthShape;
-  const mouth = IMAGE_AVATAR_MOUTH[shape];
+  const mouth = IMAGE_AVATAR_MOUTH[mouthShape];
   const cx = 22;
   const topY = 4;
   const leftX = cx - mouth.width / 2;
