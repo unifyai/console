@@ -4,5 +4,9 @@ export {
   getDroidSpeechLevel,
   getDroidMouthShape,
   getDroidLipsyncFrame,
+  getEmotionResting,
+  getEmotionMouthShape,
+  useDroidAudioElementLipsync,
+  useDroidTrackLipsync,
   type DroidLipsyncFrame,
 } from '@droid/brand/droid';

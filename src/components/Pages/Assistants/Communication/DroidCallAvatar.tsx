@@ -32,6 +32,8 @@ interface DroidCallAvatarProps {
   color?: BrandRole;
   baseEyes?: CreatureEyes;
   label?: string;
+  /** When true the droid rests in an isometric 3/4 view and turns to camera while the call is active. */
+  isometricRest?: boolean;
 }
 
 export function DroidCallAvatar({
@@ -51,6 +53,7 @@ export function DroidCallAvatar({
   color = 'green',
   baseEyes = 'up',
   label = 'Coordinator Droid',
+  isometricRest = false,
 }: DroidCallAvatarProps) {
   const [isHovered, setIsHovered] = React.useState(false);
   const displayedSpeechLevel = clampDroidSpeechLevel(speechLevel ?? 0);
@@ -87,6 +90,7 @@ export function DroidCallAvatar({
         mood={mood}
         mouthShape={displayedMouthShape}
         shape={shape}
+        active={isometricRest ? isCallActive : undefined}
       />
     </motion.span>
   );
