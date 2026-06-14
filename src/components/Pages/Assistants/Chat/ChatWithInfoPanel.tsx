@@ -33,6 +33,14 @@ import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
  * tabs viewing the same assistant.
  */
 const INFO_PANEL_DISMISSED_KEY = 'console:assistants:info-panel-dismissed';
+const INFO_PANEL_WIDTH_KEY = 'console:assistants:info-panel-width';
+const INFO_PANEL_DEFAULT_WIDTH = 380;
+const INFO_PANEL_MIN_WIDTH = 320;
+const INFO_PANEL_MIN_CHAT_WIDTH = 320;
+
+function clampInfoPanelWidth(width: number, maxWidth = Number.POSITIVE_INFINITY): number {
+  return Math.min(maxWidth, Math.max(INFO_PANEL_MIN_WIDTH, Math.round(width)));
+}
 
 function readInfoPanelDismissed(): Set<string> {
   if (typeof window === 'undefined') return new Set();
@@ -54,6 +62,26 @@ function writeInfoPanelDismissed(set: Set<string>): void {
     window.localStorage.setItem(INFO_PANEL_DISMISSED_KEY, JSON.stringify(Array.from(set)));
   } catch {
     /* quota / privacy mode — silently degrade to in-memory only */
+  }
+}
+
+function readInfoPanelWidth(): number {
+  if (typeof window === 'undefined') return INFO_PANEL_DEFAULT_WIDTH;
+  try {
+    const raw = window.localStorage.getItem(INFO_PANEL_WIDTH_KEY);
+    const parsed = raw ? Number(raw) : NaN;
+    return Number.isFinite(parsed) ? clampInfoPanelWidth(parsed) : INFO_PANEL_DEFAULT_WIDTH;
+  } catch {
+    return INFO_PANEL_DEFAULT_WIDTH;
+  }
+}
+
+function writeInfoPanelWidth(width: number): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(INFO_PANEL_WIDTH_KEY, String(clampInfoPanelWidth(width)));
+  } catch {
+    /* quota / privacy mode — width persistence is optional */
   }
 }
 
@@ -204,6 +232,9 @@ export function ChatWithInfoPanel({
   // for. Starting closed avoids a one-frame flash for assistants we
   // know are dismissed.
   const [isInfoOpen, setIsInfoOpen] = React.useState(false);
+  const infoPanelContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const [infoPanelWidth, setInfoPanelWidth] = React.useState(INFO_PANEL_DEFAULT_WIDTH);
+  const [isResizingInfoPanel, setIsResizingInfoPanel] = React.useState(false);
 
   // Track per-assistant dismissal across the session and across tabs.
   // The set lives in localStorage so closing the panel for assistant
@@ -232,6 +263,84 @@ export function ChatWithInfoPanel({
   const closeInfo = React.useCallback(
     () => setIsInfoOpenAndPersist(false),
     [setIsInfoOpenAndPersist]
+  );
+
+  React.useEffect(() => {
+    setInfoPanelWidth(readInfoPanelWidth());
+  }, []);
+
+  const getInfoPanelMaxWidth = React.useCallback(() => {
+    const container = infoPanelContainerRef.current;
+    if (!container) return Number.POSITIVE_INFINITY;
+    const { width } = container.getBoundingClientRect();
+    return Math.max(INFO_PANEL_MIN_WIDTH, width - INFO_PANEL_MIN_CHAT_WIDTH);
+  }, []);
+
+  const setInfoPanelWidthWithinBounds = React.useCallback(
+    (width: number) => {
+      const next = clampInfoPanelWidth(width, getInfoPanelMaxWidth());
+      setInfoPanelWidth(next);
+      writeInfoPanelWidth(next);
+    },
+    [getInfoPanelMaxWidth]
+  );
+
+  const handleInfoPanelResizeKeyDown = React.useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setInfoPanelWidthWithinBounds(infoPanelWidth + 24);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setInfoPanelWidthWithinBounds(infoPanelWidth - 24);
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        setInfoPanelWidthWithinBounds(INFO_PANEL_MIN_WIDTH);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        setInfoPanelWidthWithinBounds(getInfoPanelMaxWidth());
+      }
+    },
+    [getInfoPanelMaxWidth, infoPanelWidth, setInfoPanelWidthWithinBounds]
+  );
+
+  const handleInfoPanelResizeStart = React.useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      const container = infoPanelContainerRef.current;
+      if (!container) return;
+
+      e.preventDefault();
+      const rect = container.getBoundingClientRect();
+      const maxWidth = Math.max(INFO_PANEL_MIN_WIDTH, rect.width - INFO_PANEL_MIN_CHAT_WIDTH);
+      const previousCursor = document.body.style.cursor;
+      const previousUserSelect = document.body.style.userSelect;
+      let nextWidth = clampInfoPanelWidth(infoPanelWidth, maxWidth);
+
+      setIsResizingInfoPanel(true);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      const onMove = (ev: PointerEvent) => {
+        nextWidth = clampInfoPanelWidth(rect.right - ev.clientX, maxWidth);
+        setInfoPanelWidth(nextWidth);
+      };
+
+      const onUp = () => {
+        setIsResizingInfoPanel(false);
+        document.body.style.cursor = previousCursor;
+        document.body.style.userSelect = previousUserSelect;
+        writeInfoPanelWidth(nextWidth);
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+      };
+
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+    },
+    [infoPanelWidth]
   );
 
   // Draft seed plumbing for the roadmap "Say hi" step. We push a
@@ -368,6 +477,10 @@ export function ChatWithInfoPanel({
       draftSeed={draftSeed}
     />
   );
+  const infoPanelStyle = React.useMemo<React.CSSProperties>(
+    () => ({ ['--chat-side-panel-width']: `${infoPanelWidth}px` }) as React.CSSProperties,
+    [infoPanelWidth]
+  );
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -490,7 +603,7 @@ export function ChatWithInfoPanel({
           beside chat (chat shrinks but stays interactive); mobile lets
           the panel claim the full width and the chat is hidden so the
           textarea doesn't peek through. */}
-      <div className="flex min-h-0 flex-1">
+      <div ref={infoPanelContainerRef} className="flex min-h-0 flex-1">
         <div className={cn('flex min-w-0 flex-1 flex-col', isInfoOpen && 'hidden sm:flex')}>
           {renderDockedCall ? (
             <>
@@ -510,8 +623,26 @@ export function ChatWithInfoPanel({
           <ChatSidePanel
             ariaLabel="Assistant info"
             onClose={closeInfo}
+            style={infoPanelStyle}
             testId="assistant-info-sheet"
           >
+            <div
+              role="separator"
+              aria-label="Resize assistant info panel"
+              aria-orientation="vertical"
+              aria-valuemin={INFO_PANEL_MIN_WIDTH}
+              aria-valuenow={infoPanelWidth}
+              tabIndex={0}
+              onKeyDown={handleInfoPanelResizeKeyDown}
+              onPointerDown={handleInfoPanelResizeStart}
+              className={cn(
+                'absolute inset-y-0 -left-1 z-20 hidden w-2 cursor-col-resize touch-none bg-transparent transition-colors duration-200 sm:block',
+                'before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border before:content-[""]',
+                'hover:bg-primary/20 focus-visible:bg-primary/20 active:bg-primary/40 focus-visible:outline-none',
+                isResizingInfoPanel && 'bg-primary/40'
+              )}
+              data-testid="assistant-info-panel-resize-handle"
+            />
             <AssistantInfoSidePanelContent
               assistant={assistant}
               currentUserId={currentUserId}

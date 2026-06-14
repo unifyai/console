@@ -8,12 +8,11 @@ export interface ChatSidePanelProps {
    * and is the main way to close — Escape is just a keyboard nicety.
    */
   onClose: () => void;
-  /** Tailwind width override; defaults to a comfortable inspector width. */
+  /** Tailwind override; defaults to a comfortable inspector width. */
   className?: string;
   /**
-   * Inline style override. Used by the actions panel to wire a
-   * user-resizable width via a CSS variable (so the override only
-   * applies above the `sm` breakpoint where it's a real side panel).
+   * Inline style override. Callers can set `--chat-side-panel-width`
+   * to control the desktop width while mobile remains full-width.
    */
   style?: React.CSSProperties;
   /** Optional test id for e2e selectors. */
@@ -33,15 +32,15 @@ export interface ChatSidePanelProps {
  * stays visible behind it on desktop, and the chat's sub-header + actions
  * footer stay visible above and below it on every viewport.
  *
- * Width responsiveness — driven entirely by Tailwind, no JS resize logic:
+ * Width responsiveness:
  *
  *  - **Mobile (< sm)**: `w-full`. With `flex-shrink-0` the panel claims
  *    the entire flex row, collapsing the chat sibling to 0 width — so
  *    the panel reads as a full-width "subview" while the sub-header (with
  *    the toggle button) and actions footer stay visible as the surrounding
  *    chrome.
- *  - **Desktop (>= sm)**: `sm:w-[380px]`. Panel takes a fixed inspector
- *    width and the chat shrinks beside it but stays fully interactive
+ *  - **Desktop (>= sm)**: `sm:w-[var(--chat-side-panel-width,380px)]`.
+ *    Panel takes an inspector width and the chat shrinks beside it but stays fully interactive
  *    (scroll, search, type, call).
  *
  * Has no title or close chrome of its own: parents toggle it via their
@@ -73,7 +72,12 @@ export function ChatSidePanel({
   return (
     <aside
       className={cn(
-        'relative flex w-full flex-shrink-0 flex-col overflow-hidden border-l bg-background duration-200 animate-in fade-in slide-in-from-right-4 sm:w-[380px]',
+        // No transition on the aside itself: width is driven live by the
+        // resize handle, and a `transition-*`/`duration-*` here would ease
+        // the width toward the cursor on every pointer move (laggy drag).
+        // The entrance still animates via `animate-in` (CSS animation, not a
+        // transition), which carries its own default duration.
+        'relative flex w-full min-w-0 flex-shrink-0 flex-col overflow-hidden border-l bg-background animate-in fade-in slide-in-from-right-4 sm:w-[var(--chat-side-panel-width,380px)]',
         className
       )}
       style={style}

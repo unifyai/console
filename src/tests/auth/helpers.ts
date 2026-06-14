@@ -44,6 +44,13 @@ export async function switchToEmailTab(page: Page) {
     return;
   }
 
+  const registerForm = page.getByTestId('email-register-form');
+  if (await registerForm.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await page.getByTestId('switch-to-login').click();
+    await expect(emailForm).toBeVisible({ timeout: 10_000 });
+    return;
+  }
+
   const emailTab = page.getByTestId('email-auth-tab');
   if (await emailTab.isVisible({ timeout: 3000 }).catch(() => false)) {
     try {
@@ -53,6 +60,9 @@ export async function switchToEmailTab(page: Page) {
     }
   } else {
     await page.getByRole('button', { name: /continue with email/i }).click();
+  }
+  if (await registerForm.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await page.getByTestId('switch-to-login').click();
   }
   await expect(emailForm).toBeVisible({ timeout: 10_000 });
 }
