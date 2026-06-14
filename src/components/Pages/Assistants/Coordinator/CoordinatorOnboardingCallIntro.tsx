@@ -150,6 +150,7 @@ const OUTFIT_CANDIDATE_DROIDS = [
   { baseEyes: 'square', color: 'purple', mood: 'happy', shape: 'wide' },
   { baseEyes: 'up', color: 'orange', mood: 'apologetic', shape: 'notch' },
 ] satisfies readonly CoordinatorOnboardingIntroDroidAppearance[];
+const OUTFIT_SELECTOR_VISIBLE_WIDTH_RATIO = 0.76;
 
 function getOutfitSelectorDroids(initialDroid: CoordinatorOnboardingIntroDroidAppearance) {
   return [
@@ -248,16 +249,20 @@ function OutfitSelectorDroid({
   droidWidth: number;
   framePx: number;
 }) {
+  const visibleWidthPx = droidWidth * OUTFIT_SELECTOR_VISIBLE_WIDTH_RATIO;
+  const horizontalClipPx = Math.max(0, (framePx - visibleWidthPx) / 2);
+
   return (
-    // Clip horizontally only: the brand droid SVG draws with
-    // ``overflow: visible`` (antenna above, shadow below), so a plain
-    // ``overflow-hidden`` would shear the droids' tops/bottoms. A
-    // clip-path inset that hugs the left/right edges but extends far past
-    // the top/bottom hides the neighbouring cells without cropping the
-    // active droid — matching the un-clipped single avatar exactly.
+    // Clip to the visible body aperture only: the brand droid SVG draws with
+    // extra horizontal box space plus vertical overflow (antenna above, shadow
+    // below), so the mask is narrower than the render width but vertically open.
     <div
       className="relative"
-      style={{ width: framePx, height: framePx, clipPath: 'inset(-200px 0px -200px 0px)' }}
+      style={{
+        width: framePx,
+        height: framePx,
+        clipPath: `inset(-200px ${horizontalClipPx}px -200px ${horizontalClipPx}px)`,
+      }}
     >
       <motion.div
         animate={{ x: -activeIndex * framePx }}
