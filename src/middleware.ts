@@ -19,6 +19,17 @@ function preserveCreditToken(source: URLSearchParams, target: URL): void {
   }
 }
 
+/**
+ * Carry a `?ref=` referral code through internal redirects (onboarding, MFA)
+ * so it survives until an authenticated page can attribute it.
+ */
+function preserveReferralCode(source: URLSearchParams, target: URL): void {
+  const referralCode = source.get('ref');
+  if (referralCode) {
+    target.searchParams.set('ref', referralCode);
+  }
+}
+
 export async function middleware(request: NextRequestWithAuth, event: NextFetchEvent) {
   const { pathname, searchParams } = request.nextUrl;
 
@@ -108,6 +119,7 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
     if (!isAllowed) {
       const mfaUrl = new URL('/login/mfa', request.url);
       preserveCreditToken(searchParams, mfaUrl);
+      preserveReferralCode(searchParams, mfaUrl);
       return NextResponse.redirect(mfaUrl);
     }
   }
@@ -126,6 +138,7 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
     if (!isAllowed) {
       const onboardingUrl = new URL('/login/onboarding', request.url);
       preserveCreditToken(searchParams, onboardingUrl);
+      preserveReferralCode(searchParams, onboardingUrl);
       return NextResponse.redirect(onboardingUrl);
     }
   }

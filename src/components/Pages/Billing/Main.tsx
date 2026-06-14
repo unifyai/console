@@ -7,6 +7,7 @@ import { useBilling } from '@/hooks/Billing/useBilling';
 import type { BillingActions, BillingOrgContext } from '@/types/billing';
 import { BillingProfileSection } from './BillingProfileSection';
 import { CreditsBillingSection } from './CreditsBillingSection';
+import { ReferralsSection } from './ReferralsSection';
 import { PlansBillingSection } from './PlansBillingSection';
 import { PaymentMethodsSection } from './PaymentMethodsManager';
 import { InvoicesSection } from './InvoicesSection';
@@ -138,6 +139,16 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
             trialExpiresAt={trialExpiresAt}
             plan={plan}
           />
+
+          {/*
+            Refer & earn. Works in both personal and organization workspaces:
+            the referral endpoints are scoped by the active workspace's API
+            key, so in an org context the code is org-owned and rewards are
+            credited to the organization's balance.
+          */}
+          <Separator />
+
+          <ReferralsSection orgContext={orgContext} />
 
           <Separator />
 

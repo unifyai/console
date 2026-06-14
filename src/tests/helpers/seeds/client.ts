@@ -353,6 +353,101 @@ export interface CreateOrgOpts {
  * Idempotent: if an org with the same owner already exists, returns the
  * existing one (looks up the existing org API key from the DB).
  */
+/**
+ * Ensure the four RBAC system roles (Owner/Admin/Member/Viewer) and their
+ * permission grants exist.
+ *
+ * Production and the pytest suite get these from the platform bootstrap
+ * (`orchestra/tests/seeding.sql`), but a fresh `local.sh` database does NOT —
+ * `local.sh` only seeds billing defaults + a test user. Without the system
+ * roles, `createOrg`/`addMember` resolve a NULL `role_id` and the membership
+ * INSERT fails. Mirrors the RBAC section of `seeding.sql`. Idempotent and
+ * safe to call repeatedly.
+ */
+export function ensureSystemRoles(): void {
+  const have = dbExec(`SELECT count(*) FROM role WHERE is_system_role = true;`);
+  if (parseInt(have, 10) >= 4) return;
+
+  dbExecBlock(`
+DO \\$\\$
+BEGIN
+  INSERT INTO permission (name, description, resource_type, action)
+  SELECT v.name, v.description, v.resource_type, v.action
+  FROM (VALUES
+    ('project:read', 'View project details', 'project', 'read'),
+    ('project:write', 'Edit project', 'project', 'write'),
+    ('project:delete', 'Delete project', 'project', 'delete'),
+    ('org:read', 'View organization details', 'organization', 'read'),
+    ('org:write', 'Edit organization settings, billing, and members', 'organization', 'write'),
+    ('org:delete', 'Delete organization', 'organization', 'delete'),
+    ('billing:read', 'View billing information, credits, and invoices', 'billing', 'read'),
+    ('billing:write', 'Update billing settings, autorecharge, and business profile', 'billing', 'write'),
+    ('assistant:read', 'View assistant details', 'assistant', 'read'),
+    ('assistant:write', 'Create and edit assistants', 'assistant', 'write'),
+    ('assistant:delete', 'Delete assistants', 'assistant', 'delete')
+  ) AS v(name, description, resource_type, action)
+  WHERE NOT EXISTS (SELECT 1 FROM permission p WHERE p.name = v.name);
+
+  INSERT INTO role (name, description, organization_id, is_system_role)
+  SELECT v.name, v.description, NULL, true
+  FROM (VALUES
+    ('Owner', 'Full access to projects and organization'),
+    ('Admin', 'Full access except deleting organization'),
+    ('Member', 'Read and write projects, view organization details'),
+    ('Viewer', 'Read-only access to projects and organization')
+  ) AS v(name, description)
+  WHERE NOT EXISTS (
+    SELECT 1 FROM role r WHERE r.name = v.name AND r.is_system_role = true
+  );
+
+  INSERT INTO role_permission (role_id, permission_id)
+  SELECT (SELECT id FROM role WHERE name = 'Owner' AND is_system_role = true), p.id
+  FROM permission p
+  WHERE NOT EXISTS (
+    SELECT 1 FROM role_permission rp
+    WHERE rp.role_id = (SELECT id FROM role WHERE name = 'Owner' AND is_system_role = true)
+      AND rp.permission_id = p.id
+  );
+
+  INSERT INTO role_permission (role_id, permission_id)
+  SELECT (SELECT id FROM role WHERE name = 'Admin' AND is_system_role = true), p.id
+  FROM permission p
+  WHERE p.name <> 'org:delete'
+    AND NOT EXISTS (
+      SELECT 1 FROM role_permission rp
+      WHERE rp.role_id = (SELECT id FROM role WHERE name = 'Admin' AND is_system_role = true)
+        AND rp.permission_id = p.id
+    );
+
+  INSERT INTO role_permission (role_id, permission_id)
+  SELECT (SELECT id FROM role WHERE name = 'Member' AND is_system_role = true), p.id
+  FROM permission p
+  WHERE (
+      (p.resource_type = 'project' AND p.action IN ('read', 'write'))
+      OR (p.resource_type = 'organization' AND p.action = 'read')
+      OR (p.resource_type = 'assistant' AND p.action IN ('read', 'write'))
+      OR p.name = 'billing:read'
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM role_permission rp
+      WHERE rp.role_id = (SELECT id FROM role WHERE name = 'Member' AND is_system_role = true)
+        AND rp.permission_id = p.id
+    );
+
+  INSERT INTO role_permission (role_id, permission_id)
+  SELECT (SELECT id FROM role WHERE name = 'Viewer' AND is_system_role = true), p.id
+  FROM permission p
+  WHERE p.action = 'read'
+    AND NOT EXISTS (
+      SELECT 1 FROM role_permission rp
+      WHERE rp.role_id = (SELECT id FROM role WHERE name = 'Viewer' AND is_system_role = true)
+        AND rp.permission_id = p.id
+    );
+END
+\\$\\$;
+`);
+}
+
 export function createOrg(opts: CreateOrgOpts): SeededOrg {
   const name = opts.name ?? `Seed Org ${Date.now()}`;
   const credits = opts.credits ?? defaultSeedCredits();
@@ -381,6 +476,11 @@ export function createOrg(opts: CreateOrgOpts): SeededOrg {
       ownerOrgApiKey: existingKey,
     };
   }
+
+  // A fresh `local.sh` DB has no RBAC system roles (those live in the test
+  // seeding.sql, which local.sh doesn't run), so the owner-role lookup below
+  // would resolve NULL and the membership INSERT would fail. Self-heal first.
+  ensureSystemRoles();
 
   const ownerOrgKey = uniqueApiKey('org');
 

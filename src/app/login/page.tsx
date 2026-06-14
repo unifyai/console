@@ -55,6 +55,9 @@ const Login = () => {
   // Token handling: persist invite and credit tokens through OAuth flow
   const inviteToken = searchParams?.get('invite');
   const creditToken = searchParams?.get('credit');
+  // Referral code (?ref=CODE): persist immediately so it survives the OAuth
+  // round-trip and onboarding; it is attributed after the user authenticates.
+  const referralCode = searchParams?.get('ref');
 
   // Detect invite context from either explicit param or callbackUrl
   const isInviteFlow =
@@ -65,6 +68,19 @@ const Login = () => {
   const [isSigningOut, setIsSigningOut] = useState(shouldSignOut);
   const [tab, setTab] = useState<'login' | 'loading' | 'check'>('login');
   const [error, setError] = useState<string | undefined>(searchErrorMessage);
+
+  // Persist the referral code as soon as we see it so it isn't lost across
+  // the OAuth round-trip (localStorage survives the same-origin redirect).
+  useEffect(() => {
+    if (referralCode && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('pending_referral_code', referralCode);
+      } catch {
+        // localStorage may be unavailable in some contexts
+      }
+    }
+  }, [referralCode]);
+
   useEffect(() => {
     if (!shouldSignOut) return;
 
@@ -126,6 +142,11 @@ const Login = () => {
       callback = new URL(callbackUrl ?? '/', document.location.href);
     }
     callback.searchParams.delete('error');
+    // Carry the referral code onto the post-auth landing page so it can be
+    // attributed there (belt-and-braces alongside the localStorage copy).
+    if (referralCode) {
+      callback.searchParams.set('ref', referralCode);
+    }
     if (provider === 'email') {
       const result = await signIn('email', {
         email,

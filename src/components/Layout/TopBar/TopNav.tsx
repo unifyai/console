@@ -46,6 +46,7 @@ import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { UserOrganization } from '@/types/user';
 import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog';
+import ReferralBanner from '@/components/Layout/TopBar/ReferralBanner';
 import { UnifyBlockMark } from '@/components/Brand';
 
 export default function TopNav() {
@@ -210,7 +211,12 @@ export default function TopNav() {
 
   return (
     <div className="fixed left-0 right-0 top-0 z-50 h-10 border-b border-border bg-card">
-      <div className="flex h-full items-center justify-between px-3.5">
+      <div className="relative flex h-full items-center justify-between px-3.5">
+        {/* Refer & earn promo — centered, dismissible (persisted to
+            localStorage), gated on billing access so the link always lands on
+            a reachable billing page. */}
+        {billingEnabled && canManageBilling && !isOrgInFreeTrial && <ReferralBanner />}
+
         {/* Logo + Workspace + Nav */}
         <div className="flex items-center">
           <Link href="/" className="flex items-center rounded-md px-1" aria-label="Unify Console">

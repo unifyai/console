@@ -28,6 +28,7 @@ import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
 import { useAssistantForm } from '@/hooks/Assistants/useAssistantForm';
 import { usePanelManager } from '@/hooks/Assistants/usePanelManager';
 import { useCreditGrantLink } from '@/hooks/Billing/useCreditGrantLink';
+import { useReferralCapture } from '@/hooks/Billing/useReferralCapture';
 import { useBillingStatus } from '@/hooks/Billing/useBillingStatus';
 import { useBillingEvents } from '@/hooks/Billing/useBillingEvents';
 import { AssistantsBanners } from './AssistantsBanners';
@@ -603,6 +604,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   useBillingEvents();
   // Auto-claims any pending credit-grant link token on mount (promo links).
   useCreditGrantLink();
+  // Attributes a pending ?ref= referral code once the session is authenticated.
+  useReferralCapture();
 
   // Self-serve depletion is a hard stop resolved on the Billing page
   // (upgrade a tier or enable auto-increment) — there is no in-app

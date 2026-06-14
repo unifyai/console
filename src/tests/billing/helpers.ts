@@ -431,6 +431,78 @@ export function clearUserGrantClaims(userId: string) {
   }
 }
 
+// =============================================================================
+// Referral helpers
+// =============================================================================
+
+/** Primary referral code for a user (the one `GET /v0/user/referral` mints). */
+export function getReferralCodeFromDb(userId: string): string | null {
+  const code = dbExec(
+    `SELECT code FROM referral_code WHERE referrer_user_id = '${userId}' ` +
+      `AND referrer_organization_id IS NULL ORDER BY created_at ASC LIMIT 1`
+  );
+  return code?.trim() ? code.trim() : null;
+}
+
+/** Status of the (unique) attribution for a referred user, or null. */
+export function getReferralAttributionStatus(refereeUserId: string): string | null {
+  const s = dbExec(
+    `SELECT status FROM referral_attribution WHERE referee_user_id = '${refereeUserId}' LIMIT 1`
+  );
+  return s?.trim() ? s.trim() : null;
+}
+
+/** Insert a referral code owned by `userId` (used to seed a second referrer). */
+export function insertReferralCode(userId: string, code: string): void {
+  const { randomUUID } = require('crypto');
+  dbExecBlock(`
+DO \\$\\$
+BEGIN
+  INSERT INTO referral_code (id, code, referrer_user_id, created_at)
+  VALUES ('${randomUUID()}', '${code}', '${userId}', NOW())
+  ON CONFLICT DO NOTHING;
+END
+\\$\\$;
+`);
+}
+
+/**
+ * Seed an already-rewarded referral attribution (the post-first-payment
+ * state the backend webhook writes). Lets the dashboard be asserted without
+ * driving a real Stripe payment — the reward logic itself is covered by the
+ * Orchestra `test_billing` suite.
+ */
+export function seedRewardedReferral(
+  referrerUserId: string,
+  refereeUserId: string,
+  opts: { code: string; rewardUsd: number }
+): void {
+  const { randomUUID } = require('crypto');
+  dbExecBlock(`
+DO \\$\\$
+BEGIN
+  INSERT INTO referral_attribution
+    (id, code, referrer_user_id, referee_user_id, status, created_at, rewarded_at, reward_amount, referee_bonus_amount)
+  VALUES
+    ('${randomUUID()}', '${opts.code}', '${referrerUserId}', '${refereeUserId}',
+     'rewarded', NOW(), NOW(), ${opts.rewardUsd}, 10)
+  ON CONFLICT (referee_user_id) DO NOTHING;
+END
+\\$\\$;
+`);
+}
+
+export function clearReferralData(userId: string): void {
+  try {
+    dbExec(
+      `DELETE FROM referral_attribution WHERE referrer_user_id = '${userId}' OR referee_user_id = '${userId}'`
+    );
+    dbExec(`DELETE FROM referral_code WHERE referrer_user_id = '${userId}'`);
+  } catch {
+    /* best effort */
+  }
+}
+
 export function insertRechargeRecord(userId: string, amount = 25) {
   dbExecBlock(`
 DO \\$\\$
