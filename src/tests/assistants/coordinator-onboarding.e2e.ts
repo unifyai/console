@@ -5,7 +5,7 @@
  * the workspace Coordinator's state is in ``onboarding`` mode:
  *
  *   - The unskippable call-vs-chat picker shows on a fresh visit
- *   - Choosing "Start Call" shows the coordinator droid intro before docking
+ *   - Choosing "Start Call" shows the Marty intro before docking
  *     the real call surface, and hanging up continues in chat
  *   - The skip-onboarding affordance is suppressed until the user
  *     has answered the picker
@@ -125,7 +125,7 @@ test('a workspace connected in an earlier session pre-completes the checklist st
   // event fired this session. Orchestra derives the ``workspace``
   // step as complete from this row on the Coordinator/State read, so
   // the checklist must show it done from the very first render — the
-  // historical failure mode was the coordinator droid (and the
+  // historical failure mode was Marty (and the
   // checklist, briefly) telling the user to connect a workspace that
   // was already connected.
   const coordinator = createPersonalCoordinator(user.id);
@@ -159,7 +159,7 @@ test('a workspace connected in an earlier session pre-completes the checklist st
   );
 });
 
-test('starting a call shows the coordinator droid intro, docks the call, then falls back to chat on hangup', async ({
+test('starting a call shows the Marty intro, docks the call, then falls back to chat on hangup', async ({
   authedPage: page,
 }) => {
   await page.addInitScript(() => {
@@ -335,7 +335,7 @@ test('skipping onboarding swaps in the regular assistants layout', async ({ auth
     timeout: 15_000,
   });
   // The standard assistants shell exposes the hire entry point even
-  // when the coordinator droid is the only assistant, whereas the onboarding view
+  // when Marty is the only assistant, whereas the onboarding view
   // suppresses it behind the picker/sidebar flow.
   await expect(page.getByRole('button', { name: /^Onboard$/ })).toBeVisible({ timeout: 15_000 });
 });

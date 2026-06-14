@@ -202,10 +202,10 @@ function CoordinatorAssistantInfoSidePanelContent({
     <ScrollArea className={cn('flex-1', className)}>
       <div className="flex flex-col gap-4 px-4 py-4">
         <IdentityHeader
-          name="Coordinator Droid"
+          name="Marty"
           photoSrc={undefined}
-          initials="CO"
-          summary="Your personal coordinator droid"
+          initials="M"
+          summary="Your personal Marty"
           visibilityLabel={
             <span className="inline-flex items-center gap-1">
               Only you
@@ -569,8 +569,8 @@ function ContactInfoGrid({ assistant, onOpenContactManager, canWrite }: ContactI
           <h3 className="text-label text-semibold">Contact info</h3>
         </div>
         <p className="text-caption text-muted-foreground">
-          Coordinator droid contacts are managed by the hosted platform and aren&apos;t available in
-          self-hosted deployments.
+          Marty contacts are managed by the hosted platform and aren&apos;t available in self-hosted
+          deployments.
         </p>
       </section>
     );

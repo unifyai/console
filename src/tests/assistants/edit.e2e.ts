@@ -163,7 +163,7 @@ test('updating the about field via the edit dialog persists to DB', async ({
   expect(dbAfter.about).toBe(newAbout);
 });
 
-test('coordinator droid voice section is hidden and seeded DB uses fixed voice', async ({
+test('Marty voice section is hidden and seeded DB uses fixed voice', async ({
   authedPage: page,
 }) => {
   const coordinator = user.coordinator;

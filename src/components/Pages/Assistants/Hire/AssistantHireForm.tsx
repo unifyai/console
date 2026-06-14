@@ -512,11 +512,7 @@ export function HireForm({
                             readOnly={lockIdentityFields}
                             aria-readonly={lockIdentityFields}
                             tabIndex={lockIdentityFields ? -1 : undefined}
-                            title={
-                              lockIdentityFields
-                                ? "The coordinator droid's name is fixed"
-                                : undefined
-                            }
+                            title={lockIdentityFields ? "Marty's name is fixed" : undefined}
                             className={cn(
                               lockIdentityFields &&
                                 'cursor-not-allowed border-muted bg-muted text-muted-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0'
@@ -540,11 +536,7 @@ export function HireForm({
                             readOnly={lockIdentityFields}
                             aria-readonly={lockIdentityFields}
                             tabIndex={lockIdentityFields ? -1 : undefined}
-                            title={
-                              lockIdentityFields
-                                ? "The coordinator droid's name is fixed"
-                                : undefined
-                            }
+                            title={lockIdentityFields ? "Marty's name is fixed" : undefined}
                             className={cn(
                               lockIdentityFields &&
                                 'cursor-not-allowed border-muted bg-muted text-muted-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0'
@@ -786,7 +778,7 @@ export function HireForm({
                                     className="h-full w-full"
                                     color={selectedDroidColor}
                                     eyes={displayedDroidEyes}
-                                    label="Coordinator droid avatar"
+                                    label="Marty avatar"
                                     shape={selectedDroidShape}
                                     skin={selectedDroidSkinValue}
                                   />
@@ -1131,8 +1123,7 @@ export function HireForm({
                                   not
                                 </strong>{' '}
                                 connect {workspaceAssistantName} to your own Google/Microsoft
-                                account. Only the coordinator droid should have access to your
-                                personal account.
+                                account. Only Marty should have access to your personal account.
                               </span>
                               <span
                                 className={cn(

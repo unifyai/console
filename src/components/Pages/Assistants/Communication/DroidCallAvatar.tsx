@@ -54,7 +54,7 @@ export function DroidCallAvatar({
   color = 'green',
   baseEyes = 'up',
   skin,
-  label = 'Coordinator Droid',
+  label = 'Marty',
   isometricRest = false,
 }: DroidCallAvatarProps) {
   const [isHovered, setIsHovered] = React.useState(false);

@@ -30,7 +30,7 @@ export function CoordinatorLogoAvatar({
       <TeammateCreature
         className={cn('h-full w-full', logoClassName)}
         eyes={isHovered ? getHoverEyes(eyes) : eyes}
-        label="Coordinator Droid"
+        label="Marty"
       />
     </span>
   );

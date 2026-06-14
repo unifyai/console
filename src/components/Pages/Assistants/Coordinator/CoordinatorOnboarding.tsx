@@ -140,14 +140,14 @@ interface CoordinatorOnboardingProps {
     options?: AssistantCallConnectOptions
   ) => Promise<void> | void;
   /** Opens the workspace OAuth dialog (``AssistantWorkspaceManager``)
-   * for this Coordinator. Hung off the "Give your coordinator
+   * for this Coordinator. Hung off the "Give Marty
    * access to your workspace" sub-item. Wired up from the parent
    * so the dialog mounts at the page root and is reachable from
    * elsewhere (e.g. the assistant list dropdown) without duplicate
    * state. */
   onConnectWorkspace?: () => void;
   /** Renders the Integrations pane body when the user opens the
-   * "Connect your coordinator with your apps" step. The parent owns
+   * "Connect Marty with your apps" step. The parent owns
    * the pane's actions + ownership context and pipes the configured
    * ``IntegrationsPane`` through here so this surface can dock it
    * as a third panel next to the onboarding sidebar — the onboarding
@@ -351,7 +351,7 @@ export function CoordinatorOnboarding({
     setActiveMobileTab('integrations');
   }, [markStepEngaged, renderIntegrationsPane]);
 
-  // "Ask your coordinator to do something now" → opens the live
+  // "Ask Marty to do something now" → opens the live
   // Actions panel so the user watches the one-off job run. Engages
   // the ``act`` step; completion is observed at the page level off
   // the live-actions feed.
@@ -467,7 +467,7 @@ export function CoordinatorOnboarding({
         openingConfig: {
           mode: 'simulated',
           simulatedUtterance: COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT,
-          source: 'coordinator_droid_onboarding_intro',
+          source: 'marty_onboarding_intro',
         },
       });
       notifySessionStarted('call');

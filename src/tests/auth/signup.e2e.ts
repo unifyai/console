@@ -253,7 +253,7 @@ test.describe('Onboarding', () => {
 
     const coordinatorRow = page.getByTestId(`assistant-list-item-${coordinatorId}`);
     await expect(coordinatorRow).toBeVisible({ timeout: 15000 });
-    await expect(coordinatorRow).toContainText('Coordinator Droid');
+    await expect(coordinatorRow).toContainText('Marty');
   });
 
   test('keeps Create Organization button disabled with whitespace-only name', async ({ page }) => {

@@ -59,7 +59,7 @@ export const COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID = {
   shape: 'notch',
 } satisfies CoordinatorOnboardingIntroDroidAppearance;
 
-export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm your coordinator droid.
+export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm Marty.
 I'm here to learn how your work runs, connect the tools you use, and help route recurring work to the right specialist droids.
 No prompting, no setup jargon, and no configuration maze.
 Talk to me like you would a teammate: priorities, workflows, documents, inboxes, calendars, handoffs, anything you want off your plate.

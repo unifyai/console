@@ -37,7 +37,7 @@ const surnames = [
 const roles = [
   'Inbox Pathfinder',
   'Ops Quartermaster',
-  'Launch Coordinator',
+  'Launch Partner',
   'Workflow Fixer',
   'Research Scout',
   'Calendar Wrangler',

@@ -61,7 +61,7 @@ INSERT INTO assistant_contacts (
 VALUES (
   ${coordinator.agentId},
   'email',
-  'coordinator-droid@unify.ai',
+  'marty@unify.ai',
   'google_workspace',
   'platform',
   'active',
@@ -288,17 +288,17 @@ test('email tab hides platform provider cards (no @unify.ai / @unifyailtd123 pro
   await expect(page.locator('text=@tenant.onmicrosoft.com')).toHaveCount(0);
 });
 
-test('coordinator email tab shows shared coordinator droid address as managed routing', async ({
+test('Marty email tab shows shared Marty address as managed routing', async ({
   authedPage: page,
 }) => {
   await openContactManager(page, coordinator);
 
   await selectContactType(page, 'email');
 
-  await expect(page.locator('text=Coordinator Droid Email Address')).toBeVisible({
+  await expect(page.locator('text=Marty Email Address')).toBeVisible({
     timeout: 5_000,
   });
-  await expect(page.locator('input[value="coordinator-droid@unify.ai"]')).toBeVisible({
+  await expect(page.locator('input[value="marty@unify.ai"]')).toBeVisible({
     timeout: 5_000,
   });
   await expect(
@@ -308,21 +308,21 @@ test('coordinator email tab shows shared coordinator droid address as managed ro
   await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
 });
 
-test('coordinator phone tab shows shared coordinator droid number as managed routing', async ({
+test('Marty phone tab shows shared Marty number as managed routing', async ({
   authedPage: page,
 }) => {
   await openContactManager(page, coordinator);
 
   await selectContactType(page, 'phone');
 
-  await expect(
-    page.getByText('Coordinator Droid Phone Number', { exact: true }).first()
-  ).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText('Marty Phone Number', { exact: true }).first()).toBeVisible({
+    timeout: 5_000,
+  });
   await expect(page.locator('input[value="+14155552671"]')).toBeVisible({ timeout: 5_000 });
   await expect(
     page
       .getByText(
-        'Coordinator droid phone is managed automatically. SMS messages and calls to this shared number are routed by verified sender identity.',
+        'Marty phone is managed automatically. SMS messages and calls to this shared number are routed by verified sender identity.',
         { exact: true }
       )
       .first()
