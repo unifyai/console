@@ -10,6 +10,7 @@ export {
   type FormName,
   type BotEyeStyle,
   type BotAntennaStyle,
+  type BotSkin,
   type BotView,
   type RotatingBotAccessory,
 } from '@droid/brand/components';

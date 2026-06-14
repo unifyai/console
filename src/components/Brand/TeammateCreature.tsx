@@ -7,4 +7,5 @@ export {
   type CreatureAntenna,
   type CreatureMood,
   type CreatureMouthShape,
+  type BotSkin,
 } from '@droid/brand/components';

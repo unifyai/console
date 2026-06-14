@@ -6,6 +6,7 @@ import type { Transition } from 'framer-motion';
 import { AnimatedDroid, getCreatureAccent, getCreatureForm } from '@droid/brand/components';
 import type { BrandRole, CreatureShape } from '@/components/Brand/shapes';
 import type {
+  BotSkin,
   CreatureAntenna,
   CreatureEyes,
   CreatureMood,
@@ -30,6 +31,7 @@ interface DroidCallAvatarProps {
   shape?: CreatureShape;
   color?: BrandRole;
   baseEyes?: CreatureEyes;
+  skin?: BotSkin;
   label?: string;
   /** When true the droid rests in an isometric 3/4 view and turns to camera while the call is active. */
   isometricRest?: boolean;
@@ -51,6 +53,7 @@ export function DroidCallAvatar({
   shape = 'clawd',
   color = 'green',
   baseEyes = 'up',
+  skin,
   label = 'Coordinator Droid',
   isometricRest = false,
 }: DroidCallAvatarProps) {
@@ -90,6 +93,7 @@ export function DroidCallAvatar({
         stableBox
         speechLevel={displayedSpeechLevel}
         mouthShape={displayedMouthShape}
+        skin={skin}
       />
     </motion.span>
   );

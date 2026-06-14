@@ -44,6 +44,7 @@ import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 import { TeammateCreature, buildCreatureSentinel, parseCreatureSentinel } from '@/components/Brand';
 import {
   getCreatureMetrics,
+  type BotSkin,
   type CreatureAntenna,
   type CreatureEyes,
 } from '@/components/Brand/TeammateCreature';
@@ -90,16 +91,58 @@ const appearanceColorOptions = [
   'pink',
   'cyan',
 ] as const satisfies readonly BrandRole[];
+const appearanceSkinOptions = [
+  'none',
+  'tieOnly',
+  'bowTieOnly',
+  'buttonsOnly',
+  'shirtPocketOnly',
+  'shirtCollarOnly',
+  'shirtTie',
+  'shirtTiePocket',
+  'collarButtons',
+  'bowTie',
+  'pocketButtons',
+  'tuxedo',
+  'tuxBow',
+  'tuxButtons',
+  'suspendersButtons',
+  'suspenders',
+  'pearlButtons',
+  'pearlNecklace',
+] as const satisfies readonly ('none' | BotSkin)[];
+const appearanceSkinLabels: Record<(typeof appearanceSkinOptions)[number], string> = {
+  none: 'none',
+  tieOnly: 'tie',
+  bowTieOnly: 'bow',
+  buttonsOnly: 'buttons',
+  shirtPocketOnly: 'pocket',
+  shirtCollarOnly: 'collar',
+  shirtTie: 'collar + tie',
+  shirtTiePocket: 'pocket + tie',
+  collarButtons: 'collar + buttons',
+  bowTie: 'bow + buttons',
+  pocketButtons: 'pocket + buttons',
+  tuxedo: 'tux + bow + buttons',
+  tuxBow: 'tux + bow',
+  tuxButtons: 'tux + buttons',
+  suspendersButtons: 'suspenders + buttons',
+  suspenders: 'suspenders + bow + buttons',
+  pearlButtons: 'pearls + buttons',
+  pearlNecklace: 'pearls',
+};
 const DEFAULT_COORDINATOR_APPEARANCE = {
   eyes: 'up',
   antenna: 'ball',
   shape: 'clawd',
   color: 'green',
+  skin: 'none',
 } as const satisfies {
   eyes: CreatureEyes;
   antenna: CreatureAntenna;
   shape: CreatureShape;
   color: BrandRole;
+  skin: 'none' | BotSkin;
 };
 
 function cycleOption<T>(items: readonly T[], current: T, direction: -1 | 1): T {
@@ -204,6 +247,7 @@ export function HireForm({
   const [droidAntenna, setDroidAntenna] = React.useState<CreatureAntenna>('ball');
   const [droidShape, setDroidShape] = React.useState<CreatureShape>('clawd');
   const [droidColor, setDroidColor] = React.useState<BrandRole>('green');
+  const [droidSkin, setDroidSkin] = React.useState<'none' | BotSkin>('none');
 
   // The avatar shown in this form is the live creature. We persist it by keeping
   // `profilePhotoUrl` in sync with an `appearance://` sentinel, since hiring/edit
@@ -228,6 +272,7 @@ export function HireForm({
       setDroidColor(parsed.color);
       setDroidEyes(parsed.eyes);
       setDroidAntenna(parsed.antenna);
+      setDroidSkin(parsed.skin ?? 'none');
     }
     setAppearanceSeeded(true);
   }, [appearanceSeeded, watchedProfilePhotoUrl]);
@@ -255,6 +300,10 @@ export function HireForm({
   const selectedDroidColor = lockAppearanceControls
     ? DEFAULT_COORDINATOR_APPEARANCE.color
     : droidColor;
+  const selectedDroidSkin = lockAppearanceControls
+    ? DEFAULT_COORDINATOR_APPEARANCE.skin
+    : droidSkin;
+  const selectedDroidSkinValue = selectedDroidSkin === 'none' ? undefined : selectedDroidSkin;
   const appearanceControlVisibilityClass = isAppearanceControlsVisible
     ? 'pointer-events-auto opacity-100'
     : 'pointer-events-none opacity-0';
@@ -268,6 +317,7 @@ export function HireForm({
     color: selectedDroidColor,
     eyes: selectedDroidEyes,
     antenna: selectedDroidAntenna,
+    ...(selectedDroidSkinValue ? { skin: selectedDroidSkinValue } : {}),
   });
 
   // Detect when the user actively changes the appearance controls (vs. the value
@@ -319,6 +369,12 @@ export function HireForm({
       (colorIndex - 1 + appearanceColorOptions.length) % appearanceColorOptions.length
     ];
   const nextColor = appearanceColorOptions[(colorIndex + 1) % appearanceColorOptions.length];
+  const skinIndex = appearanceSkinOptions.indexOf(selectedDroidSkin);
+  const previousSkin =
+    appearanceSkinOptions[
+      (skinIndex - 1 + appearanceSkinOptions.length) % appearanceSkinOptions.length
+    ];
+  const nextSkin = appearanceSkinOptions[(skinIndex + 1) % appearanceSkinOptions.length];
   const lockedHoverEyes =
     lockAppearanceControls && isLockedDroidHovered
       ? getHoverEyes(selectedDroidEyes)
@@ -345,6 +401,7 @@ export function HireForm({
     setDroidAntenna((current) => pickOption(appearanceAntennaOptions, current));
     setDroidShape((current) => pickOption(appearanceShapeOptions, current));
     setDroidColor((current) => pickOption(appearanceColorOptions, current));
+    setDroidSkin((current) => pickOption(appearanceSkinOptions, current));
   }, [lockAppearanceControls]);
 
   const randomizeProfileAndAppearance = React.useCallback(() => {
@@ -731,6 +788,7 @@ export function HireForm({
                                     eyes={displayedDroidEyes}
                                     label="Coordinator droid avatar"
                                     shape={selectedDroidShape}
+                                    skin={selectedDroidSkinValue}
                                   />
                                 </span>
                               </span>
@@ -754,6 +812,7 @@ export function HireForm({
                                     eyes={displayedDroidEyes}
                                     label="Droid avatar"
                                     shape={selectedDroidShape}
+                                    skin={selectedDroidSkinValue}
                                   />
                                 </span>
                               </button>
@@ -763,60 +822,101 @@ export function HireForm({
                           {!lockAppearanceControls && (
                             <div
                               className={cn(
-                                'flex items-center gap-2',
+                                'flex flex-col items-center gap-1',
                                 APPEARANCE_HOVER_CONTROL_CLASS,
                                 appearanceControlVisibilityClass
                               )}
                             >
-                              <Button
-                                aria-label="Previous droid color"
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 bg-transparent hover:bg-transparent"
-                                disabled={isSubmitting}
-                                onClick={() =>
-                                  setDroidColor((current) =>
-                                    cycleOption(appearanceColorOptions, current, -1)
-                                  )
-                                }
-                              >
-                                <ChevronLeft className="!h-6 !w-6" />
-                              </Button>
-                              <div
-                                aria-label={`Current droid color: ${selectedDroidColor}`}
-                                className="flex items-center gap-1.5 px-1 py-1"
-                                role="img"
-                              >
-                                {[previousColor, selectedDroidColor, nextColor].map((color) => (
-                                  <span
-                                    aria-hidden="true"
-                                    className={cn(
-                                      'rounded-control block border border-border',
-                                      color === selectedDroidColor
-                                        ? 'h-5 w-5'
-                                        : 'h-3.5 w-3.5 opacity-65'
-                                    )}
-                                    key={color}
-                                    style={{ backgroundColor: roleColorVars[color] }}
-                                  />
-                                ))}
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  aria-label="Previous droid color"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 bg-transparent hover:bg-transparent"
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setDroidColor((current) =>
+                                      cycleOption(appearanceColorOptions, current, -1)
+                                    )
+                                  }
+                                >
+                                  <ChevronLeft className="!h-6 !w-6" />
+                                </Button>
+                                <div
+                                  aria-label={`Current droid color: ${selectedDroidColor}`}
+                                  className="flex items-center gap-1.5 px-1 py-1"
+                                  role="img"
+                                >
+                                  {[previousColor, selectedDroidColor, nextColor].map((color) => (
+                                    <span
+                                      aria-hidden="true"
+                                      className={cn(
+                                        'rounded-control block border border-border',
+                                        color === selectedDroidColor
+                                          ? 'h-5 w-5'
+                                          : 'h-3.5 w-3.5 opacity-65'
+                                      )}
+                                      key={color}
+                                      style={{ backgroundColor: roleColorVars[color] }}
+                                    />
+                                  ))}
+                                </div>
+                                <Button
+                                  aria-label="Next droid color"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 bg-transparent hover:bg-transparent"
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setDroidColor((current) =>
+                                      cycleOption(appearanceColorOptions, current, 1)
+                                    )
+                                  }
+                                >
+                                  <ChevronRight className="!h-6 !w-6" />
+                                </Button>
                               </div>
-                              <Button
-                                aria-label="Next droid color"
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 bg-transparent hover:bg-transparent"
-                                disabled={isSubmitting}
-                                onClick={() =>
-                                  setDroidColor((current) =>
-                                    cycleOption(appearanceColorOptions, current, 1)
-                                  )
-                                }
-                              >
-                                <ChevronRight className="!h-6 !w-6" />
-                              </Button>
+
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  aria-label="Previous droid outfit"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 bg-transparent hover:bg-transparent"
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setDroidSkin((current) =>
+                                      cycleOption(appearanceSkinOptions, current, -1)
+                                    )
+                                  }
+                                >
+                                  <ChevronLeft className="!h-5 !w-5" />
+                                </Button>
+                                <div
+                                  aria-label={`Current droid outfit: ${appearanceSkinLabels[selectedDroidSkin]}`}
+                                  className="rounded-control border-border/70 bg-background/80 text-caption min-w-32 border px-2 py-1 text-center text-muted-foreground"
+                                >
+                                  Outfit: {appearanceSkinLabels[selectedDroidSkin]}
+                                </div>
+                                <Button
+                                  aria-label="Next droid outfit"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 bg-transparent hover:bg-transparent"
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setDroidSkin((current) =>
+                                      cycleOption(appearanceSkinOptions, current, 1)
+                                    )
+                                  }
+                                >
+                                  <ChevronRight className="!h-5 !w-5" />
+                                </Button>
+                              </div>
                             </div>
                           )}
                         </div>
