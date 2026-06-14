@@ -124,14 +124,28 @@ const MARTY_DROID_APPEARANCE = {
   shape: 'clawd',
 } satisfies CoordinatorOnboardingIntroDroidAppearance;
 
+// The same Marty, dressed up with a shirt collar + tie. The wardrobe
+// rotation lands on the bare Marty ("not quite") and then the final
+// whoosh slips on the formal outfit ("perfect"), so the gag pays off as
+// Marty getting suited up rather than swapping for a different droid.
+const MARTY_FORMAL_DROID_APPEARANCE = {
+  ...MARTY_DROID_APPEARANCE,
+  skin: 'shirtTie',
+} satisfies CoordinatorOnboardingIntroDroidAppearance;
+
 // Fixed "wrong" wardrobe options cycled through during the outfit
-// switch. The selector row is [arrival droid, ...candidates, Marty], so
-// the first cell is always whatever droid the user came in with and the
-// last cell is the final teal Marty.
+// switch. The selector row is
+// [arrival droid, ...candidates, bare Marty, formal Marty], so the first
+// cell is always whatever droid the user came in with and the last two
+// cells are Marty without then with the collar + tie.
+//
+// Candidates are restricted to the two most compact forms (``wide`` and
+// ``notch``): taller bodies (``sprout``/``tall``) overshoot the seated
+// avatar frame and read awkwardly as they slide past, so variety comes
+// from colour rather than size.
 const OUTFIT_CANDIDATE_DROIDS = [
   { baseEyes: 'square', color: 'purple', mood: 'happy', shape: 'wide' },
-  { baseEyes: 'up', color: 'orange', mood: 'apologetic', shape: 'sprout' },
-  { baseEyes: 'square', color: 'cyan', mood: 'frustrated', shape: 'tall' },
+  { baseEyes: 'up', color: 'orange', mood: 'apologetic', shape: 'notch' },
 ] satisfies readonly CoordinatorOnboardingIntroDroidAppearance[];
 
 function getOutfitSelectorDroids(initialDroid: CoordinatorOnboardingIntroDroidAppearance) {
@@ -139,14 +153,17 @@ function getOutfitSelectorDroids(initialDroid: CoordinatorOnboardingIntroDroidAp
     initialDroid,
     ...OUTFIT_CANDIDATE_DROIDS,
     MARTY_DROID_APPEARANCE,
+    MARTY_FORMAL_DROID_APPEARANCE,
   ] satisfies readonly CoordinatorOnboardingIntroDroidAppearance[];
 }
 
 // The selector renders for the whole prelude. The arrival droid sits in
 // cell 0 (shown through the static/voice/language gag and "there we go"),
 // then each whoosh advances one cell — offsets in the timing effect are
-// pinned to the exact transition snippets in the audio — finishing on the
-// final teal Marty (cell 4), who keeps talking with no swap/jump.
+// pinned to the exact transition snippets in the audio. The penultimate
+// whoosh lands on the bare Marty (cell 3, "not quite") and the final
+// whoosh slips on the collar + tie (cell 4, the formal Marty), who keeps
+// talking with no swap/jump.
 function getOutfitSelectorIndex(phase: PreludePhase) {
   switch (phase) {
     case 'outfitNopeA':
@@ -167,7 +184,7 @@ function getPreludeAvatarVisual(
   phase: PreludePhase,
   initialDroid: CoordinatorOnboardingIntroDroidAppearance
 ) {
-  if (phase === 'marty') return MARTY_DROID_APPEARANCE;
+  if (phase === 'marty') return MARTY_FORMAL_DROID_APPEARANCE;
   return initialDroid;
 }
 

@@ -110,6 +110,7 @@ export function SeatedCoordinatorDroid({
         isSpeaking={isSpeaking}
         mouthShape={mouthShape}
         restingEyes={droid.baseEyes ?? 'up'}
+        skin={droid.skin}
         speechLevel={clampDroidSpeechLevel(speechLevel ?? 0)}
         stableBox
       />
