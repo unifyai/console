@@ -1975,6 +1975,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   <AssistantCommunicationDialog
                     docked
                     isOpen
+                    coordinatorTeleportIn
                     onClose={handleHangUp}
                     onPopOut={handlePopOutCall}
                     assistant={canonicalCoordinator}

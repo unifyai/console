@@ -135,6 +135,10 @@ interface AssistantCommunicationMainViewProps {
   isCallActive?: boolean;
   isUserSpeaking?: boolean;
   mood?: CreatureMood;
+  /** Play the pixelated teleport "materialise" fizzle on the coordinator droid
+   *  when it first mounts. Set by the onboarding docked call so the droid
+   *  teleports into the call window (paired with the intro's dematerialise). */
+  coordinatorTeleportIn?: boolean;
 }
 
 export function AssistantCommunicationMainView({
@@ -158,6 +162,7 @@ export function AssistantCommunicationMainView({
   isCallActive = false,
   isUserSpeaking = false,
   mood = 'happy',
+  coordinatorTeleportIn = false,
 }: AssistantCommunicationMainViewProps) {
   const fallback = assistantName
     ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
@@ -365,6 +370,7 @@ export function AssistantCommunicationMainView({
                   isUserSpeaking={isUserSpeaking}
                   layoutTransition={COORDINATOR_ONBOARDING_DROID_LAYOUT_TRANSITION}
                   layoutId="coordinator-onboarding-call-avatar"
+                  teleportInOnMount={coordinatorTeleportIn}
                   mood={mood}
                   mouthShape={coordinatorMouthShape}
                   speechLevel={coordinatorSpeechLevel}

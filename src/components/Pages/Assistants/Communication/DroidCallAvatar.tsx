@@ -14,6 +14,7 @@ import type {
 } from '@/components/Brand/TeammateCreature';
 import { cn } from '@/lib/utils';
 import { clampDroidSpeechLevel } from '@/utils/assistants/droid-animation';
+import { DroidTeleportFizzle } from '@/components/Pages/Assistants/Communication/DroidTeleportFizzle';
 
 interface DroidCallAvatarProps {
   isSpeaking: boolean;
@@ -35,6 +36,10 @@ interface DroidCallAvatarProps {
   label?: string;
   /** When true the droid rests in an isometric 3/4 view and turns to camera while the call is active. */
   isometricRest?: boolean;
+  /** Play a pixelated teleport "materialise" fizzle once when the avatar first
+   *  mounts. Set by the coordinator onboarding handoff so the docked droid
+   *  reappears as if teleported in (paired with the intro's dematerialise). */
+  teleportInOnMount?: boolean;
 }
 
 export function DroidCallAvatar({
@@ -56,6 +61,7 @@ export function DroidCallAvatar({
   skin,
   label = 'Marty',
   isometricRest = false,
+  teleportInOnMount = false,
 }: DroidCallAvatarProps) {
   const [isHovered, setIsHovered] = React.useState(false);
   const displayedSpeechLevel = clampDroidSpeechLevel(speechLevel ?? 0);
@@ -66,6 +72,26 @@ export function DroidCallAvatar({
   } as React.CSSProperties;
   const active = isometricRest ? isCallActive : true;
   const fixed = isometricRest ? undefined : 1;
+
+  const droid = (
+    <AnimatedDroid
+      antenna={antenna}
+      className={cn('h-full w-full', creatureClassName)}
+      accent={getCreatureAccent(color)}
+      active={active}
+      disableSpeechMotion={!animateBodyMotion}
+      fixed={fixed}
+      form={getCreatureForm(shape)}
+      emotion={mood}
+      isSpeaking={isSpeaking}
+      isUserSpeaking={isUserSpeaking}
+      restingEyes={isHovered ? 'square' : baseEyes}
+      stableBox
+      speechLevel={displayedSpeechLevel}
+      mouthShape={displayedMouthShape}
+      skin={skin}
+    />
+  );
 
   return (
     <motion.span
@@ -78,23 +104,13 @@ export function DroidCallAvatar({
       style={animatedVisualStyle}
       transition={layoutTransition}
     >
-      <AnimatedDroid
-        antenna={antenna}
-        className={cn('h-full w-full', creatureClassName)}
-        accent={getCreatureAccent(color)}
-        active={active}
-        disableSpeechMotion={!animateBodyMotion}
-        fixed={fixed}
-        form={getCreatureForm(shape)}
-        emotion={mood}
-        isSpeaking={isSpeaking}
-        isUserSpeaking={isUserSpeaking}
-        restingEyes={isHovered ? 'square' : baseEyes}
-        stableBox
-        speechLevel={displayedSpeechLevel}
-        mouthShape={displayedMouthShape}
-        skin={skin}
-      />
+      {teleportInOnMount ? (
+        <DroidTeleportFizzle mode="in" className="flex h-full w-full items-center justify-center">
+          {droid}
+        </DroidTeleportFizzle>
+      ) : (
+        droid
+      )}
     </motion.span>
   );
 }

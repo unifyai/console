@@ -10,10 +10,10 @@ import {
 import {
   COORDINATOR_ONBOARDING_INTRO,
   COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID,
-  COORDINATOR_ONBOARDING_DROID_LAYOUT_TRANSITION,
   type CoordinatorOnboardingIntroDroidAppearance,
   type CoordinatorOnboardingIntroVoice,
 } from '@/utils/assistants/coordinator-onboarding-intro';
+import { DroidTeleportFizzle } from '@/components/Pages/Assistants/Communication/DroidTeleportFizzle';
 import type { CreatureMouthShape } from '@/components/Brand/TeammateCreature';
 import { getDroidMouthShape } from '@/utils/assistants/droid-lipsync';
 import type { PrecomputedDroidLipsyncTrack } from '@droid/brand/droid';
@@ -910,14 +910,15 @@ export function CoordinatorOnboardingCallIntro({
               framePx={framePx}
             />
           ) : (
-            // ``layoutId`` lives on a stable, full-box wrapper (no transform of
-            // its own) so the shared-element morph into the docked call avatar
-            // animates cleanly; the seated droid inside keeps the same baseline
-            // as the selector's final Marty cell, so there's no jump on swap.
-            <motion.span
+            // No shared-element flight into the call: the droid stays put for
+            // the elevator ascent and, on ``landing``, dematerialises with a
+            // pixelated teleport fizzle. The docked call avatar materialises
+            // with the matching ``in`` fizzle, so the handoff reads as a
+            // teleport rather than a glide across the screen.
+            <DroidTeleportFizzle
+              mode="out"
+              active={stage === 'landing'}
               className="absolute inset-0 block"
-              layoutId="coordinator-onboarding-call-avatar"
-              transition={COORDINATOR_ONBOARDING_DROID_LAYOUT_TRANSITION}
             >
               <SeatedCoordinatorDroid
                 droid={preludeAvatarVisual}
@@ -926,7 +927,7 @@ export function CoordinatorOnboardingCallIntro({
                 mouthShape={audioMouthShape}
                 speechLevel={configuredIntroAudioSrc ? audioSpeechLevel : undefined}
               />
-            </motion.span>
+            </DroidTeleportFizzle>
           )}
         </div>
       </motion.div>
