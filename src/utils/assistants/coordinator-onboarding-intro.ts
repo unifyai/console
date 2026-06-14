@@ -1,12 +1,14 @@
 import type { Transition } from 'framer-motion';
 import type { BrandRole, CreatureShape } from '@/components/Brand/shapes';
-import type { CreatureEyes, CreatureMood } from '@/components/Brand/TeammateCreature';
+import type { BotSkin, CreatureEyes, CreatureMood } from '@/components/Brand/TeammateCreature';
 
 export type CoordinatorOnboardingIntroDroidAppearance = {
   baseEyes?: CreatureEyes;
   color: BrandRole;
   mood?: CreatureMood;
   shape: CreatureShape;
+  /** Optional clothing drawn on the droid's body (e.g. a collar + tie). */
+  skin?: BotSkin;
 };
 
 export type CoordinatorOnboardingIntroVoice = {
@@ -16,8 +18,8 @@ export type CoordinatorOnboardingIntroVoice = {
 
 export const COORDINATOR_ONBOARDING_INTRO = {
   audioSrc: '/sounds/marty-onboarding-call-intro.mp3',
-  preludeDurationMs: 21_528,
-  fallbackDurationMs: 62_088,
+  preludeDurationMs: 20_540,
+  fallbackDurationMs: 61_128,
   initialPauseMs: 1_000,
   backgroundStartDelayMs: 500,
   backgroundAccelerationMs: 2_400,

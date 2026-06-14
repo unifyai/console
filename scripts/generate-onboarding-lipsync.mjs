@@ -23,7 +23,7 @@ const HISTORY_SIZE = 12;
 
 // End of the spoken-Marty prelude (seconds). Everything after this is the
 // second onboarding phase, left untouched.
-const PRELUDE_END = 21.528;
+const PRELUDE_END = 20.54;
 // Spoken-word windows within the prelude [start, end] (seconds). Any prelude
 // time outside these is a transition effect and is masked to a still mouth.
 const SPEECH_WINDOWS = [
@@ -35,7 +35,7 @@ const SPEECH_WINDOWS = [
   [16.772, 17.237],
   [17.657, 18.4],
   [18.82, 19.47],
-  [19.69, 21.501],
+  [19.69, 20.54],
 ];
 
 function isSpeechTime(t) {
