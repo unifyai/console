@@ -143,7 +143,7 @@ async function openMockIntegrationsTab(page: Page) {
     .waitForFunction(
       () =>
         Array.from(document.querySelectorAll('button')).some((candidate) =>
-          candidate.textContent?.includes('rather chat')
+          candidate.textContent?.includes('rather text')
         ),
       undefined,
       { timeout: 10_000 }
@@ -153,7 +153,7 @@ async function openMockIntegrationsTab(page: Page) {
   if (hasOnboardingSkip) {
     await page.evaluate(() => {
       const button = Array.from(document.querySelectorAll('button')).find((candidate) =>
-        candidate.textContent?.includes('rather chat')
+        candidate.textContent?.includes('rather text')
       );
       button?.click();
     });

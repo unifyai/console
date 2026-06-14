@@ -9,7 +9,7 @@
  *     the real call surface, and hanging up continues in chat
  *   - The skip-onboarding affordance is suppressed until the user
  *     has answered the picker
- *   - Choosing "I'd rather chat for now" reveals the chat surface
+ *   - Choosing "I'd rather text for now" reveals the chat surface
  *     and exposes the skip affordance
  *   - Resolving the picker persists ``intro_watched`` on the
  *     Coordinator/State row, so a reload skips the ringing picker /
