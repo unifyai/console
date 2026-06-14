@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 import { motion } from 'framer-motion';
+import { RotateCcw } from 'lucide-react';
+import type { AnimatedDroidFaceState } from '@droid/brand/components';
 import {
   SeatedCoordinatorDroid,
   useCoordinatorDroidLayout,
@@ -70,6 +72,7 @@ interface CoordinatorOnboardingCallIntroProps {
   initialVoice?: CoordinatorOnboardingIntroVoice;
   onReadyToStartCall: () => void;
   onFinished: () => void;
+  onRestart?: () => void;
 }
 
 function getRuntimeTiming() {
@@ -188,12 +191,51 @@ function getPreludeAvatarVisual(
   return initialDroid;
 }
 
+/**
+ * Deterministic face for the voice-tuning portion of the prelude — before
+ * Marty lands a clean voice at the ``clean`` ("there we go") beat.
+ *
+ * The brow stays raised the whole way through and flips to its mirror on each
+ * fresh tuning attempt, so the otherwise-static face keeps moving between
+ * whooshes. The mouth tells the story of the gag: the very first utterance
+ * (``static``) still rides the normal smiling lipsync because Marty thinks the
+ * voice is fine, then flattens to a talking bar from the first wrong attempt
+ * onward until the voice is sorted. Returning ``null`` (``clean`` and the
+ * outfit beats) hands the face back to the default mood-driven animation.
+ */
+function getPreludeFaceOverride(
+  phase: PreludePhase,
+  isSpeaking: boolean,
+  mouthShape: CreatureMouthShape,
+  speechLevel: number
+): AnimatedDroidFaceState | null {
+  const base = {
+    mouthLevel: speechLevel,
+    speechActive: isSpeaking,
+    speechLevel,
+  };
+  switch (phase) {
+    case 'static':
+      // First utterance: raised brow, but still the smiling lipsync mouth.
+      return { ...base, eyeDir: 'skeptical', mouth: mouthShape, mouthRect: false };
+    case 'wrongVoice':
+      // First wrong attempt: brow mirrors, mouth flattens to a talking bar.
+      return { ...base, eyeDir: 'skepticalMirror', mouth: 'flat', mouthRect: true };
+    case 'wrongLanguage':
+      // Second attempt: brow flips back, mouth stays flat.
+      return { ...base, eyeDir: 'skeptical', mouth: 'flat', mouthRect: true };
+    default:
+      return null;
+  }
+}
+
 function OutfitSelectorDroid({
   droids,
   activeIndex,
   isSpeaking,
   mouthShape,
   speechLevel,
+  faceState,
   droidWidth,
   framePx,
 }: {
@@ -202,6 +244,7 @@ function OutfitSelectorDroid({
   isSpeaking: boolean;
   mouthShape: CreatureMouthShape;
   speechLevel?: number;
+  faceState?: AnimatedDroidFaceState | null;
   droidWidth: number;
   framePx: number;
 }) {
@@ -235,6 +278,7 @@ function OutfitSelectorDroid({
               isSpeaking={isSpeaking}
               mouthShape={mouthShape}
               speechLevel={speechLevel}
+              faceState={faceState}
             />
           </div>
         ))}
@@ -249,6 +293,7 @@ export function CoordinatorOnboardingCallIntro({
   initialVoice,
   onReadyToStartCall,
   onFinished,
+  onRestart,
 }: CoordinatorOnboardingCallIntroProps) {
   const { droidWidth, framePx } = useCoordinatorDroidLayout();
   const rootRef = React.useRef<HTMLDivElement | null>(null);
@@ -514,6 +559,14 @@ export function CoordinatorOnboardingCallIntro({
   const showOutfitSelector = isPreludeVisible;
   const outfitSelectorDroids = getOutfitSelectorDroids(initialDroid);
   const activeOutfitIndex = getOutfitSelectorIndex(preludePhase);
+  // Pin the raised-brow + flat-mouth face through the voice-tuning beats; the
+  // outfit phases (and ``clean`` onward) fall back to the default animation.
+  const preludeFaceOverride = getPreludeFaceOverride(
+    preludePhase,
+    stage === 'speaking',
+    audioMouthShape,
+    configuredIntroAudioSrc ? audioSpeechLevel : 0
+  );
 
   return (
     <div
@@ -546,6 +599,7 @@ export function CoordinatorOnboardingCallIntro({
               isSpeaking={stage === 'speaking'}
               mouthShape={audioMouthShape}
               speechLevel={configuredIntroAudioSrc ? audioSpeechLevel : undefined}
+              faceState={preludeFaceOverride}
               droidWidth={droidWidth}
               framePx={framePx}
             />
@@ -567,6 +621,20 @@ export function CoordinatorOnboardingCallIntro({
                 speechLevel={configuredIntroAudioSrc ? audioSpeechLevel : undefined}
               />
             </motion.span>
+          )}
+          {/* Restart affordance, parked beneath the seated droid while he
+              speaks his pre-recorded lines. Hidden once the scene flies up
+              into the call handoff, where restarting no longer applies. */}
+          {onRestart && isPreludeVisible && (
+            <button
+              type="button"
+              onClick={onRestart}
+              className="text-label bg-card/80 absolute left-1/2 top-full z-10 mt-3 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-3 py-1 font-medium text-card-foreground shadow-sm backdrop-blur-md transition-colors hover:text-foreground"
+              data-testid="coordinator-onboarding-intro-restart"
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+              Restart
+            </button>
           )}
         </div>
       </motion.div>
