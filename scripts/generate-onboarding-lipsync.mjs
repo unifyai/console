@@ -5,17 +5,10 @@
 // analyser.
 //
 // Audio generation for the corresponding MP3 MUST follow the central branding
-// pipeline in branding/docs/walkie-voice-pipeline.md: exact transcript,
-// ElevenLabs clean speech, walkie EQ/compression/noise, sampled radio
-// intro/outro, and carrier/static bed. Do not regenerate this asset from plain
-// TTS or ad-hoc replacement copy.
-//
-// The intro audio is a concatenation of spoken segments and pure radio
-// transition effects (radio crackle, tuning whooshes, R2-D2 bleeps, silences).
-// A live analyser mistakes those effects for speech and flaps the mouth, so we
-// force every non-speech window in the prelude to a motionless (silent) mouth.
-// The speech windows below are derived from the exact segment durations used to
-// build the prelude (see Desktop/marty-recording-draft/segments).
+// pipeline in /Users/djl11/branding/docs/walkie-voice-pipeline.md:
+// exact transcript, ElevenLabs clean speech, walkie EQ/compression/noise,
+// sampled radio intro/outro, and carrier/static bed. Do not regenerate this
+// asset from plain TTS or ad-hoc replacement copy.
 //
 // Usage: node scripts/generate-onboarding-lipsync.mjs <input.wav> <output.json> <publicSrc>
 
@@ -26,28 +19,6 @@ import path from 'node:path';
 const FPS = 60;
 const FFT_SIZE = 2048;
 const HISTORY_SIZE = 12;
-
-// End of the spoken-Marty prelude (seconds). Everything after this is the
-// second onboarding phase, left untouched.
-const PRELUDE_END = 20.54;
-// Spoken-word windows within the prelude [start, end] (seconds). Any prelude
-// time outside these is a transition effect and is masked to a still mouth.
-const SPEECH_WINDOWS = [
-  [0.55, 3.661],
-  [4.551, 7.059],
-  [8.716, 10.109],
-  [10.999, 15.132],
-  [15.702, 16.352],
-  [16.772, 17.237],
-  [17.657, 18.4],
-  [18.82, 19.47],
-  [19.69, 20.54],
-];
-
-function isSpeechTime(t) {
-  if (t > PRELUDE_END) return true; // second phase: keep analyser output as-is
-  return SPEECH_WINDOWS.some(([start, end]) => t >= start && t <= end);
-}
 
 const BANDS = [
   { start: 50, end: 200 },
@@ -390,16 +361,6 @@ async function generateTrack(filePath, src) {
     frames.push([bestViseme, Number(smoothedSpeechLevel.toFixed(3)), isActive ? 1 : 0]);
   }
 
-  // Mask every non-speech moment in the prelude so radio crackle, tuning
-  // whooshes, and bleeps never animate the mouth.
-  let maskedFrames = 0;
-  for (let i = 0; i < frames.length; i++) {
-    if (!isSpeechTime(i / FPS)) {
-      frames[i] = [VISEMES.sil, 0, 0];
-      maskedFrames += 1;
-    }
-  }
-
   return {
     track: {
       src,
@@ -408,7 +369,6 @@ async function generateTrack(filePath, src) {
       duration: Number(duration.toFixed(3)),
       frames,
     },
-    maskedFrames,
   };
 }
 
@@ -420,12 +380,10 @@ async function main() {
     );
   }
 
-  const { track, maskedFrames } = await generateTrack(inputWav, publicSrc);
+  const { track } = await generateTrack(inputWav, publicSrc);
   await mkdir(path.dirname(outputJson), { recursive: true });
   await writeFile(outputJson, JSON.stringify(track));
-  console.log(
-    `wrote ${outputJson} (${track.frames.length} frames, ${maskedFrames} masked, duration ${track.duration}s)`
-  );
+  console.log(`wrote ${outputJson} (${track.frames.length} frames, duration ${track.duration}s)`);
 }
 
 main().catch((err) => {

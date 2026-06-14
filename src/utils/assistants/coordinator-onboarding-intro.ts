@@ -11,20 +11,14 @@ export type CoordinatorOnboardingIntroDroidAppearance = {
   skin?: BotSkin;
 };
 
-export type CoordinatorOnboardingIntroVoice = {
-  audioSrc?: string;
-  id?: string;
-};
-
 // The MP3 referenced here is a pre-rendered droid walkie/radio asset. Regenerate
-// it only via branding/docs/walkie-voice-pipeline.md so the transcript, walkie
-// EQ/compression/noise, sampled intro/outro, and carrier bed stay consistent
-// with the landing-page droid voices.
+// it only via /Users/djl11/branding/docs/walkie-voice-pipeline.md so the
+// transcript, walkie EQ/compression/noise, sampled intro/outro, and carrier bed
+// stay consistent with the landing-page droid voices.
 export const COORDINATOR_ONBOARDING_INTRO = {
   audioSrc: '/sounds/marty-onboarding-call-intro.mp3',
-  preludeDurationMs: 20_540,
   fallbackDurationMs: 61_128,
-  initialPauseMs: 1_000,
+  initialPauseMs: 0,
   backgroundStartDelayMs: 500,
   backgroundAccelerationMs: 2_400,
   callWarmupDelayMs: 0,
@@ -58,9 +52,10 @@ export function getCoordinatorIntroCountdownMs(): number {
 
 export const COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID = {
   baseEyes: 'up',
-  color: 'blue',
+  color: 'teal',
   mood: 'happy',
-  shape: 'notch',
+  shape: 'clawd',
+  skin: 'shirtTie',
 } satisfies CoordinatorOnboardingIntroDroidAppearance;
 
 export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm Marty.

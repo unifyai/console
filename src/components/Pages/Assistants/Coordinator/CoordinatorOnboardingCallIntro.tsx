@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import { motion } from 'framer-motion';
-import type { AnimatedDroidFaceState } from '@droid/brand/components';
 import {
   SeatedCoordinatorDroid,
   useCoordinatorDroidLayout,
@@ -10,8 +9,6 @@ import {
 import {
   COORDINATOR_ONBOARDING_INTRO,
   COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID,
-  type CoordinatorOnboardingIntroDroidAppearance,
-  type CoordinatorOnboardingIntroVoice,
 } from '@/utils/assistants/coordinator-onboarding-intro';
 import { DroidTeleportFizzle } from '@/components/Pages/Assistants/Communication/DroidTeleportFizzle';
 import type { CreatureMouthShape } from '@/components/Brand/TeammateCreature';
@@ -255,10 +252,8 @@ function lipsyncUrlForAudio(src: string): string {
 }
 
 /**
- * Sample a pre-computed lipsync track at a playback position. Masked
- * (transition-effect) frames are authored as inactive, so this returns a still,
- * closed mouth for them — the radio crackle / tuning / bleep windows never
- * animate.
+ * Sample a pre-computed lipsync track at a playback position. Inactive frames
+ * resolve to a still, closed mouth so silence never flaps the droid mouth.
  */
 function sampleIntroLipsyncTrack(
   track: PrecomputedDroidLipsyncTrack,
@@ -277,16 +272,6 @@ function sampleIntroLipsyncTrack(
     speechLevel,
   };
 }
-type PreludePhase =
-  | 'static'
-  | 'wrongVoice'
-  | 'wrongLanguage'
-  | 'clean'
-  | 'outfitNopeA'
-  | 'outfitNopeB'
-  | 'outfitNotQuite'
-  | 'outfitPerfect'
-  | 'marty';
 type BrowserWindowWithCoordinatorIntroAudio = Window & {
   __coordinatorOnboardingIntroAudio?: HTMLAudioElement;
   __coordinatorOnboardingIntroSpeechLevel?: number;
@@ -295,8 +280,6 @@ type BrowserWindowWithCoordinatorIntroAudio = Window & {
 
 interface CoordinatorOnboardingCallIntroProps {
   initialAvatarOffset: { x: number; y: number };
-  initialDroid?: CoordinatorOnboardingIntroDroidAppearance;
-  initialVoice?: CoordinatorOnboardingIntroVoice;
   onReadyToStartCall: () => void;
   onFinished: () => void;
   skipSignal?: number;
@@ -307,7 +290,6 @@ function getRuntimeTiming() {
   if (typeof window === 'undefined') {
     return {
       durationMs: COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs,
-      preludeDurationMs: COORDINATOR_ONBOARDING_INTRO.preludeDurationMs,
     };
   }
 
@@ -315,9 +297,6 @@ function getRuntimeTiming() {
   const runtimeDurationMs = runtimeWindow['__COORDINATOR_ONBOARDING_INTRO_DURATION_MS'];
   return {
     durationMs: runtimeDurationMs ?? COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs,
-    preludeDurationMs:
-      runtimeWindow['__COORDINATOR_ONBOARDING_INTRO_PRELUDE_DURATION_MS'] ??
-      (runtimeDurationMs === undefined ? COORDINATOR_ONBOARDING_INTRO.preludeDurationMs : 0),
   };
 }
 
@@ -341,196 +320,17 @@ function getCityBackdropOpacity(progress: number) {
   return 1 - fadeProgress * fadeProgress * (3 - 2 * fadeProgress);
 }
 
-function getVisualHandoffOffsetMs(durationMs: number, preludeDurationMs: number) {
-  const backgroundStartOffsetMs =
-    preludeDurationMs + COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs;
-
+function getVisualHandoffOffsetMs(durationMs: number) {
   return Math.max(
-    backgroundStartOffsetMs + 500,
+    COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs + 500,
     durationMs - COORDINATOR_ONBOARDING_INTRO.handoffLeadMs
   );
 }
 
-function getBackgroundStartOffsetMs(preludeDurationMs: number) {
-  return preludeDurationMs + COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs;
-}
-
-const MARTY_DROID_APPEARANCE = {
-  baseEyes: 'up',
-  color: 'green',
-  mood: 'happy',
-  shape: 'clawd',
-} satisfies CoordinatorOnboardingIntroDroidAppearance;
-
-// The same Marty, dressed up with a shirt collar + tie. The wardrobe
-// rotation lands on the bare Marty ("not quite") and then the final
-// whoosh slips on the formal outfit ("perfect"), so the gag pays off as
-// Marty getting suited up rather than swapping for a different droid.
-const MARTY_FORMAL_DROID_APPEARANCE = {
-  ...MARTY_DROID_APPEARANCE,
-  skin: 'shirtTie',
-} satisfies CoordinatorOnboardingIntroDroidAppearance;
-
-// Fixed "wrong" wardrobe options cycled through during the outfit
-// switch. The selector row is
-// [arrival droid, ...candidates, bare Marty, formal Marty], so the first
-// cell is always whatever droid the user came in with and the last two
-// cells are Marty without then with the collar + tie.
-//
-// Candidates are restricted to the two most compact forms (``wide`` and
-// ``notch``): taller bodies (``sprout``/``tall``) overshoot the seated
-// avatar frame and read awkwardly as they slide past, so variety comes
-// from colour rather than size.
-const OUTFIT_CANDIDATE_DROIDS = [
-  { baseEyes: 'square', color: 'purple', mood: 'happy', shape: 'wide' },
-  { baseEyes: 'up', color: 'orange', mood: 'apologetic', shape: 'notch' },
-] satisfies readonly CoordinatorOnboardingIntroDroidAppearance[];
-const OUTFIT_SELECTOR_VISIBLE_WIDTH_RATIO = 0.76;
-
-function getOutfitSelectorDroids(initialDroid: CoordinatorOnboardingIntroDroidAppearance) {
-  return [
-    initialDroid,
-    ...OUTFIT_CANDIDATE_DROIDS,
-    MARTY_DROID_APPEARANCE,
-    MARTY_FORMAL_DROID_APPEARANCE,
-  ] satisfies readonly CoordinatorOnboardingIntroDroidAppearance[];
-}
-
-// The selector renders for the whole prelude. The arrival droid sits in
-// cell 0 (shown through the static/voice/language gag and "there we go"),
-// then each whoosh advances one cell — offsets in the timing effect are
-// pinned to the exact transition snippets in the audio. The penultimate
-// whoosh lands on the bare Marty (cell 3, "not quite") and the final
-// whoosh slips on the collar + tie (cell 4, the formal Marty), who keeps
-// talking with no swap/jump.
-function getOutfitSelectorIndex(phase: PreludePhase) {
-  switch (phase) {
-    case 'outfitNopeA':
-      return 1;
-    case 'outfitNopeB':
-      return 2;
-    case 'outfitNotQuite':
-      return 3;
-    case 'outfitPerfect':
-    case 'marty':
-      return 4;
-    default:
-      return 0;
-  }
-}
-
-function getPreludeAvatarVisual(
-  phase: PreludePhase,
-  initialDroid: CoordinatorOnboardingIntroDroidAppearance
-) {
-  if (phase === 'marty') return MARTY_FORMAL_DROID_APPEARANCE;
-  return initialDroid;
-}
-
-/**
- * Deterministic face for the voice-tuning portion of the prelude — before
- * Marty lands a clean voice at the ``clean`` ("there we go") beat.
- *
- * The brow stays raised the whole way through and flips to its mirror on each
- * fresh tuning attempt, so the otherwise-static face keeps moving between
- * whooshes. The mouth tells the story of the gag: the very first utterance
- * (``static``) still rides the normal smiling lipsync because Marty thinks the
- * voice is fine, then flattens to a talking bar from the first wrong attempt
- * onward until the voice is sorted. Returning ``null`` (``clean`` and the
- * outfit beats) hands the face back to the default mood-driven animation.
- */
-function getPreludeFaceOverride(
-  phase: PreludePhase,
-  isSpeaking: boolean,
-  mouthShape: CreatureMouthShape,
-  speechLevel: number
-): AnimatedDroidFaceState | null {
-  const base = {
-    mouthLevel: speechLevel,
-    speechActive: isSpeaking,
-    speechLevel,
-  };
-  switch (phase) {
-    case 'static':
-      // First utterance: raised brow, but still the smiling lipsync mouth.
-      return { ...base, eyeDir: 'skeptical', mouth: mouthShape, mouthRect: false };
-    case 'wrongVoice':
-      // First wrong attempt: brow mirrors, mouth flattens to a talking bar.
-      return { ...base, eyeDir: 'skepticalMirror', mouth: 'flat', mouthRect: true };
-    case 'wrongLanguage':
-      // Second attempt: brow flips back, mouth stays flat.
-      return { ...base, eyeDir: 'skeptical', mouth: 'flat', mouthRect: true };
-    default:
-      return null;
-  }
-}
-
-function OutfitSelectorDroid({
-  droids,
-  activeIndex,
-  isSpeaking,
-  mouthShape,
-  speechLevel,
-  faceState,
-  droidWidth,
-  framePx,
-}: {
-  droids: readonly CoordinatorOnboardingIntroDroidAppearance[];
-  activeIndex: number;
-  isSpeaking: boolean;
-  mouthShape: CreatureMouthShape;
-  speechLevel?: number;
-  faceState?: AnimatedDroidFaceState | null;
-  droidWidth: number;
-  framePx: number;
-}) {
-  const visibleWidthPx = droidWidth * OUTFIT_SELECTOR_VISIBLE_WIDTH_RATIO;
-  const horizontalClipPx = Math.max(0, (framePx - visibleWidthPx) / 2);
-
-  return (
-    // Clip to the visible body aperture only: the brand droid SVG draws with
-    // extra horizontal box space plus vertical overflow (antenna above, shadow
-    // below), so the mask is narrower than the render width but vertically open.
-    <div
-      className="relative"
-      style={{
-        width: framePx,
-        height: framePx,
-        clipPath: `inset(-200px ${horizontalClipPx}px -200px ${horizontalClipPx}px)`,
-      }}
-    >
-      <motion.div
-        animate={{ x: -activeIndex * framePx }}
-        className="absolute left-0 top-0 flex"
-        initial={false}
-        style={{ height: framePx }}
-        transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
-      >
-        {droids.map((droid, index) => (
-          <div
-            className="relative shrink-0"
-            key={`${index}-${droid.color}-${droid.shape}`}
-            style={{ width: framePx, height: framePx }}
-          >
-            <SeatedCoordinatorDroid
-              droid={droid}
-              width={droidWidth}
-              isSpeaking={isSpeaking}
-              mouthShape={mouthShape}
-              speechLevel={speechLevel}
-              faceState={faceState}
-            />
-          </div>
-        ))}
-      </motion.div>
-    </div>
-  );
-}
+const MARTY_DROID_APPEARANCE = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID;
 
 export function CoordinatorOnboardingCallIntro({
   initialAvatarOffset,
-  initialDroid = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID,
-  initialVoice,
   onReadyToStartCall,
   onFinished,
   skipSignal = 0,
@@ -544,20 +344,18 @@ export function CoordinatorOnboardingCallIntro({
   const hasStartedCallRef = React.useRef(false);
   const hasFinishedRef = React.useRef(false);
   const keepAudioAfterUnmountRef = React.useRef(false);
-  // Set when "Skip" is pressed before the audio element has begun playing
-  // (within the opening pause); the start handler then seeks immediately.
+  // Set when "Skip" is pressed before the audio element has begun playing; the
+  // start handler then seeks immediately.
   const skipRequestedRef = React.useRef(false);
   const previousSkipSignalRef = React.useRef(skipSignal);
   const [stage, setStage] = React.useState<IntroStage>('pause');
   const [skipped, setSkipped] = React.useState(false);
-  const [preludePhase, setPreludePhase] = React.useState<PreludePhase>('static');
   const [audioSpeechLevel, setAudioSpeechLevel] = React.useState(0);
   const [audioMouthShape, setAudioMouthShape] = React.useState<CreatureMouthShape>('closed');
-  const configuredIntroAudioSrc = initialVoice?.audioSrc ?? COORDINATOR_ONBOARDING_INTRO.audioSrc;
+  const configuredIntroAudioSrc = COORDINATOR_ONBOARDING_INTRO.audioSrc;
   // Pre-computed lipsync track for the intro audio (same offline flow as the
   // landing page). The mouth is sampled from this by playback time rather than
-  // analysed live, which keeps it deterministic and lets us mask the radio
-  // transition windows so the mouth is still during them.
+  // analysed live, which keeps it deterministic.
   const lipsyncTrackRef = React.useRef<PrecomputedDroidLipsyncTrack | null>(null);
 
   React.useEffect(() => {
@@ -613,7 +411,6 @@ export function CoordinatorOnboardingCallIntro({
       audio.currentTime = Math.max(0, Math.min(SKIP_AUDIO_TARGET_SEC, ceiling));
       void audio.play().catch(() => undefined);
     }
-    setPreludePhase('marty');
     // From the seated speaking beats, kick off the compressed ascent into
     // the call position. If we're already flying, leave the in-flight
     // ascent untouched and just let the seeked-to line carry us to landing.
@@ -637,46 +434,16 @@ export function CoordinatorOnboardingCallIntro({
   }, []);
 
   React.useEffect(() => {
-    // Offsets are milliseconds into the intro audio (playback begins at
-    // ``initialPauseMs``, the same anchor these timers use). Each outfit
-    // offset is pinned to the exact start of its tuning-whoosh snippet in
-    // the prelude track so the selector slide lands on the transition
-    // sound. Derived from the concatenated segment durations:
-    //   there-we-go 10.999s | whoosh1 15.282s | whoosh2 16.352s
-    //   whoosh3 17.237s | whoosh4 18.400s | "Hi, I'm Marty" 19.690s
-    const phases: Array<[PreludePhase, number]> = [
-      ['wrongVoice', 4_551],
-      ['wrongLanguage', 8_716],
-      ['clean', 10_999],
-      ['outfitNopeA', 15_282],
-      ['outfitNopeB', 16_352],
-      ['outfitNotQuite', 17_237],
-      ['outfitPerfect', 18_400],
-      ['marty', 19_690],
-    ];
-    const timers = phases.map(([phase, offsetMs]) =>
-      window.setTimeout(
-        () => setPreludePhase(phase),
-        COORDINATOR_ONBOARDING_INTRO.initialPauseMs + offsetMs
-      )
-    );
-
-    return () => {
-      timers.forEach((timer) => window.clearTimeout(timer));
-    };
-  }, []);
-
-  React.useEffect(() => {
-    const { durationMs, preludeDurationMs } = getRuntimeTiming();
-    const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs, preludeDurationMs);
-    const backgroundStartOffsetMs = getBackgroundStartOffsetMs(preludeDurationMs);
+    const { durationMs } = getRuntimeTiming();
+    const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs);
     const speakingStartTimer = window.setTimeout(
       () => setStage('speaking'),
       COORDINATOR_ONBOARDING_INTRO.initialPauseMs
     );
     const backgroundStartTimer = window.setTimeout(
       () => setStage((currentStage) => (currentStage === 'speaking' ? 'flying' : currentStage)),
-      COORDINATOR_ONBOARDING_INTRO.initialPauseMs + backgroundStartOffsetMs
+      COORDINATOR_ONBOARDING_INTRO.initialPauseMs +
+        COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs
     );
     const callWarmupTimer = window.setTimeout(
       () => startCallOnce(),
@@ -707,8 +474,7 @@ export function CoordinatorOnboardingCallIntro({
     };
 
     // Drive the mouth from the pre-computed track by playback position. No live
-    // analyser is constructed; masked transition windows resolve to a still,
-    // closed mouth.
+    // analyser is constructed, so the mouth animation is stable across runs.
     const startAudioAnalysis = (audioElement: HTMLAudioElement) => {
       const tick = () => {
         const track = lipsyncTrackRef.current;
@@ -801,8 +567,8 @@ export function CoordinatorOnboardingCallIntro({
     const root = rootRef.current;
     if (!root) return;
 
-    const { durationMs, preludeDurationMs } = getRuntimeTiming();
-    const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs, preludeDurationMs);
+    const { durationMs } = getRuntimeTiming();
+    const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs);
     const motionDurationMs = skipped
       ? SKIP_FLY_MS
       : Math.max(1, COORDINATOR_ONBOARDING_INTRO.initialPauseMs + handoffOffsetMs);
@@ -855,25 +621,6 @@ export function CoordinatorOnboardingCallIntro({
     return () => window.clearTimeout(handle);
   }, [finishOnce, stage]);
 
-  const preludeAvatarVisual = getPreludeAvatarVisual(preludePhase, initialDroid);
-  // The whole prelude rides the wardrobe selector so the droid that finally
-  // "arrives" (Marty, cell 4) is the very same element that keeps talking —
-  // no swap to a separate avatar, hence no positional jump. The single
-  // avatar (with the call-handoff ``layoutId``) only takes over once the
-  // background starts scrolling (``flying``/``landing``).
-  const isPreludeVisible = stage === 'pause' || stage === 'speaking';
-  const showOutfitSelector = isPreludeVisible;
-  const outfitSelectorDroids = getOutfitSelectorDroids(initialDroid);
-  const activeOutfitIndex = getOutfitSelectorIndex(preludePhase);
-  // Pin the raised-brow + flat-mouth face through the voice-tuning beats; the
-  // outfit phases (and ``clean`` onward) fall back to the default animation.
-  const preludeFaceOverride = getPreludeFaceOverride(
-    preludePhase,
-    stage === 'speaking',
-    audioMouthShape,
-    configuredIntroAudioSrc ? audioSpeechLevel : 0
-  );
-
   return (
     <div
       ref={rootRef}
@@ -881,8 +628,6 @@ export function CoordinatorOnboardingCallIntro({
       data-background-motion={
         stage === 'flying' ? 'scrolling' : stage === 'landing' ? 'landing' : 'idle'
       }
-      data-prelude-phase={isPreludeVisible ? preludePhase : undefined}
-      data-initial-voice={initialVoice?.id}
       data-testid="coordinator-onboarding-call-intro"
     >
       <motion.div
@@ -894,41 +639,25 @@ export function CoordinatorOnboardingCallIntro({
           scale: 1,
         }}
         exit={{ opacity: 1, x: initialAvatarOffset.x, y: initialAvatarOffset.y, scale: 1 }}
-        transition={{ duration: isPreludeVisible ? 0.28 : 0 }}
+        transition={{ duration: 0.28 }}
         className="flex items-center justify-center"
       >
         <div className="relative" style={{ width: framePx, height: framePx }}>
-          {showOutfitSelector ? (
-            <OutfitSelectorDroid
-              droids={outfitSelectorDroids}
-              activeIndex={activeOutfitIndex}
-              isSpeaking={stage === 'speaking'}
+          {/* One Marty avatar speaks throughout, then teleports the same fixed
+           * appearance into the docked call surface. */}
+          <DroidTeleportFizzle
+            mode="out"
+            active={stage === 'landing'}
+            className="absolute inset-0 block"
+          >
+            <SeatedCoordinatorDroid
+              droid={MARTY_DROID_APPEARANCE}
+              width={droidWidth}
+              isSpeaking={stage !== 'pause'}
               mouthShape={audioMouthShape}
               speechLevel={configuredIntroAudioSrc ? audioSpeechLevel : undefined}
-              faceState={preludeFaceOverride}
-              droidWidth={droidWidth}
-              framePx={framePx}
             />
-          ) : (
-            // No shared-element flight into the call: the droid stays put for
-            // the elevator ascent and, on ``landing``, dematerialises with a
-            // pixelated teleport fizzle. The docked call avatar materialises
-            // with the matching ``in`` fizzle, so the handoff reads as a
-            // teleport rather than a glide across the screen.
-            <DroidTeleportFizzle
-              mode="out"
-              active={stage === 'landing'}
-              className="absolute inset-0 block"
-            >
-              <SeatedCoordinatorDroid
-                droid={preludeAvatarVisual}
-                width={droidWidth}
-                isSpeaking={stage === 'flying' || stage === 'landing'}
-                mouthShape={audioMouthShape}
-                speechLevel={configuredIntroAudioSrc ? audioSpeechLevel : undefined}
-              />
-            </DroidTeleportFizzle>
-          )}
+          </DroidTeleportFizzle>
         </div>
       </motion.div>
     </div>

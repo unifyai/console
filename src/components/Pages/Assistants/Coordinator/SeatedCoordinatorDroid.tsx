@@ -6,7 +6,6 @@ import {
   getCreatureAccent,
   getCreatureForm,
   getRotatingBotAnchorRatios,
-  type AnimatedDroidFaceState,
 } from '@droid/brand/components';
 import type { CreatureMouthShape } from '@/components/Brand/TeammateCreature';
 import { clampDroidSpeechLevel } from '@/utils/assistants/droid-animation';
@@ -77,19 +76,12 @@ export function SeatedCoordinatorDroid({
   isSpeaking,
   mouthShape = 'closed',
   speechLevel,
-  faceState,
 }: {
   droid: CoordinatorOnboardingIntroDroidAppearance;
   width?: number;
   isSpeaking: boolean;
   mouthShape?: CreatureMouthShape;
   speechLevel?: number;
-  /**
-   * Render this exact face instead of deriving one from the droid's mood /
-   * lipsync. Used by the onboarding intro to pin a deterministic expression
-   * (raised brow + flat mouth) while Marty fumbles his voice tuning.
-   */
-  faceState?: AnimatedDroidFaceState | null;
 }) {
   const form = getCreatureForm(droid.shape);
   const anchor = getRotatingBotAnchorRatios(form);
@@ -113,7 +105,6 @@ export function SeatedCoordinatorDroid({
         className="block h-auto w-full"
         disableSpeechMotion
         emotion={droid.mood ?? 'happy'}
-        faceState={faceState}
         fixed={1}
         form={form}
         isSpeaking={isSpeaking}
