@@ -16,6 +16,10 @@ export type CoordinatorOnboardingIntroVoice = {
   id?: string;
 };
 
+// The MP3 referenced here is a pre-rendered droid walkie/radio asset. Regenerate
+// it only via branding/docs/walkie-voice-pipeline.md so the transcript, walkie
+// EQ/compression/noise, sampled intro/outro, and carrier bed stay consistent
+// with the landing-page droid voices.
 export const COORDINATOR_ONBOARDING_INTRO = {
   audioSrc: '/sounds/marty-onboarding-call-intro.mp3',
   preludeDurationMs: 20_540,

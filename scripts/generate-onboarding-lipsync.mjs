@@ -4,6 +4,12 @@
 // uses the same offline, deterministic mouth animation flow instead of a live
 // analyser.
 //
+// Audio generation for the corresponding MP3 MUST follow the central branding
+// pipeline in branding/docs/walkie-voice-pipeline.md: exact transcript,
+// ElevenLabs clean speech, walkie EQ/compression/noise, sampled radio
+// intro/outro, and carrier/static bed. Do not regenerate this asset from plain
+// TTS or ad-hoc replacement copy.
+//
 // The intro audio is a concatenation of spoken segments and pure radio
 // transition effects (radio crackle, tuning whooshes, R2-D2 bleeps, silences).
 // A live analyser mistakes those effects for speech and flaps the mouth, so we
