@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { motion } from 'framer-motion';
 import type { Transition } from 'framer-motion';
-import { TeammateCreature } from '@/components/Brand';
+import { AnimatedDroid, getCreatureAccent, getCreatureForm } from '@droid/brand/components';
 import type { BrandRole, CreatureShape } from '@/components/Brand/shapes';
 import type {
   CreatureAntenna,
@@ -12,8 +12,7 @@ import type {
   CreatureMouthShape,
 } from '@/components/Brand/TeammateCreature';
 import { cn } from '@/lib/utils';
-import { useDroidEyeExpression } from '@/hooks/Assistants/useDroidEyeExpression';
-import { clampDroidSpeechLevel, getDroidSpeechTransform } from '@/utils/assistants/droid-animation';
+import { clampDroidSpeechLevel } from '@/utils/assistants/droid-animation';
 
 interface DroidCallAvatarProps {
   isSpeaking: boolean;
@@ -59,39 +58,38 @@ export function DroidCallAvatar({
   const displayedSpeechLevel = clampDroidSpeechLevel(speechLevel ?? 0);
   const displayedMouthShape =
     mouthShape ?? (displayedSpeechLevel > 0.08 && isSpeaking ? 'narrow' : 'closed');
-  const animatedEyes = useDroidEyeExpression({
-    baseEyes,
-    isCallActive,
-    isSpeaking,
-    isUserSpeaking,
-    speechLevel: displayedSpeechLevel,
-  });
-  const displayedCreatureEyes = isHovered ? 'square' : animatedEyes;
   const animatedVisualStyle = {
     '--droid-speech-level': displayedSpeechLevel.toFixed(3),
-    transform: animateBodyMotion ? getDroidSpeechTransform(displayedSpeechLevel * 0.45) : undefined,
   } as React.CSSProperties;
+  const active = isometricRest ? isCallActive : true;
+  const fixed = isometricRest ? undefined : 1;
 
   return (
     <motion.span
       className={cn('flex h-full w-full items-center justify-center overflow-visible', className)}
       layoutId={layoutId}
+      aria-label={label}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      role="img"
       style={animatedVisualStyle}
       transition={layoutTransition}
     >
-      <TeammateCreature
+      <AnimatedDroid
         antenna={antenna}
         className={cn('h-full w-full', creatureClassName)}
-        color={color}
-        eyes={displayedCreatureEyes}
-        label={label}
-        mood={mood}
-        mouthLevel={displayedSpeechLevel}
+        accent={getCreatureAccent(color)}
+        active={active}
+        disableSpeechMotion={!animateBodyMotion}
+        fixed={fixed}
+        form={getCreatureForm(shape)}
+        emotion={mood}
+        isSpeaking={isSpeaking}
+        isUserSpeaking={isUserSpeaking}
+        restingEyes={isHovered ? 'square' : baseEyes}
+        stableBox
+        speechLevel={displayedSpeechLevel}
         mouthShape={displayedMouthShape}
-        shape={shape}
-        active={isometricRest ? isCallActive : undefined}
       />
     </motion.span>
   );

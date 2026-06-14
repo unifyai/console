@@ -1,3 +1,8 @@
+const path = require('node:path');
+
+const CENTRAL_BRANDING_ROOT = path.resolve(__dirname, '../branding');
+const CENTRAL_ISO_ENTRY = path.join(CENTRAL_BRANDING_ROOT, 'vendor/iso-animation/src/index.ts');
+
 /** @type {import('next').NextConfig} */
 const landingOrigins = (process.env.LANDING_AUTH_ALLOWED_ORIGINS ?? '')
   .split(',')
@@ -25,7 +30,7 @@ const serverActionAllowedOrigins = [
 ];
 
 const nextConfig = {
-  transpilePackages: ['@droid/brand'],
+  transpilePackages: ['@droid/brand', '@droid/iso'],
   images: {
     remotePatterns: [
       {
@@ -73,6 +78,13 @@ const nextConfig = {
     styledComponents: true,
   },
   webpack(config) {
+    config.resolve = config.resolve ?? {};
+    config.resolve.symlinks = false;
+    config.resolve.alias = {
+      ...(config.resolve.alias ?? {}),
+      '@droid/iso$': CENTRAL_ISO_ENTRY,
+    };
+
     // Grab the existing rule that handles SVG imports
     const fileLoaderRule = config.module.rules.find((rule) => rule.test?.test?.('.svg'));
 
