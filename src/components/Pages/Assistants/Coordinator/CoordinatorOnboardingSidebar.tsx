@@ -26,8 +26,10 @@
  */
 
 import * as React from 'react';
+import { RotateCcw } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
+import { cn } from '@/lib/utils';
 import {
   CoordinatorOnboardingChecklist,
   type CoordinatorOnboardingChecklistProps,
@@ -51,11 +53,16 @@ const PANEL_TAB_TRIGGER_CLASS = [
 export interface CoordinatorOnboardingSidebarProps extends CoordinatorOnboardingChecklistProps {
   onSkip: () => void;
   isSkipping: boolean;
+  /** Replays the call intro from the beginning — no ringing picker,
+   * just the animated intro as if the user had pressed "Start Call".
+   * Omitted when there is nothing to replay. */
+  onReplayIntro?: () => void;
 }
 
 export function CoordinatorOnboardingSidebar({
   onSkip,
   isSkipping,
+  onReplayIntro,
   ...checklistProps
 }: CoordinatorOnboardingSidebarProps) {
   return (
@@ -82,7 +89,23 @@ export function CoordinatorOnboardingSidebar({
           </TabsContent>
         </Tabs>
       </div>
-      <div className="flex flex-shrink-0 justify-end px-4 pb-4">
+      <div
+        className={cn(
+          'flex flex-shrink-0 items-center px-4 pb-4',
+          onReplayIntro ? 'justify-between' : 'justify-end'
+        )}
+      >
+        {onReplayIntro && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onReplayIntro}
+            data-testid="coordinator-onboarding-replay-intro"
+          >
+            <RotateCcw className="mr-1.5 size-3.5" />
+            Replay intro
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="sm"

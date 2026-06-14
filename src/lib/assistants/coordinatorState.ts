@@ -38,6 +38,13 @@ export interface CoordinatorStateSnapshot {
    */
   completedStepIds: string[];
   skippedStepIds: string[];
+  /**
+   * Whether the user has resolved the opening picker (started the call
+   * or chose chat). Once true the ringing picker and auto-playing intro
+   * are never shown again on load — the intro is replayed on demand
+   * from the onboarding pane. One-way sticky server-side.
+   */
+  introWatched: boolean;
 }
 
 export interface CoordinatorStatePatch {
@@ -45,6 +52,7 @@ export interface CoordinatorStatePatch {
   onboardingStep?: string;
   clearOnboardingStep?: boolean;
   skipOnboardingStep?: string;
+  introWatched?: boolean;
 }
 
 function normalizeMode(value: unknown): CoordinatorMode {
@@ -74,6 +82,7 @@ function normalizeSnapshot(coordinatorId: number, raw: unknown): CoordinatorStat
     endedAt: normalizeString(record.endedAt ?? record.ended_at),
     completedStepIds: normalizeStepIds(record.completedStepIds ?? record.completed_step_ids),
     skippedStepIds: normalizeStepIds(record.skippedStepIds ?? record.skipped_step_ids),
+    introWatched: (record.introWatched ?? record.intro_watched) === true,
   };
 }
 
@@ -117,6 +126,7 @@ export async function updateCoordinatorState(
   if (patch.onboardingStep !== undefined) body.onboardingStep = patch.onboardingStep;
   if (patch.clearOnboardingStep) body.clearOnboardingStep = true;
   if (patch.skipOnboardingStep !== undefined) body.skipOnboardingStep = patch.skipOnboardingStep;
+  if (patch.introWatched !== undefined) body.introWatched = patch.introWatched;
 
   const client = await getOrchestraUserClient(user.apiKey);
   const response = await client.patch(`/assistant/${numericId}/state`, body);

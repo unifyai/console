@@ -9,8 +9,11 @@
  *
  *   - **Picker** (``choice === null`` AND no active call): a
  *     centered, full-width call-vs-chat prompt. No sidebar, no skip
- *     affordance. The picker decision is per-session and never
- *     persisted, so reloading mid-flow drops the user back here.
+ *     affordance. Shown only until the user first resolves it; once
+ *     ``Coordinator/State.introWatched`` is set we skip the picker
+ *     (and its ringing + auto-playing intro) on every later load and
+ *     land directly on the working layout, where a "Replay intro"
+ *     affordance re-runs the intro on demand.
  *
  *   - **Docked call** (``isCoordinatorCallActive``): the
  *     ``AssistantCommunicationDialog`` rendered inline via the
@@ -206,7 +209,14 @@ export function CoordinatorOnboarding({
   onOnboardingComplete,
   initialDroid = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID,
 }: CoordinatorOnboardingProps) {
-  const { updateState } = useCoordinatorOnboarding(coordinator.agentId);
+  const { state: coordinatorState, updateState } = useCoordinatorOnboarding(coordinator.agentId);
+  // Whether the user has already resolved the opening picker (started
+  // the call or chose chat) in a previous session. Read from the same
+  // React Query cache the parent gates the layout on, so it's resolved
+  // by the time this surface mounts. When true the ringing picker and
+  // auto-playing intro are skipped on load — the user lands directly on
+  // the working layout and replays the intro on demand from the sidebar.
+  const hasWatchedIntro = coordinatorState?.introWatched ?? false;
   // Voice calls require LiveKit (Console-owned). Without it the picker's
   // "Start Call" is shown disabled (with a reason) and chat is the only path.
   const { voiceCalls } = useFeatures();
@@ -231,11 +241,21 @@ export function CoordinatorOnboarding({
     [onboardingCtx]
   );
 
-  // Ephemeral per-session phase: a reload always returns to the
-  // picker so a resumed onboarding lets the user re-decide between
-  // call and chat. Persisting this on Coordinator/State was the
-  // earlier design; we removed it on purpose.
-  const [phase, setPhase] = React.useState<OnboardingPhase>('picker');
+  // Per-session phase. A fresh user starts on the ``picker`` (ringing
+  // call-vs-chat prompt). Once they've resolved it in any prior
+  // session (``hasWatchedIntro``) we skip straight to the working
+  // ``chat`` layout on load instead of re-ringing and re-playing the
+  // intro — the specific call-vs-chat surface choice is still not
+  // persisted, only that the picker was answered at all.
+  const [phase, setPhase] = React.useState<OnboardingPhase>(() =>
+    hasWatchedIntro ? 'chat' : 'picker'
+  );
+  // Whether we're awaiting *this* session's chat opener — drives the
+  // artificial "coordinator is typing…" placeholder. Set only when the
+  // user actively enters chat this session (picked chat, or a call
+  // ended); stays false on a watched-intro auto-resume where the prior
+  // conversation is already in history and no new opener is coming.
+  const [pendingChatOpener, setPendingChatOpener] = React.useState(false);
   const [introAvatarOffset, setIntroAvatarOffset] = React.useState<IntroAvatarOffset>({
     x: 0,
     y: -72,
@@ -268,7 +288,11 @@ export function CoordinatorOnboarding({
   const [activeMobileTab, setActiveMobileTab] = React.useState<MobileTab>('chat');
   const isMobile = useIsMobile();
   const { startRinging: startPickerRinging, stopRinging: stopPickerRinging } = useCallSounds();
-  const isPickerVisible = !isCoordinatorCallActive && phase === 'picker';
+  // The watched-intro guard is belt-and-suspenders: ``phase`` already
+  // initialises to ``chat`` when the intro was watched, but if the
+  // state read resolves *after* mount we still suppress the ringing
+  // picker rather than briefly flashing (and ringing) it.
+  const isPickerVisible = !isCoordinatorCallActive && phase === 'picker' && !hasWatchedIntro;
 
   React.useEffect(() => {
     if (!isPickerVisible) {
@@ -440,18 +464,36 @@ export function CoordinatorOnboarding({
       if (phase !== 'picker' || isCoordinatorCallActive) return;
       setIntroAvatarOffset(avatarOffset);
       setPhase('intro');
+      // Mark the picker resolved the moment they commit, so even a
+      // reload mid-intro lands on the working layout rather than
+      // re-ringing and replaying from the top.
+      void updateState({ introWatched: true });
     },
-    [isCoordinatorCallActive, phase]
+    [isCoordinatorCallActive, phase, updateState]
   );
 
   const handleIntroFinished = React.useCallback(() => {
     setPhase(isCoordinatorCallActiveRef.current ? 'call' : 'startingCall');
   }, []);
 
+  // Replay the intro on demand from the onboarding sidebar: jump
+  // straight into the intro animation as if the user had pressed
+  // "Start Call" — no picker, no ringing — re-arming the call-start
+  // trigger so the intro hands off into a call exactly as the first
+  // play-through did. ``introWatched`` is already persisted by the
+  // time the sidebar (and thus this affordance) is reachable.
+  const handleReplayIntro = React.useCallback(() => {
+    hasTriggeredCallStartRef.current = false;
+    setIntroAvatarOffset({ x: 0, y: -72 });
+    setPhase('intro');
+  }, []);
+
   const handlePickChat = React.useCallback(() => {
+    setPendingChatOpener(true);
     setPhase('chat');
     notifySessionStarted('chat');
-  }, [notifySessionStarted]);
+    void updateState({ introWatched: true });
+  }, [notifySessionStarted, updateState]);
 
   React.useEffect(() => {
     isCoordinatorCallActiveRef.current = isCoordinatorCallActive;
@@ -474,6 +516,7 @@ export function CoordinatorOnboarding({
       (phase === 'call' || phase === 'startingCall')
     ) {
       hasTriggeredCallStartRef.current = false;
+      setPendingChatOpener(true);
       setPhase('chat');
       notifySessionStarted('chat');
     }
@@ -549,7 +592,7 @@ export function CoordinatorOnboarding({
       reconnectChatStream={reconnectChatStream}
       chatStreamActivitySignal={chatStreamActivitySignal}
       isCallConnected={isCallConnected}
-      showTypingPlaceholder={phase === 'chat'}
+      showTypingPlaceholder={phase === 'chat' && pendingChatOpener}
     />
   );
 
@@ -641,6 +684,7 @@ export function CoordinatorOnboarding({
     <CoordinatorOnboardingSidebar
       onSkip={handleSkipOnboarding}
       isSkipping={isSkipping}
+      onReplayIntro={handleReplayIntro}
       onConnectWorkspace={onConnectWorkspace ? handleConnectWorkspace : undefined}
       onConnectApps={renderIntegrationsPane ? handleOpenIntegrations : undefined}
       onActNow={renderActionsPane ? handleActNow : undefined}
