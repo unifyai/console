@@ -24,11 +24,33 @@ export const COORDINATOR_ONBOARDING_INTRO = {
   backgroundStartDelayMs: 500,
   backgroundAccelerationMs: 2_400,
   callWarmupDelayMs: 0,
-  handoffLeadMs: 6_500,
+  // The visual handoff (avatar gliding into the docked call window)
+  // waits until Marty has finished his pre-written speech, so the
+  // elevator ascent spans the whole monologue rather than ending
+  // early. Kept as a named lead so the dock can be nudged ahead of
+  // the final word again if desired.
+  handoffLeadMs: 0,
   landingDurationMs: 1_000,
 };
 
 export type CoordinatorOnboardingIntroConfig = typeof COORDINATOR_ONBOARDING_INTRO;
+
+/**
+ * Wall-clock duration (ms) of the pre-recorded intro from the moment
+ * the intro mounts to the moment Marty stops speaking — i.e. when the
+ * user may start talking. Drives the "Intro" countdown badge. Honours
+ * the same runtime duration override the intro animation reads so the
+ * badge stays in lockstep during tests and previews.
+ */
+export function getCoordinatorIntroCountdownMs(): number {
+  const { initialPauseMs, fallbackDurationMs } = COORDINATOR_ONBOARDING_INTRO;
+  if (typeof window === 'undefined') {
+    return initialPauseMs + fallbackDurationMs;
+  }
+  const runtimeWindow = window as unknown as Record<string, number | undefined>;
+  const runtimeDurationMs = runtimeWindow['__COORDINATOR_ONBOARDING_INTRO_DURATION_MS'];
+  return initialPauseMs + (runtimeDurationMs ?? fallbackDurationMs);
+}
 
 export const COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID = {
   baseEyes: 'up',

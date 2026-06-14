@@ -31,8 +31,9 @@
  */
 
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Activity, ListTodo, Loader2, MessageSquare, Phone, Plug2 } from 'lucide-react';
+import { Activity, ListTodo, Loader2, MessageSquare, Mic, Phone, Plug2, Radio } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
@@ -45,6 +46,7 @@ import { CoordinatorOnboardingCallIntro } from '@/components/Pages/Assistants/Co
 import {
   COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID,
   COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT,
+  getCoordinatorIntroCountdownMs,
   type CoordinatorOnboardingIntroDroidAppearance,
 } from '@/utils/assistants/coordinator-onboarding-intro';
 import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
@@ -89,6 +91,13 @@ type MobileTab = 'chat' | RightSectionTab;
  * surface doesn't pretend the assistant is typing forever. Sized
  * to feel like a slow-but-real assistant response time. */
 const TYPING_INDICATOR_FALLBACK_MS = 8_000;
+
+// How long "Speak now!" lingers after the intro finishes before it
+// collapses into a circle (leftward) and pops away — long enough for the
+// cue to register without permanently occupying the masthead.
+const INTRO_COUNTDOWN_HOLD_AFTER_READY_MS = 2_000;
+const INTRO_COUNTDOWN_COLLAPSE_MS = 380;
+const INTRO_COUNTDOWN_POP_MS = 260;
 const ONBOARDING_REVEAL_TRANSITION = {
   duration: 2.8,
   ease: [0.16, 1, 0.3, 1],
@@ -262,6 +271,18 @@ export function CoordinatorOnboarding({
   });
   const hasTriggeredCallStartRef = React.useRef(false);
   const isCoordinatorCallActiveRef = React.useRef(isCoordinatorCallActive);
+  // Pre-recorded intro countdown badge. ``introStartedAt`` anchors the
+  // countdown clock; ``introCountdownMs`` is the wall-clock span until
+  // Marty stops speaking; ``introReady`` flips when the intro finishes
+  // so the badge swaps from "Intro" + timer to "Speak now!".
+  const [introStartedAt, setIntroStartedAt] = React.useState<number | null>(null);
+  const [introCountdownMs, setIntroCountdownMs] = React.useState(0);
+  const [introReady, setIntroReady] = React.useState(false);
+  // True for the brief window while the droid morphs from the intro
+  // into the docked call. Toggles the CSS that lifts its flight path
+  // above the panels sliding in and stops the call surface clipping it
+  // (see ``[data-coordinator-handoff]`` in globals.css).
+  const [isHandoffActive, setIsHandoffActive] = React.useState(false);
 
   const [isStartingCall, setIsStartingCall] = React.useState(false);
   const [isSkipping, setIsSkipping] = React.useState(false);
@@ -463,6 +484,9 @@ export function CoordinatorOnboarding({
     (avatarOffset: IntroAvatarOffset) => {
       if (phase !== 'picker' || isCoordinatorCallActive) return;
       setIntroAvatarOffset(avatarOffset);
+      setIntroStartedAt(Date.now());
+      setIntroCountdownMs(getCoordinatorIntroCountdownMs());
+      setIntroReady(false);
       setPhase('intro');
       // Mark the picker resolved the moment they commit, so even a
       // reload mid-intro lands on the working layout rather than
@@ -473,8 +497,19 @@ export function CoordinatorOnboarding({
   );
 
   const handleIntroFinished = React.useCallback(() => {
+    setIntroReady(true);
+    setIsHandoffActive(true);
     setPhase(isCoordinatorCallActiveRef.current ? 'call' : 'startingCall');
   }, []);
+
+  // Drop the handoff lift once the droid's morph (and the panel reveal)
+  // has settled, so the call surface goes back to clipping its content
+  // normally. Sized to outlast the shared-element layout transition.
+  React.useEffect(() => {
+    if (!isHandoffActive) return;
+    const handle = window.setTimeout(() => setIsHandoffActive(false), 3_200);
+    return () => window.clearTimeout(handle);
+  }, [isHandoffActive]);
 
   // Replay the intro on demand from the onboarding sidebar: jump
   // straight into the intro animation as if the user had pressed
@@ -485,8 +520,29 @@ export function CoordinatorOnboarding({
   const handleReplayIntro = React.useCallback(() => {
     hasTriggeredCallStartRef.current = false;
     setIntroAvatarOffset({ x: 0, y: -72 });
+    setIntroStartedAt(Date.now());
+    setIntroCountdownMs(getCoordinatorIntroCountdownMs());
+    setIntroReady(false);
     setPhase('intro');
   }, []);
+
+  // Restart the currently-playing intro from the top. Bumping
+  // ``introStartedAt`` re-keys the intro element (forcing a clean
+  // remount of its audio + animation timeline) and re-arms the
+  // call-start trigger, keeping the droid where it already sits.
+  const handleRestartIntro = React.useCallback(() => {
+    hasTriggeredCallStartRef.current = false;
+    setIntroReady(false);
+    setIntroStartedAt(Date.now());
+    setIntroCountdownMs(getCoordinatorIntroCountdownMs());
+  }, []);
+
+  // Skip the pre-recorded intro: hand off to the live call straight
+  // away rather than waiting for Marty to finish his opening lines.
+  const handleSkipIntro = React.useCallback(() => {
+    void triggerCoordinatorCallStart();
+    handleIntroFinished();
+  }, [handleIntroFinished, triggerCoordinatorCallStart]);
 
   const handlePickChat = React.useCallback(() => {
     setPendingChatOpener(true);
@@ -535,6 +591,20 @@ export function CoordinatorOnboarding({
     }
   }, [isSkipping, onOnboardingComplete, updateState]);
 
+  // Masthead "Intro" countdown / "Speak now!" badge. Rendered into
+  // every post-picker surface (intro, then the docked call); it portals
+  // to a fixed anchor beside the logo so it reads as one patch that
+  // simply changes label when Marty stops his pre-recorded speech. It
+  // self-resolves visibility from ``introStartedAt`` (null = hidden).
+  const introCountdownBadge = (
+    <OnboardingIntroCountdownBadge
+      startedAt={introStartedAt}
+      totalMs={introCountdownMs}
+      ready={introReady}
+      onSkip={handleSkipIntro}
+    />
+  );
+
   // ── Picker phase ──────────────────────────────────────────────
   // Picker shows only when nothing else is committed: no call is
   // alive, the user hasn't picked chat, and they haven't just hit
@@ -559,14 +629,19 @@ export function CoordinatorOnboarding({
 
   if (phase === 'intro') {
     return (
-      <AnimatePresence mode="wait">
-        <CoordinatorOnboardingCallIntro
-          initialAvatarOffset={introAvatarOffset}
-          initialDroid={initialDroid}
-          onReadyToStartCall={triggerCoordinatorCallStart}
-          onFinished={handleIntroFinished}
-        />
-      </AnimatePresence>
+      <div className="relative h-full w-full">
+        {introCountdownBadge}
+        <AnimatePresence mode="wait">
+          <CoordinatorOnboardingCallIntro
+            key={introStartedAt ?? 'intro'}
+            initialAvatarOffset={introAvatarOffset}
+            initialDroid={initialDroid}
+            onReadyToStartCall={triggerCoordinatorCallStart}
+            onFinished={handleIntroFinished}
+            onRestart={handleRestartIntro}
+          />
+        </AnimatePresence>
+      </div>
     );
   }
 
@@ -598,12 +673,16 @@ export function CoordinatorOnboarding({
 
   const mainPane =
     isCoordinatorCallActive && renderDockedCall ? (
-      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+      <div
+        className="flex h-full min-h-0 w-full flex-col overflow-hidden"
+        data-coordinator-handoff-flightpath
+      >
         <motion.div
           initial={false}
           animate={{ y: 0 }}
           className="min-h-0 flex-1 border-b"
           data-testid="coordinator-call-docked-region"
+          data-coordinator-handoff-flightpath
         >
           {renderDockedCall()}
         </motion.div>
@@ -730,9 +809,11 @@ export function CoordinatorOnboarding({
       : 'chat';
     return (
       <div
-        className="flex h-full w-full flex-col bg-background"
+        className="relative flex h-full w-full flex-col bg-background"
         data-testid="coordinator-onboarding"
+        data-coordinator-handoff={isHandoffActive ? 'active' : undefined}
       >
+        {introCountdownBadge}
         <motion.div
           initial={{ y: -48 }}
           animate={{ y: 0 }}
@@ -754,7 +835,10 @@ export function CoordinatorOnboarding({
          *  its intrinsic width — fine for the chat surface (which
          *  carries ``w-full``) but not for the panes, which rely
          *  on their parent giving them a width. */}
-        <div className="flex min-h-0 flex-[3] flex-col overflow-hidden">
+        <div
+          className="flex min-h-0 flex-[3] flex-col overflow-hidden"
+          data-coordinator-handoff-flightpath
+        >
           {resolvedActiveMobileTab === 'actions' && showActions
             ? renderActionsPane()
             : resolvedActiveMobileTab === 'tasks' && showTasks
@@ -778,7 +862,12 @@ export function CoordinatorOnboarding({
 
   // ── Desktop layout ───────────────────────────────────────────
   return (
-    <div className="flex h-full w-full bg-background" data-testid="coordinator-onboarding">
+    <div
+      className="relative flex h-full w-full bg-background"
+      data-testid="coordinator-onboarding"
+      data-coordinator-handoff={isHandoffActive ? 'active' : undefined}
+    >
+      {introCountdownBadge}
       {/* Center container (chat + onboarding sidebar). When the
        * right section is open we use a 2:1 flex-grow ratio so chat
        * gets twice the remaining width as the right pane,
@@ -797,7 +886,9 @@ export function CoordinatorOnboarding({
           />
         )}
         <div className="flex min-h-0 flex-1">
-          <div className="flex min-w-0 flex-1">{mainPane}</div>
+          <div className="flex min-w-0 flex-1" data-coordinator-handoff-flightpath>
+            {mainPane}
+          </div>
           <motion.aside
             initial={{ x: 420 }}
             animate={{ x: 0 }}
@@ -836,6 +927,175 @@ export function CoordinatorOnboarding({
         </motion.aside>
       )}
     </div>
+  );
+}
+
+/* ─── Pre-recorded intro countdown badge ──────────────────────────────── */
+
+function formatIntroCountdown(totalSeconds: number): string {
+  const clamped = Math.max(0, totalSeconds);
+  const minutes = Math.floor(clamped / 60);
+  const seconds = clamped % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+type IntroBadgeExitPhase = 'none' | 'collapsing' | 'popping' | 'gone';
+
+/**
+ * Top-left badge, anchored just to the right of the masthead logo, that
+ * signals the opening call is a pre-recorded intro the user can't talk
+ * over yet. While Marty speaks it shows "Intro" with a live countdown to
+ * when he finishes (plus a "Skip" affordance to cut straight to the live
+ * call); once the intro hands off (or the clock hits zero) it swaps in
+ * place to "Speak now!", pulses to invite the user in, then — after a
+ * short hold — collapses into a circle (leftward) and pops away.
+ *
+ * Portalled to ``document.body`` with a fixed anchor so it sits in the
+ * masthead row beside the logo regardless of which onboarding surface
+ * (intro or docked call) currently renders it, and isn't clipped by the
+ * scrolling-city content pane. ``startedAt === null`` keeps it fully
+ * hidden (e.g. the chat path, or before the intro begins).
+ */
+function OnboardingIntroCountdownBadge({
+  startedAt,
+  totalMs,
+  ready,
+  onSkip,
+}: {
+  startedAt: number | null;
+  totalMs: number;
+  ready: boolean;
+  onSkip?: () => void;
+}) {
+  const [mounted, setMounted] = React.useState(false);
+  const [nowMs, setNowMs] = React.useState(() => Date.now());
+  const [readyAt, setReadyAt] = React.useState<number | null>(null);
+  const [exitPhase, setExitPhase] = React.useState<IntroBadgeExitPhase>('none');
+
+  // Portal target is only available client-side.
+  React.useEffect(() => setMounted(true), []);
+
+  // Restart the clock on each fresh intro run and tick while one is
+  // active. Resetting ``readyAt``/``exitPhase`` here (keyed on
+  // ``startedAt``) re-arms the badge for replays.
+  React.useEffect(() => {
+    if (startedAt === null) return;
+    setReadyAt(null);
+    setExitPhase('none');
+    setNowMs(Date.now());
+    const id = window.setInterval(() => setNowMs(Date.now()), 250);
+    return () => window.clearInterval(id);
+  }, [startedAt]);
+
+  // Latch the moment we reach "Speak now!" — either the intro reported
+  // finished, or the countdown elapsed — so the hold-then-collapse
+  // timeline has a stable anchor.
+  React.useEffect(() => {
+    if (startedAt === null) return;
+    if (ready || Date.now() - startedAt >= totalMs) {
+      setReadyAt((prev) => prev ?? Date.now());
+    }
+  }, [startedAt, ready, totalMs, nowMs]);
+
+  // Once "Speak now!" has held for a beat, run the exit: collapse the pill
+  // into a circle (its right edge sliding left into the icon) and then pop
+  // the circle out of existence.
+  React.useEffect(() => {
+    if (readyAt === null) return;
+    const collapse = window.setTimeout(
+      () => setExitPhase('collapsing'),
+      INTRO_COUNTDOWN_HOLD_AFTER_READY_MS
+    );
+    const pop = window.setTimeout(
+      () => setExitPhase('popping'),
+      INTRO_COUNTDOWN_HOLD_AFTER_READY_MS + INTRO_COUNTDOWN_COLLAPSE_MS
+    );
+    const gone = window.setTimeout(
+      () => setExitPhase('gone'),
+      INTRO_COUNTDOWN_HOLD_AFTER_READY_MS + INTRO_COUNTDOWN_COLLAPSE_MS + INTRO_COUNTDOWN_POP_MS
+    );
+    return () => {
+      window.clearTimeout(collapse);
+      window.clearTimeout(pop);
+      window.clearTimeout(gone);
+    };
+  }, [readyAt]);
+
+  if (!mounted || startedAt === null || exitPhase === 'gone') return null;
+
+  // Derive readiness directly (not via the latched ``readyAt``) so a
+  // remount at the intro→call handoff shows "Speak now!" on the first
+  // frame instead of flashing a spent "Intro 0:00".
+  const elapsedMs = nowMs - startedAt;
+  const isReady = ready || elapsedMs >= totalMs;
+  const remainingSeconds = Math.ceil(Math.max(0, totalMs - elapsedMs) / 1000);
+  const isCollapsing = exitPhase !== 'none';
+  const isPopping = exitPhase === 'popping';
+
+  return createPortal(
+    <div
+      className="pointer-events-none fixed left-14 top-1.5 z-50"
+      data-testid="coordinator-onboarding-intro-countdown"
+      data-state={isReady ? 'ready' : 'counting'}
+    >
+      <div className="relative">
+        {/* Radar ping — pulses outward while the user is invited to speak. */}
+        {isReady && !isCollapsing && (
+          <motion.span
+            aria-hidden="true"
+            className="bg-primary/30 absolute inset-0 rounded-full"
+            initial={{ scale: 1, opacity: 0.55 }}
+            animate={{ scale: 1.9, opacity: 0 }}
+            transition={{ duration: 1.4, ease: 'easeOut', repeat: Infinity }}
+          />
+        )}
+        <motion.div
+          className={cn(
+            'relative flex items-center overflow-hidden whitespace-nowrap rounded-full border px-2 py-1.5 shadow-lg backdrop-blur-md transition-colors',
+            isReady
+              ? 'bg-primary/15 border-primary text-primary'
+              : 'bg-card/80 border-border text-card-foreground'
+          )}
+          style={{ transformOrigin: 'left center' }}
+          initial={false}
+          animate={isPopping ? { scale: 0, opacity: 0 } : { scale: 1, opacity: 1 }}
+          transition={{ duration: INTRO_COUNTDOWN_POP_MS / 1000, ease: [0.4, 0, 1, 1] }}
+        >
+          {isReady ? (
+            <Mic className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          ) : (
+            <Radio className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          )}
+          {/* Label/timer region collapses to nothing so the pill shrinks
+              leftward into an icon-only circle before the pop. The skip
+              affordance lives inside it so it collapses away too. */}
+          <motion.div
+            className="ml-2 flex items-center gap-2 overflow-hidden"
+            initial={false}
+            animate={isCollapsing ? { width: 0, opacity: 0, marginLeft: 0 } : { opacity: 1 }}
+            transition={{ duration: INTRO_COUNTDOWN_COLLAPSE_MS / 1000, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <span className="text-label font-semibold">{isReady ? 'Speak now!' : 'Intro'}</span>
+            {!isReady && (
+              <span className="text-label tabular-nums text-muted-foreground">
+                {formatIntroCountdown(remainingSeconds)}
+              </span>
+            )}
+            {!isReady && onSkip && (
+              <button
+                type="button"
+                onClick={onSkip}
+                className="text-label pointer-events-auto ml-1 border-l border-border pl-2 font-medium text-muted-foreground transition-colors hover:text-foreground"
+                data-testid="coordinator-onboarding-intro-skip"
+              >
+                Skip
+              </button>
+            )}
+          </motion.div>
+        </motion.div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
