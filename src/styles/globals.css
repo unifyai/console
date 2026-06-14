@@ -604,8 +604,43 @@
   .brand-chat-stencil-bg .brand-chat-stencil-bg::after {
     display: none;
   }
-  .coordinator-onboarding-intro-bg {
-    --coordinator-intro-stencil-offset: 0px;
+  .coordinator-onboarding-city-bg {
+    --coordinator-intro-city-position: 100%;
+    /* Viewport width at which the city backdrop exactly fits the screen.
+     * At/above it the image fits to width; below it the image holds this
+     * fixed scale and the centred left/right edges crop instead — so the
+     * elevator keeps a constant size (and a constant ascent speed)
+     * rather than zooming out on narrow screens. */
+    --coordinator-onboarding-bg-fit-width: 1728px;
+  }
+  .coordinator-onboarding-city-bg::before {
+    background-color: transparent;
+    /* 70/30 veil in the scheme's cream card colour (the top-navbar
+     * tone) mutes the photo's vibrance without touching the source
+     * asset, and stays theme-aware in light/dark. */
+    background-image:
+      linear-gradient(
+        color-mix(in srgb, var(--card) 70%, transparent),
+        color-mix(in srgb, var(--card) 70%, transparent)
+      ),
+      url('/brand/onboarding-city.png');
+    background-repeat: no-repeat;
+    /* Fit to width only down to the reference width; below it hold that
+     * pixel scale and crop the (horizontally centred) edges instead. */
+    background-size: max(100%, var(--coordinator-onboarding-bg-fit-width)) auto;
+    background-position: center var(--coordinator-intro-city-position, 100%);
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  /* Frosted panel for the onboarding picker: a translucent wash of the
+   * card colour over a heavy blur. The blur kills the photo's busy
+   * detail (keeping text legible) while the lowered opacity lets the
+   * city read softly through, so the panel looks like frosted glass
+   * rather than a solid cut-out. */
+  .coordinator-onboarding-card {
+    background-color: color-mix(in srgb, var(--card) 45%, transparent);
+    backdrop-filter: blur(20px) saturate(115%);
+    -webkit-backdrop-filter: blur(20px) saturate(115%);
   }
   .unify-block-mark:hover {
     cursor: pointer;
