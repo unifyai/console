@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import { motion } from 'framer-motion';
-import { RotateCcw } from 'lucide-react';
 import type { AnimatedDroidFaceState } from '@droid/brand/components';
 import {
   SeatedCoordinatorDroid,
@@ -21,6 +20,15 @@ import type { PrecomputedDroidLipsyncTrack } from '@droid/brand/droid';
 import type { VISEMES } from 'wawa-lipsync';
 
 type IntroStage = 'pause' | 'speaking' | 'flying' | 'landing';
+
+// Playback position (seconds) of Marty's closing line — "Any immediate
+// questions before we start?" — the final continuous utterance in the
+// intro audio (everything after ~59.3s, derived via silence detection).
+// "Skip" seeks here so the intro lands on the question instead of dead air.
+const SKIP_AUDIO_TARGET_SEC = 59.2;
+// When skipping, the elevator ascent is compressed to a quick rise so the
+// droid reaches his call position in step with the seeked-to closing line.
+const SKIP_FLY_MS = 1_400;
 
 /** Resolve the pre-computed lipsync track URL for an intro audio source. */
 function lipsyncUrlForAudio(src: string): string {
@@ -72,7 +80,8 @@ interface CoordinatorOnboardingCallIntroProps {
   initialVoice?: CoordinatorOnboardingIntroVoice;
   onReadyToStartCall: () => void;
   onFinished: () => void;
-  onRestart?: () => void;
+  skipSignal?: number;
+  onSkipped?: () => void;
 }
 
 function getRuntimeTiming() {
@@ -298,16 +307,23 @@ export function CoordinatorOnboardingCallIntro({
   initialVoice,
   onReadyToStartCall,
   onFinished,
-  onRestart,
+  skipSignal = 0,
+  onSkipped,
 }: CoordinatorOnboardingCallIntroProps) {
   const { droidWidth, framePx } = useCoordinatorDroidLayout();
   const rootRef = React.useRef<HTMLDivElement | null>(null);
   const onReadyToStartCallRef = React.useRef(onReadyToStartCall);
   const onFinishedRef = React.useRef(onFinished);
+  const onSkippedRef = React.useRef(onSkipped);
   const hasStartedCallRef = React.useRef(false);
   const hasFinishedRef = React.useRef(false);
   const keepAudioAfterUnmountRef = React.useRef(false);
+  // Set when "Skip" is pressed before the audio element has begun playing
+  // (within the opening pause); the start handler then seeks immediately.
+  const skipRequestedRef = React.useRef(false);
+  const previousSkipSignalRef = React.useRef(skipSignal);
   const [stage, setStage] = React.useState<IntroStage>('pause');
+  const [skipped, setSkipped] = React.useState(false);
   const [preludePhase, setPreludePhase] = React.useState<PreludePhase>('static');
   const [audioSpeechLevel, setAudioSpeechLevel] = React.useState(0);
   const [audioMouthShape, setAudioMouthShape] = React.useState<CreatureMouthShape>('closed');
@@ -321,7 +337,8 @@ export function CoordinatorOnboardingCallIntro({
   React.useEffect(() => {
     onReadyToStartCallRef.current = onReadyToStartCall;
     onFinishedRef.current = onFinished;
-  }, [onFinished, onReadyToStartCall]);
+    onSkippedRef.current = onSkipped;
+  }, [onFinished, onReadyToStartCall, onSkipped]);
 
   React.useEffect(() => {
     if (!configuredIntroAudioSrc) return undefined;
@@ -352,6 +369,40 @@ export function CoordinatorOnboardingCallIntro({
     startCallOnce();
     onFinishedRef.current();
   }, [startCallOnce]);
+
+  // Skip the bulk of the monologue: seek the audio to Marty's closing
+  // question and float the suited-up droid into his call position on a
+  // compressed ascent. When the seeked line ends, the existing ``ended``
+  // handler lands and hands off to the call as a natural finish would.
+  const skipToClosingQuestion = React.useCallback(() => {
+    if (hasFinishedRef.current || stage === 'landing') return;
+    skipRequestedRef.current = true;
+    // Retire the top-centre "Intro" countdown — it's no longer meaningful
+    // once we've jumped to the closing line.
+    onSkippedRef.current?.();
+    const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
+    const audio = coordinatorWindow.__coordinatorOnboardingIntroAudio;
+    if (audio) {
+      const ceiling = (audio.duration || SKIP_AUDIO_TARGET_SEC + 2) - 0.05;
+      audio.currentTime = Math.max(0, Math.min(SKIP_AUDIO_TARGET_SEC, ceiling));
+      void audio.play().catch(() => undefined);
+    }
+    setPreludePhase('marty');
+    // From the seated speaking beats, kick off the compressed ascent into
+    // the call position. If we're already flying, leave the in-flight
+    // ascent untouched and just let the seeked-to line carry us to landing.
+    if (stage === 'pause' || stage === 'speaking') {
+      setSkipped(true);
+      setStage('flying');
+    }
+  }, [stage]);
+
+  React.useEffect(() => {
+    if (skipSignal === previousSkipSignalRef.current) return;
+    previousSkipSignalRef.current = skipSignal;
+    if (skipSignal === 0) return;
+    skipToClosingQuestion();
+  }, [skipSignal, skipToClosingQuestion]);
 
   React.useEffect(() => {
     // Offsets are milliseconds into the intro audio (playback begins at
@@ -464,6 +515,11 @@ export function CoordinatorOnboardingCallIntro({
         }
         coordinatorWindow.__coordinatorOnboardingIntroAudio = audio;
 
+        // Honour a skip that landed before playback began.
+        if (skipRequestedRef.current) {
+          const ceiling = (audio.duration || SKIP_AUDIO_TARGET_SEC + 2) - 0.05;
+          audio.currentTime = Math.max(0, Math.min(SKIP_AUDIO_TARGET_SEC, ceiling));
+        }
         startAudioAnalysis(audio);
         audio.play().catch(() => {
           stopAudioAnalysis();
@@ -516,7 +572,9 @@ export function CoordinatorOnboardingCallIntro({
     const { durationMs, preludeDurationMs } = getRuntimeTiming();
     const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs, preludeDurationMs);
     const backgroundStartOffsetMs = getBackgroundStartOffsetMs(preludeDurationMs);
-    const motionDurationMs = Math.max(1, handoffOffsetMs - backgroundStartOffsetMs);
+    const motionDurationMs = skipped
+      ? SKIP_FLY_MS
+      : Math.max(1, handoffOffsetMs - backgroundStartOffsetMs);
     let startTimestamp: number | null = null;
     let animationFrame = 0;
 
@@ -538,7 +596,7 @@ export function CoordinatorOnboardingCallIntro({
 
     animationFrame = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(animationFrame);
-  }, [stage]);
+  }, [stage, skipped]);
 
   React.useEffect(() => {
     const root = rootRef.current;
@@ -626,20 +684,6 @@ export function CoordinatorOnboardingCallIntro({
                 speechLevel={configuredIntroAudioSrc ? audioSpeechLevel : undefined}
               />
             </motion.span>
-          )}
-          {/* Restart affordance, parked beneath the seated droid while he
-              speaks his pre-recorded lines. Hidden once the scene flies up
-              into the call handoff, where restarting no longer applies. */}
-          {onRestart && isPreludeVisible && (
-            <button
-              type="button"
-              onClick={onRestart}
-              className="text-label bg-card/80 absolute left-1/2 top-full z-10 mt-3 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-3 py-1 font-medium text-card-foreground shadow-sm backdrop-blur-md transition-colors hover:text-foreground"
-              data-testid="coordinator-onboarding-intro-restart"
-            >
-              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-              Restart
-            </button>
           )}
         </div>
       </motion.div>
