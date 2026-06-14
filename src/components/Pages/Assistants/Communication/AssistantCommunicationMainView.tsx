@@ -35,6 +35,7 @@ const IMAGE_AVATAR_MOUTH: Record<
   wide: { width: 34, topDip: 3, bottomDip: 16 },
   open: { width: 30, topDip: 4, bottomDip: 22 },
   flat: { width: 24, topDip: 0, bottomDip: 3 },
+  cat: { width: 19, topDip: 0, bottomDip: 20 },
 };
 
 function ImageAvatarMouth({
