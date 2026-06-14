@@ -606,6 +606,7 @@
   }
   .coordinator-onboarding-city-bg {
     --coordinator-intro-city-position: 100%;
+    --coordinator-intro-city-opacity: 1;
     /* Viewport width at which the city backdrop exactly fits the screen.
      * At/above it the image fits to width; below it the image holds this
      * fixed scale and the centred left/right edges crop instead — so the
@@ -629,6 +630,8 @@
      * pixel scale and crop the (horizontally centred) edges instead. */
     background-size: max(100%, var(--coordinator-onboarding-bg-fit-width)) auto;
     background-position: center var(--coordinator-intro-city-position, 100%);
+    opacity: var(--coordinator-intro-city-opacity, 1);
+    will-change: background-position, opacity;
     -webkit-mask-image: none;
     mask-image: none;
   }
@@ -641,6 +644,193 @@
     background-color: color-mix(in srgb, var(--card) 45%, transparent);
     backdrop-filter: blur(20px) saturate(115%);
     -webkit-backdrop-filter: blur(20px) saturate(115%);
+  }
+  .brand-fallback-scene {
+    position: relative;
+    background-color: var(--background);
+  }
+  .brand-fallback-scene::before {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(
+        color-mix(in srgb, var(--card) 64%, transparent),
+        color-mix(in srgb, var(--card) 64%, transparent)
+      ),
+      radial-gradient(
+        circle at 18% 22%,
+        color-mix(in srgb, var(--droid-glow) 28%, transparent),
+        transparent 30%
+      ),
+      radial-gradient(
+        circle at 82% 28%,
+        color-mix(in srgb, var(--neo-coral) 22%, transparent),
+        transparent 28%
+      ),
+      radial-gradient(
+        circle at 24% 86%,
+        color-mix(in srgb, var(--neo-amber) 20%, transparent),
+        transparent 34%
+      ),
+      url('/brand/onboarding-city.png');
+    background-position:
+      center,
+      center,
+      center,
+      center,
+      center bottom;
+    background-repeat: no-repeat;
+    background-size:
+      auto,
+      auto,
+      auto,
+      auto,
+      max(100%, 1728px) auto;
+    content: '';
+  }
+  .brand-fallback-scene::after {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    background-image: var(--brand-grain-texture);
+    background-size: 160px 160px;
+    content: '';
+    mix-blend-mode: multiply;
+    opacity: 0.2;
+  }
+  .brand-fallback-scene > * {
+    position: relative;
+    z-index: 1;
+  }
+  .brand-fallback-card {
+    border: 2px solid color-mix(in srgb, var(--foreground) 82%, var(--border));
+    border-radius: 28px;
+    background-image:
+      radial-gradient(
+        circle at 18% 10%,
+        color-mix(in srgb, var(--droid-glow) 40%, transparent),
+        transparent 31%
+      ),
+      radial-gradient(
+        circle at 92% 18%,
+        color-mix(in srgb, var(--neo-coral) 25%, transparent),
+        transparent 28%
+      ),
+      radial-gradient(
+        circle at 28% 102%,
+        color-mix(in srgb, var(--neo-amber) 34%, transparent),
+        transparent 34%
+      ),
+      linear-gradient(140deg, color-mix(in srgb, var(--card) 86%, var(--background)), var(--card)),
+      var(--brand-grain-texture);
+    background-blend-mode: normal, normal, normal, normal, multiply;
+    background-size:
+      auto,
+      auto,
+      auto,
+      auto,
+      128px 128px;
+    box-shadow:
+      0 10px 0 color-mix(in srgb, var(--foreground) 18%, transparent),
+      0 34px 90px color-mix(in srgb, var(--foreground) 18%, transparent);
+    isolation: isolate;
+  }
+  .brand-fallback-card::after {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    background-image: var(--brand-grain-texture);
+    background-size: 128px 128px;
+    content: '';
+    mix-blend-mode: multiply;
+    opacity: 0.18;
+  }
+  .brand-fallback-card > * {
+    position: relative;
+    z-index: 1;
+  }
+  .brand-fallback-city-window {
+    height: 122px;
+    border-bottom: 2px solid color-mix(in srgb, var(--foreground) 58%, var(--border));
+    background-image:
+      linear-gradient(
+        color-mix(in srgb, var(--card) 52%, transparent),
+        color-mix(in srgb, var(--card) 52%, transparent)
+      ),
+      url('/brand/onboarding-city.png');
+    background-position: center 62%;
+    background-repeat: no-repeat;
+    background-size: 760px auto;
+  }
+  .brand-fallback-hero {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+  }
+  .brand-fallback-droid {
+    display: grid;
+    flex: none;
+    width: 7rem;
+    place-items: center;
+  }
+  .brand-fallback-bubble {
+    position: relative;
+    max-width: 17rem;
+    border: 2px solid color-mix(in srgb, var(--foreground) 82%, var(--border));
+    border-radius: 18px;
+    background-image:
+      linear-gradient(
+        color-mix(in srgb, var(--card) 78%, transparent),
+        color-mix(in srgb, var(--card) 78%, transparent)
+      ),
+      var(--brand-grain-texture),
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--neo-amber) 62%, var(--card)),
+        color-mix(in srgb, var(--droid-glow) 46%, var(--card))
+      );
+    background-size:
+      auto,
+      128px 128px,
+      auto;
+    box-shadow:
+      0 5px 0 color-mix(in srgb, var(--neo-amber) 62%, var(--foreground)),
+      inset 0 1px 0 color-mix(in srgb, var(--card) 72%, transparent);
+    color: var(--foreground);
+    font-family: var(--font-space-grotesk), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    padding: 1rem 1.1rem;
+    text-align: left;
+  }
+  .brand-fallback-apology {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 28rem;
+    color: var(--foreground);
+    font-family: var(--font-space-grotesk), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+  @media (max-width: 640px) {
+    .brand-fallback-city-window {
+      height: 92px;
+      background-size: 620px auto;
+    }
+    .brand-fallback-hero {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .brand-fallback-bubble {
+      text-align: center;
+    }
   }
   /* Onboarding intro → call handoff. The coordinator droid morphs (shared
    * ``layoutId``) from the full-screen intro into its small slot inside
