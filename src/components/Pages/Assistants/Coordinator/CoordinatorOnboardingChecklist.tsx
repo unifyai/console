@@ -29,7 +29,7 @@
  */
 
 import * as React from 'react';
-import { ArrowLeft, Check, Minus } from 'lucide-react';
+import { ArrowLeft, Check } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { cn } from '@/lib/utils';
@@ -234,10 +234,6 @@ interface ResolvedChecklistItem extends OnboardingChecklistItem {
   done: boolean;
   skipped: boolean;
   status: 'pending' | 'done' | 'skipped';
-  /** Human-readable prereq label used by the disabled tooltip.
-   * ``undefined`` means the row is either done, has no prereq, or
-   * its prereq is already satisfied. */
-  disabledReason?: string;
   children?: ResolvedChecklistItem[];
 }
 
@@ -256,12 +252,11 @@ interface ResolvedChecklistItem extends OnboardingChecklistItem {
 function resolveChecklist(
   items: OnboardingChecklistItem[],
   completed: ReadonlySet<string>,
-  skipped: ReadonlySet<string>,
-  titlesById: Map<string, string>
+  skipped: ReadonlySet<string>
 ): ResolvedChecklistItem[] {
   return items.map((item) => {
     const resolvedChildren = item.children
-      ? resolveChecklist(item.children, completed, skipped, titlesById)
+      ? resolveChecklist(item.children, completed, skipped)
       : undefined;
     const childrenAllDone =
       !!resolvedChildren?.length && resolvedChildren.every((child) => child.status === 'done');
@@ -274,34 +269,67 @@ function resolveChecklist(
     const skippedByChildren = !done && childrenAllResolved && childrenHaveSkipped;
     const skippedResolved = skippedStep || skippedByChildren;
     const status = done ? 'done' : skippedResolved ? 'skipped' : 'pending';
-    const prereqDone =
-      !item.prerequisiteId ||
-      completed.has(item.prerequisiteId) ||
-      skipped.has(item.prerequisiteId);
-    const disabledReason =
-      status === 'pending' && !prereqDone && item.prerequisiteId
-        ? `Complete "${titlesById.get(item.prerequisiteId) ?? item.prerequisiteId}" first`
-        : undefined;
     return {
       ...item,
       done,
       skipped: skippedResolved,
       status,
-      disabledReason,
       children: resolvedChildren,
     };
   });
 }
 
-function collectTitles(
-  items: OnboardingChecklistItem[],
-  out: Map<string, string> = new Map()
-): Map<string, string> {
+function filterVisibleChecklist(
+  items: ResolvedChecklistItem[],
+  completed: ReadonlySet<string>,
+  skipped: ReadonlySet<string>,
+  isActionWired: (action: ChecklistAction | undefined) => boolean,
+  hiddenIds: Set<string> = new Set()
+): ResolvedChecklistItem[] {
+  const visibleItems: ResolvedChecklistItem[] = [];
+
   for (const item of items) {
-    out.set(item.id, item.title);
-    if (item.children) collectTitles(item.children, out);
+    const filteredChildren = item.children
+      ? filterVisibleChecklist(item.children, completed, skipped, isActionWired, hiddenIds)
+      : undefined;
+    const hasVisibleChildren = !!filteredChildren?.length;
+    const isResolved = item.status !== 'pending';
+    const prereqSatisfied =
+      !item.prerequisiteId ||
+      completed.has(item.prerequisiteId) ||
+      skipped.has(item.prerequisiteId);
+    const prereqHidden = !!item.prerequisiteId && hiddenIds.has(item.prerequisiteId);
+    const canActNow =
+      item.status === 'pending' && prereqSatisfied && !prereqHidden && isActionWired(item.action);
+
+    if (!isResolved && !hasVisibleChildren && !canActNow) {
+      hiddenIds.add(item.id);
+      continue;
+    }
+
+    if (hasVisibleChildren) {
+      const childrenAllDone = filteredChildren.every((child) => child.status === 'done');
+      const childrenAllResolved = filteredChildren.every((child) => child.status !== 'pending');
+      const childrenHaveSkipped = filteredChildren.some((child) => child.status === 'skipped');
+      const done = item.done || childrenAllDone;
+      const skippedResolved =
+        !done && (item.skipped || (childrenAllResolved && childrenHaveSkipped));
+      visibleItems.push({
+        ...item,
+        done,
+        skipped: skippedResolved,
+        status: done ? 'done' : skippedResolved ? 'skipped' : 'pending',
+        children: filteredChildren,
+      });
+    } else {
+      visibleItems.push({
+        ...item,
+        children: filteredChildren,
+      });
+    }
   }
-  return out;
+
+  return visibleItems;
 }
 
 function countItems(items: ResolvedChecklistItem[]): { total: number; resolved: number } {
@@ -356,9 +384,9 @@ function computePhases(items: ResolvedChecklistItem[]): PhaseProgress[] {
 /**
  * Identify the next actionable leaf so the UI can call it out with
  * a "Next" affordance. Walks the resolved tree in render order and
- * returns the first non-done, non-blocked leaf with a wired
+ * returns the first pending leaf with a wired
  * action. Returning ``null`` (everything done or everything still
- * blocked) is a non-event — the row variants alone are enough
+ * hidden) is a non-event — the row variants alone are enough
  * signal at that point.
  */
 function findNextActionableId(
@@ -371,7 +399,7 @@ function findNextActionableId(
       if (inner) return inner;
       continue;
     }
-    if (item.status === 'pending' && !item.disabledReason && isActionWired(item.action)) {
+    if (item.status === 'pending' && isActionWired(item.action)) {
       return item.id;
     }
   }
@@ -389,12 +417,7 @@ function findNextChildAction(
       if (inner) return inner;
       continue;
     }
-    if (
-      child.status === 'pending' &&
-      !child.disabledReason &&
-      child.action &&
-      isActionWired(child.action)
-    ) {
+    if (child.status === 'pending' && child.action && isActionWired(child.action)) {
       return child.action;
     }
   }
@@ -447,14 +470,10 @@ export function CoordinatorOnboardingChecklist({
   const ctx = useCoordinatorOnboardingContext();
   const completedStepIds = ctx?.completedStepIds ?? EMPTY_SET;
   const skippedStepIds = ctx?.skippedStepIds ?? EMPTY_SET;
-  const titlesById = React.useMemo(() => collectTitles(ONBOARDING_CHECKLIST), []);
-  const resolved = React.useMemo(
-    () => resolveChecklist(ONBOARDING_CHECKLIST, completedStepIds, skippedStepIds, titlesById),
-    [completedStepIds, skippedStepIds, titlesById]
+  const rawResolved = React.useMemo(
+    () => resolveChecklist(ONBOARDING_CHECKLIST, completedStepIds, skippedStepIds),
+    [completedStepIds, skippedStepIds]
   );
-  const { total, resolved: resolvedCount } = React.useMemo(() => countItems(resolved), [resolved]);
-  const percent = total > 0 ? Math.round((resolvedCount / total) * 100) : 0;
-  const phases = React.useMemo(() => computePhases(resolved), [resolved]);
 
   const handleAction = React.useCallback(
     (action: ChecklistAction) => {
@@ -468,9 +487,8 @@ export function CoordinatorOnboardingChecklist({
   );
 
   // An action is reachable when the parent has wired the
-  // corresponding handler. Items whose handler is unset render as
-  // static rows even if their prereq is satisfied — surfaces that
-  // don't support a particular action shouldn't show a dead button.
+  // corresponding handler. Pending items whose handler is unset are
+  // hidden so the checklist never shows a dead button.
   const isActionWired = React.useCallback(
     (action: ChecklistAction | undefined): boolean => {
       if (!action) return false;
@@ -484,11 +502,18 @@ export function CoordinatorOnboardingChecklist({
     [onConnectWorkspace, onConnectApps, onActNow, onScheduleTask, onHireSpecialist]
   );
 
+  const resolved = React.useMemo(
+    () => filterVisibleChecklist(rawResolved, completedStepIds, skippedStepIds, isActionWired),
+    [rawResolved, completedStepIds, skippedStepIds, isActionWired]
+  );
+  const { total, resolved: resolvedCount } = React.useMemo(() => countItems(resolved), [resolved]);
+  const percent = total > 0 ? Math.round((resolvedCount / total) * 100) : 0;
+  const phases = React.useMemo(() => computePhases(resolved), [resolved]);
+
   // ID of the leaf row the user should tackle next — drives the
   // "Next" pill + soft highlight that anchors attention without
-  // hiding the rest of the checklist. Null while everything is
-  // either done or still blocked (e.g. wired handlers missing on
-  // this surface).
+  // hiding the rest of the checklist. Null when every visible row is
+  // already resolved.
   const nextActionableId = React.useMemo(
     () => findNextActionableId(resolved, isActionWired),
     [resolved, isActionWired]
@@ -608,16 +633,15 @@ function ChecklistRow({
   onSkipStep,
 }: ChecklistRowProps) {
   const hasWiredAction = isActionWired(item.action);
-  const isBlocked = !!item.disabledReason;
   const isResolved = item.status !== 'pending';
-  const isActionable = hasWiredAction && !isResolved && !isBlocked;
+  const isActionable = hasWiredAction && !isResolved;
   const isNext = nextActionableId === item.id;
   const nextChildAction = React.useMemo(
     () => findNextChildAction(item, isActionWired),
     [item, isActionWired]
   );
   const canOpenChildAction = !!nextChildAction && !isResolved;
-  const canSkip = !!onSkipStep && !item.children?.length && !isResolved && !isBlocked;
+  const canSkip = !!onSkipStep && !item.children?.length && !isResolved;
   // Whether the next actionable leaf sits somewhere inside this
   // row's subtree. Parents on the path to "Next" stay at full
   // opacity so the user's eye flows from the phase header straight
@@ -671,7 +695,7 @@ function ChecklistRow({
     [item.id, onSkipStep]
   );
 
-  const rowClassName = (variant: 'done' | 'skipped' | 'actionable' | 'blocked' | 'static') =>
+  const rowClassName = (variant: 'done' | 'skipped' | 'actionable' | 'static') =>
     cn(
       'flex w-full items-start gap-2 rounded-md px-1.5 py-1 -mx-1.5',
       variant === 'actionable' && 'cursor-pointer hover:bg-muted/50',
@@ -682,14 +706,13 @@ function ChecklistRow({
       // a competing call-to-action.
     );
 
-  const renderLabel = (variant: 'done' | 'skipped' | 'actionable' | 'blocked' | 'static') => (
+  const renderLabel = (variant: 'done' | 'skipped' | 'actionable' | 'static') => (
     <span
       className={cn(
         'text-body-sm flex-1 leading-5',
         variant === 'done' && 'text-muted-foreground line-through',
         variant === 'skipped' && 'text-muted-foreground',
         variant === 'actionable' && (isNext ? 'font-medium text-foreground' : 'text-foreground'),
-        variant === 'blocked' && 'text-muted-foreground/70',
         variant === 'static' && 'text-foreground'
       )}
     >
@@ -755,7 +778,7 @@ function ChecklistRow({
       </TooltipProvider>
     ) : null;
 
-  const rowBody = (variant: 'done' | 'skipped' | 'actionable' | 'blocked' | 'static') => (
+  const rowBody = (variant: 'done' | 'skipped' | 'actionable' | 'static') => (
     <div className={rowClassName(variant)}>
       <ChecklistMarker status={item.status} />
       {renderLabel(variant)}
@@ -792,20 +815,9 @@ function ChecklistRow({
         {rowBody('actionable')}
       </div>
     );
-  } else if (isBlocked) {
-    row = (
-      <div
-        data-testid={`coordinator-onboarding-item-${item.id}`}
-        data-status="pending-blocked"
-        aria-disabled="true"
-      >
-        {rowBody('blocked')}
-      </div>
-    );
   } else {
     // Static informational row: a non-actionable grouping header
-    // ("Connect Marty") or a pending step with no
-    // unblocked / wired action.
+    // ("Connect Marty") that can open its visible child.
     row = canOpenChildAction ? (
       <div
         role="button"
@@ -826,9 +838,8 @@ function ChecklistRow({
   // Read-only suggestion chips under the ``act`` / ``schedule``
   // rows — each row shows the set that matches what completes it
   // (point-in-time prompts for ``act``, scheduled/event prompts for
-  // ``schedule``). Rendered only while the row is still pending +
-  // unblocked — once the row lands the parent strikes it through and
-  // the inspiration is no longer useful. We intentionally don't wire
+  // ``schedule``). Rendered only while the row is still pending; hidden
+  // rows never reach this component. We intentionally don't wire
   // any click behaviour: the chips are non-interactive copy. Same
   // chip reads the same in chat and call surfaces — keeping them
   // inert avoids bifurcating semantics across the two transports
@@ -843,7 +854,7 @@ function ChecklistRow({
       : item.id === 'schedule'
         ? SCHEDULE_SUGGESTED_WORKFLOWS
         : null;
-  const showSuggestions = !!suggestionsForItem && item.status === 'pending' && !isBlocked;
+  const showSuggestions = !!suggestionsForItem && item.status === 'pending';
 
   return (
     <li
@@ -916,7 +927,7 @@ function ChecklistMarker({ status }: { status: 'pending' | 'done' | 'skipped' })
       {status === 'done' ? (
         <Check className="h-3 w-3 stroke-[4]" />
       ) : status === 'skipped' ? (
-        <Minus className="h-3 w-3 stroke-[4]" />
+        <span className="text-caption font-semibold leading-none">S</span>
       ) : null}
     </span>
   );
