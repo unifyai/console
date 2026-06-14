@@ -1,18 +1,39 @@
 import type { Transition } from 'framer-motion';
+import type { BrandRole, CreatureShape } from '@/components/Brand/shapes';
+import type { CreatureEyes, CreatureMood } from '@/components/Brand/TeammateCreature';
+
+export type CoordinatorOnboardingIntroDroidAppearance = {
+  baseEyes?: CreatureEyes;
+  color: BrandRole;
+  mood?: CreatureMood;
+  shape: CreatureShape;
+};
+
+export type CoordinatorOnboardingIntroVoice = {
+  audioSrc?: string;
+  id?: string;
+};
 
 export const COORDINATOR_ONBOARDING_INTRO = {
-  audioSrc: '/sounds/marty-onboarding-intro.mp3?v=20260609-v3-verified',
-  fallbackDurationMs: 33_570,
+  audioSrc: '/sounds/marty-onboarding-call-intro.mp3',
+  preludeDurationMs: 21_528,
+  fallbackDurationMs: 55_056,
   initialPauseMs: 1_000,
   backgroundStartDelayMs: 500,
   backgroundAccelerationMs: 2_400,
   callWarmupDelayMs: 0,
   handoffLeadMs: 6_500,
   landingDurationMs: 1_000,
-  backgroundPixelsPerSecond: 36,
 };
 
 export type CoordinatorOnboardingIntroConfig = typeof COORDINATOR_ONBOARDING_INTRO;
+
+export const COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID = {
+  baseEyes: 'up',
+  color: 'blue',
+  mood: 'happy',
+  shape: 'notch',
+} satisfies CoordinatorOnboardingIntroDroidAppearance;
 
 export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm your coordinator droid.
 I'm here to learn how your work runs, connect the tools you use, and help route recurring work to the right specialist droids.

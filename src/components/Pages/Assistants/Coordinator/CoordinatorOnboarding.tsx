@@ -34,9 +34,16 @@ import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
-import { DroidCallAvatar } from '@/components/Pages/Assistants/Communication/DroidCallAvatar';
+import {
+  SeatedCoordinatorDroid,
+  useCoordinatorDroidLayout,
+} from '@/components/Pages/Assistants/Coordinator/SeatedCoordinatorDroid';
 import { CoordinatorOnboardingCallIntro } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingCallIntro';
-import { COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT } from '@/utils/assistants/coordinator-onboarding-intro';
+import {
+  COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID,
+  COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT,
+  type CoordinatorOnboardingIntroDroidAppearance,
+} from '@/utils/assistants/coordinator-onboarding-intro';
 import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
 import { CoordinatorOnboardingSidebar } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingSidebar';
 import { useCoordinatorOnboardingContext } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingContext';
@@ -165,6 +172,11 @@ interface CoordinatorOnboardingProps {
    * page layout can swap back to the full /assistants shell without
    * waiting on a query refetch. */
   onOnboardingComplete?: () => void;
+  /** Appearance of the droid the user arrives with (eventually the
+   * droid they clicked on the landing page). Drives both the picker
+   * avatar and the first speaking droid in the call intro so the two
+   * stay in sync. Defaults to the shared starting droid. */
+  initialDroid?: CoordinatorOnboardingIntroDroidAppearance;
 }
 
 export function CoordinatorOnboarding({
@@ -192,6 +204,7 @@ export function CoordinatorOnboarding({
   onHireSpecialist,
   onSkipStep,
   onOnboardingComplete,
+  initialDroid = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID,
 }: CoordinatorOnboardingProps) {
   const { updateState } = useCoordinatorOnboarding(coordinator.agentId);
   // Voice calls require LiveKit (Console-owned). Without it the picker's
@@ -487,7 +500,7 @@ export function CoordinatorOnboarding({
   if (isPickerVisible) {
     return (
       <div
-        className="brand-page-stencil-bg flex h-full w-full items-center justify-center bg-background"
+        className="brand-page-stencil-bg coordinator-onboarding-city-bg flex h-full w-full items-center justify-center overflow-hidden bg-background"
         data-testid="coordinator-onboarding"
       >
         <CoordinatorOnboardingPicker
@@ -495,6 +508,7 @@ export function CoordinatorOnboarding({
           onStartCall={handleStartCall}
           onPickChat={handlePickChat}
           isStartingCall={isStartingCall}
+          initialDroid={initialDroid}
         />
       </div>
     );
@@ -505,6 +519,7 @@ export function CoordinatorOnboarding({
       <AnimatePresence mode="wait">
         <CoordinatorOnboardingCallIntro
           initialAvatarOffset={introAvatarOffset}
+          initialDroid={initialDroid}
           onReadyToStartCall={triggerCoordinatorCallStart}
           onFinished={handleIntroFinished}
         />
@@ -982,7 +997,7 @@ function OnboardingMobileTabStrip({
   );
 }
 
-/* ─── Picker (Start Call / I'd rather chat) ─────────────────────────────── */
+/* ─── Picker (Start Call / I'd rather text) ─────────────────────────────── */
 
 interface CoordinatorOnboardingPickerProps {
   /** Whether voice calls are configured on this deployment (LiveKit). */
@@ -990,6 +1005,9 @@ interface CoordinatorOnboardingPickerProps {
   onStartCall: (avatarOffset: IntroAvatarOffset) => void;
   onPickChat: () => void;
   isStartingCall: boolean;
+  /** Appearance of the calling droid, matched to the first speaking
+   * droid in the intro so the call feels continuous. */
+  initialDroid: CoordinatorOnboardingIntroDroidAppearance;
 }
 
 function CoordinatorOnboardingPicker({
@@ -997,8 +1015,15 @@ function CoordinatorOnboardingPicker({
   onStartCall,
   onPickChat,
   isStartingCall,
+  initialDroid,
 }: CoordinatorOnboardingPickerProps) {
   const avatarRef = React.useRef<HTMLDivElement | null>(null);
+  const { droidWidth, framePx } = useCoordinatorDroidLayout();
+  // How far the card slides up under the droid so the two read as one
+  // unit. Scaled to the droid so the overlap holds across viewport
+  // sizes; the card's top padding is grown to match so the heading
+  // still clears the droid's feet.
+  const cardOverlapPx = Math.round(droidWidth * 0.22);
 
   const handleStartCall = React.useCallback(() => {
     const rect = avatarRef.current?.getBoundingClientRect();
@@ -1039,45 +1064,56 @@ function CoordinatorOnboardingPicker({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
+      // Opacity-only entrance (no ``y``): a transform on this ancestor
+      // would make the card's ``backdrop-filter`` sample an empty
+      // backdrop, defeating the frosted-glass blur.
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
-      className="align-center flex max-w-md flex-col items-center gap-6 px-6 text-center"
+      className="flex w-full max-w-md flex-col items-center px-6 text-center"
       data-testid="coordinator-onboarding-picker"
     >
-      <div ref={avatarRef} className="h-32 w-32">
-        <DroidCallAvatar creatureClassName="h-28 w-28" isSpeaking={false} />
+      <div ref={avatarRef} className="relative z-10" style={{ width: framePx, height: framePx }}>
+        <SeatedCoordinatorDroid droid={initialDroid} width={droidWidth} isSpeaking={false} />
       </div>
-      <p className="text-h3 font-medium text-foreground">
-        {voiceCalls
-          ? 'Your coordinator droid is calling to onboard you'
-          : 'Start onboarding with your coordinator droid'}
-      </p>
-      <div className="flex flex-col items-center gap-3 sm:flex-row">
-        {voiceCalls ? (
-          startCallButton
-        ) : (
-          // Keep the call option visible but disabled, with a reason. The span
-          // wrapper lets the tooltip fire over the disabled button.
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex">{startCallButton}</span>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>Voice calls aren&apos;t enabled on this deployment</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        <Button
-          variant="link"
-          onClick={onPickChat}
-          disabled={isStartingCall}
-          data-testid="coordinator-onboarding-pick-chat"
-        >
-          I&apos;d rather chat for now
-        </Button>
+      {/* The prompt + actions live in a frosted card so the copy stays
+       * legible against the busy city backdrop in both light and dark
+       * themes — the photo alone doesn't give reliable text contrast.
+       * The card tucks up under the droid (which sits on top via
+       * ``z-10``) so the avatar and panel read as a single unit. */}
+      <div
+        className="coordinator-onboarding-card relative flex w-full flex-col items-center gap-6 rounded-2xl border border-border px-8 pb-7 shadow-xl"
+        style={{ marginTop: -cardOverlapPx, paddingTop: cardOverlapPx + 24 }}
+      >
+        <p className="text-h3 font-medium text-card-foreground">
+          {voiceCalls ? 'Marty is calling to onboard you' : 'Start onboarding with Marty'}
+        </p>
+        <div className="flex flex-col items-center gap-3 sm:flex-row">
+          {voiceCalls ? (
+            startCallButton
+          ) : (
+            // Keep the call option visible but disabled, with a reason. The span
+            // wrapper lets the tooltip fire over the disabled button.
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">{startCallButton}</span>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Voice calls aren&apos;t enabled on this deployment</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          <Button
+            variant="link"
+            onClick={onPickChat}
+            disabled={isStartingCall}
+            data-testid="coordinator-onboarding-pick-chat"
+          >
+            I&apos;d rather text for now
+          </Button>
+        </div>
       </div>
     </motion.div>
   );
