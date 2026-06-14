@@ -52,7 +52,10 @@ import {
   SeatedCoordinatorDroid,
   useCoordinatorDroidLayout,
 } from '@/components/Pages/Assistants/Coordinator/SeatedCoordinatorDroid';
-import { CoordinatorOnboardingCallIntro } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingCallIntro';
+import {
+  CoordinatorOnboardingCallIntro,
+  primeCoordinatorOnboardingCitySoundscape,
+} from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingCallIntro';
 import {
   COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID,
   COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT,
@@ -489,6 +492,7 @@ export function CoordinatorOnboarding({
   const handleStartCall = React.useCallback(
     (avatarOffset: IntroAvatarOffset) => {
       if (phase !== 'picker' || isCoordinatorCallActive) return;
+      primeCoordinatorOnboardingCitySoundscape();
       setIntroAvatarOffset(avatarOffset);
       setIntroSkipSignal(0);
       setIntroStartedAt(Date.now());
@@ -536,6 +540,7 @@ export function CoordinatorOnboarding({
   // play-through did. ``introWatched`` is already persisted by the
   // time the sidebar (and thus this affordance) is reachable.
   const handleReplayIntro = React.useCallback(() => {
+    primeCoordinatorOnboardingCitySoundscape();
     hasTriggeredCallStartRef.current = false;
     setIntroAvatarOffset({ x: 0, y: -72 });
     setIntroSkipSignal(0);
@@ -550,6 +555,7 @@ export function CoordinatorOnboarding({
   // remount of its audio + animation timeline) and re-arms the
   // call-start trigger, keeping the droid where it already sits.
   const handleRestartIntro = React.useCallback(() => {
+    primeCoordinatorOnboardingCitySoundscape();
     hasTriggeredCallStartRef.current = false;
     setIntroSkipSignal(0);
     setIntroReady(false);
@@ -800,7 +806,7 @@ export function CoordinatorOnboarding({
     <AnimatePresence>
       {showTalkNowCue && (
         <motion.div
-          className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-background/80 p-6 backdrop-blur-md"
+          className="bg-background/80 pointer-events-none fixed inset-0 z-[100] flex items-center justify-center overflow-hidden p-6 backdrop-blur-md"
           data-testid="coordinator-onboarding-talk-now"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -809,14 +815,14 @@ export function CoordinatorOnboarding({
         >
           <motion.div
             aria-hidden="true"
-            className="absolute -left-16 top-20 h-56 w-56 rounded-full bg-role-teal/25 blur-3xl"
+            className="bg-role-teal/25 absolute -left-16 top-20 h-56 w-56 rounded-full blur-3xl"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ opacity: 0 }}
           />
           <motion.div
             aria-hidden="true"
-            className="absolute -right-20 bottom-16 h-64 w-64 rounded-full bg-role-orange/25 blur-3xl"
+            className="bg-role-orange/25 absolute -right-20 bottom-16 h-64 w-64 rounded-full blur-3xl"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -830,9 +836,9 @@ export function CoordinatorOnboarding({
           >
             <div
               aria-hidden="true"
-              className="absolute inset-0 translate-x-2 translate-y-2 rounded-2xl bg-role-orange/60"
+              className="bg-role-orange/60 absolute inset-0 translate-x-2 translate-y-2 rounded-2xl"
             />
-            <div className="relative overflow-hidden rounded-2xl border-2 border-foreground bg-card/95 p-8 text-center shadow-2xl">
+            <div className="bg-card/95 relative overflow-hidden rounded-2xl border-2 border-foreground p-8 text-center shadow-2xl">
               <div
                 aria-hidden="true"
                 className="absolute -left-3 top-1/2 h-6 w-6 -translate-y-1/2 rotate-45 border-b-2 border-l-2 border-foreground bg-card"
@@ -848,10 +854,10 @@ export function CoordinatorOnboarding({
                 <span className="h-2.5 w-2.5 rounded-full bg-role-purple" />
                 <span className="h-2.5 w-2.5 rounded-full bg-role-green" />
               </div>
-              <div className="relative mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-full border-2 border-foreground bg-primary/15 text-primary">
+              <div className="bg-primary/15 relative mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-full border-2 border-foreground text-primary">
                 <motion.span
                   aria-hidden="true"
-                  className="absolute inset-0 rounded-full bg-primary/30"
+                  className="bg-primary/30 absolute inset-0 rounded-full"
                   initial={{ scale: 1, opacity: 0.65 }}
                   animate={{ scale: 1.75, opacity: 0 }}
                   transition={{ duration: 1.25, ease: 'easeOut', repeat: Infinity }}
@@ -1081,7 +1087,7 @@ function OnboardingIntroCountdownBadge({
       data-state="counting"
     >
       <TooltipProvider>
-        <div className="flex items-center rounded-full border border-border bg-card/80 px-2 py-1.5 text-card-foreground shadow-lg backdrop-blur-md">
+        <div className="bg-card/80 flex items-center rounded-full border border-border px-2 py-1.5 text-card-foreground shadow-lg backdrop-blur-md">
           <Radio className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
           <span className="text-label ml-2 font-semibold">Intro</span>
           <span className="text-label ml-2 tabular-nums text-muted-foreground">

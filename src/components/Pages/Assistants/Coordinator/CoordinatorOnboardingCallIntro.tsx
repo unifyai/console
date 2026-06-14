@@ -20,6 +20,13 @@ import type { PrecomputedDroidLipsyncTrack } from '@droid/brand/droid';
 import type { VISEMES } from 'wawa-lipsync';
 
 type IntroStage = 'pause' | 'speaking' | 'flying' | 'landing';
+type CoordinatorCitySoundscapeState = {
+  bedNodes: AudioScheduledSourceNode[];
+  context: AudioContext;
+  eventTimer: number | null;
+  latestVolume: number;
+  masterGain: GainNode;
+};
 
 // Playback position (seconds) of Marty's closing line — "Any immediate
 // questions before we start?" — the final continuous utterance in the
@@ -29,6 +36,218 @@ const SKIP_AUDIO_TARGET_SEC = 59.2;
 // When skipping, the elevator ascent is compressed to a quick rise so the
 // droid reaches his call position in step with the seeked-to closing line.
 const SKIP_FLY_MS = 1_400;
+const CITY_SOUNDSCAPE_MAX_VOLUME = 0.18;
+const CITY_SOUNDSCAPE_AUDIBILITY_FLOOR = 0.006;
+const CITY_SOUNDSCAPE_FADE_IN_MS = 2_500;
+let coordinatorCitySoundscapeState: CoordinatorCitySoundscapeState | null = null;
+let coordinatorCitySoundscapeCleanupTimer: number | null = null;
+
+function getAudioContextConstructor() {
+  if (typeof window === 'undefined') return null;
+  return (
+    window.AudioContext ||
+    (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext ||
+    null
+  );
+}
+
+function createBrownNoiseSource(context: AudioContext) {
+  const buffer = context.createBuffer(1, context.sampleRate * 2, context.sampleRate);
+  const data = buffer.getChannelData(0);
+  let last = 0;
+
+  for (let i = 0; i < data.length; i += 1) {
+    last = (last + (Math.random() * 2 - 1) * 0.035) * 0.985;
+    data[i] = last * 2.5;
+  }
+
+  const source = context.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  return source;
+}
+
+function connectCityBed(context: AudioContext, destination: AudioNode) {
+  const bedNodes: AudioScheduledSourceNode[] = [];
+  const humMix = context.createGain();
+  const humFilter = context.createBiquadFilter();
+  const airSource = createBrownNoiseSource(context);
+  const airFilter = context.createBiquadFilter();
+  const airGain = context.createGain();
+
+  humMix.gain.value = 0.032;
+  humFilter.type = 'lowpass';
+  humFilter.frequency.value = 260;
+  humFilter.Q.value = 0.7;
+
+  [49, 73.5, 98].forEach((frequency, index) => {
+    const oscillator = context.createOscillator();
+    oscillator.type = 'sine';
+    oscillator.frequency.value = frequency;
+    oscillator.detune.value = (index - 1) * 5;
+    oscillator.connect(humMix);
+    oscillator.start();
+    bedNodes.push(oscillator);
+  });
+
+  airFilter.type = 'bandpass';
+  airFilter.frequency.value = 420;
+  airFilter.Q.value = 0.45;
+  airGain.gain.value = 0.04;
+
+  humMix.connect(humFilter);
+  humFilter.connect(destination);
+  airSource.connect(airFilter);
+  airFilter.connect(airGain);
+  airGain.connect(destination);
+  airSource.start();
+  bedNodes.push(airSource);
+
+  return bedNodes;
+}
+
+function connectWithOptionalPan(
+  context: AudioContext,
+  source: AudioNode,
+  destination: AudioNode,
+  pan: number
+) {
+  if (!('createStereoPanner' in context)) {
+    source.connect(destination);
+    return;
+  }
+
+  const panner = context.createStereoPanner();
+  panner.pan.value = pan;
+  source.connect(panner);
+  panner.connect(destination);
+}
+
+function playCityWhoosh(state: CoordinatorCitySoundscapeState) {
+  const { context, masterGain } = state;
+  const now = context.currentTime;
+  const source = createBrownNoiseSource(context);
+  const filter = context.createBiquadFilter();
+  const gain = context.createGain();
+  const duration = 1.2 + Math.random() * 1.1;
+  const startFreq = 180 + Math.random() * 260;
+  const endFreq = 560 + Math.random() * 620;
+  const pan = Math.random() > 0.5 ? -0.75 : 0.75;
+
+  filter.type = 'bandpass';
+  filter.Q.value = 1.8;
+  filter.frequency.setValueAtTime(startFreq, now);
+  filter.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
+
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.34 + Math.random() * 0.1, now + duration * 0.22);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+  source.connect(filter);
+  filter.connect(gain);
+  connectWithOptionalPan(context, gain, masterGain, pan);
+  source.start(now);
+  source.stop(now + duration + 0.02);
+}
+
+function stopCitySoundscapeEvents(state = coordinatorCitySoundscapeState) {
+  if (!state || state.eventTimer === null) return;
+  window.clearTimeout(state.eventTimer);
+  state.eventTimer = null;
+}
+
+function scheduleCitySoundscapeEvents(state: CoordinatorCitySoundscapeState) {
+  if (state.eventTimer !== null || state.latestVolume < CITY_SOUNDSCAPE_AUDIBILITY_FLOOR) return;
+
+  state.eventTimer = window.setTimeout(
+    () => {
+      state.eventTimer = null;
+      if (coordinatorCitySoundscapeState !== state) return;
+      if (
+        !document.hidden &&
+        state.context.state === 'running' &&
+        state.latestVolume >= CITY_SOUNDSCAPE_AUDIBILITY_FLOOR
+      ) {
+        playCityWhoosh(state);
+        scheduleCitySoundscapeEvents(state);
+      }
+    },
+    850 + Math.random() * 1_700
+  );
+}
+
+function ensureCoordinatorCitySoundscape() {
+  if (coordinatorCitySoundscapeCleanupTimer !== null) {
+    window.clearTimeout(coordinatorCitySoundscapeCleanupTimer);
+    coordinatorCitySoundscapeCleanupTimer = null;
+  }
+  if (coordinatorCitySoundscapeState) return coordinatorCitySoundscapeState;
+
+  const AudioContextCtor = getAudioContextConstructor();
+  if (!AudioContextCtor) return null;
+
+  const context = new AudioContextCtor();
+  const masterGain = context.createGain();
+  masterGain.gain.value = 0;
+  masterGain.connect(context.destination);
+
+  const bedNodes = connectCityBed(context, masterGain);
+  coordinatorCitySoundscapeState = {
+    bedNodes,
+    context,
+    eventTimer: null,
+    latestVolume: 0,
+    masterGain,
+  };
+  return coordinatorCitySoundscapeState;
+}
+
+function setCoordinatorCitySoundscapeVolume(volume: number) {
+  const state = ensureCoordinatorCitySoundscape();
+  if (!state) return;
+
+  state.latestVolume = volume;
+  const now = state.context.currentTime;
+  state.masterGain.gain.cancelScheduledValues(now);
+  state.masterGain.gain.setTargetAtTime(volume, now, 0.16);
+
+  if (volume >= CITY_SOUNDSCAPE_AUDIBILITY_FLOOR) {
+    void state.context.resume();
+    scheduleCitySoundscapeEvents(state);
+  } else {
+    stopCitySoundscapeEvents(state);
+  }
+}
+
+function cleanupCoordinatorCitySoundscape() {
+  const state = coordinatorCitySoundscapeState;
+  if (!state) return;
+
+  stopCitySoundscapeEvents(state);
+  state.latestVolume = 0;
+  const now = state.context.currentTime;
+  state.masterGain.gain.cancelScheduledValues(now);
+  state.masterGain.gain.setTargetAtTime(0, now, 0.12);
+
+  if (coordinatorCitySoundscapeCleanupTimer !== null) {
+    window.clearTimeout(coordinatorCitySoundscapeCleanupTimer);
+  }
+  coordinatorCitySoundscapeCleanupTimer = window.setTimeout(() => {
+    if (coordinatorCitySoundscapeState !== state) return;
+    state.bedNodes.forEach((node) => node.stop());
+    void state.context.close();
+    coordinatorCitySoundscapeState = null;
+    coordinatorCitySoundscapeCleanupTimer = null;
+  }, 1_800);
+}
+
+export function primeCoordinatorOnboardingCitySoundscape() {
+  const state = ensureCoordinatorCitySoundscape();
+  if (!state) return;
+
+  state.masterGain.gain.setValueAtTime(0, state.context.currentTime);
+  void state.context.resume();
+}
 
 /** Resolve the pre-computed lipsync track URL for an intro audio source. */
 function lipsyncUrlForAudio(src: string): string {
@@ -113,6 +332,13 @@ function getAcceleratedScrollProgress(elapsedMs: number, totalMs: number, accele
   }
 
   return (elapsed - rampMs / 2) / denominator;
+}
+
+function getCityBackdropOpacity(progress: number) {
+  const fadeStart = 0.74;
+  const fadeEnd = 0.96;
+  const fadeProgress = Math.max(0, Math.min(1, (progress - fadeStart) / (fadeEnd - fadeStart)));
+  return 1 - fadeProgress * fadeProgress * (3 - 2 * fadeProgress);
 }
 
 function getVisualHandoffOffsetMs(durationMs: number, preludeDurationMs: number) {
@@ -405,6 +631,12 @@ export function CoordinatorOnboardingCallIntro({
   }, [skipSignal, skipToClosingQuestion]);
 
   React.useEffect(() => {
+    return () => {
+      cleanupCoordinatorCitySoundscape();
+    };
+  }, []);
+
+  React.useEffect(() => {
     // Offsets are milliseconds into the intro audio (playback begins at
     // ``initialPauseMs``, the same anchor these timers use). Each outfit
     // offset is pinned to the exact start of its tuning-whoosh snippet in
@@ -567,44 +799,55 @@ export function CoordinatorOnboardingCallIntro({
 
   React.useEffect(() => {
     const root = rootRef.current;
-    if (!root || stage !== 'flying') return;
+    if (!root) return;
 
     const { durationMs, preludeDurationMs } = getRuntimeTiming();
     const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs, preludeDurationMs);
-    const backgroundStartOffsetMs = getBackgroundStartOffsetMs(preludeDurationMs);
     const motionDurationMs = skipped
       ? SKIP_FLY_MS
-      : Math.max(1, handoffOffsetMs - backgroundStartOffsetMs);
+      : Math.max(1, COORDINATOR_ONBOARDING_INTRO.initialPauseMs + handoffOffsetMs);
+    const currentPosition = Number.parseFloat(
+      root.style.getPropertyValue('--coordinator-intro-city-position')
+    );
+    const startPosition = skipped
+      ? Number.isFinite(currentPosition)
+        ? currentPosition
+        : 100
+      : 100;
     let startTimestamp: number | null = null;
     let animationFrame = 0;
 
-    // Ascend the city image: progress 0 → 1 maps to a
-    // ``background-position-y`` of 100% → 0%, so the scroll begins at
-    // the bottom of the image and rises to its top (like riding an
-    // elevator up) exactly as the flying window closes into the call
-    // handoff.
     const tick = (timestamp: number) => {
       if (startTimestamp === null) startTimestamp = timestamp;
+      const elapsedMs = timestamp - startTimestamp;
       const progress = getAcceleratedScrollProgress(
-        timestamp - startTimestamp,
+        elapsedMs,
         motionDurationMs,
         COORDINATOR_ONBOARDING_INTRO.backgroundAccelerationMs
       );
-      root.style.setProperty('--coordinator-intro-city-position', `${(1 - progress) * 100}%`);
-      animationFrame = window.requestAnimationFrame(tick);
+      const position = skipped ? startPosition * (1 - progress) : (1 - progress) * 100;
+      const ascentProgress = 1 - position / 100;
+      const cityOpacity = getCityBackdropOpacity(ascentProgress);
+      const soundFadeIn = skipped ? 1 : Math.min(1, elapsedMs / CITY_SOUNDSCAPE_FADE_IN_MS);
+      root.style.setProperty('--coordinator-intro-city-position', `${position}%`);
+      root.style.setProperty('--coordinator-intro-city-opacity', cityOpacity.toString());
+      setCoordinatorCitySoundscapeVolume(CITY_SOUNDSCAPE_MAX_VOLUME * cityOpacity * soundFadeIn);
+      if (progress < 1) {
+        animationFrame = window.requestAnimationFrame(tick);
+      }
     };
 
     animationFrame = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(animationFrame);
-  }, [stage, skipped]);
+  }, [skipped]);
 
   React.useEffect(() => {
     const root = rootRef.current;
     if (!root || stage !== 'landing') return;
 
-    // Settle on the top of the city image and hold it there through
-    // the handoff rather than snapping back to the bottom.
     root.style.setProperty('--coordinator-intro-city-position', '0%');
+    root.style.setProperty('--coordinator-intro-city-opacity', '0');
+    setCoordinatorCitySoundscapeVolume(0);
     const handle = window.setTimeout(() => {
       finishOnce();
     }, COORDINATOR_ONBOARDING_INTRO.landingDurationMs);
