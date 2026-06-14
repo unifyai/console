@@ -17,7 +17,7 @@ export type CoordinatorOnboardingIntroVoice = {
 export const COORDINATOR_ONBOARDING_INTRO = {
   audioSrc: '/sounds/marty-onboarding-call-intro.mp3',
   preludeDurationMs: 21_528,
-  fallbackDurationMs: 55_056,
+  fallbackDurationMs: 62_088,
   initialPauseMs: 1_000,
   backgroundStartDelayMs: 500,
   backgroundAccelerationMs: 2_400,
