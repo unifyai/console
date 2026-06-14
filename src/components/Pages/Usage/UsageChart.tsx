@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { UsageDataPoint, TimeGranularity } from '@/types/usage';
 import { formatTimestampForDisplay } from '@/utils/usage/dateUtils';
 import { formatCostAxis, formatCostForDisplay } from '@/utils/usage/formatters';
+import { Loader } from '@/components/Common/Loader';
 import { BarChart3 } from 'lucide-react';
 
 interface UsageChartProps {
@@ -86,7 +87,7 @@ function LoadingState() {
       data-testid="usage-chart-loading"
     >
       <div className="flex flex-col items-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <Loader size={32} />
         <p className="text-body-muted mt-2">Loading usage data...</p>
       </div>
     </div>

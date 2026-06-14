@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CreditCard, Loader2, Pencil, Plus, Star, Trash2 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import type { Appearance, StripeElementsOptions } from '@stripe/stripe-js';
 import { Button } from '../../UI/button';
@@ -409,7 +410,7 @@ export const PaymentMethodsSection = ({
           <div className="mt-6 space-y-3" data-testid="payment-methods-list">
             {loading ? (
               <div className="flex items-center justify-center py-6">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <Loader size={20} />
               </div>
             ) : cards.length === 0 ? (
               <p className="text-body-muted py-2" data-testid="no-cards">

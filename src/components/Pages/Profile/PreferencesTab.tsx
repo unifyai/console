@@ -4,8 +4,8 @@ import { useState, useEffect, useMemo } from 'react';
 import NewsletterPreferences, { type Newsletter } from './Newsletter';
 import PrimaryButton from '../../Common/Buttons/Primary';
 import SecondaryButton from '../../Common/Buttons/Secondary';
+import { Loader } from '@/components/Common/Loader';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
 
 const PreferencesTab = () => {
   const [newsletters, setNewsletters] = useState<Newsletter[]>([]);
@@ -68,7 +68,7 @@ const PreferencesTab = () => {
   if (isLoading) {
     return (
       <div className="mt-10 flex items-center justify-center sm:mt-0">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader size={24} />
       </div>
     );
   }

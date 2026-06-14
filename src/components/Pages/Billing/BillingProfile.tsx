@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { Button } from '../../UI/button';
 import BillingProfileForm from './BillingProfileForm';
 import { useBillingProfile } from '@/hooks/Billing/useBillingProfile';
@@ -41,7 +41,7 @@ const BillingProfile = ({ actions, onClose, onSaved }: BillingProfileProps) => {
   if (loading) {
     return (
       <div className="flex w-full items-center justify-center gap-2 py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <Loader size={20} />
         <p className="text-body-muted">Loading...</p>
       </div>
     );

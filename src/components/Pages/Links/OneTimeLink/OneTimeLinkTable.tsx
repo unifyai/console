@@ -14,6 +14,7 @@ import {
   CircleOff,
   ChevronDown,
 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNowStrict } from 'date-fns';
 import {
@@ -193,7 +194,7 @@ export function OneTimeLinkTable({
           if (link.id === LOADING_MORE_LINKS_ID) {
             return (
               <TableCell colSpan={8} className="h-[57px] p-4 text-center">
-                <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
+                <Loader size={24} className="mx-auto" />
               </TableCell>
             );
           }
@@ -343,7 +344,7 @@ export function OneTimeLinkTable({
               </TableCell>
               <TableCell className={cn('text-right', dimmed && 'opacity-60')}>
                 {isDeletingThis ? (
-                  <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
+                  <Loader size={20} className="mx-auto" />
                 ) : (
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>

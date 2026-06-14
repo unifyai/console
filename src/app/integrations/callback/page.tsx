@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import {
   completeProviderIntegrationConnectionByProviderId,
   completeProviderIntegrationConnection,
@@ -175,7 +175,7 @@ function ProviderIntegrationCallback() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="flex flex-col items-center gap-3 text-center text-muted-foreground">
-        <Loader2 className="h-6 w-6 animate-spin" />
+        <Loader size={24} />
         <p className="text-body-muted">{message}</p>
       </div>
     </main>
@@ -188,7 +188,7 @@ export default function ProviderIntegrationCallbackPage() {
       fallback={
         <main className="flex min-h-screen items-center justify-center bg-background p-6">
           <div className="flex flex-col items-center gap-3 text-center text-muted-foreground">
-            <Loader2 className="h-6 w-6 animate-spin" />
+            <Loader size={24} />
             <p className="text-body-muted">Completing integration connection...</p>
           </div>
         </main>

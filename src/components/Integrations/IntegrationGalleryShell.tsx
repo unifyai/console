@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Loader2, RefreshCw, Search, X } from 'lucide-react';
+import { RefreshCw, Search, X } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { Input } from '@/components/UI/input';
 import {
   Select,
@@ -85,7 +86,7 @@ function GallerySkeleton() {
       data-testid="integration-gallery-skeleton"
     >
       <div className="flex items-center justify-center text-muted-foreground">
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        <Loader size={20} className="mr-2" />
         <span className="text-body-muted">Loading available integrations...</span>
       </div>
     </div>

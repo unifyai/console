@@ -7,8 +7,8 @@ import { motion } from 'framer-motion';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import TotpInput from '@/components/Common/Auth/TotpInput';
 import TotpSetup from '@/components/Common/Auth/TotpSetup';
+import { Loader } from '@/components/Common/Loader';
 import { Button } from '@/components/UI/button';
-import { Loader2 } from 'lucide-react';
 
 /**
  * /login/mfa — Two-Factor Authentication page.
@@ -169,7 +169,7 @@ const MfaPage = () => {
     if (mfaEnabled === null) {
       return (
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader size={32} />
           <p className="text-body text-muted-foreground">Checking authentication status...</p>
         </div>
       );

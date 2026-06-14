@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   GranularInterfaceActions,
@@ -126,7 +126,7 @@ export default function InterfaceSelector({
   // Render a full-page loading indicator while the logic runs.
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center bg-background">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <Loader size={32} />
       <p className="text-body mt-4 text-muted">Setting up your workspace...</p>
     </div>
   );

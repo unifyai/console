@@ -46,6 +46,7 @@ import {
   Search,
   Keyboard,
 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import {
   DndContext,
   closestCenter,
@@ -1332,7 +1333,7 @@ export function TableViewer({
                 {isLoading && (
                   <div className="bg-background/60 absolute inset-0 z-20 flex items-center justify-center backdrop-blur-sm">
                     <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-6 py-4 shadow-lg">
-                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      <Loader size={20} />
                       <div className="flex flex-col">
                         <span className="text-title">Loading page {pagination.page}...</span>
                         <span className="text-caption">Fetching data from server</span>

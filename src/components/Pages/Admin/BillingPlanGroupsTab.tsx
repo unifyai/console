@@ -37,6 +37,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { toast } from 'sonner';
 import { Badge } from '@/components/UI/badge';
 import { Button } from '@/components/UI/button';
@@ -470,7 +471,7 @@ export default function BillingPlanGroupsTab({
       <div>
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Loader size={24} />
           </div>
         ) : filteredGroups.length === 0 ? (
           <div className="text-body-muted py-12 text-center">
@@ -658,7 +659,7 @@ export default function BillingPlanGroupsTab({
 
           {loadingDetail && (
             <div className="flex justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader size={24} />
             </div>
           )}
 
@@ -746,7 +747,7 @@ export default function BillingPlanGroupsTab({
 
           {loadingDetail && (
             <div className="flex justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader size={24} />
             </div>
           )}
 

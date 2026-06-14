@@ -4,7 +4,8 @@ import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { VideoTrack, TrackReference } from '@livekit/components-react';
 import { cn } from '@/lib/utils';
-import { Loader2, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
+import { AlertTriangle, Volume2, VolumeX } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { Button } from '@/components/UI/button';
 import { DroidCallAvatar } from '@/components/Pages/Assistants/Communication/DroidCallAvatar';
 import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
@@ -296,7 +297,7 @@ export function AssistantCommunicationMainView({
           </>
         ) : (
           <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <Loader2 className="h-8 w-8 animate-spin" />
+            <Loader size={32} />
             <span>Loading session...</span>
           </div>
         )}

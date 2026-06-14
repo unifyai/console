@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronsUpDown, Check, Loader2 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/UI/popover';
@@ -144,7 +145,7 @@ export function InterfacePicker({
                     className="flex flex-col items-center justify-center gap-2 p-4"
                     data-testid="interface-picker-loading"
                   >
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    <Loader size={20} />
                     <div className="text-caption">Loading interfaces...</div>
                   </div>
                 ) : interfaces.length === 0 ? (

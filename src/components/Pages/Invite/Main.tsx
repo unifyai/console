@@ -4,7 +4,8 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { motion } from 'framer-motion';
-import { CheckCircle, XCircle, Loader2, ShieldCheck } from 'lucide-react';
+import { CheckCircle, XCircle, ShieldCheck } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { Button } from '@/components/UI/button';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import { ResponseProps } from '@/types/common';
@@ -114,7 +115,7 @@ const InviteContent = ({ token, onAccept, onPatchSession }: InviteContentProps) 
 
       {status === 'processing' && (
         <>
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader size={32} />
           <div className="space-y-2">
             <h2 className="text-h2 font-bold">Joining Organization...</h2>
             <p className="text-body text-muted-foreground">
@@ -178,7 +179,7 @@ const InviteContent = ({ token, onAccept, onPatchSession }: InviteContentProps) 
               up...
             </p>
           </div>
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <Loader size={20} />
         </>
       )}
 

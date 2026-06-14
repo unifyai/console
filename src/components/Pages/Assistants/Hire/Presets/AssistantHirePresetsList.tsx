@@ -3,7 +3,8 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { AssistantPreset } from '@/types/assistants/assistant';
 import { PresetListItem } from './AssistantHirePresetsListItem';
 import { Button } from '@/components/UI/button';
-import { Loader2, MessageSquare, Minimize2, Maximize2, Minus } from 'lucide-react';
+import { MessageSquare, Minimize2, Maximize2, Minus } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import {
   Select,
   SelectContent,
@@ -199,7 +200,7 @@ export function PresetsPanel({
           )}
           {isLoadingMore && (
             <div className="flex items-center justify-center p-4">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <Loader size={20} />
               <span className="text-body ml-2 text-muted-foreground">Loading...</span>
             </div>
           )}

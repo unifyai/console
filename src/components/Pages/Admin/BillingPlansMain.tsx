@@ -49,6 +49,7 @@ import {
   MoreHorizontal,
   Copy,
 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import { Label } from '@/components/UI/label';
@@ -689,7 +690,7 @@ export default function BillingPlansAdminMain({ actions }: Props) {
           <div>
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <Loader size={24} />
               </div>
             ) : visibleTemplates.length === 0 ? (
               <div className="text-body-muted py-12 text-center">

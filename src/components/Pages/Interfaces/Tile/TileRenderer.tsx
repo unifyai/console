@@ -2,7 +2,7 @@
 
 import React, { lazy, Suspense, useMemo } from 'react';
 import { useEnsureTileDataBeforeRender } from '@/utils/interfaces/tileDependencies';
-import { Loader2 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import {
   LogsActions,
   FieldsActions,
@@ -74,7 +74,7 @@ const TileRenderer: React.FC<TileRendererProps> = ({
   if (shouldShowSkeleton) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader size={24} />
         {DEBUG_TILE_DEPENDENCIES &&
           renderState?.missingDependencies?.length &&
           renderState?.missingDependencies?.length > 0 && (
@@ -96,7 +96,7 @@ const TileRenderer: React.FC<TileRendererProps> = ({
     <Suspense
       fallback={
         <div className="flex h-full w-full items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Loader size={24} />
         </div>
       }
     >

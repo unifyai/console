@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 
 interface SaveResetOverlayProps {
   isVisible: boolean;
@@ -32,13 +33,13 @@ const SaveResetOverlay: React.FC<SaveResetOverlayProps> = ({
   const getIcon = () => {
     switch (status) {
       case 'loading':
-        return <Loader2 className="h-8 w-8 animate-spin text-primary" />;
+        return <Loader size={32} />;
       case 'success':
         return <CheckCircle className="h-8 w-8 text-[color:var(--status-success)]" />;
       case 'error':
         return <AlertCircle className="h-8 w-8 text-[color:var(--status-danger)]" />;
       default:
-        return <Loader2 className="h-8 w-8 animate-spin text-primary" />;
+        return <Loader size={32} />;
     }
   };
 

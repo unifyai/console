@@ -23,12 +23,12 @@ import {
   Building2,
   Clock,
   ExternalLink,
-  Loader2,
   Receipt,
   RefreshCw,
   Search,
   User as UserIcon,
 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import {
@@ -395,7 +395,7 @@ export default function AdminInvoicesMain({ actions, listTemplates }: AdminInvoi
             </div>
           ) : loading && !data ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <Loader size={20} />
             </div>
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-12">

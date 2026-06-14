@@ -18,7 +18,7 @@ import { AssistantCommunicationMainView } from '@/components/Pages/Assistants/Co
 import { AssistantCommunicationUserView } from '@/components/Pages/Assistants/Communication/AssistantCommunicationUserView';
 import { AssistantCommunicationControls } from '@/components/Pages/Assistants/Communication/AssistantCommunicationControls';
 import { AssistantCommunicationSidePanel } from '@/components/Pages/Assistants/Communication/AssistantCommunicationSidePanel';
-import { Loader2 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
@@ -979,7 +979,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
   if (!callData || !assistant) {
     return (
       <div className="fixed inset-0 flex flex-col items-center justify-center bg-background text-foreground">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader size={32} />
         <p className="text-body-muted mt-4">Loading call...</p>
       </div>
     );

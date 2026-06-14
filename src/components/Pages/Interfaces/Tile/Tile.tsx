@@ -9,7 +9,7 @@ import {
   ProjectsActions,
 } from '@/types/interfaces/grid';
 import { useEffect, Suspense, lazy } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 
 // Import the new hooks
 import { useTileMeta, useTileUI } from '@/contexts/hooks/tile';
@@ -151,7 +151,7 @@ const TableTile: React.FC<TableTileProps> = ({
     <Suspense
       fallback={
         <div className="flex h-full w-full items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Loader size={24} />
         </div>
       }
     >
@@ -181,7 +181,7 @@ const PlotTile: React.FC<PlotTileProps> = ({ tileId, tabId, interfaceId, project
     <Suspense
       fallback={
         <div className="flex h-full w-full items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Loader size={24} />
         </div>
       }
     >
@@ -213,7 +213,7 @@ const ViewTile: React.FC<ViewTileProps> = ({ tileId, tabId, interfaceId, project
         <Suspense
           fallback={
             <div className="flex h-full w-full items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader size={24} />
             </div>
           }
         >

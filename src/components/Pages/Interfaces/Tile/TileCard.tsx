@@ -11,7 +11,7 @@ import {
   GranularTabActions,
 } from '@/types/interfaces/grid';
 import { LogsActions } from '@/types/interfaces/grid';
-import { Loader2 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import UnlinkedTileOverlay from './UnlinkedTileOverlay';
 import NewTileOverlay from './NewTileOverlay';
 import { TileColorContext } from '@/contexts/TileColorContext';
@@ -173,7 +173,7 @@ const TileCard = ({
               key={tileId}
               fallback={
                 <div className="flex h-full w-full flex-1 items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <Loader size={24} />
                 </div>
               }
             >

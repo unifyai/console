@@ -10,6 +10,7 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
 import { Download, Loader2 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { Button } from '@/components/UI/button';
 import {
   requestTileExport,
@@ -75,7 +76,7 @@ function TileFrame({ token, onReady }: { token: string; onReady?: () => void }) 
     <div className="relative h-full w-full overflow-hidden rounded-lg border border-border bg-background shadow-sm">
       {isLoading && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-background">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <Loader size={20} />
         </div>
       )}
       <iframe

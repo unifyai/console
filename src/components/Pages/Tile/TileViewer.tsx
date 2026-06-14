@@ -12,6 +12,7 @@
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { Button } from '@/components/UI/button';
 import type { BridgeOperation } from '@/types/assistants/bridge';
 import {
@@ -461,7 +462,7 @@ export function TileViewer({
       <div className="relative h-screen w-full">
         {isLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-background">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Loader size={24} />
           </div>
         )}
         <iframe
@@ -499,7 +500,7 @@ export function TileViewer({
         {isLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-2">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader size={24} />
               <span className="text-body-muted">Loading tile...</span>
             </div>
           </div>

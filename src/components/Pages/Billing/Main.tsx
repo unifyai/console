@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Separator } from '../../UI/separator';
-import { Loader2 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { useBilling } from '@/hooks/Billing/useBilling';
 import type { BillingActions, BillingOrgContext } from '@/types/billing';
 import { BillingProfileSection } from './BillingProfileSection';
@@ -80,7 +80,7 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
     <div className="w-full max-w-4xl space-y-6 p-8">
       {!dataLoaded ? (
         <div className="flex h-[50vh] flex-col items-center justify-center">
-          <Loader2 className="mb-2 h-8 w-8 animate-spin text-primary" />
+          <Loader size={32} className="mb-2" />
           <p className="text-body-muted">Loading...</p>
         </div>
       ) : isMetered ? (

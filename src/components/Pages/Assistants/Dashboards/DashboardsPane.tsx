@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { useDashboards } from '@/hooks/Assistants/useDashboards';
 import { DashboardsPaneHeader } from './DashboardsPaneHeader';
 import { DashboardsPaneFooter } from './DashboardsPaneFooter';
@@ -123,7 +123,7 @@ export function DashboardsPane({
         className="flex h-full flex-1 items-center justify-center text-muted-foreground"
         data-testid="dashboards-loading"
       >
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        <Loader size={20} className="mr-2" />
         <span className="text-body-muted">Loading dashboards...</span>
       </div>
     );

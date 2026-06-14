@@ -54,6 +54,7 @@ import {
   Mail,
   UserCircle,
 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -440,7 +441,7 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
         <div className="w-64 flex-shrink-0 overflow-y-auto border-r">
           {isLoading ? (
             <div className="flex h-32 items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader size={24} />
             </div>
           ) : demoAssistants.length === 0 ? (
             <div className="p-4 text-center">
@@ -622,7 +623,7 @@ export default function DemoAssistantsMain({ demoActions, userEmail }: DemoAssis
                 </div>
                 {isLoadingDetails ? (
                   <div className="flex h-32 items-center justify-center rounded-md border">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <Loader size={24} />
                   </div>
                 ) : contacts.length === 0 ? (
                   <div className="flex h-32 flex-col items-center justify-center gap-2 rounded-md border border-dashed">

@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Search, Loader2, Phone, MessageSquare, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/UI/dialog';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
@@ -319,7 +320,7 @@ export function ChatSearchDialog({
             </div>
           ) : isSearching && results.length === 0 ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <Loader size={20} />
             </div>
           ) : results.length === 0 ? (
             <div className="text-caption py-12 text-center text-muted-foreground">

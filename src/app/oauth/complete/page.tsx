@@ -22,6 +22,7 @@
 
 import * as React from 'react';
 
+import { Loader } from '@/components/Common/Loader';
 import { broadcastOAuthComplete } from '@/utils/assistants/oauth';
 
 export default function OAuthCompletePage() {
@@ -73,7 +74,7 @@ export default function OAuthCompletePage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="flex flex-col items-center gap-3 text-center text-muted-foreground">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        <Loader size={24} />
         <p className="text-sm">Returning to Console...</p>
       </div>
     </div>

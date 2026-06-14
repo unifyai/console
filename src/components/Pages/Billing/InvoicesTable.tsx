@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertCircle, Download, ExternalLink, Loader2, Receipt } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '../../UI/card';
@@ -99,7 +100,7 @@ export function InvoicesTable({
       <CardContent className="p-0">
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <Loader size={20} />
           </div>
         ) : error && invoices.length === 0 ? (
           // Distinct from the empty state: an empty list is "no

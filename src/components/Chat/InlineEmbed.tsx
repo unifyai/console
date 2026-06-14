@@ -18,6 +18,7 @@ import {
   X,
   Loader2,
 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 
@@ -303,7 +304,7 @@ export function InlineEmbedExpanded({
         {isLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-2">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader size={24} />
               <span className="text-caption text-muted-foreground">Loading {embed.type}...</span>
             </div>
           </div>
