@@ -11,12 +11,15 @@ steps:
         # The brand system lives in the private `branding` submodule (which itself
         # nests the private `iso-animation` submodule). Cloud Build checks out the
         # console repo without submodule contents, so fetch them here using the
-        # DEVBOT token. Rewrite SSH/HTTPS GitHub URLs to token-authenticated HTTPS.
-        git config --global url."https://x-access-token:$${GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
-        git config --global url."https://x-access-token:$${GITHUB_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
-        git config --global url."https://x-access-token:$${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+        # DEVBOT token. The url.insteadOf rewrites are passed inline with `-c` so
+        # they propagate to the child clone processes spawned for each submodule
+        # (a global git config is not reliably honored in this builder image).
         git submodule sync --recursive branding
-        git submodule update --init --recursive branding
+        git \
+          -c url."https://x-access-token:$${GITHUB_TOKEN}@github.com/".insteadOf="git@github.com:" \
+          -c url."https://x-access-token:$${GITHUB_TOKEN}@github.com/".insteadOf="ssh://git@github.com/" \
+          -c url."https://x-access-token:$${GITHUB_TOKEN}@github.com/".insteadOf="https://github.com/" \
+          submodule update --init --recursive --force branding
 
   - name: gcr.io/cloud-builders/docker
     entrypoint: bash
