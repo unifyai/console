@@ -624,7 +624,7 @@
         color-mix(in srgb, var(--card) 70%, transparent),
         color-mix(in srgb, var(--card) 70%, transparent)
       ),
-      url('/brand/onboarding-city.png');
+      url('/brand/onboarding-city.webp');
     background-repeat: no-repeat;
     /* Fit to width only down to the reference width; below it hold that
      * pixel scale and crop the (horizontally centred) edges instead. */
@@ -673,7 +673,7 @@
         color-mix(in srgb, var(--neo-amber) 20%, transparent),
         transparent 34%
       ),
-      url('/brand/onboarding-city.png');
+      url('/brand/onboarding-city.webp');
     background-position:
       center,
       center,
@@ -760,7 +760,7 @@
         color-mix(in srgb, var(--card) 52%, transparent),
         color-mix(in srgb, var(--card) 52%, transparent)
       ),
-      url('/brand/onboarding-city.png');
+      url('/brand/onboarding-city.webp');
     background-position: center 62%;
     background-repeat: no-repeat;
     background-size: 760px auto;
