@@ -1,6 +1,26 @@
 steps:
+  - id: Init Submodules
+    name: gcr.io/cloud-builders/git
+    entrypoint: bash
+    secretEnv: ['GITHUB_TOKEN']
+    waitFor: ['-']
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        # The brand system lives in the private `branding` submodule (which itself
+        # nests the private `iso-animation` submodule). Cloud Build checks out the
+        # console repo without submodule contents, so fetch them here using the
+        # DEVBOT token. Rewrite SSH/HTTPS GitHub URLs to token-authenticated HTTPS.
+        git config --global url."https://x-access-token:$${GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
+        git config --global url."https://x-access-token:$${GITHUB_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+        git config --global url."https://x-access-token:$${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+        git submodule sync --recursive branding
+        git submodule update --init --recursive branding
+
   - name: gcr.io/cloud-builders/docker
     entrypoint: bash
+    waitFor: ['Init Submodules']
     args:
       - '-c'
       - |
