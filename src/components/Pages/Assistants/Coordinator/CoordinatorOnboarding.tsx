@@ -60,7 +60,6 @@ import {
   COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID,
   COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT,
   getCoordinatorIntroCountdownMs,
-  type CoordinatorOnboardingIntroDroidAppearance,
 } from '@/utils/assistants/coordinator-onboarding-intro';
 import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
 import { CoordinatorOnboardingSidebar } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingSidebar';
@@ -191,11 +190,6 @@ interface CoordinatorOnboardingProps {
    * page layout can swap back to the full /assistants shell without
    * waiting on a query refetch. */
   onOnboardingComplete?: () => void;
-  /** Appearance of the droid the user arrives with (eventually the
-   * droid they clicked on the landing page). Drives both the picker
-   * avatar and the first speaking droid in the call intro so the two
-   * stay in sync. Defaults to the shared starting droid. */
-  initialDroid?: CoordinatorOnboardingIntroDroidAppearance;
 }
 
 export function CoordinatorOnboarding({
@@ -223,7 +217,6 @@ export function CoordinatorOnboarding({
   onHireSpecialist,
   onSkipStep,
   onOnboardingComplete,
-  initialDroid = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID,
 }: CoordinatorOnboardingProps) {
   const { state: coordinatorState, updateState } = useCoordinatorOnboarding(coordinator.agentId);
   // Whether the user has already resolved the opening picker (started
@@ -618,8 +611,8 @@ export function CoordinatorOnboarding({
   // Top-centre "Intro" countdown badge, rendered into every post-picker
   // surface (intro, then the docked call) at the same screen anchor. It
   // self-resolves visibility from ``introStartedAt`` (null = hidden) and
-  // disappears once Marty finishes — the full-screen "Talk now!" cue then
-  // briefly takes over after the droid has docked.
+  // disappears once Marty finishes — the "Talk now!" cue then lives under
+  // the droid in its call position.
   const introCountdownBadge = (
     <OnboardingIntroCountdownBadge
       startedAt={introStartedAt}
@@ -646,7 +639,6 @@ export function CoordinatorOnboarding({
           onStartCall={handleStartCall}
           onPickChat={handlePickChat}
           isStartingCall={isStartingCall}
-          initialDroid={initialDroid}
         />
       </div>
     );
@@ -660,7 +652,6 @@ export function CoordinatorOnboarding({
           <CoordinatorOnboardingCallIntro
             key={introStartedAt ?? 'intro'}
             initialAvatarOffset={introAvatarOffset}
-            initialDroid={initialDroid}
             onReadyToStartCall={triggerCoordinatorCallStart}
             onFinished={handleIntroFinished}
             skipSignal={introSkipSignal}
@@ -706,7 +697,7 @@ export function CoordinatorOnboarding({
         <motion.div
           initial={false}
           animate={{ y: 0 }}
-          className="min-h-0 flex-1 border-b"
+          className="relative min-h-0 flex-1 border-b"
           data-testid="coordinator-call-docked-region"
           data-coordinator-handoff-flightpath
         >
@@ -1042,8 +1033,8 @@ function formatIntroCountdown(totalSeconds: number): string {
  * Top-centre badge that signals the opening call is a pre-recorded intro
  * the user can't talk over yet: while Marty speaks it shows "Intro" with a
  * live countdown to when he finishes. Once he's done (the clock elapses or
- * the intro reports ready) it disappears — the full-screen "Talk now!" cue
- * then briefly takes over after the droid has docked. ``startedAt === null``
+ * the intro reports ready) it disappears — the "Talk now!" cue then lives
+ * beneath the droid in its call position, not here. ``startedAt === null``
  * keeps it fully hidden (e.g. the chat path, or before the intro begins).
  */
 function OnboardingIntroCountdownBadge({
@@ -1077,6 +1068,7 @@ function OnboardingIntroCountdownBadge({
 
   const remainingSeconds = Math.ceil(Math.max(0, totalMs - elapsedMs) / 1000);
   const showRestart = !!onRestart;
+
   const iconButtonClass =
     'pointer-events-auto flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
 
@@ -1343,9 +1335,6 @@ interface CoordinatorOnboardingPickerProps {
   onStartCall: (avatarOffset: IntroAvatarOffset) => void;
   onPickChat: () => void;
   isStartingCall: boolean;
-  /** Appearance of the calling droid, matched to the first speaking
-   * droid in the intro so the call feels continuous. */
-  initialDroid: CoordinatorOnboardingIntroDroidAppearance;
 }
 
 function CoordinatorOnboardingPicker({
@@ -1353,7 +1342,6 @@ function CoordinatorOnboardingPicker({
   onStartCall,
   onPickChat,
   isStartingCall,
-  initialDroid,
 }: CoordinatorOnboardingPickerProps) {
   const avatarRef = React.useRef<HTMLDivElement | null>(null);
   const { droidWidth, framePx } = useCoordinatorDroidLayout();
@@ -1412,7 +1400,11 @@ function CoordinatorOnboardingPicker({
       data-testid="coordinator-onboarding-picker"
     >
       <div ref={avatarRef} className="relative z-10" style={{ width: framePx, height: framePx }}>
-        <SeatedCoordinatorDroid droid={initialDroid} width={droidWidth} isSpeaking={false} />
+        <SeatedCoordinatorDroid
+          droid={COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID}
+          width={droidWidth}
+          isSpeaking={false}
+        />
       </div>
       {/* The prompt + actions live in a frosted card so the copy stays
        * legible against the busy city backdrop in both light and dark
