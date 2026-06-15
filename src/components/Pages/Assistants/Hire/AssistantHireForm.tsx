@@ -41,7 +41,7 @@ import { getDefaultVoiceForProvider } from '@/utils/assistants/voice-utils';
 import { cn } from '@/lib/utils';
 import { FaUbuntu, FaWindows } from 'react-icons/fa';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
-import { TeammateCreature, buildCreatureSentinel, parseCreatureSentinel } from '@/components/Brand';
+import { buildCreatureSentinel, parseCreatureSentinel } from '@/components/Brand';
 import {
   getCreatureMetrics,
   type BotSkin,
@@ -53,11 +53,8 @@ import { roleColorVars, type BrandRole, type CreatureShape } from '@/components/
 import GoogleIcon from '@/public/icons/google-icon.png';
 import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 import type { OAuthProvider } from '@/types/assistants/contact';
-import {
-  clampDroidSpeechLevel,
-  getDroidSpeechTransform,
-  getSpeakingEyes,
-} from '@/utils/assistants/droid-animation';
+import { DroidCallAvatar } from '@/components/Pages/Assistants/Communication/DroidCallAvatar';
+import { useDroidAudioElementLipsync } from '@/utils/assistants/droid-lipsync';
 
 const staticSkillsText = `The bio doesn't influence the droid's abilities. All droids come with the same foundational skills and can specialize in whichever area you want them to.`;
 const DROID_PREVIEW_SIZE = 160;
@@ -171,8 +168,43 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   return <div className="mb-2 flex items-center gap-2 text-muted-foreground">{children}</div>;
 }
 
-function getHoverEyes(eyes: CreatureEyes): CreatureEyes {
-  return eyes === 'square' ? 'up' : 'square';
+function HireDroidAvatar({
+  isVoicePreviewPlaying,
+  previewAudioElement,
+  antenna,
+  shape,
+  color,
+  baseEyes,
+  skin,
+  label,
+}: {
+  isVoicePreviewPlaying: boolean;
+  previewAudioElement: HTMLAudioElement | null;
+  antenna: CreatureAntenna;
+  shape: CreatureShape;
+  color: BrandRole;
+  baseEyes: CreatureEyes;
+  skin?: BotSkin;
+  label: string;
+}) {
+  const voicePreviewLipsyncFrame = useDroidAudioElementLipsync(previewAudioElement, {
+    enabled: isVoicePreviewPlaying && !!previewAudioElement,
+  });
+
+  return (
+    <DroidCallAvatar
+      isSpeaking={voicePreviewLipsyncFrame.isActive}
+      mouthShape={voicePreviewLipsyncFrame.mouthShape}
+      speechLevel={voicePreviewLipsyncFrame.speechLevel}
+      antenna={antenna}
+      shape={shape}
+      color={color}
+      baseEyes={baseEyes}
+      skin={skin}
+      label={label}
+      className="h-full w-full transform-gpu"
+    />
+  );
 }
 
 export interface HireFormProps {
@@ -277,11 +309,10 @@ export function HireForm({
     setAppearanceSeeded(true);
   }, [appearanceSeeded, watchedProfilePhotoUrl]);
   const [isAppearanceControlsVisible, setIsAppearanceControlsVisible] = React.useState(false);
-  const [isLockedDroidHovered, setIsLockedDroidHovered] = React.useState(false);
   const [isVoicePreviewPlaying, setIsVoicePreviewPlaying] = React.useState(false);
-  const [speakingEyeFrame, setSpeakingEyeFrame] = React.useState(0);
-  const speakingEyeBaseRef = React.useRef<CreatureEyes>(droidEyes);
-  const droidSpeechRef = React.useRef<HTMLSpanElement | null>(null);
+  const [previewAudioElement, setPreviewAudioElement] = React.useState<HTMLAudioElement | null>(
+    null
+  );
   const setup = useWatch({ control, name: 'setup' });
   const operatingSystem = useWatch({ control, name: 'operatingSystem' });
   const firstName = useWatch({ control, name: 'firstName' });
@@ -375,13 +406,6 @@ export function HireForm({
       (skinIndex - 1 + appearanceSkinOptions.length) % appearanceSkinOptions.length
     ];
   const nextSkin = appearanceSkinOptions[(skinIndex + 1) % appearanceSkinOptions.length];
-  const lockedHoverEyes =
-    lockAppearanceControls && isLockedDroidHovered
-      ? getHoverEyes(selectedDroidEyes)
-      : selectedDroidEyes;
-  const displayedDroidEyes = isVoicePreviewPlaying
-    ? getSpeakingEyes(speakingEyeBaseRef.current, speakingEyeFrame)
-    : lockedHoverEyes;
   const workspaceAssistantName =
     typeof firstName === 'string' && firstName.trim().length > 0 ? firstName.trim() : 'this droid';
   const isWorkspaceWarning = mode === 'hire' && showWorkspaceWarning;
@@ -408,31 +432,6 @@ export function HireForm({
     onRandomizeProfile?.();
     randomizeDroidAppearance();
   }, [onRandomizeProfile, randomizeDroidAppearance]);
-
-  const handlePreviewSpeechLevelChange = React.useCallback((level: number) => {
-    const droid = droidSpeechRef.current;
-    if (!droid) return;
-
-    const speechLevel = clampDroidSpeechLevel(level);
-    droid.style.setProperty('--droid-speech-level', speechLevel.toFixed(3));
-    droid.style.transform = getDroidSpeechTransform(speechLevel);
-  }, []);
-
-  React.useEffect(() => {
-    if (!isVoicePreviewPlaying) {
-      setSpeakingEyeFrame(0);
-      speakingEyeBaseRef.current = selectedDroidEyes;
-      return;
-    }
-
-    speakingEyeBaseRef.current = selectedDroidEyes;
-    setSpeakingEyeFrame(0);
-    const eyeTimer = window.setInterval(() => {
-      setSpeakingEyeFrame((current) => (current + 1) % 4);
-    }, 2000);
-
-    return () => window.clearInterval(eyeTimer);
-  }, [isVoicePreviewPlaying, selectedDroidEyes]);
 
   // Reset OS to 'ubuntu' when switching from local to remote if 'macos' is selected (macos is only available for local)
   React.useEffect(() => {
@@ -763,26 +762,17 @@ export function HireForm({
                             )}
 
                             {lockAppearanceControls ? (
-                              <span
-                                className="flex h-full w-40 items-center justify-center sm:w-52 md:w-40"
-                                onMouseEnter={() => setIsLockedDroidHovered(true)}
-                                onMouseLeave={() => setIsLockedDroidHovered(false)}
-                              >
-                                <span
-                                  ref={droidSpeechRef}
-                                  className="block h-full w-full transform-gpu"
-                                  style={{ '--droid-speech-level': 0 } as React.CSSProperties}
-                                >
-                                  <TeammateCreature
-                                    antenna={selectedDroidAntenna}
-                                    className="h-full w-full"
-                                    color={selectedDroidColor}
-                                    eyes={displayedDroidEyes}
-                                    label="Marty avatar"
-                                    shape={selectedDroidShape}
-                                    skin={selectedDroidSkinValue}
-                                  />
-                                </span>
+                              <span className="flex h-full w-40 items-center justify-center sm:w-52 md:w-40">
+                                <HireDroidAvatar
+                                  isVoicePreviewPlaying={isVoicePreviewPlaying}
+                                  previewAudioElement={previewAudioElement}
+                                  antenna={selectedDroidAntenna}
+                                  shape={selectedDroidShape}
+                                  color={selectedDroidColor}
+                                  baseEyes={selectedDroidEyes}
+                                  skin={selectedDroidSkinValue}
+                                  label="Marty avatar"
+                                />
                               </span>
                             ) : (
                               <button
@@ -792,21 +782,16 @@ export function HireForm({
                                 onClick={randomizeDroidAppearance}
                                 type="button"
                               >
-                                <span
-                                  ref={droidSpeechRef}
-                                  className="block h-full w-full transform-gpu"
-                                  style={{ '--droid-speech-level': 0 } as React.CSSProperties}
-                                >
-                                  <TeammateCreature
-                                    antenna={selectedDroidAntenna}
-                                    className="h-full w-full"
-                                    color={selectedDroidColor}
-                                    eyes={displayedDroidEyes}
-                                    label="Droid avatar"
-                                    shape={selectedDroidShape}
-                                    skin={selectedDroidSkinValue}
-                                  />
-                                </span>
+                                <HireDroidAvatar
+                                  isVoicePreviewPlaying={isVoicePreviewPlaying}
+                                  previewAudioElement={previewAudioElement}
+                                  antenna={selectedDroidAntenna}
+                                  shape={selectedDroidShape}
+                                  color={selectedDroidColor}
+                                  baseEyes={selectedDroidEyes}
+                                  skin={selectedDroidSkinValue}
+                                  label="Droid avatar"
+                                />
                               </button>
                             )}
                           </div>
@@ -1003,7 +988,7 @@ export function HireForm({
                       disabled={isSubmitting}
                       onProcessingStateChange={onVoiceProcessingStateChange}
                       onPreviewPlayingChange={setIsVoicePreviewPlaying}
-                      onPreviewSpeechLevelChange={handlePreviewSpeechLevelChange}
+                      onPreviewAudioElementChange={setPreviewAudioElement}
                       allDisplayableVoices={allDisplayableVoices}
                       isLoadingUserVoices={isLoadingUserVoices}
                       fetchUserVoices={fetchUserVoices}

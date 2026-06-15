@@ -18,10 +18,9 @@ function base64ToUint8Array(base64: string): Uint8Array {
 
 interface UseTTSPreviewProps {
   generateSpeechAction: AssistantActions['voice']['generate'];
-  onSpeechLevelChange?: (level: number) => void;
 }
 
-export function useTTSPreview({ generateSpeechAction, onSpeechLevelChange }: UseTTSPreviewProps) {
+export function useTTSPreview({ generateSpeechAction }: UseTTSPreviewProps) {
   // Speech synthesis requires a TTS provider (Cartesia/ElevenLabs). When none is
   // configured, generation fails with an opaque backend error — short-circuit
   // with a clear message instead.
@@ -33,35 +32,10 @@ export function useTTSPreview({ generateSpeechAction, onSpeechLevelChange }: Use
     null
   );
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
-  const audioContextRef = React.useRef<AudioContext | null>(null);
-  const audioSourceRef = React.useRef<MediaElementAudioSourceNode | null>(null);
-  const analyserRef = React.useRef<AnalyserNode | null>(null);
-  const analyserDataRef = React.useRef<Uint8Array<ArrayBuffer> | null>(null);
-  const speechFrameRef = React.useRef<number | null>(null);
-  const smoothedSpeechLevelRef = React.useRef(0);
+  const [previewAudioElement, setPreviewAudioElement] = React.useState<HTMLAudioElement | null>(
+    null
+  );
   const previewRequestIdRef = React.useRef(0);
-  const onSpeechLevelChangeRef = React.useRef(onSpeechLevelChange);
-
-  React.useEffect(() => {
-    onSpeechLevelChangeRef.current = onSpeechLevelChange;
-  }, [onSpeechLevelChange]);
-
-  const stopSpeechLevelMonitoring = React.useCallback(() => {
-    if (speechFrameRef.current !== null) {
-      window.cancelAnimationFrame(speechFrameRef.current);
-      speechFrameRef.current = null;
-    }
-    smoothedSpeechLevelRef.current = 0;
-    onSpeechLevelChangeRef.current?.(0);
-  }, []);
-
-  const disposeAudioGraph = React.useCallback(() => {
-    audioSourceRef.current?.disconnect();
-    analyserRef.current?.disconnect();
-    audioSourceRef.current = null;
-    analyserRef.current = null;
-    analyserDataRef.current = null;
-  }, []);
 
   const clearAudioPreview = React.useCallback(() => {
     const audio = audioRef.current;
@@ -77,89 +51,14 @@ export function useTTSPreview({ generateSpeechAction, onSpeechLevelChange }: Use
       audio.load();
       audioRef.current = null;
     }
-
-    disposeAudioGraph();
-  }, [disposeAudioGraph]);
-
-  const ensureSpeechAnalyser = React.useCallback(async () => {
-    const audio = audioRef.current;
-    if (!audio) return null;
-
-    const AudioContextConstructor =
-      window.AudioContext ||
-      (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextConstructor) return null;
-
-    if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContextConstructor();
-    }
-
-    if (!analyserRef.current) {
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 256;
-      analyserRef.current.smoothingTimeConstant = 0.35;
-    }
-
-    if (!audioSourceRef.current) {
-      audioSourceRef.current = audioContextRef.current.createMediaElementSource(audio);
-      audioSourceRef.current.connect(analyserRef.current);
-      analyserRef.current.connect(audioContextRef.current.destination);
-    }
-
-    if (audioContextRef.current.state === 'suspended') {
-      await audioContextRef.current.resume();
-    }
-
-    return analyserRef.current;
+    setPreviewAudioElement(null);
   }, []);
-
-  const startSpeechLevelMonitoring = React.useCallback(async () => {
-    const analyser = await ensureSpeechAnalyser();
-    const audio = audioRef.current;
-    if (!analyser || !audio) {
-      onSpeechLevelChangeRef.current?.(0);
-      return;
-    }
-
-    if (!analyserDataRef.current || analyserDataRef.current.length !== analyser.fftSize) {
-      analyserDataRef.current = new Uint8Array(new ArrayBuffer(analyser.fftSize));
-    }
-
-    const sampleSpeechLevel = () => {
-      const currentAudio = audioRef.current;
-      const data = analyserDataRef.current;
-      if (!currentAudio || !data || currentAudio.paused || currentAudio.ended) {
-        stopSpeechLevelMonitoring();
-        return;
-      }
-
-      analyser.getByteTimeDomainData(data);
-      let sumSquares = 0;
-      for (let index = 0; index < data.length; index++) {
-        const sample = data[index];
-        const centeredSample = (sample - 128) / 128;
-        sumSquares += centeredSample * centeredSample;
-      }
-
-      const rms = Math.sqrt(sumSquares / data.length);
-      const speechLevel = Math.max(0, Math.min(1, (rms - 0.018) * 8));
-      smoothedSpeechLevelRef.current = smoothedSpeechLevelRef.current * 0.45 + speechLevel * 0.55;
-      onSpeechLevelChangeRef.current?.(smoothedSpeechLevelRef.current);
-      speechFrameRef.current = window.requestAnimationFrame(sampleSpeechLevel);
-    };
-
-    stopSpeechLevelMonitoring();
-    sampleSpeechLevel();
-  }, [ensureSpeechAnalyser, stopSpeechLevelMonitoring]);
 
   React.useEffect(() => {
     return () => {
-      stopSpeechLevelMonitoring();
       clearAudioPreview();
-      audioContextRef.current?.close();
-      audioContextRef.current = null;
     };
-  }, [clearAudioPreview, stopSpeechLevelMonitoring]);
+  }, [clearAudioPreview]);
 
   const playPreview = async (voice: VoiceOption) => {
     if (isPlayingPreviewForVoiceId === voice.voiceId) {
@@ -167,7 +66,6 @@ export function useTTSPreview({ generateSpeechAction, onSpeechLevelChange }: Use
       clearAudioPreview();
       setIsPlayingPreviewForVoiceId(null);
       setIsLoadingPreviewForVoiceId(null);
-      stopSpeechLevelMonitoring();
       return;
     }
 
@@ -183,7 +81,6 @@ export function useTTSPreview({ generateSpeechAction, onSpeechLevelChange }: Use
     clearAudioPreview();
     setIsPlayingPreviewForVoiceId(null);
     setIsLoadingPreviewForVoiceId(null);
-    stopSpeechLevelMonitoring();
 
     if (!voice.voiceId || !voice.provider || !voice.language) {
       toast.error('Voice information is incomplete for preview.');
@@ -238,11 +135,11 @@ export function useTTSPreview({ generateSpeechAction, onSpeechLevelChange }: Use
 
         const audio = new Audio(audioURL);
         audioRef.current = audio;
+        setPreviewAudioElement(audio);
         audio.onended = () => {
           if (previewRequestIdRef.current !== requestId) return;
           setIsPlayingPreviewForVoiceId(null);
           setIsLoadingPreviewForVoiceId(null);
-          stopSpeechLevelMonitoring();
           clearAudioPreview();
         };
         audio.onerror = () => {
@@ -250,12 +147,9 @@ export function useTTSPreview({ generateSpeechAction, onSpeechLevelChange }: Use
           toast.error('Error playing audio preview.');
           setIsPlayingPreviewForVoiceId(null);
           setIsLoadingPreviewForVoiceId(null);
-          stopSpeechLevelMonitoring();
           clearAudioPreview();
         };
 
-        await ensureSpeechAnalyser();
-        if (previewRequestIdRef.current !== requestId) return;
         await audio.play();
         if (previewRequestIdRef.current !== requestId) {
           clearAudioPreview();
@@ -263,20 +157,17 @@ export function useTTSPreview({ generateSpeechAction, onSpeechLevelChange }: Use
         }
         setIsLoadingPreviewForVoiceId(null);
         setIsPlayingPreviewForVoiceId(voice.voiceId);
-        startSpeechLevelMonitoring();
       } else {
-        const errorDetail = result.detail || 'TTS generation failed';
         toast.error(`Error playing voice. Please try again or contact us if the issue persists.`);
         setIsLoadingPreviewForVoiceId(null);
         setIsPlayingPreviewForVoiceId(null);
-        stopSpeechLevelMonitoring();
       }
-    } catch (e: any) {
+    } catch {
       if (previewRequestIdRef.current !== requestId) return;
       toast.error(`Failed to play preview. Please try again or contact us if the issue persists.`);
       setIsLoadingPreviewForVoiceId(null);
       setIsPlayingPreviewForVoiceId(null);
-      stopSpeechLevelMonitoring();
+      clearAudioPreview();
     }
   };
 
@@ -285,7 +176,6 @@ export function useTTSPreview({ generateSpeechAction, onSpeechLevelChange }: Use
     clearAudioPreview();
     setIsLoadingPreviewForVoiceId(null);
     setIsPlayingPreviewForVoiceId(null);
-    stopSpeechLevelMonitoring();
   };
 
   return {
@@ -293,5 +183,6 @@ export function useTTSPreview({ generateSpeechAction, onSpeechLevelChange }: Use
     stopPreview,
     isLoadingPreviewForVoiceId,
     isPlayingPreviewForVoiceId,
+    previewAudioElement,
   };
 }
