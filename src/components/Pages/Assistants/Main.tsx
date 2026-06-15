@@ -519,21 +519,28 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       return next;
     });
   }, []);
+  // Optimistic: flip the local checklist state immediately so the
+  // row resolves (and downstream rows unlock) on the same frame as
+  // the click. The orchestra write happens in the background; we roll
+  // the local state back if it fails (the hook surfaces its own error
+  // toast). Awaiting the round-trip before updating made "Later" feel
+  // multi-second-slow because the server action + DB write gated the
+  // re-render.
   const handleCoordinatorOnboardingStepSkip = React.useCallback(
     async (stepId: string) => {
-      const skipped = await updateCoordinatorOnboardingState({ skipOnboardingStep: stepId });
-      if (!skipped) return;
       markStepSkipped(stepId);
+      const skipped = await updateCoordinatorOnboardingState({ skipOnboardingStep: stepId });
+      if (!skipped) markStepUnskipped(stepId);
     },
-    [markStepSkipped, updateCoordinatorOnboardingState]
+    [markStepSkipped, markStepUnskipped, updateCoordinatorOnboardingState]
   );
   const handleCoordinatorOnboardingStepUnskip = React.useCallback(
     async (stepId: string) => {
-      const unskipped = await updateCoordinatorOnboardingState({ unskipOnboardingStep: stepId });
-      if (!unskipped) return;
       markStepUnskipped(stepId);
+      const unskipped = await updateCoordinatorOnboardingState({ unskipOnboardingStep: stepId });
+      if (!unskipped) markStepSkipped(stepId);
     },
-    [markStepUnskipped, updateCoordinatorOnboardingState]
+    [markStepSkipped, markStepUnskipped, updateCoordinatorOnboardingState]
   );
   const coordinatorOnboardingCtxValue = React.useMemo<CoordinatorOnboardingContextValue>(
     () => ({

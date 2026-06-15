@@ -984,23 +984,40 @@ function ChecklistRow({
 }
 
 function ChecklistMarker({ status }: { status: 'pending' | 'done' | 'skipped' }) {
+  const markerClasses = cn(
+    'rounded-control mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center border',
+    status === 'done'
+      ? 'border-[color:var(--role-green-deep)] bg-[color:var(--status-success-bg)] text-[color:var(--role-green-deep)]'
+      : status === 'skipped'
+        ? 'border-muted-foreground/60 bg-muted text-muted-foreground'
+        : 'border-muted-foreground/40 bg-transparent'
+  );
+
+  // Skipped rows mark the box with an "L" (for "Later"). The glyph
+  // alone is opaque, so the box doubles as a tooltip trigger that
+  // spells out "Later" on hover/focus.
+  if (status === 'skipped') {
+    return (
+      <TooltipProvider delayDuration={150}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span tabIndex={0} aria-label="Later" className={markerClasses}>
+              <span aria-hidden="true" className="text-caption font-semibold leading-none">
+                L
+              </span>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            <p className="text-caption">Later</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
   return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        'rounded-control mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center border',
-        status === 'done'
-          ? 'border-[color:var(--role-green-deep)] bg-[color:var(--status-success-bg)] text-[color:var(--role-green-deep)]'
-          : status === 'skipped'
-            ? 'border-muted-foreground/60 bg-muted text-muted-foreground'
-            : 'border-muted-foreground/40 bg-transparent'
-      )}
-    >
-      {status === 'done' ? (
-        <Check className="h-3 w-3 stroke-[4]" />
-      ) : status === 'skipped' ? (
-        <span className="text-caption font-semibold leading-none">S</span>
-      ) : null}
+    <span aria-hidden="true" className={markerClasses}>
+      {status === 'done' ? <Check className="h-3 w-3 stroke-[4]" /> : null}
     </span>
   );
 }
