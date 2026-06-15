@@ -10,15 +10,30 @@ steps:
         set -euo pipefail
         # The brand system lives in the private `branding` submodule (which itself
         # nests the private `iso-animation` submodule). Cloud Build checks out the
-        # console repo without submodule contents, so fetch them here using the
-        # DEVBOT token. The url.insteadOf rewrites are passed inline with `-c` so
-        # they propagate to the child clone processes spawned for each submodule
-        # (a global git config is not reliably honored in this builder image).
+        # console repo without submodule contents, so fetch them here with the
+        # DEVBOT token (which has read access to both private repos).
+        #
+        # Cloud Build injects its own source credential as an `http.<github>.extraheader`
+        # Authorization header. That credential is scoped only to the triggering repo,
+        # so it shadows our token and makes `branding` come back as "Repository not
+        # found". Strip those inherited headers, then auth as the DEVBOT token.
+        AUTH="https://x-access-token:$${GITHUB_TOKEN}@github.com/"
+
+        echo "Inherited github extraheader config (redacted):"
+        git config --get-regexp 'http\..*extraheader' 2>/dev/null | sed 's/=.*/= <redacted>/' || true
+        git config --global --get-regexp 'http\..*extraheader' 2>/dev/null | sed 's/=.*/= <redacted>/' || true
+
+        for scope in --local --global --system; do
+          git config $$scope --unset-all http."https://github.com/".extraheader 2>/dev/null || true
+          git config $$scope --unset-all http.extraheader 2>/dev/null || true
+        done
+
         git submodule sync --recursive branding
         git \
-          -c url."https://x-access-token:$${GITHUB_TOKEN}@github.com/".insteadOf="git@github.com:" \
-          -c url."https://x-access-token:$${GITHUB_TOKEN}@github.com/".insteadOf="ssh://git@github.com/" \
-          -c url."https://x-access-token:$${GITHUB_TOKEN}@github.com/".insteadOf="https://github.com/" \
+          -c http."https://github.com/".extraheader= \
+          -c http.extraheader= \
+          -c url."$${AUTH}".insteadOf="git@github.com:" \
+          -c url."$${AUTH}".insteadOf="ssh://git@github.com/" \
           submodule update --init --recursive --force branding
 
   - name: gcr.io/cloud-builders/docker
