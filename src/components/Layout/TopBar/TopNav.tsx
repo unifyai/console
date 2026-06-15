@@ -49,6 +49,27 @@ import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog'
 import ReferralBanner from '@/components/Layout/TopBar/ReferralBanner';
 import { UnifyBlockMark } from '@/components/Brand';
 
+const getInitials = (name: string) =>
+  name
+    .trim()
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
+function WorkspaceInitialBadge({ name, size }: { name: string; size: 'sm' | 'md' }) {
+  const sizeClass = size === 'md' ? 'h-5 w-5 text-[11px]' : 'h-4 w-4 text-[9px]';
+
+  return (
+    <span
+      className={`${sizeClass} rounded-control inline-flex shrink-0 items-center justify-center bg-primary font-semibold leading-none text-primary-foreground`}
+    >
+      {getInitials(name)}
+    </span>
+  );
+}
+
 export default function TopNav() {
   const pathname = usePathname();
   const { billing: billingEnabled, support: supportEnabled } = useFeatures();
@@ -125,13 +146,6 @@ export default function TopNav() {
           const imageUrl = user.image || '';
           setProfileName(userName);
           setUserOrgs(user.organizations || []);
-          const getInitials = (name: string) =>
-            name
-              .split(' ')
-              .map((part) => part[0])
-              .join('')
-              .toUpperCase()
-              .slice(0, 2);
 
           const photos: Record<string, string> = {};
           const resolve = async (gsUrl: string): Promise<string> => {
@@ -164,7 +178,7 @@ export default function TopNav() {
           setAvatarJSX(
             <Avatar className="rounded-control h-6 w-6">
               <AvatarImage src={resolvedAvatarUrl} alt="User Avatar" />
-              <AvatarFallback className="rounded-control text-label">
+              <AvatarFallback className="rounded-control text-label bg-primary text-primary-foreground">
                 {getInitials(userName)}
               </AvatarFallback>
             </Avatar>
@@ -251,7 +265,7 @@ export default function TopNav() {
                               className="rounded-control h-4 w-4 shrink-0 object-cover"
                             />
                           ) : (
-                            <User className="h-3.5 w-3.5" />
+                            <WorkspaceInitialBadge name={activeWorkspace.name} size="md" />
                           )
                         ) : orgLogoUrl ? (
                           <Image
@@ -291,7 +305,7 @@ export default function TopNav() {
                                 className="rounded-control h-4 w-4 shrink-0 object-cover"
                               />
                             ) : (
-                              <User className="h-4 w-4" />
+                              <WorkspaceInitialBadge name={w.name} size="sm" />
                             )}
                             {w.name}
                             {activeWorkspace.id === w.id && <Check className="ml-auto h-4 w-4" />}
@@ -352,7 +366,7 @@ export default function TopNav() {
                                 className="rounded-control h-4 w-4 shrink-0 object-cover"
                               />
                             ) : (
-                              <User className="h-3.5 w-3.5" />
+                              <WorkspaceInitialBadge name={activeWorkspace.name} size="sm" />
                             )
                           ) : orgLogoUrl ? (
                             <Image
