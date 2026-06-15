@@ -28,7 +28,7 @@ import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { cn } from '@/lib/utils';
 import { useCoordinatorOnboardingContext } from './CoordinatorOnboardingContext';
 
-type ChecklistAction = 'connect-workspace' | 'connect-apps' | 'act' | 'schedule';
+export type ChecklistAction = 'connect-workspace' | 'connect-apps' | 'act' | 'schedule';
 
 interface OnboardingChecklistItem {
   id: string;
@@ -260,7 +260,13 @@ function filterVisibleChecklist(
   skipped: ReadonlySet<string>,
   isActionWired: (action: ChecklistAction | undefined) => boolean,
   canMarkLater: boolean,
-  hiddenIds: Set<string> = new Set()
+  hiddenIds: Set<string> = new Set(),
+  // Steps hidden because they're *not applicable* on this deployment
+  // (configured action with no wired handler — e.g. workspace OAuth with
+  // no provider). Tracked separately from ``hiddenIds`` so a dependent
+  // step treats a not-applicable prerequisite as satisfied rather than
+  // getting hidden alongside it.
+  unavailableIds: Set<string> = new Set()
 ): ResolvedChecklistItem[] {
   const visibleItems: ResolvedChecklistItem[] = [];
 
@@ -272,7 +278,8 @@ function filterVisibleChecklist(
           skipped,
           isActionWired,
           canMarkLater,
-          hiddenIds
+          hiddenIds,
+          unavailableIds
         )
       : undefined;
     const hasVisibleChildren = !!filteredChildren?.length;
@@ -280,17 +287,32 @@ function filterVisibleChecklist(
     const prereqSatisfied =
       !item.prerequisiteId ||
       completed.has(item.prerequisiteId) ||
-      skipped.has(item.prerequisiteId);
-    const prereqHidden = !!item.prerequisiteId && hiddenIds.has(item.prerequisiteId);
-    const canDeferNow = canMarkLater && !item.children?.length;
+      skipped.has(item.prerequisiteId) ||
+      unavailableIds.has(item.prerequisiteId);
+    // A prerequisite hidden because it's *not applicable* doesn't block
+    // its dependents — it counts as satisfied above. Only a prerequisite
+    // hidden for other reasons keeps the dependent out of view.
+    const prereqHidden =
+      !!item.prerequisiteId &&
+      hiddenIds.has(item.prerequisiteId) &&
+      !unavailableIds.has(item.prerequisiteId);
+    // A leaf whose action is *configured* but not wired in the current
+    // surface is not applicable on this deployment (e.g. the workspace
+    // OAuth step when no Google/Microsoft provider is configured). We
+    // hide it entirely rather than surfacing a dead — or merely
+    // skippable — row that the user can never actually complete here.
+    const actionUnavailable = !!item.action && !isActionWired(item.action);
+    const canDeferNow = canMarkLater && !item.children?.length && !actionUnavailable;
     const canActNow =
       item.status === 'pending' &&
       prereqSatisfied &&
       !prereqHidden &&
+      !actionUnavailable &&
       (isActionWired(item.action) || canDeferNow);
 
     if (!isResolved && !hasVisibleChildren && !canActNow) {
       hiddenIds.add(item.id);
+      if (actionUnavailable) unavailableIds.add(item.id);
       continue;
     }
 
@@ -410,6 +432,31 @@ function findNextChildAction(
     }
   }
   return null;
+}
+
+/**
+ * Whether the coordinator still has an actionable onboarding step
+ * outstanding, given which actions are wired (available) on the current
+ * deployment. Reuses the same resolve → visibility-filter → next-actionable
+ * pipeline the rendered checklist uses, so the "incomplete" signal that
+ * drives the info-card nudge (and the mobile auto-open) can't drift from
+ * what the user actually sees — unavailable steps don't count, fully
+ * skipped/complete checklists report ``false``.
+ */
+export function hasOutstandingCoordinatorOnboarding(
+  completedStepIds: ReadonlySet<string>,
+  skippedStepIds: ReadonlySet<string>,
+  isActionWired: (action: ChecklistAction | undefined) => boolean
+): boolean {
+  const resolved = resolveChecklist(ONBOARDING_CHECKLIST, completedStepIds, skippedStepIds);
+  const visible = filterVisibleChecklist(
+    resolved,
+    completedStepIds,
+    skippedStepIds,
+    isActionWired,
+    true
+  );
+  return findNextActionableId(visible, isActionWired, true) !== null;
 }
 
 export interface CoordinatorOnboardingChecklistProps {

@@ -26,7 +26,7 @@
 
 import * as React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Loader2, Phone, Radio, RotateCcw, SkipForward } from 'lucide-react';
+import { Loader2, Mic, Phone, Radio, RotateCcw, SkipForward } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
@@ -68,8 +68,10 @@ interface CoordinatorOnboardingProps {
   ) => Promise<void> | void;
   /** Invoked once the picker is resolved (chat) or the intro finishes
    * (call). The parent tears down the overlay and reveals the regular
-   * platform underneath. */
-  onComplete: () => void;
+   * platform underneath. ``medium`` lets the parent react to the path
+   * taken — e.g. surfacing the "Talk now!" cue over the docked call once
+   * the intro hands off to a live call. */
+  onComplete: (medium: 'call' | 'chat') => void;
 }
 
 export function CoordinatorOnboarding({
@@ -133,13 +135,16 @@ export function CoordinatorOnboarding({
     [coordinator.agentId]
   );
 
-  const complete = React.useCallback(() => {
-    if (hasCompletedRef.current) return;
-    hasCompletedRef.current = true;
-    // Latch ``intro_watched`` so reloads never re-show the picker / intro.
-    void updateState({ introWatched: true });
-    onComplete();
-  }, [onComplete, updateState]);
+  const complete = React.useCallback(
+    (medium: 'call' | 'chat') => {
+      if (hasCompletedRef.current) return;
+      hasCompletedRef.current = true;
+      // Latch ``intro_watched`` so reloads never re-show the picker / intro.
+      void updateState({ introWatched: true });
+      onComplete(medium);
+    },
+    [onComplete, updateState]
+  );
 
   const triggerCoordinatorCallStart = React.useCallback(async () => {
     if (hasTriggeredCallStartRef.current) return;
@@ -198,7 +203,7 @@ export function CoordinatorOnboarding({
 
   const handlePickChat = React.useCallback(() => {
     notifySessionStarted('chat');
-    complete();
+    complete('chat');
   }, [complete, notifySessionStarted]);
 
   const introCountdownBadge = (
@@ -238,12 +243,93 @@ export function CoordinatorOnboarding({
           key={introStartedAt ?? 'intro'}
           initialAvatarOffset={introAvatarOffset}
           onReadyToStartCall={triggerCoordinatorCallStart}
-          onFinished={complete}
+          onFinished={() => complete('call')}
           skipSignal={introSkipSignal}
           onSkipped={() => setIntroReady(true)}
         />
       </AnimatePresence>
     </div>
+  );
+}
+
+/* ─── "Talk now!" cue ─────────────────────────────────────────────────── */
+
+/**
+ * Full-screen cue shown briefly once the onboarding intro hands off to a
+ * live call, prompting the user that the pre-recorded intro is over and
+ * Marty is now listening. Rendered at the platform level (over the docked
+ * call) since the intro overlay has already torn down by this point.
+ */
+export function CoordinatorTalkNowCue({ show }: { show: boolean }) {
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          className="bg-background/80 pointer-events-none fixed inset-0 z-[100] flex items-center justify-center overflow-hidden p-6 backdrop-blur-md"
+          data-testid="coordinator-onboarding-talk-now"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.24 }}
+        >
+          <motion.div
+            aria-hidden="true"
+            className="bg-role-teal/25 absolute -left-16 top-20 h-56 w-56 rounded-full blur-3xl"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ opacity: 0 }}
+          />
+          <motion.div
+            aria-hidden="true"
+            className="bg-role-orange/25 absolute -right-20 bottom-16 h-64 w-64 rounded-full blur-3xl"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ opacity: 0 }}
+          />
+          <motion.div
+            className="relative w-full max-w-xl"
+            initial={{ opacity: 0, scale: 0.9, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: -8 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div
+              aria-hidden="true"
+              className="bg-role-orange/60 absolute inset-0 translate-x-2 translate-y-2 rounded-2xl"
+            />
+            <div className="bg-card/95 relative overflow-hidden rounded-2xl border-2 border-foreground p-8 text-center shadow-2xl">
+              <div
+                aria-hidden="true"
+                className="absolute -left-3 top-1/2 h-6 w-6 -translate-y-1/2 rotate-45 border-b-2 border-l-2 border-foreground bg-card"
+              />
+              <div aria-hidden="true" className="absolute left-7 top-6 grid grid-cols-2 gap-1">
+                <span className="h-3 w-3 rounded-sm bg-role-teal" />
+                <span className="h-3 w-3 rounded-sm bg-role-pink" />
+                <span className="h-3 w-3 rounded-sm bg-role-orange" />
+                <span className="h-3 w-3 rounded-sm bg-role-yellow" />
+              </div>
+              <div aria-hidden="true" className="absolute right-8 top-8 flex gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-role-cyan" />
+                <span className="h-2.5 w-2.5 rounded-full bg-role-purple" />
+                <span className="h-2.5 w-2.5 rounded-full bg-role-green" />
+              </div>
+              <div className="bg-primary/15 relative mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-full border-2 border-foreground text-primary">
+                <motion.span
+                  aria-hidden="true"
+                  className="bg-primary/30 absolute inset-0 rounded-full"
+                  initial={{ scale: 1, opacity: 0.65 }}
+                  animate={{ scale: 1.75, opacity: 0 }}
+                  transition={{ duration: 1.25, ease: 'easeOut', repeat: Infinity }}
+                />
+                <Mic className="relative h-12 w-12" aria-hidden="true" />
+              </div>
+              <p className="text-h1 font-semibold text-foreground">Talk now!</p>
+              <p className="text-body mt-2 text-muted-foreground">Marty is listening.</p>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

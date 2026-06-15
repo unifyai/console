@@ -315,6 +315,12 @@ interface RightPaneContainerProps {
     onConnectApps?: () => void;
     onActNow?: () => void;
     onScheduleTask?: () => void;
+    /** Marks a coordinator onboarding step complete when the matching
+     * domain data lands (a secret connected → ``apps``, a task created →
+     * ``schedule``, an action running → ``act``). Provided only when the
+     * rendered assistant is the canonical Coordinator, so another
+     * assistant's panes can't tick off its steps. */
+    onStepComplete?: (stepId: string) => void;
   };
   /**
    * Unread chat-message count for the currently-open assistant. Drives
@@ -911,6 +917,13 @@ export function RightPaneContainer({
             assistantId={assistant.agentId}
             subTab={subTabBySlot[slot].tasks}
             onSubTabChange={slot === 'primary' ? primaryTasksChange : secondaryTasksChange}
+            onTasksCountChange={
+              slot === 'primary' && coordinatorOnboarding?.onStepComplete
+                ? (count) => {
+                    if (count > 0) coordinatorOnboarding.onStepComplete?.('schedule');
+                  }
+                : undefined
+            }
           />
         </TabsContent>
 
@@ -949,6 +962,13 @@ export function RightPaneContainer({
             secretActions={assistantActions.secret}
             canWrite={canWrite}
             isVisible={tab === 'integrations'}
+            onSecretsCountChange={
+              slot === 'primary' && coordinatorOnboarding?.onStepComplete
+                ? (count) => {
+                    if (count > 0) coordinatorOnboarding.onStepComplete?.('apps');
+                  }
+                : undefined
+            }
           />
         </TabsContent>
 
@@ -961,7 +981,14 @@ export function RightPaneContainer({
             assistant={assistant}
             actions={actions}
             className="h-full"
-            onHasActiveActionChange={slot === 'primary' ? handleActiveActionChange : undefined}
+            onHasActiveActionChange={
+              slot === 'primary'
+                ? (active) => {
+                    handleActiveActionChange(active);
+                    if (active) coordinatorOnboarding?.onStepComplete?.('act');
+                  }
+                : undefined
+            }
           />
         </TabsContent>
       </Tabs>

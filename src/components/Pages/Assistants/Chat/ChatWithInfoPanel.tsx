@@ -419,12 +419,23 @@ export function ChatWithInfoPanel({
     // the responsive layout agree on what counts as "mobile".
     const isMobile = window.matchMedia('(max-width: 639px)').matches;
     if (isMobile) {
-      setIsInfoOpen(false);
+      // The Coordinator's onboarding checklist lives in this card, and a
+      // phone has no room for a side-by-side panel — so surface the card
+      // full-width by default while onboarding is still outstanding,
+      // mirroring the old onboarding layout's always-visible checklist.
+      // Other assistants (and a finished Coordinator) keep chat-first.
+      // A prior dismissal is still honoured so it doesn't fight the user.
+      const dismissed = readInfoPanelDismissed();
+      const surfaceCoordinatorOnboarding =
+        assistant.isCoordinator === true &&
+        hasIncompleteOnboarding &&
+        !dismissed.has(assistant.agentId);
+      setIsInfoOpen(surfaceCoordinatorOnboarding);
       return;
     }
     const dismissed = readInfoPanelDismissed();
     setIsInfoOpen(!dismissed.has(assistant.agentId));
-  }, [assistant.agentId]);
+  }, [assistant.agentId, assistant.isCoordinator, hasIncompleteOnboarding]);
 
   const { voiceCalls } = useFeatures();
   const isInThisCall = activeCallAssistantId === assistant.agentId;

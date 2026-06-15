@@ -50,7 +50,14 @@ import {
   CoordinatorOnboardingProvider,
   type CoordinatorOnboardingContextValue,
 } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingContext';
-import { CoordinatorOnboarding } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboarding';
+import {
+  CoordinatorOnboarding,
+  CoordinatorTalkNowCue,
+} from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboarding';
+import {
+  hasOutstandingCoordinatorOnboarding,
+  type ChecklistAction,
+} from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
 import { subscribeOAuthComplete } from '@/utils/assistants/oauth';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
@@ -429,6 +436,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // onboarding tab. It mounts the overlay straight into the intro
   // (skipping the picker) and clears itself once the intro finishes.
   const [coordinatorIntroReplay, setCoordinatorIntroReplay] = React.useState(false);
+  // "Talk now!" cue lifecycle. The intro overlay tears down when it hands
+  // off to the call, so the cue lives here (over the docked call): the
+  // intro completing via the call path arms it, and it fires once the
+  // Coordinator's call actually connects so the user isn't told to talk
+  // before Marty is listening.
+  const [coordinatorTalkNowPending, setCoordinatorTalkNowPending] = React.useState(false);
+  const [showCoordinatorTalkNow, setShowCoordinatorTalkNow] = React.useState(false);
   const showCoordinatorOnboardingFreshIntro =
     ENABLE_COORDINATOR_ONBOARDING &&
     isCanonicalCoordinatorOwned &&
@@ -1517,8 +1531,55 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setCoordinatorIntroReplay(true);
   }, []);
 
+  // Carries the gradual-onboarding "open the next surface" behaviour into
+  // the info-panel checklist: a checklist row engages its step and
+  // navigates the right pane's main slot to the matching tab
+  // (Integrations / Actions / Tasks) so the user lands where the work
+  // happens. The coordinator is already the selected profile while its
+  // onboarding card is open, so the tab renders against it.
+  const handleCoordinatorOpenPaneTab = React.useCallback(
+    (tab: RightPaneTab, stepId: string) => {
+      markStepEngaged(stepId);
+      setPaneState((prev) => ({ ...prev, primary: { tab } }));
+    },
+    [markStepEngaged]
+  );
+
+  // Which checklist actions are available (wired) on this deployment.
+  // Workspace OAuth needs a configured provider; the rest are always
+  // reachable in the full platform. Mirrors the handler wiring below so
+  // the outstanding-step signal and the rendered rows agree.
+  const isCoordinatorActionWired = React.useCallback(
+    (action: ChecklistAction | undefined): boolean => {
+      if (action === 'connect-workspace') return workspaceConnectAvailable;
+      if (action === 'connect-apps' || action === 'act' || action === 'schedule') return true;
+      return false;
+    },
+    [workspaceConnectAvailable]
+  );
+
+  // Whether the Coordinator still has an actionable onboarding step left.
+  // Drives the "Assistant info" nudge dot and the mobile auto-open so
+  // both track the coordinator checklist (not the per-assistant roadmap).
+  const coordinatorOnboardingOutstanding = React.useMemo(
+    () =>
+      isCanonicalCoordinatorOwned &&
+      hasOutstandingCoordinatorOnboarding(
+        completedStepIds,
+        skippedStepIds,
+        isCoordinatorActionWired
+      ),
+    [isCanonicalCoordinatorOwned, completedStepIds, skippedStepIds, isCoordinatorActionWired]
+  );
+
   const coordinatorOnboardingPanelHandlers = React.useMemo(() => {
     if (!isCanonicalCoordinatorOwned || !canonicalCoordinator) return undefined;
+    // Live step completion is only meaningful while the Coordinator is
+    // the selected profile — that's whose Integrations / Tasks / Actions
+    // panes are mounted in the right pane. Gating ``onStepComplete`` on
+    // this keeps another assistant's domain data from ticking off the
+    // Coordinator's onboarding steps.
+    const isProfileCoordinator = profileAssistantId === canonicalCoordinator.agentId;
     return {
       onConnectWorkspace: workspaceConnectAvailable
         ? () => {
@@ -1526,9 +1587,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             handleOpenWorkspaceManager(canonicalCoordinator);
           }
         : undefined,
+      onConnectApps: () => handleCoordinatorOpenPaneTab('integrations', 'apps'),
+      onActNow: () => handleCoordinatorOpenPaneTab('actions', 'act'),
+      onScheduleTask: () => handleCoordinatorOpenPaneTab('tasks', 'schedule'),
       onSkipStep: handleCoordinatorOnboardingStepSkip,
       onUnskipStep: handleCoordinatorOnboardingStepUnskip,
       onReplayIntro: handleReplayCoordinatorIntro,
+      onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
+      // Flavours the "Ask Marty to do something" suggestion chips:
+      // call-friendly prompts while on a voice call, chat-friendly
+      // otherwise.
+      isOnCall:
+        !!activeCallAssistant && activeCallAssistant.agentId === canonicalCoordinator.agentId,
     };
     // ``handleOpenWorkspaceManager`` isn't a useCallback (defined
     // inline above) so it intentionally isn't in the deps — using
@@ -1538,7 +1608,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, [
     isCanonicalCoordinatorOwned,
     canonicalCoordinator,
+    profileAssistantId,
+    activeCallAssistant,
     markStepEngaged,
+    markStepCompleted,
+    handleCoordinatorOpenPaneTab,
     handleCoordinatorOnboardingStepSkip,
     handleCoordinatorOnboardingStepUnskip,
     handleReplayCoordinatorIntro,
@@ -1572,6 +1646,28 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     profileAssistantId,
     handleShowProfile,
   ]);
+
+  // Fire the armed "Talk now!" cue once the onboarding intro's call
+  // actually connects (a short beat after, so it lands as the droid
+  // settles into the docked call rather than mid-connect).
+  React.useEffect(() => {
+    if (!coordinatorTalkNowPending) return;
+    const coordinatorCallConnected =
+      isCallConnected && activeCallAssistant?.agentId === canonicalCoordinatorId;
+    if (!coordinatorCallConnected) return;
+    const showHandle = window.setTimeout(() => {
+      setShowCoordinatorTalkNow(true);
+      setCoordinatorTalkNowPending(false);
+    }, 850);
+    return () => window.clearTimeout(showHandle);
+  }, [coordinatorTalkNowPending, isCallConnected, activeCallAssistant, canonicalCoordinatorId]);
+
+  // Auto-dismiss the cue after a short, readable window.
+  React.useEffect(() => {
+    if (!showCoordinatorTalkNow) return;
+    const hideHandle = window.setTimeout(() => setShowCoordinatorTalkNow(false), 3_000);
+    return () => window.clearTimeout(hideHandle);
+  }, [showCoordinatorTalkNow]);
 
   // Seed durable step completion from the server-derived
   // ``completedStepIds`` on the Coordinator/State read. Orchestra
@@ -2006,7 +2102,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   }
                   hasIncompleteOnboarding={
                     isAssistantOwner && profileAssistant
-                      ? !!onboardingIncompleteByAgentId[profileAssistant.agentId]
+                      ? profileAssistant.agentId === canonicalCoordinatorId
+                        ? // The Coordinator's onboarding lives in its own
+                          // checklist, not the per-assistant setup roadmap, so
+                          // its nudge tracks the checklist's outstanding steps.
+                          coordinatorOnboardingOutstanding
+                        : !!onboardingIncompleteByAgentId[profileAssistant.agentId]
                       : false
                   }
                   coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
@@ -2079,13 +2180,17 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   coordinator={canonicalCoordinator}
                   autoStartIntro={coordinatorIntroReplay}
                   onStartCall={handleStartCoordinatorIntroCall}
-                  onComplete={() => {
+                  onComplete={(medium) => {
                     setCoordinatorIntroDismissed(true);
                     setCoordinatorIntroReplay(false);
+                    // The intro handed off to a live call — arm the
+                    // "Talk now!" cue to fire once that call connects.
+                    if (medium === 'call') setCoordinatorTalkNowPending(true);
                   }}
                 />
               </div>
             )}
+            <CoordinatorTalkNowCue show={showCoordinatorTalkNow} />
           </div>
         )}
 

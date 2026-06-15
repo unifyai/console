@@ -100,6 +100,9 @@ export interface AssistantInfoSidePanelContentProps {
     /** Replays the Marty call intro on demand. Surfaces a "Repeat
      * intro" affordance at the bottom of the onboarding sub-tab. */
     onReplayIntro?: () => void;
+    /** Whether the Coordinator is currently on a voice call — selects
+     * call- vs chat-flavoured "Ask Marty to do something" chips. */
+    isOnCall?: boolean;
   };
   className?: string;
 }
@@ -247,6 +250,7 @@ function CoordinatorAssistantInfoSidePanelContent({
                   onScheduleTask={coordinatorOnboarding.onScheduleTask}
                   onSkipStep={coordinatorOnboarding.onSkipStep}
                   onUnskipStep={coordinatorOnboarding.onUnskipStep}
+                  isOnCall={coordinatorOnboarding.isOnCall}
                 />
                 {coordinatorOnboarding.onReplayIntro && (
                   <div className="mt-4 flex justify-end">
