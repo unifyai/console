@@ -8,8 +8,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchPlotData } from '@/lib/plotData';
 
-export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
-  const result = await fetchPlotData(params.token);
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ token: string }> }
+) {
+  const { token } = await params;
+  const result = await fetchPlotData(token);
 
   if (!result.success) {
     return NextResponse.json(

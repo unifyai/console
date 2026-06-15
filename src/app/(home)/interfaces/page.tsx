@@ -38,14 +38,15 @@ const debugLog = (...args: any[]) => {
   }
 };
 
-const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) => {
+const InterfacesPage = async ({ searchParams }: { searchParams: Promise<SearchParams> }) => {
+  const resolvedSearchParams = await searchParams;
   // Debug logging for searchParams
   debugLog('[InterfacesPage] ==> SERVER COMPONENT RENDER <==');
-  debugLog('[InterfacesPage] Received searchParams:', searchParams);
-  debugLog('[InterfacesPage] Project:', searchParams?.project);
-  debugLog('[InterfacesPage] Interface:', searchParams?.interface);
-  debugLog('[InterfacesPage] Tab:', searchParams?.tab);
-  debugLog('[InterfacesPage] All keys:', Object.keys(searchParams));
+  debugLog('[InterfacesPage] Received searchParams:', resolvedSearchParams);
+  debugLog('[InterfacesPage] Project:', resolvedSearchParams?.project);
+  debugLog('[InterfacesPage] Interface:', resolvedSearchParams?.interface);
+  debugLog('[InterfacesPage] Tab:', resolvedSearchParams?.tab);
+  debugLog('[InterfacesPage] All keys:', Object.keys(resolvedSearchParams));
   debugLog('[InterfacesPage] Timestamp:', new Date().toISOString());
 
   // get user and api key
@@ -213,9 +214,9 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
   };
   return (
     <Main
-      project={searchParams?.project as string | null}
-      interfaceName={searchParams?.interface as string | null}
-      searchParams={searchParams}
+      project={resolvedSearchParams?.project as string | null}
+      interfaceName={resolvedSearchParams?.interface as string | null}
+      searchParams={resolvedSearchParams}
       actions={{
         projectsActions,
         logsActions,

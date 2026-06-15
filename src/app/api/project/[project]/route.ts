@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
 import { createOrchestraClient } from '@/lib/orchestra/client';
 
-export async function GET(request: NextRequest, { params }: { params: { project: string } }) {
-  const { project } = params;
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ project: string }> }
+) {
+  const { project } = await params;
 
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
@@ -32,8 +35,11 @@ export async function GET(request: NextRequest, { params }: { params: { project:
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { project: string } }) {
-  const { project } = params;
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ project: string }> }
+) {
+  const { project } = await params;
 
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {

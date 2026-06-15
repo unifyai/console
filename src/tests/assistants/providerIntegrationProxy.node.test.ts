@@ -42,7 +42,7 @@ describe('provider integration proxy route', () => {
       { headers: { apiKey: 'test-api-key' } }
     );
 
-    const response = await GET(request, { params: { path: ['apps'] } });
+    const response = await GET(request, { params: Promise.resolve({ path: ['apps'] }) });
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
@@ -81,7 +81,9 @@ describe('provider integration proxy route', () => {
       }
     );
 
-    const response = await POST(request, { params: { path: ['connect', 'start'] } });
+    const response = await POST(request, {
+      params: Promise.resolve({ path: ['connect', 'start'] }),
+    });
 
     expect(response.status).toBe(200);
     const [target, init] = fetchSpy.mock.calls[0];
@@ -112,7 +114,7 @@ describe('provider integration proxy route', () => {
     );
 
     const response = await PATCH(request, {
-      params: { path: ['connections', 'ic_123', 'tool-policy'] },
+      params: Promise.resolve({ path: ['connections', 'ic_123', 'tool-policy'] }),
     });
 
     expect(response.status).toBe(200);
@@ -139,7 +141,7 @@ describe('provider integration proxy route', () => {
       { headers: { apiKey: 'test-api-key' } }
     );
 
-    await GET(detailRequest, { params: { path: ['apps', 'discord'] } });
+    await GET(detailRequest, { params: Promise.resolve({ path: ['apps', 'discord'] }) });
 
     expect(String(fetchSpy.mock.calls[0][0])).toBe(
       'http://127.0.0.1:8000/v0/integrations/apps/discord?owner_scope=assistant&assistant_id=123'
@@ -150,7 +152,9 @@ describe('provider integration proxy route', () => {
       { method: 'POST', headers: { apiKey: 'test-api-key' } }
     );
 
-    await POST(cancelRequest, { params: { path: ['connections', 'ic_pending', 'cancel'] } });
+    await POST(cancelRequest, {
+      params: Promise.resolve({ path: ['connections', 'ic_pending', 'cancel'] }),
+    });
 
     expect(String(fetchSpy.mock.calls[1][0])).toBe(
       'http://127.0.0.1:8000/v0/integrations/connections/ic_pending/cancel'
@@ -170,7 +174,7 @@ describe('provider integration proxy route', () => {
       body: JSON.stringify({ backend_id: 'pipedream', apps: [], tools: [] }),
     });
 
-    const response = await ADMIN_POST(request, { params: { path: ['sync'] } });
+    const response = await ADMIN_POST(request, { params: Promise.resolve({ path: ['sync'] }) });
 
     expect(response.status).toBe(200);
     const [target, init] = fetchSpy.mock.calls[0];
@@ -202,7 +206,7 @@ describe('provider integration proxy route', () => {
       }),
     });
 
-    const response = await ADMIN_POST(request, { params: { path: ['sync'] } });
+    const response = await ADMIN_POST(request, { params: Promise.resolve({ path: ['sync'] }) });
 
     expect(response.status).toBe(200);
     const [target, init] = fetchSpy.mock.calls[0];
@@ -239,7 +243,7 @@ describe('provider integration proxy route', () => {
     );
 
     const patchResponse = await ADMIN_PATCH(patchRequest, {
-      params: { path: ['backends', 'pipedream'] },
+      params: Promise.resolve({ path: ['backends', 'pipedream'] }),
     });
 
     expect(patchResponse.status).toBe(200);
@@ -261,7 +265,7 @@ describe('provider integration proxy route', () => {
       }),
     });
 
-    await ADMIN_POST(syncRequest, { params: { path: ['sync'] } });
+    await ADMIN_POST(syncRequest, { params: Promise.resolve({ path: ['sync'] }) });
 
     expect(String(fetchSpy.mock.calls[1][0])).toBe(
       'http://127.0.0.1:8000/v0/admin/integrations/sync'

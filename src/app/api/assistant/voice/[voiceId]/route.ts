@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest } from '../../../_utils/auth';
 import { createOrchestraClient } from '@/lib/orchestra/client';
 
-export async function DELETE(request: NextRequest, { params }: { params: { voiceId: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ voiceId: string }> }
+) {
+  const { voiceId } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
@@ -18,7 +22,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { voice
   try {
     const { data, error, response } = await client.DELETE('/v0/assistant/voice/{voice_id}', {
       params: {
-        path: { voice_id: params.voiceId },
+        path: { voice_id: voiceId },
         query: { provider },
       },
     });

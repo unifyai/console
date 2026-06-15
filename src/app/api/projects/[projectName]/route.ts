@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
 import { createOrchestraClient } from '@/lib/orchestra/client';
 
-export async function POST(request: NextRequest, { params }: { params: { projectName: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ projectName: string }> }
+) {
+  const { projectName } = await params;
   const url = new URL(request.url);
   const searchParams = new URLSearchParams(url.search);
 
@@ -43,7 +47,7 @@ export async function POST(request: NextRequest, { params }: { params: { project
     } else {
       // Regular project creation with name from path
       const { data, error, response } = await client.POST('/v0/project', {
-        body: { name: params.projectName, is_versioned: false },
+        body: { name: projectName, is_versioned: false },
       });
 
       if (error) {
@@ -60,8 +64,9 @@ export async function POST(request: NextRequest, { params }: { params: { project
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { projectName: string } }
+  { params }: { params: Promise<{ projectName: string }> }
 ) {
+  const { projectName } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
@@ -72,7 +77,7 @@ export async function DELETE(
   try {
     const { data, error, response } = await client.DELETE('/v0/project/{project_name}', {
       params: {
-        path: { project_name: params.projectName },
+        path: { project_name: projectName },
       },
     });
 
@@ -87,7 +92,11 @@ export async function DELETE(
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { projectName: string } }) {
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ projectName: string }> }
+) {
+  const { projectName } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
@@ -99,7 +108,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { projec
   try {
     const { data, error, response } = await client.PATCH('/v0/project/{project_name}', {
       params: {
-        path: { project_name: params.projectName },
+        path: { project_name: projectName },
       },
       body: body,
     });

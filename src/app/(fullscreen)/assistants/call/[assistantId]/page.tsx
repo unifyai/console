@@ -29,7 +29,8 @@ import AssistantCommunicationFullScreen from '@/components/Pages/Assistants/Comm
 import { notFound } from 'next/navigation';
 import { getActiveOrganization } from '@/lib/user/workspace';
 
-const CallPage = async ({ params }: { params: { assistantId: string } }) => {
+const CallPage = async ({ params }: { params: Promise<{ assistantId: string }> }) => {
+  const { assistantId } = await params;
   const user = await getCurrentUser();
   if (!user) {
     redirect('/login');
@@ -84,7 +85,7 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
     return <div>Error loading assistant data. Please close this tab and try again.</div>;
   }
 
-  const assistant = (assistantsResult as Assistant[]).find((a) => a.agentId === params.assistantId);
+  const assistant = (assistantsResult as Assistant[]).find((a) => a.agentId === assistantId);
 
   if (!assistant) {
     notFound();

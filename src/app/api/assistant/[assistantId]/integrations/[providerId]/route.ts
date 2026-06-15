@@ -35,17 +35,18 @@ import type { IntegrationProviderId } from '@/types/assistants/integration';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { assistantId: string; providerId: string } }
+  { params }: { params: Promise<{ assistantId: string; providerId: string }> }
 ) {
+  const { assistantId, providerId } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) return unauthorized();
 
   const user = await getCurrentUser();
   if (!user) return unauthorized();
 
-  const provider = getIntegrationProvider(params.providerId as IntegrationProviderId);
+  const provider = getIntegrationProvider(providerId as IntegrationProviderId);
   if (!provider) {
-    return badRequest(`Unknown provider: ${params.providerId}`);
+    return badRequest(`Unknown provider: ${providerId}`);
   }
 
   // Custom isn't routable here — there's no ``providerId`` for custom
@@ -61,7 +62,7 @@ export async function DELETE(
   const orgId = activeOrg?.id ?? null;
 
   const getSecretsFn = await getSecrets(apiKey, orgId);
-  const list = await getSecretsFn(params.assistantId, ownerId);
+  const list = await getSecretsFn(assistantId, ownerId);
   if (!Array.isArray(list)) {
     return NextResponse.json(
       { error: list.detail ?? 'Failed to read assistant secrets.' },
@@ -108,7 +109,7 @@ export async function DELETE(
   const deleteSecretFn = await deleteSecret(apiKey, orgId);
   let removedCount = 0;
   for (const s of matching) {
-    const result = await deleteSecretFn(s.logId, ownerId, params.assistantId);
+    const result = await deleteSecretFn(s.logId, ownerId, assistantId);
     if (!('detail' in result) || !result.detail) removedCount += 1;
   }
 

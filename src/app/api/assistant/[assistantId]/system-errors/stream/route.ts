@@ -188,8 +188,11 @@ function createPubSubStream(
 // Route Handler
 // =============================================================================
 
-export async function GET(request: NextRequest, { params }: { params: { assistantId: string } }) {
-  const { assistantId } = params;
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ assistantId: string }> }
+) {
+  const { assistantId } = await params;
 
   if (!assistantId) {
     return new NextResponse('Assistant ID is required.', { status: 400 });

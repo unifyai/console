@@ -9,12 +9,16 @@ import { dispatchUnitySystemEvent } from '@/lib/assistants/system-event';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: NextRequest, { params }: { params: { assistantId: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ assistantId: string }> }
+) {
+  const { assistantId } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) return unauthorized();
 
-  const assistantId = Number.parseInt(params.assistantId, 10);
-  if (!Number.isFinite(assistantId)) {
+  const parsedAssistantId = Number.parseInt(assistantId, 10);
+  if (!Number.isFinite(parsedAssistantId)) {
     return badRequest('assistantId must be numeric');
   }
 
@@ -25,7 +29,7 @@ export async function POST(request: NextRequest, { params }: { params: { assista
   }
 
   const result = await dispatchUnitySystemEvent({
-    assistantId,
+    assistantId: parsedAssistantId,
     eventType,
     message: typeof body?.message === 'string' ? body.message : '',
     extraEventFields:
