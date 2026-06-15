@@ -80,7 +80,7 @@ export const deleteProject = async (apiKey: string) => {
 };
 
 // patch project (e.g., update icon or description)
-export const patchProject = (apiKey: string) => {
+export const patchProject = async (apiKey: string) => {
   return async (name: string, data: Record<string, any>) => {
     'use server';
 
@@ -166,7 +166,7 @@ export const importProjectFromTemplate = async (apiKey: string) => {
 };
 
 // Transfer project to organization
-export const transferProjectToOrg = (apiKey: string) => {
+export const transferProjectToOrg = async (apiKey: string) => {
   return async (projectId: number, organizationId: number) => {
     'use server';
     const response = await fetch(
@@ -189,7 +189,7 @@ export const transferProjectToOrg = (apiKey: string) => {
 };
 
 // Transfer project to personal
-export const transferProjectToPersonal = (apiKey: string) => {
+export const transferProjectToPersonal = async (apiKey: string) => {
   return async (projectId: number) => {
     'use server';
     const response = await fetch(

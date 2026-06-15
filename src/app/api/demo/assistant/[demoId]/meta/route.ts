@@ -10,14 +10,16 @@ import { snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL;
 
-export async function GET(request: NextRequest, { params }: { params: { demoId: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ demoId: string }> }
+) {
+  const { demoId } = await params;
   try {
     const apiKey = await getApiKeyFromRequest(request);
     if (!apiKey) {
       return unauthorized();
     }
-
-    const { demoId } = params;
 
     const response = await fetch(`${ORCHESTRA_URL}/v0/demo/assistant/${demoId}/meta`, {
       method: 'GET',

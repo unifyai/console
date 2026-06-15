@@ -10,7 +10,7 @@ import { TableViewer } from '@/components/Pages/Table/TableViewer';
 import type { TableDataResponse, TableDataError } from '@/types/tableView';
 
 interface PageProps {
-  params: { token: string };
+  params: Promise<{ token: string }>;
 }
 
 type TableDataResult =
@@ -63,7 +63,8 @@ async function getTableData(token: string): Promise<TableDataResult> {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const result = await getTableData(params.token);
+  const { token } = await params;
+  const result = await getTableData(token);
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://console.unify.ai';
 
@@ -79,8 +80,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const rowCount = result.data.pagination.totalCount;
   const columnCount = result.data.fields ? Object.keys(result.data.fields).length : 0;
   const description = `Interactive table with ${rowCount.toLocaleString()} rows and ${columnCount} columns from ${projectName}`;
-  const ogImageUrl = `${baseUrl}/api/og/table/${params.token}.png`;
-  const pageUrl = `${baseUrl}/table/view/${params.token}`;
+  const ogImageUrl = `${baseUrl}/api/og/table/${token}.png`;
+  const pageUrl = `${baseUrl}/table/view/${token}`;
 
   return {
     title,
@@ -170,7 +171,8 @@ function EmptyDataMessage() {
 }
 
 export default async function TableViewPage({ params }: PageProps) {
-  const result = await getTableData(params.token);
+  const { token } = await params;
+  const result = await getTableData(token);
 
   // Handle errors
   if (!result.success) {
@@ -190,7 +192,7 @@ export default async function TableViewPage({ params }: PageProps) {
   return (
     <main className="brand-page-stencil-bg min-h-screen bg-background">
       <TableViewer
-        token={params.token}
+        token={token}
         config={tableData.config}
         initialData={tableData.data}
         fields={tableData.fields}

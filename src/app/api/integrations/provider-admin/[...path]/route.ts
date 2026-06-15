@@ -3,7 +3,7 @@ import { getApiKeyFromRequest, unauthorized } from '../../../_utils/auth';
 import { buildOrchestraV0Url } from '../../_utils/orchestra-url';
 
 type RouteContext = {
-  params: { path: string[] };
+  params: Promise<{ path: string[] }>;
 };
 
 async function proxy(request: NextRequest, context: RouteContext) {
@@ -13,7 +13,7 @@ async function proxy(request: NextRequest, context: RouteContext) {
   const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
   if (!adminKey) return unauthorized('Unauthorized - missing Orchestra admin key');
 
-  const { path } = context.params;
+  const { path } = await context.params;
   const target = buildOrchestraV0Url(`/admin/integrations/${path.join('/')}`);
   request.nextUrl.searchParams.forEach((value, key) => target.searchParams.set(key, value));
 

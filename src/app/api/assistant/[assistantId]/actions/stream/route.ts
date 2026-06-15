@@ -214,8 +214,11 @@ function createPubSubStream(
 // Route Handler
 // =============================================================================
 
-export async function GET(request: NextRequest, { params }: { params: { assistantId: string } }) {
-  const { assistantId } = params;
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ assistantId: string }> }
+) {
+  const { assistantId } = await params;
 
   if (__DEV__) console.log(`[Actions SSE] GET request for assistantId=${assistantId}`);
 

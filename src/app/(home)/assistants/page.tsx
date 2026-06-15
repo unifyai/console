@@ -80,11 +80,13 @@ import { isSlackInstall, type SlackInstall, type SlackInstallOwner } from '@/typ
 const AssistantsPage = async ({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) => {
+  const resolvedSearchParams = await searchParams;
   const user = await getCurrentUser();
   if (!user) {
-    const creditToken = typeof searchParams?.token === 'string' ? searchParams.token : null;
+    const creditToken =
+      typeof resolvedSearchParams?.token === 'string' ? resolvedSearchParams.token : null;
     const loginUrl = creditToken
       ? `/login?signout=true&credit=${encodeURIComponent(creditToken)}`
       : '/login?signout=true';

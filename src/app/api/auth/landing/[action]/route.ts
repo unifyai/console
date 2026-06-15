@@ -310,9 +310,9 @@ export function OPTIONS(request: NextRequest) {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { action: LandingAuthAction } }
+  { params }: { params: Promise<{ action: string }> }
 ) {
-  const action = params.action;
+  const { action } = await params;
   const body = await request.json().catch(() => ({}));
 
   switch (action) {

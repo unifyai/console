@@ -72,7 +72,7 @@ export async function deleteUser(userID: string) {
  * @returns The session information as a Session object if available,
  * otherwise null.
  */
-export const getServerSessionCached = cache(() => getServerSession(authOptions));
+export const getServerSessionCached = cache(async () => getServerSession(authOptions));
 
 export async function getSession() {
   if (resolveAuthMode() === 'external') {

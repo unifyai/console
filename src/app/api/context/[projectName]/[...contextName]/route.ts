@@ -5,15 +5,16 @@ import { createOrchestraClient } from '@/lib/orchestra/client';
 // DELETE a single context (supports nested names)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { projectName: string; contextName: string[] } }
+  { params }: { params: Promise<{ projectName: string; contextName: string[] }> }
 ) {
+  const { projectName, contextName } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
   }
 
   const client = createOrchestraClient(apiKey);
-  const contextPath = (params.contextName || []).join('/');
+  const contextPath = (contextName || []).join('/');
 
   try {
     const { data, error, response } = await client.DELETE(
@@ -21,7 +22,7 @@ export async function DELETE(
       {
         params: {
           path: {
-            project_name: params.projectName,
+            project_name: projectName,
             context_name: contextPath,
           },
         },
@@ -44,8 +45,9 @@ export async function DELETE(
 // PATCH rename a single context (supports nested names)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { projectName: string; contextName: string[] } }
+  { params }: { params: Promise<{ projectName: string; contextName: string[] }> }
 ) {
+  const { projectName, contextName } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
@@ -53,7 +55,7 @@ export async function PATCH(
 
   const client = createOrchestraClient(apiKey);
   const body = await request.json();
-  const contextPath = (params.contextName || []).join('/');
+  const contextPath = (contextName || []).join('/');
 
   try {
     const { data, error, response } = await client.PATCH(
@@ -61,7 +63,7 @@ export async function PATCH(
       {
         params: {
           path: {
-            project_name: params.projectName,
+            project_name: projectName,
             context_name: contextPath,
           },
         },

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 interface InvitePageProps {
-  searchParams: { token?: string };
+  searchParams: Promise<{ token?: string }>;
 }
 
 /**
@@ -10,8 +10,8 @@ interface InvitePageProps {
  * Kept for backward compatibility with existing invite emails that link to
  * `/invite?token=abc`. New invite links point directly to `/login/invite`.
  */
-export default function InvitePage({ searchParams }: InvitePageProps) {
-  const token = searchParams.token;
+export default async function InvitePage({ searchParams }: InvitePageProps) {
+  const { token } = await searchParams;
   if (token) {
     redirect(`/login/invite?token=${encodeURIComponent(token)}`);
   }

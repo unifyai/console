@@ -3,7 +3,11 @@ import { buildCacheControl } from '../../_utils/cacheResponse';
 import { getApiKeyFromRequest, unauthorized } from '../../_utils/auth';
 import { createOrchestraClient } from '@/lib/orchestra/client';
 
-export async function GET(request: NextRequest, { params }: { params: { projectName: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ projectName: string }> }
+) {
+  const { projectName } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
@@ -14,7 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: { projectN
   try {
     const { data, error, response } = await client.GET('/v0/project/{project_name}/contexts', {
       params: {
-        path: { project_name: params.projectName },
+        path: { project_name: projectName },
       },
     });
 
@@ -34,7 +38,11 @@ export async function GET(request: NextRequest, { params }: { params: { projectN
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { projectName: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ projectName: string }> }
+) {
+  const { projectName } = await params;
   const body = await request.json();
 
   const apiKey = await getApiKeyFromRequest(request);
@@ -47,7 +55,7 @@ export async function POST(request: NextRequest, { params }: { params: { project
   try {
     const { data, error, response } = await client.POST('/v0/project/{project_name}/contexts', {
       params: {
-        path: { project_name: params.projectName },
+        path: { project_name: projectName },
       },
       body: body,
     });
@@ -65,8 +73,9 @@ export async function POST(request: NextRequest, { params }: { params: { project
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { projectName: string } }
+  { params }: { params: Promise<{ projectName: string }> }
 ) {
+  const { projectName } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
@@ -77,7 +86,7 @@ export async function DELETE(
   try {
     const { data, error, response } = await client.DELETE('/v0/project/{project_name}/contexts', {
       params: {
-        path: { project_name: params.projectName },
+        path: { project_name: projectName },
       },
     });
 

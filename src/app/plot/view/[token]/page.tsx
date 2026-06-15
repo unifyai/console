@@ -12,8 +12,8 @@ import { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
 import { DataLabel, GroupedDataLabel } from '@/types/interfaces/plot';
 
 interface PageProps {
-  params: { token: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 interface PlotDataResponse {
@@ -108,7 +108,8 @@ async function getPlotData(token: string): Promise<PlotDataResult> {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const result = await getPlotData(params.token);
+  const { token } = await params;
+  const result = await getPlotData(token);
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://console.unify.ai';
 
@@ -124,8 +125,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const plotType = result.data.config?.type || 'chart';
   const dataPoints = result.data.data?.length || 0;
   const description = `Interactive ${plotType} visualization with ${dataPoints.toLocaleString()} data points from ${projectName}`;
-  const ogImageUrl = `${baseUrl}/api/og/plot/${params.token}.png`;
-  const pageUrl = `${baseUrl}/plot/view/${params.token}`;
+  const ogImageUrl = `${baseUrl}/api/og/plot/${token}.png`;
+  const pageUrl = `${baseUrl}/plot/view/${token}`;
 
   return {
     title,
@@ -226,8 +227,10 @@ function ErrorMessage({ message }: { message: string }) {
 }
 
 export default async function PlotViewPage({ params, searchParams }: PageProps) {
-  const result = await getPlotData(params.token);
-  const embed = searchParams.embed === 'true';
+  const { token } = await params;
+  const resolvedSearchParams = await searchParams;
+  const result = await getPlotData(token);
+  const embed = resolvedSearchParams.embed === 'true';
 
   // Handle errors
   if (!result.success) {

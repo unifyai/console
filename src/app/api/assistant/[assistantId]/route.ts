@@ -4,8 +4,9 @@ import { createOrchestraClient } from '@/lib/orchestra/client';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { assistantId: string } }
+  { params }: { params: Promise<{ assistantId: string }> }
 ) {
+  const { assistantId } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
@@ -16,7 +17,7 @@ export async function DELETE(
   try {
     const { data, error, response } = await client.DELETE('/v0/assistant/{assistant_id}', {
       params: {
-        path: { assistant_id: parseInt(params.assistantId, 10) },
+        path: { assistant_id: parseInt(assistantId, 10) },
       },
     });
 
@@ -34,7 +35,11 @@ export async function DELETE(
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { assistantId: string } }) {
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ assistantId: string }> }
+) {
+  const { assistantId } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
@@ -52,7 +57,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { assist
   try {
     const { data, error, response } = await client.PATCH('/v0/assistant/{assistant_id}/config', {
       params: {
-        path: { assistant_id: parseInt(params.assistantId, 10) },
+        path: { assistant_id: parseInt(assistantId, 10) },
       },
       body: requestBody,
     });

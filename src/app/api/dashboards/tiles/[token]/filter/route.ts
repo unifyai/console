@@ -28,7 +28,11 @@ function joinFields(fields: string[] | undefined): string | undefined {
   return fields?.length ? fields.join('&') : undefined;
 }
 
-export async function POST(request: NextRequest, { params }: { params: { token: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ token: string }> }
+) {
+  const { token } = await params;
   if (!ORCHESTRA_ADMIN_KEY) {
     return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
   }
@@ -68,7 +72,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   const orchestraBody = camelToSnakeObject(orchestraParams);
 
   try {
-    const res = await fetch(`${ORCHESTRA_URL}/v0/admin/dashboards/tiles/${params.token}/filter`, {
+    const res = await fetch(`${ORCHESTRA_URL}/v0/admin/dashboards/tiles/${token}/filter`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${ORCHESTRA_ADMIN_KEY}`,

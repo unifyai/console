@@ -3,14 +3,14 @@ import { getApiKeyFromRequest, unauthorized } from '../../../_utils/auth';
 import { buildOrchestraV0Url } from '../../_utils/orchestra-url';
 
 type RouteContext = {
-  params: { path: string[] };
+  params: Promise<{ path: string[] }>;
 };
 
 async function proxy(request: NextRequest, context: RouteContext) {
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) return unauthorized();
 
-  const { path } = context.params;
+  const { path } = await context.params;
   const target = buildOrchestraV0Url(`/integrations/${path.join('/')}`);
   request.nextUrl.searchParams.forEach((value, key) => target.searchParams.set(key, value));
 
