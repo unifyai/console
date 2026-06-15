@@ -62,6 +62,8 @@ application_default_credentials.json
 /plans/
 .credentials/
 .cursorrules
+/.cursor/projects/
+/.cursor/plans/
 
 # ON_PREM sandbox mock files (contain API keys)
 public/sessionInfo.json
