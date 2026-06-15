@@ -186,7 +186,7 @@ test('starting a call plays the intro then docks the call in the platform', asyn
   await page.getByRole('button', { name: 'End call' }).click();
 });
 
-test('resolving the picker persists intro_watched and reload skips it', async ({
+test('resolving the picker persists intro_watched and reload defaults to Marty + Assistant info', async ({
   authedPage: page,
 }) => {
   resetCoordinatorIntroWatched();
@@ -200,11 +200,46 @@ test('resolving the picker persists intro_watched and reload skips it', async ({
   await expect.poll(() => readPersistedIntroWatched(), { timeout: 10_000 }).toBe('true');
 
   // A reload now lands directly on the regular platform: no picker, no
-  // intro overlay.
+  // intro overlay. The bare /assistants visit defaults to the Coordinator
+  // selected with its "Assistant info" onboarding card open — regardless
+  // of onboarding being already watched.
   await page.reload();
   await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
-  await expect(page.getByTestId('coordinator-onboarding')).toHaveCount(0, { timeout: 15_000 });
-  await expect(page.getByRole('button', { name: /^Onboard$/ })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0, {
+    timeout: 15_000,
+  });
+  await openOnboardingChecklist(page);
+  await expect(page.getByTestId('coordinator-onboarding-item-workspace').first()).toBeVisible({
+    timeout: 15_000,
+  });
+});
+
+test('the "Repeat intro" affordance replays the intro from the Assistant info card', async ({
+  authedPage: page,
+}) => {
+  await page.addInitScript(() => {
+    Object.assign(window, {
+      __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 1_400,
+    });
+  });
+  // Continues from the previous test's state: intro already watched, so we
+  // land directly on the platform with Marty selected (no reset).
+  await gotoAssistants(page);
+  await openOnboardingChecklist(page);
+
+  // Replaying re-runs the intro animation on demand — no picker.
+  const replay = page.getByTestId('coordinator-onboarding-replay-intro');
+  await expect(replay).toBeVisible({ timeout: 15_000 });
+  await replay.click();
+
+  await expect(page.getByTestId('coordinator-onboarding-call-intro')).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
+
+  // The intro hands off into the docked call, then the overlay clears.
+  await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
+  await page.getByRole('button', { name: 'End call' }).click();
 });
 
 test('skipping an inline checklist step can be reversed later', async ({ authedPage: page }) => {

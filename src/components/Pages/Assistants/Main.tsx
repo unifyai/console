@@ -424,12 +424,19 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // doesn't pop back in after the intro finishes (the ``intro_watched``
   // write is async + optimistic, but this keeps the dismissal instant).
   const [coordinatorIntroDismissed, setCoordinatorIntroDismissed] = React.useState(false);
-  const showCoordinatorOnboardingIntro =
+  // On-demand "Repeat intro" replays the intro overlay regardless of
+  // ``intro_watched`` — driven from the Coordinator's "Assistant info"
+  // onboarding tab. It mounts the overlay straight into the intro
+  // (skipping the picker) and clears itself once the intro finishes.
+  const [coordinatorIntroReplay, setCoordinatorIntroReplay] = React.useState(false);
+  const showCoordinatorOnboardingFreshIntro =
     ENABLE_COORDINATOR_ONBOARDING &&
     isCanonicalCoordinatorOwned &&
     !coordinatorIntroDismissed &&
     coordinatorOnboardingState?.mode === 'onboarding' &&
     coordinatorOnboardingState?.introWatched === false;
+  const showCoordinatorOnboardingIntro =
+    showCoordinatorOnboardingFreshIntro || coordinatorIntroReplay;
 
   // Shared onboarding step progress for the Coordinator onboarding
   // flow. Lifted out of ``CoordinatorOnboarding`` so the same set
@@ -579,6 +586,22 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     isLoadingAssistants,
     profileAssistantId,
   ]);
+
+  // Default landing selection: a bare ``/assistants`` visit (no
+  // ``?profile=`` deep link) selects the workspace Coordinator and opens
+  // its "Assistant info" card, regardless of onboarding state. Applied
+  // once on first load so the user can still deselect afterwards; a deep
+  // link to another assistant takes precedence (``profileAssistantId``
+  // is already set when it lands).
+  const defaultCoordinatorSelectionRef = React.useRef(false);
+  React.useEffect(() => {
+    if (defaultCoordinatorSelectionRef.current) return;
+    if (isLoadingAssistants || !canonicalCoordinatorId) return;
+    defaultCoordinatorSelectionRef.current = true;
+    if (!profileAssistantId) {
+      handleShowProfile(canonicalCoordinatorId);
+    }
+  }, [canonicalCoordinatorId, handleShowProfile, isLoadingAssistants, profileAssistantId]);
 
   // --- Assistant Status Polling ---
   const { statuses: assistantStatuses, markOnline: markAssistantOnline } =
@@ -1487,6 +1510,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // the workspace manager but doesn't mark the step done. Real
   // completion is observed by the effect below that watches
   // ``canonicalCoordinator.email`` / ``.emailProvider`` landing.
+  // Replays the Marty call intro on demand from the Coordinator's
+  // "Assistant info" onboarding tab. Mounts the intro overlay straight
+  // into the animation (no picker); it clears itself on finish.
+  const handleReplayCoordinatorIntro = React.useCallback(() => {
+    setCoordinatorIntroReplay(true);
+  }, []);
+
   const coordinatorOnboardingPanelHandlers = React.useMemo(() => {
     if (!isCanonicalCoordinatorOwned || !canonicalCoordinator) return undefined;
     return {
@@ -1498,6 +1528,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         : undefined,
       onSkipStep: handleCoordinatorOnboardingStepSkip,
       onUnskipStep: handleCoordinatorOnboardingStepUnskip,
+      onReplayIntro: handleReplayCoordinatorIntro,
     };
     // ``handleOpenWorkspaceManager`` isn't a useCallback (defined
     // inline above) so it intentionally isn't in the deps — using
@@ -1510,6 +1541,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     markStepEngaged,
     handleCoordinatorOnboardingStepSkip,
     handleCoordinatorOnboardingStepUnskip,
+    handleReplayCoordinatorIntro,
     workspaceConnectAvailable,
   ]);
 
@@ -2045,8 +2077,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               <div className="absolute inset-0 z-50">
                 <CoordinatorOnboarding
                   coordinator={canonicalCoordinator}
+                  autoStartIntro={coordinatorIntroReplay}
                   onStartCall={handleStartCoordinatorIntroCall}
-                  onComplete={() => setCoordinatorIntroDismissed(true)}
+                  onComplete={() => {
+                    setCoordinatorIntroDismissed(true);
+                    setCoordinatorIntroReplay(false);
+                  }}
                 />
               </div>
             )}

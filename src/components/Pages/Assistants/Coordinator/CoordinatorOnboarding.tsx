@@ -54,6 +54,10 @@ type IntroAvatarOffset = { x: number; y: number };
 
 interface CoordinatorOnboardingProps {
   coordinator: Assistant;
+  /** When true the overlay mounts straight into the animated intro
+   * (skipping the call-vs-chat picker) — used by the "Repeat intro"
+   * affordance on the Coordinator's "Assistant info" card. */
+  autoStartIntro?: boolean;
   /** Starts the real Coordinator call. The intro warms this up early so
    * the docked call is already live in the platform when the overlay
    * dismisses. */
@@ -70,6 +74,7 @@ interface CoordinatorOnboardingProps {
 
 export function CoordinatorOnboarding({
   coordinator,
+  autoStartIntro = false,
   onStartCall,
   onComplete,
 }: CoordinatorOnboardingProps) {
@@ -78,7 +83,7 @@ export function CoordinatorOnboarding({
   // "Start Call" is shown disabled (with a reason) and chat is the only path.
   const { voiceCalls } = useFeatures();
 
-  const [phase, setPhase] = React.useState<OnboardingPhase>('picker');
+  const [phase, setPhase] = React.useState<OnboardingPhase>(autoStartIntro ? 'intro' : 'picker');
   const [introAvatarOffset, setIntroAvatarOffset] = React.useState<IntroAvatarOffset>({
     x: 0,
     y: -72,
@@ -88,12 +93,24 @@ export function CoordinatorOnboarding({
   // countdown clock; ``introCountdownMs`` is the wall-clock span until
   // Marty stops speaking; ``introReady`` flips when the intro finishes
   // so the badge stops counting.
-  const [introStartedAt, setIntroStartedAt] = React.useState<number | null>(null);
-  const [introCountdownMs, setIntroCountdownMs] = React.useState(0);
+  const [introStartedAt, setIntroStartedAt] = React.useState<number | null>(
+    autoStartIntro ? Date.now() : null
+  );
+  const [introCountdownMs, setIntroCountdownMs] = React.useState(
+    autoStartIntro ? getCoordinatorIntroCountdownMs() : 0
+  );
   const [introReady, setIntroReady] = React.useState(false);
   const [isStartingCall, setIsStartingCall] = React.useState(false);
   const hasTriggeredCallStartRef = React.useRef(false);
   const hasCompletedRef = React.useRef(false);
+
+  // Replay path: warm up the soundscape on mount so the auto-started
+  // intro has its audio buffers ready, matching the picker's "Start Call".
+  React.useEffect(() => {
+    if (autoStartIntro) primeCoordinatorOnboardingCitySoundscape();
+    // Mount-only: ``autoStartIntro`` is fixed for the overlay's lifetime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { startRinging: startPickerRinging, stopRinging: stopPickerRinging } = useCallSounds();
   const isPickerVisible = phase === 'picker';
