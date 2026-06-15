@@ -88,6 +88,7 @@ import { useSearchParams } from 'next/navigation';
 import { useSpendingGate } from '@/hooks/Assistants/useSpendingGate';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemErrors';
+import { useAssistantPresenceWake } from '@/hooks/Assistants/useAssistantPresenceWake';
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { createRandomDroidProfile } from '@/utils/assistants/droid-profile-randomizer';
@@ -192,6 +193,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleShowProfile: setPanelProfileAssistant,
     handleProfileClose: clearPanelProfileAssistant,
   } = usePanelManager(profileParam);
+  useAssistantPresenceWake(profileAssistantId);
   const handleShowProfile = React.useCallback(
     (assistantId: string) => {
       setPanelProfileAssistant(assistantId);
