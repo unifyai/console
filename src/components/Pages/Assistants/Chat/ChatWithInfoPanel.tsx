@@ -169,7 +169,6 @@ export interface ChatWithInfoPanelProps {
     onConnectApps?: () => void;
     onActNow?: () => void;
     onScheduleTask?: () => void;
-    onHireSpecialist?: () => void;
   };
   /**
    * When a call with *this* assistant is active and not popped out,

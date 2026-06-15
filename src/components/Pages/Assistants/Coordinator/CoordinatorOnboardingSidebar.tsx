@@ -4,8 +4,7 @@
  * CoordinatorOnboardingSidebar — the right-hand rail rendered next to
  * the chat / call surface during the gradual onboarding view (i.e.
  * the alternate ``/assistants`` shell shown while
- * ``Coordinator/State.mode === 'onboarding'`` and the user hasn't
- * yet engaged the final hire-specialist step).
+ * ``Coordinator/State.mode === 'onboarding'``).
  *
  * Layout mirrors the long-term ``AssistantInfoSidePanelContent`` we
  * swap in once onboarding finishes — same 380px width (driven by
@@ -21,8 +20,8 @@
  *      Reads progress from the shared context so the same state surfaces
  *      in the info-panel Onboarding tab later.
  *   2. A "Skip onboarding" affordance pinned to the bottom — only
- *      lives on this surface because skipping past hire-specialist
- *      (when the info-panel Onboarding tab appears) doesn't make UX sense.
+ *      lives on this surface, where the user is still actively
+ *      working through the gradual flow.
  */
 
 import * as React from 'react';

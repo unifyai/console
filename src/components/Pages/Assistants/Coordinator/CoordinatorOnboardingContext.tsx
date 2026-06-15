@@ -8,7 +8,7 @@
  * progress survives the gradual ↔ info-panel layout transition
  * (which mounts / unmounts distinct subtrees).
  *
- * Action handlers (connect-workspace, hire-specialist, …) are
+ * Action handlers (connect-workspace, connect-apps, …) are
  * deliberately *not* on the context — they're surface-specific (e.g.
  * connect-apps opens a docked side tab in the gradual view but is a
  * no-op in the info-panel surface) and so each surface threads its

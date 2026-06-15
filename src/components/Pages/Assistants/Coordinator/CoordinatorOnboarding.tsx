@@ -173,18 +173,6 @@ interface CoordinatorOnboardingProps {
    * tab; same accumulation pattern as the others. Unset means the
    * sub-item degrades to a static checklist entry. */
   renderActionsPane?: () => React.ReactNode;
-  /** Engages the "Hire your first specialist assistant" sub-step.
-   * The parent is expected to (a) open the assistant-hire dialog
-   * and (b) swap to the base /assistants layout so the user sees
-   * the final view they're about to live in — list on the left,
-   * coordinator selected, with the hire dialog popped on top. We
-   * deliberately do *not* mark the row complete on click: the row
-   * only counts as done when an assistant has actually been hired,
-   * at which point the parent flips the Coordinator out of
-   * ``onboarding`` mode and the entire onboarding surface
-   * unmounts. Unset means the sub-item degrades to a static
-   * checklist entry. */
-  onHireSpecialist?: () => void;
   onSkipStep?: (stepId: string) => void;
   /** Invoked after the Coordinator is promoted to ``working`` so the
    * page layout can swap back to the full /assistants shell without
@@ -214,7 +202,6 @@ export function CoordinatorOnboarding({
   renderIntegrationsPane,
   renderTasksPane,
   renderActionsPane,
-  onHireSpecialist,
   onSkipStep,
   onOnboardingComplete,
 }: CoordinatorOnboardingProps) {
@@ -429,17 +416,6 @@ export function CoordinatorOnboarding({
     renderIntegrationsPane,
     renderTasksPane,
   ]);
-
-  // Hire-specialist is the final structural milestone: clicking
-  // hands control back to the parent, which is expected to swap to
-  // the base /assistants layout and pop the hire dialog on top. We
-  // never mark the row complete locally — completion only happens
-  // when an actual hire lands, at which point the parent flips the
-  // Coordinator out of ``onboarding`` mode and the onboarding
-  // surface unmounts entirely.
-  const handleHireSpecialist = React.useCallback(() => {
-    onHireSpecialist?.();
-  }, [onHireSpecialist]);
 
   // Fire the picker-resolution event so Unity opens the session with
   // the right kind of message (intro on a fresh transcript, recap on
@@ -728,10 +704,6 @@ export function CoordinatorOnboarding({
   //     container, treating chat + sidebar as a single tab group —
   //     this is what the wireframe calls out as "progressively
   //     building the full layout of the base assistants page".
-  //   - 4-region (hire-specialist clicked): handled by the parent —
-  //     this surface unmounts in favour of the base /assistants
-  //     shell, so the user sees the post-onboarding layout (list ▸
-  //     chat ▸ right pane) with the hire dialog popped on top.
   //
   // The right section is itself tabbed: Actions, Tasks, and
   // Integrations accumulate as the user progresses. Visibility is
@@ -785,7 +757,6 @@ export function CoordinatorOnboarding({
       onConnectApps={renderIntegrationsPane ? handleOpenIntegrations : undefined}
       onActNow={renderActionsPane ? handleActNow : undefined}
       onScheduleTask={renderTasksPane ? handleScheduleTask : undefined}
-      onHireSpecialist={onHireSpecialist ? handleHireSpecialist : undefined}
       onSkipStep={onSkipStep}
       // Drives the call- vs. chat-flavoured "Act now" suggestion
       // chips — same signal that labels the main pane Call/Chat.

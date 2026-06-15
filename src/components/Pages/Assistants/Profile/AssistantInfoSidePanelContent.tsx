@@ -95,7 +95,6 @@ export interface AssistantInfoSidePanelContentProps {
     onConnectApps?: () => void;
     onActNow?: () => void;
     onScheduleTask?: () => void;
-    onHireSpecialist?: () => void;
     onSkipStep?: (stepId: string) => void;
     /** Surfaces a "Resume onboarding" CTA at the bottom of the
      * onboarding sub-tab. Wired only when the Coordinator/State row
@@ -252,7 +251,6 @@ function CoordinatorAssistantInfoSidePanelContent({
                   onConnectApps={coordinatorOnboarding.onConnectApps}
                   onActNow={coordinatorOnboarding.onActNow}
                   onScheduleTask={coordinatorOnboarding.onScheduleTask}
-                  onHireSpecialist={coordinatorOnboarding.onHireSpecialist}
                   onSkipStep={coordinatorOnboarding.onSkipStep}
                 />
                 {coordinatorOnboarding.onResumeOnboarding && (

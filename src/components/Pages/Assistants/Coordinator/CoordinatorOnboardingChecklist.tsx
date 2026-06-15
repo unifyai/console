@@ -10,10 +10,10 @@
  *      ``CoordinatorOnboardingSidebar`` which adds a full-height
  *      column shell and the "Skip onboarding" footer.
  *   2. The coordinator's assistant info panel "Onboarding" sub-tab
- *      in the base ``/assistants`` shell, which the user reaches the
- *      moment they engage the "Hire your first specialist" step.
- *      The layout swaps to base but the checklist follows the user
- *      so the progress they've made stays in view.
+ *      in the base ``/assistants`` shell — surfaced when the
+ *      coordinator is selected there (e.g. after resuming onboarding
+ *      from ``working`` mode). The checklist follows the user across
+ *      surfaces so the progress they've made stays in view.
  *
  * Shared state (``completedStepIds``) comes from
  * ``CoordinatorOnboardingContext`` so it survives the surface
@@ -35,12 +35,7 @@ import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { cn } from '@/lib/utils';
 import { useCoordinatorOnboardingContext } from './CoordinatorOnboardingContext';
 
-type ChecklistAction =
-  | 'connect-workspace'
-  | 'connect-apps'
-  | 'act'
-  | 'schedule'
-  | 'hire-specialist';
+type ChecklistAction = 'connect-workspace' | 'connect-apps' | 'act' | 'schedule';
 
 interface OnboardingChecklistItem {
   id: string;
@@ -134,25 +129,12 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         // Time- or event-bound work: this is what the product calls
         // a "Task" — it lands in the Coordinator's Tasks context and
         // shows in the Tasks panel. Completion is the Tasks count
-        // going non-zero. Encouraged but not a hard gate for hiring
-        // (see ``hire-specialist`` below).
+        // going non-zero.
         id: 'schedule',
         title: 'Schedule a task for later',
         description: 'Set up a recurring or event-triggered task.',
         estimatedTime: '~1 min',
         action: 'schedule',
-        prerequisiteId: 'act',
-      },
-      {
-        id: 'hire-specialist',
-        title: 'Onboard your first specialist droid',
-        description: 'Spin up a focused specialist for recurring work.',
-        estimatedTime: '~3 min',
-        action: 'hire-specialist',
-        // Gated on ``act`` (seeing real work happen), not
-        // ``schedule`` — scheduling is encouraged but optional, so a
-        // user who just wants to hire isn't forced to set up a
-        // scheduled task first.
         prerequisiteId: 'act',
       },
     ],
@@ -442,10 +424,6 @@ export interface CoordinatorOnboardingChecklistProps {
    * "Schedule a task for later". Unset means the row degrades to a
    * static entry. */
   onScheduleTask?: () => void;
-  /** Engages the final step — see the prop docs on
-   * ``CoordinatorOnboarding`` for the exact contract. Unset means
-   * the row degrades to a static entry. */
-  onHireSpecialist?: () => void;
   onSkipStep?: (stepId: string) => void;
   /** Whether the user is currently on a voice call (vs. chat).
    * Selects which "Act now" suggestion chips show: call-friendly
@@ -462,7 +440,6 @@ export function CoordinatorOnboardingChecklist({
   onConnectApps,
   onActNow,
   onScheduleTask,
-  onHireSpecialist,
   onSkipStep,
   isOnCall = false,
   className,
@@ -481,9 +458,8 @@ export function CoordinatorOnboardingChecklist({
       else if (action === 'connect-apps') onConnectApps?.();
       else if (action === 'act') onActNow?.();
       else if (action === 'schedule') onScheduleTask?.();
-      else if (action === 'hire-specialist') onHireSpecialist?.();
     },
-    [onConnectWorkspace, onConnectApps, onActNow, onScheduleTask, onHireSpecialist]
+    [onConnectWorkspace, onConnectApps, onActNow, onScheduleTask]
   );
 
   // An action is reachable when the parent has wired the
@@ -496,10 +472,9 @@ export function CoordinatorOnboardingChecklist({
       if (action === 'connect-apps') return !!onConnectApps;
       if (action === 'act') return !!onActNow;
       if (action === 'schedule') return !!onScheduleTask;
-      if (action === 'hire-specialist') return !!onHireSpecialist;
       return false;
     },
-    [onConnectWorkspace, onConnectApps, onActNow, onScheduleTask, onHireSpecialist]
+    [onConnectWorkspace, onConnectApps, onActNow, onScheduleTask]
   );
 
   const resolved = React.useMemo(

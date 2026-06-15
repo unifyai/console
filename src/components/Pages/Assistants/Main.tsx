@@ -426,31 +426,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   } = useCoordinatorOnboarding(canonicalCoordinatorId, {
     enabled: isCanonicalCoordinatorOwned && ENABLE_COORDINATOR_ONBOARDING,
   });
-  // Tracks whether the user has clicked "Hire your first specialist
-  // assistant" in the onboarding sidebar. While this is true we
-  // suppress the onboarding view *even though* the Coordinator/State
-  // row is still ``onboarding`` — the page intentionally previews
-  // the post-onboarding layout (base /assistants shell with the
-  // coordinator selected) while the hire dialog is open on top, so
-  // the user immediately sees the final shape of their workspace.
-  // An actual hire then promotes the row to ``working`` via
-  // ``handleHireSuccess`` (which also clears this flag); cancelling
-  // the dialog leaves the page on the base layout for the rest of
-  // the session, with a reload taking the user back to the
-  // onboarding view to resume.
-  const [isHireSpecialistEngaged, setIsHireSpecialistEngaged] = React.useState(false);
   const showCoordinatorOnboarding =
     ENABLE_COORDINATOR_ONBOARDING &&
     isCanonicalCoordinatorOwned &&
-    coordinatorOnboardingState?.mode === 'onboarding' &&
-    !isHireSpecialistEngaged;
+    coordinatorOnboardingState?.mode === 'onboarding';
 
   // Shared onboarding step progress for the Coordinator onboarding
   // flow. Lifted out of ``CoordinatorOnboarding`` so the same set
-  // survives the gradual ↔ info-panel layout transition — when the
-  // user clicks "Hire your first specialist" the layout swaps to the
-  // base /assistants shell and the Onboarding tab follows them into
-  // the coordinator's assistant info panel.
+  // survives the gradual ↔ info-panel layout transition — the
+  // Onboarding tab follows the user into the coordinator's assistant
+  // info panel on the base /assistants shell.
   // ``'meet'`` is seeded because the picker is always resolved by
   // the time we render anything substantive; the durable steps
   // (workspace/apps/act/schedule) are seeded from the server-derived
@@ -510,18 +495,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       const skipped = await updateCoordinatorOnboardingState({ skipOnboardingStep: stepId });
       if (!skipped) return;
       markStepSkipped(stepId);
-      if (stepId === 'hire-specialist') {
-        const promoted = await updateCoordinatorOnboardingState({
-          mode: 'working',
-          clearOnboardingStep: true,
-        });
-        if (promoted?.mode === 'working') {
-          setIsHireSpecialistEngaged(false);
-          void refetchCoordinatorOnboardingState();
-        }
-      }
     },
-    [markStepSkipped, refetchCoordinatorOnboardingState, updateCoordinatorOnboardingState]
+    [markStepSkipped, updateCoordinatorOnboardingState]
   );
   const coordinatorOnboardingCtxValue = React.useMemo<CoordinatorOnboardingContextValue>(
     () => ({
@@ -1341,25 +1316,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       refreshAssistants(false);
       fetchUserVoices();
       refetchBillingStatus();
-
-      // Hiring a specialist while the Coordinator is still in
-      // ``onboarding`` mode is the natural completion signal for the
-      // "Hire your first specialist assistant" milestone — the user
-      // has visibly done the thing the step is asking for, so we
-      // promote the Coordinator to ``working`` and let the base
-      // /assistants shell take over (with the freshly-hired
-      // specialist visible alongside the coordinator in the list).
-      // We skip this for re-hires (anything past the first promotion
-      // is a no-op since ``mode`` is already ``working``) and for
-      // hires of the coordinator itself — though that path doesn't
-      // exist today, this guard keeps the contract narrow.
-      if (coordinatorOnboardingState?.mode === 'onboarding' && !optimisticAssistant.isCoordinator) {
-        void updateCoordinatorOnboardingState({
-          mode: 'working',
-          clearOnboardingStep: true,
-        });
-        setIsHireSpecialistEngaged(false);
-      }
     },
     [
       refreshAssistants,
@@ -1367,9 +1323,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       refetchBillingStatus,
       fetchUserVoices,
       setAssistants,
-      coordinatorOnboardingState?.mode,
       hireWorkspaceProvider,
-      updateCoordinatorOnboardingState,
     ]
   );
 
@@ -1533,31 +1487,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setWorkspaceManagerAssistant(assistant);
   };
 
-  // Engages the "Hire your first specialist" milestone. Wired to
-  // both surfaces — the gradual onboarding sidebar (which calls
-  // this when the user clicks the row) and the coordinator's
-  // info-panel Onboarding tab (so the user can re-pop the dialog after
-  // dismissing it without leaving onboarding mode). Selecting the
-  // coordinator and flipping ``isHireSpecialistEngaged`` is
-  // idempotent so calling this from the info panel — where the
-  // user has typically already been promoted to the base shell —
-  // is a safe no-op for those bits.
-  const handleHireSpecialistEngage = React.useCallback(() => {
-    if (canonicalCoordinatorId) handleShowProfile(canonicalCoordinatorId);
-    setIsHireSpecialistEngaged(true);
-    handleOpenHireDialog();
-  }, [canonicalCoordinatorId, handleShowProfile, handleOpenHireDialog]);
-
   // Handler bag forwarded to the coordinator's assistant info
-  // panel "Onboarding" sub-tab. Only the actions that still make
-  // sense in the post-engage-hire-specialist state are wired: by
-  // that point ``workspace`` / ``apps`` / ``task`` / ``guide``
-  // are typically already marked done (the user reached
-  // ``hire-specialist`` by completing them), so their rows render
-  // as strikethrough and the handlers wouldn't fire. Re-engaging
-  // ``hire-specialist`` from the info-panel Onboarding tab re-opens the
-  // dialog without surprises; ``connect-workspace`` is kept wired as
-  // a defensive fallback in case a future flow lets users reach the
+  // panel "Onboarding" sub-tab. ``connect-workspace`` is kept wired
+  // as a defensive fallback in case a flow lets users reach the
   // info panel with that step still pending.
   //
   // ``connect-workspace`` here is engagement-only: clicking opens
@@ -1571,9 +1503,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     // skipped or finished onboarding once and the gradual shell is
     // dormant. Flipping the row back to ``onboarding`` is enough:
     // the ``showCoordinatorOnboarding`` selector above re-mounts
-    // the alternate /assistants view automatically, and
-    // ``isHireSpecialistEngaged`` is cleared as a defensive reset
-    // in case the user got into ``working`` via the hire path.
+    // the alternate /assistants view automatically.
     const isWorkingMode = coordinatorOnboardingState?.mode === 'working';
     return {
       onConnectWorkspace: workspaceConnectAvailable
@@ -1582,11 +1512,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             handleOpenWorkspaceManager(canonicalCoordinator);
           }
         : undefined,
-      onHireSpecialist: handleHireSpecialistEngage,
       onSkipStep: handleCoordinatorOnboardingStepSkip,
       onResumeOnboarding: isWorkingMode
         ? () => {
-            setIsHireSpecialistEngaged(false);
             void updateCoordinatorOnboardingState({ mode: 'onboarding' });
           }
         : undefined,
@@ -1601,7 +1529,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     canonicalCoordinator,
     markStepEngaged,
     handleCoordinatorOnboardingStepSkip,
-    handleHireSpecialistEngage,
     coordinatorOnboardingState?.mode,
     updateCoordinatorOnboardingState,
     workspaceConnectAvailable,
@@ -2067,7 +1994,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   }}
                 />
               )}
-              onHireSpecialist={handleHireSpecialistEngage}
               onOnboardingComplete={() => {
                 // Best-effort refresh — the React Query optimistic
                 // write already flips ``mode`` to ``working`` so the

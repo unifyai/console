@@ -315,7 +315,6 @@ interface RightPaneContainerProps {
     onConnectApps?: () => void;
     onActNow?: () => void;
     onScheduleTask?: () => void;
-    onHireSpecialist?: () => void;
   };
   /**
    * Unread chat-message count for the currently-open assistant. Drives
