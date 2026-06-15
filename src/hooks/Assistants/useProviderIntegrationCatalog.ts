@@ -26,7 +26,6 @@ import type {
 } from '@/types/integrations';
 
 const PROVIDER_CATALOG_PAGE_SIZE = 100;
-const PROVIDER_PROMOTED_PREFETCH_LIMIT = 500;
 
 type ProviderCatalogSourceType = 'native' | 'third_party';
 
@@ -67,7 +66,7 @@ function mergeDefinitionsWithConnections(
     if (connections.length === 0) return definition;
     return {
       ...definition,
-      status: definition.status,
+      status: connections[0]?.status ?? definition.status,
       connections: [
         ...connections,
         ...definition.connections.filter(
@@ -78,6 +77,34 @@ function mergeDefinitionsWithConnections(
       ],
     };
   });
+}
+
+function statusGroupForDefinition(definition: IntegrationDefinition): ProviderAppStatusGroup {
+  if (definition.status === 'connected') return 'connected';
+  if (
+    [
+      'configured',
+      'pending',
+      'missing_scope',
+      'missing_secrets',
+      'needs_reconnect',
+      'expired',
+      'revoked',
+      'error',
+    ].includes(definition.status)
+  ) {
+    return 'needs_attention';
+  }
+  return 'not_connected';
+}
+
+function filterDefinitionsByStatusGroups(
+  definitions: IntegrationDefinition[],
+  statusGroups: ProviderAppStatusGroup[]
+): IntegrationDefinition[] {
+  if (statusGroups.length === 0) return definitions;
+  const allowed = new Set(statusGroups);
+  return definitions.filter((definition) => allowed.has(statusGroupForDefinition(definition)));
 }
 
 function mergeUniqueDefinitions(definitions: IntegrationDefinition[]): IntegrationDefinition[] {
@@ -145,8 +172,7 @@ export function useProviderIntegrationCatalog(
     setDefinitions([]);
     isLoadingMoreRef.current = false;
     try {
-      const shouldPrefetchPromotedStatuses = statusGroups.length === 0;
-      const [page, connectedPage, needsAttentionPage, providerConnections] = await Promise.all([
+      const [page, providerConnections] = await Promise.all([
         listProviderIntegrationDefinitionsPage({
           ownerScope,
           assistantId,
@@ -157,36 +183,6 @@ export function useProviderIntegrationCatalog(
           limit: PROVIDER_CATALOG_PAGE_SIZE,
           offset: 0,
         }),
-        shouldPrefetchPromotedStatuses
-          ? listProviderIntegrationDefinitionsPage({
-              ownerScope,
-              assistantId,
-              query,
-              sourceType,
-              statusGroups: ['connected'],
-              detailLevel: 'summary',
-              limit: PROVIDER_PROMOTED_PREFETCH_LIMIT,
-              offset: 0,
-            }).catch((error) => {
-              console.error('Failed to prefetch connected provider integrations', error);
-              return null;
-            })
-          : Promise.resolve(null),
-        shouldPrefetchPromotedStatuses
-          ? listProviderIntegrationDefinitionsPage({
-              ownerScope,
-              assistantId,
-              query,
-              sourceType,
-              statusGroups: ['needs_attention'],
-              detailLevel: 'summary',
-              limit: PROVIDER_PROMOTED_PREFETCH_LIMIT,
-              offset: 0,
-            }).catch((error) => {
-              console.error('Failed to prefetch needs-attention provider integrations', error);
-              return null;
-            })
-          : Promise.resolve(null),
         listProviderIntegrationConnections({ ownerScope, assistantId }).catch((error) => {
           console.error('Failed to load provider integration connections', error);
           return [];
@@ -194,13 +190,12 @@ export function useProviderIntegrationCatalog(
       ]);
       providerConnectionsRef.current = providerConnections;
       setDefinitions(
-        mergeDefinitionsWithConnections(
-          mergeUniqueDefinitions([
-            ...(connectedPage?.definitions ?? []),
-            ...(needsAttentionPage?.definitions ?? []),
-            ...page.definitions,
-          ]),
-          providerConnections
+        filterDefinitionsByStatusGroups(
+          mergeDefinitionsWithConnections(
+            mergeUniqueDefinitions(page.definitions),
+            providerConnections
+          ),
+          statusGroups
         )
       );
       setTotal(page.total);
@@ -242,9 +237,9 @@ export function useProviderIntegrationCatalog(
         limit: PROVIDER_CATALOG_PAGE_SIZE,
         offset: nextOffset,
       });
-      const merged = mergeDefinitionsWithConnections(
-        page.definitions,
-        providerConnectionsRef.current
+      const merged = filterDefinitionsByStatusGroups(
+        mergeDefinitionsWithConnections(page.definitions, providerConnectionsRef.current),
+        statusGroups
       );
       setDefinitions((current) => {
         const bySlug = new Map(current.map((definition) => [definition.canonicalSlug, definition]));

@@ -60,6 +60,11 @@ interface ProviderAppPagePayload {
   generatedAt?: string | null;
 }
 
+interface LogPayload<T> {
+  logs?: Array<{ entries?: T }>;
+  count?: number;
+}
+
 export type ProviderAppStatusGroup = 'connected' | 'needs_attention' | 'not_connected';
 export type ProviderAppDetailLevel = 'full' | 'summary';
 
@@ -153,6 +158,24 @@ async function integrationFetch<T>(path: string, init: RequestInit = {}): Promis
     },
   });
   return readJsonResponse<T>(response);
+}
+
+async function builtinsLogFetch<T>(args: {
+  context: string;
+  limit: number;
+  offset: number;
+  filterExpr?: string;
+}): Promise<LogPayload<T>> {
+  const params = new URLSearchParams();
+  params.set('project', process.env.NEXT_PUBLIC_UNITY_BUILTINS_PROJECT || 'Builtins');
+  params.set('context', args.context);
+  params.set('limit', String(args.limit));
+  params.set('offset', String(args.offset));
+  if (args.filterExpr) params.set('filterExpr', args.filterExpr);
+  const response = await fetch(`/api/logs?${params.toString()}`, {
+    cache: 'no-store',
+  });
+  return readJsonResponse<LogPayload<T>>(response);
 }
 
 function buildOwnerQuery(args?: {
@@ -356,13 +379,13 @@ export async function listProviderIntegrationDefinitions(args: {
   ownerScope: IntegrationOwnerScope;
   assistantId?: string | number;
 }): Promise<IntegrationDefinition[]> {
-  const params = new URLSearchParams();
-  params.set('owner_scope', args.ownerScope);
-  if (args.assistantId !== undefined) params.set('assistant_id', String(args.assistantId));
-  const data = await integrationFetch<
-    ProviderAppPayload[] | { apps?: ProviderAppPayload[]; items?: ProviderAppPayload[] }
-  >(`apps?${params.toString()}`);
-  return asArray<ProviderAppPayload>(data).map(mapProviderAppToDefinition);
+  const page = await listProviderIntegrationDefinitionsPage({
+    ownerScope: args.ownerScope,
+    assistantId: args.assistantId,
+    limit: 500,
+    offset: 0,
+  });
+  return page.definitions;
 }
 
 export async function listProviderIntegrationDefinitionsPage(args: {
@@ -376,35 +399,35 @@ export async function listProviderIntegrationDefinitionsPage(args: {
   limit?: number;
   offset?: number;
 }): Promise<ProviderIntegrationDefinitionsPage> {
-  const params = new URLSearchParams();
   const limit = args.limit ?? 100;
   const offset = args.offset ?? 0;
-  params.set('owner_scope', args.ownerScope);
-  params.set('limit', String(limit));
-  params.set('offset', String(offset));
-  params.set('detail_level', args.detailLevel ?? 'summary');
-  if (args.assistantId !== undefined) params.set('assistant_id', String(args.assistantId));
-  if (args.query?.trim()) params.set('query', args.query.trim());
-  if (args.sourceType) params.set('source_type', args.sourceType);
-  for (const status of args.statuses ?? []) {
-    params.append('status', status);
+  const filters: string[] = [];
+  if (args.sourceType) {
+    filters.push(`source_type == "${args.sourceType}"`);
   }
-  for (const statusGroup of args.statusGroups ?? []) {
-    params.append('status_group', statusGroup);
+  const data = await builtinsLogFetch<ProviderAppPayload>({
+    context: 'Integrations/Apps',
+    limit,
+    offset,
+    filterExpr: filters.length > 0 ? filters.join(' and ') : undefined,
+  });
+  let items = (data.logs ?? []).map((log) => log.entries).filter(Boolean) as ProviderAppPayload[];
+  if (args.query?.trim()) {
+    const needle = args.query.trim().toLowerCase();
+    items = items.filter((item) =>
+      [item.displayName, item.canonicalAppSlug, item.description, item.category]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(needle))
+    );
   }
-  const data = await integrationFetch<ProviderAppPagePayload | ProviderAppPayload[]>(
-    `apps?${params.toString()}`
-  );
-  const items = asArray<ProviderAppPayload>(data);
-  const page = data && typeof data === 'object' && !Array.isArray(data) ? data : null;
   return {
     definitions: items.map(mapProviderAppToDefinition),
-    total: typeof page?.total === 'number' ? page.total : items.length,
-    limit: typeof page?.limit === 'number' ? page.limit : limit,
-    offset: typeof page?.offset === 'number' ? page.offset : offset,
-    facets: page?.facets ?? null,
-    catalogVersion: page?.catalogVersion ?? null,
-    generatedAt: page?.generatedAt ?? null,
+    total: typeof data.count === 'number' ? data.count : items.length,
+    limit,
+    offset,
+    facets: null,
+    catalogVersion: null,
+    generatedAt: null,
   };
 }
 
@@ -413,13 +436,15 @@ export async function getProviderIntegrationDetails(args: {
   assistantId?: string | number;
   canonicalSlug: string;
 }): Promise<IntegrationDefinition> {
-  const params = new URLSearchParams();
-  params.set('owner_scope', args.ownerScope);
-  if (args.assistantId !== undefined) params.set('assistant_id', String(args.assistantId));
-  const data = await integrationFetch<ProviderAppPayload>(
-    `apps/${encodeURIComponent(args.canonicalSlug)}?${params.toString()}`
-  );
-  return mapProviderAppToDefinition(data);
+  const page = await builtinsLogFetch<ProviderAppPayload>({
+    context: 'Integrations/Apps',
+    limit: 1,
+    offset: 0,
+    filterExpr: `canonical_app_slug == "${args.canonicalSlug}"`,
+  });
+  const app = page.logs?.[0]?.entries;
+  if (!app) throw new Error(`Integration ${args.canonicalSlug} was not found`);
+  return mapProviderAppToDefinition(app);
 }
 
 export async function listProviderIntegrationConnections(args: {
