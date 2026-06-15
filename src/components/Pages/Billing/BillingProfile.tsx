@@ -1,7 +1,7 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useCallback, useRef, useState } from 'react';
+import { Loader } from '@/components/Common/Loader';
 import { Button } from '../../UI/button';
 import BillingProfileForm from './BillingProfileForm';
 import { useBillingProfile } from '@/hooks/Billing/useBillingProfile';
@@ -12,13 +12,26 @@ interface BillingProfileProps {
   actions: BillingActions;
   /** Callback when the dialog should close (e.g. after save or cancel) */
   onClose?: () => void;
+  /** Callback fired after a successful save, before closing — lets the parent
+   * refresh derived state (e.g. the subscribe-time billing-address gate). */
+  onSaved?: () => void;
 }
 
-const BillingProfile = ({ actions, onClose }: BillingProfileProps) => {
+const BillingProfile = ({ actions, onClose, onSaved }: BillingProfileProps) => {
   const [isFormValid, setIsFormValid] = useState(false);
   const formRef = useRef<{ submit: () => void } | null>(null);
 
-  const { initialData, loading, saving, alert, handleSave } = useBillingProfile(actions, onClose);
+  // On a successful save: let the parent refresh (so the address gate lifts
+  // immediately) and then close the dialog.
+  const handleSaved = useCallback(() => {
+    onSaved?.();
+    onClose?.();
+  }, [onSaved, onClose]);
+
+  const { initialData, loading, saving, alert, handleSave } = useBillingProfile(
+    actions,
+    handleSaved
+  );
 
   const onFormSubmit = async (data: BillingProfileData) => {
     await handleSave(data);
@@ -28,7 +41,7 @@ const BillingProfile = ({ actions, onClose }: BillingProfileProps) => {
   if (loading) {
     return (
       <div className="flex w-full items-center justify-center gap-2 py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <Loader size={20} />
         <p className="text-body-muted">Loading...</p>
       </div>
     );

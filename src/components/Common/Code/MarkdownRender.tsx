@@ -44,7 +44,7 @@ const MarkdownRender = ({ content, darkOnly }: { content: string; darkOnly?: boo
             darkOnly && theme == 'dark'
               ? { backgroundColor: 'transparent' }
               : darkOnly
-                ? { backgroundColor: 'var(--eerie-black)' }
+                ? { backgroundColor: 'var(--ink)' }
                 : undefined
           }
         >

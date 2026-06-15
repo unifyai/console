@@ -23,11 +23,14 @@
 
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import type { BillingMode } from '@/types/billing';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface BillingStatusData {
+  /** Whether the current balance came from a successful billing lookup */
+  isBalanceKnown: boolean;
   /** Whether the account has prior billing history (at least one paid recharge) */
   hasBillingHistory: boolean;
   /** Current credit balance */
@@ -72,6 +75,7 @@ export async function fetchBillingStatus(): Promise<BillingStatusData> {
   const res = await fetch('/api/billing/balance');
   if (!res.ok) {
     return {
+      isBalanceKnown: false,
       hasBillingHistory: false,
       credits: 0,
       hasCredits: false,
@@ -86,6 +90,7 @@ export async function fetchBillingStatus(): Promise<BillingStatusData> {
   const billingMode: BillingMode = data.billingMode === 'METERED' ? 'METERED' : 'CREDITS';
 
   return {
+    isBalanceKnown: true,
     hasBillingHistory: data.lastRechargeAt != null,
     credits,
     // METERED accounts settle usage at month-end via the metered
@@ -103,6 +108,17 @@ export async function fetchBillingStatus(): Promise<BillingStatusData> {
 
 export const BILLING_STATUS_QUERY_KEY = ['billing', 'status'] as const;
 
+// When billing is not a feature of this deployment (e.g. self-host: no Stripe,
+// Orchestra bypasses credit enforcement) every billable action passes.
+const BILLING_DISABLED_STATUS: BillingStatusData = {
+  isBalanceKnown: false,
+  hasBillingHistory: false,
+  credits: 1,
+  hasCredits: true,
+  accountStatus: 'ACTIVE',
+  billingMode: 'CREDITS',
+};
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /** How often to poll while waiting for credits to land (ms) */
@@ -113,11 +129,13 @@ const POLL_TIMEOUT_MS = 30_000;
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useBillingStatus(): UseBillingStatusReturn {
+  const { billing: billingEnabled } = useFeatures();
   const [pollInterval, setPollInterval] = React.useState<number | false>(false);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: BILLING_STATUS_QUERY_KEY,
     queryFn: fetchBillingStatus,
+    enabled: billingEnabled,
     staleTime: 60_000, // 1 minute
     refetchOnWindowFocus: true,
     refetchInterval: pollInterval || 60_000,
@@ -138,6 +156,7 @@ export function useBillingStatus(): UseBillingStatusReturn {
   }, [pollInterval]);
 
   const defaults: BillingStatusData = {
+    isBalanceKnown: false,
     hasBillingHistory: false,
     credits: 0,
     hasCredits: false,
@@ -149,6 +168,16 @@ export function useBillingStatus(): UseBillingStatusReturn {
   const startPolling = React.useCallback(() => {
     setPollInterval(POLL_INTERVAL_MS);
   }, []);
+
+  if (!billingEnabled) {
+    return {
+      ...BILLING_DISABLED_STATUS,
+      isLoading: false,
+      error: null,
+      refetch: () => {},
+      startPolling: () => {},
+    };
+  }
 
   return {
     ...(data ?? defaults),

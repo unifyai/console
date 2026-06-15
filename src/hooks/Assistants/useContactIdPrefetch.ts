@@ -3,6 +3,15 @@ import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ChatMessage, Attachment, CallPill } from '@/types/assistants/chat';
 import { ResponseProps } from '@/types/common';
 import { clientLog } from '@/lib/logging/client-log-buffer';
+import { mergeRootRows } from '@/lib/client/read_across_roots';
+import {
+  contactScopedRootQueries,
+  meetExchangeFilterForRoot,
+  roleFromRootSenderId,
+  rootContext,
+  transcriptFilterForRoot,
+} from '@/lib/assistants/scope';
+import { transcriptMergeDedupeKey } from '@/lib/assistants/transcriptDedupe';
 
 const CONTACT_ID_SESSION_PREFIX = 'assistant_contact_id:';
 const TRANSCRIPT_LIMIT = 50;
@@ -56,11 +65,11 @@ const inflightContactIds = new Map<string, Promise<number | null>>();
  * so future calls resolve instantly.
  */
 export function getOrFetchContactId(
-  getContactId: (email: string, ownerId: string, assistantId: string) => Promise<number | null>,
+  getContactId: (email: string, assistant: Assistant) => Promise<number | null>,
   email: string,
-  ownerId: string,
-  assistantId: string
+  assistant: Assistant
 ): Promise<number | null> {
+  const assistantId = assistant.agentId;
   // Fast path: already in sessionStorage (scoped to this user)
   const cached = getSessionContactId(assistantId, email);
   if (cached !== undefined) return Promise.resolve(cached);
@@ -71,7 +80,7 @@ export function getOrFetchContactId(
   if (existing) return existing;
 
   // Start a new request and register it
-  const promise = getContactId(email, ownerId, assistantId)
+  const promise = getContactId(email, assistant)
     .then((id) => {
       if (id !== null) {
         setSessionContactId(assistantId, id, email);
@@ -101,18 +110,18 @@ const inflightTranscripts = new Map<string, Promise<ChatMessage[] | ResponseProp
 export function getOrFetchTranscripts(
   getTranscripts: (
     contactId: number,
-    ownerId: string,
-    assistantId: string
+    assistant: Assistant,
+    before?: { timestamp: string; excludedKeys?: string[] }
   ) => Promise<ChatMessage[] | ResponseProps>,
   contactId: number,
-  ownerId: string,
-  assistantId: string
+  assistant: Assistant
 ): Promise<ChatMessage[] | ResponseProps> {
+  const assistantId = assistant.agentId;
   const key = `${assistantId}:${contactId}`;
   const existing = inflightTranscripts.get(key);
   if (existing) return existing;
 
-  const promise = getTranscripts(contactId, ownerId, assistantId).finally(() => {
+  const promise = getTranscripts(contactId, assistant).finally(() => {
     inflightTranscripts.delete(key);
   });
 
@@ -132,16 +141,12 @@ export function getOrFetchTranscripts(
 // server actions (which is fine because by the time the user opens the
 // chat, the queue is shorter).
 
-async function fetchContactIdDirect(
-  email: string,
-  ownerId: string,
-  assistantId: string
-): Promise<number | null> {
+async function fetchContactIdDirect(email: string, assistant: Assistant): Promise<number | null> {
   try {
     const filterExpr = `email_address == "${email}"`;
     const params = new URLSearchParams({
       projectName: 'Assistants',
-      context: `${ownerId}/${assistantId}/Contacts`,
+      context: rootContext({ kind: 'personal' }, assistant.userId, assistant.agentId, 'Contacts'),
       filterExpr,
       limit: '1',
     });
@@ -165,34 +170,44 @@ async function fetchContactIdDirect(
 
 export async function fetchTranscriptsDirect(
   contactId: number,
-  ownerId: string,
-  assistantId: string,
+  assistant: Assistant,
   limit: number = TRANSCRIPT_LIMIT
 ): Promise<ChatMessage[] | ResponseProps> {
   try {
-    const filterExpr = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
-    const params = new URLSearchParams({
-      projectName: 'Assistants',
-      context: `${ownerId}/${assistantId}/Transcripts`,
-      limit: String(limit),
-      filterExpr,
+    const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
+    const rootLogs = await Promise.all(
+      queries.map(async (query) => {
+        const filterExpr = transcriptFilterForRoot(query, assistant.agentId);
+        const params = new URLSearchParams({
+          projectName: 'Assistants',
+          context: query.context,
+          limit: String(limit),
+          filterExpr,
+          sorting: JSON.stringify({ timestamp: 'descending' }),
+        });
+
+        const response = await fetch(`/api/logs?${params.toString()}`, {
+          cache: 'no-store',
+        });
+
+        if (response.status === 404) return [];
+        if (!response.ok) {
+          throw new Error(`Failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        const rootLogs = data?.logs;
+        return Array.isArray(rootLogs) ? rootLogs.map((log) => ({ log, query })) : [];
+      })
+    );
+    const logs = mergeRootRows(rootLogs.flat(), {
+      limit,
+      sortValue: ({ log }) => log.entries?.timestamp,
+      dedupeKey: ({ log }) => transcriptMergeDedupeKey(log.entries, log.id),
     });
-
-    const response = await fetch(`/api/logs?${params.toString()}`, {
-      cache: 'no-store',
-    });
-
-    if (response.status === 404) return [];
-    if (!response.ok) {
-      return { detail: `Failed with status ${response.status}` };
-    }
-
-    const data = await response.json();
-    const logs = data?.logs;
-    if (!Array.isArray(logs)) return [];
 
     return logs
-      .map((log: Record<string, any>): ChatMessage | null => {
+      .map(({ log, query }): ChatMessage | null => {
         const entries = log.entries;
         const id = log.id;
         if (
@@ -204,10 +219,12 @@ export async function fetchTranscriptsDirect(
         }
         return {
           id: String(id),
-          role: entries.senderId === 0 ? 'assistant' : 'user',
+          role: roleFromRootSenderId(query, entries.senderId as number),
           content: entries.content,
           timestamp: new Date(entries.timestamp as string),
           messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
+          sourceContext: query.context,
+          mergeKey: transcriptMergeDedupeKey(entries, id),
           attachments: Array.isArray(entries.attachments)
             ? (entries.attachments as Record<string, unknown>[]).map(
                 (a): Attachment => ({
@@ -230,30 +247,47 @@ export async function fetchTranscriptsDirect(
 
 export async function fetchMeetExchangesDirect(
   contactId: number,
-  ownerId: string,
-  assistantId: string
+  assistant: Assistant
 ): Promise<CallPill[]> {
   try {
-    const filterExpr = `medium == "unify_meet" and (sender_id == ${contactId} or sender_id == 0) and (${contactId} in receiver_ids or receiver_ids == [0])`;
-    const params = new URLSearchParams({
-      projectName: 'Assistants',
-      context: `${ownerId}/${assistantId}/Transcripts`,
-      limit: '500',
-      filterExpr,
-    });
+    const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
+    const rootLogs = await Promise.all(
+      queries.map(async (query) => {
+        const filterExpr = meetExchangeFilterForRoot(query, assistant.agentId);
+        const params = new URLSearchParams({
+          projectName: 'Assistants',
+          context: query.context,
+          limit: '500',
+          filterExpr,
+        });
 
-    const response = await fetch(`/api/logs?${params.toString()}`, {
-      cache: 'no-store',
-    });
+        const response = await fetch(`/api/logs?${params.toString()}`, {
+          cache: 'no-store',
+        });
 
-    if (response.status === 404 || !response.ok) return [];
+        if (response.status === 404 || !response.ok) return [];
 
-    const data = await response.json();
-    const logs = data?.logs;
+        const data = await response.json();
+        const rootLogs = data?.logs;
+        return Array.isArray(rootLogs) ? rootLogs.map((log) => ({ log, query })) : [];
+      })
+    );
+    const logs = rootLogs.flat();
+
     if (!Array.isArray(logs) || logs.length === 0) return [];
 
-    const exchangeGroups = new Map<number, { minTs: Date; maxTs: Date; count: number }>();
-    for (const log of logs) {
+    const exchangeGroups = new Map<
+      string,
+      {
+        exchangeId: number;
+        sourceContext: string;
+        selfContactId: number;
+        minTs: Date;
+        maxTs: Date;
+        count: number;
+      }
+    >();
+    for (const { log, query } of logs) {
       const entries = log.entries;
       if (!entries) continue;
       const xid = typeof entries.exchangeId === 'number' ? entries.exchangeId : undefined;
@@ -261,25 +295,35 @@ export async function fetchMeetExchangesDirect(
       const ts = new Date(entries.timestamp as string);
       if (isNaN(ts.getTime())) continue;
 
-      const existing = exchangeGroups.get(xid);
+      const groupKey = `${query.context}:${xid}`;
+      const existing = exchangeGroups.get(groupKey);
       if (existing) {
         if (ts < existing.minTs) existing.minTs = ts;
         if (ts > existing.maxTs) existing.maxTs = ts;
         existing.count++;
       } else {
-        exchangeGroups.set(xid, { minTs: ts, maxTs: ts, count: 1 });
+        exchangeGroups.set(groupKey, {
+          exchangeId: xid,
+          sourceContext: query.context,
+          selfContactId: query.selfContactId,
+          minTs: ts,
+          maxTs: ts,
+          count: 1,
+        });
       }
     }
 
-    return Array.from(exchangeGroups.entries())
-      .map(([exchangeId, group]) => {
+    return Array.from(exchangeGroups.values())
+      .map((group) => {
         const durationSeconds = Math.round((group.maxTs.getTime() - group.minTs.getTime()) / 1000);
         return {
-          id: `call-pill-${exchangeId}`,
+          id: `call-pill-${group.sourceContext}-${group.exchangeId}`,
           type: 'call_pill' as const,
           timestamp: group.maxTs,
           durationSeconds: Math.max(durationSeconds, 0),
-          exchangeId,
+          exchangeId: group.exchangeId,
+          sourceContext: group.sourceContext,
+          selfContactId: group.selfContactId,
         };
       })
       .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
@@ -386,7 +430,7 @@ export function useContactIdPrefetch(
       const contactIdPromise =
         cachedId !== undefined
           ? Promise.resolve(cachedId)
-          : fetchContactIdDirect(email, assistant.userId, assistant.agentId).then((id) => {
+          : fetchContactIdDirect(email, assistant).then((id) => {
               clientLog('PREFETCH_CONTACT', {
                 assistant: assistant.agentId,
                 source: id !== null ? 'api' : 'null',
@@ -412,48 +456,44 @@ export function useContactIdPrefetch(
 
           // Prefetch transcripts
           if (setChatHistories) {
-            fetchTranscriptsDirect(contactId, assistant.userId, assistant.agentId).then(
-              (result) => {
-                if ('detail' in result) {
-                  clientLog('PREFETCH_TRANSCRIPTS', {
-                    assistant: assistant.agentId,
-                    error: (result as any).detail,
-                  });
-                  return;
-                }
-                const history = [...(result as ChatMessage[])].reverse();
+            fetchTranscriptsDirect(contactId, assistant).then((result) => {
+              if ('detail' in result) {
                 clientLog('PREFETCH_TRANSCRIPTS', {
                   assistant: assistant.agentId,
-                  count: history.length,
+                  error: (result as any).detail,
                 });
-                setChatHistories((prev) => {
-                  if (prev[assistant.agentId] !== undefined) {
-                    clientLog('PREFETCH_SKIP', {
-                      assistant: assistant.agentId,
-                      reason: 'already_exists',
-                    });
-                    return prev;
-                  }
-                  return { ...prev, [assistant.agentId]: history };
-                });
+                return;
               }
-            );
+              const history = [...(result as ChatMessage[])].reverse();
+              clientLog('PREFETCH_TRANSCRIPTS', {
+                assistant: assistant.agentId,
+                count: history.length,
+              });
+              setChatHistories((prev) => {
+                if (prev[assistant.agentId] !== undefined) {
+                  clientLog('PREFETCH_SKIP', {
+                    assistant: assistant.agentId,
+                    reason: 'already_exists',
+                  });
+                  return prev;
+                }
+                return { ...prev, [assistant.agentId]: history };
+              });
+            });
           }
 
           // Prefetch call pills
           if (setCallPillHistories) {
-            fetchMeetExchangesDirect(contactId, assistant.userId, assistant.agentId).then(
-              (pills) => {
-                clientLog('PREFETCH_CALL_PILLS', {
-                  assistant: assistant.agentId,
-                  count: pills.length,
-                });
-                setCallPillHistories((prev) => {
-                  if (prev[assistant.agentId] !== undefined) return prev;
-                  return { ...prev, [assistant.agentId]: pills };
-                });
-              }
-            );
+            fetchMeetExchangesDirect(contactId, assistant).then((pills) => {
+              clientLog('PREFETCH_CALL_PILLS', {
+                assistant: assistant.agentId,
+                count: pills.length,
+              });
+              setCallPillHistories((prev) => {
+                if (prev[assistant.agentId] !== undefined) return prev;
+                return { ...prev, [assistant.agentId]: pills };
+              });
+            });
           }
         })
         .catch((err) => {

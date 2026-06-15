@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized } from '../_utils/auth';
 import { createOrchestraClient } from '@/lib/orchestra/client';
 
+function unwrapInfoPayload(payload: unknown): unknown {
+  if (payload && typeof payload === 'object' && 'info' in payload) {
+    return (payload as { info: unknown }).info;
+  }
+  return payload;
+}
+
 export async function GET(request: NextRequest) {
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
@@ -26,8 +33,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(error, { status: response.status });
     }
 
-    // Orchestra wraps list responses in { info: [...] }, unwrap for cleaner client API
-    const responseData = data && typeof data === 'object' && 'info' in data ? data.info : data;
+    // Orchestra wraps list responses in { info: [...] }, unwrap for cleaner client API.
+    const responseData = unwrapInfoPayload(data);
     return NextResponse.json(responseData, { status: response.status });
   } catch (e: unknown) {
     console.error('[API /api/assistant GET] Error:', e instanceof Error ? e.message : e);

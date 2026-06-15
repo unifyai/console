@@ -8,7 +8,7 @@ This directory contains all the reusable and page-specific React components orga
 Components/
 ├── UI/         # Primitive UI elements (e.g., Button, Input, Modal)
 ├── Common/     # Base building blocks composed of primitives (e.g., Form, Card, ActionButton)
-├── Shared/     # Specialized components reused across multiple pages (e.g., DirectoryTree, OnPrem)
+├── Shared/     # Specialized components reused across multiple pages (e.g., DirectoryTree, BillingUnavailable)
 ├── Layout/     # Layout components that apply to all pages (e.g., NavBar, LoadingScreen)
 ├── Pages/      # Components unique to specific pages (e.g., Usage, Interfaces)
 ```

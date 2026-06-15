@@ -3,7 +3,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { cn } from '@/lib/utils';
 import { AssistantPreset } from '@/types/assistants/assistant';
 import { Skeleton } from '@/components/UI/skeleton';
-import { getLanguageLabel } from '@/utils/assistants/voice-utils';
 
 type ImageLoadingStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
@@ -66,14 +65,6 @@ export function PresetListItem({
         <div className="grid grid-cols-[auto_1fr] items-baseline gap-x-2">
           <span className="text-caption text-muted-foreground">Name:</span>
           <span className="text-strong truncate">{displayName}</span>
-          <span className="text-caption text-muted-foreground">Age:</span>
-          <span>{preset.age}</span>
-          <span className="text-caption text-muted-foreground">Nationality:</span>
-          <span>{preset.nationality}</span>
-          <span className="text-caption text-muted-foreground">Language:</span>
-          <span className="flex items-center gap-1.5">
-            {preset.language ? getLanguageLabel(preset.language) : '-'}
-          </span>
         </div>
         <p className="text-caption line-clamp-2 text-muted-foreground">
           {' '}

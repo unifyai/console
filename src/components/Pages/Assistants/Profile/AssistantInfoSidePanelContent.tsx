@@ -1,10 +1,11 @@
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
+import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Button } from '@/components/UI/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { Mail, Phone, Copy, Check, Pencil } from 'lucide-react';
+import { Mail, Phone, Copy, Check, Pencil, Lock, RotateCcw } from 'lucide-react';
 
 // Underlined-tabs styling, mirrored from the right-pane TAB_TRIGGER_CLASS
 // so the side-panel tabs read with the same visual grammar (active tab
@@ -30,9 +31,14 @@ import {
   useAssistantOnboardingState,
   type OnboardingDerivationContext,
 } from '@/hooks/Assistants/useAssistantOnboardingState';
+import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
+import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
+import { CoordinatorOnboardingChecklist } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
+import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
 
 export interface AssistantInfoSidePanelContentProps {
   assistant: Assistant;
+  currentUserId?: string | null;
   /** Open the edit-profile dialog (wired from page-level Main).
    *  Suppressed when `canWrite === false` regardless of whether a
    *  handler is provided — the affordance vanishes from the header. */
@@ -68,15 +74,40 @@ export interface AssistantInfoSidePanelContentProps {
     userEmail?: string | null;
     userPhoneNumber?: string | null;
     onStartCall: (assistant: Assistant, type: 'audio' | 'video') => void;
-    onShowInstallInstructions: (assistant: Assistant) => void;
     /** Optionally accepts a tab id (mirrors `/account?tab=…`) so
      *  callers can deep-link into a specific section of the account
      *  page — e.g. the phone-on-profile step uses `'contact-info'`. */
     onOpenUserSettings: (tab?: string) => void;
     onSeedChatDraft: (text: string) => void;
   };
+  /** Coordinator-specific onboarding wiring. When this assistant is
+   * the canonical workspace Coordinator and ``Coordinator/State.mode
+   * === 'onboarding'``, the info panel surfaces an "Onboarding"
+   * sub-tab that renders the gradual-onboarding steps (the same
+   * one that lives in ``CoordinatorOnboarding`` while the alternate
+   * /assistants shell is mounted). The hook bag carries the action
+   * handlers the rows need — the actual progress state is read from
+   * ``CoordinatorOnboardingContext`` so it stays in sync across
+   * surfaces. Unset means the new tab won't render even for the
+   * coordinator (e.g. on non-owner viewers). */
+  coordinatorOnboarding?: {
+    onConnectWorkspace?: () => void;
+    onConnectApps?: () => void;
+    onActNow?: () => void;
+    onScheduleTask?: () => void;
+    onSkipStep?: (stepId: string) => void;
+    onUnskipStep?: (stepId: string) => void;
+    /** Replays the Marty call intro on demand. Surfaces a "Repeat
+     * intro" affordance at the bottom of the onboarding sub-tab. */
+    onReplayIntro?: () => void;
+    /** Whether the Coordinator is currently on a voice call — selects
+     * call- vs chat-flavoured "Ask Marty to do something" chips. */
+    isOnCall?: boolean;
+  };
   className?: string;
 }
+
+const COORDINATOR_COPY_RESET_MS = 2000;
 
 /**
  * Body of the chat-tab assistant info side panel.
@@ -99,11 +130,171 @@ export interface AssistantInfoSidePanelContentProps {
  */
 export function AssistantInfoSidePanelContent({
   assistant,
+  ...props
+}: AssistantInfoSidePanelContentProps) {
+  if (assistant.isCoordinator === true) {
+    return (
+      <CoordinatorAssistantInfoSidePanelContent
+        assistant={assistant}
+        onEditProfile={props.onEditProfile}
+        className={props.className}
+        onOpenContactManager={props.onOpenContactManager}
+        canWrite={props.canWrite}
+        coordinatorOnboarding={props.coordinatorOnboarding}
+      />
+    );
+  }
+
+  return <RegularAssistantInfoSidePanelContent assistant={assistant} {...props} />;
+}
+
+type CoordinatorPanelTab = 'onboarding' | 'contact';
+
+function CoordinatorAssistantInfoSidePanelContent({
+  assistant,
+  onEditProfile,
+  onOpenContactManager,
+  className,
+  canWrite = true,
+  coordinatorOnboarding,
+}: {
+  assistant: Assistant;
+  onEditProfile?: (assistant: Assistant) => void;
+  onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
+  className?: string;
+  canWrite?: boolean;
+  coordinatorOnboarding?: AssistantInfoSidePanelContentProps['coordinatorOnboarding'];
+}) {
+  const showOnboardingTab = !!coordinatorOnboarding;
+
+  const [isIdCopied, setIsIdCopied] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<CoordinatorPanelTab>(
+    showOnboardingTab ? 'onboarding' : 'contact'
+  );
+  React.useEffect(() => {
+    if (!showOnboardingTab && activeTab === 'onboarding') setActiveTab('contact');
+  }, [showOnboardingTab, activeTab]);
+
+  const copyResetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(
+    () => () => {
+      if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+    },
+    []
+  );
+
+  const copyId = () => {
+    navigator.clipboard.writeText(assistant.agentId);
+    setIsIdCopied(true);
+    if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+    copyResetTimerRef.current = setTimeout(() => {
+      copyResetTimerRef.current = null;
+      setIsIdCopied(false);
+    }, COORDINATOR_COPY_RESET_MS);
+  };
+
+  return (
+    <ScrollArea className={cn('flex-1', className)}>
+      <div className="flex flex-col gap-4 px-4 py-4">
+        <IdentityHeader
+          name="Marty"
+          photoSrc={undefined}
+          initials="M"
+          summary="Your personal Marty"
+          visibilityLabel={
+            <span className="inline-flex items-center gap-1">
+              Only you
+              <Lock className="h-3 w-3" aria-hidden="true" />
+            </span>
+          }
+          isIdCopied={isIdCopied}
+          onCopyId={copyId}
+          onEdit={canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined}
+          avatarNode={
+            <CoordinatorLogoAvatar
+              className="h-20 w-20 flex-shrink-0"
+              logoClassName="h-full w-full"
+            />
+          }
+        />
+
+        {showOnboardingTab ? (
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value as CoordinatorPanelTab)}
+            className="flex min-h-0 flex-1 flex-col gap-3"
+          >
+            <TabsList className="h-8 w-full items-end justify-start gap-6 rounded-none border-b border-border bg-transparent p-0">
+              <TabsTrigger
+                value="onboarding"
+                data-testid="assistant-info-tab-onboarding"
+                className={PANEL_TAB_TRIGGER_CLASS}
+              >
+                Onboarding
+              </TabsTrigger>
+              <TabsTrigger
+                value="contact"
+                data-testid="assistant-info-tab-contact"
+                className={PANEL_TAB_TRIGGER_CLASS}
+              >
+                Contact info
+              </TabsTrigger>
+            </TabsList>
+            {coordinatorOnboarding && (
+              <TabsContent value="onboarding" className="mt-0">
+                <CoordinatorOnboardingChecklist
+                  onConnectWorkspace={coordinatorOnboarding.onConnectWorkspace}
+                  onConnectApps={coordinatorOnboarding.onConnectApps}
+                  onActNow={coordinatorOnboarding.onActNow}
+                  onScheduleTask={coordinatorOnboarding.onScheduleTask}
+                  onSkipStep={coordinatorOnboarding.onSkipStep}
+                  onUnskipStep={coordinatorOnboarding.onUnskipStep}
+                  isOnCall={coordinatorOnboarding.isOnCall}
+                />
+                {coordinatorOnboarding.onReplayIntro && (
+                  <div className="mt-4 flex justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={coordinatorOnboarding.onReplayIntro}
+                      data-testid="coordinator-onboarding-replay-intro"
+                    >
+                      <RotateCcw className="mr-1.5 size-3.5" />
+                      Repeat intro
+                    </Button>
+                  </div>
+                )}
+              </TabsContent>
+            )}
+            <TabsContent value="contact" className="mt-0">
+              <ContactInfoGrid
+                assistant={assistant}
+                onOpenContactManager={onOpenContactManager}
+                canWrite={canWrite}
+              />
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <ContactInfoGrid
+            assistant={assistant}
+            onOpenContactManager={onOpenContactManager}
+            canWrite={canWrite}
+          />
+        )}
+      </div>
+    </ScrollArea>
+  );
+}
+
+function RegularAssistantInfoSidePanelContent({
+  assistant,
   onEditProfile,
   onOpenContactManager,
   roadmap,
   className,
   canWrite = true,
+  currentUserId,
 }: AssistantInfoSidePanelContentProps) {
   const [isIdCopied, setIsIdCopied] = React.useState(false);
 
@@ -142,11 +333,12 @@ export function AssistantInfoSidePanelContent({
     }
   }, [showOnboardingTab, activeTab, onboardingState.resolvedSteps]);
 
-  const displayName = `${assistant.firstName} ${assistant.surname}`;
+  const displayName = assistantDisplayName(assistant);
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
-  const supervisorName = [assistant.userFirstName, assistant.userLastName]
-    .filter(Boolean)
-    .join(' ');
+  const supervisorName =
+    currentUserId && assistant.userId === currentUserId
+      ? 'You'
+      : [assistant.userFirstName, assistant.userLastName].filter(Boolean).join(' ');
 
   const copyId = () => {
     navigator.clipboard.writeText(assistant.agentId);
@@ -168,8 +360,9 @@ export function AssistantInfoSidePanelContent({
         <IdentityHeader
           name={displayName}
           photoSrc={photoSrc}
-          initials={`${assistant.firstName?.[0] ?? ''}${assistant.surname?.[0] ?? ''}`.toUpperCase()}
+          initials={assistantInitials(assistant)}
           supervisorName={supervisorName}
+          visibilityLabel="Everyone"
           isIdCopied={isIdCopied}
           onCopyId={copyId}
           onEdit={canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined}
@@ -213,7 +406,6 @@ export function AssistantInfoSidePanelContent({
                 state={onboardingState}
                 onOpenContactManager={onOpenContactManager}
                 onStartCall={roadmap.onStartCall}
-                onShowInstallInstructions={roadmap.onShowInstallInstructions}
                 onOpenUserSettings={roadmap.onOpenUserSettings}
                 onSeedChatDraft={roadmap.onSeedChatDraft}
                 userEmail={roadmap.userEmail}
@@ -240,10 +432,13 @@ interface IdentityHeaderProps {
   name: string;
   photoSrc: string | undefined;
   initials: string;
-  supervisorName: string;
+  supervisorName?: string;
+  summary?: React.ReactNode;
+  visibilityLabel: React.ReactNode;
   isIdCopied: boolean;
   onCopyId: () => void;
   onEdit?: () => void;
+  avatarNode?: React.ReactNode;
 }
 
 function IdentityHeader({
@@ -251,39 +446,65 @@ function IdentityHeader({
   photoSrc,
   initials,
   supervisorName,
+  summary,
+  visibilityLabel,
   isIdCopied,
   onCopyId,
   onEdit,
+  avatarNode,
 }: IdentityHeaderProps) {
+  const metadataRowClass =
+    'text-caption grid min-w-0 grid-cols-[10ch_minmax(0,1fr)] items-center gap-x-1 text-muted-foreground';
+
   return (
     <div className="flex items-start gap-3">
-      <Avatar className="h-14 w-14 flex-shrink-0 rounded-md">
-        <AvatarImage src={photoSrc} alt={name} className="rounded-md" />
-        <AvatarFallback className="rounded-md">{initials}</AvatarFallback>
-      </Avatar>
+      {avatarNode ??
+        (parseCreatureSentinel(photoSrc) ? (
+          <CreatureAvatar
+            appearance={photoSrc as string}
+            className="h-14 w-14 flex-shrink-0 rounded-md"
+            label={name}
+          />
+        ) : (
+          <Avatar className="h-14 w-14 flex-shrink-0 rounded-md">
+            <AvatarImage src={photoSrc} alt={name} className="rounded-md" />
+            <AvatarFallback className="rounded-md">{initials}</AvatarFallback>
+          </Avatar>
+        ))}
       <div className="min-w-0 flex-1 space-y-0.5">
         <div className="text-title truncate" data-testid="assistant-info-name">
           {name}
         </div>
-        {supervisorName && (
-          <div className="text-caption truncate text-muted-foreground">
-            <span className="opacity-70">Supervisor: </span>
-            <span>{supervisorName}</span>
+        {summary ? (
+          <div className={metadataRowClass}>
+            <span className="opacity-70">Role:</span>
+            <span className="truncate">{summary}</span>
           </div>
-        )}
+        ) : supervisorName ? (
+          <div className={metadataRowClass}>
+            <span className="opacity-70">Supervisor:</span>
+            <span className="truncate">{supervisorName}</span>
+          </div>
+        ) : null}
+        <div className={metadataRowClass}>
+          <span className="opacity-70">Visibility:</span>
+          <span className="truncate">{visibilityLabel}</span>
+        </div>
         <button
           type="button"
           onClick={onCopyId}
-          className="group/id text-caption flex min-w-0 cursor-pointer items-center gap-1 text-muted-foreground"
+          className={cn(metadataRowClass, 'group/id w-full cursor-pointer text-left')}
           data-testid="assistant-info-copy-id"
-          aria-label="Copy assistant ID"
+          aria-label="Copy droid ID"
         >
-          <span className="opacity-70">Assistant ID</span>
-          {isIdCopied ? (
-            <Check className="h-3 w-3 flex-shrink-0 text-green-500" />
-          ) : (
-            <Copy className="h-3 w-3 flex-shrink-0 opacity-70 transition-opacity group-hover/id:opacity-100" />
-          )}
+          <span className="opacity-70">Droid ID:</span>
+          <span className="flex min-w-0 items-center">
+            {isIdCopied ? (
+              <Check className="h-3 w-3 flex-shrink-0 text-[color:var(--status-success)]" />
+            ) : (
+              <Copy className="h-3 w-3 flex-shrink-0 opacity-70 transition-opacity group-hover/id:opacity-100" />
+            )}
+          </span>
         </button>
       </div>
       {onEdit && (
@@ -333,6 +554,31 @@ interface ContactInfoGridProps {
  * about why the action isn't allowed.
  */
 function ContactInfoGrid({ assistant, onOpenContactManager, canWrite }: ContactInfoGridProps) {
+  const { isSelfHost } = useEnvironment();
+
+  // Coordinator contacts are platform-managed shared pools (universal email /
+  // phone / WhatsApp) — a hosted-cloud concept. In a self-hosted install those
+  // pools don't exist, so gate the section to a short explanation rather than
+  // surfacing empty rows or an Edit affordance that opens an inert dialog.
+  if (assistant.isCoordinator && isSelfHost) {
+    return (
+      <section className="flex flex-col gap-2.5" data-testid="assistant-info-contact-grid">
+        <div className="flex items-center justify-between border-b pb-1.5">
+          <h3 className="text-label text-semibold">Contact info</h3>
+        </div>
+        <p className="text-caption text-muted-foreground">
+          Marty contacts are managed by the hosted platform and aren&apos;t available in self-hosted
+          deployments.
+        </p>
+      </section>
+    );
+  }
+
+  // Coordinator contacts are platform-managed, so the per-channel manual "Add"
+  // CTAs don't apply — the platform provisions (and the backend rejects manual
+  // creation). The "Edit" button stays so the owner can still open the manager
+  // to view the managed contacts and what platform-managed means.
+  const canManuallyManage = !assistant.isCoordinator;
   return (
     <section className="flex flex-col gap-2.5" data-testid="assistant-info-contact-grid">
       <div className="flex items-center justify-between border-b pb-1.5">
@@ -357,14 +603,14 @@ function ContactInfoGrid({ assistant, onOpenContactManager, canWrite }: ContactI
           icon={<Phone className="h-3.5 w-3.5" aria-hidden="true" />}
           label="Phone"
           value={assistant.phone}
-          canWrite={canWrite}
+          canWrite={canWrite && canManuallyManage}
           onAdd={() => onOpenContactManager(assistant, 'phone')}
         />
         <ContactRow
           icon={<Mail className="h-3.5 w-3.5" aria-hidden="true" />}
           label="Email"
           value={assistant.email}
-          canWrite={canWrite}
+          canWrite={canWrite && canManuallyManage}
           renderValue={(v) => (
             <a href={`mailto:${v}`} className="text-link min-w-0 truncate">
               {v}
@@ -376,14 +622,14 @@ function ContactInfoGrid({ assistant, onOpenContactManager, canWrite }: ContactI
           icon={<WhatsApp sx={{ fontSize: '14px', flexShrink: 0 }} aria-hidden="true" />}
           label="WhatsApp"
           value={assistant.assistantWhatsappNumber}
-          canWrite={canWrite}
+          canWrite={canWrite && canManuallyManage}
           onAdd={() => onOpenContactManager(assistant, 'whatsapp')}
         />
         <ContactRow
           icon={<FaDiscord className="h-3.5 w-3.5" aria-hidden="true" />}
           label="Discord"
           value={assistant.assistantDiscordBotId}
-          canWrite={canWrite}
+          canWrite={canWrite && canManuallyManage}
           onAdd={() => onOpenContactManager(assistant, 'discord')}
         />
       </div>

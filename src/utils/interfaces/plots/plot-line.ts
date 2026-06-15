@@ -5,7 +5,7 @@ import { LogProps, LogFieldsResponseProps } from '@/types/interfaces/logs';
 import { DataPoint, GroupedDataPoint, AxisCustomization } from '@/types/interfaces/plot';
 import { getValue, hasProperty, inferDisplayType } from './data';
 import { drawAxes, generateTicks, reverseOrKeepDomain } from './axes';
-import { getPrimaryColorFromNode } from './common';
+import { getPlotColorRange, getPrimaryColorFromNode } from './common';
 import { renderGroupingKey } from './key';
 
 function onMouseOver(groupValue: string, g: d3.Selection<d3.BaseType, unknown, null, undefined>) {
@@ -274,7 +274,7 @@ export const drawLineChart = (
   if (groupBy) {
     let domain = (data as GroupedDataPoint[]).map((d) => JSON.stringify(d[0]));
     domain = Array.from(new Set(domain));
-    const colorRange = d3[groupByColors as keyof typeof d3] as readonly string[];
+    const colorRange = getPlotColorRange(groupByColors, d3);
     const color = d3.scaleOrdinal().domain(domain).range(colorRange);
     const colors = domain.map((key) => ({ key: key, color: color(key) as string }));
     renderGroupingKey(settings, colors);

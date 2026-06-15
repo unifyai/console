@@ -226,7 +226,7 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
           </div>
 
           {passwordError && (
-            <p className="text-sm text-red-500" data-testid="password-error">
+            <p className="text-body text-error" data-testid="password-error">
               {passwordError}
             </p>
           )}
@@ -309,7 +309,7 @@ const ForgotPasswordForm = ({ initialEmail = '', onBack }: ForgotPasswordFormPro
         />
 
         {error && (
-          <p className="text-sm text-red-500" data-testid="forgot-error">
+          <p className="text-body text-error" data-testid="forgot-error">
             {error}
           </p>
         )}

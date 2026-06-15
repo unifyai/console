@@ -5,24 +5,25 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
   {
     variants: {
       variant: {
         default:
-          'bg-primary text-primary-foreground shadow hover:bg-accent hover:text-accent-foreground',
+          'bg-primary text-primary-foreground shadow-[0_2px_0_var(--role-green-deep)] hover:-translate-y-px hover:shadow-[0_4px_0_var(--role-green-deep)]',
         primary:
-          'bg-primary text-primary-foreground shadow hover:bg-accent hover:text-accent-foreground',
+          'bg-primary text-primary-foreground shadow-[0_2px_0_var(--role-green-deep)] hover:-translate-y-px hover:shadow-[0_4px_0_var(--role-green-deep)]',
         secondary:
-          'bg-secondary text-secondary-foreground shadow-sm hover:bg-accent hover:text-accent-foreground',
+          'border border-border bg-secondary text-secondary-foreground shadow-sm hover:bg-[var(--surface-hover)] hover:text-foreground',
         outline:
-          'border border-input bg-background shadow-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors',
-        listItem: 'hover:bg-muted hover:text-muted-foreground',
-        warning: 'hover:text-destructive shadow-sm',
+          'border border-input bg-card text-muted-foreground shadow-sm hover:bg-[var(--surface-hover)] hover:text-foreground',
+        listItem: 'hover:bg-[var(--surface-hover)] hover:text-foreground',
+        warning: 'shadow-sm hover:text-destructive',
         warningOutline:
-          'border border-input bg-background hover:text-destructive hover:border-destructive shadow-sm',
-        destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
-        ghost: 'text-muted-foreground hover:text-foreground transition-colors',
+          'border border-input bg-card shadow-sm hover:border-destructive hover:text-destructive',
+        destructive:
+          'bg-destructive text-destructive-foreground shadow-sm hover:-translate-y-px hover:shadow-[0_3px_0_var(--destructive)]',
+        ghost: 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {

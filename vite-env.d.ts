@@ -21,6 +21,9 @@ declare global {
       // API configuration
       VITE_TEST_API_URL?: string;
       VITE_TEST_API_KEY?: string;
+      ORCHESTRA_URL?: string;
+      VITE_SHARED_CONTEXT_ASSISTANT_ID?: string;
+      VITE_SHARED_CONTEXT_SPACES_REAL?: 'true' | 'false';
       NEXTAUTH_URL?: string;
 
       // Matrix test splitting

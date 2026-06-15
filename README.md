@@ -33,7 +33,8 @@ Related repositories:
 
 - [Orchestra](https://github.com/unifyai/orchestra) — Backend API that Console communicates with
 - [Unity](https://github.com/unifyai/unity) — AI assistant brain (operations displayed in Console)
-- [Communication](https://github.com/unifyai/communication) — External communication gateway
+- [Unity Gateway](https://github.com/unifyai/unity/tree/staging/unity/gateway) — Local external communication gateway for self-hosted development
+- [Unity Deploy](https://github.com/unifyai/unity-deploy) — Hosted deployment and communication infrastructure
 
 ---
 
@@ -80,6 +81,8 @@ API routes that proxy to the Communication adapters (e.g., `/api/assistant/messa
 | `ADMIN_KEY`                          | Admin header validation for `/user` routes                                                                                                                                                                                                                                                              |
 | `ORCHESTRA_ADMIN_KEY`                | Bearer token for adapter webhook calls                                                                                                                                                                                                                                                                  |
 | `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` | Stable AES key for server action closure encryption (base64, 32 bytes). Must be identical at build time and runtime — without it, each `next build` generates a random key and any redeployment breaks all open client sessions. Stored in Secret Manager and injected via `cloudbuild.yaml` build arg. |
+| `SLACK_CLIENT_ID`                    | OAuth client id of the Unify-owned Slack app. Used by `/api/slack/oauth/start` to build the authorize URL.                                                                                                                                                                                              |
+| `SLACK_CLIENT_SECRET`                | OAuth client secret of the Unify-owned Slack app. Used by `/oauth/slack/callback` to exchange the auth code for a bot token. Server-only; never reaches the browser.                                                                                                                                    |
 
 ### GCP Infrastructure (not tracked in code)
 
@@ -169,7 +172,16 @@ This starts a local Orchestra backend (PostgreSQL + FastAPI), seeds a test user 
 ./scripts/local.sh stop     # Stop Console and Orchestra
 ./scripts/local.sh restart  # Stop then start (wipes database)
 ./scripts/local.sh status   # Show service status
+./scripts/local.sh start --chat --echo  # Add Pub/Sub emulator + local Unity gateway
+./scripts/local.sh gateway-setup        # Run Unity gateway setup wizard
+./scripts/local.sh gateway-doctor       # Validate local gateway config
+./scripts/local.sh gateway-urls --public-url https://callbacks.example.com
 ```
+
+Local chat routes Console adapter calls to `unity.gateway`, not the private
+hosted `communication` repository. The wrapper commands above delegate to the
+sibling Unity repo via `UNITY_REPO_PATH` and use Console's `.env.local` by
+default. Hosted deployments may still use managed Communication infrastructure.
 
 ### Configuration
 

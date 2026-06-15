@@ -20,6 +20,8 @@ import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 import { snakeToCamelObject } from '@/utils/casing';
 import { execSync } from 'child_process';
 
+import { isSelfHost } from '@/lib/environment/environment';
+
 // ── Cookie constants (mirrors options.tsx) ───────────────────────────────────
 
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
@@ -54,7 +56,7 @@ function isDev(): boolean {
  * Returns an empty array in production or if the database is unreachable.
  */
 export async function getDevUsers(): Promise<DevUser[]> {
-  if (!isDev()) return [];
+  if (!isDev() || isSelfHost()) return [];
 
   try {
     const dbContainer = process.env.ORCHESTRA_DB_CONTAINER || 'orchestra-local-db';
@@ -125,7 +127,7 @@ export async function getDevUsers(): Promise<DevUser[]> {
  * Returns `{ ok: true }` on success, `{ ok: false, error: string }` on failure.
  */
 export async function switchDevUser(email: string): Promise<{ ok: boolean; error?: string }> {
-  if (!isDev()) {
+  if (!isDev() || isSelfHost()) {
     return { ok: false, error: 'Not available in production' };
   }
 

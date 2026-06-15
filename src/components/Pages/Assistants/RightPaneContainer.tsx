@@ -38,36 +38,27 @@ import type { AssistantActionActions } from '@/types/assistants/action';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import type { ContactType } from '@/types/assistants/contact';
 import type { DashboardPaneData } from '@/types/assistants/dashboard';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { ChatMessage, CallPill } from '@/types/assistants/chat';
 import {
   type SpendingGateStatus,
   DEFAULT_SPENDING_GATE_STATUS,
 } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
+import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
+const ACTIVE_TAB_TRIGGER_CLASS =
+  'border-transparent bg-primary text-primary-foreground !shadow-none hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:shadow-none';
 
-/**
- * Underline tab style — same shape as the assistant info side panel
- * (`PANEL_TAB_TRIGGER_CLASS`). Active = primary-coloured 2px bottom
- * border + `font-semibold` weight bump + `text-foreground` (i.e. full
- * black instead of the muted gray of inactive tabs). Three coordinated
- * cues so the active tab is readable even on the icon-only mobile
- * strip; coordinated stacking matters because each cue alone is
- * subtle (theme primary is a forest-green close to foreground black).
- */
 const TAB_TRIGGER_CLASS = [
-  'flex h-full shrink-0 items-center gap-1.5 whitespace-nowrap rounded-none border-b-2 border-transparent bg-transparent',
-  // `py-1` is load-bearing: the `TabsTrigger` variant inherits an
-  // identical `py-1` from Radix's default wrapper classes, but plain
-  // `<button>` triggers (the dropdown variant used for Memory / Tasks)
-  // don't get it for free. Making it explicit here keeps both variants
-  // visually aligned — without it, the dropdown tab's active underline
-  // sits flush against the text instead of leaving the same breathing
-  // room as the single-layer tabs (Chat, Actions, Dashboards, etc.).
-  'px-1 py-1 text-xs font-medium text-muted-foreground',
-  'shadow-none transition-colors hover:text-foreground',
-  'data-[state=active]:border-primary data-[state=active]:bg-transparent',
-  'data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:shadow-none',
+  'flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-transparent px-2 text-xs font-medium',
+  'bg-transparent text-muted-foreground shadow-none transition-colors',
+  'hover:bg-[var(--surface-hover)] hover:text-foreground',
+  'focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
+  'disabled:pointer-events-none disabled:opacity-50',
 ].join(' ');
+
+const TAB_CONTENT_CLASS =
+  'brand-chat-stencil-bg min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden';
 
 /**
  * Right-pane tab identifiers. Kept as a string-literal union so the split
@@ -118,6 +109,29 @@ interface RightPaneTabConfig {
   dividerBefore?: boolean;
 }
 
+function JoystickIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={cn(className, '!h-4 !w-4')}
+      fill="none"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M12 13.25V6.75" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+      <circle cx="12" cy="5.25" r="2.25" fill="currentColor" />
+      <path
+        d="M6.5 13.25h11l1.35 5.35A2.25 2.25 0 0 1 16.67 21H7.33a2.25 2.25 0 0 1-2.18-2.4l1.35-5.35Z"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path d="M9 17h3.25M10.62 15.38v3.25" stroke="currentColor" strokeLinecap="round" />
+      <circle cx="15.75" cy="16.75" r="0.9" fill="currentColor" />
+    </svg>
+  );
+}
+
 const MEMORY_SUB_TABS: ReadonlyArray<RightPaneSubTab> = [
   { id: 'Contacts', label: 'Contacts', Icon: Users },
   { id: 'Transcripts', label: 'Transcripts', Icon: MessageSquare },
@@ -166,7 +180,7 @@ export const RIGHT_PANE_TABS: ReadonlyArray<RightPaneTabConfig> = [
   {
     id: 'actions',
     label: 'Actions',
-    Icon: Activity,
+    Icon: JoystickIcon,
     describe: (name) => `What ${name} is doing right now`,
   },
   {
@@ -233,12 +247,8 @@ interface RightPaneContainerProps {
   assistant: Assistant | null;
   actions: AssistantActionActions | null;
   dashboardActions: {
-    getMetadata: (ownerId: string, assistantId: string) => Promise<DashboardPaneData>;
-    getTileContent: (
-      ownerId: string,
-      assistantId: string,
-      tileToken: string
-    ) => Promise<string | null>;
+    getMetadata: (assistant: Assistant) => Promise<DashboardPaneData>;
+    getTileContent: (assistant: Assistant, tileToken: string) => Promise<string | null>;
   } | null;
   assistantActions: AssistantActions;
   chatHistories: Record<string, ChatMessage[]>;
@@ -246,6 +256,7 @@ interface RightPaneContainerProps {
   callPillHistories: Record<string, CallPill[]>;
   setCallPillHistories: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
   userEmail: string | null | undefined;
+  currentUserId?: string | null;
   isFirstView?: boolean;
   preHireChat?: ChatMessage[];
   onFirstViewCompleted?: () => void;
@@ -286,8 +297,6 @@ interface RightPaneContainerProps {
   latestUserMessageAt?: Date | null;
   /** User's own phone number for chat prefill personalisation. */
   userPhoneNumber?: string | null;
-  /** Open the local-install instructions dialog (used by the setup roadmap). */
-  onShowInstallInstructions?: (assistant: Assistant) => void;
   /** Open the logged-in user's account settings page. Optional `tab`
    *  mirrors the /account `?tab=` query param so callers can deep-link
    *  to a specific section (e.g. `'contact-info'`). */
@@ -296,12 +305,38 @@ interface RightPaneContainerProps {
    *  dot on the chat header's "Assistant info" button. */
   hasIncompleteOnboarding?: boolean;
   /**
+   * Coordinator-only handler bag forwarded down to the info panel.
+   * When the active assistant is the canonical Coordinator and it's
+   * still in onboarding mode, the info panel surfaces a third
+   * "Onboarding" sub-tab whose action rows are wired from here.
+   * Ignored for non-coordinator assistants. */
+  coordinatorOnboarding?: {
+    onConnectWorkspace?: () => void;
+    onConnectApps?: () => void;
+    onActNow?: () => void;
+    onScheduleTask?: () => void;
+    /** Marks a coordinator onboarding step complete when the matching
+     * domain data lands (a secret connected → ``apps``, a task created →
+     * ``schedule``, an action running → ``act``). Provided only when the
+     * rendered assistant is the canonical Coordinator, so another
+     * assistant's panes can't tick off its steps. */
+    onStepComplete?: (stepId: string) => void;
+  };
+  /**
    * Unread chat-message count for the currently-open assistant. Drives
    * the numeric badge on the Chat tab. Cleared by `Main` whenever the
    * user actually views the chat (in either slot), so we render the
    * badge unconditionally when `> 0` — no per-slot suppression needed.
    */
   unreadChatCount?: number;
+  /**
+   * Renderer for the docked call surface (the
+   * ``AssistantCommunicationDialog`` in ``docked`` mode). Threaded
+   * straight through to ``ChatWithInfoPanel`` which stacks it above
+   * the chat panel; passed by ``Main`` only when a call is active for
+   * *this* assistant and hasn't been popped out.
+   */
+  renderDockedCall?: () => React.ReactNode;
 }
 
 export function RightPaneContainer({
@@ -314,6 +349,7 @@ export function RightPaneContainer({
   callPillHistories,
   setCallPillHistories,
   userEmail,
+  currentUserId,
   isFirstView = false,
   preHireChat,
   onFirstViewCompleted,
@@ -336,10 +372,11 @@ export function RightPaneContainer({
   hasUserPhoneNumber,
   latestUserMessageAt,
   userPhoneNumber,
-  onShowInstallInstructions,
   onOpenUserSettings,
   hasIncompleteOnboarding,
+  coordinatorOnboarding,
   unreadChatCount = 0,
+  renderDockedCall,
 }: RightPaneContainerProps) {
   // Tracks whether the live-actions stream is currently working, so the
   // dashboards pane can poll its tiles. Hoisted here because either pane
@@ -349,6 +386,7 @@ export function RightPaneContainer({
   const handleActiveActionChange = useCallback((active: boolean) => {
     setHasActiveAction(active);
   }, []);
+  const { canOpenAssistantChat } = useAssistantPermissions();
 
   // Per-slot sub-tab state for the tabs that have sub-tabs (Memory,
   // Tasks). Kept here so the dropdown in the tab strip can both *drive*
@@ -433,12 +471,28 @@ export function RightPaneContainer({
 
   if (!assistant) {
     return (
-      <LiveActionsViewer
-        assistant={null}
-        actions={null}
-        className="h-full"
-        onHasActiveActionChange={handleActiveActionChange}
-      />
+      <div className="brand-chat-stencil-bg h-full w-full bg-background">
+        <LiveActionsViewer
+          assistant={null}
+          actions={null}
+          className="h-full"
+          onHasActiveActionChange={handleActiveActionChange}
+        />
+      </div>
+    );
+  }
+
+  if (!canOpenAssistantChat(assistant)) {
+    return (
+      <div
+        data-testid="coordinator-private"
+        className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center"
+      >
+        <p className="text-body-muted">Marty chat is private.</p>
+        <p className="text-caption text-muted-foreground">
+          Open Marty from this workspace to continue.
+        </p>
+      </div>
     );
   }
 
@@ -493,27 +547,13 @@ export function RightPaneContainer({
         className="flex h-full min-w-0 flex-1 flex-col"
         data-slot={slot}
       >
-        <div
-          // Identical chrome on both slots so the bottom border reads as
-          // one continuous line across the splitter. The vertical
-          // splitter (rendered below) is what tells the two panes apart
-          // visually.
-          //
-          // `items-end` is load-bearing: the active TabsTrigger draws a
-          // 2px primary underline that needs to sit flush with this
-          // row's 1px bottom border for the "active tab continues the
-          // line" effect. `items-center` would float the underline
-          // mid-row.
-          className="flex shrink-0 items-end justify-between gap-2 border-b border-border px-3 py-2"
-        >
-          <div className="flex min-w-0 flex-1 items-end overflow-x-auto">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-3 py-1.5">
+          <div className="right-pane-tabs-container flex min-w-0 flex-1 items-center overflow-hidden">
             <TabsList
-              // `gap-6` reads well at full width; in split / mobile the
-              // labels collapse to icon-only (`hidden sm:inline` below)
-              // so the same gap stays comfortable for icon-only chips.
-              className="h-7 flex-nowrap gap-6 rounded-none bg-transparent p-0"
+              // Labels are visually hidden; tooltips carry the short titles.
+              className="right-pane-tabs-list h-8 flex-nowrap gap-2 rounded-none bg-transparent p-0"
             >
-              {RIGHT_PANE_TABS.map(({ id, label, Icon, describe, subTabs, dividerBefore }) => {
+              {RIGHT_PANE_TABS.map(({ id, label, Icon, subTabs, dividerBefore }) => {
                 // "Active in this slot" — i.e. the tab the user is
                 // currently looking at. Used to suppress the unread
                 // chip while chat is visible (defensive: `Main` also
@@ -528,32 +568,29 @@ export function RightPaneContainer({
                 // needing a separate dot. The pulse persists even when
                 // Actions is the visible tab: it's a *state* indicator
                 // (work in flight), not an attention bid, and with the
-                // underline-style active state there's no bg conflict
-                // to worry about.
+                // selected button state has enough contrast to carry both
+                // "selected" and "live" without a separate background.
                 const isActionsLive = id === 'actions' && hasActiveAction;
                 const unreadLabel = unreadChatCount > 99 ? '99+' : String(unreadChatCount);
-                const tooltipBase = describe(assistant.firstName || 'them');
-                const tooltipText = showUnreadInsteadOfIcon
-                  ? `${tooltipBase} — ${unreadChatCount} unread`
+                const ariaLabel = showUnreadInsteadOfIcon
+                  ? `${label} — ${unreadChatCount} unread`
                   : isActionsLive
-                    ? `${tooltipBase} — live`
-                    : tooltipBase;
+                    ? `${label} — live`
+                    : label;
 
                 // Subtle vertical separator drawn immediately before
                 // the tab when its config opts in via `dividerBefore`.
                 // The negative horizontal margin pulls the surrounding
-                // `gap-6` gap on the TabsList in a bit so the dividers
+                // `gap-3` gap on the TabsList in a bit so the dividers
                 // read as a *grouping cue* rather than a full extra
-                // tab-sized slot — between-group spacing ends up ~33px
-                // vs the ~24px within-group gap, which is enough to
+                // tab-sized slot, which is enough to
                 // suggest the grouping without breaking the flow.
                 // `self-center` keeps the 16px-tall line vertically
-                // centred in the 28px-tall tab row regardless of the
-                // parent row's `items-end` alignment.
+                // centred in the tab row.
                 const dividerNode = dividerBefore ? (
                   <span
                     aria-hidden="true"
-                    className="-mx-2 h-4 w-px self-center bg-border"
+                    className="right-pane-tab-divider -mx-2 h-4 w-px self-center bg-border"
                     data-testid={
                       slot === 'primary'
                         ? `right-pane-tab-divider-${id}`
@@ -568,10 +605,9 @@ export function RightPaneContainer({
                 // tab AND sets the matching sub-tab on the pane below.
                 // We render a plain button (not a TabsTrigger) so the
                 // click doesn't fight Radix's tab-switch handler — the
-                // `data-state` attribute is set manually so the same
-                // active-underline styling (driven by the
-                // `data-[state=active]` rules in TAB_TRIGGER_CLASS)
-                // still applies.
+                // `data-state` is still set manually for tests and
+                // assistive tooling that inspect active state on the
+                // trigger.
                 if (subTabs && subTabs.length > 0) {
                   const slotSubTabs = subTabBySlot[slot];
                   const currentSubTabValue: string =
@@ -588,12 +624,7 @@ export function RightPaneContainer({
                   const currentSubTab = subTabs.find((st) => st.id === currentSubTabValue);
                   const DisplayIcon = currentSubTab?.Icon ?? Icon;
                   const displayLabel = currentSubTab?.label ?? label;
-                  // Surface the resolved sub-tab in the tooltip too so
-                  // the AT label and hover bubble stay accurate after
-                  // the in-place swap.
-                  const dropdownTooltipText = currentSubTab
-                    ? `${tooltipText} — ${currentSubTab.label}`
-                    : tooltipText;
+                  const dropdownTitle = displayLabel;
                   const handleSubTabSelect = (next: string) => {
                     if (id === 'memory') {
                       setSlotSubTab(slot, 'memory', next as MemoryTabContext);
@@ -621,17 +652,20 @@ export function RightPaneContainer({
                                   <button
                                     type="button"
                                     data-state={isActiveInThisSlot ? 'active' : 'inactive'}
-                                    className={TAB_TRIGGER_CLASS}
+                                    className={cn(
+                                      TAB_TRIGGER_CLASS,
+                                      isActiveInThisSlot && ACTIVE_TAB_TRIGGER_CLASS
+                                    )}
                                     data-testid={
                                       slot === 'primary'
                                         ? `right-pane-tab-${id}`
                                         : `right-pane-secondary-tab-${id}`
                                     }
-                                    aria-label={dropdownTooltipText}
+                                    aria-label={dropdownTitle}
                                     aria-haspopup="menu"
                                   >
                                     <DisplayIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                                    <span className="hidden sm:inline">{displayLabel}</span>
+                                    <span className="right-pane-tab-label">{displayLabel}</span>
                                     <ChevronDown
                                       className="h-3 w-3 opacity-60"
                                       aria-hidden="true"
@@ -641,7 +675,7 @@ export function RightPaneContainer({
                               </span>
                             </TooltipTrigger>
                             <TooltipContent side="bottom">
-                              <p>{dropdownTooltipText}</p>
+                              <p>{dropdownTitle}</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -708,7 +742,10 @@ export function RightPaneContainer({
                           <span className="inline-flex">
                             <TabsTrigger
                               value={id}
-                              className={TAB_TRIGGER_CLASS}
+                              className={cn(
+                                TAB_TRIGGER_CLASS,
+                                isActiveInThisSlot && ACTIVE_TAB_TRIGGER_CLASS
+                              )}
                               // Primary slot keeps the legacy
                               // `right-pane-tab-{id}` id so existing e2e
                               // selectors (and the demo) keep working;
@@ -720,11 +757,7 @@ export function RightPaneContainer({
                                   ? `right-pane-tab-${id}`
                                   : `right-pane-secondary-tab-${id}`
                               }
-                              // Mirror the visual indicator into the AT
-                              // layer so screen-reader users hear "Chat,
-                              // 3 unread" / "Actions, live" instead of
-                              // just the bare label.
-                              aria-label={tooltipText}
+                              aria-label={ariaLabel}
                             >
                               {showUnreadInsteadOfIcon ? (
                                 // Numeric chip *replaces* the icon (same
@@ -766,16 +799,14 @@ export function RightPaneContainer({
                                   }
                                 />
                               )}
-                              {/* Same icon-only-on-mobile pattern as
-                                  the memory/tasks sub-tabs. The Radix
-                                  tooltip carries the name on hover
-                                  regardless. */}
-                              <span className="hidden sm:inline">{label}</span>
+                              {/* Labels remain in the DOM for layout consistency,
+                                  but CSS keeps the strip icon-only. */}
+                              <span className="right-pane-tab-label">{label}</span>
                             </TabsTrigger>
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
-                          <p>{tooltipText}</p>
+                          <p>{label}</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -836,11 +867,7 @@ export function RightPaneContainer({
           </div>
         </div>
 
-        <TabsContent
-          value="chat"
-          className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
-          forceMount
-        >
+        <TabsContent value="chat" className={TAB_CONTENT_CLASS} forceMount>
           <ChatWithInfoPanel
             assistant={assistant}
             assistantActions={assistantActions}
@@ -849,6 +876,7 @@ export function RightPaneContainer({
             callPillHistories={callPillHistories}
             setCallPillHistories={setCallPillHistories}
             userEmail={userEmail}
+            currentUserId={currentUserId}
             userTimezone={userTimezone}
             isFirstView={isFirstView}
             preHireChat={preHireChat}
@@ -871,32 +899,38 @@ export function RightPaneContainer({
             hasUserPhoneNumber={hasUserPhoneNumber}
             latestUserMessageAt={latestUserMessageAt}
             userPhoneNumber={userPhoneNumber}
-            onShowInstallInstructions={onShowInstallInstructions}
             onOpenUserSettings={onOpenUserSettings}
             hasIncompleteOnboarding={hasIncompleteOnboarding}
+            coordinatorOnboarding={coordinatorOnboarding}
+            // The docked call lives in a single slot — the primary
+            // one — so split layouts do not mirror the same call UI
+            // into both panes. The secondary slot always renders the
+            // regular chat panel.
+            renderDockedCall={slot === 'primary' ? renderDockedCall : undefined}
           />
         </TabsContent>
 
-        <TabsContent
-          value="tasks"
-          className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
-          forceMount
-        >
+        <TabsContent value="tasks" className={TAB_CONTENT_CLASS} forceMount>
           <TasksPane
+            assistant={assistant}
             ownerId={assistant.userId}
             assistantId={assistant.agentId}
             subTab={subTabBySlot[slot].tasks}
             onSubTabChange={slot === 'primary' ? primaryTasksChange : secondaryTasksChange}
+            onTasksCountChange={
+              slot === 'primary' && coordinatorOnboarding?.onStepComplete
+                ? (count) => {
+                    if (count > 0) coordinatorOnboarding.onStepComplete?.('schedule');
+                  }
+                : undefined
+            }
           />
         </TabsContent>
 
-        <TabsContent
-          value="dashboards"
-          className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
-          forceMount
-        >
+        <TabsContent value="dashboards" className={TAB_CONTENT_CLASS} forceMount>
           {dashboardActions ? (
             <DashboardsPane
+              assistant={assistant}
               ownerId={assistant.userId}
               assistantId={assistant.agentId}
               getMetadata={dashboardActions.getMetadata}
@@ -910,37 +944,35 @@ export function RightPaneContainer({
           )}
         </TabsContent>
 
-        <TabsContent
-          value="memory"
-          className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
-          forceMount
-        >
+        <TabsContent value="memory" className={TAB_CONTENT_CLASS} forceMount>
           <MemoryPane
+            assistant={assistant}
             ownerId={assistant.userId}
             assistantId={assistant.agentId}
+            isVisible={tab === 'memory'}
             subTab={subTabBySlot[slot].memory}
             onSubTabChange={slot === 'primary' ? primaryMemoryChange : secondaryMemoryChange}
           />
         </TabsContent>
 
-        <TabsContent
-          value="integrations"
-          className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
-          forceMount
-        >
+        <TabsContent value="integrations" className={TAB_CONTENT_CLASS} forceMount>
           <IntegrationsPane
             ownerId={assistant.userId}
             assistantId={assistant.agentId}
             secretActions={assistantActions.secret}
             canWrite={canWrite}
+            isVisible={tab === 'integrations'}
+            onSecretsCountChange={
+              slot === 'primary' && coordinatorOnboarding?.onStepComplete
+                ? (count) => {
+                    if (count > 0) coordinatorOnboarding.onStepComplete?.('apps');
+                  }
+                : undefined
+            }
           />
         </TabsContent>
 
-        <TabsContent
-          value="actions"
-          className="min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden"
-          forceMount
-        >
+        <TabsContent value="actions" className={TAB_CONTENT_CLASS} forceMount>
           {/* Only the *primary* actions tab feeds the dashboards-poll
               signal. Wiring both would double-count benign no-ops, and
               the two slots' streams are equivalent (same controller
@@ -949,7 +981,14 @@ export function RightPaneContainer({
             assistant={assistant}
             actions={actions}
             className="h-full"
-            onHasActiveActionChange={slot === 'primary' ? handleActiveActionChange : undefined}
+            onHasActiveActionChange={
+              slot === 'primary'
+                ? (active) => {
+                    handleActiveActionChange(active);
+                    if (active) coordinatorOnboarding?.onStepComplete?.('act');
+                  }
+                : undefined
+            }
           />
         </TabsContent>
       </Tabs>
@@ -960,7 +999,7 @@ export function RightPaneContainer({
   const splitRatio = Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, paneState.splitRatio));
 
   return (
-    <div ref={splitContainerRef} className="flex h-full w-full">
+    <div ref={splitContainerRef} className="brand-chat-stencil-bg flex h-full w-full bg-background">
       <div
         className="flex h-full min-w-0 flex-col"
         style={{ width: hasSplit ? `${splitRatio * 100}%` : '100%' }}

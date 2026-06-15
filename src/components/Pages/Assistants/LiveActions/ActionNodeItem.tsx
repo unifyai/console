@@ -469,7 +469,7 @@ export interface ActionNodeItemProps {
  * Get label styling based on node status.
  */
 function getLabelStyles(status: ActionNodeStatus): string {
-  if (status === 'error') return 'text-red-500/70 font-normal';
+  if (status === 'error') return 'text-error font-normal';
   if (status === 'running') return 'text-muted-foreground font-normal animate-shimmer';
   return 'text-muted-foreground font-normal';
 }
@@ -787,7 +787,12 @@ const markdownComponents = {
     </code>
   ),
   a: ({ href, children }: any) => (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-500/70 underline">
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-[color:var(--status-info)] underline"
+    >
       {children}
     </a>
   ),
@@ -824,7 +829,12 @@ const inlineMarkdownComponents = {
     </code>
   ),
   a: ({ href, children }: any) => (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-500/70 underline">
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-[color:var(--status-info)] underline"
+    >
       {children}
     </a>
   ),
@@ -1104,10 +1114,10 @@ function ContentArea({
 }
 
 const STEERING_ICON_MAP: Record<string, { Icon: LucideIcon; color: string }> = {
-  stop: { Icon: Square, color: 'text-rose-600/80 dark:text-rose-400/70' },
-  pause: { Icon: Pause, color: 'text-amber-600/80 dark:text-amber-400/70' },
-  resume: { Icon: Play, color: 'text-teal-600/80 dark:text-teal-400/70' },
-  interject: { Icon: CornerDownLeft, color: 'text-violet-600/70 dark:text-violet-500/50' },
+  stop: { Icon: Square, color: 'text-[color:var(--status-danger)]' },
+  pause: { Icon: Pause, color: 'text-[color:var(--status-warning)]' },
+  resume: { Icon: Play, color: 'text-[color:var(--role-teal)]' },
+  interject: { Icon: CornerDownLeft, color: 'text-[color:var(--role-purple)]' },
 };
 
 function SteeringSubRow({
@@ -1118,7 +1128,10 @@ function SteeringSubRow({
   resolvedToolCallIds?: Set<string>;
 }) {
   const prefix = entry.toolCallName.split('_')[0].toLowerCase();
-  const style = STEERING_ICON_MAP[prefix] ?? { Icon: Zap, color: 'text-orange-600/80' };
+  const style = STEERING_ICON_MAP[prefix] ?? {
+    Icon: Zap,
+    color: 'text-[color:var(--status-warning)]',
+  };
   const pending = resolvedToolCallIds ? !resolvedToolCallIds.has(entry.toolCallId) : false;
   const time = formatEventTime(entry.log.entries.eventTimestamp || entry.log.ts);
 
@@ -1319,7 +1332,7 @@ function InlineImageGallery({ urls }: { urls: string[] }) {
       </div>
       {lightboxIdx !== null && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--overlay-strong)]"
           onClick={() => setLightboxIdx(null)}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1366,7 +1379,7 @@ function ImageResultRow({
       >
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="mt-0.5 shrink-0 text-blue-500/70 dark:text-blue-400/60">
+            <span className="mt-0.5 shrink-0 text-[color:var(--status-info)]">
               <ImageIcon className="h-2.5 w-2.5" />
             </span>
           </TooltipTrigger>
@@ -1411,7 +1424,7 @@ function ThoughtLabel({ text, time }: { text: string; time: string }) {
     >
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="mt-0.5 shrink-0 text-slate-500/80 dark:text-slate-400/50">
+          <span className="mt-0.5 shrink-0 text-muted-foreground">
             <Brain className="h-2.5 w-2.5" />
           </span>
         </TooltipTrigger>
@@ -1743,51 +1756,51 @@ function ToolLoopMessage({
   // ── Kind-based style map ───────────────────────────────────────────────
   /* eslint-disable @typescript-eslint/naming-convention */
   const KIND_STYLES: Record<string, { label: string; color: string; Icon: LucideIcon }> = {
-    request: { label: 'request', color: 'text-blue-600/80 dark:text-blue-500/60', Icon: ArrowDown },
+    request: { label: 'request', color: 'text-[color:var(--status-info)]', Icon: ArrowDown },
     interjection: {
       label: 'interjection',
-      color: 'text-blue-500/70 dark:text-blue-400/60',
+      color: 'text-[color:var(--status-info)]',
       Icon: ArrowDown,
     },
     thinking_sentinel: {
       label: 'thought',
-      color: 'text-slate-500/80 dark:text-slate-400/50',
+      color: 'text-muted-foreground',
       Icon: Brain,
     },
-    thought: { label: 'thought', color: 'text-slate-500/80 dark:text-slate-400/50', Icon: Brain },
+    thought: { label: 'thought', color: 'text-muted-foreground', Icon: Brain },
     tool_call: {
       label: 'action',
-      color: 'text-orange-600/80 dark:text-orange-500/60',
+      color: 'text-[color:var(--status-warning)]',
       Icon: Zap,
     },
     response: {
       label: 'response',
-      color: 'text-emerald-600/80 dark:text-emerald-400/60',
+      color: 'text-[color:var(--status-success)]',
       Icon: ArrowUp,
     },
     tool_result: {
       label: 'result',
-      color: 'text-violet-600/70 dark:text-violet-500/50',
+      color: 'text-[color:var(--role-purple)]',
       Icon: CornerDownLeft,
     },
     steering_pause: {
       label: 'Pause',
-      color: 'text-amber-600/80 dark:text-amber-400/70',
+      color: 'text-[color:var(--status-warning)]',
       Icon: Pause,
     },
     steering_resume: {
       label: 'Resume',
-      color: 'text-teal-600/80 dark:text-teal-400/70',
+      color: 'text-[color:var(--role-teal)]',
       Icon: Play,
     },
     steering_stop: {
       label: 'Stop',
-      color: 'text-rose-600/80 dark:text-rose-400/70',
+      color: 'text-[color:var(--status-danger)]',
       Icon: Square,
     },
     steering_helper: {
       label: 'dispatch',
-      color: 'text-orange-600/80 dark:text-orange-500/60',
+      color: 'text-[color:var(--status-warning)]',
       Icon: Zap,
     },
   };
@@ -1831,7 +1844,7 @@ function ToolLoopMessage({
       <div className="flex items-start gap-2">
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="mt-0.5 shrink-0 text-slate-500/80 dark:text-slate-400/50">
+            <span className="mt-0.5 shrink-0 text-muted-foreground">
               <Brain className="h-2.5 w-2.5" />
             </span>
           </TooltipTrigger>
@@ -1839,9 +1852,7 @@ function ToolLoopMessage({
             thought
           </TooltipContent>
         </Tooltip>
-        <span className="animate-shimmer truncate text-slate-500/80 dark:text-slate-400/50">
-          Thinking
-        </span>
+        <span className="animate-shimmer truncate text-muted-foreground">Thinking</span>
         <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
           {time}
         </span>
@@ -1901,7 +1912,7 @@ function ToolLoopMessage({
     const actionIcon = (
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="shrink-0 text-orange-600/80 dark:text-orange-500/60">
+          <span className="shrink-0 text-[color:var(--status-warning)]">
             <Zap className="h-2.5 w-2.5" />
           </span>
         </TooltipTrigger>
@@ -1920,7 +1931,7 @@ function ToolLoopMessage({
           content={notificationMessages[i]}
           time={time}
           Icon={ArrowUp}
-          iconColor="text-emerald-600/80 dark:text-emerald-400/60"
+          iconColor="text-[color:var(--status-success)]"
           tooltipLabel="notification"
         />
       );
@@ -2127,7 +2138,7 @@ function ToolLoopMessage({
     }
   } else if (kind === 'tool_call') {
     label = 'thought';
-    color = 'text-slate-500/80 dark:text-slate-400/50';
+    color = 'text-muted-foreground';
     LabelIcon = Brain;
     content = textContent;
     trailingCallLine = renderCallLine();
@@ -2290,7 +2301,7 @@ function ToolLoopMessage({
           content={trailingResponseContent}
           time={time}
           Icon={ArrowUp}
-          iconColor="text-emerald-600/80 dark:text-emerald-400/60"
+          iconColor="text-[color:var(--status-success)]"
           tooltipLabel="response"
         />
       )}
@@ -3257,7 +3268,7 @@ export function ActionNodeItem({
                 className={cn(
                   'h-3.5 w-3.5 shrink-0',
                   node.status === 'error'
-                    ? 'text-red-500/50'
+                    ? 'text-error'
                     : node.status === 'running'
                       ? 'text-muted-foreground/50 animate-shimmer'
                       : 'text-muted-foreground/40'
@@ -3304,7 +3315,7 @@ export function ActionNodeItem({
         <PromotedContent
           icon={ArrowDown}
           label="request"
-          labelColor="text-blue-600/80 dark:text-blue-500/60"
+          labelColor="text-[color:var(--status-info)]"
           content={promoted.request.content}
           depth={depth}
           timestamp={promoted.request.time}
@@ -3315,7 +3326,7 @@ export function ActionNodeItem({
         <PromotedContent
           icon={ArrowUp}
           label="response"
-          labelColor="text-emerald-600/80 dark:text-emerald-400/60"
+          labelColor="text-[color:var(--status-success)]"
           content={promoted.response.content}
           depth={depth}
           timestamp={promoted.response.time}

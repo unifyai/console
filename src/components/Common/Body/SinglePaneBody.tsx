@@ -5,7 +5,7 @@ import SkeletonLoader from '../Loaders/SkeletonLoader';
 
 const SinglePaneBody = ({ isPending, body }: { isPending: boolean; body: ReactNode }) => {
   return (
-    <div className="h-full overflow-y-auto rounded-md bg-background p-3">
+    <div className="h-full overflow-y-auto rounded-xl border border-border bg-card p-3 shadow-sm">
       <div className="flex h-full w-full flex-col gap-3">
         {isPending ? <SkeletonLoader /> : body}
       </div>

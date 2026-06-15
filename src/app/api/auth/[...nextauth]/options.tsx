@@ -7,10 +7,25 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { jwtVerify } from 'jose';
 import { OrchestraAdapter } from '@/lib/orchestra/orchestra-adapter';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
+import { isSelfHost } from '@/lib/environment/environment';
 import { IS_STAGING, isStagingAllowedEmail } from '@/lib/auth/staging-gate';
+import { baseColors } from '@/lib/design-tokens';
 
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
 const cookiePrefix = useSecureCookies ? '__Secure-' : '';
+const googleClientId = process.env.GOOGLE_ID ?? process.env.GOOGLE_OAUTH_CLIENT_ID ?? '';
+const googleClientSecret =
+  process.env.GOOGLE_SECRET ?? process.env.GOOGLE_OAUTH_CLIENT_SECRET ?? '';
+const azureClientId =
+  process.env.AZURE_AD_CLIENT_ID ??
+  process.env.MICROSOFT_BYOD_CLIENT_ID ??
+  process.env.MS365_BYOD_CLIENT_ID ??
+  '';
+const azureClientSecret =
+  process.env.AZURE_AD_CLIENT_SECRET ??
+  process.env.MICROSOFT_BYOD_CLIENT_SECRET ??
+  process.env.MS365_BYOD_CLIENT_SECRET ??
+  '';
 
 const authOptions: AuthOptions = {
   ...pagesOptions,
@@ -33,8 +48,8 @@ const authOptions: AuthOptions = {
   },
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_ID!,
-      clientSecret: process.env.GOOGLE_SECRET!,
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
       // Google verifies email ownership, so it's safe to auto-link accounts
       // that share the same verified email (e.g. user signed up with email/password
       // and later clicks "Continue with Google").
@@ -77,8 +92,8 @@ const authOptions: AuthOptions = {
       // GitHub is deprecated; auto-linking is disabled for security.
     }),
     AzureADProvider({
-      clientId: process.env.AZURE_AD_CLIENT_ID!,
-      clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
+      clientId: azureClientId,
+      clientSecret: azureClientSecret,
       tenantId: process.env.AZURE_AD_TENANT_ID,
       // Microsoft verifies email ownership, so it's safe to auto-link accounts
       // that share the same verified email.
@@ -165,8 +180,7 @@ const authOptions: AuthOptions = {
   secret: process.env.JWT_SECRET,
   theme: {
     colorScheme: 'light',
-    brandColor: '#36a836',
-    logo: '@/console/static/ivy_logo_only.png',
+    brandColor: baseColors.roleGreenDeep,
   },
   callbacks: {
     /**
@@ -177,7 +191,7 @@ const authOptions: AuthOptions = {
      * enabled, so they are skipped here.
      */
     async signIn({ user, account }) {
-      if (IS_STAGING && !isStagingAllowedEmail(user.email)) {
+      if (!isSelfHost() && IS_STAGING && !isStagingAllowedEmail(user.email)) {
         return '/login?error=StagingRestricted';
       }
 
@@ -245,7 +259,7 @@ const authOptions: AuthOptions = {
       // Forcibly sign out any existing session whose email is not allowed
       // in the current environment. Read by the middleware to clear the
       // session cookie and redirect the user back to /login.
-      if (IS_STAGING && !isStagingAllowedEmail(token.email ?? user?.email)) {
+      if (!isSelfHost() && IS_STAGING && !isStagingAllowedEmail(token.email ?? user?.email)) {
         return { restrictedSignOut: true };
       }
 

@@ -1,0 +1,23 @@
+---
+description: Use only the design tokens from src/styles/globals.css
+alwaysApply: true
+---
+
+# Styling — Stick to Globals
+
+Use the CSS variables in `src/styles/globals.css` (and their Tailwind classes
+from `tailwind.config.ts`) for every colour, radius, and theme value. Use the
+font classes from `src/styles/fonts.ts`. Tokens are theme-aware (light/dark) —
+hardcoding breaks dark mode and fails `scripts/check-colors.ts` /
+`scripts/check-font-classes.ts` (run via `lint-staged` and `check:styles:all`).
+
+Don't use: hex, `rgb(...)`, named Tailwind colours (`bg-white`, `text-red-500`),
+arbitrary `bg-[#...]`, inline `font-family`, ad-hoc pixel radii.
+
+```tsx
+// ❌ <div className="bg-[#f5f5f5] text-[#1b1b1b] border-[#dadada]" />
+// ✅ <div className="bg-background text-foreground border-border" />
+```
+
+Genuinely new token? Add it to both `:root` and `.dark` in `globals.css`,
+expose via `tailwind.config.ts`, then use the class — never the raw value.

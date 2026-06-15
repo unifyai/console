@@ -43,9 +43,9 @@ function gatherPresenceDiffs(
 
   let labelColor = '';
   if (baseHasContent && redSet.size > 0) {
-    labelColor = 'text-red-600';
+    labelColor = 'text-error';
   } else if (!baseHasContent && greenSet.size > 0) {
-    labelColor = 'text-green-600';
+    labelColor = 'text-[color:var(--status-success)]';
   }
 
   return {

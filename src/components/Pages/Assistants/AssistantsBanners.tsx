@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertTriangle, ShieldAlert } from 'lucide-react';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import { formatSpendAmount } from '@/types/assistants/spending';
 import type { BillingMode } from '@/types/billing';
@@ -10,6 +11,8 @@ interface AssistantsBannersProps {
   credits: number;
   /** Whether billing data is still loading */
   isBillingLoading: boolean;
+  /** Whether the current balance came from a successful billing lookup */
+  isBalanceKnown: boolean;
   /** Spending gate status for limit-reached banners */
   spendingGateStatus: SpendingGateStatus;
   /** Whether the current workspace is an organization */
@@ -34,21 +37,25 @@ interface AssistantsBannersProps {
  *
  * Currently handles three mutually-exclusive cases (in priority order):
  * 1. **Account status** — account is PAST_DUE, SUSPENDED, or CLOSED.
- * 2. **Out of credits** — credit balance has gone negative (credits < 0).
- *    Brand-new users (credits === 0) are excluded because they haven't
- *    interacted with billing yet.
+ * 2. **Out of credits** — credit balance is zero or below (credits <= 0).
  * 3. **Spending limit reached** — a user, org, or assistant spending limit has
  *    been exceeded.
  */
 export function AssistantsBanners({
   credits,
   isBillingLoading,
+  isBalanceKnown,
   spendingGateStatus,
   isOrgWorkspace,
   isFreeTrial,
   accountStatus,
   billingMode = 'CREDITS',
 }: AssistantsBannersProps) {
+  const { billing: billingEnabled } = useFeatures();
+  if (!billingEnabled) {
+    return null;
+  }
+
   // Account status banners — highest priority
   if (!isBillingLoading && accountStatus && accountStatus !== 'ACTIVE') {
     const statusConfig: Record<string, { label: string; description: string; variant: string }> = {
@@ -58,7 +65,7 @@ export function AssistantsBanners({
           ? 'Your organization has an outstanding payment. Please update your payment method to avoid service disruption.'
           : 'You have an outstanding payment. Please update your payment method to avoid service disruption.',
         variant:
-          'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-200',
+          'border-[color:var(--status-warning)]/25 bg-[color:var(--status-warning-bg)] text-[color:var(--status-warning)]',
       },
       SUSPENDED: {
         label: 'Account suspended',
@@ -66,15 +73,14 @@ export function AssistantsBanners({
           ? 'Your organization has been suspended due to non-payment. Please resolve the outstanding balance to restore access.'
           : 'Your account has been suspended due to non-payment. Please resolve the outstanding balance to restore access.',
         variant:
-          'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200',
+          'border-[color:var(--status-danger)]/25 bg-[color:var(--status-danger-bg)] text-[color:var(--status-danger)]',
       },
       CLOSED: {
         label: 'Account closed',
         description: isOrgWorkspace
           ? 'Your organization account has been closed.'
           : 'Your account has been closed.',
-        variant:
-          'border-gray-200 bg-gray-50 text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200',
+        variant: 'border-border bg-[color:var(--status-neutral-bg)] text-muted-foreground',
       },
     };
 
@@ -99,7 +105,7 @@ export function AssistantsBanners({
     }
   }
 
-  // Out of credits — shown when balance has gone negative (excludes brand-new users at 0).
+  // Out of credits — CREDITS-mode accounts cannot spend at zero or below.
   // The spending gate also detects credit exhaustion ('no_credits'), but the OOC banner
   // is the correct UI for this case, so we only suppress when a *spending limit* blocks.
   // Also suppressed for METERED accounts: usage is settled at month-end via the metered
@@ -108,14 +114,20 @@ export function AssistantsBanners({
   // (`accountStatus` flips to PAST_DUE / SUSPENDED, handled by the banner above).
   const blockedBySpendingLimit =
     spendingGateStatus.isBlocked && spendingGateStatus.blockReason !== 'no_credits';
-  if (billingMode !== 'METERED' && credits < 0 && !isBillingLoading && !blockedBySpendingLimit) {
+  if (
+    billingMode !== 'METERED' &&
+    isBalanceKnown &&
+    credits <= 0 &&
+    !isBillingLoading &&
+    !blockedBySpendingLimit
+  ) {
     return (
       <div
-        className="flex items-center justify-center gap-3 border-b border-orange-200 bg-orange-50 px-4 py-2.5 dark:border-orange-800 dark:bg-orange-950"
+        className="border-[color:var(--status-warning)]/25 flex items-center justify-center gap-3 border-b bg-[color:var(--status-warning-bg)] px-4 py-2.5"
         data-testid="out-of-credits-banner"
       >
-        <AlertTriangle className="h-4 w-4 flex-shrink-0 text-orange-600 dark:text-orange-400" />
-        <p className="text-sm text-orange-800 dark:text-orange-200">
+        <AlertTriangle className="h-4 w-4 flex-shrink-0 text-[color:var(--status-warning)]" />
+        <p className="text-body text-[color:var(--status-warning)]">
           <span className="font-medium">
             {isFreeTrial
               ? isOrgWorkspace
@@ -138,15 +150,15 @@ export function AssistantsBanners({
               </a>
               {' or '}
               <a href="/billing" className="font-medium underline underline-offset-2">
-                add credits
+                choose a plan
               </a>
               {' to keep exploring.'}
             </>
           ) : (
             <>
               {isOrgWorkspace
-                ? 'An organization owner or admin can add credits on the '
-                : 'You can add credits on the '}
+                ? 'An organization owner or admin can upgrade your plan on the '
+                : 'You can upgrade your plan on the '}
               <a href="/billing" className="font-medium underline underline-offset-2">
                 Billing page
               </a>
@@ -174,11 +186,11 @@ export function AssistantsBanners({
 
     return (
       <div
-        className="flex items-center justify-center gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-950"
+        className="border-[color:var(--status-warning)]/25 flex items-center justify-center gap-3 border-b bg-[color:var(--status-warning-bg)] px-4 py-2.5"
         data-testid="spending-limit-banner"
       >
-        <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-        <p className="text-sm text-amber-800 dark:text-amber-200">
+        <AlertTriangle className="h-4 w-4 flex-shrink-0 text-[color:var(--status-warning)]" />
+        <p className="text-body text-[color:var(--status-warning)]">
           <span className="font-medium">
             {spendingGateStatus.blockReason === 'org_limit'
               ? 'Organization spending limit reached'

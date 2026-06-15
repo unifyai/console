@@ -16,6 +16,7 @@
 import type { SeedScenario, SeededState } from './types';
 import { seedPersonalWorkspace } from './scenarios/personal-workspace';
 import { seedPersonalWorkspaceMulti } from './scenarios/personal-workspace-multi';
+import { seedDesktopLinked } from './scenarios/desktop-linked';
 import { seedOrgBasic } from './scenarios/org-basic';
 import { seedOrgMultiRole } from './scenarios/org-multi-role';
 import { seedOrgAndOutsider } from './scenarios/org-unify';
@@ -28,14 +29,19 @@ import { seedTasksRich } from './scenarios/tasks-rich';
 import { seedSecretsRich } from './scenarios/secrets-rich';
 import { seedReAppraisal } from './scenarios/re-appraisal';
 import { seedManagedBilling } from './scenarios/managed-billing';
+import { seedSidebarTeamGrouping } from './scenarios/sidebar-team-grouping';
+import { seedReferrals } from './scenarios/referrals';
 
 const SCENARIOS: Record<string, SeedScenario> = {
   'personal-workspace': seedPersonalWorkspace,
   'personal-workspace-multi': seedPersonalWorkspaceMulti,
+  'desktop-linked': seedDesktopLinked,
+  'sidebar-team-grouping': seedSidebarTeamGrouping,
   'org-basic': seedOrgBasic,
   'org-multi-role': seedOrgMultiRole,
   'org-unify': seedOrgAndOutsider,
   'credit-grant-links': seedCreditGrantLinks,
+  referrals: seedReferrals,
   'billing-banner-states': seedBillingBannerStates,
   'managed-billing': seedManagedBilling,
   'usage-ledger': seedUsageLedger,
@@ -97,6 +103,10 @@ Options:
         console.log(`   Org:        ${state.org.name} (id=${state.org.id})`);
       }
       console.log(`   Assistants: ${state.assistants.length}`);
+      const coordinatorCount = Object.values(state.users).filter((u) => u.coordinator).length;
+      if (coordinatorCount > 0) {
+        console.log(`   Coordinators: ${coordinatorCount} (one per user)`);
+      }
       if (state.secrets?.length) {
         console.log(`   Secrets:    ${state.secrets.map((s) => s.name).join(', ')}`);
       }

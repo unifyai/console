@@ -8,8 +8,6 @@ import { Suspense, useState, useEffect } from 'react';
 import CheckElement from '@/components/Pages/Login/CheckElement';
 import AnimatedTabs from '@/components/Common/Tabs/AnimatedTabs';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
-import { isPreviewHost } from '@/lib/auth/preview-host';
-
 const ERRORS: Record<string, string> = {
   Signin: 'Try signing with a different account.',
   OAuthSignin: 'Try signing with a different account.',
@@ -57,6 +55,9 @@ const Login = () => {
   // Token handling: persist invite and credit tokens through OAuth flow
   const inviteToken = searchParams?.get('invite');
   const creditToken = searchParams?.get('credit');
+  // Referral code (?ref=CODE): persist immediately so it survives the OAuth
+  // round-trip and onboarding; it is attributed after the user authenticates.
+  const referralCode = searchParams?.get('ref');
 
   // Detect invite context from either explicit param or callbackUrl
   const isInviteFlow =
@@ -67,15 +68,18 @@ const Login = () => {
   const [isSigningOut, setIsSigningOut] = useState(shouldSignOut);
   const [tab, setTab] = useState<'login' | 'loading' | 'check'>('login');
   const [error, setError] = useState<string | undefined>(searchErrorMessage);
-  // Detect slug-tagged preview hosts on the client so we can hide the
-  // OAuth buttons (their callback URIs aren't registered for slug hosts
-  // and clicking them would dead-end at Google's "redirect_uri_mismatch"
-  // page). Starts as ``null`` so the form doesn't flash OAuth controls
-  // before the client decides.
-  const [isPreview, setIsPreview] = useState<boolean | null>(null);
+
+  // Persist the referral code as soon as we see it so it isn't lost across
+  // the OAuth round-trip (localStorage survives the same-origin redirect).
   useEffect(() => {
-    setIsPreview(isPreviewHost(window.location.host));
-  }, []);
+    if (referralCode && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('pending_referral_code', referralCode);
+      } catch {
+        // localStorage may be unavailable in some contexts
+      }
+    }
+  }, [referralCode]);
 
   useEffect(() => {
     if (!shouldSignOut) return;
@@ -138,6 +142,11 @@ const Login = () => {
       callback = new URL(callbackUrl ?? '/', document.location.href);
     }
     callback.searchParams.delete('error');
+    // Carry the referral code onto the post-auth landing page so it can be
+    // attributed there (belt-and-braces alongside the localStorage copy).
+    if (referralCode) {
+      callback.searchParams.set('ref', referralCode);
+    }
     if (provider === 'email') {
       const result = await signIn('email', {
         email,
@@ -170,7 +179,7 @@ const Login = () => {
         {/* Banner for invite/credit token context */}
         {isInviteFlow && (
           <div
-            className="rounded-lg border border-green-200 bg-green-50 p-3 text-center text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
+            className="text-body border-[color:var(--status-success)]/25 rounded-lg border bg-[color:var(--status-success-bg)] p-3 text-center text-[color:var(--status-success)]"
             data-testid="invite-banner"
           >
             You&apos;ve been invited to join an organization. Please sign in with the email address
@@ -178,21 +187,17 @@ const Login = () => {
           </div>
         )}
         <div className="flex justify-center lg:container">
-          {isPreview === null ? (
-            <LoadingElement />
-          ) : (
-            <AnimatedTabs selected={tab}>
-              <LoginFragment
-                onLogin={handleLogin}
-                error={error}
-                callbackUrl={callbackUrl ?? undefined}
-                previewOnly={isPreview}
-                key="login"
-              />
-              <LoadingElement key="loading" />
-              <CheckElement key="check" />
-            </AnimatedTabs>
-          )}
+          <AnimatedTabs selected={tab}>
+            <LoginFragment
+              onLogin={handleLogin}
+              error={error}
+              callbackUrl={callbackUrl ?? undefined}
+              emailOnly={process.env.NEXT_PUBLIC_SELF_HOST === '1'}
+              key="login"
+            />
+            <LoadingElement key="loading" />
+            <CheckElement key="check" />
+          </AnimatedTabs>
         </div>
       </LayoutGroup>
     </motion.div>

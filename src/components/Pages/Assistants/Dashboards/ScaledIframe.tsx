@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useRef, useState, useCallback } from 'react';
-import { Loader2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
 
@@ -97,7 +98,7 @@ export function ScaledIframe({
       <div className="relative min-h-0 flex-1 overflow-hidden">
         {isLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-background">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            <Loader size={20} />
           </div>
         )}
         <iframe

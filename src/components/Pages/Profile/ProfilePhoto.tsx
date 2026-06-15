@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Camera } from 'lucide-react';
 import { toast } from 'sonner';
 import { User } from '@/types/user';
+import { TeammateCreature } from '@/components/Brand';
 
 // `PhotoCropDialog` pulls in `react-easy-crop` and only renders
 // after the user picks a file. Lazy-load it so it doesn't bloat
@@ -14,12 +15,6 @@ const PhotoCropDialog = dynamic(
   () => import('@/components/UI/PhotoCropDialog').then((m) => m.PhotoCropDialog),
   { ssr: false }
 );
-
-function getInitials(name: string, lastName?: string): string {
-  const first = name?.charAt(0)?.toUpperCase() || '';
-  const last = lastName?.charAt(0)?.toUpperCase() || '';
-  return first + last || '?';
-}
 
 async function resolvePhotoUrl(image: string): Promise<string> {
   if (!image.startsWith('gs://')) return image;
@@ -106,18 +101,24 @@ const ProfilePhoto = ({ user, onFileSelect, previewUrl }: ProfilePhotoProps) => 
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className={`hover:border-muted-foreground/40 group relative h-32 w-32 shrink-0 cursor-pointer overflow-hidden rounded-full border border-border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${displayUrl ? 'bg-transparent' : 'bg-muted'}`}
+        className={`hover:border-muted-foreground/40 group relative h-32 w-32 shrink-0 cursor-pointer overflow-visible rounded-xl border border-border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${displayUrl ? 'bg-transparent' : 'bg-card'}`}
       >
         {displayUrl ? (
-          <Image src={displayUrl} alt="Profile photo" fill className="object-cover" unoptimized />
+          <Image
+            src={displayUrl}
+            alt="Profile photo"
+            fill
+            className="rounded-xl object-cover"
+            unoptimized
+          />
         ) : (
-          <span className="text-h1 flex h-full w-full items-center justify-center text-muted-foreground">
-            {getInitials(user.name, user.lastName)}
+          <span className="flex h-full w-full items-center justify-center">
+            <TeammateCreature className="h-24 w-24" label="Default profile photo" />
           </span>
         )}
 
-        <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
-          <Camera className="h-7 w-7 text-white" />
+        <div className="absolute inset-0 flex items-center justify-center bg-transparent opacity-0 transition-all group-hover:bg-[color:var(--overlay)] group-hover:opacity-100">
+          <Camera className="h-7 w-7 text-[color:var(--cream-white)]" />
         </div>
       </button>
 

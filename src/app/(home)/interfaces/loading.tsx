@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 
 /**
  * Route-level loading UI for /interfaces.
@@ -10,7 +10,7 @@ export default function Loading() {
   return (
     <div className="flex h-full w-full items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader size={32} />
         <p className="text-body-muted">Loading interface...</p>
       </div>
     </div>

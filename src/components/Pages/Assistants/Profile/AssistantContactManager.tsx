@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Image from 'next/image';
 import {
   Dialog,
   DialogContent,
@@ -19,14 +20,30 @@ import {
   Phone,
   CheckCircle2,
   AlertCircle,
-  Info,
   Copy,
   Check,
   Pencil,
   Plus,
+  Slack,
+  Trash2,
+  ExternalLink,
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/UI/alert-dialog';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ContactType, OAuthProvider } from '@/types/assistants/contact';
+import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
+import { useSlackIntegration } from '@/hooks/Slack/useSlackIntegration';
+import { useFeatures, useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
 import { FormProvider, useWatch } from 'react-hook-form';
 import { FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/settings';
 import {
@@ -41,11 +58,14 @@ import { toast } from 'sonner';
 import { WhatsApp } from '@mui/icons-material';
 import { FaDiscord } from 'react-icons/fa';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/UI/tooltip';
+import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { useAssistantContactManager } from '@/hooks/Assistants/useAssistantContactManager';
 import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
 import { Badge } from '@/components/UI/badge';
 import { Checkbox } from '@/components/UI/checkbox';
 import { cn } from '@/lib/utils';
+import GoogleIcon from '@/public/icons/google-icon.png';
+import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 
 interface AssistantContactManagerProps {
   isOpen: boolean;
@@ -68,7 +88,24 @@ interface AssistantContactManagerProps {
   userWhatsappNumber?: string | null;
   /** User's Discord ID from their profile */
   userDiscordId?: string | null;
+  /** Owner scope for the shared Slack install. ``null`` (or absent
+   *  ``assistantActions.slack``) hides the Slack entry — e.g. when
+   *  Slack OAuth isn't configured on the deployment. */
+  slackOwner?: SlackInstallOwner | null;
+  /** Whether the current user may connect/disconnect the workspace
+   *  Slack install (org owner, or the personal-account owner). */
+  slackCanManageInstall?: boolean;
+  /** Server-prefetched shared Slack install for the active workspace. */
+  slackInitialInstall?: SlackInstall | null;
 }
+
+/**
+ * Tabs shown in the contact manager. Extends the billable
+ * ``ContactType`` set with the display-only ``slack`` entry, whose
+ * connection is a shared workspace install rather than a per-assistant
+ * contact row.
+ */
+type ContactManagerTab = ContactType | 'slack';
 
 // ---------------------------------------------------------------------------
 // Shared sub-components
@@ -103,7 +140,7 @@ export const DisplayContactField: React.FC<{ label: string; value: string }> = (
                 onClick={handleCopy}
               >
                 {isCopied ? (
-                  <Check className="h-4 w-4 text-green-500" />
+                  <Check className="h-4 w-4 text-[color:var(--status-success)]" />
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}
@@ -153,27 +190,65 @@ export const ByodProviderCard: React.FC<{
   isSelected: boolean;
   onSelect: () => void;
   disabled?: boolean;
-}> = ({ provider, isSelected, onSelect, disabled }) => (
-  <button
-    type="button"
-    onClick={onSelect}
-    disabled={disabled}
-    className={cn(
-      'flex flex-1 flex-col items-center rounded-lg border p-3 transition-colors',
-      isSelected
-        ? 'bg-primary/5 border-primary ring-1 ring-primary'
-        : 'hover:border-muted-foreground/50 border-border',
-      disabled && 'cursor-not-allowed opacity-50'
-    )}
-  >
-    <span className="text-body text-strong">
-      {provider === 'google' ? 'Google' : 'Microsoft 365'}
-    </span>
-    <span className="text-caption text-muted-foreground">
-      {provider === 'google' ? 'Gmail, Calendar, Drive' : 'Outlook, Teams, Calendar'}
-    </span>
-  </button>
-);
+  /**
+   * When set, the card is disabled and the reason is shown on hover. Used to keep
+   * a provider visible (so users know it exists) when the deployment hasn't
+   * configured its OAuth client, rather than hiding it.
+   */
+  unavailableReason?: string;
+}> = ({ provider, isSelected, onSelect, disabled, unavailableReason }) => {
+  const isGoogle = provider === 'google';
+  const title = isGoogle ? 'Google Workspace' : 'Microsoft 365';
+  const subtitle = isGoogle ? 'Gmail, Calendar, Drive' : 'Outlook, Teams, Calendar';
+  const isDisabled = disabled || !!unavailableReason;
+
+  const card = (
+    <button
+      type="button"
+      onClick={onSelect}
+      disabled={isDisabled}
+      className={cn(
+        'flex flex-1 flex-col items-center gap-2 rounded-lg border p-4 text-center shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--role-green-deep)] focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        isSelected
+          ? 'border-[color:var(--role-green-deep)] bg-[color:var(--status-success-bg)] ring-1 ring-[color:var(--role-green-deep)]'
+          : 'border-border bg-card hover:border-[color:var(--role-green-deep)] hover:bg-[color:var(--status-success-bg)]',
+        isDisabled && 'cursor-not-allowed opacity-50'
+      )}
+      aria-label={title}
+    >
+      <span className="flex h-12 w-12 items-center justify-center rounded-md bg-background shadow-sm ring-1 ring-border">
+        <Image
+          src={isGoogle ? GoogleIcon : MicrosoftIcon}
+          alt={`${title} logo`}
+          width={28}
+          height={28}
+          className="h-7 w-7"
+        />
+      </span>
+      <span className="flex flex-col">
+        <span className="text-body text-strong">{title}</span>
+        <span className="text-caption text-muted-foreground">{subtitle}</span>
+      </span>
+    </button>
+  );
+
+  if (!unavailableReason) return card;
+
+  // A disabled <button> doesn't emit hover events, so the tooltip has to trigger
+  // off a wrapping span (which keeps the card's flex sizing).
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="flex flex-1">{card}</span>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <p>{unavailableReason}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Feature checklist
@@ -229,6 +304,9 @@ export function AssistantContactManager({
   userPhoneNumber,
   userWhatsappNumber,
   userDiscordId,
+  slackOwner = null,
+  slackCanManageInstall = false,
+  slackInitialInstall = null,
 }: AssistantContactManagerProps) {
   const {
     // Self-contained form methods from the hook
@@ -275,6 +353,48 @@ export function AssistantContactManager({
 
   const rhfPhoneCountry = useWatch({ control, name: 'phoneCountry' });
 
+  // Slack is a display/routing-only entry — it has no per-assistant
+  // contact row, cost, or create/delete flow — so it lives outside the
+  // contact hook's `activeTab` (which is typed to billable `ContactType`s).
+  // We overlay a widened local tab and forward only real contact types
+  // back to the hook so its footer/cost logic stays consistent.
+  const slackAvailable = !!assistantActions.slack && !!slackOwner;
+
+  // Channel availability is reported by Orchestra (which probes the comms layer
+  // for the underlying provider credentials). A deployment without Twilio
+  // configured can't provision those channels, so we hide their tabs rather
+  // than letting a user reach a CTA that would fail at runtime. Email stays
+  // visible (it's BYOD workspace OAuth, gated inside the Workspace modal), and
+  // Discord stays visible so users can always install the assistant's bot.
+  const { contactPhone, contactWhatsapp } = useFeatures();
+
+  // Coordinator contacts are platform-managed shared pools — a hosted-cloud
+  // concept that doesn't exist in a self-hosted install, so the dialog is
+  // gated to an explanatory message there (mirrors the profile panel).
+  const { isSelfHost } = useEnvironment();
+  const coordinatorSelfHostGated = assistant.isCoordinator && isSelfHost;
+
+  const [selectedTab, setSelectedTab] = React.useState<ContactManagerTab>(initialTab ?? activeTab);
+  React.useEffect(() => {
+    if (isOpen && initialTab) setSelectedTab(initialTab);
+  }, [isOpen, initialTab]);
+
+  // If the active/requested tab points at a channel that isn't available on
+  // this deployment, fall back to email so the picker never shows a blank tab.
+  React.useEffect(() => {
+    const unavailable =
+      (selectedTab === 'phone' && !contactPhone) ||
+      (selectedTab === 'whatsapp' && !contactWhatsapp);
+    if (unavailable) {
+      setSelectedTab('email');
+      setActiveTab('email');
+    }
+  }, [selectedTab, contactPhone, contactWhatsapp, setActiveTab]);
+  const handleTabChange = (value: ContactManagerTab) => {
+    setSelectedTab(value);
+    if (value !== 'slack') setActiveTab(value);
+  };
+
   const handleDialogClose = (open: boolean) => {
     if (!isBusy && !open) {
       onClose();
@@ -302,6 +422,30 @@ export function AssistantContactManager({
   };
 
   const renderEmailTab = () => {
+    if (assistant.isCoordinator) {
+      if (!assistant.email) {
+        return (
+          <p className="text-body text-muted-foreground">
+            Marty email is managed automatically and will appear here once configured.
+          </p>
+        );
+      }
+
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center">
+            <Label>Marty Email Address</Label>
+            <ProviderBadge provider="Platform-managed" />
+          </div>
+          <DisplayContactField label="Marty Email Address" value={assistant.email} />
+          <p className="text-caption text-muted-foreground">
+            Marty email is managed automatically. Messages to this shared address are routed by
+            verified sender identity.
+          </p>
+        </div>
+      );
+    }
+
     if (assistant.email) {
       return (
         <div className="space-y-3">
@@ -342,6 +486,14 @@ export function AssistantContactManager({
   // -------------------------------------------------------------------------
 
   const renderFooter = () => {
+    // Self-hosted coordinator: the body is a gated explanation, so there are
+    // no create/delete actions to surface.
+    if (coordinatorSelfHostGated) return null;
+
+    // Slack is display/routing-only: connect/disconnect live inside the
+    // Slack tab itself, so there's no shared dialog footer for it.
+    if (selectedTab === 'slack') return null;
+
     // Confirm delete (platform contact)
     if (confirmDelete) {
       return (
@@ -359,6 +511,12 @@ export function AssistantContactManager({
 
     // BYOD confirm-disconnect / connect / update-features actions live
     // in the Workspace modal now — the Email tab is display-only.
+    if (
+      assistant.isCoordinator &&
+      (selectedTab === 'email' || selectedTab === 'phone' || selectedTab === 'whatsapp')
+    ) {
+      return null;
+    }
 
     // Delete button for platform email or other contacts
     if (showDeleteButton && canWrite) {
@@ -418,7 +576,9 @@ export function AssistantContactManager({
           <DialogHeader>
             <DialogTitle className="text-title">Update Contact</DialogTitle>
             <DialogDescription className="text-subtitle">
-              Manage contact details for {assistant.firstName}.
+              {assistant.isCoordinator
+                ? 'Marty contacts are platform-managed: Contact details are automatically provisioned and incoming messages are routed to Marty using your verified sender identity — there is nothing to create or configure.'
+                : `Manage contact details for ${assistant.firstName}.`}
             </DialogDescription>
           </DialogHeader>
 
@@ -431,11 +591,18 @@ export function AssistantContactManager({
                 again at any time.
               </p>
             </div>
+          ) : coordinatorSelfHostGated ? (
+            <div className="py-8 text-center">
+              <p className="text-body-muted mx-auto max-w-sm">
+                Marty contacts are managed by the hosted Unify platform and aren&apos;t available in
+                self-hosted deployments.
+              </p>
+            </div>
           ) : (
             <div className="w-full pt-4">
               <Select
-                value={activeTab}
-                onValueChange={(value) => setActiveTab(value as ContactType)}
+                value={selectedTab}
+                onValueChange={(value) => handleTabChange(value as ContactManagerTab)}
               >
                 <SelectTrigger data-testid="contact-type-select">
                   <SelectValue />
@@ -446,28 +613,39 @@ export function AssistantContactManager({
                       <Mail className="mr-2 h-4 w-4" /> Email
                     </span>
                   </SelectItem>
-                  <SelectItem value="phone">
-                    <span className="flex items-center">
-                      <Phone className="mr-2 h-4 w-4" /> Phone
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="whatsapp">
-                    <span className="flex items-center">
-                      <WhatsApp sx={{ fontSize: '18px', marginRight: '8px' }} /> WhatsApp
-                    </span>
-                  </SelectItem>
+                  {contactPhone && (
+                    <SelectItem value="phone">
+                      <span className="flex items-center">
+                        <Phone className="mr-2 h-4 w-4" /> Phone
+                      </span>
+                    </SelectItem>
+                  )}
+                  {contactWhatsapp && (
+                    <SelectItem value="whatsapp">
+                      <span className="flex items-center">
+                        <WhatsApp sx={{ fontSize: '18px', marginRight: '8px' }} /> WhatsApp
+                      </span>
+                    </SelectItem>
+                  )}
                   <SelectItem value="discord">
                     <span className="flex items-center">
                       <FaDiscord className="mr-2 h-4 w-4" /> Discord
                     </span>
                   </SelectItem>
+                  {slackAvailable && (
+                    <SelectItem value="slack">
+                      <span className="flex items-center">
+                        <Slack className="mr-2 h-4 w-4" /> Slack
+                      </span>
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
 
               <div className="max-h-[60vh] overflow-y-auto py-4 pt-8">
-                {activeTab === 'email' && renderEmailTab()}
+                {selectedTab === 'email' && renderEmailTab()}
 
-                {activeTab === 'phone' && (
+                {selectedTab === 'phone' && (
                   <PhoneTabContent
                     assistant={assistant}
                     canWrite={canWrite}
@@ -482,7 +660,7 @@ export function AssistantContactManager({
                   />
                 )}
 
-                {activeTab === 'whatsapp' && (
+                {selectedTab === 'whatsapp' && (
                   <WhatsAppTabContent
                     assistant={assistant}
                     canWrite={canWrite}
@@ -490,11 +668,21 @@ export function AssistantContactManager({
                   />
                 )}
 
-                {activeTab === 'discord' && (
+                {selectedTab === 'discord' && (
                   <DiscordTabContent
                     assistant={assistant}
                     canWrite={canWrite}
                     userDiscordId={userDiscordId}
+                  />
+                )}
+
+                {selectedTab === 'slack' && slackOwner && assistantActions.slack && (
+                  <SlackTabContent
+                    assistant={assistant}
+                    owner={slackOwner}
+                    canManage={slackCanManageInstall}
+                    initialInstall={slackInitialInstall}
+                    actions={assistantActions.slack}
                   />
                 )}
               </div>
@@ -567,6 +755,30 @@ const PhoneTabContent: React.FC<{
   availablePhoneCountries,
   userPhoneNumber,
 }) => {
+  if (assistant.isCoordinator) {
+    if (!assistant.phone) {
+      return (
+        <p className="text-body text-muted-foreground">
+          Marty phone is managed automatically and will appear here once configured.
+        </p>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center">
+          <Label>Marty Phone Number</Label>
+          <ProviderBadge provider="Platform-managed" />
+        </div>
+        <DisplayContactField label="Marty Phone Number" value={assistant.phone} />
+        <p className="text-caption text-muted-foreground">
+          Marty phone is managed automatically. SMS messages and calls to this shared number are
+          routed by verified sender identity.
+        </p>
+      </div>
+    );
+  }
+
   if (assistant.phone) {
     return <DisplayContactField label="Assistant Phone Number" value={assistant.phone} />;
   }
@@ -581,7 +793,7 @@ const PhoneTabContent: React.FC<{
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+                <InfoSquareButton />
               </TooltipTrigger>
               <TooltipContent side="right" align="end" className="text-caption max-w-xs">
                 <p>{"The country where your assistant's phone number will be based."}</p>
@@ -631,7 +843,7 @@ const PhoneTabContent: React.FC<{
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+                <InfoSquareButton />
               </TooltipTrigger>
               <TooltipContent side="right" align="end" className="text-caption max-w-xs">
                 <p>
@@ -646,7 +858,7 @@ const PhoneTabContent: React.FC<{
         {userPhoneNumber ? (
           <div className="flex items-center gap-2">
             <Input value={userPhoneNumber} readOnly disabled className="flex-1" />
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <CheckCircle2 className="h-5 w-5 text-[color:var(--status-success)]" />
           </div>
         ) : (
           <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
@@ -676,14 +888,22 @@ const WhatsAppTabContent: React.FC<{
     return (
       <div className="space-y-2">
         <DisplayContactField
-          label="Assistant WhatsApp Number"
+          label={assistant.isCoordinator ? 'Marty WhatsApp Number' : 'Assistant WhatsApp Number'}
           value={assistant.assistantWhatsappNumber}
         />
         <p className="text-caption text-muted-foreground">
-          Send a message first — your assistant can only call you on WhatsApp after you start a
-          conversation.
+          {assistant.isCoordinator
+            ? 'Marty WhatsApp is managed automatically. Messages to this shared number are routed by verified sender identity.'
+            : 'Send a message first — your assistant can only call you on WhatsApp after you start a conversation.'}
         </p>
       </div>
+    );
+  }
+  if (assistant.isCoordinator) {
+    return (
+      <p className="text-body text-muted-foreground">
+        Marty WhatsApp is managed automatically and will appear here once configured.
+      </p>
     );
   }
   if (!canWrite) {
@@ -697,7 +917,7 @@ const WhatsAppTabContent: React.FC<{
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+                <InfoSquareButton />
               </TooltipTrigger>
               <TooltipContent side="right" align="end" className="text-caption max-w-xs">
                 <p>
@@ -711,7 +931,7 @@ const WhatsAppTabContent: React.FC<{
         {userWhatsappNumber ? (
           <div className="flex items-center gap-2">
             <Input value={userWhatsappNumber} readOnly disabled className="flex-1" />
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <CheckCircle2 className="h-5 w-5 text-[color:var(--status-success)]" />
           </div>
         ) : (
           <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
@@ -738,11 +958,21 @@ const DiscordTabContent: React.FC<{
   userDiscordId?: string | null;
 }> = ({ assistant, canWrite, userDiscordId }) => {
   if (assistant.assistantDiscordBotId) {
+    const installUrl = `https://discord.com/oauth2/authorize?client_id=${assistant.assistantDiscordBotId}`;
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
         <DisplayContactField label="Discord Bot ID" value={assistant.assistantDiscordBotId} />
+        {canWrite && (
+          <Button asChild className="gap-2">
+            <a href={installUrl} target="_blank" rel="noopener noreferrer">
+              <FaDiscord className="h-4 w-4" />
+              Add to your server
+              <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+            </a>
+          </Button>
+        )}
         <p className="text-caption text-muted-foreground">
-          Join the{' '}
+          Install the bot into your Discord server, or join the{' '}
           <a
             href="https://discord.gg/kRtBDmBA"
             target="_blank"
@@ -751,7 +981,7 @@ const DiscordTabContent: React.FC<{
           >
             Unify server
           </a>{' '}
-          on Discord to start talking to your assistant.
+          to start talking to your assistant.
         </p>
       </div>
     );
@@ -766,7 +996,7 @@ const DiscordTabContent: React.FC<{
         <TooltipProvider delayDuration={100}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+              <InfoSquareButton />
             </TooltipTrigger>
             <TooltipContent side="right" align="end" className="text-caption max-w-xs">
               <p>
@@ -780,7 +1010,7 @@ const DiscordTabContent: React.FC<{
       {userDiscordId ? (
         <div className="flex items-center gap-2">
           <Input value={userDiscordId} readOnly disabled className="flex-1" />
-          <CheckCircle2 className="h-5 w-5 text-green-500" />
+          <CheckCircle2 className="h-5 w-5 text-[color:var(--status-success)]" />
         </div>
       ) : (
         <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
@@ -795,6 +1025,145 @@ const DiscordTabContent: React.FC<{
             to enable Discord messaging with your assistant.
           </p>
         </div>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Slack tab content
+// ---------------------------------------------------------------------------
+
+/**
+ * Slack is connected once per workspace (per org, or per personal
+ * account) and shared by every assistant in that scope — so this tab
+ * reflects the shared install rather than a per-assistant contact.
+ * Once connected, this assistant is reachable in Slack via
+ * ``@<app> <token>``, where ``<token>`` is its id, first name, or full
+ * name (the id always disambiguates).
+ */
+const SlackTabContent: React.FC<{
+  assistant: Assistant;
+  owner: SlackInstallOwner;
+  canManage: boolean;
+  initialInstall: SlackInstall | null;
+  actions: NonNullable<AssistantActions['slack']>;
+}> = ({ assistant, owner, canManage, initialInstall, actions }) => {
+  const { install, isConnecting, isDisconnecting, connect, disconnect } = useSlackIntegration({
+    owner,
+    initialInstall,
+    actions,
+    redirectAfter: '/assistants',
+  });
+
+  const ownerNoun = owner.kind === 'org' ? 'organization' : 'account';
+  const fullName = `${assistant.firstName} ${assistant.surname}`.trim();
+
+  if (!install) {
+    if (!canManage) {
+      return (
+        <p className="text-body text-muted-foreground">
+          No Slack workspace is connected for this {ownerNoun} yet. Ask your{' '}
+          {owner.kind === 'org' ? 'organization owner or admin' : 'account owner'} to connect Slack.
+        </p>
+      );
+    }
+    return (
+      <div className="space-y-4">
+        <p className="text-body text-muted-foreground">
+          Connect a Slack workspace so this {ownerNoun}&apos;s assistants can chat in DMs and
+          channels. You only connect once — every assistant in this {ownerNoun} becomes reachable.
+        </p>
+        <Button onClick={connect} disabled={isConnecting} className="gap-2">
+          <Slack className="h-4 w-4" />
+          {isConnecting ? 'Redirecting…' : 'Add to Slack'}
+          <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <CheckCircle2 className="h-5 w-5 text-[color:var(--status-success)]" />
+        <span className="text-body">
+          Connected to <strong>{install.slackTeamName ?? install.slackTeamId}</strong>
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-caption text-muted-foreground">
+          Address this assistant in Slack by mentioning the app, then one of:
+        </p>
+        <DisplayContactField label="By ID (always unique)" value={String(assistant.agentId)} />
+        {fullName && <DisplayContactField label="By full name" value={fullName} />}
+        {assistant.firstName && (
+          <DisplayContactField label="By first name" value={assistant.firstName} />
+        )}
+      </div>
+
+      {install.revoked && (
+        <p className="text-caption text-destructive" data-testid="slack-install-revoked-notice">
+          This install has been revoked. Re-connect to restore Slack messaging.
+        </p>
+      )}
+
+      {canManage && (
+        <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={connect}
+            disabled={isConnecting}
+            className="gap-2"
+          >
+            <Slack className="h-3.5 w-3.5" />
+            Re-install
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={isDisconnecting}
+                className="gap-2"
+                data-testid="slack-disconnect-button"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Disconnect
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Disconnect Slack workspace</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This removes the Slack install for{' '}
+                  <strong>{install.slackTeamName ?? install.slackTeamId}</strong> from this{' '}
+                  {ownerNoun}. Inbound messages will stop reaching <strong>all assistants</strong>{' '}
+                  in this {ownerNoun}, and channel bindings and thread routes will be dropped. You
+                  can re-connect at any time.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={disconnect}
+                  className="hover:bg-destructive/90 bg-destructive text-destructive-foreground"
+                >
+                  Disconnect
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
+
+      {!canManage && (
+        <p className="text-caption text-muted-foreground">
+          Only an {owner.kind === 'org' ? 'organization owner or admin' : 'account owner'} can
+          change the Slack workspace connection.
+        </p>
       )}
     </div>
   );

@@ -198,7 +198,7 @@ export function MemoryTable<TData>({
                   <TableHead
                     key={header.id}
                     className={cn(
-                      'text-foreground/80 whitespace-nowrap border-b bg-background px-3 py-2 dark:text-slate-200',
+                      'text-foreground/80 whitespace-nowrap border-b bg-background px-3 py-2',
                       header.column.getCanSort() && onSort && 'cursor-pointer select-none'
                     )}
                     onClick={() => handleHeaderClick(header.column.id, header.column.getCanSort())}
@@ -229,7 +229,7 @@ export function MemoryTable<TData>({
                       'transition-colors',
                       onRowClick && 'cursor-pointer',
                       rowEmphasis === 'running'
-                        ? 'bg-emerald-50/85 hover:bg-emerald-50 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/35'
+                        ? 'bg-[color:var(--status-success-bg)] hover:bg-[color:var(--status-success-bg)]'
                         : onRowClick && 'hover:bg-muted'
                     )}
                     onClick={() => onRowClick?.(row.original)}
@@ -249,7 +249,7 @@ export function MemoryTable<TData>({
                           {showRunningAccent ? (
                             <span
                               aria-hidden="true"
-                              className="pointer-events-none absolute bottom-2 left-0 top-2 w-1 animate-pulse rounded-r-full bg-emerald-500/75 motion-reduce:animate-none dark:bg-emerald-400/80"
+                              className="pointer-events-none absolute bottom-2 left-0 top-2 w-1 animate-pulse rounded-r-full bg-[color:var(--status-success)] motion-reduce:animate-none"
                               data-testid="memory-running-row-accent"
                             />
                           ) : null}
@@ -270,7 +270,7 @@ export function MemoryTable<TData>({
         {isLoadingMore && (
           <div className="flex items-center justify-center py-3" data-testid="memory-loading-more">
             <Loader2 className="mr-2 h-4 w-4 animate-spin text-muted-foreground" />
-            <span className="text-caption dark:text-slate-300">Loading more…</span>
+            <span className="text-caption">Loading more…</span>
           </div>
         )}
 

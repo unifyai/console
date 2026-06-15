@@ -244,7 +244,7 @@ const ProjectButtons = ({
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Star
-                className={`h-4 w-4 ${currentFavourite ? 'fill-yellow-400 text-yellow-400' : ''}`}
+                className={`h-4 w-4 ${currentFavourite ? 'fill-[color:var(--favourite)] text-[color:var(--favourite)]' : ''}`}
               />
             )
           }

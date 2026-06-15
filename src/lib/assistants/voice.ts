@@ -8,14 +8,14 @@ import {
 } from '@/types/assistants/assistant';
 import { Gender as CartesiaGender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import { arrayBufferToBase64 } from '@/utils/assistants/voice-utils';
-import { formatFastApiError } from '@/utils/assistants/api-utils';
+import { formatFastApiError, getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
 
 export const listVoices = async (apiKey: string) => {
   return async (): Promise<(Voice & { isPreset?: boolean })[] | ResponseProps> => {
     'use server';
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/voice`, {
         method: 'GET',
         headers: { apiKey: apiKey },
       });
@@ -41,7 +41,7 @@ export const registerVoice = async (apiKey: string) => {
   ): Promise<(Voice & { info?: string; isPreset?: boolean }) | ResponseProps> => {
     'use server';
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/voice`, {
         method: 'POST',
         headers: { apiKey: apiKey, 'Content-Type': 'application/json' },
         // API expects snake_case
@@ -56,7 +56,10 @@ export const registerVoice = async (apiKey: string) => {
         }),
       });
       const data = await response.json();
-      if (!response.ok) return { detail: data.detail || `Failed: ${response.statusText}` };
+      if (!response.ok)
+        return {
+          detail: data.detail ? formatFastApiError(data.detail) : `Failed: ${response.statusText}`,
+        };
       const voice = snakeToCamelObject<Voice>(data.info);
       return {
         ...voice,
@@ -74,7 +77,7 @@ export const deleteVoice = async (apiKey: string) => {
     'use server';
     try {
       const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/assistant/voice/${voiceId}?provider=${provider}`,
+        `${getInternalApiBaseUrl()}/api/assistant/voice/${voiceId}?provider=${provider}`,
         { method: 'DELETE', headers: { apiKey: apiKey } }
       );
       if (!response.ok && response.status !== 404) {
@@ -96,14 +99,18 @@ export const cloneVoice = async (apiKey: string) => {
   ): Promise<(Voice & { info?: string; isPreset?: boolean }) | ResponseProps> => {
     'use server';
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice/clone`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/voice/clone`, {
         method: 'POST',
         headers: { apiKey: apiKey },
         body: formData,
       });
       const data = await response.json();
       if (!response.ok)
-        return { detail: data.detail || `Voice clone failed: ${response.statusText}` };
+        return {
+          detail: data.detail
+            ? formatFastApiError(data.detail)
+            : `Voice clone failed: ${response.statusText}`,
+        };
       return snakeToCamelObject<Voice & { info?: string; isPreset?: boolean }>(data.info);
     } catch (error) {
       return {
@@ -122,7 +129,7 @@ export const generateSpeech = async (apiKey: string) => {
       // Convert camelCase payload to snake_case for API
       const snakeCasePayload = camelToSnakeObject(payload);
 
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/voice/generate`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/voice/generate`, {
         method: 'POST',
         headers: {
           apiKey: apiKey,
@@ -168,7 +175,7 @@ export const designVoiceGeneratePreviews = async (apiKey: string) => {
       const snakeCasePayload = camelToSnakeObject(payload);
 
       const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/assistant/voice/design/preview`,
+        `${getInternalApiBaseUrl()}/api/assistant/voice/design/preview`,
         {
           method: 'POST',
           headers: { apiKey, 'Content-Type': 'application/json' },
@@ -215,14 +222,11 @@ export const designVoiceCreateFromPreview = async (apiKey: string) => {
       // Convert camelCase payload to snake_case for API
       const snakeCasePayload = camelToSnakeObject(payload);
 
-      const response = await fetch(
-        `${process.env.NEXTAUTH_URL}/api/assistant/voice/design/create`,
-        {
-          method: 'POST',
-          headers: { apiKey, 'Content-Type': 'application/json' },
-          body: JSON.stringify(snakeCasePayload),
-        }
-      );
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/voice/design/create`, {
+        method: 'POST',
+        headers: { apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify(snakeCasePayload),
+      });
       const data = await response.json();
       if (!response.ok) {
         const errorMessage = formatFastApiError(data.detail);

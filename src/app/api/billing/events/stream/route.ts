@@ -26,6 +26,7 @@ import {
   MESSAGE_RETENTION_DURATION,
 } from '@/lib/pubsub/ephemeral-subscription';
 import { hasCredentials, subscribe } from '@/lib/pubsub/local-event-bus';
+import { topicSuffix } from '@/lib/environment/comms-env';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,17 +44,7 @@ const SSE_HEADERS = {
 };
 
 function getBillingTopicName(billingAccountId: number): string {
-  const explicitSuffix = process.env.PUBSUB_TOPIC_SUFFIX;
-  if (explicitSuffix !== undefined) {
-    return `billing-account-${billingAccountId}${explicitSuffix}`;
-  }
-
-  const orchestraUrl = process.env.ORCHESTRA_URL || '';
-  const isStaging =
-    orchestraUrl.includes('staging') ||
-    orchestraUrl.includes('localhost') ||
-    orchestraUrl.includes('127.0.0.1');
-  return `billing-account-${billingAccountId}${isStaging ? '-staging' : ''}`;
+  return `billing-account-${billingAccountId}${topicSuffix()}`;
 }
 
 async function fetchBillingAccountId(apiKey: string): Promise<number | null> {

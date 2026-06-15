@@ -21,6 +21,7 @@ import { ResourcesActions } from '@/types/resource';
 import { createInterfaceActions, createTabActions, createTileActions } from './utils';
 import Main from '@/components/Pages/Interfaces/Server/Main.server';
 import { SearchParams } from 'nuqs';
+import { isSelfHost } from '@/lib/environment/environment';
 
 /**
  * Debug flag for UI initial state logging
@@ -52,6 +53,11 @@ const InterfacesPage = async ({ searchParams }: { searchParams: SearchParams }) 
   const user = await getCurrentUser();
   if (!user) {
     redirect('/login?signout=true');
+  }
+
+  // Interfaces is not part of the self-host assistant experience.
+  if (isSelfHost()) {
+    redirect('/assistants');
   }
 
   // Check if user is part of "Unify" - if not, redirect to assistants

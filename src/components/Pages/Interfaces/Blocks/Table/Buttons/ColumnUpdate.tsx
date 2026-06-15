@@ -188,7 +188,7 @@ const ColumnUpdate = ({
       <SubmitButton
         text="Apply"
         onClick={() => onSubmit()}
-        icon={updateLoading && <LoaderCircle className="animate-spin text-white" />}
+        icon={updateLoading && <LoaderCircle className="animate-spin text-primary-foreground" />}
       />
     </div>
   );

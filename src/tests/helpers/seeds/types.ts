@@ -19,6 +19,17 @@ export interface SeededUser {
   lastName: string;
   /** API key for authenticating requests */
   apiKey: string;
+  /**
+   * The user's personal Coordinator assistant. Auto-provisioned by
+   * {@link createUser} so every seeded user mirrors the production
+   * signup hook — one personal Coordinator per user with
+   * `organization_id IS NULL` and `is_coordinator = true`.
+   *
+   * Will be `null` only when the caller passed `skipCoordinator: true`
+   * to {@link createUser} (rare — reserved for scenarios that exercise
+   * the backfill path explicitly).
+   */
+  coordinator: SeededAssistant | null;
 }
 
 export interface SeededOrg {
@@ -39,6 +50,20 @@ export interface SeededAssistant {
   userId: string;
   /** Organization ID (null for personal assistants) */
   organizationId: number | null;
+  /** Whether the row is the workspace Coordinator */
+  isCoordinator: boolean;
+  /** Contact row used for assistant-authored messages. */
+  selfContactId: number;
+  /** Contact row used for owner-authored messages. */
+  bossContactId: number;
+}
+
+export interface SeededTeam {
+  /** team.id primary key */
+  teamId: number;
+  name: string;
+  description: string;
+  organizationId: number;
 }
 
 export interface SeededSecret {
@@ -46,6 +71,16 @@ export interface SeededSecret {
   description?: string;
   /** Log ID from the context system */
   logId?: number;
+}
+
+export interface SeededUserDesktop {
+  /** user_desktops.id primary key */
+  id: number;
+  /** Owner of the registered machine */
+  userId: string;
+  name: string;
+  os: string;
+  url: string;
 }
 
 // =============================================================================
@@ -82,6 +117,9 @@ export interface SeededState {
 
   /** Secrets created (via Console API, not raw SQL) */
   secrets?: SeededSecret[];
+
+  /** Registered user desktops created by this scenario */
+  desktops?: SeededUserDesktop[];
 
   /**
    * Named credentials for quick access in tests.

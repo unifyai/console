@@ -94,6 +94,23 @@ export function resolveApiKeyFromCache(
 }
 
 /**
+ * Resolve the user's personal API key from cache without applying workspace
+ * locks. Used by server routes that must act on the user's personal
+ * coordinator identity even while an org workspace is active.
+ */
+export function resolvePersonalApiKeyFromCache(email: string): string | null {
+  const entry = cache.get(email);
+  if (!entry) return null;
+
+  if (Date.now() - entry.fetchedAt > CACHE_TTL_MS) {
+    cache.delete(email);
+    return null;
+  }
+
+  return entry.personalApiKey;
+}
+
+/**
  * Invalidate all cached entries for a given email.
  * Call after key regeneration or org membership changes.
  */

@@ -4,6 +4,9 @@ import type { NextFetchEvent } from 'next/server';
 import { NextRequestWithAuth, withAuth } from 'next-auth/middleware';
 import { getToken } from 'next-auth/jwt';
 import authOptions from './app/api/auth/[...nextauth]/pages';
+import { resolveAuthMode } from '@/lib/environment/environment';
+
+const ENFORCE_ACCOUNT_ONBOARDING = false;
 
 /**
  * Carry a credit-grant `?token=` param through internal redirects
@@ -13,6 +16,17 @@ function preserveCreditToken(source: URLSearchParams, target: URL): void {
   const creditToken = source.get('token');
   if (creditToken) {
     target.searchParams.set('token', creditToken);
+  }
+}
+
+/**
+ * Carry a `?ref=` referral code through internal redirects (onboarding, MFA)
+ * so it survives until an authenticated page can attribute it.
+ */
+function preserveReferralCode(source: URLSearchParams, target: URL): void {
+  const referralCode = source.get('ref');
+  if (referralCode) {
+    target.searchParams.set('ref', referralCode);
   }
 }
 
@@ -49,9 +63,11 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
     }
   }
 
-  if (process.env.ON_PREM) {
+  // External-auth deployments (legacy ON_PREM) inject identity upstream, so
+  // NextAuth is bypassed here. Guard against this ever being enabled in cloud.
+  if (resolveAuthMode() === 'external') {
     if (process.env.NEXT_PUBLIC_APP_URL?.includes('unify.ai')) {
-      console.error('ON_PREM must not be set in cloud deployments');
+      console.error('External auth mode (AUTH_MODE/ON_PREM) must not be set in cloud deployments');
       return new Response('Misconfiguration detected', { status: 500 });
     }
     return NextResponse.next();
@@ -103,6 +119,7 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
     if (!isAllowed) {
       const mfaUrl = new URL('/login/mfa', request.url);
       preserveCreditToken(searchParams, mfaUrl);
+      preserveReferralCode(searchParams, mfaUrl);
       return NextResponse.redirect(mfaUrl);
     }
   }
@@ -110,12 +127,18 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
   // Onboarding check: redirect new users to the onboarding flow.
   // This runs AFTER the MFA check (security-first) and only when the user
   // doesn't have mfaPending (which takes priority).
-  if (token?.onboardingStep && token.onboardingStep !== 'completed' && !token?.mfaPending) {
+  if (
+    ENFORCE_ACCOUNT_ONBOARDING &&
+    token?.onboardingStep &&
+    token.onboardingStep !== 'completed' &&
+    !token?.mfaPending
+  ) {
     const onboardingAllowed = ['/login', '/api/auth', '/_next'];
     const isAllowed = onboardingAllowed.some((prefix) => pathname.startsWith(prefix));
     if (!isAllowed) {
       const onboardingUrl = new URL('/login/onboarding', request.url);
       preserveCreditToken(searchParams, onboardingUrl);
+      preserveReferralCode(searchParams, onboardingUrl);
       return NextResponse.redirect(onboardingUrl);
     }
   }

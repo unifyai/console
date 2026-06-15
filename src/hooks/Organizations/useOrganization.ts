@@ -177,6 +177,12 @@ export const useOrganization = (
         const newOrg = result as Organization;
         setOrganizations((prev) => [...prev, newOrg]);
         toast.success('Organization created successfully');
+        // The Coordinator now opens every onboarding session from the
+        // picker resolution on /assistants (see
+        // ``notifyOnboardingSessionStarted`` in
+        // ``CoordinatorOnboarding``). We deliberately no longer
+        // pre-seed an opener here — that produced two openers in
+        // quick succession (static seed + event-driven greeting).
         await switchWorkspace(newOrg.id.toString());
         router.refresh();
       }

@@ -21,9 +21,10 @@ test.afterAll(() => cleanupUser(user.id));
 
 test('shows credit balance on the billing page matching the DB', async ({ authedPage: page }) => {
   await page.goto('/billing');
-  await page.waitForSelector('text=Balance', { timeout: 15_000 });
+  await page.waitForSelector('[data-testid="credits-balance-section"]', { timeout: 15_000 });
 
-  const balanceEl = page.locator('text=/\\$[0-9]/');
+  // Balances are framed as a credit count (display-only ×400), not dollars.
+  const balanceEl = page.locator('text=/[0-9],[0-9]{3} credits/');
   await expect(balanceEl.first()).toBeVisible({ timeout: 10_000 });
 
   const balanceInDb = dbExec(
@@ -33,11 +34,12 @@ test('shows credit balance on the billing page matching the DB', async ({ authed
 });
 
 test('updates balance display after credits change in DB', async ({ authedPage: page }) => {
+  // $99 of wallet value renders as 99 × 400 = 39,600 credits.
   setUserCredits(user.id, 99);
 
   await page.goto('/billing');
-  await page.waitForSelector('text=Balance', { timeout: 15_000 });
-  await expect(page.locator('text=$99')).toBeVisible({ timeout: 10_000 });
+  await page.waitForSelector('[data-testid="credits-balance-section"]', { timeout: 15_000 });
+  await expect(page.locator('text=39,600 credits')).toBeVisible({ timeout: 10_000 });
 
   setUserCredits(user.id, 5_000);
 });

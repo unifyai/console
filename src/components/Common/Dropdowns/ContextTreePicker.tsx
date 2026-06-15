@@ -110,8 +110,8 @@ export default function ContextTreePicker({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     {(() => {
-                      const isUnityTasks =
-                        projectId === 'Unity' && String(current).trim() === 'Tasks';
+                      const isMartyTasks =
+                        projectId === 'Marty' && String(current).trim() === 'Tasks';
                       return (
                         <>
                           <DropdownMenuItem
@@ -119,14 +119,14 @@ export default function ContextTreePicker({
                               setNewName(current || '');
                               setRenameOpen(true);
                             }}
-                            disabled={isUnityTasks}
+                            disabled={isMartyTasks}
                           >
                             Rename
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onSelect={() => setDeleteOpen(true)}
                             className="text-destructive"
-                            disabled={isUnityTasks}
+                            disabled={isMartyTasks}
                           >
                             Delete
                           </DropdownMenuItem>

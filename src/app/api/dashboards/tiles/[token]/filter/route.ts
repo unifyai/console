@@ -24,6 +24,10 @@ import type { FilterBridgeBody } from '@/types/assistants/bridge';
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'http://localhost:8000';
 const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
+function joinFields(fields: string[] | undefined): string | undefined {
+  return fields?.length ? fields.join('&') : undefined;
+}
+
 export async function POST(request: NextRequest, { params }: { params: { token: string } }) {
   if (!ORCHESTRA_ADMIN_KEY) {
     return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
@@ -44,8 +48,10 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     context: body.context,
   };
   if (body.filter) orchestraParams.filter = body.filter;
-  if (body.columns?.length) orchestraParams.columns = body.columns;
-  if (body.excludeColumns?.length) orchestraParams.excludeColumns = body.excludeColumns;
+  const columns = joinFields(body.columns);
+  if (columns) orchestraParams.columns = columns;
+  const excludeColumns = joinFields(body.excludeColumns);
+  if (excludeColumns) orchestraParams.excludeColumns = excludeColumns;
   if (body.sorting) {
     orchestraParams.sorting = JSON.stringify(body.sorting);
   } else if (body.orderBy) {

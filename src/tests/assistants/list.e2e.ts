@@ -64,6 +64,7 @@ test('seeded assistants appear in the list with correct names', async ({ authedP
   await expect(item1).toBeVisible({ timeout: 15_000 });
   await expect(item2).toBeVisible({ timeout: 5_000 });
 
+  await expect(page.locator('[data-testid^="assistant-list-group-"]')).toHaveCount(0);
   await expect(item1).toContainText('Alpha');
   await expect(item2).toContainText('Beta');
 });
@@ -90,18 +91,17 @@ test('clicking an assistant in the list selects it and shows the Chat tab', asyn
     timeout: 5_000,
   });
   await expect(page.locator(`text=${dbAssistant.surname}`).first()).toBeVisible({ timeout: 5_000 });
+
+  await listItem.click();
+  await expect(page.getByTestId('right-pane-tab-chat')).not.toBeVisible({ timeout: 3_000 });
+  await expect(page.locator('text=Select a droid to watch live actions.')).toBeVisible({
+    timeout: 5_000,
+  });
 });
 
-test('an assistant with a job title shows it in the chat info side panel', async ({
+test('the chat info side panel can be resized down to its minimum width', async ({
   authedPage: page,
 }) => {
-  // The assistant list-item hover card was retired in favor of the
-  // chat-tab info side panel (see `AssistantInfoSidePanelContent`),
-  // which is now the single surface for rendering identity + contacts
-  // for a selected assistant. This test pins the contract that opening
-  // the panel reveals a populated `jobTitle` (and that the row is
-  // suppressed when unset — covered by the `Field` empty-state branch
-  // elsewhere).
   deleteAllAssistantsForUser(user.id);
 
   const titled = createAssistant({
@@ -123,12 +123,30 @@ test('an assistant with a job title shows it in the chat info side panel', async
   // was seeded via `createAssistant` (no `newlyHiredInfo` in memory).
   const infoButton = page.getByTestId('assistant-info-button');
   await expect(infoButton).toBeVisible({ timeout: 10_000 });
-  await infoButton.click();
 
-  const jobTitleField = page.getByTestId('assistant-info-job-title');
-  await expect(jobTitleField).toBeVisible({ timeout: 5_000 });
-  await expect(jobTitleField).toContainText('Job Title');
-  await expect(jobTitleField).toContainText('QA engineer');
+  const infoSheet = page.getByTestId('assistant-info-sheet');
+  if (!(await infoSheet.isVisible({ timeout: 1_000 }).catch(() => false))) {
+    await infoButton.click();
+  }
+  await expect(infoSheet).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('assistant-info-name')).toContainText('Titled InfoPanel');
+
+  const resizeHandle = page.getByTestId('assistant-info-panel-resize-handle');
+  const beforeBox = await infoSheet.boundingBox();
+  const handleBox = await resizeHandle.boundingBox();
+  if (!beforeBox || !handleBox) throw new Error('Info panel resize target was not measurable');
+
+  const dragY = handleBox.y + handleBox.height / 2;
+  await page.mouse.move(handleBox.x + handleBox.width / 2, dragY);
+  await page.mouse.down();
+  await page.mouse.move(beforeBox.x + beforeBox.width + 200, dragY, { steps: 12 });
+  await page.mouse.up();
+
+  const afterBox = await infoSheet.boundingBox();
+  if (!afterBox) throw new Error('Info panel was not measurable after resize');
+  expect(afterBox.width).toBeLessThan(beforeBox.width - 40);
+  expect(afterBox.width).toBeGreaterThanOrEqual(318);
+  expect(afterBox.width).toBeLessThanOrEqual(324);
 });
 
 test('list updates after hiring a new assistant without page reload', async ({

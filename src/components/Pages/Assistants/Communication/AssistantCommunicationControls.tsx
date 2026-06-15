@@ -40,14 +40,20 @@ interface AssistantCommunicationControlsProps {
   isAssistantJoined?: boolean;
   isDesktopReady?: boolean;
   callType: 'video' | 'audio' | null;
+  /** Shrinks the toolbar to match the chat composer's height so the
+   *  docked call surface lines up with adjacent panes' footers
+   *  (compact pill-sized buttons, no in-call chat toggle since the
+   *  user can pop the call out to get the regular chat back). */
+  compact?: boolean;
 }
 
 const ControlButton: React.FC<{
   tooltip: string;
   children: React.ReactNode;
   className?: string;
+  compact?: boolean;
   [key: string]: any;
-}> = ({ tooltip, children, className, ...props }) => (
+}> = ({ tooltip, children, className, compact, ...props }) => (
   <TooltipProvider delayDuration={100}>
     <Tooltip>
       <TooltipTrigger asChild>
@@ -57,7 +63,8 @@ const ControlButton: React.FC<{
             variant="ghost"
             size="icon"
             className={cn(
-              'h-10 w-10 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground',
+              'rounded-full text-muted-foreground hover:bg-muted hover:text-foreground',
+              compact ? 'h-6 w-6' : 'h-10 w-10',
               className
             )}
             aria-label={tooltip}
@@ -95,19 +102,32 @@ export function AssistantCommunicationControls({
   isAssistantJoined = true, // Default to true for backwards compatibility
   isDesktopReady = true, // Default to true for backwards compatibility
   callType,
+  compact = false,
 }: AssistantCommunicationControlsProps) {
   // Remote control requires assistant to have joined AND desktop VM to be ready
   const canUseRemoteControl = isConnectionEstablished && isAssistantJoined && isDesktopReady;
+  const iconClass = compact ? 'h-4 w-4' : 'h-5 w-5';
+  // ``h-10`` is the same footer height the assistant-list collapse
+  // bar and the memory/tasks/actions/dashboards tab footers use, so
+  // the compact docked toolbar's icons line up horizontally with
+  // them across the page bottom. ``h-6 w-6`` buttons match the
+  // ``PanelLeftClose`` chip in the list footer for the same reason.
   return (
-    <div className="flex h-20 flex-shrink-0 items-center justify-between border-t bg-background px-6">
+    <div
+      className={cn(
+        'flex flex-shrink-0 items-center justify-between border-t bg-background',
+        compact ? 'h-10 gap-2 px-3' : 'h-20 px-6'
+      )}
+    >
       {/* Left Controls */}
-      <div className="flex w-1/3 items-center gap-3">
+      <div className={cn('flex w-1/3 items-center', compact ? 'gap-1' : 'gap-3')}>
         <ControlButton
           tooltip="Hang up"
           className="bg-destructive/10 hover:bg-destructive/20 text-destructive"
           onClick={onHangUp}
+          compact={compact}
         >
-          <PhoneOff className="h-5 w-5" />
+          <PhoneOff className={iconClass} />
         </ControlButton>
         <ControlButton
           tooltip={
@@ -119,8 +139,9 @@ export function AssistantCommunicationControls({
           }
           {...micButtonProps}
           disabled={!isConnectionEstablished || micButtonProps.disabled}
+          compact={compact}
         >
-          {isMicOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+          {isMicOn ? <Mic className={iconClass} /> : <MicOff className={iconClass} />}
         </ControlButton>
         <ControlButton
           tooltip={
@@ -132,13 +153,14 @@ export function AssistantCommunicationControls({
           }
           {...cameraButtonProps}
           disabled={!isConnectionEstablished || cameraButtonProps.disabled}
+          compact={compact}
         >
-          {isCameraOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+          {isCameraOn ? <Video className={iconClass} /> : <VideoOff className={iconClass} />}
         </ControlButton>
       </div>
 
       {/* Center Controls */}
-      <div className="flex flex-1 items-center justify-center gap-3">
+      <div className={cn('flex flex-1 items-center justify-center', compact ? 'gap-1' : 'gap-3')}>
         <>
           <ControlButton
             tooltip={
@@ -151,17 +173,19 @@ export function AssistantCommunicationControls({
             onClick={onToggleScreenShare}
             disabled={isScreenShareToggleDisabled || !isConnectionEstablished}
             className={cn(isScreenShareOn && 'bg-primary/10 hover:bg-primary/20 text-primary')}
+            compact={compact}
           >
             {isScreenShareToggleDisabled ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <Loader2 className={iconClass} />
             ) : (
-              <ScreenShare className="h-5 w-5" />
+              <ScreenShare className={iconClass} />
             )}
           </ControlButton>
 
           <div
             className={cn(
-              'flex h-10 items-center rounded-full border px-1 transition-colors',
+              'flex items-center rounded-full border px-1 transition-colors',
+              compact ? 'h-6' : 'h-10',
               isRemoteControlActive ? 'border-border' : 'border-transparent'
             )}
           >
@@ -173,7 +197,8 @@ export function AssistantCommunicationControls({
                       variant="ghost"
                       size="icon"
                       className={cn(
-                        'h-9 w-9 rounded-full',
+                        'rounded-full',
+                        compact ? 'h-5 w-5' : 'h-9 w-9',
                         isRemoteControlActive && 'text-primary'
                       )}
                       onClick={onToggleRemoteControl}
@@ -189,9 +214,9 @@ export function AssistantCommunicationControls({
                       }
                     >
                       {isRemoteControlLoading ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <Loader2 className={cn(iconClass, 'animate-spin')} />
                       ) : (
-                        <Computer className="h-5 w-5" />
+                        <Computer className={iconClass} />
                       )}
                     </Button>
                   </span>
@@ -221,7 +246,8 @@ export function AssistantCommunicationControls({
                         variant="ghost"
                         size="icon"
                         className={cn(
-                          'h-9 w-9 rounded-full',
+                          'rounded-full',
+                          compact ? 'h-5 w-5' : 'h-9 w-9',
                           isRemoteControlInteractive && 'text-primary'
                         )}
                         onClick={onToggleRemoteControlInteractive}
@@ -233,11 +259,11 @@ export function AssistantCommunicationControls({
                         }
                       >
                         {isRemoteControlInteractiveLoading ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
+                          <Loader2 className={cn(iconClass, 'animate-spin')} />
                         ) : isRemoteControlInteractive ? (
-                          <Pointer className="h-5 w-5" />
+                          <Pointer className={iconClass} />
                         ) : (
-                          <PointerOff className="h-5 w-5" />
+                          <PointerOff className={iconClass} />
                         )}
                       </Button>
                     </span>
@@ -256,13 +282,18 @@ export function AssistantCommunicationControls({
         </>
       </div>
 
-      {/* Right Controls */}
-      <div className="flex w-1/3 items-center justify-end gap-3">
-        <ControlButton tooltip="Toggle chat" onClick={onToggleChat}>
-          <MessageSquare className="h-5 w-5" />
-        </ControlButton>
-        <ControlButton tooltip="Toggle settings" onClick={onToggleSettings}>
-          <Settings className="h-5 w-5" />
+      {/* Right Controls. In compact (docked) mode the chat toggle is
+       *  suppressed — the page-level chat is one popout away and
+       *  the in-call chat side panel competes with the adjacent
+       *  assistant-info panel for the same screen real estate. */}
+      <div className={cn('flex w-1/3 items-center justify-end', compact ? 'gap-1' : 'gap-3')}>
+        {!compact && (
+          <ControlButton tooltip="Toggle chat" onClick={onToggleChat} compact={compact}>
+            <MessageSquare className={iconClass} />
+          </ControlButton>
+        )}
+        <ControlButton tooltip="Toggle settings" onClick={onToggleSettings} compact={compact}>
+          <Settings className={iconClass} />
         </ControlButton>
       </div>
     </div>

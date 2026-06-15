@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { RefreshCw, Search, X } from 'lucide-react';
+import { RefreshCw, Users, MessageSquare, BookOpen, Compass, Code, Search, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
 import { useMemoryData } from '@/hooks/Assistants/useMemoryData';
@@ -14,12 +14,22 @@ import {
 import { MemoryTable } from './MemoryTable';
 import { MemoryRowDetail } from './MemoryRowDetail';
 import type { MemoryContext, MemoryRow } from '@/types/assistants/memory';
-
-type MemoryTabContext = Exclude<MemoryContext, 'Tasks'>;
+import type { Assistant } from '@/types/assistants/assistant';
+import { fetchAssistants } from '@/lib/client/assistant';
+import {
+  DestinationDropdown,
+  MEMORY_DESTINATION_ALL,
+  memoryDestinationRoot,
+  type MemoryDestinationValue,
+} from './DestinationDropdown';
+import type { CoordinatorWorkspaceScope } from '@/lib/assistants/coordinatorIdentity';
+import { currentTeamIds } from '@/lib/assistants/scope';
 
 interface MemoryPaneProps {
+  assistant: Assistant;
   ownerId: string;
   assistantId: string;
+  isVisible?: boolean;
   /**
    * Optional externally-controlled sub-tab. When the parent passes this
    * (and updates it), the pane mirrors the value to the underlying hook
@@ -38,7 +48,124 @@ interface MemoryPaneProps {
   onSubTabChange?: (next: MemoryTabContext) => void;
 }
 
-export function MemoryPane({ ownerId, assistantId, subTab, onSubTabChange }: MemoryPaneProps) {
+type MemoryTabContext = Exclude<MemoryContext, 'Tasks'>;
+
+const CONTEXT_ICONS: Record<MemoryTabContext, React.ElementType> = {
+  Contacts: Users,
+  Transcripts: MessageSquare,
+  Knowledge: BookOpen,
+  Guidance: Compass,
+  Functions: Code,
+};
+
+const TAB_CLASS = [
+  'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-medium',
+  'text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+  'data-[active=true]:bg-primary data-[active=true]:text-primary-foreground',
+].join(' ');
+
+const ASSISTANT_NAME_LOOKUP_CACHE = new Map<string, Map<number, string>>();
+const ASSISTANT_NAME_LOOKUP_IN_FLIGHT = new Map<string, Promise<Map<number, string>>>();
+
+function assistantNameLookupKey(assistant: Pick<Assistant, 'organizationId' | 'userId'>): string {
+  if (assistant.organizationId !== null) {
+    return `org:${assistant.organizationId}`;
+  }
+  return `user:${assistant.userId}`;
+}
+
+function assistantDisplayNameFromNames(
+  names: Pick<Assistant, 'firstName' | 'surname'>
+): string | null {
+  const firstName = (names.firstName ?? '').trim();
+  const surname = (names.surname ?? '').trim();
+  if (firstName && surname) {
+    return `${firstName} ${surname}`;
+  }
+  if (firstName) {
+    return firstName;
+  }
+  if (surname) {
+    return surname;
+  }
+  return null;
+}
+
+function assistantNameMapsEqual(left: Map<number, string>, right: Map<number, string>): boolean {
+  if (left.size !== right.size) {
+    return false;
+  }
+  let matches = true;
+  left.forEach((value, key) => {
+    if (right.get(key) !== value) {
+      matches = false;
+    }
+  });
+  if (!matches) return false;
+  return true;
+}
+
+async function fetchAssistantNameLookup(
+  lookupKey: string,
+  workspace: CoordinatorWorkspaceScope
+): Promise<Map<number, string>> {
+  const cached = ASSISTANT_NAME_LOOKUP_CACHE.get(lookupKey);
+  if (cached) {
+    return new Map(cached);
+  }
+
+  const existing = ASSISTANT_NAME_LOOKUP_IN_FLIGHT.get(lookupKey);
+  if (existing) {
+    return existing;
+  }
+
+  const request = (async () => {
+    const result = await fetchAssistants(workspace, true);
+    if (!Array.isArray(result)) {
+      return new Map<number, string>();
+    }
+
+    const namesById = new Map<number, string>();
+    for (const candidate of result) {
+      const candidateId = Number(candidate.agentId);
+      if (!Number.isInteger(candidateId)) continue;
+      const candidateDisplayName = assistantDisplayNameFromNames(candidate);
+      if (!candidateDisplayName) continue;
+      namesById.set(candidateId, candidateDisplayName);
+    }
+    ASSISTANT_NAME_LOOKUP_CACHE.set(lookupKey, namesById);
+    return namesById;
+  })().finally(() => {
+    ASSISTANT_NAME_LOOKUP_IN_FLIGHT.delete(lookupKey);
+  });
+
+  ASSISTANT_NAME_LOOKUP_IN_FLIGHT.set(lookupKey, request);
+  return request;
+}
+
+export function MemoryPane({
+  assistant,
+  ownerId,
+  assistantId,
+  subTab,
+  onSubTabChange,
+  isVisible = true,
+}: MemoryPaneProps) {
+  const [destinationValue, setDestinationValue] =
+    useState<MemoryDestinationValue>(MEMORY_DESTINATION_ALL);
+  const identityKey = `${ownerId}:${assistantId}`;
+  const availableTeamIds = useMemo(() => currentTeamIds(assistant), [assistant]);
+  const effectiveDestinationValue = useMemo((): MemoryDestinationValue => {
+    const root = memoryDestinationRoot(destinationValue);
+    if (root?.kind === 'team' && !availableTeamIds.includes(root.teamId)) {
+      return MEMORY_DESTINATION_ALL;
+    }
+    return destinationValue;
+  }, [availableTeamIds, destinationValue]);
+  const selectedRoot = useMemo(
+    () => memoryDestinationRoot(effectiveDestinationValue),
+    [effectiveDestinationValue]
+  );
   const {
     contacts,
     transcripts,
@@ -55,36 +182,35 @@ export function MemoryPane({ ownerId, assistantId, subTab, onSubTabChange }: Mem
     clearSearch,
     loadMore,
     refetch,
-  } = useMemoryData({ ownerId, assistantId });
+  } = useMemoryData({ assistant, ownerId, assistantId, root: selectedRoot });
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedRow, setSelectedRow] = useState<Record<string, unknown> | null>(null);
   const [searchValue, setSearchValue] = useState('');
+  const [assistantNamesById, setAssistantNamesById] = useState<Map<number, string>>(new Map());
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setSelectedRow(null);
-  }, [activeContext]);
+    setDestinationValue(MEMORY_DESTINATION_ALL);
+  }, [identityKey]);
 
-  // Parent → hook: mirror any externally-controlled `subTab` into the
-  // hook's internal state. Intentionally depends *only* on `subTab` —
-  // taking `activeContext` as a dep too would refire this effect on
-  // footer-tab clicks (before the parent's state catches up via the
-  // sibling effect below), regressing the change back to the stale
-  // prop and triggering an infinite ping-pong with that effect.
-  // `setActiveContext` is `useState`'s setter so it bails out for free
-  // when the new value already matches the current state, which makes
-  // the unconditional call here safe.
+  useEffect(() => {
+    if (effectiveDestinationValue !== destinationValue) {
+      setDestinationValue(effectiveDestinationValue);
+    }
+  }, [destinationValue, effectiveDestinationValue]);
+
+  useEffect(() => {
+    setSelectedRow(null);
+  }, [activeContext, effectiveDestinationValue]);
+  // Parent -> hook: mirror any externally-controlled sub-tab into the hook state.
   useEffect(() => {
     if (subTab !== undefined) {
       setActiveContext(subTab);
     }
   }, [subTab, setActiveContext]);
 
-  // Hook → parent: notify on any change to the active sub-tab so the
-  // dropdown in the tab strip can reflect footer-tab clicks too. The
-  // parent's setter is no-op-on-equal, so the round-trip after a
-  // parent-driven update settles in one extra render.
+  // Hook -> parent: keep the right-pane dropdown aligned with active sub-tab.
   useEffect(() => {
     onSubTabChange?.(activeContext);
   }, [activeContext, onSubTabChange]);
@@ -126,6 +252,93 @@ export function MemoryPane({ ownerId, assistantId, subTab, onSubTabChange }: Mem
     }
     return map;
   }, [contacts.rows]);
+  const assistantContactIds = useMemo(() => {
+    const roots = assistant.contactIdentityRoots ?? [];
+    return new Set<number>([
+      assistant.selfContactId,
+      ...roots.map((identity) => identity.selfContactId),
+    ]);
+  }, [assistant.contactIdentityRoots, assistant.selfContactId]);
+  const assistantDisplayName = useMemo(() => {
+    return (
+      assistantDisplayNameFromNames({
+        firstName: assistant.firstName,
+        surname: assistant.surname,
+      }) ?? assistant.firstName
+    );
+  }, [assistant.firstName, assistant.surname]);
+  const selectedAssistantId = useMemo(() => {
+    const parsed = Number(assistant.agentId);
+    return Number.isInteger(parsed) ? parsed : null;
+  }, [assistant.agentId]);
+  const workspace = useMemo(
+    () =>
+      assistant.organizationId !== null
+        ? { type: 'organization' as const, organizationId: assistant.organizationId }
+        : { type: 'personal' as const, organizationId: null },
+    [assistant.organizationId]
+  );
+  const lookupKey = useMemo(
+    () =>
+      assistantNameLookupKey({
+        organizationId: assistant.organizationId,
+        userId: assistant.userId,
+      }),
+    [assistant.organizationId, assistant.userId]
+  );
+  const shouldResolveAssistantNames = isVisible && activeContext === 'Transcripts';
+
+  useEffect(() => {
+    let isActive = true;
+    const fallbackMap = new Map<number, string>();
+    if (selectedAssistantId !== null && assistantDisplayName) {
+      fallbackMap.set(selectedAssistantId, assistantDisplayName);
+    }
+    const setIfChanged = (next: Map<number, string>) => {
+      setAssistantNamesById((previous) =>
+        assistantNameMapsEqual(previous, next) ? previous : next
+      );
+    };
+
+    const loadAssistantNames = async () => {
+      if (!shouldResolveAssistantNames) {
+        setIfChanged(fallbackMap);
+        return;
+      }
+
+      const cachedNames = ASSISTANT_NAME_LOOKUP_CACHE.get(lookupKey);
+      if (cachedNames) {
+        const mergedNames = new Map(cachedNames);
+        fallbackMap.forEach((value, key) => {
+          mergedNames.set(key, value);
+        });
+        setIfChanged(mergedNames);
+        return;
+      }
+
+      setIfChanged(fallbackMap);
+      const resolvedNames = await fetchAssistantNameLookup(lookupKey, workspace);
+      if (!isActive) {
+        return;
+      }
+      const namesById = new Map(resolvedNames);
+      fallbackMap.forEach((value, key) => {
+        namesById.set(key, value);
+      });
+      setIfChanged(namesById);
+    };
+
+    void loadAssistantNames();
+    return () => {
+      isActive = false;
+    };
+  }, [
+    shouldResolveAssistantNames,
+    lookupKey,
+    workspace,
+    assistantDisplayName,
+    selectedAssistantId,
+  ]);
 
   const activeState = useMemo(() => {
     switch (activeContext) {
@@ -147,9 +360,24 @@ export function MemoryPane({ ownerId, assistantId, subTab, onSubTabChange }: Mem
   }, [activeContext, activeState.searchQuery]);
 
   const allColumns = useMemo(() => {
-    if (activeContext === 'Transcripts') return buildTranscriptColumns(contactMap);
+    if (activeContext === 'Transcripts') {
+      return buildTranscriptColumns(contactMap, {
+        assistantContactIds,
+        assistantDisplayName,
+        selectedAssistantId,
+        assistantNamesById,
+      });
+    }
     return getColumnsForContext(activeContext, activeState.fields);
-  }, [activeContext, activeState.fields, contactMap]);
+  }, [
+    activeContext,
+    activeState.fields,
+    contactMap,
+    assistantContactIds,
+    assistantDisplayName,
+    selectedAssistantId,
+    assistantNamesById,
+  ]);
 
   const columns = useMemo(() => {
     if (activeState.rows.length === 0) return allColumns;
@@ -163,11 +391,19 @@ export function MemoryPane({ ownerId, assistantId, subTab, onSubTabChange }: Mem
     });
   }, [allColumns, activeState.rows]);
 
+  const counts: Record<MemoryTabContext, number> = {
+    Contacts: contacts.count,
+    Transcripts: transcripts.count,
+    Knowledge: knowledge.count,
+    Guidance: guidance.count,
+    Functions: functions.count,
+  };
+
   const isFiltered = !!activeState.filterExpr;
   const detailTitle = `${MEMORY_CONTEXT_LABELS[activeContext]} Detail`;
   const emptyMessage = isFiltered
-    ? 'No results match your search'
-    : `No ${(MEMORY_CONTEXT_LABELS[activeContext] ?? activeContext).toLowerCase()} found`;
+    ? 'No results match your search.'
+    : `No ${(MEMORY_CONTEXT_LABELS[activeContext] ?? activeContext).toLowerCase()} found.`;
 
   if (error) {
     return (
@@ -182,7 +418,7 @@ export function MemoryPane({ ownerId, assistantId, subTab, onSubTabChange }: Mem
 
   return (
     <div className="flex h-full flex-col" data-testid="memory-pane">
-      {/* Header — search + refresh */}
+      {/* Header — search, destination drill-in, refresh */}
       <div
         className="flex shrink-0 items-center gap-2 border-b px-3 py-2"
         data-testid="memory-header"
@@ -211,6 +447,12 @@ export function MemoryPane({ ownerId, assistantId, subTab, onSubTabChange }: Mem
         </div>
 
         <div className="flex-1" />
+
+        <DestinationDropdown
+          assistant={assistant}
+          value={effectiveDestinationValue}
+          onValueChange={setDestinationValue}
+        />
 
         <Button
           variant="ghost"
@@ -241,18 +483,34 @@ export function MemoryPane({ ownerId, assistantId, subTab, onSubTabChange }: Mem
         />
       </div>
 
-      {/* Footer — row count only. Sub-tab selection lives in the
-          right-pane tab strip's dropdown (see RightPaneContainer's
-          `MEMORY_SUB_TABS`); the in-pane sub-tab row used to live here
-          but was removed once the dropdown became the single source
-          of truth for sub-tab navigation. The fixed `h-10` is kept so
-          the bar aligns with the assistant-list toggle and chat input
-          across other tabs even when the footer is otherwise empty. */}
-      {activeState.rows.length > 0 && (
-        <div
-          className="flex h-10 shrink-0 items-center justify-end border-t px-2"
-          data-testid="memory-footer"
-        >
+      {/* Footer — sub-tabs (left) + row count (right). h-10 aligns this bar
+          with the assistant-list toggle and the chat input / other tab footers. */}
+      <div
+        className="flex h-10 shrink-0 items-center justify-between border-t px-2"
+        data-testid="memory-footer"
+      >
+        <div className="flex items-center gap-1 overflow-x-auto" data-testid="memory-sub-tabs">
+          {(Object.keys(MEMORY_CONTEXT_LABELS) as MemoryTabContext[]).map((ctx) => {
+            const Icon = CONTEXT_ICONS[ctx];
+            return (
+              <button
+                key={ctx}
+                className={TAB_CLASS}
+                data-active={activeContext === ctx}
+                data-testid={`memory-tab-${ctx.toLowerCase()}`}
+                onClick={() => setActiveContext(ctx)}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{MEMORY_CONTEXT_LABELS[ctx]}</span>
+                <span className="tabular-nums opacity-60 sm:hidden">
+                  {counts[ctx] > 0 ? counts[ctx] : ''}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {activeState.rows.length > 0 && (
           <span
             className="text-caption hidden shrink-0 px-3 py-1.5 sm:inline"
             data-testid="memory-table-footer"
@@ -261,8 +519,8 @@ export function MemoryPane({ ownerId, assistantId, subTab, onSubTabChange }: Mem
             {activeState.count === 1 ? 'row' : 'rows'}
             {activeState.hasMore && ' · scroll for more'}
           </span>
-        </div>
-      )}
+        )}
+      </div>
 
       <MemoryRowDetail
         row={selectedRow}

@@ -13,6 +13,16 @@ import { ResponseProps } from '@/types/common';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { ASSISTANT_CHAT_LOADED_MESSAGES_COUNT } from '@/constants/assistants/settings';
 import { camelToSnakeObject } from '@/utils/casing';
+import type { Assistant } from '@/types/assistants/assistant';
+import { mergeRootRows } from '@/lib/client/read_across_roots';
+import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
+import { transcriptMergeDedupeKey } from '@/lib/assistants/transcriptDedupe';
+import {
+  contactScopedRootQueries,
+  roleFromRootSenderId,
+  rootContext,
+  transcriptFilterForRoot,
+} from '@/lib/assistants/scope';
 
 /** Message payload with optional attachments */
 export interface UnifyMessageWithAttachments extends UnifyMessage {
@@ -23,23 +33,21 @@ export interface UnifyMessageWithAttachments extends UnifyMessage {
  * Looks up a user's contactId from the Contacts table using their email address.
  * Returns null if no contact record is found (user cannot chat with this assistant).
  *
- * Contact ID Reference:
- * - 0 = Assistant (AI)
- * - 1 = Owner (creator of assistant)
- * - 2+ = Other users/contacts
+ * Contact ids are resolved from assistant-scoped relationship overlays.
  */
 export const getContactIdByEmail = async (apiKey: string) => {
-  return async (
-    userEmail: string,
-    ownerId: string,
-    assistantId: string
-  ): Promise<number | null> => {
+  return async (userEmail: string, assistant: Assistant): Promise<number | null> => {
     'use server';
     try {
       const project = 'Assistants';
-      const context = `${ownerId}/${assistantId}/Contacts`;
       const filterExpr = `email_address == "${userEmail}"`;
-      const url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${context}&filterExpr=${encodeURIComponent(filterExpr)}&limit=1`;
+      const context = rootContext(
+        { kind: 'personal' },
+        assistant.userId,
+        assistant.agentId,
+        'Contacts'
+      );
+      const url = `${getInternalApiBaseUrl()}/api/logs?projectName=${project}&context=${context}&filterExpr=${encodeURIComponent(filterExpr)}&limit=1`;
 
       const response = await fetch(url, {
         method: 'GET',
@@ -47,10 +55,7 @@ export const getContactIdByEmail = async (apiKey: string) => {
         cache: 'no-store',
       });
 
-      if (response.status === 404) {
-        console.warn(`[getContactIdByEmail] No contacts found for context '${context}'`);
-        return null;
-      }
+      if (response.status === 404) return null;
       if (!response.ok) {
         console.error(
           `[getContactIdByEmail] Error response: ${response.status} ${response.statusText}`
@@ -63,9 +68,7 @@ export const getContactIdByEmail = async (apiKey: string) => {
       const logs = logsResponse.logs as LogProps[];
 
       if (logs.length === 0) {
-        console.warn(
-          `[getContactIdByEmail] No contact found for email '${userEmail}' in context '${context}'`
-        );
+        console.warn(`[getContactIdByEmail] No contact found for email '${userEmail}'`);
         return null;
       }
 
@@ -89,58 +92,75 @@ export const getContactIdByEmail = async (apiKey: string) => {
  * @param contactId - The current user's contact_id (used for filtering)
  * @param ownerId - The owner's user ID (used in security filter)
  * @param assistantId - The assistant's ID (used in security filter)
- * @param beforeMessageId - Optional message ID for pagination
+ * @param before - Optional merged cursor for pagination
  *
  * Filter: Shows messages sent by the current user OR assistant responses to the current user.
- * Role mapping: sender_id=0 (assistant) -> 'assistant', sender_id!=0 (humans) -> 'user'
  */
 export const getTranscripts = async (apiKey: string) => {
   return async (
     contactId: number,
-    ownerId: string,
-    assistantId: string,
-    beforeMessageId?: number
+    assistant: Assistant,
+    before?: { timestamp: string; excludedKeys?: string[] }
   ): Promise<ChatMessage[] | ResponseProps> => {
     'use server';
     try {
       const project = 'Assistants';
-      const context = `${ownerId}/${assistantId}/Transcripts`;
       const limit = ASSISTANT_CHAT_LOADED_MESSAGES_COUNT;
-      let filterExpr = `medium == "unify_message" and (sender_id == ${contactId} or (sender_id == 0 and ${contactId} in receiver_ids))`;
-      if (beforeMessageId !== undefined) {
-        filterExpr += ` and message_id < ${beforeMessageId}`;
-      }
-      let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=${project}&context=${context}&limit=${limit}&filterExpr=${encodeURIComponent(filterExpr)}`;
+      const excludedKeys = new Set(before?.excludedKeys ?? []);
+      const rootLimit = limit + excludedKeys.size;
+      const queries = contactScopedRootQueries(assistant, contactId, 'Transcripts');
+      const rootLogs = await Promise.all(
+        queries.map(async (query) => {
+          let filterExpr = transcriptFilterForRoot(query, assistant.agentId);
+          if (before) {
+            filterExpr += ` and timestamp <= "${before.timestamp}"`;
+          }
+          const sorting = encodeURIComponent(JSON.stringify({ timestamp: 'descending' }));
+          const url = `${getInternalApiBaseUrl()}/api/logs?projectName=${project}&context=${query.context}&limit=${rootLimit}&sorting=${sorting}&filterExpr=${encodeURIComponent(filterExpr)}`;
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { apiKey: apiKey },
-        cache: 'no-store',
-      });
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: { apiKey: apiKey },
+            cache: 'no-store',
+          });
 
-      if (response.status === 404) {
-        console.warn(
-          `[getTranscripts] No logs found for context '${context}', returning empty array.`
-        );
-        return [];
-      }
-      if (!response.ok) {
-        let errorDetail = `Failed to get chat history with status ${response.status}: ${response.statusText}`;
-        try {
-          const errorData = await response.json();
-          errorDetail = errorData.detail || errorDetail;
-        } catch (e) {
-          const textError = await response.text();
-          console.error('[getTranscripts] Non-JSON error response from /api/logs:', textError);
-          errorDetail = textError || errorDetail;
-        }
-        console.error(`[getTranscripts] Error response: ${errorDetail}`);
-        return { detail: errorDetail };
-      }
-      const data = await response.json();
-      const logsResponse = data as LogsResponseProps;
-      const mappedMessages = (logsResponse.logs as LogProps[])
-        .map((log): ChatMessage | null => {
+          if (response.status === 404) {
+            return [];
+          }
+          if (!response.ok) {
+            let errorDetail = `Failed to get chat history with status ${response.status}: ${response.statusText}`;
+            try {
+              const errorData = await response.json();
+              errorDetail = errorData.detail || errorDetail;
+            } catch (e) {
+              const textError = await response.text();
+              console.error('[getTranscripts] Non-JSON error response from /api/logs:', textError);
+              errorDetail = textError || errorDetail;
+            }
+            throw new Error(errorDetail);
+          }
+
+          const data = await response.json();
+          const logsResponse = data as LogsResponseProps;
+          return (logsResponse.logs as LogProps[]).map((log) => ({ log, query }));
+        })
+      );
+      const logs = mergeRootRows(rootLogs.flat(), {
+        limit: rootLimit,
+        sortValue: ({ log }) => log.entries?.timestamp,
+        dedupeKey: ({ log }) => transcriptMergeDedupeKey(log.entries, log.id),
+      })
+        .filter(({ log, query }) => {
+          const contextKey = `${query.context}:${log.entries?.messageId ?? log.id}`;
+          if (excludedKeys.has(contextKey)) return false;
+          const mergeKey = transcriptMergeDedupeKey(log.entries, log.id);
+          if (excludedKeys.has(mergeKey)) return false;
+          return true;
+        })
+        .slice(0, limit);
+
+      const mappedMessages = logs
+        .map(({ log, query }): ChatMessage | null => {
           const { entries, id } = log;
           if (
             !entries ||
@@ -150,12 +170,15 @@ export const getTranscripts = async (apiKey: string) => {
             console.warn('[getTranscripts] Skipping invalid log entry:', log);
             return null;
           }
+          const senderId = entries.senderId as number;
           return {
             id: String(id),
-            role: entries.senderId === 0 ? 'assistant' : 'user',
+            role: roleFromRootSenderId(query, senderId),
             content: entries.content,
             timestamp: new Date(entries.timestamp as string),
             messageId: typeof entries.messageId === 'number' ? entries.messageId : undefined,
+            sourceContext: query.context,
+            mergeKey: transcriptMergeDedupeKey(entries, id),
             attachments: Array.isArray(entries.attachments)
               ? (entries.attachments as Record<string, unknown>[]).map(
                   (a): Attachment => ({
@@ -172,7 +195,10 @@ export const getTranscripts = async (apiKey: string) => {
         .filter((msg): msg is ChatMessage => msg !== null);
       return mappedMessages;
     } catch (error) {
-      console.error(`[getTranscripts] CATCH block error for assistant '${assistantId}':`, error);
+      console.error(
+        `[getTranscripts] CATCH block error for assistant '${assistant.agentId}':`,
+        error
+      );
       const message = error instanceof Error ? error.message : 'Unknown error getting history.';
       return { detail: message };
     }
@@ -188,7 +214,7 @@ export const messageAssistant = async (apiKey: string) => {
       // Convert camelCase payload to snake_case for API
       const snakeCasePayload = camelToSnakeObject(payload);
 
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/message`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/message`, {
         method: 'POST',
         headers: {
           apiKey: apiKey,
@@ -219,8 +245,7 @@ export const messageAssistant = async (apiKey: string) => {
 export const uploadAttachment = async (apiKey: string) => {
   return async (
     assistantId: string,
-    file: File,
-    deployEnv?: string | null
+    file: File
   ): Promise<AttachmentUploadResponse | ResponseProps> => {
     'use server';
     try {
@@ -228,11 +253,8 @@ export const uploadAttachment = async (apiKey: string) => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('assistant_id', assistantId);
-      if (deployEnv) {
-        formData.append('deploy_env', deployEnv);
-      }
 
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/assistant/attachment`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/assistant/attachment`, {
         method: 'POST',
         headers: {
           apiKey: apiKey,
@@ -273,7 +295,7 @@ export const getSignedUrl = async (apiKey: string) => {
   return async (gsUrl: string): Promise<{ signedUrl: string } | ResponseProps> => {
     'use server';
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/storage/signed-url`, {
+      const response = await fetch(`${getInternalApiBaseUrl()}/api/storage/signed-url`, {
         method: 'POST',
         headers: {
           apiKey: apiKey,

@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { Metadata } from 'next';
-import OnPrem from '@/components/Shared/OnPrem';
+import BillingUnavailable from '@/components/Shared/BillingUnavailable';
 import Main from '@/components/Pages/Billing/Main';
 import FreeTrialBillingLock from '@/components/Pages/Billing/FreeTrialBillingLock';
 import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
@@ -9,6 +9,7 @@ import { redirect } from 'next/navigation';
 import * as BillingLib from '@/lib/billing/billing';
 import type { BillingActions, BillingOrgContext } from '@/types/billing';
 import { resolveWorkspaceContext } from '@/lib/user/workspace';
+import { getServerFeatures } from '@/lib/features/server';
 
 export const metadata: Metadata = {
   title: 'Billing',
@@ -20,12 +21,13 @@ const BillingPage: React.FC = async () => {
     redirect('/login');
   }
 
-  const onPrem = process.env.ON_PREM;
-  if (onPrem) {
+  // No billing feature (self-host / external-auth / no Stripe) → nothing to show.
+  // `features.billing` already accounts for these via the credential authority.
+  if (!(await getServerFeatures()).billing) {
     return (
       <div className="h-full w-full overflow-auto p-1">
         <Suspense fallback={<SkeletonLoader />}>
-          <OnPrem />
+          <BillingUnavailable />
         </Suspense>
       </div>
     );
@@ -37,13 +39,17 @@ const BillingPage: React.FC = async () => {
 
   if (activeOrganization) {
     const roleName = activeOrganization.roleName?.toLowerCase();
-    if (roleName !== 'owner' && roleName !== 'admin') {
+    const isOrgAdmin = roleName === 'owner' || roleName === 'admin';
+    // Unify members (internal staff) can view billing for any org they belong
+    // to, regardless of their role in that org. Edit rights still follow the
+    // org role so a non-owner/admin Unify member gets a read-only view.
+    if (!isOrgAdmin && !isUnifyMember) {
       redirect('/profile');
     }
     orgContext = {
       orgId: activeOrganization.id,
       orgName: activeOrganization.name,
-      canEdit: roleName === 'owner' || roleName === 'admin',
+      canEdit: isOrgAdmin,
     };
   }
 
@@ -58,14 +64,18 @@ const BillingPage: React.FC = async () => {
   // ── Build server actions (bind API key once, on the server) ─────────
   const billingActions: BillingActions = {
     getBalance: await BillingLib.getBalance(apiKey),
-    getAutoRecharge: await BillingLib.getAutoRecharge(apiKey),
-    updateAutoRecharge: await BillingLib.updateAutoRecharge(apiKey),
-    toggleAutoRecharge: await BillingLib.toggleAutoRecharge(apiKey),
+    subscribe: await BillingLib.subscribe(apiKey),
+    cancelSubscription: await BillingLib.cancelSubscription(apiKey),
+    reactivateSubscription: await BillingLib.reactivateSubscription(apiKey),
+    getAutoIncrement: await BillingLib.getAutoIncrement(apiKey),
+    updateAutoIncrement: await BillingLib.updateAutoIncrement(apiKey),
     getProfile: await BillingLib.getProfile(apiKey),
     updateProfile: await BillingLib.updateProfile(apiKey),
-    createCheckoutSession: await BillingLib.createCheckoutSession(apiKey),
     createPortalSession: await BillingLib.createPortalSession(apiKey),
-    getCheckoutStatus: await BillingLib.getCheckoutStatus(apiKey),
+    createSetupIntent: await BillingLib.createSetupIntent(apiKey),
+    listPaymentMethods: await BillingLib.listPaymentMethods(apiKey),
+    setDefaultPaymentMethod: await BillingLib.setDefaultPaymentMethod(apiKey),
+    detachPaymentMethod: await BillingLib.detachPaymentMethod(apiKey),
     getSupportedTaxCountries: await BillingLib.getSupportedTaxCountries(apiKey),
     validateTaxId: await BillingLib.validateTaxId(apiKey),
     getInvoices: await BillingLib.getInvoices(apiKey),

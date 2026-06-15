@@ -15,19 +15,38 @@ import {
   cleanupUser,
   createAssistantTest,
   createAssistant,
+  createOrg,
+  deleteOrg,
   navigateToAssistants,
   closeHireDialogIfOpen,
+  selectAssistantInList,
   deleteAllAssistantsForUser,
   ensureProjectSync,
   orchestraFetch,
   setUserCredits,
+  dbExec,
+  dbExecBlock,
+  type SeededAssistant,
+  type SeededOrg,
 } from './helpers';
 
-const user = createTestUser({ name: 'MemoryE2E', lastName: 'Tester', credits: 50_000 });
+function uniqueMemoryEmail(): string {
+  return `memory-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@unify.ai`;
+}
+
+const user = createTestUser({
+  email: uniqueMemoryEmail(),
+  name: 'MemoryE2E',
+  lastName: 'Tester',
+  credits: 50_000,
+});
 ensureProjectSync(user.apiKey);
 const test = createAssistantTest(user);
 test.setTimeout(120_000);
 test.describe.configure({ mode: 'serial' });
+
+const ASSISTANT_CONTACT_ID = 0;
+const OWNER_CONTACT_ID = 1;
 
 const emptyAssistant = createAssistant({
   userId: user.id,
@@ -41,9 +60,29 @@ const dataAssistant = createAssistant({
   surname: 'WithData',
 });
 
+let memoryOrg: SeededOrg | undefined;
+let destinationAssistant: SeededAssistant | undefined;
+
+function ensureDestinationAssistant(): { org: SeededOrg; assistant: SeededAssistant } {
+  if (!memoryOrg || !destinationAssistant) {
+    memoryOrg = createOrg({ name: `MemoryOrg_${Date.now()}`, ownerId: user.id });
+    ensureProjectSync(memoryOrg.ownerOrgApiKey);
+    destinationAssistant = createAssistant({
+      userId: user.id,
+      orgId: memoryOrg.id,
+      firstName: 'ScopeBot',
+      surname: 'Drilldown',
+    });
+  }
+  return { org: memoryOrg, assistant: destinationAssistant };
+}
+
 test.afterAll(() => {
   setUserCredits(user.id, 50_000);
   deleteAllAssistantsForUser(user.id);
+  if (memoryOrg) {
+    deleteOrg(memoryOrg.id);
+  }
   cleanupUser(user.id);
 });
 
@@ -63,7 +102,8 @@ async function seedContacts(
     last_name: string;
     email_address: string;
     timezone?: string;
-  }[]
+  }[],
+  context = `${userId}/${assistantId}/Contacts`
 ) {
   for (const contact of contacts) {
     const res = await orchestraFetch(
@@ -72,7 +112,7 @@ async function seedContacts(
         method: 'POST',
         body: JSON.stringify({
           project_name: 'Assistants',
-          context: `${userId}/${assistantId}/Contacts`,
+          context,
           entries: [contact],
         }),
       },
@@ -80,6 +120,57 @@ async function seedContacts(
     );
     if (!res.ok) throw new Error(`Failed to seed contact: ${res.status} ${await res.text()}`);
   }
+}
+
+function createMemoryTeamForAssistant(
+  targetAssistant: SeededAssistant,
+  opts: {
+    selfContactId: number;
+    bossContactId: number;
+  }
+): number {
+  if (targetAssistant.organizationId === null) {
+    throw new Error('createMemoryTeamForAssistant requires an org-scoped assistant');
+  }
+
+  const suffix = Date.now();
+  const rawTeamId = dbExec(`
+INSERT INTO team (name, description, organization_id, status)
+VALUES (
+  'Memory Drill Team ${suffix}',
+  'Shared memory drill-down e2e team for destination dropdown coverage',
+  ${targetAssistant.organizationId},
+  'active'
+)
+RETURNING id;
+`);
+  const teamId = Number(rawTeamId.match(/^\d+$/m)?.[0]);
+  if (!Number.isInteger(teamId)) {
+    throw new Error(`Failed to parse seeded team id from psql output: ${rawTeamId}`);
+  }
+
+  dbExecBlock(`
+INSERT INTO team_assistant_memberships (team_id, assistant_id, added_by)
+VALUES (${teamId}, ${targetAssistant.agentId}, '${targetAssistant.userId}')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO contact_memberships (
+  assistant_id,
+  contact_id,
+  target_scope,
+  target_team_id,
+  relationship,
+  should_respond,
+  response_policy,
+  can_edit
+)
+VALUES
+  (${targetAssistant.agentId}, ${opts.selfContactId}, 'team', ${teamId}, 'self', true, '', true),
+  (${targetAssistant.agentId}, ${opts.bossContactId}, 'team', ${teamId}, 'boss', true, '', true)
+ON CONFLICT DO NOTHING;
+`);
+
+  return teamId;
 }
 
 async function seedTranscripts(
@@ -121,14 +212,14 @@ async function ensureSeeded() {
 
   await seedContacts(user.apiKey, user.id, dataAssistant.agentId, [
     {
-      contact_id: 0,
+      contact_id: ASSISTANT_CONTACT_ID,
       first_name: 'MemBot',
       last_name: 'WithData',
       email_address: 'membot@test.ai',
       timezone: 'UTC',
     },
     {
-      contact_id: 1,
+      contact_id: OWNER_CONTACT_ID,
       first_name: 'Alice',
       last_name: 'Owner',
       email_address: 'alice@example.com',
@@ -147,8 +238,8 @@ async function ensureSeeded() {
     {
       message_id: 1,
       medium: 'unify_message',
-      sender_id: 1,
-      receiver_ids: [0],
+      sender_id: OWNER_CONTACT_ID,
+      receiver_ids: [ASSISTANT_CONTACT_ID],
       timestamp: '2025-06-01T10:00:00Z',
       content: 'Hello, can you help me with my schedule?',
       exchange_id: 1,
@@ -156,8 +247,8 @@ async function ensureSeeded() {
     {
       message_id: 2,
       medium: 'unify_message',
-      sender_id: 0,
-      receiver_ids: [1],
+      sender_id: ASSISTANT_CONTACT_ID,
+      receiver_ids: [OWNER_CONTACT_ID],
       timestamp: '2025-06-01T10:01:00Z',
       content: 'Of course! Let me check your calendar.',
       exchange_id: 1,
@@ -166,7 +257,7 @@ async function ensureSeeded() {
       message_id: 3,
       medium: 'unify_message',
       sender_id: 2,
-      receiver_ids: [0],
+      receiver_ids: [ASSISTANT_CONTACT_ID],
       timestamp: '2025-06-02T14:30:00Z',
       content: 'What is the status of the project?',
       exchange_id: 2,
@@ -176,17 +267,81 @@ async function ensureSeeded() {
   seeded = true;
 }
 
+let destinationSeeded = false;
+async function ensureDestinationSeeded() {
+  if (destinationSeeded) return;
+
+  const { org, assistant: destination } = ensureDestinationAssistant();
+
+  await seedContacts(org.ownerOrgApiKey, user.id, destination.agentId, [
+    {
+      contact_id: ASSISTANT_CONTACT_ID,
+      first_name: 'ScopeBot',
+      last_name: 'Drilldown',
+      email_address: 'scopebot@test.ai',
+      timezone: 'UTC',
+    },
+    {
+      contact_id: OWNER_CONTACT_ID,
+      first_name: 'Alice',
+      last_name: 'Owner',
+      email_address: 'alice@example.com',
+      timezone: 'America/New_York',
+    },
+  ]);
+
+  const teamId = createMemoryTeamForAssistant(destination, {
+    selfContactId: 901,
+    bossContactId: 902,
+  });
+  await seedContacts(
+    org.ownerOrgApiKey,
+    user.id,
+    destination.agentId,
+    [
+      {
+        contact_id: 701,
+        first_name: 'SharedOnly',
+        last_name: 'TeamContact',
+        email_address: 'shared-only@example.com',
+        timezone: 'UTC',
+      },
+    ],
+    `Teams/${teamId}/Contacts`
+  );
+
+  destinationSeeded = true;
+}
+
 // ---------------------------------------------------------------------------
 // Navigation helpers
 // ---------------------------------------------------------------------------
+
+async function dismissCoordinatorOnboardingIfOpen(page: import('@playwright/test').Page) {
+  const pickChat = page.getByTestId('coordinator-onboarding-pick-chat');
+  if (!(await pickChat.isVisible({ timeout: 10_000 }).catch(() => false))) {
+    return;
+  }
+  // Picking chat tears the intro overlay down, dropping us into the
+  // regular platform with the Coordinator selected.
+  await pickChat.click();
+  await page
+    .getByTestId('coordinator-onboarding')
+    .waitFor({ state: 'hidden', timeout: 10_000 })
+    .catch(() => {});
+}
 
 async function selectAssistantAndOpenMemory(
   page: import('@playwright/test').Page,
   agentId: number
 ) {
-  await page.goto(`/assistants?profile=${agentId}`);
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await dismissCoordinatorOnboardingIfOpen(page);
+
+  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
+  await expect(listItem).toBeVisible({ timeout: 15_000 });
+  await selectAssistantInList(page, agentId);
   await page.waitForTimeout(1_500);
 
   // Memory is now a dropdown trigger: click opens the sub-tab menu,
@@ -340,6 +495,61 @@ test('contacts sub-tab shows correct row count', async ({ authedPage: page }) =>
   const footer = page.getByTestId('memory-table-footer');
   await expect(footer).toBeVisible({ timeout: 10_000 });
   await expect(footer.locator('text=/3 of 3/')).toBeVisible({ timeout: 5_000 });
+});
+
+test('memory destination dropdown is hidden for solo assistants', async ({ authedPage: page }) => {
+  await selectAssistantAndOpenMemory(page, emptyAssistant.agentId);
+
+  const memoryPane = page.getByTestId('memory-pane');
+  await expect(memoryPane).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('memory-destination-dropdown')).toHaveCount(0);
+});
+
+test('memory dropdown drills into personal and shared roots', async ({ authedPage: page }) => {
+  const { org, assistant: destination } = ensureDestinationAssistant();
+
+  await page.goto('/assistants');
+  await closeHireDialogIfOpen(page);
+  await page.evaluate(async (orgId) => {
+    await fetch('/api/session/workspace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId: String(orgId) }),
+    });
+  }, org.id);
+  await page.reload();
+  await closeHireDialogIfOpen(page);
+
+  await ensureDestinationSeeded();
+  await selectAssistantAndOpenMemory(page, destination.agentId);
+
+  const table = page.getByTestId('memory-table-contacts');
+  await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(table.getByRole('cell', { name: 'SharedOnly', exact: true })).toBeVisible({
+    timeout: 10_000,
+  });
+
+  await page.getByTestId('memory-destination-dropdown').click();
+  await page.getByRole('option', { name: /Memory Drill Team/ }).click();
+
+  await expect(table.getByRole('cell', { name: 'SharedOnly', exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(table.getByRole('cell', { name: 'Alice', exact: true })).not.toBeVisible({
+    timeout: 10_000,
+  });
+
+  await page.getByTestId('memory-destination-dropdown').click();
+  await page.getByRole('option', { name: 'Personal' }).click();
+
+  await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(table.getByRole('cell', { name: 'SharedOnly', exact: true })).not.toBeVisible({
+    timeout: 10_000,
+  });
 });
 
 // ===========================================================================

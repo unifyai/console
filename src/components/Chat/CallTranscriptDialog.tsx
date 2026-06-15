@@ -1,4 +1,5 @@
-import { Loader2, Phone } from 'lucide-react';
+import { Phone } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import {
   Dialog,
   DialogContent,
@@ -53,7 +54,7 @@ export function CallTranscriptDialog({
         <ScrollArea className="min-h-0 flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <Loader size={20} />
             </div>
           ) : utterances.length === 0 ? (
             <div className="text-caption py-12 text-center text-muted-foreground">

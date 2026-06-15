@@ -19,6 +19,19 @@ async function openProfileDialog(page: Page) {
   await expect(page.locator('#billingName')).toBeVisible({ timeout: 15_000 });
 }
 
+/**
+ * Fill the now-required billing-address fields (street line + country) so
+ * the form validates and Save enables. Country is a dropdown that stores the
+ * ISO-2 code while showing the localized name.
+ */
+async function fillRequiredAddress(page: Page) {
+  await page.locator('#addrLine1').fill('123 Test St');
+  await page.locator('#addrCity').fill('San Francisco');
+  await page.locator('#addrPostal').fill('94105');
+  await page.locator('#addrCountry').click();
+  await page.getByRole('option', { name: 'United States' }).click();
+}
+
 const user = createTestUser({ name: 'Profile', lastName: 'Test', credits: 5_000 });
 const test = createBillingTest(user);
 
@@ -51,6 +64,7 @@ test('saves billing name and closes dialog', async ({ authedPage: page }) => {
 
   await page.locator('#billingName').fill('Test Business Inc.');
   await page.locator('#billingEmail').fill('billing@test.com');
+  await fillRequiredAddress(page);
   await page.locator('button', { hasText: 'Save Changes' }).click();
 
   await expect(page.locator('#billingName')).not.toBeVisible({ timeout: 15_000 });
@@ -62,6 +76,7 @@ test('persists saved name across page reloads', async ({ authedPage: page }) => 
 
   const uniqueName = `Persistent Biz ${Date.now()}`;
   await page.locator('#billingName').fill(uniqueName);
+  await fillRequiredAddress(page);
   await page.locator('button', { hasText: 'Save Changes' }).click();
   await expect(page.locator('#billingName')).not.toBeVisible({ timeout: 15_000 });
 

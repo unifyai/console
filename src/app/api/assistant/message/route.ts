@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '../../_utils/auth';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
-import { getAdaptersPrefix } from '@/utils/assistants/api-utils';
+import { getAdaptersBaseUrl } from '@/utils/assistants/api-utils';
 import type { Attachment } from '@/types/assistants/chat';
 
 export async function POST(request: NextRequest) {
@@ -30,11 +30,10 @@ export async function POST(request: NextRequest) {
     message?: string;
     body?: string;
     attachments?: Attachment[];
-    deployEnv?: string | null;
   }>(requestBody);
 
   // Support both 'message' and 'body' fields
-  const { assistantId, contactId, attachments, deployEnv } = normalizedBody;
+  const { assistantId, contactId, attachments } = normalizedBody;
   const message = normalizedBody.message || normalizedBody.body;
 
   // Allow sending if there's a message OR attachments
@@ -50,15 +49,15 @@ export async function POST(request: NextRequest) {
 
   const orchestraUrl = process.env.ORCHESTRA_URL || '';
   const isLocal = orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1');
-  const isStaging = orchestraUrl.includes('staging') || isLocal;
 
   // LOCAL_ADAPTERS_URL allows local dev to dispatch messages to a locally
-  // running Communication adapters instance (e.g. via communication/scripts/local.sh)
-  // instead of silently swallowing them. When unset, local dev still skips
-  // dispatch to avoid accidentally hitting staging adapters.
+  // running Communication adapters instance (e.g. via unity-deploy's
+  // scripts/communication-local.sh) instead of silently swallowing them.
+  // When unset, local dev still skips dispatch to avoid accidentally
+  // hitting staging adapters.
   const localAdaptersUrl = process.env.LOCAL_ADAPTERS_URL;
 
-  let webhookUrl: string;
+  let adaptersBaseUrl: string;
   if (isLocal) {
     if (!localAdaptersUrl) {
       return NextResponse.json(
@@ -68,11 +67,11 @@ export async function POST(request: NextRequest) {
         { status: 202 }
       );
     }
-    webhookUrl = `${localAdaptersUrl}/unify/message`;
+    adaptersBaseUrl = getAdaptersBaseUrl({ localAdaptersUrl });
   } else {
-    const prefix = getAdaptersPrefix(deployEnv, isStaging);
-    webhookUrl = `https://unity-adapters-${prefix}ky4ja5fxna-uc.a.run.app/unify/message`;
+    adaptersBaseUrl = getAdaptersBaseUrl();
   }
+  const webhookUrl = `${adaptersBaseUrl}/unify/message`;
 
   const payload = camelToSnakeObject({
     assistantId,

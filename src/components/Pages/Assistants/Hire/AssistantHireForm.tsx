@@ -1,11 +1,11 @@
 'use client';
 
 import * as React from 'react';
+import Image from 'next/image';
 import { UseFormReturn, FormProvider, Controller, useWatch } from 'react-hook-form';
 import { Input } from '@/components/UI/input';
 import { Textarea } from '@/components/UI/textarea';
 import { Label } from '@/components/UI/label';
-import { AssistantPhotoViewer } from './AssistantHirePhotoPreview';
 import {
   AssistantFormData,
   AssistantActions,
@@ -13,9 +13,20 @@ import {
   Voice,
 } from '@/types/assistants/assistant';
 import { VoiceCustomization } from './AssistantHireVoiceCustomization';
-import { PhotoCustomization } from './AssistantHirePhotoCustomization';
-import { Volume2, User, Info, Image as ImageIcon, Settings, Laptop } from 'lucide-react';
+import {
+  Volume2,
+  Laptop,
+  Shuffle,
+  ChevronLeft,
+  ChevronRight,
+  BriefcaseBusiness,
+  Check,
+} from 'lucide-react';
+import { Button } from '@/components/UI/button';
+import { Checkbox } from '@/components/UI/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
+import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import {
@@ -26,20 +37,143 @@ import {
   SelectValue,
 } from '@/components/UI/select';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
-import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/UI/accordion';
-import { allCountryNames } from '@/constants/assistants/countries';
+import { getDefaultVoiceForProvider } from '@/utils/assistants/voice-utils';
 import { cn } from '@/lib/utils';
-import { getLangCodeForNationality } from '@/utils/assistants/voice-utils';
 import { FaUbuntu, FaWindows } from 'react-icons/fa';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
+import { TeammateCreature, buildCreatureSentinel, parseCreatureSentinel } from '@/components/Brand';
+import {
+  getCreatureMetrics,
+  type BotSkin,
+  type CreatureAntenna,
+  type CreatureEyes,
+} from '@/components/Brand/TeammateCreature';
+import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
+import { roleColorVars, type BrandRole, type CreatureShape } from '@/components/Brand/shapes';
+import GoogleIcon from '@/public/icons/google-icon.png';
+import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
+import type { OAuthProvider } from '@/types/assistants/contact';
+import {
+  clampDroidSpeechLevel,
+  getDroidSpeechTransform,
+  getSpeakingEyes,
+} from '@/utils/assistants/droid-animation';
 
-const staticSkillsText = `The bio doesn't influence the assistant's abilities. All assistants come with the same foundational skills and can specialize in whichever area you want them to.`;
+const staticSkillsText = `The bio doesn't influence the droid's abilities. All droids come with the same foundational skills and can specialize in whichever area you want them to.`;
+const DROID_PREVIEW_SIZE = 160;
+const APPEARANCE_HOVER_CONTROL_CLASS = 'transition-opacity duration-150';
+
+const appearanceEyeOptions = ['up', 'down', 'square'] as const satisfies readonly CreatureEyes[];
+const appearanceAntennaOptions = [
+  'none',
+  'rod',
+  'ball',
+  'bigball',
+  'twin',
+] as const satisfies readonly CreatureAntenna[];
+const appearanceShapeOptions = [
+  'clawd',
+  'notch',
+  'runner',
+  'wide',
+  'tall',
+  'sprout',
+  'hopper',
+  'pebble',
+] as const satisfies readonly CreatureShape[];
+const appearanceColorOptions = [
+  'green',
+  'blue',
+  'orange',
+  'purple',
+  'yellow',
+  'teal',
+  'pink',
+  'cyan',
+] as const satisfies readonly BrandRole[];
+const appearanceSkinOptions = [
+  'none',
+  'tieOnly',
+  'bowTieOnly',
+  'buttonsOnly',
+  'shirtPocketOnly',
+  'shirtCollarOnly',
+  'shirtTie',
+  'shirtTiePocket',
+  'collarButtons',
+  'bowTie',
+  'pocketButtons',
+  'tuxedo',
+  'tuxBow',
+  'tuxButtons',
+  'suspendersButtons',
+  'suspenders',
+  'pearlButtons',
+  'pearlNecklace',
+] as const satisfies readonly ('none' | BotSkin)[];
+const appearanceSkinLabels: Record<(typeof appearanceSkinOptions)[number], string> = {
+  none: 'none',
+  tieOnly: 'tie',
+  bowTieOnly: 'bow',
+  buttonsOnly: 'buttons',
+  shirtPocketOnly: 'pocket',
+  shirtCollarOnly: 'collar',
+  shirtTie: 'collar + tie',
+  shirtTiePocket: 'pocket + tie',
+  collarButtons: 'collar + buttons',
+  bowTie: 'bow + buttons',
+  pocketButtons: 'pocket + buttons',
+  tuxedo: 'tux + bow + buttons',
+  tuxBow: 'tux + bow',
+  tuxButtons: 'tux + buttons',
+  suspendersButtons: 'suspenders + buttons',
+  suspenders: 'suspenders + bow + buttons',
+  pearlButtons: 'pearls + buttons',
+  pearlNecklace: 'pearls',
+};
+const DEFAULT_COORDINATOR_APPEARANCE = {
+  eyes: 'up',
+  antenna: 'ball',
+  shape: 'clawd',
+  color: 'green',
+  skin: 'none',
+} as const satisfies {
+  eyes: CreatureEyes;
+  antenna: CreatureAntenna;
+  shape: CreatureShape;
+  color: BrandRole;
+  skin: 'none' | BotSkin;
+};
+
+function cycleOption<T>(items: readonly T[], current: T, direction: -1 | 1): T {
+  const currentIndex = items.indexOf(current);
+  const nextIndex = (currentIndex + direction + items.length) % items.length;
+  return items[nextIndex];
+}
+
+function pickOption<T>(items: readonly T[], current: T): T {
+  if (items.length === 1) return current;
+
+  let next = current;
+  while (next === current) {
+    next = items[Math.floor(Math.random() * items.length)];
+  }
+  return next;
+}
+
+function SectionIconSlot({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">{children}</span>
+  );
+}
+
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return <div className="mb-2 flex items-center gap-2 text-muted-foreground">{children}</div>;
+}
+
+function getHoverEyes(eyes: CreatureEyes): CreatureEyes {
+  return eyes === 'square' ? 'up' : 'square';
+}
 
 export interface HireFormProps {
   formMethods: UseFormReturn<AssistantFormData>;
@@ -58,6 +192,14 @@ export interface HireFormProps {
   onAddPaymentMethod?: () => void;
   /** Whether the user has explicitly selected/changed a preset (not the initial auto-select) */
   userHasChangedPreset?: boolean;
+  onRandomizeProfile?: () => void;
+  workspaceProvider?: OAuthProvider | null;
+  onWorkspaceProviderSelect?: (provider: OAuthProvider) => void;
+  skipWorkspaceSetup?: boolean;
+  onSkipWorkspaceSetupChange?: (skip: boolean) => void;
+  showWorkspaceWarning?: boolean;
+  lockIdentityFields?: boolean;
+  lockAppearanceControls?: boolean;
 }
 
 export function HireForm({
@@ -65,38 +207,232 @@ export function HireForm({
   onSubmit,
   isSubmitting,
   assistantActions,
-  onPhotoProcessingStateChange,
   onVoiceProcessingStateChange,
-  onNewMediaReady,
   allDisplayableVoices,
   isLoadingUserVoices,
   fetchUserVoices,
   handleDeleteVoice,
   mode = 'hire',
   onAddPaymentMethod,
+  onRandomizeProfile,
+  workspaceProvider,
+  onWorkspaceProviderSelect,
+  skipWorkspaceSetup = false,
+  onSkipWorkspaceSetupChange,
+  showWorkspaceWarning = false,
+  lockIdentityFields = false,
+  lockAppearanceControls = false,
   userHasChangedPreset = false,
 }: HireFormProps) {
   const {
     register,
     formState: { errors },
-    watch,
     setValue,
     getValues,
     trigger,
     control,
   } = formMethods;
 
-  const [photoCustomizationTab, setPhotoCustomizationTab] = React.useState<
-    'upload' | 'create' | 'edit' | 'animate'
-  >('upload');
+  // Workspace connect needs an OAuth client configured on the deployment. Mirror
+  // the workspace manager: keep each provider visible but disabled with an
+  // explanatory tooltip when its client isn't configured.
+  const { workspaceGoogle, workspaceMicrosoft } = useFeatures();
+  const workspaceConnectAvailable = workspaceGoogle || workspaceMicrosoft;
+  const workspaceUnavailableReason = "isn't configured on this deployment";
+
   const [voiceCustomizationTab, setVoiceCustomizationTab] = React.useState<
     'select' | 'clone' | 'design'
   >('select');
-  const [showAnimatePing, setShowAnimatePing] = React.useState(false);
-  const [playedVideoUrls, setPlayedVideoUrls] = React.useState(new Set<string>());
+  const [droidEyes, setDroidEyes] = React.useState<CreatureEyes>('up');
+  const [droidAntenna, setDroidAntenna] = React.useState<CreatureAntenna>('ball');
+  const [droidShape, setDroidShape] = React.useState<CreatureShape>('clawd');
+  const [droidColor, setDroidColor] = React.useState<BrandRole>('green');
+  const [droidSkin, setDroidSkin] = React.useState<'none' | BotSkin>('none');
+
+  // The avatar shown in this form is the live creature. We persist it by keeping
+  // `profilePhotoUrl` in sync with an `appearance://` sentinel, since hiring/edit
+  // are submitted by external dialog buttons (not this form's onSubmit) so we
+  // can't hook submission — the form data must already carry the sentinel.
+  const watchedProfilePhotoUrl = useWatch({ control, name: 'profilePhotoUrl' });
+  const watchedPhotoFile = useWatch({ control, name: 'photoFile' });
+  const watchedPhotoPreviewUrl = useWatch({ control, name: 'photoPreviewUrl' });
+  const watchedProfileVideoUrl = useWatch({ control, name: 'profileVideoUrl' });
+
+  // Seed the appearance controls once from an existing sentinel (edit), so the
+  // form shows the saved look instead of resetting to the default creature, then
+  // mark seeding complete so the live-sync below can write back. The edit form is
+  // reset synchronously before this mounts, so the saved value is already present
+  // on first render (and may legitimately be null/GCS — we don't wait for it).
+  const [appearanceSeeded, setAppearanceSeeded] = React.useState(false);
+  React.useEffect(() => {
+    if (appearanceSeeded) return;
+    const parsed = parseCreatureSentinel(watchedProfilePhotoUrl);
+    if (parsed) {
+      setDroidShape(parsed.shape);
+      setDroidColor(parsed.color);
+      setDroidEyes(parsed.eyes);
+      setDroidAntenna(parsed.antenna);
+      setDroidSkin(parsed.skin ?? 'none');
+    }
+    setAppearanceSeeded(true);
+  }, [appearanceSeeded, watchedProfilePhotoUrl]);
+  const [isAppearanceControlsVisible, setIsAppearanceControlsVisible] = React.useState(false);
+  const [isLockedDroidHovered, setIsLockedDroidHovered] = React.useState(false);
+  const [isVoicePreviewPlaying, setIsVoicePreviewPlaying] = React.useState(false);
+  const [speakingEyeFrame, setSpeakingEyeFrame] = React.useState(0);
+  const speakingEyeBaseRef = React.useRef<CreatureEyes>(droidEyes);
+  const droidSpeechRef = React.useRef<HTMLSpanElement | null>(null);
   const setup = useWatch({ control, name: 'setup' });
   const operatingSystem = useWatch({ control, name: 'operatingSystem' });
+  const firstName = useWatch({ control, name: 'firstName' });
   const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
+  const defaultVoice = React.useMemo(() => getDefaultVoiceForProvider(), []);
+  const isEditMode = mode === 'edit';
+  const selectedDroidEyes = lockAppearanceControls
+    ? DEFAULT_COORDINATOR_APPEARANCE.eyes
+    : droidEyes;
+  const selectedDroidAntenna = lockAppearanceControls
+    ? DEFAULT_COORDINATOR_APPEARANCE.antenna
+    : droidAntenna;
+  const selectedDroidShape = lockAppearanceControls
+    ? DEFAULT_COORDINATOR_APPEARANCE.shape
+    : droidShape;
+  const selectedDroidColor = lockAppearanceControls
+    ? DEFAULT_COORDINATOR_APPEARANCE.color
+    : droidColor;
+  const selectedDroidSkin = lockAppearanceControls
+    ? DEFAULT_COORDINATOR_APPEARANCE.skin
+    : droidSkin;
+  const selectedDroidSkinValue = selectedDroidSkin === 'none' ? undefined : selectedDroidSkin;
+  const appearanceControlVisibilityClass = isAppearanceControlsVisible
+    ? 'pointer-events-auto opacity-100'
+    : 'pointer-events-none opacity-0';
+
+  // Persist the live creature as the avatar by syncing it into `profilePhotoUrl`
+  // as an `appearance://` sentinel. We defer to a real image only when the user
+  // uploaded one or explicitly picked a preset persona's photo. This keeps the
+  // saved value current regardless of how the dialog triggers submission.
+  const creatureSentinel = buildCreatureSentinel({
+    shape: selectedDroidShape,
+    color: selectedDroidColor,
+    eyes: selectedDroidEyes,
+    antenna: selectedDroidAntenna,
+    ...(selectedDroidSkinValue ? { skin: selectedDroidSkinValue } : {}),
+  });
+
+  // Detect when the user actively changes the appearance controls (vs. the value
+  // we seeded). This lets an edit replace an existing real photo with a creature
+  // — otherwise editing the appearance of a photo-backed assistant is a no-op.
+  const appearanceBaselineRef = React.useRef<string | null>(null);
+  const [userEditedAppearance, setUserEditedAppearance] = React.useState(false);
+  React.useEffect(() => {
+    if (!appearanceSeeded) return;
+    if (appearanceBaselineRef.current === null) {
+      appearanceBaselineRef.current = creatureSentinel;
+      return;
+    }
+    if (!userEditedAppearance && creatureSentinel !== appearanceBaselineRef.current) {
+      setUserEditedAppearance(true);
+    }
+  }, [appearanceSeeded, creatureSentinel, userEditedAppearance]);
+
+  const creatureIsAvatar =
+    !lockAppearanceControls &&
+    !watchedPhotoFile &&
+    !userHasChangedPreset &&
+    (mode === 'hire' ||
+      !isGcsPhoto(watchedProfilePhotoUrl) ||
+      parseCreatureSentinel(watchedProfilePhotoUrl) !== null ||
+      userEditedAppearance);
+  React.useEffect(() => {
+    if (!appearanceSeeded || !creatureIsAvatar) return;
+    if (watchedProfilePhotoUrl !== creatureSentinel) {
+      setValue('profilePhotoUrl', creatureSentinel, { shouldDirty: true });
+    }
+    // The creature is self-contained — drop any preset-seeded preview/video so we
+    // don't persist a mismatched image/clip alongside the sentinel.
+    if (watchedPhotoPreviewUrl) setValue('photoPreviewUrl', null);
+    if (watchedProfileVideoUrl) setValue('profileVideoUrl', null);
+  }, [
+    appearanceSeeded,
+    creatureIsAvatar,
+    creatureSentinel,
+    watchedProfilePhotoUrl,
+    watchedPhotoPreviewUrl,
+    watchedProfileVideoUrl,
+    setValue,
+  ]);
+
+  const colorIndex = appearanceColorOptions.indexOf(selectedDroidColor);
+  const previousColor =
+    appearanceColorOptions[
+      (colorIndex - 1 + appearanceColorOptions.length) % appearanceColorOptions.length
+    ];
+  const nextColor = appearanceColorOptions[(colorIndex + 1) % appearanceColorOptions.length];
+  const skinIndex = appearanceSkinOptions.indexOf(selectedDroidSkin);
+  const previousSkin =
+    appearanceSkinOptions[
+      (skinIndex - 1 + appearanceSkinOptions.length) % appearanceSkinOptions.length
+    ];
+  const nextSkin = appearanceSkinOptions[(skinIndex + 1) % appearanceSkinOptions.length];
+  const lockedHoverEyes =
+    lockAppearanceControls && isLockedDroidHovered
+      ? getHoverEyes(selectedDroidEyes)
+      : selectedDroidEyes;
+  const displayedDroidEyes = isVoicePreviewPlaying
+    ? getSpeakingEyes(speakingEyeBaseRef.current, speakingEyeFrame)
+    : lockedHoverEyes;
+  const workspaceAssistantName =
+    typeof firstName === 'string' && firstName.trim().length > 0 ? firstName.trim() : 'this droid';
+  const isWorkspaceWarning = mode === 'hire' && showWorkspaceWarning;
+  const eyeArrowTop = React.useMemo(() => {
+    const metrics = getCreatureMetrics(selectedDroidShape, selectedDroidAntenna);
+    const scale = Math.min(DROID_PREVIEW_SIZE / metrics.width, DROID_PREVIEW_SIZE / metrics.height);
+    const renderedHeight = metrics.height * scale;
+    const renderedTop = (DROID_PREVIEW_SIZE - renderedHeight) / 2;
+
+    return renderedTop + metrics.eyeY * scale - 16;
+  }, [selectedDroidShape, selectedDroidAntenna]);
+
+  const randomizeDroidAppearance = React.useCallback(() => {
+    if (lockAppearanceControls) return;
+
+    setDroidEyes((current) => pickOption(appearanceEyeOptions, current));
+    setDroidAntenna((current) => pickOption(appearanceAntennaOptions, current));
+    setDroidShape((current) => pickOption(appearanceShapeOptions, current));
+    setDroidColor((current) => pickOption(appearanceColorOptions, current));
+    setDroidSkin((current) => pickOption(appearanceSkinOptions, current));
+  }, [lockAppearanceControls]);
+
+  const randomizeProfileAndAppearance = React.useCallback(() => {
+    onRandomizeProfile?.();
+    randomizeDroidAppearance();
+  }, [onRandomizeProfile, randomizeDroidAppearance]);
+
+  const handlePreviewSpeechLevelChange = React.useCallback((level: number) => {
+    const droid = droidSpeechRef.current;
+    if (!droid) return;
+
+    const speechLevel = clampDroidSpeechLevel(level);
+    droid.style.setProperty('--droid-speech-level', speechLevel.toFixed(3));
+    droid.style.transform = getDroidSpeechTransform(speechLevel);
+  }, []);
+
+  React.useEffect(() => {
+    if (!isVoicePreviewPlaying) {
+      setSpeakingEyeFrame(0);
+      speakingEyeBaseRef.current = selectedDroidEyes;
+      return;
+    }
+
+    speakingEyeBaseRef.current = selectedDroidEyes;
+    setSpeakingEyeFrame(0);
+    const eyeTimer = window.setInterval(() => {
+      setSpeakingEyeFrame((current) => (current + 1) % 4);
+    }, 2000);
+
+    return () => window.clearInterval(eyeTimer);
+  }, [isVoicePreviewPlaying, selectedDroidEyes]);
 
   // Reset OS to 'ubuntu' when switching from local to remote if 'macos' is selected (macos is only available for local)
   React.useEffect(() => {
@@ -105,646 +441,1000 @@ export function HireForm({
     }
   }, [setup, operatingSystem, setValue]);
 
-  const photoPreviewUrl = watch('photoPreviewUrl');
-  const videoPreviewUrl = watch('videoPreviewUrl');
-  const photoFile = watch('photoFile');
-  const videoFile = watch('videoFile');
-  const isPresetPristine = watch('isPresetPristine');
-  const firstName = watch('firstName');
-  const surname = watch('surname');
-  const age = watch('age');
-  const rhfNationality = watch('nationality');
-  const nationalityRef = React.useRef(rhfNationality);
-
-  React.useEffect(() => {
-    const isPristine = getValues('isPresetPristine');
-    // Only trigger auto-selection if the nationality was changed manually, not by a preset.
-    if (isPristine || nationalityRef.current === rhfNationality) {
-      nationalityRef.current = rhfNationality;
-      return;
-    }
-    nationalityRef.current = rhfNationality;
-
-    if (allDisplayableVoices.length === 0) return;
-
-    const preferredLanguage = getLangCodeForNationality(rhfNationality);
-    if (!preferredLanguage) return;
-
-    const currentVoiceId = getValues('voiceId');
-    const currentVoice = allDisplayableVoices.find((v) => v.voiceId === currentVoiceId);
-
-    // If current voice already matches the new nationality's language, do nothing
-    if (currentVoice && currentVoice.language === preferredLanguage) return;
-
-    // Find the best new voice: a non-preset one is preferred
-    const bestNewVoice =
-      allDisplayableVoices.find((v) => v.language === preferredLanguage && !v.isPreset) ||
-      allDisplayableVoices.find((v) => v.language === preferredLanguage);
-
-    if (bestNewVoice) {
-      setValue('voiceId', bestNewVoice.voiceId, { shouldValidate: true });
-      setValue('voiceName', bestNewVoice.name, { shouldValidate: true });
-      setValue('voiceDescription', bestNewVoice.description ?? bestNewVoice.name, {
-        shouldValidate: true,
-      });
-      setValue('voiceGender', bestNewVoice.gender, { shouldValidate: true });
-      setValue('voiceLanguage', bestNewVoice.language, { shouldValidate: true });
-      setValue('voiceProvider', bestNewVoice.provider || PRIMARY_VOICE_PROVIDER, {
-        shouldValidate: true,
-      });
-      setValue('voiceExists', bestNewVoice.isUserVoiceInOrchestra ?? false, {
-        shouldValidate: true,
-      });
-    }
-  }, [rhfNationality, allDisplayableVoices, getValues, setValue]);
-
-  const rhfVoiceId = watch('voiceId');
-  const rhfVoiceLanguage = watch('voiceLanguage');
-  const rhfVoiceGender = watch('voiceGender');
-  const rhfVoiceName = watch('voiceName');
-  const rhfVoiceDescription = watch('voiceDescription');
-  const rhfIsPresetPristine = watch('isPresetPristine');
-  const rhfProfileVideoUrl = watch('profileVideoUrl');
-  const videoSourceVoiceId = watch('videoSourceVoiceId');
-  const hasExistingEditVideo =
-    mode === 'edit' && !videoFile && !!(rhfProfileVideoUrl || videoPreviewUrl);
-
-  // --- Start of Video Playability Logic ---
-  const isVideoPlayable = React.useMemo(() => {
-    const hasVideo = !!videoPreviewUrl;
-    if (!hasVideo) return false;
-
-    // An existing video on an assistant being edited is always playable,
-    // as it's not dependent on the currently selected form voice.
-    if (hasExistingEditVideo) {
-      return true;
-    }
-
-    // A preset video is playable only if the form state is still pristine.
-    const isPresetVideo = rhfProfileVideoUrl?.includes('preset_assistants');
-
-    // A preset video is playable if the form is pristine OR if the currently selected voice matches the video's original voice.
-    if (isPresetVideo) {
-      return isPresetPristine || rhfVoiceId === videoSourceVoiceId;
-    }
-
-    // A custom video (one the user animated themselves) is playable if the currently
-    // selected voice matches the voice used to create the video.
-    const hasCustomVideo = !!videoFile;
-    if (hasCustomVideo) {
-      return rhfVoiceId === videoSourceVoiceId;
-    }
-
-    return false; // Not a preset video and not a custom video, so not playable.
-  }, [
-    videoPreviewUrl,
-    videoFile,
-    hasExistingEditVideo,
-    isPresetPristine,
-    rhfVoiceId,
-    rhfProfileVideoUrl,
-    videoSourceVoiceId,
-  ]);
-
-  // --- End of Video Playability Logic ---
-
-  const selectedVoiceForPhotoCustomization: VoiceOption | null = React.useMemo(() => {
-    if (rhfVoiceId && rhfVoiceLanguage && rhfVoiceGender && rhfVoiceName) {
-      return {
-        voiceId: rhfVoiceId,
-        language: rhfVoiceLanguage as SupportedLanguage,
-        gender: rhfVoiceGender as Gender,
-        name: rhfVoiceName,
-        description: rhfVoiceDescription || '',
-        provider: getValues('voiceProvider') || PRIMARY_VOICE_PROVIDER,
-        isPreset: rhfIsPresetPristine,
-        isUserVoiceInOrchestra: getValues('voiceExists'),
-      };
-    }
-    return null;
-  }, [
-    rhfVoiceId,
-    rhfVoiceLanguage,
-    rhfVoiceGender,
-    rhfVoiceName,
-    rhfVoiceDescription,
-    rhfIsPresetPristine,
-    getValues,
-  ]);
-
-  const isEditMode = mode === 'edit';
-  const shouldUseAnimateClickShortcut = !hasExistingEditVideo;
-  const handlePhotoViewerClick = () => {
-    // This handler is only called from the viewer when it's appropriate to switch to the animate tab.
-    setPhotoCustomizationTab('animate');
-    setShowAnimatePing(true);
-    setTimeout(() => setShowAnimatePing(false), 4000);
-  };
-
-  const handleVideoAutoplayed = React.useCallback((url: string) => {
-    setPlayedVideoUrls((prev) => new Set(prev).add(url));
-  }, []);
-
-  // Only autoplay when the user has explicitly selected/changed a preset,
-  // not on the initial auto-select when the dialog opens.
-  const shouldAutoplayVideo =
-    !!videoPreviewUrl &&
-    !playedVideoUrls.has(videoPreviewUrl) &&
-    !isEditMode &&
-    userHasChangedPreset;
-
   React.useEffect(() => {
     const isPristine = getValues('isPresetPristine');
     const currentPreset = getValues('currentPreset');
 
     if (!isPristine || !currentPreset) return;
 
-    const voiceId = currentPreset.voiceIds[PRIMARY_VOICE_PROVIDER];
-
-    if (!voiceId) return;
-
-    const voiceDetails = (voicePresetsConstant as Voice[]).find(
-      (v) => v.voiceId === voiceId && v.provider === PRIMARY_VOICE_PROVIDER
-    );
-    if (!voiceDetails) return;
-
     // Update voice fields
-    setValue('voiceId', voiceDetails.voiceId);
-    setValue('voiceName', voiceDetails.name);
-    setValue('voiceDescription', voiceDetails.description);
-    setValue('voiceLanguage', voiceDetails.language as SupportedLanguage);
-    setValue('voiceGender', voiceDetails.gender as Gender);
-    setValue('voiceProvider', voiceDetails.provider);
+    setValue('voiceId', defaultVoice.voiceId);
+    setValue('voiceName', defaultVoice.name);
+    setValue('voiceDescription', defaultVoice.description);
+    setValue('voiceLanguage', defaultVoice.language as SupportedLanguage);
+    setValue('voiceGender', defaultVoice.gender as Gender);
+    setValue('voiceProvider', defaultVoice.provider || PRIMARY_VOICE_PROVIDER);
 
     const userHasVoice = allDisplayableVoices.some(
       (v) =>
-        v.voiceId === voiceDetails.voiceId &&
-        v.provider === voiceDetails.provider &&
+        v.voiceId === defaultVoice.voiceId &&
+        v.provider === (defaultVoice.provider || PRIMARY_VOICE_PROVIDER) &&
         v.isUserVoiceInOrchestra
     );
     setValue('voiceExists', userHasVoice, { shouldValidate: true });
-  }, [getValues, setValue, allDisplayableVoices]);
+  }, [getValues, setValue, allDisplayableVoices, defaultVoice]);
 
   return (
     <FormProvider {...formMethods}>
       <form onSubmit={onSubmit} className="flex h-full flex-col space-y-6">
         <ScrollArea className="min-h-0 flex-1">
-          <fieldset disabled={isSubmitting} className="group px-4 py-2">
-            <Accordion type="multiple" defaultValue={['photo', 'voice']} className="w-full">
-              {/* Profile Section */}
-              <AccordionItem value="profile" aria-label="profile trigger">
-                <AccordionTrigger className="text-title">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <User className="h-4 w-4" />
-                    <span className="text-body">Profile</span>
+          <fieldset
+            disabled={isSubmitting}
+            className="brand-page-stencil-bg group overflow-hidden rounded-lg px-4 py-2"
+          >
+            <div>
+              <section className="min-w-0">
+                <div className="space-y-3">
+                  {onRandomizeProfile && (
+                    <div className="flex justify-start">
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              aria-label="Randomize droid profile"
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 gap-1.5"
+                              disabled={isSubmitting}
+                              onClick={randomizeProfileAndAppearance}
+                            >
+                              <Shuffle className="h-3.5 w-3.5" />
+                              Randomize
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Randomize name, role, and bio</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="firstName">First Name</Label>
+
+                    <div className="grid gap-5 md:grid-cols-2 md:items-stretch">
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Input
+                            id="firstName"
+                            readOnly={lockIdentityFields}
+                            aria-readonly={lockIdentityFields}
+                            tabIndex={lockIdentityFields ? -1 : undefined}
+                            title={lockIdentityFields ? "Marty's name is fixed" : undefined}
+                            className={cn(
+                              lockIdentityFields &&
+                                'cursor-not-allowed border-muted bg-muted text-muted-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0'
+                            )}
+                            {...register('firstName', {
+                              required: 'First name is required',
+                              setValueAs: (v) => String(v ?? '').trim(),
+                            })}
+                          />
+                          {errors.firstName && (
+                            <p className="text-body text-strong text-destructive">
+                              {errors.firstName.message}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="surname">Last Name</Label>
+                          <Input
+                            id="surname"
+                            readOnly={lockIdentityFields}
+                            aria-readonly={lockIdentityFields}
+                            tabIndex={lockIdentityFields ? -1 : undefined}
+                            title={lockIdentityFields ? "Marty's name is fixed" : undefined}
+                            className={cn(
+                              lockIdentityFields &&
+                                'cursor-not-allowed border-muted bg-muted text-muted-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0'
+                            )}
+                            {...register('surname', {
+                              setValueAs: (v) => String(v ?? '').trim(),
+                            })}
+                          />
+                          {errors.surname && (
+                            <p className="text-body text-strong text-destructive">
+                              {errors.surname.message}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex flex-row items-center gap-2">
+                            <Label htmlFor="jobTitle">Role</Label>
+                            <TooltipProvider delayDuration={100}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <InfoSquareButton />
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  side="right"
+                                  align="end"
+                                  className="text-caption max-w-xs"
+                                >
+                                  <p>
+                                    Optional short label to remember what this droid is for (e.g.
+                                    &quot;Growth marketing&quot;, &quot;QA engineer&quot;). Shown in
+                                    the droids list hover card.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          <Input
+                            id="jobTitle"
+                            placeholder="e.g. Growth marketing"
+                            maxLength={120}
+                            {...register('jobTitle', {
+                              maxLength: {
+                                value: 120,
+                                message: 'Role must be 120 characters or less',
+                              },
+                              setValueAs: (v) => {
+                                if (v === undefined || v === null) return null;
+                                const trimmed = String(v).trim();
+                                return trimmed.length > 0 ? trimmed : null;
+                              },
+                            })}
+                          />
+                          {errors.jobTitle && (
+                            <p className="text-body text-strong text-destructive">
+                              {errors.jobTitle.message}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="timezone">Timezone</Label>
+                          <Controller
+                            name="timezone"
+                            control={control}
+                            rules={{ required: 'Timezone is required.' }}
+                            render={({ field }) => (
+                              <Select
+                                value={field.value || ''}
+                                onValueChange={field.onChange}
+                                disabled={isSubmitting}
+                              >
+                                <SelectTrigger id="timezone" className="bg-card">
+                                  <SelectValue placeholder="Select a timezone..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {timezoneOptions.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {errors.timezone && (
+                            <p className="text-body text-strong text-destructive">
+                              {errors.timezone.message}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div
+                        className="flex min-h-64 w-full flex-col items-center justify-center rounded-lg border border-border bg-card p-4 sm:min-h-72 md:min-h-0"
+                        onMouseEnter={() =>
+                          !lockAppearanceControls && setIsAppearanceControlsVisible(true)
+                        }
+                        onMouseLeave={() => setIsAppearanceControlsVisible(false)}
+                      >
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-3">
+                          <div className="relative flex h-44 w-64 max-w-full items-center justify-center overflow-visible sm:h-56 sm:w-72 md:h-40 md:w-64">
+                            {!lockAppearanceControls && (
+                              <>
+                                <Button
+                                  aria-label="Previous antenna style"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    'absolute left-0 top-[8%] h-8 w-8 bg-transparent hover:bg-transparent md:left-4',
+                                    APPEARANCE_HOVER_CONTROL_CLASS,
+                                    appearanceControlVisibilityClass
+                                  )}
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setDroidAntenna((current) =>
+                                      cycleOption(appearanceAntennaOptions, current, -1)
+                                    )
+                                  }
+                                >
+                                  <ChevronLeft className="!h-6 !w-6" />
+                                </Button>
+                                <Button
+                                  aria-label="Next antenna style"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    'absolute right-0 top-[8%] h-8 w-8 bg-transparent hover:bg-transparent md:right-4',
+                                    APPEARANCE_HOVER_CONTROL_CLASS,
+                                    appearanceControlVisibilityClass
+                                  )}
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setDroidAntenna((current) =>
+                                      cycleOption(appearanceAntennaOptions, current, 1)
+                                    )
+                                  }
+                                >
+                                  <ChevronRight className="!h-6 !w-6" />
+                                </Button>
+
+                                <Button
+                                  aria-label="Previous eye style"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    'absolute left-0 h-8 w-8 bg-transparent hover:bg-transparent md:left-4',
+                                    APPEARANCE_HOVER_CONTROL_CLASS,
+                                    appearanceControlVisibilityClass
+                                  )}
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setDroidEyes((current) =>
+                                      cycleOption(appearanceEyeOptions, current, -1)
+                                    )
+                                  }
+                                  style={{ top: eyeArrowTop }}
+                                >
+                                  <ChevronLeft className="!h-6 !w-6" />
+                                </Button>
+                                <Button
+                                  aria-label="Next eye style"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    'absolute right-0 h-8 w-8 bg-transparent hover:bg-transparent md:right-4',
+                                    APPEARANCE_HOVER_CONTROL_CLASS,
+                                    appearanceControlVisibilityClass
+                                  )}
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setDroidEyes((current) =>
+                                      cycleOption(appearanceEyeOptions, current, 1)
+                                    )
+                                  }
+                                  style={{ top: eyeArrowTop }}
+                                >
+                                  <ChevronRight className="!h-6 !w-6" />
+                                </Button>
+
+                                <Button
+                                  aria-label="Previous body shape"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    'absolute left-0 top-[55%] h-8 w-8 bg-transparent hover:bg-transparent md:left-4',
+                                    APPEARANCE_HOVER_CONTROL_CLASS,
+                                    appearanceControlVisibilityClass
+                                  )}
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setDroidShape((current) =>
+                                      cycleOption(appearanceShapeOptions, current, -1)
+                                    )
+                                  }
+                                >
+                                  <ChevronLeft className="!h-6 !w-6" />
+                                </Button>
+                                <Button
+                                  aria-label="Next body shape"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    'absolute right-0 top-[55%] h-8 w-8 bg-transparent hover:bg-transparent md:right-4',
+                                    APPEARANCE_HOVER_CONTROL_CLASS,
+                                    appearanceControlVisibilityClass
+                                  )}
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setDroidShape((current) =>
+                                      cycleOption(appearanceShapeOptions, current, 1)
+                                    )
+                                  }
+                                >
+                                  <ChevronRight className="!h-6 !w-6" />
+                                </Button>
+                              </>
+                            )}
+
+                            {lockAppearanceControls ? (
+                              <span
+                                className="flex h-full w-40 items-center justify-center sm:w-52 md:w-40"
+                                onMouseEnter={() => setIsLockedDroidHovered(true)}
+                                onMouseLeave={() => setIsLockedDroidHovered(false)}
+                              >
+                                <span
+                                  ref={droidSpeechRef}
+                                  className="block h-full w-full transform-gpu"
+                                  style={{ '--droid-speech-level': 0 } as React.CSSProperties}
+                                >
+                                  <TeammateCreature
+                                    antenna={selectedDroidAntenna}
+                                    className="h-full w-full"
+                                    color={selectedDroidColor}
+                                    eyes={displayedDroidEyes}
+                                    label="Marty avatar"
+                                    shape={selectedDroidShape}
+                                    skin={selectedDroidSkinValue}
+                                  />
+                                </span>
+                              </span>
+                            ) : (
+                              <button
+                                aria-label="Randomize droid appearance"
+                                className="flex h-full w-40 items-center justify-center bg-transparent p-0 outline-none transition-transform hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring sm:w-52 md:w-40"
+                                disabled={isSubmitting}
+                                onClick={randomizeDroidAppearance}
+                                type="button"
+                              >
+                                <span
+                                  ref={droidSpeechRef}
+                                  className="block h-full w-full transform-gpu"
+                                  style={{ '--droid-speech-level': 0 } as React.CSSProperties}
+                                >
+                                  <TeammateCreature
+                                    antenna={selectedDroidAntenna}
+                                    className="h-full w-full"
+                                    color={selectedDroidColor}
+                                    eyes={displayedDroidEyes}
+                                    label="Droid avatar"
+                                    shape={selectedDroidShape}
+                                    skin={selectedDroidSkinValue}
+                                  />
+                                </span>
+                              </button>
+                            )}
+                          </div>
+
+                          {!lockAppearanceControls && (
+                            <div
+                              className={cn(
+                                'flex flex-col items-center gap-1',
+                                APPEARANCE_HOVER_CONTROL_CLASS,
+                                appearanceControlVisibilityClass
+                              )}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  aria-label="Previous droid color"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 bg-transparent hover:bg-transparent"
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setDroidColor((current) =>
+                                      cycleOption(appearanceColorOptions, current, -1)
+                                    )
+                                  }
+                                >
+                                  <ChevronLeft className="!h-6 !w-6" />
+                                </Button>
+                                <div
+                                  aria-label={`Current droid color: ${selectedDroidColor}`}
+                                  className="flex items-center gap-1.5 px-1 py-1"
+                                  role="img"
+                                >
+                                  {[previousColor, selectedDroidColor, nextColor].map((color) => (
+                                    <span
+                                      aria-hidden="true"
+                                      className={cn(
+                                        'rounded-control block border border-border',
+                                        color === selectedDroidColor
+                                          ? 'h-5 w-5'
+                                          : 'h-3.5 w-3.5 opacity-65'
+                                      )}
+                                      key={color}
+                                      style={{ backgroundColor: roleColorVars[color] }}
+                                    />
+                                  ))}
+                                </div>
+                                <Button
+                                  aria-label="Next droid color"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 bg-transparent hover:bg-transparent"
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setDroidColor((current) =>
+                                      cycleOption(appearanceColorOptions, current, 1)
+                                    )
+                                  }
+                                >
+                                  <ChevronRight className="!h-6 !w-6" />
+                                </Button>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  aria-label="Previous droid outfit"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 bg-transparent hover:bg-transparent"
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setDroidSkin((current) =>
+                                      cycleOption(appearanceSkinOptions, current, -1)
+                                    )
+                                  }
+                                >
+                                  <ChevronLeft className="!h-5 !w-5" />
+                                </Button>
+                                <div
+                                  aria-label={`Current droid outfit: ${appearanceSkinLabels[selectedDroidSkin]}`}
+                                  className="rounded-control border-border/70 bg-background/80 text-caption min-w-32 border px-2 py-1 text-center text-muted-foreground"
+                                >
+                                  Outfit: {appearanceSkinLabels[selectedDroidSkin]}
+                                </div>
+                                <Button
+                                  aria-label="Next droid outfit"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 bg-transparent hover:bg-transparent"
+                                  disabled={isSubmitting}
+                                  onClick={() =>
+                                    setDroidSkin((current) =>
+                                      cycleOption(appearanceSkinOptions, current, 1)
+                                    )
+                                  }
+                                >
+                                  <ChevronRight className="!h-5 !w-5" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </AccordionTrigger>
-                <AccordionContent className="pt-2">
-                  <div className="space-y-2">
-                    <div className="grid flex-1 grid-cols-2 gap-x-4 gap-y-1">
-                      <div className="col-span-2 sm:col-span-1">
-                        <Label htmlFor="firstName">First Name</Label>
-                        <Input
-                          id="firstName"
-                          {...register('firstName', {
-                            required: 'First name is required',
-                          })}
-                        />
-                        {errors.firstName && (
-                          <p className="text-body text-strong mt-1 text-destructive">
-                            {errors.firstName.message}
-                          </p>
+
+                  <div className="flex w-full flex-col space-y-2">
+                    <div className="flex flex-row items-center gap-2">
+                      <Label htmlFor="about">About</Label>
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <InfoSquareButton />
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="right"
+                            align="end"
+                            className="text-caption max-w-xs"
+                          >
+                            <p>{staticSkillsText}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <Textarea
+                      id="about"
+                      placeholder="Describe the persona's background, personality, etc..."
+                      className="min-h-[100px] pr-8"
+                      {...register('about', { required: 'About description is required' })}
+                    />
+                    {errors.about && (
+                      <p className="text-body text-strong mt-1 text-destructive">
+                        {errors.about.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              <div
+                className={cn(
+                  'mt-6 grid gap-5 md:items-start',
+                  lockIdentityFields
+                    ? 'md:grid-cols-2'
+                    : 'md:grid-cols-[minmax(0,1fr)_minmax(260px,360px)]'
+                )}
+              >
+                {!lockIdentityFields && (
+                  <section className="min-w-0" data-testid="assistant-voice-section">
+                    <SectionHeader>
+                      <SectionIconSlot>
+                        <Volume2 className="h-4 w-4" />
+                      </SectionIconSlot>
+                      <span className="text-body">Voice</span>
+                    </SectionHeader>
+                    <VoiceCustomization
+                      assistantActions={assistantActions}
+                      onAddPaymentMethod={onAddPaymentMethod}
+                      activeTab={voiceCustomizationTab}
+                      setActiveTab={setVoiceCustomizationTab}
+                      onVoiceSelected={(selectedVoice) => {
+                        setValue('voiceId', selectedVoice?.voiceId, {
+                          shouldValidate: !!selectedVoice?.voiceId,
+                        });
+                        setValue('voiceName', selectedVoice?.name, {
+                          shouldValidate: !!selectedVoice?.name,
+                        });
+                        setValue(
+                          'voiceDescription',
+                          selectedVoice?.description ?? selectedVoice?.name,
+                          { shouldValidate: !!selectedVoice?.description }
+                        );
+                        setValue('voiceGender', selectedVoice?.gender, {
+                          shouldValidate: !!selectedVoice?.gender,
+                        });
+                        setValue('voiceLanguage', selectedVoice?.language, {
+                          shouldValidate: !!selectedVoice?.language,
+                        });
+                        setValue(
+                          'voiceProvider',
+                          selectedVoice?.provider || PRIMARY_VOICE_PROVIDER,
+                          {
+                            shouldValidate: true,
+                          }
+                        );
+                        setValue('voiceExists', selectedVoice?.isUserVoiceInOrchestra ?? false, {
+                          shouldValidate: true,
+                        });
+                      }}
+                      initialVoiceId={getValues('voiceId')}
+                      disabled={isSubmitting}
+                      onProcessingStateChange={onVoiceProcessingStateChange}
+                      onPreviewPlayingChange={setIsVoicePreviewPlaying}
+                      onPreviewSpeechLevelChange={handlePreviewSpeechLevelChange}
+                      allDisplayableVoices={allDisplayableVoices}
+                      isLoadingUserVoices={isLoadingUserVoices}
+                      fetchUserVoices={fetchUserVoices}
+                      handleDeleteVoice={handleDeleteVoice}
+                    />
+                    {errors.voiceId && (
+                      <p className="text-body text-strong mt-1 text-destructive">
+                        {errors.voiceId.message}
+                      </p>
+                    )}
+                    {errors.voiceLanguage && !errors.voiceId && (
+                      <p className="text-body text-strong mt-1 text-destructive">
+                        {errors.voiceLanguage.message}
+                      </p>
+                    )}
+                    {errors.voiceProvider && !errors.voiceId && (
+                      <p className="text-body text-strong mt-1 text-destructive">
+                        {errors.voiceProvider.message}
+                      </p>
+                    )}
+                  </section>
+                )}
+
+                <div
+                  className={cn(
+                    'min-w-0 space-y-5',
+                    lockIdentityFields && 'grid grid-cols-2 gap-5 space-y-0 md:col-span-2'
+                  )}
+                >
+                  <section className="min-w-0">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <div
+                        className={cn(
+                          'flex items-center gap-2 text-muted-foreground',
+                          isWorkspaceWarning && 'text-destructive'
                         )}
+                      >
+                        <SectionIconSlot>
+                          <BriefcaseBusiness className="h-4 w-4" />
+                        </SectionIconSlot>
+                        <span className="text-body">Workspace</span>
+                        <TooltipProvider delayDuration={100}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <InfoSquareButton
+                                aria-label={
+                                  isWorkspaceWarning
+                                    ? 'Workspace setup warning'
+                                    : 'More information'
+                                }
+                                className={cn(
+                                  isWorkspaceWarning &&
+                                    'border-destructive text-destructive hover:text-destructive'
+                                )}
+                              >
+                                {isWorkspaceWarning ? (
+                                  <span
+                                    aria-hidden="true"
+                                    className="flex h-2.5 w-1 flex-col items-center justify-between"
+                                  >
+                                    <span className="rounded-control h-[7px] w-0.5 bg-current" />
+                                    <span className="rounded-control h-0.5 w-0.5 bg-current" />
+                                  </span>
+                                ) : undefined}
+                              </InfoSquareButton>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="left"
+                              align="start"
+                              className={cn(
+                                'max-w-sm',
+                                isWorkspaceWarning ? 'text-body text-destructive' : 'text-caption'
+                              )}
+                            >
+                              {isWorkspaceWarning && (
+                                <>
+                                  <span className="block">
+                                    It&apos;s advised to create a workspace for your new droid{' '}
+                                    <strong className="font-bold">now</strong>, so they can get
+                                    started right away. If you don&apos;t want to create one yet,
+                                    click skip.
+                                  </span>
+                                  <span className="my-3 block">----</span>
+                                </>
+                              )}
+                              <span className="block">
+                                Create a{' '}
+                                <strong
+                                  className={cn(
+                                    'font-bold',
+                                    !isWorkspaceWarning && 'text-foreground'
+                                  )}
+                                >
+                                  new
+                                </strong>{' '}
+                                Google or Microsoft account for {workspaceAssistantName}, so they
+                                can join your team, gain their own unique access controls to the
+                                files and applications you use via{' '}
+                                <strong
+                                  className={cn(
+                                    'font-bold',
+                                    !isWorkspaceWarning && 'text-foreground'
+                                  )}
+                                >
+                                  their own
+                                </strong>{' '}
+                                new account, and can work alongside your team.
+                              </span>
+                              <span className="mt-2 block">
+                                Do{' '}
+                                <strong
+                                  className={cn(
+                                    'font-bold',
+                                    !isWorkspaceWarning && 'text-foreground'
+                                  )}
+                                >
+                                  not
+                                </strong>{' '}
+                                connect {workspaceAssistantName} to your own Google/Microsoft
+                                account. Only Marty should have access to your personal account.
+                              </span>
+                              <span
+                                className={cn(
+                                  'mt-4 block font-bold',
+                                  !isWorkspaceWarning && 'text-title text-foreground'
+                                )}
+                              >
+                                Steps
+                              </span>
+                              <ol className="mt-2 list-decimal space-y-1 pl-5">
+                                <li>Log out of your own account.</li>
+                                <li>
+                                  Create a new account for {workspaceAssistantName}, or ask your IT
+                                  team to do so.
+                                </li>
+                                <li>
+                                  Log into the new account for {workspaceAssistantName} on your
+                                  machine.
+                                </li>
+                                <li>
+                                  Click the corresponding workspace below to auto-sync for{' '}
+                                  {workspaceAssistantName}.
+                                </li>
+                              </ol>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
-                      <div className="col-span-2 sm:col-span-1">
-                        <Label htmlFor="surname">Last Name</Label>
-                        <Input
-                          id="surname"
-                          {...register('surname', {
-                            required: 'Last name is required',
-                          })}
-                        />
-                        {errors.surname && (
-                          <p className="text-body text-strong mt-1 text-destructive">
-                            {errors.surname.message}
-                          </p>
-                        )}
-                      </div>
-                      <div className="col-span-2 flex flex-col space-y-2 pt-1">
-                        <div className="flex flex-row items-center gap-2">
-                          <Label htmlFor="jobTitle">Job Title</Label>
+                      {mode === 'hire' && (
+                        <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
+                          <Checkbox
+                            checked={skipWorkspaceSetup}
+                            onCheckedChange={(checked) =>
+                              onSkipWorkspaceSetupChange?.(checked === true)
+                            }
+                            // Nothing to connect when no provider is configured —
+                            // keep it checked so the hire flow isn't blocked.
+                            disabled={
+                              isSubmitting ||
+                              !onSkipWorkspaceSetupChange ||
+                              !workspaceConnectAvailable
+                            }
+                          />
+                          <span className="text-body">Skip</span>
+                        </label>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(() => {
+                        const googleButton = (
+                          <button
+                            type="button"
+                            onClick={() => onWorkspaceProviderSelect?.('google')}
+                            disabled={
+                              isSubmitting || !onWorkspaceProviderSelect || !workspaceGoogle
+                            }
+                            className={cn(
+                              'relative flex h-28 w-full flex-col items-center justify-center rounded-md border bg-card px-3 text-center transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
+                              workspaceProvider === 'google'
+                                ? 'border-primary ring-1 ring-primary'
+                                : 'border-border'
+                            )}
+                            aria-label={
+                              mode === 'hire'
+                                ? 'Select Google Workspace'
+                                : 'Open Google Workspace integration'
+                            }
+                          >
+                            {workspaceProvider === 'google' && (
+                              <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                <Check className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+                            <Image src={GoogleIcon} alt="Google logo" width={32} height={32} />
+                            <span className="text-body text-strong mt-3 text-foreground">
+                              Google Workspace
+                            </span>
+                          </button>
+                        );
+                        if (workspaceGoogle) return googleButton;
+                        // Disabled buttons don't emit hover, so the tooltip triggers off a span.
+                        return (
                           <TooltipProvider delayDuration={100}>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+                                <span className="flex">{googleButton}</span>
                               </TooltipTrigger>
-                              <TooltipContent
-                                side="right"
-                                align="end"
-                                className="text-caption max-w-xs"
-                              >
-                                <p>
-                                  Optional short label to remember what this assistant is for (e.g.
-                                  &quot;Growth marketing&quot;, &quot;QA engineer&quot;). Shown in
-                                  the assistants list hover card.
-                                </p>
+                              <TooltipContent side="top">
+                                <p>{`Google Workspace ${workspaceUnavailableReason}`}</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
-                        </div>
-                        <Input
-                          id="jobTitle"
-                          placeholder="e.g. Growth marketing"
-                          maxLength={120}
-                          {...register('jobTitle', {
-                            maxLength: {
-                              value: 120,
-                              message: 'Job title must be 120 characters or less',
-                            },
-                            setValueAs: (v) => {
-                              if (v === undefined || v === null) return null;
-                              const trimmed = String(v).trim();
-                              return trimmed.length > 0 ? trimmed : null;
-                            },
-                          })}
-                        />
-                        {errors.jobTitle && (
-                          <p className="text-body text-strong mt-1 text-destructive">
-                            {errors.jobTitle.message}
-                          </p>
-                        )}
-                      </div>
-                      <div className="col-span-2 sm:col-span-1">
-                        <Label htmlFor="age">Age</Label>
-                        <Input
-                          id="age"
-                          type="number"
-                          {...register('age', {
-                            valueAsNumber: true,
-                            min: { value: 18, message: 'Age must be at least 18' },
-                            max: { value: 70, message: 'Age must be 70 or less' },
-                          })}
-                        />
-                        {errors.age && (
-                          <p className="text-body text-strong mt-1 text-destructive">
-                            {errors.age.message}
-                          </p>
-                        )}
-                      </div>
-                      <div className="col-span-2 sm:col-span-1">
-                        <Label htmlFor="nationality">Nationality</Label>
-                        <Select
-                          value={rhfNationality || ''}
-                          onValueChange={(value) =>
-                            setValue('nationality', value, { shouldValidate: true })
-                          }
-                          disabled={isSubmitting}
-                        >
-                          <SelectTrigger
-                            id="nationality"
-                            {...register('nationality', { required: 'Nationality is required.' })}
-                          >
-                            <SelectValue placeholder="Select a nationality..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {allCountryNames.map((countryName) => (
-                              <SelectItem key={countryName} value={countryName}>
-                                {countryName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {errors.nationality && (
-                          <p className="text-body text-strong mt-1 text-destructive">
-                            {errors.nationality.message}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="pt-1">
-                      <Label htmlFor="timezone">Timezone</Label>
-                      <Controller
-                        name="timezone"
-                        control={control}
-                        rules={{ required: 'Timezone is required.' }}
-                        render={({ field }) => (
-                          <Select
-                            value={field.value || ''}
-                            onValueChange={field.onChange}
-                            disabled={isSubmitting}
-                          >
-                            <SelectTrigger id="timezone">
-                              <SelectValue placeholder="Select a timezone..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {timezoneOptions.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {errors.timezone && (
-                        <p className="text-body text-strong mt-1 text-destructive">
-                          {errors.timezone.message}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex w-full flex-col space-y-2 pt-1">
-                      <div className="flex flex-row items-center gap-2">
-                        <Label htmlFor="about">About</Label>
-                        <TooltipProvider delayDuration={100}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-4 w-4 cursor-help text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="right"
-                              align="end"
-                              className="text-caption max-w-xs"
-                            >
-                              <p>{staticSkillsText}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      <Textarea
-                        id="about"
-                        placeholder="Describe the persona's background, personality, etc..."
-                        className="min-h-[100px] pr-8"
-                        {...register('about', { required: 'About description is required' })}
-                      />
-                      {errors.about && (
-                        <p className="text-body text-strong mt-1 text-destructive">
-                          {errors.about.message}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* Photo Section */}
-              <AccordionItem value="photo" aria-label="photo trigger">
-                <AccordionTrigger className="text-title">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <ImageIcon className="h-4 w-4" />
-                    <span className="text-body">Appearance</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pt-2">
-                  <div className="flex flex-col items-start gap-4 sm:flex-row">
-                    <AssistantPhotoViewer
-                      photoUrl={photoPreviewUrl}
-                      videoUrl={isVideoPlayable ? videoPreviewUrl : null}
-                      photoFile={photoFile}
-                      videoFile={videoFile}
-                      className="flex-shrink-0"
-                      isPlayable={isVideoPlayable}
-                      disabled={isSubmitting}
-                      onClick={shouldUseAnimateClickShortcut ? handlePhotoViewerClick : undefined}
-                      shouldAutoplay={shouldAutoplayVideo}
-                      onAutoplay={handleVideoAutoplayed}
-                    />
-                    <PhotoCustomization
-                      assistantActions={assistantActions}
-                      onNewMediaReady={onNewMediaReady}
-                      currentImageUrl={photoPreviewUrl ?? null}
-                      currentImageFile={photoFile ?? null}
-                      disabled={isSubmitting}
-                      selectedVoice={selectedVoiceForPhotoCustomization}
-                      firstName={firstName}
-                      surname={surname}
-                      age={age as number | null}
-                      activeTab={photoCustomizationTab}
-                      setActiveTab={setPhotoCustomizationTab}
-                      showAnimatePing={showAnimatePing}
-                      onProcessingStateChange={onPhotoProcessingStateChange}
-                      onAddPaymentMethod={onAddPaymentMethod}
-                    />
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* Voice Section */}
-              <AccordionItem value="voice" aria-label="voice trigger">
-                <AccordionTrigger className="text-title">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Volume2 className="h-4 w-4" />
-                    <span className="text-body">Voice</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pt-2">
-                  <VoiceCustomization
-                    assistantActions={assistantActions}
-                    onAddPaymentMethod={onAddPaymentMethod}
-                    activeTab={voiceCustomizationTab}
-                    setActiveTab={setVoiceCustomizationTab}
-                    onVoiceSelected={(selectedVoice) => {
-                      setValue('voiceId', selectedVoice?.voiceId, {
-                        shouldValidate: !!selectedVoice?.voiceId,
-                      });
-                      setValue('voiceName', selectedVoice?.name, {
-                        shouldValidate: !!selectedVoice?.name,
-                      });
-                      setValue(
-                        'voiceDescription',
-                        selectedVoice?.description ?? selectedVoice?.name,
-                        { shouldValidate: !!selectedVoice?.description }
-                      );
-                      setValue('voiceGender', selectedVoice?.gender, {
-                        shouldValidate: !!selectedVoice?.gender,
-                      });
-                      setValue('voiceLanguage', selectedVoice?.language, {
-                        shouldValidate: !!selectedVoice?.language,
-                      });
-                      setValue('voiceProvider', selectedVoice?.provider || PRIMARY_VOICE_PROVIDER, {
-                        shouldValidate: true,
-                      });
-                      setValue('voiceExists', selectedVoice?.isUserVoiceInOrchestra ?? false, {
-                        shouldValidate: true,
-                      });
-                    }}
-                    initialVoiceId={getValues('voiceId')}
-                    disabled={isSubmitting}
-                    onProcessingStateChange={onVoiceProcessingStateChange}
-                    allDisplayableVoices={allDisplayableVoices}
-                    isLoadingUserVoices={isLoadingUserVoices}
-                    fetchUserVoices={fetchUserVoices}
-                    handleDeleteVoice={handleDeleteVoice}
-                  />
-                  {errors.voiceId && (
-                    <p className="text-body text-strong mt-1 text-destructive">
-                      {errors.voiceId.message}
-                    </p>
-                  )}
-                  {errors.voiceLanguage && !errors.voiceId && (
-                    <p className="text-body text-strong mt-1 text-destructive">
-                      {errors.voiceLanguage.message}
-                    </p>
-                  )}
-                  {errors.voiceProvider && !errors.voiceId && (
-                    <p className="text-body text-strong mt-1 text-destructive">
-                      {errors.voiceProvider.message}
-                    </p>
-                  )}
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="advanced" className="border-b-0" aria-label="advanced trigger">
-                <AccordionTrigger className="text-title">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Settings className="h-4 w-4" />
-                    <span className="text-body">Advanced</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pt-2">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Laptop className="mb-1 h-4 w-4 text-muted-foreground" />
-                        <Label htmlFor="operatingSystem">Assistant&apos;s Setup</Label>
-                        <TooltipProvider delayDuration={100}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-4 w-4 cursor-help text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="right"
-                              align="end"
-                              className="text-caption max-w-xs"
-                            >
-                              <p>
-                                {isEditMode
-                                  ? 'Desktop mode cannot be changed after the assistant is created.'
-                                  : 'Choose to run the assistant on a remote virtual machine (default) or connect it to a local desktop.'}
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      <Controller
-                        name="setup"
-                        control={control}
-                        render={({ field }) => (
-                          <div
+                        );
+                      })()}
+                      {(() => {
+                        const microsoftButton = (
+                          <button
+                            type="button"
+                            onClick={() => onWorkspaceProviderSelect?.('microsoft')}
+                            disabled={
+                              isSubmitting || !onWorkspaceProviderSelect || !workspaceMicrosoft
+                            }
                             className={cn(
-                              'space-y-2',
-                              isEditMode && 'pointer-events-none opacity-60'
+                              'relative flex h-28 w-full flex-col items-center justify-center rounded-md border bg-card px-3 text-center transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
+                              workspaceProvider === 'microsoft'
+                                ? 'border-primary ring-1 ring-primary'
+                                : 'border-border'
                             )}
+                            aria-label={
+                              mode === 'hire'
+                                ? 'Select Microsoft 365'
+                                : 'Open Microsoft 365 integration'
+                            }
                           >
-                            <div
-                              className={cn(
-                                'flex flex-col space-y-3 rounded-md border p-3',
-                                !isEditMode && 'cursor-pointer',
-                                field.value === 'remote' && 'border-primary'
-                              )}
-                              onClick={() => !isEditMode && field.onChange('remote')}
-                            >
-                              <div className="flex items-center space-x-2">
+                            {workspaceProvider === 'microsoft' && (
+                              <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                <Check className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+                            <Image
+                              src={MicrosoftIcon}
+                              alt="Microsoft logo"
+                              width={32}
+                              height={32}
+                            />
+                            <span className="text-body text-strong mt-3 text-foreground">
+                              Microsoft 365
+                            </span>
+                          </button>
+                        );
+                        if (workspaceMicrosoft) return microsoftButton;
+                        return (
+                          <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="flex">{microsoftButton}</span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <p>{`Microsoft 365 ${workspaceUnavailableReason}`}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
+                    </div>
+                  </section>
+
+                  <section className="min-w-0">
+                    <SectionHeader>
+                      <SectionIconSlot>
+                        <Laptop className="h-4 w-4" />
+                      </SectionIconSlot>
+                      <span className="text-body">Computer</span>
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <InfoSquareButton />
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="right"
+                            align="start"
+                            className="text-caption max-w-xs"
+                          >
+                            <p>
+                              The operating system installed on {workspaceAssistantName}&apos;s
+                              personal computer, which they use to complete tasks.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </SectionHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Controller
+                          name="setup"
+                          control={control}
+                          render={({ field }) => {
+                            const computerControls = (
+                              <div
+                                aria-disabled={isEditMode}
+                                className={cn('space-y-2', isEditMode && 'cursor-not-allowed')}
+                              >
                                 <div
                                   className={cn(
-                                    'flex h-4 w-4 items-center justify-center rounded-full border border-muted-foreground',
+                                    'flex h-28 flex-col justify-center space-y-3 rounded-md border p-3',
+                                    isEditMode ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
                                     field.value === 'remote' && 'border-primary'
                                   )}
+                                  onClick={() => !isEditMode && field.onChange('remote')}
                                 >
+                                  <div className="flex items-center space-x-2">
+                                    <div
+                                      className={cn(
+                                        'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                        field.value === 'remote' && 'border-primary'
+                                      )}
+                                    >
+                                      {field.value === 'remote' && (
+                                        <div className="rounded-control h-2 w-2 bg-primary" />
+                                      )}
+                                    </div>
+                                    <Label
+                                      htmlFor="setup-remote"
+                                      className={cn(
+                                        'text-body font-normal',
+                                        !isEditMode && 'cursor-pointer'
+                                      )}
+                                    >
+                                      Remote - Use a virtual machine
+                                    </Label>
+                                  </div>
                                   {field.value === 'remote' && (
-                                    <div className="h-2 w-2 rounded-full bg-primary" />
+                                    <Controller
+                                      name="operatingSystem"
+                                      control={control}
+                                      render={({ field: osField }) => (
+                                        <div className="space-y-2 pl-6">
+                                          <div
+                                            className={cn(
+                                              'flex items-center space-x-2',
+                                              isEditMode ? 'cursor-not-allowed' : 'cursor-pointer'
+                                            )}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (!isEditMode) osField.onChange('ubuntu');
+                                            }}
+                                          >
+                                            <div
+                                              className={cn(
+                                                'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                                osField.value === 'ubuntu' && 'border-primary'
+                                              )}
+                                            >
+                                              {osField.value === 'ubuntu' && (
+                                                <div className="rounded-control h-2 w-2 bg-primary" />
+                                              )}
+                                            </div>
+                                            <FaUbuntu className="h-4 w-4" />
+                                            <Label
+                                              htmlFor="os-remote-ubuntu"
+                                              className={cn(
+                                                'text-body font-normal',
+                                                !isEditMode && 'cursor-pointer'
+                                              )}
+                                            >
+                                              Ubuntu
+                                            </Label>
+                                          </div>
+                                          <div
+                                            className={cn(
+                                              'flex items-center space-x-2',
+                                              isEditMode ? 'cursor-not-allowed' : 'cursor-pointer'
+                                            )}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (!isEditMode) osField.onChange('windows');
+                                            }}
+                                          >
+                                            <div
+                                              className={cn(
+                                                'rounded-control flex h-4 w-4 items-center justify-center border border-muted-foreground',
+                                                osField.value === 'windows' && 'border-primary'
+                                              )}
+                                            >
+                                              {osField.value === 'windows' && (
+                                                <div className="rounded-control h-2 w-2 bg-primary" />
+                                              )}
+                                            </div>
+                                            <FaWindows className="h-4 w-4" />
+                                            <Label
+                                              htmlFor="os-remote-windows"
+                                              className={cn(
+                                                'text-body font-normal',
+                                                !isEditMode && 'cursor-pointer'
+                                              )}
+                                            >
+                                              Windows
+                                            </Label>
+                                          </div>
+                                        </div>
+                                      )}
+                                    />
                                   )}
                                 </div>
-                                <Label
-                                  htmlFor="setup-remote"
-                                  className={cn(
-                                    'text-label font-normal',
-                                    !isEditMode && 'cursor-pointer'
-                                  )}
-                                >
-                                  Remote - Use a virtual machine
-                                </Label>
                               </div>
-                              {field.value === 'remote' && (
-                                <Controller
-                                  name="operatingSystem"
-                                  control={control}
-                                  render={({ field: osField }) => (
-                                    <div className="space-y-2 pl-6">
-                                      <div
-                                        className={cn(
-                                          'flex items-center space-x-2',
-                                          !isEditMode && 'cursor-pointer'
-                                        )}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (!isEditMode) osField.onChange('ubuntu');
-                                        }}
-                                      >
-                                        <div
-                                          className={cn(
-                                            'flex h-4 w-4 items-center justify-center rounded-full border border-muted-foreground',
-                                            osField.value === 'ubuntu' && 'border-primary'
-                                          )}
-                                        >
-                                          {osField.value === 'ubuntu' && (
-                                            <div className="h-2 w-2 rounded-full bg-primary" />
-                                          )}
-                                        </div>
-                                        <FaUbuntu className="h-4 w-4" />
-                                        <Label
-                                          htmlFor="os-remote-ubuntu"
-                                          className={cn(
-                                            'text-label font-normal',
-                                            !isEditMode && 'cursor-pointer'
-                                          )}
-                                        >
-                                          Ubuntu
-                                        </Label>
-                                      </div>
-                                      <div
-                                        className={cn(
-                                          'flex items-center space-x-2',
-                                          !isEditMode && 'cursor-pointer'
-                                        )}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (!isEditMode) osField.onChange('windows');
-                                        }}
-                                      >
-                                        <div
-                                          className={cn(
-                                            'flex h-4 w-4 items-center justify-center rounded-full border border-muted-foreground',
-                                            osField.value === 'windows' && 'border-primary'
-                                          )}
-                                        >
-                                          {osField.value === 'windows' && (
-                                            <div className="h-2 w-2 rounded-full bg-primary" />
-                                          )}
-                                        </div>
-                                        <FaWindows className="h-4 w-4" />
-                                        <Label
-                                          htmlFor="os-remote-windows"
-                                          className={cn(
-                                            'text-label font-normal',
-                                            !isEditMode && 'cursor-pointer'
-                                          )}
-                                        >
-                                          Windows
-                                        </Label>
-                                      </div>
-                                    </div>
-                                  )}
-                                />
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      />
+                            );
+
+                            if (!isEditMode) return computerControls;
+
+                            return (
+                              <TooltipProvider delayDuration={100}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>{computerControls}</TooltipTrigger>
+                                  <TooltipContent
+                                    side="top"
+                                    align="start"
+                                    className="text-caption max-w-xs"
+                                  >
+                                    <p>Computer can only be configured during onboarding.</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          }}
+                        />
+                      </div>
                     </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+                  </section>
+                </div>
+              </div>
+            </div>
           </fieldset>
         </ScrollArea>
       </form>

@@ -223,7 +223,7 @@ export function MemoryRowDetail({ row, context, taskView, title, onClose }: Memo
           <div className="space-y-5 pr-4" data-testid="memory-row-detail-fields">
             {sections.map((section) => (
               <section key={section.title} className="space-y-3">
-                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground dark:text-slate-300">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   {section.title}
                 </h3>
                 <dl className="space-y-3">
@@ -232,7 +232,7 @@ export function MemoryRowDetail({ row, context, taskView, title, onClose }: Memo
                     const markdown = prepareMarkdownValue(item.key, formatted, context, displayRow);
                     return (
                       <div key={item.key} className="group/field relative">
-                        <dt className="text-title flex items-center justify-between dark:text-slate-200">
+                        <dt className="text-title flex items-center justify-between">
                           {item.label}
                           {formatted && formatted !== '—' && (
                             <CopyButton
@@ -242,7 +242,7 @@ export function MemoryRowDetail({ row, context, taskView, title, onClose }: Memo
                             />
                           )}
                         </dt>
-                        <dd className="text-caption mt-0.5 break-words dark:text-slate-300">
+                        <dd className="text-caption mt-0.5 break-words">
                           <Markdown
                             remarkPlugins={[remarkGfm]}
                             components={{ code: MemoryCodeBlock }}

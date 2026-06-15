@@ -7,12 +7,10 @@ import { Assistant } from '@/types/assistants/assistant';
 /**
  * Permission state for assistant operations.
  *
- * Current Implementation:
  * - canHire: Only org Owner or Admin can hire in org context; anyone in personal workspace
- * - canWrite/canDelete: Assistant creator, org Owner, or org Admin can modify in org context;
- *   regular org Members can only view but not edit other members' assistants
- *
- * Future: Will be extended to use full RBAC with assistant:read/write/delete permissions
+ * - canWrite/canDelete: Assistant creator, org Owner, or org Admin can modify regular assistants
+ *   in org context; coordinators remain owner-scoped in every workspace.
+ * - Coordinator chat visibility is owner-scoped across personal and org workspaces.
  */
 export interface AssistantPermissions {
   /** Whether we're in an organization workspace */
@@ -25,6 +23,10 @@ export interface AssistantPermissions {
   canWrite: (assistant: Assistant) => boolean;
   /** Check if user can delete a specific assistant */
   canDelete: (assistant: Assistant) => boolean;
+  /** Check if user can end a specific assistant contract */
+  canEndContract: (assistant: Assistant) => boolean;
+  /** Check if user can open the Coordinator chat surface */
+  canOpenAssistantChat: (assistant: Assistant) => boolean;
 }
 
 /**
@@ -48,6 +50,7 @@ export function useAssistantPermissions(): AssistantPermissions {
   const { activeWorkspace, activeOrganization, currentUserId } = useWorkspace();
 
   const isOrgContext = activeWorkspace?.type === 'organization';
+  const activeOrganizationId = activeOrganization?.id ?? null;
   const isOrgOwner = activeOrganization?.roleName === 'Owner';
   const isOrgAdmin = activeOrganization?.roleName === 'Admin';
 
@@ -56,25 +59,49 @@ export function useAssistantPermissions(): AssistantPermissions {
       isOrgContext,
       isOrgOwner,
 
-      // v0: Owner or Admin can hire in org context; anyone can hire in personal workspace
+      // Owner or Admin can hire in org context; anyone can hire in personal workspace.
       canHire: !isOrgContext || isOrgOwner || isOrgAdmin,
 
-      // Assistant creator, org owner, or org admin can write in org context
-      // In personal workspace, user always has full access
+      // Assistant creator, org owner, or org admin can write in org context.
+      // Coordinator lifecycle stays owner-scoped in both personal and org workspaces.
+      // In personal workspace, user always has full access.
       canWrite: (assistant: Assistant) => {
+        if (assistant.isCoordinator) {
+          if (assistant.organizationId === null) return assistant.userId === currentUserId;
+          if (!isOrgContext || activeOrganizationId == null) return false;
+          if (assistant.organizationId !== activeOrganizationId) return false;
+          return assistant.userId === currentUserId;
+        }
         if (!isOrgContext) return true;
         return assistant.userId === currentUserId || isOrgOwner || isOrgAdmin;
-        // TODO v2: Add || checkResourcePermission('assistant:write', assistant.agentId)
       },
 
-      // Assistant creator, org owner, or org admin can delete in org context
-      // Same logic as canWrite for now
+      // Assistant creator, org owner, or org admin can delete in org context.
       canDelete: (assistant: Assistant) => {
+        if (assistant.isCoordinator) return false;
         if (!isOrgContext) return true;
         return assistant.userId === currentUserId || isOrgOwner || isOrgAdmin;
-        // TODO v2: Add || checkResourcePermission('assistant:delete', assistant.agentId)
+      },
+
+      canEndContract: (assistant: Assistant) => {
+        if (assistant.isCoordinator) return false;
+        if (!isOrgContext) return true;
+        return assistant.userId === currentUserId || isOrgOwner || isOrgAdmin;
+      },
+
+      canOpenAssistantChat: (assistant: Assistant) => {
+        if (!assistant.isCoordinator) return true;
+        if (assistant.organizationId === null) {
+          return assistant.userId === currentUserId;
+        }
+        return (
+          isOrgContext &&
+          activeOrganizationId != null &&
+          assistant.organizationId === activeOrganizationId &&
+          assistant.userId === currentUserId
+        );
       },
     }),
-    [isOrgContext, isOrgOwner, isOrgAdmin, currentUserId]
+    [activeOrganizationId, currentUserId, isOrgAdmin, isOrgContext, isOrgOwner]
   );
 }

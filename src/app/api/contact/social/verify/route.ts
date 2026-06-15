@@ -5,14 +5,10 @@ import {
   getCommunicationErrorDetail,
   getCommunicationErrorStatus,
 } from '@/lib/communication/client';
-
-const isStaging = (process.env.ORCHESTRA_URL ?? '').includes('staging');
-const isLocal =
-  (process.env.ORCHESTRA_URL ?? '').includes('localhost') ||
-  (process.env.ORCHESTRA_URL ?? '').includes('127.0.0.1');
+import { isStagingEnvironment } from '@/lib/environment/comms-env';
 
 export async function POST(request: NextRequest) {
-  if (!isStaging && !isLocal) {
+  if (!isStagingEnvironment()) {
     return NextResponse.json(
       { detail: 'Social account verification is currently unavailable. Coming soon.' },
       { status: 503 }

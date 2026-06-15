@@ -110,7 +110,7 @@ export default function MatrixView({
   // SINGLE => no comparables
   if (!multiMode) {
     if (!isValidMatrix(value)) {
-      return <p className="text-red-500">MatrixView: Not a valid matrix.</p>;
+      return <p className="text-error">MatrixView: Not a valid matrix.</p>;
     }
     const matrixStr = matrixToString(value);
 

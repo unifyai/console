@@ -1,7 +1,9 @@
 import { ResponseProps } from '../common';
+import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { SupportedLanguage, Gender as CartesiaGender, Gender } from '@cartesia/cartesia-js/api'; // LocalizeTargetLanguage removed, Literal added (if needed from API spec)
 import { ChatMessage, UnifyMessage, AttachmentUploadResponse } from './chat';
 import { SecretActions } from './secret';
+import type { SlackInstallActions } from '../slack/install';
 import { ConnectionDetails } from './call';
 import {
   ContactCosts,
@@ -13,15 +15,42 @@ import {
 
 export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
 
+export type CallOpeningMode = 'speak' | 'simulated' | 'silent';
+
+export interface CallOpeningConfig {
+  mode: CallOpeningMode;
+  simulatedUtterance?: string;
+  source?: string;
+}
+
+export interface AssistantCallConnectOptions {
+  suppressRinging?: boolean;
+  openingConfig?: CallOpeningConfig;
+}
+
 export type UserLocalDesktop = 'ubuntu' | 'windows' | 'macos';
 export type DesktopMode = 'ubuntu' | 'windows' | 'macos';
 export type AssistantHiringSufficientFunds = { sufficient: boolean };
+export type ContactIdentityRoot =
+  | {
+      targetScope: 'personal';
+      targetTeamId: null;
+      selfContactId: number;
+      bossContactId: number;
+    }
+  | {
+      targetScope: 'team';
+      targetTeamId: number;
+      selfContactId: number;
+      bossContactId: number;
+    };
 
 export interface UserDesktop {
   id: number;
   name: string;
   os: string;
-  assignedToAssistantId: number | null;
+  /** Agent IDs of every assistant this desktop is currently linked to. */
+  assignedToAssistantIds: number[];
 }
 
 // Type for the pre_hire_chat payload
@@ -35,6 +64,7 @@ export interface Assistant {
   agentId: string;
   userId: string; // ID of the user who created/owns the assistant - used for permission checks
   organizationId: number | null; // Organization ID if org assistant, null for personal - reserved for future use
+  isCoordinator: boolean;
   userFirstName?: string | null; // Owner's first name
   userLastName?: string | null; // Owner's last name
   userImage?: string | null; // Owner's profile image URL
@@ -72,13 +102,34 @@ export interface Assistant {
   isUserDesktop?: boolean;
   desktopMode?: DesktopMode | null;
   desktopUrl?: string | null;
+  // Per-user desktop link of the *requesting* user (the desktop they linked to
+  // this assistant), resolved server-side. Null when this user has not linked
+  // a machine.
   userDesktopMode?: DesktopMode | null;
   userDesktopUrl?: string | null;
   userDesktopFilesysSync?: boolean | null;
-  userDesktopId?: number | null;
   // Contract fields
   weeklyLimit: number | null;
   maxParallel: number | null;
+  /**
+   * Live shared organization teams this assistant can read from and write to.
+   * An empty array means the assistant is currently personal-only.
+   */
+  teamIds: number[];
+  /** Human-readable metadata for each shared-memory team membership. */
+  teamSummaries: SharedTeamSummary[];
+  /**
+   * Contact id representing the assistant in its own conversation data.
+   */
+  selfContactId: number;
+  /**
+   * Contact id representing the owning user in conversation data.
+   */
+  bossContactId: number;
+  /**
+   * Root-local contact ids for every readable root with a resolved identity.
+   */
+  contactIdentityRoots: ContactIdentityRoot[];
   // Meta fields
   createdAt: string;
   updatedAt: string;
@@ -87,8 +138,6 @@ export interface Assistant {
   signedProfileVideoUrl?: string;
   // Demo fields
   demoId?: string | null;
-  // Deployment environment
-  deployEnv?: 'preview' | null;
 }
 
 export interface AssistantStatus {
@@ -101,6 +150,7 @@ export type AssistantPreset = Omit<
   | 'agentId'
   | 'userId'
   | 'organizationId'
+  | 'isCoordinator'
   | 'createdAt'
   | 'updatedAt'
   | 'signedProfilePhotoUrl'
@@ -114,6 +164,11 @@ export type AssistantPreset = Omit<
   | 'assistantDiscordBotId'
   | 'weeklyLimit'
   | 'maxParallel'
+  | 'teamIds'
+  | 'teamSummaries'
+  | 'selfContactId'
+  | 'bossContactId'
+  | 'contactIdentityRoots'
   | 'voiceId'
   | 'voiceProvider'
   | 'timezone'
@@ -173,6 +228,7 @@ export type AssistantFormData = Omit<
   | 'agentId'
   | 'userId'
   | 'organizationId'
+  | 'isCoordinator'
   | 'createdAt'
   | 'updatedAt'
   | 'signedProfilePhotoUrl'
@@ -188,6 +244,10 @@ export type AssistantFormData = Omit<
   | 'phoneCountry'
   | 'weeklyLimit'
   | 'maxParallel'
+  | 'teamIds'
+  | 'teamSummaries'
+  | 'selfContactId'
+  | 'bossContactId'
   | 'gender'
   | 'voiceId'
   | 'voiceProvider'
@@ -220,8 +280,9 @@ export type AssistantFormData = Omit<
   > | null;
   currentPreset?: AssistantPreset | null;
 
-  // Setup fields
-  setup?: 'remote' | 'local';
+  // Setup fields. The assistant always runs on a managed remote VM; users link
+  // their own machines post-hire via the desktop linker, not at creation time.
+  setup?: 'remote';
   operatingSystem?: 'ubuntu' | 'windows' | 'macos';
 
   // UI state fields
@@ -289,8 +350,8 @@ export interface AssistantUpdatePayload {
   timezone?: string | null;
   profilePhoto?: string | null;
   profileVideo?: string | null;
-  userDesktopId?: number | null;
-  // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated
+  // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated.
+  // User-desktop links are managed via the dedicated desktop link/unlink actions, not here.
 }
 
 // Assistant voice types
@@ -421,9 +482,12 @@ export interface AssistantActions {
     clone: (
       formData: FormData
     ) => Promise<(Voice & { info?: string; isPreset?: boolean }) | ResponseProps>;
-    generate: (
-      payload: GenerateSpeechPayload
-    ) => Promise<{ audioBase64?: string; contentType?: string; detail?: string; status?: number }>;
+    generate: (payload: GenerateSpeechPayload) => Promise<{
+      audioBase64?: string;
+      contentType?: string;
+      detail?: string;
+      status?: number;
+    }>;
     preview: (
       payload: VoiceDesignGeneratePreviewsRequest
     ) => Promise<VoiceDesignGeneratePreviewsAPIResponse | ResponseProps>;
@@ -432,16 +496,11 @@ export interface AssistantActions {
     ) => Promise<(Voice & { info?: string; isPreset?: boolean }) | ResponseProps>;
   };
   chat: {
-    getContactId: (
-      userEmail: string,
-      ownerId: string,
-      assistantId: string
-    ) => Promise<number | null>;
+    getContactId: (userEmail: string, assistant: Assistant) => Promise<number | null>;
     getTranscripts: (
       contactId: number,
-      ownerId: string,
-      assistantId: string,
-      beforeMessageId?: number
+      assistant: Assistant,
+      before?: { timestamp: string; excludedKeys?: string[] }
     ) => Promise<ChatMessage[] | ResponseProps>;
     message: (payload: UnifyMessage) => Promise<ResponseProps & { info?: string }>;
     getAssistantOwnerById: (
@@ -481,6 +540,13 @@ export interface AssistantActions {
     fetchContactCosts: () => Promise<ContactCosts | ResponseProps>;
   };
   secret: SecretActions;
+  /**
+   * Slack workspace install management (owner-scoped). Optional — only
+   * bound when Slack OAuth is configured on the deployment. The install
+   * is shared across every assistant in the same owner scope, so these
+   * actions operate on the workspace install, not a per-assistant row.
+   */
+  slack?: SlackInstallActions;
   call: {
     getConnectionDetails: (
       assistantId: string,
@@ -489,7 +555,7 @@ export interface AssistantActions {
     dispatchToCall: (
       assistantId: string,
       roomName: string,
-      deployEnv?: string | null
+      openingConfig?: CallOpeningConfig
     ) => Promise<ResponseProps>;
     deleteRoom: (roomName: string) => Promise<ResponseProps>;
   };
@@ -508,10 +574,16 @@ export interface AssistantActions {
     sendSystemEvent: (
       assistantId: string,
       eventType: import('@/lib/assistants/desktop').SystemEventType,
-      message: string,
-      deployEnv?: string | null
+      message: string
     ) => Promise<ResponseProps>;
+    getApiKey: () => Promise<string>;
     listUserDesktops: () => Promise<UserDesktop[] | ResponseProps>;
+    linkDesktop: (
+      assistantId: string,
+      desktopId: number,
+      filesysSync?: boolean
+    ) => Promise<ResponseProps>;
+    unlinkDesktop: (assistantId: string) => Promise<ResponseProps>;
   };
   spending: {
     setLimit: (
@@ -526,13 +598,8 @@ export interface AssistantActions {
   /** Dashboards pane - dashboard and tile data */
   dashboards?: {
     getMetadata: (
-      ownerId: string,
-      assistantId: string
+      assistant: Assistant
     ) => Promise<import('@/types/assistants/dashboard').DashboardPaneData>;
-    getTileContent: (
-      ownerId: string,
-      assistantId: string,
-      tileToken: string
-    ) => Promise<string | null>;
+    getTileContent: (assistant: Assistant, tileToken: string) => Promise<string | null>;
   };
 }

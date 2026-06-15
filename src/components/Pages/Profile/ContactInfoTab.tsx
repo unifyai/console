@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { User } from '@/types/user';
 import { Input } from '@/components/UI/input';
+import PhoneInput from '@/components/UI/phone-input';
 import { Label } from '@/components/UI/label';
 import { Button } from '@/components/UI/button';
 import { Loader2, CheckCircle2, AlertCircle, Send, Mail } from 'lucide-react';
@@ -14,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import SecondaryButton from '@/components/Common/Buttons/Secondary';
 import PrimaryButton from '@/components/Common/Buttons/Primary';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 
 interface VerificationState {
   value: string;
@@ -50,6 +52,8 @@ interface VerificationFieldProps {
   onCodeChange: (value: string) => void;
   onEdit: () => void;
   placeholder?: string;
+  inputId?: string;
+  countryTestId?: string;
 }
 
 const VerificationField = ({
@@ -62,7 +66,9 @@ const VerificationField = ({
   onSubmitCode,
   onCodeChange,
   onEdit,
-  placeholder = 'e.g., +15551234567',
+  placeholder = '5551234567',
+  inputId,
+  countryTestId,
 }: VerificationFieldProps) => {
   const isFlowActive = state.isVerifying && state.codeSent;
   const hasValue = state.value.trim().length > 0;
@@ -76,13 +82,15 @@ const VerificationField = ({
         <Label>{label}</Label>
       </div>
       <div className="flex items-center gap-2">
-        <Input
-          type="tel"
+        <PhoneInput
+          id={inputId}
+          countryTestId={countryTestId}
           placeholder={placeholder}
           value={state.value}
-          onChange={(e) => onValueChange(e.target.value)}
+          onChange={onValueChange}
           disabled={state.isVerifying || state.isVerified}
-          className={cn('flex-1', showFormatError && 'border-destructive')}
+          invalid={showFormatError}
+          className="flex-1"
         />
         {state.isVerified ? (
           <>
@@ -109,7 +117,7 @@ const VerificationField = ({
       {showFormatError && (
         <p className="text-body text-strong flex items-center gap-1.5 text-destructive">
           <AlertCircle className="h-3.5 w-3.5" />
-          Enter a valid international number starting with + (e.g., +15551234567)
+          Enter a valid phone number for the selected country.
         </p>
       )}
       {isFlowActive && (
@@ -171,6 +179,10 @@ const VerificationField = ({
 
 const ContactInfoTab = ({ user }: { user: User }) => {
   const router = useRouter();
+  // Phone/WhatsApp verification sends codes over Twilio (reported by Orchestra
+  // via the comms-layer probe). Without those credentials the verification
+  // request 503s, so hide the fields rather than offer a flow that can't work.
+  const { contactPhone, contactWhatsapp } = useFeatures();
   const [phoneState, setPhoneState] = useState<VerificationState>(
     createVerificationState(user.phoneNumber)
   );
@@ -424,33 +436,41 @@ const ContactInfoTab = ({ user }: { user: User }) => {
         <Input type="email" value={user.email} disabled className="mt-2" />
       </div>
 
-      <VerificationField
-        label="Phone Number"
-        icon={<span className="text-muted-foreground">📱</span>}
-        state={phoneState}
-        onValueChange={(v) => handleValueChange(setPhoneState, initialPhone, whatsappState, v)}
-        onVerify={(isRetry) => handleVerify(setPhoneState, 'phone', phoneState, isRetry)}
-        onCancel={() => handleCancel(setPhoneState)}
-        onSubmitCode={() => handleSubmitCode(setPhoneState, phoneState, 'phone')}
-        onCodeChange={(v) =>
-          setPhoneState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
-        }
-        onEdit={() => handleEdit(setPhoneState)}
-      />
+      {contactPhone && (
+        <VerificationField
+          label="Phone Number"
+          icon={<span className="text-muted-foreground">📱</span>}
+          inputId="phone-number-input"
+          countryTestId="phone-country-select"
+          state={phoneState}
+          onValueChange={(v) => handleValueChange(setPhoneState, initialPhone, whatsappState, v)}
+          onVerify={(isRetry) => handleVerify(setPhoneState, 'phone', phoneState, isRetry)}
+          onCancel={() => handleCancel(setPhoneState)}
+          onSubmitCode={() => handleSubmitCode(setPhoneState, phoneState, 'phone')}
+          onCodeChange={(v) =>
+            setPhoneState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
+          }
+          onEdit={() => handleEdit(setPhoneState)}
+        />
+      )}
 
-      <VerificationField
-        label="WhatsApp Number"
-        icon={<WhatsApp sx={{ fontSize: '18px' }} className="text-muted-foreground" />}
-        state={whatsappState}
-        onValueChange={(v) => handleValueChange(setWhatsappState, initialWhatsapp, phoneState, v)}
-        onVerify={(isRetry) => handleVerify(setWhatsappState, 'whatsapp', whatsappState, isRetry)}
-        onCancel={() => handleCancel(setWhatsappState)}
-        onSubmitCode={() => handleSubmitCode(setWhatsappState, whatsappState, 'whatsapp')}
-        onCodeChange={(v) =>
-          setWhatsappState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
-        }
-        onEdit={() => handleEdit(setWhatsappState)}
-      />
+      {contactWhatsapp && (
+        <VerificationField
+          label="WhatsApp Number"
+          icon={<WhatsApp sx={{ fontSize: '18px' }} className="text-muted-foreground" />}
+          inputId="whatsapp-number-input"
+          countryTestId="whatsapp-country-select"
+          state={whatsappState}
+          onValueChange={(v) => handleValueChange(setWhatsappState, initialWhatsapp, phoneState, v)}
+          onVerify={(isRetry) => handleVerify(setWhatsappState, 'whatsapp', whatsappState, isRetry)}
+          onCancel={() => handleCancel(setWhatsappState)}
+          onSubmitCode={() => handleSubmitCode(setWhatsappState, whatsappState, 'whatsapp')}
+          onCodeChange={(v) =>
+            setWhatsappState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
+          }
+          onEdit={() => handleEdit(setWhatsappState)}
+        />
+      )}
 
       <div className="space-y-2">
         <div className="flex items-center gap-2">

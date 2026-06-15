@@ -39,9 +39,9 @@ function getConnectionIndicator(status: ActionConnectionStatus): {
 } {
   switch (status) {
     case 'streaming':
-      return { color: 'bg-green-500', label: 'Live' };
+      return { color: 'bg-[color:var(--status-success)]', label: 'Live' };
     case 'error':
-      return { color: 'bg-red-500', label: 'Disconnected' };
+      return { color: 'bg-[color:var(--status-danger)]', label: 'Disconnected' };
     case 'idle':
     default:
       return { color: 'bg-muted-foreground/50', label: '' };
@@ -95,7 +95,9 @@ export function LiveActionsFooter({
           <span
             className={cn(
               'h-2 w-2 rounded-full',
-              isWorking ? 'animate-pulse bg-green-500' : 'bg-muted-foreground/50'
+              isWorking
+                ? 'animate-pulse bg-[color:var(--status-success)]'
+                : 'bg-muted-foreground/50'
             )}
             aria-hidden="true"
           />
@@ -109,7 +111,9 @@ export function LiveActionsFooter({
 
         {/* Event counts */}
         <span data-testid="event-counts">
-          {isMockData && <span className="font-medium text-orange-500/70">(mock) </span>}
+          {isMockData && (
+            <span className="font-medium text-[color:var(--status-warning)]">(mock) </span>
+          )}
           {runningText}, {completedText}
         </span>
       </div>

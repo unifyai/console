@@ -651,7 +651,7 @@ export default function FavouritesClient({
                 disabled={isSaving || !isChanged}
                 size="lg"
                 className={cn(
-                  'hover:bg-primary/90 bg-primary text-white shadow-md transition-all',
+                  'hover:bg-primary/90 bg-primary text-primary-foreground shadow-md transition-all',
                   isChanged ? 'animate-pulse-gentle' : ''
                 )}
               >
@@ -678,7 +678,7 @@ export default function FavouritesClient({
             onClick={saveFavourites}
             disabled={isSaving}
             size="lg"
-            className="hover:bg-primary/90 animate-pulse-gentle bg-primary text-white shadow-lg"
+            className="hover:bg-primary/90 animate-pulse-gentle bg-primary text-primary-foreground shadow-lg"
           >
             {isSaving ? (
               <>

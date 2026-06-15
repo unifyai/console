@@ -29,6 +29,7 @@ import {
   createAssistant,
   createEmailLogin,
   seedChatInfrastructure,
+  seedCoordinatorChatForUsers,
   orchestraFetch,
   ensureProject,
 } from '../client';
@@ -72,9 +73,12 @@ function ts(daysAgo: number, hour: number, minute = 0): string {
 // Data: Contacts
 // ---------------------------------------------------------------------------
 
+const ASSISTANT_CONTACT_ID = 42;
+const OWNER_CONTACT_ID = 43;
+
 const CONTACTS: Record<string, unknown>[] = [
   {
-    contact_id: 0,
+    contact_id: ASSISTANT_CONTACT_ID,
     first_name: 'Aria',
     surname: 'Chen',
     email_address: 'aria@assistant.ai',
@@ -83,7 +87,7 @@ const CONTACTS: Record<string, unknown>[] = [
     bio: 'AI assistant specializing in project management, engineering, and research.',
   },
   {
-    contact_id: 1,
+    contact_id: OWNER_CONTACT_ID,
     first_name: 'Jordan',
     surname: 'Mitchell',
     email_address: 'jordan@example.com',
@@ -302,7 +306,7 @@ function buildTranscripts(): Record<string, unknown>[] {
       message_id: msgId++,
       medium: 'unify_message',
       sender_id: senderId,
-      receiver_ids: senderId === 0 ? [1] : [0],
+      receiver_ids: senderId === ASSISTANT_CONTACT_ID ? [OWNER_CONTACT_ID] : [ASSISTANT_CONTACT_ID],
       content,
       timestamp: ts(daysAgo, hour, minute),
       exchange_id: Math.floor(msgId / 20),
@@ -1600,6 +1604,10 @@ export async function seedMemoryRich(): Promise<SeededState> {
     assistantId: agentId,
     email: owner.email,
   });
+
+  // Coordinator chat infra — the auto-provisioned personal Coordinator
+  // sits next to Aria in the workspace and exercises the panel UI.
+  await seedCoordinatorChatForUsers([owner]);
 
   // Seed all memory contexts in parallel where possible
   await Promise.all([

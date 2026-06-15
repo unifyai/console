@@ -12,7 +12,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/UI/dialog';
-import { AlertCircle, ExternalLink, FileText, Loader2 } from 'lucide-react';
+import { AlertCircle, ExternalLink, FileText } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { Tabs, TabsList, TabsTrigger } from '@/components/UI/tabs';
 import ActionButton from '@/components/Common/Buttons/Action';
 
@@ -98,7 +99,7 @@ function PdfFrame({ url }: { url: string }) {
   if (hasError) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-6 text-center">
-        <AlertCircle className="mb-4 h-10 w-10 text-yellow-500" />
+        <AlertCircle className="mb-4 h-10 w-10 text-[color:var(--status-warning)]" />
         <h3 className="text-title mb-2">Content Security Policy Restriction</h3>
         <p className="mb-4">
           This PDF cannot be embedded due to security restrictions set by the website.
@@ -120,7 +121,7 @@ function PdfFrame({ url }: { url: string }) {
       {isLoading && (
         <div className="bg-background/80 absolute inset-0 flex items-center justify-center">
           <div className="flex flex-col items-center gap-2">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <Loader size={32} />
             <p className="text-body text-muted-foreground">Loading PDF...</p>
           </div>
         </div>

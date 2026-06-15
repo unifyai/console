@@ -10,7 +10,7 @@ import ThemeLoader from '@/components/Layout/ThemeLoader';
 import LoadingScreen from '@/components/Layout/LoadingScreen';
 import { NetworkStatusToast } from '@/components/Layout/NetworkStatusToast';
 import { Toaster } from '@/components/UI/Chat/sonner';
-import { fontSans, fontMono } from '@/styles/fonts';
+import { fontSans, fontSpaceGrotesk, fontMono, fontSerif } from '@/styles/fonts';
 
 /**
  * Fullscreen layout - no top navigation bar.
@@ -21,7 +21,7 @@ export default function FullscreenLayout({ children }: { children: React.ReactNo
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${fontSans.variable} ${fontMono.variable} h-screen overflow-hidden`}
+      className={`${fontSans.variable} ${fontSpaceGrotesk.variable} ${fontMono.variable} ${fontSerif.variable} h-screen overflow-hidden`}
     >
       <body className="h-screen w-full overflow-hidden">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>

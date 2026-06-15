@@ -5,98 +5,137 @@
 
 @layer base {
   :root {
-    --forest-green: #2a862a;
-    --lime-green: #4cc552;
-    --dark-slate-gray: #2f4f4f;
-    --white-smoke: #f5f5f5;
-    --eerie-black: #1b1b1b;
-    --light-neutral-grey: #b0bec5;
-    --alert-red: #e53935;
-    --soft-amber: #f6a623;
-    --english-violet: #5c415d;
-    --lavender: #b39ddb;
-    --celeste: #bcf4f5;
+    --ink: #0a1410;
+    --ink-2: #1a2a23;
+    --paper: #f5f1ea;
+    --paper-2: #ebe6dc;
+    --rule: #d9d2c4;
+    --muted-ink: #6b6a64;
 
-    /* Branding gradients */
-    --brand-green-light: #66d47e;
-    --brand-green: #00a824;
+    --role-green: #2f9d97;
+    --role-green-deep: #1c6460;
+    --role-blue: #c95f5a;
+    --role-orange: #cf9a3e;
+    --role-purple: #6e4a86;
+    --role-yellow: #ffb24a;
+    --role-teal: #3c8f86;
+    --role-pink: #e85a8e;
+    --role-cyan: #4f7fa8;
+    --droid-screen: #0e2027;
+    --droid-glow: #79efdd;
+    --droid-outline: #173534;
+    --droid-shadow: #cdb89b;
+    --brand-grain-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23grain)' opacity='0.26'/%3E%3C/svg%3E");
+    --neo-teal: #2f9d97;
+    --neo-teal-dark: #1c6460;
+    --neo-coral: #c95f5a;
+    --neo-coral-dark: #8f3b39;
+    --neo-amber: #cf9a3e;
+    --neo-amber-dark: #8f6824;
 
-    /* UI colors */
-    --border-light: #dadada;
-    --near-black: #0a0c13;
-    --text-gray: #51515e;
+    --alert-red: #d94a3d;
+    --soft-amber: #c47a00;
+    --cream-white: #fffaf1;
+
+    --surface: rgba(10, 20, 16, 0.04);
+    --surface-hover: rgba(10, 20, 16, 0.08);
+    --frosted-bg: rgba(245, 241, 234, 0.78);
+    --frosted-border: rgba(10, 20, 16, 0.12);
+    --overlay: rgba(10, 20, 16, 0.45);
+    --overlay-strong: rgba(10, 20, 16, 0.72);
+    --shadow-soft: rgba(10, 20, 16, 0.1);
+    --status-success: var(--role-green-deep);
+    --status-success-bg: color-mix(in srgb, var(--role-green) 14%, transparent);
+    --status-info: var(--role-blue);
+    --status-info-bg: color-mix(in srgb, var(--role-blue) 12%, transparent);
+    --status-warning: var(--role-orange);
+    --status-warning-bg: color-mix(in srgb, var(--role-orange) 12%, transparent);
+    --status-danger: var(--destructive);
+    --status-danger-bg: color-mix(in srgb, var(--destructive) 12%, transparent);
+    --status-neutral: var(--muted-ink);
+    --status-neutral-bg: var(--surface);
 
     /* File type colors - muted/desaturated for refined aesthetic */
-    --file-pdf: #bf5f5c;
-    --file-word: #5a9ec9;
-    --file-excel: #6fb573;
-    --file-powerpoint: #d4965f;
-    --file-image: #8b6b94;
-    --file-text: #7a8c96;
-    --file-code: #8a9ba3;
-    --file-archive: #d4b35f;
-    --file-generic: #9e9e9e;
+    --file-pdf: #b3422d;
+    --file-word: var(--role-blue);
+    --file-excel: var(--role-green-deep);
+    --file-powerpoint: var(--role-orange);
+    --file-image: var(--role-purple);
+    --file-text: var(--muted-ink);
+    --file-code: var(--role-teal);
+    --file-archive: var(--role-yellow);
+    --file-generic: var(--muted-ink);
 
     /* Chart overrides */
-    --chart-grid: #cccccc;
+    --chart-grid: var(--rule);
 
     /* Light theme variables */
-    --background: var(--white-smoke);
-    --foreground: var(--eerie-black);
+    --background: var(--paper);
+    --foreground: var(--ink);
 
-    --primary: var(--forest-green);
-    --primary-foreground: var(--white-smoke);
+    --primary: var(--role-green);
+    --primary-foreground: var(--cream-white);
 
-    --secondary: var(--lavender);
-    --secondary-foreground: var(--eerie-black);
+    --secondary: var(--paper-2);
+    --secondary-foreground: var(--ink);
 
-    --accent: var(--forest-green);
-    --accent-foreground: var(--white-smoke);
+    --accent: var(--role-green);
+    --accent-foreground: var(--cream-white);
 
-    --muted: var(--light-neutral-grey);
-    --muted-foreground: var(--dark-slate-gray);
+    --muted: var(--surface);
+    --muted-foreground: var(--muted-ink);
 
     --warning: var(--soft-amber);
-    --warning-foreground: var(--soft-amber);
+    --warning-foreground: var(--ink);
 
     --destructive: var(--alert-red);
-    --destructive-foreground: var(--white-smoke);
+    --destructive-foreground: var(--cream-white);
 
-    --popover: var(--white-smoke);
-    --popover-foreground: var(--eerie-black);
+    --popover: var(--cream-white);
+    --popover-foreground: var(--ink);
 
-    --border: var(--light-neutral-grey);
-    --input: var(--light-neutral-grey);
+    --border: var(--rule);
+    --input: var(--rule);
 
-    --card: var(--white-smoke);
-    --card-foreground: var(--eerie-black);
+    --card: color-mix(in srgb, var(--cream-white) 72%, var(--paper));
+    --card-foreground: var(--ink);
 
-    --ring: var(--light-neutral-grey);
+    --ring: var(--role-green-deep);
 
-    --favourite: #ba8e23;
+    --favourite: var(--role-yellow);
 
-    --code-bg: #eceef1;
-    --code-border: rgba(0, 0, 0, 0.08);
-    --code-fg: var(--primary);
+    --code-bg: color-mix(in srgb, var(--paper-2) 72%, white);
+    --code-border: rgba(10, 20, 16, 0.1);
+    --code-fg: var(--role-green-deep);
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+    --radius-control: calc(var(--radius) - 9px);
 
-    --chart-1: #e8623c;
-    --chart-2: #2aa096;
-    --chart-3: #274654;
-    --chart-4: #f3c45a;
-    --chart-5: #f2ab35;
+    --chart-1: var(--role-green-deep);
+    --chart-2: var(--role-blue);
+    --chart-3: var(--role-orange);
+    --chart-4: var(--role-purple);
+    --chart-5: var(--role-yellow);
 
-    --sidebar-background: var(--white-smoke);
-    --sidebar-foreground: var(--eerie-black);
-    --sidebar-primary: var(--forest-green);
-    --sidebar-primary-foreground: var(--white-smoke);
-    --sidebar-accent: var(--forest-green);
-    --sidebar-accent-foreground: var(--white-smoke);
-    --sidebar-border: var(--light-neutral-grey);
-    --sidebar-ring: var(--light-neutral-grey);
+    --sidebar-background: var(--paper);
+    --sidebar-foreground: var(--ink);
+    --sidebar-primary: var(--role-green);
+    --sidebar-primary-foreground: var(--cream-white);
+    --sidebar-accent: var(--surface-hover);
+    --sidebar-accent-foreground: var(--ink);
+    --sidebar-border: var(--rule);
+    --sidebar-ring: var(--role-green-deep);
 
-    --resizable-handle: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2IDYiIHN0eWxlPSJiYWNrZ3JvdW5kLWNvbG9yOiNmZmZmZmYwMCIgeD0iMHB4IiB5PSIwcHgiIHdpZHRoPSI2cHgiIGhlaWdodD0iNnB4Ij48ZyBvcGFjaXR5PSIwLjMwMiI+PHBhdGggZD0iTSA2IDYgTCAwIDYgTCAwIDQuMiBMIDQgNC4yIEwgNC4yIDQuMiBMIDQuMiAwIEwgNiAwIEwgNiA2IEwgNiA2IFoiIGZpbGw9IiNFFFFFFiLz48L2c+PC9zdmc+');
+    --checkerboard:
+      linear-gradient(45deg, rgba(10, 20, 16, 0.045) 25%, transparent 25%),
+      linear-gradient(-45deg, rgba(10, 20, 16, 0.045) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, rgba(10, 20, 16, 0.045) 75%),
+      linear-gradient(-45deg, transparent 75%, rgba(10, 20, 16, 0.045) 75%);
+    --chat-maze-pattern: url('/brand/chat-bg.svg?v=3');
+    --chat-maze-size: 560px 560px;
+    --chat-maze-ink: rgba(10, 20, 16, 0.055);
+
+    --resizable-handle: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2IDYiIHN0eWxlPSJiYWNrZ3JvdW5kLWNvbG9yOiNmZmZmZmYwMCIgeD0iMHB4IiB5PSIwcHgiIGhlaWdodD0iNnB4Ij48ZyBvcGFjaXR5PSIwLjMwMiI+PHBhdGggZD0iTSA2IDYgTCAwIDYgTCAwIDQuMiBMIDQgNC4yIEwgNC4yIDQuMiBMIDQuMiAwIEwgNiAwIEwgNiA2IEwgNiA2IFoiIGZpbGw9IiNFFFFFFiLz48L2c+PC9zdmc+');
     --pen-cursor:
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 20h9'/%3E%3Cpath d='M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z'/%3E%3C/svg%3E")
         3 13,
@@ -105,63 +144,147 @@
 
   .dark {
     /* Dark theme variables */
-    --background: var(--eerie-black);
-    --foreground: var(--white-smoke);
+    --background: #0d0f12;
+    --foreground: #eef0ea;
+    --role-pink: #e85a8e;
+    --role-cyan: #4f7fa8;
+    --droid-screen: #0e2027;
+    --droid-glow: #79efdd;
+    --droid-outline: #79c9bf;
+    --droid-shadow: rgba(0, 0, 0, 0.42);
+    --neo-teal: #2f9d97;
+    --neo-teal-dark: #1c6460;
+    --neo-coral: #c95f5a;
+    --neo-coral-dark: #8f3b39;
+    --neo-amber: #cf9a3e;
+    --neo-amber-dark: #8f6824;
 
-    --primary: var(--lime-green);
-    --primary-foreground: var(--eerie-black);
+    --primary: var(--role-green);
+    --primary-foreground: #fffaf1;
 
-    --secondary: var(--celeste);
-    --secondary-foreground: var(--eerie-black);
+    --secondary: rgba(255, 255, 255, 0.05);
+    --secondary-foreground: #eef0ea;
 
-    --accent: var(--lime-green);
-    --accent-foreground: var(--eerie-black);
+    --accent: color-mix(in srgb, var(--role-green) 18%, transparent);
+    --accent-foreground: #eef0ea;
 
-    --muted: var(--dark-slate-gray);
-    --muted-foreground: var(--light-neutral-grey);
+    --muted: rgba(255, 255, 255, 0.05);
+    --muted-foreground: rgba(238, 240, 234, 0.68);
 
     --destructive: var(--alert-red);
-    --destructive-foreground: var(--white-smoke);
+    --destructive-foreground: #fffaf1;
 
-    --popover: var(--eerie-black);
-    --popover-foreground: var(--white-smoke);
+    --popover: #111714;
+    --popover-foreground: #eef0ea;
 
-    --border: var(--dark-slate-gray);
-    --input: var(--dark-slate-gray);
+    --border: rgba(238, 240, 234, 0.12);
+    --input: rgba(238, 240, 234, 0.14);
 
-    --card: var(--eerie-black);
-    --card-foreground: var(--white-smoke);
+    --card: #111714;
+    --card-foreground: #eef0ea;
 
-    --ring: var(--dark-slate-gray);
+    --ring: var(--role-green);
 
-    --favourite: #ffd600;
+    --favourite: var(--role-yellow);
 
-    --code-bg: #262626;
+    --code-bg: #151b18;
     --code-border: rgba(255, 255, 255, 0.08);
-    --code-fg: var(--primary);
+    --code-fg: var(--role-green);
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+    --radius-control: calc(var(--radius) - 9px);
 
-    --chart-5: #eb2483;
-    --chart-1: #264cb2;
-    --chart-2: #2db88f;
-    --chart-3: #ef921c;
-    --chart-4: #cb5de8;
+    --chart-1: var(--role-green);
+    --chart-2: #7aa7ff;
+    --chart-3: #ffad6b;
+    --chart-4: #a88cff;
+    --chart-5: #ffdb66;
 
-    --sidebar-background: var(--eerie-black);
-    --sidebar-foreground: var(--white-smoke);
-    --sidebar-primary: var(--lime-green);
-    --sidebar-primary-foreground: var(--white-smoke);
-    --sidebar-accent: var(--lime-green);
-    --sidebar-accent-foreground: var(--white-smoke);
-    --sidebar-border: var(--dark-slate-gray);
-    --sidebar-ring: var(--dark-slate-gray);
+    --sidebar-background: #0d0f12;
+    --sidebar-foreground: #eef0ea;
+    --sidebar-primary: var(--role-green);
+    --sidebar-primary-foreground: #fffaf1;
+    --sidebar-accent: rgba(255, 255, 255, 0.06);
+    --sidebar-accent-foreground: #eef0ea;
+    --sidebar-border: rgba(238, 240, 234, 0.12);
+    --sidebar-ring: var(--role-green);
+
+    --surface: rgba(255, 255, 255, 0.04);
+    --surface-hover: rgba(255, 255, 255, 0.07);
+    --frosted-bg: rgba(13, 15, 18, 0.78);
+    --frosted-border: rgba(238, 240, 234, 0.12);
+    --overlay: rgba(0, 0, 0, 0.62);
+    --overlay-strong: rgba(0, 0, 0, 0.78);
+    --shadow-soft: rgba(0, 0, 0, 0.24);
+    --status-success: var(--role-green);
+    --status-success-bg: color-mix(in srgb, var(--role-green) 16%, transparent);
+    --status-info: #7aa7ff;
+    --status-info-bg: color-mix(in srgb, #7aa7ff 14%, transparent);
+    --status-warning: #ffad6b;
+    --status-warning-bg: color-mix(in srgb, #ffad6b 14%, transparent);
+    --status-danger: var(--destructive);
+    --status-danger-bg: color-mix(in srgb, var(--destructive) 16%, transparent);
+    --status-neutral: rgba(238, 240, 234, 0.68);
+    --status-neutral-bg: var(--surface);
+    --checkerboard:
+      linear-gradient(45deg, rgba(238, 240, 234, 0.045) 25%, transparent 25%),
+      linear-gradient(-45deg, rgba(238, 240, 234, 0.045) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, rgba(238, 240, 234, 0.045) 75%),
+      linear-gradient(-45deg, transparent 75%, rgba(238, 240, 234, 0.045) 75%);
+    --chat-maze-pattern: url('/brand/chat-bg.svg?v=3');
+    --chat-maze-size: 560px 560px;
+    --chat-maze-ink: rgba(238, 240, 234, 0.07);
 
     --resizable-handle: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2IDYiIHdpZHRoPSI2cHgiIGhlaWdodD0iNnB4Ij4KPHBhdGggZD0iTTUuOCA2SDBWNC4ySDQuMlYwSDZWNS44WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+');
     --pen-cursor:
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 20h9'/%3E%3Cpath d='M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z'/%3E%3C/svg%3E")
         3 13,
       pointer;
+  }
+
+  /*
+   * Force the light "paper" palette on a subtree, regardless of the active
+   * (possibly dark) root theme. Used by always-light surfaces like the login
+   * card, whose background is hardcoded to cream paper — under a dark root theme
+   * the foreground/muted/card tokens would otherwise stay light, rendering the
+   * copy and inputs nearly invisible. Custom properties resolve to the nearest
+   * ancestor, so re-declaring the light semantic tokens here overrides `.dark`
+   * for everything inside (no JS, no provider conflict, no flash).
+   */
+  .theme-paper {
+    /* Re-establish the text color at this level. `body` already computed its
+       `color` from the root (dark) `--foreground`, and that computed value
+       inherits into descendants that don't set their own color (e.g. input
+       value text) — re-declaring the variable alone wouldn't re-run it. */
+    color: var(--foreground);
+
+    --surface: rgba(10, 20, 16, 0.04);
+    --surface-hover: rgba(10, 20, 16, 0.08);
+    --frosted-bg: rgba(245, 241, 234, 0.78);
+    --frosted-border: rgba(10, 20, 16, 0.12);
+    --overlay: rgba(10, 20, 16, 0.45);
+    --overlay-strong: rgba(10, 20, 16, 0.72);
+    --shadow-soft: rgba(10, 20, 16, 0.1);
+
+    --background: var(--paper);
+    --foreground: var(--ink);
+    --primary: var(--role-green);
+    --primary-foreground: var(--cream-white);
+    --secondary: var(--paper-2);
+    --secondary-foreground: var(--ink);
+    --accent: var(--role-green);
+    --accent-foreground: var(--cream-white);
+    --muted: var(--surface);
+    --muted-foreground: var(--muted-ink);
+    --destructive: var(--alert-red);
+    --destructive-foreground: var(--cream-white);
+    --popover: var(--cream-white);
+    --popover-foreground: var(--ink);
+    --border: var(--rule);
+    --input: var(--rule);
+    --card: color-mix(in srgb, var(--cream-white) 72%, var(--paper));
+    --card-foreground: var(--ink);
+    --ring: var(--role-green-deep);
   }
 
   /* Ensure all elements have the correct border color */
@@ -412,6 +535,345 @@
 }
 
 @layer components {
+  .text-brand-display {
+    @apply font-sans text-4xl font-medium leading-none tracking-[-0.04em] md:text-5xl lg:text-6xl;
+  }
+  .text-brand-heading {
+    @apply font-sans text-2xl font-medium leading-tight tracking-[-0.035em] md:text-4xl;
+  }
+  .text-brand-serif-accent {
+    font-family: var(--font-serif), Georgia, Cambria, 'Times New Roman', Times, serif;
+    @apply font-normal italic tracking-[-0.02em];
+  }
+  .brand-checkerboard {
+    background-image: var(--checkerboard);
+    background-position:
+      0 0,
+      0 8px,
+      8px -8px,
+      -8px 0;
+    background-size: 16px 16px;
+  }
+  .brand-page-stencil-bg,
+  .brand-chat-stencil-bg {
+    position: relative;
+    background-color: var(--background);
+    background-image: none;
+    --chat-stencil-pattern: var(--chat-maze-pattern);
+  }
+  .brand-page-stencil-bg::before,
+  .brand-chat-stencil-bg::before {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-color: var(--chat-maze-ink);
+    content: '';
+    -webkit-mask-image: var(--chat-maze-pattern);
+    mask-image: var(--chat-maze-pattern);
+    -webkit-mask-position: 0 var(--coordinator-intro-stencil-offset, 0);
+    mask-position: 0 var(--coordinator-intro-stencil-offset, 0);
+    -webkit-mask-repeat: repeat;
+    mask-repeat: repeat;
+    -webkit-mask-size: var(--chat-maze-size);
+    mask-size: var(--chat-maze-size);
+  }
+  .brand-page-stencil-bg::after,
+  .brand-chat-stencil-bg::after {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-image: var(--brand-grain-texture);
+    background-size: 160px 160px;
+    content: '';
+    mix-blend-mode: multiply;
+    opacity: 0.16;
+  }
+  .brand-page-stencil-bg > *,
+  .brand-chat-stencil-bg > * {
+    position: relative;
+    z-index: 1;
+  }
+  .brand-chat-stencil-bg .brand-chat-stencil-bg {
+    background-color: transparent;
+  }
+  .brand-chat-stencil-bg .brand-chat-stencil-bg::before {
+    display: none;
+  }
+  .brand-chat-stencil-bg .brand-chat-stencil-bg::after {
+    display: none;
+  }
+  .coordinator-onboarding-city-bg {
+    --coordinator-intro-city-position: 100%;
+    --coordinator-intro-city-opacity: 1;
+    /* Viewport width at which the city backdrop exactly fits the screen.
+     * At/above it the image fits to width; below it the image holds this
+     * fixed scale and the centred left/right edges crop instead — so the
+     * elevator keeps a constant size (and a constant ascent speed)
+     * rather than zooming out on narrow screens. */
+    --coordinator-onboarding-bg-fit-width: 1728px;
+  }
+  .coordinator-onboarding-city-bg::before {
+    background-color: transparent;
+    /* 70/30 veil in the scheme's cream card colour (the top-navbar
+     * tone) mutes the photo's vibrance without touching the source
+     * asset, and stays theme-aware in light/dark. */
+    background-image:
+      linear-gradient(
+        color-mix(in srgb, var(--card) 70%, transparent),
+        color-mix(in srgb, var(--card) 70%, transparent)
+      ),
+      url('/brand/onboarding-city.webp');
+    background-repeat: no-repeat;
+    /* Fit to width only down to the reference width; below it hold that
+     * pixel scale and crop the (horizontally centred) edges instead. */
+    background-size: max(100%, var(--coordinator-onboarding-bg-fit-width)) auto;
+    background-position: center var(--coordinator-intro-city-position, 100%);
+    opacity: var(--coordinator-intro-city-opacity, 1);
+    will-change: background-position, opacity;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  /* Frosted panel for the onboarding picker: a translucent wash of the
+   * card colour over a heavy blur. The blur kills the photo's busy
+   * detail (keeping text legible) while the lowered opacity lets the
+   * city read softly through, so the panel looks like frosted glass
+   * rather than a solid cut-out. */
+  .coordinator-onboarding-card {
+    background-color: color-mix(in srgb, var(--card) 45%, transparent);
+    backdrop-filter: blur(20px) saturate(115%);
+    -webkit-backdrop-filter: blur(20px) saturate(115%);
+  }
+  .brand-fallback-scene {
+    position: relative;
+    background-color: var(--background);
+  }
+  .brand-fallback-scene::before {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(
+        color-mix(in srgb, var(--card) 64%, transparent),
+        color-mix(in srgb, var(--card) 64%, transparent)
+      ),
+      radial-gradient(
+        circle at 18% 22%,
+        color-mix(in srgb, var(--droid-glow) 28%, transparent),
+        transparent 30%
+      ),
+      radial-gradient(
+        circle at 82% 28%,
+        color-mix(in srgb, var(--neo-coral) 22%, transparent),
+        transparent 28%
+      ),
+      radial-gradient(
+        circle at 24% 86%,
+        color-mix(in srgb, var(--neo-amber) 20%, transparent),
+        transparent 34%
+      ),
+      url('/brand/onboarding-city.webp');
+    background-position:
+      center,
+      center,
+      center,
+      center,
+      center bottom;
+    background-repeat: no-repeat;
+    background-size:
+      auto,
+      auto,
+      auto,
+      auto,
+      max(100%, 1728px) auto;
+    content: '';
+  }
+  .brand-fallback-scene::after {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    background-image: var(--brand-grain-texture);
+    background-size: 160px 160px;
+    content: '';
+    mix-blend-mode: multiply;
+    opacity: 0.2;
+  }
+  .brand-fallback-scene > * {
+    position: relative;
+    z-index: 1;
+  }
+  .brand-fallback-card {
+    border: 2px solid color-mix(in srgb, var(--foreground) 82%, var(--border));
+    border-radius: 28px;
+    background-image:
+      radial-gradient(
+        circle at 18% 10%,
+        color-mix(in srgb, var(--droid-glow) 40%, transparent),
+        transparent 31%
+      ),
+      radial-gradient(
+        circle at 92% 18%,
+        color-mix(in srgb, var(--neo-coral) 25%, transparent),
+        transparent 28%
+      ),
+      radial-gradient(
+        circle at 28% 102%,
+        color-mix(in srgb, var(--neo-amber) 34%, transparent),
+        transparent 34%
+      ),
+      linear-gradient(140deg, color-mix(in srgb, var(--card) 86%, var(--background)), var(--card)),
+      var(--brand-grain-texture);
+    background-blend-mode: normal, normal, normal, normal, multiply;
+    background-size:
+      auto,
+      auto,
+      auto,
+      auto,
+      128px 128px;
+    box-shadow:
+      0 10px 0 color-mix(in srgb, var(--foreground) 18%, transparent),
+      0 34px 90px color-mix(in srgb, var(--foreground) 18%, transparent);
+    isolation: isolate;
+  }
+  .brand-fallback-card::after {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    background-image: var(--brand-grain-texture);
+    background-size: 128px 128px;
+    content: '';
+    mix-blend-mode: multiply;
+    opacity: 0.18;
+  }
+  .brand-fallback-card > * {
+    position: relative;
+    z-index: 1;
+  }
+  .brand-fallback-city-window {
+    height: 122px;
+    border-bottom: 2px solid color-mix(in srgb, var(--foreground) 58%, var(--border));
+    background-image:
+      linear-gradient(
+        color-mix(in srgb, var(--card) 52%, transparent),
+        color-mix(in srgb, var(--card) 52%, transparent)
+      ),
+      url('/brand/onboarding-city.webp');
+    background-position: center 62%;
+    background-repeat: no-repeat;
+    background-size: 760px auto;
+  }
+  .brand-fallback-hero {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+  }
+  .brand-fallback-droid {
+    display: grid;
+    flex: none;
+    width: 7rem;
+    place-items: center;
+  }
+  .brand-fallback-bubble {
+    position: relative;
+    max-width: 17rem;
+    border: 2px solid color-mix(in srgb, var(--foreground) 82%, var(--border));
+    border-radius: 18px;
+    background-image:
+      linear-gradient(
+        color-mix(in srgb, var(--card) 78%, transparent),
+        color-mix(in srgb, var(--card) 78%, transparent)
+      ),
+      var(--brand-grain-texture),
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--neo-amber) 62%, var(--card)),
+        color-mix(in srgb, var(--droid-glow) 46%, var(--card))
+      );
+    background-size:
+      auto,
+      128px 128px,
+      auto;
+    box-shadow:
+      0 5px 0 color-mix(in srgb, var(--neo-amber) 62%, var(--foreground)),
+      inset 0 1px 0 color-mix(in srgb, var(--card) 72%, transparent);
+    color: var(--foreground);
+    font-family: var(--font-space-grotesk), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    padding: 1rem 1.1rem;
+    text-align: left;
+  }
+  .brand-fallback-apology {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 28rem;
+    color: var(--foreground);
+    font-family: var(--font-space-grotesk), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+  @media (max-width: 640px) {
+    .brand-fallback-city-window {
+      height: 92px;
+      background-size: 620px auto;
+    }
+    .brand-fallback-hero {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .brand-fallback-bubble {
+      text-align: center;
+    }
+  }
+  .unify-block-mark:hover {
+    cursor: pointer;
+  }
+  .unify-block-mark .glyph .lg {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform 0.42s cubic-bezier(0.4, 0.05, 0.2, 1);
+  }
+  .unify-block-mark:hover .glyph .lg-green {
+    transform: translate(-4px, -4px);
+  }
+  .unify-block-mark:hover .glyph .lg-blue {
+    transform: translate(4.4px, -2.6px);
+  }
+  .unify-block-mark:hover .glyph .lg-orange {
+    transform: translate(0.4px, 5px);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .unify-block-mark .glyph .lg {
+      transition: none;
+    }
+    .unify-block-mark:hover .glyph .lg-green,
+    .unify-block-mark:hover .glyph .lg-blue,
+    .unify-block-mark:hover .glyph .lg-orange {
+      transform: none;
+    }
+  }
+  .right-pane-tabs-container {
+    container-type: inline-size;
+  }
+  .right-pane-tab-label {
+    display: none;
+  }
+  @container (max-width: 760px) {
+    .right-pane-tabs-list {
+      gap: 0.5rem;
+    }
+    .right-pane-tab-divider {
+      margin-left: -0.25rem;
+      margin-right: -0.25rem;
+    }
+  }
   .text-display {
     @apply font-sans text-xl font-medium leading-tight tracking-tight md:text-2xl lg:text-3xl;
   }
@@ -508,7 +970,7 @@
     @apply text-destructive;
   }
   .text-success {
-    @apply text-[var(--forest-green)];
+    @apply text-[var(--role-green-deep)];
   }
   .text-warning {
     @apply text-[var(--soft-amber)];
@@ -539,6 +1001,10 @@
 }
 
 @layer utilities {
+  .rounded-control {
+    border-radius: var(--radius-control);
+  }
+
   @keyframes accordion-down {
     from {
       height: 0;
@@ -607,6 +1073,29 @@
   }
   .animate-nudge {
     animation: nudge 0.12s ease-in-out;
+  }
+
+  @keyframes onboarding-ring-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 32%, transparent);
+      transform: scale(1);
+    }
+    42% {
+      box-shadow: 0 0 0 12px color-mix(in srgb, var(--primary) 0%, transparent);
+      transform: scale(1.045);
+    }
+  }
+
+  .animate-onboarding-ring-pulse {
+    animation: onboarding-ring-pulse 2.4s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-onboarding-ring-pulse {
+      animation: none;
+    }
   }
 }
 

@@ -82,6 +82,11 @@ const MAX_PAIRS = 50;
 interface Pair {
   assistantId: string;
   contactId: string;
+  rootKey: string;
+}
+
+function subscriptionNameForPair(topicName: string, contactId: string, rootKey: string): string {
+  return `${topicName}-chat-${rootKey}-${contactId}`;
 }
 
 function parsePairs(raw: string | null): Pair[] {
@@ -91,18 +96,17 @@ function parsePairs(raw: string | null): Pair[] {
   for (const chunk of raw.split(',')) {
     const trimmed = chunk.trim();
     if (!trimmed) continue;
-    const sep = trimmed.indexOf(':');
-    if (sep <= 0 || sep === trimmed.length - 1) continue;
-    const assistantId = trimmed.slice(0, sep).trim();
-    const contactId = trimmed.slice(sep + 1).trim();
-    if (!assistantId || !contactId) continue;
+    const [assistantId = '', contactId = '', rootKey = 'personal'] = trimmed
+      .split(':')
+      .map((part) => part.trim());
+    if (!assistantId || !/^\d+$/.test(contactId) || !/^[a-z0-9-]+$/.test(rootKey)) continue;
     // Dedup in case the client accidentally repeats a pair; subscribing twice
     // to the same Pub/Sub subscription from one process would load-balance
     // messages across the two subscribers.
-    const key = `${assistantId}:${contactId}`;
+    const key = `${assistantId}:${contactId}:${rootKey}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    pairs.push({ assistantId, contactId });
+    pairs.push({ assistantId, contactId, rootKey });
   }
   return pairs;
 }
@@ -129,10 +133,16 @@ export async function GET(request: NextRequest) {
   interface SubConfig {
     assistantId: string;
     contactId: string;
+    rootKey: string;
     subscriptionName: string;
   }
   const subConfigs: SubConfig[] = [];
-  const skippedPairs: { assistantId: string; reason: string }[] = [];
+  const skippedPairs: {
+    assistantId: string;
+    contactId: number;
+    rootKey: string;
+    reason: string;
+  }[] = [];
 
   // Provision subscriptions per pair, but treat per-pair failures as soft.
   // A missing topic for one assistant (e.g., a transient hire-time race, or
@@ -150,9 +160,9 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  for (const { assistantId, contactId } of pairs) {
+  for (const { assistantId, contactId, rootKey } of pairs) {
     const topicName = getTopicName(assistantId);
-    const subscriptionName = `${topicName}-chat-${contactId}`;
+    const subscriptionName = subscriptionNameForPair(topicName, contactId, rootKey);
     const topic = pubsub.topic(topicName);
     try {
       await topic.createSubscription(subscriptionName, {
@@ -163,18 +173,18 @@ export async function GET(request: NextRequest) {
     } catch (err: any) {
       // 6 = ALREADY_EXISTS — subscription is already provisioned, reuse it.
       if (err.code === 6) {
-        subConfigs.push({ assistantId, contactId, subscriptionName });
+        subConfigs.push({ assistantId, contactId, rootKey, subscriptionName });
         continue;
       }
       // 5 = NOT_FOUND — topic doesn't exist for this assistant. This can
       // happen for assistants whose Communication-side provisioning hasn't
       // completed yet, or for dev/test data. Skip gracefully.
       const reason = err.code === 5 ? 'topic_not_found' : `code_${err.code ?? 'unknown'}`;
-      skippedPairs.push({ assistantId, reason });
+      skippedPairs.push({ assistantId, contactId: Number(contactId), rootKey, reason });
       log('SUB_SKIP', { assistantId, subscriptionName, reason, error: err.message });
       continue;
     }
-    subConfigs.push({ assistantId, contactId, subscriptionName });
+    subConfigs.push({ assistantId, contactId, rootKey, subscriptionName });
   }
 
   if (subConfigs.length === 0) {
@@ -219,7 +229,11 @@ export async function GET(request: NextRequest) {
       if (skippedPairs.length > 0) {
         const controlFrame = {
           __mux_control: 'subscription_status',
-          connected: subConfigs.map((s) => s.assistantId),
+          connected: subConfigs.map((s) => ({
+            assistantId: s.assistantId,
+            contactId: Number(s.contactId),
+            rootKey: s.rootKey,
+          })),
           skipped: skippedPairs,
         };
         try {
@@ -279,7 +293,7 @@ export async function GET(request: NextRequest) {
         }
       };
 
-      for (const { assistantId, subscriptionName } of subConfigs) {
+      for (const { assistantId, contactId, rootKey, subscriptionName } of subConfigs) {
         const subscription = pubsub.subscription(subscriptionName);
 
         const messageHandler = (message: Message) => {
@@ -301,6 +315,16 @@ export async function GET(request: NextRequest) {
             }
 
             const thread = payload.thread ?? message.attributes?.thread ?? 'unknown';
+
+            // Pub/Sub emulator subscriptions may deliver non-outbound frames despite
+            // the filter. Drop them here so inbound unify_message payloads are not
+            // rendered as assistant chat bubbles on the client.
+            if (thread !== 'unify_message_outbound' && thread !== 'assistant_desktop_ready') {
+              log('MSG_SKIP', { msgId: message.id, assistantId, thread });
+              message.ack();
+              return;
+            }
+
             const eventContactId = payload.event?.contact_id ?? payload.contact_id;
             const content = payload.event?.content ?? payload.event?.body ?? payload.content ?? '';
             const contentPreview =
@@ -325,6 +349,8 @@ export async function GET(request: NextRequest) {
             payload.id = message.id;
             payload.publishTime = publishTime;
             payload.__ackId = message.ackId;
+            payload.subscriptionContactId = contactId;
+            payload.subscriptionRootKey = rootKey;
             // Tag with the assistant so the client can demux the multiplexed
             // stream.
             payload.assistantId = assistantId;

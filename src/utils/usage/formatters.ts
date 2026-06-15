@@ -3,21 +3,25 @@
  *
  * Pure functions for formatting credit amounts.
  *
- * Internal accounting unit
- * ------------------------
+ * Internal accounting unit vs. displayed credits
+ * ----------------------------------------------
  * The Orchestra ledger denominates wallet movements (recharge, spend,
- * promo, refund, dispute) in "credits". 1 credit ≡ 1 USD on the Stripe
- * side today (see ``orchestra.web.api.webhooks.stripe`` and
- * ``orchestra.lib.billing.queue_auto_recharge`` — auto-recharge sets
- * ``Recharge.amount_usd = Decimal(credits)``), but the customer-facing
- * unit is "credits" everywhere outside the invoice surface itself.
+ * promo, refund, dispute) in a canonical USD value (1 internal unit ≡
+ * $1 on the Stripe side; see ``orchestra.web.api.webhooks.stripe``).
+ * The *customer-facing* unit, however, is "credits", where 1 credit is a
+ * fixed fraction of a dollar — the same display-only framing the billing
+ * page uses (see ``@/lib/billing/currency`` ``DISPLAY_CREDITS_PER_USD``).
  *
- * These helpers therefore render a credit amount, not a currency. Any
- * surface that *does* care about the customer's plan currency
- * (invoices, plan picker, billing-plan editor, metered overage estimate)
- * uses ``Intl.NumberFormat`` with the actual plan currency directly —
- * see ``InvoicesTable.tsx`` and ``MeteredBillingSection.tsx``.
+ * These helpers therefore take the raw USD ledger value and render it as
+ * a *credit count* (USD × ``DISPLAY_CREDITS_PER_USD``) so the usage page
+ * matches the billing page. The multiplier is display-only and is never
+ * sent to the API. Any surface that cares about the customer's plan
+ * *currency* (invoices, metered overage estimate) instead uses
+ * ``Intl.NumberFormat`` with the actual plan currency — see
+ * ``InvoicesTable.tsx`` and ``MeteredBillingSection.tsx``.
  */
+
+import { DISPLAY_CREDITS_PER_USD } from '@/lib/billing/currency';
 
 const CREDIT_UNIT = 'credits';
 
@@ -93,36 +97,41 @@ export function formatCompactCurrency(amount: number, unit: string = CREDIT_UNIT
 }
 
 /**
- * Format a credit amount for display in summary cards / tooltips /
- * ledger rows. Picks compact vs full form based on magnitude, and
- * always includes the ``credits`` unit so the value is unambiguous
- * out of context.
+ * Format a USD ledger value for display in summary cards / tooltips /
+ * ledger rows as a *credit count* (USD × ``DISPLAY_CREDITS_PER_USD``).
+ * Picks compact vs full form based on magnitude, and always includes the
+ * ``credits`` unit so the value is unambiguous out of context.
  */
 export function formatCostForDisplay(amount: number): string {
   if (!Number.isFinite(amount)) {
     return `0.00 ${CREDIT_UNIT}`;
   }
 
-  const absAmount = Math.abs(amount);
+  // Convert the canonical USD value to the displayed credit count. We
+  // multiply (rather than round via ``toDisplayCredits``) to preserve
+  // sub-credit precision for tiny per-transaction LLM ticks.
+  const credits = amount * DISPLAY_CREDITS_PER_USD;
+  const absAmount = Math.abs(credits);
 
   if (absAmount >= 10_000) {
-    return formatCompactCurrency(amount);
+    return formatCompactCurrency(credits);
   }
 
-  // Use 4 decimal places for very small amounts (sub-cent LLM ticks)
+  // Use 4 decimal places for very small amounts (sub-credit LLM ticks)
   if (absAmount > 0 && absAmount < 0.01) {
-    return formatCurrency(amount, 4);
+    return formatCurrency(credits, 4);
   }
 
-  return formatCurrency(amount, 2);
+  return formatCurrency(credits, 2);
 }
 
 /**
- * Format a credit amount for chart axis ticks.
+ * Format a USD ledger value as a *credit count* for chart axis ticks.
  *
- * Drops the ``credits`` unit and shrinks to compact (K/M/B) form so
- * tick labels fit in the narrow Y-axis gutter. The chart's tooltip
- * (which uses ``formatCostForDisplay``) keeps the unit, and the
+ * Converts USD × ``DISPLAY_CREDITS_PER_USD`` (matching the tooltip and
+ * ledger), drops the ``credits`` unit, and shrinks to compact (K/M/B)
+ * form so tick labels fit in the narrow Y-axis gutter. The chart's
+ * tooltip (which uses ``formatCostForDisplay``) keeps the unit, and the
  * surrounding page copy makes the unit obvious in context.
  */
 export function formatCostAxis(amount: number): string {
@@ -130,8 +139,9 @@ export function formatCostAxis(amount: number): string {
     return '0';
   }
 
-  const absAmount = Math.abs(amount);
-  const sign = amount < 0 ? '-' : '';
+  const credits = amount * DISPLAY_CREDITS_PER_USD;
+  const absAmount = Math.abs(credits);
+  const sign = credits < 0 ? '-' : '';
 
   if (absAmount >= 1_000_000_000) {
     return `${sign}${(absAmount / 1_000_000_000).toFixed(1)}B`;

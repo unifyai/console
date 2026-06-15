@@ -86,6 +86,7 @@ import {
   createAssistant,
   dbExecBlock,
   seedChatInfrastructure,
+  seedCoordinatorChatForUsers,
 } from '../client';
 
 export async function seedBillingBannerStates(): Promise<SeededState> {
@@ -190,6 +191,11 @@ export async function seedBillingBannerStates(): Promise<SeededState> {
     brandNew,
     zeroPaid,
   };
+
+  // Each banner-state user gets a Coordinator (auto-provisioned by
+  // createUser). Wire chat infra for all of them so the Coordinator
+  // panel is exercised alongside the banner under test.
+  await seedCoordinatorChatForUsers(Object.values(users));
 
   const credentials = Object.fromEntries(
     Object.entries(users).map(([key, u]) => [

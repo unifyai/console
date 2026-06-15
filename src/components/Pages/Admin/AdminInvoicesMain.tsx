@@ -23,12 +23,12 @@ import {
   Building2,
   Clock,
   ExternalLink,
-  Loader2,
   Receipt,
   RefreshCw,
   Search,
   User as UserIcon,
 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import {
@@ -395,7 +395,7 @@ export default function AdminInvoicesMain({ actions, listTemplates }: AdminInvoi
             </div>
           ) : loading && !data ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <Loader size={20} />
             </div>
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-12">
@@ -479,7 +479,7 @@ function InvoiceRow({ item }: { item: AdminInvoiceListItem }) {
   return (
     <tr
       className={`hover:bg-muted/40 border-b border-border transition-colors ${
-        isUpcoming ? 'bg-amber-50/30 dark:bg-amber-950/10' : ''
+        isUpcoming ? 'bg-[color:var(--status-warning-bg)]/50' : ''
       }`}
     >
       <td className="px-3 py-2 align-top">
@@ -487,7 +487,7 @@ function InvoiceRow({ item }: { item: AdminInvoiceListItem }) {
           {isUpcoming && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                <Clock className="h-3.5 w-3.5 text-[color:var(--status-warning)]" />
               </TooltipTrigger>
               <TooltipContent>Projected — actual amount finalised at period close.</TooltipContent>
             </Tooltip>

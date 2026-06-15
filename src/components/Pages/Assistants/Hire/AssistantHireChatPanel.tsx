@@ -34,7 +34,7 @@ export function AssistantHireChatPanel({
   const { watch } = useFormContext<AssistantFormData>();
   const photoPreviewUrl = watch('photoPreviewUrl');
   const firstName = watch('firstName', 'New');
-  const surname = watch('surname', 'Assistant');
+  const surname = watch('surname', 'Droid');
   const age = watch('age');
   const bio = watch('about');
   const displayName = `${firstName} ${surname}`;
@@ -168,7 +168,7 @@ export function AssistantHireChatPanel({
       </div>
 
       {/* Chat Area */}
-      <ScrollArea className="flex-1 px-4 py-4 md:px-14" ref={scrollAreaRef}>
+      <ScrollArea className="brand-chat-stencil-bg flex-1 px-4 py-4 md:px-14" ref={scrollAreaRef}>
         <div className="mx-auto min-w-0 max-w-[720px] space-y-6">
           {(USE_MOCK_EMBEDS ? [...messages, ...getMockEmbedMessages()] : messages).map(
             (msg, i, arr) => {

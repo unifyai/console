@@ -73,7 +73,6 @@ export function UsageMain({
     setUserScope,
     setSelectedMember,
     setAssistantId,
-    setCategory,
     setDateRange,
     setGranularity,
     resetFilters,
@@ -357,8 +356,6 @@ export function UsageMain({
           assistantId={filters.assistantId}
           onAssistantChange={setAssistantId}
           assistants={assistants}
-          category={filters.category}
-          onCategoryChange={setCategory}
           startDate={filters.startDate}
           endDate={filters.endDate}
           onDateRangeChange={setDateRange}
@@ -404,6 +401,8 @@ export function UsageMain({
               hasMore={ledger.hasMore}
               onLoadMore={ledger.loadMore}
               granularity={filters.granularity}
+              assistantId={filters.assistantId !== 'all' ? filters.assistantId : undefined}
+              userId={ledgerUserId}
             />
           </div>
         </div>

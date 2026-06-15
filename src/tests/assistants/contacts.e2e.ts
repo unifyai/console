@@ -18,6 +18,7 @@ import {
   cleanupUser,
   createAssistantTest,
   createAssistant,
+  createPersonalCoordinator,
   navigateToAssistants,
   closeHireDialogIfOpen,
   deleteAssistantFromDb,
@@ -27,6 +28,7 @@ import {
   setUserWhatsappNumber,
   clearUserWhatsappNumber,
   ensureProjectSync,
+  dbExecBlock,
 } from './helpers';
 
 const user = createTestUser({ name: 'Contact', lastName: 'Tester', credits: 50_000 });
@@ -41,9 +43,45 @@ const assistant = createAssistant({
   surname: 'E2E',
 });
 
+const coordinator = createPersonalCoordinator(user.id);
+dbExecBlock(`
+DELETE FROM assistant_contacts
+WHERE assistant_id = ${coordinator.agentId}
+  AND contact_type IN ('email', 'phone');
+
+INSERT INTO assistant_contacts (
+  assistant_id,
+  contact_type,
+  contact_value,
+  provider,
+  provisioned_by,
+  status,
+  metadata
+)
+VALUES (
+  ${coordinator.agentId},
+  'email',
+  'marty@unify.ai',
+  'google_workspace',
+  'platform',
+  'active',
+  '{"universal_unity": true}'::jsonb
+),
+(
+  ${coordinator.agentId},
+  'phone',
+  '+14155552671',
+  'twilio',
+  'platform',
+  'active',
+  '{"universal_unity": true, "country": "US"}'::jsonb
+);
+`);
+
 test.afterAll(() => {
   try {
     deleteAssistantFromDb(assistant.agentId);
+    deleteAssistantFromDb(coordinator.agentId);
   } catch {
     /* best effort */
   }
@@ -68,15 +106,18 @@ async function selectContactType(
 /**
  * Open the contact manager via the list item dropdown menu.
  */
-async function openContactManager(page: import('@playwright/test').Page) {
+async function openContactManager(
+  page: import('@playwright/test').Page,
+  targetAssistant = assistant
+) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
+  const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
 
   // Open the dropdown menu on the list item
-  const menuBtn = page.getByTestId(`assistant-menu-${assistant.agentId}`);
+  const menuBtn = page.getByTestId(`assistant-menu-${targetAssistant.agentId}`);
   await listItem.hover();
   await expect(menuBtn).toBeVisible({ timeout: 5_000 });
   await menuBtn.click();
@@ -245,6 +286,49 @@ test('email tab hides platform provider cards (no @unify.ai / @unifyailtd123 pro
   await expect(page.locator('text=Provision a platform email')).toHaveCount(0);
   await expect(page.locator('text=@unify.ai')).toHaveCount(0);
   await expect(page.locator('text=@tenant.onmicrosoft.com')).toHaveCount(0);
+});
+
+test('Marty email tab shows shared Marty address as managed routing', async ({
+  authedPage: page,
+}) => {
+  await openContactManager(page, coordinator);
+
+  await selectContactType(page, 'email');
+
+  await expect(page.locator('text=Marty Email Address')).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(page.locator('input[value="marty@unify.ai"]')).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(
+    page.locator('text=Messages to this shared address are routed by verified sender identity')
+  ).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByRole('button', { name: 'Configure' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
+});
+
+test('Marty phone tab shows shared Marty number as managed routing', async ({
+  authedPage: page,
+}) => {
+  await openContactManager(page, coordinator);
+
+  await selectContactType(page, 'phone');
+
+  await expect(page.getByText('Marty Phone Number', { exact: true }).first()).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(page.locator('input[value="+14155552671"]')).toBeVisible({ timeout: 5_000 });
+  await expect(
+    page
+      .getByText(
+        'Marty phone is managed automatically. SMS messages and calls to this shared number are routed by verified sender identity.',
+        { exact: true }
+      )
+      .first()
+  ).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByRole('button', { name: 'Create' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
 });
 
 test('email tab shows BYOD provider cards (no platform "or" divider) when no email exists', async ({

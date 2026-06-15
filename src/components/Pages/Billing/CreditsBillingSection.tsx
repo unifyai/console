@@ -1,17 +1,10 @@
 'use client';
 
-import { AlertCircle, CheckCircle2, CreditCard, Wallet, Zap } from 'lucide-react';
-import { Alert, AlertDescription } from '../../UI/alert';
-import { Button } from '../../UI/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../UI/card';
-import { Input } from '../../UI/input';
-import { Switch } from '../../UI/switch';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../UI/tooltip';
-import type {
-  AutoRechargeBlockedReason,
-  AutoRechargeData,
-  BillingOrgContext,
-} from '@/types/billing';
+import { Wallet } from 'lucide-react';
+import { Card, CardContent } from '../../UI/card';
+import type { BillingOrgContext, CurrentPlanSummary } from '@/types/billing';
+import { ANNUAL_MONTHS, formatCredits } from '@/lib/billing/currency';
+import { formatCountdown } from '@/lib/billing/format';
 
 // =============================================================================
 // Props
@@ -20,26 +13,14 @@ import type {
 export interface CreditsBillingSectionProps {
   orgContext?: BillingOrgContext | null;
 
-  // Balance
-  balance: string | null;
+  // Credits facts
+  fullBalance: number;
   loadingBalance: boolean;
   isRefreshingBalance: boolean;
-  handleBuyCredits: () => Promise<void>;
-  handleManagePaymentMethods: () => Promise<void>;
-
-  // Auto-recharge
-  autoRechargeData: AutoRechargeData | null;
-  isAutoRechargeEnabled: boolean;
-  minBalance: string;
-  rechargeAmount: string;
-  hasAutoRechargeChanges: boolean;
-  isIneligibleForAutoRecharge: boolean;
-  autoRechargeIneligibilityReason: AutoRechargeBlockedReason | null;
-  autoRechargeAlert: { type: 'success' | 'error'; message: string } | null;
-  setMinBalance: (value: string) => void;
-  setRechargeAmount: (value: string) => void;
-  handleToggleAutoRecharge: () => Promise<void>;
-  handleSaveAutoRecharge: () => Promise<void>;
+  isSubscribed: boolean;
+  monthlyCreditAllowance: number | null;
+  trialExpiresAt: string | null;
+  plan: CurrentPlanSummary | null;
 }
 
 // =============================================================================
@@ -47,206 +28,118 @@ export interface CreditsBillingSectionProps {
 // =============================================================================
 
 /**
- * CREDITS-mode balance + auto-recharge UI.
+ * CREDITS-mode credit balance + usage view.
  *
- * Shown only when ``billingMode === 'CREDITS'``. METERED accounts hide
- * this entirely (their wallet is intentionally zero) and instead see
- * ``MeteredBillingSection``.
+ * Subscribed accounts see how many credits remain this cycle against their
+ * allowance (a clamped usage meter). Unsubscribed (free/trial) accounts see
+ * their remaining balance and, when applicable, a countdown to trial expiry.
+ *
+ * Plan selection / switching, auto-increment, and payment actions live in
+ * the sibling ``PlansBillingSection``. Shown only when
+ * ``billingMode === 'CREDITS'`` (METERED renders ``MeteredBillingSection``).
  */
 export const CreditsBillingSection = ({
   orgContext,
-  balance,
+  fullBalance,
   loadingBalance,
   isRefreshingBalance,
-  handleBuyCredits,
-  handleManagePaymentMethods,
-  autoRechargeData,
-  isAutoRechargeEnabled,
-  minBalance,
-  rechargeAmount,
-  hasAutoRechargeChanges,
-  isIneligibleForAutoRecharge,
-  autoRechargeIneligibilityReason,
-  autoRechargeAlert,
-  setMinBalance,
-  setRechargeAmount,
-  handleToggleAutoRecharge,
-  handleSaveAutoRecharge,
-}: CreditsBillingSectionProps) => (
-  <section className="space-y-4" data-testid="credits-balance-section">
-    <div>
-      <h2 className="text-h3 flex items-center gap-2">
-        <Wallet className="h-5 w-5" />
-        Balance
-      </h2>
-      <p className="text-body-muted mt-1">
-        {orgContext
-          ? `Credits and payment methods for ${orgContext.orgName}`
-          : 'Manage your credits and payment methods'}
-      </p>
-    </div>
+  isSubscribed,
+  monthlyCreditAllowance,
+  trialExpiresAt,
+  plan,
+}: CreditsBillingSectionProps) => {
+  const loading = loadingBalance || isRefreshingBalance;
+  // Balances and allowances are framed as credit counts (display-only ×400).
+  const isAnnual = plan?.commitPeriod === 'ANNUAL';
+  const remaining = formatCredits(fullBalance);
+  // `monthlyCreditAllowance` is the per-month tier rung; annual plans grant
+  // the whole year up front (12×) as a single bucket, so show that total.
+  const allowanceRaw =
+    monthlyCreditAllowance != null
+      ? isAnnual
+        ? monthlyCreditAllowance * ANNUAL_MONTHS
+        : monthlyCreditAllowance
+      : null;
+  const allowance = allowanceRaw != null ? formatCredits(allowanceRaw) : null;
+  const allowanceLabel = isAnnual ? 'Annual allowance' : 'Monthly allowance';
+  // Remaining-this-cycle progress (clamped: a just-granted balance can
+  // briefly exceed the allowance, and rollover/top-ups push it over too).
+  const remainingPct =
+    allowanceRaw && allowanceRaw > 0
+      ? Math.min(100, Math.max(0, (fullBalance / allowanceRaw) * 100))
+      : null;
 
-    {/* Credits Block */}
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-base">Credits</CardTitle>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-body font-semibold text-primary">
-              {loadingBalance || isRefreshingBalance ? (
-                <span className="text-muted-foreground">Loading...</span>
-              ) : (
-                `$${balance ?? 0}`
-              )}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="default" onClick={handleBuyCredits} size="sm">
-              Buy Credits
-            </Button>
-            <Button variant="outline" onClick={handleManagePaymentMethods} size="sm">
-              Manage Payment Methods
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+  return (
+    <section className="space-y-4" data-testid="credits-balance-section">
+      <div>
+        <h2 className="text-h3 flex items-center gap-2">
+          <Wallet className="h-5 w-5" />
+          Credits
+        </h2>
+        <p className="text-body-muted mt-1">
+          {orgContext
+            ? `Credit balance for ${orgContext.orgName}`
+            : 'Your available credits and usage this cycle'}
+        </p>
+      </div>
 
-    {/* Auto-Recharge Block */}
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-base">Auto-Recharge</CardTitle>
-          </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div>
-                  <Switch
-                    checked={isAutoRechargeEnabled}
-                    onCheckedChange={handleToggleAutoRecharge}
-                    disabled={!!isIneligibleForAutoRecharge}
-                  />
-                </div>
-              </TooltipTrigger>
-              {isIneligibleForAutoRecharge && (
-                <TooltipContent className="max-w-xs">
-                  {autoRechargeIneligibilityReason === 'account_status' ? (
-                    <p>
-                      Auto-recharge is unavailable while your account has an outstanding billing
-                      issue. Please resolve it to re-enable.
-                    </p>
-                  ) : autoRechargeIneligibilityReason === 'unpaid_invoice' ? (
-                    <p>
-                      Auto-recharge was disabled because a payment failed. It can be re-enabled once
-                      your outstanding invoice is paid.
-                    </p>
-                  ) : autoRechargeIneligibilityReason === 'spending' ? (
-                    <p>
-                      You need to spend ${autoRechargeData?.minimumSpendRequired} before enabling
-                      auto-recharge. You&apos;ve spent $
-                      {autoRechargeData?.totalSpending?.toFixed(2)}, spend $
-                      {autoRechargeData?.remainingSpendNeeded?.toFixed(2)} more to unlock.
-                    </p>
+      <Card>
+        <CardContent className="space-y-3 pt-6">
+          {isSubscribed ? (
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between gap-4">
+                <span className="text-body font-medium" data-testid="credits-remaining">
+                  {loading ? '…' : remaining}
+                </span>
+                <span className="text-caption text-muted-foreground">
+                  {allowanceLabel}:{' '}
+                  <span data-testid="monthly-allowance">{loading ? '…' : (allowance ?? '—')}</span>
+                </span>
+              </div>
+              <div
+                className="h-2 w-full overflow-hidden rounded-full bg-muted"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={remainingPct ?? undefined}
+                aria-label="Credits remaining this cycle"
+              >
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{ width: `${remainingPct ?? 0}%` }}
+                />
+              </div>
+              <p className="text-caption text-muted-foreground">remaining this cycle</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {trialExpiresAt ? (
+                <p className="text-h3 text-semibold" data-testid="trial-credits">
+                  {loading ? (
+                    <span className="text-muted-foreground">Loading…</span>
                   ) : (
-                    <p>
-                      A default payment method is required to enable auto-recharge. Please add one
-                      via &quot;Manage Payment Methods&quot; below.
-                    </p>
+                    <>
+                      {remaining}{' '}
+                      <span
+                        className="text-caption font-normal text-muted-foreground"
+                        data-testid="trial-countdown"
+                      >
+                        {formatCountdown(trialExpiresAt) === 'expired'
+                          ? '— expired'
+                          : `expire in ${formatCountdown(trialExpiresAt)}`}
+                      </span>
+                    </>
                   )}
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-        <CardDescription className="text-body-muted">
-          {isIneligibleForAutoRecharge
-            ? autoRechargeIneligibilityReason === 'account_status'
-              ? 'Resolve your billing issue to re-enable automatic refills.'
-              : autoRechargeIneligibilityReason === 'unpaid_invoice'
-                ? 'Automatic refills paused until your outstanding invoice is paid.'
-                : autoRechargeIneligibilityReason === 'spending'
-                  ? `Spend $${autoRechargeData?.remainingSpendNeeded?.toFixed(2)} more to unlock automatic refills.`
-                  : 'Add a default payment method to enable automatic refills.'
-            : 'Automatically top up your balance when it falls below a threshold.'}
-        </CardDescription>
-      </CardHeader>
-
-      {isAutoRechargeEnabled && (
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col">
-              <label htmlFor="minBalance" className="text-label mb-1">
-                Minimum Balance
-              </label>
-              <Input
-                prefix="$"
-                id="minBalance"
-                type="number"
-                placeholder="Enter minimum balance"
-                value={minBalance}
-                onChange={(e) => setMinBalance(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col">
-              <label htmlFor="rechargeAmount" className="text-label mb-1">
-                Recharge Amount
-              </label>
-              <Input
-                prefix="$"
-                id="rechargeAmount"
-                type="number"
-                placeholder="Enter recharge amount"
-                value={rechargeAmount}
-                onChange={(e) => setRechargeAmount(e.target.value)}
-              />
-              <p className="text-caption mt-1 text-muted-foreground">
-                Minimum recharge amount: ${autoRechargeData?.minRechargeAmount ?? 25}
-              </p>
-            </div>
-          </div>
-          <Button onClick={handleSaveAutoRecharge} disabled={!hasAutoRechargeChanges} size="sm">
-            Save Changes
-          </Button>
-
-          {autoRechargeAlert && (
-            <Alert variant={autoRechargeAlert.type === 'success' ? 'default' : 'destructive'}>
-              {autoRechargeAlert.type === 'success' ? (
-                <CheckCircle2 className="h-4 w-4" />
+                </p>
               ) : (
-                <AlertCircle className="h-4 w-4" />
+                <p className="text-h3 text-semibold" data-testid="credits-balance-amount">
+                  {loading ? <span className="text-muted-foreground">Loading…</span> : remaining}
+                </p>
               )}
-              <AlertDescription className="whitespace-normal break-words">
-                {autoRechargeAlert.message}
-              </AlertDescription>
-            </Alert>
+            </div>
           )}
         </CardContent>
-      )}
-
-      {!isAutoRechargeEnabled && autoRechargeAlert && (
-        <CardContent>
-          <Alert variant={autoRechargeAlert.type === 'success' ? 'default' : 'destructive'}>
-            {autoRechargeAlert.type === 'success' ? (
-              <CheckCircle2 className="h-4 w-4" />
-            ) : (
-              <AlertCircle className="h-4 w-4" />
-            )}
-            <AlertDescription className="whitespace-normal break-words">
-              {autoRechargeAlert.message}
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      )}
-    </Card>
-  </section>
-);
+      </Card>
+    </section>
+  );
+};

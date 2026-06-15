@@ -1,5 +1,36 @@
+const path = require('node:path');
+
+const CENTRAL_BRANDING_ROOT = path.resolve(__dirname, 'branding');
+const CENTRAL_ISO_ENTRY = path.join(CENTRAL_BRANDING_ROOT, 'vendor/iso-animation/src/index.ts');
+
 /** @type {import('next').NextConfig} */
+const landingOrigins = (process.env.LANDING_AUTH_ALLOWED_ORIGINS ?? '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const isSelfHost = process.env.SELF_HOST === '1' || process.env.NEXT_PUBLIC_SELF_HOST === '1';
+const selfHostDesktopFrameSrc = isSelfHost ? ' http://127.0.0.1:* http://localhost:*' : '';
+const selfHostLiveKitConnectSrc = isSelfHost
+  ? ' ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*'
+  : '';
+
+const serverActionAllowedOrigins = [
+  'unify.ai',
+  'www.unify.ai',
+  'staging.unify.ai',
+  'internal.example.com',
+  ...landingOrigins.map((origin) => {
+    try {
+      return new URL(origin).host;
+    } catch {
+      return origin.replace(/^https?:\/\//, '');
+    }
+  }),
+];
+
 const nextConfig = {
+  transpilePackages: ['@droid/brand', '@droid/iso'],
   images: {
     remotePatterns: [
       {
@@ -38,7 +69,7 @@ const nextConfig = {
     instrumentationHook: true,
     serverMinification: false,
     serverActions: {
-      allowedOrigins: ['unify.ai'],
+      allowedOrigins: Array.from(new Set(serverActionAllowedOrigins)),
       bodySizeLimit: '100mb',
     },
   },
@@ -47,6 +78,13 @@ const nextConfig = {
     styledComponents: true,
   },
   webpack(config) {
+    config.resolve = config.resolve ?? {};
+    config.resolve.symlinks = false;
+    config.resolve.alias = {
+      ...(config.resolve.alias ?? {}),
+      '@droid/iso$': CENTRAL_ISO_ENTRY,
+    };
+
     // Grab the existing rule that handles SVG imports
     const fileLoaderRule = config.module.rules.find((rule) => rule.test?.test?.('.svg'));
 
@@ -106,8 +144,8 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
               "media-src 'self' blob: https://storage.googleapis.com",
-              `connect-src 'self' https://api.unify.ai https://*.unify.ai https://js.stripe.com https://challenges.cloudflare.com wss://*.unify.ai https://*.livekit.cloud wss://*.livekit.cloud https://replicate.delivery https://*.replicate.delivery${process.env.NODE_ENV === 'development' ? ' ws://localhost:* http://localhost:* webpack://*' : ''}`,
-              "frame-src 'self' blob: https://js.stripe.com https://challenges.cloudflare.com https://*.vm.unify.ai https://storage.googleapis.com",
+              `connect-src 'self' https://api.unify.ai https://*.unify.ai https://js.stripe.com https://challenges.cloudflare.com wss://*.unify.ai https://*.livekit.cloud wss://*.livekit.cloud https://replicate.delivery https://*.replicate.delivery${selfHostLiveKitConnectSrc}${process.env.NODE_ENV === 'development' ? ' ws://localhost:* http://localhost:* webpack://*' : ''}`,
+              `frame-src 'self' blob: https://js.stripe.com https://challenges.cloudflare.com https://*.vm.unify.ai https://storage.googleapis.com${selfHostDesktopFrameSrc}`,
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",

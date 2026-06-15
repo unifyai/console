@@ -8,18 +8,21 @@ import { WorkspaceProvider } from './WorkspaceProvider';
 import { EnvironmentProvider } from './EnvironmentProvider';
 import { AuthErrorBoundary } from '@/components/Common/Auth/AuthErrorBoundary';
 import { getCurrentUser } from '@/lib/user/user';
+import { getServerFeatures } from '@/lib/features/server';
+import { resolveEnvironment } from '@/lib/environment/environment';
 import CallSoundPreloader from './CallSoundPreloader';
 
 export default async function Providers({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
 
-  // Resolve environment config server-side where all env vars are available.
-  // This is then passed to the client-side EnvironmentProvider as a prop,
-  // because client components cannot read non-NEXT_PUBLIC_ env vars in
-  // production builds.
+  // Resolve both config axes server-side where all env vars are available, then
+  // pass them to the client-side EnvironmentProvider as a prop (client
+  // components cannot read non-NEXT_PUBLIC_ env vars in production builds).
+  const environment = resolveEnvironment();
+  const features = await getServerFeatures(environment);
   const envConfig = {
-    isStaging: (process.env.ORCHESTRA_URL ?? '').includes('staging'),
-    turnstileSiteKey: process.env.TURNSTILE_SITE_KEY,
+    environment,
+    features,
   };
 
   return (

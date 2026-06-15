@@ -11,6 +11,8 @@ node_modules
 
 # vitest / playwright screenshots
 screenshots/
+playwright-report/
+test-results/
 
 # generated test files (matrix test splits)
 src/tests/**/generated/
@@ -67,3 +69,6 @@ public/userInfo.json
 
 # Workflow recording outputs
 src/workflows/recordings/
+
+# Service-account credential files
+comm-sa.json

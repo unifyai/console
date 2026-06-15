@@ -33,7 +33,7 @@ const LoadingSkeleton = () => (
 const OS_DISPLAY_NAMES: Record<string, string> = {
   ubuntu: 'Ubuntu (.deb)',
   windows: 'Windows (.exe)',
-  macos: 'macOS (.dmg)',
+  macos: 'macOS (.pkg)',
 };
 
 export function AssistantHireLocalSetupInstructionsDialog({
@@ -123,7 +123,9 @@ export function AssistantHireLocalSetupInstructionsDialog({
             Local Desktop Setup Instructions
           </DialogTitle>
           <DialogDescription>
-            Follow these steps to complete your assistant&apos;s local setup for {os}.
+            Follow these steps to complete your droid&apos;s local setup for {os}. Installing the
+            desktop app lets your assistant see and control this machine — its apps, files, and
+            logged-in sessions — during local desktop sessions.
           </DialogDescription>
         </DialogHeader>
 

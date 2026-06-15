@@ -308,7 +308,7 @@ export default function ImageView({
           <>
             {lightboxLoading && <div className="p-4 text-center">Loading image...</div>}
             {lightboxError && (
-              <div className="p-4 text-center font-medium text-red-500">Error: {lightboxError}</div>
+              <div className="text-error p-4 text-center font-medium">Error: {lightboxError}</div>
             )}
             {!lightboxLoading && !lightboxError && (
               <Lightbox
@@ -412,7 +412,7 @@ export default function ImageView({
           <>
             {lightboxLoading && <div className="p-4 text-center">Loading image...</div>}
             {lightboxError && (
-              <div className="p-4 text-center font-medium text-red-500">Error: {lightboxError}</div>
+              <div className="text-error p-4 text-center font-medium">Error: {lightboxError}</div>
             )}
             {!lightboxLoading && !lightboxError && (
               <Lightbox
@@ -564,7 +564,7 @@ export default function ImageView({
         <>
           {lightboxLoading && <div className="p-4 text-center">Loading image...</div>}
           {lightboxError && (
-            <div className="p-4 text-center font-medium text-red-500">Error: {lightboxError}</div>
+            <div className="text-error p-4 text-center font-medium">Error: {lightboxError}</div>
           )}
           {!lightboxLoading && !lightboxError && (
             <Lightbox

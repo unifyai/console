@@ -33,6 +33,7 @@ import {
   createAssistant,
   createEmailLogin,
   seedChatInfrastructure,
+  seedCoordinatorChatForUsers,
   orchestraFetch,
   ensureProject,
   seedManagerMethodEvents,
@@ -291,9 +292,12 @@ const MARKET_INDICES: Record<string, unknown>[] = [
 // Data: Contacts
 // ---------------------------------------------------------------------------
 
+const ASSISTANT_CONTACT_ID = 42;
+const OWNER_CONTACT_ID = 43;
+
 const CONTACTS: Record<string, unknown>[] = [
   {
-    contact_id: 0,
+    contact_id: ASSISTANT_CONTACT_ID,
     first_name: 'Aria',
     surname: 'Sterling',
     email_address: 'aria@sterling-surveyors.example.com',
@@ -302,7 +306,7 @@ const CONTACTS: Record<string, unknown>[] = [
     bio: 'AI valuation analyst at Sterling Chartered Surveyors. Specialises in comparable research, adjustment analysis, and Red Book-compliant report drafting for commercial property.',
   },
   {
-    contact_id: 1,
+    contact_id: OWNER_CONTACT_ID,
     first_name: 'James',
     surname: 'Whitfield',
     email_address: 'j.whitfield@sterling-surveyors.example.com',
@@ -325,7 +329,7 @@ function buildTranscripts(): Record<string, unknown>[] {
       message_id: msgId++,
       medium: 'unify_message',
       sender_id: senderId,
-      receiver_ids: senderId === 0 ? [1] : [0],
+      receiver_ids: senderId === ASSISTANT_CONTACT_ID ? [OWNER_CONTACT_ID] : [ASSISTANT_CONTACT_ID],
       content,
       timestamp: ts(daysAgo, hour, minute),
       exchange_id: Math.floor(msgId / 10),
@@ -1061,6 +1065,9 @@ export async function seedReAppraisal(): Promise<SeededState> {
     assistantId: agentId,
     email: valuer.email,
   });
+
+  // Make the auto-provisioned personal Coordinator chat-ready.
+  await seedCoordinatorChatForUsers([valuer]);
 
   // Seed knowledge (comparables + market data)
   await Promise.all([

@@ -106,7 +106,7 @@ const OrgPhoto = ({ orgName, currentImage, onFileSelect, previewUrl }: OrgPhotoP
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className={`hover:border-muted-foreground/40 group relative h-32 w-32 shrink-0 cursor-pointer overflow-hidden rounded-full border border-border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${displayUrl ? 'bg-transparent' : 'bg-muted'}`}
+        className={`hover:border-muted-foreground/40 rounded-control group relative h-32 w-32 shrink-0 cursor-pointer overflow-hidden border border-border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${displayUrl ? 'bg-transparent' : 'bg-muted'}`}
       >
         {displayUrl ? (
           <Image
@@ -122,8 +122,8 @@ const OrgPhoto = ({ orgName, currentImage, onFileSelect, previewUrl }: OrgPhotoP
           </span>
         )}
 
-        <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
-          <Camera className="h-7 w-7 text-white" />
+        <div className="absolute inset-0 flex items-center justify-center bg-transparent opacity-0 transition-all group-hover:bg-[color:var(--overlay)] group-hover:opacity-100">
+          <Camera className="h-7 w-7 text-[color:var(--cream-white)]" />
         </div>
       </button>
 

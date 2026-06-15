@@ -95,7 +95,7 @@ const PageController = ({
   };
   const paginationContent = (page: number) =>
     loading && pageNum == page ? (
-      <LoaderCircle className={`animate-spin text-primary peer-hover:text-white`} />
+      <LoaderCircle className="animate-spin text-primary peer-hover:text-primary-foreground" />
     ) : (
       page + 1
     );

@@ -4,8 +4,7 @@ interface HamburgerMenuProps {
 }
 
 const HamburgerMenu = ({ onClick, open }: HamburgerMenuProps) => {
-  const hamburgerClass =
-    'w-5 h-0.5 transition-all ease-out rounded-xl bg-[var(--foreground-color)]';
+  const hamburgerClass = 'w-5 h-0.5 transition-all ease-out rounded-xl bg-foreground';
 
   return (
     <div className="z-50 px-[4px] py-[10px] lg:hidden" onClick={onClick}>

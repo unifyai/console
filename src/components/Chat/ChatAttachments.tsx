@@ -34,7 +34,7 @@ function hiddenStatusIcon(items: Attachment[]): React.ReactNode {
   if (statuses.includes('error'))
     return <AlertCircle className="h-3 w-3 flex-shrink-0 text-destructive" />;
   if (statuses.every((s) => s === 'done'))
-    return <Check className="h-3 w-3 flex-shrink-0 text-green-500" />;
+    return <Check className="h-3 w-3 flex-shrink-0 text-[color:var(--status-success)]" />;
   return null;
 }
 
@@ -103,7 +103,7 @@ export function AttachmentChip({
         );
       case 'done':
         return iconWithTooltip(
-          <Check className="h-3 w-3 flex-shrink-0 text-green-500" />,
+          <Check className="h-3 w-3 flex-shrink-0 text-[color:var(--status-success)]" />,
           'Uploaded'
         );
       case 'error':

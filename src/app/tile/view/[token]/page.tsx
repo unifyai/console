@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 function TileNotFoundMessage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background">
+    <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background">
       <div className="max-w-md px-6 text-center">
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
           <svg
@@ -71,7 +71,7 @@ function TileNotFoundMessage() {
 
 function ErrorMessage({ message }: { message: string }) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background">
+    <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background">
       <div className="max-w-md px-6 text-center">
         <div className="bg-destructive/10 mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full">
           <svg
@@ -113,7 +113,7 @@ export default async function TileViewPage({ params, searchParams }: PageProps) 
   }
 
   return (
-    <main className="h-screen overflow-hidden bg-background">
+    <main className="brand-page-stencil-bg h-screen overflow-hidden bg-background">
       <TileViewer
         token={params.token}
         title={data.title}

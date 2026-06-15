@@ -3,6 +3,11 @@ import voice_presets from '@/constants/assistants/voice_presets';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { SupportedLanguage, Gender as CartesiaGender } from '@cartesia/cartesia-js/api';
 import { Voice } from '@/types/assistants/assistant';
+import {
+  applyApprovedCharacterVoiceMetadata,
+  approvedCharacterVoiceIds,
+  defaultCharacterVoiceId,
+} from '@/constants/assistants/approved_character_voices';
 
 export const languageOptions: { value: SupportedLanguage; label: string; flag: string }[] = [
   { value: 'en', label: 'English', flag: '🇬🇧' },
@@ -143,10 +148,17 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
 
 export const getDefaultVoiceForProvider = () => {
   let suitableDefault = (voice_presets as Voice[]).find(
-    (vp) => vp.provider === PRIMARY_VOICE_PROVIDER
+    (vp) => vp.provider === PRIMARY_VOICE_PROVIDER && vp.voiceId === defaultCharacterVoiceId
   );
+  if (!suitableDefault) {
+    suitableDefault = (voice_presets as Voice[]).find(
+      (vp) => vp.provider === PRIMARY_VOICE_PROVIDER && approvedCharacterVoiceIds.has(vp.voiceId)
+    );
+  }
   if (!suitableDefault && voice_presets.length > 0) {
-    suitableDefault = (voice_presets as Voice[])[0]; // Fallback to first preset if no provider match
+    suitableDefault =
+      (voice_presets as Voice[]).find((vp) => approvedCharacterVoiceIds.has(vp.voiceId)) ||
+      (voice_presets as Voice[])[0];
   }
   if (!suitableDefault) {
     // Absolute fallback if voice_presets is empty
@@ -166,7 +178,7 @@ export const getDefaultVoiceForProvider = () => {
       provider: PRIMARY_VOICE_PROVIDER,
     };
   }
-  return suitableDefault;
+  return applyApprovedCharacterVoiceMetadata(suitableDefault);
 };
 
 export const getAudioDuration = (blob: Blob): Promise<number> => {

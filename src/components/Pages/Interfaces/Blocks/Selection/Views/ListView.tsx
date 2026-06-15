@@ -1435,7 +1435,7 @@ export default function ListView({
   if (!isValidBase && !isValidComparables)
     return (
       <div className="flex flex-col gap-2">
-        <p className="text-red-500">ListView: neither base nor comparables are valid arrays</p>
+        <p className="text-error">ListView: neither base nor comparables are valid arrays</p>
       </div>
     );
 

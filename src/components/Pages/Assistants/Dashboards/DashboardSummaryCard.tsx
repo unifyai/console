@@ -95,7 +95,7 @@ function buildDashboardHtml(
       const top = pos.y * (rowHeight + gap);
       const height = pos.h * rowHeight + (pos.h - 1) * gap;
       return `<div style="position:absolute;left:${left}%;width:${width}%;top:${top}px;height:${height}px;padding:${gap / 2}px;">
-        <iframe srcdoc="${html.replace(/"/g, '&quot;')}" style="width:100%;height:100%;border:1px solid rgb(226,232,240);border-radius:8px;" sandbox="allow-scripts"></iframe>
+        <iframe srcdoc="${html.replace(/"/g, '&quot;')}" style="width:100%;height:100%;border:1px solid rgb(217,210,196);border-radius:12px;" sandbox="allow-scripts"></iframe>
       </div>`;
     })
     .join('\n');
@@ -108,9 +108,9 @@ function buildDashboardHtml(
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${title}</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,sans-serif;background:rgb(248,250,252);padding:24px}
-header{border-bottom:1px solid rgb(226,232,240);padding-bottom:12px;margin-bottom:16px}
-h1{font-size:18px;font-weight:700;color:rgb(30,41,59)}p{font-size:13px;color:rgb(100,116,139);margin-top:4px}</style>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,sans-serif;background:rgb(245,241,234);padding:24px}
+header{border-bottom:1px solid rgb(217,210,196);padding-bottom:12px;margin-bottom:16px}
+h1{font-size:18px;font-weight:700;color:rgb(10,20,16)}p{font-size:13px;color:rgb(107,106,100);margin-top:4px}</style>
 </head><body>
 <header><h1>${title}</h1>${description ? `<p>${description}</p>` : ''}</header>
 <div style="position:relative;height:${maxBottom + gap}px;">${tiles}</div>
@@ -167,7 +167,7 @@ export function DashboardSummaryCard({
 
   return (
     <div
-      className="flex flex-col gap-4 rounded-lg border border-border bg-background p-4 shadow-sm"
+      className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-sm"
       data-testid="dashboard-summary-card"
     >
       {/* Title & description */}

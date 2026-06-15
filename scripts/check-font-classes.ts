@@ -20,6 +20,9 @@ import * as path from 'path';
 // Approved standard classes (from globals.css)
 const STANDARD_CLASSES = new Set([
   // Headings
+  'text-brand-display',
+  'text-brand-heading',
+  'text-brand-serif-accent',
   'text-display',
   'text-h1',
   'text-h2',

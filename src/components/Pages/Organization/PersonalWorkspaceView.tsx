@@ -22,10 +22,10 @@ const PersonalWorkspaceView = ({
   const showCreateButton = isUnifyMember || !isAlreadyInOrganization;
 
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center bg-neutral-50/50 dark:bg-neutral-900/20">
+    <div className="flex h-full w-full flex-col items-center justify-center bg-transparent">
       <div className="flex max-w-md flex-col items-center space-y-6 text-center">
         <div className="rounded-2xl p-4 shadow-sm">
-          <Building className="h-10 w-10 text-neutral-600 dark:text-neutral-400" />
+          <Building className="h-10 w-10 text-muted-foreground" />
         </div>
 
         <div className="space-y-2">

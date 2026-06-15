@@ -18,6 +18,7 @@ import {
   useTrackToggle,
   useVoiceAssistant,
   useLocalParticipant,
+  useIsSpeaking,
   TrackReference,
   useTracks,
   useMediaDeviceSelect,
@@ -25,13 +26,27 @@ import {
 import { Room, Track } from 'livekit-client';
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
+import type { CreatureMood } from '@/components/Brand/TeammateCreature';
 
 interface AssistantCommunicationDialogContentProps {
   assistant: Assistant;
   onHangUp: () => void;
-  onHeaderPointerDown: (e: React.PointerEvent) => void;
+  /** Optional; when omitted the header is rendered without drag
+   * chrome — used by the docked / inline call surface. */
+  onHeaderPointerDown?: (e: React.PointerEvent) => void;
   onExpand?: () => void;
   onMinimize?: () => void;
+  /** Header chrome for swapping between docked and dialog modes —
+   *  forwarded straight through to ``AssistantCommunicationHeader``.
+   *  Only one of these is meaningful per render (docked surfaces a
+   *  pop-out button, modal/floating surfaces a redock button). */
+  onPopOut?: () => void;
+  onRedock?: () => void;
+  /** Renders the toolbar at chat-composer height with smaller
+   *  buttons; mirrors the ``docked`` flag on the outer dialog so
+   *  the docked surface lines up with adjacent panes' footers. */
+  compact?: boolean;
   chatHistories: Record<string, ChatMessage[]>;
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories?: Record<string, CallPill[]>;
@@ -41,6 +56,7 @@ interface AssistantCommunicationDialogContentProps {
   userEmail: string | null | undefined;
   userImage: string | null | undefined;
   isWaitingForAssistant: boolean;
+  isAssistantPreparing: boolean;
   waitingMessage?: string | null;
   connectionError: string | null;
   onRetry: () => void;
@@ -56,9 +72,12 @@ interface AssistantCommunicationDialogContentProps {
   callType: 'video' | 'audio' | null;
   isSpeakerMuted: boolean;
   onToggleSpeaker: () => void;
+  avatarMood: CreatureMood;
   chatStreamConnectionStatus: ChatStreamConnectionStatus;
   reconnectChatStream: () => void;
   chatStreamActivitySignal: number;
+  coordinatorAvatarVisible?: boolean;
+  coordinatorTeleportIn?: boolean;
 }
 
 const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialogContentProps> = ({
@@ -67,6 +86,9 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   onHeaderPointerDown,
   onExpand,
   onMinimize,
+  onPopOut,
+  onRedock,
+  compact = false,
   chatHistories,
   setChatHistories,
   callPillHistories,
@@ -76,6 +98,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   userEmail,
   userImage,
   isWaitingForAssistant,
+  isAssistantPreparing,
   waitingMessage,
   connectionError,
   onRetry,
@@ -91,16 +114,24 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   callType,
   isSpeakerMuted,
   onToggleSpeaker,
+  avatarMood,
   chatStreamConnectionStatus,
   reconnectChatStream,
   chatStreamActivitySignal,
+  coordinatorAvatarVisible = true,
+  coordinatorTeleportIn = false,
 }) => {
   const room = React.useContext(RoomContext);
   if (!room)
     throw new Error('AssistantCommunicationDialogContent must be used within a RoomContext');
 
-  const { state: agentState, videoTrack: agentVideoTrack } = useVoiceAssistant();
+  const {
+    state: agentState,
+    audioTrack: agentAudioTrack,
+    videoTrack: agentVideoTrack,
+  } = useVoiceAssistant();
   const { localParticipant } = useLocalParticipant();
+  const isUserSpeaking = useIsSpeaking(localParticipant);
   const micToggle = useTrackToggle({ source: Track.Source.Microphone });
   const camToggle = useTrackToggle({ source: Track.Source.Camera });
   const screenShareToggle = useTrackToggle({ source: Track.Source.ScreenShare });
@@ -120,8 +151,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
       .sendSystemEvent(
         assistant.agentId,
         isOn ? 'user_screen_share_started' : 'user_screen_share_stopped',
-        isOn ? 'User started sharing their screen' : 'User stopped sharing their screen',
-        assistant.deployEnv
+        isOn ? 'User started sharing their screen' : 'User stopped sharing their screen'
       )
       .catch(console.error);
   }, [screenShareToggle.enabled, assistant, assistantActions.desktop]);
@@ -138,8 +168,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
       .sendSystemEvent(
         assistant.agentId,
         isOn ? 'user_webcam_started' : 'user_webcam_stopped',
-        isOn ? 'User enabled their webcam' : 'User disabled their webcam',
-        assistant.deployEnv
+        isOn ? 'User enabled their webcam' : 'User disabled their webcam'
       )
       .catch(console.error);
   }, [camToggle.enabled, assistant, assistantActions.desktop]);
@@ -251,17 +280,21 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   }, [localParticipant, camToggle.track]);
 
   const userTrackRef = screenShareTrack || localVideoTrackRef;
-  const displayName = `${assistant.firstName} ${assistant.surname}`;
+  const hasUserSelfView = Boolean(userTrackRef && (camToggle.enabled || screenShareToggle.enabled));
+  const isCoordinator = assistant.isCoordinator === true;
+  const displayName = assistantDisplayName(assistant);
   const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
 
   const handleToggleSidePanel = (panel: 'chat' | 'settings') => {
     setActiveSidePanel((current) => (current === panel ? null : panel));
   };
 
-  const showLoadingState = isConnecting || isWaitingForAssistant;
+  const showLoadingState = isConnecting || isWaitingForAssistant || isAssistantPreparing;
   const loadingMessage = isConnecting
     ? 'Setting up a connection...'
-    : waitingMessage || `Waiting for ${assistant.firstName} to join...`;
+    : isWaitingForAssistant
+      ? waitingMessage || `Waiting for ${displayName} to join...`
+      : `${displayName} is getting ready...`;
 
   return (
     <>
@@ -270,11 +303,13 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         onHeaderPointerDown={onHeaderPointerDown}
         onExpand={onExpand}
         onMinimize={onMinimize}
+        onPopOut={onPopOut}
+        onRedock={onRedock}
         onHangUp={onHangUp}
       />
       <div className="relative flex min-h-0 flex-1">
         <div className="bg-background/80 relative flex flex-1 flex-col items-center justify-center">
-          {isUserViewMaximized && userTrackRef ? (
+          {isUserViewMaximized && hasUserSelfView ? (
             <AssistantCommunicationUserView
               imageUrl={userImage}
               trackRef={userTrackRef}
@@ -292,8 +327,10 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
             <>
               <AssistantCommunicationMainView
                 assistantName={displayName}
+                isCoordinator={isCoordinator}
                 isSpeaking={agentState === 'speaking'}
                 imageUrl={assistantPhoto}
+                audioTrack={agentAudioTrack}
                 videoTrack={agentVideoTrack}
                 isRemoteControlActive={isRemoteControlActive}
                 remoteControlUrl={liveviewUrl}
@@ -304,9 +341,14 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 onRetry={onRetry}
                 isRingMuted={isSpeakerMuted}
                 onToggleRingMute={onToggleSpeaker}
+                isCallActive={isCallConnected}
+                coordinatorAvatarVisible={coordinatorAvatarVisible}
+                coordinatorTeleportIn={coordinatorTeleportIn}
+                isUserSpeaking={isUserSpeaking}
+                mood={avatarMood}
               />
               <AnimatePresence>
-                {isUserViewVisible && !isConnecting && (
+                {hasUserSelfView && isUserViewVisible && !isConnecting && (
                   <motion.div
                     key="user-view-pip"
                     initial={{ opacity: 0, y: 20 }}
@@ -336,7 +378,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
               </AnimatePresence>
             </>
           )}
-          {!isUserViewMaximized && !isUserViewVisible && !isConnecting && (
+          {hasUserSelfView && !isUserViewMaximized && !isUserViewVisible && !isConnecting && (
             <motion.div
               key="user-view-minimized"
               initial={{ opacity: 0, scale: 0.8 }}
@@ -443,6 +485,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         isAssistantJoined={!isWaitingForAssistant}
         isDesktopReady={isDesktopReady}
         callType={callType}
+        compact={compact}
       />
     </>
   );
@@ -452,6 +495,28 @@ const MIN_FLOATING_WIDTH = 200;
 const MIN_FLOATING_HEIGHT = 160;
 const COMPACT_WIDTH_THRESHOLD = 480;
 const COMPACT_HEIGHT_THRESHOLD = 380;
+
+type BrowserWindowWithCoordinatorIntroAudio = Window & {
+  __coordinatorOnboardingIntroAudio?: HTMLAudioElement;
+};
+
+function useIsCoordinatorIntroAudioPlaying() {
+  const [isIntroAudioPlaying, setIsIntroAudioPlaying] = React.useState(false);
+
+  React.useEffect(() => {
+    const updateIntroAudioState = () => {
+      const audio = (window as BrowserWindowWithCoordinatorIntroAudio)
+        .__coordinatorOnboardingIntroAudio;
+      setIsIntroAudioPlaying(!!audio && !audio.paused && !audio.ended);
+    };
+
+    updateIntroAudioState();
+    const interval = window.setInterval(updateIntroAudioState, 100);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  return isIntroAudioPlaying;
+}
 
 interface AssistantCommunicationDialogProps {
   isOpen: boolean;
@@ -467,6 +532,7 @@ interface AssistantCommunicationDialogProps {
   userEmail: string | null | undefined;
   userImage: string | null | undefined;
   isWaitingForAssistant: boolean;
+  isAssistantPreparing: boolean;
   waitingMessage?: string | null;
   connectionError: string | null;
   onRetry: () => void;
@@ -482,9 +548,38 @@ interface AssistantCommunicationDialogProps {
   callType: 'video' | 'audio' | null;
   isSpeakerMuted: boolean;
   onToggleSpeaker: () => void;
+  avatarMood: CreatureMood;
   chatStreamConnectionStatus: ChatStreamConnectionStatus;
   reconnectChatStream: () => void;
   chatStreamActivitySignal: number;
+  /**
+   * Docked mode replaces the modal/floating shell with an inline
+   * container that fills its parent (``h-full w-full``, no fixed
+   * positioning, no backdrop, no drag/resize affordances). Used by
+   * the Coordinator onboarding flow to dock the call surface in
+   * place of the chat panel while the onboarding sidebar stays
+   * visible to its right. Escape no longer transitions to a
+   * floating overlay either — closing the call is done explicitly
+   * via the hangup control.
+   *
+   * The docked branch deliberately ignores ``isOpen``: docked
+   * surfaces are part of the page layout and the parent decides
+   * when to mount them based on whether a call is active. ``isOpen``
+   * only gates the modal/floating shell.
+   */
+  docked?: boolean;
+  /** Fade the coordinator droid in when it first mounts in the docked call. */
+  coordinatorTeleportIn?: boolean;
+  /** Controls when the docked coordinator avatar mounts during onboarding. */
+  coordinatorAvatarVisible?: boolean;
+  /** Promote the call from its docked slot into the dialog (modal /
+   *  floating) shell. Wired by the header's pop-out button in docked
+   *  mode. */
+  onPopOut?: () => void;
+  /** Demote the call from the dialog shell back into its docked
+   *  slot. Wired by the header's "dock" button on modal & floating
+   *  modes. */
+  onRedock?: () => void;
 }
 
 export function AssistantCommunicationDialog({
@@ -501,6 +596,7 @@ export function AssistantCommunicationDialog({
   userEmail,
   userImage,
   isWaitingForAssistant,
+  isAssistantPreparing,
   waitingMessage,
   connectionError,
   onRetry,
@@ -516,9 +612,15 @@ export function AssistantCommunicationDialog({
   callType,
   isSpeakerMuted,
   onToggleSpeaker,
+  avatarMood,
   chatStreamConnectionStatus,
   reconnectChatStream,
   chatStreamActivitySignal,
+  docked = false,
+  coordinatorAvatarVisible = true,
+  coordinatorTeleportIn = false,
+  onPopOut,
+  onRedock,
 }: AssistantCommunicationDialogProps) {
   // --- Modal / Floating mode ---
   const [mode, setMode] = React.useState<'modal' | 'floating'>('modal');
@@ -531,6 +633,7 @@ export function AssistantCommunicationDialog({
   const [isResizing, setIsResizing] = React.useState(false);
 
   const isModal = mode === 'modal';
+  const isCoordinatorIntroAudioPlaying = useIsCoordinatorIntroAudioPlaying();
 
   // Reset to modal every time the dialog opens.
   React.useEffect(() => {
@@ -552,8 +655,11 @@ export function AssistantCommunicationDialog({
   }, []);
 
   // Escape key: modal → floating (keeps the call alive).
+  // Suppressed in docked mode — the call is part of the surrounding
+  // page chrome there, not a dismissable overlay, so escape should
+  // remain available for other UI (e.g. closing menus).
   React.useEffect(() => {
-    if (!isOpen || !isModal) return;
+    if (!isOpen || !isModal || docked) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -562,7 +668,7 @@ export function AssistantCommunicationDialog({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isModal, transitionToFloating]);
+  }, [isOpen, isModal, docked, transitionToFloating]);
 
   // --- Header drag ---
   const handleHeaderPointerDown = React.useCallback(
@@ -677,6 +783,65 @@ export function AssistantCommunicationDialog({
 
   const handleResizeEnd = React.useCallback(() => setIsResizing(false), []);
 
+  // Docked mode: inline surface that fills its parent. No backdrop,
+  // no positioning chrome, no drag/resize/floating — the dialog is
+  // just one panel of a larger page layout (the chat slot on the
+  // /assistants page, or the Coordinator onboarding shell).
+  //
+  // The branch sits *above* the ``isOpen`` guard on purpose: docked
+  // surfaces are mounted/unmounted by their parent based on whether
+  // a call is active, not by the dialog-only ``isOpen`` flag, so
+  // gating them on ``isOpen`` would force every caller to thread
+  // an unrelated boolean through.
+  if (docked) {
+    return (
+      <div
+        ref={contentRef}
+        className="relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground"
+        data-testid="assistant-call-docked"
+      >
+        {!isCoordinatorIntroAudioPlaying && <RoomAudioRenderer />}
+        <AssistantCommunicationDialogContent
+          assistant={assistant}
+          onHangUp={onClose}
+          onPopOut={onPopOut}
+          compact
+          chatHistories={chatHistories}
+          setChatHistories={setChatHistories}
+          callPillHistories={callPillHistories}
+          setCallPillHistories={setCallPillHistories}
+          assistantActions={assistantActions}
+          isConnecting={isConnecting}
+          userEmail={userEmail}
+          userImage={userImage}
+          isWaitingForAssistant={isWaitingForAssistant}
+          isAssistantPreparing={isAssistantPreparing}
+          waitingMessage={waitingMessage}
+          connectionError={connectionError}
+          onRetry={onRetry}
+          isRemoteControlActive={isRemoteControlActive}
+          liveviewUrl={liveviewUrl}
+          isRemoteControlLoading={isRemoteControlLoading}
+          toggleRemoteControl={toggleRemoteControl}
+          isRemoteControlInteractive={isRemoteControlInteractive}
+          isRemoteControlInteractiveLoading={isRemoteControlInteractiveLoading}
+          toggleRemoteControlInteractive={toggleRemoteControlInteractive}
+          isCallConnected={isCallConnected}
+          isDesktopReady={isDesktopReady}
+          callType={callType}
+          isSpeakerMuted={isSpeakerMuted}
+          onToggleSpeaker={onToggleSpeaker}
+          avatarMood={avatarMood}
+          chatStreamConnectionStatus={chatStreamConnectionStatus}
+          reconnectChatStream={reconnectChatStream}
+          chatStreamActivitySignal={chatStreamActivitySignal}
+          coordinatorAvatarVisible={coordinatorAvatarVisible}
+          coordinatorTeleportIn={coordinatorTeleportIn}
+        />
+      </div>
+    );
+  }
+
   if (!isOpen) return null;
 
   const isCompact =
@@ -697,7 +862,7 @@ export function AssistantCommunicationDialog({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 bg-black/80"
+            className="fixed inset-0 z-50 bg-[color:var(--overlay-strong)]"
             onClick={transitionToFloating}
           />
         )}
@@ -727,7 +892,7 @@ export function AssistantCommunicationDialog({
         }
         onPointerDown={isCompact ? handleHeaderPointerDown : undefined}
       >
-        <RoomAudioRenderer />
+        {!isCoordinatorIntroAudioPlaying && <RoomAudioRenderer />}
 
         {isCompact ? (
           /* Compact / simplified view */
@@ -740,11 +905,13 @@ export function AssistantCommunicationDialog({
               onToggleSpeaker={onToggleSpeaker}
               isConnecting={isConnecting}
               isWaitingForAssistant={isWaitingForAssistant}
+              isAssistantPreparing={isAssistantPreparing}
               waitingMessage={waitingMessage}
               connectionError={connectionError}
               onRetry={onRetry}
               isCallConnected={isCallConnected}
               callType={callType}
+              avatarMood={avatarMood}
             />
           </div>
         ) : (
@@ -755,6 +922,7 @@ export function AssistantCommunicationDialog({
             onHeaderPointerDown={handleHeaderPointerDown}
             onExpand={!isModal ? () => setMode('modal') : undefined}
             onMinimize={isModal ? transitionToFloating : undefined}
+            onRedock={onRedock}
             chatHistories={chatHistories}
             setChatHistories={setChatHistories}
             callPillHistories={callPillHistories}
@@ -764,6 +932,7 @@ export function AssistantCommunicationDialog({
             userEmail={userEmail}
             userImage={userImage}
             isWaitingForAssistant={isWaitingForAssistant}
+            isAssistantPreparing={isAssistantPreparing}
             waitingMessage={waitingMessage}
             connectionError={connectionError}
             onRetry={onRetry}
@@ -779,9 +948,12 @@ export function AssistantCommunicationDialog({
             callType={callType}
             isSpeakerMuted={isSpeakerMuted}
             onToggleSpeaker={onToggleSpeaker}
+            avatarMood={avatarMood}
             chatStreamConnectionStatus={chatStreamConnectionStatus}
             reconnectChatStream={reconnectChatStream}
             chatStreamActivitySignal={chatStreamActivitySignal}
+            coordinatorAvatarVisible={coordinatorAvatarVisible}
+            coordinatorTeleportIn={coordinatorTeleportIn}
           />
         )}
 

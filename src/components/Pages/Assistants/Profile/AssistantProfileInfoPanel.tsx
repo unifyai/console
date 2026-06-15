@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Image from 'next/image';
-import { Info, Copy, Check } from 'lucide-react';
+import { Copy, Check } from 'lucide-react';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
@@ -16,6 +16,7 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { fetchMediaSignedUrls } from '@/lib/client/assistant';
 import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
 import { clientLog, flushClientLogs } from '@/lib/logging/client-log-buffer';
+import { InfoSquareButton } from '@/components/UI/info-square-button';
 
 import Link from 'next/link';
 import { useAssistantSpending } from '@/hooks/Assistants/useAssistantSpending';
@@ -540,7 +541,7 @@ export function AssistantProfileInfoPanel({
                     }}
                   >
                     {isIdCopied ? (
-                      <Check className="h-3 w-3 text-green-500" />
+                      <Check className="h-3 w-3 text-[color:var(--status-success)]" />
                     ) : (
                       <Copy className="h-3 w-3 text-muted-foreground transition-colors group-hover/id:text-foreground" />
                     )}
@@ -573,7 +574,7 @@ export function AssistantProfileInfoPanel({
               <TooltipProvider delayDuration={100}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-3.5 w-3.5 cursor-help text-muted-foreground" />
+                    <InfoSquareButton />
                   </TooltipTrigger>
                   <TooltipContent side="right" className="max-w-xs">
                     <p>

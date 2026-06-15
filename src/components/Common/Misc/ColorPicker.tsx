@@ -10,9 +10,9 @@ import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 
 const DEFAULT_CHILDREN = (
-  <div className="flex aspect-square h-fit w-fit items-center justify-center rounded-full bg-gradient-to-br from-pink-300/20 via-violet-300/20 to-indigo-300/20 p-[0.2rem] md:p-[0.2vw]">
-    <div className="flex aspect-square h-[2rem] items-center justify-center rounded-full bg-gradient-to-br from-pink-300 via-violet-300 to-indigo-300 md:h-[2vw]">
-      <Pipette className="aspect-square w-[1rem] text-white md:w-[1vw]" />
+  <div className="from-[color:var(--role-green)]/20 via-[color:var(--role-purple)]/20 to-[color:var(--role-blue)]/20 flex aspect-square h-fit w-fit items-center justify-center rounded-full bg-gradient-to-br p-[0.2rem] md:p-[0.2vw]">
+    <div className="flex aspect-square h-[2rem] items-center justify-center rounded-full bg-gradient-to-br from-[color:var(--role-green)] via-[color:var(--role-purple)] to-[color:var(--role-blue)] md:h-[2vw]">
+      <Pipette className="aspect-square w-[1rem] text-[color:var(--ink)] md:w-[1vw]" />
     </div>
   </div>
 );
@@ -39,12 +39,12 @@ const getDefaultColor = (): string => {
         const b = parseInt(match[3]);
         return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
       }
-      return primaryColor.startsWith('#') ? primaryColor : 'var(--forest-green)';
+      return primaryColor.startsWith('#') ? primaryColor : 'var(--role-green-deep)';
     }
   } catch (e) {
     console.warn('Failed to get primary color from CSS variables');
   }
-  return 'var(--forest-green)'; // Fallback to forest green
+  return 'var(--role-green-deep)';
 };
 
 type TColorPicker = {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo } from 'react';
 import { Input } from '@/components/UI/input';
 import { Label } from '@/components/UI/label';
 import {
@@ -11,6 +11,14 @@ import {
   SelectValue,
 } from '@/components/UI/select';
 import { Loader2, Check, X } from 'lucide-react';
+import { ISO_COUNTRY_CODES } from '@/constants/countries';
+import { getCountryName } from '@/utils/assistants/country-utils';
+import {
+  isPostalCodeRequired,
+  isPostalCodeValid,
+  isStateRequired,
+  postalCodeExample,
+} from '@/lib/billing/address-rules';
 import type {
   BillingActions,
   BillingProfileData,
@@ -19,6 +27,10 @@ import type {
   SupportedTaxCountriesResponse,
   SupportedTaxCountryEntry,
 } from '@/types/billing';
+
+// Country-aware address rules (postal/state requirement + postal formats)
+// live in a shared module so the subscribe-time gate uses the same logic.
+// Authoritative validation still happens server-side against Stripe.
 
 // ============================================================================
 // Props & Handles
@@ -60,13 +72,45 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
       },
     });
 
-    // Tax country (ISO code) drives taxIdType; stored separately from address country
-    const [taxCountry, setTaxCountry] = useState('');
+    // The tax jurisdiction is the billing-address country — there's no
+    // separate "tax country". A tax ID is always issued by (and validated
+    // against) the country you're billed in, and Stripe computes tax from the
+    // address anyway. Keeping a second selector only risked the two
+    // disagreeing (and the backend validates the tax ID against the *address*
+    // country regardless), so the tax-ID type/label/format below is derived
+    // from `billingAddress.country`.
+    const taxCountry = formData.billingAddress.country;
 
     const [supportedCountries, setSupportedCountries] = useState<TaxCountry[]>([]);
     const [taxIdValidation, setTaxIdValidation] = useState<TaxIdValidationResponse | null>(null);
     const [validatingTaxId, setValidatingTaxId] = useState(false);
     const [loadingCountries, setLoadingCountries] = useState(true);
+
+    // Full country list (ISO-2 code → localized name) for the billing-address
+    // Country dropdown. Names are derived from the code so we store the code
+    // Stripe expects while showing the user a readable name.
+    const countryOptions = useMemo(
+      () =>
+        ISO_COUNTRY_CODES.map((code) => ({ code, name: getCountryName(code) || code })).sort(
+          (a, b) => a.name.localeCompare(b.name)
+        ),
+      []
+    );
+
+    // Pre-render the dropdown <SelectItem> trees once and memoize them. Without
+    // this the ~250 address-country items (plus the tax-country list) are
+    // recreated on every keystroke in any field, forcing React to reconcile
+    // hundreds of items per character and making typing feel sluggish. Stable
+    // element references let React skip those subtrees entirely.
+    const countryItems = useMemo(
+      () =>
+        countryOptions.map((c) => (
+          <SelectItem key={c.code} value={c.code}>
+            {c.name}
+          </SelectItem>
+        )),
+      [countryOptions]
+    );
 
     useImperativeHandle(ref, () => ({
       submit: () => {
@@ -143,19 +187,16 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formData.taxId, taxCountry]);
 
-    // ── Sync taxCountry → billingAddress.country + taxIdType ─────────────
+    // ── Derive taxIdType from the billing-address country ────────────────
+    // The tax-ID type follows the country you're billed in. If that country
+    // isn't a supported tax jurisdiction we clear the type (and hide the tax
+    // ID input below) rather than guessing a default.
     useEffect(() => {
-      if (taxCountry) {
-        const country = supportedCountries.find((c) => c.code === taxCountry);
-        setFormData((prev) => ({
-          ...prev,
-          taxIdType: country?.stripeTaxIdType || 'eu_vat',
-          billingAddress: {
-            ...prev.billingAddress,
-            country: taxCountry,
-          },
-        }));
-      }
+      const country = supportedCountries.find((c) => c.code === taxCountry);
+      setFormData((prev) => ({
+        ...prev,
+        taxIdType: country?.stripeTaxIdType || '',
+      }));
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [taxCountry, supportedCountries]);
 
@@ -170,10 +211,6 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
             ...(initialData.billingAddress ?? {}),
           },
         }));
-        // Derive taxCountry from billingAddress.country if available
-        if (initialData.billingAddress?.country) {
-          setTaxCountry(initialData.billingAddress.country);
-        }
       }
     }, [initialData]);
 
@@ -194,8 +231,20 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
 
     // ── Validation ───────────────────────────────────────────────────────
     const isFormValid = useCallback(() => {
-      // Name is the only strictly required field
+      // Required: name + a billing address Stripe automatic tax can resolve.
+      // line1/city/country are always required; a postal code is required only
+      // for countries that use one (the UAE etc. don't), and a state only for
+      // the regions that need it (US/CA). Where we know the postal format
+      // (US/CA/GB) it must also be well-formed.
       if (!formData.name.trim()) return false;
+      const { line1, city, postalCode, country, state } = formData.billingAddress;
+      if (!line1.trim()) return false;
+      if (!city.trim()) return false;
+      if (!country.trim()) return false;
+      if (isPostalCodeRequired(country) && !postalCode.trim()) return false;
+      if (isStateRequired(country) && !state.trim()) return false;
+      // A provided postal code must match the country's format (when known).
+      if (postalCode.trim() && !isPostalCodeValid(country, postalCode)) return false;
       // If a tax ID is entered, it should be valid
       if (formData.taxId && taxIdValidation && !taxIdValidation.valid) return false;
       return true;
@@ -207,102 +256,64 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
 
     const selectedCountry = supportedCountries.find((c) => c.code === taxCountry);
 
+    // Inline address validation flags (instant feedback; Stripe is the
+    // authoritative check on save).
+    const addrCountry = formData.billingAddress.country;
+    const stateRequired = isStateRequired(addrCountry);
+    const stateMissing = stateRequired && !formData.billingAddress.state.trim();
+    const postalRequired = isPostalCodeRequired(addrCountry);
+    const postalExample = postalCodeExample(addrCountry);
+    const postalInvalid =
+      !!formData.billingAddress.postalCode.trim() &&
+      !isPostalCodeValid(addrCountry, formData.billingAddress.postalCode);
+
     // ── Render ───────────────────────────────────────────────────────────
     return (
-      <div className="w-full space-y-6">
-        {/* Name */}
-        <div className="space-y-2">
-          <Label htmlFor="billingName" className="text-label">
-            Name *
-          </Label>
-          <Input
-            id="billingName"
-            value={formData.name}
-            onChange={(e) => handleInputChange('name', e.target.value)}
-            placeholder="Your name or business name"
-            required
-            className="h-10"
-          />
-          <p className="text-caption">This name will appear on invoices and receipts.</p>
-        </div>
+      <div className="w-full space-y-8">
+        {/* ── Billing Contact ─────────────────────────────────────────── */}
+        <section className="space-y-4">
+          <h3 className="text-label font-semibold">Billing Contact</h3>
 
-        {/* Billing Email */}
-        <div className="space-y-2">
-          <Label htmlFor="billingEmail" className="text-label">
-            Billing Email
-          </Label>
-          <Input
-            id="billingEmail"
-            type="email"
-            value={formData.billingEmail}
-            onChange={(e) => handleInputChange('billingEmail', e.target.value)}
-            placeholder="billing@example.com"
-            className="h-10"
-          />
-          <p className="text-caption">Invoices and payment receipts will be sent to this email.</p>
-        </div>
-
-        {/* Tax Country */}
-        <div className="space-y-2">
-          <Label htmlFor="taxCountry" className="text-label">
-            Tax Country
-          </Label>
-          <Select value={taxCountry} onValueChange={setTaxCountry} disabled={loadingCountries}>
-            <SelectTrigger className="h-10">
-              <SelectValue
-                placeholder={loadingCountries ? 'Loading countries...' : 'Select tax country'}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {supportedCountries.map((c) => (
-                <SelectItem key={c.code} value={c.code}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Tax ID */}
-        <div className="space-y-2">
-          <Label htmlFor="taxId" className="text-label">
-            {selectedCountry?.taxIdName || 'Tax ID'}
-          </Label>
-          <div className="relative">
+          <div className="space-y-2">
+            <Label htmlFor="billingName" className="text-label text-xs">
+              Name *
+            </Label>
             <Input
-              id="taxId"
-              value={formData.taxId}
-              onChange={(e) => handleInputChange('taxId', e.target.value)}
-              placeholder={selectedCountry?.taxIdFormat || 'Enter tax ID'}
+              id="billingName"
+              value={formData.name}
+              onChange={(e) => handleInputChange('name', e.target.value)}
+              placeholder="Your name or business name"
+              required
               className="h-10"
             />
-            {validatingTaxId && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-              </div>
-            )}
-            {taxIdValidation && !validatingTaxId && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                {taxIdValidation.valid ? (
-                  <Check className="h-4 w-4 text-green-500" />
-                ) : (
-                  <X className="h-4 w-4 text-destructive" />
-                )}
-              </div>
-            )}
+            <p className="text-caption">This name will appear on invoices and receipts.</p>
           </div>
-          {taxIdValidation && !taxIdValidation.valid && (
-            <p className="text-caption text-error">{taxIdValidation.errorMessage}</p>
-          )}
-        </div>
 
-        {/* Billing Address */}
-        <div className="space-y-4">
-          <Label className="text-label font-medium">Billing Address</Label>
+          <div className="space-y-2">
+            <Label htmlFor="billingEmail" className="text-label text-xs">
+              Email
+            </Label>
+            <Input
+              id="billingEmail"
+              type="email"
+              value={formData.billingEmail}
+              onChange={(e) => handleInputChange('billingEmail', e.target.value)}
+              placeholder="billing@example.com"
+              className="h-10"
+            />
+            <p className="text-caption">
+              Invoices and payment receipts will be sent to this email.
+            </p>
+          </div>
+        </section>
+
+        {/* ── Billing Address ─────────────────────────────────────────── */}
+        <section className="space-y-4">
+          <h3 className="text-label font-semibold">Billing Address</h3>
 
           <div className="space-y-2">
             <Label htmlFor="addrLine1" className="text-label text-xs">
-              Address Line 1
+              Address Line 1 *
             </Label>
             <Input
               id="addrLine1"
@@ -326,10 +337,25 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="addrCountry" className="text-label text-xs">
+              Country *
+            </Label>
+            <Select
+              value={formData.billingAddress.country}
+              onValueChange={(v) => handleAddressChange('country', v)}
+            >
+              <SelectTrigger id="addrCountry" className="h-10">
+                <SelectValue placeholder="Select country" />
+              </SelectTrigger>
+              <SelectContent>{countryItems}</SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="addrCity" className="text-label text-xs">
-                City
+                City *
               </Label>
               <Input
                 id="addrCity"
@@ -341,45 +367,100 @@ const BillingProfileForm = forwardRef<BillingProfileFormHandle, BillingProfileFo
             </div>
             <div className="space-y-2">
               <Label htmlFor="addrState" className="text-label text-xs">
-                State / Province
+                State / Province{stateRequired ? ' *' : ''}
               </Label>
               <Input
                 id="addrState"
                 value={formData.billingAddress.state}
                 onChange={(e) => handleAddressChange('state', e.target.value)}
-                placeholder="State or Province"
+                placeholder={addrCountry === 'US' ? 'State (e.g. CA)' : 'State or Province'}
                 className="h-10"
               />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="addrCountry" className="text-label text-xs">
-                Country
-              </Label>
-              <Input
-                id="addrCountry"
-                value={formData.billingAddress.country}
-                onChange={(e) => handleAddressChange('country', e.target.value)}
-                placeholder="Country (ISO-2)"
-                className="h-10"
-              />
+              {stateMissing && (
+                <p className="text-caption text-error">
+                  Required for {addrCountry === 'US' ? 'US' : 'Canadian'} tax calculation.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="addrPostal" className="text-label text-xs">
-                Postal Code
+                Postal Code{postalRequired ? ' *' : ''}
               </Label>
               <Input
                 id="addrPostal"
                 value={formData.billingAddress.postalCode}
                 onChange={(e) => handleAddressChange('postalCode', e.target.value)}
-                placeholder="Postal code"
+                placeholder={
+                  postalExample
+                    ? `e.g. ${postalExample}`
+                    : postalRequired
+                      ? 'Postal code'
+                      : 'Postal code (optional)'
+                }
                 className="h-10"
               />
+              {postalInvalid && (
+                <p className="text-caption text-error">
+                  Enter a valid {getCountryName(addrCountry) || addrCountry} postal code
+                  {postalExample ? ` (e.g. ${postalExample})` : ''}.
+                </p>
+              )}
             </div>
           </div>
-        </div>
+        </section>
+
+        {/* ── Tax Information ──────────────────────────────────────────── */}
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-label font-semibold">Tax Information (For businesses)</h3>
+            <p className="text-caption">
+              Add a tax ID (e.g. VAT/EIN) for tax treatment and compliant invoices.
+            </p>
+          </div>
+
+          {!addrCountry ? (
+            <p className="text-caption text-muted-foreground" data-testid="tax-id-needs-country">
+              Select your billing country above to add a tax ID.
+            </p>
+          ) : loadingCountries ? null : !selectedCountry ? (
+            <p className="text-caption text-muted-foreground" data-testid="tax-id-unsupported">
+              A tax ID isn&apos;t required for {getCountryName(addrCountry) || addrCountry}.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="taxId" className="text-label text-xs">
+                {selectedCountry.taxIdName || 'Tax ID'} (
+                {getCountryName(addrCountry) || addrCountry})
+              </Label>
+              <div className="relative">
+                <Input
+                  id="taxId"
+                  value={formData.taxId}
+                  onChange={(e) => handleInputChange('taxId', e.target.value)}
+                  placeholder={selectedCountry.taxIdFormat || 'Enter tax ID'}
+                  className="h-10"
+                />
+                {validatingTaxId && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                )}
+                {taxIdValidation && !validatingTaxId && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {taxIdValidation.valid ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <X className="h-4 w-4 text-destructive" />
+                    )}
+                  </div>
+                )}
+              </div>
+              {taxIdValidation && !taxIdValidation.valid && (
+                <p className="text-caption text-error">{taxIdValidation.errorMessage}</p>
+              )}
+            </div>
+          )}
+        </section>
 
         {error && <p className="text-caption text-error">{error}</p>}
       </div>

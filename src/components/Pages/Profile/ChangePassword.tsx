@@ -151,7 +151,7 @@ const ChangePasswordForm = ({
         </div>
 
         {error && (
-          <p className="text-sm text-red-500" data-testid="change-password-error">
+          <p className="text-body text-error" data-testid="change-password-error">
             {error}
           </p>
         )}

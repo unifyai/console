@@ -11,7 +11,7 @@ import {
 } from '@/types/interfaces/plot';
 import { getValue, getRawValue, hasProperty } from './data';
 import { drawAxes, generateTicks } from './axes';
-import { getPrimaryColorFromNode } from './common';
+import { getPlotColorRange, getPrimaryColorFromNode } from './common';
 import { renderGroupingKey } from './key';
 import { showFixedTooltip, tooltipTemplate, positionTooltipRelativeToPointer } from './tooltip';
 import { toComputableValue, computeStatistic } from '../common';
@@ -459,8 +459,8 @@ export const drawBarChart = (
   const initialOpacity = groupBy ? 0.7 : 1.0;
   if (groupBy) {
     const groupDomain = Array.from(new Set((data as GroupedDataLabel[]).map((d) => d[0])));
-    const colorRange = d3[groupByColors as keyof typeof d3] as readonly string[];
-    const colorScale = d3.scaleOrdinal<string>(d3.schemeCategory10).domain(colorRange);
+    const colorRange = getPlotColorRange(groupByColors, d3);
+    const colorScale = d3.scaleOrdinal<string>(colorRange).domain(groupDomain);
     g.selectAll<SVGRectElement, GroupedDataLabel>('rect.bar-item')
       .data(
         data as GroupedDataLabel[],

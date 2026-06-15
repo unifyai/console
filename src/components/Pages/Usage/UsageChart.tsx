@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { UsageDataPoint, TimeGranularity } from '@/types/usage';
 import { formatTimestampForDisplay } from '@/utils/usage/dateUtils';
 import { formatCostAxis, formatCostForDisplay } from '@/utils/usage/formatters';
+import { Loader } from '@/components/Common/Loader';
 import { BarChart3 } from 'lucide-react';
 
 interface UsageChartProps {
@@ -22,11 +23,11 @@ interface ChartColors {
 }
 
 const FALLBACK_COLORS: ChartColors = {
-  bar: 'var(--forest-green)',
+  bar: 'var(--role-green-deep)',
   grid: 'var(--chart-grid)',
-  border: 'var(--light-neutral-grey)',
-  tickText: 'var(--dark-slate-gray)',
-  cursorFill: 'rgba(176, 190, 197, 0.3)',
+  border: 'var(--rule)',
+  tickText: 'var(--muted-ink)',
+  cursorFill: 'color-mix(in srgb, var(--rule) 30%, transparent)',
 };
 
 function useChartColors(): ChartColors {
@@ -37,10 +38,10 @@ function useChartColors(): ChartColors {
       const s = getComputedStyle(document.documentElement);
       const get = (v: string) => s.getPropertyValue(v).trim();
 
-      const primary = get('--primary') || get('--forest-green');
-      const border = get('--border') || get('--light-neutral-grey');
+      const primary = get('--primary') || get('--role-green-deep');
+      const border = get('--border') || get('--rule');
       const muted = get('--muted') || border;
-      const mutedFg = get('--muted-foreground') || get('--dark-slate-gray');
+      const mutedFg = get('--muted-foreground') || get('--muted-ink');
       const chartGrid = get('--chart-grid') || border;
 
       setColors({
@@ -70,7 +71,7 @@ function useChartColors(): ChartColors {
 function EmptyState({ message }: { message: string }) {
   return (
     <div
-      className="bg-muted/20 flex h-full min-h-[200px] flex-col items-center justify-center rounded-lg border border-dashed border-border"
+      className="flex h-full min-h-[200px] flex-col items-center justify-center rounded-lg border border-border bg-card"
       data-testid="usage-chart-empty"
     >
       <BarChart3 className="text-muted-foreground/50 mb-4 h-12 w-12" />
@@ -82,11 +83,11 @@ function EmptyState({ message }: { message: string }) {
 function LoadingState() {
   return (
     <div
-      className="bg-muted/10 flex h-full min-h-[200px] items-center justify-center rounded-lg border border-border"
+      className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-border bg-card"
       data-testid="usage-chart-loading"
     >
       <div className="flex flex-col items-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <Loader size={32} />
         <p className="text-body-muted mt-2">Loading usage data...</p>
       </div>
     </div>

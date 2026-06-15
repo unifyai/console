@@ -40,15 +40,19 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import DarkModeToggle from '@/components/Layout/NavBar/DarkModeToggle';
-import ivyLogoOnly from '@/public/ivy_logo_only.png';
 import { getCurrentUser } from '@/lib/user/user';
 import Image from 'next/image';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
+import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { UserOrganization } from '@/types/user';
 import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog';
+import ReferralBanner from '@/components/Layout/TopBar/ReferralBanner';
+import { UnifyBlockMark } from '@/components/Brand';
 
 export default function TopNav() {
   const pathname = usePathname();
+  const { billing: billingEnabled, support: supportEnabled } = useFeatures();
+  const { isSelfHost } = useEnvironment();
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [profileName, setProfileName] = useState('Profile');
@@ -158,9 +162,11 @@ export default function TopNav() {
 
           const resolvedAvatarUrl = photos['personal'] || imageUrl;
           setAvatarJSX(
-            <Avatar className="h-6 w-6">
+            <Avatar className="rounded-control h-6 w-6">
               <AvatarImage src={resolvedAvatarUrl} alt="User Avatar" />
-              <AvatarFallback className="text-label">{getInitials(userName)}</AvatarFallback>
+              <AvatarFallback className="rounded-control text-label">
+                {getInitials(userName)}
+              </AvatarFallback>
             </Avatar>
           );
         }
@@ -182,11 +188,19 @@ export default function TopNav() {
       ? userOrgs.find((o) => o.id.toString() === activeWorkspace.id)
       : null;
 
-  const canManageBilling =
-    !currentOrg || ['owner', 'admin'].includes(currentOrg.roleName?.toLowerCase() ?? '');
+  // Members of the "Unify" organization (internal staff) are trusted to view
+  // billing/usage for any org they belong to, including during that org's free
+  // trial — mirroring the page-level trial bypass in `/billing` and `/usage`.
+  const isUnifyMember = userOrgs.some((o) => o.name === 'Unify');
 
-  // Hide billing & usage links when the active org is in free trial mode
-  const isOrgInFreeTrial = !!currentOrg?.freeTrial;
+  const canManageBilling =
+    !currentOrg ||
+    isUnifyMember ||
+    ['owner', 'admin'].includes(currentOrg.roleName?.toLowerCase() ?? '');
+
+  // Hide billing & usage links when the active org is in free trial mode —
+  // except for Unify members, who keep access during a customer org's trial.
+  const isOrgInFreeTrial = !!currentOrg?.freeTrial && !isUnifyMember;
 
   // Mirrors the gate in `/admin/layout.tsx`: only Owner/Admin members of
   // the "Unify" organization see the Admin link in the profile menu. Done
@@ -196,17 +210,17 @@ export default function TopNav() {
   );
 
   return (
-    <div className="bg-[color:var(--background)]/80 fixed left-0 right-0 top-0 z-50 h-10 border-b border-[color:var(--border)] backdrop-blur-lg">
-      <div className="flex h-full items-center justify-between px-3.5">
+    <div className="fixed left-0 right-0 top-0 z-50 h-10 border-b border-border bg-card">
+      <div className="relative flex h-full items-center justify-between px-3.5">
+        {/* Refer & earn promo — centered, dismissible (persisted to
+            localStorage), gated on billing access so the link always lands on
+            a reachable billing page. */}
+        {billingEnabled && canManageBilling && !isOrgInFreeTrial && <ReferralBanner />}
+
         {/* Logo + Workspace + Nav */}
         <div className="flex items-center">
-          <Link href="/" className="flex items-center px-1">
-            <Image
-              src={ivyLogoOnly}
-              alt="Logo (collapsed)"
-              priority
-              className={`h-5 w-5 object-contain transition-opacity duration-300`}
-            />
+          <Link href="/" className="flex items-center rounded-md px-1" aria-label="Unify Console">
+            <UnifyBlockMark />
           </Link>
 
           {/* Workspace Pill — hidden for personal-only users to avoid duplicating the profile avatar */}
@@ -234,7 +248,7 @@ export default function TopNav() {
                               unoptimized
                               src={workspacePhotos['personal']}
                               alt=""
-                              className="h-4 w-4 shrink-0 rounded-full object-cover"
+                              className="rounded-control h-4 w-4 shrink-0 object-cover"
                             />
                           ) : (
                             <User className="h-3.5 w-3.5" />
@@ -246,7 +260,7 @@ export default function TopNav() {
                             unoptimized
                             src={orgLogoUrl}
                             alt=""
-                            className="h-5 w-5 shrink-0 rounded-full object-cover"
+                            className="rounded-control h-5 w-5 shrink-0 object-cover"
                           />
                         ) : (
                           <Building2 className="h-3.5 w-3.5" />
@@ -274,7 +288,7 @@ export default function TopNav() {
                                 unoptimized
                                 src={workspacePhotos['personal']}
                                 alt=""
-                                className="h-4 w-4 shrink-0 rounded-full object-cover"
+                                className="rounded-control h-4 w-4 shrink-0 object-cover"
                               />
                             ) : (
                               <User className="h-4 w-4" />
@@ -307,7 +321,7 @@ export default function TopNav() {
                                 unoptimized
                                 src={workspacePhotos[w.id]}
                                 alt=""
-                                className="h-4 w-4 shrink-0 rounded-full object-cover"
+                                className="rounded-control h-4 w-4 shrink-0 object-cover"
                               />
                             ) : (
                               <Building2 className="h-4 w-4" />
@@ -335,7 +349,7 @@ export default function TopNav() {
                                 unoptimized
                                 src={workspacePhotos['personal']}
                                 alt=""
-                                className="h-4 w-4 shrink-0 rounded-full object-cover"
+                                className="rounded-control h-4 w-4 shrink-0 object-cover"
                               />
                             ) : (
                               <User className="h-3.5 w-3.5" />
@@ -347,7 +361,7 @@ export default function TopNav() {
                               unoptimized
                               src={orgLogoUrl}
                               alt=""
-                              className="h-5 w-5 shrink-0 rounded-full object-cover"
+                              className="rounded-control h-5 w-5 shrink-0 object-cover"
                             />
                           ) : (
                             <Building2 className="h-3.5 w-3.5" />
@@ -380,8 +394,8 @@ export default function TopNav() {
             </Button>
           )/*}
 
-          {/* Support Ticket */}
-          <SupportTicketDialog />
+          {/* Support Ticket — only when a support delivery channel is configured */}
+          {supportEnabled && <SupportTicketDialog />}
 
           {/* Dark Mode Toggle */}
           <DarkModeToggle />
@@ -391,7 +405,7 @@ export default function TopNav() {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="relative h-6 w-6 rounded-full p-0"
+                className="rounded-control relative h-6 w-6 p-0"
                 data-testid="profile-dropdown-trigger"
               >
                 {isWorkspaceSwitchable && activeWorkspace?.type === 'personal' ? (
@@ -411,16 +425,18 @@ export default function TopNav() {
                   <span>Account</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">
-                <Link
-                  href="/organizations"
-                  className="text-body flex items-center hover:text-[color:var(--foreground)]"
-                >
-                  <Building className="mr-2 h-4 w-4" />
-                  <span>Organizations</span>
-                </Link>
-              </DropdownMenuItem>
-              {!isOrgInFreeTrial && (
+              {!isSelfHost && (
+                <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">
+                  <Link
+                    href="/organizations"
+                    className="text-body flex items-center hover:text-[color:var(--foreground)]"
+                  >
+                    <Building className="mr-2 h-4 w-4" />
+                    <span>Organizations</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              {billingEnabled && !isOrgInFreeTrial && (
                 <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">
                   <Link
                     href="/usage"
@@ -431,7 +447,7 @@ export default function TopNav() {
                   </Link>
                 </DropdownMenuItem>
               )}
-              {canManageBilling && !isOrgInFreeTrial && (
+              {billingEnabled && canManageBilling && !isOrgInFreeTrial && (
                 <DropdownMenuItem asChild className="cursor-pointer hover:bg-transparent">
                   <Link
                     href="/billing"
@@ -477,7 +493,7 @@ export default function TopNav() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              <AlertTriangle className="h-5 w-5 text-[color:var(--status-warning)]" />
               Switch to Personal Workspace?
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3 text-left">
@@ -485,7 +501,9 @@ export default function TopNav() {
               <ul className="text-body list-inside list-disc space-y-1">
                 <li>You will only see resources in your personal account</li>
                 <li>Organization resources will not be visible until you switch back</li>
-                <li>Any billable usage will be billed to your personal account</li>
+                {billingEnabled && (
+                  <li>Any billable usage will be billed to your personal account</li>
+                )}
                 <li>You won&apos;t have access to shared team resources</li>
               </ul>
             </AlertDialogDescription>

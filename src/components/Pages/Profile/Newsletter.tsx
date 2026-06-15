@@ -30,7 +30,7 @@ const NewsletterPreferences = ({
       {newsletters.map((newsletter) => (
         <div
           key={newsletter.id}
-          className="flex w-full items-start justify-between space-x-4 rounded-xl border border-gray-200 bg-transparent p-6 transition-colors hover:bg-neutral-100 dark:border-gray-700 dark:hover:bg-neutral-800"
+          className="flex w-full items-start justify-between space-x-4 rounded-xl border border-border bg-transparent p-6 transition-colors hover:bg-[var(--surface-hover)]"
         >
           <div className="min-w-0 flex-1">
             <Label htmlFor={newsletter.id} className="text-title cursor-pointer">

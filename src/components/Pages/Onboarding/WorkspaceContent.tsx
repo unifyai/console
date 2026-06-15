@@ -30,6 +30,16 @@ interface WorkspaceContentProps {
   autoComplete?: boolean;
 }
 
+function getOnboardingRedirectParams(): Record<string, string> {
+  const extraParams: Record<string, string> = {};
+  const current = new URLSearchParams(window.location.search);
+  current.forEach((value, key) => {
+    if (key === 'openHire') return;
+    extraParams[key] = value;
+  });
+  return extraParams;
+}
+
 /**
  * Client component for the workspace onboarding page.
  *
@@ -95,11 +105,7 @@ const WorkspaceContent = ({
       }
 
       // Collect current URL params (e.g. credit tokens) to forward.
-      const extraParams: Record<string, string> = {};
-      const current = new URLSearchParams(window.location.search);
-      current.forEach((value, key) => {
-        extraParams[key] = value;
-      });
+      const extraParams = getOnboardingRedirectParams();
 
       await onPatchSession({ onboardingStep: 'completed' }, '/assistants', extraParams);
     },
@@ -109,7 +115,12 @@ const WorkspaceContent = ({
   const handlePersonal = useCallback(async () => {
     setError(undefined);
     setIsLoading(true);
-    // Selecting "personal" has no side effect — repeating is harmless.
+    // No signup-time opener seed anymore: the Coordinator now opens
+    // every onboarding session from the picker resolution (see
+    // ``notifyOnboardingSessionStarted`` wired into
+    // ``CoordinatorOnboarding``). Pre-seeding here would result in
+    // two openers in quick succession — one static from signup,
+    // one event-driven from the picker.
     await completeAndRedirect({ selectedType: 'personal' });
   }, [completeAndRedirect]);
 
@@ -142,6 +153,11 @@ const WorkspaceContent = ({
         body: JSON.stringify({ workspaceId: String(org.id) }),
       });
 
+      // No signup-time opener seed: the picker fires
+      // ``notifyOnboardingSessionStarted`` so the Coordinator
+      // opens the session itself the first time the user lands
+      // on /assistants.
+
       await completeAndRedirect({
         selectedType: 'organization',
         organizationId: String(org.id),
@@ -160,11 +176,7 @@ const WorkspaceContent = ({
     if (!autoComplete || autoCompleteTriggered.current) return;
     autoCompleteTriggered.current = true;
 
-    const extraParams: Record<string, string> = {};
-    const current = new URLSearchParams(window.location.search);
-    current.forEach((value, key) => {
-      extraParams[key] = value;
-    });
+    const extraParams = getOnboardingRedirectParams();
 
     // Fire timezone detection alongside the session patch (best-effort).
     persistBrowserTimezone();

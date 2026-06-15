@@ -10,12 +10,19 @@ import * as OrgSpendingActions from '@/lib/organizations/spending';
 import * as MfaSettingsActions from '@/lib/orchestra/api/organization';
 import { Organization, isOrgSpendingLimitData } from '@/types/organization';
 import { redirect } from 'next/navigation';
+import { isSelfHost } from '@/lib/environment/environment';
 
 const OrganizationPage = async () => {
   const user = await getCurrentUser();
 
   if (!user) {
     redirect('/login');
+  }
+
+  // Organizations are a multi-tenant/team construct that doesn't apply to a
+  // single-owner self-host install — send these users back to their assistants.
+  if (isSelfHost()) {
+    redirect('/assistants');
   }
 
   const apiKey = user.apiKey;
@@ -85,10 +92,9 @@ const OrganizationPage = async () => {
     updateMfaSettings: await MfaSettingsActions.updateMfaSettingsAction(apiKey),
   };
 
-  // Prefetch the spending limit AND the MFA toggle for the first org
-  // in parallel — the latter so opening the Security tab doesn't have
-  // to wait on a fresh server-action roundtrip before showing the
-  // actual toggle state.
+  // Prefetch the spending limit and the MFA toggle for the first org
+  // in parallel so opening the matching tab doesn't have to wait on a
+  // fresh server-action roundtrip before showing the actual state.
   let orgSpendingLimit: number | null = null;
   let initialMfaRequired: boolean | null = null;
   if (organizations.length > 0) {

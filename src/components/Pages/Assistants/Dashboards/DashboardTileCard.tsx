@@ -131,7 +131,7 @@ export function DashboardTileCard({
         <span className="text-label min-w-0 flex-1 truncate text-foreground">{title}</span>
         {hasDataBindings && (
           <span
-            className="flex shrink-0 items-center gap-0.5 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600"
+            className="flex shrink-0 items-center gap-0.5 rounded-full bg-[color:var(--status-success-bg)] px-1.5 py-0.5 text-[10px] font-medium text-[color:var(--status-success)]"
             title="Live data binding"
           >
             <Activity className="h-2.5 w-2.5" />

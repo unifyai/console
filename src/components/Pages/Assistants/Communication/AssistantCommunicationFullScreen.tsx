@@ -9,6 +9,7 @@ import {
   useTrackToggle,
   useVoiceAssistant,
   useLocalParticipant,
+  useIsSpeaking,
   TrackReference,
   useTracks,
   useMediaDeviceSelect,
@@ -17,7 +18,7 @@ import { AssistantCommunicationMainView } from '@/components/Pages/Assistants/Co
 import { AssistantCommunicationUserView } from '@/components/Pages/Assistants/Communication/AssistantCommunicationUserView';
 import { AssistantCommunicationControls } from '@/components/Pages/Assistants/Communication/AssistantCommunicationControls';
 import { AssistantCommunicationSidePanel } from '@/components/Pages/Assistants/Communication/AssistantCommunicationSidePanel';
-import { Loader2 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
@@ -32,8 +33,12 @@ import {
   type ChatStreamPair,
 } from '@/hooks/Assistants/useAssistantChatStream';
 import { getOrFetchContactId } from '@/hooks/Assistants/useContactIdPrefetch';
+import { contactScopedRootQueries } from '@/lib/assistants/scope';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { ParsedInboundChatMessage } from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
+import type { CreatureMood } from '@/components/Brand/TeammateCreature';
+import { DEFAULT_AVATAR_MOOD, parseMoodClassificationMessage } from '@/utils/assistants/droid-mood';
 
 type AssistantActionsSubset = Pick<AssistantActions, 'chat' | 'call' | 'desktop'> &
   Partial<Pick<AssistantActions, 'voice'>>;
@@ -70,6 +75,7 @@ const FullScreenCallUI: React.FC<{
   toggleRemoteControlInteractive: () => void;
   isWaitingForAssistant: boolean;
   isDesktopReady: boolean;
+  avatarMood: CreatureMood;
   chatStreamConnectionStatus: ChatStreamConnectionStatus;
   reconnectChatStream: () => void;
   chatStreamActivitySignal: number;
@@ -95,13 +101,19 @@ const FullScreenCallUI: React.FC<{
   toggleRemoteControlInteractive,
   isWaitingForAssistant,
   isDesktopReady,
+  avatarMood,
   chatStreamConnectionStatus,
   reconnectChatStream,
   chatStreamActivitySignal,
 }) => {
   // Standard LiveKit hooks
-  const { state: agentState, videoTrack: agentVideoTrack } = useVoiceAssistant();
+  const {
+    state: agentState,
+    audioTrack: agentAudioTrack,
+    videoTrack: agentVideoTrack,
+  } = useVoiceAssistant();
   const { localParticipant } = useLocalParticipant();
+  const isUserSpeaking = useIsSpeaking(localParticipant);
   const micToggle = useTrackToggle({ source: Track.Source.Microphone });
   const camToggle = useTrackToggle({ source: Track.Source.Camera });
   const screenShareToggle = useTrackToggle({ source: Track.Source.ScreenShare });
@@ -121,8 +133,7 @@ const FullScreenCallUI: React.FC<{
       .sendSystemEvent(
         assistant.agentId,
         isOn ? 'user_screen_share_started' : 'user_screen_share_stopped',
-        isOn ? 'User started sharing their screen' : 'User stopped sharing their screen',
-        assistant.deployEnv
+        isOn ? 'User started sharing their screen' : 'User stopped sharing their screen'
       )
       .catch(console.error);
   }, [screenShareToggle.enabled, assistant, assistantActions.desktop]);
@@ -139,8 +150,7 @@ const FullScreenCallUI: React.FC<{
       .sendSystemEvent(
         assistant.agentId,
         isOn ? 'user_webcam_started' : 'user_webcam_stopped',
-        isOn ? 'User enabled their webcam' : 'User disabled their webcam',
-        assistant.deployEnv
+        isOn ? 'User enabled their webcam' : 'User disabled their webcam'
       )
       .catch(console.error);
   }, [camToggle.enabled, assistant, assistantActions.desktop]);
@@ -230,14 +240,16 @@ const FullScreenCallUI: React.FC<{
   }, [localParticipant, camToggle.track]);
 
   const userTrackRef = screenShareTrack || localVideoTrackRef;
-  const assistantName = `${assistant.firstName} ${assistant.surname}`;
+  const hasUserSelfView = Boolean(userTrackRef && (camToggle.enabled || screenShareToggle.enabled));
+  const isCoordinator = assistant.isCoordinator === true;
+  const assistantName = assistantDisplayName(assistant);
   const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
 
   return (
     <div className="flex h-full w-full flex-col bg-background text-foreground">
       <div className="relative flex min-h-0 flex-1">
         <div className="bg-background/80 relative flex flex-1 flex-col items-center justify-center">
-          {isUserViewMaximized && userTrackRef ? (
+          {isUserViewMaximized && hasUserSelfView ? (
             <AssistantCommunicationUserView
               imageUrl={userImage}
               trackRef={userTrackRef}
@@ -255,8 +267,10 @@ const FullScreenCallUI: React.FC<{
             <>
               <AssistantCommunicationMainView
                 assistantName={assistantName}
+                isCoordinator={isCoordinator}
                 isSpeaking={agentState === 'speaking'}
                 imageUrl={assistantPhoto}
+                audioTrack={agentAudioTrack}
                 videoTrack={agentVideoTrack}
                 isRemoteControlActive={isRemoteControlActive}
                 remoteControlUrl={liveviewUrl}
@@ -265,9 +279,12 @@ const FullScreenCallUI: React.FC<{
                 loadingMessage={loadingMessage}
                 connectionError={connectionError}
                 onRetry={onRetry}
+                isCallActive={room.state === 'connected'}
+                isUserSpeaking={isUserSpeaking}
+                mood={avatarMood}
               />
               <AnimatePresence>
-                {isUserViewVisible && !isLoading && !connectionError && (
+                {hasUserSelfView && isUserViewVisible && !isLoading && !connectionError && (
                   <motion.div
                     key="user-view-pip"
                     initial={{ opacity: 0, y: 20 }}
@@ -294,37 +311,41 @@ const FullScreenCallUI: React.FC<{
               </AnimatePresence>
             </>
           )}
-          {!isUserViewMaximized && !isUserViewVisible && !isLoading && !connectionError && (
-            <motion.div
-              key="user-view-minimized"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.2 }}
-              className="absolute bottom-4 left-4"
-            >
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => setIsUserViewVisible(true)}
-                      className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                    >
-                      <Avatar className="h-12 w-12 border-2 border-border">
-                        <AvatarImage src={userImage || undefined} alt="Your profile" />
-                        <AvatarFallback className="bg-muted text-muted-foreground">
-                          U
-                        </AvatarFallback>
-                      </Avatar>
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    <p>Show self-view</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </motion.div>
-          )}
+          {hasUserSelfView &&
+            !isUserViewMaximized &&
+            !isUserViewVisible &&
+            !isLoading &&
+            !connectionError && (
+              <motion.div
+                key="user-view-minimized"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.2 }}
+                className="absolute bottom-4 left-4"
+              >
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setIsUserViewVisible(true)}
+                        className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      >
+                        <Avatar className="h-12 w-12 border-2 border-border">
+                          <AvatarImage src={userImage || undefined} alt="Your profile" />
+                          <AvatarFallback className="bg-muted text-muted-foreground">
+                            U
+                          </AvatarFallback>
+                        </Avatar>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p>Show self-view</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </motion.div>
+            )}
         </div>
 
         <AnimatePresence>
@@ -433,9 +454,12 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
   const [room] = React.useState(() => new Room());
   const [isConnecting, setIsConnecting] = React.useState(true);
   const [isWaitingForAssistant, setIsWaitingForAssistant] = React.useState(false);
+  const [isAssistantPreparing, setIsAssistantPreparing] = React.useState(false);
   // Track whether the assistant ever joined — used to decide if we should
   // auto-close the tab on disconnect (only close if we had an active call).
   const assistantEverJoinedRef = React.useRef(false);
+  const [avatarMood, setAvatarMood] = React.useState<CreatureMood>(DEFAULT_AVATAR_MOOD);
+  const moodTurnIndexRef = React.useRef(-1);
   const [error, setError] = React.useState<string | null>(null);
   const [chatHistories, setChatHistories] = React.useState<Record<string, ChatMessage[]>>({});
   const [chatContactId, setChatContactId] = React.useState<number | null>(null);
@@ -449,12 +473,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       return;
     }
     let cancelled = false;
-    getOrFetchContactId(
-      assistantActions.chat.getContactId,
-      user.email,
-      assistant.userId,
-      assistant.agentId
-    )
+    getOrFetchContactId(assistantActions.chat.getContactId, user.email, assistant)
       .then((id) => {
         if (!cancelled) setChatContactId(id);
       })
@@ -466,13 +485,23 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     };
   }, [assistant, user.email, assistantActions.chat]);
 
-  const chatStreamPairs = React.useMemo<ChatStreamPair[]>(
-    () =>
-      assistant && chatContactId !== null
-        ? [{ assistantId: assistant.agentId, contactId: chatContactId }]
-        : [],
-    [assistant, chatContactId]
-  );
+  const chatStreamPairs = React.useMemo<ChatStreamPair[]>(() => {
+    if (!assistant || chatContactId === null) return [];
+    const seenPairs = new Set<string>();
+    return contactScopedRootQueries(assistant, chatContactId, 'Transcripts').flatMap((query) => {
+      const pairKey = `${query.contactId}:${query.rootKey}`;
+      if (seenPairs.has(pairKey)) return [];
+      seenPairs.add(pairKey);
+      return [
+        {
+          assistantId: assistant.agentId,
+          contactId: query.contactId,
+          rootKey: query.rootKey,
+          sourceContext: query.context,
+        },
+      ];
+    });
+  }, [assistant, chatContactId]);
 
   const [chatStreamActivityCounter, setChatStreamActivityCounter] = React.useState(0);
   const handleChatStreamActivity = React.useCallback(() => {
@@ -482,7 +511,9 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
   // See Main.tsx for the full reasoning; forward-declared ref so the
   // message handler can call into the ack function that the chat-stream
   // hook returns below.
-  const ackMessageRef = React.useRef<(assistantId: string, ackId: string) => void>(() => {});
+  const ackMessageRef = React.useRef<
+    (assistantId: string, contactId: number, rootKey: string, ackId: string) => void
+  >(() => {});
 
   const handleChatStreamMessage = React.useCallback(
     (assistantId: string, parsed: ParsedInboundChatMessage) => {
@@ -512,7 +543,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       // Always ack — see Main.tsx for the reasoning (dedup hits still need
       // acking or Pub/Sub loops the redelivery forever).
       const ackId = message.__ackId;
-      if (ackId) ackMessageRef.current(assistantId, ackId);
+      if (ackId) ackMessageRef.current(assistantId, parsed.contactId, parsed.rootKey, ackId);
 
       if (!wasNewMessage) return;
 
@@ -611,8 +642,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
           .sendSystemEvent(
             assistant.agentId,
             'user_remote_control_stopped',
-            'User released remote control of assistant desktop',
-            assistant.deployEnv
+            'User released remote control of assistant desktop'
           )
           .catch(console.error);
       }
@@ -620,8 +650,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
         .sendSystemEvent(
           assistant.agentId,
           'assistant_screen_share_stopped',
-          'User disabled assistant screen sharing',
-          assistant.deployEnv
+          'User disabled assistant screen sharing'
         )
         .catch(console.error);
       stopRemoteControl();
@@ -666,8 +695,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
           .sendSystemEvent(
             assistant.agentId,
             'assistant_screen_share_started',
-            'User enabled assistant screen sharing',
-            assistant.deployEnv
+            'User enabled assistant screen sharing'
           )
           .catch(console.error);
         toast.success('Assistant screen sharing started.', { id: toastId });
@@ -705,8 +733,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       const result = await assistantActions.desktop.sendSystemEvent(
         assistant.agentId,
         eventType,
-        message,
-        assistant.deployEnv
+        message
       );
       if (result.detail) {
         console.error('[FullScreen] Error sending interaction event:', result.detail);
@@ -749,13 +776,16 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
 
     setIsConnecting(true);
     setError(null);
+    setAvatarMood(DEFAULT_AVATAR_MOOD);
+    setIsAssistantPreparing(false);
+    moodTurnIndexRef.current = -1;
 
     try {
       // Get fresh connection details for this tab. The dialog's token used the
       // same participant identity and the old room may have been cleaned up
       // server-side after the dialog disconnected, so we need our own token
       // with a new identity to reliably join the room.
-      const assistantName = `${assistant.firstName} ${assistant.surname}`;
+      const assistantName = assistantDisplayName(assistant);
       const connDetails = await assistantActions.call.getConnectionDetails(
         assistant.agentId,
         assistantName
@@ -788,6 +818,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       // was joined, but it may have left during the pop-out transition.
       const assistantInRoom = room.remoteParticipants.size >= 1;
       setIsWaitingForAssistant(!assistantInRoom);
+      setIsAssistantPreparing(false);
 
       // If assistant isn't in the room (e.g. it left when the dialog disconnected
       // during the pop-out transition), redispatch it.
@@ -839,11 +870,12 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       ? params.assistantId[0]
       : params.assistantId;
     if (assistant && assistantId) {
+      const displayName = assistantDisplayName(assistant);
       localStorage.setItem(
         'activePopOutCall',
         JSON.stringify({
           assistantId,
-          assistantName: `${assistant.firstName} ${assistant.surname}`,
+          assistantName: displayName,
         })
       );
       window.dispatchEvent(
@@ -858,13 +890,21 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     const READY_FALLBACK_TIMEOUT = 10_000;
     let readyFallbackTimer: NodeJS.Timeout | null = null;
 
-    const clearWaitingState = () => {
-      assistantEverJoinedRef.current = true;
-      setIsWaitingForAssistant(false);
+    const clearReadyFallbackTimer = () => {
       if (readyFallbackTimer) {
         clearTimeout(readyFallbackTimer);
         readyFallbackTimer = null;
       }
+    };
+
+    const clearJoinState = () => {
+      assistantEverJoinedRef.current = true;
+      setIsWaitingForAssistant(false);
+    };
+
+    const clearPreparingState = () => {
+      setIsAssistantPreparing(false);
+      clearReadyFallbackTimer();
     };
 
     const onDataReceived = (
@@ -877,7 +917,14 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       try {
         const data = JSON.parse(new TextDecoder().decode(payload));
         if (data.type === 'ready_to_speak') {
-          clearWaitingState();
+          clearJoinState();
+          clearPreparingState();
+          return;
+        }
+        const moodMessage = parseMoodClassificationMessage(data, moodTurnIndexRef.current);
+        if (moodMessage) {
+          moodTurnIndexRef.current = moodMessage.turnIndex;
+          setAvatarMood(moodMessage.mood);
         }
       } catch {
         // ignore malformed data messages
@@ -885,8 +932,10 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
     };
 
     const onParticipantConnected = () => {
-      if (readyFallbackTimer) clearTimeout(readyFallbackTimer);
-      readyFallbackTimer = setTimeout(clearWaitingState, READY_FALLBACK_TIMEOUT);
+      clearJoinState();
+      setIsAssistantPreparing(true);
+      clearReadyFallbackTimer();
+      readyFallbackTimer = setTimeout(clearPreparingState, READY_FALLBACK_TIMEOUT);
     };
 
     // Only auto-close the tab if the assistant had actually joined (i.e. we had
@@ -920,7 +969,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
       room.off(RoomEvent.DataReceived, onDataReceived);
       room.off(RoomEvent.ParticipantConnected, onParticipantConnected);
       room.off(RoomEvent.Disconnected, handleDisconnect);
-      if (readyFallbackTimer) clearTimeout(readyFallbackTimer);
+      clearReadyFallbackTimer();
       if (room.state !== 'disconnected') {
         room.disconnect();
       }
@@ -930,16 +979,19 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
   if (!callData || !assistant) {
     return (
       <div className="fixed inset-0 flex flex-col items-center justify-center bg-background text-foreground">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader size={32} />
         <p className="text-body-muted mt-4">Loading call...</p>
       </div>
     );
   }
 
-  const showLoadingState = isConnecting || isWaitingForAssistant;
+  const showLoadingState = isConnecting || isWaitingForAssistant || isAssistantPreparing;
+  const displayName = assistantDisplayName(assistant);
   const loadingMessage = isConnecting
     ? 'Setting up a connection...'
-    : `Waiting for ${assistant.firstName} to join...`;
+    : isWaitingForAssistant
+      ? `Waiting for ${displayName} to join...`
+      : `${displayName} is getting ready...`;
 
   return (
     <RoomContext.Provider value={room}>
@@ -966,6 +1018,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
         toggleRemoteControlInteractive={toggleRemoteControlInteractive}
         isWaitingForAssistant={isWaitingForAssistant}
         isDesktopReady={isDesktopReady}
+        avatarMood={avatarMood}
         chatStreamConnectionStatus={chatStreamConnectionStatus}
         reconnectChatStream={reconnectChatStream}
         chatStreamActivitySignal={chatStreamActivityCounter}

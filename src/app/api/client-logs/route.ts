@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveOrchestraApiKeyForServerOps } from '@/lib/auth/orchestra-server-key';
 import { createOrchestraClient } from '@/lib/orchestra/client';
 
 const PROJECT_NAME = 'ConsoleDiagnostics';
@@ -56,9 +57,9 @@ async function ensureProject(
 }
 
 export async function POST(request: NextRequest) {
-  const sharedKey = process.env.SHARED_UNIFY_KEY;
+  const sharedKey = await resolveOrchestraApiKeyForServerOps();
   if (!sharedKey) {
-    console.error('[client-logs] SHARED_UNIFY_KEY not configured');
+    console.error('[client-logs] Orchestra API key not configured');
     return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
   }
 

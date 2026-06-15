@@ -22,6 +22,10 @@ import { getAuthClient, getTopicName, getPubSubApiBase } from '@/lib/pubsub/ephe
 
 export const dynamic = 'force-dynamic';
 
+function subscriptionNameForPair(topicName: string, contactId: string, rootKey: string): string {
+  return `${topicName}-chat-${rootKey}-${contactId}`;
+}
+
 export async function POST(request: NextRequest) {
   let body: any;
   try {
@@ -30,18 +34,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { assistantId, contactId, ackId } = body ?? {};
-  if (!assistantId || !contactId || !ackId) {
+  const { assistantId, contactId, rootKey, ackId } = body ?? {};
+  if (!assistantId || !contactId || !rootKey || !ackId) {
     return NextResponse.json(
-      { error: 'assistantId, contactId and ackId required' },
+      { error: 'assistantId, contactId, rootKey and ackId required' },
       { status: 400 }
     );
+  }
+  if (!/^\d+$/.test(String(contactId)) || !/^[a-z0-9-]+$/.test(String(rootKey))) {
+    return NextResponse.json({ error: 'Invalid contactId or rootKey' }, { status: 400 });
   }
 
   try {
     const { client, projectId } = await getAuthClient();
     const topicName = getTopicName(String(assistantId));
-    const subscriptionName = `${topicName}-chat-${contactId}`;
+    const subscriptionName = subscriptionNameForPair(topicName, String(contactId), String(rootKey));
     const subscriptionUrl = `${getPubSubApiBase()}/projects/${projectId}/subscriptions/${subscriptionName}`;
 
     await client.request({

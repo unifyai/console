@@ -1,4 +1,5 @@
 import { getCurrentUser } from '@/lib/user/user';
+import { getServerFeatures } from '@/lib/features/server';
 import { redirect } from 'next/navigation';
 import {
   getTranscripts,
@@ -17,7 +18,10 @@ import {
   buildLiveviewUrl,
   checkLiveviewHealth,
   sendSystemEvent,
+  getDesktopApiKey,
   listUserDesktops,
+  linkDesktop,
+  unlinkDesktop,
 } from '@/lib/assistants/desktop';
 import { listAssistants, updateAssistant } from '@/lib/assistants/assistant';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
@@ -29,6 +33,13 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
   const user = await getCurrentUser();
   if (!user) {
     redirect('/login');
+  }
+
+  // Voice calls require LiveKit credentials (Console-owned). A deployment
+  // without them can't service this route — don't render a call surface that
+  // would only fail to connect.
+  if (!(await getServerFeatures()).voiceCalls) {
+    notFound();
   }
   const apiKey = user.apiKey;
   const isOrgContext = getActiveOrganization(user) !== null;
@@ -56,7 +67,10 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
       buildLiveviewUrl: await buildLiveviewUrl(),
       checkLiveviewHealth: await checkLiveviewHealth(),
       sendSystemEvent: await sendSystemEvent(),
+      getApiKey: await getDesktopApiKey(apiKey),
       listUserDesktops: await listUserDesktops(apiKey),
+      linkDesktop: await linkDesktop(apiKey),
+      unlinkDesktop: await unlinkDesktop(apiKey),
     },
   };
 

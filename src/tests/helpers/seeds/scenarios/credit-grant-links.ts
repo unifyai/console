@@ -23,7 +23,14 @@
  */
 
 import type { SeededState } from '../types';
-import { createUser, createOrg, createEmailLogin, orchestraFetch, dbExec } from '../client';
+import {
+  createUser,
+  createOrg,
+  createEmailLogin,
+  orchestraFetch,
+  dbExec,
+  seedCoordinatorChatForUsers,
+} from '../client';
 
 const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY || 'local-admin-key';
 
@@ -130,6 +137,21 @@ export async function seedCreditGrantLinks(): Promise<SeededState> {
   const largeBudget = await createLink(90, 5, 50, 'Newsletter signup offer');
   const largeClaimer = createUser({ name: 'Large', lastName: 'Claimer' });
   await claimLink(largeBudget.token, largeClaimer.apiKey);
+
+  // Coordinator chat infra for every claimer so quick-login on any of
+  // them surfaces a working Coordinator panel. Mirrors what production
+  // signup would have done.
+  await seedCoordinatorChatForUsers([
+    adminViewer,
+    alice,
+    bob,
+    carol,
+    dave,
+    eve,
+    extra,
+    expiredClaimer,
+    largeClaimer,
+  ]);
 
   return {
     users: { admin_viewer: adminViewer, alice, bob, carol, dave, eve },

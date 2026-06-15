@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import callRingingSrc from '@/public/sounds/call-ringing.mp3';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
+import callRingingSrc from '@/public/sounds/call-ringing-warm-mobile.wav';
 import callEndSrc from '@/public/sounds/call-end.mp3';
 import recordStartSrc from '@/public/sounds/record-start.mp3';
 import recordStopSrc from '@/public/sounds/record-stop.mp3';
@@ -26,16 +27,25 @@ function shouldPreloadCallSounds() {
 }
 
 export default function CallSoundPreloader() {
+  const { voiceCalls, transcription } = useFeatures();
+
   useEffect(() => {
-    if (!shouldPreloadCallSounds()) {
+    // Each sound pair belongs to a feature: ringing/hangup to voice calls,
+    // record start/stop to transcription. Skip preloading anything no enabled
+    // feature would ever play (the sounds still load on-demand if needed).
+    if ((!voiceCalls && !transcription) || !shouldPreloadCallSounds()) {
       return;
     }
 
-    preloadAudio(callRingingSrc);
-    preloadAudio(callEndSrc);
-    preloadAudio(recordStartSrc);
-    preloadAudio(recordStopSrc);
-  }, []);
+    if (voiceCalls) {
+      preloadAudio(callRingingSrc);
+      preloadAudio(callEndSrc);
+    }
+    if (transcription) {
+      preloadAudio(recordStartSrc);
+      preloadAudio(recordStopSrc);
+    }
+  }, [voiceCalls, transcription]);
 
   return null;
 }

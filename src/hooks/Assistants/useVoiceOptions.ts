@@ -6,6 +6,10 @@ import { SupportedLanguage, Gender as CartesiaGender } from '@cartesia/cartesia-
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
 import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { fetchVoices } from '@/lib/client/voice';
+import {
+  applyApprovedCharacterVoiceMetadata,
+  approvedCharacterVoiceIds,
+} from '@/constants/assistants/approved_character_voices';
 
 interface UseVoiceOptionsConfig {
   /**
@@ -14,6 +18,23 @@ interface UseVoiceOptionsConfig {
    * Defaults to true for backward compatibility.
    */
   enabled?: boolean;
+}
+
+function interleaveVoicesByGender(voices: VoiceOption[]): VoiceOption[] {
+  const femaleVoices = voices.filter((voice) => voice.gender === 'female');
+  const maleVoices = voices.filter((voice) => voice.gender === 'male');
+  const otherVoices = voices.filter(
+    (voice) => voice.gender !== 'female' && voice.gender !== 'male'
+  );
+  const interleaved: VoiceOption[] = [];
+  const maxLength = Math.max(femaleVoices.length, maleVoices.length);
+
+  for (let index = 0; index < maxLength; index++) {
+    if (femaleVoices[index]) interleaved.push(femaleVoices[index]);
+    if (maleVoices[index]) interleaved.push(maleVoices[index]);
+  }
+
+  return [...interleaved, ...otherVoices];
 }
 
 export function useVoiceOptions(
@@ -106,9 +127,11 @@ export function useVoiceOptions(
       }
     });
 
-    const finalCombined = Array.from(finalMap.values());
+    const finalCombined = Array.from(finalMap.values())
+      .filter((voice) => approvedCharacterVoiceIds.has(voice.voiceId))
+      .map(applyApprovedCharacterVoiceMetadata);
 
-    return finalCombined;
+    return interleaveVoicesByGender(finalCombined);
   }, [presetVoices, userVoicesFromOrchestra]);
 
   const deleteUserVoice = async (voiceToDelete: VoiceOption): Promise<string | null> => {

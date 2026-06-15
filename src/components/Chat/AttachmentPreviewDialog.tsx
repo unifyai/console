@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Download, Loader2, Info, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download, Info, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import {
@@ -308,7 +309,7 @@ function PreviewViewer({ attachment, content }: { attachment: Attachment; conten
   if (content.status === 'loading') {
     return (
       <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader size={24} />
       </div>
     );
   }

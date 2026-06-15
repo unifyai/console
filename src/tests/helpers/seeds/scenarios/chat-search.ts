@@ -21,10 +21,12 @@ import {
   createAssistant,
   createEmailLogin,
   seedChatInfrastructure,
+  seedCoordinatorChatForUsers,
   orchestraFetch,
 } from '../client';
 
-const CONTACT_ID = 1;
+const ASSISTANT_CONTACT_ID = 42;
+const CONTACT_ID = 43;
 let messageCounter = 10_000;
 
 interface TranscriptEntry {
@@ -48,7 +50,7 @@ async function seedTranscriptBatch(
     const entries: Record<string, unknown> = {
       medium: opts.medium ?? 'unify_message',
       sender_id: opts.senderId,
-      receiver_ids: opts.senderId === 0 ? [CONTACT_ID] : [0],
+      receiver_ids: opts.senderId === ASSISTANT_CONTACT_ID ? [CONTACT_ID] : [ASSISTANT_CONTACT_ID],
       content: opts.content,
       message_id: msgId,
       timestamp: opts.timestamp,
@@ -197,6 +199,10 @@ export async function seedChatSearch(): Promise<SeededState> {
     email: owner.email,
   });
 
+  // Wire the auto-provisioned Coordinator's chat infra so it sits
+  // alongside Luna in the workspace.
+  await seedCoordinatorChatForUsers([owner]);
+
   // -----------------------------------------------------------------
   // Day 14 ago — onboarding
   // -----------------------------------------------------------------
@@ -207,7 +213,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       timestamp: ts(14, 0),
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "Hello! Thank you for hiring me. I'm Luna Marquez, your new assistant. How can I help you today?",
       timestamp: ts(14, 0, 2),
@@ -219,7 +225,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       timestamp: ts(14, 0, 5),
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "Of course! I'd be happy to help organize your project files. Could you tell me more about the types of documents and how you'd like them categorized?",
       timestamp: ts(14, 0, 7),
@@ -231,7 +237,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       timestamp: ts(14, 1),
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         'Got it. I suggest creating three main folders: "Contracts", "Financial", and "Engineering". I can set up sub-folders within each for better organization. Want me to draft a folder structure?',
       timestamp: ts(14, 1, 3),
@@ -243,7 +249,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       timestamp: ts(14, 2),
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "For project management, I recommend Linear for engineering tasks — it's fast and integrates well with GitHub. For broader team coordination, Notion works great as a knowledge base. I'll set up templates for both.",
       timestamp: ts(14, 2, 4),
@@ -260,7 +266,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       timestamp: ts(13, 0),
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "I've audited the current stack. Summary:\n- Frontend: React 18 + Next.js 14 (good)\n- Backend: Express.js (consider migrating to Fastify for performance)\n- Database: PostgreSQL 15 (solid choice)\n- Cache: No caching layer (needs Redis)\n- Hosting: Heroku (consider GCP or AWS for more control)\n\nTop priorities: add Redis caching and upgrade hosting.",
       timestamp: ts(13, 0, 5),
@@ -271,7 +277,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       timestamp: ts(13, 1),
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         'Redis integration plan:\n\nPhase 1 (Week 1): Session storage migration\n- Replace in-memory sessions with Redis\n- Add connection pooling\n\nPhase 2 (Week 2): API response caching\n- Cache frequently accessed endpoints\n- Implement cache invalidation on writes\n\nPhase 3 (Week 3): Rate limiting\n- Per-user rate limiting via Redis\n- Sliding window algorithm\n\nShall I create tickets for this?',
       timestamp: ts(13, 1, 8),
@@ -304,7 +310,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       ],
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "Thank you! I've reviewed the Q3 Financial Report. Revenue is up 12% compared to Q2. I noticed some discrepancies in the expense categories on page 7 — would you like me to flag those for the accounting team?",
       timestamp: ts(12, 0, 15),
@@ -323,7 +329,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       ],
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "The dashboard looks great! I see the user analytics section is coming along nicely. I'll flag the financial discrepancies and prepare a summary email for the accounting team.",
       timestamp: ts(12, 1, 10),
@@ -343,7 +349,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       ],
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "Perfect, I've loaded both files. The revenue data confirms the 12% growth. User metrics show a 23% increase in DAU and a 15% improvement in retention. These are strong numbers for the investor update.",
       timestamp: ts(12, 2, 8),
@@ -363,7 +369,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       exchangeId: exchangeA,
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         'Sure! Based on the current progress, I think we can have the MVP ready by end of month. The frontend is about 80% complete.',
       timestamp: ts(11, 0, 3),
@@ -378,7 +384,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       exchangeId: exchangeA,
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         'The API integration is the main blocker. We need the authentication endpoints finalized first. I estimate 3-4 days once we have those.',
       timestamp: ts(11, 0, 9),
@@ -393,7 +399,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       exchangeId: exchangeA,
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         'Stripe integration is done. We still need to set up the email provider (SendGrid) and the analytics SDK. Both have good documentation, I estimate 2 days total.',
       timestamp: ts(11, 0, 15),
@@ -408,7 +414,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       timestamp: ts(11, 1),
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         'Here are the meeting notes from our project timeline discussion:\n\n1. MVP target: end of month\n2. Frontend: ~80% complete\n3. API integration: blocked on auth endpoints (3-4 days estimate)\n4. Stripe: done, SendGrid + analytics: 2 days\n5. Action items: Finalize auth API spec by Friday',
       timestamp: ts(11, 1, 5),
@@ -423,7 +429,11 @@ export async function seedChatSearch(): Promise<SeededState> {
     const batch: TranscriptEntry[] = [];
     dayTopics.forEach((topic, i) => {
       batch.push({ senderId: CONTACT_ID, content: topic.q, timestamp: ts(day, i * 2) });
-      batch.push({ senderId: 0, content: topic.a, timestamp: ts(day, i * 2, 10) });
+      batch.push({
+        senderId: ASSISTANT_CONTACT_ID,
+        content: topic.a,
+        timestamp: ts(day, i * 2, 10),
+      });
     });
     await seedTranscriptBatch(owner.apiKey, owner.id, assistant.agentId, batch);
   }
@@ -446,7 +456,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       ],
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "I've reviewed the auth-service.ts file. The refactoring looks solid! A few suggestions:\n\n1. Consider using a token refresh strategy with exponential backoff\n2. The password hashing should use bcrypt with at least 12 rounds\n3. Add rate limiting to the login endpoint\n\nOverall, the code quality is much better than the previous version.",
       timestamp: ts(8, 0, 20),
@@ -458,7 +468,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       timestamp: ts(8, 1),
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "For your use case, I'd recommend JWT with short expiry (15 min access tokens) combined with refresh tokens stored in HTTP-only cookies. This gives you stateless auth for API calls while maintaining security. Session tokens would work too but add database overhead for token lookups.",
       timestamp: ts(8, 1, 12),
@@ -477,7 +487,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       ],
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         'Much better! The middleware now properly validates JWT signatures, checks token expiry, and handles refresh token rotation. One minor thing: add a try-catch around the jwt.verify call to return a proper 401 instead of a 500 on malformed tokens.',
       timestamp: ts(8, 2, 15),
@@ -492,7 +502,11 @@ export async function seedChatSearch(): Promise<SeededState> {
     const batch: TranscriptEntry[] = [];
     dayTopics.forEach((topic, i) => {
       batch.push({ senderId: CONTACT_ID, content: topic.q, timestamp: ts(day, i * 2) });
-      batch.push({ senderId: 0, content: topic.a, timestamp: ts(day, i * 2, 10) });
+      batch.push({
+        senderId: ASSISTANT_CONTACT_ID,
+        content: topic.a,
+        timestamp: ts(day, i * 2, 10),
+      });
     });
     if (batch.length > 0) {
       await seedTranscriptBatch(owner.apiKey, owner.id, assistant.agentId, batch);
@@ -512,7 +526,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       exchangeId: exchangeB,
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "Good morning! Yesterday I completed the API spec documentation and started on the integration tests. Today I'll focus on the authentication flow.",
       timestamp: ts(5, 0, 3),
@@ -527,7 +541,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       exchangeId: exchangeB,
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         'No blockers currently. The only risk is the third-party OAuth provider — their sandbox has been intermittently slow. I have a fallback plan using mock responses for development.',
       timestamp: ts(5, 0, 8),
@@ -550,7 +564,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       ],
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "I've reviewed the updated requirements. Looks like there are 3 new user stories added. I'll update the sprint backlog accordingly. Estimated effort: 8 story points total.",
       timestamp: ts(5, 1, 10),
@@ -565,7 +579,7 @@ export async function seedChatSearch(): Promise<SeededState> {
     const chats = DAILY_CHATS.slice((4 - day) * 4, (4 - day) * 4 + 4);
     chats.forEach((chat, i) => {
       batch.push({ senderId: CONTACT_ID, content: chat.q, timestamp: ts(day, i * 2) });
-      batch.push({ senderId: 0, content: chat.a, timestamp: ts(day, i * 2, 8) });
+      batch.push({ senderId: ASSISTANT_CONTACT_ID, content: chat.a, timestamp: ts(day, i * 2, 8) });
     });
     // Fill rest with varied filler
     for (let i = chats.length; i < 10; i++) {
@@ -576,7 +590,7 @@ export async function seedChatSearch(): Promise<SeededState> {
         timestamp: ts(day, chats.length * 2 + (i - chats.length)),
       });
       batch.push({
-        senderId: 0,
+        senderId: ASSISTANT_CONTACT_ID,
         content: topic.a,
         timestamp: ts(day, chats.length * 2 + (i - chats.length), 10),
       });
@@ -597,7 +611,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       exchangeId: exchangeC,
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "Ready! I've prepared the backlog. We have 42 story points of work and 3 developers available. I suggest targeting 30 points with a 20% buffer.",
       timestamp: ts(2, 0, 3),
@@ -612,7 +626,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       exchangeId: exchangeC,
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "Top priorities:\n1. Payment webhook reliability (8 pts)\n2. Dashboard performance fix (5 pts)\n3. User onboarding flow (8 pts)\n4. API rate limiting (3 pts)\n5. Email notification templates (5 pts)\n\nThat's 29 points, fits within our target.",
       timestamp: ts(2, 0, 8),
@@ -627,7 +641,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       exchangeId: exchangeC,
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "Great, I'll create all the tickets now and assign them based on expertise. Sprint starts tomorrow.",
       timestamp: ts(2, 0, 12),
@@ -650,7 +664,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       ],
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "Thanks! I've integrated the template into our Notion workspace. Each sprint will now have a standardized page with velocity tracking, burndown chart, and retrospective notes.",
       timestamp: ts(2, 1, 10),
@@ -661,7 +675,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       timestamp: ts(2, 2),
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "I'll draft the investor update with these sections:\n1. Product milestones (MVP progress, user growth)\n2. Engineering velocity (sprint completion rates)\n3. Financial summary (MRR, burn rate, runway)\n4. Hiring plan (current team + Q1 targets)\n\nShould have a draft ready by tomorrow morning.",
       timestamp: ts(2, 2, 15),
@@ -683,7 +697,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       timestamp: ts(1, Math.floor(i / 2), (i % 2) * 30),
     });
     day1Batch.push({
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content: i < DAILY_CHATS.length ? chat.a : TOPICS[i % TOPICS.length].a,
       timestamp: ts(1, Math.floor(i / 2), (i % 2) * 30 + 5),
     });
@@ -700,7 +714,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       timestamp: ts(0, 0),
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "Good morning! The authentication module is nearly complete. I've implemented JWT tokens with refresh flow, bcrypt hashing with 12 rounds, and rate limiting. Currently writing the integration tests. Should be ready for review by this afternoon.",
       timestamp: ts(0, 0, 3),
@@ -712,7 +726,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       timestamp: ts(0, 1),
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "I'll investigate the dashboard performance after finishing the auth tests. Initial guess: it might be the analytics queries — we're fetching all-time data without pagination. I'll profile it and share findings.",
       timestamp: ts(0, 1, 8),
@@ -724,7 +738,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       timestamp: ts(0, 2),
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "Noted — Friday demo. I'll prioritize the visible features and make sure the auth flow and dashboard are polished. We can use mock data for any incomplete API endpoints during the demo.",
       timestamp: ts(0, 2, 5),
@@ -736,7 +750,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       timestamp: ts(0, 3),
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "Checking now... Found it. The 502s are coming from the /api/analytics endpoint. The query is timing out because it's scanning the entire events table without an index on the timestamp column. I'll add the index and deploy a fix within the hour.",
       timestamp: ts(0, 3, 4),
@@ -747,7 +761,7 @@ export async function seedChatSearch(): Promise<SeededState> {
       timestamp: ts(0, 4),
     },
     {
-      senderId: 0,
+      senderId: ASSISTANT_CONTACT_ID,
       content:
         "No problem! Index has been added and deployed. The /api/analytics endpoint now responds in ~200ms instead of 8+ seconds. I'll monitor for the next hour to make sure it's stable.",
       timestamp: ts(0, 4, 3),

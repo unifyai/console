@@ -4,6 +4,10 @@ import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
 import {
+  canonicalizeAssistantList,
+  type CoordinatorWorkspaceScope,
+} from '@/lib/assistants/coordinatorIdentity';
+import {
   fetchAssistants,
   fetchMediaSignedUrls,
   getEarliestSignedUrlExpiryMs,
@@ -38,7 +42,11 @@ function collectMediaPaths(assistants: ReadonlyArray<Assistant>): string[] {
   return Array.from(paths);
 }
 
-export function useAssistants(allActions: AssistantActions, isOrgContext: boolean) {
+export function useAssistants(
+  allActions: AssistantActions,
+  workspace: CoordinatorWorkspaceScope,
+  currentUserId: string | null
+) {
   const { assistant: assistantActions } = allActions;
 
   const [assistants, setAssistants] = React.useState<Assistant[]>([]);
@@ -49,6 +57,8 @@ export function useAssistants(allActions: AssistantActions, isOrgContext: boolea
   React.useEffect(() => {
     assistantsRef.current = assistants;
   }, [assistants]);
+
+  const isOrgContext = workspace.type === 'organization';
 
   const fetchAssistantsWithDetails = React.useCallback(
     async (shouldShowLoadingToast = true) => {
@@ -61,7 +71,7 @@ export function useAssistants(allActions: AssistantActions, isOrgContext: boolea
       }
 
       try {
-        const listResult = await fetchAssistants(isOrgContext);
+        const listResult = await fetchAssistants(workspace, true, { currentUserId });
 
         if (typeof listResult === 'object' && listResult !== null && 'detail' in listResult) {
           // Specifically handle 403 Forbidden as a non-error state (user is not approved)
@@ -83,8 +93,19 @@ export function useAssistants(allActions: AssistantActions, isOrgContext: boolea
           throw new Error(`Invalid response format received for assistants: ${detail}`);
         }
 
-        const validAssistants = listResult.filter((a) => a && a.agentId && a.firstName);
-        if (validAssistants.length !== listResult.length) {
+        const normalizedAssistants = canonicalizeAssistantList(listResult, {
+          currentUserId,
+          pinCanonicalCoordinatorFirst: isOrgContext,
+          workspace,
+        });
+
+        const validAssistants = normalizedAssistants
+          .filter((a) => a && a.agentId && a.firstName)
+          .map((assistant) => ({
+            ...assistant,
+            isCoordinator: assistant.isCoordinator === true,
+          }));
+        if (validAssistants.length !== normalizedAssistants.length) {
           /* no-op */
         }
 
@@ -201,7 +222,7 @@ export function useAssistants(allActions: AssistantActions, isOrgContext: boolea
         }
       }
     },
-    [isOrgContext]
+    [currentUserId, isOrgContext, workspace]
   );
 
   React.useEffect(() => {

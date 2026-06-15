@@ -180,7 +180,7 @@ export function GenerateOneTimeLinkButton({
                 type="checkbox"
                 checked={unlimitedClaims}
                 onChange={(e) => setUnlimitedClaims(e.target.checked)}
-                className="h-3.5 w-3.5 rounded border-gray-300"
+                className="h-3.5 w-3.5 rounded border-border"
               />
               <span className="text-body-muted whitespace-nowrap">∞</span>
             </label>
@@ -203,14 +203,14 @@ export function GenerateOneTimeLinkButton({
                   className="h-9 w-9"
                 >
                   {copied ? (
-                    <Check className="h-4 w-4 text-green-600" />
+                    <Check className="h-4 w-4 text-[color:var(--status-success)]" />
                   ) : (
                     <Copy className="h-4 w-4" />
                   )}
                 </Button>
               </div>
               <p className="text-caption flex items-center">
-                <AlertTriangle className="mr-1 h-3 w-3 text-orange-500" />
+                <AlertTriangle className="mr-1 h-3 w-3 text-[color:var(--status-warning)]" />
                 {unlimitedClaims
                   ? 'This link can be claimed by unlimited users.'
                   : maxClaims === 1

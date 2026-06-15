@@ -5,7 +5,7 @@ import Footer from './Footer';
 import { config } from '@fortawesome/fontawesome-svg-core';
 import '@/styles/globals.css';
 import '@fortawesome/fontawesome-svg-core/styles.css';
-import { fontSans, fontMono } from '@/styles/fonts';
+import { fontSans, fontSpaceGrotesk, fontMono } from '@/styles/fonts';
 
 config.autoAddCss = false;
 
@@ -31,7 +31,7 @@ const Scaffold = ({
   return (
     <html
       lang="en"
-      className={`${fontSans.variable} ${fontMono.variable} ${fullScreen ? 'h-full' : ''}`}
+      className={`${fontSans.variable} ${fontSpaceGrotesk.variable} ${fontMono.variable} ${fullScreen ? 'h-full' : ''}`}
     >
       <body className={`${fullScreen ? 'h-full overflow-hidden' : ''}`}>
         <NextUIProvider className={fullScreen ? 'h-full' : 'flex min-h-screen flex-col'}>

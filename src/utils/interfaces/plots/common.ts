@@ -40,3 +40,24 @@ export const resolveColorHierarchy = (...colors: (string | null | undefined)[]):
   // Fallback to CSS primary colour currently in scope (root)
   return getPrimaryColorFromNode(null);
 };
+
+export const brandPlotColorRange = [
+  'var(--role-green-deep)',
+  'var(--role-blue)',
+  'var(--role-orange)',
+  'var(--role-purple)',
+  'var(--role-yellow)',
+  'var(--role-teal)',
+] as const;
+
+export const getPlotColorRange = (
+  groupByColors: string | undefined,
+  d3Module: Record<string, unknown>
+): readonly string[] => {
+  if (!groupByColors || groupByColors === 'brandRoles' || groupByColors === 'schemeCategory10') {
+    return brandPlotColorRange;
+  }
+
+  const colorRange = d3Module[groupByColors];
+  return Array.isArray(colorRange) ? (colorRange as readonly string[]) : brandPlotColorRange;
+};

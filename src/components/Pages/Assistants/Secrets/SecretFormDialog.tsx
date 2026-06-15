@@ -83,7 +83,7 @@ export function SecretFormDialog({
                 disabled={isSubmitting}
               />
               {!isEditing && (
-                <div className="mt-2 flex items-start gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 p-2.5 text-yellow-600 dark:text-yellow-400">
+                <div className="border-[color:var(--status-warning)]/30 mt-2 flex items-start gap-2 rounded-md border bg-[color:var(--status-warning-bg)] p-2.5 text-[color:var(--status-warning)]">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                   <p className="text-xs">
                     This value will not be viewable after saving. Make sure it is saved elsewhere.

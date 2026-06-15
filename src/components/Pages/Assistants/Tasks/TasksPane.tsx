@@ -10,8 +10,10 @@ import { getColumnsForTaskView, TASK_LIVE_DOT_CLASS } from '@/utils/assistants/t
 import { MemoryTable } from '../Memory/MemoryTable';
 import { MemoryRowDetail } from '../Memory/MemoryRowDetail';
 import type { MemoryRow, TaskMemoryView, TaskRunRow } from '@/types/assistants/memory';
+import type { Assistant } from '@/types/assistants/assistant';
 
 interface TasksPaneProps {
+  assistant: Assistant;
   ownerId: string;
   assistantId: string;
   /**
@@ -30,6 +32,13 @@ interface TasksPaneProps {
    * showing in the pane.
    */
   onSubTabChange?: (next: TaskMemoryView) => void;
+  /**
+   * Notifies the parent whenever the pane's tasks list count
+   * changes. Used by the Coordinator onboarding flow to auto-mark
+   * the "Assign a task" step done the moment a task actually
+   * lands. Receives ``0`` while the list is empty or still loading.
+   */
+  onTasksCountChange?: (count: number) => void;
 }
 
 function getTaskEmptyState(taskView: TaskMemoryView, isFiltered: boolean): { title: string } {
@@ -45,7 +54,14 @@ function getTaskEmptyState(taskView: TaskMemoryView, isFiltered: boolean): { tit
   }
 }
 
-export function TasksPane({ ownerId, assistantId, subTab, onSubTabChange }: TasksPaneProps) {
+export function TasksPane({
+  assistant,
+  ownerId,
+  assistantId,
+  subTab,
+  onSubTabChange,
+  onTasksCountChange,
+}: TasksPaneProps) {
   const {
     tasks,
     taskRuns,
@@ -60,7 +76,18 @@ export function TasksPane({ ownerId, assistantId, subTab, onSubTabChange }: Task
     clearSearch,
     loadMore,
     refetch,
-  } = useTasksData({ ownerId, assistantId });
+  } = useTasksData({ assistant, ownerId, assistantId });
+
+  // Push the tasks count up so the Coordinator onboarding flow can
+  // auto-complete the "Assign a task" step. Inexpensive to leave
+  // unconditional — the callback is undefined on every other
+  // surface and the optional call becomes a no-op. ``tasks`` is a
+  // ``ContextState`` envelope, so we read its ``count`` rather than
+  // a bare ``length``.
+  const tasksCount = tasks.count;
+  useEffect(() => {
+    onTasksCountChange?.(tasksCount);
+  }, [tasksCount, onTasksCountChange]);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedRow, setSelectedRow] = useState<Record<string, unknown> | null>(null);

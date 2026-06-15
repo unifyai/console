@@ -292,7 +292,7 @@ const ColumnCreate = ({
       <SubmitButton
         text={loading ? 'Creating column' : 'Create'}
         onClick={() => onSubmit()}
-        icon={loading && <LoaderCircle className="animate-spin text-white" />}
+        icon={loading && <LoaderCircle className="animate-spin text-primary-foreground" />}
       />
     </div>
   );

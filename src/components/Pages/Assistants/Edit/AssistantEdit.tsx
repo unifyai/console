@@ -9,7 +9,6 @@ import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -29,6 +28,7 @@ import { Button } from '@/components/UI/button';
 import { Loader2, X, Trash2, AlertTriangle } from 'lucide-react';
 import { UseFormReturn } from 'react-hook-form';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 
 interface AssistantEditProps {
   isOpen: boolean;
@@ -140,15 +140,16 @@ export function AssistantEdit({
     if (isSubmitting) return 'Updating...';
     if (isProcessingVoice) return 'Processing Voice...';
     if (isProcessingPhoto) return 'Processing Photo...';
-    return 'Update Assistant';
+    if (assistant.isCoordinator) return 'Update Marty';
+    return 'Update Droid';
   };
 
-  const displayName = `${assistant.firstName} ${assistant.surname}`;
+  const displayName = assistantDisplayName(assistant);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogClose}>
       <DialogContent
-        className="flex h-[90vh] max-w-5xl flex-col gap-0 p-0"
+        className="flex h-[90vh] max-w-5xl flex-col gap-0 overflow-hidden p-0"
         onInteractOutside={handleDialogInteractOutside}
         onPointerDownOutside={(e) => {
           const target = e.target as HTMLElement;
@@ -165,9 +166,6 @@ export function AssistantEdit({
           <div className="flex items-start justify-between">
             <div>
               <DialogTitle className="text-title">Edit {displayName}</DialogTitle>
-              <DialogDescription className="text-subtitle pt-2">
-                Modify your assistant details.
-              </DialogDescription>
             </div>
             <TooltipProvider delayDuration={100}>
               <Tooltip open={isCloseTooltipOpen} onOpenChange={setIsCloseTooltipOpen}>
@@ -219,11 +217,8 @@ export function AssistantEdit({
                         Confirm End Contract
                       </AlertDialogTitle>
                       <AlertDialogDescription>
-                        You are about to remove{' '}
-                        <strong>
-                          {assistant.firstName} {assistant.surname}
-                        </strong>{' '}
-                        from your team. This action cannot be undone. Are you sure?
+                        You are about to remove <strong>{displayName}</strong> from your team. This
+                        action cannot be undone. Are you sure?
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

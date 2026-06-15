@@ -16,10 +16,18 @@ import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { Assistant } from '@/types/assistants/assistant';
 import { Track, Room } from 'livekit-client';
-import { RoomContext, useTrackToggle, useVoiceAssistant } from '@livekit/components-react';
+import {
+  RoomContext,
+  useIsSpeaking,
+  useLocalParticipant,
+  useTrackToggle,
+  useVoiceAssistant,
+} from '@livekit/components-react';
 import { AssistantCommunicationMainView } from './AssistantCommunicationMainView';
 import { cn } from '@/lib/utils';
 import { motion, PanInfo, useMotionValue } from 'framer-motion';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
+import type { CreatureMood } from '@/components/Brand/TeammateCreature';
 
 const MIN_WIDTH = 200;
 const MIN_HEIGHT = 160;
@@ -35,11 +43,13 @@ interface AssistantCommunicationMinimizedProps {
   onToggleSpeaker: () => void;
   isConnecting: boolean;
   isWaitingForAssistant: boolean;
+  isAssistantPreparing: boolean;
   waitingMessage?: string | null;
   connectionError: string | null;
   onRetry: () => void;
   isCallConnected: boolean;
   callType: 'video' | 'audio' | null;
+  avatarMood: CreatureMood;
 }
 
 const ControlButton: React.FC<{
@@ -85,22 +95,33 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
   onToggleSpeaker,
   isConnecting,
   isWaitingForAssistant,
+  isAssistantPreparing,
   waitingMessage,
   connectionError,
   onRetry,
   isCallConnected,
   callType,
+  avatarMood,
 }) => {
-  const { state: agentState, videoTrack: agentVideoTrack } = useVoiceAssistant();
+  const {
+    state: agentState,
+    audioTrack: agentAudioTrack,
+    videoTrack: agentVideoTrack,
+  } = useVoiceAssistant();
+  const { localParticipant } = useLocalParticipant();
+  const isUserSpeaking = useIsSpeaking(localParticipant);
   const micToggle = useTrackToggle({ source: Track.Source.Microphone });
   const camToggle = useTrackToggle({ source: Track.Source.Camera });
 
-  const displayName = `${assistant.firstName} ${assistant.surname}`;
+  const isCoordinator = assistant.isCoordinator === true;
+  const displayName = assistantDisplayName(assistant);
   const assistantPhoto = assistant.signedProfilePhotoUrl || assistant.profilePhoto;
-  const showLoadingState = isConnecting || isWaitingForAssistant;
+  const showLoadingState = isConnecting || isWaitingForAssistant || isAssistantPreparing;
   const loadingMessage = isConnecting
     ? 'Connecting...'
-    : waitingMessage || `Waiting for ${assistant.firstName}...`;
+    : isWaitingForAssistant
+      ? waitingMessage || `Waiting for ${displayName}...`
+      : `${displayName} is getting ready...`;
 
   if (connectionError) {
     return (
@@ -149,13 +170,18 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
         className="mb-3 h-full w-full flex-1"
         avatarContainerClassName="w-20 h-20"
         assistantName={displayName}
+        isCoordinator={isCoordinator}
         isSpeaking={agentState === 'speaking'}
         imageUrl={assistantPhoto}
+        audioTrack={agentAudioTrack}
         videoTrack={agentVideoTrack}
         isLoading={showLoadingState}
         loadingMessage={loadingMessage}
         isRingMuted={isSpeakerMuted}
         onToggleRingMute={onToggleSpeaker}
+        isCallActive={isCallConnected}
+        isUserSpeaking={isUserSpeaking}
+        mood={avatarMood}
       />
 
       {/* Controls */}

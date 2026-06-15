@@ -9,6 +9,7 @@ import { Mail } from 'lucide-react';
 import EmailLoginForm from './EmailLoginForm';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import dynamic from 'next/dynamic';
+import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 
 // Dev-only quick login panel — lazy-loaded and tree-shaken in production builds.
 const DevQuickLogin =
@@ -27,61 +28,86 @@ interface LoginProps {
   callbackUrl?: string;
   /**
    * When true, only the email + password form is shown and the user
-   * cannot switch to OAuth providers. Used on slug-tagged preview hosts
-   * where Google/Microsoft callback URIs are not (and cannot reasonably
-   * be) registered against the OAuth client.
+   * cannot switch to OAuth providers (e.g. self-host deployments that
+   * have no OAuth client registered).
    */
-  previewOnly?: boolean;
+  emailOnly?: boolean;
 }
 
 const LoginFragment = ({
   onLogin: handleLogin,
   error,
   callbackUrl,
-  previewOnly = false,
+  emailOnly = false,
 }: LoginProps) => {
-  const [authTab, setAuthTab] = useState<AuthTab>(previewOnly ? 'email' : 'oauth');
+  const { loginGoogle, loginMicrosoft } = useFeatures();
+  const env = useEnvironment();
+  // Topology-driven (not credential-driven): dev seed quick-login only in local dev.
+  const devQuickLogin = env.isDev;
+
+  // Only offer OAuth when at least one provider is actually configured for this
+  // deployment (self-host may run email/password only).
+  const hasOAuth = loginGoogle || loginMicrosoft;
+  const oauthLabel = [loginGoogle && 'Google', loginMicrosoft && 'Microsoft']
+    .filter(Boolean)
+    .join(' or ');
+
+  const [authTab, setAuthTab] = useState<AuthTab>(emailOnly || !hasOAuth ? 'email' : 'oauth');
 
   return (
     <div className="flex flex-wrap">
-      <div className="flex flex-1 flex-col gap-14">
-        {/* Header — tagline */}
-        <div className="flex flex-col gap-4">
+      <div className="flex flex-1 flex-col gap-10">
+        {/* Header */}
+        <div className="relative flex flex-col items-center gap-6 text-center">
           <div className="flex justify-center">
             <UnifyLogo />
           </div>
-          <h1 className="text-center text-4xl leading-[1] tracking-[-0.02em] text-gray-800 dark:text-white sm:text-5xl">
-            Hire AI <span className="font-serif italic">— Not APIs</span>
-          </h1>
+          <div className="inline-flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+            <span className="h-2 w-2 rounded-[2px] bg-primary" />
+            Welcome aboard
+          </div>
+          <div className="grid gap-4">
+            <h1 className="text-brand-display text-foreground">
+              Meet your first <span className="text-brand-serif-accent">droid.</span>
+            </h1>
+            <p className="mx-auto max-w-[34rem] text-[15px] leading-6 text-muted-foreground">
+              No prompting, no setup, no jargon. Sign in and hop on a call with the teammate who
+              takes tedious work off your plate.
+            </p>
+          </div>
         </div>
 
         {/* Content — auth buttons / email form */}
         <div className="flex flex-col gap-3">
           {error && authTab === 'oauth' && (
-            <div className="text-red-500" data-testid="oauth-error">
+            <div className="text-body text-error" data-testid="oauth-error">
               {error}
             </div>
           )}
 
           {authTab === 'oauth' ? (
             <>
-              <HallowButton onClick={handleLogin('google')}>
-                <div className="flex items-center justify-center gap-2">
-                  <Image src={GoogleIcon} alt="Google" height={20} width={20} />
-                  Continue with Google
-                </div>
-              </HallowButton>
-              <HallowButton onClick={handleLogin('azure-ad')}>
-                <div className="flex items-center justify-center gap-2">
-                  <Image src={MicrosoftIcon} alt="Microsoft" height={20} width={20} />
-                  Continue with Microsoft
-                </div>
-              </HallowButton>
+              {loginGoogle && (
+                <HallowButton onClick={handleLogin('google')}>
+                  <div className="flex items-center justify-center gap-2">
+                    <Image src={GoogleIcon} alt="Google" height={20} width={20} />
+                    Continue with Google
+                  </div>
+                </HallowButton>
+              )}
+              {loginMicrosoft && (
+                <HallowButton onClick={handleLogin('azure-ad')}>
+                  <div className="flex items-center justify-center gap-2">
+                    <Image src={MicrosoftIcon} alt="Microsoft" height={20} width={20} />
+                    Continue with Microsoft
+                  </div>
+                </HallowButton>
+              )}
 
               <div className="my-1 flex items-center gap-3">
-                <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
+                <div className="h-px flex-1 bg-border" />
                 <span className="text-caption text-muted-foreground">or</span>
-                <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
+                <div className="h-px flex-1 bg-border" />
               </div>
 
               <HallowButton onClick={() => setAuthTab('email')} data-testid="email-auth-tab">
@@ -94,12 +120,12 @@ const LoginFragment = ({
           ) : (
             <>
               <EmailLoginForm callbackUrl={callbackUrl} externalError={error} />
-              {!previewOnly && (
+              {!emailOnly && hasOAuth && (
                 <>
                   <div className="my-1 flex items-center gap-3">
-                    <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
+                    <div className="h-px flex-1 bg-border" />
                     <span className="text-caption text-muted-foreground">or</span>
-                    <div className="h-[1px] flex-1 bg-[var(--border-light)]" />
+                    <div className="h-px flex-1 bg-border" />
                   </div>
                   <button
                     type="button"
@@ -107,19 +133,19 @@ const LoginFragment = ({
                     className="text-caption text-center text-muted-foreground transition-colors hover:text-foreground"
                     data-testid="switch-to-oauth"
                   >
-                    Sign in with Google or Microsoft
+                    {`Sign in with ${oauthLabel}`}
                   </button>
                 </>
               )}
             </>
           )}
 
-          {/* Dev-only quick login (tree-shaken in production) */}
-          <DevQuickLogin />
+          {/* Dev-only quick login (hidden for self-host installs) */}
+          {devQuickLogin && <DevQuickLogin />}
         </div>
 
         {/* Footer — disclaimer */}
-        <div className="text-branding-grey text-body">
+        <div className="text-body-muted">
           {'By signing up you agree to our '}
           <a
             href="https://unify.ai/privacy-policy"
@@ -132,7 +158,7 @@ const LoginFragment = ({
             href="https://unify.ai/terms-of-service"
             className="font-semibold text-primary underline"
           >
-            Terms Of Service
+            Terms of Service
           </a>
           {'.'}
         </div>

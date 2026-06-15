@@ -99,14 +99,14 @@ interface MemberRowProps {
 const getRoleBadgeColor = (roleName: string) => {
   const normalized = roleName.toLowerCase();
   if (normalized === 'owner')
-    return 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800';
+    return 'border-[color:var(--role-purple)]/25 bg-[color:var(--role-purple)]/12 text-[color:var(--role-purple)]';
   if (normalized === 'admin')
-    return 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800';
+    return 'border-[color:var(--status-info)]/25 bg-[color:var(--status-info-bg)] text-[color:var(--status-info)]';
   if (normalized === 'manager')
-    return 'bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800';
+    return 'border-[color:var(--role-teal)]/25 bg-[color:var(--role-teal)]/12 text-[color:var(--role-teal)]';
   if (normalized === 'member')
-    return 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
-  return 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800';
+    return 'border-border bg-[color:var(--status-neutral-bg)] text-muted-foreground';
+  return 'border-[color:var(--status-success)]/25 bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]';
 };
 
 const FREE_TRIAL_CONTACT_URL = 'https://cal.com/danlenton/15min';
@@ -281,27 +281,33 @@ const MemberRow = ({
               <Avatar
                 className={cn(
                   'h-9 w-9 border',
-                  member.status === 'pending' ? 'border-yellow-200 bg-yellow-100/50' : 'bg-muted'
+                  member.status === 'pending'
+                    ? 'border-[color:var(--status-warning)]/25 bg-[color:var(--status-warning-bg)]'
+                    : 'bg-muted'
                 )}
               >
                 {resolvedImageUrl && <AvatarImage src={resolvedImageUrl} alt={member.name} />}
                 <AvatarFallback
-                  className={cn(member.status === 'pending' ? 'bg-yellow-100/50' : 'bg-muted')}
+                  className={cn(
+                    member.status === 'pending' ? 'bg-[color:var(--status-warning-bg)]' : 'bg-muted'
+                  )}
                 >
                   <User
                     className={cn(
                       'h-4 w-4',
-                      member.status === 'pending' ? 'text-yellow-600' : 'text-muted-foreground'
+                      member.status === 'pending'
+                        ? 'text-[color:var(--status-warning)]'
+                        : 'text-muted-foreground'
                     )}
                   />
                 </AvatarFallback>
               </Avatar>
               {isSelf && (
-                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 opacity-0 transition-all group-hover/avatar:bg-black/40 group-hover/avatar:opacity-100">
+                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-transparent opacity-0 transition-all group-hover/avatar:bg-[color:var(--overlay)] group-hover/avatar:opacity-100">
                   {isUploading ? (
-                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[color:var(--cream-white)] border-t-transparent" />
                   ) : (
-                    <Camera className="h-3.5 w-3.5 text-white" />
+                    <Camera className="h-3.5 w-3.5 text-[color:var(--cream-white)]" />
                   )}
                 </div>
               )}
@@ -360,7 +366,7 @@ const MemberRow = ({
                   >
                     <span className="truncate">{member.email}</span>
                     {isEmailCopied ? (
-                      <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                      <Check className="h-3.5 w-3.5 shrink-0 text-[color:var(--status-success)]" />
                     ) : (
                       <Copy className="h-3.5 w-3.5 shrink-0 opacity-0 transition-opacity group-hover/email:opacity-100" />
                     )}
@@ -528,7 +534,7 @@ const MemberRow = ({
                           spendingInfo?.display?.isOverLimit && 'text-destructive',
                           spendingInfo?.display?.isNearLimit &&
                             !spendingInfo?.display?.isOverLimit &&
-                            'text-amber-600 dark:text-amber-500'
+                            'text-[color:var(--status-warning)]'
                         )}
                       >
                         {formatSpendAmount(spendingInfo?.currentSpend ?? 0)}
@@ -540,7 +546,7 @@ const MemberRow = ({
                       </span>
                       {spendingInfo?.display?.isNearLimit &&
                         !spendingInfo?.display?.isOverLimit && (
-                          <AlertTriangle className="h-3 w-3 text-amber-500" />
+                          <AlertTriangle className="h-3 w-3 text-[color:var(--status-warning)]" />
                         )}
                       {spendingInfo?.display?.isOverLimit && (
                         <AlertTriangle className="h-3 w-3 text-destructive" />

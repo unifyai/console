@@ -17,6 +17,7 @@
 import * as React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { BILLING_STATUS_QUERY_KEY, type BillingStatusData } from '@/hooks/Billing/useBillingStatus';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 
 const SSE_MAX_RECONNECT_ATTEMPTS = 5;
 const SSE_RECONNECT_BASE_DELAY = 2_000;
@@ -26,9 +27,13 @@ type BillingEventType = 'credits_exhausted' | 'credits_restored';
 
 export function useBillingEvents(): void {
   const queryClient = useQueryClient();
+  const { billing: billingEnabled } = useFeatures();
   const lastEventRef = React.useRef<{ type: string; time: number } | null>(null);
 
   React.useEffect(() => {
+    // No billing → no credit lifecycle events to stream; skip the SSE entirely.
+    if (!billingEnabled) return;
+
     let reconnectAttempts = 0;
     let reconnectTimer: NodeJS.Timeout | null = null;
     let eventSource: EventSource | null = null;
@@ -74,6 +79,7 @@ export function useBillingEvents(): void {
           queryClient.setQueryData<BillingStatusData>(BILLING_STATUS_QUERY_KEY, (old) => {
             const billingMode = old?.billingMode ?? 'CREDITS';
             return {
+              isBalanceKnown: true,
               hasBillingHistory: old?.hasBillingHistory ?? false,
               credits: eventBalance,
               // METERED accounts intentionally hold a $0 wallet — see
@@ -122,5 +128,5 @@ export function useBillingEvents(): void {
         clearTimeout(reconnectTimer);
       }
     };
-  }, [queryClient]);
+  }, [queryClient, billingEnabled]);
 }

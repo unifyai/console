@@ -10,6 +10,7 @@ import { test as base, expect, type Page, type Browser } from '@playwright/test'
 import path from 'path';
 import os from 'os';
 import { login, loginAndWaitForRedirect, switchToEmailTab } from '../auth/helpers';
+import { orchestraFetch as _orchestraFetch } from '../helpers/seeds/client';
 
 export { createTestUser, cleanupUser, setUserCredits } from '../helpers/e2e-helpers';
 export type { TestUser } from '../helpers/e2e-helpers';
@@ -24,16 +25,43 @@ export {
   addMember,
   orchestraFetch,
   createAssistant,
+  createPersonalCoordinator,
+  connectWorkspaceEmail,
+  createUserDesktop,
+  linkUserDesktop,
+  createTeamForAssistant,
+  addAssistantToTeam,
   ensureVoicePreset,
   ensureProjectSync,
 } from '../helpers/seeds/client';
-export type { SeededOrg, SeededAssistant } from '../helpers/seeds/types';
+export type {
+  SeededOrg,
+  SeededAssistant,
+  SeededTeam,
+  SeededUserDesktop,
+} from '../helpers/seeds/types';
 
 export { login, switchToEmailTab };
 
 // =============================================================================
 // Shared Auth — storageState
 // =============================================================================
+
+async function loginViaDevQuickLogin(page: Page, email: string, timeout: number): Promise<void> {
+  const quickLoginPanel = page.getByTestId('dev-quick-login');
+  await expect(quickLoginPanel).toBeVisible({ timeout: 15_000 });
+
+  const quickLoginButton = quickLoginPanel.locator('button', { hasText: email }).first();
+  await expect(quickLoginButton).toBeVisible({ timeout: 15_000 });
+
+  await Promise.all([
+    page.waitForURL((url) => url.pathname !== '/login', {
+      timeout,
+      waitUntil: 'domcontentloaded',
+    }),
+    quickLoginButton.click(),
+  ]);
+}
 
 export async function loginAndSaveState(
   browser: Browser,
@@ -45,11 +73,30 @@ export async function loginAndSaveState(
     `pw-assistant-${email.replace(/[^a-z0-9]/gi, '-')}.json`
   );
 
-  const ctx = await browser.newContext();
+  const ctx = await browser.newContext({
+    permissions: ['clipboard-read', 'clipboard-write'],
+  });
   const page = await ctx.newPage();
 
   await page.goto('/login');
-  await loginAndWaitForRedirect(page, email, password, 45_000);
+  try {
+    await loginAndWaitForRedirect(page, email, password, 45_000);
+  } catch (error) {
+    if (!page.url().includes('/login')) {
+      throw error;
+    }
+    const hasQuickLoginPanel = await page
+      .getByTestId('dev-quick-login')
+      .isVisible({ timeout: 3_000 })
+      .catch(() => false);
+    if (!hasQuickLoginPanel) {
+      throw error;
+    }
+    // Local dev login occasionally lands back on /login after credentials submit.
+    // Retry once via the dev quick-login panel to keep assistant e2e fixtures stable.
+    await page.goto('/login');
+    await loginViaDevQuickLogin(page, email, 45_000);
+  }
 
   if (page.url().includes('/login/onboarding')) {
     const personalBtn = page.getByTestId('workspace-personal');
@@ -71,6 +118,59 @@ export async function loginAndSaveState(
   return stateFile;
 }
 
+export async function loginAndSaveOrgState(
+  browser: Browser,
+  email: string,
+  password: string,
+  orgId: number
+): Promise<string> {
+  const stateFile = path.join(
+    os.tmpdir(),
+    `pw-assistant-org-${orgId}-${email.replace(/[^a-z0-9]/gi, '-')}.json`
+  );
+
+  const ctx = await browser.newContext({
+    permissions: ['clipboard-read', 'clipboard-write'],
+  });
+  const page = await ctx.newPage();
+
+  await page.goto('/login');
+  await loginAndWaitForRedirect(page, email, password, 45_000);
+
+  if (page.url().includes('/login/onboarding')) {
+    await page
+      .waitForURL((url) => !url.pathname.includes('onboarding'), {
+        timeout: 20_000,
+      })
+      .catch(async () => {
+        const personalBtn = page.getByTestId('workspace-personal');
+        if (await personalBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+          await personalBtn.click();
+          await page.getByTestId('workspace-continue').click();
+          await page.waitForURL((url) => !url.pathname.includes('onboarding'), {
+            timeout: 15_000,
+          });
+        }
+      });
+  }
+
+  await page.evaluate(async (workspaceId) => {
+    await fetch('/api/session/workspace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId: String(workspaceId) }),
+    });
+  }, orgId);
+
+  await page.goto('/assistants');
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await page.waitForTimeout(2_000);
+
+  await ctx.storageState({ path: stateFile });
+  await ctx.close();
+  return stateFile;
+}
+
 // =============================================================================
 // Fixture: createAssistantTest
 // =============================================================================
@@ -84,7 +184,10 @@ export function createAssistantTest(user: { email: string; password: string }) {
         testInfo.setTimeout(testInfo.timeout + 30_000);
         authFile = await loginAndSaveState(browser, user.email, user.password);
       }
-      const ctx = await browser.newContext({ storageState: authFile });
+      const ctx = await browser.newContext({
+        storageState: authFile,
+        permissions: ['clipboard-read', 'clipboard-write'],
+      });
       const page = await ctx.newPage();
       // eslint-disable-next-line react-hooks/rules-of-hooks
       await use(page);
@@ -190,6 +293,9 @@ export async function openAccordionSection(
   if (!(await trigger.isVisible({ timeout: 1_000 }).catch(() => false))) {
     // Fall back to accordion trigger containing the section text
     trigger = page.locator(`button[data-state]:has-text("${labels[section]}")`).first();
+  }
+  if (!(await trigger.isVisible({ timeout: 1_000 }).catch(() => false))) {
+    return;
   }
 
   const state = await trigger.getAttribute('data-state').catch(() => null);
@@ -439,4 +545,57 @@ export function getAssistantContactProvisionedBy(
   } catch {
     return null;
   }
+}
+
+// =============================================================================
+// User Desktop Link Helpers
+// =============================================================================
+
+/** Desktop ids linked to an assistant for a given owner (usually 0 or 1). */
+export function getLinkedDesktopIds(agentId: number, ownerUserId: string): number[] {
+  const result = dbExec(
+    `SELECT user_desktop_id FROM assistant_user_desktops WHERE assistant_id = ${agentId} AND owner_user_id = '${ownerUserId}' ORDER BY user_desktop_id`
+  );
+  if (!result) return [];
+  return result.split('\n').map((id) => parseInt(id, 10));
+}
+
+/** Count of assistants a desktop is linked to (across the owner's assistants). */
+export function getDesktopLinkCount(desktopId: number): number {
+  return parseInt(
+    dbExec(`SELECT count(*) FROM assistant_user_desktops WHERE user_desktop_id = ${desktopId}`),
+    10
+  );
+}
+
+export function deleteUserDesktopsForUser(userId: string): void {
+  try {
+    dbExec(`DELETE FROM user_desktops WHERE user_id = '${userId}'`);
+  } catch {
+    /* best effort — cascade also removes assistant_user_desktops */
+  }
+}
+
+// =============================================================================
+// Assistant Secret Helpers
+// =============================================================================
+
+/**
+ * Names of the secrets persisted for an assistant, read back through
+ * Orchestra's logs API (the same store the Console secrets UI writes to).
+ * Secrets live as logs in the "Assistants" project under the per-assistant
+ * `{userId}/{assistantId}/Secrets` context.
+ */
+export async function getAssistantSecretNames(
+  apiKey: string,
+  userId: string,
+  assistantId: number
+): Promise<string[]> {
+  const context = `${userId}/${assistantId}/Secrets`;
+  const params = new URLSearchParams({ project_name: 'Assistants', context });
+  const res = await _orchestraFetch(`/v0/logs?${params.toString()}`, { method: 'GET' }, apiKey);
+  if (!res.ok) return [];
+  const data = await res.json().catch(() => null);
+  const logs = (data?.logs ?? []) as Array<{ entries?: { name?: string } }>;
+  return logs.map((log) => log.entries?.name).filter((name): name is string => Boolean(name));
 }

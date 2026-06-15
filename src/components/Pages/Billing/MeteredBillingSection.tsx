@@ -235,7 +235,7 @@ const UsageProgress = ({ plan, usage, loading }: UsageProgressProps) => {
           />
           {inOverage && (
             <div
-              className="h-full bg-amber-500 transition-all"
+              className="h-full bg-[color:var(--status-warning)] transition-all"
               style={{ width: `${overagePct}%` }}
               data-testid="usage-progress-overage-bar"
             />
@@ -245,7 +245,7 @@ const UsageProgress = ({ plan, usage, loading }: UsageProgressProps) => {
       <div className="text-caption mt-2 flex items-center justify-between">
         {inOverage ? (
           <>
-            <span className="text-amber-700 dark:text-amber-500">
+            <span className="text-[color:var(--status-warning)]">
               In overage by {formatMoney(overage, currency)}
             </span>
             <span className="tabular-nums text-muted-foreground">

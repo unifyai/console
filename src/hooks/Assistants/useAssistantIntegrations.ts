@@ -13,6 +13,7 @@ import type {
   IntegrationProviderId,
 } from '@/types/assistants/integration';
 import type { Secret } from '@/types/assistants/secret';
+import { openPendingOAuthTab, type PendingOAuthTab } from '@/utils/assistants/oauth';
 
 /**
  * Derived per-integration card state for the IntegrationsPane.  Built
@@ -83,6 +84,34 @@ export function partitionForIntegrations(secrets: Secret[]): {
   return { cards, otherSecrets, hiddenSecrets };
 }
 
+/**
+ * Secret-name prefixes written by the *workspace* OAuth handshake rather than
+ * by a user connecting an app integration. Connecting a workspace dumps tokens
+ * like ``GOOGLE_ACCESS_TOKEN`` / ``MICROSOFT_REFRESH_TOKEN`` and — for
+ * enterprise Microsoft 365 — the user's own ``AZURE_CLIENT_SECRET`` /
+ * ``AZURE_TENANT_ID`` etc. The console has no provider card for the workspace
+ * mailbox, so all of these land in the freeform ``otherSecrets`` bucket
+ * alongside genuine user-added custom secrets — and must NOT count as an "app
+ * integration" for the Coordinator onboarding "connect apps" step (otherwise
+ * it auto-completes the moment the workspace connects).
+ *
+ * Mirrors Orchestra's ``_WORKSPACE_SECRET_PREFIXES``
+ * (orchestra/orchestra/services/coordinator_service.py). NOTE: this list also
+ * includes ``AZURE_``, which the Orchestra constant currently omits — keep the
+ * two in mind together if either changes.
+ */
+export const WORKSPACE_MANAGED_SECRET_PREFIXES = ['GOOGLE_', 'MICROSOFT_', 'AZURE_'] as const;
+
+/**
+ * Whether a secret name was written by the workspace OAuth flow (vs. a custom
+ * secret the user added by hand). Used to keep workspace/default secrets from
+ * falsely completing the onboarding "connect apps" step.
+ */
+export function isWorkspaceManagedSecretName(name: string): boolean {
+  const upper = name.toUpperCase();
+  return WORKSPACE_MANAGED_SECRET_PREFIXES.some((prefix) => upper.startsWith(prefix));
+}
+
 function deriveCardState(
   provider: IntegrationProviderConfig,
   ownedSecrets: Secret[]
@@ -123,23 +152,44 @@ function deriveCardState(
 
 /**
  * Async wrapper that drives the per-provider Connect flow: POST to the
- * oauth/start route, then redirect the browser to the authorize URL.
+ * oauth/start route, then send the browser to the authorize URL in a
+ * new tab.
  *
  * Caller has already saved any customer-provided credentials.  The user
  * lands back at the integrations tab via the per-provider callback
  * route.
+ *
+ * The authorize URL opens in a fresh tab rather than navigating the
+ * current one: connecting an app mid-onboarding shouldn't tear down
+ * the SPA (and any in-progress assistant call). Falls back to a
+ * same-tab redirect only when the new tab is blocked (popup blocker
+ * etc.) so the Connect action never silently no-ops.
  */
 export async function startOAuthConnect(args: {
   assistantId: string;
   providerId: IntegrationProviderId;
   redirectAfter?: string;
+  /**
+   * A tab already opened synchronously in the click gesture. Pass this
+   * when the caller does other ``await`` work (e.g. saving credentials)
+   * before reaching here — opening the tab inside this function would
+   * then be post-await and get blocked. When omitted we open one now,
+   * which is correct only if the caller invoked us synchronously.
+   */
+  pendingTab?: PendingOAuthTab;
 }): Promise<void> {
+  // Open the tab synchronously, before the fetch below — ``window.open``
+  // after an ``await`` is blocked by popup blockers and would force a
+  // same-tab redirect that tears down the SPA (and any live call).
+  const oauthTab = args.pendingTab ?? openPendingOAuthTab();
+
   const response = await fetch('/api/integrations/oauth/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(args),
   });
   if (!response.ok) {
+    oauthTab.close();
     const data = (await response.json().catch(() => ({}))) as {
       error?: string;
       hint?: string;
@@ -151,10 +201,15 @@ export async function startOAuthConnect(args: {
   }
   const data = (await response.json()) as { authorizeUrl?: string };
   if (!data.authorizeUrl) {
+    oauthTab.close();
     toast.error('Server did not return an authorize URL.');
     return;
   }
-  window.location.href = data.authorizeUrl;
+  if (oauthTab.opened) {
+    oauthTab.navigate(data.authorizeUrl);
+  } else {
+    window.location.href = data.authorizeUrl;
+  }
 }
 
 /**

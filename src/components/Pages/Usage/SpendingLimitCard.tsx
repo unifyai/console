@@ -71,16 +71,16 @@ function getSpendingStatus(current: number, limit: number | null) {
     return {
       status: 'warning' as const,
       percentUsed,
-      color: 'text-amber-500',
-      progressColor: 'bg-amber-500',
+      color: 'text-[color:var(--status-warning)]',
+      progressColor: 'bg-[color:var(--status-warning)]',
     };
   }
 
   return {
     status: 'ok' as const,
     percentUsed,
-    color: 'text-emerald-500',
-    progressColor: 'bg-emerald-500',
+    color: 'text-[color:var(--status-success)]',
+    progressColor: 'bg-[color:var(--status-success)]',
   };
 }
 

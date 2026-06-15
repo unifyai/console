@@ -20,7 +20,6 @@ import {
   Loader2,
   Info,
   CheckCircle2,
-  Play,
   Wand2,
   MicVocal,
   PauseCircle,
@@ -37,7 +36,6 @@ import { useFormContext, Controller } from 'react-hook-form';
 import { useVoiceCreator } from '@/hooks/Assistants/useVoiceCreator';
 import { useTTSPreview } from '@/hooks/Assistants/useTTSPreview';
 import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
-import { getLanguageFlag } from '@/utils/assistants/voice-utils';
 import {
   PRIMARY_VOICE_PROVIDER,
   DESIGN_VOICE_DESC_MIN_LENGTH,
@@ -54,6 +52,8 @@ interface VoiceCustomizationProps {
   initialVoiceId?: string | null;
   disabled?: boolean;
   onProcessingStateChange?: (isProcessing: boolean) => void;
+  onPreviewPlayingChange?: (isPlaying: boolean) => void;
+  onPreviewSpeechLevelChange?: (level: number) => void;
   allDisplayableVoices: VoiceOption[];
   isLoadingUserVoices: boolean;
   fetchUserVoices: () => void;
@@ -64,6 +64,98 @@ interface VoiceCustomizationProps {
   activeTab: ActiveCreatorTab;
   /** Setter for the active voice tab */
   setActiveTab: (tab: ActiveCreatorTab) => void;
+}
+
+function VoiceGenderIcon({ gender, className }: { gender?: string; className?: string }) {
+  if (gender === 'male') {
+    return (
+      <svg
+        aria-hidden="true"
+        className={className}
+        fill="none"
+        viewBox="0 0 24 24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle cx="9" cy="15" r="5" stroke="currentColor" strokeWidth={2} />
+        <path
+          d="M13 11L20 4M16 4h4v4"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle cx="12" cy="8" r="5" stroke="currentColor" strokeWidth={2} />
+      <path
+        d="M12 13v7M8.5 17h7"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+    </svg>
+  );
+}
+
+function interleaveVoicesByGender(voices: VoiceOption[]): VoiceOption[] {
+  const femaleVoices = voices.filter((voice) => voice.gender === 'female');
+  const maleVoices = voices.filter((voice) => voice.gender === 'male');
+  const otherVoices = voices.filter(
+    (voice) => voice.gender !== 'female' && voice.gender !== 'male'
+  );
+  const interleaved: VoiceOption[] = [];
+  const maxLength = Math.max(femaleVoices.length, maleVoices.length);
+
+  for (let index = 0; index < maxLength; index++) {
+    if (femaleVoices[index]) interleaved.push(femaleVoices[index]);
+    if (maleVoices[index]) interleaved.push(maleVoices[index]);
+  }
+
+  return [...interleaved, ...otherVoices];
+}
+
+function VoicePlaybackBars({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn('flex h-4 w-4 items-center justify-center gap-0.5', className)}
+    >
+      {[8, 14, 10].map((height, index) => (
+        <span
+          className="w-0.5 animate-pulse rounded-full bg-current"
+          key={height}
+          style={{
+            height,
+            animationDelay: `${index * 120}ms`,
+            animationDuration: '640ms',
+          }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function VoicePreviewStatus({ isLoading, isPlaying }: { isLoading: boolean; isPlaying: boolean }) {
+  if (isLoading) {
+    return <Loader2 className="h-4 w-4 shrink-0 animate-spin" />;
+  }
+
+  if (isPlaying) {
+    return <VoicePlaybackBars className="shrink-0" />;
+  }
+
+  return null;
 }
 
 export function VoiceCustomization({
@@ -79,6 +171,8 @@ export function VoiceCustomization({
   onAddPaymentMethod,
   activeTab: activeMainTab,
   setActiveTab: setActiveMainTab,
+  onPreviewPlayingChange,
+  onPreviewSpeechLevelChange,
 }: VoiceCustomizationProps) {
   const [selectedVoiceId, setSelectedVoiceId] = React.useState<string | null>(initialVoiceId);
 
@@ -100,9 +194,9 @@ export function VoiceCustomization({
     [allDisplayableVoices, selectedVoiceId]
   );
 
-  const otherVoices = React.useMemo(
-    () => allDisplayableVoices.filter((v) => v.voiceId !== selectedVoiceId),
-    [allDisplayableVoices, selectedVoiceId]
+  const displayVoices = React.useMemo(
+    () => interleaveVoicesByGender(allDisplayableVoices),
+    [allDisplayableVoices]
   );
 
   const handleVoiceCreatedAndSelectedByHook = React.useCallback(
@@ -148,9 +242,14 @@ export function VoiceCustomization({
     }
   }, [isProcessingCreate, isGeneratingPreviews, onProcessingStateChange]);
 
-  const { playPreview, isPlayingPreviewForVoiceId } = useTTSPreview({
+  const { playPreview, isLoadingPreviewForVoiceId, isPlayingPreviewForVoiceId } = useTTSPreview({
     generateSpeechAction: assistantActions.voice.generate,
+    onSpeechLevelChange: onPreviewSpeechLevelChange,
   });
+
+  React.useEffect(() => {
+    onPreviewPlayingChange?.(Boolean(isPlayingPreviewForVoiceId));
+  }, [isPlayingPreviewForVoiceId, onPreviewPlayingChange]);
 
   const handleSelectVoiceDisplay = React.useCallback(
     (voice: VoiceOption | null) => {
@@ -257,149 +356,132 @@ export function VoiceCustomization({
     };
   }, [cleanupRecording]);
 
-  const [playTooltipVoiceId, setPlayTooltipVoiceId] = React.useState<string | null>(null);
-
-  const VoiceListItem = React.memo(({ voice }: { voice: VoiceOption }) => {
-    const isSelected = selectedVoiceId === voice.voiceId;
-    const itemIsDisabled = disabled || isProcessingCreate || isGeneratingPreviews;
-    const showPlayTooltip = playTooltipVoiceId === voice.voiceId;
-    return (
-      <div
-        role="option"
-        aria-selected={isSelected}
-        aria-label={`Select voice ${voice.name}`}
-        data-testid={`voice-option-${voice.voiceId}`}
-        className={cn(
-          'flex cursor-pointer items-center gap-2 rounded-md border p-2',
-          isSelected
-            ? 'border-primary bg-primary text-primary-foreground'
-            : 'hover:border-muted-foreground/30 border-transparent hover:bg-muted',
-          itemIsDisabled && 'cursor-not-allowed opacity-60 hover:bg-transparent'
-        )}
-        onClick={() => {
-          if (itemIsDisabled) return;
-          handleSelectVoiceDisplay(voice);
-          setPlayTooltipVoiceId(voice.voiceId);
-          // Auto-hide after 2.5 seconds
-          setTimeout(
-            () => setPlayTooltipVoiceId((prev) => (prev === voice.voiceId ? null : prev)),
-            2500
-          );
-        }}
-      >
-        <span className="text-body">{getLanguageFlag(voice.language)}</span>
-        <span className="text-body text-strong flex-1 truncate" title={voice.name}>
-          {voice.name}
-        </span>
-
+  const VoiceListItem = React.memo(
+    ({ voice, placement = 'list' }: { voice: VoiceOption; placement?: 'pinned' | 'list' }) => {
+      const isSelected = selectedVoiceId === voice.voiceId;
+      const isPinnedSelection = isSelected && placement === 'pinned';
+      const isInlineSelection = isSelected && placement === 'list';
+      const itemIsDisabled = disabled || isProcessingCreate || isGeneratingPreviews;
+      const isLoadingPreview = isLoadingPreviewForVoiceId === voice.voiceId;
+      const isPlayingPreview = isPlayingPreviewForVoiceId === voice.voiceId;
+      return (
         <div
+          role="option"
+          aria-selected={isSelected}
+          aria-label={`Select voice ${voice.name}`}
+          data-testid={`voice-option-${voice.voiceId}`}
           className={cn(
-            'm-0 flex items-center justify-between gap-1 p-0 sm:gap-2',
-            isSelected ? 'text-primary-foreground' : 'text-muted-foreground'
+            'flex cursor-pointer items-center gap-2 rounded-md border p-2',
+            isPinnedSelection
+              ? 'border-primary bg-primary text-primary-foreground'
+              : isInlineSelection
+                ? 'border-primary/40 bg-primary/10 text-foreground'
+                : 'hover:border-muted-foreground/30 border-transparent hover:bg-muted',
+            itemIsDisabled && 'cursor-not-allowed opacity-60 hover:bg-transparent'
           )}
+          onClick={() => {
+            if (itemIsDisabled) return;
+            handleSelectVoiceDisplay(voice);
+            playPreview(voice);
+          }}
         >
-          <TooltipProvider delayDuration={100}>
-            {videoSourceVoiceId === voice.voiceId && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Current video source"
-                    className={cn(
-                      'h-7 w-7 cursor-default',
-                      isSelected ? 'hover:bg-primary/80' : 'hover:bg-muted-foreground/10'
-                    )}
-                    disabled={itemIsDisabled}
-                  >
-                    <Clapperboard
-                      className={cn(
-                        'h-4 w-4',
-                        isSelected ? 'text-primary-foreground' : 'text-muted-foreground'
-                      )}
-                    />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p>Used for current video animation</p>
-                </TooltipContent>
-              </Tooltip>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <VoiceGenderIcon
+              className={cn(
+                'h-4 w-4 shrink-0',
+                isPinnedSelection
+                  ? 'opacity-95'
+                  : isInlineSelection
+                    ? 'text-primary'
+                    : 'text-muted-foreground'
+              )}
+              gender={voice.gender}
+            />
+            <span className="text-body text-strong flex-1 truncate" title={voice.name}>
+              {voice.name}
+            </span>
+            <VoicePreviewStatus isLoading={isLoadingPreview} isPlaying={isPlayingPreview} />
+          </div>
+
+          <div
+            className={cn(
+              'm-0 flex items-center justify-between gap-1 p-0 sm:gap-2',
+              isPinnedSelection
+                ? 'text-primary-foreground'
+                : isInlineSelection
+                  ? 'text-primary'
+                  : 'text-muted-foreground'
             )}
-          </TooltipProvider>
-
-          {!voice.isPreset && voice.isUserVoiceInOrchestra && (
+          >
             <TooltipProvider delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Delete "${voice.name}"`}
-                    className={cn(
-                      'h-7 w-7',
-                      isSelected
-                        ? 'hover:bg-destructive/80 text-primary-foreground hover:text-primary-foreground'
-                        : 'hover:bg-destructive/10 text-muted-foreground hover:text-destructive'
-                    )}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteVoice(voice);
-                    }}
-                    disabled={itemIsDisabled}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="text-caption max-w-xs">
-                  <p>{`Delete "${voice.name}"`}</p>
-                </TooltipContent>
-              </Tooltip>
+              {videoSourceVoiceId === voice.voiceId && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Current video source"
+                      className={cn(
+                        'h-7 w-7 cursor-default',
+                        isPinnedSelection ? 'hover:bg-primary/80' : 'hover:bg-muted-foreground/10'
+                      )}
+                      disabled={itemIsDisabled}
+                    >
+                      <Clapperboard
+                        className={cn(
+                          'h-4 w-4',
+                          isPinnedSelection
+                            ? 'text-primary-foreground'
+                            : isInlineSelection
+                              ? 'text-primary'
+                              : 'text-muted-foreground'
+                        )}
+                      />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p>Used for current video animation</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </TooltipProvider>
-          )}
 
-          <TooltipProvider delayDuration={0}>
-            <Tooltip open={showPlayTooltip}>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Preview "${voice.name}"`}
-                  className={cn(
-                    'h-7 w-7',
-                    isSelected
-                      ? 'hover:bg-primary/80 text-primary-foreground hover:text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-green-600/10 hover:text-green-600'
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPlayTooltipVoiceId(null);
-                    playPreview(voice);
-                  }}
-                  disabled={
-                    itemIsDisabled ||
-                    (isPlayingPreviewForVoiceId === voice.voiceId &&
-                      isPlayingPreviewForVoiceId !== null)
-                  }
-                >
-                  {isPlayingPreviewForVoiceId === voice.voiceId ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Play className="h-4 w-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-caption max-w-xs">
-                <p>Click to preview voice</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+            {!voice.isPreset && voice.isUserVoiceInOrchestra && (
+              <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Delete "${voice.name}"`}
+                      className={cn(
+                        'h-7 w-7',
+                        isPinnedSelection
+                          ? 'hover:bg-destructive/80 text-primary-foreground hover:text-primary-foreground'
+                          : 'hover:bg-destructive/10 text-muted-foreground hover:text-destructive'
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteVoice(voice);
+                      }}
+                      disabled={itemIsDisabled}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-caption max-w-xs">
+                    <p>{`Delete "${voice.name}"`}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
         </div>
-      </div>
-    );
-  });
+      );
+    }
+  );
   VoiceListItem.displayName = 'VoiceListItem';
 
   const audioPreviewRefs = React.useRef<Record<string, HTMLAudioElement | null>>({});
@@ -585,8 +667,8 @@ export function VoiceCustomization({
         (disabled || isProcessingCreate || isGeneratingPreviews) && 'cursor-not-allowed opacity-70'
       )}
     >
-      <div className="h-[276px] rounded-md border">
-        <ScrollArea className="h-full w-full">
+      <div className="h-[276px] overflow-hidden rounded-md border bg-card">
+        <ScrollArea className="h-full w-full rounded-[inherit]">
           {isLoadingUserVoices ? (
             <div className="space-y-1 p-2">
               {[...Array(5)].map((_, i) => (
@@ -596,19 +678,19 @@ export function VoiceCustomization({
           ) : (
             <div>
               {selectedVoice && (
-                <div className="sticky top-0 z-10 border-b bg-background p-2">
-                  <VoiceListItem voice={selectedVoice} />
+                <div className="sticky top-0 z-10 border-b bg-card p-2">
+                  <VoiceListItem placement="pinned" voice={selectedVoice} />
                 </div>
               )}
               <div className="space-y-1 p-2">
-                {otherVoices.length === 0 && !selectedVoice ? (
+                {displayVoices.length === 0 ? (
                   <div className="flex flex-col items-center justify-center pt-10">
                     <p className="text-body text-center text-muted-foreground">
                       No voices available.
                     </p>
                   </div>
                 ) : (
-                  otherVoices.map((v) => (
+                  displayVoices.map((v) => (
                     <VoiceListItem key={(v.isPreset ? 'p-' : 'u-') + v.voiceId} voice={v} />
                   ))
                 )}

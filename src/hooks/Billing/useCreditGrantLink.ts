@@ -18,6 +18,7 @@ import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useBillingStatus, BILLING_STATUS_QUERY_KEY } from '@/hooks/Billing/useBillingStatus';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 
 // =============================================================================
 // Constants
@@ -126,6 +127,7 @@ export async function claimCreditGrantToken(token: string): Promise<CreditGrantC
 export function useCreditGrantLink(): UseCreditGrantLinkReturn {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const { billing: billingEnabled } = useFeatures();
   const { isLoading: isBillingLoading } = useBillingStatus();
 
   const [pendingToken, setPendingToken] = useState<string | null>(null);
@@ -138,6 +140,9 @@ export function useCreditGrantLink(): UseCreditGrantLinkReturn {
 
   // 1. On mount: read token from URL or localStorage
   useEffect(() => {
+    // Credit grants only exist where billing is enabled; ignore tokens otherwise.
+    if (!billingEnabled) return;
+
     const urlToken = searchParams?.get('token') ?? null;
     const storedToken = getStoredToken();
 
@@ -155,7 +160,7 @@ export function useCreditGrantLink(): UseCreditGrantLinkReturn {
     } else if (storedToken) {
       setPendingToken(storedToken);
     }
-  }, [searchParams]);
+  }, [searchParams, billingEnabled]);
 
   // Core claim function
   const claimPendingToken = useCallback(async (): Promise<CreditGrantClaimResult> => {

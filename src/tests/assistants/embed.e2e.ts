@@ -29,6 +29,7 @@ import {
   setUserCredits,
 } from './helpers';
 
+const ASSISTANT_CONTACT_ID = 0;
 const CONTACT_ID = 2;
 
 const user = createTestUser({ name: 'EmbedE2E', lastName: 'Tester', credits: 50_000 });
@@ -97,7 +98,8 @@ async function seedTranscript(
           {
             medium: 'unify_message',
             sender_id: opts.senderId,
-            receiver_ids: opts.senderId === 0 ? [CONTACT_ID] : [0],
+            receiver_ids:
+              opts.senderId === ASSISTANT_CONTACT_ID ? [CONTACT_ID] : [ASSISTANT_CONTACT_ID],
             content: opts.content,
             message_id: msgId,
             timestamp: ts,
@@ -231,7 +233,7 @@ test('assistant message with dashboard link renders Interactive Dashboard embed 
   const ts = Date.now();
   const dashToken = `dash-asst-${ts}`;
   await seedTranscript(user.apiKey, user.id, assistant.agentId, {
-    senderId: 0,
+    senderId: ASSISTANT_CONTACT_ID,
     content: `Here is your dashboard: https://console.unify.ai/dashboard/view/${dashToken}`,
   });
 

@@ -13,7 +13,7 @@ import {
 import { formatTimeTypeValue } from '../format';
 import { getValue, hasProperty, inferDisplayType } from './data';
 import { drawAxes, generateTicks } from './axes';
-import { getPrimaryColorFromNode } from './common';
+import { getPlotColorRange, getPrimaryColorFromNode } from './common';
 import { renderGroupingKey } from './key';
 import { showFixedTooltip, tooltipTemplate, positionTooltipRelativeToPointer } from './tooltip';
 import { formatNumber } from '@/utils/interfaces/formatNumber';
@@ -335,7 +335,7 @@ export const drawHistogram = (
   const initialOpacity = groupBy ? 0.7 : 1.0;
   if (groupBy) {
     const groupDomain = Array.from(new Set((buckets as GroupedBin[]).map((d) => d.group)));
-    const colorRange = d3[groupByColors as keyof typeof d3] as readonly string[];
+    const colorRange = getPlotColorRange(groupByColors, d3);
     const colorScale = d3.scaleOrdinal<string>(colorRange).domain(groupDomain);
     const bars = g
       .selectAll('rect.hist-item')

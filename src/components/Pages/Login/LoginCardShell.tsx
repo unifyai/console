@@ -22,14 +22,14 @@ import { motion } from 'framer-motion';
  */
 const LoginCardShell = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="fixed inset-0 bg-background">
+    <div className="theme-paper brand-page-stencil-bg fixed inset-0 bg-[var(--paper)]">
       <motion.div
         initial={{ y: '100vh' }}
         animate={{ y: 0 }}
         transition={{ type: 'spring', bounce: 0.1 }}
         className="z-[200] flex h-full items-center justify-center"
       >
-        <div className="flex h-full w-full overflow-y-auto bg-background p-8 md:p-24 xl:h-auto xl:max-h-screen xl:w-[720px] xl:rounded-xl xl:drop-shadow-[0px_12px_100px_rgba(0,184,40,0.18)]">
+        <div className="relative flex h-full w-full overflow-y-auto border-border bg-[rgba(255,255,255,0.54)] p-8 shadow-[0_24px_90px_var(--shadow-soft)] backdrop-blur md:p-20 xl:h-auto xl:max-h-screen xl:w-[760px] xl:rounded-[28px] xl:border xl:shadow-[0_22px_60px_rgba(10,20,16,0.12)]">
           {children}
         </div>
       </motion.div>

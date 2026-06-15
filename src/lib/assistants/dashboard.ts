@@ -14,6 +14,10 @@
 
 import { snakeToCamelObject } from '@/utils/casing';
 import type { DashboardPaneData, DashboardRecord, TileRecord } from '@/types/assistants/dashboard';
+import type { Assistant } from '@/types/assistants/assistant';
+import { readAcrossRoots } from '@/lib/client/read_across_roots';
+import { rootContext } from '@/lib/assistants/scope';
+import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 
 const PAGE_SIZE = 200;
 
@@ -33,7 +37,7 @@ async function fetchContext(
   context: string,
   options?: { extraParams?: string; fromFields?: string; filterExpr?: string }
 ): Promise<Record<string, unknown>[]> {
-  let url = `${process.env.NEXTAUTH_URL}/api/logs?projectName=Assistants&context=${encodeURIComponent(context)}&limit=${PAGE_SIZE}`;
+  let url = `${getInternalApiBaseUrl()}/api/logs?projectName=Assistants&context=${encodeURIComponent(context)}&limit=${PAGE_SIZE}`;
   if (options?.extraParams) url += `&${options.extraParams}`;
   if (options?.fromFields) url += `&fromFields=${encodeURIComponent(options.fromFields)}`;
   if (options?.filterExpr) url += `&filterExpr=${encodeURIComponent(options.filterExpr)}`;
@@ -57,15 +61,26 @@ async function fetchContext(
  * for a given assistant. Used for populating the dropdown selector.
  */
 export const getDashboardMetadata = async (apiKey: string) => {
-  return async (ownerId: string, assistantId: string): Promise<DashboardPaneData> => {
+  return async (assistant: Assistant): Promise<DashboardPaneData> => {
     'use server';
 
     try {
       const [layoutRows, tileRows] = await Promise.all([
-        fetchContext(apiKey, `${ownerId}/${assistantId}/Dashboards/Layouts`),
-        fetchContext(apiKey, `${ownerId}/${assistantId}/Dashboards/Tiles`, {
-          fromFields: TILE_METADATA_FIELDS,
-        }),
+        readAcrossRoots(assistant, (root) =>
+          fetchContext(
+            apiKey,
+            rootContext(root, assistant.userId, assistant.agentId, 'Dashboards/Layouts')
+          )
+        ),
+        readAcrossRoots(assistant, (root) =>
+          fetchContext(
+            apiKey,
+            rootContext(root, assistant.userId, assistant.agentId, 'Dashboards/Tiles'),
+            {
+              fromFields: TILE_METADATA_FIELDS,
+            }
+          )
+        ),
       ]);
 
       const dashboards = layoutRows as unknown as DashboardRecord[];
@@ -86,11 +101,7 @@ export const getDashboardMetadata = async (apiKey: string) => {
  * tile is first viewed.
  */
 export const getDashboardTileContent = async (apiKey: string) => {
-  return async (
-    ownerId: string,
-    assistantId: string,
-    tileToken: string
-  ): Promise<string | null> => {
+  return async (assistant: Assistant, tileToken: string): Promise<string | null> => {
     'use server';
 
     if (!tileToken || tileToken === 'undefined') {
@@ -98,10 +109,16 @@ export const getDashboardTileContent = async (apiKey: string) => {
     }
 
     try {
-      const rows = await fetchContext(apiKey, `${ownerId}/${assistantId}/Dashboards/Tiles`, {
-        fromFields: 'token&html_content',
-        filterExpr: `token == '${tileToken}'`,
-      });
+      const rows = await readAcrossRoots(assistant, (root) =>
+        fetchContext(
+          apiKey,
+          rootContext(root, assistant.userId, assistant.agentId, 'Dashboards/Tiles'),
+          {
+            fromFields: 'token&html_content',
+            filterExpr: `token == '${tileToken}'`,
+          }
+        )
+      );
 
       if (rows.length === 0) return null;
       return (rows[0] as unknown as { htmlContent?: string }).htmlContent ?? null;
@@ -116,16 +133,26 @@ export const getDashboardTileContent = async (apiKey: string) => {
  * Factory for getDashboardData server action.
  *
  * Fetches all dashboard layouts and full tile records (including html_content).
- * Kept for backward compatibility and full-refresh scenarios.
+ * Used by full-refresh callers that need layout and tile payloads together.
  */
 export const getDashboardData = async (apiKey: string) => {
-  return async (ownerId: string, assistantId: string): Promise<DashboardPaneData> => {
+  return async (assistant: Assistant): Promise<DashboardPaneData> => {
     'use server';
 
     try {
       const [layoutRows, tileRows] = await Promise.all([
-        fetchContext(apiKey, `${ownerId}/${assistantId}/Dashboards/Layouts`),
-        fetchContext(apiKey, `${ownerId}/${assistantId}/Dashboards/Tiles`),
+        readAcrossRoots(assistant, (root) =>
+          fetchContext(
+            apiKey,
+            rootContext(root, assistant.userId, assistant.agentId, 'Dashboards/Layouts')
+          )
+        ),
+        readAcrossRoots(assistant, (root) =>
+          fetchContext(
+            apiKey,
+            rootContext(root, assistant.userId, assistant.agentId, 'Dashboards/Tiles')
+          )
+        ),
       ]);
 
       const dashboards = layoutRows as unknown as DashboardRecord[];

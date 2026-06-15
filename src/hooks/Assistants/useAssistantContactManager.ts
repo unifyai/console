@@ -21,6 +21,7 @@ import {
   REQUIRED_FEATURES,
 } from '@/constants/assistants/settings';
 import { getCountryName, getCountryFlag } from '@/utils/assistants/country-utils';
+import { buildOAuthCompleteUrl, openPendingOAuthTab } from '@/utils/assistants/oauth';
 import { fetchVisitorCountry } from '@/utils/geo';
 import { toast } from 'sonner';
 
@@ -345,6 +346,13 @@ export function useAssistantContactManager({
   const connectAccount = React.useCallback(async () => {
     if (isConnecting || !byodProvider) return;
 
+    // Grab the new tab NOW, synchronously inside the click gesture.
+    // The authorize URL is only known after the await below, and
+    // ``window.open`` called post-await is blocked by popup blockers
+    // (which would force a same-tab redirect and tear down any live
+    // call). See openPendingOAuthTab.
+    const oauthTab = openPendingOAuthTab();
+
     setIsConnecting(true);
     const toastId = toast.loading('Preparing connection...');
 
@@ -352,7 +360,10 @@ export function useAssistantContactManager({
       const features =
         selectedFeatures.length > 0 ? selectedFeatures : (REQUIRED_FEATURES[byodProvider] ?? []);
 
-      const redirectAfter = window.location.href;
+      // Send the provider callback to the bounce page, which closes the
+      // new tab and tells this tab to refetch (see openPendingOAuthTab /
+      // /oauth/complete).
+      const redirectAfter = buildOAuthCompleteUrl();
       const result = await assistantActions.contact.connect(
         assistant.agentId,
         byodProvider,
@@ -365,9 +376,17 @@ export function useAssistantContactManager({
       }
 
       const { oauthUrl } = result as { oauthUrl: string };
-      toast.success('Redirecting to sign in...', { id: toastId });
-      window.location.href = oauthUrl;
+      if (oauthTab.opened) {
+        oauthTab.navigate(oauthUrl);
+        toast.success('Continue sign-in in the new tab.', { id: toastId });
+        setIsConnecting(false);
+      } else {
+        // Popup blocked — fall back to a same-tab redirect.
+        toast.success('Redirecting to sign in...', { id: toastId });
+        window.location.href = oauthUrl;
+      }
     } catch (error: any) {
+      oauthTab.close();
       toast.error(error?.message || 'Failed to start connection.', { id: toastId });
       setIsConnecting(false);
     }
@@ -376,11 +395,14 @@ export function useAssistantContactManager({
   const updateFeatures = React.useCallback(async () => {
     if (isConnecting || !grantedFeatures?.provider) return;
 
+    // Open the tab synchronously within the gesture (see connectAccount).
+    const oauthTab = openPendingOAuthTab();
+
     setIsConnecting(true);
     const toastId = toast.loading('Updating features...');
 
     try {
-      const redirectAfter = window.location.href;
+      const redirectAfter = buildOAuthCompleteUrl();
       const result = await assistantActions.contact.connect(
         assistant.agentId,
         grantedFeatures.provider as OAuthProvider,
@@ -393,9 +415,16 @@ export function useAssistantContactManager({
       }
 
       const { oauthUrl } = result as { oauthUrl: string };
-      toast.success('Redirecting to update permissions...', { id: toastId });
-      window.location.href = oauthUrl;
+      if (oauthTab.opened) {
+        oauthTab.navigate(oauthUrl);
+        toast.success('Continue in the new tab to update permissions.', { id: toastId });
+        setIsConnecting(false);
+      } else {
+        toast.success('Redirecting to update permissions...', { id: toastId });
+        window.location.href = oauthUrl;
+      }
     } catch (error: any) {
+      oauthTab.close();
       toast.error(error?.message || 'Failed to update features.', { id: toastId });
       setIsConnecting(false);
     }
@@ -474,6 +503,12 @@ export function useAssistantContactManager({
    */
   const submitContact = React.useCallback(async () => {
     if (isSubmittingContact) return;
+    if (
+      assistant.isCoordinator &&
+      (activeTab === 'email' || activeTab === 'phone' || activeTab === 'whatsapp')
+    ) {
+      return;
+    }
 
     setIsSubmittingContact(true);
     toastIdRef.current = toast.loading('Creating contact...', { id: toastIdRef.current });
@@ -515,6 +550,7 @@ export function useAssistantContactManager({
   }, [
     isSubmittingContact,
     activeTab,
+    assistant.isCoordinator,
     getValues,
     assistant.agentId,
     assistantActions.contact,
@@ -555,6 +591,12 @@ export function useAssistantContactManager({
 
   const isCreateButtonDisabled = React.useMemo(() => {
     if (isSubmittingContact) return true;
+    if (
+      assistant.isCoordinator &&
+      (activeTab === 'email' || activeTab === 'phone' || activeTab === 'whatsapp')
+    ) {
+      return true;
+    }
 
     switch (activeTab) {
       case 'phone':
@@ -570,6 +612,7 @@ export function useAssistantContactManager({
     }
   }, [
     isSubmittingContact,
+    assistant.isCoordinator,
     activeTab,
     isLoadingPhoneCountries,
     userPhoneNumber,
@@ -578,15 +621,17 @@ export function useAssistantContactManager({
   ]);
 
   const showCreateButton =
-    (activeTab === 'phone' && !assistant.phone) ||
-    (activeTab === 'whatsapp' && !assistant.assistantWhatsappNumber) ||
-    (activeTab === 'discord' && !assistant.assistantDiscordBotId);
+    !assistant.isCoordinator &&
+    ((activeTab === 'phone' && !assistant.phone) ||
+      (activeTab === 'whatsapp' && !assistant.assistantWhatsappNumber) ||
+      (activeTab === 'discord' && !assistant.assistantDiscordBotId));
 
   const showDeleteButton =
-    (activeTab === 'email' && !!isPlatformEmail) ||
-    (activeTab === 'phone' && !!assistant.phone) ||
-    (activeTab === 'whatsapp' && !!assistant.assistantWhatsappNumber) ||
-    (activeTab === 'discord' && !!assistant.assistantDiscordBotId);
+    !assistant.isCoordinator &&
+    ((activeTab === 'email' && !!isPlatformEmail) ||
+      (activeTab === 'phone' && !!assistant.phone) ||
+      (activeTab === 'whatsapp' && !!assistant.assistantWhatsappNumber) ||
+      (activeTab === 'discord' && !!assistant.assistantDiscordBotId));
 
   return {
     // Form methods for component bindings

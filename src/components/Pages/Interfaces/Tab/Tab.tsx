@@ -15,7 +15,8 @@ import {
   TileLayout,
   ProjectsActions,
 } from '@/types/interfaces/grid';
-import { Loader2, Plus, LayoutGrid } from 'lucide-react';
+import { Plus, LayoutGrid } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { Button } from '@/components/UI/button';
 import { getAnyTileLoading } from '@/contexts/utils/sliceUtils';
 import { cleanupTileRefs } from '@/utils/interfaces/refRegistry';
@@ -180,7 +181,7 @@ const Tab = ({
             key={tile.id}
             fallback={
               <div className="flex h-full w-full items-center justify-center border p-4">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <Loader size={24} />
               </div>
             }
           >
@@ -231,7 +232,7 @@ const Tab = ({
   if (!tabDataState || !tabUIState) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader size={24} />
       </div>
     );
   }
@@ -245,7 +246,7 @@ const Tab = ({
   if (isLoadingTiles || tilesNotYetHydrated) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader size={32} />
         <p className="text-body-muted">Loading tiles...</p>
       </div>
     );

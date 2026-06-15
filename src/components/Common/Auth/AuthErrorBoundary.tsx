@@ -72,7 +72,7 @@ export function AuthErrorBoundary({ children }: { children: React.ReactNode }) {
     <>
       {children}
       {/* Auth Error Modal - Overlay that blocks interaction */}
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[color:var(--overlay-strong)] backdrop-blur-sm">
         <div className="mx-4 max-w-md rounded-lg border border-destructive bg-background p-8 shadow-2xl">
           <div className="mb-4 flex items-center gap-3">
             <div className="bg-destructive/20 flex h-12 w-12 items-center justify-center rounded-full">

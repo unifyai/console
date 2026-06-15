@@ -3,7 +3,8 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { AssistantPreset } from '@/types/assistants/assistant';
 import { PresetListItem } from './AssistantHirePresetsListItem';
 import { Button } from '@/components/UI/button';
-import { Loader2, MessageSquare, Minimize2, Maximize2, Minus } from 'lucide-react';
+import { MessageSquare, Minimize2, Maximize2, Minus } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import {
   Select,
   SelectContent,
@@ -12,7 +13,6 @@ import {
   SelectValue,
 } from '@/components/UI/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { getLanguageLabel } from '@/utils/assistants/voice-utils';
 import { BillableActionGuard } from '@/components/Billing/BillableActionGuard';
 import { PRE_HIRE_CHAT_MESSAGE_COST } from '@/constants/assistants/settings';
 
@@ -29,21 +29,9 @@ export interface PresetsPanelProps {
   isLoadingMore: boolean;
 
   // Filters
-  ageFilter: string;
-  onAgeFilterChange: (value: string) => void;
-  availableAgeBrackets: string[];
-
-  nationalityFilter: string;
-  onNationalityFilterChange: (value: string) => void;
-  availableNationalities: string[];
-
   genderFilter: string;
   onGenderFilterChange: (value: string) => void;
   availableGenders: string[];
-
-  languageFilter: string;
-  onLanguageFilterChange: (value: string) => void;
-  availableLanguages: string[];
 
   selectedPreset?: AssistantPreset | null;
   onToggleView?: () => void;
@@ -63,18 +51,9 @@ export function PresetsPanel({
   onLoadMore,
   canLoadMore,
   isLoadingMore,
-  ageFilter,
-  onAgeFilterChange,
-  availableAgeBrackets,
-  nationalityFilter,
-  onNationalityFilterChange,
-  availableNationalities,
   genderFilter,
   onGenderFilterChange,
   availableGenders,
-  languageFilter,
-  onLanguageFilterChange,
-  availableLanguages,
   onToggleView,
   onAddPaymentMethod,
   presetPhotoUrls,
@@ -139,12 +118,12 @@ export function PresetsPanel({
           <BillableActionGuard
             onAddPaymentMethod={onAddPaymentMethod}
             creditsRequired={PRE_HIRE_CHAT_MESSAGE_COST}
-            tooltipMessage="Chat with Assistant"
+            tooltipMessage="Chat with droid"
             tooltipSide="top"
           >
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onToggleView}>
               <MessageSquare className="h-4 w-4" />
-              <span className="sr-only">Chat with Assistant</span>
+              <span className="sr-only">Chat with droid</span>
             </Button>
           </BillableActionGuard>
           <TooltipProvider delayDuration={100}>
@@ -175,39 +154,7 @@ export function PresetsPanel({
 
       {/* Filters */}
       <div className="flex-shrink-0 space-y-3 border-b p-3">
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
-          <div>
-            <Select value={ageFilter} onValueChange={onAgeFilterChange}>
-              <SelectTrigger className="text-caption h-8">
-                <SelectValue placeholder="Age" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableAgeBrackets.map((bracket) => (
-                  <SelectItem key={bracket} value={bracket} className="text-caption">
-                    {bracket === 'all' ? 'All Ages' : bracket}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Select
-              value={nationalityFilter}
-              onValueChange={onNationalityFilterChange}
-              disabled={availableNationalities.length <= 1}
-            >
-              <SelectTrigger className="text-caption h-8">
-                <SelectValue placeholder="Nationality" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableNationalities.map((nationality) => (
-                  <SelectItem key={nationality} value={nationality} className="text-caption">
-                    {nationality === 'all' ? 'All Nationalities' : nationality}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="grid grid-cols-1 gap-2">
           <div>
             <Select
               value={genderFilter}
@@ -221,24 +168,6 @@ export function PresetsPanel({
                 {availableGenders.map((gender) => (
                   <SelectItem key={gender} value={gender} className="text-caption capitalize">
                     {gender === 'all' ? 'All Genders' : gender}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Select
-              value={languageFilter}
-              onValueChange={onLanguageFilterChange}
-              disabled={availableLanguages.length <= 1}
-            >
-              <SelectTrigger className="text-caption h-8">
-                <SelectValue placeholder="Language" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableLanguages.map((lang) => (
-                  <SelectItem key={lang} value={lang} className="text-caption capitalize">
-                    {lang === 'all' ? 'All Languages' : getLanguageLabel(lang)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -271,7 +200,7 @@ export function PresetsPanel({
           )}
           {isLoadingMore && (
             <div className="flex items-center justify-center p-4">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <Loader size={20} />
               <span className="text-body ml-2 text-muted-foreground">Loading...</span>
             </div>
           )}

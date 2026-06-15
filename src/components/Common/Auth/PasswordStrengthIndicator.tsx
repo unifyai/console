@@ -31,10 +31,10 @@ const PasswordStrengthIndicator = ({ password, className }: PasswordStrengthIndi
         {result.rules.map((rule) => (
           <li
             key={rule.key}
-            className={cn('flex items-center gap-1 text-[11px] leading-tight', {
-              'text-green-600 dark:text-green-400': rule.passed,
-              'text-muted-foreground': !rule.passed,
-            })}
+            className={cn(
+              'flex items-center gap-1 text-[11px] leading-tight',
+              rule.passed ? 'text-[color:var(--status-success)]' : 'text-muted-foreground'
+            )}
             data-testid={`password-rule-${rule.key}`}
           >
             {rule.passed ? (

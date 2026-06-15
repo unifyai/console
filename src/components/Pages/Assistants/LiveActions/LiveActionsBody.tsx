@@ -12,6 +12,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Loader2, AlertCircle, RefreshCw, Eye } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { Button } from '@/components/UI/button';
 import { ActionTree } from './ActionTree';
 import type { SectionToggleSignal } from './ActionNodeItem';
@@ -169,7 +170,7 @@ export function LiveActionsBody({
         )}
         data-testid="live-actions-no-assistant"
       >
-        <p className="text-center">Select an assistant to watch them work</p>
+        <p className="cursor-default text-center">Select a droid to watch live actions.</p>
       </div>
     );
   }
@@ -181,7 +182,7 @@ export function LiveActionsBody({
         className={cn('flex flex-1 items-center justify-center text-muted-foreground', className)}
         data-testid="live-actions-loading"
       >
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        <Loader size={20} className="mr-2" />
         <span className="text-sm">Loading actions...</span>
       </div>
     );

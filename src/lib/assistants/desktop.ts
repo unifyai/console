@@ -4,19 +4,68 @@ import { ResponseProps } from '@/types/common';
 import { UserDesktop } from '@/types/assistants/assistant';
 import { LogProps, LogsResponseProps } from '@/types/interfaces/logs';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
-import { getAdaptersPrefix } from '@/utils/assistants/api-utils';
+import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 import { resolveOwnerApiKeyForAssistant } from '@/lib/assistants/owner';
+import { isSelfHost } from '@/lib/environment/environment';
+import { dispatchUnitySystemEvent } from '@/lib/assistants/system-event';
 
 const LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS = 5000;
+const DEFAULT_SELF_HOST_DESKTOP_URL = 'http://127.0.0.1:8090';
+
+function selfHostDesktopBrowserBase(): string {
+  return (process.env.SELF_HOST_DESKTOP_URL?.trim() || DEFAULT_SELF_HOST_DESKTOP_URL).replace(
+    /\/$/,
+    ''
+  );
+}
+
+function selfHostDesktopHealthBase(): string {
+  const internal = process.env.SELF_HOST_DESKTOP_INTERNAL_URL?.trim();
+  if (internal) {
+    return internal.replace(/\/$/, '');
+  }
+  return selfHostDesktopBrowserBase();
+}
+
+async function resolveSelfHostLiveviewUrl(
+  ownerId: string,
+  organizationId: number | null
+): Promise<{ liveviewUrl: string } | null> {
+  const desktopBase = selfHostDesktopBrowserBase();
+  const rawLiveviewUrl = `${desktopBase}/desktop/custom.html`;
+  const ownerKey = await resolveOwnerApiKeyForAssistant(ownerId, organizationId);
+  const urlObj = new URL(rawLiveviewUrl);
+  urlObj.searchParams.set('password', ownerKey);
+  const liveviewUrl = urlObj.toString();
+  if (!(await isSelfHostDesktopHealthy())) {
+    return null;
+  }
+  return { liveviewUrl };
+}
+
+async function isSelfHostDesktopHealthy(): Promise<boolean> {
+  const healthBase = selfHostDesktopHealthBase();
+  return isUrlReachable(`${healthBase}/desktop/vnc.html`);
+}
 
 async function isLiveviewReachable(liveviewUrl: string): Promise<boolean> {
+  if (isSelfHost()) {
+    return isSelfHostDesktopHealthy();
+  }
   try {
     const urlObj = new URL(liveviewUrl);
-    const baseUrl = `${urlObj.protocol}//${urlObj.host}/`;
+    return isUrlReachable(`${urlObj.protocol}//${urlObj.host}/`);
+  } catch {
+    return false;
+  }
+}
+
+async function isUrlReachable(url: string): Promise<boolean> {
+  try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS);
     try {
-      const resp = await fetch(baseUrl, {
+      const resp = await fetch(url, {
         method: 'HEAD',
         signal: controller.signal,
         // @ts-ignore — Node fetch supports this option in server actions
@@ -40,21 +89,26 @@ export const getLiveviewUrl = async () => {
     'use server';
 
     try {
-      const sharedUnifyKey = process.env.SHARED_UNIFY_KEY;
+      if (isSelfHost()) {
+        const selfHostLiveview = await resolveSelfHostLiveviewUrl(ownerId, organizationId);
+        if (selfHostLiveview) {
+          return selfHostLiveview;
+        }
+      }
+
+      const { resolveOrchestraApiKeyForServerOps } =
+        await import('@/lib/auth/orchestra-server-key');
+      const sharedUnifyKey = await resolveOrchestraApiKeyForServerOps();
       if (!sharedUnifyKey) {
-        console.error('[getLiveviewUrl] Server configuration error: SHARED_UNIFY_KEY is not set.');
+        console.error('[getLiveviewUrl] Server configuration error: Orchestra API key is not set.');
         return { detail: 'Server configuration error: Shared key not found.' };
       }
 
-      const nextAuthUrl = process.env.NEXTAUTH_URL;
-      if (!nextAuthUrl) {
-        console.error('[getLiveviewUrl] Server configuration error: NEXTAUTH_URL is not set.');
-        return { detail: 'Server configuration error: Application URL not found.' };
-      }
+      const internalApiBaseUrl = getInternalApiBaseUrl();
 
       const filterExpr = `user_id == '${ownerId}' and assistant_id == '${assistantId}'`;
 
-      const url = new URL(`${nextAuthUrl}/api/logs`);
+      const url = new URL(`${internalApiBaseUrl}/api/logs`);
       url.searchParams.append('projectName', 'AssistantJobs');
       url.searchParams.append('context', 'startup_events');
       url.searchParams.append('filterExpr', filterExpr);
@@ -95,6 +149,13 @@ export const getLiveviewUrl = async () => {
         const urlObj = new URL(liveviewUrlValue);
         urlObj.searchParams.set('password', ownerKey);
         return { liveviewUrl: urlObj.toString() };
+      }
+
+      if (isSelfHost()) {
+        const selfHostLiveview = await resolveSelfHostLiveviewUrl(ownerId, organizationId);
+        if (selfHostLiveview) {
+          return selfHostLiveview;
+        }
       }
 
       return { detail: 'Liveview URL not yet available.' };
@@ -147,56 +208,28 @@ export const sendSystemEvent = async () => {
   return async (
     assistantId: string,
     eventType: SystemEventType,
-    message: string,
-    deployEnv?: string | null
+    message: string
   ): Promise<ResponseProps> => {
     'use server';
 
-    const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
-    if (!ADMIN_KEY) {
-      console.error(
-        '[sendSystemEvent] Server configuration error: ORCHESTRA_ADMIN_KEY is not set.'
-      );
-      return { detail: 'Server configuration error.' };
-    }
-
-    const orchestraUrl = process.env.ORCHESTRA_URL || '';
-    const isStaging =
-      orchestraUrl.includes('staging') ||
-      orchestraUrl.includes('localhost') ||
-      orchestraUrl.includes('127.0.0.1');
-
-    const prefix = getAdaptersPrefix(deployEnv, isStaging);
-    const webhookUrl = `https://unity-adapters-${prefix}ky4ja5fxna-uc.a.run.app/unity/system-event`;
-
-    // API expects snake_case - convert camelCase to snake_case
-    const payload = camelToSnakeObject({
+    const result = await dispatchUnitySystemEvent({
       assistantId: parseInt(assistantId),
-      eventType: eventType,
-      message: message,
+      eventType,
+      message,
     });
 
-    try {
-      const webhookResponse = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${ADMIN_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!webhookResponse.ok) {
-        const errorText = await webhookResponse.text();
-        console.error(`[sendSystemEvent] Webhook error (${webhookResponse.status}): ${errorText}`);
-        return { detail: `Failed to send system event: ${errorText}` };
-      }
-
-      return { info: 'System event sent successfully.' };
-    } catch (error: any) {
-      console.error('[sendSystemEvent] Error calling webhook:', error.message);
-      return { detail: 'Failed to connect to system event service.' };
+    if (!result.ok) {
+      console.error(`[sendSystemEvent] Webhook error (${result.status}): ${result.detail}`);
+      return { detail: `Failed to send system event: ${result.detail}` };
     }
+    return { info: 'System event sent successfully.' };
+  };
+};
+
+export const getDesktopApiKey = async (apiKey: string) => {
+  return async (): Promise<string> => {
+    'use server';
+    return apiKey;
   };
 };
 
@@ -228,6 +261,77 @@ export const listUserDesktops = async (apiKey: string) => {
       return snakeToCamelObject(desktops) as UserDesktop[];
     } catch (e: unknown) {
       console.error('[listUserDesktops] Error:', e instanceof Error ? e.message : e);
+      return { detail: 'Failed to connect to backend' };
+    }
+  };
+};
+
+export const linkDesktop = async (apiKey: string) => {
+  return async (
+    assistantId: string,
+    desktopId: number,
+    filesysSync: boolean = false
+  ): Promise<ResponseProps> => {
+    'use server';
+
+    const orchestraUrl = process.env.ORCHESTRA_URL;
+    if (!orchestraUrl) {
+      return { detail: 'Server configuration error: ORCHESTRA_URL is not set.' };
+    }
+
+    try {
+      const response = await fetch(`${orchestraUrl}/v0/desktop/link`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(
+          camelToSnakeObject({
+            assistantId: parseInt(assistantId, 10),
+            desktopId,
+            filesysSync,
+          })
+        ),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        return (data as ResponseProps) || { detail: 'Failed to link desktop' };
+      }
+      return { info: 'Desktop linked successfully' };
+    } catch (e: unknown) {
+      console.error('[linkDesktop] Error:', e instanceof Error ? e.message : e);
+      return { detail: 'Failed to connect to backend' };
+    }
+  };
+};
+
+export const unlinkDesktop = async (apiKey: string) => {
+  return async (assistantId: string): Promise<ResponseProps> => {
+    'use server';
+
+    const orchestraUrl = process.env.ORCHESTRA_URL;
+    if (!orchestraUrl) {
+      return { detail: 'Server configuration error: ORCHESTRA_URL is not set.' };
+    }
+
+    try {
+      const response = await fetch(`${orchestraUrl}/v0/desktop/link/${parseInt(assistantId, 10)}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        return (data as ResponseProps) || { detail: 'Failed to unlink desktop' };
+      }
+      return { info: 'Desktop unlinked' };
+    } catch (e: unknown) {
+      console.error('[unlinkDesktop] Error:', e instanceof Error ? e.message : e);
       return { detail: 'Failed to connect to backend' };
     }
   };

@@ -18,6 +18,12 @@ import { snakeToCamelObject } from '@/utils/casing';
 export interface ParsedInboundChatMessage {
   /** Built ChatMessage ready for merge. `__ackId` is attached if present. */
   message: ChatMessage;
+  /** Contact subscription that delivered this frame. Used for ACK routing. */
+  contactId: number;
+  /** Root subscription that delivered this frame. Used for ACK routing. */
+  rootKey: string;
+  /** Root context that delivered this frame. Used for rendering and filtering. */
+  sourceContext?: string;
   /** Raw publish time (ISO) from the SSE envelope, if any. */
   publishTime?: string;
   /**
@@ -45,7 +51,7 @@ export type ParsedChatFrame =
     }
   | {
       kind: 'filtered';
-      reason: 'contact' | 'cutoff';
+      reason: 'contact' | 'root' | 'cutoff';
       ackId?: string;
       /** Debug context — safe to log. */
       details: Record<string, unknown>;
@@ -65,6 +71,10 @@ export interface ParseChatSseFrameOptions {
   /** Drops frames whose `event.contact_id` doesn't match. Pass the user's
    *  contact id for the assistant. */
   myContactId: number;
+  /** Drops root-tagged frames from other contexts and stamps accepted messages. */
+  sourceContext?: string;
+  /** Root subscription key for accepted frames. */
+  rootKey: string;
   /** Drops frames whose `publishTime` is strictly before this unix-ms.
    *  Pass `0` to disable. */
   cutoffMs: number;
@@ -80,6 +90,10 @@ interface RawFramePayload {
   rawContent?: unknown;
   // eslint-disable-next-line @typescript-eslint/naming-convention
   contact_id?: number;
+  sourceContext?: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  source_context?: string;
+  context?: string;
 }
 
 /**
@@ -116,6 +130,40 @@ export function parseChatSseFrame(
     };
   }
 
+  const messageSourceContext =
+    (eventObj?.sourceContext as string | undefined) ??
+    (eventObj?.source_context as string | undefined) ??
+    (eventObj?.context as string | undefined) ??
+    payload.sourceContext ??
+    payload.source_context ??
+    payload.context;
+  if (
+    typeof messageSourceContext === 'string' &&
+    opts.sourceContext &&
+    messageSourceContext !== opts.sourceContext
+  ) {
+    return {
+      kind: 'filtered',
+      reason: 'root',
+      ackId,
+      details: {
+        msgId,
+        msgSourceContext: messageSourceContext,
+        mySourceContext: opts.sourceContext,
+      },
+    };
+  }
+
+  // Lifecycle events are idempotent and not chat history — never apply the
+  // transcript cutoff (self-host desktop_ready can predate voice-call lines).
+  if (thread === 'assistant_desktop_ready') {
+    return {
+      kind: 'desktop-ready',
+      ackId,
+      eventData: (eventObj ?? {}) as Record<string, unknown>,
+    };
+  }
+
   // cutoff filter: client-recorded high-water mark for already-seen history.
   // Anything strictly older is a redelivery of a message we already rendered
   // via the REST transcript fetch, so drop it (and ack so Pub/Sub stops
@@ -139,15 +187,7 @@ export function parseChatSseFrame(
     }
   }
 
-  if (thread === 'assistant_desktop_ready') {
-    return {
-      kind: 'desktop-ready',
-      ackId,
-      eventData: (eventObj ?? {}) as Record<string, unknown>,
-    };
-  }
-
-  if (thread === 'unify_message_outbound' || eventObj) {
+  if (thread === 'unify_message_outbound') {
     const content =
       (eventObj?.content as unknown) ??
       (eventObj?.body as unknown) ??
@@ -178,6 +218,7 @@ export function parseChatSseFrame(
       role: 'assistant',
       content: String(content),
       timestamp,
+      sourceContext: opts.sourceContext,
       __ackId: ackId,
       ...(attachments && attachments.length > 0 ? { attachments } : {}),
     };
@@ -193,7 +234,14 @@ export function parseChatSseFrame(
       thread,
       msgId: serverMsgId,
       contentPreview,
-      parsed: { message, publishTime: publishTimeStr, hasServerMessageId },
+      parsed: {
+        message,
+        contactId: opts.myContactId,
+        rootKey: opts.rootKey,
+        sourceContext: opts.sourceContext,
+        publishTime: publishTimeStr,
+        hasServerMessageId,
+      },
     };
   }
 

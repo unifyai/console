@@ -46,9 +46,11 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { SpendingGateStatus, DEFAULT_SPENDING_GATE_STATUS } from '@/types/assistants/spendingGate';
 import { useVoiceRecorder } from '@/hooks/Assistants/useVoiceRecorder';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { useChatTTS } from '@/hooks/Assistants/useChatTTS';
 import { ChatMessageSkeletons } from '@/components/Chat/ChatMessageSkeleton';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 
 /* --------------------------
    AssistantProfileChatPanel 
@@ -87,6 +89,16 @@ interface AssistantProfileChatPanelProps {
    * input value in a one-way external prop.
    */
   draftSeed?: { text: string; nonce: number } | null;
+  /**
+   * Force the assistant-replying typing bubble to render even when
+   * no real reply is in flight. Used by the Coordinator onboarding
+   * shell to keep a "typing…" hint visible while it waits for the
+   * seeded greeting to land — the chat panel itself mounts
+   * immediately so the input bar is present from the start, and
+   * this prop drives a transient hint above an otherwise-empty
+   * thread.
+   */
+  forceTypingIndicator?: boolean;
 }
 
 export function AssistantProfileChatPanel({
@@ -109,8 +121,9 @@ export function AssistantProfileChatPanel({
   searchOpen: externalSearchOpen,
   onSearchOpenChange,
   draftSeed,
+  forceTypingIndicator = false,
 }: AssistantProfileChatPanelProps) {
-  const displayName = `${assistant.firstName} ${assistant.surname}`;
+  const displayName = assistantDisplayName(assistant);
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
 
   const { playMessage, stopPlayback, getAudioState, hasVoice } = useChatTTS({
@@ -202,6 +215,7 @@ export function AssistantProfileChatPanel({
 
   // Chat search
   const searchState = useChatSearch({
+    assistant,
     ownerId: assistant.userId,
     assistantId: assistant.agentId,
     contactId: currentContactId,
@@ -216,6 +230,7 @@ export function AssistantProfileChatPanel({
     loadOlderHistorical,
     loadNewerHistorical,
   } = useHistoricalView({
+    assistant,
     ownerId: assistant.userId,
     assistantId: assistant.agentId,
     contactId: currentContactId,
@@ -235,8 +250,9 @@ export function AssistantProfileChatPanel({
     (result: import('@/types/assistants/chat').ChatSearchResult) => {
       if (result.medium === 'unify_meet' && result.exchangeId != null) {
         requestAnimationFrame(() => {
+          const exchangeKey = `${result.sourceContext ?? ''}:${result.exchangeId}`;
           const el = scrollAreaRef.current?.querySelector<HTMLElement>(
-            `[data-exchange-id="${result.exchangeId}"]`
+            `[data-exchange-key="${CSS.escape(exchangeKey)}"]`
           );
           if (el) {
             el.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -300,6 +316,10 @@ export function AssistantProfileChatPanel({
     },
     [setInputValue]
   );
+  // Voice-note dictation requires the transcription provider (Deepgram). Hide
+  // the mic entirely on deployments without it rather than surface a button
+  // that 500s.
+  const { transcription: transcriptionEnabled } = useFeatures();
   const { recorderError, toggleRecording, stopRecording, isRecording, isTranscribing } =
     useVoiceRecorder({
       onTranscript: handleVoiceTranscript,
@@ -533,19 +553,19 @@ export function AssistantProfileChatPanel({
   }, [messages, isAssistantReplying, isLoadingMore]);
 
   /* Scroll to anchor message when historical view loads */
-  const prevAnchorRef = React.useRef<number | null>(null);
+  const prevAnchorRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (!historicalView) {
       prevAnchorRef.current = null;
       return;
     }
     if (historicalView.messages.length === 0) return;
-    if (prevAnchorRef.current === historicalView.anchorMessageId) return;
-    prevAnchorRef.current = historicalView.anchorMessageId;
+    if (prevAnchorRef.current === historicalView.anchorMessageKey) return;
+    prevAnchorRef.current = historicalView.anchorMessageKey;
 
     requestAnimationFrame(() => {
       const el = scrollAreaRef.current?.querySelector(
-        `[data-message-id="${historicalView.anchorMessageId}"]`
+        `[data-message-key="${CSS.escape(historicalView.anchorMessageKey)}"]`
       );
       if (el) {
         el.scrollIntoView({ block: 'center' });
@@ -636,7 +656,7 @@ export function AssistantProfileChatPanel({
   );
 
   return (
-    <div className="flex h-full w-full flex-col bg-background">
+    <div className="flex h-full w-full flex-col bg-transparent">
       {/* Chat Area */}
       <ScrollArea
         // Radix wraps viewport children in a `display:table` div, which
@@ -647,7 +667,7 @@ export function AssistantProfileChatPanel({
         // `break-words` on bubbles do their job and stay within the
         // viewport bounds. Scoped to this scroll area so we don't
         // disturb any callsite that genuinely wants horizontal scroll.
-        className="flex-1 px-3 pb-4 md:px-6 [&>[data-radix-scroll-area-viewport]>div]:!block"
+        className="brand-chat-stencil-bg flex-1 px-3 pb-4 md:px-6 [&>[data-radix-scroll-area-viewport]>div]:!block"
         ref={scrollAreaRef}
         data-testid="chat-scroll-area"
       >
@@ -707,6 +727,7 @@ export function AssistantProfileChatPanel({
                           <ChatDateDivider date={item.timestamp} timezone={userTimezone} />
                         )}
                         <div
+                          data-message-key={`${item.sourceContext ?? ''}:${item.messageId ?? item.id}`}
                           data-message-id={item.messageId}
                           className="transition-colors duration-1000"
                         >
@@ -715,6 +736,7 @@ export function AssistantProfileChatPanel({
                             isUser={item.role === 'user'}
                             assistantPhoto={photoSrc}
                             assistantName={displayName}
+                            isCoordinator={assistant.isCoordinator}
                             timestamp={item.timestamp}
                             timezone={userTimezone}
                             index={i}
@@ -794,6 +816,7 @@ export function AssistantProfileChatPanel({
                         isUser={msg.role === 'user'}
                         assistantPhoto={photoSrc}
                         assistantName={displayName}
+                        isCoordinator={assistant.isCoordinator}
                         timestamp={msg.timestamp}
                         timezone={userTimezone}
                         index={i}
@@ -806,12 +829,13 @@ export function AssistantProfileChatPanel({
                     </React.Fragment>
                   );
                 })}
-                {isAssistantReplying && (
+                {(isAssistantReplying || forceTypingIndicator) && (
                   <ChatMessageBubble
                     message=""
                     isUser={false}
                     assistantPhoto={photoSrc}
                     assistantName={displayName}
+                    isCoordinator={assistant.isCoordinator}
                     isLoading={true}
                     index={messages.length}
                   />
@@ -895,35 +919,37 @@ export function AssistantProfileChatPanel({
             </DropdownMenu>
 
             {/* Voice recorder button */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn(
-                'absolute bottom-1 left-8 h-7 w-7',
-                isRecording && 'animate-pulse text-red-500'
-              )}
-              onClick={toggleRecording}
-              disabled={
-                !canChat ||
-                isLoading ||
-                isUploading ||
-                initialLoadError ||
-                sseBlocked ||
-                isSpendingBlocked ||
-                isTranscribing
-              }
-              aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
-              data-testid="voice-record-button"
-            >
-              {isTranscribing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : isRecording ? (
-                <Square className="h-3 w-3 fill-current" />
-              ) : (
-                <Mic className="h-4 w-4" />
-              )}
-            </Button>
+            {transcriptionEnabled && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  'absolute bottom-1 left-8 h-7 w-7',
+                  isRecording && 'animate-pulse text-[color:var(--status-danger)]'
+                )}
+                onClick={toggleRecording}
+                disabled={
+                  !canChat ||
+                  isLoading ||
+                  isUploading ||
+                  initialLoadError ||
+                  sseBlocked ||
+                  isSpendingBlocked ||
+                  isTranscribing
+                }
+                aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
+                data-testid="voice-record-button"
+              >
+                {isTranscribing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : isRecording ? (
+                  <Square className="h-3 w-3 fill-current" />
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
+              </Button>
+            )}
 
             <Textarea
               ref={textareaRef}

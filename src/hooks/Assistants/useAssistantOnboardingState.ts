@@ -49,7 +49,6 @@ export type OnboardingStepId =
   | 'phoneOnProfile'
   | 'phone'
   | 'phoneAsk'
-  | 'install'
   | 'integrations';
 
 /**
@@ -62,7 +61,6 @@ export type OnboardingGroupId =
   | 'breakIce'
   | 'exchangeEmails'
   | 'getOnCall'
-  | 'install'
   | 'integrations';
 
 export interface OnboardingStep {
@@ -154,13 +152,15 @@ function readGlobalDisabled(): boolean {
 // ---------------------------------------------------------------------------
 
 /**
- * Static group composition. The `install` group only renders for
- * desktop-mode assistants — see `getActiveGroups` for the filter.
+ * Static group composition.
  *
  * Order matters: this is the visual order in the Onboarding tab. We
  * lead with the lowest-friction group (Break the ice), then progress
- * through channel setup ordered by setup cost, then the desktop-only
- * install step (if relevant), and finally integrations.
+ * through channel setup ordered by setup cost, and finally integrations.
+ *
+ * Linking a personal desktop is intentionally absent: it's an optional
+ * action surfaced from the assistant row's "Connect your desktop" menu,
+ * not a setup to-do.
  */
 const GROUPS: ReadonlyArray<{ id: OnboardingGroupId; steps: OnboardingStepId[] }> = [
   // `started` is a single always-resolved step ("Hired {name}") that
@@ -170,14 +170,13 @@ const GROUPS: ReadonlyArray<{ id: OnboardingGroupId; steps: OnboardingStepId[] }
   { id: 'breakIce', steps: ['sayHi', 'voiceCall'] },
   { id: 'exchangeEmails', steps: ['email', 'emailAsk'] },
   { id: 'getOnCall', steps: ['phoneOnProfile', 'phone', 'phoneAsk'] },
-  { id: 'install', steps: ['install'] },
   { id: 'integrations', steps: ['integrations'] },
 ];
 
 function getActiveGroups(
-  assistant: Assistant
+  _assistant: Assistant
 ): ReadonlyArray<{ id: OnboardingGroupId; steps: OnboardingStepId[] }> {
-  return GROUPS.filter((g) => (g.id === 'install' ? !!assistant.isUserDesktop : true));
+  return GROUPS;
 }
 
 /**
@@ -261,11 +260,6 @@ function isStepConfigured(
       const clickedAt = new Date(clickedAtRaw);
       return ctx.latestUserMessageAt.getTime() > clickedAt.getTime();
     }
-    case 'install':
-      // No backend signal — done when the user has at least seen the
-      // install instructions (see roadmap component, which calls
-      // markResolved on click).
-      return false;
     case 'integrations':
       // Optional / never-counted step — the integrations group is a
       // perpetual launcher list rather than a one-shot checkbox, so

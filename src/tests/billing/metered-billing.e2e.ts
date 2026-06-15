@@ -4,11 +4,11 @@
  * Verifies that a user on a METERED plan sees the dedicated UI:
  *   - Plan card (template name, plan type, monthly commitment)
  *   - Invoices table (rendered from /v0/billing/invoices)
- *   - NO "Buy Credits" button
- *   - NO "Auto-Recharge" card
+ *   - NO self-serve credits / subscription card
+ *   - NO auto-increment card
  *
  * And that switching back to the implicit default flips the
- * page back to the legacy CREDITS view.
+ * page back to the self-serve CREDITS view.
  *
  * Run: npx playwright test src/tests/billing/metered-billing.e2e.ts
  */
@@ -90,15 +90,14 @@ test('shows the METERED plan card with template name and commitment', async ({
 // CREDITS UI is suppressed
 // ---------------------------------------------------------------------------
 
-test('hides the Buy Credits button and Auto-Recharge card', async ({ authedPage: page }) => {
+test('hides the self-serve credits / subscription UI', async ({ authedPage: page }) => {
   await page.goto('/billing');
   await expect(page.getByTestId('metered-plan-section')).toBeVisible({ timeout: 15_000 });
 
-  // Buy Credits button — present in CREDITS mode, must be absent here.
-  await expect(page.locator('button', { hasText: /^Buy Credits$/ })).toHaveCount(0);
-
-  // Auto-Recharge card title — also CREDITS-only.
-  await expect(page.locator('text=Auto-Recharge')).toHaveCount(0);
+  // The self-serve CREDITS surface (credits/subscription card, plan
+  // picker, auto-increment) must be absent for METERED accounts.
+  await expect(page.getByTestId('credits-balance-section')).toHaveCount(0);
+  await expect(page.getByTestId('auto-increment-card')).toHaveCount(0);
 });
 
 // ---------------------------------------------------------------------------
@@ -110,6 +109,11 @@ test('renders the invoices table with rows ordered newest-first', async ({ authe
 
   const invoicesSection = page.getByTestId('metered-invoices-section');
   await expect(invoicesSection).toBeVisible({ timeout: 15_000 });
+
+  // The invoice history now lives behind a "View" button that opens a
+  // right-side panel (matching the billing-profile / payment-method
+  // layout), so the table only mounts once the panel is open.
+  await page.getByTestId('view-invoices').click();
 
   const table = page.getByTestId('invoices-table');
   await expect(table).toBeVisible({ timeout: 10_000 });
@@ -154,13 +158,12 @@ test('switching back to default restores the CREDITS UI', async ({ authedPage: p
   clearMeteredPlan(user.id);
   try {
     await page.goto('/billing');
-    await expect(page.locator('text=Balance')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('credits-balance-section')).toBeVisible({ timeout: 15_000 });
 
-    // CREDITS-only controls reappear
-    await expect(page.locator('button', { hasText: /^Buy Credits$/ })).toBeVisible({
+    // The self-serve plan picker reappears in CREDITS mode.
+    await expect(page.getByTestId('tier-select-trigger')).toBeVisible({
       timeout: 10_000,
     });
-    await expect(page.locator('text=Auto-Recharge')).toBeVisible();
 
     // METERED-only sections are gone
     await expect(page.getByTestId('metered-plan-section')).toHaveCount(0);

@@ -13,6 +13,7 @@
 import { GoogleAuth } from 'google-auth-library';
 import { PubSub } from '@google-cloud/pubsub';
 import fs from 'fs';
+import { topicSuffix } from '@/lib/environment/comms-env';
 
 /** Ephemeral subscriptions auto-delete after this much inactivity. */
 export const EPHEMERAL_EXPIRATION_TTL = '86400s'; // 1 day
@@ -23,25 +24,51 @@ export const PERSISTENT_EXPIRATION_TTL = '2678400s'; // 31 days
 /** Only retain recent messages — older history is loaded from Orchestra. */
 export const MESSAGE_RETENTION_DURATION = '600s'; // 10 minutes
 
+interface PubSubEmulatorConfig {
+  grpcEndpoint: string;
+  restBaseUrl: string;
+}
+
+function resolvePubSubEmulatorConfig(): PubSubEmulatorConfig | null {
+  const explicitHost = process.env.PUBSUB_EMULATOR_HOST?.trim();
+  if (explicitHost) {
+    const normalizedHost = explicitHost.replace(/\/+$/, '');
+    const grpcEndpoint = normalizedHost.replace(/^https?:\/\//, '');
+    const restBaseUrl = /^https?:\/\//i.test(normalizedHost)
+      ? `${normalizedHost}/v1`
+      : `http://${grpcEndpoint}/v1`;
+    return { grpcEndpoint, restBaseUrl };
+  }
+
+  const orchestraUrl = process.env.ORCHESTRA_URL || '';
+  const likelyLocalConsole =
+    process.env.NODE_ENV === 'development' &&
+    (orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1'));
+
+  if (likelyLocalConsole) {
+    return {
+      grpcEndpoint: 'localhost:8085',
+      restBaseUrl: 'http://localhost:8085/v1',
+    };
+  }
+
+  return null;
+}
+
 /**
- * When PUBSUB_EMULATOR_HOST is set, REST-based operations (ACK) go to the
- * emulator instead of the production Google API endpoint.
+ * When the emulator host resolves, REST-based operations (ACK) should hit
+ * local Pub/Sub instead of the production Google API endpoint.
  */
 export function getPubSubApiBase(): string {
-  const emulatorHost = process.env.PUBSUB_EMULATOR_HOST;
-  if (emulatorHost) {
-    const host = emulatorHost.startsWith('http') ? emulatorHost : `http://${emulatorHost}`;
-    return `${host}/v1`;
+  const emulatorConfig = resolvePubSubEmulatorConfig();
+  if (emulatorConfig) {
+    return emulatorConfig.restBaseUrl;
   }
   return 'https://pubsub.googleapis.com/v1';
 }
 
 /** @deprecated Use getPubSubApiBase() for emulator support */
 export const PUBSUB_API_BASE = 'https://pubsub.googleapis.com/v1';
-
-function isEmulatorMode(): boolean {
-  return !!process.env.PUBSUB_EMULATOR_HOST;
-}
 
 function getCredentials(): { credentials: any; projectId: string } {
   const credentialsValue = process.env.COMMS_SERVICE_ACCOUNT_CREDENTIALS;
@@ -76,7 +103,8 @@ function getCredentials(): { credentials: any; projectId: string } {
  * method matching the GoogleAuth client interface.
  */
 export async function getAuthClient(): Promise<{ client: any; projectId: string }> {
-  if (isEmulatorMode()) {
+  const emulatorConfig = resolvePubSubEmulatorConfig();
+  if (emulatorConfig) {
     const projectId = process.env.GCP_PROJECT_ID || 'local-test-project';
     const client = {
       async request(opts: { url: string; method: string; data?: any }) {
@@ -117,10 +145,15 @@ let _pubsubClient: PubSub | null = null;
  * automatically), no real credentials are needed.
  */
 export function getPubSubClient(): { pubsub: PubSub; projectId: string } {
-  if (isEmulatorMode()) {
+  const emulatorConfig = resolvePubSubEmulatorConfig();
+  if (emulatorConfig) {
     const projectId = process.env.GCP_PROJECT_ID || 'local-test-project';
     if (!_pubsubClient) {
-      _pubsubClient = new PubSub({ projectId });
+      const pubsubOptions: { projectId: string; apiEndpoint?: string } = { projectId };
+      // Keep the SDK and helper logic aligned on the same emulator endpoint.
+      process.env.PUBSUB_EMULATOR_HOST = emulatorConfig.grpcEndpoint;
+      pubsubOptions.apiEndpoint = emulatorConfig.grpcEndpoint;
+      _pubsubClient = new PubSub(pubsubOptions);
     }
     return { pubsub: _pubsubClient, projectId };
   }
@@ -221,24 +254,7 @@ export async function getOrCreateSubscription(
   return subscriptionUrl;
 }
 
-/**
- * Derives the Pub/Sub topic name for an assistant.
- *
- * Resolution order:
- *   1. PUBSUB_TOPIC_SUFFIX env var (explicit override, e.g. "-staging")
- *   2. ORCHESTRA_URL heuristic — localhost / staging → "-staging"
- *   3. Production → no suffix
- */
+/** Derives the Pub/Sub topic name for an assistant. */
 export function getTopicName(assistantId: string): string {
-  const explicitSuffix = process.env.PUBSUB_TOPIC_SUFFIX;
-  if (explicitSuffix !== undefined) {
-    return `unity-${assistantId}${explicitSuffix}`;
-  }
-
-  const orchestraUrl = process.env.ORCHESTRA_URL || '';
-  const isStaging =
-    orchestraUrl.includes('staging') ||
-    orchestraUrl.includes('localhost') ||
-    orchestraUrl.includes('127.0.0.1');
-  return `unity-${assistantId}${isStaging ? '-staging' : ''}`;
+  return `unity-${assistantId}${topicSuffix()}`;
 }

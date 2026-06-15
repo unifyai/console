@@ -578,7 +578,7 @@ export function FileUpload({
                             {entryColSpan > 0 && (
                               <TableHead
                                 colSpan={entryColSpan}
-                                className="border-b bg-green-50/50 text-center font-semibold"
+                                className="border-b bg-[color:var(--status-success-bg)] text-center font-semibold"
                               >
                                 Entries
                               </TableHead>
@@ -588,7 +588,10 @@ export function FileUpload({
                           {/* Sub Headers (Column Names) */}
                           <TableRow>
                             {entryHeaders.map((header) => (
-                              <TableHead key={header} className="bg-green-50/50">
+                              <TableHead
+                                key={header}
+                                className="bg-[color:var(--status-success-bg)]"
+                              >
                                 {header}
                               </TableHead>
                             ))}

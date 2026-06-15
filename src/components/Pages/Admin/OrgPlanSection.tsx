@@ -417,8 +417,8 @@ export default function OrgPlanSection({
                   <Badge
                     className={`text-xs ${
                       isMetered
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-200'
-                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200'
+                        ? 'bg-[color:var(--status-info-bg)] text-[color:var(--status-info)]'
+                        : 'bg-[color:var(--status-warning-bg)] text-[color:var(--status-warning)]'
                     }`}
                   >
                     {activeAssignment?.templateBillingMode ?? 'CREDITS'}
@@ -518,7 +518,7 @@ export default function OrgPlanSection({
             </div>
 
             {previewMissesCurrentPlan && activeAssignment && (
-              <div className="text-caption flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+              <div className="text-caption border-[color:var(--status-warning)]/25 flex items-start gap-1.5 rounded-md border bg-[color:var(--status-warning-bg)] px-2 py-1.5 text-[color:var(--status-warning)]">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
                 <span>
                   The account&apos;s current plan <strong>{activeAssignment.templateName}</strong>{' '}

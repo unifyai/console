@@ -23,14 +23,14 @@ const DualPaneBody = ({
     <div className="flex h-full w-full flex-col justify-between gap-2 lg:flex-row">
       {foldPanel === 'right' ? null : (
         <div
-          className={`h-full w-full rounded-md bg-background ${foldPanel != 'left' ? 'max-h-[50%] lg:max-h-[100%] lg:max-w-[50%]' : ''}`}
+          className={`bg-card/80 h-full w-full rounded-xl border border-border shadow-sm ${foldPanel != 'left' ? 'max-h-[50%] lg:max-h-[100%] lg:max-w-[50%]' : ''}`}
         >
           {isPending ? <SkeletonLoader /> : leftPane}
         </div>
       )}
       {foldPanel === 'right' ? null : (
         <div
-          className={`h-full w-full rounded-md ${foldPanel != 'right' ? 'max-h-[50%] lg:max-h-[100%] lg:max-w-[50%]' : ''}`}
+          className={`bg-card/80 h-full w-full rounded-xl border border-border shadow-sm ${foldPanel != 'right' ? 'max-h-[50%] lg:max-h-[100%] lg:max-w-[50%]' : ''}`}
         >
           {isPending ? <SkeletonLoader /> : rightPane}
         </div>

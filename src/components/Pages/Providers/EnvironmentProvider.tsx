@@ -1,23 +1,27 @@
 'use client';
 
 import React, { createContext, useContext } from 'react';
+import type { Features } from '@/lib/features/features';
+import type { Environment } from '@/lib/environment/environment';
 
 /**
- * Environment configuration passed from the server layout to client components.
+ * Server→client bridge for the two configuration axes:
  *
- * Values are resolved server-side (where all env vars are available) and
- * injected into React context so that client components never need direct
- * access to server-only environment variables.
+ *  - `environment` — deployment topology + auth mode (see {@link Environment}).
+ *  - `features`    — credential-derived capabilities (see {@link Features}).
+ *
+ * Both are resolved server-side (where all env vars are available) and injected
+ * into React context so client components never read server-only env vars.
  *
  * IMPORTANT: This component is `'use client'` — it cannot read non-NEXT_PUBLIC_
- * env vars at runtime in production builds.  The `config` prop MUST be resolved
- * in a server component (e.g. Base.tsx) and passed down.
+ * env vars at runtime in production builds. The `config` prop MUST be resolved
+ * in a Server Component (e.g. Base.tsx) and passed down.
  */
 export interface EnvironmentConfig {
-  /** Whether the app is running in a staging / development environment. */
-  isStaging: boolean;
-  /** Cloudflare Turnstile site key (public). Undefined when not configured. */
-  turnstileSiteKey?: string;
+  /** Deployment topology + auth mode. Read via `useEnvironment()`. */
+  environment: Environment;
+  /** Credential-driven capability set. Read via `useFeatures()`. */
+  features: Features;
 }
 
 const EnvironmentContext = createContext<EnvironmentConfig | undefined>(undefined);
@@ -33,15 +37,34 @@ export function EnvironmentProvider({
   return <EnvironmentContext.Provider value={config}>{children}</EnvironmentContext.Provider>;
 }
 
-/**
- * Access the environment config from any client component.
- *
- * Must be used within an `<EnvironmentProvider>`.
- */
-export function useEnvironment(): EnvironmentConfig {
+function useEnvironmentConfig(): EnvironmentConfig {
   const ctx = useContext(EnvironmentContext);
   if (ctx === undefined) {
     throw new Error('useEnvironment must be used within an EnvironmentProvider');
   }
   return ctx;
+}
+
+/**
+ * Access the deployment environment (topology + auth mode) from any client
+ * component. Use this for facts no credential captures — e.g. self-host
+ * topology, staging, or auth mode.
+ *
+ * Must be used within an `<EnvironmentProvider>`.
+ */
+export function useEnvironment(): Environment {
+  return useEnvironmentConfig().environment;
+}
+
+/**
+ * Access the resolved feature set from any client component.
+ *
+ * Prefer this over reading env vars directly: features are derived from
+ * provisioned credentials, so the same component code works for both the hosted
+ * cloud (all features on) and self-host (BYOK subset).
+ *
+ * Must be used within an `<EnvironmentProvider>`.
+ */
+export function useFeatures(): Features {
+  return useEnvironmentConfig().features;
 }

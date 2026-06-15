@@ -22,10 +22,9 @@ import type { DetailSection, DetailSectionItem } from '@/utils/assistants/memory
 
 const BADGE_BASE_CLASS =
   'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tracking-[0.01em]';
-const BADGE_FALLBACK_CLASS =
-  'border-border/70 bg-muted/70 text-foreground dark:border-slate-400/40 dark:bg-slate-400/15 dark:text-slate-50';
+const BADGE_FALLBACK_CLASS = 'border-border/70 bg-muted/70 text-foreground';
 export const TASK_LIVE_DOT_CLASS =
-  'animate-pulse motion-reduce:animate-none bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16)] dark:bg-emerald-400 dark:shadow-[0_0_0_3px_rgba(52,211,153,0.18)]';
+  'animate-pulse motion-reduce:animate-none bg-[color:var(--status-success)] shadow-[0_0_0_3px_var(--status-success-bg)]';
 
 const HUMANIZED_TASK_LABELS = new Map<string, string>([
   ['sms_message', 'SMS message'],
@@ -67,17 +66,17 @@ const TASK_STATUS_DESCRIPTIONS = new Map<string, string>([
 ]);
 
 const TASK_WAITING_TONE =
-  'border-emerald-300 bg-emerald-50/90 text-emerald-900 dark:border-emerald-400/40 dark:bg-emerald-500/15 dark:text-emerald-100';
+  'border-[color:var(--status-success)]/25 bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]';
 const TASK_LIVE_TONE =
-  'border-emerald-300 bg-emerald-200/85 text-emerald-950 dark:border-emerald-400/60 dark:bg-emerald-950/80 dark:text-emerald-50';
+  'border-[color:var(--status-success)]/35 bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]';
 const TASK_SUCCESS_TONE =
-  'border-emerald-300 bg-emerald-100/80 text-emerald-950 dark:border-emerald-500/45 dark:bg-emerald-950/65 dark:text-emerald-50';
+  'border-[color:var(--status-success)]/25 bg-[color:var(--status-success-bg)] text-[color:var(--status-success)]';
 const TASK_ATTENTION_TONE =
-  'border-amber-300 bg-amber-100/80 text-amber-950 dark:border-amber-500/55 dark:bg-amber-950/65 dark:text-amber-100';
+  'border-[color:var(--status-warning)]/25 bg-[color:var(--status-warning-bg)] text-[color:var(--status-warning)]';
 const TASK_FAILURE_TONE =
-  'border-red-300 bg-red-200/75 text-red-950 dark:border-red-500/55 dark:bg-red-950/70 dark:text-red-100';
+  'border-[color:var(--status-danger)]/25 bg-[color:var(--status-danger-bg)] text-[color:var(--status-danger)]';
 const TASK_INACTIVE_TONE =
-  'border-slate-300 bg-slate-200/70 text-slate-900 dark:border-slate-500/45 dark:bg-slate-900/80 dark:text-slate-100';
+  'border-border bg-[color:var(--status-neutral-bg)] text-muted-foreground';
 
 const TASK_STATUS_TONES: Record<string, string> = {
   pending: TASK_ATTENTION_TONE,
@@ -95,10 +94,8 @@ const TASK_STATUS_TONES: Record<string, string> = {
 };
 
 const STACKED_PRIMARY_TEXT_CLASS = 'truncate font-medium text-foreground';
-const STACKED_SECONDARY_TEXT_CLASS =
-  'truncate text-[11px] text-muted-foreground dark:text-slate-300';
-const STACKED_TERTIARY_TEXT_CLASS =
-  'truncate text-[11px] text-muted-foreground/80 dark:text-slate-400';
+const STACKED_SECONDARY_TEXT_CLASS = 'truncate text-[11px] text-muted-foreground';
+const STACKED_TERTIARY_TEXT_CLASS = 'truncate text-[11px] text-muted-foreground/80';
 
 const WEEKDAY_LABELS = new Map<string, string>([
   ['MO', 'Mon'],

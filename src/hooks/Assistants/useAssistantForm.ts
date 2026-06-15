@@ -9,19 +9,23 @@ import {
   VoiceOption,
   AssistantUpdatePayload,
   DesktopMode,
-  AssistantHiringSufficientFunds,
 } from '@/types/assistants/assistant';
 import { ResponseProps } from '@/types/common';
 import { toast } from 'sonner';
 import { Gender, SupportedLanguage } from '@cartesia/cartesia-js/api';
 import voicePresetsConstant from '@/constants/assistants/voice_presets.js';
+import {
+  resolveCoordinatorAbout,
+  resolveCoordinatorJobTitle,
+} from '@/constants/assistants/coordinator_profile';
 import { getDefaultVoiceForProvider } from '@/utils/assistants/voice-utils';
-import { ASSISTANT_ONBOARDING_FEE, PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
+import { PRIMARY_VOICE_PROVIDER } from '@/constants/assistants/settings';
 import { ChatMessage } from '@/types/assistants/chat';
 import { v4 as uuidv4 } from 'uuid';
 import { generatePostHireGreeting } from '@/lib/assistants/preHireChat';
 import { fetchMediaSignedUrls } from '@/lib/client/assistant';
 import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
+import { isCreatureSentinel } from '@/components/Brand';
 
 export function useAssistantForm(
   assistantActions: AssistantActions,
@@ -103,7 +107,7 @@ export function useAssistantForm(
   /* -------------------------
         General form utilities
     ------------------------- */
-  const [isCheckingBalance, setIsCheckingBalance] = React.useState(false);
+  const [isCheckingBalance] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showInsufficientFundsHint, setShowInsufficientFundsHint] = React.useState(false);
 
@@ -226,7 +230,9 @@ export function useAssistantForm(
       setValue('surname', preset.surname, { shouldValidate: true });
       setValue('jobTitle', preset.jobTitle ?? null, { shouldValidate: true });
       setValue('age', preset.age, { shouldValidate: true });
-      setValue('nationality', preset.nationality ?? 'United States', { shouldValidate: true });
+      setValue('nationality', preset.nationality ?? 'United States', {
+        shouldValidate: true,
+      });
       setValue('about', preset.about ?? '', { shouldValidate: true });
       setValue('profilePhotoUrl', null);
       setValue('photoPreviewUrl', null);
@@ -259,34 +265,12 @@ export function useAssistantForm(
         preset.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
       );
 
-      // Determine the voiceId based on PRIMARY_VOICE_PROVIDER
-      const providerSpecificVoiceId = preset.voiceIds[PRIMARY_VOICE_PROVIDER] ?? null;
-
-      // Find the full voice details from voicePresetsConstant using the providerSpecificVoiceId
-      let selectedPresetVoiceDetails: VoiceOption | undefined = (
-        voicePresetsConstant as VoiceOption[]
-      ).find(
-        (vp) => vp.voiceId === providerSpecificVoiceId && vp.provider === PRIMARY_VOICE_PROVIDER
-      );
-
-      if (!selectedPresetVoiceDetails && providerSpecificVoiceId) {
-        selectedPresetVoiceDetails = {
-          voiceId: providerSpecificVoiceId,
-          name: 'Preset Voice',
-          description: 'Preset voice',
-          gender: preset.gender === 'male' ? 'male' : 'female',
-          language: 'en',
-          provider: PRIMARY_VOICE_PROVIDER,
-          isPreset: true,
-          isUserVoiceInOrchestra: false,
-        };
-      } else if (!selectedPresetVoiceDetails) {
-        selectedPresetVoiceDetails = defaultVoice as VoiceOption;
-        if (selectedPresetVoiceDetails) {
-          selectedPresetVoiceDetails.isUserVoiceInOrchestra = false;
-          selectedPresetVoiceDetails.isPreset = true;
-        }
-      }
+      const providerSpecificVoiceId = defaultVoice.voiceId;
+      const selectedPresetVoiceDetails = {
+        ...(defaultVoice as VoiceOption),
+        isUserVoiceInOrchestra: false,
+        isPreset: true,
+      };
 
       setValue('voiceId', selectedPresetVoiceDetails.voiceId);
       setValue('voiceName', selectedPresetVoiceDetails.name);
@@ -296,7 +280,7 @@ export function useAssistantForm(
       setValue('voiceProvider', selectedPresetVoiceDetails.provider || PRIMARY_VOICE_PROVIDER);
 
       const voiceAlreadyExists = registeredVoices.some(
-        (v) => v.voiceId === providerSpecificVoiceId && v.isUserVoiceInOrchestra
+        (v) => v.voiceId === selectedPresetVoiceDetails.voiceId && v.isUserVoiceInOrchestra
       );
       setValue('voiceExists', voiceAlreadyExists);
 
@@ -426,12 +410,16 @@ export function useAssistantForm(
         ...getValues(),
 
         // Profile
-        firstName: assistant.firstName,
-        surname: assistant.surname,
-        jobTitle: assistant.jobTitle ?? null,
+        firstName: assistant.isCoordinator ? 'Marty' : assistant.firstName,
+        surname: assistant.isCoordinator ? '' : assistant.surname,
+        jobTitle: assistant.isCoordinator
+          ? resolveCoordinatorJobTitle(assistant.jobTitle)
+          : (assistant.jobTitle ?? null),
         age: assistant.age,
         nationality: assistant.nationality,
-        about: assistant.about || '',
+        about: assistant.isCoordinator
+          ? resolveCoordinatorAbout(assistant.about)
+          : assistant.about || '',
         timezone: assistant.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 
         // Media
@@ -442,7 +430,8 @@ export function useAssistantForm(
         photoFile: null,
         videoFile: null,
 
-        // Voice
+        // Voice — the Coordinator's fixed voice is enforced server-side, so
+        // every assistant simply reflects its DB row here.
         voiceId: assistant.voiceId || undefined,
         voiceName: assistantVoiceDetails?.name,
         voiceDescription: assistantVoiceDetails?.description,
@@ -453,7 +442,7 @@ export function useAssistantForm(
         voiceExists: !!assistantVoiceDetails,
 
         // Setup
-        setup: assistant.isUserDesktop ? 'local' : 'remote',
+        setup: 'remote',
         operatingSystem: (assistant.desktopMode as DesktopMode | null) || 'ubuntu',
       });
       setShowInsufficientFundsHint(false);
@@ -507,25 +496,33 @@ export function useAssistantForm(
     clearErrors();
 
     try {
+      data.firstName = String(data.firstName ?? '').trim();
+      data.surname = String(data.surname ?? '').trim();
+
       // Input validity checks (same as creation path)
       if (!data.firstName) {
-        setError('firstName', { type: 'manual', message: 'Missing assistant first name.' });
+        setError('firstName', {
+          type: 'manual',
+          message: 'Missing assistant first name.',
+        });
         throw new Error('Missing assistant first name.');
-      }
-      if (!data.surname) {
-        setError('surname', { type: 'manual', message: 'Missing assistant surname.' });
-        throw new Error('Missing assistant surname.');
       }
       const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
       if (
         data.age != null &&
         (isNaN(ageNumber as number) || (ageNumber as number) < 18 || (ageNumber as number) > 70)
       ) {
-        setError('age', { type: 'manual', message: 'Age must be between 18 and 70.' });
+        setError('age', {
+          type: 'manual',
+          message: 'Age must be between 18 and 70.',
+        });
         throw new Error('Invalid age provided.');
       }
       if (!data.nationality) {
-        setError('nationality', { type: 'manual', message: 'Missing assistant nationality.' });
+        setError('nationality', {
+          type: 'manual',
+          message: 'Missing assistant nationality.',
+        });
         throw new Error('Missing assistant nationality.');
       }
 
@@ -533,8 +530,10 @@ export function useAssistantForm(
       // Note: Contact details (email, phone, whatsapp) are managed via AssistantContactManager
       const payload: Partial<AssistantUpdatePayload> = {};
 
-      if (data.firstName !== editingAssistant.firstName) payload.firstName = data.firstName;
-      if (data.surname !== editingAssistant.surname) payload.surname = data.surname;
+      if (!editingAssistant.isCoordinator) {
+        if (data.firstName !== editingAssistant.firstName) payload.firstName = data.firstName;
+        if (data.surname !== editingAssistant.surname) payload.surname = data.surname;
+      }
       // Normalize empty string to null so an emptied input clears the value
       // server-side (the backend trims/normalizes too, but be explicit).
       const normalizedJobTitle = data.jobTitle?.trim() ? data.jobTitle.trim() : null;
@@ -546,12 +545,16 @@ export function useAssistantForm(
       if (data.about !== editingAssistant.about) payload.about = data.about;
       if (data.timezone !== editingAssistant.timezone) payload.timezone = data.timezone;
       // Orchestra requires both voice_id and voice_provider together — always
-      // send them as a pair when either one has changed.
+      // send them as a pair when either one has changed. The Coordinator's
+      // fixed voice is enforced server-side and its picker is hidden, so
+      // this never fires for Marty.
+      const nextVoiceProvider = data.voiceProvider ?? PRIMARY_VOICE_PROVIDER;
       const voiceIdChanged = data.voiceId !== editingAssistant.voiceId;
-      const voiceProviderChanged = data.voiceProvider !== editingAssistant.voiceProvider;
-      if (voiceIdChanged || voiceProviderChanged) {
+      const voiceProviderChanged = nextVoiceProvider !== editingAssistant.voiceProvider;
+      const voiceChanged = voiceIdChanged || voiceProviderChanged;
+      if (voiceChanged) {
         payload.voiceId = data.voiceId;
-        payload.voiceProvider = data.voiceProvider;
+        payload.voiceProvider = nextVoiceProvider;
       }
       // Note: isUserDesktop and desktopMode are set at creation time only and cannot be updated
 
@@ -566,6 +569,13 @@ export function useAssistantForm(
         if ((photoUploadResult as ResponseProps).detail)
           throw new Error(`Photo upload failed: ${(photoUploadResult as ResponseProps).detail}`);
         payload.profilePhoto = (photoUploadResult as PhotoUploadResponse).gcsUrl;
+      } else if (
+        // Creature appearance edits have no file upload — they're encoded as a
+        // appearance:// sentinel in profilePhotoUrl. Persist it when it changed.
+        isCreatureSentinel(data.profilePhotoUrl) &&
+        data.profilePhotoUrl !== editingAssistant.profilePhoto
+      ) {
+        payload.profilePhoto = data.profilePhotoUrl;
       }
       if (data.videoFile) {
         const formData = new FormData();
@@ -577,16 +587,19 @@ export function useAssistantForm(
         payload.profileVideo = (videoUploadResult as PhotoUploadResponse).gcsUrl;
       }
 
-      if (data.voiceId && !data.voiceExists) {
-        const provider = data?.voiceProvider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER;
+      if (voiceChanged && data.voiceId && !data.voiceExists) {
+        const provider = nextVoiceProvider || defaultVoice.provider || PRIMARY_VOICE_PROVIDER;
+        const isPresetVoice = voicePresetsConstant.some(
+          (voice) => voice.voiceId === data.voiceId && voice.provider === provider
+        );
         const voiceCreationResponse = await assistantActions.voice.register(
           data.voiceId,
           provider,
           data.voiceName!,
-          data.voiceDescription!,
+          data.voiceDescription ?? data.voiceName!,
           data.voiceGender!,
           data.voiceLanguage!,
-          false
+          isPresetVoice
         );
         if (
           'detail' in voiceCreationResponse &&
@@ -630,39 +643,52 @@ export function useAssistantForm(
     clearErrors();
 
     try {
+      data.firstName = String(data.firstName ?? '').trim();
+      data.surname = String(data.surname ?? '').trim();
+
       // Input validity checks
       if (!data.firstName) {
-        setError('firstName', { type: 'manual', message: 'Missing assistant first name.' });
+        setError('firstName', {
+          type: 'manual',
+          message: 'Missing assistant first name.',
+        });
         throw new Error('Missing assistant first name.');
-      }
-      if (!data.surname) {
-        setError('surname', { type: 'manual', message: 'Missing assistant surname.' });
-        throw new Error('Missing assistant surname.');
       }
       const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
       if (
         data.age != null &&
         (isNaN(ageNumber as number) || (ageNumber as number) < 18 || (ageNumber as number) > 70)
       ) {
-        setError('age', { type: 'manual', message: 'Age must be between 18 and 70.' });
+        setError('age', {
+          type: 'manual',
+          message: 'Age must be between 18 and 70.',
+        });
         throw new Error('Invalid age provided.');
       }
       if (!data.nationality) {
-        setError('nationality', { type: 'manual', message: 'Missing assistant nationality.' });
+        setError('nationality', {
+          type: 'manual',
+          message: 'Missing assistant nationality.',
+        });
         throw new Error('Missing assistant nationality.');
       }
 
       if (!data.voiceId || !data.voiceName || !data.voiceGender || !data.voiceLanguage) {
-        setError('voiceId', { type: 'manual', message: 'Voice selection is required.' });
+        setError('voiceId', {
+          type: 'manual',
+          message: 'Voice selection is required.',
+        });
         throw new Error('No voice selected.');
       }
+
+      const assistantDisplayName = [data.firstName, data.surname].filter(Boolean).join(' ');
 
       // Generate initial greeting if no pre-hire chat exists
       let finalChatHistory = chatHistory;
       if (!chatHistory || chatHistory.length === 0) {
         try {
           const greetingResult = await generatePostHireGreeting(
-            `${data.firstName} ${data.surname}`,
+            assistantDisplayName,
             data.age,
             data.about,
             data.nationality
@@ -721,7 +747,9 @@ export function useAssistantForm(
         if (data.videoFile) finalVideoUrlToSend = null;
       }
 
-      const isUserDesktop = data.setup === 'local';
+      // Assistants always run on a managed remote VM; users link their own
+      // machines post-hire via the desktop linker.
+      const isUserDesktop = false;
       const desktopModePayload = data.operatingSystem as DesktopMode;
       const formattedPreHireChat = finalChatHistory?.map(({ role, content }) => ({
         role,
@@ -793,13 +821,14 @@ export function useAssistantForm(
 
       const assistantForSuccess: Assistant = {
         ...createdAssistant,
+        isCoordinator: createdAssistant.isCoordinator ?? false,
         ...(finalImageUrlToSend ? { profilePhoto: finalImageUrlToSend } : {}),
         ...(finalVideoUrlToSend ? { profileVideo: finalVideoUrlToSend } : {}),
         ...(mediaUpdate.profilePhoto ? { profilePhoto: mediaUpdate.profilePhoto } : {}),
         ...(mediaUpdate.profileVideo ? { profileVideo: mediaUpdate.profileVideo } : {}),
       };
 
-      toast.success(`Assistant ${data.firstName} ${data.surname} hired!`);
+      toast.success(`Assistant ${assistantDisplayName} hired!`);
       resetFormAndHints();
       if (onHireSuccess) onHireSuccess(assistantForSuccess, data, finalChatHistory);
     } catch (error: any) {
@@ -823,7 +852,7 @@ export function useAssistantForm(
     reactHookFormHandleSubmit((data) => submitAssistantData(data, chatHistory));
 
   const initiateHireSequence = async (chatHistory?: ChatMessage[]) => {
-    if (isSubmitting || isCheckingBalance) {
+    if (isSubmitting) {
       return;
     }
 
@@ -832,30 +861,9 @@ export function useAssistantForm(
       return;
     }
 
-    setIsCheckingBalance(true);
     setShowInsufficientFundsHint(false);
 
-    try {
-      const hiringFundsResponse = await assistantActions.assistant.check(ASSISTANT_ONBOARDING_FEE);
-
-      if ('detail' in hiringFundsResponse || !hiringFundsResponse) {
-        toast.error('Failed to check balance.');
-        setIsCheckingBalance(false);
-        return;
-      }
-
-      const hasSufficientFunds = hiringFundsResponse as AssistantHiringSufficientFunds;
-      if (!hasSufficientFunds.sufficient) {
-        setShowInsufficientFundsHint(true);
-      } else {
-        setIsCheckingBalance(false);
-        await RHFSubmitHandler(chatHistory)();
-      }
-    } catch (error) {
-      toast.error('Error during balance check process.');
-    } finally {
-      setIsCheckingBalance(false);
-    }
+    await RHFSubmitHandler(chatHistory)();
   };
 
   return {

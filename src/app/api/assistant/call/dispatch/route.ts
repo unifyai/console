@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { badRequest, internalError } from '../../../_utils/auth';
 import { camelToSnakeObject } from '@/utils/casing';
-import { getAdaptersPrefix } from '@/utils/assistants/api-utils';
+import { getAdaptersBaseUrl } from '@/utils/assistants/api-utils';
 
 // This route dispatches an agent to join a LiveKit room for a voice call.
 // It proxies to your backend/agents orchestrator.
@@ -9,16 +9,14 @@ import { getAdaptersPrefix } from '@/utils/assistants/api-utils';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { assistantId, roomName, deployEnv } = body;
+    const { assistantId, roomName, openingConfig } = body;
 
     if (!assistantId || !roomName) {
       return badRequest('assistantId and roomName are required');
     }
 
-    const baseUrl = `${process.env.ORCHESTRA_URL}/v0`;
-    const isStaging = baseUrl.includes('staging');
-    const prefix = getAdaptersPrefix(deployEnv, isStaging);
-    const DISPATCH_URL = `https://unity-adapters-${prefix}ky4ja5fxna-uc.a.run.app/unify/meet`;
+    const localAdaptersUrl = process.env.LOCAL_ADAPTERS_URL;
+    const dispatchUrl = `${getAdaptersBaseUrl({ localAdaptersUrl })}/unify/meet`;
     const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
     if (!ADMIN_KEY) {
@@ -37,9 +35,10 @@ export async function POST(request: NextRequest) {
       assistantId,
       livekitAgentName: roomName,
       roomName,
+      ...(openingConfig ? { openingConfig } : {}),
     });
 
-    const resp = await fetch(DISPATCH_URL, {
+    const resp = await fetch(dispatchUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -50,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     if (!resp.ok) {
       const detail = await resp.text().catch(() => 'Failed to dispatch agent');
-      console.error(`[API /dispatch] Error dispatching agent to ${DISPATCH_URL}: ${detail}`);
+      console.error(`[API /dispatch] Error dispatching agent to ${dispatchUrl}: ${detail}`);
       return NextResponse.json({ detail }, { status: 502 });
     }
 

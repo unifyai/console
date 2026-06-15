@@ -5,6 +5,10 @@ export function usePanelManager(initialProfileId: string | null = null) {
     initialProfileId
   );
 
+  React.useEffect(() => {
+    setProfileAssistantId(initialProfileId);
+  }, [initialProfileId]);
+
   const handleShowProfile = React.useCallback((id: string) => {
     setProfileAssistantId(id);
   }, []);

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import { useDashboards } from '@/hooks/Assistants/useDashboards';
 import { DashboardsPaneHeader } from './DashboardsPaneHeader';
 import { DashboardsPaneFooter } from './DashboardsPaneFooter';
@@ -20,21 +20,20 @@ import type {
   DashboardRecord,
   TileRecord,
 } from '@/types/assistants/dashboard';
+import type { Assistant } from '@/types/assistants/assistant';
 import { parseDashboardLayout } from '@/utils/assistants/parse-dashboard-layout';
 
 interface DashboardsPaneProps {
+  assistant: Assistant;
   ownerId: string;
   assistantId: string;
-  getMetadata: (ownerId: string, assistantId: string) => Promise<DashboardPaneData>;
-  getTileContent: (
-    ownerId: string,
-    assistantId: string,
-    tileToken: string
-  ) => Promise<string | null>;
+  getMetadata: (assistant: Assistant) => Promise<DashboardPaneData>;
+  getTileContent: (assistant: Assistant, tileToken: string) => Promise<string | null>;
   shouldPoll: boolean;
 }
 
 export function DashboardsPane({
+  assistant,
   ownerId,
   assistantId,
   getMetadata,
@@ -52,12 +51,13 @@ export function DashboardsPane({
   const effectiveGetTileContent = useMemo(
     () =>
       USE_MOCK_DASHBOARDS
-        ? (_o: string, _a: string, token: string) => getMockTileContent(token)
+        ? (_assistant: Assistant, token: string) => getMockTileContent(token)
         : getTileContent,
     [getTileContent]
   );
 
   const { dashboards, tiles, isLoading, refetch, dataUpdatedAt, getTileHtml } = useDashboards({
+    assistant,
     ownerId,
     assistantId,
     getMetadata: effectiveGetMetadata,
@@ -123,7 +123,7 @@ export function DashboardsPane({
         className="flex h-full flex-1 items-center justify-center text-muted-foreground"
         data-testid="dashboards-loading"
       >
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        <Loader size={20} className="mr-2" />
         <span className="text-body-muted">Loading dashboards...</span>
       </div>
     );

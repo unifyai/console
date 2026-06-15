@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, Suspense, useMemo, useEffect, lazy, useCallback } from 'react';
 import { Loader2, Search, Plus, RefreshCw } from 'lucide-react';
+import { Loader } from '@/components/Common/Loader';
 import {
   showSuccessToast,
   showErrorToast,
@@ -1055,7 +1056,7 @@ const Interface = ({
     ) {
       return (
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <Loader size={40} />
           <p className="text-body-muted">Loading tiles...</p>
         </div>
       );
@@ -1163,7 +1164,7 @@ const Interface = ({
     if (tabData && tabData.tabData && tabData.tabData.name !== activeTabName) {
       return (
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <Loader size={40} />
           <p className="text-body-muted">Switching tabs...</p>
         </div>
       );
@@ -1174,7 +1175,7 @@ const Interface = ({
         <Suspense
           fallback={
             <div className="flex h-full w-full items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader size={24} />
             </div>
           }
         >
@@ -1462,7 +1463,7 @@ const Interface = ({
           },
         }}
       >
-        <div className="relative h-full w-full overflow-hidden">
+        <div className="bg-background/70 relative h-full w-full overflow-hidden">
           {/* New Interface Navigation Sidebar */}
           <InterfaceNav
             interfaceId={interfaceId}
@@ -1499,7 +1500,7 @@ const Interface = ({
           {isBootstrapError && projectQueryParam ? (
             /* Bootstrap Error Screen - Critical data failed to load */
             <div
-              className="absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center bg-background transition-all duration-300"
+              className="bg-background/95 absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center transition-all duration-300"
               style={{ left: 'var(--interface-nav-width, 256px)' }}
             >
               <div className="w-full max-w-md p-6">
@@ -1567,7 +1568,7 @@ const Interface = ({
           ) : isErrorInterfaces && shouldAutoSelectInterface && !showInterfaceSelection ? (
             /* Interface Error Screen - Show when interface fetch fails */
             <div
-              className="absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center bg-background transition-all duration-300"
+              className="bg-background/95 absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center transition-all duration-300"
               style={{ left: 'var(--interface-nav-width, 256px)' }}
             >
               <div className="w-full max-w-md p-6">
@@ -1638,7 +1639,7 @@ const Interface = ({
           ) : effectiveShowProjectSelection ? (
             /* Project Selection Screen - Full viewport, left-aligned */
             <div
-              className="absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center bg-background transition-all duration-300"
+              className="bg-background/95 absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center transition-all duration-300"
               style={{ left: 'var(--interface-nav-width, 256px)' }}
             >
               <div className="w-full max-w-sm p-4">
@@ -1684,7 +1685,7 @@ const Interface = ({
                       );
                     }) || (
                       <div className="text-body py-8 text-center text-muted-foreground">
-                        <Loader2 className="mx-auto mb-2 h-6 w-6 animate-spin" />
+                        <Loader size={24} className="mx-auto mb-2" />
                         <p>Loading projects...</p>
                       </div>
                     )}
@@ -1695,7 +1696,7 @@ const Interface = ({
           ) : showInterfaceSelection ? (
             /* Interface Selection Screen - Full viewport, left-aligned */
             <div
-              className="absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center bg-background transition-all duration-300"
+              className="bg-background/95 absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center transition-all duration-300"
               style={{ left: 'var(--interface-nav-width, 256px)' }}
             >
               <div className="w-full max-w-sm p-4">
@@ -1707,7 +1708,7 @@ const Interface = ({
                   <div className="max-h-[250px] space-y-1 pb-6">
                     {isLoadingInterfacesForSelection ? (
                       <div className="text-body py-8 text-center text-muted-foreground">
-                        <Loader2 className="mx-auto mb-2 h-6 w-6 animate-spin" />
+                        <Loader size={24} className="mx-auto mb-2" />
                         <p>Loading interfaces...</p>
                       </div>
                     ) : interfacesForSelection.length > 0 ? (
@@ -1828,7 +1829,7 @@ const Interface = ({
             >
               <div className="relative h-full min-w-0 flex-1">
                 <ScrollArea ref={pageScrollContainerRef} className="h-full min-w-0 flex-1">
-                  <div className="relative bg-background pt-3" ref={gridRef}>
+                  <div className="relative bg-transparent pt-3" ref={gridRef}>
                     {/* ---------------------------------------------------------
               Top-level Suspense: covers the whole Tabs area so that
               the user sees a Skeleton while the tabs are being loaded
@@ -1836,7 +1837,7 @@ const Interface = ({
                     <Suspense
                       fallback={
                         <div className="flex h-full w-full items-center justify-center">
-                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                          <Loader size={24} />
                         </div>
                       }
                     >
@@ -1858,8 +1859,8 @@ const Interface = ({
 
                             <div className="flex flex-row items-center gap-2">
                               {tabUIState?.resetting && (
-                                <div className="bg-background/90 border-border/50 rounded-lg border p-2 shadow-md backdrop-blur-sm">
-                                  <Loader2 className="animate-spin" />
+                                <div className="bg-card/90 rounded-lg border border-border p-2 shadow-md backdrop-blur-sm">
+                                  <Loader size={24} />
                                 </div>
                               )}
                             </div>
@@ -1928,7 +1929,7 @@ const Interface = ({
                                 <Suspense
                                   fallback={
                                     <div className="flex justify-center">
-                                      <Loader2 className="my-36 animate-spin" />
+                                      <Loader size={24} className="my-36" />
                                     </div>
                                   }
                                 >
@@ -1958,27 +1959,27 @@ const Interface = ({
                                 createTabMutation.isPending ||
                                 updateTabMutation.isPending ? (
                                   <div className="flex justify-center">
-                                    <Loader2 className="my-36 animate-spin" />
+                                    <Loader size={24} className="my-36" />
                                   </div>
                                 ) : activeTabName !== tabName ? (
                                   <div className="flex justify-center">
                                     {/* Show different indicator for pending tab switch */}
                                     {pendingTabChange === tabName ? (
                                       <div className="flex flex-col items-center justify-center gap-2">
-                                        <Loader2 className="my-36 animate-spin" />
+                                        <Loader size={24} className="my-36" />
                                         <div className="text-body text-muted-foreground">
                                           Switching tab...
                                         </div>
                                       </div>
                                     ) : (
-                                      <Loader2 className="my-36 animate-spin" />
+                                      <Loader size={24} className="my-36" />
                                     )}
                                   </div>
                                 ) : (
                                   <Suspense
                                     fallback={
                                       <div className="flex h-full w-full items-center justify-center">
-                                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                        <Loader size={24} />
                                       </div>
                                     }
                                   >
@@ -2020,7 +2021,7 @@ const Interface = ({
                                                 return (
                                                   <>
                                                     <div
-                                                      className={`h-2 w-2 rounded-full bg-green-500 ${isComplete ? '' : 'animate-pulse'}`}
+                                                      className={`h-2 w-2 rounded-full bg-[var(--role-green)] ${isComplete ? '' : 'animate-pulse'}`}
                                                     ></div>
                                                     <span>
                                                       Prefetched: {totalPrefetched}/
@@ -2090,7 +2091,7 @@ const Interface = ({
                     {/* Bootstrap/global fetch error overlay */}
                     {isProjectTreeError && (
                       <div className="bg-background/80 fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-sm">
-                        <div className="w-[min(520px,92vw)] rounded-lg border bg-card p-5 shadow-lg">
+                        <div className="w-[min(520px,92vw)] rounded-xl border bg-card p-5 shadow-lg">
                           <div className="flex items-start gap-3">
                             <div className="mt-0.5 text-destructive">⚠️</div>
                             <div className="flex-1">
@@ -2129,7 +2130,7 @@ const Interface = ({
                           <Suspense
                             fallback={
                               <div className="flex items-center justify-center">
-                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                <Loader size={24} />
                               </div>
                             }
                           >
@@ -2155,7 +2156,7 @@ const Interface = ({
                       <Suspense
                         fallback={
                           <div className="flex h-16 w-full items-center justify-center">
-                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                            <Loader size={20} />
                           </div>
                         }
                       >

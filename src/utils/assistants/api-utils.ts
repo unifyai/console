@@ -1,33 +1,64 @@
+import { formatValidationDetail } from '@/utils/orchestra-error';
+import { isStagingEnvironment } from '@/lib/environment/comms-env';
+
+export { isStagingEnvironment };
+
+function cleanUrl(url?: string | null): string {
+  return String(url || '')
+    .trim()
+    .replace(/\/+$/, '');
+}
+
 /**
- * Returns the service-name prefix for the unity-adapters Cloud Run host.
+ * Returns the base URL for internal Next API calls from server actions.
  *
- * Priority:
- *   1. deploy_env === 'preview' → 'preview-'
- *   2. ORCHESTRA_URL contains 'staging' (or localhost for some callers) → 'staging-'
- *   3. Otherwise → '' (production)
+ * Preview revisions inject NEXT_PUBLIC_APP_URL with the tagged console host.
+ * Falling back to NEXTAUTH_URL preserves canonical behavior for staging/prod.
  */
-export function getAdaptersPrefix(deployEnv?: string | null, isStaging?: boolean): string {
-  if (deployEnv === 'preview') return 'preview-';
-  return isStaging ? 'staging-' : '';
+export function getInternalApiBaseUrl(): string {
+  const publicAppUrl = cleanUrl(process.env.NEXT_PUBLIC_APP_URL);
+  if (publicAppUrl) {
+    return publicAppUrl;
+  }
+
+  const nextAuthUrl = cleanUrl(process.env.NEXTAUTH_URL);
+  if (nextAuthUrl) {
+    return nextAuthUrl;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('NEXT_PUBLIC_APP_URL or NEXTAUTH_URL must be set for internal API calls.');
+  }
+  return 'http://localhost:3000';
+}
+
+/**
+ * Returns the adapters base URL for server-side dispatch to Communication.
+ *
+ * Resolution order:
+ *   1. params.localAdaptersUrl  - explicit override for local stacks
+ *   2. UNITY_ADAPTERS_URL       - per-environment host (staging vs production)
+ *
+ * There is intentionally no baked-in default: each environment must set
+ * UNITY_ADAPTERS_URL so the Cloud Run host is never hardcoded in source.
+ */
+export function getAdaptersBaseUrl(params?: { localAdaptersUrl?: string | null }): string {
+  const explicitLocalAdaptersUrl = cleanUrl(params?.localAdaptersUrl);
+  if (explicitLocalAdaptersUrl) {
+    return explicitLocalAdaptersUrl;
+  }
+
+  const configuredAdaptersUrl = cleanUrl(process.env.UNITY_ADAPTERS_URL);
+  if (configuredAdaptersUrl) {
+    return configuredAdaptersUrl;
+  }
+
+  throw new Error(
+    'UNITY_ADAPTERS_URL is not set. Configure it per environment ' +
+      '(staging vs production adapters host), or pass localAdaptersUrl for local stacks.'
+  );
 }
 
 export function formatFastApiError(detail: any): string {
-  if (typeof detail === 'string') {
-    return detail;
-  }
-  if (Array.isArray(detail)) {
-    return detail
-      .map((err: any) => {
-        const field =
-          err.loc && err.loc.length > 1
-            ? err.loc.slice(1).join('.')
-            : (err.loc && err.loc[0]) || 'body';
-        return `${field}: ${err.msg}`;
-      })
-      .join('; ');
-  }
-  if (typeof detail === 'object' && detail !== null) {
-    return JSON.stringify(detail); // Fallback for other object structures
-  }
-  return 'Unknown validation error.';
+  return formatValidationDetail(detail) ?? 'Unknown validation error.';
 }

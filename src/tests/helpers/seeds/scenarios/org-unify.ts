@@ -25,6 +25,7 @@ import {
   createAssistant,
   createEmailLogin,
   seedChatInfrastructure,
+  seedCoordinatorChatForUsers,
 } from '../client';
 
 export async function seedOrgAndOutsider(): Promise<SeededState> {
@@ -64,6 +65,12 @@ export async function seedOrgAndOutsider(): Promise<SeededState> {
     assistantId: personalAssistant.agentId,
     email: outsider.email,
   });
+
+  // Both workspaces (org-owner's personal + outsider's personal) get
+  // a Coordinator. The outsider's Coordinator should be invisible
+  // inside the org, which is exactly what we want for the access
+  // boundary tests this scenario backs.
+  await seedCoordinatorChatForUsers([owner, outsider]);
 
   return {
     users: { owner, outsider },

@@ -1,7 +1,14 @@
 import * as React from 'react';
 import { Input } from '@/components/UI/input';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { Search, WifiOff, UserPlus, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import {
+  Search,
+  WifiOff,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Building2,
+  UsersRound,
+} from 'lucide-react';
 import type { Assistant, AssistantStatus } from '@/types/assistants/assistant';
 import type { ContactType } from '@/types/assistants/contact';
 import { AssistantListItem } from './AssistantListItem';
@@ -9,6 +16,64 @@ import { AssistantListItemSkeleton } from './AssistantListItemSkeleton';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
+import {
+  type CoordinatorWorkspaceScope,
+  resolveCanonicalWorkspaceCoordinator,
+} from '@/lib/assistants/coordinatorIdentity';
+import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
+import { AssistantListGroupHeader } from './AssistantListGroupHeader';
+import {
+  groupAssistantsByTeam,
+  type AssistantListEntry,
+  type AssistantListGroup,
+} from './assistantListGroups';
+
+const LIST_GROUP_FOLDS_STORAGE_KEY = 'console:assistants:listGroupFolds';
+
+function OnboardPlusIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M12 4.5v15M4.5 12h15"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth={2.4}
+      />
+    </svg>
+  );
+}
+
+function DroidOnboardIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M4.5 7h8.2v2.5H15v4h-2.3v5H9.8v-3.6H7.4v3.6H4.5v-5H2.2v-4h2.3V7Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.65}
+      />
+      <path
+        d="M20.5 5.5V11M23.25 8.25h-5.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth={1.8}
+      />
+    </svg>
+  );
+}
 
 interface AssistantListProps {
   assistants: Assistant[];
@@ -22,6 +87,9 @@ interface AssistantListProps {
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager: (assistant: Assistant) => void;
   onEditAssistant: (assistant: Assistant) => void;
+  /** Opens the desktop linker for an assistant. Surfaced as a row
+   *  dropdown entry only for assistants the current user owns. */
+  onConnectDesktop?: (assistant: Assistant) => void;
   onEndContract?: (assistant: Assistant) => Promise<void>;
   canEndContract?: (assistant: Assistant) => boolean;
   /**
@@ -44,6 +112,9 @@ interface AssistantListProps {
    * multiplex stream. A missing key or `0` means no badge is shown.
    */
   unreadCounts?: Record<string, number>;
+  currentUserId?: string | null;
+  workspace: CoordinatorWorkspaceScope;
+  teamsById: Record<number, SharedTeamSummary>;
 }
 
 export function AssistantList({
@@ -58,6 +129,7 @@ export function AssistantList({
   onOpenContactManager,
   onOpenWorkspaceManager,
   onEditAssistant,
+  onConnectDesktop,
   onEndContract,
   canEndContract,
   canEditAssistant,
@@ -67,14 +139,19 @@ export function AssistantList({
   canHire = true,
   onToggleFold,
   unreadCounts,
+  currentUserId = null,
+  workspace,
+  teamsById,
 }: AssistantListProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [foldedGroups, setFoldedGroups] = React.useState<Record<string, boolean>>({});
 
   const filteredAssistants = React.useMemo(() => {
     if (!searchTerm) return assistants;
     const lowerSearchTerm = searchTerm.toLowerCase();
     return assistants.filter(
       (a) =>
+        (a.isCoordinator === true && 'marty'.includes(lowerSearchTerm)) ||
         (a.firstName &&
           a.surname &&
           `${a.firstName} ${a.surname}`.toLowerCase().includes(lowerSearchTerm)) ||
@@ -82,17 +159,303 @@ export function AssistantList({
     );
   }, [assistants, searchTerm]);
 
+  const canonicalCoordinatorId = React.useMemo(
+    () =>
+      resolveCanonicalWorkspaceCoordinator(filteredAssistants, currentUserId, workspace)?.agentId ??
+      null,
+    [filteredAssistants, currentUserId, workspace]
+  );
+
+  const assistantGroups = React.useMemo(
+    () =>
+      groupAssistantsByTeam(filteredAssistants, teamsById, {
+        pinnedCoordinatorId: canonicalCoordinatorId,
+      }),
+    [canonicalCoordinatorId, filteredAssistants, teamsById]
+  );
+
+  const foldedAssistantRows = React.useMemo(() => {
+    if (!isFolded) {
+      return { assistants: filteredAssistants, coordinatorCount: 0 };
+    }
+
+    const coordinatorRows: Assistant[] = [];
+    const regularRows: Assistant[] = [];
+    filteredAssistants.forEach((assistant) => {
+      if (assistant.isCoordinator && assistant.agentId === canonicalCoordinatorId) {
+        coordinatorRows.push(assistant);
+      } else {
+        regularRows.push(assistant);
+      }
+    });
+
+    if (coordinatorRows.length === 0) {
+      return { assistants: filteredAssistants, coordinatorCount: 0 };
+    }
+
+    return {
+      assistants: [...coordinatorRows, ...regularRows],
+      coordinatorCount: coordinatorRows.length,
+    };
+  }, [canonicalCoordinatorId, filteredAssistants, isFolded]);
+
+  React.useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(LIST_GROUP_FOLDS_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as Record<string, unknown>;
+        if (parsed && typeof parsed === 'object') {
+          setFoldedGroups(
+            Object.fromEntries(
+              Object.entries(parsed).filter((entry): entry is [string, boolean] => {
+                return typeof entry[1] === 'boolean';
+              })
+            )
+          );
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const persistFoldedGroups = React.useCallback((nextFoldedGroups: Record<string, boolean>) => {
+    try {
+      window.localStorage.setItem(LIST_GROUP_FOLDS_STORAGE_KEY, JSON.stringify(nextFoldedGroups));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const toggleGroupFold = React.useCallback(
+    (groupId: string) => {
+      setFoldedGroups((current) => {
+        const next = {
+          ...current,
+          [groupId]: !current[groupId],
+        };
+        persistFoldedGroups(next);
+        return next;
+      });
+    },
+    [persistFoldedGroups]
+  );
+
   const canHireNewAssistant = !assistantError;
   // Hide hire button if user doesn't have permission (org members who aren't Owner)
   const showHireButton = canHire;
   const isHireButtonDisabled = isLoading || !canHireNewAssistant;
 
+  const renderAssistantRow = React.useCallback(
+    (entry: AssistantListEntry, key: string) => {
+      const item = (
+        <AssistantListItem
+          key={key}
+          assistant={entry.assistant}
+          status={assistantStatuses.get(entry.assistant.agentId) || null}
+          isSelected={profileAssistantId === entry.assistant.agentId}
+          onShowProfile={onShowProfile}
+          onOpenContactManager={onOpenContactManager}
+          onOpenWorkspaceManager={onOpenWorkspaceManager}
+          onEditAssistant={onEditAssistant}
+          onConnectDesktop={
+            currentUserId && entry.assistant.userId === currentUserId ? onConnectDesktop : undefined
+          }
+          onEndContract={canEndContract?.(entry.assistant) ? onEndContract : undefined}
+          canEdit={canEditAssistant ? canEditAssistant(entry.assistant) : true}
+          isFolded={isFolded}
+          isCallActive={activeCallAssistantId === entry.assistant.agentId}
+          unreadCount={unreadCounts?.[entry.assistant.agentId] ?? 0}
+          isPrimary={entry.isPrimaryTeamListing}
+          alsoInTeamLabels={entry.alsoInTeamLabels}
+        />
+      );
+
+      return item;
+    },
+    [
+      activeCallAssistantId,
+      assistantStatuses,
+      canEditAssistant,
+      canEndContract,
+      currentUserId,
+      isFolded,
+      onConnectDesktop,
+      onEditAssistant,
+      onEndContract,
+      onOpenContactManager,
+      onOpenWorkspaceManager,
+      onShowProfile,
+      profileAssistantId,
+      unreadCounts,
+    ]
+  );
+
+  const renderFlatAssistants = React.useCallback(() => {
+    const renderedRows: React.ReactNode[] = [];
+    const { assistants: flatAssistants, coordinatorCount } = foldedAssistantRows;
+
+    flatAssistants.forEach((assistant, index) => {
+      renderedRows.push(
+        renderAssistantRow(
+          {
+            assistant,
+            isPrimaryTeamListing: true,
+            alsoInTeamLabels: [],
+          },
+          assistant.agentId
+        )
+      );
+
+      if (
+        isFolded &&
+        coordinatorCount > 0 &&
+        index === coordinatorCount - 1 &&
+        flatAssistants.length > coordinatorCount
+      ) {
+        renderedRows.push(
+          <div
+            key="coordinator-divider"
+            role="separator"
+            aria-orientation="horizontal"
+            data-testid="coordinator-divider"
+            className="my-1 h-px w-6 bg-border"
+          />
+        );
+      }
+    });
+
+    return renderedRows;
+  }, [foldedAssistantRows, isFolded, renderAssistantRow]);
+
+  const renderGroup = React.useCallback(
+    (group: AssistantListGroup) => {
+      const isGroupFolded = foldedGroups[group.id] === true;
+      const description = group.kind === 'team' ? teamsById[group.teamId]?.description : null;
+      const subtitle = group.kind === 'team' ? description?.trim() || 'Shared team' : null;
+      return (
+        <div
+          key={group.id}
+          className={cn('min-w-0', group.kind === 'team' && 'space-y-1')}
+          data-testid={`assistant-list-group-${group.id}`}
+        >
+          <AssistantListGroupHeader
+            label={group.label}
+            isFolded={isGroupFolded}
+            onToggleFold={() => toggleGroupFold(group.id)}
+            description={description}
+            variant={group.kind === 'team' ? 'workspace' : 'group'}
+            subtitle={subtitle}
+            icon={
+              group.kind === 'team' ? (
+                <Building2 className="h-4 w-4" aria-hidden="true" />
+              ) : undefined
+            }
+            badgeLabel={group.kind === 'team' ? 'Team' : undefined}
+          />
+          {!isGroupFolded && (
+            <div className={cn('min-w-0 space-y-1 pt-1', group.kind === 'team' && 'pl-3')}>
+              {group.rows.map((entry) =>
+                renderAssistantRow(entry, `${group.id}:${entry.assistant.agentId}`)
+              )}
+            </div>
+          )}
+        </div>
+      );
+    },
+    [foldedGroups, renderAssistantRow, teamsById, toggleGroupFold]
+  );
+
+  const renderSection = React.useCallback(
+    (
+      sectionId: string,
+      label: string,
+      count: number,
+      children: React.ReactNode,
+      testId: string,
+      options: { icon?: React.ReactNode } = {}
+    ) => {
+      const isSectionFolded = foldedGroups[sectionId] === true;
+      return (
+        <div key={sectionId} data-testid={testId} className="min-w-0 max-w-full">
+          <AssistantListGroupHeader
+            label={label}
+            isFolded={isSectionFolded}
+            onToggleFold={() => toggleGroupFold(sectionId)}
+            variant="section"
+            icon={options.icon}
+          />
+          {!isSectionFolded && <div className="min-w-0 space-y-2 pt-1">{children}</div>}
+        </div>
+      );
+    },
+    [foldedGroups, toggleGroupFold]
+  );
+
+  const shouldRenderFlatList =
+    isFolded || (assistantGroups.length === 1 && assistantGroups[0].kind === 'solo');
+  const pinnedGroup = assistantGroups.find((group) => group.kind === 'pinned');
+  const teamGroups = assistantGroups.filter((group) => group.kind === 'team');
+  const soloGroup = assistantGroups.find((group) => group.kind === 'solo');
+  const hasPinnedRows = (pinnedGroup?.rows.length ?? 0) > 0;
+  const hasGroupedRowsBelowCoordinator = teamGroups.length > 0 || !!soloGroup;
+  const soloRows = soloGroup?.rows ?? [];
+  const groupedAssistantList = (
+    <div className="w-full min-w-0 max-w-full space-y-3">
+      {pinnedGroup ? (
+        <div className="min-w-0 space-y-1" data-testid="assistant-list-group-pinned">
+          {pinnedGroup.rows.map((entry) =>
+            renderAssistantRow(entry, `${pinnedGroup.id}:${entry.assistant.agentId}`)
+          )}
+        </div>
+      ) : null}
+      {hasPinnedRows && hasGroupedRowsBelowCoordinator ? (
+        <div
+          role="separator"
+          aria-orientation="horizontal"
+          data-testid="coordinator-divider"
+          className="my-2 border-t border-border"
+        />
+      ) : null}
+      {teamGroups.length > 0
+        ? renderSection(
+            'section:teams',
+            'Teams',
+            teamGroups.length,
+            teamGroups.map(renderGroup),
+            'assistant-list-section-teams',
+            {
+              icon: <UsersRound className="h-3.5 w-3.5" aria-hidden="true" />,
+            }
+          )
+        : null}
+      {soloGroup
+        ? renderSection(
+            'section:solo',
+            'Team',
+            soloRows.length,
+            <div className="min-w-0 space-y-1">
+              {soloRows.map((entry) =>
+                renderAssistantRow(entry, `${soloGroup.id}:${entry.assistant.agentId}`)
+              )}
+            </div>,
+            'assistant-list-section-solo'
+          )
+        : null}
+    </div>
+  );
+
   return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-background">
+    <div className="relative flex h-full flex-col overflow-hidden bg-transparent">
       {/* Header: Search Bar + New Assistant Button */}
-      <div className="flex-shrink-0 overflow-hidden border-b px-3 py-2">
+      <div
+        className={cn(
+          'flex-shrink-0 overflow-hidden border-b border-border bg-card px-3',
+          isFolded ? 'py-1' : 'py-2'
+        )}
+      >
         {isFolded ? (
-          <div className="flex min-h-7 items-center justify-center">
+          <div className="flex h-9 items-center justify-center">
             {showHireButton && (
               <div className="hidden md:flex">
                 <TooltipProvider delayDuration={100}>
@@ -106,11 +469,11 @@ export function AssistantList({
                         disabled={isHireButtonDisabled}
                         aria-disabled={isHireButtonDisabled}
                       >
-                        <UserPlus className="h-4 w-4" />
+                        <OnboardPlusIcon className="h-6 w-6" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="right">
-                      <p>Hire new assistant</p>
+                      <p>Onboard new droid</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -123,7 +486,7 @@ export function AssistantList({
               <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search..."
+                placeholder="Search"
                 className="h-7 w-full pl-7 text-xs"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -139,8 +502,8 @@ export function AssistantList({
                 disabled={isHireButtonDisabled}
                 aria-disabled={isHireButtonDisabled}
               >
-                <UserPlus className="h-4 w-4" />
-                New
+                <DroidOnboardIcon className="h-5 w-5" />
+                Onboard
               </Button>
             )}
           </div>
@@ -148,10 +511,19 @@ export function AssistantList({
       </div>
 
       {/* Content Area: Loading Skeletons, Error, or List */}
-      <ScrollArea className="flex-1">
+      <ScrollArea
+        className={cn(
+          'flex-1',
+          // Radix wraps viewport children in `display:table`, which sizes to the
+          // widest intrinsic row (e.g. long workspace descriptions). That pushes
+          // the scroll surface wider than the sidebar and clips right-side actions.
+          !isFolded &&
+            '[&>[data-radix-scroll-area-viewport]>div]:!block [&>[data-radix-scroll-area-viewport]]:overflow-x-hidden'
+        )}
+      >
         <div
           className={cn(
-            'space-y-1 px-2 py-2',
+            'w-full min-w-0 max-w-full space-y-1 overflow-x-hidden px-2 py-2',
             isFolded && 'flex flex-col items-center space-y-3 px-3 py-3'
           )}
         >
@@ -169,23 +541,11 @@ export function AssistantList({
               )}
             </div>
           ) : filteredAssistants.length > 0 ? (
-            filteredAssistants.map((assistant) => (
-              <AssistantListItem
-                key={assistant.agentId}
-                assistant={assistant}
-                status={assistantStatuses.get(assistant.agentId) || null}
-                isSelected={profileAssistantId === assistant.agentId}
-                onShowProfile={onShowProfile}
-                onOpenContactManager={onOpenContactManager}
-                onOpenWorkspaceManager={onOpenWorkspaceManager}
-                onEditAssistant={onEditAssistant}
-                onEndContract={canEndContract?.(assistant) ? onEndContract : undefined}
-                canEdit={canEditAssistant ? canEditAssistant(assistant) : true}
-                isFolded={isFolded}
-                isCallActive={activeCallAssistantId === assistant.agentId}
-                unreadCount={unreadCounts?.[assistant.agentId] ?? 0}
-              />
-            ))
+            shouldRenderFlatList ? (
+              renderFlatAssistants()
+            ) : (
+              groupedAssistantList
+            )
           ) : searchTerm && !isFolded ? (
             <p className="text-body p-4 text-center text-muted-foreground">
               No assistants match filters.

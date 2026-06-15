@@ -2,12 +2,14 @@ import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Volume2, Loader2, Square, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
 import { Attachment } from '@/types/assistants/chat';
 import { ChatMarkdown } from './ChatMarkdown';
 import { RenderContentWithEmbeds, containsEmbedUrl } from './InlineEmbed';
 import { MessageAttachmentList } from './ChatAttachments';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { TooltipContent, Tooltip, TooltipTrigger, TooltipProvider } from '@/components/UI/tooltip';
+import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 
 type ChatBubbleVariant = 'profile' | 'hire';
 
@@ -66,6 +68,7 @@ interface ChatMessageBubbleProps {
   isUser?: boolean;
   assistantPhoto?: string | null;
   assistantName?: string;
+  isCoordinator?: boolean;
   isLoading?: boolean;
   timestamp?: Date;
   timezone?: string | null;
@@ -90,6 +93,7 @@ function ChatMessageBubbleImpl({
   isUser,
   assistantPhoto,
   assistantName,
+  isCoordinator = false,
   isLoading,
   timestamp,
   timezone,
@@ -107,6 +111,8 @@ function ChatMessageBubbleImpl({
 
   const timeString = timestamp ? formatMessageTime(timestamp, timezone) : null;
   const isProfile = variant === 'profile';
+  const isTypingIndicator = !isUser && isLoading && !message;
+  const assistantAvatarClassName = 'h-7 w-7 flex-shrink-0';
 
   // Copy lives on the message header row so it sits next to the audio
   // affordance with matching geometry. Disabled while the bubble is
@@ -116,10 +122,10 @@ function ChatMessageBubbleImpl({
     text: message,
     copyMessage: 'Message copied',
   });
-  const canCopy = !isUser && !!message && !(isLoading && !message);
+  const canCopy = !isUser && !!message && !isTypingIndicator;
 
   const bubbleContent = () => {
-    if (!isUser && isLoading && !message) {
+    if (isTypingIndicator) {
       return (
         <div className="text-body-muted flex items-center gap-1.5">
           <span className="text-caption">Typing</span>
@@ -158,7 +164,7 @@ function ChatMessageBubbleImpl({
         <div
           className={cn(
             'flex min-w-0 flex-col gap-2',
-            isProfile ? 'max-w-[85%] md:max-w-[55%]' : 'max-w-[85%]'
+            isProfile ? 'max-w-[85%] md:max-w-[66.6667%]' : 'max-w-[85%]'
           )}
         >
           {attachments && attachments.length > 0 && (
@@ -192,13 +198,23 @@ function ChatMessageBubbleImpl({
       data-testid={isProfile ? 'message-bubble' : undefined}
       data-role={isProfile ? 'assistant' : undefined}
       data-index={isProfile ? index : undefined}
-      className={cn('min-w-0', isProfile && 'md:max-w-[55%]')}
+      className={cn('min-w-0', isProfile && 'md:max-w-[66.6667%]')}
     >
       <div className="mb-2.5 flex items-center gap-2">
-        <Avatar className="h-6 w-6 flex-shrink-0 border">
-          <AvatarImage src={assistantPhoto ?? undefined} alt={assistantName} />
-          <AvatarFallback className="text-[10px]">{fallback}</AvatarFallback>
-        </Avatar>
+        {isCoordinator ? (
+          <CoordinatorLogoAvatar className={assistantAvatarClassName} logoClassName="h-7 w-7" />
+        ) : parseCreatureSentinel(assistantPhoto) ? (
+          <CreatureAvatar
+            appearance={assistantPhoto as string}
+            className={cn(assistantAvatarClassName, 'rounded-full border')}
+            label={assistantName}
+          />
+        ) : (
+          <Avatar className={cn(assistantAvatarClassName, 'border')}>
+            <AvatarImage src={assistantPhoto ?? undefined} alt={assistantName} />
+            <AvatarFallback className="text-[10px]">{fallback}</AvatarFallback>
+          </Avatar>
+        )}
         <span className="text-body-muted font-medium">{assistantName}</span>
         {timeString && (
           <time className="text-[10px] leading-none text-muted-foreground">{timeString}</time>

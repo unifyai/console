@@ -12,11 +12,12 @@
 'use client';
 
 import * as React from 'react';
-import { AlertCircle, Info } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { Skeleton } from '@/components/UI/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { SpendingProgressBar } from './SpendingProgressBar';
 import { SpendingLimitDialog } from './SpendingLimitDialog';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
@@ -147,7 +148,7 @@ export function AssistantSpendingSection({
         <TooltipProvider delayDuration={200}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Info className="text-label h-3.5 w-3.5 cursor-help" />
+              <InfoSquareButton />
             </TooltipTrigger>
             <TooltipContent side="right" className="text-label max-w-xs">
               <p>

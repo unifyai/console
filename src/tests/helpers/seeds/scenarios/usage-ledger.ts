@@ -29,6 +29,7 @@ import {
   createAssistant,
   createEmailLogin,
   seedChatInfrastructure,
+  seedCoordinatorChatForUsers,
   dbExec,
   dbExecBlock,
 } from '../client';
@@ -154,6 +155,10 @@ export async function seedUsageLedger(): Promise<SeededState> {
   const baId = dbExec(`SELECT billing_account_id FROM "user" WHERE id = '${owner.id}'`);
 
   seedTransactions(owner.id, baId);
+
+  // Coordinator chat (auto-provisioned by createUser) — wire so the
+  // Coordinator can be exercised alongside the ledger UI.
+  await seedCoordinatorChatForUsers([owner]);
 
   return {
     users: { owner },

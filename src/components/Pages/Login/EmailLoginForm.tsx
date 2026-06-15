@@ -8,6 +8,7 @@ import { PasswordInput } from '@/components/Common/Input/Password';
 import TurnstileWidget, { TurnstileWidgetHandle } from '@/components/Common/Auth/TurnstileWidget';
 import PasswordStrengthIndicator from '@/components/Common/Auth/PasswordStrengthIndicator';
 import { getPasswordError } from '@/lib/auth/password';
+import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import VerificationCodeInput from './VerificationCodeInput';
 import ForgotPasswordForm from './ForgotPasswordForm';
 
@@ -22,6 +23,15 @@ type EmailView = 'login' | 'register' | 'verify' | 'forgot-password';
  * preview revisions whose canonical `NEXTAUTH_URL` points elsewhere).
  * Navigating same-origin keeps the freshly-minted session cookie in scope.
  */
+async function triggerSelfHostCoordinatorStart(selfHost: boolean) {
+  if (!selfHost) return;
+  try {
+    await fetch('/api/self-host/start-coordinator', { method: 'POST' });
+  } catch {
+    // Non-blocking — bootstrap on app load retries for returning sessions.
+  }
+}
+
 function sameOriginRedirect(callbackUrl: string | undefined): string {
   const origin = window.location.origin;
   if (!callbackUrl) return `${origin}/`;
@@ -51,7 +61,11 @@ const formatProviderError = (providers: string[]): string => {
 };
 
 const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => {
-  const [view, setView] = useState<EmailView>('login');
+  const { captcha: captchaEnabled } = useFeatures();
+  const { isSelfHost: selfHost } = useEnvironment();
+  // Self-host has no SSO and auto-verifies accounts (no SMTP), so creating the
+  // account is the primary first action — open directly on the register view.
+  const [view, setView] = useState<EmailView>(selfHost ? 'register' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -96,18 +110,52 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
       const data = await res.json();
 
       if (!res.ok) {
-        if (data.providers && !data.providers.includes('email')) {
+        if (data.providers?.length && !data.providers.includes('email')) {
           setError(formatProviderError(data.providers));
         } else {
           setError(data.message || data.detail || 'Registration failed');
         }
-        // Reset CAPTCHA widget so the next attempt gets a fresh token
         captchaRef.current?.reset();
         setIsLoading(false);
         return;
       }
 
-      // Success — show verification code input
+      const requiresVerification = data.requiresVerification ?? data.requires_verification ?? true;
+
+      if (requiresVerification === false) {
+        const preRes = await fetch('/api/auth/email/authenticate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const preData = await preRes.json();
+        if (!preRes.ok) {
+          setError(
+            preData.message || preData.detail?.message || 'Account created but sign-in failed'
+          );
+          setIsLoading(false);
+          return;
+        }
+
+        const result = await signIn('credentials', {
+          email,
+          password,
+          preAuthToken: preData.preAuthToken,
+          redirect: false,
+          callbackUrl: callbackUrl ?? '/',
+        });
+
+        if (result?.error) {
+          setError('Account created but sign-in failed. Try signing in manually.');
+          setIsLoading(false);
+          return;
+        }
+
+        await triggerSelfHostCoordinatorStart(selfHost);
+        window.location.href = sameOriginRedirect(callbackUrl);
+        return;
+      }
+
       setView('verify');
     } catch {
       setError('Network error. Please try again.');
@@ -135,12 +183,14 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
       const preData = await preRes.json();
 
       if (!preRes.ok) {
-        if (preData.providers) {
-          setError(formatProviderError(preData.providers));
-        } else if (preData.error === 'invalid_credentials') {
+        const detail =
+          typeof preData?.detail === 'object' && preData.detail !== null ? preData.detail : preData;
+        if (detail.providers?.length) {
+          setError(formatProviderError(detail.providers));
+        } else if (detail.error === 'invalid_credentials') {
           setError('Invalid email or password.');
         } else {
-          setError(preData.message || 'Login failed');
+          setError(detail.message || detail.error || 'Login failed');
         }
         setIsLoading(false);
         return;
@@ -162,6 +212,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
         return;
       }
 
+      await triggerSelfHostCoordinatorStart(selfHost);
       window.location.href = sameOriginRedirect(callbackUrl);
     } catch {
       setError('Network error. Please try again.');
@@ -373,7 +424,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
           {isRegister && <PasswordStrengthIndicator password={password} className="mt-4" />}
         </div>
 
-        {isRegister && (
+        {isRegister && captchaEnabled && (
           <TurnstileWidget
             ref={captchaRef}
             onVerify={handleCaptchaVerify}
@@ -383,7 +434,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
         )}
 
         {error && (
-          <p className="text-sm text-red-500" data-testid="email-auth-error">
+          <p className="text-body text-error" data-testid="email-auth-error">
             {error}
           </p>
         )}
@@ -414,7 +465,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
                 setView('login');
                 setError(undefined);
               }}
-              className="font-semibold transition-colors hover:text-foreground"
+              className="font-semibold text-foreground underline underline-offset-2 transition-colors hover:text-primary"
               data-testid="switch-to-login"
             >
               Sign in
@@ -429,7 +480,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
                 setView('register');
                 setError(undefined);
               }}
-              className="font-semibold transition-colors hover:text-foreground"
+              className="font-semibold text-foreground underline underline-offset-2 transition-colors hover:text-primary"
               data-testid="switch-to-register"
             >
               Create one
