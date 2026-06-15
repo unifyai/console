@@ -96,16 +96,7 @@ export interface AssistantInfoSidePanelContentProps {
     onActNow?: () => void;
     onScheduleTask?: () => void;
     onSkipStep?: (stepId: string) => void;
-    /** Surfaces a "Resume onboarding" CTA at the bottom of the
-     * onboarding sub-tab. Wired only when the Coordinator/State row
-     * is in ``working`` mode — i.e. the user already skipped or
-     * completed onboarding once and we want to offer them a way to
-     * jump back into the gradual flow (which flips ``mode`` back to
-     * ``onboarding`` server-side and re-shows the alternate
-     * /assistants shell). Undefined when there's nothing to resume
-     * (e.g. the user is still in the gradual flow), in which case
-     * the CTA is suppressed. */
-    onResumeOnboarding?: () => void;
+    onUnskipStep?: (stepId: string) => void;
   };
   className?: string;
 }
@@ -252,19 +243,8 @@ function CoordinatorAssistantInfoSidePanelContent({
                   onActNow={coordinatorOnboarding.onActNow}
                   onScheduleTask={coordinatorOnboarding.onScheduleTask}
                   onSkipStep={coordinatorOnboarding.onSkipStep}
+                  onUnskipStep={coordinatorOnboarding.onUnskipStep}
                 />
-                {coordinatorOnboarding.onResumeOnboarding && (
-                  <div className="mt-4 flex justify-end">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={coordinatorOnboarding.onResumeOnboarding}
-                      data-testid="coordinator-onboarding-resume"
-                    >
-                      Resume onboarding →
-                    </Button>
-                  </div>
-                )}
               </TabsContent>
             )}
             <TabsContent value="contact" className="mt-0">

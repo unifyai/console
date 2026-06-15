@@ -322,12 +322,13 @@ async function dismissCoordinatorOnboardingIfOpen(page: import('@playwright/test
   if (!(await pickChat.isVisible({ timeout: 10_000 }).catch(() => false))) {
     return;
   }
+  // Picking chat tears the intro overlay down, dropping us into the
+  // regular platform with the Coordinator selected.
   await pickChat.click();
-  const skip = page.getByTestId('coordinator-onboarding-skip');
-  if (await skip.isVisible({ timeout: 10_000 }).catch(() => false)) {
-    await skip.click();
-    await page.waitForTimeout(1_000);
-  }
+  await page
+    .getByTestId('coordinator-onboarding')
+    .waitFor({ state: 'hidden', timeout: 10_000 })
+    .catch(() => {});
 }
 
 async function selectAssistantAndOpenMemory(

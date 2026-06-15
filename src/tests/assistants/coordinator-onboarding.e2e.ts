@@ -1,33 +1,29 @@
 /**
  * Coordinator onboarding E2E.
  *
- * Verifies the guided alternate view of /assistants rendered while
- * the workspace Coordinator's state is in ``onboarding`` mode:
+ * The dedicated onboarding "mode" (an alternate /assistants shell with
+ * no assistant list) has been removed. What remains is a transient
+ * intro overlay shown on a fresh ``onboarding`` visit:
  *
- *   - The unskippable call-vs-chat picker shows on a fresh visit
- *   - Choosing "Start Call" shows the Marty intro before docking
- *     the real call surface, and hanging up continues in chat
- *   - The skip-onboarding affordance is suppressed until the user
- *     has answered the picker
- *   - Choosing "I'd rather text for now" reveals the chat surface
- *     and exposes the skip affordance
+ *   - The call-vs-chat picker shows on a fresh visit, with no skip
+ *     affordance (the picker is the only gate, and it's lightweight).
+ *   - Choosing "I'd rather text for now" tears the overlay down and
+ *     drops the user into the regular platform (assistant list +
+ *     right pane) with the Coordinator selected and the onboarding
+ *     checklist living in its "Assistant info" panel.
+ *   - Choosing "Start Call" plays the Marty intro, then lands in the
+ *     regular platform with the call docked in the Coordinator's
+ *     right pane.
  *   - Resolving the picker persists ``intro_watched`` on the
- *     Coordinator/State row, so a reload skips the ringing picker /
- *     auto-playing intro and lands directly on the working layout
- *   - The "Replay intro" affordance re-runs the intro on demand
- *     (no picker, no ringing)
- *   - Skipping promotes the workspace Coordinator to ``working`` and
- *     the regular /assistants shell takes over, including after a
- *     reload
+ *     Coordinator/State row, so a reload skips the picker / intro and
+ *     lands directly on the regular platform.
+ *   - There is no "Skip onboarding" or "Resume onboarding" affordance
+ *     anywhere.
  *
  * These tests share one workspace coordinator and run serially. Since
  * ``intro_watched`` is one-way sticky on the row, picker-expecting
  * tests call ``resetCoordinatorIntroWatched`` first to restore the
- * fresh ringing picker.
- *
- * The tests run serially against a single fresh user because the
- * promotion is one-way per workspace — once promoted, we'd need to
- * provision a new workspace to revisit onboarding.
+ * fresh picker.
  *
  * Run: npx playwright test src/tests/assistants/coordinator-onboarding.e2e.ts
  */
@@ -76,14 +72,24 @@ async function expectPickerVisible(page: Page) {
   await expect(page.getByTestId('coordinator-onboarding-pick-chat')).toBeVisible();
 }
 
+/** Open the Coordinator's "Assistant info" panel onboarding sub-tab. */
+async function openOnboardingChecklist(page: Page) {
+  const onboardingTab = page.getByTestId('assistant-info-tab-onboarding');
+  if (!(await onboardingTab.isVisible({ timeout: 5_000 }).catch(() => false))) {
+    await page.getByTestId('assistant-info-button').click();
+    await expect(onboardingTab).toBeVisible({ timeout: 10_000 });
+  }
+  await onboardingTab.click();
+}
+
 /**
- * Restore the fresh ringing picker on the shared workspace coordinator.
+ * Restore the fresh picker on the shared workspace coordinator.
  *
  * Resolving the picker latches ``intro_watched`` on the latest
  * Coordinator/State row (one-way sticky through the API). These serial
  * tests reuse a single coordinator, so picker-expecting tests clear the
  * flag on that row directly — mode stays ``onboarding`` so the next
- * visit rings the picker exactly like a first-time user.
+ * visit shows the picker exactly like a first-time user.
  */
 function resetCoordinatorIntroWatched() {
   dbExec(
@@ -107,59 +113,53 @@ function readPersistedIntroWatched(): string {
   );
 }
 
-test('picker shows on first visit and hides the skip affordance', async ({ authedPage: page }) => {
+test('picker shows on first visit with no skip or resume affordance', async ({
+  authedPage: page,
+}) => {
   resetCoordinatorIntroWatched();
   await gotoAssistants(page);
   await expectPickerVisible(page);
 
-  // The picker is intentionally unskippable: until the user answers
-  // call-or-chat there is no Skip button.
+  // The skip / resume affordances were removed with the dedicated
+  // onboarding mode — neither exists anywhere now.
   await expect(page.getByTestId('coordinator-onboarding-skip')).toHaveCount(0);
+  await expect(page.getByTestId('coordinator-onboarding-resume')).toHaveCount(0);
 });
 
-test('a workspace connected in an earlier session pre-completes the checklist step', async ({
+test('picking chat lands in the full platform with the checklist in Assistant info', async ({
   authedPage: page,
 }) => {
-  // Simulate an earlier session's workspace OAuth: a BYOD email
-  // contact lands on the coordinator row directly, with no transition
-  // event fired this session. Orchestra derives the ``workspace``
-  // step as complete from this row on the Coordinator/State read, so
-  // the checklist must show it done from the very first render — the
-  // historical failure mode was Marty (and the
-  // checklist, briefly) telling the user to connect a workspace that
-  // was already connected.
+  // Simulate an earlier session's workspace OAuth so the checklist has a
+  // pre-completed step to show — Orchestra derives the ``workspace`` step
+  // as done from the BYOD email contact on the Coordinator/State read.
   const coordinator = createPersonalCoordinator(user.id);
   connectWorkspaceEmail({ assistantId: coordinator.agentId });
   resetCoordinatorIntroWatched();
-
-  // Pin the durable signal the derivation reads: an active,
-  // user-provisioned email contact with a provider.
-  const contactCount = dbExec(
-    `SELECT COUNT(*) FROM assistant_contacts WHERE assistant_id = ${coordinator.agentId} ` +
-      `AND contact_type = 'email' AND provisioned_by = 'user' AND status = 'active' ` +
-      `AND provider IS NOT NULL;`
-  );
-  expect(parseInt(contactCount, 10)).toBeGreaterThan(0);
 
   await gotoAssistants(page);
   await expectPickerVisible(page);
   await page.getByTestId('coordinator-onboarding-pick-chat').click();
 
-  // The sidebar checklist mounts post-picker, already seeded from the
-  // server-derived snapshot — no pane needs to mount, no probe needs
-  // to resolve.
+  // The intro overlay tears down, revealing the regular platform: the
+  // assistant list is present (the dedicated onboarding shell hid it).
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
+  await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toBeVisible({
+    timeout: 15_000,
+  });
+
+  // The onboarding checklist now lives in the Coordinator's "Assistant
+  // info" panel, seeded from the server-derived snapshot.
+  await openOnboardingChecklist(page);
   const workspaceRow = page.getByTestId('coordinator-onboarding-item-workspace').first();
   await expect(workspaceRow).toBeVisible({ timeout: 15_000 });
   await expect(workspaceRow).toHaveAttribute('data-status', 'done');
 
-  // With workspace done, the next actionable step is connecting apps.
-  await expect(page.getByTestId('coordinator-onboarding-item-apps').first()).toHaveAttribute(
-    'data-next',
-    'true'
-  );
+  // No skip / resume affordances exist on the platform either.
+  await expect(page.getByTestId('coordinator-onboarding-skip')).toHaveCount(0);
+  await expect(page.getByTestId('coordinator-onboarding-resume')).toHaveCount(0);
 });
 
-test('starting a call shows the Marty intro, docks the call, then falls back to chat on hangup', async ({
+test('starting a call plays the intro then docks the call in the platform', async ({
   authedPage: page,
 }) => {
   await page.addInitScript(() => {
@@ -175,109 +175,39 @@ test('starting a call shows the Marty intro, docks the call, then falls back to 
 
   const intro = page.getByTestId('coordinator-onboarding-call-intro');
   await expect(intro).toBeVisible({ timeout: 10_000 });
-  await expect(intro).toHaveAttribute('data-background-motion', 'idle');
-  await expect(intro).toHaveAttribute('data-background-motion', 'scrolling');
   await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
 
-  await expect(page.getByTestId('coordinator-call-docked-region')).toBeVisible({
-    timeout: 40_000,
-  });
-  await expect(page.getByTestId('assistant-call-docked')).toBeVisible();
-  await expect(page.getByTestId('coordinator-chat-during-call-region')).toBeVisible();
+  // Once the intro finishes the overlay clears and the real call is
+  // docked in the Coordinator's regular right pane.
+  await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 10_000 });
 
+  // Hang up to leave a clean state for subsequent tests.
   await page.getByRole('button', { name: 'End call' }).click();
-  await expect(page.getByTestId('coordinator-onboarding-chat')).toBeVisible({
-    timeout: 10_000,
-  });
-  await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
-  await expect(page.getByTestId('coordinator-onboarding-skip')).toBeVisible();
-  await expect(page.locator('textarea').first()).toBeVisible({ timeout: 10_000 });
 });
 
-test('picking chat reveals the chat surface and the skip affordance', async ({
-  authedPage: page,
-}) => {
-  resetCoordinatorIntroWatched();
-  await gotoAssistants(page);
-  await expectPickerVisible(page);
-
-  await page.getByTestId('coordinator-onboarding-pick-chat').click();
-
-  await expect(page.getByTestId('coordinator-onboarding-chat')).toBeVisible({
-    timeout: 10_000,
-  });
-  await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
-  await expect(page.getByTestId('coordinator-onboarding-skip')).toBeVisible();
-
-  // The chat composer is part of the standard assistant chat panel —
-  // its presence is the canonical signal that the chat surface is
-  // wired up and ready for input.
-  await expect(page.locator('textarea').first()).toBeVisible({ timeout: 10_000 });
-});
-
-test('resolving the picker persists intro_watched and reload skips the picker', async ({
+test('resolving the picker persists intro_watched and reload skips it', async ({
   authedPage: page,
 }) => {
   resetCoordinatorIntroWatched();
   await gotoAssistants(page);
   await expectPickerVisible(page);
   await page.getByTestId('coordinator-onboarding-pick-chat').click();
-  await expect(page.getByTestId('coordinator-onboarding-chat')).toBeVisible({
-    timeout: 10_000,
-  });
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
 
   // Resolving the picker latches ``intro_watched`` on the latest
   // Coordinator/State row.
   await expect.poll(() => readPersistedIntroWatched(), { timeout: 10_000 }).toBe('true');
 
-  // A reload now lands directly on the working layout: no ringing
-  // picker, no auto-playing intro — just the chat surface and the
-  // sidebar (which carries the Replay intro affordance).
+  // A reload now lands directly on the regular platform: no picker, no
+  // intro overlay.
   await page.reload();
   await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
-  await expect(page.getByTestId('coordinator-onboarding-chat')).toBeVisible({
-    timeout: 15_000,
-  });
-  await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
-  await expect(page.getByTestId('coordinator-onboarding-replay-intro')).toBeVisible();
-  await expect(page.getByTestId('coordinator-onboarding-skip')).toBeVisible();
+  await expect(page.getByTestId('coordinator-onboarding')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByRole('button', { name: /^Onboard$/ })).toBeVisible({ timeout: 15_000 });
 });
 
-test('replay intro re-runs the intro without the ringing picker', async ({ authedPage: page }) => {
-  await page.addInitScript(() => {
-    Object.assign(window, {
-      __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 1_400,
-    });
-  });
-  // Continues from the previous test's state: intro already watched, so
-  // we land on the working layout directly (no reset).
-  await gotoAssistants(page);
-  await expect(page.getByTestId('coordinator-onboarding-replay-intro')).toBeVisible({
-    timeout: 15_000,
-  });
-  await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
-
-  await page.getByTestId('coordinator-onboarding-replay-intro').click();
-
-  // The intro plays from the top — no picker, straight into the
-  // animated intro that hands off to the docked call.
-  const intro = page.getByTestId('coordinator-onboarding-call-intro');
-  await expect(intro).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
-  await expect(page.getByTestId('coordinator-call-docked-region')).toBeVisible({
-    timeout: 40_000,
-  });
-
-  // Hang up to return to a clean chat surface for subsequent tests.
-  await page.getByRole('button', { name: 'End call' }).click();
-  await expect(page.getByTestId('coordinator-onboarding-chat')).toBeVisible({
-    timeout: 10_000,
-  });
-});
-
-test('skipping an inline checklist step persists and advances to the next step', async ({
-  authedPage: page,
-}) => {
+test('skipping an inline checklist step can be reversed later', async ({ authedPage: page }) => {
   const coordinator = createPersonalCoordinator(user.id);
   connectWorkspaceEmail({ assistantId: coordinator.agentId });
   resetCoordinatorIntroWatched();
@@ -285,7 +215,9 @@ test('skipping an inline checklist step persists and advances to the next step',
   await gotoAssistants(page);
   await expectPickerVisible(page);
   await page.getByTestId('coordinator-onboarding-pick-chat').click();
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
 
+  await openOnboardingChecklist(page);
   const appsRow = page.getByTestId('coordinator-onboarding-item-apps').first();
   await expect(appsRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
 
@@ -305,48 +237,16 @@ test('skipping an inline checklist step persists and advances to the next step',
   );
   expect(skippedState).toContain('apps');
 
-  // The picker was resolved (chat), so a reload skips it and lands on
-  // the working layout directly — the skipped step survives the reload.
-  await page.reload();
-  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
-  await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
-  await expect(page.getByTestId('coordinator-onboarding-item-apps').first()).toHaveAttribute(
-    'data-status',
-    'skipped',
-    { timeout: 15_000 }
+  await page.getByTestId('coordinator-onboarding-unskip-step-apps').click();
+  await expect(appsRow).toHaveAttribute('data-next', 'true');
+  await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
+
+  const unskippedState = dbExec(
+    `SELECT le.data->'skipped_step_ids' FROM log_event le ` +
+      `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
+      `JOIN context c ON c.id = lec.context_id ` +
+      `WHERE c.name = '${user.id}/${coordinator.agentId}/Coordinator/State' ` +
+      `ORDER BY le.id DESC LIMIT 1;`
   );
-});
-
-test('skipping onboarding swaps in the regular assistants layout', async ({ authedPage: page }) => {
-  resetCoordinatorIntroWatched();
-  await gotoAssistants(page);
-  await expectPickerVisible(page);
-
-  // Skip requires the picker to be answered first.
-  await page.getByTestId('coordinator-onboarding-pick-chat').click();
-  await expect(page.getByTestId('coordinator-onboarding-skip')).toBeVisible({
-    timeout: 10_000,
-  });
-
-  await page.getByTestId('coordinator-onboarding-skip').click();
-
-  // Onboarding view disappears entirely once the promotion lands.
-  await expect(page.getByTestId('coordinator-onboarding')).toHaveCount(0, {
-    timeout: 15_000,
-  });
-  // The standard assistants shell exposes the hire entry point even
-  // when Marty is the only assistant, whereas the onboarding view
-  // suppresses it behind the picker/sidebar flow.
-  await expect(page.getByRole('button', { name: /^Onboard$/ })).toBeVisible({ timeout: 15_000 });
-});
-
-test('the promotion is persistent across reloads', async ({ authedPage: page }) => {
-  // Subsequent visits land directly on the regular layout — mode is
-  // ``working`` server-side now, so the onboarding gate stays
-  // closed even on a cold load.
-  await gotoAssistants(page);
-  await expect(page.getByTestId('coordinator-onboarding')).toHaveCount(0, {
-    timeout: 15_000,
-  });
-  await expect(page.getByRole('button', { name: /^Onboard$/ })).toBeVisible({ timeout: 15_000 });
+  expect(unskippedState).not.toContain('apps');
 });

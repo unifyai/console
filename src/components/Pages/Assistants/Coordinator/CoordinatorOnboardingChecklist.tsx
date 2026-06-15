@@ -4,20 +4,13 @@
  * CoordinatorOnboardingChecklist — the gating-aware checklist body
  * that surfaces the user's progress through Coordinator onboarding.
  *
- * Rendered in two surfaces with identical UX:
- *
- *   1. The gradual-view sidebar — wrapped by
- *      ``CoordinatorOnboardingSidebar`` which adds a full-height
- *      column shell and the "Skip onboarding" footer.
- *   2. The coordinator's assistant info panel "Onboarding" sub-tab
- *      in the base ``/assistants`` shell — surfaced when the
- *      coordinator is selected there (e.g. after resuming onboarding
- *      from ``working`` mode). The checklist follows the user across
- *      surfaces so the progress they've made stays in view.
+ * Rendered in the coordinator's assistant info panel "Onboarding"
+ * sub-tab on the ``/assistants`` shell, surfaced whenever the
+ * coordinator is the selected assistant.
  *
  * Shared state (``completedStepIds``) comes from
- * ``CoordinatorOnboardingContext`` so it survives the surface
- * transition. Action handlers are passed in as props because they're
+ * ``CoordinatorOnboardingContext`` so it survives across surfaces and
+ * reloads. Action handlers are passed in as props because they're
  * surface-specific — e.g. connect-apps opens a docked side tab in
  * the gradual view but degrades to a static row in the info panel,
  * where the user already has the base shell's full chrome at hand.
@@ -425,6 +418,7 @@ export interface CoordinatorOnboardingChecklistProps {
    * static entry. */
   onScheduleTask?: () => void;
   onSkipStep?: (stepId: string) => void;
+  onUnskipStep?: (stepId: string) => void;
   /** Whether the user is currently on a voice call (vs. chat).
    * Selects which "Act now" suggestion chips show: call-friendly
    * (spoken / interactive output) vs. chat-friendly (text output).
@@ -441,6 +435,7 @@ export function CoordinatorOnboardingChecklist({
   onActNow,
   onScheduleTask,
   onSkipStep,
+  onUnskipStep,
   isOnCall = false,
   className,
 }: CoordinatorOnboardingChecklistProps) {
@@ -506,6 +501,7 @@ export function CoordinatorOnboardingChecklist({
             nextActionableId={nextActionableId}
             isOnCall={isOnCall}
             onSkipStep={onSkipStep}
+            onUnskipStep={onUnskipStep}
           />
         ))}
       </ul>
@@ -596,6 +592,7 @@ interface ChecklistRowProps {
    * "Act now" suggestion chips. */
   isOnCall: boolean;
   onSkipStep?: (stepId: string) => void;
+  onUnskipStep?: (stepId: string) => void;
 }
 
 function ChecklistRow({
@@ -606,6 +603,7 @@ function ChecklistRow({
   nextActionableId,
   isOnCall,
   onSkipStep,
+  onUnskipStep,
 }: ChecklistRowProps) {
   const hasWiredAction = isActionWired(item.action);
   const isResolved = item.status !== 'pending';
@@ -617,6 +615,7 @@ function ChecklistRow({
   );
   const canOpenChildAction = !!nextChildAction && !isResolved;
   const canSkip = !!onSkipStep && !item.children?.length && !isResolved;
+  const canUnskip = !!onUnskipStep && !item.children?.length && item.status === 'skipped';
   // Whether the next actionable leaf sits somewhere inside this
   // row's subtree. Parents on the path to "Next" stay at full
   // opacity so the user's eye flows from the phase header straight
@@ -632,7 +631,7 @@ function ChecklistRow({
   // the path leading to it). Done rows already carry their own
   // muted styling but we still apply the wrapper so the entire
   // list visually settles behind the single actionable focus.
-  const dim = !isNext && !containsNext;
+  const dim = !isNext && !containsNext && item.status !== 'skipped';
   const hasInfo = !!item.description || !!item.estimatedTime;
 
   const handleClick = React.useCallback(() => {
@@ -668,6 +667,14 @@ function ChecklistRow({
       onSkipStep?.(item.id);
     },
     [item.id, onSkipStep]
+  );
+
+  const handleUnskipClick = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      onUnskipStep?.(item.id);
+    },
+    [item.id, onUnskipStep]
   );
 
   const rowClassName = (variant: 'done' | 'skipped' | 'actionable' | 'static') =>
@@ -706,7 +713,22 @@ function ChecklistRow({
         )}
         data-testid={`coordinator-onboarding-skip-step-${item.id}`}
       >
-        Skip
+        Later
+      </button>
+    ) : null;
+
+  const renderUnskipButton = () =>
+    canUnskip ? (
+      <button
+        type="button"
+        onClick={handleUnskipClick}
+        className={cn(
+          'text-caption rounded-control flex-shrink-0 px-1.5 py-0.5 font-medium text-primary',
+          'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+        )}
+        data-testid={`coordinator-onboarding-unskip-step-${item.id}`}
+      >
+        Do now
       </button>
     ) : null;
 
@@ -760,6 +782,7 @@ function ChecklistRow({
       {renderNextPill()}
       {renderInfoTooltip()}
       {renderSkipButton()}
+      {renderUnskipButton()}
     </div>
   );
 
@@ -878,6 +901,7 @@ function ChecklistRow({
               nextActionableId={nextActionableId}
               isOnCall={isOnCall}
               onSkipStep={onSkipStep}
+              onUnskipStep={onUnskipStep}
             />
           ))}
         </ul>
