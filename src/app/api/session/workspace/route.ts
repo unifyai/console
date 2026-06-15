@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const { workspaceId } = body;
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
   cookieStore.set('unify_workspace_id', workspaceId, {
     path: '/',

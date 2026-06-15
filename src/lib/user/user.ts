@@ -194,14 +194,14 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 
   // 3. Apply Workspace Context
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const workspaceId = cookieStore.get('unify_workspace_id')?.value;
   let contextResolved = false;
 
   // Priority 1: Header API Key
   let headerApiKey: string | null = null;
   try {
-    const headerStore = headers();
+    const headerStore = await headers();
     headerApiKey = headerStore.get('apiKey');
   } catch (e) {
     // Ignore context errors

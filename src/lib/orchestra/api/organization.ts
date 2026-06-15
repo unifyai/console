@@ -203,7 +203,8 @@ export const acceptInviteAction = async (apiKey: string) => {
 
     const responseData = data as unknown as Record<string, unknown>;
     if (responseData && responseData.organizationId) {
-      cookies().set('unify_workspace_id', String(responseData.organizationId), {
+      const cookieStore = await cookies();
+      cookieStore.set('unify_workspace_id', String(responseData.organizationId), {
         path: '/',
         maxAge: 60 * 60 * 24 * 30,
         sameSite: 'lax',
