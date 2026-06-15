@@ -259,13 +259,21 @@ function filterVisibleChecklist(
   completed: ReadonlySet<string>,
   skipped: ReadonlySet<string>,
   isActionWired: (action: ChecklistAction | undefined) => boolean,
+  canMarkLater: boolean,
   hiddenIds: Set<string> = new Set()
 ): ResolvedChecklistItem[] {
   const visibleItems: ResolvedChecklistItem[] = [];
 
   for (const item of items) {
     const filteredChildren = item.children
-      ? filterVisibleChecklist(item.children, completed, skipped, isActionWired, hiddenIds)
+      ? filterVisibleChecklist(
+          item.children,
+          completed,
+          skipped,
+          isActionWired,
+          canMarkLater,
+          hiddenIds
+        )
       : undefined;
     const hasVisibleChildren = !!filteredChildren?.length;
     const isResolved = item.status !== 'pending';
@@ -274,8 +282,12 @@ function filterVisibleChecklist(
       completed.has(item.prerequisiteId) ||
       skipped.has(item.prerequisiteId);
     const prereqHidden = !!item.prerequisiteId && hiddenIds.has(item.prerequisiteId);
+    const canDeferNow = canMarkLater && !item.children?.length;
     const canActNow =
-      item.status === 'pending' && prereqSatisfied && !prereqHidden && isActionWired(item.action);
+      item.status === 'pending' &&
+      prereqSatisfied &&
+      !prereqHidden &&
+      (isActionWired(item.action) || canDeferNow);
 
     if (!isResolved && !hasVisibleChildren && !canActNow) {
       hiddenIds.add(item.id);
@@ -366,15 +378,16 @@ function computePhases(items: ResolvedChecklistItem[]): PhaseProgress[] {
  */
 function findNextActionableId(
   items: ResolvedChecklistItem[],
-  isActionWired: (action: ChecklistAction | undefined) => boolean
+  isActionWired: (action: ChecklistAction | undefined) => boolean,
+  canMarkLater: boolean
 ): string | null {
   for (const item of items) {
     if (item.children?.length) {
-      const inner = findNextActionableId(item.children, isActionWired);
+      const inner = findNextActionableId(item.children, isActionWired, canMarkLater);
       if (inner) return inner;
       continue;
     }
-    if (item.status === 'pending' && isActionWired(item.action)) {
+    if (item.status === 'pending' && (isActionWired(item.action) || canMarkLater)) {
       return item.id;
     }
   }
@@ -473,8 +486,15 @@ export function CoordinatorOnboardingChecklist({
   );
 
   const resolved = React.useMemo(
-    () => filterVisibleChecklist(rawResolved, completedStepIds, skippedStepIds, isActionWired),
-    [rawResolved, completedStepIds, skippedStepIds, isActionWired]
+    () =>
+      filterVisibleChecklist(
+        rawResolved,
+        completedStepIds,
+        skippedStepIds,
+        isActionWired,
+        !!onSkipStep
+      ),
+    [rawResolved, completedStepIds, skippedStepIds, isActionWired, onSkipStep]
   );
   const { total, resolved: resolvedCount } = React.useMemo(() => countItems(resolved), [resolved]);
   const percent = total > 0 ? Math.round((resolvedCount / total) * 100) : 0;
@@ -485,8 +505,8 @@ export function CoordinatorOnboardingChecklist({
   // hiding the rest of the checklist. Null when every visible row is
   // already resolved.
   const nextActionableId = React.useMemo(
-    () => findNextActionableId(resolved, isActionWired),
-    [resolved, isActionWired]
+    () => findNextActionableId(resolved, isActionWired, !!onSkipStep),
+    [resolved, isActionWired, onSkipStep]
   );
   return (
     <div className={cn('flex flex-col gap-3', className)}>
@@ -824,12 +844,18 @@ function ChecklistRow({
         onKeyDown={handleParentKeyDown}
         className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         data-testid={`coordinator-onboarding-item-${item.id}`}
+        data-next={isNext ? 'true' : undefined}
         aria-label={`Open next step in ${item.title}`}
       >
         {rowBody('static')}
       </div>
     ) : (
-      <div data-testid={`coordinator-onboarding-item-${item.id}`}>{rowBody('static')}</div>
+      <div
+        data-testid={`coordinator-onboarding-item-${item.id}`}
+        data-next={isNext ? 'true' : undefined}
+      >
+        {rowBody('static')}
+      </div>
     );
   }
 

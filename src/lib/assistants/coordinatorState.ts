@@ -52,6 +52,7 @@ export interface CoordinatorStatePatch {
   onboardingStep?: string;
   clearOnboardingStep?: boolean;
   skipOnboardingStep?: string;
+  unskipOnboardingStep?: string;
   introWatched?: boolean;
 }
 
@@ -126,6 +127,8 @@ export async function updateCoordinatorState(
   if (patch.onboardingStep !== undefined) body.onboardingStep = patch.onboardingStep;
   if (patch.clearOnboardingStep) body.clearOnboardingStep = true;
   if (patch.skipOnboardingStep !== undefined) body.skipOnboardingStep = patch.skipOnboardingStep;
+  if (patch.unskipOnboardingStep !== undefined)
+    body.unskipOnboardingStep = patch.unskipOnboardingStep;
   if (patch.introWatched !== undefined) body.introWatched = patch.introWatched;
 
   const client = await getOrchestraUserClient(user.apiKey);

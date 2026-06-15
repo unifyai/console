@@ -46,6 +46,8 @@ export interface CoordinatorOnboardingContextValue {
   skippedStepIds: ReadonlySet<string>;
   /** Idempotently records a step as skipped. */
   markStepSkipped: (stepId: string) => void;
+  /** Idempotently returns a skipped step to the active checklist. */
+  markStepUnskipped: (stepId: string) => void;
   /** Per-session record of which onboarding steps the user has
    * *entered* — i.e. clicked into the corresponding surface
    * (integrations / tasks / actions tab in the gradual view).
