@@ -32,6 +32,30 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Init branding submodule
+        env:
+          DEVBOT_GITHUB_TOKEN: ${{ secrets.DEVBOT_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEVBOT_GITHUB_TOKEN}" ]; then
+            echo "::error::DEVBOT_GITHUB_TOKEN secret is not configured on this repository."
+            echo "Add the DEVBOT read-only PAT (same value as Cloud Build uses) to GitHub Actions secrets."
+            exit 1
+          fi
+          AUTH="https://x-access-token:${DEVBOT_GITHUB_TOKEN}@github.com/"
+          for scope in --local --global; do
+            git config "${scope}" --unset-all http.https://github.com/.extraheader 2>/dev/null || true
+            git config "${scope}" --unset-all http.extraheader 2>/dev/null || true
+          done
+          git submodule sync --recursive branding
+          git \
+            -c http.https://github.com/.extraheader= \
+            -c http.extraheader= \
+            -c url."${AUTH}".insteadOf="git@github.com:" \
+            -c url."${AUTH}".insteadOf="ssh://git@github.com/" \
+            submodule update --init --recursive --force branding
+
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
