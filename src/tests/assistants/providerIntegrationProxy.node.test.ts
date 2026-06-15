@@ -22,45 +22,8 @@ describe('provider integration proxy route', () => {
     process.env.ORCHESTRA_ADMIN_KEY = 'orchestra-admin-key';
   });
 
-  it('serves app catalogue pages from Builtins logs', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
-      const url = new URL(String(input));
-      if (url.pathname === '/v0/logs') {
-        return new Response(
-          JSON.stringify({
-            logs: [
-              {
-                entries: {
-                  backend_id: 'composio',
-                  provider_app_id: 'SLACK',
-                  canonical_app_slug: 'slack',
-                  display_name: 'Slack',
-                  source_type: 'third_party',
-                  source_label: 'Third-party',
-                },
-              },
-            ],
-          }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-      if (url.pathname === '/v0/integrations/connections') {
-        return new Response(
-          JSON.stringify([
-            {
-              connection_id: 'ic_slack',
-              canonical_app_slug: 'slack',
-              status: 'connected',
-            },
-          ]),
-          {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
-      }
-      throw new Error(`Unexpected fetch ${url}`);
-    });
+  it('does not proxy app catalog GET paths to Orchestra', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch');
     const request = new NextRequest(
       'http://localhost/api/integrations/provider/apps?owner_scope=assistant&assistant_id=123&query=slack&source_type=third_party&status_group=connected&detail_level=summary&limit=50&offset=0',
       { headers: { apiKey: 'test-api-key' } }
@@ -68,25 +31,11 @@ describe('provider integration proxy route', () => {
 
     const response = await GET(request, { params: Promise.resolve({ path: ['apps'] }) });
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(410);
     await expect(response.json()).resolves.toMatchObject({
-      items: [{ canonical_app_slug: 'slack', connection_status: 'connected' }],
-      total: 1,
-      limit: 50,
-      offset: 0,
+      detail: expect.stringContaining('Builtins logs'),
     });
-    const [target, init] = fetchSpy.mock.calls[0];
-    const builtinsUrl = new URL(String(target));
-    expect(builtinsUrl.pathname).toBe('/v0/logs');
-    expect(builtinsUrl.searchParams.get('project_name')).toBe('Builtins');
-    expect(builtinsUrl.searchParams.get('context')).toBe('Integrations/Apps');
-    expect(init).toMatchObject({
-      method: 'GET',
-      headers: {
-        Authorization: 'Bearer test-api-key',
-        'Content-Type': 'application/json',
-      },
-    });
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('serves an empty app catalogue when Builtins has not been seeded', async () => {
@@ -189,46 +138,14 @@ describe('provider integration proxy route', () => {
     });
   });
 
-  it('serves app details from Builtins and forwards pending cancel paths', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
-      const url = new URL(String(input));
-      if (url.pathname === '/v0/logs' && url.searchParams.get('context') === 'Integrations/Apps') {
-        return new Response(
-          JSON.stringify({
-            logs: [
-              {
-                entries: {
-                  backend_id: 'composio',
-                  provider_app_id: 'DISCORD',
-                  canonical_app_slug: 'discord',
-                  display_name: 'Discord',
-                  source_type: 'third_party',
-                },
-              },
-            ],
-          }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-      if (url.pathname === '/v0/logs' && url.searchParams.get('context') === 'Integrations/Tools') {
-        return new Response(
-          JSON.stringify({
-            logs: [{ entries: { name: 'send_message', display_name: 'Send Message' } }],
-          }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-      if (url.pathname === '/v0/integrations/connections') {
-        return new Response(JSON.stringify([]), {
+  it('blocks app detail catalog reads but forwards pending cancel paths', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ ok: true }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    });
+        })
+    );
     const detailRequest = new NextRequest(
       'http://localhost/api/integrations/provider/apps/discord?owner_scope=assistant&assistant_id=123',
       { headers: { apiKey: 'test-api-key' } }
@@ -238,11 +155,8 @@ describe('provider integration proxy route', () => {
       params: Promise.resolve({ path: ['apps', 'discord'] }),
     });
 
-    expect(detailResponse.status).toBe(200);
-    await expect(detailResponse.json()).resolves.toMatchObject({
-      canonical_app_slug: 'discord',
-      tools: [{ name: 'send_message' }],
-    });
+    expect(detailResponse.status).toBe(410);
+    expect(fetchSpy).not.toHaveBeenCalled();
 
     const cancelRequest = new NextRequest(
       'http://localhost/api/integrations/provider/connections/ic_pending/cancel',
@@ -253,7 +167,7 @@ describe('provider integration proxy route', () => {
       params: Promise.resolve({ path: ['connections', 'ic_pending', 'cancel'] }),
     });
 
-    expect(String(fetchSpy.mock.calls.at(-1)?.[0])).toBe(
+    expect(String(fetchSpy.mock.calls[0][0])).toBe(
       'http://127.0.0.1:8000/v0/integrations/connections/ic_pending/cancel'
     );
   });
