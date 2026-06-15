@@ -54,22 +54,25 @@ function DroidOnboardIcon({ className }: { className?: string }) {
     <svg
       aria-hidden="true"
       className={className}
-      fill="none"
+      fill="currentColor"
       viewBox="0 0 24 24"
       xmlns="http://www.w3.org/2000/svg"
     >
+      {/* Antenna */}
+      <circle cx={9.5} cy={3.3} r={1.1} />
+      <rect x={8.9} y={4.1} width={1.2} height={2.4} />
+      {/* Cuboidal head with square eyes cut out */}
       <path
-        d="M4.5 7h8.2v2.5H15v4h-2.3v5H9.8v-3.6H7.4v3.6H4.5v-5H2.2v-4h2.3V7Z"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.65}
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M3.5 6.5h12v12.5h-12ZM6 10.5h2.5v2.5H6ZM10.5 10.5h2.5v2.5h-2.5Z"
       />
+      {/* Add badge */}
       <path
-        d="M20.5 5.5V11M23.25 8.25h-5.5"
+        d="M20.2 1.4v4.8M22.6 3.8h-4.8"
         stroke="currentColor"
         strokeLinecap="round"
-        strokeWidth={1.8}
+        strokeWidth={2}
       />
     </svg>
   );
