@@ -485,7 +485,7 @@ BEGIN
     (id, code, referrer_user_id, referee_user_id, status, created_at, rewarded_at, reward_amount, referee_bonus_amount)
   VALUES
     ('${randomUUID()}', '${opts.code}', '${referrerUserId}', '${refereeUserId}',
-     'rewarded', NOW(), NOW(), ${opts.rewardUsd}, 10)
+     'rewarded', NOW(), NOW(), ${opts.rewardUsd}, 50)
   ON CONFLICT (referee_user_id) DO NOTHING;
 END
 \\$\\$;

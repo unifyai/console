@@ -9,7 +9,8 @@
  *   2. Persists it in localStorage so it survives the OAuth round-trip and
  *      onboarding redirects
  *   3. Once the session is authenticated, attributes it via the backend
- *      (idempotent — the reward itself is granted later, on first payment)
+ *      (idempotent — the reward itself is granted later, once the friend
+ *      subscribes and reaches the qualifying real spend)
  *
  * Mirrors useCreditGrantLink. Renders no UI.
  */

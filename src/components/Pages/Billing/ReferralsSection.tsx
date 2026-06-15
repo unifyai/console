@@ -49,7 +49,7 @@ export const ReferralsSection = ({ orgContext }: ReferralsSectionProps) => {
   const [copied, setCopied] = useState(false);
   const [open, setOpen] = useState(false);
   const earner = orgContext ? orgContext.orgName : 'you';
-  const earnVerb = orgContext ? 'earns' : 'earn';
+  const getVerb = orgContext ? 'gets' : 'get';
 
   const data = summary.data;
   const referrals = list.data?.referrals ?? [];
@@ -66,11 +66,14 @@ export const ReferralsSection = ({ orgContext }: ReferralsSectionProps) => {
     }
   };
 
-  // Reward headline: "up to X credits" (the capped referrer reward) and the
-  // flat welcome bonus for the friend, both framed as display credits.
-  const rewardPctLabel = data ? `${Math.round(data.reward_pct * 100)}%` : '—';
-  const maxRewardLabel = data ? formatCredits(data.reward_max_credits) : '—';
+  // Reward headline: a flat referrer reward and a flat welcome bonus for the
+  // friend (both framed as display credits), unlocked once the friend has
+  // subscribed and spent their first `qualifying_spend` of real money.
+  const rewardLabel = data ? formatCredits(data.reward_credits) : '—';
+  const rewardMoney = data ? `$${data.reward_credits}` : '—';
+  const spendMoney = data ? `$${data.qualifying_spend}` : '—';
   const bonusLabel = data ? formatCredits(data.referee_bonus_credits) : '—';
+  const bonusMoney = data ? `$${data.referee_bonus_credits}` : '—';
   const earnedLabel = data ? formatCredits(data.total_credits_earned) : '—';
 
   return (
@@ -108,8 +111,9 @@ export const ReferralsSection = ({ orgContext }: ReferralsSectionProps) => {
               Refer &amp; earn
             </SheetTitle>
             <SheetDescription>
-              When a friend signs up and subscribes, {earner} {earnVerb} {rewardPctLabel} of their
-              first payment (up to {maxRewardLabel}) and they get a {bonusLabel} welcome bonus.
+              When a friend signs up, {earner} {getVerb} a {rewardLabel} ({rewardMoney}) bonus
+              following their first {spendMoney} real spend, and they get a {bonusLabel} (
+              {bonusMoney}) welcome bonus.
             </SheetDescription>
           </SheetHeader>
 

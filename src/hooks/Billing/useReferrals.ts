@@ -23,9 +23,9 @@ export interface ReferralSummary {
   pending_count: number;
   rewarded_count: number;
   total_credits_earned: number;
-  reward_pct: number;
-  reward_max_credits: number;
+  reward_credits: number;
   referee_bonus_credits: number;
+  qualifying_spend: number;
 }
 
 export interface ReferralListItem {

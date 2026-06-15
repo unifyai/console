@@ -57,7 +57,7 @@ export default function ReferralBanner() {
           data-testid="referral-banner-link"
         >
           <Gift className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-label">Refer a friend to earn special credits</span>
+          <span className="text-label">Refer a friend to earn $100 in credits</span>
         </Link>
         <button
           type="button"

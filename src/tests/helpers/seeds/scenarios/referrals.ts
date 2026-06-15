@@ -14,7 +14,7 @@
  *                         (real attribution via the API → status `pending`)
  *   - `orgPendingFriend`— signed up via the org code, not yet paid (so the
  *                         org dashboard's "Signed up" count is non-zero)
- *   - `rewardedFriend`  — friend whose first payment already cleared
+ *   - `rewardedFriend`  — friend whose qualifying spend already cleared
  *                         (seeded `rewarded` row → shows earned credits)
  *   - `reversedFriend`  — friend whose payment was refunded
  *                         (seeded `reversed` row → clawback display)
@@ -159,16 +159,16 @@ export async function seedReferrals(): Promise<SeededState> {
     referrerUserId: referrer.id,
     refereeUserId: rewardedFriend.id,
     status: 'rewarded',
-    rewardUsd: 15,
-    bonusUsd: 10,
+    rewardUsd: 100,
+    bonusUsd: 50,
   });
   seedAttributionRow({
     code: personalCode,
     referrerUserId: referrer.id,
     refereeUserId: reversedFriend.id,
     status: 'reversed',
-    rewardUsd: 12,
-    bonusUsd: 10,
+    rewardUsd: 100,
+    bonusUsd: 50,
   });
 
   // Seeded rewarded state for the org program (credited to the org balance).
@@ -177,8 +177,8 @@ export async function seedReferrals(): Promise<SeededState> {
     referrerUserId: orgOwner.id,
     refereeUserId: orgRewardedFriend.id,
     status: 'rewarded',
-    rewardUsd: 25,
-    bonusUsd: 10,
+    rewardUsd: 100,
+    bonusUsd: 50,
     orgId: referOrg.id,
   });
 
