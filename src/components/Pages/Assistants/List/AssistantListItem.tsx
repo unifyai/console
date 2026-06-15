@@ -37,10 +37,7 @@ import {
   AlertDialogAction,
 } from '@/components/UI/alert-dialog';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
-
-// Temporarily hides the "Connect your desktop" row entry while the local
-// desktop flow is being verified. Flip to true (or remove the gate) to restore.
-const CONNECT_DESKTOP_VISIBLE = false;
+import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
 
 interface AssistantListItemProps {
   assistant: Assistant;
@@ -88,6 +85,8 @@ export function AssistantListItem({
   isPrimary = true,
   alsoInTeamLabels = [],
 }: AssistantListItemProps) {
+  const { isSelfHost } = useEnvironment();
+  const connectDesktopVisible = isSelfHost;
   const hasUnread = unreadCount > 0;
   const unreadLabel = unreadCount > 99 ? '99+' : String(unreadCount);
   const totalTeamCount = alsoInTeamLabels.length + 1;
@@ -314,7 +313,7 @@ export function AssistantListItem({
             menu just adds noise. With canEdit and onEndContract
             both gated, a viewer with neither permission gets a
             cleaner row. */}
-        {(canEdit || canEndContract || (onConnectDesktop && CONNECT_DESKTOP_VISIBLE)) && (
+        {(canEdit || canEndContract || (onConnectDesktop && connectDesktopVisible)) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -356,7 +355,7 @@ export function AssistantListItem({
                   </DropdownMenuItem>
                 </>
               )}
-              {onConnectDesktop && CONNECT_DESKTOP_VISIBLE && (
+              {onConnectDesktop && connectDesktopVisible && (
                 <DropdownMenuItem
                   onClick={() => onConnectDesktop(assistant)}
                   data-testid="menu-connect-desktop"
@@ -367,7 +366,7 @@ export function AssistantListItem({
               )}
               {canEndContract && (
                 <>
-                  {(canEdit || (onConnectDesktop && CONNECT_DESKTOP_VISIBLE)) && (
+                  {(canEdit || (onConnectDesktop && connectDesktopVisible)) && (
                     <DropdownMenuSeparator />
                   )}
                   <DropdownMenuItem

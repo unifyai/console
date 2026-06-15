@@ -93,8 +93,7 @@ export async function POST(request: NextRequest) {
 
   const customerKeys = customerProvidedSecretKeysFor(provider);
   const clientIdKey = customerKeys[0];
-  const getSecretsFn = await getSecrets(apiKey, orgId);
-  const list = await getSecretsFn(body.assistantId, ownerId);
+  const list = await getSecrets(body.assistantId, ownerId);
   if (!Array.isArray(list)) {
     return NextResponse.json(
       { error: list.detail ?? 'Failed to read assistant secrets.' },
@@ -119,8 +118,7 @@ export async function POST(request: NextRequest) {
   // in the authorize URL is expected — but we still keep this read
   // server-side to avoid round-tripping it through the browser
   // unnecessarily.
-  const getSecretValueFn = await getSecretValue(apiKey, orgId);
-  const clientIdValue = await getSecretValueFn(body.assistantId, ownerId, clientIdKey);
+  const clientIdValue = await getSecretValue(body.assistantId, ownerId, clientIdKey);
   if (!clientIdValue) {
     return NextResponse.json(
       {

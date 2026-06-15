@@ -61,8 +61,7 @@ export async function DELETE(
   const activeOrg = getActiveOrganization(user);
   const orgId = activeOrg?.id ?? null;
 
-  const getSecretsFn = await getSecrets(apiKey, orgId);
-  const list = await getSecretsFn(assistantId, ownerId);
+  const list = await getSecrets(assistantId, ownerId);
   if (!Array.isArray(list)) {
     return NextResponse.json(
       { error: list.detail ?? 'Failed to read assistant secrets.' },
@@ -106,10 +105,9 @@ export async function DELETE(
     );
   }
 
-  const deleteSecretFn = await deleteSecret(apiKey, orgId);
   let removedCount = 0;
   for (const s of matching) {
-    const result = await deleteSecretFn(s.logId, ownerId, assistantId);
+    const result = await deleteSecret(s.logId, ownerId, assistantId);
     if (!('detail' in result) || !result.detail) removedCount += 1;
   }
 

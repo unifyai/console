@@ -1,3 +1,5 @@
+import 'server-only';
+
 /**
  * Slack workspace install server actions.
  *
@@ -22,8 +24,6 @@
  * Token never round-trips through Console after persist: reads pass
  * ``include_token=false`` so the response carries metadata only.
  */
-
-import 'server-only';
 
 import type { AxiosError } from 'axios';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
@@ -108,23 +108,23 @@ function ownerQuery(owner: SlackInstallOwner): Record<string, string | number | 
  * Returns ``null`` when no install exists — distinct from a transport
  * failure which yields a ``ResponseProps`` with ``detail``/``status``.
  */
-export const getSlackInstallAction = async (_apiKey: string) => {
-  return async (owner: SlackInstallOwner): Promise<SlackInstall | null | ResponseProps> => {
-    'use server';
-    const denied = await requireInstallOwner(owner);
-    if (denied) return denied;
-    try {
-      const res = await OrchestraAdminClient.get('/slack/install', {
-        params: ownerQuery(owner),
-      });
-      return res.data as SlackInstall;
-    } catch (e) {
-      const ax = e as AxiosError;
-      if (ax?.response?.status === 404) return null;
-      return errorResponse(e, 'Failed to load Slack install.');
-    }
-  };
-};
+export async function getSlackInstallAction(
+  owner: SlackInstallOwner
+): Promise<SlackInstall | null | ResponseProps> {
+  'use server';
+  const denied = await requireInstallOwner(owner);
+  if (denied) return denied;
+  try {
+    const res = await OrchestraAdminClient.get('/slack/install', {
+      params: ownerQuery(owner),
+    });
+    return res.data as SlackInstall;
+  } catch (e) {
+    const ax = e as AxiosError;
+    if (ax?.response?.status === 404) return null;
+    return errorResponse(e, 'Failed to load Slack install.');
+  }
+}
 
 /**
  * Internal upsert — called from the OAuth callback route after a
@@ -158,19 +158,17 @@ export async function persistSlackInstall(args: {
  * unbinds channels). The bot token stays in the row for audit but
  * no further inbound or outbound is routed.
  */
-export const revokeSlackInstallAction = async (_apiKey: string) => {
-  return async (
-    owner: SlackInstallOwner,
-    installId: number
-  ): Promise<{ revoked: true } | ResponseProps> => {
-    'use server';
-    const denied = await requireInstallOwner(owner);
-    if (denied) return denied;
-    try {
-      await OrchestraAdminClient.delete(`/slack/install/${installId}`);
-      return { revoked: true };
-    } catch (e) {
-      return errorResponse(e, 'Failed to revoke Slack install.');
-    }
-  };
-};
+export async function revokeSlackInstallAction(
+  owner: SlackInstallOwner,
+  installId: number
+): Promise<{ revoked: true } | ResponseProps> {
+  'use server';
+  const denied = await requireInstallOwner(owner);
+  if (denied) return denied;
+  try {
+    await OrchestraAdminClient.delete(`/slack/install/${installId}`);
+    return { revoked: true };
+  } catch (e) {
+    return errorResponse(e, 'Failed to revoke Slack install.');
+  }
+}

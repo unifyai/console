@@ -74,8 +74,7 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
 
   // Fetch assistants list (include demo assistants for demoers)
   const includeDemo = true;
-  const listAssistantsAction = await listAssistants(apiKey, !!isOrgContext, includeDemo);
-  const assistantsResult = await listAssistantsAction();
+  const assistantsResult = await listAssistants(!!isOrgContext, includeDemo);
   const assistants = Array.isArray(assistantsResult) ? assistantsResult : [];
 
   // Fetch org members if admin in org context

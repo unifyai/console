@@ -92,93 +92,88 @@ const AssistantsPage = async ({
       : '/login?signout=true';
     redirect(loginUrl);
   }
-  const apiKey = user.apiKey;
-  const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
   const activeOrganization = getActiveOrganization(user);
   const orgId = activeOrganization?.id ?? null;
-  const orgName = activeOrganization?.name ?? null;
   const isFreeTrial = !!activeOrganization?.freeTrial;
   const isOrgContext = activeOrganization !== null;
 
   const assistantActions: AssistantActions = {
     assistant: {
-      check: await checkHiringFunds(apiKey),
-      create: await createAssistant(apiKey),
-      update: await updateAssistant(apiKey),
-      delete: await deleteAssistant(apiKey),
+      check: checkHiringFunds,
+      create: createAssistant,
+      update: updateAssistant,
+      delete: deleteAssistant,
     },
     photo: {
-      uploadPhoto: await uploadPhoto(apiKey),
-      uploadVideo: await uploadVideo(apiKey),
-      downloadMedia: await downloadMedia(),
-      downloadPresetPhoto: await downloadPresetPhoto(),
-      downloadPresetVideo: await downloadPresetVideo(),
-      generate: await generatePhoto(apiKey),
-      edit: await editPhoto(apiKey),
-      animate: await animatePhoto(apiKey),
-      getAnimation: await getAnimationPrediction(apiKey),
-      cancelAnimation: await cancelAnimationPrediction(apiKey),
+      uploadPhoto,
+      uploadVideo,
+      downloadMedia,
+      downloadPresetPhoto,
+      downloadPresetVideo,
+      generate: generatePhoto,
+      edit: editPhoto,
+      animate: animatePhoto,
+      getAnimation: getAnimationPrediction,
+      cancelAnimation: cancelAnimationPrediction,
     },
     voice: {
-      register: await registerVoice(apiKey),
-      delete: await deleteVoice(apiKey),
-      clone: await cloneVoice(apiKey),
-      generate: await generateSpeech(apiKey),
-      preview: await designVoiceGeneratePreviews(apiKey),
-      design: await designVoiceCreateFromPreview(apiKey),
+      register: registerVoice,
+      delete: deleteVoice,
+      clone: cloneVoice,
+      generate: generateSpeech,
+      preview: designVoiceGeneratePreviews,
+      design: designVoiceCreateFromPreview,
     },
     chat: {
-      getContactId: await getContactIdByEmail(apiKey),
-      getTranscripts: await getTranscripts(apiKey),
-      message: await messageAssistant(apiKey),
-      getAssistantOwnerById: await getAssistantOwnerById(),
-      uploadAttachment: await uploadAttachment(apiKey),
+      getContactId: getContactIdByEmail,
+      getTranscripts,
+      message: messageAssistant,
+      getAssistantOwnerById,
+      uploadAttachment,
     },
     contact: {
-      delete: await deleteAssistantContact(apiKey),
-      create: await createAssistantContact(apiKey),
-      connect: await connectAssistantAccount(apiKey),
-      disconnect: await disconnectAssistantAccount(apiKey),
-      getGrantedFeatures: await getGrantedFeatures(apiKey),
-      listAvailablePhoneCountries: await listAvailablePhoneCountries(adminKey),
-      listAvailableSocialPlatforms: await listAvailableSocialPlatforms(adminKey),
-      verifySocialAccount: await verifySocialAccount(adminKey),
-      fetchContactCosts: await fetchContactCosts(),
+      delete: deleteAssistantContact,
+      create: createAssistantContact,
+      connect: connectAssistantAccount,
+      disconnect: disconnectAssistantAccount,
+      getGrantedFeatures,
+      listAvailablePhoneCountries,
+      listAvailableSocialPlatforms,
+      verifySocialAccount,
+      fetchContactCosts,
     },
     secret: {
-      get: await getSecrets(apiKey, orgId),
-      create: await createSecret(apiKey, orgId, orgName),
-      update: await updateSecret(apiKey, orgId),
-      delete: await deleteSecret(apiKey, orgId),
+      get: getSecrets,
+      create: createSecret,
+      update: updateSecret,
+      delete: deleteSecret,
     },
     call: {
-      getConnectionDetails: await getCallConnectionDetails(apiKey),
-      dispatchToCall: await dispatchAssistantToCall(apiKey),
-      deleteRoom: await deleteCallRoom(),
+      getConnectionDetails: getCallConnectionDetails,
+      dispatchToCall: dispatchAssistantToCall,
+      deleteRoom: deleteCallRoom,
     },
     desktop: {
-      getLiveviewUrl: await getLiveviewUrl(),
-      buildLiveviewUrl: await buildLiveviewUrl(),
-      checkLiveviewHealth: await checkLiveviewHealth(),
-      sendSystemEvent: await sendSystemEvent(),
-      getApiKey: await getDesktopApiKey(apiKey),
-      listUserDesktops: await listUserDesktops(apiKey),
-      linkDesktop: await linkDesktop(apiKey),
-      unlinkDesktop: await unlinkDesktop(apiKey),
+      getLiveviewUrl,
+      buildLiveviewUrl,
+      checkLiveviewHealth,
+      sendSystemEvent,
+      getApiKey: getDesktopApiKey,
+      listUserDesktops,
+      linkDesktop,
+      unlinkDesktop,
     },
     spending: {
-      setLimit: await setAssistantSpendingLimit(apiKey),
+      setLimit: setAssistantSpendingLimit,
     },
-    // Actions panel - live action events
     actions: {
-      getManagerMethodEvents: await getManagerMethodEvents(apiKey),
-      getToolLoopEvents: await getToolLoopEvents(apiKey),
-      backfillByCallingIds: await backfillByCallingIds(apiKey),
+      getManagerMethodEvents,
+      getToolLoopEvents,
+      backfillByCallingIds,
     },
-    // Dashboards pane - dashboard and tile data
     dashboards: {
-      getMetadata: await getDashboardMetadata(apiKey),
-      getTileContent: await getDashboardTileContent(apiKey),
+      getMetadata: getDashboardMetadata,
+      getTileContent: getDashboardTileContent,
     },
   };
 
@@ -198,8 +193,8 @@ const AssistantsPage = async ({
     // are managed by org owners or admins; personal installs are managed
     // by the user themselves.
     slackCanManageInstall = orgId != null ? canManageOrgSlackInstall(activeOrganization) : true;
-    const getInstall = await getSlackInstallAction(apiKey);
-    const revokeInstall = await revokeSlackInstallAction(apiKey);
+    const getInstall = getSlackInstallAction;
+    const revokeInstall = revokeSlackInstallAction;
     assistantActions.slack = { getInstall, revokeInstall };
     const installResult = await getInstall(slackOwner);
     if (isSlackInstall(installResult)) {

@@ -1,3 +1,6 @@
+'use server';
+
+import { requireUserApiKey } from '@/lib/server-action-session';
 /**
  * Server Actions for Dashboards Pane
  *
@@ -60,108 +63,100 @@ async function fetchContext(
  * Fetches all dashboard layouts (full) and tile metadata (without html_content)
  * for a given assistant. Used for populating the dropdown selector.
  */
-export const getDashboardMetadata = async (apiKey: string) => {
-  return async (assistant: Assistant): Promise<DashboardPaneData> => {
-    'use server';
+export async function getDashboardMetadata(assistant: Assistant): Promise<DashboardPaneData> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const [layoutRows, tileRows] = await Promise.all([
+      readAcrossRoots(assistant, (root) =>
+        fetchContext(
+          apiKey,
+          rootContext(root, assistant.userId, assistant.agentId, 'Dashboards/Layouts')
+        )
+      ),
+      readAcrossRoots(assistant, (root) =>
+        fetchContext(
+          apiKey,
+          rootContext(root, assistant.userId, assistant.agentId, 'Dashboards/Tiles'),
+          {
+            fromFields: TILE_METADATA_FIELDS,
+          }
+        )
+      ),
+    ]);
 
-    try {
-      const [layoutRows, tileRows] = await Promise.all([
-        readAcrossRoots(assistant, (root) =>
-          fetchContext(
-            apiKey,
-            rootContext(root, assistant.userId, assistant.agentId, 'Dashboards/Layouts')
-          )
-        ),
-        readAcrossRoots(assistant, (root) =>
-          fetchContext(
-            apiKey,
-            rootContext(root, assistant.userId, assistant.agentId, 'Dashboards/Tiles'),
-            {
-              fromFields: TILE_METADATA_FIELDS,
-            }
-          )
-        ),
-      ]);
+    const dashboards = layoutRows as unknown as DashboardRecord[];
+    const tiles = tileRows as unknown as TileRecord[];
 
-      const dashboards = layoutRows as unknown as DashboardRecord[];
-      const tiles = tileRows as unknown as TileRecord[];
-
-      return { dashboards, tiles };
-    } catch (err) {
-      console.error('[dashboard.ts getDashboardMetadata] Error:', err);
-      return { dashboards: [], tiles: [] };
-    }
-  };
-};
-
+    return { dashboards, tiles };
+  } catch (err) {
+    console.error('[dashboard.ts getDashboardMetadata] Error:', err);
+    return { dashboards: [], tiles: [] };
+  }
+}
 /**
  * Factory for getDashboardTileContent server action.
  *
  * Fetches html_content for a single tile by token. Called lazily when a
  * tile is first viewed.
  */
-export const getDashboardTileContent = async (apiKey: string) => {
-  return async (assistant: Assistant, tileToken: string): Promise<string | null> => {
-    'use server';
+export async function getDashboardTileContent(
+  assistant: Assistant,
+  tileToken: string
+): Promise<string | null> {
+  const apiKey = await requireUserApiKey();
+  if (!tileToken || tileToken === 'undefined') {
+    return null;
+  }
 
-    if (!tileToken || tileToken === 'undefined') {
-      return null;
-    }
+  try {
+    const rows = await readAcrossRoots(assistant, (root) =>
+      fetchContext(
+        apiKey,
+        rootContext(root, assistant.userId, assistant.agentId, 'Dashboards/Tiles'),
+        {
+          fromFields: 'token&html_content',
+          filterExpr: `token == '${tileToken}'`,
+        }
+      )
+    );
 
-    try {
-      const rows = await readAcrossRoots(assistant, (root) =>
-        fetchContext(
-          apiKey,
-          rootContext(root, assistant.userId, assistant.agentId, 'Dashboards/Tiles'),
-          {
-            fromFields: 'token&html_content',
-            filterExpr: `token == '${tileToken}'`,
-          }
-        )
-      );
-
-      if (rows.length === 0) return null;
-      return (rows[0] as unknown as { htmlContent?: string }).htmlContent ?? null;
-    } catch (err) {
-      console.error(`[dashboard.ts getDashboardTileContent] Error for token=${tileToken}:`, err);
-      return null;
-    }
-  };
-};
-
+    if (rows.length === 0) return null;
+    return (rows[0] as unknown as { htmlContent?: string }).htmlContent ?? null;
+  } catch (err) {
+    console.error(`[dashboard.ts getDashboardTileContent] Error for token=${tileToken}:`, err);
+    return null;
+  }
+}
 /**
  * Factory for getDashboardData server action.
  *
  * Fetches all dashboard layouts and full tile records (including html_content).
  * Used by full-refresh callers that need layout and tile payloads together.
  */
-export const getDashboardData = async (apiKey: string) => {
-  return async (assistant: Assistant): Promise<DashboardPaneData> => {
-    'use server';
+export async function getDashboardData(assistant: Assistant): Promise<DashboardPaneData> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const [layoutRows, tileRows] = await Promise.all([
+      readAcrossRoots(assistant, (root) =>
+        fetchContext(
+          apiKey,
+          rootContext(root, assistant.userId, assistant.agentId, 'Dashboards/Layouts')
+        )
+      ),
+      readAcrossRoots(assistant, (root) =>
+        fetchContext(
+          apiKey,
+          rootContext(root, assistant.userId, assistant.agentId, 'Dashboards/Tiles')
+        )
+      ),
+    ]);
 
-    try {
-      const [layoutRows, tileRows] = await Promise.all([
-        readAcrossRoots(assistant, (root) =>
-          fetchContext(
-            apiKey,
-            rootContext(root, assistant.userId, assistant.agentId, 'Dashboards/Layouts')
-          )
-        ),
-        readAcrossRoots(assistant, (root) =>
-          fetchContext(
-            apiKey,
-            rootContext(root, assistant.userId, assistant.agentId, 'Dashboards/Tiles')
-          )
-        ),
-      ]);
+    const dashboards = layoutRows as unknown as DashboardRecord[];
+    const tiles = tileRows as unknown as TileRecord[];
 
-      const dashboards = layoutRows as unknown as DashboardRecord[];
-      const tiles = tileRows as unknown as TileRecord[];
-
-      return { dashboards, tiles };
-    } catch (err) {
-      console.error('[dashboard.ts getDashboardData] Error:', err);
-      return { dashboards: [], tiles: [] };
-    }
-  };
-};
+    return { dashboards, tiles };
+  } catch (err) {
+    console.error('[dashboard.ts getDashboardData] Error:', err);
+    return { dashboards: [], tiles: [] };
+  }
+}

@@ -18,7 +18,7 @@ import {
   getDemoSpending,
   deleteDemoAssistant,
 } from '@/lib/demo/assistant';
-import { listAssistants } from '@/lib/assistants/assistant';
+import { listAssistants, listSourceAssistants } from '@/lib/assistants/assistant';
 import { listAvailablePhoneCountries } from '@/lib/assistants/contact';
 import { DemoActions } from '@/types/demo';
 
@@ -34,8 +34,8 @@ const DemoPage = async () => {
     create: await createDemoAssistant(apiKey),
     getMeta: await getDemoMeta(apiKey),
     listMeta: await listDemoMeta(apiKey),
-    listSourceAssistants: await listAssistants(apiKey, false),
-    listAvailablePhoneCountries: await listAvailablePhoneCountries(adminKey),
+    listSourceAssistants: listSourceAssistants,
+    listAvailablePhoneCountries,
     getContacts: await getDemoContacts(apiKey),
     getSpending: await getDemoSpending(apiKey),
     delete: await deleteDemoAssistant(apiKey),
