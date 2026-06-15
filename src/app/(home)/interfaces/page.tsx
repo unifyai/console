@@ -49,8 +49,7 @@ const InterfacesPage = async ({ searchParams }: { searchParams: Promise<SearchPa
   debugLog('[InterfacesPage] All keys:', Object.keys(resolvedSearchParams));
   debugLog('[InterfacesPage] Timestamp:', new Date().toISOString());
 
-  // get user and api key
-  const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
+  // get user
   const user = await getCurrentUser();
   if (!user) {
     redirect('/login?signout=true');
@@ -66,66 +65,62 @@ const InterfacesPage = async ({ searchParams }: { searchParams: Promise<SearchPa
   if (!isUnifyMember) {
     redirect('/assistants');
   }
-
-  const userId = user.id;
-  const apiKey = user.apiKey;
-
   // get server actions - Legacy actions for backward compatibility
   const projectsActions = {
-    get: await projects.getProjects(apiKey),
-    create: await projects.createProject(apiKey),
-    rename: await projects.renameProject(apiKey),
-    update: await projects.patchProject(apiKey),
-    delete: await projects.deleteProject(apiKey),
-    exportTemplate: await projects.exportProjectAsTemplate(apiKey),
-    importTemplate: await projects.importProjectFromTemplate(apiKey),
-    getProject: await projects.getProject(apiKey),
-    transferToOrg: await projects.transferProjectToOrg(apiKey),
-    transferToPersonal: await projects.transferProjectToPersonal(apiKey),
+    get: projects.getProjects,
+    create: projects.createProject,
+    rename: projects.renameProject,
+    update: projects.patchProject,
+    delete: projects.deleteProject,
+    exportTemplate: projects.exportProjectAsTemplate,
+    importTemplate: projects.importProjectFromTemplate,
+    getProject: projects.getProject,
+    transferToOrg: projects.transferProjectToOrg,
+    transferToPersonal: projects.transferProjectToPersonal,
   };
 
   const logsActions = {
-    create: await logs.createLogs(apiKey),
-    get: await logs.getLogs(apiKey),
-    getMetrics: await logs.getLogMetrics(apiKey),
-    delete: await logs.deleteLogs(apiKey),
-    getLatest: await logs.getLatestTimestamp(apiKey),
-    update: await logs.updateLogsWithSync(apiKey),
+    create: logs.createLogs,
+    get: logs.getLogs,
+    getMetrics: logs.getLogMetrics,
+    delete: logs.deleteLogs,
+    getLatest: logs.getLatestTimestamp,
+    update: logs.updateLogsWithSync,
   };
 
   const derivedEntryActions = {
-    create: await logs.createDerivedEntry(apiKey),
-    update: await logs.updateDerivedEntry(apiKey),
+    create: logs.createDerivedEntry,
+    update: logs.updateDerivedEntry,
   };
 
   const fieldsActions = {
-    get: await logs.getLogFields(apiKey),
-    rename: await logs.renameLogFields(apiKey),
+    get: logs.getLogFields,
+    rename: logs.renameLogFields,
   };
 
   const contextActions = {
-    get: await contexts.getContexts(apiKey),
-    create: await contexts.createContext(apiKey),
-    delete: await contexts.deleteContext(apiKey),
-    rename: await contexts.renameContext(apiKey),
+    get: contexts.getContexts,
+    create: contexts.createContext,
+    delete: contexts.deleteContext,
+    rename: contexts.renameContext,
   };
 
   // Favourites actions - gracefully handle failures
   let initialFavourites: Favourite[] = [];
   try {
-    initialFavourites = await favourites.getFavourites(apiKey);
+    initialFavourites = await favourites.getFavourites();
   } catch (error) {
     console.error('[InterfacesPage] Failed to fetch favourites:', error);
     // Continue without favourites rather than crashing the page
   }
 
   const favouritesActions = {
-    create: await favourites.createFavourite(apiKey),
-    delete: await favourites.deleteFavourite(apiKey),
+    create: favourites.createFavourite,
+    delete: favourites.deleteFavourite,
   };
 
   // Create the granular actions using the factory functions
-  const interfaceActions: GranularInterfaceActions = await createInterfaceActions(
+  const interfaceActions: GranularInterfaceActions = createInterfaceActions(
     interfaces.listInterfaces,
     interfaces.getInterfaceByName,
     interfaces.getInterfaceById,
@@ -144,11 +139,10 @@ const InterfacesPage = async ({ searchParams }: { searchParams: Promise<SearchPa
     interfaces.getInterfaceCheckpointById,
     interfaces.getInterfaceCheckpointUnified,
     interfaces.exportInterfaceAsTemplate,
-    interfaces.importInterfaceFromTemplate,
-    apiKey
+    interfaces.importInterfaceFromTemplate
   );
 
-  const tabActions: GranularTabActions = await createTabActions(
+  const tabActions: GranularTabActions = createTabActions(
     tabs.listTabs,
     tabs.getTabByName,
     tabs.getTabById,
@@ -167,11 +161,10 @@ const InterfacesPage = async ({ searchParams }: { searchParams: Promise<SearchPa
     tabs.getTabCheckpointById,
     tabs.getTabCheckpointUnified,
     tabs.exportTabAsTemplate,
-    tabs.importTabFromTemplate,
-    apiKey
+    tabs.importTabFromTemplate
   );
 
-  const tileActions: GranularTileActions = await createTileActions(
+  const tileActions: GranularTileActions = createTileActions(
     tiles.listTiles,
     tiles.getTileByName,
     tiles.getTileById,
@@ -196,16 +189,15 @@ const InterfacesPage = async ({ searchParams }: { searchParams: Promise<SearchPa
     tiles.getTileCheckpointById,
     tiles.getTileCheckpointUnified,
     tiles.exportTileAsTemplate,
-    tiles.importTileFromTemplate,
-    apiKey
+    tiles.importTileFromTemplate
   );
 
   const resourcesActions: ResourcesActions = {
-    grantAccess: await resourceAccess.grantResourceAccessAction(apiKey),
-    revokeAccess: await resourceAccess.revokeResourceAccessAction(apiKey),
-    updateAccess: await resourceAccess.updateResourceAccessAction(apiKey),
-    listAccess: await resourceAccess.listResourceAccessAction(apiKey),
-    listRoles: await organizations.getOrganizationRolesAction(apiKey),
+    grantAccess: resourceAccess.grantResourceAccessAction,
+    revokeAccess: resourceAccess.revokeResourceAccessAction,
+    updateAccess: resourceAccess.updateResourceAccessAction,
+    listAccess: resourceAccess.listResourceAccessAction,
+    listRoles: organizations.getOrganizationRolesAction,
   };
 
   const userMeta = {

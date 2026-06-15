@@ -23,12 +23,12 @@ import type { AdminInvoiceActions } from '@/types/admin';
 
 const AdminInvoicesPage = async () => {
   const actions: AdminInvoiceActions = {
-    listInvoices: await listAdminInvoicesAction(),
+    listInvoices: listAdminInvoicesAction,
   };
   // The plan-template filter dropdown needs the catalog. We hand it
   // in once at render time rather than re-fetching on every filter
   // mount — the catalog is small and doesn't change between pages.
-  const listTemplates = await listBillingTemplatesAction();
+  const listTemplates = listBillingTemplatesAction;
 
   return (
     <div className="h-full w-full">

@@ -55,11 +55,11 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
     );
   }
 
-  // 3. Initialize Server Action with API Key
-  const acceptAction = await acceptInviteAction(user.apiKey);
-
-  // 4. Render Client View
   return (
-    <InviteContent token={token} onAccept={acceptAction} onPatchSession={patchSessionAndRedirect} />
+    <InviteContent
+      token={token}
+      onAccept={acceptInviteAction}
+      onPatchSession={patchSessionAndRedirect}
+    />
   );
 }

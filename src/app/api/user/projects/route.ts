@@ -9,8 +9,7 @@ export async function GET(request: NextRequest) {
       return unauthorized();
     }
 
-    const fetchProjects = await getProjects(apiKey);
-    const projects = await fetchProjects();
+    const projects = await getProjects();
     return NextResponse.json(projects, { status: 200 });
   } catch (err) {
     console.error('/api/user/projects error', err);

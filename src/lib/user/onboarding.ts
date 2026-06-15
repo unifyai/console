@@ -3,6 +3,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { decode, encode } from 'next-auth/jwt';
+import { requireUserApiKey } from '@/lib/server-action-session';
 import { getOrchestraUserClient, OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 
 /**
@@ -121,18 +122,15 @@ export async function patchSessionAndRedirect(
 
 // ─── Server action factory: update onboarding in Orchestra ────────────────────
 
-export async function updateOnboardingAction(apiKey: string) {
-  return async (update: {
-    currentStep: string;
-    stepData?: Record<string, unknown>;
-  }): Promise<void> => {
-    'use server';
+export async function updateOnboardingAction(update: {
+  currentStep: string;
+  stepData?: Record<string, unknown>;
+}): Promise<void> {
+  const apiKey = await requireUserApiKey();
+  const client = await getOrchestraUserClient(apiKey);
 
-    const client = await getOrchestraUserClient(apiKey);
-
-    await client.put('/user/onboarding', {
-      currentStep: update.currentStep,
-      ...(update.stepData && { stepData: update.stepData }),
-    });
-  };
+  await client.put('/user/onboarding', {
+    currentStep: update.currentStep,
+    ...(update.stepData && { stepData: update.stepData }),
+  });
 }

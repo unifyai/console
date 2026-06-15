@@ -1,3 +1,7 @@
+'use server';
+
+import { requireUserApiKey } from '@/lib/server-action-session';
+import { getCurrentUser } from '@/lib/user/user';
 /**
  * Organization-related Orchestra API calls
  *
@@ -67,118 +71,128 @@ const safeFetch = async (url: string, options: RequestInit, context: string): Pr
 // Organization Functions
 // =============================================================================
 
-export const createOrganizationAction = async (apiKey: string) => {
-  return async (name: string): Promise<Organization | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.POST('/v0/organizations', {
-      body: { name } as never,
-    });
+export async function createOrganizationAction(
+  name: string
+): Promise<Organization | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.POST('/v0/organizations', {
+    body: { name } as never,
+  });
 
-    if (error) {
-      return {
-        detail:
-          ((error as Record<string, unknown>)?.detail as string) || 'Failed to create organization',
-        status: response?.status || 500,
-      };
-    }
+  if (error) {
+    return {
+      detail:
+        ((error as Record<string, unknown>)?.detail as string) || 'Failed to create organization',
+      status: response?.status || 500,
+    };
+  }
 
-    return data as unknown as Organization;
-  };
-};
+  return data as unknown as Organization;
+}
 
-export const updateOrganizationAction = async (apiKey: string) => {
-  return async (
-    orgId: number,
-    name: string,
-    timezone?: string | null
-  ): Promise<Organization | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
+export async function createOrgAction(name: string): Promise<Organization | ResponseProps> {
+  const user = await getCurrentUser();
+  if (!user?.apiKey) {
+    return { detail: 'Unauthorized', status: 401 };
+  }
+  const isUnifyMember = user.organizations?.some((o) => o.name === 'Unify') ?? false;
+  if (isUnifyMember) {
+    return adminCreateOrganizationAction(user.id, name);
+  }
+  return createOrganizationAction(name);
+}
 
-    // Build the update body, only including fields that are provided
-    const body: { name?: string; timezone?: string | null } = {};
-    if (name) body.name = name;
-    if (timezone !== undefined) body.timezone = timezone;
+export async function updateOrganizationAction(
+  orgId: number,
+  name: string,
+  timezone?: string | null
+): Promise<Organization | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
 
-    const { data, error, response } = await client.PATCH('/v0/organizations/{organization_id}', {
+  // Build the update body, only including fields that are provided
+  const body: { name?: string; timezone?: string | null } = {};
+  if (name) body.name = name;
+  if (timezone !== undefined) body.timezone = timezone;
+
+  const { data, error, response } = await client.PATCH('/v0/organizations/{organization_id}', {
+    params: { path: { organization_id: orgId } },
+    body: body as never,
+  });
+
+  if (error) {
+    return {
+      detail:
+        ((error as Record<string, unknown>)?.detail as string) || 'Failed to update organization',
+      status: response?.status || 500,
+    };
+  }
+
+  return data as unknown as Organization;
+}
+
+export async function deleteOrganizationAction(orgId: number): Promise<void | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { error, response } = await client.DELETE('/v0/organizations/{organization_id}', {
+    params: { path: { organization_id: orgId } },
+  });
+
+  if (error) {
+    return {
+      detail:
+        ((error as Record<string, unknown>)?.detail as string) || 'Failed to delete organization',
+      status: response?.status || 500,
+    };
+  }
+
+  return;
+}
+
+export async function getMembersAction(
+  orgId: number
+): Promise<OrganizationMember[] | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.GET(
+    '/v0/organizations/{organization_id}/members',
+    {
       params: { path: { organization_id: orgId } },
-      body: body as never,
-    });
-
-    if (error) {
-      return {
-        detail:
-          ((error as Record<string, unknown>)?.detail as string) || 'Failed to update organization',
-        status: response?.status || 500,
-      };
     }
+  );
 
-    return data as unknown as Organization;
-  };
-};
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to get members',
+      status: response?.status || 500,
+    };
+  }
 
-export const deleteOrganizationAction = async (apiKey: string) => {
-  return async (orgId: number): Promise<void | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { error, response } = await client.DELETE('/v0/organizations/{organization_id}', {
-      params: { path: { organization_id: orgId } },
-    });
+  return data as unknown as OrganizationMember[];
+}
 
-    if (error) {
-      return {
-        detail:
-          ((error as Record<string, unknown>)?.detail as string) || 'Failed to delete organization',
-        status: response?.status || 500,
-      };
-    }
+export async function inviteMemberAction(
+  orgId: number,
+  email: string,
+  roleId?: number
+): Promise<void | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { error, response } = await client.POST('/v0/organizations/{organization_id}/invites', {
+    params: { path: { organization_id: orgId } },
+    body: { email, role_id: roleId } as never,
+  });
 
-    return;
-  };
-};
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to invite member',
+      status: response?.status || 500,
+    };
+  }
 
-export const getMembersAction = async (apiKey: string) => {
-  return async (orgId: number): Promise<OrganizationMember[] | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.GET(
-      '/v0/organizations/{organization_id}/members',
-      {
-        params: { path: { organization_id: orgId } },
-      }
-    );
-
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to get members',
-        status: response?.status || 500,
-      };
-    }
-
-    return data as unknown as OrganizationMember[];
-  };
-};
-
-export const inviteMemberAction = async (apiKey: string) => {
-  return async (orgId: number, email: string, roleId?: number): Promise<void | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { error, response } = await client.POST('/v0/organizations/{organization_id}/invites', {
-      params: { path: { organization_id: orgId } },
-      body: { email, role_id: roleId } as never,
-    });
-
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to invite member',
-        status: response?.status || 500,
-      };
-    }
-
-    return;
-  };
-};
+  return;
+}
 
 export interface AcceptInviteResult {
   success: true;
@@ -186,203 +200,223 @@ export interface AcceptInviteResult {
   mfaSetupRequired?: boolean;
 }
 
-export const acceptInviteAction = async (apiKey: string) => {
-  return async (token: string): Promise<AcceptInviteResult | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.POST('/v0/invites/{token}/accept', {
-      params: { path: { token } },
-    });
+export async function acceptInviteAction(
+  token: string
+): Promise<AcceptInviteResult | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.POST('/v0/invites/{token}/accept', {
+    params: { path: { token } },
+  });
 
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to accept invite',
-        status: response?.status || 500,
-      };
-    }
-
-    const responseData = data as unknown as Record<string, unknown>;
-    if (responseData && responseData.organizationId) {
-      const cookieStore = await cookies();
-      cookieStore.set('unify_workspace_id', String(responseData.organizationId), {
-        path: '/',
-        maxAge: 60 * 60 * 24 * 30,
-        sameSite: 'lax',
-      });
-    }
-
+  if (error) {
     return {
-      success: true as const,
-      organizationName: (responseData?.organizationName as string) ?? undefined,
-      mfaSetupRequired: responseData?.mfaSetupRequired === true,
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to accept invite',
+      status: response?.status || 500,
     };
+  }
+
+  const responseData = data as unknown as Record<string, unknown>;
+  if (responseData && responseData.organizationId) {
+    const cookieStore = await cookies();
+    cookieStore.set('unify_workspace_id', String(responseData.organizationId), {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+      sameSite: 'lax',
+    });
+  }
+
+  return {
+    success: true as const,
+    organizationName: (responseData?.organizationName as string) ?? undefined,
+    mfaSetupRequired: responseData?.mfaSetupRequired === true,
   };
-};
+}
 
-export const getInvitesAction = async (apiKey: string) => {
-  return async (orgId: number): Promise<OrganizationInviteListResponse | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.GET(
-      '/v0/organizations/{organization_id}/invites',
-      {
-        params: { path: { organization_id: orgId } },
-      }
-    );
-
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to get invites',
-        status: response?.status || 500,
-      };
+export async function getInvitesAction(
+  orgId: number
+): Promise<OrganizationInviteListResponse | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.GET(
+    '/v0/organizations/{organization_id}/invites',
+    {
+      params: { path: { organization_id: orgId } },
     }
+  );
 
-    return data as unknown as OrganizationInviteListResponse;
-  };
-};
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to get invites',
+      status: response?.status || 500,
+    };
+  }
 
-export const cancelInviteAction = async (apiKey: string) => {
-  return async (orgId: number, inviteId: string): Promise<void | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { error, response } = await client.DELETE(
-      '/v0/organizations/{organization_id}/invites/{invite_id}',
-      {
-        params: { path: { organization_id: orgId, invite_id: inviteId } },
-      }
-    );
+  return data as unknown as OrganizationInviteListResponse;
+}
 
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to cancel invite',
-        status: response?.status || 500,
-      };
+export async function cancelInviteAction(
+  orgId: number,
+  inviteId: string
+): Promise<void | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { error, response } = await client.DELETE(
+    '/v0/organizations/{organization_id}/invites/{invite_id}',
+    {
+      params: { path: { organization_id: orgId, invite_id: inviteId } },
     }
+  );
 
-    return;
-  };
-};
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to cancel invite',
+      status: response?.status || 500,
+    };
+  }
 
-export const removeMemberAction = async (apiKey: string) => {
-  return async (orgId: number, userId: string): Promise<void | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { error, response } = await client.DELETE(
-      '/v0/organizations/{organization_id}/members/{user_id}',
-      {
-        params: { path: { organization_id: orgId, user_id: userId } },
-      }
-    );
+  return;
+}
 
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to remove member',
-        status: response?.status || 500,
-      };
+export async function removeMemberAction(
+  orgId: number,
+  userId: string
+): Promise<void | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { error, response } = await client.DELETE(
+    '/v0/organizations/{organization_id}/members/{user_id}',
+    {
+      params: { path: { organization_id: orgId, user_id: userId } },
     }
+  );
 
-    return;
-  };
-};
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to remove member',
+      status: response?.status || 500,
+    };
+  }
 
-export const getOrganizationRolesAction = async (apiKey: string) => {
-  return async (orgId: number): Promise<OrganizationRole[] | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.GET(
-      '/v0/organizations/{organization_id}/roles',
-      {
-        params: { path: { organization_id: orgId } },
-      }
-    );
+  return;
+}
 
-    if (error) {
-      return {
-        detail:
-          ((error as Record<string, unknown>)?.detail as string) ||
-          'Failed to get organization roles',
-        status: response?.status || 500,
-      };
+export async function getOrganizationRolesAction(
+  orgId: number
+): Promise<OrganizationRole[] | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.GET('/v0/organizations/{organization_id}/roles', {
+    params: { path: { organization_id: orgId } },
+  });
+
+  if (error) {
+    return {
+      detail:
+        ((error as Record<string, unknown>)?.detail as string) ||
+        'Failed to get organization roles',
+      status: response?.status || 500,
+    };
+  }
+
+  return data as unknown as OrganizationRole[];
+}
+
+export async function updateMemberRoleAction(
+  orgId: number,
+  userId: string,
+  roleId: number
+): Promise<void | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { error, response } = await client.PATCH(
+    '/v0/organizations/{organization_id}/members/{member_user_id}/role',
+    {
+      params: { path: { organization_id: orgId, member_user_id: userId } },
+      body: { role_id: roleId } as never,
     }
+  );
 
-    return data as unknown as OrganizationRole[];
-  };
-};
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to update role',
+      status: response?.status || 500,
+    };
+  }
 
-export const updateMemberRoleAction = async (apiKey: string) => {
-  return async (orgId: number, userId: string, roleId: number): Promise<void | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { error, response } = await client.PATCH(
-      '/v0/organizations/{organization_id}/members/{member_user_id}/role',
-      {
-        params: { path: { organization_id: orgId, member_user_id: userId } },
-        body: { role_id: roleId } as never,
-      }
-    );
+  return;
+}
 
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to update role',
-        status: response?.status || 500,
-      };
+export async function transferOwnershipAction(
+  orgId: number,
+  newOwnerId: string
+): Promise<Organization | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.POST(
+    '/v0/organizations/{organization_id}/transfer-ownership',
+    {
+      params: { path: { organization_id: orgId } },
+      body: { new_owner_id: newOwnerId } as never,
     }
+  );
 
-    return;
-  };
-};
+  if (error) {
+    return {
+      detail:
+        ((error as Record<string, unknown>)?.detail as string) || 'Failed to transfer ownership',
+      status: response?.status || 500,
+    };
+  }
 
-export const transferOwnershipAction = async (apiKey: string) => {
-  return async (orgId: number, newOwnerId: string): Promise<Organization | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.POST(
-      '/v0/organizations/{organization_id}/transfer-ownership',
-      {
-        params: { path: { organization_id: orgId } },
-        body: { new_owner_id: newOwnerId } as never,
-      }
-    );
+  return data as unknown as Organization;
+}
 
-    if (error) {
-      return {
-        detail:
-          ((error as Record<string, unknown>)?.detail as string) || 'Failed to transfer ownership',
-        status: response?.status || 500,
-      };
-    }
-
-    return data as unknown as Organization;
-  };
-};
-
-export const adminCreateOrganizationAction = async (creatorUserId: string) => {
-  return async (name: string): Promise<Organization | ResponseProps> => {
-    'use server';
-    return safeFetch(
-      `${backendUrl}/admin/organizations`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-          Authorization: `Bearer ${adminKey}`,
-        },
-        body: JSON.stringify({ name, creator_user_id: creatorUserId }),
+export async function adminCreateOrganizationAction(
+  creatorUserId: string,
+  name: string
+): Promise<Organization | ResponseProps> {
+  return safeFetch(
+    `${backendUrl}/admin/organizations`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+        Authorization: `Bearer ${adminKey}`,
       },
-      'adminCreateOrganization'
-    ) as Promise<Organization | ResponseProps>;
-  };
-};
+      body: JSON.stringify({ name, creator_user_id: creatorUserId }),
+    },
+    'adminCreateOrganization'
+  ) as Promise<Organization | ResponseProps>;
+}
 
 // Admin endpoints - these use raw fetch because they're not in the public OpenAPI spec
-export const getAllOrganizationsAction = async () => {
-  return async (nameFilter?: string): Promise<OrganizationListResponse | ResponseProps> => {
-    'use server';
-    const query = nameFilter ? `?name=${encodeURIComponent(nameFilter)}` : '';
+export async function getAllOrganizationsAction(
+  nameFilter?: string
+): Promise<OrganizationListResponse | ResponseProps> {
+  const query = nameFilter ? `?name=${encodeURIComponent(nameFilter)}` : '';
 
-    return safeFetch(
-      `${backendUrl}/admin/organizations${query}`,
+  return safeFetch(
+    `${backendUrl}/admin/organizations${query}`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+        Authorization: `Bearer ${adminKey}`,
+      },
+    },
+    'getAllOrganizations'
+  ) as Promise<OrganizationListResponse | ResponseProps>;
+}
+
+export async function checkUserOrganizationAction(
+  email: string
+): Promise<UserOrganizationCheckResult | ResponseProps> {
+  try {
+    const result = (await safeFetch(
+      `${backendUrl}/admin/user/by-email?email=${encodeURIComponent(email)}`,
       {
         method: 'GET',
         headers: {
@@ -391,387 +425,355 @@ export const getAllOrganizationsAction = async () => {
           Authorization: `Bearer ${adminKey}`,
         },
       },
-      'getAllOrganizations'
-    ) as Promise<OrganizationListResponse | ResponseProps>;
-  };
-};
+      'checkUserOrganization'
+    )) as Record<string, unknown>;
 
-export const checkUserOrganizationAction = async () => {
-  return async (email: string): Promise<UserOrganizationCheckResult | ResponseProps> => {
-    'use server';
-    try {
-      const result = (await safeFetch(
-        `${backendUrl}/admin/user/by-email?email=${encodeURIComponent(email)}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            accept: 'application/json',
-            Authorization: `Bearer ${adminKey}`,
-          },
-        },
-        'checkUserOrganization'
-      )) as Record<string, unknown>;
-
-      if (!result || 'detail' in result) {
-        return { isInOrganization: false };
-      }
-
-      const orgs = result.organizations as Array<{ name: string }> | undefined;
-      const isUnifyEmployee = orgs?.some((org) => org.name === 'Unify') ?? false;
-      const hasOrganizations = !isUnifyEmployee && orgs && orgs.length > 0;
-
-      return {
-        isInOrganization: hasOrganizations,
-        organizationName: hasOrganizations ? orgs[0].name : undefined,
-      };
-    } catch (error) {
-      console.error('Failed to check user organization:', error);
+    if (!result || 'detail' in result) {
       return { isInOrganization: false };
     }
-  };
-};
+
+    const orgs = result.organizations as Array<{ name: string }> | undefined;
+    const isUnifyEmployee = orgs?.some((org) => org.name === 'Unify') ?? false;
+    const hasOrganizations = !isUnifyEmployee && orgs && orgs.length > 0;
+
+    return {
+      isInOrganization: hasOrganizations,
+      organizationName: hasOrganizations ? orgs[0].name : undefined,
+    };
+  } catch (error) {
+    console.error('Failed to check user organization:', error);
+    return { isInOrganization: false };
+  }
+}
 
 // =============================================================================
 // Role Functions
 // =============================================================================
 
-export const getRolesAction =
-  (apiKey: string) =>
-  async (orgId: number): Promise<Role[] | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.GET(
-      '/v0/organizations/{organization_id}/roles',
-      {
-        params: { path: { organization_id: orgId } },
-      }
-    );
+export async function getRolesAction(orgId: number): Promise<Role[] | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.GET('/v0/organizations/{organization_id}/roles', {
+    params: { path: { organization_id: orgId } },
+  });
 
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to get roles',
-        status: response?.status || 500,
-      };
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to get roles',
+      status: response?.status || 500,
+    };
+  }
+
+  return data as unknown as Role[];
+}
+
+export async function createRoleAction(
+  orgId: number,
+  name: string,
+  description: string,
+  permissionIds: number[]
+): Promise<Role | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.POST('/v0/organizations/{organization_id}/roles', {
+    params: { path: { organization_id: orgId } },
+    body: { name, description, permission_ids: permissionIds } as never,
+  });
+
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to create role',
+      status: response?.status || 500,
+    };
+  }
+
+  return data as unknown as Role;
+}
+
+export async function updateRoleAction(
+  orgId: number,
+  roleId: number,
+  name: string,
+  description: string
+): Promise<Role | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.PATCH(
+    '/v0/organizations/{organization_id}/roles/{role_id}',
+    {
+      params: { path: { organization_id: orgId, role_id: roleId } },
+      body: { name, description } as never,
     }
+  );
 
-    return data as unknown as Role[];
-  };
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to update role',
+      status: response?.status || 500,
+    };
+  }
 
-export const createRoleAction =
-  (apiKey: string) =>
-  async (
-    orgId: number,
-    name: string,
-    description: string,
-    permissionIds: number[]
-  ): Promise<Role | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.POST(
-      '/v0/organizations/{organization_id}/roles',
-      {
-        params: { path: { organization_id: orgId } },
-        body: { name, description, permission_ids: permissionIds } as never,
-      }
-    );
+  return data as unknown as Role;
+}
 
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to create role',
-        status: response?.status || 500,
-      };
+export async function deleteRoleAction(
+  orgId: number,
+  roleId: number
+): Promise<void | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { error, response } = await client.DELETE(
+    '/v0/organizations/{organization_id}/roles/{role_id}',
+    {
+      params: { path: { organization_id: orgId, role_id: roleId } },
     }
+  );
 
-    return data as unknown as Role;
-  };
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to delete role',
+      status: response?.status || 500,
+    };
+  }
 
-export const updateRoleAction =
-  (apiKey: string) =>
-  async (
-    orgId: number,
-    roleId: number,
-    name: string,
-    description: string
-  ): Promise<Role | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.PATCH(
-      '/v0/organizations/{organization_id}/roles/{role_id}',
-      {
-        params: { path: { organization_id: orgId, role_id: roleId } },
-        body: { name, description } as never,
-      }
-    );
+  return;
+}
 
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to update role',
-        status: response?.status || 500,
-      };
+export async function getAllPermissionsAction(): Promise<Permission[] | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.GET('/v0/permissions');
+
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to get permissions',
+      status: response?.status || 500,
+    };
+  }
+
+  return data as unknown as Permission[];
+}
+
+export async function addPermissionsToRoleAction(
+  orgId: number,
+  roleId: number,
+  permissionIds: number[]
+): Promise<Role | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.POST(
+    '/v0/organizations/{organization_id}/roles/{role_id}/permissions',
+    {
+      params: { path: { organization_id: orgId, role_id: roleId } },
+      body: { permission_ids: permissionIds } as never,
     }
+  );
 
-    return data as unknown as Role;
-  };
+  if (error) {
+    return {
+      detail:
+        ((error as Record<string, unknown>)?.detail as string) ||
+        'Failed to add permissions to role',
+      status: response?.status || 500,
+    };
+  }
 
-export const deleteRoleAction =
-  (apiKey: string) =>
-  async (orgId: number, roleId: number): Promise<void | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { error, response } = await client.DELETE(
-      '/v0/organizations/{organization_id}/roles/{role_id}',
-      {
-        params: { path: { organization_id: orgId, role_id: roleId } },
-      }
-    );
+  return data as unknown as Role;
+}
 
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to delete role',
-        status: response?.status || 500,
-      };
+export async function removePermissionFromRoleAction(
+  orgId: number,
+  roleId: number,
+  permissionId: number
+): Promise<Role | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.DELETE(
+    '/v0/organizations/{organization_id}/roles/{role_id}/permissions/{permission_id}',
+    {
+      params: {
+        path: { organization_id: orgId, role_id: roleId, permission_id: permissionId },
+      },
     }
+  );
 
-    return;
-  };
+  if (error) {
+    return {
+      detail:
+        ((error as Record<string, unknown>)?.detail as string) ||
+        'Failed to remove permission from role',
+      status: response?.status || 500,
+    };
+  }
 
-export const getAllPermissionsAction =
-  (apiKey: string) => async (): Promise<Permission[] | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.GET('/v0/permissions');
-
-    if (error) {
-      return {
-        detail:
-          ((error as Record<string, unknown>)?.detail as string) || 'Failed to get permissions',
-        status: response?.status || 500,
-      };
-    }
-
-    return data as unknown as Permission[];
-  };
-
-export const addPermissionsToRoleAction =
-  (apiKey: string) =>
-  async (orgId: number, roleId: number, permissionIds: number[]): Promise<Role | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.POST(
-      '/v0/organizations/{organization_id}/roles/{role_id}/permissions',
-      {
-        params: { path: { organization_id: orgId, role_id: roleId } },
-        body: { permission_ids: permissionIds } as never,
-      }
-    );
-
-    if (error) {
-      return {
-        detail:
-          ((error as Record<string, unknown>)?.detail as string) ||
-          'Failed to add permissions to role',
-        status: response?.status || 500,
-      };
-    }
-
-    return data as unknown as Role;
-  };
-
-export const removePermissionFromRoleAction =
-  (apiKey: string) =>
-  async (orgId: number, roleId: number, permissionId: number): Promise<Role | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.DELETE(
-      '/v0/organizations/{organization_id}/roles/{role_id}/permissions/{permission_id}',
-      {
-        params: {
-          path: { organization_id: orgId, role_id: roleId, permission_id: permissionId },
-        },
-      }
-    );
-
-    if (error) {
-      return {
-        detail:
-          ((error as Record<string, unknown>)?.detail as string) ||
-          'Failed to remove permission from role',
-        status: response?.status || 500,
-      };
-    }
-
-    return data as unknown as Role;
-  };
+  return data as unknown as Role;
+}
 
 // =============================================================================
 // Team Functions
 // =============================================================================
 
-export const createTeamAction =
-  (apiKey: string) =>
-  async (orgId: number, name: string, description?: string): Promise<Team | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.POST(
-      '/v0/organizations/{organization_id}/teams',
-      {
-        params: { path: { organization_id: orgId } },
-        body: { name, description } as never,
-      }
-    );
+export async function createTeamAction(
+  orgId: number,
+  name: string,
+  description?: string
+): Promise<Team | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.POST('/v0/organizations/{organization_id}/teams', {
+    params: { path: { organization_id: orgId } },
+    body: { name, description } as never,
+  });
 
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to create team',
-        status: response?.status || 500,
-      };
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to create team',
+      status: response?.status || 500,
+    };
+  }
+
+  return data as unknown as Team;
+}
+
+export async function updateTeamAction(
+  orgId: number,
+  teamId: number,
+  name: string,
+  description?: string
+): Promise<Team | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.PATCH(
+    '/v0/organizations/{organization_id}/teams/{team_id}',
+    {
+      params: { path: { organization_id: orgId, team_id: teamId } },
+      body: { name, description } as never,
     }
+  );
 
-    return data as unknown as Team;
-  };
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to update team',
+      status: response?.status || 500,
+    };
+  }
 
-export const updateTeamAction =
-  (apiKey: string) =>
-  async (
-    orgId: number,
-    teamId: number,
-    name: string,
-    description?: string
-  ): Promise<Team | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.PATCH(
-      '/v0/organizations/{organization_id}/teams/{team_id}',
-      {
-        params: { path: { organization_id: orgId, team_id: teamId } },
-        body: { name, description } as never,
-      }
-    );
+  return data as unknown as Team;
+}
 
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to update team',
-        status: response?.status || 500,
-      };
+export async function getTeamsAction(orgId: number): Promise<Team[] | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.GET('/v0/organizations/{organization_id}/teams', {
+    params: { path: { organization_id: orgId } },
+  });
+
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to get teams',
+      status: response?.status || 500,
+    };
+  }
+
+  return data as unknown as Team[];
+}
+
+export async function getTeamDetailsAction(
+  orgId: number,
+  teamId: number
+): Promise<Team | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.GET(
+    '/v0/organizations/{organization_id}/teams/{team_id}',
+    {
+      params: { path: { organization_id: orgId, team_id: teamId } },
     }
+  );
 
-    return data as unknown as Team;
-  };
+  if (error) {
+    return {
+      detail:
+        ((error as Record<string, unknown>)?.detail as string) || 'Failed to get team details',
+      status: response?.status || 500,
+    };
+  }
 
-export const getTeamsAction =
-  (apiKey: string) =>
-  async (orgId: number): Promise<Team[] | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.GET(
-      '/v0/organizations/{organization_id}/teams',
-      {
-        params: { path: { organization_id: orgId } },
-      }
-    );
+  return data as unknown as Team;
+}
 
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to get teams',
-        status: response?.status || 500,
-      };
+export async function deleteTeamAction(
+  orgId: number,
+  teamId: number
+): Promise<void | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { error, response } = await client.DELETE(
+    '/v0/organizations/{organization_id}/teams/{team_id}',
+    {
+      params: { path: { organization_id: orgId, team_id: teamId } },
     }
+  );
 
-    return data as unknown as Team[];
-  };
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to delete team',
+      status: response?.status || 500,
+    };
+  }
 
-export const getTeamDetailsAction =
-  (apiKey: string) =>
-  async (orgId: number, teamId: number): Promise<Team | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.GET(
-      '/v0/organizations/{organization_id}/teams/{team_id}',
-      {
-        params: { path: { organization_id: orgId, team_id: teamId } },
-      }
-    );
+  return;
+}
 
-    if (error) {
-      return {
-        detail:
-          ((error as Record<string, unknown>)?.detail as string) || 'Failed to get team details',
-        status: response?.status || 500,
-      };
+export async function addTeamMemberAction(
+  orgId: number,
+  teamId: number,
+  userId: string
+): Promise<void | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { error, response } = await client.POST(
+    '/v0/organizations/{organization_id}/teams/{team_id}/members',
+    {
+      params: { path: { organization_id: orgId, team_id: teamId } },
+      body: { user_ids: [userId] } as never,
     }
+  );
 
-    return data as unknown as Team;
-  };
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to add team member',
+      status: response?.status || 500,
+    };
+  }
 
-export const deleteTeamAction =
-  (apiKey: string) =>
-  async (orgId: number, teamId: number): Promise<void | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { error, response } = await client.DELETE(
-      '/v0/organizations/{organization_id}/teams/{team_id}',
-      {
-        params: { path: { organization_id: orgId, team_id: teamId } },
-      }
-    );
+  return;
+}
 
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to delete team',
-        status: response?.status || 500,
-      };
+export async function removeTeamMemberAction(
+  orgId: number,
+  teamId: number,
+  userId: string
+): Promise<void | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { error, response } = await client.DELETE(
+    '/v0/organizations/{organization_id}/teams/{team_id}/members/{user_id_to_remove}',
+    {
+      params: { path: { organization_id: orgId, team_id: teamId, user_id_to_remove: userId } },
     }
+  );
 
-    return;
-  };
+  if (error) {
+    return {
+      detail:
+        ((error as Record<string, unknown>)?.detail as string) || 'Failed to remove team member',
+      status: response?.status || 500,
+    };
+  }
 
-export const addTeamMemberAction =
-  (apiKey: string) =>
-  async (orgId: number, teamId: number, userId: string): Promise<void | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { error, response } = await client.POST(
-      '/v0/organizations/{organization_id}/teams/{team_id}/members',
-      {
-        params: { path: { organization_id: orgId, team_id: teamId } },
-        body: { user_ids: [userId] } as never,
-      }
-    );
-
-    if (error) {
-      return {
-        detail:
-          ((error as Record<string, unknown>)?.detail as string) || 'Failed to add team member',
-        status: response?.status || 500,
-      };
-    }
-
-    return;
-  };
-
-export const removeTeamMemberAction =
-  (apiKey: string) =>
-  async (orgId: number, teamId: number, userId: string): Promise<void | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { error, response } = await client.DELETE(
-      '/v0/organizations/{organization_id}/teams/{team_id}/members/{user_id_to_remove}',
-      {
-        params: { path: { organization_id: orgId, team_id: teamId, user_id_to_remove: userId } },
-      }
-    );
-
-    if (error) {
-      return {
-        detail:
-          ((error as Record<string, unknown>)?.detail as string) || 'Failed to remove team member',
-        status: response?.status || 500,
-      };
-    }
-
-    return;
-  };
+  return;
+}
 
 // =============================================================================
 // MFA Enforcement Functions
@@ -781,152 +783,143 @@ export interface OrgMFASettings {
   requireMfa: boolean;
 }
 
-export const getMfaSettingsAction = async (apiKey: string) => {
-  return async (orgId: number): Promise<OrgMFASettings | ResponseProps> => {
-    'use server';
-    return safeFetch(
-      `${backendUrl}/organizations/${orgId}/mfa-settings`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
+export async function getMfaSettingsAction(orgId: number): Promise<OrgMFASettings | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  return safeFetch(
+    `${backendUrl}/organizations/${orgId}/mfa-settings`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+        Authorization: `Bearer ${apiKey}`,
       },
-      'getMfaSettings'
-    ) as Promise<OrgMFASettings | ResponseProps>;
-  };
-};
+    },
+    'getMfaSettings'
+  ) as Promise<OrgMFASettings | ResponseProps>;
+}
 
-export const updateMfaSettingsAction = async (apiKey: string) => {
-  return async (orgId: number, requireMfa: boolean): Promise<OrgMFASettings | ResponseProps> => {
-    'use server';
-    return safeFetch(
-      `${backendUrl}/organizations/${orgId}/mfa-settings`,
-      {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({ require_mfa: requireMfa }),
+export async function updateMfaSettingsAction(
+  orgId: number,
+  requireMfa: boolean
+): Promise<OrgMFASettings | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  return safeFetch(
+    `${backendUrl}/organizations/${orgId}/mfa-settings`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+        Authorization: `Bearer ${apiKey}`,
       },
-      'updateMfaSettings'
-    ) as Promise<OrgMFASettings | ResponseProps>;
-  };
-};
+      body: JSON.stringify({ require_mfa: requireMfa }),
+    },
+    'updateMfaSettings'
+  ) as Promise<OrgMFASettings | ResponseProps>;
+}
 
 // =============================================================================
 // Resource Access Functions
 // =============================================================================
 
-export const grantResourceAccessAction =
-  (apiKey: string) =>
-  async (
-    resourceType: 'project' | 'org',
-    resourceId: number,
-    grantData: ResourceAccessGrant
-  ): Promise<ResourceAccessResponse | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.POST(
-      '/v0/resources/{resource_type}/{resource_id}/access',
-      {
-        params: { path: { resource_type: resourceType, resource_id: resourceId } },
-        body: grantData as never,
-      }
-    );
-
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to grant access',
-        status: response?.status || 500,
-      };
+export async function grantResourceAccessAction(
+  resourceType: 'project' | 'org',
+  resourceId: number,
+  grantData: ResourceAccessGrant
+): Promise<ResourceAccessResponse | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.POST(
+    '/v0/resources/{resource_type}/{resource_id}/access',
+    {
+      params: { path: { resource_type: resourceType, resource_id: resourceId } },
+      body: grantData as never,
     }
+  );
 
-    return data as unknown as ResourceAccessResponse;
-  };
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to grant access',
+      status: response?.status || 500,
+    };
+  }
 
-export const revokeResourceAccessAction =
-  (apiKey: string) =>
-  async (
-    resourceType: 'project' | 'org',
-    resourceId: number,
-    revokeData: ResourceAccessRevoke
-  ): Promise<void | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { error, response } = await client.DELETE(
-      '/v0/resources/{resource_type}/{resource_id}/access',
-      {
-        params: { path: { resource_type: resourceType, resource_id: resourceId } },
-        body: revokeData as never,
-      }
-    );
+  return data as unknown as ResourceAccessResponse;
+}
 
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to revoke access',
-        status: response?.status || 500,
-      };
+export async function revokeResourceAccessAction(
+  resourceType: 'project' | 'org',
+  resourceId: number,
+  revokeData: ResourceAccessRevoke
+): Promise<void | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { error, response } = await client.DELETE(
+    '/v0/resources/{resource_type}/{resource_id}/access',
+    {
+      params: { path: { resource_type: resourceType, resource_id: resourceId } },
+      body: revokeData as never,
     }
+  );
 
-    return;
-  };
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to revoke access',
+      status: response?.status || 500,
+    };
+  }
 
-export const updateResourceAccessAction =
-  (apiKey: string) =>
-  async (
-    resourceType: 'project' | 'org',
-    resourceId: number,
-    accessId: number,
-    updateData: ResourceAccessUpdate
-  ): Promise<ResourceAccessResponse | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.PATCH(
-      '/v0/resources/{resource_type}/{resource_id}/access/{access_id}',
-      {
-        params: {
-          path: { resource_type: resourceType, resource_id: resourceId, access_id: accessId },
-        },
-        body: updateData as never,
-      }
-    );
+  return;
+}
 
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to update access',
-        status: response?.status || 500,
-      };
+export async function updateResourceAccessAction(
+  resourceType: 'project' | 'org',
+  resourceId: number,
+  accessId: number,
+  updateData: ResourceAccessUpdate
+): Promise<ResourceAccessResponse | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.PATCH(
+    '/v0/resources/{resource_type}/{resource_id}/access/{access_id}',
+    {
+      params: {
+        path: { resource_type: resourceType, resource_id: resourceId, access_id: accessId },
+      },
+      body: updateData as never,
     }
+  );
 
-    return data as unknown as ResourceAccessResponse;
-  };
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to update access',
+      status: response?.status || 500,
+    };
+  }
 
-export const listResourceAccessAction =
-  (apiKey: string) =>
-  async (
-    resourceType: 'project' | 'org',
-    resourceId: number
-  ): Promise<ResourceAccessListResponse | ResponseProps> => {
-    'use server';
-    const client = createOrchestraClient(apiKey);
-    const { data, error, response } = await client.GET(
-      '/v0/resources/{resource_type}/{resource_id}/access',
-      {
-        params: { path: { resource_type: resourceType, resource_id: resourceId } },
-      }
-    );
+  return data as unknown as ResourceAccessResponse;
+}
 
-    if (error) {
-      return {
-        detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to list access',
-        status: response?.status || 500,
-      };
+export async function listResourceAccessAction(
+  resourceType: 'project' | 'org',
+  resourceId: number
+): Promise<ResourceAccessListResponse | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error, response } = await client.GET(
+    '/v0/resources/{resource_type}/{resource_id}/access',
+    {
+      params: { path: { resource_type: resourceType, resource_id: resourceId } },
     }
+  );
 
-    return data as unknown as ResourceAccessListResponse;
-  };
+  if (error) {
+    return {
+      detail: ((error as Record<string, unknown>)?.detail as string) || 'Failed to list access',
+      status: response?.status || 500,
+    };
+  }
+
+  return data as unknown as ResourceAccessListResponse;
+}

@@ -32,8 +32,7 @@ describe('Logs API Error Handling', () => {
 
       // Import dynamically to get fresh module with mocked fetch
       const { getLogFields } = await import('@/lib/interfaces/logs');
-      const getFields = await getLogFields('test-api-key');
-      const result = await getFields('test-project', 'deleted-context');
+      const result = await getLogFields('test-project', 'deleted-context');
 
       expect(result).toEqual({});
     });
@@ -42,8 +41,7 @@ describe('Logs API Error Handling', () => {
       global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
 
       const { getLogFields } = await import('@/lib/interfaces/logs');
-      const getFields = await getLogFields('test-api-key');
-      const result = await getFields('test-project', 'any-context');
+      const result = await getLogFields('test-project', 'any-context');
 
       expect(result).toEqual({});
     });
@@ -56,8 +54,7 @@ describe('Logs API Error Handling', () => {
       });
 
       const { getLogFields } = await import('@/lib/interfaces/logs');
-      const getFields = await getLogFields('test-api-key');
-      const result = await getFields('test-project', 'any-context');
+      const result = await getLogFields('test-project', 'any-context');
 
       expect(result).toEqual({});
     });
@@ -75,8 +72,7 @@ describe('Logs API Error Handling', () => {
       });
 
       const { getLogFields } = await import('@/lib/interfaces/logs');
-      const getFields = await getLogFields('test-api-key');
-      const result = await getFields('test-project', 'valid-context');
+      const result = await getLogFields('test-project', 'valid-context');
 
       expect(result).toEqual(mockFields);
     });
@@ -91,8 +87,7 @@ describe('Logs API Error Handling', () => {
       });
 
       const { getLogs } = await import('@/lib/interfaces/logs');
-      const getLogsFunc = await getLogs('test-api-key');
-      const result = await getLogsFunc(
+      const result = await getLogs(
         'test-project',
         'deleted-context',
         null,
@@ -125,8 +120,7 @@ describe('Logs API Error Handling', () => {
       global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
 
       const { getLogs } = await import('@/lib/interfaces/logs');
-      const getLogsFunc = await getLogs('test-api-key');
-      const result = await getLogsFunc(
+      const result = await getLogs(
         'test-project',
         'any-context',
         null,
@@ -169,8 +163,7 @@ describe('Logs API Error Handling', () => {
       });
 
       const { getLogs } = await import('@/lib/interfaces/logs');
-      const getLogsFunc = await getLogs('test-api-key');
-      const result = await getLogsFunc(
+      const result = await getLogs(
         'test-project',
         'valid-context',
         null,

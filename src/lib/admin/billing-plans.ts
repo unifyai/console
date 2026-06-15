@@ -93,108 +93,97 @@ interface ListTemplatesOptions {
   includeInactive?: boolean;
 }
 
-export async function listBillingTemplatesAction() {
-  return async (
-    options?: ListTemplatesOptions
-  ): Promise<AdminBillingPlanTemplate[] | ResponseProps> => {
-    'use server';
-    const denied = await requireUnifyAdmin();
-    if (denied) return denied;
-    const params = new URLSearchParams();
-    if (options?.includeCustom !== undefined) {
-      params.set('include_custom', String(options.includeCustom));
-    }
-    if (options?.includeInactive) {
-      params.set('include_inactive', 'true');
-    }
-    const qs = params.toString();
-    return safeFetch(
-      `${backendUrl}/admin/billing/plans/templates${qs ? `?${qs}` : ''}`,
-      { method: 'GET', headers: adminHeaders },
-      'listBillingTemplates'
-    ) as Promise<AdminBillingPlanTemplate[] | ResponseProps>;
-  };
+export async function listBillingTemplatesAction(
+  options?: ListTemplatesOptions
+): Promise<AdminBillingPlanTemplate[] | ResponseProps> {
+  const denied = await requireUnifyAdmin();
+  if (denied) return denied;
+  const params = new URLSearchParams();
+  if (options?.includeCustom !== undefined) {
+    params.set('include_custom', String(options.includeCustom));
+  }
+  if (options?.includeInactive) {
+    params.set('include_inactive', 'true');
+  }
+  const qs = params.toString();
+  return safeFetch(
+    `${backendUrl}/admin/billing/plans/templates${qs ? `?${qs}` : ''}`,
+    { method: 'GET', headers: adminHeaders },
+    'listBillingTemplates'
+  ) as Promise<AdminBillingPlanTemplate[] | ResponseProps>;
 }
 
-export async function createBillingTemplateAction() {
-  return async (
-    body: AdminBillingPlanTemplateCreate
-  ): Promise<AdminBillingPlanTemplate | ResponseProps> => {
-    'use server';
-    const denied = await requireUnifyAdmin();
-    if (denied) return denied;
-    /* eslint-disable @typescript-eslint/naming-convention */
-    const payload: Record<string, unknown> = {
-      name: body.name,
-      display_name: body.displayName ?? null,
-      billing_mode: body.billingMode,
-      is_custom: body.isCustom ?? false,
-      is_active: body.isActive ?? true,
-      description: body.description ?? null,
-      commit_amount: body.commitAmount ?? null,
-      currency: body.currency ?? 'USD',
-      commit_period: body.commitPeriod ?? null,
-      commit_schedule: body.commitSchedule ?? null,
-      base_pricing_factor: body.basePricingFactor ?? 1.0,
-      overage_pricing_factor: body.overagePricingFactor ?? 1.0,
-      collection_method: body.collectionMethod ?? 'AUTO_CARD',
-      proration_policy: body.prorationPolicy ?? 'PRORATE',
-      credits_rollover_policy: body.creditsRolloverPolicy ?? null,
-      fx_policy: body.fxPolicy ?? null,
-      fx_locked_rate: body.fxLockedRate ?? null,
-      supersedes_template_id: body.supersedesTemplateId ?? null,
-      created_by_user_id: body.createdByUserId ?? null,
-    };
-    /* eslint-enable @typescript-eslint/naming-convention */
-    return safeFetch(
-      `${backendUrl}/admin/billing/plans/templates`,
-      { method: 'POST', headers: adminHeaders, body: JSON.stringify(payload) },
-      'createBillingTemplate'
-    ) as Promise<AdminBillingPlanTemplate | ResponseProps>;
+export async function createBillingTemplateAction(
+  body: AdminBillingPlanTemplateCreate
+): Promise<AdminBillingPlanTemplate | ResponseProps> {
+  const denied = await requireUnifyAdmin();
+  if (denied) return denied;
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const payload: Record<string, unknown> = {
+    name: body.name,
+    display_name: body.displayName ?? null,
+    billing_mode: body.billingMode,
+    is_custom: body.isCustom ?? false,
+    is_active: body.isActive ?? true,
+    description: body.description ?? null,
+    commit_amount: body.commitAmount ?? null,
+    currency: body.currency ?? 'USD',
+    commit_period: body.commitPeriod ?? null,
+    commit_schedule: body.commitSchedule ?? null,
+    base_pricing_factor: body.basePricingFactor ?? 1.0,
+    overage_pricing_factor: body.overagePricingFactor ?? 1.0,
+    collection_method: body.collectionMethod ?? 'AUTO_CARD',
+    proration_policy: body.prorationPolicy ?? 'PRORATE',
+    credits_rollover_policy: body.creditsRolloverPolicy ?? null,
+    fx_policy: body.fxPolicy ?? null,
+    fx_locked_rate: body.fxLockedRate ?? null,
+    supersedes_template_id: body.supersedesTemplateId ?? null,
+    created_by_user_id: body.createdByUserId ?? null,
   };
+  /* eslint-enable @typescript-eslint/naming-convention */
+  return safeFetch(
+    `${backendUrl}/admin/billing/plans/templates`,
+    { method: 'POST', headers: adminHeaders, body: JSON.stringify(payload) },
+    'createBillingTemplate'
+  ) as Promise<AdminBillingPlanTemplate | ResponseProps>;
 }
 
-export async function deprecateBillingTemplateAction() {
-  return async (templateId: number): Promise<ResponseProps> => {
-    'use server';
-    const denied = await requireUnifyAdmin();
-    if (denied) return denied;
-    return safeFetch(
-      `${backendUrl}/admin/billing/plans/templates/${templateId}/deprecate`,
-      { method: 'POST', headers: adminHeaders },
-      'deprecateBillingTemplate'
-    ) as Promise<ResponseProps>;
-  };
+export async function deprecateBillingTemplateAction(templateId: number): Promise<ResponseProps> {
+  const denied = await requireUnifyAdmin();
+  if (denied) return denied;
+  return safeFetch(
+    `${backendUrl}/admin/billing/plans/templates/${templateId}/deprecate`,
+    { method: 'POST', headers: adminHeaders },
+    'deprecateBillingTemplate'
+  ) as Promise<ResponseProps>;
 }
 
 // ---------------------------------------------------------------------------
 // Per-account plan management
 // ---------------------------------------------------------------------------
 
-export async function getActivePlanAction() {
-  return async (orgId: number): Promise<AdminActivePlanResponse | ResponseProps> => {
-    'use server';
-    const denied = await requireUnifyAdmin();
-    if (denied) return denied;
-    return safeFetch(
-      `${backendUrl}/admin/billing/plans/active?organization_id=${orgId}`,
-      { method: 'GET', headers: adminHeaders },
-      'getActivePlan'
-    ) as Promise<AdminActivePlanResponse | ResponseProps>;
-  };
+export async function getActivePlanAction(
+  orgId: number
+): Promise<AdminActivePlanResponse | ResponseProps> {
+  const denied = await requireUnifyAdmin();
+  if (denied) return denied;
+  return safeFetch(
+    `${backendUrl}/admin/billing/plans/active?organization_id=${orgId}`,
+    { method: 'GET', headers: adminHeaders },
+    'getActivePlan'
+  ) as Promise<AdminActivePlanResponse | ResponseProps>;
 }
 
-export async function getPlanHistoryAction() {
-  return async (orgId: number): Promise<AdminPlanHistoryResponse | ResponseProps> => {
-    'use server';
-    const denied = await requireUnifyAdmin();
-    if (denied) return denied;
-    return safeFetch(
-      `${backendUrl}/admin/billing/plans/history?organization_id=${orgId}`,
-      { method: 'GET', headers: adminHeaders },
-      'getPlanHistory'
-    ) as Promise<AdminPlanHistoryResponse | ResponseProps>;
-  };
+export async function getPlanHistoryAction(
+  orgId: number
+): Promise<AdminPlanHistoryResponse | ResponseProps> {
+  const denied = await requireUnifyAdmin();
+  if (denied) return denied;
+  return safeFetch(
+    `${backendUrl}/admin/billing/plans/history?organization_id=${orgId}`,
+    { method: 'GET', headers: adminHeaders },
+    'getPlanHistory'
+  ) as Promise<AdminPlanHistoryResponse | ResponseProps>;
 }
 
 interface SetPlanOptions {
@@ -214,57 +203,51 @@ interface SetPlanOptions {
  * Returns `{ status: 'ok' | 'noop', billing_account_id, assignment? }`.
  * `noop` is sent when the account is already on `templateId`.
  */
-export async function setPlanAction() {
-  return async (
-    orgId: number,
-    templateId: number,
-    options?: SetPlanOptions
-  ): Promise<ResponseProps> => {
-    'use server';
-    const denied = await requireUnifyAdmin();
-    if (denied) return denied;
-    /* eslint-disable @typescript-eslint/naming-convention */
-    const body = {
-      organization_id: orgId,
-      template_id: templateId,
-      effective_at: options?.effectiveAt ?? null,
-      change_reason: options?.changeReason ?? null,
-    };
-    /* eslint-enable @typescript-eslint/naming-convention */
-    return safeFetch(
-      `${backendUrl}/admin/billing/plans/set`,
-      { method: 'POST', headers: adminHeaders, body: JSON.stringify(body) },
-      'setPlan'
-    ) as Promise<ResponseProps>;
+export async function setPlanAction(
+  orgId: number,
+  templateId: number,
+  options?: SetPlanOptions
+): Promise<ResponseProps> {
+  const denied = await requireUnifyAdmin();
+  if (denied) return denied;
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const body = {
+    organization_id: orgId,
+    template_id: templateId,
+    effective_at: options?.effectiveAt ?? null,
+    change_reason: options?.changeReason ?? null,
   };
+  /* eslint-enable @typescript-eslint/naming-convention */
+  return safeFetch(
+    `${backendUrl}/admin/billing/plans/set`,
+    { method: 'POST', headers: adminHeaders, body: JSON.stringify(body) },
+    'setPlan'
+  ) as Promise<ResponseProps>;
 }
 
 // ---------------------------------------------------------------------------
 // Stripe Customer provisioning
 // ---------------------------------------------------------------------------
 
-export async function ensureStripeCustomerAction() {
-  return async (
-    orgId: number,
-    options?: { fallbackEmail?: string; fallbackName?: string; isBusiness?: boolean }
-  ): Promise<AdminStripeCustomerResponse | ResponseProps> => {
-    'use server';
-    const denied = await requireUnifyAdmin();
-    if (denied) return denied;
-    /* eslint-disable @typescript-eslint/naming-convention */
-    const body = {
-      organization_id: orgId,
-      fallback_email: options?.fallbackEmail ?? null,
-      fallback_name: options?.fallbackName ?? null,
-      is_business: options?.isBusiness ?? null,
-    };
-    /* eslint-enable @typescript-eslint/naming-convention */
-    return safeFetch(
-      `${backendUrl}/admin/billing/stripe-customer`,
-      { method: 'POST', headers: adminHeaders, body: JSON.stringify(body) },
-      'ensureStripeCustomer'
-    ) as Promise<AdminStripeCustomerResponse | ResponseProps>;
+export async function ensureStripeCustomerAction(
+  orgId: number,
+  options?: { fallbackEmail?: string; fallbackName?: string; isBusiness?: boolean }
+): Promise<AdminStripeCustomerResponse | ResponseProps> {
+  const denied = await requireUnifyAdmin();
+  if (denied) return denied;
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const body = {
+    organization_id: orgId,
+    fallback_email: options?.fallbackEmail ?? null,
+    fallback_name: options?.fallbackName ?? null,
+    is_business: options?.isBusiness ?? null,
   };
+  /* eslint-enable @typescript-eslint/naming-convention */
+  return safeFetch(
+    `${backendUrl}/admin/billing/stripe-customer`,
+    { method: 'POST', headers: adminHeaders, body: JSON.stringify(body) },
+    'ensureStripeCustomer'
+  ) as Promise<AdminStripeCustomerResponse | ResponseProps>;
 }
 
 // FX rates: per-template ``fx_policy`` replaced the daily-snapshot table.
@@ -335,145 +318,126 @@ export interface AdminAssignPlanGroupResponse {
   planGroupName: string | null;
 }
 
-export async function listPlanGroupsAction() {
-  return async (options?: {
-    includeInactive?: boolean;
-  }): Promise<AdminPlanGroupListResponse | ResponseProps> => {
-    'use server';
-    const denied = await requireUnifyAdmin();
-    if (denied) return denied;
-    const params = new URLSearchParams();
-    if (options?.includeInactive) {
-      params.set('include_inactive', 'true');
-    }
-    const qs = params.toString();
-    return safeFetch(
-      `${backendUrl}/admin/billing/plans/groups${qs ? `?${qs}` : ''}`,
-      { method: 'GET', headers: adminHeaders },
-      'listPlanGroups'
-    ) as Promise<AdminPlanGroupListResponse | ResponseProps>;
-  };
+export async function listPlanGroupsAction(options?: {
+  includeInactive?: boolean;
+}): Promise<AdminPlanGroupListResponse | ResponseProps> {
+  const denied = await requireUnifyAdmin();
+  if (denied) return denied;
+  const params = new URLSearchParams();
+  if (options?.includeInactive) {
+    params.set('include_inactive', 'true');
+  }
+  const qs = params.toString();
+  return safeFetch(
+    `${backendUrl}/admin/billing/plans/groups${qs ? `?${qs}` : ''}`,
+    { method: 'GET', headers: adminHeaders },
+    'listPlanGroups'
+  ) as Promise<AdminPlanGroupListResponse | ResponseProps>;
 }
 
-export async function getPlanGroupAction() {
-  return async (groupId: number): Promise<AdminPlanGroupDetail | ResponseProps> => {
-    'use server';
-    const denied = await requireUnifyAdmin();
-    if (denied) return denied;
-    return safeFetch(
-      `${backendUrl}/admin/billing/plans/groups/${groupId}`,
-      { method: 'GET', headers: adminHeaders },
-      'getPlanGroup'
-    ) as Promise<AdminPlanGroupDetail | ResponseProps>;
-  };
+export async function getPlanGroupAction(
+  groupId: number
+): Promise<AdminPlanGroupDetail | ResponseProps> {
+  const denied = await requireUnifyAdmin();
+  if (denied) return denied;
+  return safeFetch(
+    `${backendUrl}/admin/billing/plans/groups/${groupId}`,
+    { method: 'GET', headers: adminHeaders },
+    'getPlanGroup'
+  ) as Promise<AdminPlanGroupDetail | ResponseProps>;
 }
 
-export async function createPlanGroupAction() {
-  return async (
-    body: AdminPlanGroupCreatePayload
-  ): Promise<AdminPlanGroupDetail | ResponseProps> => {
-    'use server';
-    const denied = await requireUnifyAdmin();
-    if (denied) return denied;
-    /* eslint-disable @typescript-eslint/naming-convention */
-    const payload: Record<string, unknown> = {
-      name: body.name,
-      display_name: body.displayName ?? null,
-      description: body.description ?? null,
-      is_active: body.isActive ?? true,
-    };
-    /* eslint-enable @typescript-eslint/naming-convention */
-    return safeFetch(
-      `${backendUrl}/admin/billing/plans/groups`,
-      { method: 'POST', headers: adminHeaders, body: JSON.stringify(payload) },
-      'createPlanGroup'
-    ) as Promise<AdminPlanGroupDetail | ResponseProps>;
+export async function createPlanGroupAction(
+  body: AdminPlanGroupCreatePayload
+): Promise<AdminPlanGroupDetail | ResponseProps> {
+  const denied = await requireUnifyAdmin();
+  if (denied) return denied;
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const payload: Record<string, unknown> = {
+    name: body.name,
+    display_name: body.displayName ?? null,
+    description: body.description ?? null,
+    is_active: body.isActive ?? true,
   };
+  /* eslint-enable @typescript-eslint/naming-convention */
+  return safeFetch(
+    `${backendUrl}/admin/billing/plans/groups`,
+    { method: 'POST', headers: adminHeaders, body: JSON.stringify(payload) },
+    'createPlanGroup'
+  ) as Promise<AdminPlanGroupDetail | ResponseProps>;
 }
 
-export async function updatePlanGroupAction() {
-  return async (
-    groupId: number,
-    body: AdminPlanGroupUpdatePayload
-  ): Promise<AdminPlanGroupDetail | ResponseProps> => {
-    'use server';
-    const denied = await requireUnifyAdmin();
-    if (denied) return denied;
-    /* eslint-disable @typescript-eslint/naming-convention */
-    const payload: Record<string, unknown> = {};
-    if (body.displayName !== undefined) payload.display_name = body.displayName;
-    if (body.description !== undefined) payload.description = body.description;
-    if (body.isActive !== undefined) payload.is_active = body.isActive;
-    /* eslint-enable @typescript-eslint/naming-convention */
-    return safeFetch(
-      `${backendUrl}/admin/billing/plans/groups/${groupId}`,
-      { method: 'PATCH', headers: adminHeaders, body: JSON.stringify(payload) },
-      'updatePlanGroup'
-    ) as Promise<AdminPlanGroupDetail | ResponseProps>;
-  };
+export async function updatePlanGroupAction(
+  groupId: number,
+  body: AdminPlanGroupUpdatePayload
+): Promise<AdminPlanGroupDetail | ResponseProps> {
+  const denied = await requireUnifyAdmin();
+  if (denied) return denied;
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const payload: Record<string, unknown> = {};
+  if (body.displayName !== undefined) payload.display_name = body.displayName;
+  if (body.description !== undefined) payload.description = body.description;
+  if (body.isActive !== undefined) payload.is_active = body.isActive;
+  /* eslint-enable @typescript-eslint/naming-convention */
+  return safeFetch(
+    `${backendUrl}/admin/billing/plans/groups/${groupId}`,
+    { method: 'PATCH', headers: adminHeaders, body: JSON.stringify(payload) },
+    'updatePlanGroup'
+  ) as Promise<AdminPlanGroupDetail | ResponseProps>;
 }
 
-export async function addPlanGroupMemberAction() {
-  return async (
-    groupId: number,
-    templateId: number,
-    position?: number | null
-  ): Promise<AdminPlanGroupDetail | ResponseProps> => {
-    'use server';
-    const denied = await requireUnifyAdmin();
-    if (denied) return denied;
-    /* eslint-disable @typescript-eslint/naming-convention */
-    const payload = {
-      template_id: templateId,
-      position: position ?? null,
-    };
-    /* eslint-enable @typescript-eslint/naming-convention */
-    return safeFetch(
-      `${backendUrl}/admin/billing/plans/groups/${groupId}/members`,
-      { method: 'POST', headers: adminHeaders, body: JSON.stringify(payload) },
-      'addPlanGroupMember'
-    ) as Promise<AdminPlanGroupDetail | ResponseProps>;
+export async function addPlanGroupMemberAction(
+  groupId: number,
+  templateId: number,
+  position?: number | null
+): Promise<AdminPlanGroupDetail | ResponseProps> {
+  const denied = await requireUnifyAdmin();
+  if (denied) return denied;
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const payload = {
+    template_id: templateId,
+    position: position ?? null,
   };
+  /* eslint-enable @typescript-eslint/naming-convention */
+  return safeFetch(
+    `${backendUrl}/admin/billing/plans/groups/${groupId}/members`,
+    { method: 'POST', headers: adminHeaders, body: JSON.stringify(payload) },
+    'addPlanGroupMember'
+  ) as Promise<AdminPlanGroupDetail | ResponseProps>;
 }
 
-export async function removePlanGroupMemberAction() {
-  return async (
-    groupId: number,
-    templateId: number
-  ): Promise<AdminPlanGroupDetail | ResponseProps> => {
-    'use server';
-    const denied = await requireUnifyAdmin();
-    if (denied) return denied;
-    return safeFetch(
-      `${backendUrl}/admin/billing/plans/groups/${groupId}/members/${templateId}`,
-      { method: 'DELETE', headers: adminHeaders },
-      'removePlanGroupMember'
-    ) as Promise<AdminPlanGroupDetail | ResponseProps>;
-  };
+export async function removePlanGroupMemberAction(
+  groupId: number,
+  templateId: number
+): Promise<AdminPlanGroupDetail | ResponseProps> {
+  const denied = await requireUnifyAdmin();
+  if (denied) return denied;
+  return safeFetch(
+    `${backendUrl}/admin/billing/plans/groups/${groupId}/members/${templateId}`,
+    { method: 'DELETE', headers: adminHeaders },
+    'removePlanGroupMember'
+  ) as Promise<AdminPlanGroupDetail | ResponseProps>;
 }
 
-export async function setPlanGroupPositionsAction() {
-  return async (
-    groupId: number,
-    positions: Array<{ templateId: number; position: number | null }>
-  ): Promise<AdminPlanGroupDetail | ResponseProps> => {
-    'use server';
-    const denied = await requireUnifyAdmin();
-    if (denied) return denied;
-    /* eslint-disable @typescript-eslint/naming-convention */
-    const payload = {
-      positions: positions.map((p) => ({
-        template_id: p.templateId,
-        position: p.position,
-      })),
-    };
-    /* eslint-enable @typescript-eslint/naming-convention */
-    return safeFetch(
-      `${backendUrl}/admin/billing/plans/groups/${groupId}/positions`,
-      { method: 'PUT', headers: adminHeaders, body: JSON.stringify(payload) },
-      'setPlanGroupPositions'
-    ) as Promise<AdminPlanGroupDetail | ResponseProps>;
+export async function setPlanGroupPositionsAction(
+  groupId: number,
+  positions: Array<{ templateId: number; position: number | null }>
+): Promise<AdminPlanGroupDetail | ResponseProps> {
+  const denied = await requireUnifyAdmin();
+  if (denied) return denied;
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const payload = {
+    positions: positions.map((p) => ({
+      template_id: p.templateId,
+      position: p.position,
+    })),
   };
+  /* eslint-enable @typescript-eslint/naming-convention */
+  return safeFetch(
+    `${backendUrl}/admin/billing/plans/groups/${groupId}/positions`,
+    { method: 'PUT', headers: adminHeaders, body: JSON.stringify(payload) },
+    'setPlanGroupPositions'
+  ) as Promise<AdminPlanGroupDetail | ResponseProps>;
 }
 
 /**
@@ -486,21 +450,18 @@ export async function setPlanGroupPositionsAction() {
  * assigned group, so picking a group without first reassigning the
  * plan is harmless.
  */
-export async function assignPlanGroupToOrgAction() {
-  return async (
-    orgId: number,
-    groupId: number
-  ): Promise<AdminAssignPlanGroupResponse | ResponseProps> => {
-    'use server';
-    const denied = await requireUnifyAdmin();
-    if (denied) return denied;
-    /* eslint-disable @typescript-eslint/naming-convention */
-    const payload = { group_id: groupId };
-    /* eslint-enable @typescript-eslint/naming-convention */
-    return safeFetch(
-      `${backendUrl}/admin/billing/accounts/plan-group?organization_id=${orgId}`,
-      { method: 'PUT', headers: adminHeaders, body: JSON.stringify(payload) },
-      'assignPlanGroupToOrg'
-    ) as Promise<AdminAssignPlanGroupResponse | ResponseProps>;
-  };
+export async function assignPlanGroupToOrgAction(
+  orgId: number,
+  groupId: number
+): Promise<AdminAssignPlanGroupResponse | ResponseProps> {
+  const denied = await requireUnifyAdmin();
+  if (denied) return denied;
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const payload = { group_id: groupId };
+  /* eslint-enable @typescript-eslint/naming-convention */
+  return safeFetch(
+    `${backendUrl}/admin/billing/accounts/plan-group?organization_id=${orgId}`,
+    { method: 'PUT', headers: adminHeaders, body: JSON.stringify(payload) },
+    'assignPlanGroupToOrg'
+  ) as Promise<AdminAssignPlanGroupResponse | ResponseProps>;
 }

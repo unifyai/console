@@ -64,16 +64,14 @@ describe('@real Interface Query Hooks (Real API)', () => {
 
     // Create test interface
     testInterfaceName = uniqueName('test-interface');
-    const createFn = await createNewInterface(TEST_API_KEY);
-    const result = await createFn(testProjectName, testInterfaceName);
+    const result = await createNewInterface(testProjectName, testInterfaceName);
     testInterfaceId = result.id;
   }, 30000);
 
   afterAll(async () => {
     // Cleanup interface
     if (testInterfaceId) {
-      const deleteFn = await deleteInterfaceById(TEST_API_KEY);
-      await safeDelete(() => deleteFn(testInterfaceId), `interface: ${testInterfaceId}`);
+      await safeDelete(() => deleteInterfaceById(testInterfaceId), `interface: ${testInterfaceId}`);
     }
     // Cleanup project
     await safeDelete(() => projectsApi.delete(testProjectName), `project: ${testProjectName}`);
@@ -86,9 +84,8 @@ describe('@real Interface Query Hooks (Real API)', () => {
     '@real useListInterfacesQuery fetches real interfaces',
     realTestOptionsExtended,
     async () => {
-      const listFn = await listInterfaces(TEST_API_KEY);
       const actions = {
-        list: listFn,
+        list: listInterfaces,
       } as unknown as GranularInterfaceActions;
 
       const wrapper = createWrapper();
@@ -113,9 +110,8 @@ describe('@real Interface Query Hooks (Real API)', () => {
   );
 
   it('@real useGetInterfaceQuery fetches interface by name', realTestOptionsExtended, async () => {
-    const getByNameFn = await getInterfaceByName(TEST_API_KEY);
     const actions = {
-      getByName: getByNameFn,
+      getByName: getInterfaceByName,
     } as unknown as GranularInterfaceActions;
 
     const wrapper = createWrapper();
@@ -140,9 +136,8 @@ describe('@real Interface Query Hooks (Real API)', () => {
     '@real useGetInterfaceByIdQuery fetches interface by ID',
     realTestOptionsExtended,
     async () => {
-      const getByIdFn = await getInterfaceById(TEST_API_KEY);
       const actions = {
-        getById: getByIdFn,
+        getById: getInterfaceById,
       } as unknown as GranularInterfaceActions;
 
       const wrapper = createWrapper();
@@ -167,11 +162,9 @@ describe('@real Interface Query Hooks (Real API)', () => {
     '@real useGetInterfaceUnifiedQuery routes to correct action',
     realTestOptionsExtended,
     async () => {
-      const getByIdFn = await getInterfaceById(TEST_API_KEY);
-      const getByNameFn = await getInterfaceByName(TEST_API_KEY);
       const actions = {
-        getById: getByIdFn,
-        getByName: getByNameFn,
+        getById: getInterfaceById,
+        getByName: getInterfaceByName,
       } as unknown as GranularInterfaceActions;
 
       const wrapper = createWrapper();
@@ -230,9 +223,8 @@ describe('@real Interface Query Hooks (Real API)', () => {
     '@real useListInterfacesQuery is disabled when projectId is null',
     realTestOptionsExtended,
     async () => {
-      const listFn = await listInterfaces(TEST_API_KEY);
       const actions = {
-        list: listFn,
+        list: listInterfaces,
       } as unknown as GranularInterfaceActions;
 
       const wrapper = createWrapper();

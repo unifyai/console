@@ -42,30 +42,30 @@ import type { AdminOnboardingActions, AdminOrgPlanActions } from '@/types/admin'
 
 const AdminOrganizationsPage = async () => {
   const actions: AdminOnboardingActions = {
-    listOrganizations: await listOrganizationsAction(),
-    getOrganizationDetail: await getOrganizationDetailAction(),
-    lookupUserByEmail: await lookupUserByEmailAction(),
-    createOrganizationForUser: await createOrganizationForUserAction(),
-    inviteUserToOrg: await inviteUserToOrgAction(),
-    listOrgInvites: await listOrgInvitesAction(),
-    enableFreeTrial: await enableFreeTrialAction(),
-    disableFreeTrial: await disableFreeTrialAction(),
-    verifyOrganization: await verifyOrganizationAction(),
-    unverifyOrganization: await unverifyOrganizationAction(),
-    addCredits: await addCreditsAction(),
-    freezeAccount: await freezeAccountAction(),
-    updateBillingProfile: await updateBillingProfileAction(),
+    listOrganizations: listOrganizationsAction,
+    getOrganizationDetail: getOrganizationDetailAction,
+    lookupUserByEmail: lookupUserByEmailAction,
+    createOrganizationForUser: createOrganizationForUserAction,
+    inviteUserToOrg: inviteUserToOrgAction,
+    listOrgInvites: listOrgInvitesAction,
+    enableFreeTrial: enableFreeTrialAction,
+    disableFreeTrial: disableFreeTrialAction,
+    verifyOrganization: verifyOrganizationAction,
+    unverifyOrganization: unverifyOrganizationAction,
+    addCredits: addCreditsAction,
+    freezeAccount: freezeAccountAction,
+    updateBillingProfile: updateBillingProfileAction,
   };
 
   const planActions: AdminOrgPlanActions = {
-    getActivePlan: await getActivePlanAction(),
-    getPlanHistory: await getPlanHistoryAction(),
-    setPlan: await setPlanAction(),
-    ensureStripeCustomer: await ensureStripeCustomerAction(),
-    listTemplatesForAssignment: await listBillingTemplatesAction(),
-    listPlanGroups: await listPlanGroupsAction(),
-    getPlanGroup: await getPlanGroupAction(),
-    assignPlanGroupToOrg: await assignPlanGroupToOrgAction(),
+    getActivePlan: getActivePlanAction,
+    getPlanHistory: getPlanHistoryAction,
+    setPlan: setPlanAction,
+    ensureStripeCustomer: ensureStripeCustomerAction,
+    listTemplatesForAssignment: listBillingTemplatesAction,
+    listPlanGroups: listPlanGroupsAction,
+    getPlanGroup: getPlanGroupAction,
+    assignPlanGroupToOrg: assignPlanGroupToOrgAction,
   };
 
   return (

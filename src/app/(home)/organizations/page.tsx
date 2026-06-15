@@ -25,7 +25,6 @@ const OrganizationPage = async () => {
     redirect('/assistants');
   }
 
-  const apiKey = user.apiKey;
   const organizations: Organization[] =
     user.organizations?.map((org: any) => ({
       id: org.id,
@@ -42,65 +41,57 @@ const OrganizationPage = async () => {
   const isUnifyMember = user.organizations?.some((o: any) => o.name === 'Unify') ?? false;
 
   const orgActions = {
-    createOrg: isUnifyMember
-      ? await OrganizationActions.adminCreateOrganizationAction(user.id)
-      : await OrganizationActions.createOrganizationAction(apiKey),
-    deleteOrg: await OrganizationActions.deleteOrganizationAction(apiKey),
-    updateOrg: await OrganizationActions.updateOrganizationAction(apiKey),
-    inviteMember: await OrganizationActions.inviteMemberAction(apiKey),
-    getInvites: await OrganizationActions.getInvitesAction(apiKey),
-    cancelInvite: await OrganizationActions.cancelInviteAction(apiKey),
-    removeMember: await OrganizationActions.removeMemberAction(apiKey),
-    updateRole: await OrganizationActions.updateRoleAction(apiKey),
-    transferOwnership: await OrganizationActions.transferOwnershipAction(apiKey),
-    getMembers: await OrganizationActions.getMembersAction(apiKey),
-    getRoles: await OrganizationActions.getOrganizationRolesAction(apiKey),
-    getAllOrganizations: await OrganizationActions.getAllOrganizationsAction(),
-    checkUserOrganization: await OrganizationActions.checkUserOrganizationAction(),
+    createOrg: OrganizationActions.createOrgAction,
+    deleteOrg: OrganizationActions.deleteOrganizationAction,
+    updateOrg: OrganizationActions.updateOrganizationAction,
+    inviteMember: OrganizationActions.inviteMemberAction,
+    getInvites: OrganizationActions.getInvitesAction,
+    cancelInvite: OrganizationActions.cancelInviteAction,
+    removeMember: OrganizationActions.removeMemberAction,
+    updateRole: OrganizationActions.updateRoleAction,
+    transferOwnership: OrganizationActions.transferOwnershipAction,
+    getMembers: OrganizationActions.getMembersAction,
+    getRoles: OrganizationActions.getOrganizationRolesAction,
+    getAllOrganizations: OrganizationActions.getAllOrganizationsAction,
+    checkUserOrganization: OrganizationActions.checkUserOrganizationAction,
   };
 
   const teamActions = {
-    createTeam: await TeamActions.createTeamAction(apiKey),
-    updateTeam: await TeamActions.updateTeamAction(apiKey),
-    deleteTeam: await TeamActions.deleteTeamAction(apiKey),
-    addTeamMember: await TeamActions.addTeamMemberAction(apiKey),
-    removeTeamMember: await TeamActions.removeTeamMemberAction(apiKey),
-    getTeams: await TeamActions.getTeamsAction(apiKey),
-    getTeamDetails: await TeamActions.getTeamDetailsAction(apiKey),
+    createTeam: TeamActions.createTeamAction,
+    updateTeam: TeamActions.updateTeamAction,
+    deleteTeam: TeamActions.deleteTeamAction,
+    addTeamMember: TeamActions.addTeamMemberAction,
+    removeTeamMember: TeamActions.removeTeamMemberAction,
+    getTeams: TeamActions.getTeamsAction,
+    getTeamDetails: TeamActions.getTeamDetailsAction,
   };
 
   const roleActions = {
-    getRoles: await RoleActions.getRolesAction(apiKey),
-    createRole: await RoleActions.createRoleAction(apiKey),
-    updateRole: await RoleActions.updateRoleAction(apiKey),
-    deleteRole: await RoleActions.deleteRoleAction(apiKey),
-    getAllPermissions: await RoleActions.getAllPermissionsAction(apiKey),
-    addPermissionsToRole: await RoleActions.addPermissionsToRoleAction(apiKey),
-    removePermissionFromRole: await RoleActions.removePermissionFromRoleAction(apiKey),
+    getRoles: RoleActions.getRolesAction,
+    createRole: RoleActions.createRoleAction,
+    updateRole: RoleActions.updateRoleAction,
+    deleteRole: RoleActions.deleteRoleAction,
+    getAllPermissions: RoleActions.getAllPermissionsAction,
+    addPermissionsToRole: RoleActions.addPermissionsToRoleAction,
+    removePermissionFromRole: RoleActions.removePermissionFromRoleAction,
   };
 
-  // Member spending actions - bind the server actions for the organization
   const memberSpendingActions = {
-    getMemberSpend: await MemberSpendingActions.getMemberSpend(apiKey),
-    getMemberSpendingLimit: await MemberSpendingActions.getMemberSpendingLimit(apiKey),
-    setMemberSpendingLimit: await MemberSpendingActions.setMemberSpendingLimit(apiKey),
+    getMemberSpend: MemberSpendingActions.getMemberSpend,
+    getMemberSpendingLimit: MemberSpendingActions.getMemberSpendingLimit,
+    setMemberSpendingLimit: MemberSpendingActions.setMemberSpendingLimit,
   };
 
-  // MFA settings actions
   const mfaSettingsActionsObj = {
-    getMfaSettings: await MfaSettingsActions.getMfaSettingsAction(apiKey),
-    updateMfaSettings: await MfaSettingsActions.updateMfaSettingsAction(apiKey),
+    getMfaSettings: MfaSettingsActions.getMfaSettingsAction,
+    updateMfaSettings: MfaSettingsActions.updateMfaSettingsAction,
   };
 
-  // Prefetch the spending limit and the MFA toggle for the first org
-  // in parallel so opening the matching tab doesn't have to wait on a
-  // fresh server-action roundtrip before showing the actual state.
   let orgSpendingLimit: number | null = null;
   let initialMfaRequired: boolean | null = null;
   if (organizations.length > 0) {
-    const getOrgLimit = await OrgSpendingActions.getOrgSpendingLimit(apiKey);
     const [orgLimitResult, mfa] = await Promise.all([
-      getOrgLimit(organizations[0].id),
+      OrgSpendingActions.getOrgSpendingLimit(organizations[0].id),
       mfaSettingsActionsObj.getMfaSettings(organizations[0].id),
     ]);
     if (isOrgSpendingLimitData(orgLimitResult)) {

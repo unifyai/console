@@ -34,13 +34,12 @@ describe('@real Infinite Logs Pagination (Real API)', () => {
     await projectsApi.create(testProjectName);
 
     // Create multiple test logs for pagination testing
-    const createLogsFn = await createLogs(TEST_API_KEY);
     const logs = Array.from({ length: 15 }, (_, i) => ({
       message: `Test log ${i + 1}`,
       index: String(i + 1),
     }));
 
-    const result = await createLogsFn(testProjectName, null, logs);
+    const result = await createLogs(testProjectName, null, logs);
 
     if (result.ids) {
       createdLogIds = result.ids;
@@ -51,8 +50,7 @@ describe('@real Infinite Logs Pagination (Real API)', () => {
     // Cleanup logs
     if (createdLogIds.length > 0) {
       try {
-        const deleteLogsFn = await deleteLogs(TEST_API_KEY);
-        await deleteLogsFn(
+        await deleteLogs(
           testProjectName,
           null,
           createdLogIds.map((id) => [id, ''] as [number, string])
@@ -67,11 +65,9 @@ describe('@real Infinite Logs Pagination (Real API)', () => {
   }, 30000);
 
   it('@real fetches first page with correct limit', realTestOptionsExtended, async () => {
-    const getLogsFn = await getLogs(TEST_API_KEY);
-
     const logsActions = {
       create: async () => ({ detail: 'not-used' }),
-      get: getLogsFn,
+      get: getLogs,
       getLatest: async () => '',
       getMetrics: async () => ({}),
       delete: async () => ({ detail: 'not-used' }),
@@ -108,11 +104,9 @@ describe('@real Infinite Logs Pagination (Real API)', () => {
   });
 
   it('@real fetches second page with correct offset', realTestOptionsExtended, async () => {
-    const getLogsFn = await getLogs(TEST_API_KEY);
-
     const logsActions = {
       create: async () => ({ detail: 'not-used' }),
-      get: getLogsFn,
+      get: getLogs,
       getLatest: async () => '',
       getMetrics: async () => ({}),
       delete: async () => ({ detail: 'not-used' }),
@@ -165,11 +159,9 @@ describe('@real Infinite Logs Pagination (Real API)', () => {
   });
 
   it('@real handles fetching beyond available logs', realTestOptionsExtended, async () => {
-    const getLogsFn = await getLogs(TEST_API_KEY);
-
     const logsActions = {
       create: async () => ({ detail: 'not-used' }),
-      get: getLogsFn,
+      get: getLogs,
       getLatest: async () => '',
       getMetrics: async () => ({}),
       delete: async () => ({ detail: 'not-used' }),
@@ -201,11 +193,9 @@ describe('@real Infinite Logs Pagination (Real API)', () => {
   });
 
   it('@real totalCount remains consistent across pages', realTestOptionsExtended, async () => {
-    const getLogsFn = await getLogs(TEST_API_KEY);
-
     const logsActions = {
       create: async () => ({ detail: 'not-used' }),
-      get: getLogsFn,
+      get: getLogs,
       getLatest: async () => '',
       getMetrics: async () => ({}),
       delete: async () => ({ detail: 'not-used' }),

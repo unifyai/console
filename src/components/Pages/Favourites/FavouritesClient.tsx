@@ -46,13 +46,11 @@ interface Favourite {
 interface FavouritesClientProps {
   initialProjects: any;
   initialFavourites: Favourite[];
-  apiKey: string;
 }
 
 export default function FavouritesClient({
   initialProjects,
   initialFavourites,
-  apiKey,
 }: FavouritesClientProps) {
   const router = useRouter();
   // Deduplicate favourites once (memoised) to avoid new reference each render
@@ -259,8 +257,7 @@ export default function FavouritesClient({
         try {
           if (!initialFavouritesSet.has(fav.projectName) || fav.id === -1) {
             // create new
-            const createFav = await createFavourite(apiKey);
-            const ret = await createFav(fav.projectName, sanitizedIcon, position);
+            const ret = await createFavourite(fav.projectName, sanitizedIcon, position);
             console.log(`Created new favourite for ${fav.projectName}:`, ret);
           } else {
             const initialFav = uniqueInitialFavourites.find(
@@ -270,8 +267,7 @@ export default function FavouritesClient({
               initialFav &&
               (initialFav.icon !== sanitizedIcon || initialFav.position !== position)
             ) {
-              const updateFav = await updateFavourite(apiKey);
-              const ret = await updateFav(initialFav.id, { icon: sanitizedIcon, position });
+              const ret = await updateFavourite(initialFav.id, { icon: sanitizedIcon, position });
               console.log(`Updated favourite for ${fav.projectName}:`, ret);
             }
           }
@@ -287,8 +283,7 @@ export default function FavouritesClient({
         (fav) => !currentFavouritesSet.has(fav.projectName)
       )) {
         try {
-          const deleteFav = await deleteFavourite(apiKey);
-          const ret = await deleteFav(fav.id);
+          const ret = await deleteFavourite(fav.id);
 
           console.log(`Deleted favourite for ${fav.projectName}:`, ret);
         } catch (err) {

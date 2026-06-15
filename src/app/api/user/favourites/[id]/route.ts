@@ -12,8 +12,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     const body = await req.json();
-    const updateFav = await updateFavourite(apiKey);
-    const updated = await updateFav(Number(id), body);
+    const updated = await updateFavourite(Number(id), body);
     return NextResponse.json(updated, { status: 200 });
   } catch (err) {
     console.error('/api/user/favourites/[id] PATCH error', err);
@@ -30,8 +29,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       return unauthorized();
     }
 
-    const deleteFav = await deleteFavourite(apiKey);
-    const success = await deleteFav(Number(id));
+    const success = await deleteFavourite(Number(id));
     return NextResponse.json({ success }, { status: success ? 200 : 500 });
   } catch (err) {
     console.error('/api/user/favourites/[id] DELETE error', err);

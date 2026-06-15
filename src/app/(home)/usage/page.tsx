@@ -7,7 +7,17 @@ import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
 import { Suspense } from 'react';
 import { getCurrentUser } from '@/lib/user/user';
 import { redirect } from 'next/navigation';
-import { createUsageActions } from '@/lib/usage/actions';
+import {
+  getUserSpendingLimitAction,
+  getOrgSpendingLimitAction,
+  getMemberSpendingLimitAction,
+  getAssistantSpendingLimitAction,
+  setUserSpendingLimitAction,
+  setOrgSpendingLimitAction,
+  setMemberSpendingLimitAction,
+  setAssistantSpendingLimitAction,
+  type UsageActions,
+} from '@/lib/usage/actions';
 import { listAssistants } from '@/lib/assistants/assistant';
 import { getMembersAction } from '@/lib/orchestra/api/organization';
 import { resolveWorkspaceContext } from '@/lib/user/workspace';
@@ -70,7 +80,16 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
   }
 
   // Create bound server actions (API key never exposed to client)
-  const usageActions = await createUsageActions(apiKey);
+  const usageActions: UsageActions = {
+    getUserSpendingLimit: getUserSpendingLimitAction,
+    getOrgSpendingLimit: getOrgSpendingLimitAction,
+    getMemberSpendingLimit: getMemberSpendingLimitAction,
+    getAssistantSpendingLimit: getAssistantSpendingLimitAction,
+    setUserSpendingLimit: setUserSpendingLimitAction,
+    setOrgSpendingLimit: setOrgSpendingLimitAction,
+    setMemberSpendingLimit: setMemberSpendingLimitAction,
+    setAssistantSpendingLimit: setAssistantSpendingLimitAction,
+  };
 
   // Fetch assistants list (include demo assistants for demoers)
   const includeDemo = true;
@@ -80,8 +99,7 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
   // Fetch org members if admin in org context
   let orgMembers: Array<{ userId: string; name: string; email?: string }> = [];
   if (isAdmin && orgId) {
-    const getMembersActionFn = await getMembersAction(apiKey);
-    const membersResult = await getMembersActionFn(orgId);
+    const membersResult = await getMembersAction(orgId);
     if (Array.isArray(membersResult)) {
       orgMembers = membersResult.map((m) => ({
         userId: m.userId,
