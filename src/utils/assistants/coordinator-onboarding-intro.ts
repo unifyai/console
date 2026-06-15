@@ -1,4 +1,10 @@
 import type { Transition } from 'framer-motion';
+import {
+  MARTY_ONBOARDING_INTRO_AUDIO_SRC,
+  MARTY_ONBOARDING_INTRO_CLOSING_QUESTION_SEC,
+  MARTY_ONBOARDING_INTRO_DURATION_MS,
+  MARTY_ONBOARDING_INTRO_TRANSCRIPT,
+} from '@droid/brand/audio';
 import type { BrandRole, CreatureShape } from '@/components/Brand/shapes';
 import type { BotSkin, CreatureEyes, CreatureMood } from '@/components/Brand/TeammateCreature';
 
@@ -11,25 +17,24 @@ export type CoordinatorOnboardingIntroDroidAppearance = {
   skin?: BotSkin;
 };
 
-// The MP3 referenced here is a pre-rendered droid walkie/radio asset. Regenerate
-// it only via /Users/djl11/branding/docs/walkie-voice-pipeline.md so the
-// transcript, walkie EQ/compression/noise, sampled intro/outro, and carrier bed
-// stay consistent with the landing-page droid voices.
 export const COORDINATOR_ONBOARDING_INTRO = {
-  audioSrc: '/sounds/marty-onboarding-call-intro.mp3',
-  fallbackDurationMs: 61_128,
-  initialPauseMs: 0,
+  audioSrc: MARTY_ONBOARDING_INTRO_AUDIO_SRC,
+  // Served from public/sounds; canonical assets are owned by branding
+  // (assets/audio/droid/onboarding/*.mp3).
+  ascentAudioSrc: '/sounds/space-elevator-ascent.mp3',
+  cityAmbienceSrc: '/sounds/coruscant-city-ambience.mp3',
+  closingQuestionSec: MARTY_ONBOARDING_INTRO_CLOSING_QUESTION_SEC,
+  fallbackDurationMs: MARTY_ONBOARDING_INTRO_DURATION_MS,
+  initialPauseMs: 1_000,
   backgroundStartDelayMs: 500,
   backgroundAccelerationMs: 2_400,
   callWarmupDelayMs: 0,
-  // The visual handoff (avatar gliding into the docked call window)
-  // waits until Marty has finished his pre-written speech, so the
-  // elevator ascent spans the whole monologue rather than ending
-  // early. Kept as a named lead so the dock can be nudged ahead of
-  // the final word again if desired.
+  // Keep the city ascent running through the speech rather than ending early.
   handoffLeadMs: 0,
-  landingDurationMs: 1_000,
-};
+  surfaceRevealLeadMs: 3_000,
+  teleportOutDelayMs: 500,
+  landingDurationMs: 450,
+} as const;
 
 export type CoordinatorOnboardingIntroConfig = typeof COORDINATOR_ONBOARDING_INTRO;
 
@@ -51,19 +56,13 @@ export function getCoordinatorIntroCountdownMs(): number {
 }
 
 export const COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID = {
-  baseEyes: 'up',
+  baseEyes: 'square',
   color: 'teal',
   mood: 'happy',
   shape: 'clawd',
-  skin: 'shirtTie',
 } satisfies CoordinatorOnboardingIntroDroidAppearance;
 
-export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm Marty.
-I'm here to learn how your work runs, connect the tools you use, and help route recurring work to the right specialist droids.
-No prompting, no setup jargon, and no configuration maze.
-Talk to me like you would a teammate: priorities, workflows, documents, inboxes, calendars, handoffs, anything you want off your plate.
-I'll walk you through the platform and get the first useful system in place with you.
-Any immediate questions before we start?`;
+export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = MARTY_ONBOARDING_INTRO_TRANSCRIPT;
 
 export const COORDINATOR_ONBOARDING_DROID_LAYOUT_TRANSITION = {
   layout: {

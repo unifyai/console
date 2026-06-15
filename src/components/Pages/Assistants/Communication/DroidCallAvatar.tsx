@@ -36,9 +36,8 @@ interface DroidCallAvatarProps {
   label?: string;
   /** When true the droid rests in an isometric 3/4 view and turns to camera while the call is active. */
   isometricRest?: boolean;
-  /** Play a pixelated teleport "materialise" fizzle once when the avatar first
-   *  mounts. Set by the coordinator onboarding handoff so the docked droid
-   *  reappears as if teleported in (paired with the intro's dematerialise). */
+  /** Fade in once when the avatar first mounts. Set by the coordinator
+   *  onboarding handoff so the docked droid reappears after the intro fade-out. */
   teleportInOnMount?: boolean;
 }
 

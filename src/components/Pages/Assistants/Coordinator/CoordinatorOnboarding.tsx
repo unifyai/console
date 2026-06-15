@@ -80,6 +80,10 @@ import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistant
 
 type OnboardingPhase = 'picker' | 'intro' | 'startingCall' | 'call' | 'chat';
 type IntroAvatarOffset = { x: number; y: number };
+type DockedCallRenderOptions = {
+  coordinatorAvatarVisible: boolean;
+  coordinatorTeleportIn: boolean;
+};
 
 /**
  * Identifiers for the right-section tabs that accumulate as the user
@@ -105,9 +109,12 @@ type MobileTab = 'chat' | RightSectionTab;
 const TYPING_INDICATOR_FALLBACK_MS = 8_000;
 
 const ONBOARDING_REVEAL_TRANSITION = {
-  duration: 2.8,
+  duration: 1.4,
   ease: [0.16, 1, 0.3, 1],
 } as const;
+const ONBOARDING_REVEAL_SIDEBAR_DELAY = 0.28;
+const ONBOARDING_REVEAL_RIGHT_SECTION_DELAY = 0.43;
+const TALK_NOW_CUE_AFTER_TELEPORT_MS = 850;
 
 interface CoordinatorOnboardingProps {
   coordinator: Assistant;
@@ -139,7 +146,7 @@ interface CoordinatorOnboardingProps {
    * here so the dialog mounts inside this surface instead of as a
    * fullscreen overlay. Required whenever
    * ``isCoordinatorCallActive`` is true. */
-  renderDockedCall?: () => React.ReactNode;
+  renderDockedCall?: (options: DockedCallRenderOptions) => React.ReactNode;
   onStartCall: (
     assistant: Assistant,
     callType: 'video' | 'audio',
@@ -266,12 +273,9 @@ export function CoordinatorOnboarding({
   const [introStartedAt, setIntroStartedAt] = React.useState<number | null>(null);
   const [introCountdownMs, setIntroCountdownMs] = React.useState(0);
   const [introReady, setIntroReady] = React.useState(false);
+  const [isIntroSurfaceVisible, setIsIntroSurfaceVisible] = React.useState(false);
   const [showTalkNowCue, setShowTalkNowCue] = React.useState(false);
-  // True for the brief window while the droid morphs from the intro
-  // into the docked call. Toggles the CSS that lifts its flight path
-  // above the panels sliding in and stops the call surface clipping it
-  // (see ``[data-coordinator-handoff]`` in globals.css).
-  const [isHandoffActive, setIsHandoffActive] = React.useState(false);
+  const [isDockedMartyVisible, setIsDockedMartyVisible] = React.useState(true);
 
   const [isStartingCall, setIsStartingCall] = React.useState(false);
   const [isSkipping, setIsSkipping] = React.useState(false);
@@ -467,6 +471,8 @@ export function CoordinatorOnboarding({
       setIntroStartedAt(Date.now());
       setIntroCountdownMs(getCoordinatorIntroCountdownMs());
       setIntroReady(false);
+      setIsIntroSurfaceVisible(false);
+      setIsDockedMartyVisible(false);
       setPhase('intro');
       // Mark the picker resolved the moment they commit, so even a
       // reload mid-intro lands on the working layout rather than
@@ -478,29 +484,27 @@ export function CoordinatorOnboarding({
 
   const handleIntroFinished = React.useCallback(() => {
     setIntroReady(true);
-    setIsHandoffActive(true);
+    setIsDockedMartyVisible(true);
     setPhase(isCoordinatorCallActiveRef.current ? 'call' : 'startingCall');
   }, []);
 
-  // Drop the handoff lift once the droid's morph (and the panel reveal)
-  // has settled, so the call surface goes back to clipping its content
-  // normally. Sized to outlast the shared-element layout transition.
   React.useEffect(() => {
-    if (!isHandoffActive) return;
-    const handle = window.setTimeout(() => setIsHandoffActive(false), 3_200);
-    return () => window.clearTimeout(handle);
-  }, [isHandoffActive]);
-
-  React.useEffect(() => {
-    if (!(isCoordinatorCallActive && phase === 'call' && introReady && !isHandoffActive)) {
+    if (!(isCoordinatorCallActive && phase === 'call' && introReady && isDockedMartyVisible)) {
       setShowTalkNowCue(false);
       return undefined;
     }
 
-    setShowTalkNowCue(true);
-    const handle = window.setTimeout(() => setShowTalkNowCue(false), 3_000);
-    return () => window.clearTimeout(handle);
-  }, [introReady, isCoordinatorCallActive, isHandoffActive, phase]);
+    let hideHandle: number | null = null;
+    const showHandle = window.setTimeout(() => {
+      setShowTalkNowCue(true);
+      hideHandle = window.setTimeout(() => setShowTalkNowCue(false), 3_000);
+    }, TALK_NOW_CUE_AFTER_TELEPORT_MS);
+
+    return () => {
+      window.clearTimeout(showHandle);
+      if (hideHandle !== null) window.clearTimeout(hideHandle);
+    };
+  }, [introReady, isCoordinatorCallActive, isDockedMartyVisible, phase]);
 
   // Replay the intro on demand from the onboarding sidebar: jump
   // straight into the intro animation as if the user had pressed
@@ -516,6 +520,8 @@ export function CoordinatorOnboarding({
     setIntroStartedAt(Date.now());
     setIntroCountdownMs(getCoordinatorIntroCountdownMs());
     setIntroReady(false);
+    setIsIntroSurfaceVisible(false);
+    setIsDockedMartyVisible(false);
     setPhase('intro');
   }, []);
 
@@ -528,6 +534,8 @@ export function CoordinatorOnboarding({
     hasTriggeredCallStartRef.current = false;
     setIntroSkipSignal(0);
     setIntroReady(false);
+    setIsIntroSurfaceVisible(false);
+    setIsDockedMartyVisible(false);
     setIntroStartedAt(Date.now());
     setIntroCountdownMs(getCoordinatorIntroCountdownMs());
   }, []);
@@ -598,6 +606,29 @@ export function CoordinatorOnboarding({
       onSkip={handleSkipIntro}
     />
   );
+  const introOverlay =
+    phase === 'intro' ? (
+      <div
+        className={cn(
+          'absolute inset-0 z-40',
+          isIntroSurfaceVisible ? 'pointer-events-none' : 'pointer-events-auto'
+        )}
+      >
+        {introCountdownBadge}
+        <AnimatePresence mode="wait">
+          <CoordinatorOnboardingCallIntro
+            key={introStartedAt ?? 'intro'}
+            initialAvatarOffset={introAvatarOffset}
+            onReadyToStartCall={triggerCoordinatorCallStart}
+            onReadyToRevealSurface={() => setIsIntroSurfaceVisible(true)}
+            onFinished={handleIntroFinished}
+            skipSignal={introSkipSignal}
+            onSkipped={() => setIntroReady(true)}
+            surfaceVisible={isIntroSurfaceVisible}
+          />
+        </AnimatePresence>
+      </div>
+    ) : null;
 
   // ── Picker phase ──────────────────────────────────────────────
   // Picker shows only when nothing else is committed: no call is
@@ -616,24 +647,6 @@ export function CoordinatorOnboarding({
           onPickChat={handlePickChat}
           isStartingCall={isStartingCall}
         />
-      </div>
-    );
-  }
-
-  if (phase === 'intro') {
-    return (
-      <div className="relative h-full w-full">
-        {introCountdownBadge}
-        <AnimatePresence mode="wait">
-          <CoordinatorOnboardingCallIntro
-            key={introStartedAt ?? 'intro'}
-            initialAvatarOffset={introAvatarOffset}
-            onReadyToStartCall={triggerCoordinatorCallStart}
-            onFinished={handleIntroFinished}
-            skipSignal={introSkipSignal}
-            onSkipped={() => setIntroReady(true)}
-          />
-        </AnimatePresence>
       </div>
     );
   }
@@ -666,18 +679,17 @@ export function CoordinatorOnboarding({
 
   const mainPane =
     isCoordinatorCallActive && renderDockedCall ? (
-      <div
-        className="flex h-full min-h-0 w-full flex-col overflow-hidden"
-        data-coordinator-handoff-flightpath
-      >
+      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
         <motion.div
           initial={false}
           animate={{ y: 0 }}
           className="relative min-h-0 flex-1 border-b"
           data-testid="coordinator-call-docked-region"
-          data-coordinator-handoff-flightpath
         >
-          {renderDockedCall()}
+          {renderDockedCall({
+            coordinatorAvatarVisible: isDockedMartyVisible,
+            coordinatorTeleportIn: isDockedMartyVisible && introReady,
+          })}
         </motion.div>
         <motion.div
           initial={false}
@@ -717,6 +729,7 @@ export function CoordinatorOnboarding({
   const showActions = !!engagedStepIds?.has('act') && !!renderActionsPane;
   const showTasks = !!engagedStepIds?.has('schedule') && !!renderTasksPane;
   const hasRightSection = showIntegrations || showTasks || showActions;
+  const shouldRenderOnboardingSurface = phase !== 'intro' || isIntroSurfaceVisible;
 
   // Label + icon track the active main-pane surface. We
   // deliberately keep a single tab whether the user is on chat or
@@ -870,102 +883,108 @@ export function CoordinatorOnboarding({
       <div
         className="relative flex h-full w-full flex-col bg-background"
         data-testid="coordinator-onboarding"
-        data-coordinator-handoff={isHandoffActive ? 'active' : undefined}
       >
-        {introCountdownBadge}
+        {phase !== 'intro' && introCountdownBadge}
         {talkNowOverlay}
-        <motion.div
-          initial={{ y: -48 }}
-          animate={{ y: 0 }}
-          transition={ONBOARDING_REVEAL_TRANSITION}
-        >
-          <OnboardingMobileTabStrip
-            activeTab={resolvedActiveMobileTab}
-            onSelectTab={setActiveMobileTab}
-            chatLabel={mainPaneTabLabel}
-            ChatIcon={MainPaneTabIcon}
-            showActions={showActions}
-            showTasks={showTasks}
-            showIntegrations={showIntegrations}
-          />
-        </motion.div>
-        {/* Flex-col so the active pane (Tasks / Actions /
-         *  Integrations) stretches to the container's full width.
-         *  A row flex container would leave the child sized to
-         *  its intrinsic width — fine for the chat surface (which
-         *  carries ``w-full``) but not for the panes, which rely
-         *  on their parent giving them a width. */}
-        <div
-          className="flex min-h-0 flex-[3] flex-col overflow-hidden"
-          data-coordinator-handoff-flightpath
-        >
-          {resolvedActiveMobileTab === 'actions' && showActions
-            ? renderActionsPane()
-            : resolvedActiveMobileTab === 'tasks' && showTasks
-              ? renderTasksPane()
-              : resolvedActiveMobileTab === 'integrations' && showIntegrations
-                ? renderIntegrationsPane()
-                : mainPane}
-        </div>
-        <motion.aside
-          initial={{ y: 220 }}
-          animate={{ y: 0 }}
-          transition={{ ...ONBOARDING_REVEAL_TRANSITION, delay: 0.55 }}
-          className="flex min-h-0 flex-[2] flex-col border-t"
-          data-testid="coordinator-onboarding-sidebar"
-        >
-          {onboardingSidebar}
-        </motion.aside>
+        {shouldRenderOnboardingSurface && (
+          <>
+            <motion.div
+              initial={{ y: -48 }}
+              animate={{ y: 0 }}
+              transition={ONBOARDING_REVEAL_TRANSITION}
+            >
+              <OnboardingMobileTabStrip
+                activeTab={resolvedActiveMobileTab}
+                onSelectTab={setActiveMobileTab}
+                chatLabel={mainPaneTabLabel}
+                ChatIcon={MainPaneTabIcon}
+                showActions={showActions}
+                showTasks={showTasks}
+                showIntegrations={showIntegrations}
+              />
+            </motion.div>
+            {/* Flex-col so the active pane (Tasks / Actions /
+             *  Integrations) stretches to the container's full width.
+             *  A row flex container would leave the child sized to
+             *  its intrinsic width — fine for the chat surface (which
+             *  carries ``w-full``) but not for the panes, which rely
+             *  on their parent giving them a width. */}
+            <div className="flex min-h-0 flex-[3] flex-col overflow-hidden">
+              {resolvedActiveMobileTab === 'actions' && showActions
+                ? renderActionsPane()
+                : resolvedActiveMobileTab === 'tasks' && showTasks
+                  ? renderTasksPane()
+                  : resolvedActiveMobileTab === 'integrations' && showIntegrations
+                    ? renderIntegrationsPane()
+                    : mainPane}
+            </div>
+            <motion.aside
+              initial={{ y: 220 }}
+              animate={{ y: 0 }}
+              transition={{
+                ...ONBOARDING_REVEAL_TRANSITION,
+                delay: ONBOARDING_REVEAL_SIDEBAR_DELAY,
+              }}
+              className="flex min-h-0 flex-[2] flex-col border-t"
+              data-testid="coordinator-onboarding-sidebar"
+            >
+              {onboardingSidebar}
+            </motion.aside>
+          </>
+        )}
+        {introOverlay}
       </div>
     );
   }
 
   // ── Desktop layout ───────────────────────────────────────────
   return (
-    <div
-      className="relative flex h-full w-full bg-background"
-      data-testid="coordinator-onboarding"
-      data-coordinator-handoff={isHandoffActive ? 'active' : undefined}
-    >
-      {introCountdownBadge}
+    <div className="relative flex h-full w-full bg-background" data-testid="coordinator-onboarding">
+      {phase !== 'intro' && introCountdownBadge}
       {talkNowOverlay}
       {/* Center container (chat + onboarding sidebar). When the
        * right section is open we use a 2:1 flex-grow ratio so chat
        * gets twice the remaining width as the right pane,
        * matching the wireframe. */}
-      <motion.div
-        initial={isCoordinatorCallActive ? false : { x: -120 }}
-        animate={{ x: 0 }}
-        transition={ONBOARDING_REVEAL_TRANSITION}
-        className={cn('flex min-w-0 flex-col', hasRightSection ? 'flex-[2]' : 'flex-1')}
-      >
-        {hasRightSection && (
-          <OnboardingPanelTabHeader
-            label={mainPaneTabLabel}
-            Icon={MainPaneTabIcon}
-            testId="coordinator-onboarding-chat-tab"
-          />
-        )}
-        <div className="flex min-h-0 flex-1">
-          <div className="flex min-w-0 flex-1" data-coordinator-handoff-flightpath>
-            {mainPane}
+      {shouldRenderOnboardingSurface && (
+        <motion.div
+          initial={isCoordinatorCallActive ? false : { x: -120 }}
+          animate={{ x: 0 }}
+          transition={ONBOARDING_REVEAL_TRANSITION}
+          className={cn('flex min-w-0 flex-col', hasRightSection ? 'flex-[2]' : 'flex-1')}
+        >
+          {hasRightSection && (
+            <OnboardingPanelTabHeader
+              label={mainPaneTabLabel}
+              Icon={MainPaneTabIcon}
+              testId="coordinator-onboarding-chat-tab"
+            />
+          )}
+          <div className="flex min-h-0 flex-1">
+            <div className="flex min-w-0 flex-1">{mainPane}</div>
+            <motion.aside
+              initial={{ x: 420 }}
+              animate={{ x: 0 }}
+              transition={{
+                ...ONBOARDING_REVEAL_TRANSITION,
+                delay: ONBOARDING_REVEAL_SIDEBAR_DELAY,
+              }}
+              className="h-full w-[380px] flex-shrink-0 border-l"
+              data-testid="coordinator-onboarding-sidebar"
+            >
+              {onboardingSidebar}
+            </motion.aside>
           </div>
-          <motion.aside
-            initial={{ x: 420 }}
-            animate={{ x: 0 }}
-            transition={{ ...ONBOARDING_REVEAL_TRANSITION, delay: 0.55 }}
-            className="h-full w-[380px] flex-shrink-0 border-l"
-            data-testid="coordinator-onboarding-sidebar"
-          >
-            {onboardingSidebar}
-          </motion.aside>
-        </div>
-      </motion.div>
-      {hasRightSection && (
+        </motion.div>
+      )}
+      {shouldRenderOnboardingSurface && hasRightSection && (
         <motion.aside
           initial={{ x: 520 }}
           animate={{ x: 0 }}
-          transition={{ ...ONBOARDING_REVEAL_TRANSITION, delay: 0.85 }}
+          transition={{
+            ...ONBOARDING_REVEAL_TRANSITION,
+            delay: ONBOARDING_REVEAL_RIGHT_SECTION_DELAY,
+          }}
           className="flex h-full min-w-0 flex-1 flex-col border-l"
           data-testid="coordinator-onboarding-right-section"
         >
@@ -987,6 +1006,7 @@ export function CoordinatorOnboarding({
           </div>
         </motion.aside>
       )}
+      {introOverlay}
     </div>
   );
 }

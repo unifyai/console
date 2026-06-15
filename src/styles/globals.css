@@ -832,26 +832,6 @@
       text-align: center;
     }
   }
-  /* Onboarding intro → call handoff. The coordinator droid morphs (shared
-   * ``layoutId``) from the full-screen intro into its small slot inside
-   * the docked call surface. That slot is nested behind two
-   * ``overflow-hidden`` clippers (the call surface root and the
-   * onboarding main-pane wrapper) and below the chat / sidebar panels
-   * sliding into place, so mid-flight the droid gets cropped and only
-   * "lands" once it reaches the call window. While the handoff is active
-   * we lift its flight path above those panels and stop the clipping, so
-   * Marty glides over everything before settling in. The attribute is
-   * removed once the morph finishes, restoring normal call clipping.
-   * Specificity (two compound selectors) beats the Tailwind utilities it
-   * overrides without needing ``!important``. */
-  [data-coordinator-handoff='active'] [data-coordinator-handoff-flightpath],
-  [data-coordinator-handoff='active'] [data-testid='assistant-call-docked'] {
-    overflow: visible;
-  }
-  [data-coordinator-handoff='active'] [data-coordinator-handoff-flightpath] {
-    position: relative;
-    z-index: 60;
-  }
   .unify-block-mark:hover {
     cursor: pointer;
   }

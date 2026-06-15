@@ -1897,12 +1897,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 !!activeCallAssistant &&
                 activeCallAssistant.agentId === canonicalCoordinator.agentId
               }
-              renderDockedCall={() => (
+              renderDockedCall={({ coordinatorAvatarVisible, coordinatorTeleportIn }) => (
                 <RoomContext.Provider value={room}>
                   <AssistantCommunicationDialog
                     docked
                     isOpen
-                    coordinatorTeleportIn
+                    coordinatorAvatarVisible={coordinatorAvatarVisible}
+                    coordinatorTeleportIn={coordinatorTeleportIn}
                     onClose={handleHangUp}
                     onPopOut={handlePopOutCall}
                     assistant={canonicalCoordinator}

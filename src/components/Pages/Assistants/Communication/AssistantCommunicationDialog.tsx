@@ -76,6 +76,7 @@ interface AssistantCommunicationDialogContentProps {
   chatStreamConnectionStatus: ChatStreamConnectionStatus;
   reconnectChatStream: () => void;
   chatStreamActivitySignal: number;
+  coordinatorAvatarVisible?: boolean;
   coordinatorTeleportIn?: boolean;
 }
 
@@ -117,6 +118,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   chatStreamConnectionStatus,
   reconnectChatStream,
   chatStreamActivitySignal,
+  coordinatorAvatarVisible = true,
   coordinatorTeleportIn = false,
 }) => {
   const room = React.useContext(RoomContext);
@@ -340,6 +342,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 isRingMuted={isSpeakerMuted}
                 onToggleRingMute={onToggleSpeaker}
                 isCallActive={isCallConnected}
+                coordinatorAvatarVisible={coordinatorAvatarVisible}
                 coordinatorTeleportIn={coordinatorTeleportIn}
                 isUserSpeaking={isUserSpeaking}
                 mood={avatarMood}
@@ -565,10 +568,10 @@ interface AssistantCommunicationDialogProps {
    * only gates the modal/floating shell.
    */
   docked?: boolean;
-  /** Play the pixelated teleport "materialise" fizzle on the coordinator
-   *  droid when it first mounts. Set by the onboarding docked call so the
-   *  droid teleports into the call window. */
+  /** Fade the coordinator droid in when it first mounts in the docked call. */
   coordinatorTeleportIn?: boolean;
+  /** Controls when the docked coordinator avatar mounts during onboarding. */
+  coordinatorAvatarVisible?: boolean;
   /** Promote the call from its docked slot into the dialog (modal /
    *  floating) shell. Wired by the header's pop-out button in docked
    *  mode. */
@@ -614,6 +617,7 @@ export function AssistantCommunicationDialog({
   reconnectChatStream,
   chatStreamActivitySignal,
   docked = false,
+  coordinatorAvatarVisible = true,
   coordinatorTeleportIn = false,
   onPopOut,
   onRedock,
@@ -831,6 +835,7 @@ export function AssistantCommunicationDialog({
           chatStreamConnectionStatus={chatStreamConnectionStatus}
           reconnectChatStream={reconnectChatStream}
           chatStreamActivitySignal={chatStreamActivitySignal}
+          coordinatorAvatarVisible={coordinatorAvatarVisible}
           coordinatorTeleportIn={coordinatorTeleportIn}
         />
       </div>
@@ -947,6 +952,7 @@ export function AssistantCommunicationDialog({
             chatStreamConnectionStatus={chatStreamConnectionStatus}
             reconnectChatStream={reconnectChatStream}
             chatStreamActivitySignal={chatStreamActivitySignal}
+            coordinatorAvatarVisible={coordinatorAvatarVisible}
             coordinatorTeleportIn={coordinatorTeleportIn}
           />
         )}
