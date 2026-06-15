@@ -33,7 +33,6 @@ const BillingPage: React.FC = async () => {
     );
   }
 
-  const apiKey = user.apiKey;
   const { activeOrganization, isUnifyMember } = resolveWorkspaceContext(user);
   let orgContext: BillingOrgContext | null = null;
 
@@ -61,28 +60,27 @@ const BillingPage: React.FC = async () => {
     );
   }
 
-  // ── Build server actions (bind API key once, on the server) ─────────
   const billingActions: BillingActions = {
-    getBalance: await BillingLib.getBalance(apiKey),
-    subscribe: await BillingLib.subscribe(apiKey),
-    cancelSubscription: await BillingLib.cancelSubscription(apiKey),
-    reactivateSubscription: await BillingLib.reactivateSubscription(apiKey),
-    getAutoIncrement: await BillingLib.getAutoIncrement(apiKey),
-    updateAutoIncrement: await BillingLib.updateAutoIncrement(apiKey),
-    getProfile: await BillingLib.getProfile(apiKey),
-    updateProfile: await BillingLib.updateProfile(apiKey),
-    createPortalSession: await BillingLib.createPortalSession(apiKey),
-    createSetupIntent: await BillingLib.createSetupIntent(apiKey),
-    listPaymentMethods: await BillingLib.listPaymentMethods(apiKey),
-    setDefaultPaymentMethod: await BillingLib.setDefaultPaymentMethod(apiKey),
-    detachPaymentMethod: await BillingLib.detachPaymentMethod(apiKey),
-    getSupportedTaxCountries: await BillingLib.getSupportedTaxCountries(apiKey),
-    validateTaxId: await BillingLib.validateTaxId(apiKey),
-    getInvoices: await BillingLib.getInvoices(apiKey),
-    getInvoiceUrls: await BillingLib.getInvoiceUrls(apiKey),
-    getCurrentPeriodUsage: await BillingLib.getCurrentPeriodUsage(apiKey),
-    getAvailablePlans: await BillingLib.getAvailablePlans(apiKey),
-    switchPlan: await BillingLib.switchPlan(apiKey),
+    getBalance: BillingLib.getBalance,
+    subscribe: BillingLib.subscribe,
+    cancelSubscription: BillingLib.cancelSubscription,
+    reactivateSubscription: BillingLib.reactivateSubscription,
+    getAutoIncrement: BillingLib.getAutoIncrement,
+    updateAutoIncrement: BillingLib.updateAutoIncrement,
+    getProfile: BillingLib.getProfile,
+    updateProfile: BillingLib.updateProfile,
+    createPortalSession: BillingLib.createPortalSession,
+    createSetupIntent: BillingLib.createSetupIntent,
+    listPaymentMethods: BillingLib.listPaymentMethods,
+    setDefaultPaymentMethod: BillingLib.setDefaultPaymentMethod,
+    detachPaymentMethod: BillingLib.detachPaymentMethod,
+    getSupportedTaxCountries: BillingLib.getSupportedTaxCountries,
+    validateTaxId: BillingLib.validateTaxId,
+    getInvoices: BillingLib.getInvoices,
+    getInvoiceUrls: BillingLib.getInvoiceUrls,
+    getCurrentPeriodUsage: BillingLib.getCurrentPeriodUsage,
+    getAvailablePlans: BillingLib.getAvailablePlans,
+    switchPlan: BillingLib.switchPlan,
   };
 
   return (

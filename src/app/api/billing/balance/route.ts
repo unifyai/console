@@ -30,11 +30,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const fetchBalance = await getBalance(apiKey);
     let latestError = 'Failed to fetch billing details';
 
     for (let attempt = 1; attempt <= BALANCE_FETCH_MAX_ATTEMPTS; attempt += 1) {
-      const result = await fetchBalance();
+      const result = await getBalance();
       if (!isBillingError(result)) {
         return NextResponse.json(result);
       }

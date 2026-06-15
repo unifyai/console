@@ -26,19 +26,16 @@ const DemoPage = async () => {
   const user = await getCurrentUser();
   if (!user) redirect('/login?signout=true');
 
-  const apiKey = user.apiKey;
-  const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
-
   const demoActions: DemoActions = {
-    list: await listDemoAssistants(apiKey),
-    create: await createDemoAssistant(apiKey),
-    getMeta: await getDemoMeta(apiKey),
-    listMeta: await listDemoMeta(apiKey),
+    list: listDemoAssistants,
+    create: createDemoAssistant,
+    getMeta: getDemoMeta,
+    listMeta: listDemoMeta,
     listSourceAssistants: listSourceAssistants,
     listAvailablePhoneCountries,
-    getContacts: await getDemoContacts(apiKey),
-    getSpending: await getDemoSpending(apiKey),
-    delete: await deleteDemoAssistant(apiKey),
+    getContacts: getDemoContacts,
+    getSpending: getDemoSpending,
+    delete: deleteDemoAssistant,
   };
 
   return (

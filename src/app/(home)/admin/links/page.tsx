@@ -10,9 +10,9 @@ import { AdminCreditGrantActions } from '@/types/admin';
 const LinksPage = async ({ searchParams }: { searchParams: Promise<{ token?: string }> }) => {
   await searchParams;
   const adminCreditGrantActions: AdminCreditGrantActions = {
-    generateOneTimeLink: await generateOneTimeCreditGrantLink(),
-    listOneTimeLinks: await listOneTimeCreditGrantLinks(),
-    deleteOneTimeLink: await deleteOneTimeCreditGrantLink(),
+    generateOneTimeLink: generateOneTimeCreditGrantLink,
+    listOneTimeLinks: listOneTimeCreditGrantLinks,
+    deleteOneTimeLink: deleteOneTimeCreditGrantLink,
   };
 
   return (

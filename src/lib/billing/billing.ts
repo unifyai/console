@@ -1,3 +1,6 @@
+'use server';
+
+import { requireUserApiKey } from '@/lib/server-action-session';
 /**
  * Billing server actions.
  *
@@ -54,60 +57,57 @@ function errorResponse(error: unknown, fallback: string): BillingErrorResponse {
 // Balance
 // =============================================================================
 
-export const getBalance = async (apiKey: string) => {
-  return async (): Promise<BalanceData | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.get('/billing/account-info');
-      const data = response.data;
+export async function getBalance(): Promise<BalanceData | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.get('/billing/account-info');
+    const data = response.data;
 
-      const credits = typeof data.credits === 'number' ? data.credits : 0;
+    const credits = typeof data.credits === 'number' ? data.credits : 0;
 
-      // Managed-billing: server returns ``billing_mode`` and a
-      // ``plan`` summary. Both are optional in the wire format for
-      // back-compat with older orchestra builds — coerce to safe
-      // defaults so the rest of the UI never has to special-case
-      // ``undefined``.
-      const billingMode: BillingMode = data.billingMode === 'METERED' ? 'METERED' : 'CREDITS';
-      const planRaw = data.plan ?? null;
-      const plan: CurrentPlanSummary | null = planRaw
-        ? {
-            assignmentId: planRaw.assignmentId ?? null,
-            templateId: planRaw.templateId,
-            templateName: planRaw.templateName,
-            templateDisplayName: planRaw.templateDisplayName ?? planRaw.templateName,
-            planType: planRaw.planType,
-            billingMode: planRaw.billingMode === 'METERED' ? 'METERED' : 'CREDITS',
-            commitAmount: planRaw.commitAmount ?? null,
-            currency: planRaw.currency ?? 'USD',
-            commitPeriod: planRaw.commitPeriod ?? null,
-            commitSchedule: planRaw.commitSchedule ?? null,
-            collectionMethod: planRaw.collectionMethod ?? 'AUTO_CARD',
-            startedAt: planRaw.startedAt ?? null,
-            endedAt: planRaw.endedAt ?? null,
-          }
-        : null;
+    // Managed-billing: server returns ``billing_mode`` and a
+    // ``plan`` summary. Both are optional in the wire format for
+    // back-compat with older orchestra builds — coerce to safe
+    // defaults so the rest of the UI never has to special-case
+    // ``undefined``.
+    const billingMode: BillingMode = data.billingMode === 'METERED' ? 'METERED' : 'CREDITS';
+    const planRaw = data.plan ?? null;
+    const plan: CurrentPlanSummary | null = planRaw
+      ? {
+          assignmentId: planRaw.assignmentId ?? null,
+          templateId: planRaw.templateId,
+          templateName: planRaw.templateName,
+          templateDisplayName: planRaw.templateDisplayName ?? planRaw.templateName,
+          planType: planRaw.planType,
+          billingMode: planRaw.billingMode === 'METERED' ? 'METERED' : 'CREDITS',
+          commitAmount: planRaw.commitAmount ?? null,
+          currency: planRaw.currency ?? 'USD',
+          commitPeriod: planRaw.commitPeriod ?? null,
+          commitSchedule: planRaw.commitSchedule ?? null,
+          collectionMethod: planRaw.collectionMethod ?? 'AUTO_CARD',
+          startedAt: planRaw.startedAt ?? null,
+          endedAt: planRaw.endedAt ?? null,
+        }
+      : null;
 
-      return {
-        balance: credits.toFixed(2),
-        fullBalance: credits,
-        lastRechargeAt: data.lastRechargeAt ?? null,
-        accountStatus: data.accountStatus ?? 'ACTIVE',
-        billingMode,
-        plan,
-        planGroupId: typeof data.planGroupId === 'number' ? data.planGroupId : 1,
-        isSubscribed: !!data.isSubscribed,
-        trialExpiresAt: data.trialExpiresAt ?? null,
-        nextRenewalAt: data.nextRenewalAt ?? null,
-        cancelAtPeriodEnd: !!data.subscriptionCancelAtPeriodEnd,
-      };
-    } catch (error) {
-      return errorResponse(error, 'Failed to fetch balance');
-    }
-  };
-};
-
+    return {
+      balance: credits.toFixed(2),
+      fullBalance: credits,
+      lastRechargeAt: data.lastRechargeAt ?? null,
+      accountStatus: data.accountStatus ?? 'ACTIVE',
+      billingMode,
+      plan,
+      planGroupId: typeof data.planGroupId === 'number' ? data.planGroupId : 1,
+      isSubscribed: !!data.isSubscribed,
+      trialExpiresAt: data.trialExpiresAt ?? null,
+      nextRenewalAt: data.nextRenewalAt ?? null,
+      cancelAtPeriodEnd: !!data.subscriptionCancelAtPeriodEnd,
+    };
+  } catch (error) {
+    return errorResponse(error, 'Failed to fetch balance');
+  }
+}
 // =============================================================================
 // Subscribe (self-serve first subscription)
 // =============================================================================
@@ -118,28 +118,27 @@ export const getBalance = async (apiKey: string) => {
  * carries a `hostedInvoiceUrl` the customer must complete the first
  * payment there (the console has no Stripe.js).
  */
-export const subscribe = async (apiKey: string) => {
-  return async (templateId: number): Promise<SubscribeResponse | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.post('/billing/subscribe', { templateId });
-      const data = response.data;
-      return {
-        status: data.status,
-        billingAccountId: data.billingAccountId,
-        templateId: data.templateId,
-        stripeSubscriptionId: data.stripeSubscriptionId ?? null,
-        subscriptionStatus: data.subscriptionStatus,
-        clientSecret: data.clientSecret ?? null,
-        hostedInvoiceUrl: data.hostedInvoiceUrl ?? null,
-      };
-    } catch (error) {
-      return errorResponse(error, 'Failed to subscribe');
-    }
-  };
-};
-
+export async function subscribe(
+  templateId: number
+): Promise<SubscribeResponse | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.post('/billing/subscribe', { templateId });
+    const data = response.data;
+    return {
+      status: data.status,
+      billingAccountId: data.billingAccountId,
+      templateId: data.templateId,
+      stripeSubscriptionId: data.stripeSubscriptionId ?? null,
+      subscriptionStatus: data.subscriptionStatus,
+      clientSecret: data.clientSecret ?? null,
+      hostedInvoiceUrl: data.hostedInvoiceUrl ?? null,
+    };
+  } catch (error) {
+    return errorResponse(error, 'Failed to subscribe');
+  }
+}
 // =============================================================================
 // Cancel subscription
 // =============================================================================
@@ -150,49 +149,47 @@ export const subscribe = async (apiKey: string) => {
  * is set. The local plan reverts to free once Stripe emits the deletion
  * webhook.
  */
-export const cancelSubscription = async (apiKey: string) => {
-  return async (immediate = false): Promise<CancelSubscriptionResponse | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.delete('/billing/subscription', {
-        params: { immediate },
-      });
-      const data = response.data;
-      return {
-        status: data.status,
-        billingAccountId: data.billingAccountId,
-        effectiveAt: data.effectiveAt ?? null,
-      };
-    } catch (error) {
-      return errorResponse(error, 'Failed to cancel subscription');
-    }
-  };
-};
-
+export async function cancelSubscription(
+  immediate = false
+): Promise<CancelSubscriptionResponse | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.delete('/billing/subscription', {
+      params: { immediate },
+    });
+    const data = response.data;
+    return {
+      status: data.status,
+      billingAccountId: data.billingAccountId,
+      effectiveAt: data.effectiveAt ?? null,
+    };
+  } catch (error) {
+    return errorResponse(error, 'Failed to cancel subscription');
+  }
+}
 /**
  * Wraps `POST /v0/billing/subscription/reactivate`. Undoes a scheduled
  * end-of-period cancellation so the subscription renews normally. Only
  * valid while the subscription is still flagged to cancel at period end.
  */
-export const reactivateSubscription = async (apiKey: string) => {
-  return async (): Promise<CancelSubscriptionResponse | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.post('/billing/subscription/reactivate');
-      const data = response.data;
-      return {
-        status: data.status,
-        billingAccountId: data.billingAccountId,
-        effectiveAt: data.effectiveAt ?? null,
-      };
-    } catch (error) {
-      return errorResponse(error, 'Failed to resume subscription');
-    }
-  };
-};
-
+export async function reactivateSubscription(): Promise<
+  CancelSubscriptionResponse | BillingErrorResponse
+> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.post('/billing/subscription/reactivate');
+    const data = response.data;
+    return {
+      status: data.status,
+      billingAccountId: data.billingAccountId,
+      effectiveAt: data.effectiveAt ?? null,
+    };
+  } catch (error) {
+    return errorResponse(error, 'Failed to resume subscription');
+  }
+}
 // =============================================================================
 // Auto-Increment (replaces Auto-Recharge for self-serve)
 // =============================================================================
@@ -205,102 +202,87 @@ function mapAutoIncrement(data: any): AutoIncrementData {
   };
 }
 
-export const getAutoIncrement = async (apiKey: string) => {
-  return async (): Promise<AutoIncrementData | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.get('/billing/auto-increment');
-      return mapAutoIncrement(response.data);
-    } catch (error) {
-      return errorResponse(error, 'Failed to fetch auto-increment settings');
-    }
-  };
-};
-
-export const updateAutoIncrement = async (apiKey: string) => {
-  return async (
-    payload: AutoIncrementUpdatePayload
-  ): Promise<AutoIncrementData | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.put('/billing/auto-increment', {
-        enabled: payload.enabled,
-      });
-      return mapAutoIncrement(response.data);
-    } catch (error) {
-      return errorResponse(error, 'Failed to update auto-increment settings');
-    }
-  };
-};
-
+export async function getAutoIncrement(): Promise<AutoIncrementData | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.get('/billing/auto-increment');
+    return mapAutoIncrement(response.data);
+  } catch (error) {
+    return errorResponse(error, 'Failed to fetch auto-increment settings');
+  }
+}
+export async function updateAutoIncrement(
+  payload: AutoIncrementUpdatePayload
+): Promise<AutoIncrementData | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.put('/billing/auto-increment', {
+      enabled: payload.enabled,
+    });
+    return mapAutoIncrement(response.data);
+  } catch (error) {
+    return errorResponse(error, 'Failed to update auto-increment settings');
+  }
+}
 // =============================================================================
 // Billing Profile
 // =============================================================================
 
-export const getProfile = async (apiKey: string) => {
-  return async (): Promise<BillingProfileApiResponse | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.get('/billing/billing-profile');
-      return response.data as BillingProfileApiResponse;
-    } catch (error) {
-      return errorResponse(error, 'Failed to fetch billing profile');
+export async function getProfile(): Promise<BillingProfileApiResponse | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.get('/billing/billing-profile');
+    return response.data as BillingProfileApiResponse;
+  } catch (error) {
+    return errorResponse(error, 'Failed to fetch billing profile');
+  }
+}
+export async function updateProfile(
+  data: BillingProfileData
+): Promise<BillingProfileApiResponse | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    // Build payload — the axios interceptor handles camelCase → snake_case.
+    // Only include fields that have actual values (strip empty strings).
+    const payload: Record<string, unknown> = {};
+    if (data.name) payload.name = data.name;
+    if (data.billingEmail) payload.billingEmail = data.billingEmail;
+    if (data.taxId) payload.taxId = data.taxId;
+    if (data.taxIdType) payload.taxIdType = data.taxIdType;
+    if (data.billingAddress?.line1) {
+      payload.billingAddress = {
+        line1: data.billingAddress.line1,
+        line2: data.billingAddress.line2 || undefined,
+        city: data.billingAddress.city || undefined,
+        state: data.billingAddress.state || undefined,
+        country: data.billingAddress.country || undefined,
+        postalCode: data.billingAddress.postalCode || undefined,
+      };
     }
-  };
-};
-
-export const updateProfile = async (apiKey: string) => {
-  return async (
-    data: BillingProfileData
-  ): Promise<BillingProfileApiResponse | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      // Build payload — the axios interceptor handles camelCase → snake_case.
-      // Only include fields that have actual values (strip empty strings).
-      const payload: Record<string, unknown> = {};
-      if (data.name) payload.name = data.name;
-      if (data.billingEmail) payload.billingEmail = data.billingEmail;
-      if (data.taxId) payload.taxId = data.taxId;
-      if (data.taxIdType) payload.taxIdType = data.taxIdType;
-      if (data.billingAddress?.line1) {
-        payload.billingAddress = {
-          line1: data.billingAddress.line1,
-          line2: data.billingAddress.line2 || undefined,
-          city: data.billingAddress.city || undefined,
-          state: data.billingAddress.state || undefined,
-          country: data.billingAddress.country || undefined,
-          postalCode: data.billingAddress.postalCode || undefined,
-        };
-      }
-      const response = await client.patch('/billing/billing-profile', payload);
-      return response.data as BillingProfileApiResponse;
-    } catch (error) {
-      return errorResponse(error, 'Failed to update billing profile');
-    }
-  };
-};
-
+    const response = await client.patch('/billing/billing-profile', payload);
+    return response.data as BillingProfileApiResponse;
+  } catch (error) {
+    return errorResponse(error, 'Failed to update billing profile');
+  }
+}
 // =============================================================================
 // Stripe Sessions
 // =============================================================================
 
-export const createPortalSession = async (apiKey: string) => {
-  return async (): Promise<PortalSessionResponse | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.post('/billing/portal-session');
-      return response.data as PortalSessionResponse;
-    } catch (error) {
-      return errorResponse(error, 'Failed to create portal session');
-    }
-  };
-};
-
+export async function createPortalSession(): Promise<PortalSessionResponse | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.post('/billing/portal-session');
+    return response.data as PortalSessionResponse;
+  } catch (error) {
+    return errorResponse(error, 'Failed to create portal session');
+  }
+}
 // =============================================================================
 // Payment methods (in-app card management)
 // =============================================================================
@@ -310,108 +292,94 @@ export const createPortalSession = async (apiKey: string) => {
  * Elements. The orchestra client interceptor camelCases the response, so
  * `client_secret` arrives as `clientSecret`.
  */
-export const createSetupIntent = async (apiKey: string) => {
-  return async (): Promise<SetupIntentResponse | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.post('/billing/payment-methods/setup-intent');
-      return response.data as SetupIntentResponse;
-    } catch (error) {
-      return errorResponse(error, 'Failed to start adding a card');
-    }
-  };
-};
-
+export async function createSetupIntent(): Promise<SetupIntentResponse | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.post('/billing/payment-methods/setup-intent');
+    return response.data as SetupIntentResponse;
+  } catch (error) {
+    return errorResponse(error, 'Failed to start adding a card');
+  }
+}
 /** List the customer's saved cards (newest first). */
-export const listPaymentMethods = async (apiKey: string) => {
-  return async (): Promise<PaymentMethodListResponse | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.get('/billing/payment-methods');
-      return response.data as PaymentMethodListResponse;
-    } catch (error) {
-      return errorResponse(error, 'Failed to load payment methods');
-    }
-  };
-};
-
+export async function listPaymentMethods(): Promise<
+  PaymentMethodListResponse | BillingErrorResponse
+> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.get('/billing/payment-methods');
+    return response.data as PaymentMethodListResponse;
+  } catch (error) {
+    return errorResponse(error, 'Failed to load payment methods');
+  }
+}
 /** Make a saved card the renewal default; returns the refreshed list. */
-export const setDefaultPaymentMethod = async (apiKey: string) => {
-  return async (
-    paymentMethodId: string
-  ): Promise<PaymentMethodListResponse | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.post(
-        `/billing/payment-methods/${encodeURIComponent(paymentMethodId)}/default`
-      );
-      return response.data as PaymentMethodListResponse;
-    } catch (error) {
-      return errorResponse(error, 'Failed to set default card');
-    }
-  };
-};
-
+export async function setDefaultPaymentMethod(
+  paymentMethodId: string
+): Promise<PaymentMethodListResponse | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.post(
+      `/billing/payment-methods/${encodeURIComponent(paymentMethodId)}/default`
+    );
+    return response.data as PaymentMethodListResponse;
+  } catch (error) {
+    return errorResponse(error, 'Failed to set default card');
+  }
+}
 /** Remove a saved card; returns the refreshed list. */
-export const detachPaymentMethod = async (apiKey: string) => {
-  return async (
-    paymentMethodId: string
-  ): Promise<PaymentMethodListResponse | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.delete(
-        `/billing/payment-methods/${encodeURIComponent(paymentMethodId)}`
-      );
-      return response.data as PaymentMethodListResponse;
-    } catch (error) {
-      return errorResponse(error, 'Failed to remove card');
-    }
-  };
-};
-
+export async function detachPaymentMethod(
+  paymentMethodId: string
+): Promise<PaymentMethodListResponse | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.delete(
+      `/billing/payment-methods/${encodeURIComponent(paymentMethodId)}`
+    );
+    return response.data as PaymentMethodListResponse;
+  } catch (error) {
+    return errorResponse(error, 'Failed to remove card');
+  }
+}
 // =============================================================================
 // Tax Countries & Validation
 // =============================================================================
 
-export const getSupportedTaxCountries = async (apiKey: string) => {
-  return async (): Promise<SupportedTaxCountriesResponse | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.get('/billing/supported-tax-countries');
-      return response.data as SupportedTaxCountriesResponse;
-    } catch (error) {
-      return errorResponse(error, 'Failed to fetch supported tax countries');
-    }
-  };
-};
-
-export const validateTaxId = async (apiKey: string) => {
-  return async (
-    request: TaxIdValidationRequest
-  ): Promise<TaxIdValidationResponse | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.post('/billing/validate-tax-id', {
-        country: request.country,
-        taxId: request.taxId,
-      });
-      const data = response.data as any;
-      return {
-        valid: data.valid ?? data.isValid ?? false,
-        errorMessage: data.errorMessage || data.error || undefined,
-      };
-    } catch (error) {
-      return errorResponse(error, 'Failed to validate tax ID');
-    }
-  };
-};
-
+export async function getSupportedTaxCountries(): Promise<
+  SupportedTaxCountriesResponse | BillingErrorResponse
+> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.get('/billing/supported-tax-countries');
+    return response.data as SupportedTaxCountriesResponse;
+  } catch (error) {
+    return errorResponse(error, 'Failed to fetch supported tax countries');
+  }
+}
+export async function validateTaxId(
+  request: TaxIdValidationRequest
+): Promise<TaxIdValidationResponse | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.post('/billing/validate-tax-id', {
+      country: request.country,
+      taxId: request.taxId,
+    });
+    const data = response.data as any;
+    return {
+      valid: data.valid ?? data.isValid ?? false,
+      errorMessage: data.errorMessage || data.error || undefined,
+    };
+  } catch (error) {
+    return errorResponse(error, 'Failed to validate tax ID');
+  }
+}
 // =============================================================================
 // Invoices (managed-billing)
 // =============================================================================
@@ -422,46 +390,42 @@ export const validateTaxId = async (apiKey: string) => {
  * interceptor handles snake_case → camelCase, so the response is
  * already in the shape `InvoiceListResponse` expects.
  */
-export const getInvoices = async (apiKey: string) => {
-  return async (params?: {
-    limit?: number;
-    offset?: number;
-  }): Promise<InvoiceListResponse | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.get('/billing/invoices', {
-        params: {
-          limit: params?.limit ?? 50,
-          offset: params?.offset ?? 0,
-        },
-      });
-      return response.data as InvoiceListResponse;
-    } catch (error) {
-      return errorResponse(error, 'Failed to fetch invoices');
-    }
-  };
-};
-
+export async function getInvoices(params?: {
+  limit?: number;
+  offset?: number;
+}): Promise<InvoiceListResponse | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.get('/billing/invoices', {
+      params: {
+        limit: params?.limit ?? 50,
+        offset: params?.offset ?? 0,
+      },
+    });
+    return response.data as InvoiceListResponse;
+  } catch (error) {
+    return errorResponse(error, 'Failed to fetch invoices');
+  }
+}
 /**
  * Resolve Stripe-hosted view + PDF URLs for one invoice. Wraps
  * `GET /v0/billing/invoices/{recharge_id}/urls`. Called on demand
  * from the InvoicesTable rather than pre-fetched, since Stripe URLs
  * are short-lived.
  */
-export const getInvoiceUrls = async (apiKey: string) => {
-  return async (rechargeId: number): Promise<InvoiceUrls | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.get(`/billing/invoices/${rechargeId}/urls`);
-      return response.data as InvoiceUrls;
-    } catch (error) {
-      return errorResponse(error, 'Failed to fetch invoice URLs');
-    }
-  };
-};
-
+export async function getInvoiceUrls(
+  rechargeId: number
+): Promise<InvoiceUrls | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.get(`/billing/invoices/${rechargeId}/urls`);
+    return response.data as InvoiceUrls;
+  } catch (error) {
+    return errorResponse(error, 'Failed to fetch invoice URLs');
+  }
+}
 /**
  * Fetch the in-progress monthly invoice estimate for the active
  * METERED plan. Wraps `GET /v0/billing/current-period-usage`. The
@@ -469,19 +433,16 @@ export const getInvoiceUrls = async (apiKey: string) => {
  * `BillingErrorResponse` with a stable `detail` so callers can render
  * the credits view instead.
  */
-export const getCurrentPeriodUsage = async (apiKey: string) => {
-  return async (): Promise<CurrentPeriodUsage | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.get('/billing/current-period-usage');
-      return response.data as CurrentPeriodUsage;
-    } catch (error) {
-      return errorResponse(error, 'Failed to fetch current period usage');
-    }
-  };
-};
-
+export async function getCurrentPeriodUsage(): Promise<CurrentPeriodUsage | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.get('/billing/current-period-usage');
+    return response.data as CurrentPeriodUsage;
+  } catch (error) {
+    return errorResponse(error, 'Failed to fetch current period usage');
+  }
+}
 // =============================================================================
 // Plan switching (self-serve)
 // =============================================================================
@@ -496,47 +457,44 @@ export const getCurrentPeriodUsage = async (apiKey: string) => {
  * group), and callers gate the Switch Plan section on
  * `available.length === 0`.
  */
-export const getAvailablePlans = async (apiKey: string) => {
-  return async (): Promise<AvailablePlansResponse | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.get('/billing/available-plans');
-      const data = response.data;
-      // Be defensive about the items list — the interceptor handles
-      // case conversion but missing optional fields would still come
-      // through as undefined. Normalise so the consumer never has to
-      // special-case shape drift.
-      const items: AvailablePlanItem[] = (data.available ?? []).map((it: any) => ({
-        templateId: it.templateId,
-        templateName: it.templateName,
-        templateDisplayName: it.templateDisplayName ?? it.templateName,
-        billingMode: it.billingMode === 'METERED' ? 'METERED' : 'CREDITS',
-        commitAmount: it.commitAmount ?? null,
-        currency: it.currency ?? 'USD',
-        commitPeriod: it.commitPeriod ?? null,
-        commitSchedule: it.commitSchedule ?? null,
-        basePricingFactor: typeof it.basePricingFactor === 'number' ? it.basePricingFactor : 1,
-        overagePricingFactor:
-          typeof it.overagePricingFactor === 'number' ? it.overagePricingFactor : 1,
-        position: typeof it.position === 'number' ? it.position : null,
-        isCurrent: !!it.isCurrent,
-        classification: it.classification ?? 'sidegrade',
-        effectiveAt: it.effectiveAt ?? data.nextPeriodStart,
-      }));
-      return {
-        billingAccountId: data.billingAccountId,
-        planGroupId: typeof data.planGroupId === 'number' ? data.planGroupId : 1,
-        planGroupDisplayName: data.planGroupDisplayName ?? null,
-        nextPeriodStart: data.nextPeriodStart,
-        available: items,
-      };
-    } catch (error) {
-      return errorResponse(error, 'Failed to fetch available plans');
-    }
-  };
-};
-
+export async function getAvailablePlans(): Promise<AvailablePlansResponse | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.get('/billing/available-plans');
+    const data = response.data;
+    // Be defensive about the items list — the interceptor handles
+    // case conversion but missing optional fields would still come
+    // through as undefined. Normalise so the consumer never has to
+    // special-case shape drift.
+    const items: AvailablePlanItem[] = (data.available ?? []).map((it: any) => ({
+      templateId: it.templateId,
+      templateName: it.templateName,
+      templateDisplayName: it.templateDisplayName ?? it.templateName,
+      billingMode: it.billingMode === 'METERED' ? 'METERED' : 'CREDITS',
+      commitAmount: it.commitAmount ?? null,
+      currency: it.currency ?? 'USD',
+      commitPeriod: it.commitPeriod ?? null,
+      commitSchedule: it.commitSchedule ?? null,
+      basePricingFactor: typeof it.basePricingFactor === 'number' ? it.basePricingFactor : 1,
+      overagePricingFactor:
+        typeof it.overagePricingFactor === 'number' ? it.overagePricingFactor : 1,
+      position: typeof it.position === 'number' ? it.position : null,
+      isCurrent: !!it.isCurrent,
+      classification: it.classification ?? 'sidegrade',
+      effectiveAt: it.effectiveAt ?? data.nextPeriodStart,
+    }));
+    return {
+      billingAccountId: data.billingAccountId,
+      planGroupId: typeof data.planGroupId === 'number' ? data.planGroupId : 1,
+      planGroupDisplayName: data.planGroupDisplayName ?? null,
+      nextPeriodStart: data.nextPeriodStart,
+      available: items,
+    };
+  } catch (error) {
+    return errorResponse(error, 'Failed to fetch available plans');
+  }
+}
 /**
  * Wraps `POST /v0/billing/plan`. For subscription tiers the change is
  * applied immediately (anniversary-anchored, Stripe-prorated) and the
@@ -545,30 +503,28 @@ export const getAvailablePlans = async (apiKey: string) => {
  * The `changeReason` is optional and recorded on the new assignment row
  * for audit clarity.
  */
-export const switchPlan = async (apiKey: string) => {
-  return async (
-    templateId: number,
-    changeReason?: string
-  ): Promise<SwitchPlanResponse | BillingErrorResponse> => {
-    'use server';
-    try {
-      const client = await getOrchestraUserClient(apiKey);
-      const response = await client.post('/billing/plan', {
-        templateId,
-        changeReason: changeReason ?? null,
-      });
-      const data = response.data;
-      const status: SwitchPlanResponse['status'] =
-        data.status === 'noop' ? 'noop' : data.status === 'scheduled' ? 'scheduled' : 'switched';
-      return {
-        status,
-        billingAccountId: data.billingAccountId,
-        templateId: data.templateId,
-        effectiveAt: data.effectiveAt ?? null,
-        classification: data.classification ?? 'sidegrade',
-      };
-    } catch (error) {
-      return errorResponse(error, 'Failed to switch plan');
-    }
-  };
-};
+export async function switchPlan(
+  templateId: number,
+  changeReason?: string
+): Promise<SwitchPlanResponse | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.post('/billing/plan', {
+      templateId,
+      changeReason: changeReason ?? null,
+    });
+    const data = response.data;
+    const status: SwitchPlanResponse['status'] =
+      data.status === 'noop' ? 'noop' : data.status === 'scheduled' ? 'scheduled' : 'switched';
+    return {
+      status,
+      billingAccountId: data.billingAccountId,
+      templateId: data.templateId,
+      effectiveAt: data.effectiveAt ?? null,
+      classification: data.classification ?? 'sidegrade',
+    };
+  } catch (error) {
+    return errorResponse(error, 'Failed to switch plan');
+  }
+}

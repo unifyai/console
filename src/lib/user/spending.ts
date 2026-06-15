@@ -1,3 +1,6 @@
+'use server';
+
+import { requireUserApiKey } from '@/lib/server-action-session';
 /**
  * Server actions for user spending limits and cumulative spend tracking.
  *
@@ -34,63 +37,56 @@ import {
  *   console.log(`You spent: $${result.cumulativeSpend}`);
  * }
  */
-export const getUserSpend = async (apiKey: string) => {
-  return async (month?: string): Promise<UserSpend | ResponseProps> => {
-    'use server';
+export async function getUserSpend(month?: string): Promise<UserSpend | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const targetMonth = month || getCurrentMonth();
+  const requestUrl = `${process.env.NEXTAUTH_URL}/api/user/spending?month=${targetMonth}`;
 
-    const targetMonth = month || getCurrentMonth();
-    const requestUrl = `${process.env.NEXTAUTH_URL}/api/user/spending?month=${targetMonth}`;
+  try {
+    const response = await fetch(requestUrl, {
+      method: 'GET',
+      headers: { apiKey: apiKey },
+    });
 
+    let data;
     try {
-      const response = await fetch(requestUrl, {
-        method: 'GET',
-        headers: { apiKey: apiKey },
-      });
-
-      let data;
-      try {
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          data = await response.json();
-        } else {
-          console.error(
-            `[user/spending.ts getUserSpend] Received non-JSON response with status ${response.status}`
-          );
-          return { detail: 'Received an invalid response from the server.' };
-        }
-      } catch (parseError) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
         console.error(
-          `[user/spending.ts getUserSpend] Failed to parse JSON response ${parseError}`
+          `[user/spending.ts getUserSpend] Received non-JSON response with status ${response.status}`
         );
         return { detail: 'Received an invalid response from the server.' };
       }
+    } catch (parseError) {
+      console.error(`[user/spending.ts getUserSpend] Failed to parse JSON response ${parseError}`);
+      return { detail: 'Received an invalid response from the server.' };
+    }
 
-      if (!response.ok) {
-        // 404 means no spend data yet - return zero spend
-        if (response.status === 404) {
-          return {
-            userId: '',
-            month: targetMonth,
-            cumulativeSpend: 0,
-            limit: null,
-            percentUsed: 0,
-          } as UserSpend;
-        }
-        const errorMessage =
-          data.detail || data.error || `Failed to fetch user spending data: ${response.statusText}`;
-        return { detail: errorMessage };
+    if (!response.ok) {
+      // 404 means no spend data yet - return zero spend
+      if (response.status === 404) {
+        return {
+          userId: '',
+          month: targetMonth,
+          cumulativeSpend: 0,
+          limit: null,
+          percentUsed: 0,
+        } as UserSpend;
       }
-
-      return data as UserSpend;
-    } catch (error) {
-      console.error(`[user/spending.ts getUserSpend] Error fetching spend:`, error);
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown server error occurred.';
+        data.detail || data.error || `Failed to fetch user spending data: ${response.statusText}`;
       return { detail: errorMessage };
     }
-  };
-};
 
+    return data as UserSpend;
+  } catch (error) {
+    console.error(`[user/spending.ts getUserSpend] Error fetching spend:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown server error occurred.';
+    return { detail: errorMessage };
+  }
+}
 /**
  * Fetch the user's spending limit configuration (personal workspace).
  *
@@ -104,52 +100,45 @@ export const getUserSpend = async (apiKey: string) => {
  *   console.log(`Limit: $${result.monthlySpendingCap}`);
  * }
  */
-export const getUserSpendingLimit = async (apiKey: string) => {
-  return async (): Promise<UserSpendingLimitResponse | ResponseProps> => {
-    'use server';
+export async function getUserSpendingLimit(): Promise<UserSpendingLimitResponse | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/user/spending-limit`, {
+      method: 'GET',
+      headers: { apiKey: apiKey },
+    });
 
+    let data;
     try {
-      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/user/spending-limit`, {
-        method: 'GET',
-        headers: { apiKey: apiKey },
-      });
-
-      let data;
-      try {
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          data = await response.json();
-        } else {
-          console.error(
-            `[user/spending.ts getUserSpendingLimit] Received non-JSON response with status ${response.status}`
-          );
-          return { detail: 'Received an invalid response from the server.' };
-        }
-      } catch (parseError) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
         console.error(
-          `[user/spending.ts getUserSpendingLimit] Failed to parse JSON response ${parseError}`
+          `[user/spending.ts getUserSpendingLimit] Received non-JSON response with status ${response.status}`
         );
         return { detail: 'Received an invalid response from the server.' };
       }
+    } catch (parseError) {
+      console.error(
+        `[user/spending.ts getUserSpendingLimit] Failed to parse JSON response ${parseError}`
+      );
+      return { detail: 'Received an invalid response from the server.' };
+    }
 
-      if (!response.ok) {
-        const errorMessage =
-          data.detail ||
-          data.error ||
-          `Failed to fetch user spending limit: ${response.statusText}`;
-        return { detail: errorMessage };
-      }
-
-      return data as UserSpendingLimitResponse;
-    } catch (error) {
-      console.error(`[user/spending.ts getUserSpendingLimit] Error fetching limit:`, error);
+    if (!response.ok) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown server error occurred.';
+        data.detail || data.error || `Failed to fetch user spending limit: ${response.statusText}`;
       return { detail: errorMessage };
     }
-  };
-};
 
+    return data as UserSpendingLimitResponse;
+  } catch (error) {
+    console.error(`[user/spending.ts getUserSpendingLimit] Error fetching limit:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown server error occurred.';
+    return { detail: errorMessage };
+  }
+}
 /**
  * Update the user's spending limit (personal workspace).
  *
@@ -163,61 +152,56 @@ export const getUserSpendingLimit = async (apiKey: string) => {
  *   console.log('User limit updated successfully');
  * }
  */
-export const setUserSpendingLimit = async (apiKey: string) => {
-  return async (
-    payload: UserSpendingLimitRequest
-  ): Promise<(UserSpendingLimitResponse & ResponseProps) | ResponseProps> => {
-    'use server';
+export async function setUserSpendingLimit(
+  payload: UserSpendingLimitRequest
+): Promise<(UserSpendingLimitResponse & ResponseProps) | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const requestUrl = `${process.env.NEXTAUTH_URL}/api/user/spending-limit`;
 
-    const requestUrl = `${process.env.NEXTAUTH_URL}/api/user/spending-limit`;
+  try {
+    const response = await fetch(requestUrl, {
+      method: 'PUT',
+      headers: {
+        apiKey: apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
 
+    let data;
     try {
-      const response = await fetch(requestUrl, {
-        method: 'PUT',
-        headers: {
-          apiKey: apiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      let data;
-      try {
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          data = await response.json();
-        } else {
-          console.error(
-            `[user/spending.ts setUserSpendingLimit] Received non-JSON response with status ${response.status}`
-          );
-          return { detail: 'Received an invalid response from the server.' };
-        }
-      } catch (parseError) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
         console.error(
-          `[user/spending.ts setUserSpendingLimit] Failed to parse JSON response ${parseError}`
+          `[user/spending.ts setUserSpendingLimit] Received non-JSON response with status ${response.status}`
         );
         return { detail: 'Received an invalid response from the server.' };
       }
+    } catch (parseError) {
+      console.error(
+        `[user/spending.ts setUserSpendingLimit] Failed to parse JSON response ${parseError}`
+      );
+      return { detail: 'Received an invalid response from the server.' };
+    }
 
-      if (!response.ok) {
-        const errorMessage =
-          data.detail || data.error || `Failed to set user spending limit: ${response.statusText}`;
-        return { detail: errorMessage };
-      }
-
-      return {
-        ...data,
-        info: 'User spending limit updated successfully.',
-      } as UserSpendingLimitResponse & ResponseProps;
-    } catch (error) {
-      console.error(`[user/spending.ts setUserSpendingLimit] Error setting limit:`, error);
+    if (!response.ok) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown server error occurred.';
+        data.detail || data.error || `Failed to set user spending limit: ${response.statusText}`;
       return { detail: errorMessage };
     }
-  };
-};
 
+    return {
+      ...data,
+      info: 'User spending limit updated successfully.',
+    } as UserSpendingLimitResponse & ResponseProps;
+  } catch (error) {
+    console.error(`[user/spending.ts setUserSpendingLimit] Error setting limit:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown server error occurred.';
+    return { detail: errorMessage };
+  }
+}
 /**
  * Remove the user's spending limit (set to unlimited).
  *
@@ -231,14 +215,11 @@ export const setUserSpendingLimit = async (apiKey: string) => {
  *   console.log('User limit removed successfully');
  * }
  */
-export const removeUserSpendingLimit = async (apiKey: string) => {
-  return async (): Promise<(UserSpendingLimitResponse & ResponseProps) | ResponseProps> => {
-    'use server';
-
-    const setLimit = await setUserSpendingLimit(apiKey);
-    return setLimit({ monthlySpendingCap: null });
-  };
-};
+export async function removeUserSpendingLimit(): Promise<
+  (UserSpendingLimitResponse & ResponseProps) | ResponseProps
+> {
+  return setUserSpendingLimit({ monthlySpendingCap: null });
+}
 
 // Re-export type guards for convenience
 export { isUserSpendData, isUserSpendingLimitData };
