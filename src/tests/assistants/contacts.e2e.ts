@@ -132,6 +132,31 @@ async function openContactManager(
   await expect(page.locator('text=Update Contact')).toBeVisible({ timeout: 5_000 });
 }
 
+async function openWorkspaceManager(
+  page: import('@playwright/test').Page,
+  targetAssistant = assistant
+) {
+  await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
+
+  const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
+  await expect(listItem).toBeVisible({ timeout: 15_000 });
+
+  const menuBtn = page.getByTestId(`assistant-menu-${targetAssistant.agentId}`);
+  await listItem.hover();
+  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
+  await menuBtn.click();
+  await page.waitForTimeout(500);
+
+  const workspaceItem = page.getByTestId('menu-update-workspace');
+  await expect(workspaceItem).toBeVisible({ timeout: 5_000 });
+  await workspaceItem.click();
+
+  await expect(page.getByRole('dialog').getByText('Workspace', { exact: true })).toBeVisible({
+    timeout: 5_000,
+  });
+}
+
 test('adding a phone contact persists it to the database', async ({ authedPage: page }) => {
   await openContactManager(page);
 
@@ -306,6 +331,21 @@ test('Marty email tab shows shared Marty address as managed routing', async ({
   ).toBeVisible({ timeout: 5_000 });
   await expect(page.getByRole('button', { name: 'Configure' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
+});
+
+test('Marty workspace modal shows BYOD providers despite shared routing email', async ({
+  authedPage: page,
+}) => {
+  await openWorkspaceManager(page, coordinator);
+
+  await expect(page.getByRole('button', { name: 'Google Workspace' })).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(page.getByRole('button', { name: 'Microsoft 365' })).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(page.locator('input[value="marty@unify.ai"]')).toHaveCount(0);
+  await expect(page.locator('text=Platform-managed email')).toHaveCount(0);
 });
 
 test('Marty phone tab shows shared Marty number as managed routing', async ({

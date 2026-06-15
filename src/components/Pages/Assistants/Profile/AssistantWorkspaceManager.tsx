@@ -159,8 +159,9 @@ export function AssistantWorkspaceManager({
       return <p className="text-body text-muted-foreground">No workspace configured.</p>;
     }
 
-    // Platform-managed mailbox (legacy)
-    if (isPlatformEmail) {
+    // Coordinator contact mailboxes are shared routing addresses; they do not
+    // represent a connected workspace account.
+    if (isPlatformEmail && !assistant.isCoordinator) {
       return (
         <div className="space-y-3">
           <div className="flex items-center">
