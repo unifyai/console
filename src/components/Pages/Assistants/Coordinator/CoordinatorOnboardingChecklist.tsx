@@ -63,22 +63,22 @@ interface OnboardingChecklistItem {
 const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
   {
     id: 'meet',
-    title: 'Meet Marty',
+    title: 'Meet me',
     phaseLabel: 'Meet',
-    description: 'Say hi to Marty.',
+    description: 'Say hi to me.',
     estimatedTime: '~1 min',
   },
   {
     id: 'connect',
-    title: 'Connect Marty',
+    title: 'Connect me',
     phaseLabel: 'Connect',
-    description: 'Plug it into your workspace and apps.',
+    description: 'Plug me into your workspace and apps.',
     // No action: the parent row is purely a grouping header; the
     // workspace OAuth + integrations actions live on its children.
     children: [
       {
         id: 'workspace',
-        title: 'Give Marty access to your workspace',
+        title: 'Give me access to your workspace',
         description: 'Required for everything else in onboarding.',
         estimatedTime: '~30s',
         action: 'connect-workspace',
@@ -86,7 +86,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       },
       {
         id: 'apps',
-        title: 'Connect Marty with your apps',
+        title: 'Connect me with your apps',
         description: 'Hook up at least one app (Slack, Gmail…).',
         estimatedTime: '~2 min',
         action: 'connect-apps',
@@ -112,8 +112,8 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         // and guide" row is folded in: asking + watching it run is
         // a single moment on the Actions panel.
         id: 'act',
-        title: 'Ask Marty to do something now',
-        description: 'Give it a one-off job and watch it run live.',
+        title: 'Ask me to do something now',
+        description: 'Give me a one-off job and watch it run live.',
         estimatedTime: '~2 min',
         action: 'act',
         prerequisiteId: 'apps',
@@ -460,16 +460,16 @@ export function hasOutstandingCoordinatorOnboarding(
 }
 
 export interface CoordinatorOnboardingChecklistProps {
-  /** Opens the workspace OAuth dialog. Hung off the "Give your
-   * Marty access to your workspace" sub-item. Unset means
+  /** Opens the workspace OAuth dialog. Hung off the "Give me
+   * access to your workspace" sub-item. Unset means
    * the row degrades to a static checklist entry. */
   onConnectWorkspace?: () => void;
   /** Opens the Integrations pane in the current surface. Hung off
-   * "Connect Marty with your apps". Unset means the
+   * "Connect me with your apps". Unset means the
    * row degrades to a static entry. */
   onConnectApps?: () => void;
   /** Opens the live Actions viewer in the current surface. Hung off
-   * "Ask Marty to do something now" — the user gives a
+   * "Ask me to do something now" — the user gives a
    * one-off job and watches it run live. Unset means the row
    * degrades to a static entry. */
   onActNow?: () => void;
@@ -882,7 +882,7 @@ function ChecklistRow({
     );
   } else {
     // Static informational row: a non-actionable grouping header
-    // ("Connect Marty") that can open its visible child.
+    // ("Connect me") that can open its visible child.
     row = canOpenChildAction ? (
       <div
         role="button"
