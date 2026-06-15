@@ -1,13 +1,15 @@
-import { headers, type ReadonlyHeaders } from 'next/headers';
+import { headers } from 'next/headers';
 
 const GEO_API_TIMEOUT_MS = 3000;
 const COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/;
+
+type HeaderStore = Awaited<ReturnType<typeof headers>>;
 
 function isValidCountryCode(value: string | null | undefined): value is string {
   return !!value && COUNTRY_CODE_PATTERN.test(value);
 }
 
-function extractClientIp(headerStore: ReadonlyHeaders): string | null {
+function extractClientIp(headerStore: HeaderStore): string | null {
   const candidates = [
     headerStore.get('cf-connecting-ip'),
     headerStore.get('x-real-ip'),
@@ -20,7 +22,7 @@ function extractClientIp(headerStore: ReadonlyHeaders): string | null {
 }
 
 export async function resolveServerVisitorCountry(): Promise<string | null> {
-  let headerStore: ReadonlyHeaders;
+  let headerStore: HeaderStore;
   try {
     headerStore = await headers();
   } catch {
