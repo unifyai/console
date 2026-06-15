@@ -46,9 +46,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Checkout branding
+        uses: actions/checkout@v4
         with:
+          repository: ${{ github.repository_owner }}/branding
+          path: branding
+          token: ${{ secrets.ORCHESTRA_PAT }}
           submodules: recursive
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
