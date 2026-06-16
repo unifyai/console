@@ -92,7 +92,10 @@ import { useAssistantPresenceWake } from '@/hooks/Assistants/useAssistantPresenc
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { createRandomDroidProfile } from '@/utils/assistants/droid-profile-randomizer';
-import { dispatchCoordinatorReferenceQuizClue } from '@/utils/assistants/coordinator-reference-quiz';
+import {
+  coordinatorReferenceQuizTriggerStepForReplyStep,
+  dispatchCoordinatorReferenceQuizClue,
+} from '@/utils/assistants/coordinator-reference-quiz';
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
 type ContactManagerInitialTab = ContactType | 'slack';
@@ -1591,19 +1594,33 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleCoordinatorStartOnboardingStep = React.useCallback(
     (stepId: string) => {
       markStepEngaged(stepId);
-      void (async () => {
-        const updated = await updateCoordinatorOnboardingState({ onboardingStep: stepId });
-        if (!updated || !canonicalCoordinator) return;
+      void updateCoordinatorOnboardingState({ onboardingStep: stepId });
+    },
+    [markStepEngaged, updateCoordinatorOnboardingState]
+  );
 
+  const handleCoordinatorTriggerReferenceStep = React.useCallback(
+    (stepId: string) => {
+      if (!canonicalCoordinator) return;
+      markStepEngaged(stepId);
+      void (async () => {
         try {
-          await dispatchCoordinatorReferenceQuizClue(canonicalCoordinator.agentId, stepId);
+          const clue = await dispatchCoordinatorReferenceQuizClue(
+            canonicalCoordinator.agentId,
+            stepId
+          );
+          if (!clue) return;
+
+          markStepCompleted(clue.triggerStepId);
+          markStepEngaged(clue.replyStepId);
+          void updateCoordinatorOnboardingState({ onboardingStep: clue.replyStepId });
         } catch (error) {
           console.error('[Coordinator onboarding] Failed to dispatch reference quiz clue:', error);
-          toast.error('Could not start the quiz clue. Please try again.');
+          toast.error('Could not send the reference clue. Please try again.');
         }
       })();
     },
-    [canonicalCoordinator, markStepEngaged, updateCoordinatorOnboardingState]
+    [canonicalCoordinator, markStepCompleted, markStepEngaged, updateCoordinatorOnboardingState]
   );
 
   const handleCoordinatorAddWhatsappNumber = React.useCallback(() => {
@@ -1634,17 +1651,37 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // the outstanding-step signal and the rendered rows agree.
   const isCoordinatorActionWired = React.useCallback(
     (action: ChecklistAction | undefined): boolean => {
-      if (action === 'start-email-reply') return true;
+      if (action === 'trigger-email-reference' || action === 'start-email-reply') return true;
       if (action === 'add-whatsapp-number' || action === 'start-whatsapp-message') {
         return contactWhatsapp;
       }
-      if (action === 'start-whatsapp-call') return contactWhatsapp;
+      if (
+        action === 'trigger-whatsapp-message-reference' ||
+        action === 'trigger-whatsapp-call-reference' ||
+        action === 'start-whatsapp-call'
+      ) {
+        return contactWhatsapp;
+      }
       if (action === 'add-phone-number' || action === 'start-sms-message') return contactPhone;
-      if (action === 'start-phone-call') return contactPhone;
-      if (action === 'connect-slack' || action === 'start-slack-message') {
+      if (
+        action === 'trigger-sms-reference' ||
+        action === 'trigger-phone-call-reference' ||
+        action === 'start-phone-call'
+      ) {
+        return contactPhone;
+      }
+      if (
+        action === 'connect-slack' ||
+        action === 'trigger-slack-reference' ||
+        action === 'start-slack-message'
+      ) {
         return !!userMeta.slackOwner && !!assistantActions.slack;
       }
-      if (action === 'connect-discord' || action === 'start-discord-message') {
+      if (
+        action === 'connect-discord' ||
+        action === 'trigger-discord-reference' ||
+        action === 'start-discord-message'
+      ) {
         return contactDiscord;
       }
       if (action === 'connect-workspace') return workspaceConnectAvailable;
@@ -1759,6 +1796,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     const isProfileCoordinator = profileAssistantId === canonicalCoordinator.agentId;
     return {
       onStartOnboardingStep: handleCoordinatorStartOnboardingStep,
+      onTriggerReferenceStep: handleCoordinatorTriggerReferenceStep,
       onAddWhatsappNumber: contactWhatsapp ? handleCoordinatorAddWhatsappNumber : undefined,
       onAddPhoneNumber: contactPhone ? handleCoordinatorAddPhoneNumber : undefined,
       onConnectSlack:
@@ -1801,6 +1839,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     markStepEngaged,
     markStepCompleted,
     handleCoordinatorStartOnboardingStep,
+    handleCoordinatorTriggerReferenceStep,
     handleCoordinatorAddWhatsappNumber,
     handleCoordinatorAddPhoneNumber,
     handleCoordinatorConnectSlack,
@@ -1881,14 +1920,25 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     if (!serverCompletedStepIds) return;
     for (const stepId of serverCompletedStepIds) {
       markStepCompleted(stepId);
+      const triggerStepId = coordinatorReferenceQuizTriggerStepForReplyStep(stepId);
+      if (triggerStepId) markStepCompleted(triggerStepId);
     }
   }, [serverCompletedStepIds, markStepCompleted]);
   React.useEffect(() => {
     if (!serverSkippedStepIds) return;
     for (const stepId of serverSkippedStepIds) {
       markStepSkipped(stepId);
+      const triggerStepId = coordinatorReferenceQuizTriggerStepForReplyStep(stepId);
+      if (triggerStepId) markStepSkipped(triggerStepId);
     }
   }, [serverSkippedStepIds, markStepSkipped]);
+  React.useEffect(() => {
+    if (!activeCoordinatorOnboardingStep) return;
+    const triggerStepId = coordinatorReferenceQuizTriggerStepForReplyStep(
+      activeCoordinatorOnboardingStep
+    );
+    if (triggerStepId) markStepCompleted(triggerStepId);
+  }, [activeCoordinatorOnboardingStep, markStepCompleted]);
   React.useEffect(() => {
     if (
       !activeCoordinatorOnboardingStep ||

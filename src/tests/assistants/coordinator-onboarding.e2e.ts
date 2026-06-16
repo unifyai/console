@@ -46,16 +46,23 @@ test.setTimeout(120_000);
 test.describe.configure({ mode: 'serial' });
 
 const COMMS_STEP_IDS = [
+  'email-reference',
   'email-reply',
   'whatsapp-number',
+  'whatsapp-message-reference',
   'whatsapp-message',
+  'whatsapp-call-reference',
   'whatsapp-call',
   'phone-number',
+  'sms-reference',
   'sms-message',
+  'phone-call-reference',
   'phone-call',
   'slack-connect',
+  'slack-reference',
   'slack-message',
   'discord-connect',
+  'discord-reference',
   'discord-message',
 ] as const;
 
@@ -191,9 +198,15 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   await expect(page.getByTestId('coordinator-onboarding-progress-phase-comms')).toBeVisible();
   await expect(page.getByTestId('coordinator-onboarding-progress-phase-connect')).toBeVisible();
   await expect(page.getByTestId('coordinator-onboarding-progress-phase-work')).toBeVisible();
-  const emailReplyRow = page.getByTestId('coordinator-onboarding-item-email-reply').first();
-  await expect(emailReplyRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
-  await emailReplyRow.click();
+  const emailReferenceRow = page.getByTestId('coordinator-onboarding-item-email-reference').first();
+  await expect(emailReferenceRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
+  await emailReferenceRow.click();
+  await expect(emailReferenceRow).toHaveAttribute('data-status', 'done', { timeout: 10_000 });
+  await expect(page.getByTestId('coordinator-onboarding-item-email-reply').first()).toHaveAttribute(
+    'data-next',
+    'true',
+    { timeout: 10_000 }
+  );
   await expect
     .poll(() => readPersistedOnboardingStep(coordinator.agentId), { timeout: 10_000 })
     .toBe('email-reply');

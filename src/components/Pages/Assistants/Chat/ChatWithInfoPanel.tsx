@@ -172,6 +172,7 @@ export interface ChatWithInfoPanelProps {
    */
   coordinatorOnboarding?: {
     onStartOnboardingStep?: (stepId: string) => void;
+    onTriggerReferenceStep?: (stepId: string) => void;
     onAddWhatsappNumber?: () => void;
     onAddPhoneNumber?: () => void;
     onConnectSlack?: () => void;

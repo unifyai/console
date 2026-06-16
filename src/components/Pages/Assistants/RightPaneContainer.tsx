@@ -317,6 +317,7 @@ interface RightPaneContainerProps {
    * Ignored for non-coordinator assistants. */
   coordinatorOnboarding?: {
     onStartOnboardingStep?: (stepId: string) => void;
+    onTriggerReferenceStep?: (stepId: string) => void;
     onAddWhatsappNumber?: () => void;
     onAddPhoneNumber?: () => void;
     onConnectSlack?: () => void;

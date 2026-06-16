@@ -93,6 +93,7 @@ export interface AssistantInfoSidePanelContentProps {
    * coordinator (e.g. on non-owner viewers). */
   coordinatorOnboarding?: {
     onStartOnboardingStep?: (stepId: string) => void;
+    onTriggerReferenceStep?: (stepId: string) => void;
     onAddWhatsappNumber?: () => void;
     onAddPhoneNumber?: () => void;
     onConnectSlack?: () => void;
@@ -266,6 +267,7 @@ function CoordinatorAssistantInfoSidePanelContent({
               <TabsContent value="onboarding" className="mt-0">
                 <CoordinatorOnboardingChecklist
                   onStartOnboardingStep={coordinatorOnboarding.onStartOnboardingStep}
+                  onTriggerReferenceStep={coordinatorOnboarding.onTriggerReferenceStep}
                   onAddWhatsappNumber={coordinatorOnboarding.onAddWhatsappNumber}
                   onAddPhoneNumber={coordinatorOnboarding.onAddPhoneNumber}
                   onConnectSlack={coordinatorOnboarding.onConnectSlack}

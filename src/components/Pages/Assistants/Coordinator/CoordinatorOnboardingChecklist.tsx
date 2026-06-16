@@ -29,16 +29,23 @@ import { cn } from '@/lib/utils';
 import { useCoordinatorOnboardingContext } from './CoordinatorOnboardingContext';
 
 export type ChecklistAction =
+  | 'trigger-email-reference'
   | 'start-email-reply'
   | 'add-whatsapp-number'
+  | 'trigger-whatsapp-message-reference'
   | 'start-whatsapp-message'
+  | 'trigger-whatsapp-call-reference'
   | 'start-whatsapp-call'
   | 'add-phone-number'
+  | 'trigger-sms-reference'
   | 'start-sms-message'
+  | 'trigger-phone-call-reference'
   | 'start-phone-call'
   | 'connect-slack'
+  | 'trigger-slack-reference'
   | 'start-slack-message'
   | 'connect-discord'
+  | 'trigger-discord-reference'
   | 'start-discord-message'
   | 'connect-workspace'
   | 'connect-apps'
@@ -90,12 +97,20 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
     description: 'Identify clues sent over email, WhatsApp, phone, Slack, and Discord.',
     children: [
       {
+        id: 'email-reference',
+        title: 'Email the first reference',
+        description: 'Marty sends the first reference clue over email.',
+        estimatedTime: '~10s',
+        action: 'trigger-email-reference',
+        prerequisiteId: 'meet',
+      },
+      {
         id: 'email-reply',
         title: 'Reply to email',
         description: 'Marty sends you a quick email.',
         estimatedTime: '~30s',
         action: 'start-email-reply',
-        prerequisiteId: 'meet',
+        prerequisiteId: 'email-reference',
       },
       {
         id: 'whatsapp-number',
@@ -106,12 +121,28 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         prerequisiteId: 'email-reply',
       },
       {
+        id: 'whatsapp-message-reference',
+        title: 'WhatsApp the next reference',
+        description: 'Marty sends the next reference clue over WhatsApp.',
+        estimatedTime: '~10s',
+        action: 'trigger-whatsapp-message-reference',
+        prerequisiteId: 'whatsapp-number',
+      },
+      {
         id: 'whatsapp-message',
         title: 'Guess a WhatsApp clue',
         description: 'Marty sends you a reference clue over WhatsApp.',
         estimatedTime: '~1 min',
         action: 'start-whatsapp-message',
-        prerequisiteId: 'whatsapp-number',
+        prerequisiteId: 'whatsapp-message-reference',
+      },
+      {
+        id: 'whatsapp-call-reference',
+        title: 'WhatsApp call for the next reference',
+        description: 'Marty calls with the next reference clue over WhatsApp.',
+        estimatedTime: '~10s',
+        action: 'trigger-whatsapp-call-reference',
+        prerequisiteId: 'whatsapp-message',
       },
       {
         id: 'whatsapp-call',
@@ -119,7 +150,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Marty gives you a reference clue over WhatsApp voice.',
         estimatedTime: '~1 min',
         action: 'start-whatsapp-call',
-        prerequisiteId: 'whatsapp-message',
+        prerequisiteId: 'whatsapp-call-reference',
       },
       {
         id: 'phone-number',
@@ -130,12 +161,28 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         prerequisiteId: 'whatsapp-call',
       },
       {
+        id: 'sms-reference',
+        title: 'Text the next reference',
+        description: 'Marty sends the next reference clue over SMS.',
+        estimatedTime: '~10s',
+        action: 'trigger-sms-reference',
+        prerequisiteId: 'phone-number',
+      },
+      {
         id: 'sms-message',
         title: 'Guess an SMS clue',
         description: 'Marty sends you a reference clue over SMS.',
         estimatedTime: '~1 min',
         action: 'start-sms-message',
-        prerequisiteId: 'phone-number',
+        prerequisiteId: 'sms-reference',
+      },
+      {
+        id: 'phone-call-reference',
+        title: 'Call for the next reference',
+        description: 'Marty calls with the next reference clue.',
+        estimatedTime: '~10s',
+        action: 'trigger-phone-call-reference',
+        prerequisiteId: 'sms-message',
       },
       {
         id: 'phone-call',
@@ -143,7 +190,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Marty gives you a reference clue over a phone call.',
         estimatedTime: '~1 min',
         action: 'start-phone-call',
-        prerequisiteId: 'sms-message',
+        prerequisiteId: 'phone-call-reference',
       },
       {
         id: 'slack-connect',
@@ -154,12 +201,20 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         prerequisiteId: 'phone-call',
       },
       {
+        id: 'slack-reference',
+        title: 'Send the next reference via Slack',
+        description: 'Marty sends the next reference clue in Slack.',
+        estimatedTime: '~10s',
+        action: 'trigger-slack-reference',
+        prerequisiteId: 'slack-connect',
+      },
+      {
         id: 'slack-message',
         title: 'Guess a Slack clue',
         description: 'Marty sends you a reference clue in Slack.',
         estimatedTime: '~1 min',
         action: 'start-slack-message',
-        prerequisiteId: 'slack-connect',
+        prerequisiteId: 'slack-reference',
       },
       {
         id: 'discord-connect',
@@ -170,12 +225,20 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         prerequisiteId: 'slack-message',
       },
       {
+        id: 'discord-reference',
+        title: 'Send the next reference via discord',
+        description: 'Marty sends the next reference clue in Discord.',
+        estimatedTime: '~10s',
+        action: 'trigger-discord-reference',
+        prerequisiteId: 'discord-connect',
+      },
+      {
         id: 'discord-message',
         title: 'Guess a Discord clue',
         description: 'Marty sends you a reference clue in Discord.',
         estimatedTime: '~1 min',
         action: 'start-discord-message',
-        prerequisiteId: 'discord-connect',
+        prerequisiteId: 'discord-reference',
       },
     ],
   },
@@ -572,6 +635,7 @@ export function hasOutstandingCoordinatorOnboarding(
 
 export interface CoordinatorOnboardingChecklistProps {
   onStartOnboardingStep?: (stepId: string) => void;
+  onTriggerReferenceStep?: (stepId: string) => void;
   onAddWhatsappNumber?: () => void;
   onAddPhoneNumber?: () => void;
   onConnectSlack?: () => void;
@@ -607,6 +671,7 @@ const EMPTY_SET: ReadonlySet<string> = new Set();
 
 export function CoordinatorOnboardingChecklist({
   onStartOnboardingStep,
+  onTriggerReferenceStep,
   onAddWhatsappNumber,
   onAddPhoneNumber,
   onConnectSlack,
@@ -630,16 +695,27 @@ export function CoordinatorOnboardingChecklist({
 
   const handleAction = React.useCallback(
     (action: ChecklistAction) => {
-      if (action === 'start-email-reply') onStartOnboardingStep?.('email-reply');
+      if (action === 'trigger-email-reference') onTriggerReferenceStep?.('email-reference');
+      else if (action === 'start-email-reply') onStartOnboardingStep?.('email-reply');
       else if (action === 'add-whatsapp-number') onAddWhatsappNumber?.();
+      else if (action === 'trigger-whatsapp-message-reference')
+        onTriggerReferenceStep?.('whatsapp-message-reference');
       else if (action === 'start-whatsapp-message') onStartOnboardingStep?.('whatsapp-message');
+      else if (action === 'trigger-whatsapp-call-reference')
+        onTriggerReferenceStep?.('whatsapp-call-reference');
       else if (action === 'start-whatsapp-call') onStartOnboardingStep?.('whatsapp-call');
       else if (action === 'add-phone-number') onAddPhoneNumber?.();
+      else if (action === 'trigger-sms-reference') onTriggerReferenceStep?.('sms-reference');
       else if (action === 'start-sms-message') onStartOnboardingStep?.('sms-message');
+      else if (action === 'trigger-phone-call-reference')
+        onTriggerReferenceStep?.('phone-call-reference');
       else if (action === 'start-phone-call') onStartOnboardingStep?.('phone-call');
       else if (action === 'connect-slack') onConnectSlack?.();
+      else if (action === 'trigger-slack-reference') onTriggerReferenceStep?.('slack-reference');
       else if (action === 'start-slack-message') onStartOnboardingStep?.('slack-message');
       else if (action === 'connect-discord') onConnectDiscord?.();
+      else if (action === 'trigger-discord-reference')
+        onTriggerReferenceStep?.('discord-reference');
       else if (action === 'start-discord-message') onStartOnboardingStep?.('discord-message');
       else if (action === 'connect-workspace') onConnectWorkspace?.();
       else if (action === 'connect-apps') onConnectApps?.();
@@ -648,6 +724,7 @@ export function CoordinatorOnboardingChecklist({
     },
     [
       onStartOnboardingStep,
+      onTriggerReferenceStep,
       onAddWhatsappNumber,
       onAddPhoneNumber,
       onConnectSlack,
@@ -665,17 +742,40 @@ export function CoordinatorOnboardingChecklist({
   const isActionWired = React.useCallback(
     (action: ChecklistAction | undefined): boolean => {
       if (!action) return false;
+      if (action === 'trigger-email-reference') {
+        return !!onTriggerReferenceStep;
+      }
       if (
-        action === 'start-email-reply' ||
+        action === 'trigger-whatsapp-message-reference' ||
+        action === 'trigger-whatsapp-call-reference'
+      ) {
+        return !!onTriggerReferenceStep && !!onAddWhatsappNumber;
+      }
+      if (action === 'trigger-sms-reference' || action === 'trigger-phone-call-reference') {
+        return !!onTriggerReferenceStep && !!onAddPhoneNumber;
+      }
+      if (action === 'trigger-slack-reference') {
+        return !!onTriggerReferenceStep && !!onConnectSlack;
+      }
+      if (action === 'trigger-discord-reference') {
+        return !!onTriggerReferenceStep && !!onConnectDiscord;
+      }
+      if (action === 'start-email-reply') return !!onStartOnboardingStep;
+      if (
         action === 'start-whatsapp-message' ||
         action === 'start-whatsapp-call' ||
         action === 'start-sms-message' ||
-        action === 'start-phone-call' ||
-        action === 'start-slack-message' ||
-        action === 'start-discord-message'
+        action === 'start-phone-call'
       ) {
-        return !!onStartOnboardingStep;
+        return (
+          !!onStartOnboardingStep &&
+          (action === 'start-whatsapp-message' || action === 'start-whatsapp-call'
+            ? !!onAddWhatsappNumber
+            : !!onAddPhoneNumber)
+        );
       }
+      if (action === 'start-slack-message') return !!onStartOnboardingStep && !!onConnectSlack;
+      if (action === 'start-discord-message') return !!onStartOnboardingStep && !!onConnectDiscord;
       if (action === 'add-whatsapp-number') return !!onAddWhatsappNumber;
       if (action === 'add-phone-number') return !!onAddPhoneNumber;
       if (action === 'connect-slack') return !!onConnectSlack;
@@ -688,6 +788,7 @@ export function CoordinatorOnboardingChecklist({
     },
     [
       onStartOnboardingStep,
+      onTriggerReferenceStep,
       onAddWhatsappNumber,
       onAddPhoneNumber,
       onConnectSlack,
