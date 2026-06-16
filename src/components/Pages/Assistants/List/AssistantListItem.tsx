@@ -38,7 +38,6 @@ import {
 } from '@/components/UI/alert-dialog';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
-import { AssistantStartCallDropdown } from '@/components/Pages/Assistants/Communication/AssistantStartCallDropdown';
 
 interface AssistantListItemProps {
   assistant: Assistant;
@@ -48,7 +47,6 @@ interface AssistantListItemProps {
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager: (assistant: Assistant) => void;
   onEditAssistant: (assistant: Assistant) => void;
-  onStartCall: (assistant: Assistant, callType: 'video' | 'audio') => void;
   /** When provided, shows a "Connect your desktop" entry that opens the
    *  desktop linker. Gated upstream so it only appears for assistants the
    *  current user owns. */
@@ -78,7 +76,6 @@ export function AssistantListItem({
   onOpenContactManager,
   onOpenWorkspaceManager,
   onEditAssistant,
-  onStartCall,
   onConnectDesktop,
   onEndContract,
   isFolded,
@@ -98,10 +95,6 @@ export function AssistantListItem({
 
   const openProfile = () => {
     onShowProfile(assistant.agentId);
-  };
-
-  const startAudioCall = () => {
-    onStartCall(assistant, 'audio');
   };
 
   const handleProfileClick = (e: React.MouseEvent) => {
@@ -171,19 +164,11 @@ export function AssistantListItem({
         onClick={handleProfileClick}
         onKeyDown={handleFoldedKeyDown}
       >
-        <AssistantStartCallDropdown
-          onStartCall={startAudioCall}
-          contentSide="right"
-          contentAlign="center"
-          tooltipSide="right"
-          testId={`assistant-list-avatar-start-call-${assistant.agentId}`}
-        >
-          {isCoordinator ? (
-            <CoordinatorLogoAvatar className="h-9 w-9" />
-          ) : (
-            renderPhotoAvatar('rounded-control h-9 w-9')
-          )}
-        </AssistantStartCallDropdown>
+        {isCoordinator ? (
+          <CoordinatorLogoAvatar className="h-9 w-9" />
+        ) : (
+          renderPhotoAvatar('rounded-control h-9 w-9')
+        )}
         {status !== null && (
           <span
             role="status"
@@ -228,19 +213,11 @@ export function AssistantListItem({
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="relative">
-          <AssistantStartCallDropdown
-            onStartCall={startAudioCall}
-            contentSide="right"
-            contentAlign="center"
-            tooltipSide="right"
-            testId={`assistant-list-avatar-start-call-${assistant.agentId}`}
-          >
-            {isCoordinator ? (
-              <CoordinatorLogoAvatar className="h-9 w-9 flex-shrink-0" />
-            ) : (
-              renderPhotoAvatar('rounded-control h-9 w-9 flex-shrink-0 cursor-default')
-            )}
-          </AssistantStartCallDropdown>
+          {isCoordinator ? (
+            <CoordinatorLogoAvatar className="h-9 w-9 flex-shrink-0" />
+          ) : (
+            renderPhotoAvatar('rounded-control h-9 w-9 flex-shrink-0')
+          )}
           {status !== null && (
             <span
               role="status"

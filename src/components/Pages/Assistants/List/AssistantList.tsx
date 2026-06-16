@@ -90,7 +90,6 @@ interface AssistantListProps {
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   onOpenWorkspaceManager: (assistant: Assistant) => void;
   onEditAssistant: (assistant: Assistant) => void;
-  onStartCall: (assistant: Assistant, callType: 'video' | 'audio') => void;
   /** Opens the desktop linker for an assistant. Surfaced as a row
    *  dropdown entry only for assistants the current user owns. */
   onConnectDesktop?: (assistant: Assistant) => void;
@@ -107,7 +106,6 @@ interface AssistantListProps {
   canEditAssistant?: (assistant: Assistant) => boolean;
   isFolded: boolean;
   activeCallAssistantId: string | null;
-  onHangUp: () => void;
   /** Whether the current user can hire new assistants (org Owner in org context, anyone in personal workspace) */
   canHire?: boolean;
   onToggleFold?: () => void;
@@ -133,14 +131,12 @@ export function AssistantList({
   onOpenContactManager,
   onOpenWorkspaceManager,
   onEditAssistant,
-  onStartCall,
   onConnectDesktop,
   onEndContract,
   canEndContract,
   canEditAssistant,
   isFolded,
   activeCallAssistantId,
-  onHangUp,
   canHire = true,
   onToggleFold,
   unreadCounts,
@@ -263,7 +259,6 @@ export function AssistantList({
           onOpenContactManager={onOpenContactManager}
           onOpenWorkspaceManager={onOpenWorkspaceManager}
           onEditAssistant={onEditAssistant}
-          onStartCall={onStartCall}
           onConnectDesktop={
             currentUserId && entry.assistant.userId === currentUserId ? onConnectDesktop : undefined
           }
@@ -291,7 +286,6 @@ export function AssistantList({
       onEndContract,
       onOpenContactManager,
       onOpenWorkspaceManager,
-      onStartCall,
       onShowProfile,
       profileAssistantId,
       unreadCounts,
