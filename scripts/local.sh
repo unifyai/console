@@ -1207,6 +1207,16 @@ start_unity_coordinator() {
     unity_env+=("ASSISTANT_DESKTOP_URL=${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}")
   fi
 
+  export ORCHESTRA_URL="${ORCHESTRA_URL:-http://127.0.0.1:${ORCHESTRA_PORT:-8000}/v0}"
+  export ORCHESTRA_ADMIN_KEY="${ORCHESTRA_ADMIN_KEY:-${ADMIN_KEY:-}}"
+  if declare -F self_host_apply_user_desktops_export &>/dev/null; then
+    self_host_apply_user_desktops_export "$coordinator_agent_id"
+  elif [[ -f "${SELF_HOST_ENV_SCRIPT:-}" ]]; then
+    # shellcheck source=/dev/null
+    source "$SELF_HOST_ENV_SCRIPT"
+    UNITY_REPO="$UNITY_REPO_PATH" self_host_apply_user_desktops_export "$coordinator_agent_id"
+  fi
+
   if ! env "${unity_env[@]}" bash "$UNITY_LOCAL_SCRIPT" start --full; then
     log_warn "Unity failed to start — chat will not get Coordinator replies"
     return 1
