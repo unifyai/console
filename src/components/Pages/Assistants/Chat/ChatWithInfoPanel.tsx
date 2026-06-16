@@ -262,14 +262,14 @@ export function ChatWithInfoPanel({
     },
     [assistant.agentId]
   );
-  const toggleInfo = React.useCallback(() => {
-    if (forceInfoPanelFocusLayout && isInfoOpen) return;
-    setIsInfoOpenAndPersist(!isInfoOpen);
-  }, [forceInfoPanelFocusLayout, isInfoOpen, setIsInfoOpenAndPersist]);
-  const closeInfo = React.useCallback(() => {
-    if (forceInfoPanelFocusLayout) return;
-    setIsInfoOpenAndPersist(false);
-  }, [forceInfoPanelFocusLayout, setIsInfoOpenAndPersist]);
+  const toggleInfo = React.useCallback(
+    () => setIsInfoOpenAndPersist(!isInfoOpen),
+    [isInfoOpen, setIsInfoOpenAndPersist]
+  );
+  const closeInfo = React.useCallback(
+    () => setIsInfoOpenAndPersist(false),
+    [setIsInfoOpenAndPersist]
+  );
 
   React.useEffect(() => {
     setInfoPanelWidth(readInfoPanelWidth());
@@ -291,23 +291,43 @@ export function ChatWithInfoPanel({
     [getInfoPanelMaxWidth]
   );
 
+  // Seed the onboarding-focus info-panel layout once, on the edge where
+  // the focus state turns on: open the panel and grow it to its max width.
+  // This is a *default*, not a lock — the user can still toggle the panel
+  // off or resize it afterwards. The ref resets when focus turns off so
+  // re-entering onboarding re-seeds the layout. We observe the container
+  // only until its width is measurable, then apply once and stop.
+  const hasSeededInfoFocusLayoutRef = React.useRef(false);
   React.useEffect(() => {
-    if (!forceInfoPanelFocusLayout) return;
+    if (!forceInfoPanelFocusLayout) {
+      hasSeededInfoFocusLayoutRef.current = false;
+      return;
+    }
+    if (hasSeededInfoFocusLayoutRef.current) return;
 
     setIsInfoOpenAndPersist(true);
 
     const maximizeInfoPanel = () => {
       const maxWidth = getInfoPanelMaxWidth();
-      if (!Number.isFinite(maxWidth)) return;
+      if (!Number.isFinite(maxWidth)) return false;
       setInfoPanelWidthWithinBounds(maxWidth);
+      return true;
     };
 
-    maximizeInfoPanel();
+    if (maximizeInfoPanel()) {
+      hasSeededInfoFocusLayoutRef.current = true;
+      return;
+    }
 
     const container = infoPanelContainerRef.current;
     if (!container || typeof ResizeObserver === 'undefined') return;
 
-    const resizeObserver = new ResizeObserver(maximizeInfoPanel);
+    const resizeObserver = new ResizeObserver(() => {
+      if (maximizeInfoPanel()) {
+        hasSeededInfoFocusLayoutRef.current = true;
+        resizeObserver.disconnect();
+      }
+    });
     resizeObserver.observe(container);
     return () => resizeObserver.disconnect();
   }, [

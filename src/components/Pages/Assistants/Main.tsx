@@ -1598,8 +1598,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     profileAssistantId === canonicalCoordinatorId &&
     (coordinatorIntroDismissed || coordinatorOnboardingState?.introWatched === true);
 
+  // Apply the onboarding-focus rail layout once, on the edge where the
+  // focus state turns on — this seeds the *default* (folded rail) without
+  // locking it, so the user can re-expand the rail freely afterwards. The
+  // ref resets when focus turns off so re-entering onboarding re-seeds it.
+  const hasSeededCoordinatorFocusRailRef = React.useRef(false);
   React.useEffect(() => {
-    if (!isCoordinatorOnboardingFocusLayout) return;
+    if (!isCoordinatorOnboardingFocusLayout) {
+      hasSeededCoordinatorFocusRailRef.current = false;
+      return;
+    }
+    if (hasSeededCoordinatorFocusRailRef.current) return;
+    hasSeededCoordinatorFocusRailRef.current = true;
     if (!isAssistantListFolded) {
       preSnapWidthRef.current = assistantListWidth;
     }
