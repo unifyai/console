@@ -64,6 +64,7 @@ import { getDroidBodyForm, getRotatingBotViewBox } from '@droid/brand/components
 const staticSkillsText = `The bio doesn't influence the droid's abilities. All droids come with the same foundational skills and can specialize in whichever area you want them to.`;
 const DROID_PREVIEW_SIZE = 120;
 const DROID_PREVIEW_STAGE_HEIGHT = 192;
+const DROID_PREVIEW_SCALE_BODY = 'standard' satisfies DroidBody;
 const DROID_PREVIEW_LAYOUT_ANTENNA = 'bigball' satisfies CreatureAntenna;
 const DROID_PREVIEW_ANTENNA_CONTROL_REFERENCE = 'ball' satisfies CreatureAntenna;
 const DROID_PREVIEW_OUTFIT_REGION_RATIO = 0.66;
@@ -112,6 +113,17 @@ function pickOption<T>(items: readonly T[], current: T): T {
 
 function clampPreviewControlTop(top: number): number {
   return Math.max(0, Math.min(DROID_PREVIEW_STAGE_HEIGHT - 32, top));
+}
+
+function getDroidPreviewScale(): number {
+  const referenceViewBox = getRotatingBotViewBox(
+    getDroidBodyForm(DROID_PREVIEW_SCALE_BODY),
+    undefined,
+    undefined,
+    undefined,
+    DROID_PREVIEW_LAYOUT_ANTENNA
+  );
+  return DROID_PREVIEW_SIZE / referenceViewBox.w;
 }
 
 function SectionIconSlot({ children }: { children: React.ReactNode }) {
@@ -208,14 +220,14 @@ function HireDroidAvatar({
     DROID_PREVIEW_LAYOUT_ANTENNA
   );
   const selectedViewBox = getRotatingBotViewBox(form, undefined, undefined, undefined, antenna);
-  const scale = DROID_PREVIEW_SIZE / layoutViewBox.w;
+  const scale = getDroidPreviewScale();
 
   return (
     <span className="relative block h-full w-full overflow-visible">
       <span
         className="absolute left-1/2 top-1/2 block"
         style={{
-          width: `${DROID_PREVIEW_SIZE}px`,
+          width: `${layoutViewBox.w * scale}px`,
           height: `${layoutViewBox.h * scale}px`,
           transform: 'translate(-50%, -50%)',
         }}
@@ -469,7 +481,7 @@ export function HireForm({
       DROID_PREVIEW_ANTENNA_CONTROL_REFERENCE
     );
     const bodyViewBox = getRotatingBotViewBox(form, undefined, undefined, undefined, 'none');
-    const scale = DROID_PREVIEW_SIZE / layoutViewBox.w;
+    const scale = getDroidPreviewScale();
     const layoutTop = (DROID_PREVIEW_STAGE_HEIGHT - layoutViewBox.h * scale) / 2;
     const bodyTop = layoutTop + (bodyViewBox.minY - layoutViewBox.minY) * scale;
     const antennaControlTop = layoutTop + (antennaControlViewBox.minY - layoutViewBox.minY) * scale;
