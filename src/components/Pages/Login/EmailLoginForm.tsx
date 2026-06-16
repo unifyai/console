@@ -44,6 +44,21 @@ function sameOriginRedirect(callbackUrl: string | undefined): string {
   }
 }
 
+/**
+ * Generate a strong random password for self-host account creation. Self-host
+ * is single-owner and signs in passwordlessly thereafter, so the user never
+ * types or sees a password — but Orchestra still requires one at registration,
+ * so we mint a compliant one (upper/lower/digit/symbol, 28+ chars).
+ */
+function generateStrongPassword(): string {
+  const bytes = new Uint8Array(18);
+  crypto.getRandomValues(bytes);
+  let b64 = '';
+  for (const b of bytes) b64 += String.fromCharCode(b);
+  const random = btoa(b64).replace(/[+/=]/g, '');
+  return `Aa1!${random}`;
+}
+
 interface EmailLoginFormProps {
   /** Optional callback URL after successful login */
   callbackUrl?: string;
@@ -85,11 +100,17 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
     e.preventDefault();
     setError(undefined);
 
-    // Client-side password strength check (mirrors backend rules)
-    const pwError = getPasswordError(password);
-    if (pwError) {
-      setError(pwError);
-      return;
+    // Self-host signup is passwordless from the user's perspective: generate a
+    // compliant password they never see. Cloud/dev still use the typed value.
+    const effectivePassword = selfHost ? generateStrongPassword() : password;
+
+    if (!selfHost) {
+      // Client-side password strength check (mirrors backend rules)
+      const pwError = getPasswordError(password);
+      if (pwError) {
+        setError(pwError);
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -102,7 +123,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
           email,
           name: firstName || undefined,
           lastName: lastName || undefined,
-          password,
+          password: effectivePassword,
           captchaToken: captchaToken || undefined,
         }),
       });
@@ -126,7 +147,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
         const preRes = await fetch('/api/auth/email/authenticate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password: effectivePassword }),
         });
         const preData = await preRes.json();
         if (!preRes.ok) {
@@ -139,7 +160,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
 
         const result = await signIn('credentials', {
           email,
-          password,
+          password: effectivePassword,
           preAuthToken: preData.preAuthToken,
           redirect: false,
           callbackUrl: callbackUrl ?? '/',
@@ -391,38 +412,40 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
           />
         </div>
 
-        <div>
-          <label htmlFor="email-password" className="text-caption font-medium text-foreground">
-            Password*
-          </label>
-          <PasswordInput
-            id="email-password"
-            placeholder={isRegister ? 'Create a strong password' : 'Your password'}
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              setError(undefined);
-            }}
-            required
-            minLength={isRegister ? 8 : undefined}
-            disabled={isLoading}
-            data-testid="email-password-input"
-          />
-          {!isRegister && (
-            <button
-              type="button"
-              onClick={() => {
-                setView('forgot-password');
+        {!selfHost && (
+          <div>
+            <label htmlFor="email-password" className="text-caption font-medium text-foreground">
+              Password*
+            </label>
+            <PasswordInput
+              id="email-password"
+              placeholder={isRegister ? 'Create a strong password' : 'Your password'}
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
                 setError(undefined);
               }}
-              className="text-caption text-center text-muted-foreground transition-colors hover:text-foreground"
-              data-testid="forgot-password-link"
-            >
-              Forgot password?
-            </button>
-          )}
-          {isRegister && <PasswordStrengthIndicator password={password} className="mt-4" />}
-        </div>
+              required
+              minLength={isRegister ? 8 : undefined}
+              disabled={isLoading}
+              data-testid="email-password-input"
+            />
+            {!isRegister && (
+              <button
+                type="button"
+                onClick={() => {
+                  setView('forgot-password');
+                  setError(undefined);
+                }}
+                className="text-caption text-center text-muted-foreground transition-colors hover:text-foreground"
+                data-testid="forgot-password-link"
+              >
+                Forgot password?
+              </button>
+            )}
+            {isRegister && <PasswordStrengthIndicator password={password} className="mt-4" />}
+          </div>
+        )}
 
         {isRegister && captchaEnabled && (
           <TurnstileWidget
@@ -441,7 +464,12 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
 
         <Button
           type="submit"
-          disabled={isLoading || !email || !password || (isRegister && (!firstName || !lastName))}
+          disabled={
+            isLoading ||
+            !email ||
+            (!selfHost && !password) ||
+            (isRegister && (!firstName || !lastName))
+          }
           className="w-full"
           data-testid="email-submit-btn"
         >
@@ -455,39 +483,44 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
         </Button>
       </form>
 
-      <div className="text-caption text-center text-muted-foreground">
-        {isRegister ? (
-          <>
-            Already have an account?{' '}
-            <button
-              type="button"
-              onClick={() => {
-                setView('login');
-                setError(undefined);
-              }}
-              className="font-semibold text-foreground underline underline-offset-2 transition-colors hover:text-primary"
-              data-testid="switch-to-login"
-            >
-              Sign in
-            </button>
-          </>
-        ) : (
-          <>
-            Don&apos;t have an account?{' '}
-            <button
-              type="button"
-              onClick={() => {
-                setView('register');
-                setError(undefined);
-              }}
-              className="font-semibold text-foreground underline underline-offset-2 transition-colors hover:text-primary"
-              data-testid="switch-to-register"
-            >
-              Create one
-            </button>
-          </>
-        )}
-      </div>
+      {/* Self-host is single-owner and signs in automatically after the first
+          account is created, so the sign-in/create toggle is hidden — the user
+          only ever creates their account once. */}
+      {!selfHost && (
+        <div className="text-caption text-center text-muted-foreground">
+          {isRegister ? (
+            <>
+              Already have an account?{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setView('login');
+                  setError(undefined);
+                }}
+                className="font-semibold text-foreground underline underline-offset-2 transition-colors hover:text-primary"
+                data-testid="switch-to-login"
+              >
+                Sign in
+              </button>
+            </>
+          ) : (
+            <>
+              Don&apos;t have an account?{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setView('register');
+                  setError(undefined);
+                }}
+                className="font-semibold text-foreground underline underline-offset-2 transition-colors hover:text-primary"
+                data-testid="switch-to-register"
+              >
+                Create one
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -8,6 +8,7 @@ import { resolveCanonicalPersonalCoordinator } from '@/lib/assistants/coordinato
 import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
 import { isComposeSelfHostRuntime, isSelfHost } from '@/lib/environment/environment';
 import { getCurrentUser } from '@/lib/user/user';
+import { writeSelfHostOwner } from '@/lib/self-host/owner';
 import type { Assistant } from '@/types/assistants/assistant';
 
 const execFileAsync = promisify(execFile);
@@ -54,6 +55,11 @@ export async function POST() {
   if (!user?.apiKey) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
+
+  // Record this account as the local owner so future visits auto sign-in
+  // without a password prompt. Done before coordinator resolution so the
+  // pointer is captured even if the Coordinator isn't ready yet.
+  writeSelfHostOwner({ userId: user.id, email: user.email, name: user.name ?? null });
 
   const client = await getOrchestraUserClient(user.apiKey);
   const response = await client.get('/assistant');
