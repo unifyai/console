@@ -55,15 +55,16 @@ import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 import type { OAuthProvider } from '@/types/assistants/contact';
 import { DroidCallAvatar } from '@/components/Pages/Assistants/Communication/DroidCallAvatar';
 import { useDroidAudioElementLipsync } from '@/utils/assistants/droid-lipsync';
+import { getCreatureForm, getRotatingBotAnchorRatios } from '@droid/brand/components';
 
 const staticSkillsText = `The bio doesn't influence the droid's abilities. All droids come with the same foundational skills and can specialize in whichever area you want them to.`;
-const DROID_PREVIEW_SIZE = 160;
+const DROID_PREVIEW_SIZE = 150;
+const DROID_PREVIEW_STAGE_HEIGHT = 192;
 const APPEARANCE_HOVER_CONTROL_CLASS = 'transition-opacity duration-150';
 
 const appearanceEyeOptions = ['up', 'down', 'square'] as const satisfies readonly CreatureEyes[];
 const appearanceAntennaOptions = [
   'none',
-  'rod',
   'ball',
   'bigball',
   'twin',
@@ -168,6 +169,12 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   return <div className="mb-2 flex items-center gap-2 text-muted-foreground">{children}</div>;
 }
 
+function normalizeAppearanceAntenna(
+  antenna: CreatureAntenna
+): (typeof appearanceAntennaOptions)[number] {
+  return antenna === 'rod' ? 'ball' : antenna;
+}
+
 function HireDroidAvatar({
   isVoicePreviewPlaying,
   previewAudioElement,
@@ -190,20 +197,33 @@ function HireDroidAvatar({
   const voicePreviewLipsyncFrame = useDroidAudioElementLipsync(previewAudioElement, {
     enabled: isVoicePreviewPlaying && !!previewAudioElement,
   });
+  const form = getCreatureForm(shape);
+  const anchor = getRotatingBotAnchorRatios(form, undefined, undefined, undefined, antenna);
 
   return (
-    <DroidCallAvatar
-      isSpeaking={voicePreviewLipsyncFrame.isActive}
-      mouthShape={voicePreviewLipsyncFrame.mouthShape}
-      speechLevel={voicePreviewLipsyncFrame.speechLevel}
-      antenna={antenna}
-      shape={shape}
-      color={color}
-      baseEyes={baseEyes}
-      skin={skin}
-      label={label}
-      className="h-full w-full transform-gpu"
-    />
+    <span className="relative block h-full w-full overflow-visible">
+      <span
+        className="absolute bottom-0 left-1/2 block"
+        style={{
+          width: `${DROID_PREVIEW_SIZE}px`,
+          transform: `translate(-50%, ${(anchor.y * DROID_PREVIEW_SIZE).toFixed(2)}px)`,
+        }}
+      >
+        <DroidCallAvatar
+          isSpeaking={voicePreviewLipsyncFrame.isActive}
+          mouthShape={voicePreviewLipsyncFrame.mouthShape}
+          speechLevel={voicePreviewLipsyncFrame.speechLevel}
+          antenna={antenna}
+          shape={shape}
+          color={color}
+          baseEyes={baseEyes}
+          skin={skin}
+          label={label}
+          className="block h-auto w-full transform-gpu"
+          creatureClassName="block h-auto w-full"
+        />
+      </span>
+    </span>
   );
 }
 
@@ -303,7 +323,7 @@ export function HireForm({
       setDroidShape(parsed.shape);
       setDroidColor(parsed.color);
       setDroidEyes(parsed.eyes);
-      setDroidAntenna(parsed.antenna);
+      setDroidAntenna(normalizeAppearanceAntenna(parsed.antenna));
       setDroidSkin(parsed.skin ?? 'none');
     }
     setAppearanceSeeded(true);
@@ -413,7 +433,7 @@ export function HireForm({
     const metrics = getCreatureMetrics(selectedDroidShape, selectedDroidAntenna);
     const scale = Math.min(DROID_PREVIEW_SIZE / metrics.width, DROID_PREVIEW_SIZE / metrics.height);
     const renderedHeight = metrics.height * scale;
-    const renderedTop = (DROID_PREVIEW_SIZE - renderedHeight) / 2;
+    const renderedTop = DROID_PREVIEW_STAGE_HEIGHT - renderedHeight;
 
     return renderedTop + metrics.eyeY * scale - 16;
   }, [selectedDroidShape, selectedDroidAntenna]);
@@ -637,7 +657,7 @@ export function HireForm({
                         onMouseLeave={() => setIsAppearanceControlsVisible(false)}
                       >
                         <div className="flex h-full w-full flex-col items-center justify-center gap-3">
-                          <div className="relative flex h-44 w-64 max-w-full items-center justify-center overflow-visible sm:h-56 sm:w-72 md:h-40 md:w-64">
+                          <div className="relative flex h-48 w-64 max-w-full items-center justify-center overflow-visible">
                             {!lockAppearanceControls && (
                               <>
                                 <Button
