@@ -612,15 +612,23 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   // Default landing selection: a bare ``/assistants`` visit (no
   // ``?profile=`` deep link) selects the workspace Coordinator and opens
-  // its "Assistant info" card, regardless of onboarding state. Applied
-  // once on first load so the user can still deselect afterwards; a deep
-  // link to another assistant takes precedence (``profileAssistantId``
-  // is already set when it lands).
+  // its "Assistant info" card, regardless of onboarding state. A deep link
+  // to an assistant takes precedence — the target is already selected when
+  // it lands, so the coordinator is not forced on top of it.
+  //
+  // The "did the page land with a deep link?" decision is captured at mount
+  // rather than read from the live ``profileAssistantId``. Assistant data
+  // loads asynchronously, so this effect can fire after the user has already
+  // interacted with the list. Reading live state here would let a deselect
+  // performed during loading be clobbered by the coordinator reselection
+  // once the data arrives.
+  const landedWithProfileDeepLinkRef = React.useRef(profileParam != null);
   const defaultCoordinatorSelectionRef = React.useRef(false);
   React.useEffect(() => {
     if (defaultCoordinatorSelectionRef.current) return;
     if (isLoadingAssistants || !canonicalCoordinatorId) return;
     defaultCoordinatorSelectionRef.current = true;
+    if (landedWithProfileDeepLinkRef.current) return;
     if (!profileAssistantId) {
       handleShowProfile(canonicalCoordinatorId);
     }
