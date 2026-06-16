@@ -71,11 +71,6 @@ const DROID_PREVIEW_OUTFIT_REGION_RATIO = 0.66;
 const DROID_PREVIEW_BODY_CONTROL_TOP = 72;
 const APPEARANCE_HOVER_CONTROL_CLASS = 'transition-opacity duration-150';
 const COLOR_SWATCH_TRANSITION = { type: 'spring', stiffness: 720, damping: 42, mass: 0.65 };
-const DROID_BODY_FADE_MS = 140;
-const DROID_BODY_FADE_TRANSITION = {
-  duration: DROID_BODY_FADE_MS / 1000,
-  ease: [0.4, 0, 0.2, 1],
-};
 
 const appearanceAntennaOptions = droidAntennaOptions;
 const appearanceBodyOptions = droidBodyOptions;
@@ -185,33 +180,11 @@ function HireDroidAvatar({
   outfit: DroidOutfit;
   label: string;
 }) {
-  const [displayedBody, setDisplayedBody] = React.useState(body);
-  const [isDisplayedBodyVisible, setIsDisplayedBodyVisible] = React.useState(true);
-  const bodyFadeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const voicePreviewLipsyncFrame = useDroidAudioElementLipsync(previewAudioElement, {
     enabled: isVoicePreviewPlaying && !!previewAudioElement,
   });
 
-  React.useEffect(() => {
-    if (body === displayedBody) return;
-
-    setIsDisplayedBodyVisible(false);
-    if (bodyFadeTimeoutRef.current) {
-      clearTimeout(bodyFadeTimeoutRef.current);
-    }
-    bodyFadeTimeoutRef.current = setTimeout(() => {
-      setDisplayedBody(body);
-      window.requestAnimationFrame(() => setIsDisplayedBodyVisible(true));
-    }, DROID_BODY_FADE_MS);
-
-    return () => {
-      if (bodyFadeTimeoutRef.current) {
-        clearTimeout(bodyFadeTimeoutRef.current);
-      }
-    };
-  }, [body, displayedBody]);
-
-  const form = getDroidBodyForm(displayedBody);
+  const form = getDroidBodyForm(body);
   const layoutViewBox = getRotatingBotViewBox(
     form,
     undefined,
@@ -240,26 +213,19 @@ function HireDroidAvatar({
             width: `${selectedViewBox.w * scale}px`,
           }}
         >
-          <motion.span
-            animate={{ opacity: isDisplayedBodyVisible ? 1 : 0 }}
-            className="block"
-            initial={false}
-            transition={DROID_BODY_FADE_TRANSITION}
-          >
-            <DroidCallAvatar
-              isSpeaking={voicePreviewLipsyncFrame.isActive}
-              mouthShape={voicePreviewLipsyncFrame.mouthShape}
-              speechLevel={voicePreviewLipsyncFrame.speechLevel}
-              antenna={antenna}
-              body={displayedBody}
-              color={color}
-              baseEyes={baseEyes}
-              outfit={outfit}
-              label={label}
-              className="block h-auto w-full transform-gpu"
-              creatureClassName="block h-auto w-full"
-            />
-          </motion.span>
+          <DroidCallAvatar
+            isSpeaking={voicePreviewLipsyncFrame.isActive}
+            mouthShape={voicePreviewLipsyncFrame.mouthShape}
+            speechLevel={voicePreviewLipsyncFrame.speechLevel}
+            antenna={antenna}
+            body={body}
+            color={color}
+            baseEyes={baseEyes}
+            outfit={outfit}
+            label={label}
+            className="block h-auto w-full transform-gpu"
+            creatureClassName="block h-auto w-full"
+          />
         </span>
       </span>
     </span>
