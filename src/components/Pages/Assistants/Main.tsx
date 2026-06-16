@@ -1588,6 +1588,42 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       ),
     [isCanonicalCoordinatorOwned, completedStepIds, skippedStepIds, isCoordinatorActionWired]
   );
+  const isCoordinatorOnboardingFocusLayout =
+    ENABLE_COORDINATOR_ONBOARDING &&
+    isCanonicalCoordinatorOwned &&
+    coordinatorOnboardingState?.mode === 'onboarding' &&
+    coordinatorOnboardingOutstanding &&
+    !showCoordinatorOnboardingIntro &&
+    canonicalCoordinatorId !== null &&
+    profileAssistantId === canonicalCoordinatorId &&
+    (coordinatorIntroDismissed || coordinatorOnboardingState?.introWatched === true);
+
+  React.useEffect(() => {
+    if (!isCoordinatorOnboardingFocusLayout) return;
+    if (!isAssistantListFolded) {
+      preSnapWidthRef.current = assistantListWidth;
+    }
+    setIsAssistantListFolded(true);
+    setAssistantListWidth(LIST_MIN_WIDTH);
+  }, [
+    LIST_MIN_WIDTH,
+    assistantListWidth,
+    isAssistantListFolded,
+    isCoordinatorOnboardingFocusLayout,
+  ]);
+
+  React.useEffect(() => {
+    if (!isCoordinatorOnboardingFocusLayout) return;
+    setPaneState((prev) =>
+      prev.primary.tab === 'chat' && prev.secondary === null
+        ? prev
+        : {
+            ...prev,
+            primary: { tab: 'chat' },
+            secondary: null,
+          }
+    );
+  }, [isCoordinatorOnboardingFocusLayout]);
 
   const coordinatorOnboardingPanelHandlers = React.useMemo(() => {
     if (!isCanonicalCoordinatorOwned || !canonicalCoordinator) return undefined;
@@ -2128,6 +2164,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                         : !!onboardingIncompleteByAgentId[profileAssistant.agentId]
                       : false
                   }
+                  forceInfoPanelFocusLayout={isCoordinatorOnboardingFocusLayout}
                   coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
                   // Dock the call into the chat slot whenever an active
                   // call's assistant matches the chat's assistant and the

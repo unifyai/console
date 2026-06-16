@@ -159,6 +159,12 @@ export interface ChatWithInfoPanelProps {
    */
   hasIncompleteOnboarding?: boolean;
   /**
+   * Forces the chat/info split into its most onboarding-focused shape:
+   * the assistant info panel stays open and grows to its maximum
+   * width inside the chat row.
+   */
+  forceInfoPanelFocusLayout?: boolean;
+  /**
    * Coordinator-only handler bag forwarded to the info panel so the
    * "Onboarding" sub-tab on the coordinator's info panel can wire
    * its action rows. Ignored entirely for non-coordinator
@@ -213,6 +219,7 @@ export function ChatWithInfoPanel({
   userPhoneNumber,
   onOpenUserSettings,
   hasIncompleteOnboarding = false,
+  forceInfoPanelFocusLayout = false,
   coordinatorOnboarding,
   renderDockedCall,
 }: ChatWithInfoPanelProps) {
@@ -255,14 +262,14 @@ export function ChatWithInfoPanel({
     },
     [assistant.agentId]
   );
-  const toggleInfo = React.useCallback(
-    () => setIsInfoOpenAndPersist(!isInfoOpen),
-    [isInfoOpen, setIsInfoOpenAndPersist]
-  );
-  const closeInfo = React.useCallback(
-    () => setIsInfoOpenAndPersist(false),
-    [setIsInfoOpenAndPersist]
-  );
+  const toggleInfo = React.useCallback(() => {
+    if (forceInfoPanelFocusLayout && isInfoOpen) return;
+    setIsInfoOpenAndPersist(!isInfoOpen);
+  }, [forceInfoPanelFocusLayout, isInfoOpen, setIsInfoOpenAndPersist]);
+  const closeInfo = React.useCallback(() => {
+    if (forceInfoPanelFocusLayout) return;
+    setIsInfoOpenAndPersist(false);
+  }, [forceInfoPanelFocusLayout, setIsInfoOpenAndPersist]);
 
   React.useEffect(() => {
     setInfoPanelWidth(readInfoPanelWidth());
@@ -283,6 +290,32 @@ export function ChatWithInfoPanel({
     },
     [getInfoPanelMaxWidth]
   );
+
+  React.useEffect(() => {
+    if (!forceInfoPanelFocusLayout) return;
+
+    setIsInfoOpenAndPersist(true);
+
+    const maximizeInfoPanel = () => {
+      const maxWidth = getInfoPanelMaxWidth();
+      if (!Number.isFinite(maxWidth)) return;
+      setInfoPanelWidthWithinBounds(maxWidth);
+    };
+
+    maximizeInfoPanel();
+
+    const container = infoPanelContainerRef.current;
+    if (!container || typeof ResizeObserver === 'undefined') return;
+
+    const resizeObserver = new ResizeObserver(maximizeInfoPanel);
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, [
+    forceInfoPanelFocusLayout,
+    getInfoPanelMaxWidth,
+    setInfoPanelWidthWithinBounds,
+    setIsInfoOpenAndPersist,
+  ]);
 
   const handleInfoPanelResizeKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
