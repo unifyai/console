@@ -488,8 +488,10 @@ start_orchestra() {
   fi
   if [[ "${SELF_HOST:-0}" == "1" ]]; then
     export SELF_HOST=1
+    export ORCHESTRA_SKIP_TEST_USER=1
     load_self_host_runtime_env
     log_info "  SELF_HOST=1"
+    log_info "  ORCHESTRA_SKIP_TEST_USER=1"
     if [[ -n "${GOOGLE_OAUTH_CLIENT_ID:-}" ]]; then
       export GOOGLE_OAUTH_CLIENT_ID
       log_info "  GOOGLE_OAUTH_CLIENT_ID set"
