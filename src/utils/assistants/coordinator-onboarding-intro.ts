@@ -5,16 +5,17 @@ import {
   MARTY_ONBOARDING_INTRO_DURATION_MS,
   MARTY_ONBOARDING_INTRO_TRANSCRIPT,
 } from '@droid/brand/audio';
-import type { BrandRole, CreatureShape } from '@/components/Brand/shapes';
-import type { BotSkin, CreatureEyes, CreatureMood } from '@/components/Brand/TeammateCreature';
+import type { BrandRole } from '@/components/Brand/shapes';
+import type { CreatureEyes, CreatureMood } from '@/components/Brand/TeammateCreature';
+import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
 
 export type CoordinatorOnboardingIntroDroidAppearance = {
   baseEyes?: CreatureEyes;
+  body: DroidBody;
   color: BrandRole;
   mood?: CreatureMood;
-  shape: CreatureShape;
   /** Optional clothing drawn on the droid's body (e.g. a collar + tie). */
-  skin?: BotSkin;
+  outfit?: DroidOutfit;
 };
 
 export const COORDINATOR_ONBOARDING_INTRO = {
@@ -57,9 +58,9 @@ export function getCoordinatorIntroCountdownMs(): number {
 
 export const COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID = {
   baseEyes: 'square',
+  body: 'standard',
   color: 'teal',
   mood: 'happy',
-  shape: 'clawd',
 } satisfies CoordinatorOnboardingIntroDroidAppearance;
 
 export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = MARTY_ONBOARDING_INTRO_TRANSCRIPT;

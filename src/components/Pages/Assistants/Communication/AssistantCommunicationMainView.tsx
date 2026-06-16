@@ -386,10 +386,10 @@ export function AssistantCommunicationMainView({
                   mouthShape={imageAvatarMouthShape}
                   speechLevel={imageAvatarSpeechLevel}
                   antenna={creatureAppearance.antenna}
-                  shape={creatureAppearance.shape}
+                  body={creatureAppearance.body}
                   color={creatureAppearance.color}
                   baseEyes={creatureAppearance.eyes}
-                  skin={creatureAppearance.skin}
+                  outfit={creatureAppearance.outfit}
                   label={assistantName}
                 />
               ) : (

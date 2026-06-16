@@ -37,7 +37,7 @@ export function BrandFallback({
                 label="Sad droid fallback illustration"
                 mood="sad"
                 mouthShape="unsure"
-                shape="sprout"
+                body="compact"
               />
             </span>
             <p className="brand-fallback-bubble">{bubble}</p>

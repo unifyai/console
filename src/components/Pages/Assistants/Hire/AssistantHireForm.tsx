@@ -43,19 +43,23 @@ import { cn } from '@/lib/utils';
 import { FaUbuntu, FaWindows } from 'react-icons/fa';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 import { buildCreatureSentinel, parseCreatureSentinel } from '@/components/Brand';
-import {
-  type BotSkin,
-  type CreatureAntenna,
-  type CreatureEyes,
-} from '@/components/Brand/TeammateCreature';
+import { type CreatureAntenna, type CreatureEyes } from '@/components/Brand/TeammateCreature';
 import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
-import { roleColorVars, type BrandRole, type CreatureShape } from '@/components/Brand/shapes';
+import {
+  droidAntennaOptions,
+  droidBodyOptions,
+  droidColorOptions,
+  droidOutfitOptions,
+  type DroidBody,
+  type DroidOutfit,
+} from '@/components/Brand/droidAppearance';
+import { roleColorVars, type BrandRole } from '@/components/Brand/shapes';
 import GoogleIcon from '@/public/icons/google-icon.png';
 import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 import type { OAuthProvider } from '@/types/assistants/contact';
 import { DroidCallAvatar } from '@/components/Pages/Assistants/Communication/DroidCallAvatar';
 import { useDroidAudioElementLipsync } from '@/utils/assistants/droid-lipsync';
-import { getCreatureForm, getRotatingBotViewBox } from '@droid/brand/components';
+import { getDroidBodyForm, getRotatingBotViewBox } from '@droid/brand/components';
 
 const staticSkillsText = `The bio doesn't influence the droid's abilities. All droids come with the same foundational skills and can specialize in whichever area you want them to.`;
 const DROID_PREVIEW_SIZE = 120;
@@ -65,68 +69,29 @@ const DROID_PREVIEW_ANTENNA_CONTROL_REFERENCE = 'ball' satisfies CreatureAntenna
 const DROID_PREVIEW_OUTFIT_REGION_RATIO = 0.66;
 const DROID_PREVIEW_BODY_CONTROL_TOP = 72;
 const APPEARANCE_HOVER_CONTROL_CLASS = 'transition-opacity duration-150';
-const DROID_SPEECH_HOVER_TARGET_CLASS =
-  'absolute left-1/2 top-1/2 z-10 h-24 w-20 -translate-x-1/2 -translate-y-1/2';
 const COLOR_SWATCH_TRANSITION = { type: 'spring', stiffness: 720, damping: 42, mass: 0.65 };
+const DROID_BODY_FADE_MS = 140;
+const DROID_BODY_FADE_TRANSITION = {
+  duration: DROID_BODY_FADE_MS / 1000,
+  ease: [0.4, 0, 0.2, 1],
+};
 
-const appearanceAntennaOptions = [
-  'none',
-  'ball',
-  'bigball',
-  'twin',
-] as const satisfies readonly CreatureAntenna[];
-const appearanceShapeOptions = [
-  'clawd',
-  'notch',
-  'runner',
-  'wide',
-  'tall',
-  'sprout',
-  'hopper',
-  'pebble',
-] as const satisfies readonly CreatureShape[];
-const appearanceColorOptions = [
-  'green',
-  'blue',
-  'orange',
-  'purple',
-  'yellow',
-  'teal',
-  'pink',
-  'cyan',
-] as const satisfies readonly BrandRole[];
-const appearanceSkinOptions = [
-  'none',
-  'tieOnly',
-  'bowTieOnly',
-  'buttonsOnly',
-  'shirtPocketOnly',
-  'shirtCollarOnly',
-  'shirtTie',
-  'shirtTiePocket',
-  'collarButtons',
-  'bowTie',
-  'pocketButtons',
-  'tuxedo',
-  'tuxBow',
-  'tuxButtons',
-  'suspendersButtons',
-  'suspenders',
-  'pearlButtons',
-  'pearlNecklace',
-] as const satisfies readonly ('none' | BotSkin)[];
+const appearanceAntennaOptions = droidAntennaOptions;
+const appearanceBodyOptions = droidBodyOptions;
+const appearanceColorOptions = droidColorOptions;
+const appearanceOutfitOptions = droidOutfitOptions;
 const DEFAULT_COORDINATOR_APPEARANCE = {
   eyes: 'up',
   antenna: 'ball',
-  shape: 'clawd',
+  body: 'standard',
   color: 'green',
-  skin: 'none',
+  outfit: 'none',
 } as const satisfies {
   eyes: CreatureEyes;
   antenna: CreatureAntenna;
-  shape: CreatureShape;
+  body: DroidBody;
   color: BrandRole;
-  skin: 'none' | BotSkin;
+  outfit: DroidOutfit;
 };
 
 function cycleOption<T>(items: readonly T[], current: T, direction: -1 | 1): T {
@@ -189,35 +154,52 @@ function AppearanceControlTooltip({
   );
 }
 
-function normalizeAppearanceAntenna(
-  antenna: CreatureAntenna
-): (typeof appearanceAntennaOptions)[number] {
-  return antenna === 'rod' ? 'ball' : antenna;
-}
-
 function HireDroidAvatar({
   isVoicePreviewPlaying,
   previewAudioElement,
   antenna,
-  shape,
+  body,
   color,
   baseEyes,
-  skin,
+  outfit,
   label,
 }: {
   isVoicePreviewPlaying: boolean;
   previewAudioElement: HTMLAudioElement | null;
   antenna: CreatureAntenna;
-  shape: CreatureShape;
+  body: DroidBody;
   color: BrandRole;
   baseEyes: CreatureEyes;
-  skin?: BotSkin;
+  outfit: DroidOutfit;
   label: string;
 }) {
+  const [displayedBody, setDisplayedBody] = React.useState(body);
+  const [isDisplayedBodyVisible, setIsDisplayedBodyVisible] = React.useState(true);
+  const bodyFadeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const voicePreviewLipsyncFrame = useDroidAudioElementLipsync(previewAudioElement, {
     enabled: isVoicePreviewPlaying && !!previewAudioElement,
   });
-  const form = getCreatureForm(shape);
+
+  React.useEffect(() => {
+    if (body === displayedBody) return;
+
+    setIsDisplayedBodyVisible(false);
+    if (bodyFadeTimeoutRef.current) {
+      clearTimeout(bodyFadeTimeoutRef.current);
+    }
+    bodyFadeTimeoutRef.current = setTimeout(() => {
+      setDisplayedBody(body);
+      window.requestAnimationFrame(() => setIsDisplayedBodyVisible(true));
+    }, DROID_BODY_FADE_MS);
+
+    return () => {
+      if (bodyFadeTimeoutRef.current) {
+        clearTimeout(bodyFadeTimeoutRef.current);
+      }
+    };
+  }, [body, displayedBody]);
+
+  const form = getDroidBodyForm(displayedBody);
   const layoutViewBox = getRotatingBotViewBox(
     form,
     undefined,
@@ -246,19 +228,26 @@ function HireDroidAvatar({
             width: `${selectedViewBox.w * scale}px`,
           }}
         >
-          <DroidCallAvatar
-            isSpeaking={voicePreviewLipsyncFrame.isActive}
-            mouthShape={voicePreviewLipsyncFrame.mouthShape}
-            speechLevel={voicePreviewLipsyncFrame.speechLevel}
-            antenna={antenna}
-            shape={shape}
-            color={color}
-            baseEyes={baseEyes}
-            skin={skin}
-            label={label}
-            className="block h-auto w-full transform-gpu"
-            creatureClassName="block h-auto w-full"
-          />
+          <motion.span
+            animate={{ opacity: isDisplayedBodyVisible ? 1 : 0 }}
+            className="block"
+            initial={false}
+            transition={DROID_BODY_FADE_TRANSITION}
+          >
+            <DroidCallAvatar
+              isSpeaking={voicePreviewLipsyncFrame.isActive}
+              mouthShape={voicePreviewLipsyncFrame.mouthShape}
+              speechLevel={voicePreviewLipsyncFrame.speechLevel}
+              antenna={antenna}
+              body={displayedBody}
+              color={color}
+              baseEyes={baseEyes}
+              outfit={outfit}
+              label={label}
+              className="block h-auto w-full transform-gpu"
+              creatureClassName="block h-auto w-full"
+            />
+          </motion.span>
         </span>
       </span>
     </span>
@@ -334,9 +323,9 @@ export function HireForm({
     'select' | 'clone' | 'design'
   >('select');
   const [droidAntenna, setDroidAntenna] = React.useState<CreatureAntenna>('ball');
-  const [droidShape, setDroidShape] = React.useState<CreatureShape>('clawd');
+  const [droidBody, setDroidBody] = React.useState<DroidBody>('standard');
   const [droidColor, setDroidColor] = React.useState<BrandRole>('green');
-  const [droidSkin, setDroidSkin] = React.useState<'none' | BotSkin>('none');
+  const [droidOutfit, setDroidOutfit] = React.useState<DroidOutfit>('none');
 
   // The avatar shown in this form is the live creature. We persist it by keeping
   // `profilePhotoUrl` in sync with an `appearance://` sentinel, since hiring/edit
@@ -357,10 +346,10 @@ export function HireForm({
     if (appearanceSeeded) return;
     const parsed = parseCreatureSentinel(watchedProfilePhotoUrl);
     if (parsed) {
-      setDroidShape(parsed.shape);
+      setDroidBody(parsed.body);
       setDroidColor(parsed.color);
-      setDroidAntenna(normalizeAppearanceAntenna(parsed.antenna));
-      setDroidSkin(parsed.skin ?? 'none');
+      setDroidAntenna(parsed.antenna);
+      setDroidOutfit(parsed.outfit);
     }
     setAppearanceSeeded(true);
   }, [appearanceSeeded, watchedProfilePhotoUrl]);
@@ -380,16 +369,15 @@ export function HireForm({
   const selectedDroidAntenna = lockAppearanceControls
     ? DEFAULT_COORDINATOR_APPEARANCE.antenna
     : droidAntenna;
-  const selectedDroidShape = lockAppearanceControls
-    ? DEFAULT_COORDINATOR_APPEARANCE.shape
-    : droidShape;
+  const selectedDroidBody = lockAppearanceControls
+    ? DEFAULT_COORDINATOR_APPEARANCE.body
+    : droidBody;
   const selectedDroidColor = lockAppearanceControls
     ? DEFAULT_COORDINATOR_APPEARANCE.color
     : droidColor;
-  const selectedDroidSkin = lockAppearanceControls
-    ? DEFAULT_COORDINATOR_APPEARANCE.skin
-    : droidSkin;
-  const selectedDroidSkinValue = selectedDroidSkin === 'none' ? undefined : selectedDroidSkin;
+  const selectedDroidOutfit = lockAppearanceControls
+    ? DEFAULT_COORDINATOR_APPEARANCE.outfit
+    : droidOutfit;
   const appearanceControlVisibilityClass = isAppearanceControlsVisible
     ? 'pointer-events-auto opacity-100'
     : 'pointer-events-none opacity-0';
@@ -399,11 +387,11 @@ export function HireForm({
   // uploaded one or explicitly picked a preset persona's photo. This keeps the
   // saved value current regardless of how the dialog triggers submission.
   const creatureSentinel = buildCreatureSentinel({
-    shape: selectedDroidShape,
+    body: selectedDroidBody,
     color: selectedDroidColor,
     eyes: selectedDroidEyes,
     antenna: selectedDroidAntenna,
-    ...(selectedDroidSkinValue ? { skin: selectedDroidSkinValue } : {}),
+    outfit: selectedDroidOutfit,
   });
 
   // Detect when the user actively changes the appearance controls (vs. the value
@@ -455,17 +443,17 @@ export function HireForm({
       (colorIndex - 1 + appearanceColorOptions.length) % appearanceColorOptions.length
     ];
   const nextColor = appearanceColorOptions[(colorIndex + 1) % appearanceColorOptions.length];
-  const skinIndex = appearanceSkinOptions.indexOf(selectedDroidSkin);
-  const previousSkin =
-    appearanceSkinOptions[
-      (skinIndex - 1 + appearanceSkinOptions.length) % appearanceSkinOptions.length
+  const outfitIndex = appearanceOutfitOptions.indexOf(selectedDroidOutfit);
+  const previousOutfit =
+    appearanceOutfitOptions[
+      (outfitIndex - 1 + appearanceOutfitOptions.length) % appearanceOutfitOptions.length
     ];
-  const nextSkin = appearanceSkinOptions[(skinIndex + 1) % appearanceSkinOptions.length];
+  const nextOutfit = appearanceOutfitOptions[(outfitIndex + 1) % appearanceOutfitOptions.length];
   const workspaceAssistantName =
     typeof firstName === 'string' && firstName.trim().length > 0 ? firstName.trim() : 'this droid';
   const isWorkspaceWarning = mode === 'hire' && showWorkspaceWarning;
   const droidControlTop = React.useMemo(() => {
-    const form = getCreatureForm(selectedDroidShape);
+    const form = getDroidBodyForm(selectedDroidBody);
     const layoutViewBox = getRotatingBotViewBox(
       form,
       undefined,
@@ -493,15 +481,15 @@ export function HireForm({
         bodyTop + bodyViewBox.h * scale * DROID_PREVIEW_OUTFIT_REGION_RATIO - 16
       ),
     };
-  }, [selectedDroidShape]);
+  }, [selectedDroidBody]);
 
   const randomizeDroidAppearance = React.useCallback(() => {
     if (lockAppearanceControls) return;
 
     setDroidAntenna((current) => pickOption(appearanceAntennaOptions, current));
-    setDroidShape((current) => pickOption(appearanceShapeOptions, current));
+    setDroidBody((current) => pickOption(appearanceBodyOptions, current));
     setDroidColor((current) => pickOption(appearanceColorOptions, current));
-    setDroidSkin((current) => pickOption(appearanceSkinOptions, current));
+    setDroidOutfit((current) => pickOption(appearanceOutfitOptions, current));
   }, [lockAppearanceControls]);
 
   const randomizeProfileAndAppearance = React.useCallback(() => {
@@ -784,8 +772,8 @@ export function HireForm({
                                     )}
                                     disabled={isSubmitting}
                                     onClick={() =>
-                                      setDroidSkin((current) =>
-                                        cycleOption(appearanceSkinOptions, current, -1)
+                                      setDroidOutfit((current) =>
+                                        cycleOption(appearanceOutfitOptions, current, -1)
                                       )
                                     }
                                     style={{ top: droidControlTop.outfit }}
@@ -806,8 +794,8 @@ export function HireForm({
                                     )}
                                     disabled={isSubmitting}
                                     onClick={() =>
-                                      setDroidSkin((current) =>
-                                        cycleOption(appearanceSkinOptions, current, 1)
+                                      setDroidOutfit((current) =>
+                                        cycleOption(appearanceOutfitOptions, current, 1)
                                       )
                                     }
                                     style={{ top: droidControlTop.outfit }}
@@ -829,8 +817,8 @@ export function HireForm({
                                     )}
                                     disabled={isSubmitting}
                                     onClick={() =>
-                                      setDroidShape((current) =>
-                                        cycleOption(appearanceShapeOptions, current, -1)
+                                      setDroidBody((current) =>
+                                        cycleOption(appearanceBodyOptions, current, -1)
                                       )
                                     }
                                     style={{ top: droidControlTop.body }}
@@ -851,8 +839,8 @@ export function HireForm({
                                     )}
                                     disabled={isSubmitting}
                                     onClick={() =>
-                                      setDroidShape((current) =>
-                                        cycleOption(appearanceShapeOptions, current, 1)
+                                      setDroidBody((current) =>
+                                        cycleOption(appearanceBodyOptions, current, 1)
                                       )
                                     }
                                     style={{ top: droidControlTop.body }}
@@ -869,10 +857,10 @@ export function HireForm({
                                   isVoicePreviewPlaying={isVoicePreviewPlaying}
                                   previewAudioElement={previewAudioElement}
                                   antenna={selectedDroidAntenna}
-                                  shape={selectedDroidShape}
+                                  body={selectedDroidBody}
                                   color={selectedDroidColor}
                                   baseEyes={selectedDroidEyes}
-                                  skin={selectedDroidSkinValue}
+                                  outfit={selectedDroidOutfit}
                                   label="Marty avatar"
                                 />
                               </span>
@@ -884,19 +872,14 @@ export function HireForm({
                                 onClick={playSelectedVoicePreview}
                                 type="button"
                               >
-                                <span
-                                  aria-hidden="true"
-                                  className={DROID_SPEECH_HOVER_TARGET_CLASS}
-                                  onMouseEnter={playSelectedVoicePreview}
-                                />
                                 <HireDroidAvatar
                                   isVoicePreviewPlaying={isVoicePreviewPlaying}
                                   previewAudioElement={previewAudioElement}
                                   antenna={selectedDroidAntenna}
-                                  shape={selectedDroidShape}
+                                  body={selectedDroidBody}
                                   color={selectedDroidColor}
                                   baseEyes={selectedDroidEyes}
-                                  skin={selectedDroidSkinValue}
+                                  outfit={selectedDroidOutfit}
                                   label="Droid avatar"
                                 />
                               </button>
