@@ -187,7 +187,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   // The onboarding checklist now lives in the Coordinator's "Assistant
   // info" panel, seeded from the server-derived snapshot.
   await openOnboardingChecklist(page);
-  await expect(page.getByTestId('coordinator-onboarding-progress-phase-meet')).toBeVisible();
+  await expect(page.getByTestId('coordinator-onboarding-progress-phase-meet')).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-progress-phase-comms')).toBeVisible();
   await expect(page.getByTestId('coordinator-onboarding-progress-phase-connect')).toBeVisible();
   await expect(page.getByTestId('coordinator-onboarding-progress-phase-work')).toBeVisible();

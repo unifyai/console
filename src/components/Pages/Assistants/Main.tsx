@@ -470,14 +470,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // survives the gradual ↔ info-panel layout transition — the
   // Onboarding tab follows the user into the coordinator's assistant
   // info panel on the base /assistants shell.
-  // ``'meet'`` is seeded because the picker is always resolved by
-  // the time we render anything substantive; the durable steps
-  // (workspace/apps/act/schedule) are seeded from the server-derived
-  // ``completedStepIds`` on the Coordinator/State read (see the
-  // effect below), so progress survives reloads without a separate
-  // persisted copy.
+  // Durable steps are seeded from the server-derived
+  // ``completedStepIds`` on the Coordinator/State read (see the effect
+  // below), so progress survives reloads without a separate persisted
+  // copy.
   const [completedStepIds, setCompletedStepIds] = React.useState<ReadonlySet<string>>(
-    () => new Set(['meet'])
+    () => new Set()
   );
   const [skippedStepIds, setSkippedStepIds] = React.useState<ReadonlySet<string>>(() => new Set());
   // Engagement is a strict superset of completion — engaging
@@ -485,9 +483,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // tab even though the row stays pending until a secret actually
   // lands. Completion always implies engagement, so
   // ``markStepCompleted`` below back-fills the engaged set too.
-  const [engagedStepIds, setEngagedStepIds] = React.useState<ReadonlySet<string>>(
-    () => new Set(['meet'])
-  );
+  const [engagedStepIds, setEngagedStepIds] = React.useState<ReadonlySet<string>>(() => new Set());
   const markStepCompleted = React.useCallback((stepId: string) => {
     setCompletedStepIds((prev) => {
       if (prev.has(stepId)) return prev;

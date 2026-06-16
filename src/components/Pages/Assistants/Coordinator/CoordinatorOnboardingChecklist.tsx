@@ -86,13 +86,6 @@ interface OnboardingChecklistItem {
 
 const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
   {
-    id: 'meet',
-    title: 'Meet me',
-    phaseLabel: 'Meet',
-    description: 'Say hi to me.',
-    estimatedTime: '~1 min',
-  },
-  {
     id: 'comms',
     title: 'Guess the reference',
     phaseLabel: 'Quiz',
@@ -104,7 +97,6 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Marty sends the first reference clue over email.',
         estimatedTime: '~10s',
         action: 'trigger-email-reference',
-        prerequisiteId: 'meet',
         canSkip: false,
       },
       {
@@ -553,7 +545,7 @@ interface PhaseProgress {
 
 /**
  * Collapse the top-level checklist into one phase per row so the
- * progress bar can show distinct segments (Meet / Connect /
+ * progress bar can show distinct segments (Quiz / Connect /
  * Delegate) instead of a single anonymous fill. Each phase counts
  * its own leaves: parent rows with children contribute their
  * children's totals, leaf-only phases contribute themselves. The
