@@ -305,10 +305,10 @@ interface RightPaneContainerProps {
    *  dot on the chat header's "Assistant info" button. */
   hasIncompleteOnboarding?: boolean;
   /**
-   * Forces the chat tab to keep the assistant info panel open at its
+   * One-shot request id that seeds the assistant info panel open at its
    * maximum available width.
    */
-  forceInfoPanelFocusLayout?: boolean;
+  infoPanelFocusLayoutRequest?: number;
   /**
    * Coordinator-only handler bag forwarded down to the info panel.
    * When the active assistant is the canonical Coordinator and it's
@@ -384,7 +384,7 @@ export function RightPaneContainer({
   userPhoneNumber,
   onOpenUserSettings,
   hasIncompleteOnboarding,
-  forceInfoPanelFocusLayout,
+  infoPanelFocusLayoutRequest,
   coordinatorOnboarding,
   unreadChatCount = 0,
   renderDockedCall,
@@ -912,7 +912,7 @@ export function RightPaneContainer({
             userPhoneNumber={userPhoneNumber}
             onOpenUserSettings={onOpenUserSettings}
             hasIncompleteOnboarding={hasIncompleteOnboarding}
-            forceInfoPanelFocusLayout={forceInfoPanelFocusLayout}
+            infoPanelFocusLayoutRequest={infoPanelFocusLayoutRequest}
             coordinatorOnboarding={coordinatorOnboarding}
             // The docked call lives in a single slot — the primary
             // one — so split layouts do not mirror the same call UI

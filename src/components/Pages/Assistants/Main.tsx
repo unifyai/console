@@ -455,6 +455,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     coordinatorOnboardingState?.introWatched === false;
   const showCoordinatorOnboardingIntro =
     showCoordinatorOnboardingFreshIntro || coordinatorIntroReplay;
+  const [coordinatorOnboardingFocusLayoutRequest, setCoordinatorOnboardingFocusLayoutRequest] =
+    React.useState(0);
+  const requestCoordinatorOnboardingFocusLayout = React.useCallback(() => {
+    setCoordinatorOnboardingFocusLayoutRequest((current) => current + 1);
+  }, []);
 
   // Shared onboarding step progress for the Coordinator onboarding
   // flow. Lifted out of ``CoordinatorOnboarding`` so the same set
@@ -1646,8 +1651,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
 
   // Whether the Coordinator still has an actionable onboarding step left.
-  // Drives the "Assistant info" nudge dot and the mobile auto-open so
-  // both track the coordinator checklist (not the per-assistant roadmap).
+  // Drives the "Assistant info" nudge dot and request-scoped onboarding
+  // focus layout from the coordinator checklist (not the per-assistant roadmap).
   const coordinatorOnboardingOutstanding = React.useMemo(
     () =>
       isCanonicalCoordinatorOwned &&
@@ -1658,7 +1663,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       ),
     [isCanonicalCoordinatorOwned, completedStepIds, skippedStepIds, isCoordinatorActionWired]
   );
-  const isCoordinatorOnboardingFocusLayout =
+  const canApplyCoordinatorOnboardingFocusLayout =
     ENABLE_COORDINATOR_ONBOARDING &&
     isCanonicalCoordinatorOwned &&
     coordinatorOnboardingState?.mode === 'onboarding' &&
@@ -1667,19 +1672,41 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     canonicalCoordinatorId !== null &&
     profileAssistantId === canonicalCoordinatorId &&
     (coordinatorIntroDismissed || coordinatorOnboardingState?.introWatched === true);
+  const isCoordinatorOnboardingFocusLayout =
+    canApplyCoordinatorOnboardingFocusLayout && coordinatorOnboardingFocusLayoutRequest > 0;
 
-  // Apply the onboarding-focus rail layout once, on the edge where the
-  // focus state turns on — this seeds the *default* (folded rail) without
-  // locking it, so the user can re-expand the rail freely afterwards. The
-  // ref resets when focus turns off so re-entering onboarding re-seeds it.
-  const hasSeededCoordinatorFocusRailRef = React.useRef(false);
+  const hasRequestedInitialCoordinatorFocusLayoutRef = React.useRef(false);
   React.useEffect(() => {
-    if (!isCoordinatorOnboardingFocusLayout) {
-      hasSeededCoordinatorFocusRailRef.current = false;
+    if (hasRequestedInitialCoordinatorFocusLayoutRef.current) return;
+    if (isCoordinatorOnboardingResolvePending || isLoadingAssistants) return;
+
+    const awaitingBareLandingSelection =
+      !landedWithProfileDeepLinkRef.current && !!canonicalCoordinatorId && !profileAssistantId;
+    if (awaitingBareLandingSelection) return;
+
+    hasRequestedInitialCoordinatorFocusLayoutRef.current = true;
+    if (canApplyCoordinatorOnboardingFocusLayout) {
+      requestCoordinatorOnboardingFocusLayout();
+    }
+  }, [
+    canApplyCoordinatorOnboardingFocusLayout,
+    canonicalCoordinatorId,
+    isCoordinatorOnboardingResolvePending,
+    isLoadingAssistants,
+    profileAssistantId,
+    requestCoordinatorOnboardingFocusLayout,
+  ]);
+
+  // Apply the onboarding-focus rail layout once per explicit request.
+  // Requests are issued for initial page load and intro completion, not
+  // for ordinary assistant selection changes.
+  const seededCoordinatorFocusRailRequestRef = React.useRef(0);
+  React.useEffect(() => {
+    if (!isCoordinatorOnboardingFocusLayout) return;
+    if (seededCoordinatorFocusRailRequestRef.current === coordinatorOnboardingFocusLayoutRequest) {
       return;
     }
-    if (hasSeededCoordinatorFocusRailRef.current) return;
-    hasSeededCoordinatorFocusRailRef.current = true;
+    seededCoordinatorFocusRailRequestRef.current = coordinatorOnboardingFocusLayoutRequest;
     if (!isAssistantListFolded) {
       preSnapWidthRef.current = assistantListWidth;
     }
@@ -1688,12 +1715,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, [
     LIST_MIN_WIDTH,
     assistantListWidth,
+    coordinatorOnboardingFocusLayoutRequest,
     isAssistantListFolded,
     isCoordinatorOnboardingFocusLayout,
   ]);
 
+  const seededCoordinatorFocusPaneRequestRef = React.useRef(0);
   React.useEffect(() => {
     if (!isCoordinatorOnboardingFocusLayout) return;
+    if (seededCoordinatorFocusPaneRequestRef.current === coordinatorOnboardingFocusLayoutRequest) {
+      return;
+    }
+    seededCoordinatorFocusPaneRequestRef.current = coordinatorOnboardingFocusLayoutRequest;
     setPaneState((prev) =>
       prev.primary.tab === 'chat' && prev.secondary === null
         ? prev
@@ -1703,7 +1736,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             secondary: null,
           }
     );
-  }, [isCoordinatorOnboardingFocusLayout]);
+  }, [coordinatorOnboardingFocusLayoutRequest, isCoordinatorOnboardingFocusLayout]);
 
   const coordinatorOnboardingPanelHandlers = React.useMemo(() => {
     if (!isCanonicalCoordinatorOwned || !canonicalCoordinator) return undefined;
@@ -2296,7 +2329,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                         : !!onboardingIncompleteByAgentId[profileAssistant.agentId]
                       : false
                   }
-                  forceInfoPanelFocusLayout={isCoordinatorOnboardingFocusLayout}
+                  infoPanelFocusLayoutRequest={
+                    canApplyCoordinatorOnboardingFocusLayout
+                      ? coordinatorOnboardingFocusLayoutRequest
+                      : 0
+                  }
                   coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
                   // Dock the call into the chat slot whenever an active
                   // call's assistant matches the chat's assistant and the
@@ -2370,6 +2407,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   onComplete={(medium) => {
                     setCoordinatorIntroDismissed(true);
                     setCoordinatorIntroReplay(false);
+                    requestCoordinatorOnboardingFocusLayout();
                     // The intro handed off to a live call — arm the
                     // "Talk now!" cue to fire once that call connects.
                     if (medium === 'call') setCoordinatorTalkNowPending(true);

@@ -575,6 +575,8 @@ export function AssistantList({
                   size="icon"
                   className="h-6 w-6 text-muted-foreground"
                   onClick={onToggleFold}
+                  data-testid="assistant-list-toggle-fold"
+                  aria-label={isFolded ? 'Expand assistant list' : 'Collapse assistant list'}
                 >
                   {isFolded ? (
                     <PanelLeftOpen className="h-4 w-4" />

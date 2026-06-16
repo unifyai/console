@@ -34,6 +34,7 @@ import {
   createTestUser,
   cleanupUser,
   connectWorkspaceEmail,
+  createAssistant,
   createPersonalCoordinator,
   dbExec,
   deleteAllAssistantsForUser,
@@ -254,10 +255,42 @@ test('resolving the picker persists intro_watched and reload defaults to Marty +
   await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0, {
     timeout: 15_000,
   });
+  await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 15_000 });
   await openOnboardingChecklist(page);
   await expect(page.getByTestId('coordinator-onboarding-item-workspace').first()).toBeVisible({
     timeout: 15_000,
   });
+});
+
+test('switching back to Marty does not reapply the onboarding focus layout', async ({
+  authedPage: page,
+}) => {
+  const coordinator = createPersonalCoordinator(user.id);
+  const otherAssistant = createAssistant({
+    userId: user.id,
+    firstName: 'Switch',
+    surname: 'Droid',
+  });
+  resetCoordinatorIntroWatched();
+
+  await gotoAssistants(page);
+  await expectPickerVisible(page);
+  await page.getByTestId('coordinator-onboarding-pick-chat').click();
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
+
+  await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('assistant-info-tab-onboarding')).toBeVisible();
+
+  await page.getByTestId('assistant-list-toggle-fold').click();
+  await expect(page.getByLabel('Collapse assistant list')).toBeVisible();
+  await page.getByTestId('assistant-info-button').click();
+  await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
+
+  await page.getByTestId(`assistant-list-item-${otherAssistant.agentId}`).click();
+  await page.getByTestId(`assistant-list-item-${coordinator.agentId}`).click();
+
+  await expect(page.getByLabel('Collapse assistant list')).toBeVisible();
+  await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
 });
 
 test('the "Repeat intro" affordance replays the intro from the Assistant info card', async ({

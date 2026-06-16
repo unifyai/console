@@ -550,7 +550,7 @@ function findNextChildAction(
  * outstanding, given which actions are wired (available) on the current
  * deployment. Reuses the same resolve → visibility-filter → next-actionable
  * pipeline the rendered checklist uses, so the "incomplete" signal that
- * drives the info-card nudge (and the mobile auto-open) can't drift from
+ * drives the info-card nudge and onboarding focus default can't drift from
  * what the user actually sees — unavailable steps don't count, fully
  * skipped/complete checklists report ``false``.
  */

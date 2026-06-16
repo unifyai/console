@@ -159,11 +159,11 @@ export interface ChatWithInfoPanelProps {
    */
   hasIncompleteOnboarding?: boolean;
   /**
-   * Forces the chat/info split into its most onboarding-focused shape:
-   * the assistant info panel stays open and grows to its maximum
-   * width inside the chat row.
+   * One-shot request id for the onboarding-focused chat/info shape:
+   * the assistant info panel opens and grows to its maximum width inside
+   * the chat row.
    */
-  forceInfoPanelFocusLayout?: boolean;
+  infoPanelFocusLayoutRequest?: number;
   /**
    * Coordinator-only handler bag forwarded to the info panel so the
    * "Onboarding" sub-tab on the coordinator's info panel can wire
@@ -224,7 +224,7 @@ export function ChatWithInfoPanel({
   userPhoneNumber,
   onOpenUserSettings,
   hasIncompleteOnboarding = false,
-  forceInfoPanelFocusLayout = false,
+  infoPanelFocusLayoutRequest = 0,
   coordinatorOnboarding,
   renderDockedCall,
 }: ChatWithInfoPanelProps) {
@@ -296,51 +296,7 @@ export function ChatWithInfoPanel({
     [getInfoPanelMaxWidth]
   );
 
-  // Seed the onboarding-focus info-panel layout once, on the edge where
-  // the focus state turns on: open the panel and grow it to its max width.
-  // This is a *default*, not a lock — the user can still toggle the panel
-  // off or resize it afterwards. The ref resets when focus turns off so
-  // re-entering onboarding re-seeds the layout. We observe the container
-  // only until its width is measurable, then apply once and stop.
-  const hasSeededInfoFocusLayoutRef = React.useRef(false);
-  React.useEffect(() => {
-    if (!forceInfoPanelFocusLayout) {
-      hasSeededInfoFocusLayoutRef.current = false;
-      return;
-    }
-    if (hasSeededInfoFocusLayoutRef.current) return;
-
-    setIsInfoOpenAndPersist(true);
-
-    const maximizeInfoPanel = () => {
-      const maxWidth = getInfoPanelMaxWidth();
-      if (!Number.isFinite(maxWidth)) return false;
-      setInfoPanelWidthWithinBounds(maxWidth);
-      return true;
-    };
-
-    if (maximizeInfoPanel()) {
-      hasSeededInfoFocusLayoutRef.current = true;
-      return;
-    }
-
-    const container = infoPanelContainerRef.current;
-    if (!container || typeof ResizeObserver === 'undefined') return;
-
-    const resizeObserver = new ResizeObserver(() => {
-      if (maximizeInfoPanel()) {
-        hasSeededInfoFocusLayoutRef.current = true;
-        resizeObserver.disconnect();
-      }
-    });
-    resizeObserver.observe(container);
-    return () => resizeObserver.disconnect();
-  }, [
-    forceInfoPanelFocusLayout,
-    getInfoPanelMaxWidth,
-    setInfoPanelWidthWithinBounds,
-    setIsInfoOpenAndPersist,
-  ]);
+  const seededInfoFocusLayoutRequestRef = React.useRef(0);
 
   const handleInfoPanelResizeKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -446,12 +402,11 @@ export function ChatWithInfoPanel({
     ]
   );
 
-  // Default the info panel open for any assistant the user hasn't
-  // explicitly dismissed it for (tracked per agentId in localStorage).
-  // This subsumes the previous "first view after hiring" auto-open —
-  // a freshly hired assistant has no entry in the dismissed set, so
-  // it still opens by default — but also surfaces the panel on
-  // subsequent visits to assistants the user has never closed it for.
+  // Default the info panel open for any regular assistant the user
+  // hasn't explicitly dismissed it for (tracked per agentId in
+  // localStorage). The Coordinator's onboarding panel is request-driven:
+  // bootstrap and intro completion open it, ordinary assistant switching
+  // does not.
   //
   // Mobile is the exception: the panel claims the full viewport
   // width there (the chat is hidden behind it), so opening by default
@@ -468,8 +423,13 @@ export function ChatWithInfoPanel({
     if (!assistant.agentId) return;
     if (initializedForRef.current === assistant.agentId) return;
     initializedForRef.current = assistant.agentId;
+    const isCoordinatorOnboardingPanel =
+      assistant.isCoordinator === true && hasIncompleteOnboarding;
+    const hasPendingInfoFocusLayoutRequest =
+      infoPanelFocusLayoutRequest > 0 &&
+      seededInfoFocusLayoutRequestRef.current !== infoPanelFocusLayoutRequest;
     if (typeof window === 'undefined') {
-      setIsInfoOpen(true);
+      setIsInfoOpen(!isCoordinatorOnboardingPanel);
       return;
     }
     // Mobile breakpoint matches the Tailwind `sm` boundary used by
@@ -477,23 +437,62 @@ export function ChatWithInfoPanel({
     // the responsive layout agree on what counts as "mobile".
     const isMobile = window.matchMedia('(max-width: 639px)').matches;
     if (isMobile) {
-      // The Coordinator's onboarding checklist lives in this card, and a
-      // phone has no room for a side-by-side panel — so surface the card
-      // full-width by default while onboarding is still outstanding,
-      // mirroring the old onboarding layout's always-visible checklist.
-      // Other assistants (and a finished Coordinator) keep chat-first.
-      // A prior dismissal is still honoured so it doesn't fight the user.
-      const dismissed = readInfoPanelDismissed();
-      const surfaceCoordinatorOnboarding =
-        assistant.isCoordinator === true &&
-        hasIncompleteOnboarding &&
-        !dismissed.has(assistant.agentId);
-      setIsInfoOpen(surfaceCoordinatorOnboarding);
+      if (isCoordinatorOnboardingPanel && hasPendingInfoFocusLayoutRequest) return;
+      setIsInfoOpen(false);
+      return;
+    }
+    if (isCoordinatorOnboardingPanel) {
+      if (hasPendingInfoFocusLayoutRequest) return;
+      setIsInfoOpen(false);
       return;
     }
     const dismissed = readInfoPanelDismissed();
     setIsInfoOpen(!dismissed.has(assistant.agentId));
-  }, [assistant.agentId, assistant.isCoordinator, hasIncompleteOnboarding]);
+  }, [
+    assistant.agentId,
+    assistant.isCoordinator,
+    hasIncompleteOnboarding,
+    infoPanelFocusLayoutRequest,
+  ]);
+
+  React.useEffect(() => {
+    if (infoPanelFocusLayoutRequest <= 0) return;
+    if (assistant.isCoordinator !== true || !hasIncompleteOnboarding) return;
+    if (seededInfoFocusLayoutRequestRef.current === infoPanelFocusLayoutRequest) return;
+
+    setIsInfoOpenAndPersist(true);
+
+    const maximizeInfoPanel = () => {
+      const maxWidth = getInfoPanelMaxWidth();
+      if (!Number.isFinite(maxWidth)) return false;
+      setInfoPanelWidthWithinBounds(maxWidth);
+      return true;
+    };
+
+    if (maximizeInfoPanel()) {
+      seededInfoFocusLayoutRequestRef.current = infoPanelFocusLayoutRequest;
+      return;
+    }
+
+    const container = infoPanelContainerRef.current;
+    if (!container || typeof ResizeObserver === 'undefined') return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (maximizeInfoPanel()) {
+        seededInfoFocusLayoutRequestRef.current = infoPanelFocusLayoutRequest;
+        resizeObserver.disconnect();
+      }
+    });
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, [
+    assistant.isCoordinator,
+    getInfoPanelMaxWidth,
+    hasIncompleteOnboarding,
+    infoPanelFocusLayoutRequest,
+    setInfoPanelWidthWithinBounds,
+    setIsInfoOpenAndPersist,
+  ]);
 
   const { voiceCalls } = useFeatures();
   const isInThisCall = activeCallAssistantId === assistant.agentId;
