@@ -200,8 +200,9 @@ test('deleting a phone contact removes it from the database', async ({ authedPag
   // Switch to Phone via dropdown
   await selectContactType(page, 'phone');
 
-  // Phone should be displayed as read-only
-  await expect(page.locator('text=Assistant Phone Number')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText('Assistant phone contact is active.')).toBeVisible({
+    timeout: 5_000,
+  });
 
   // Delete
   const deleteBtn = page.getByRole('button', { name: 'Delete' });
@@ -320,12 +321,10 @@ test('Marty email tab shows shared Marty address as managed routing', async ({
 
   await selectContactType(page, 'email');
 
-  await expect(page.locator('text=Marty Email Address')).toBeVisible({
+  await expect(page.getByText('Marty email is configured.')).toBeVisible({
     timeout: 5_000,
   });
-  await expect(page.locator('input[value="marty@unify.ai"]')).toBeVisible({
-    timeout: 5_000,
-  });
+  await expect(page.locator('input[value="marty@unify.ai"]')).toHaveCount(0);
   await expect(
     page.locator('text=Messages to this shared address are routed by verified sender identity')
   ).toBeVisible({ timeout: 5_000 });
@@ -355,10 +354,10 @@ test('Marty phone tab shows shared Marty number as managed routing', async ({
 
   await selectContactType(page, 'phone');
 
-  await expect(page.getByText('Marty Phone Number', { exact: true }).first()).toBeVisible({
+  await expect(page.getByText('Marty phone is configured.', { exact: true })).toBeVisible({
     timeout: 5_000,
   });
-  await expect(page.locator('input[value="+14155552671"]')).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('input[value="+14155552671"]')).toHaveCount(0);
   await expect(
     page
       .getByText(
