@@ -202,6 +202,12 @@ EMULATOR_PIDFILE="/tmp/console-pubsub-emulator.pid"
 EMULATOR_LOGFILE="/tmp/console-pubsub-emulator.log"
 LOCAL_PUBSUB_HOST="localhost:${PUBSUB_EMULATOR_PORT}"
 
+self_host_desktop_enabled() {
+  # Desktop remains opt-in until the self-host desktop container startup path is
+  # stable. Set SELF_HOST_DESKTOP=1 to re-enable liveview/file-sync desktop boot.
+  [[ "${SELF_HOST_DESKTOP:-0}" == "1" ]]
+}
+
 check_gcloud() {
   if ! command -v gcloud &>/dev/null; then
     log_error "gcloud CLI is not installed"
@@ -465,7 +471,8 @@ start_orchestra() {
   local with_stripe="${1:-false}"
 
   if is_orchestra_running; then
-    if [[ "${SELF_HOST:-0}" == "1" && "${SELF_HOST_DESKTOP:-1}" == "1" ]] \
+    if [[ "${SELF_HOST:-0}" == "1" ]] \
+      && self_host_desktop_enabled \
       && ! orchestra_listens_on_lan; then
       log_info "Restarting Orchestra so desktop containers can reach it on 0.0.0.0 ..."
       bash "$ORCHESTRA_LOCAL_SCRIPT" stop 2>/dev/null || true
@@ -1116,7 +1123,7 @@ start_unity_coordinator() {
 
   load_self_host_runtime_env
 
-  if [[ "${SELF_HOST_DESKTOP:-1}" == "1" && -n "${SELF_HOST_DESKTOP_SCRIPT:-}" && -f "$SELF_HOST_DESKTOP_SCRIPT" ]]; then
+  if self_host_desktop_enabled && [[ -n "${SELF_HOST_DESKTOP_SCRIPT:-}" && -f "$SELF_HOST_DESKTOP_SCRIPT" ]]; then
     export ORCHESTRA_URL="${ORCHESTRA_URL:-http://127.0.0.1:${ORCHESTRA_PORT:-8000}/v0}"
     if ! bash "$SELF_HOST_DESKTOP_SCRIPT" ensure "$coordinator_agent_id" "$unify_key"; then
       log_error "Self-host desktop failed to start"
@@ -1230,7 +1237,7 @@ start_unity_coordinator() {
   [[ -n "$_u_email" ]]   && unity_env+=("USER_EMAIL=$_u_email")
   [[ -n "$_u_id" ]]      && unity_env+=("USER_ID=$_u_id")
 
-  if [[ "${SELF_HOST_DESKTOP:-1}" == "1" ]]; then
+  if self_host_desktop_enabled; then
     unity_env+=("ASSISTANT_DESKTOP_URL=${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}")
   fi
 
@@ -1257,7 +1264,7 @@ start_unity_coordinator() {
 
   log_success "Unity Coordinator runtime is running (assistant=$coordinator_agent_id)"
 
-  if [[ "${SELF_HOST_DESKTOP:-1}" == "1" && -n "${SELF_HOST_DESKTOP_SCRIPT:-}" && -f "$SELF_HOST_DESKTOP_SCRIPT" ]]; then
+  if self_host_desktop_enabled && [[ -n "${SELF_HOST_DESKTOP_SCRIPT:-}" && -f "$SELF_HOST_DESKTOP_SCRIPT" ]]; then
     sleep 8
     if ! bash "$SELF_HOST_DESKTOP_SCRIPT" publish-ready "$coordinator_agent_id"; then
       log_warn "Failed to publish assistant_desktop_ready — file sync and liveview may stay pending"
