@@ -44,6 +44,12 @@ import {
   disconnectAssistantAccount,
   getGrantedFeatures,
 } from '@/lib/assistants/contact';
+import {
+  listWorkspaceFileRoots,
+  listWorkspaceFileChildren,
+  getWorkspaceFilePolicy,
+  updateWorkspaceFilePolicy,
+} from '@/lib/assistants/workspace-files';
 import { AssistantActions } from '@/types/assistants/assistant';
 import { redirect } from 'next/navigation';
 import { getSecrets, createSecret, updateSecret, deleteSecret } from '@/lib/assistants/secret';
@@ -141,6 +147,12 @@ const AssistantsPage = async ({
       listAvailableSocialPlatforms,
       verifySocialAccount,
       fetchContactCosts,
+    },
+    workspaceFiles: {
+      listRoots: listWorkspaceFileRoots,
+      listChildren: listWorkspaceFileChildren,
+      getPolicy: getWorkspaceFilePolicy,
+      updatePolicy: updateWorkspaceFilePolicy,
     },
     secret: {
       get: getSecrets,

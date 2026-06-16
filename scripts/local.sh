@@ -1677,7 +1677,7 @@ setup_provider_integrations() {
 }
 
 sync_local_integration_functions() {
-  local apps="${LOCAL_INTEGRATION_FUNCTION_SYNC_APPS:-discord,slack,gmail,google_drive,google_calendar,github,linear,salesforce}"
+  local apps="${LOCAL_INTEGRATION_FUNCTION_SYNC_APPS:-discord,slack,gmail,google_calendar,github,linear,salesforce}"
   log_info "Warming local-only FunctionManager integration primitives for active apps: $apps"
   log_warn "This shortcut is for local experimentation only; inactive apps remain hidden until connected."
 
@@ -1695,7 +1695,7 @@ sync_local_integration_functions() {
 }
 
 start_local_integration_functions_sync() {
-  local apps="${LOCAL_INTEGRATION_FUNCTION_SYNC_APPS:-discord,slack,gmail,google_drive,google_calendar,github,linear,salesforce}"
+  local apps="${LOCAL_INTEGRATION_FUNCTION_SYNC_APPS:-discord,slack,gmail,google_calendar,github,linear,salesforce}"
   local log_file="/tmp/console-integration-functions-sync.log"
 
   log_info "Starting local integration FunctionManager warmup in the background for active apps: $apps"

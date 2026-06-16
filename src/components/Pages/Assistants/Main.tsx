@@ -1567,6 +1567,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [markStepEngaged]
   );
 
+  // Open the user's account settings in a new tab so the chat session
+  // isn't disrupted while they configure their profile. Optional `tab`
+  // mirrors the /account page's `?tab=` param (see ProfileTabs) so
+  // callers can deep-link straight to the relevant section.
   const handleOpenUserSettings = React.useCallback((tab?: string) => {
     if (typeof window === 'undefined') return;
     const url = tab ? `/account?tab=${encodeURIComponent(tab)}` : '/account';
@@ -2058,12 +2062,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleShowInstallInstructions = React.useCallback((assistant: Assistant) => {
     setDesktopLinkerAssistant(assistant);
   }, []);
-  // Open the user's account settings in a new tab so the chat session
-  // isn't disrupted while they configure their profile. Optional `tab`
-  // mirrors the /account page's `?tab=` param (see ProfileTabs) so
-  // callers can deep-link straight to the relevant section — e.g. the
-  // "Add phone to profile" step lands on Contact Info directly.
-  //
   // We also stamp a localStorage flag so the focus-refresh effect
   // below knows the user might have just changed something on their
   // profile — refreshing server data on every focus event is

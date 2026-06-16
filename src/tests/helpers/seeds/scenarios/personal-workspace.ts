@@ -25,6 +25,7 @@ import {
   seedChatInfrastructure,
   seedCoordinatorChatForUsers,
   seedSecretsViaOrchestra,
+  dbExecBlock,
 } from '../client';
 
 export async function seedPersonalWorkspace(): Promise<SeededState> {
@@ -55,6 +56,29 @@ export async function seedPersonalWorkspace(): Promise<SeededState> {
     email: owner.email,
   });
 
+  // An assistant with a connected Google Workspace account (Drive scope
+  // granted) plus an empty file-access allowlist, so the workspace file
+  // picker is reachable locally via DevQuickLogin.
+  const driveAssistant = createAssistant({
+    userId: owner.id,
+    firstName: 'Grace',
+    surname: 'Hopper',
+  });
+  connectWorkspaceEmail({
+    assistantId: driveAssistant.agentId,
+    email: `grace-${owner.id}@example.com`,
+  });
+  dbExecBlock(`
+INSERT INTO assistant_secrets (user_id, agent_id, secret_name, secret_value)
+VALUES
+  ('${owner.id}', ${driveAssistant.agentId}, 'GOOGLE_GRANTED_SCOPES', 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email'),
+  ('${owner.id}', ${driveAssistant.agentId}, 'GOOGLE_ACCESS_TOKEN', 'seed-google-access-token')
+ON CONFLICT (agent_id, secret_name) DO UPDATE SET secret_value = EXCLUDED.secret_value;
+INSERT INTO assistant_workspace_file_access (agent_id, provider, default_allow, decisions)
+VALUES (${driveAssistant.agentId}, 'google', false, '[]'::jsonb)
+ON CONFLICT (agent_id, provider) DO UPDATE SET default_allow = EXCLUDED.default_allow, decisions = EXCLUDED.decisions;
+`);
+
   // Make the auto-provisioned personal Coordinator chat-ready.
   await seedCoordinatorChatForUsers([owner]);
 
@@ -82,7 +106,7 @@ export async function seedPersonalWorkspace(): Promise<SeededState> {
 
   return {
     users: { owner, returningOwner },
-    assistants: [assistant],
+    assistants: [assistant, driveAssistant],
     secrets,
     credentials: {
       owner: {

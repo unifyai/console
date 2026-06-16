@@ -12,6 +12,11 @@ import {
   OAuthProvider,
   GrantedFeaturesResponse,
 } from './contact';
+import type {
+  WorkspaceFileNode,
+  WorkspaceFilePolicy,
+  WorkspaceFileDecision,
+} from './workspace-files';
 
 export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
 
@@ -538,6 +543,28 @@ export interface AssistantActions {
       accountIdentifier: string
     ) => Promise<{ verificationCode: string; sentAt: string } | ResponseProps>;
     fetchContactCosts: () => Promise<ContactCosts | ResponseProps>;
+  };
+  workspaceFiles: {
+    listRoots: (
+      assistantId: string,
+      provider: OAuthProvider
+    ) => Promise<WorkspaceFileNode[] | ResponseProps>;
+    listChildren: (
+      assistantId: string,
+      provider: OAuthProvider,
+      driveId: string,
+      itemId: string
+    ) => Promise<WorkspaceFileNode[] | ResponseProps>;
+    getPolicy: (
+      assistantId: string,
+      provider: OAuthProvider
+    ) => Promise<WorkspaceFilePolicy | ResponseProps>;
+    updatePolicy: (
+      assistantId: string,
+      provider: OAuthProvider,
+      defaultAllow: boolean,
+      decisions: WorkspaceFileDecision[]
+    ) => Promise<WorkspaceFilePolicy | ResponseProps>;
   };
   secret: SecretActions;
   /**
