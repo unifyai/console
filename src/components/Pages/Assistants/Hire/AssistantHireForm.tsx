@@ -63,6 +63,8 @@ import { getDroidBodyForm, getRotatingBotViewBox } from '@droid/brand/components
 
 const staticSkillsText = `The bio doesn't influence the droid's abilities. All droids come with the same foundational skills and can specialize in whichever area you want them to.`;
 const DROID_PREVIEW_SIZE = 120;
+const DROID_PREVIEW_REST_SIZE = 152;
+const DROID_PREVIEW_REST_SCALE = DROID_PREVIEW_REST_SIZE / DROID_PREVIEW_SIZE;
 const DROID_PREVIEW_STAGE_HEIGHT = 192;
 const DROID_PREVIEW_SCALE_BODY = 'standard' satisfies DroidBody;
 const DROID_PREVIEW_LAYOUT_ANTENNA = 'bigball' satisfies CreatureAntenna;
@@ -70,6 +72,7 @@ const DROID_PREVIEW_ANTENNA_CONTROL_REFERENCE = 'ball' satisfies CreatureAntenna
 const DROID_PREVIEW_OUTFIT_REGION_RATIO = 0.66;
 const DROID_PREVIEW_BODY_CONTROL_TOP = 72;
 const APPEARANCE_HOVER_CONTROL_CLASS = 'transition-opacity duration-150';
+const DROID_PREVIEW_LAYOUT_TRANSITION_CLASS = 'transition-all duration-300 ease-out';
 const COLOR_SWATCH_TRANSITION = { type: 'spring', stiffness: 720, damping: 42, mass: 0.65 };
 
 const appearanceAntennaOptions = droidAntennaOptions;
@@ -359,6 +362,8 @@ export function HireForm({
   const appearanceControlVisibilityClass = isAppearanceControlsVisible
     ? 'pointer-events-auto opacity-100'
     : 'pointer-events-none opacity-0';
+  const isAppearanceEditing = !lockAppearanceControls && isAppearanceControlsVisible;
+  const droidPreviewScale = isAppearanceEditing ? 1 : DROID_PREVIEW_REST_SCALE;
 
   // Persist the live creature as the avatar by syncing it into `profilePhotoUrl`
   // as an `appearance://` sentinel. We defer to a real image only when the user
@@ -688,8 +693,20 @@ export function HireForm({
                         }
                         onMouseLeave={() => setIsAppearanceControlsVisible(false)}
                       >
-                        <div className="flex h-full w-full flex-col items-center justify-center gap-3">
-                          <div className="relative flex h-48 w-64 max-w-full items-center justify-center overflow-visible">
+                        <div
+                          className={cn(
+                            'flex h-full w-full flex-col items-center justify-center',
+                            DROID_PREVIEW_LAYOUT_TRANSITION_CLASS,
+                            isAppearanceEditing ? 'gap-3' : 'gap-0'
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              'relative flex max-w-full items-center justify-center overflow-visible',
+                              DROID_PREVIEW_LAYOUT_TRANSITION_CLASS,
+                              isAppearanceEditing ? 'h-48 w-64' : 'h-60 w-full'
+                            )}
+                          >
                             {!lockAppearanceControls && (
                               <>
                                 <AppearanceControlTooltip label="Antenna" side="left">
@@ -831,35 +848,49 @@ export function HireForm({
 
                             {lockAppearanceControls ? (
                               <span className="flex h-full w-40 items-center justify-center sm:w-52 md:w-40">
-                                <HireDroidAvatar
-                                  isVoicePreviewPlaying={isVoicePreviewPlaying}
-                                  previewAudioElement={previewAudioElement}
-                                  antenna={selectedDroidAntenna}
-                                  body={selectedDroidBody}
-                                  color={selectedDroidColor}
-                                  baseEyes={selectedDroidEyes}
-                                  outfit={selectedDroidOutfit}
-                                  label="Marty avatar"
-                                />
+                                <span
+                                  className="block h-full w-full transition-transform duration-300 ease-out"
+                                  style={{ transform: `scale(${DROID_PREVIEW_REST_SCALE})` }}
+                                >
+                                  <HireDroidAvatar
+                                    isVoicePreviewPlaying={isVoicePreviewPlaying}
+                                    previewAudioElement={previewAudioElement}
+                                    antenna={selectedDroidAntenna}
+                                    body={selectedDroidBody}
+                                    color={selectedDroidColor}
+                                    baseEyes={selectedDroidEyes}
+                                    outfit={selectedDroidOutfit}
+                                    label="Marty avatar"
+                                  />
+                                </span>
                               </span>
                             ) : (
                               <button
                                 aria-label="Preview selected voice"
-                                className="relative z-0 flex h-full w-40 items-center justify-center bg-transparent p-0 outline-none transition-transform hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring sm:w-52 md:w-40"
+                                className={cn(
+                                  'relative z-0 flex h-full items-center justify-center bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                  DROID_PREVIEW_LAYOUT_TRANSITION_CLASS,
+                                  isAppearanceEditing ? 'w-40 sm:w-52 md:w-40' : 'w-56 sm:w-64'
+                                )}
                                 disabled={isSubmitting}
                                 onClick={playSelectedVoicePreview}
                                 type="button"
                               >
-                                <HireDroidAvatar
-                                  isVoicePreviewPlaying={isVoicePreviewPlaying}
-                                  previewAudioElement={previewAudioElement}
-                                  antenna={selectedDroidAntenna}
-                                  body={selectedDroidBody}
-                                  color={selectedDroidColor}
-                                  baseEyes={selectedDroidEyes}
-                                  outfit={selectedDroidOutfit}
-                                  label="Droid avatar"
-                                />
+                                <span
+                                  className="block h-full w-full transition-transform duration-300 ease-out"
+                                  style={{ transform: `scale(${droidPreviewScale})` }}
+                                >
+                                  <HireDroidAvatar
+                                    isVoicePreviewPlaying={isVoicePreviewPlaying}
+                                    previewAudioElement={previewAudioElement}
+                                    antenna={selectedDroidAntenna}
+                                    body={selectedDroidBody}
+                                    color={selectedDroidColor}
+                                    baseEyes={selectedDroidEyes}
+                                    outfit={selectedDroidOutfit}
+                                    label="Droid avatar"
+                                  />
+                                </span>
                               </button>
                             )}
                           </div>
@@ -867,9 +898,10 @@ export function HireForm({
                           {!lockAppearanceControls && (
                             <div
                               className={cn(
-                                'flex flex-col items-center gap-1',
-                                APPEARANCE_HOVER_CONTROL_CLASS,
-                                appearanceControlVisibilityClass
+                                'flex flex-col items-center gap-1 overflow-hidden transition-all duration-300 ease-out',
+                                isAppearanceEditing
+                                  ? 'pointer-events-auto max-h-24 translate-y-0 opacity-100'
+                                  : 'pointer-events-none max-h-0 -translate-y-1 opacity-0'
                               )}
                             >
                               <div className="flex items-center gap-2">
