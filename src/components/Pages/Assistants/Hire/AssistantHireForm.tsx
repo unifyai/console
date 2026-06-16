@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import Image from 'next/image';
 import { UseFormReturn, FormProvider, Controller, useWatch } from 'react-hook-form';
 import { Input } from '@/components/UI/input';
@@ -66,6 +67,7 @@ const DROID_PREVIEW_BODY_CONTROL_BASE_OFFSET = 48;
 const DROID_PREVIEW_OUTFIT_REGION_RATIO = 0.66;
 const DROID_PREVIEW_BODY_CONTROL_TOP = 72;
 const APPEARANCE_HOVER_CONTROL_CLASS = 'transition-opacity duration-150';
+const COLOR_SWATCH_TRANSITION = { type: 'spring', stiffness: 720, damping: 42, mass: 0.65 };
 
 const appearanceAntennaOptions = [
   'none',
@@ -159,9 +161,11 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 
 function AppearanceControlTooltip({
   label,
+  side = 'top',
   children,
 }: {
   label: string;
+  side?: 'top' | 'right' | 'bottom' | 'left';
   children: React.ReactElement<React.ComponentProps<typeof Button>>;
 }) {
   const { className, style } = children.props;
@@ -177,7 +181,7 @@ function AppearanceControlTooltip({
             })}
           </span>
         </TooltipTrigger>
-        <TooltipContent side="top" className="text-caption">
+        <TooltipContent side={side} className="text-caption">
           <p>{label}</p>
         </TooltipContent>
       </Tooltip>
@@ -726,7 +730,7 @@ export function HireForm({
                           <div className="relative flex h-48 w-64 max-w-full items-center justify-center overflow-visible">
                             {!lockAppearanceControls && (
                               <>
-                                <AppearanceControlTooltip label="Antenna">
+                                <AppearanceControlTooltip label="Antenna" side="left">
                                   <Button
                                     aria-label="Previous antenna style"
                                     type="button"
@@ -748,7 +752,7 @@ export function HireForm({
                                     <ChevronLeft className="!h-6 !w-6" />
                                   </Button>
                                 </AppearanceControlTooltip>
-                                <AppearanceControlTooltip label="Antenna">
+                                <AppearanceControlTooltip label="Antenna" side="right">
                                   <Button
                                     aria-label="Next antenna style"
                                     type="button"
@@ -771,7 +775,7 @@ export function HireForm({
                                   </Button>
                                 </AppearanceControlTooltip>
 
-                                <AppearanceControlTooltip label="Outfit">
+                                <AppearanceControlTooltip label="Outfit" side="left">
                                   <Button
                                     aria-label="Previous droid outfit"
                                     type="button"
@@ -793,7 +797,7 @@ export function HireForm({
                                     <ChevronLeft className="!h-6 !w-6" />
                                   </Button>
                                 </AppearanceControlTooltip>
-                                <AppearanceControlTooltip label="Outfit">
+                                <AppearanceControlTooltip label="Outfit" side="right">
                                   <Button
                                     aria-label="Next droid outfit"
                                     type="button"
@@ -816,7 +820,7 @@ export function HireForm({
                                   </Button>
                                 </AppearanceControlTooltip>
 
-                                <AppearanceControlTooltip label="Body">
+                                <AppearanceControlTooltip label="Body" side="left">
                                   <Button
                                     aria-label="Previous body shape"
                                     type="button"
@@ -838,7 +842,7 @@ export function HireForm({
                                     <ChevronLeft className="!h-6 !w-6" />
                                   </Button>
                                 </AppearanceControlTooltip>
-                                <AppearanceControlTooltip label="Body">
+                                <AppearanceControlTooltip label="Body" side="right">
                                   <Button
                                     aria-label="Next body shape"
                                     type="button"
@@ -907,7 +911,7 @@ export function HireForm({
                               )}
                             >
                               <div className="flex items-center gap-2">
-                                <AppearanceControlTooltip label="Color">
+                                <AppearanceControlTooltip label="Color" side="left">
                                   <Button
                                     aria-label="Previous droid color"
                                     type="button"
@@ -929,21 +933,31 @@ export function HireForm({
                                   className="flex items-center gap-1.5 px-1 py-1"
                                   role="img"
                                 >
-                                  {[previousColor, selectedDroidColor, nextColor].map((color) => (
-                                    <span
-                                      aria-hidden="true"
-                                      className={cn(
-                                        'rounded-control block border border-border',
-                                        color === selectedDroidColor
-                                          ? 'h-5 w-5'
-                                          : 'h-3.5 w-3.5 opacity-65'
-                                      )}
-                                      key={color}
-                                      style={{ backgroundColor: roleColorVars[color] }}
-                                    />
-                                  ))}
+                                  <AnimatePresence initial={false} mode="popLayout">
+                                    {[previousColor, selectedDroidColor, nextColor].map((color) => (
+                                      <motion.span
+                                        aria-hidden="true"
+                                        className={cn(
+                                          'rounded-control block border border-border',
+                                          color === selectedDroidColor
+                                            ? 'h-5 w-5'
+                                            : 'h-3.5 w-3.5 opacity-65'
+                                        )}
+                                        exit={{ opacity: 0, scale: 0.8 }}
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{
+                                          opacity: color === selectedDroidColor ? 1 : 0.65,
+                                          scale: 1,
+                                        }}
+                                        key={color}
+                                        layout
+                                        style={{ backgroundColor: roleColorVars[color] }}
+                                        transition={COLOR_SWATCH_TRANSITION}
+                                      />
+                                    ))}
+                                  </AnimatePresence>
                                 </div>
-                                <AppearanceControlTooltip label="Color">
+                                <AppearanceControlTooltip label="Color" side="right">
                                   <Button
                                     aria-label="Next droid color"
                                     type="button"
