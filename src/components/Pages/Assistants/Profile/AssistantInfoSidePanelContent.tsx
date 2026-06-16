@@ -492,6 +492,25 @@ function IdentityHeader({
 }: IdentityHeaderProps) {
   const metadataRowClass =
     'text-caption grid min-w-0 grid-cols-[10ch_minmax(0,1fr)] items-center gap-x-1 text-muted-foreground';
+  const creatureAppearance = parseCreatureSentinel(photoSrc);
+  const creatureAvatarClassName = cn(
+    'w-14 flex-shrink-0 rounded-md',
+    creatureAppearance?.body === 'tall' ? 'h-16' : 'h-14'
+  );
+  const renderedAvatar =
+    avatarNode ??
+    (creatureAppearance ? (
+      <CreatureAvatar
+        appearance={creatureAppearance}
+        className={creatureAvatarClassName}
+        label={name}
+      />
+    ) : (
+      <Avatar className="h-14 w-14 flex-shrink-0 rounded-md">
+        <AvatarImage src={photoSrc} alt={name} className="rounded-md" />
+        <AvatarFallback className="rounded-md">{initials}</AvatarFallback>
+      </Avatar>
+    ));
 
   return (
     <div className="flex items-start gap-3">
@@ -505,34 +524,10 @@ function IdentityHeader({
           tooltipSide="right"
           testId="assistant-info-avatar-start-call"
         >
-          {avatarNode ??
-            (parseCreatureSentinel(photoSrc) ? (
-              <CreatureAvatar
-                appearance={photoSrc as string}
-                className="h-14 w-14 flex-shrink-0 rounded-md"
-                label={name}
-              />
-            ) : (
-              <Avatar className="h-14 w-14 flex-shrink-0 rounded-md">
-                <AvatarImage src={photoSrc} alt={name} className="rounded-md" />
-                <AvatarFallback className="rounded-md">{initials}</AvatarFallback>
-              </Avatar>
-            ))}
+          {renderedAvatar}
         </AssistantStartCallDropdown>
       ) : (
-        (avatarNode ??
-        (parseCreatureSentinel(photoSrc) ? (
-          <CreatureAvatar
-            appearance={photoSrc as string}
-            className="h-14 w-14 flex-shrink-0 rounded-md"
-            label={name}
-          />
-        ) : (
-          <Avatar className="h-14 w-14 flex-shrink-0 rounded-md">
-            <AvatarImage src={photoSrc} alt={name} className="rounded-md" />
-            <AvatarFallback className="rounded-md">{initials}</AvatarFallback>
-          </Avatar>
-        )))
+        renderedAvatar
       )}
       <div className="min-w-0 flex-1 space-y-0.5">
         <div className="text-title truncate" data-testid="assistant-info-name">
