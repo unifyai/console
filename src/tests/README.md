@@ -12,13 +12,18 @@ Browser-based end-to-end tests that validate **complete user flows** through the
 
 ## Local Setup
 
+> **This is the E2E dev/test harness, not the way to run the product.** To run
+> the whole system locally, use **`unity stack up`** from the
+> [unity repo](https://github.com/unifyai/unity) (see its
+> [self-host docs](https://github.com/unifyai/unity/blob/staging/deploy/selfhost/README.md)).
+> The seeded harness below exists for Console E2E tests.
+
 E2E tests run against the full local stack. No cloud credentials, external API keys, or third-party services are required — the system automatically stubs everything that isn't available locally.
 
 ### Prerequisites
 
-1. **Orchestra + PostgreSQL** — start via `scripts/local.sh` in the Orchestra repo. This sets `ORCHESTRA_ENVIRONMENT=dev`, which activates server-side stubs for all external services.
-2. **Console** — start via `npm run dev` in this repo.
-3. **Docker** — required for PostgreSQL access (seed helpers use `docker exec psql`).
+1. **Console + Orchestra + PostgreSQL** — start everything with `./scripts/local.sh start` in **this** repo (it brings up PostgreSQL, Orchestra in `ORCHESTRA_ENVIRONMENT=dev` with all external-service stubs active, seeds data, and Console). You do not need to start Orchestra or `npm run dev` separately.
+2. **Docker** — required for PostgreSQL access (seed helpers use `docker exec psql`).
 
 ### How services are stubbed locally
 

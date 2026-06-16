@@ -22,8 +22,11 @@ Each demo script:
 
 ## Prerequisites
 
-- Local stack running: `./scripts/local.sh start`
-- Console dev server: `npm run dev`
+> These demos use Console's internal dev/test harness, not the product run
+> path. To run the whole system locally, use **`unity stack up`** from the
+> [unity repo](https://github.com/unifyai/unity).
+
+- Local stack running: `./scripts/local.sh start` (starts Orchestra + Console + seeds)
 - Docker (for seed DB access)
 
 ## Running
