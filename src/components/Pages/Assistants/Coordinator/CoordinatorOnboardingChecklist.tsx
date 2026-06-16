@@ -80,6 +80,8 @@ interface OnboardingChecklistItem {
    * progress bar — same accounting model as the per-assistant setup
    * roadmap. */
   children?: OnboardingChecklistItem[];
+  /** Whether the row can be deferred with the inline Later affordance. */
+  canSkip?: boolean;
 }
 
 const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
@@ -103,6 +105,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         estimatedTime: '~10s',
         action: 'trigger-email-reference',
         prerequisiteId: 'meet',
+        canSkip: false,
       },
       {
         id: 'email-reply',
@@ -127,6 +130,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         estimatedTime: '~10s',
         action: 'trigger-whatsapp-message-reference',
         prerequisiteId: 'whatsapp-number',
+        canSkip: false,
       },
       {
         id: 'whatsapp-message',
@@ -143,6 +147,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         estimatedTime: '~10s',
         action: 'trigger-whatsapp-call-reference',
         prerequisiteId: 'whatsapp-message',
+        canSkip: false,
       },
       {
         id: 'whatsapp-call',
@@ -167,6 +172,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         estimatedTime: '~10s',
         action: 'trigger-sms-reference',
         prerequisiteId: 'phone-number',
+        canSkip: false,
       },
       {
         id: 'sms-message',
@@ -183,6 +189,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         estimatedTime: '~10s',
         action: 'trigger-phone-call-reference',
         prerequisiteId: 'sms-message',
+        canSkip: false,
       },
       {
         id: 'phone-call',
@@ -207,6 +214,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         estimatedTime: '~10s',
         action: 'trigger-slack-reference',
         prerequisiteId: 'slack-connect',
+        canSkip: false,
       },
       {
         id: 'slack-message',
@@ -231,6 +239,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         estimatedTime: '~10s',
         action: 'trigger-discord-reference',
         prerequisiteId: 'discord-connect',
+        canSkip: false,
       },
       {
         id: 'discord-message',
@@ -949,7 +958,7 @@ function ChecklistRow({
     [item, isActionWired]
   );
   const canOpenChildAction = !!nextChildAction && !isResolved;
-  const canSkip = !!onSkipStep && !item.children?.length && !isResolved;
+  const canSkip = !!onSkipStep && item.canSkip !== false && !item.children?.length && !isResolved;
   const canUnskip = !!onUnskipStep && !item.children?.length && item.status === 'skipped';
   // Whether the next actionable leaf sits somewhere inside this
   // row's subtree. Parents on the path to "Next" stay at full

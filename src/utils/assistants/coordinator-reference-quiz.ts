@@ -1,5 +1,5 @@
-export const COORDINATOR_REFERENCE_QUIZ_EVENT_TYPE =
-  'coordinator_onboarding_reference_quiz_requested';
+export const COORDINATOR_REFERENCE_QUIZ_EVENT_TYPE = 'coordinator_onboarding_event';
+export const COORDINATOR_REFERENCE_QUIZ_SUBTYPE = 'reference_quiz_clue_requested';
 
 export type CoordinatorReferenceQuizTriggerStepId =
   | 'email-reference'
@@ -123,14 +123,18 @@ export async function dispatchCoordinatorReferenceQuizClue(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       eventType: COORDINATOR_REFERENCE_QUIZ_EVENT_TYPE,
-      message: clue.clue,
+      message: 'The user triggered a reference quiz clue during Coordinator onboarding.',
       extraEventFields: {
-        stepId: clue.replyStepId,
-        triggerStepId: clue.triggerStepId,
-        channel: clue.channel,
-        clue: clue.clue,
-        quote: clue.quote,
-        answer: clue.answer,
+        subtype: COORDINATOR_REFERENCE_QUIZ_SUBTYPE,
+        details: {
+          game: 'guess_the_reference',
+          triggerStepId: clue.triggerStepId,
+          replyStepId: clue.replyStepId,
+          channel: clue.channel,
+          clue: clue.clue,
+          quote: clue.quote,
+          answer: clue.answer,
+        },
       },
     }),
   });

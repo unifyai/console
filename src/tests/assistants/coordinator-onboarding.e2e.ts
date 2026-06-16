@@ -46,23 +46,16 @@ test.setTimeout(120_000);
 test.describe.configure({ mode: 'serial' });
 
 const COMMS_STEP_IDS = [
-  'email-reference',
   'email-reply',
   'whatsapp-number',
-  'whatsapp-message-reference',
   'whatsapp-message',
-  'whatsapp-call-reference',
   'whatsapp-call',
   'phone-number',
-  'sms-reference',
   'sms-message',
-  'phone-call-reference',
   'phone-call',
   'slack-connect',
-  'slack-reference',
   'slack-message',
   'discord-connect',
-  'discord-reference',
   'discord-message',
 ] as const;
 
