@@ -54,6 +54,7 @@ interface VoiceCustomizationProps {
   onProcessingStateChange?: (isProcessing: boolean) => void;
   onPreviewPlayingChange?: (isPlaying: boolean) => void;
   onPreviewAudioElementChange?: (audioElement: HTMLAudioElement | null) => void;
+  onPlaySelectedVoicePreviewChange?: (playSelectedVoicePreview: (() => void) | null) => void;
   allDisplayableVoices: VoiceOption[];
   isLoadingUserVoices: boolean;
   fetchUserVoices: () => void;
@@ -173,6 +174,7 @@ export function VoiceCustomization({
   setActiveTab: setActiveMainTab,
   onPreviewPlayingChange,
   onPreviewAudioElementChange,
+  onPlaySelectedVoicePreviewChange,
 }: VoiceCustomizationProps) {
   const [selectedVoiceId, setSelectedVoiceId] = React.useState<string | null>(initialVoiceId);
 
@@ -258,6 +260,16 @@ export function VoiceCustomization({
   React.useEffect(() => {
     onPreviewAudioElementChange?.(previewAudioElement);
   }, [onPreviewAudioElementChange, previewAudioElement]);
+
+  const playSelectedVoicePreview = React.useCallback(() => {
+    if (!selectedVoice) return;
+    playPreview(selectedVoice);
+  }, [playPreview, selectedVoice]);
+
+  React.useEffect(() => {
+    onPlaySelectedVoicePreviewChange?.(selectedVoice ? playSelectedVoicePreview : null);
+    return () => onPlaySelectedVoicePreviewChange?.(null);
+  }, [onPlaySelectedVoicePreviewChange, playSelectedVoicePreview, selectedVoice]);
 
   const handleSelectVoiceDisplay = React.useCallback(
     (voice: VoiceOption | null) => {

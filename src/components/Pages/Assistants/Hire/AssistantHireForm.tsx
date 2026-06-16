@@ -55,11 +55,15 @@ import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 import type { OAuthProvider } from '@/types/assistants/contact';
 import { DroidCallAvatar } from '@/components/Pages/Assistants/Communication/DroidCallAvatar';
 import { useDroidAudioElementLipsync } from '@/utils/assistants/droid-lipsync';
-import { getCreatureForm, getRotatingBotAnchorRatios } from '@droid/brand/components';
+import { getCreatureForm, getRotatingBotViewBox } from '@droid/brand/components';
 
 const staticSkillsText = `The bio doesn't influence the droid's abilities. All droids come with the same foundational skills and can specialize in whichever area you want them to.`;
-const DROID_PREVIEW_SIZE = 150;
+const DROID_PREVIEW_SIZE = 120;
 const DROID_PREVIEW_STAGE_HEIGHT = 192;
+const DROID_PREVIEW_LAYOUT_ANTENNA = 'bigball' satisfies CreatureAntenna;
+const DROID_PREVIEW_ANTENNA_CONTROL_REFERENCE = 'ball' satisfies CreatureAntenna;
+const DROID_PREVIEW_BODY_CONTROL_BASE_OFFSET = 48;
+const DROID_PREVIEW_OUTFIT_REGION_RATIO = 0.72;
 const APPEARANCE_HOVER_CONTROL_CLASS = 'transition-opacity duration-150';
 
 const appearanceEyeOptions = ['up', 'down', 'square'] as const satisfies readonly CreatureEyes[];
@@ -109,26 +113,6 @@ const appearanceSkinOptions = [
   'pearlButtons',
   'pearlNecklace',
 ] as const satisfies readonly ('none' | BotSkin)[];
-const appearanceSkinLabels: Record<(typeof appearanceSkinOptions)[number], string> = {
-  none: 'none',
-  tieOnly: 'tie',
-  bowTieOnly: 'bow',
-  buttonsOnly: 'buttons',
-  shirtPocketOnly: 'pocket',
-  shirtCollarOnly: 'collar',
-  shirtTie: 'collar + tie',
-  shirtTiePocket: 'pocket + tie',
-  collarButtons: 'collar + buttons',
-  bowTie: 'bow + buttons',
-  pocketButtons: 'pocket + buttons',
-  tuxedo: 'tux + bow + buttons',
-  tuxBow: 'tux + bow',
-  tuxButtons: 'tux + buttons',
-  suspendersButtons: 'suspenders + buttons',
-  suspenders: 'suspenders + bow + buttons',
-  pearlButtons: 'pearls + buttons',
-  pearlNecklace: 'pearls',
-};
 const DEFAULT_COORDINATOR_APPEARANCE = {
   eyes: 'up',
   antenna: 'ball',
@@ -159,6 +143,10 @@ function pickOption<T>(items: readonly T[], current: T): T {
   return next;
 }
 
+function clampPreviewControlTop(top: number): number {
+  return Math.max(0, Math.min(DROID_PREVIEW_STAGE_HEIGHT - 32, top));
+}
+
 function SectionIconSlot({ children }: { children: React.ReactNode }) {
   return (
     <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">{children}</span>
@@ -167,6 +155,16 @@ function SectionIconSlot({ children }: { children: React.ReactNode }) {
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return <div className="mb-2 flex items-center gap-2 text-muted-foreground">{children}</div>;
+}
+
+function AppearanceControlTooltip({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactElement<React.ButtonHTMLAttributes<HTMLButtonElement>>;
+}) {
+  return React.cloneElement(children, { title: label });
 }
 
 function normalizeAppearanceAntenna(
@@ -198,30 +196,48 @@ function HireDroidAvatar({
     enabled: isVoicePreviewPlaying && !!previewAudioElement,
   });
   const form = getCreatureForm(shape);
-  const anchor = getRotatingBotAnchorRatios(form, undefined, undefined, undefined, antenna);
+  const layoutViewBox = getRotatingBotViewBox(
+    form,
+    undefined,
+    undefined,
+    undefined,
+    DROID_PREVIEW_LAYOUT_ANTENNA
+  );
+  const selectedViewBox = getRotatingBotViewBox(form, undefined, undefined, undefined, antenna);
+  const scale = DROID_PREVIEW_SIZE / layoutViewBox.w;
 
   return (
     <span className="relative block h-full w-full overflow-visible">
       <span
-        className="absolute bottom-0 left-1/2 block"
+        className="absolute left-1/2 top-1/2 block"
         style={{
           width: `${DROID_PREVIEW_SIZE}px`,
-          transform: `translate(-50%, ${(anchor.y * DROID_PREVIEW_SIZE).toFixed(2)}px)`,
+          height: `${layoutViewBox.h * scale}px`,
+          transform: 'translate(-50%, -50%)',
         }}
       >
-        <DroidCallAvatar
-          isSpeaking={voicePreviewLipsyncFrame.isActive}
-          mouthShape={voicePreviewLipsyncFrame.mouthShape}
-          speechLevel={voicePreviewLipsyncFrame.speechLevel}
-          antenna={antenna}
-          shape={shape}
-          color={color}
-          baseEyes={baseEyes}
-          skin={skin}
-          label={label}
-          className="block h-auto w-full transform-gpu"
-          creatureClassName="block h-auto w-full"
-        />
+        <span
+          className="absolute block"
+          style={{
+            left: `${(selectedViewBox.minX - layoutViewBox.minX) * scale}px`,
+            top: `${(selectedViewBox.minY - layoutViewBox.minY) * scale}px`,
+            width: `${selectedViewBox.w * scale}px`,
+          }}
+        >
+          <DroidCallAvatar
+            isSpeaking={voicePreviewLipsyncFrame.isActive}
+            mouthShape={voicePreviewLipsyncFrame.mouthShape}
+            speechLevel={voicePreviewLipsyncFrame.speechLevel}
+            antenna={antenna}
+            shape={shape}
+            color={color}
+            baseEyes={baseEyes}
+            skin={skin}
+            label={label}
+            className="block h-auto w-full transform-gpu"
+            creatureClassName="block h-auto w-full"
+          />
+        </span>
       </span>
     </span>
   );
@@ -333,6 +349,7 @@ export function HireForm({
   const [previewAudioElement, setPreviewAudioElement] = React.useState<HTMLAudioElement | null>(
     null
   );
+  const playSelectedVoicePreviewRef = React.useRef<(() => void) | null>(null);
   const setup = useWatch({ control, name: 'setup' });
   const operatingSystem = useWatch({ control, name: 'operatingSystem' });
   const firstName = useWatch({ control, name: 'firstName' });
@@ -429,13 +446,42 @@ export function HireForm({
   const workspaceAssistantName =
     typeof firstName === 'string' && firstName.trim().length > 0 ? firstName.trim() : 'this droid';
   const isWorkspaceWarning = mode === 'hire' && showWorkspaceWarning;
-  const eyeArrowTop = React.useMemo(() => {
+  const droidControlTop = React.useMemo(() => {
     const metrics = getCreatureMetrics(selectedDroidShape, selectedDroidAntenna);
-    const scale = Math.min(DROID_PREVIEW_SIZE / metrics.width, DROID_PREVIEW_SIZE / metrics.height);
-    const renderedHeight = metrics.height * scale;
-    const renderedTop = DROID_PREVIEW_STAGE_HEIGHT - renderedHeight;
+    const form = getCreatureForm(selectedDroidShape);
+    const layoutViewBox = getRotatingBotViewBox(
+      form,
+      undefined,
+      undefined,
+      undefined,
+      DROID_PREVIEW_LAYOUT_ANTENNA
+    );
+    const selectedViewBox = getRotatingBotViewBox(
+      form,
+      undefined,
+      undefined,
+      undefined,
+      selectedDroidAntenna
+    );
+    const antennaControlViewBox = getRotatingBotViewBox(
+      form,
+      undefined,
+      undefined,
+      undefined,
+      DROID_PREVIEW_ANTENNA_CONTROL_REFERENCE
+    );
+    const scale = DROID_PREVIEW_SIZE / layoutViewBox.w;
+    const layoutTop = (DROID_PREVIEW_STAGE_HEIGHT - layoutViewBox.h * scale) / 2;
+    const renderedTop = layoutTop + (selectedViewBox.minY - layoutViewBox.minY) * scale;
+    const antennaControlTop = layoutTop + (antennaControlViewBox.minY - layoutViewBox.minY) * scale;
 
-    return renderedTop + metrics.eyeY * scale - 16;
+    return {
+      antenna: clampPreviewControlTop(antennaControlTop + 18),
+      eyes: clampPreviewControlTop(renderedTop + metrics.eyeY * scale - 16),
+      outfit: clampPreviewControlTop(
+        renderedTop + selectedViewBox.h * scale * DROID_PREVIEW_OUTFIT_REGION_RATIO - 16
+      ),
+    };
   }, [selectedDroidShape, selectedDroidAntenna]);
 
   const randomizeDroidAppearance = React.useCallback(() => {
@@ -452,6 +498,13 @@ export function HireForm({
     onRandomizeProfile?.();
     randomizeDroidAppearance();
   }, [onRandomizeProfile, randomizeDroidAppearance]);
+
+  const handlePlaySelectedVoicePreviewChange = React.useCallback(
+    (playPreviewForSelectedVoice: (() => void) | null) => {
+      playSelectedVoicePreviewRef.current = playPreviewForSelectedVoice;
+    },
+    []
+  );
 
   // Reset OS to 'ubuntu' when switching from local to remote if 'macos' is selected (macos is only available for local)
   React.useEffect(() => {
@@ -660,124 +713,140 @@ export function HireForm({
                           <div className="relative flex h-48 w-64 max-w-full items-center justify-center overflow-visible">
                             {!lockAppearanceControls && (
                               <>
-                                <Button
-                                  aria-label="Previous antenna style"
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className={cn(
-                                    'absolute left-0 top-[8%] h-8 w-8 bg-transparent hover:bg-transparent md:left-4',
-                                    APPEARANCE_HOVER_CONTROL_CLASS,
-                                    appearanceControlVisibilityClass
-                                  )}
-                                  disabled={isSubmitting}
-                                  onClick={() =>
-                                    setDroidAntenna((current) =>
-                                      cycleOption(appearanceAntennaOptions, current, -1)
-                                    )
-                                  }
-                                >
-                                  <ChevronLeft className="!h-6 !w-6" />
-                                </Button>
-                                <Button
-                                  aria-label="Next antenna style"
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className={cn(
-                                    'absolute right-0 top-[8%] h-8 w-8 bg-transparent hover:bg-transparent md:right-4',
-                                    APPEARANCE_HOVER_CONTROL_CLASS,
-                                    appearanceControlVisibilityClass
-                                  )}
-                                  disabled={isSubmitting}
-                                  onClick={() =>
-                                    setDroidAntenna((current) =>
-                                      cycleOption(appearanceAntennaOptions, current, 1)
-                                    )
-                                  }
-                                >
-                                  <ChevronRight className="!h-6 !w-6" />
-                                </Button>
+                                <AppearanceControlTooltip label="Antenna">
+                                  <Button
+                                    aria-label="Previous antenna style"
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn(
+                                      'absolute left-0 z-20 h-8 w-8 bg-transparent hover:bg-transparent md:left-4',
+                                      APPEARANCE_HOVER_CONTROL_CLASS,
+                                      appearanceControlVisibilityClass
+                                    )}
+                                    disabled={isSubmitting}
+                                    onClick={() =>
+                                      setDroidAntenna((current) =>
+                                        cycleOption(appearanceAntennaOptions, current, -1)
+                                      )
+                                    }
+                                    style={{ top: droidControlTop.antenna }}
+                                  >
+                                    <ChevronLeft className="!h-6 !w-6" />
+                                  </Button>
+                                </AppearanceControlTooltip>
+                                <AppearanceControlTooltip label="Antenna">
+                                  <Button
+                                    aria-label="Next antenna style"
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn(
+                                      'absolute right-0 z-20 h-8 w-8 bg-transparent hover:bg-transparent md:right-4',
+                                      APPEARANCE_HOVER_CONTROL_CLASS,
+                                      appearanceControlVisibilityClass
+                                    )}
+                                    disabled={isSubmitting}
+                                    onClick={() =>
+                                      setDroidAntenna((current) =>
+                                        cycleOption(appearanceAntennaOptions, current, 1)
+                                      )
+                                    }
+                                    style={{ top: droidControlTop.antenna }}
+                                  >
+                                    <ChevronRight className="!h-6 !w-6" />
+                                  </Button>
+                                </AppearanceControlTooltip>
 
-                                <Button
-                                  aria-label="Previous eye style"
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className={cn(
-                                    'absolute left-0 h-8 w-8 bg-transparent hover:bg-transparent md:left-4',
-                                    APPEARANCE_HOVER_CONTROL_CLASS,
-                                    appearanceControlVisibilityClass
-                                  )}
-                                  disabled={isSubmitting}
-                                  onClick={() =>
-                                    setDroidEyes((current) =>
-                                      cycleOption(appearanceEyeOptions, current, -1)
-                                    )
-                                  }
-                                  style={{ top: eyeArrowTop }}
-                                >
-                                  <ChevronLeft className="!h-6 !w-6" />
-                                </Button>
-                                <Button
-                                  aria-label="Next eye style"
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className={cn(
-                                    'absolute right-0 h-8 w-8 bg-transparent hover:bg-transparent md:right-4',
-                                    APPEARANCE_HOVER_CONTROL_CLASS,
-                                    appearanceControlVisibilityClass
-                                  )}
-                                  disabled={isSubmitting}
-                                  onClick={() =>
-                                    setDroidEyes((current) =>
-                                      cycleOption(appearanceEyeOptions, current, 1)
-                                    )
-                                  }
-                                  style={{ top: eyeArrowTop }}
-                                >
-                                  <ChevronRight className="!h-6 !w-6" />
-                                </Button>
+                                <AppearanceControlTooltip label="Eyes">
+                                  <Button
+                                    aria-label="Previous eye style"
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn(
+                                      'absolute left-0 z-20 h-8 w-8 bg-transparent hover:bg-transparent md:left-4',
+                                      APPEARANCE_HOVER_CONTROL_CLASS,
+                                      appearanceControlVisibilityClass
+                                    )}
+                                    disabled={isSubmitting}
+                                    onClick={() =>
+                                      setDroidEyes((current) =>
+                                        cycleOption(appearanceEyeOptions, current, -1)
+                                      )
+                                    }
+                                    style={{ top: droidControlTop.eyes }}
+                                  >
+                                    <ChevronLeft className="!h-6 !w-6" />
+                                  </Button>
+                                </AppearanceControlTooltip>
+                                <AppearanceControlTooltip label="Eyes">
+                                  <Button
+                                    aria-label="Next eye style"
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn(
+                                      'absolute right-0 z-20 h-8 w-8 bg-transparent hover:bg-transparent md:right-4',
+                                      APPEARANCE_HOVER_CONTROL_CLASS,
+                                      appearanceControlVisibilityClass
+                                    )}
+                                    disabled={isSubmitting}
+                                    onClick={() =>
+                                      setDroidEyes((current) =>
+                                        cycleOption(appearanceEyeOptions, current, 1)
+                                      )
+                                    }
+                                    style={{ top: droidControlTop.eyes }}
+                                  >
+                                    <ChevronRight className="!h-6 !w-6" />
+                                  </Button>
+                                </AppearanceControlTooltip>
 
-                                <Button
-                                  aria-label="Previous body shape"
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className={cn(
-                                    'absolute left-0 top-[55%] h-8 w-8 bg-transparent hover:bg-transparent md:left-4',
-                                    APPEARANCE_HOVER_CONTROL_CLASS,
-                                    appearanceControlVisibilityClass
-                                  )}
-                                  disabled={isSubmitting}
-                                  onClick={() =>
-                                    setDroidShape((current) =>
-                                      cycleOption(appearanceShapeOptions, current, -1)
-                                    )
-                                  }
-                                >
-                                  <ChevronLeft className="!h-6 !w-6" />
-                                </Button>
-                                <Button
-                                  aria-label="Next body shape"
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className={cn(
-                                    'absolute right-0 top-[55%] h-8 w-8 bg-transparent hover:bg-transparent md:right-4',
-                                    APPEARANCE_HOVER_CONTROL_CLASS,
-                                    appearanceControlVisibilityClass
-                                  )}
-                                  disabled={isSubmitting}
-                                  onClick={() =>
-                                    setDroidShape((current) =>
-                                      cycleOption(appearanceShapeOptions, current, 1)
-                                    )
-                                  }
-                                >
-                                  <ChevronRight className="!h-6 !w-6" />
-                                </Button>
+                                <AppearanceControlTooltip label="Outfit">
+                                  <Button
+                                    aria-label="Previous droid outfit"
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn(
+                                      'absolute left-0 z-20 h-8 w-8 bg-transparent hover:bg-transparent md:left-4',
+                                      APPEARANCE_HOVER_CONTROL_CLASS,
+                                      appearanceControlVisibilityClass
+                                    )}
+                                    disabled={isSubmitting}
+                                    onClick={() =>
+                                      setDroidSkin((current) =>
+                                        cycleOption(appearanceSkinOptions, current, -1)
+                                      )
+                                    }
+                                    style={{ top: droidControlTop.outfit }}
+                                  >
+                                    <ChevronLeft className="!h-6 !w-6" />
+                                  </Button>
+                                </AppearanceControlTooltip>
+                                <AppearanceControlTooltip label="Outfit">
+                                  <Button
+                                    aria-label="Next droid outfit"
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn(
+                                      'absolute right-0 z-20 h-8 w-8 bg-transparent hover:bg-transparent md:right-4',
+                                      APPEARANCE_HOVER_CONTROL_CLASS,
+                                      appearanceControlVisibilityClass
+                                    )}
+                                    disabled={isSubmitting}
+                                    onClick={() =>
+                                      setDroidSkin((current) =>
+                                        cycleOption(appearanceSkinOptions, current, 1)
+                                      )
+                                    }
+                                    style={{ top: droidControlTop.outfit }}
+                                  >
+                                    <ChevronRight className="!h-6 !w-6" />
+                                  </Button>
+                                </AppearanceControlTooltip>
                               </>
                             )}
 
@@ -796,10 +865,10 @@ export function HireForm({
                               </span>
                             ) : (
                               <button
-                                aria-label="Randomize droid appearance"
-                                className="flex h-full w-40 items-center justify-center bg-transparent p-0 outline-none transition-transform hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring sm:w-52 md:w-40"
+                                aria-label="Preview selected voice"
+                                className="relative z-0 flex h-full w-40 items-center justify-center bg-transparent p-0 outline-none transition-transform hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring sm:w-52 md:w-40"
                                 disabled={isSubmitting}
-                                onClick={randomizeDroidAppearance}
+                                onClick={() => playSelectedVoicePreviewRef.current?.()}
                                 type="button"
                               >
                                 <HireDroidAvatar
@@ -825,21 +894,23 @@ export function HireForm({
                               )}
                             >
                               <div className="flex items-center gap-2">
-                                <Button
-                                  aria-label="Previous droid color"
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 bg-transparent hover:bg-transparent"
-                                  disabled={isSubmitting}
-                                  onClick={() =>
-                                    setDroidColor((current) =>
-                                      cycleOption(appearanceColorOptions, current, -1)
-                                    )
-                                  }
-                                >
-                                  <ChevronLeft className="!h-6 !w-6" />
-                                </Button>
+                                <AppearanceControlTooltip label="Color">
+                                  <Button
+                                    aria-label="Previous droid color"
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 bg-transparent hover:bg-transparent"
+                                    disabled={isSubmitting}
+                                    onClick={() =>
+                                      setDroidColor((current) =>
+                                        cycleOption(appearanceColorOptions, current, -1)
+                                      )
+                                    }
+                                  >
+                                    <ChevronLeft className="!h-6 !w-6" />
+                                  </Button>
+                                </AppearanceControlTooltip>
                                 <div
                                   aria-label={`Current droid color: ${selectedDroidColor}`}
                                   className="flex items-center gap-1.5 px-1 py-1"
@@ -859,60 +930,72 @@ export function HireForm({
                                     />
                                   ))}
                                 </div>
-                                <Button
-                                  aria-label="Next droid color"
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 bg-transparent hover:bg-transparent"
-                                  disabled={isSubmitting}
-                                  onClick={() =>
-                                    setDroidColor((current) =>
-                                      cycleOption(appearanceColorOptions, current, 1)
-                                    )
-                                  }
-                                >
-                                  <ChevronRight className="!h-6 !w-6" />
-                                </Button>
+                                <AppearanceControlTooltip label="Color">
+                                  <Button
+                                    aria-label="Next droid color"
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 bg-transparent hover:bg-transparent"
+                                    disabled={isSubmitting}
+                                    onClick={() =>
+                                      setDroidColor((current) =>
+                                        cycleOption(appearanceColorOptions, current, 1)
+                                      )
+                                    }
+                                  >
+                                    <ChevronRight className="!h-6 !w-6" />
+                                  </Button>
+                                </AppearanceControlTooltip>
                               </div>
 
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center justify-center gap-2">
+                                <AppearanceControlTooltip label="Body">
+                                  <Button
+                                    aria-label="Previous body shape"
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 bg-transparent hover:bg-transparent"
+                                    disabled={isSubmitting}
+                                    onClick={() =>
+                                      setDroidShape((current) =>
+                                        cycleOption(appearanceShapeOptions, current, -1)
+                                      )
+                                    }
+                                  >
+                                    <ChevronLeft className="!h-6 !w-6" />
+                                  </Button>
+                                </AppearanceControlTooltip>
                                 <Button
-                                  aria-label="Previous droid outfit"
+                                  aria-label="Randomize droid appearance"
                                   type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 bg-transparent hover:bg-transparent"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 gap-1.5"
                                   disabled={isSubmitting}
-                                  onClick={() =>
-                                    setDroidSkin((current) =>
-                                      cycleOption(appearanceSkinOptions, current, -1)
-                                    )
-                                  }
+                                  onClick={randomizeDroidAppearance}
                                 >
-                                  <ChevronLeft className="!h-5 !w-5" />
+                                  <Shuffle className="h-3.5 w-3.5" />
+                                  Randomize
                                 </Button>
-                                <div
-                                  aria-label={`Current droid outfit: ${appearanceSkinLabels[selectedDroidSkin]}`}
-                                  className="rounded-control border-border/70 bg-background/80 text-caption min-w-32 border px-2 py-1 text-center text-muted-foreground"
-                                >
-                                  Outfit: {appearanceSkinLabels[selectedDroidSkin]}
-                                </div>
-                                <Button
-                                  aria-label="Next droid outfit"
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 bg-transparent hover:bg-transparent"
-                                  disabled={isSubmitting}
-                                  onClick={() =>
-                                    setDroidSkin((current) =>
-                                      cycleOption(appearanceSkinOptions, current, 1)
-                                    )
-                                  }
-                                >
-                                  <ChevronRight className="!h-5 !w-5" />
-                                </Button>
+                                <AppearanceControlTooltip label="Body">
+                                  <Button
+                                    aria-label="Next body shape"
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 bg-transparent hover:bg-transparent"
+                                    disabled={isSubmitting}
+                                    onClick={() =>
+                                      setDroidShape((current) =>
+                                        cycleOption(appearanceShapeOptions, current, 1)
+                                      )
+                                    }
+                                  >
+                                    <ChevronRight className="!h-6 !w-6" />
+                                  </Button>
+                                </AppearanceControlTooltip>
                               </div>
                             </div>
                           )}
@@ -1009,6 +1092,7 @@ export function HireForm({
                       onProcessingStateChange={onVoiceProcessingStateChange}
                       onPreviewPlayingChange={setIsVoicePreviewPlaying}
                       onPreviewAudioElementChange={setPreviewAudioElement}
+                      onPlaySelectedVoicePreviewChange={handlePlaySelectedVoicePreviewChange}
                       allDisplayableVoices={allDisplayableVoices}
                       isLoadingUserVoices={isLoadingUserVoices}
                       fetchUserVoices={fetchUserVoices}
