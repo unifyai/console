@@ -1108,6 +1108,7 @@ start_unity_coordinator() {
       local running_pid
       running_pid="$(cat /tmp/unity-local.pid 2>/dev/null || true)"
       if [[ "$(self_host_runtime_owner_for_pid "$running_pid")" == "${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}" \
+        && "$runtime_owner" != "${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}" \
         && "${UNITY_ALLOW_RUNTIME_STOP:-0}" != "1" ]]; then
         log_error "Coordinator CM is owned by the runtime service (assistant=$running_id)"
         log_info "Stop it with: unity service stop"

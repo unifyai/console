@@ -89,6 +89,42 @@ describe('provider integration proxy route', () => {
     });
   });
 
+  it('serves an empty app catalogue when Builtins has not been seeded', async () => {
+    vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
+      const url = new URL(String(input));
+      if (url.pathname === '/v0/logs') {
+        return new Response(JSON.stringify({ detail: 'Project Builtins not found.' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.pathname === '/v0/integrations/connections') {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected fetch ${url}`);
+    });
+    const request = new NextRequest(
+      'http://localhost/api/integrations/provider/apps?owner_scope=assistant&assistant_id=123&limit=50&offset=0',
+      { headers: { apiKey: 'test-api-key' } }
+    );
+
+    const response = await GET(request, { params: Promise.resolve({ path: ['apps'] }) });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      items: [],
+      total: 0,
+      limit: 50,
+      offset: 0,
+      facets: {
+        total: 0,
+      },
+    });
+  });
+
   it('forwards POST body to the matching Orchestra path', async () => {
     const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(
       async () =>

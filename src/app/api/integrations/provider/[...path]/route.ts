@@ -12,6 +12,16 @@ const BUILTINS_PROJECT = 'Builtins';
 const BUILTINS_APPS_CONTEXT = 'Integrations/Apps';
 const BUILTINS_TOOLS_CONTEXT = 'Integrations/Tools';
 
+class OrchestraFetchError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'OrchestraFetchError';
+    this.status = status;
+  }
+}
+
 function asRecord(value: unknown): UnknownRecord {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as UnknownRecord)
@@ -49,9 +59,14 @@ async function fetchOrchestraJson<T>(
   const parsed = text ? JSON.parse(text) : null;
   if (!response.ok) {
     const detail = asString(asRecord(parsed).detail) || `Request failed (${response.status})`;
-    throw new Error(detail);
+    throw new OrchestraFetchError(response.status, detail);
   }
   return parsed as T;
+}
+
+function isMissingBuiltinsCatalog(error: unknown): boolean {
+  if (!(error instanceof OrchestraFetchError)) return false;
+  return error.status === 404 || error.status === 422;
 }
 
 async function fetchBuiltinsLogs(
@@ -66,7 +81,10 @@ async function fetchBuiltinsLogs(
     apiKey,
     '/logs',
     query
-  );
+  ).catch((error: unknown) => {
+    if (isMissingBuiltinsCatalog(error)) return { logs: [] };
+    throw error;
+  });
   return asArray(asRecord(data).logs).map((item) => asRecord(asRecord(item).entries));
 }
 
