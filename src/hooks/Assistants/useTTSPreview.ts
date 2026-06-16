@@ -20,6 +20,10 @@ interface UseTTSPreviewProps {
   generateSpeechAction: AssistantActions['voice']['generate'];
 }
 
+interface PlayPreviewOptions {
+  restart?: boolean;
+}
+
 export function useTTSPreview({ generateSpeechAction }: UseTTSPreviewProps) {
   // Speech synthesis requires a TTS provider (Cartesia/ElevenLabs). When none is
   // configured, generation fails with an opaque backend error — short-circuit
@@ -60,8 +64,20 @@ export function useTTSPreview({ generateSpeechAction }: UseTTSPreviewProps) {
     };
   }, [clearAudioPreview]);
 
-  const playPreview = async (voice: VoiceOption) => {
+  const playPreview = async (voice: VoiceOption, options: PlayPreviewOptions = {}) => {
     if (isPlayingPreviewForVoiceId === voice.voiceId) {
+      if (options.restart && audioRef.current) {
+        try {
+          audioRef.current.currentTime = 0;
+          await audioRef.current.play();
+        } catch {
+          toast.error(
+            `Failed to play preview. Please try again or contact us if the issue persists.`
+          );
+        }
+        return;
+      }
+
       previewRequestIdRef.current += 1;
       clearAudioPreview();
       setIsPlayingPreviewForVoiceId(null);
@@ -69,7 +85,7 @@ export function useTTSPreview({ generateSpeechAction }: UseTTSPreviewProps) {
       return;
     }
 
-    if (isLoadingPreviewForVoiceId === voice.voiceId) return;
+    if (isLoadingPreviewForVoiceId === voice.voiceId && !options.restart) return;
 
     if (!voiceSynthesis) {
       toast.warning("Voice preview isn't available — no speech provider configured.");

@@ -263,7 +263,7 @@ export function VoiceCustomization({
 
   const playSelectedVoicePreview = React.useCallback(() => {
     if (!selectedVoice) return;
-    playPreview(selectedVoice);
+    playPreview(selectedVoice, { restart: true });
   }, [playPreview, selectedVoice]);
 
   React.useEffect(() => {

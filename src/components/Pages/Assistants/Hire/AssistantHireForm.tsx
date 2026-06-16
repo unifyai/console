@@ -44,7 +44,6 @@ import { FaUbuntu, FaWindows } from 'react-icons/fa';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 import { buildCreatureSentinel, parseCreatureSentinel } from '@/components/Brand';
 import {
-  getCreatureMetrics,
   type BotSkin,
   type CreatureAntenna,
   type CreatureEyes,
@@ -63,10 +62,11 @@ const DROID_PREVIEW_SIZE = 120;
 const DROID_PREVIEW_STAGE_HEIGHT = 192;
 const DROID_PREVIEW_LAYOUT_ANTENNA = 'bigball' satisfies CreatureAntenna;
 const DROID_PREVIEW_ANTENNA_CONTROL_REFERENCE = 'ball' satisfies CreatureAntenna;
-const DROID_PREVIEW_BODY_CONTROL_BASE_OFFSET = 48;
 const DROID_PREVIEW_OUTFIT_REGION_RATIO = 0.66;
 const DROID_PREVIEW_BODY_CONTROL_TOP = 72;
 const APPEARANCE_HOVER_CONTROL_CLASS = 'transition-opacity duration-150';
+const DROID_SPEECH_HOVER_TARGET_CLASS =
+  'absolute left-1/2 top-1/2 z-10 h-24 w-20 -translate-x-1/2 -translate-y-1/2';
 const COLOR_SWATCH_TRANSITION = { type: 'spring', stiffness: 720, damping: 42, mass: 0.65 };
 
 const appearanceAntennaOptions = [
@@ -465,7 +465,6 @@ export function HireForm({
     typeof firstName === 'string' && firstName.trim().length > 0 ? firstName.trim() : 'this droid';
   const isWorkspaceWarning = mode === 'hire' && showWorkspaceWarning;
   const droidControlTop = React.useMemo(() => {
-    const metrics = getCreatureMetrics(selectedDroidShape, selectedDroidAntenna);
     const form = getCreatureForm(selectedDroidShape);
     const layoutViewBox = getRotatingBotViewBox(
       form,
@@ -474,13 +473,6 @@ export function HireForm({
       undefined,
       DROID_PREVIEW_LAYOUT_ANTENNA
     );
-    const selectedViewBox = getRotatingBotViewBox(
-      form,
-      undefined,
-      undefined,
-      undefined,
-      selectedDroidAntenna
-    );
     const antennaControlViewBox = getRotatingBotViewBox(
       form,
       undefined,
@@ -488,19 +480,20 @@ export function HireForm({
       undefined,
       DROID_PREVIEW_ANTENNA_CONTROL_REFERENCE
     );
+    const bodyViewBox = getRotatingBotViewBox(form, undefined, undefined, undefined, 'none');
     const scale = DROID_PREVIEW_SIZE / layoutViewBox.w;
     const layoutTop = (DROID_PREVIEW_STAGE_HEIGHT - layoutViewBox.h * scale) / 2;
-    const renderedTop = layoutTop + (selectedViewBox.minY - layoutViewBox.minY) * scale;
+    const bodyTop = layoutTop + (bodyViewBox.minY - layoutViewBox.minY) * scale;
     const antennaControlTop = layoutTop + (antennaControlViewBox.minY - layoutViewBox.minY) * scale;
 
     return {
       antenna: clampPreviewControlTop(antennaControlTop + 18),
       body: DROID_PREVIEW_BODY_CONTROL_TOP,
       outfit: clampPreviewControlTop(
-        renderedTop + selectedViewBox.h * scale * DROID_PREVIEW_OUTFIT_REGION_RATIO - 16
+        bodyTop + bodyViewBox.h * scale * DROID_PREVIEW_OUTFIT_REGION_RATIO - 16
       ),
     };
-  }, [selectedDroidShape, selectedDroidAntenna]);
+  }, [selectedDroidShape]);
 
   const randomizeDroidAppearance = React.useCallback(() => {
     if (lockAppearanceControls) return;
@@ -522,6 +515,9 @@ export function HireForm({
     },
     []
   );
+  const playSelectedVoicePreview = React.useCallback(() => {
+    playSelectedVoicePreviewRef.current?.();
+  }, []);
 
   // Reset OS to 'ubuntu' when switching from local to remote if 'macos' is selected (macos is only available for local)
   React.useEffect(() => {
@@ -885,9 +881,14 @@ export function HireForm({
                                 aria-label="Preview selected voice"
                                 className="relative z-0 flex h-full w-40 items-center justify-center bg-transparent p-0 outline-none transition-transform hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring sm:w-52 md:w-40"
                                 disabled={isSubmitting}
-                                onClick={() => playSelectedVoicePreviewRef.current?.()}
+                                onClick={playSelectedVoicePreview}
                                 type="button"
                               >
+                                <span
+                                  aria-hidden="true"
+                                  className={DROID_SPEECH_HOVER_TARGET_CLASS}
+                                  onMouseEnter={playSelectedVoicePreview}
+                                />
                                 <HireDroidAvatar
                                   isVoicePreviewPlaying={isVoicePreviewPlaying}
                                   previewAudioElement={previewAudioElement}
