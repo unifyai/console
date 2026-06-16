@@ -133,7 +133,14 @@ poetry --version  # Any recent version
 
 ## Quick Start
 
-The fastest way to get a fully working local environment:
+> **This is an internal dev/test harness, not the product run path.** To run
+> the full local product end-to-end across all repos, use **`unity stack up`**
+> (see the [Unity self-host docs](https://github.com/unifyai/unity/blob/staging/deploy/selfhost/README.md)) — it starts Orchestra, the Unity gateway, Console (in
+> self-host mode), and the Coordinator for you. The seeded modes below exist for
+> Console development, QA, and E2E tests. To seed without starting the stack,
+> run the scenario runner directly: `npx tsx src/tests/helpers/seeds/run.ts <scenario|all|--list>`.
+
+The fastest way to get a fully working local (seeded dev) environment:
 
 ```bash
 # 1. Install dependencies
@@ -197,12 +204,12 @@ default. Hosted deployments may still use managed Communication infrastructure.
 
 ### Development
 
-| Script               | Description                                                |
-| -------------------- | ---------------------------------------------------------- |
-| `./scripts/local.sh` | Start full local environment (Orchestra + Console)         |
-| `npm run dev`        | Start Console dev server only (needs Orchestra separately) |
-| `npm run build`      | Build production bundle                                    |
-| `npm run start`      | Start production server (run after build)                  |
+| Script               | Description                                                                                              |
+| -------------------- | -------------------------------------------------------------------------------------------------------- |
+| `./scripts/local.sh` | Internal dev/test harness (Orchestra + Console + seed data). For the full product, use `unity stack up`. |
+| `npm run dev`        | Start Console dev server only (needs Orchestra separately)                                               |
+| `npm run build`      | Build production bundle                                                                                  |
+| `npm run start`      | Start production server (run after build)                                                                |
 
 ### Code Quality
 

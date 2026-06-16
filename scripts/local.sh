@@ -1,17 +1,25 @@
 #!/usr/bin/env bash
 # =============================================================================
-# local.sh — Local development environment for Console + Orchestra
+# local.sh — INTERNAL dev/test harness for Console + Orchestra
 # =============================================================================
 #
-# Starts a fully local Console deployment with a local Orchestra backend,
-# PostgreSQL database, and seeded test data.
+# This is NOT how you run the product locally. The single canonical end-to-end
+# local command is `unity stack up` (source self-host across all repos), which
+# calls this script with `--self-host`. Use the seeded modes below only for
+# Console development, QA, and E2E tests.
 #
-# All test data is created via TypeScript seed scenarios (src/tests/seeds/).
-# By default the "personal-workspace" scenario is used. Pass --seed <name>
-# to pick a different one, or --org as a shorthand for --seed org-basic.
+# Starts a local Console deployment with a local Orchestra backend, PostgreSQL,
+# and (in seeded modes) test data created via the TypeScript seed scenarios in
+# src/tests/helpers/seeds/. By default the "personal-workspace" scenario is
+# used. Pass --seed <name> for a different one, or --org for org-basic.
+#
+# To seed without starting the stack (e.g. against an already-running local
+# Orchestra), invoke the runner directly:
+#   npx tsx src/tests/helpers/seeds/run.ts <scenario|all|--list>
 #
 # Usage:
-#   ./scripts/local.sh                                # personal-workspace (default)
+#   ./scripts/local.sh start --self-host              # Self-host (what `unity stack up` runs)
+#   ./scripts/local.sh                                # personal-workspace seed (default)
 #   ./scripts/local.sh start                          # Same as above
 #   ./scripts/local.sh start --org                    # Shorthand for --seed org-basic
 #   ./scripts/local.sh start --seed org-multi-role    # Specific scenario
@@ -28,7 +36,6 @@
 #   ./scripts/local.sh gateway-urls --public-url https://callbacks.example.com
 #   ./scripts/local.sh stop                           # Stop all services
 #   ./scripts/local.sh restart                        # Stop then start (wipes database)
-#   ./scripts/local.sh console                        # Restart Console only (skip seed/bootstrap)
 #   ./scripts/local.sh status                         # Show status of all services
 #
 # Prerequisites:
@@ -91,6 +98,24 @@ read_env_value() {
     fi
   done
   echo ""
+}
+
+# Idempotently set KEY=VALUE in an env file. Replaces an existing assignment or
+# appends a new one, leaving every other key untouched. Creates the file if it
+# does not exist. Used to persist the self-host topology flags so a later bare
+# `npm run dev` still resolves as a self-host deployment.
+upsert_env_local_var() {
+  local file="$1" key="$2" value="$3"
+  touch "$file"
+  if grep -qE "^${key}=" "$file"; then
+    local tmp
+    tmp="$(mktemp)"
+    grep -vE "^${key}=" "$file" > "$tmp"
+    printf '%s=%s\n' "$key" "$value" >> "$tmp"
+    mv "$tmp" "$file"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$file"
+  fi
 }
 
 ADMIN_KEY=""
@@ -1817,6 +1842,10 @@ start_console() {
   if [[ "$with_self_host" == "true" ]]; then
     export SELF_HOST=1
     export NEXT_PUBLIC_SELF_HOST=1
+    # Persist the topology flags durably so a later bare `npm run dev` (which
+    # does not pass --self-host) still resolves as a self-host deployment.
+    upsert_env_local_var "$ENV_LOCAL" SELF_HOST 1
+    upsert_env_local_var "$ENV_LOCAL" NEXT_PUBLIC_SELF_HOST 1
     export SELF_HOST_DESKTOP_URL="${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}"
     export LIVEKIT_URL="ws://localhost:7880"
     export LIVEKIT_API_KEY="devkey"
@@ -2161,11 +2190,9 @@ cmd_start() {
     # Seed before Console so data is available on first page load.
     echo ""
     if ! run_seed_scenario "$seed_scenario"; then
-      if [[ "$with_integrations" == "true" ]]; then
-        log_error "Seed scenario failed; aborting integrations E2E startup."
-        return 1
-      fi
-      log_warn "Seed scenario failed — see output above"
+      # Non-fatal: E2E tests and provider integrations create their own data,
+      # so a seed-scenario failure must not abort the local startup.
+      log_warn "Seed scenario failed — continuing (tests/integrations seed their own data)"
     fi
 
     if [[ "$with_integrations" == "true" ]]; then
@@ -2388,56 +2415,6 @@ cmd_restart() {
   cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$with_integrations" "$integrations_provider" "$unity_echo" "$with_integration_functions" "$with_self_host"
 }
 
-cmd_console() {
-  local with_chat="${1:-false}"
-  local with_pubsub="${2:-false}"
-
-  echo ""
-  echo "=============================================="
-  echo "  Restarting Console only (skipping seed/bootstrap)"
-  echo "=============================================="
-  echo ""
-
-  if ! check_prerequisites; then
-    return 1
-  fi
-
-  ensure_npm_deps
-
-  if ! is_orchestra_running; then
-    log_warn "Orchestra is not running at http://127.0.0.1:${ORCHESTRA_PORT}; Console backend calls may fail."
-  fi
-
-  if [[ -f "$COMMUNICATION_CONFIG_FILE" ]]; then
-    load_communication_config 2>/dev/null || true
-  fi
-
-  # Preserve local chat/billing wiring when those services are already up.
-  if [[ "$with_chat" != "true" ]] && [[ -n "$COMMUNICATION_REPO_PATH" && -f "$COMMUNICATION_LOCAL_SCRIPT" ]] && is_communication_running; then
-    with_chat="true"
-  fi
-  if [[ "$with_pubsub" != "true" && "$with_chat" != "true" ]] && is_emulator_running; then
-    with_pubsub="true"
-  fi
-  if [[ "$with_chat" == "true" ]]; then
-    with_pubsub="true"
-  fi
-
-  stop_console || return 1
-  start_console "$with_pubsub" "$with_chat" || return 1
-
-  echo ""
-  log_success "Console restarted at http://localhost:${CONSOLE_PORT}"
-  echo ""
-  echo "  Skipped: seed scenario, provider catalog sync, local integration Function rows"
-  if [[ "$with_pubsub" == "true" ]]; then
-    echo "  Pub/Sub: $LOCAL_PUBSUB_HOST"
-  fi
-  if [[ "$with_chat" == "true" && -n "$CHAT_ADAPTERS_URL" ]]; then
-    echo "  Adapters: $CHAT_ADAPTERS_URL"
-  fi
-}
-
 cmd_status() {
   echo ""
   echo "Local Environment Status"
@@ -2623,12 +2600,10 @@ main() {
       fi
       ;;
     restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$with_integrations" "$integrations_provider" "$unity_echo" "$with_integration_functions" "$with_self_host" ;;
-    console)      cmd_console "$with_chat" "$with_pubsub" ;;
-    console-only) cmd_console "$with_chat" "$with_pubsub" ;;
     status)  cmd_status ;;
     logs)    cmd_logs "$logs_service" ;;
     help)
-      echo "Usage: $0 [start|stop|restart|console|status|logs|ensure-coordinator-topics|start-coordinator|gateway-setup|gateway-doctor|gateway-urls] [--org] [--stripe] [--pubsub] [--chat] [--self-host] [--integrations] [--integrations-functions] [--provider composio] [--echo] [--seed <scenario>] [--credits <n>]"
+      echo "Usage: $0 [start|stop|restart|status|logs|ensure-coordinator-topics|start-coordinator|gateway-setup|gateway-doctor|gateway-urls] [--org] [--stripe] [--pubsub] [--chat] [--self-host] [--integrations] [--integrations-functions] [--provider composio] [--echo] [--seed <scenario>] [--credits <n>]"
       echo ""
       echo "Commands:"
       echo "  ensure-coordinator-topics  Ensure Pub/Sub topics/subscriptions for the Coordinator"
@@ -2636,7 +2611,6 @@ main() {
       echo "  start    Start Console + Orchestra + seed data (default)"
       echo "  stop     Stop Console, Orchestra, Pub/Sub emulator, Unity, and Stripe listener"
       echo "  restart  Stop then start (wipes database)"
-      echo "  console  Restart only the Console dev server; skip seed/catalog/function sync"
       echo "  status   Show service status"
       echo "  gateway-setup   Run Unity gateway local setup wizard"
       echo "  gateway-doctor  Run Unity gateway doctor using Console's local env"
