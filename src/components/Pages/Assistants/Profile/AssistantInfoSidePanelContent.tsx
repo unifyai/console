@@ -92,6 +92,11 @@ export interface AssistantInfoSidePanelContentProps {
    * surfaces. Unset means the new tab won't render even for the
    * coordinator (e.g. on non-owner viewers). */
   coordinatorOnboarding?: {
+    onStartOnboardingStep?: (stepId: string) => void;
+    onAddWhatsappNumber?: () => void;
+    onAddPhoneNumber?: () => void;
+    onConnectSlack?: () => void;
+    onConnectDiscord?: () => void;
     onConnectWorkspace?: () => void;
     onConnectApps?: () => void;
     onActNow?: () => void;
@@ -259,6 +264,11 @@ function CoordinatorAssistantInfoSidePanelContent({
             {coordinatorOnboarding && (
               <TabsContent value="onboarding" className="mt-0">
                 <CoordinatorOnboardingChecklist
+                  onStartOnboardingStep={coordinatorOnboarding.onStartOnboardingStep}
+                  onAddWhatsappNumber={coordinatorOnboarding.onAddWhatsappNumber}
+                  onAddPhoneNumber={coordinatorOnboarding.onAddPhoneNumber}
+                  onConnectSlack={coordinatorOnboarding.onConnectSlack}
+                  onConnectDiscord={coordinatorOnboarding.onConnectDiscord}
                   onConnectWorkspace={coordinatorOnboarding.onConnectWorkspace}
                   onConnectApps={coordinatorOnboarding.onConnectApps}
                   onActNow={coordinatorOnboarding.onActNow}

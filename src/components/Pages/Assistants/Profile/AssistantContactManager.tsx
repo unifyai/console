@@ -73,7 +73,7 @@ interface AssistantContactManagerProps {
   assistant: Assistant;
   assistantActions: AssistantActions;
   onSuccess: () => void;
-  initialTab?: ContactType;
+  initialTab?: ContactType | 'slack';
   /** Whether the current user can edit contact details */
   canWrite?: boolean;
   /** Callback to open the Stripe payment panel when credits are insufficient */
@@ -335,7 +335,7 @@ export function AssistantContactManager({
     isOpen,
     assistantActions,
     onSuccess,
-    initialTab,
+    initialTab: initialTab === 'slack' ? undefined : initialTab,
     userPhoneNumber,
     userWhatsappNumber,
     userDiscordId,

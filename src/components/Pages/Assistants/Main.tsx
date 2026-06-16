@@ -94,6 +94,7 @@ import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { createRandomDroidProfile } from '@/utils/assistants/droid-profile-randomizer';
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
+type ContactManagerInitialTab = ContactType | 'slack';
 
 interface MainProps {
   assistantActions: AssistantActions;
@@ -150,7 +151,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // Workspace connect (Gmail/Outlook BYOD) needs an OAuth client configured on
   // the deployment. When neither provider is available, the onboarding
   // "Connect workspace" step is suppressed rather than leading to a dead end.
-  const { workspaceGoogle, workspaceMicrosoft } = useFeatures();
+  const { workspaceGoogle, workspaceMicrosoft, contactPhone, contactWhatsapp, contactDiscord } =
+    useFeatures();
   const workspaceConnectAvailable = workspaceGoogle || workspaceMicrosoft;
   const coordinatorWorkspace = React.useMemo<CoordinatorWorkspaceScope>(() => {
     if (activeWorkspace?.type === 'organization') {
@@ -678,7 +680,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     null
   );
   const [contactManagerInitialTab, setContactManagerInitialTab] =
-    React.useState<ContactType>('email');
+    React.useState<ContactManagerInitialTab>('email');
   const [workspaceManagerAssistant, setWorkspaceManagerAssistant] =
     React.useState<Assistant | null>(null);
   const [workspaceManagerInitialProvider, setWorkspaceManagerInitialProvider] =
@@ -1520,11 +1522,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [loadAssistantForEdit]
   );
 
-  const handleOpenContactManager = (assistant: Assistant, tab: ContactType = 'email') => {
-    loadAssistantForEdit(assistant);
-    setContactManagerInitialTab(tab);
-    setContactManagerAssistant(assistant);
-  };
+  const handleOpenContactManager = React.useCallback(
+    (assistant: Assistant, tab: ContactManagerInitialTab = 'email') => {
+      loadAssistantForEdit(assistant);
+      setContactManagerInitialTab(tab);
+      setContactManagerAssistant(assistant);
+    },
+    [loadAssistantForEdit]
+  );
 
   const handleOpenWorkspaceManager = (assistant: Assistant) => {
     loadAssistantForEdit(assistant);
@@ -1562,17 +1567,78 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [markStepEngaged]
   );
 
+  const handleOpenUserSettings = React.useCallback((tab?: string) => {
+    if (typeof window === 'undefined') return;
+    const url = tab ? `/account?tab=${encodeURIComponent(tab)}` : '/account';
+    try {
+      window.localStorage.setItem('console:assistants:user-settings-opened-at', String(Date.now()));
+    } catch {
+      /* private mode / quota — refresh just won't trigger */
+    }
+    window.open(url, '_blank', 'noopener');
+  }, []);
+
+  const handleCoordinatorStartOnboardingStep = React.useCallback(
+    (stepId: string) => {
+      markStepEngaged(stepId);
+      void updateCoordinatorOnboardingState({ onboardingStep: stepId });
+    },
+    [markStepEngaged, updateCoordinatorOnboardingState]
+  );
+
+  const handleCoordinatorAddWhatsappNumber = React.useCallback(() => {
+    handleCoordinatorStartOnboardingStep('whatsapp-number');
+    handleOpenUserSettings('contact-info');
+  }, [handleCoordinatorStartOnboardingStep, handleOpenUserSettings]);
+
+  const handleCoordinatorAddPhoneNumber = React.useCallback(() => {
+    handleCoordinatorStartOnboardingStep('phone-number');
+    handleOpenUserSettings('contact-info');
+  }, [handleCoordinatorStartOnboardingStep, handleOpenUserSettings]);
+
+  const handleCoordinatorConnectSlack = React.useCallback(() => {
+    if (!canonicalCoordinator) return;
+    handleCoordinatorStartOnboardingStep('slack-connect');
+    handleOpenContactManager(canonicalCoordinator, 'slack');
+  }, [canonicalCoordinator, handleCoordinatorStartOnboardingStep, handleOpenContactManager]);
+
+  const handleCoordinatorConnectDiscord = React.useCallback(() => {
+    if (!canonicalCoordinator) return;
+    handleCoordinatorStartOnboardingStep('discord-connect');
+    handleOpenContactManager(canonicalCoordinator, 'discord');
+  }, [canonicalCoordinator, handleCoordinatorStartOnboardingStep, handleOpenContactManager]);
+
   // Which checklist actions are available (wired) on this deployment.
   // Workspace OAuth needs a configured provider; the rest are always
   // reachable in the full platform. Mirrors the handler wiring below so
   // the outstanding-step signal and the rendered rows agree.
   const isCoordinatorActionWired = React.useCallback(
     (action: ChecklistAction | undefined): boolean => {
+      if (action === 'start-email-reply') return true;
+      if (action === 'add-whatsapp-number' || action === 'start-whatsapp-message') {
+        return contactWhatsapp;
+      }
+      if (action === 'start-whatsapp-call') return contactWhatsapp;
+      if (action === 'add-phone-number' || action === 'start-sms-message') return contactPhone;
+      if (action === 'start-phone-call') return contactPhone;
+      if (action === 'connect-slack' || action === 'start-slack-message') {
+        return !!userMeta.slackOwner && !!assistantActions.slack;
+      }
+      if (action === 'connect-discord' || action === 'start-discord-message') {
+        return contactDiscord;
+      }
       if (action === 'connect-workspace') return workspaceConnectAvailable;
       if (action === 'connect-apps' || action === 'act' || action === 'schedule') return true;
       return false;
     },
-    [workspaceConnectAvailable]
+    [
+      assistantActions.slack,
+      contactDiscord,
+      contactPhone,
+      contactWhatsapp,
+      userMeta.slackOwner,
+      workspaceConnectAvailable,
+    ]
   );
 
   // Whether the Coordinator still has an actionable onboarding step left.
@@ -1644,6 +1710,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     // Coordinator's onboarding steps.
     const isProfileCoordinator = profileAssistantId === canonicalCoordinator.agentId;
     return {
+      onStartOnboardingStep: handleCoordinatorStartOnboardingStep,
+      onAddWhatsappNumber: contactWhatsapp ? handleCoordinatorAddWhatsappNumber : undefined,
+      onAddPhoneNumber: contactPhone ? handleCoordinatorAddPhoneNumber : undefined,
+      onConnectSlack:
+        userMeta.slackOwner && assistantActions.slack ? handleCoordinatorConnectSlack : undefined,
+      onConnectDiscord: contactDiscord ? handleCoordinatorConnectDiscord : undefined,
       onConnectWorkspace: workspaceConnectAvailable
         ? () => {
             markStepEngaged('workspace');
@@ -1673,8 +1745,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     canonicalCoordinator,
     profileAssistantId,
     activeCallAssistant,
+    assistantActions.slack,
+    contactDiscord,
+    contactPhone,
+    contactWhatsapp,
+    userMeta.slackOwner,
     markStepEngaged,
     markStepCompleted,
+    handleCoordinatorStartOnboardingStep,
+    handleCoordinatorAddWhatsappNumber,
+    handleCoordinatorAddPhoneNumber,
+    handleCoordinatorConnectSlack,
+    handleCoordinatorConnectDiscord,
     handleCoordinatorOpenPaneTab,
     handleCoordinatorOnboardingStepSkip,
     handleCoordinatorOnboardingStepUnskip,
@@ -1746,6 +1828,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // freely.
   const serverCompletedStepIds = coordinatorOnboardingState?.completedStepIds;
   const serverSkippedStepIds = coordinatorOnboardingState?.skippedStepIds;
+  const activeCoordinatorOnboardingStep = coordinatorOnboardingState?.onboardingStep;
   React.useEffect(() => {
     if (!serverCompletedStepIds) return;
     for (const stepId of serverCompletedStepIds) {
@@ -1758,6 +1841,41 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       markStepSkipped(stepId);
     }
   }, [serverSkippedStepIds, markStepSkipped]);
+  React.useEffect(() => {
+    if (
+      !activeCoordinatorOnboardingStep ||
+      coordinatorOnboardingState?.mode !== 'onboarding' ||
+      serverCompletedStepIds?.includes(activeCoordinatorOnboardingStep) ||
+      serverSkippedStepIds?.includes(activeCoordinatorOnboardingStep)
+    ) {
+      return;
+    }
+    const handle = window.setInterval(() => {
+      void refetchCoordinatorOnboardingState();
+    }, 4_000);
+    return () => window.clearInterval(handle);
+  }, [
+    activeCoordinatorOnboardingStep,
+    coordinatorOnboardingState?.mode,
+    refetchCoordinatorOnboardingState,
+    serverCompletedStepIds,
+    serverSkippedStepIds,
+  ]);
+  React.useEffect(() => {
+    if (!activeCoordinatorOnboardingStep) return;
+    if (
+      !serverCompletedStepIds?.includes(activeCoordinatorOnboardingStep) &&
+      !serverSkippedStepIds?.includes(activeCoordinatorOnboardingStep)
+    ) {
+      return;
+    }
+    void updateCoordinatorOnboardingState({ clearOnboardingStep: true });
+  }, [
+    activeCoordinatorOnboardingStep,
+    serverCompletedStepIds,
+    serverSkippedStepIds,
+    updateCoordinatorOnboardingState,
+  ]);
 
   const handleRandomizeProfile = () => {
     setUserHasChangedPreset(true);
@@ -1952,16 +2070,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // wasteful, but doing so after an account-page round-trip ensures
   // derivations like `hasUserPhoneNumber` reflect the edit without
   // a manual reload.
-  const handleOpenUserSettings = React.useCallback((tab?: string) => {
-    if (typeof window === 'undefined') return;
-    const url = tab ? `/account?tab=${encodeURIComponent(tab)}` : '/account';
-    try {
-      window.localStorage.setItem('console:assistants:user-settings-opened-at', String(Date.now()));
-    } catch {
-      /* private mode / quota — refresh just won't trigger */
-    }
-    window.open(url, '_blank', 'noopener');
-  }, []);
   // Refresh server data (re-pulls userMeta) when the window regains
   // focus AFTER the user opened account settings. Gated on the flag
   // + a sane TTL so we don't trigger expensive RSC re-renders on
@@ -2026,10 +2134,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               : "Couldn't finish connecting the workspace. Please try again."
           );
         } else {
-          setWorkspaceManagerAssistant(null);
+          // Keep the workspace dialog open so it transitions into the
+          // connected view (where the file-access step lives). The
+          // ``assistants`` re-sync effect below repoints the held snapshot at
+          // the freshly-connected assistant once the refetch lands.
           setWorkspaceManagerInitialProvider(null);
           setContactManagerAssistant(null);
-          toast.success('Workspace connected.');
+          toast.success('Workspace connected. Choose which files to share below.');
         }
       }
     });
@@ -2038,6 +2149,21 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       retryTimers.forEach(clearTimeout);
     };
   }, [refreshAssistants, refetchCoordinatorOnboardingState]);
+
+  // Keep the open workspace dialog's held assistant in sync with the refreshed
+  // list so a just-connected mailbox/provider surfaces (and the file-access
+  // step appears) without forcing the user to reopen the dialog.
+  React.useEffect(() => {
+    if (!workspaceManagerAssistant) return;
+    const fresh = assistants.find((a) => a.agentId === workspaceManagerAssistant.agentId);
+    if (
+      fresh &&
+      (fresh.email !== workspaceManagerAssistant.email ||
+        fresh.emailProvider !== workspaceManagerAssistant.emailProvider)
+    ) {
+      setWorkspaceManagerAssistant(fresh);
+    }
+  }, [assistants, workspaceManagerAssistant]);
 
   const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
 

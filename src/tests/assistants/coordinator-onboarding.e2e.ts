@@ -44,6 +44,20 @@ const test = createAssistantTest(user);
 test.setTimeout(120_000);
 test.describe.configure({ mode: 'serial' });
 
+const COMMS_STEP_IDS = [
+  'email-reply',
+  'whatsapp-number',
+  'whatsapp-message',
+  'whatsapp-call',
+  'phone-number',
+  'sms-message',
+  'phone-call',
+  'slack-connect',
+  'slack-message',
+  'discord-connect',
+  'discord-message',
+] as const;
+
 test.afterAll(() => {
   try {
     deleteAllAssistantsForUser(user.id);
@@ -113,6 +127,28 @@ function readPersistedIntroWatched(): string {
   );
 }
 
+function readPersistedOnboardingStep(coordinatorId: string | number): string {
+  return dbExec(
+    `SELECT le.data->>'onboarding_step' FROM log_event le ` +
+      `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
+      `JOIN context c ON c.id = lec.context_id ` +
+      `WHERE c.name = '${user.id}/${coordinatorId}/Coordinator/State' ` +
+      `ORDER BY le.id DESC LIMIT 1;`
+  );
+}
+
+function markCoordinatorStepsSkipped(coordinatorId: string | number, stepIds: readonly string[]) {
+  const json = JSON.stringify(stepIds).replace(/'/g, "''");
+  dbExec(
+    `UPDATE log_event SET data = jsonb_set(data, '{skipped_step_ids}', '${json}'::jsonb) ` +
+      `WHERE id = (SELECT le.id FROM log_event le ` +
+      `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
+      `JOIN context c ON c.id = lec.context_id ` +
+      `WHERE c.name = '${user.id}/${coordinatorId}/Coordinator/State' ` +
+      `ORDER BY le.id DESC LIMIT 1);`
+  );
+}
+
 test('picker shows on first visit with no skip or resume affordance', async ({
   authedPage: page,
 }) => {
@@ -150,6 +186,16 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   // The onboarding checklist now lives in the Coordinator's "Assistant
   // info" panel, seeded from the server-derived snapshot.
   await openOnboardingChecklist(page);
+  await expect(page.getByTestId('coordinator-onboarding-progress-phase-meet')).toBeVisible();
+  await expect(page.getByTestId('coordinator-onboarding-progress-phase-comms')).toBeVisible();
+  await expect(page.getByTestId('coordinator-onboarding-progress-phase-connect')).toBeVisible();
+  await expect(page.getByTestId('coordinator-onboarding-progress-phase-work')).toBeVisible();
+  const emailReplyRow = page.getByTestId('coordinator-onboarding-item-email-reply').first();
+  await expect(emailReplyRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
+  await emailReplyRow.click();
+  await expect
+    .poll(() => readPersistedOnboardingStep(coordinator.agentId), { timeout: 10_000 })
+    .toBe('email-reply');
   const workspaceRow = page.getByTestId('coordinator-onboarding-item-workspace').first();
   await expect(workspaceRow).toBeVisible({ timeout: 15_000 });
   await expect(workspaceRow).toHaveAttribute('data-status', 'done');
@@ -245,6 +291,7 @@ test('the "Repeat intro" affordance replays the intro from the Assistant info ca
 test('skipping an inline checklist step can be reversed later', async ({ authedPage: page }) => {
   const coordinator = createPersonalCoordinator(user.id);
   connectWorkspaceEmail({ assistantId: coordinator.agentId });
+  markCoordinatorStepsSkipped(coordinator.agentId, COMMS_STEP_IDS);
   resetCoordinatorIntroWatched();
 
   await gotoAssistants(page);

@@ -171,6 +171,11 @@ export interface ChatWithInfoPanelProps {
    * assistants. See ``AssistantInfoSidePanelContent`` for details.
    */
   coordinatorOnboarding?: {
+    onStartOnboardingStep?: (stepId: string) => void;
+    onAddWhatsappNumber?: () => void;
+    onAddPhoneNumber?: () => void;
+    onConnectSlack?: () => void;
+    onConnectDiscord?: () => void;
     onConnectWorkspace?: () => void;
     onConnectApps?: () => void;
     onActNow?: () => void;

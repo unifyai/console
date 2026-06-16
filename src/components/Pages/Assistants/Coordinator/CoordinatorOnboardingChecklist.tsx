@@ -28,7 +28,22 @@ import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { cn } from '@/lib/utils';
 import { useCoordinatorOnboardingContext } from './CoordinatorOnboardingContext';
 
-export type ChecklistAction = 'connect-workspace' | 'connect-apps' | 'act' | 'schedule';
+export type ChecklistAction =
+  | 'start-email-reply'
+  | 'add-whatsapp-number'
+  | 'start-whatsapp-message'
+  | 'start-whatsapp-call'
+  | 'add-phone-number'
+  | 'start-sms-message'
+  | 'start-phone-call'
+  | 'connect-slack'
+  | 'start-slack-message'
+  | 'connect-discord'
+  | 'start-discord-message'
+  | 'connect-workspace'
+  | 'connect-apps'
+  | 'act'
+  | 'schedule';
 
 interface OnboardingChecklistItem {
   id: string;
@@ -69,6 +84,102 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
     estimatedTime: '~1 min',
   },
   {
+    id: 'comms',
+    title: 'Try comms',
+    phaseLabel: 'Comms',
+    description: 'Prove email, WhatsApp, phone, Slack, and Discord.',
+    children: [
+      {
+        id: 'email-reply',
+        title: 'Reply to email',
+        description: 'Marty sends you a quick email.',
+        estimatedTime: '~30s',
+        action: 'start-email-reply',
+        prerequisiteId: 'meet',
+      },
+      {
+        id: 'whatsapp-number',
+        title: 'Add your WhatsApp number',
+        description: 'Add the WhatsApp number Marty should use.',
+        estimatedTime: '~30s',
+        action: 'add-whatsapp-number',
+        prerequisiteId: 'email-reply',
+      },
+      {
+        id: 'whatsapp-message',
+        title: 'Reply to a WhatsApp message',
+        description: 'Send Marty a WhatsApp message and get a reply.',
+        estimatedTime: '~1 min',
+        action: 'start-whatsapp-message',
+        prerequisiteId: 'whatsapp-number',
+      },
+      {
+        id: 'whatsapp-call',
+        title: 'Answer a WhatsApp call',
+        description: 'Talk to Marty over WhatsApp voice.',
+        estimatedTime: '~1 min',
+        action: 'start-whatsapp-call',
+        prerequisiteId: 'whatsapp-message',
+      },
+      {
+        id: 'phone-number',
+        title: 'Add your phone number',
+        description: 'Add the phone number Marty should use for calls and SMS.',
+        estimatedTime: '~30s',
+        action: 'add-phone-number',
+        prerequisiteId: 'whatsapp-call',
+      },
+      {
+        id: 'sms-message',
+        title: 'Reply to an SMS message',
+        description: 'Text Marty and get an SMS reply.',
+        estimatedTime: '~1 min',
+        action: 'start-sms-message',
+        prerequisiteId: 'phone-number',
+      },
+      {
+        id: 'phone-call',
+        title: 'Answer a phone call',
+        description: 'Talk to Marty over a phone call.',
+        estimatedTime: '~1 min',
+        action: 'start-phone-call',
+        prerequisiteId: 'sms-message',
+      },
+      {
+        id: 'slack-connect',
+        title: 'Connect Slack',
+        description: 'Connect Marty through the Unify Slack app.',
+        estimatedTime: '~1 min',
+        action: 'connect-slack',
+        prerequisiteId: 'phone-call',
+      },
+      {
+        id: 'slack-message',
+        title: 'Send a Slack message',
+        description: 'Send Marty a Slack DM or mention.',
+        estimatedTime: '~1 min',
+        action: 'start-slack-message',
+        prerequisiteId: 'slack-connect',
+      },
+      {
+        id: 'discord-connect',
+        title: 'Connect Discord',
+        description: 'Connect Marty through the public Discord bot.',
+        estimatedTime: '~1 min',
+        action: 'connect-discord',
+        prerequisiteId: 'slack-message',
+      },
+      {
+        id: 'discord-message',
+        title: 'Send a Discord message',
+        description: 'Send Marty a Discord DM or mention.',
+        estimatedTime: '~1 min',
+        action: 'start-discord-message',
+        prerequisiteId: 'discord-connect',
+      },
+    ],
+  },
+  {
     id: 'connect',
     title: 'Connect me',
     phaseLabel: 'Connect',
@@ -82,7 +193,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Required for everything else in onboarding.',
         estimatedTime: '~30s',
         action: 'connect-workspace',
-        prerequisiteId: 'meet',
+        prerequisiteId: 'discord-message',
       },
       {
         id: 'apps',
@@ -460,6 +571,11 @@ export function hasOutstandingCoordinatorOnboarding(
 }
 
 export interface CoordinatorOnboardingChecklistProps {
+  onStartOnboardingStep?: (stepId: string) => void;
+  onAddWhatsappNumber?: () => void;
+  onAddPhoneNumber?: () => void;
+  onConnectSlack?: () => void;
+  onConnectDiscord?: () => void;
   /** Opens the workspace OAuth dialog. Hung off the "Give me
    * access to your workspace" sub-item. Unset means
    * the row degrades to a static checklist entry. */
@@ -490,6 +606,11 @@ export interface CoordinatorOnboardingChecklistProps {
 const EMPTY_SET: ReadonlySet<string> = new Set();
 
 export function CoordinatorOnboardingChecklist({
+  onStartOnboardingStep,
+  onAddWhatsappNumber,
+  onAddPhoneNumber,
+  onConnectSlack,
+  onConnectDiscord,
   onConnectWorkspace,
   onConnectApps,
   onActNow,
@@ -509,12 +630,33 @@ export function CoordinatorOnboardingChecklist({
 
   const handleAction = React.useCallback(
     (action: ChecklistAction) => {
-      if (action === 'connect-workspace') onConnectWorkspace?.();
+      if (action === 'start-email-reply') onStartOnboardingStep?.('email-reply');
+      else if (action === 'add-whatsapp-number') onAddWhatsappNumber?.();
+      else if (action === 'start-whatsapp-message') onStartOnboardingStep?.('whatsapp-message');
+      else if (action === 'start-whatsapp-call') onStartOnboardingStep?.('whatsapp-call');
+      else if (action === 'add-phone-number') onAddPhoneNumber?.();
+      else if (action === 'start-sms-message') onStartOnboardingStep?.('sms-message');
+      else if (action === 'start-phone-call') onStartOnboardingStep?.('phone-call');
+      else if (action === 'connect-slack') onConnectSlack?.();
+      else if (action === 'start-slack-message') onStartOnboardingStep?.('slack-message');
+      else if (action === 'connect-discord') onConnectDiscord?.();
+      else if (action === 'start-discord-message') onStartOnboardingStep?.('discord-message');
+      else if (action === 'connect-workspace') onConnectWorkspace?.();
       else if (action === 'connect-apps') onConnectApps?.();
       else if (action === 'act') onActNow?.();
       else if (action === 'schedule') onScheduleTask?.();
     },
-    [onConnectWorkspace, onConnectApps, onActNow, onScheduleTask]
+    [
+      onStartOnboardingStep,
+      onAddWhatsappNumber,
+      onAddPhoneNumber,
+      onConnectSlack,
+      onConnectDiscord,
+      onConnectWorkspace,
+      onConnectApps,
+      onActNow,
+      onScheduleTask,
+    ]
   );
 
   // An action is reachable when the parent has wired the
@@ -523,13 +665,38 @@ export function CoordinatorOnboardingChecklist({
   const isActionWired = React.useCallback(
     (action: ChecklistAction | undefined): boolean => {
       if (!action) return false;
+      if (
+        action === 'start-email-reply' ||
+        action === 'start-whatsapp-message' ||
+        action === 'start-whatsapp-call' ||
+        action === 'start-sms-message' ||
+        action === 'start-phone-call' ||
+        action === 'start-slack-message' ||
+        action === 'start-discord-message'
+      ) {
+        return !!onStartOnboardingStep;
+      }
+      if (action === 'add-whatsapp-number') return !!onAddWhatsappNumber;
+      if (action === 'add-phone-number') return !!onAddPhoneNumber;
+      if (action === 'connect-slack') return !!onConnectSlack;
+      if (action === 'connect-discord') return !!onConnectDiscord;
       if (action === 'connect-workspace') return !!onConnectWorkspace;
       if (action === 'connect-apps') return !!onConnectApps;
       if (action === 'act') return !!onActNow;
       if (action === 'schedule') return !!onScheduleTask;
       return false;
     },
-    [onConnectWorkspace, onConnectApps, onActNow, onScheduleTask]
+    [
+      onStartOnboardingStep,
+      onAddWhatsappNumber,
+      onAddPhoneNumber,
+      onConnectSlack,
+      onConnectDiscord,
+      onConnectWorkspace,
+      onConnectApps,
+      onActNow,
+      onScheduleTask,
+    ]
   );
 
   const resolved = React.useMemo(

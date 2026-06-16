@@ -316,6 +316,11 @@ interface RightPaneContainerProps {
    * "Onboarding" sub-tab whose action rows are wired from here.
    * Ignored for non-coordinator assistants. */
   coordinatorOnboarding?: {
+    onStartOnboardingStep?: (stepId: string) => void;
+    onAddWhatsappNumber?: () => void;
+    onAddPhoneNumber?: () => void;
+    onConnectSlack?: () => void;
+    onConnectDiscord?: () => void;
     onConnectWorkspace?: () => void;
     onConnectApps?: () => void;
     onActNow?: () => void;
