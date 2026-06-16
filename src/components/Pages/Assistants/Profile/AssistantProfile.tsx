@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Button } from '@/components/UI/button';
-import { Loader2, Phone, Video, Search } from 'lucide-react';
+import { Loader2, Phone, Search } from 'lucide-react';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 
@@ -65,7 +65,7 @@ export function AssistantProfilePanel({
   const isSpendingBlocked = spendingGate.isBlocked && !isInThisCall;
   const isCallButtonDisabled = !voiceCalls || isAnotherCallActive || isSpendingBlocked;
 
-  const callButtonTooltip = (type: 'audio' | 'video') =>
+  const callButtonTooltip = () =>
     !voiceCalls
       ? "Voice calls aren't enabled on this deployment"
       : isInThisCall && isConnectingCall
@@ -76,9 +76,11 @@ export function AssistantProfilePanel({
             ? spendingGate.blockedMessage || 'Spending limit reached'
             : isAnotherCallActive
               ? 'Another call is in progress'
-              : type === 'audio'
-                ? 'Start audio call'
-                : 'Start video call';
+              : 'Start call';
+
+  const startAudioCall = React.useCallback(() => {
+    onStartCall(assistant, 'audio');
+  }, [assistant, onStartCall]);
 
   const [searchOpen, setSearchOpen] = React.useState(false);
 
@@ -86,7 +88,7 @@ export function AssistantProfilePanel({
 
   return (
     <div className="flex h-full w-full flex-col bg-background">
-      {/* Header with assistant name and call buttons */}
+      {/* Header with assistant name and call button */}
       <div className="flex items-center justify-between border-b px-3 py-2">
         <span className="text-body text-strong truncate">
           {assistant.firstName} {assistant.surname}
@@ -111,7 +113,7 @@ export function AssistantProfilePanel({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          {/* Call buttons stay visible even when voice calls aren't configured
+          {/* The call button stays visible even when voice calls aren't configured
               on the deployment — disabled with an explanatory tooltip instead
               of hidden. The span wrapper is load-bearing: a disabled Button has
               `pointer-events-none`, so the tooltip triggers off the span. */}
@@ -124,7 +126,7 @@ export function AssistantProfilePanel({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={() => onStartCall(assistant, 'audio')}
+                    onClick={startAudioCall}
                     disabled={isCallButtonDisabled}
                     data-testid="call-audio-button"
                   >
@@ -137,29 +139,7 @@ export function AssistantProfilePanel({
                 </span>
               </TooltipTrigger>
               <TooltipContent side="top">
-                <p>{callButtonTooltip('audio')}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => onStartCall(assistant, 'video')}
-                    disabled={isCallButtonDisabled}
-                    data-testid="call-video-button"
-                  >
-                    <Video className="h-4 w-4" />
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>{callButtonTooltip('video')}</p>
+                <p>{callButtonTooltip()}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -187,6 +167,9 @@ export function AssistantProfilePanel({
           isCallConnected={isInThisCall && isCallConnected}
           searchOpen={searchOpen}
           onSearchOpenChange={setSearchOpen}
+          onAssistantAvatarStartCall={startAudioCall}
+          isAssistantAvatarStartCallDisabled={isCallButtonDisabled}
+          assistantAvatarStartCallTooltip={callButtonTooltip()}
         />
       </div>
     </div>

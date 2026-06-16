@@ -10,6 +10,7 @@ import { MessageAttachmentList } from './ChatAttachments';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { TooltipContent, Tooltip, TooltipTrigger, TooltipProvider } from '@/components/UI/tooltip';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
+import { AssistantStartCallDropdown } from '@/components/Pages/Assistants/Communication/AssistantStartCallDropdown';
 
 type ChatBubbleVariant = 'profile' | 'hire';
 
@@ -86,6 +87,9 @@ interface ChatMessageBubbleProps {
   onPlayAudio?: (messageId: string, content: string) => void;
   onStopAudio?: () => void;
   audioState?: 'idle' | 'generating' | 'playing';
+  onAssistantAvatarStartCall?: () => void;
+  isAssistantAvatarStartCallDisabled?: boolean;
+  assistantAvatarStartCallTooltip?: string;
 }
 
 function ChatMessageBubbleImpl({
@@ -104,6 +108,9 @@ function ChatMessageBubbleImpl({
   onPlayAudio,
   onStopAudio,
   audioState = 'idle',
+  onAssistantAvatarStartCall,
+  isAssistantAvatarStartCallDisabled,
+  assistantAvatarStartCallTooltip,
 }: ChatMessageBubbleProps) {
   const fallback = assistantName
     ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
@@ -123,6 +130,37 @@ function ChatMessageBubbleImpl({
     copyMessage: 'Message copied',
   });
   const canCopy = !isUser && !!message && !isTypingIndicator;
+
+  const assistantAvatar = isCoordinator ? (
+    <CoordinatorLogoAvatar className={assistantAvatarClassName} logoClassName="h-7 w-7" />
+  ) : parseCreatureSentinel(assistantPhoto) ? (
+    <CreatureAvatar
+      appearance={assistantPhoto as string}
+      className={cn(assistantAvatarClassName, 'rounded-full border')}
+      label={assistantName}
+    />
+  ) : (
+    <Avatar className={cn(assistantAvatarClassName, 'border')}>
+      <AvatarImage src={assistantPhoto ?? undefined} alt={assistantName} />
+      <AvatarFallback className="text-[10px]">{fallback}</AvatarFallback>
+    </Avatar>
+  );
+
+  const assistantAvatarNode = onAssistantAvatarStartCall ? (
+    <AssistantStartCallDropdown
+      onStartCall={onAssistantAvatarStartCall}
+      disabled={isAssistantAvatarStartCallDisabled}
+      tooltip={assistantAvatarStartCallTooltip}
+      contentSide="bottom"
+      contentAlign="start"
+      tooltipSide="right"
+      testId="chat-avatar-start-call"
+    >
+      {assistantAvatar}
+    </AssistantStartCallDropdown>
+  ) : (
+    assistantAvatar
+  );
 
   const bubbleContent = () => {
     if (isTypingIndicator) {
@@ -201,20 +239,7 @@ function ChatMessageBubbleImpl({
       className={cn('min-w-0', isProfile && 'md:max-w-[66.6667%]')}
     >
       <div className="mb-2.5 flex items-center gap-2">
-        {isCoordinator ? (
-          <CoordinatorLogoAvatar className={assistantAvatarClassName} logoClassName="h-7 w-7" />
-        ) : parseCreatureSentinel(assistantPhoto) ? (
-          <CreatureAvatar
-            appearance={assistantPhoto as string}
-            className={cn(assistantAvatarClassName, 'rounded-full border')}
-            label={assistantName}
-          />
-        ) : (
-          <Avatar className={cn(assistantAvatarClassName, 'border')}>
-            <AvatarImage src={assistantPhoto ?? undefined} alt={assistantName} />
-            <AvatarFallback className="text-[10px]">{fallback}</AvatarFallback>
-          </Avatar>
-        )}
+        {assistantAvatarNode}
         <span className="text-body-muted font-medium">{assistantName}</span>
         {timeString && (
           <time className="text-[10px] leading-none text-muted-foreground">{timeString}</time>

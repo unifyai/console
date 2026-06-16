@@ -4,7 +4,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { Phone, Video, Search, Loader2, IdCard } from 'lucide-react';
+import { Phone, Search, Loader2, IdCard } from 'lucide-react';
 import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
 import { AssistantInfoSidePanelContent } from '@/components/Pages/Assistants/Profile/AssistantInfoSidePanelContent';
 import { ChatSidePanel } from './ChatSidePanel';
@@ -91,7 +91,7 @@ function writeInfoPanelWidth(width: number): void {
  *
  * The info panel is the *only* side surface here — actions live in their
  * own (split-able) right-pane tab now, and the page-level chat sub-header
- * keeps its call / video / info buttons regardless of split state. The
+ * keeps its call / info buttons regardless of split state. The
  * panel sits in the same flex row as the chat (not a modal sheet), so on
  * desktop the chat stays interactive beside it and on mobile the panel
  * claims the full row width.
@@ -440,7 +440,7 @@ export function ChatWithInfoPanel({
   const { voiceCalls } = useFeatures();
   const isInThisCall = activeCallAssistantId === assistant.agentId;
   const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
-  // Disable the call buttons whenever ANY call is active —
+  // Disable the call button whenever ANY call is active —
   // same-assistant in another slot (the docked call lives in the
   // primary slot only, see ``RightPaneContainer``) or a different
   // assistant entirely. The compose path is unreachable in both
@@ -449,7 +449,7 @@ export function ChatWithInfoPanel({
   const isCallButtonDisabled =
     !voiceCalls || isAnotherCallActive || isInThisCall || (isSpendingBlocked && !isInThisCall);
 
-  const callButtonTooltip = (type: 'audio' | 'video') =>
+  const callButtonTooltip = () =>
     !voiceCalls
       ? "Voice calls aren't enabled on this deployment"
       : isInThisCall && isConnectingCall
@@ -460,9 +460,11 @@ export function ChatWithInfoPanel({
             ? spendingBlockedMessage || 'Spending limit reached'
             : isAnotherCallActive
               ? 'Another call is in progress'
-              : type === 'audio'
-                ? 'Start audio call'
-                : 'Start video call';
+              : 'Start call';
+
+  const startAudioCall = React.useCallback(() => {
+    onStartCall(assistant, 'audio');
+  }, [assistant, onStartCall]);
 
   const chatPanel = (
     <AssistantProfileChatPanel
@@ -485,6 +487,9 @@ export function ChatWithInfoPanel({
       searchOpen={searchOpen}
       onSearchOpenChange={setSearchOpen}
       draftSeed={draftSeed}
+      onAssistantAvatarStartCall={startAudioCall}
+      isAssistantAvatarStartCallDisabled={isCallButtonDisabled}
+      assistantAvatarStartCallTooltip={callButtonTooltip()}
     />
   );
   const infoPanelStyle = React.useMemo<React.CSSProperties>(
@@ -494,7 +499,7 @@ export function ChatWithInfoPanel({
 
   return (
     <div className="flex h-full w-full flex-col">
-      {/* Sub-header: chat search + call buttons + info toggle.
+      {/* Sub-header: chat search + call button + info toggle.
           `py-2` (rather than `py-1.5`) is load-bearing in split mode —
           it matches the LiveActionsHeader's vertical padding so that
           when Chat is in one slot and Actions in the other, the bottom
@@ -517,7 +522,7 @@ export function ChatWithInfoPanel({
           />
         </div>
         <div className="flex items-center gap-0.5">
-          {/* Call buttons stay visible even when voice calls aren't configured
+          {/* The call button stays visible even when voice calls aren't configured
               on the deployment — they're disabled with an explanatory tooltip
               instead of hidden. The span wrapper is load-bearing: a disabled
               Button has `pointer-events-none`, so the tooltip has to trigger
@@ -531,7 +536,7 @@ export function ChatWithInfoPanel({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={() => onStartCall(assistant, 'audio')}
+                    onClick={startAudioCall}
                     disabled={isCallButtonDisabled}
                     data-testid="call-audio-button"
                   >
@@ -544,29 +549,7 @@ export function ChatWithInfoPanel({
                 </span>
               </TooltipTrigger>
               <TooltipContent side="top">
-                <p>{callButtonTooltip('audio')}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => onStartCall(assistant, 'video')}
-                    disabled={isCallButtonDisabled}
-                    data-testid="call-video-button"
-                  >
-                    <Video className="h-4 w-4" />
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>{callButtonTooltip('video')}</p>
+                <p>{callButtonTooltip()}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -661,6 +644,9 @@ export function ChatWithInfoPanel({
               roadmap={roadmap}
               canWrite={canWrite}
               coordinatorOnboarding={coordinatorOnboarding}
+              onStartCall={onStartCall}
+              isStartCallDisabled={isCallButtonDisabled}
+              startCallTooltip={callButtonTooltip()}
             />
           </ChatSidePanel>
         )}

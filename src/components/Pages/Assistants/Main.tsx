@@ -2043,6 +2043,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   onOpenContactManager={handleOpenContactManager}
                   onOpenWorkspaceManager={handleOpenWorkspaceManager}
                   onEditAssistant={handleOpenEditDialog}
+                  onStartCall={handleStartCall}
                   onConnectDesktop={handleShowInstallInstructions}
                   onEndContract={onDeleteAssistantSubmit}
                   canEndContract={canEndContract}

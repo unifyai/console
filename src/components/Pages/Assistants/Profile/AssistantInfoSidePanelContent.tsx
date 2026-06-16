@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import type { Assistant } from '@/types/assistants/assistant';
 import type { ContactType } from '@/types/assistants/contact';
 import { AssistantSetupRoadmap } from '@/components/Pages/Assistants/Onboarding/AssistantSetupRoadmap';
+import { AssistantStartCallDropdown } from '@/components/Pages/Assistants/Communication/AssistantStartCallDropdown';
 import {
   useAssistantOnboardingState,
   type OnboardingDerivationContext,
@@ -104,6 +105,9 @@ export interface AssistantInfoSidePanelContentProps {
      * call- vs chat-flavoured "Ask Marty to do something" chips. */
     isOnCall?: boolean;
   };
+  onStartCall?: (assistant: Assistant, type: 'audio' | 'video') => void;
+  isStartCallDisabled?: boolean;
+  startCallTooltip?: string;
   className?: string;
 }
 
@@ -113,11 +117,10 @@ const COORDINATOR_COPY_RESET_MS = 2000;
  * Body of the chat-tab assistant info side panel.
  *
  * Two-zone layout:
- *   1. A non-interactive identity header (avatar, name, supervisor,
- *      copy-id) with a single icon-only Edit button in the top-right
- *      corner. Tapping the header itself does nothing — the explicit
- *      pencil is the only edit affordance, which keeps the header
- *      purely informational.
+ *   1. An identity header (avatar call menu, name, supervisor, copy-id)
+ *      with a single icon-only Edit button in the top-right corner.
+ *      Tapping the header itself does nothing; interactions stay attached
+ *      to explicit controls.
  *   2. A tabbed body. While onboarding is in progress we render two
  *      tabs (Onboarding / Contact Info); the moment every onboarding
  *      step resolves we drop the tab strip entirely and show Contact
@@ -141,6 +144,9 @@ export function AssistantInfoSidePanelContent({
         onOpenContactManager={props.onOpenContactManager}
         canWrite={props.canWrite}
         coordinatorOnboarding={props.coordinatorOnboarding}
+        onStartCall={props.onStartCall}
+        isStartCallDisabled={props.isStartCallDisabled}
+        startCallTooltip={props.startCallTooltip}
       />
     );
   }
@@ -157,6 +163,9 @@ function CoordinatorAssistantInfoSidePanelContent({
   className,
   canWrite = true,
   coordinatorOnboarding,
+  onStartCall,
+  isStartCallDisabled,
+  startCallTooltip,
 }: {
   assistant: Assistant;
   onEditProfile?: (assistant: Assistant) => void;
@@ -164,6 +173,9 @@ function CoordinatorAssistantInfoSidePanelContent({
   className?: string;
   canWrite?: boolean;
   coordinatorOnboarding?: AssistantInfoSidePanelContentProps['coordinatorOnboarding'];
+  onStartCall?: AssistantInfoSidePanelContentProps['onStartCall'];
+  isStartCallDisabled?: boolean;
+  startCallTooltip?: string;
 }) {
   const showOnboardingTab = !!coordinatorOnboarding;
 
@@ -211,6 +223,9 @@ function CoordinatorAssistantInfoSidePanelContent({
           isIdCopied={isIdCopied}
           onCopyId={copyId}
           onEdit={canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined}
+          onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
+          isStartCallDisabled={isStartCallDisabled}
+          startCallTooltip={startCallTooltip}
           avatarNode={
             <CoordinatorLogoAvatar
               className="h-20 w-20 flex-shrink-0"
@@ -295,6 +310,9 @@ function RegularAssistantInfoSidePanelContent({
   className,
   canWrite = true,
   currentUserId,
+  onStartCall,
+  isStartCallDisabled,
+  startCallTooltip,
 }: AssistantInfoSidePanelContentProps) {
   const [isIdCopied, setIsIdCopied] = React.useState(false);
 
@@ -366,6 +384,9 @@ function RegularAssistantInfoSidePanelContent({
           isIdCopied={isIdCopied}
           onCopyId={copyId}
           onEdit={canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined}
+          onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
+          isStartCallDisabled={isStartCallDisabled}
+          startCallTooltip={startCallTooltip}
         />
 
         {showOnboardingTab && roadmap ? (
@@ -438,6 +459,9 @@ interface IdentityHeaderProps {
   isIdCopied: boolean;
   onCopyId: () => void;
   onEdit?: () => void;
+  onStartCall?: () => void;
+  isStartCallDisabled?: boolean;
+  startCallTooltip?: string;
   avatarNode?: React.ReactNode;
 }
 
@@ -451,6 +475,9 @@ function IdentityHeader({
   isIdCopied,
   onCopyId,
   onEdit,
+  onStartCall,
+  isStartCallDisabled,
+  startCallTooltip,
   avatarNode,
 }: IdentityHeaderProps) {
   const metadataRowClass =
@@ -458,7 +485,32 @@ function IdentityHeader({
 
   return (
     <div className="flex items-start gap-3">
-      {avatarNode ??
+      {onStartCall ? (
+        <AssistantStartCallDropdown
+          onStartCall={onStartCall}
+          disabled={isStartCallDisabled}
+          tooltip={startCallTooltip}
+          contentSide="bottom"
+          contentAlign="start"
+          tooltipSide="right"
+          testId="assistant-info-avatar-start-call"
+        >
+          {avatarNode ??
+            (parseCreatureSentinel(photoSrc) ? (
+              <CreatureAvatar
+                appearance={photoSrc as string}
+                className="h-14 w-14 flex-shrink-0 rounded-md"
+                label={name}
+              />
+            ) : (
+              <Avatar className="h-14 w-14 flex-shrink-0 rounded-md">
+                <AvatarImage src={photoSrc} alt={name} className="rounded-md" />
+                <AvatarFallback className="rounded-md">{initials}</AvatarFallback>
+              </Avatar>
+            ))}
+        </AssistantStartCallDropdown>
+      ) : (
+        (avatarNode ??
         (parseCreatureSentinel(photoSrc) ? (
           <CreatureAvatar
             appearance={photoSrc as string}
@@ -470,7 +522,8 @@ function IdentityHeader({
             <AvatarImage src={photoSrc} alt={name} className="rounded-md" />
             <AvatarFallback className="rounded-md">{initials}</AvatarFallback>
           </Avatar>
-        ))}
+        )))
+      )}
       <div className="min-w-0 flex-1 space-y-0.5">
         <div className="text-title truncate" data-testid="assistant-info-name">
           {name}

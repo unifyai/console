@@ -89,6 +89,9 @@ interface AssistantProfileChatPanelProps {
    * input value in a one-way external prop.
    */
   draftSeed?: { text: string; nonce: number } | null;
+  onAssistantAvatarStartCall?: () => void;
+  isAssistantAvatarStartCallDisabled?: boolean;
+  assistantAvatarStartCallTooltip?: string;
   /**
    * Force the assistant-replying typing bubble to render even when
    * no real reply is in flight. Used by the Coordinator onboarding
@@ -121,6 +124,9 @@ export function AssistantProfileChatPanel({
   searchOpen: externalSearchOpen,
   onSearchOpenChange,
   draftSeed,
+  onAssistantAvatarStartCall,
+  isAssistantAvatarStartCallDisabled,
+  assistantAvatarStartCallTooltip,
   forceTypingIndicator = false,
 }: AssistantProfileChatPanelProps) {
   const displayName = assistantDisplayName(assistant);
@@ -741,6 +747,9 @@ export function AssistantProfileChatPanel({
                             timezone={userTimezone}
                             index={i}
                             attachments={item.attachments}
+                            onAssistantAvatarStartCall={onAssistantAvatarStartCall}
+                            isAssistantAvatarStartCallDisabled={isAssistantAvatarStartCallDisabled}
+                            assistantAvatarStartCallTooltip={assistantAvatarStartCallTooltip}
                           />
                         </div>
                       </React.Fragment>
@@ -825,6 +834,9 @@ export function AssistantProfileChatPanel({
                         onPlayAudio={audioEnabled ? playMessage : undefined}
                         onStopAudio={audioEnabled ? stopPlayback : undefined}
                         audioState={audioEnabled ? getAudioState(msg.id) : undefined}
+                        onAssistantAvatarStartCall={onAssistantAvatarStartCall}
+                        isAssistantAvatarStartCallDisabled={isAssistantAvatarStartCallDisabled}
+                        assistantAvatarStartCallTooltip={assistantAvatarStartCallTooltip}
                       />
                     </React.Fragment>
                   );
@@ -838,6 +850,9 @@ export function AssistantProfileChatPanel({
                     isCoordinator={assistant.isCoordinator}
                     isLoading={true}
                     index={messages.length}
+                    onAssistantAvatarStartCall={onAssistantAvatarStartCall}
+                    isAssistantAvatarStartCallDisabled={isAssistantAvatarStartCallDisabled}
+                    assistantAvatarStartCallTooltip={assistantAvatarStartCallTooltip}
                   />
                 )}
               </>
