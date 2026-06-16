@@ -92,6 +92,7 @@ import { useAssistantPresenceWake } from '@/hooks/Assistants/useAssistantPresenc
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { createRandomDroidProfile } from '@/utils/assistants/droid-profile-randomizer';
+import { dispatchCoordinatorReferenceQuizClue } from '@/utils/assistants/coordinator-reference-quiz';
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
 type ContactManagerInitialTab = ContactType | 'slack';
@@ -1590,9 +1591,19 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleCoordinatorStartOnboardingStep = React.useCallback(
     (stepId: string) => {
       markStepEngaged(stepId);
-      void updateCoordinatorOnboardingState({ onboardingStep: stepId });
+      void (async () => {
+        const updated = await updateCoordinatorOnboardingState({ onboardingStep: stepId });
+        if (!updated || !canonicalCoordinator) return;
+
+        try {
+          await dispatchCoordinatorReferenceQuizClue(canonicalCoordinator.agentId, stepId);
+        } catch (error) {
+          console.error('[Coordinator onboarding] Failed to dispatch reference quiz clue:', error);
+          toast.error('Could not start the quiz clue. Please try again.');
+        }
+      })();
     },
-    [markStepEngaged, updateCoordinatorOnboardingState]
+    [canonicalCoordinator, markStepEngaged, updateCoordinatorOnboardingState]
   );
 
   const handleCoordinatorAddWhatsappNumber = React.useCallback(() => {
