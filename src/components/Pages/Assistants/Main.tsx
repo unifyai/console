@@ -36,7 +36,7 @@ import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
 import { useAssistantOnboardingSummaries } from '@/hooks/Assistants/useAssistantOnboardingSummaries';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
-import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
+import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
@@ -98,6 +98,26 @@ import {
 } from '@/utils/assistants/coordinator-reference-quiz';
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
+const COORDINATOR_REFERENCE_QUIZ_ACTIONS = new Set<ChecklistAction>([
+  'trigger-email-reference',
+  'start-email-reply',
+  'add-whatsapp-number',
+  'trigger-whatsapp-message-reference',
+  'start-whatsapp-message',
+  'trigger-whatsapp-call-reference',
+  'start-whatsapp-call',
+  'add-phone-number',
+  'trigger-sms-reference',
+  'start-sms-message',
+  'trigger-phone-call-reference',
+  'start-phone-call',
+  'connect-slack',
+  'trigger-slack-reference',
+  'start-slack-message',
+  'connect-discord',
+  'trigger-discord-reference',
+  'start-discord-message',
+]);
 type ContactManagerInitialTab = ContactType | 'slack';
 
 interface MainProps {
@@ -152,12 +172,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
   const { activeWorkspace, currentUserId } = useWorkspace();
+  const { isSelfHost } = useEnvironment();
   // Workspace connect (Gmail/Outlook BYOD) needs an OAuth client configured on
   // the deployment. When neither provider is available, the onboarding
   // "Connect workspace" step is suppressed rather than leading to a dead end.
   const { workspaceGoogle, workspaceMicrosoft, contactPhone, contactWhatsapp, contactDiscord } =
     useFeatures();
   const workspaceConnectAvailable = workspaceGoogle || workspaceMicrosoft;
+  const coordinatorReferenceQuizAvailable = !isSelfHost;
   const coordinatorWorkspace = React.useMemo<CoordinatorWorkspaceScope>(() => {
     if (activeWorkspace?.type === 'organization') {
       const parsedOrganizationId = Number.parseInt(activeWorkspace.id, 10);
@@ -1642,11 +1664,15 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, [canonicalCoordinator, handleCoordinatorStartOnboardingStep, handleOpenContactManager]);
 
   // Which checklist actions are available (wired) on this deployment.
-  // Workspace OAuth needs a configured provider; the rest are always
-  // reachable in the full platform. Mirrors the handler wiring below so
-  // the outstanding-step signal and the rendered rows agree.
+  // Workspace OAuth needs a configured provider, and the reference quiz relies
+  // on hosted communication channels that self-host installs don't expose.
+  // Mirrors the handler wiring below so the outstanding-step signal and the
+  // rendered rows agree.
   const isCoordinatorActionWired = React.useCallback(
     (action: ChecklistAction | undefined): boolean => {
+      if (action && COORDINATOR_REFERENCE_QUIZ_ACTIONS.has(action)) {
+        if (!coordinatorReferenceQuizAvailable) return false;
+      }
       if (action === 'trigger-email-reference' || action === 'start-email-reply') return true;
       if (action === 'add-whatsapp-number' || action === 'start-whatsapp-message') {
         return contactWhatsapp;
@@ -1686,6 +1712,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     },
     [
       assistantActions.slack,
+      coordinatorReferenceQuizAvailable,
       contactDiscord,
       contactPhone,
       contactWhatsapp,
@@ -1791,13 +1818,28 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     // Coordinator's onboarding steps.
     const isProfileCoordinator = profileAssistantId === canonicalCoordinator.agentId;
     return {
-      onStartOnboardingStep: handleCoordinatorStartOnboardingStep,
-      onTriggerReferenceStep: handleCoordinatorTriggerReferenceStep,
-      onAddWhatsappNumber: contactWhatsapp ? handleCoordinatorAddWhatsappNumber : undefined,
-      onAddPhoneNumber: contactPhone ? handleCoordinatorAddPhoneNumber : undefined,
+      onStartOnboardingStep: coordinatorReferenceQuizAvailable
+        ? handleCoordinatorStartOnboardingStep
+        : undefined,
+      onTriggerReferenceStep: coordinatorReferenceQuizAvailable
+        ? handleCoordinatorTriggerReferenceStep
+        : undefined,
+      onAddWhatsappNumber:
+        coordinatorReferenceQuizAvailable && contactWhatsapp
+          ? handleCoordinatorAddWhatsappNumber
+          : undefined,
+      onAddPhoneNumber:
+        coordinatorReferenceQuizAvailable && contactPhone
+          ? handleCoordinatorAddPhoneNumber
+          : undefined,
       onConnectSlack:
-        userMeta.slackOwner && assistantActions.slack ? handleCoordinatorConnectSlack : undefined,
-      onConnectDiscord: contactDiscord ? handleCoordinatorConnectDiscord : undefined,
+        coordinatorReferenceQuizAvailable && userMeta.slackOwner && assistantActions.slack
+          ? handleCoordinatorConnectSlack
+          : undefined,
+      onConnectDiscord:
+        coordinatorReferenceQuizAvailable && contactDiscord
+          ? handleCoordinatorConnectDiscord
+          : undefined,
       onConnectWorkspace: workspaceConnectAvailable
         ? () => {
             markStepEngaged('workspace');
@@ -1828,6 +1870,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     profileAssistantId,
     activeCallAssistant,
     assistantActions.slack,
+    coordinatorReferenceQuizAvailable,
     contactDiscord,
     contactPhone,
     contactWhatsapp,
