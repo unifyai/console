@@ -4,35 +4,32 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import LoadingScreen from '@/components/Layout/LoadingScreen';
 import { getCurrentUser } from '@/lib/user/user';
-import { User } from '@/types/user';
-
-const initializeUser = async (): Promise<User> => {
-  const user = await getCurrentUser();
-  if (!user) {
-    throw new Error('Not found');
-  }
-  return user;
-};
 
 export default function Home() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const redirectUser = async () => {
       try {
-        const user = await initializeUser();
-        const redirectUrl = '/assistants';
-        router.push(redirectUrl);
+        const user = await getCurrentUser();
+        if (!isMounted) return;
+
+        router.replace(user ? '/assistants' : '/login');
       } catch (error) {
         console.error('Error initializing user:', error);
-        router.push('/login');
+        if (isMounted) router.replace('/login');
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     };
 
     redirectUser();
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   return isLoading ? <LoadingScreen /> : null;
