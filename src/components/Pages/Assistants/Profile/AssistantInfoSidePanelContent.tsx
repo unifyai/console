@@ -117,6 +117,7 @@ export interface AssistantInfoSidePanelContentProps {
 }
 
 const COORDINATOR_COPY_RESET_MS = 2000;
+const CONTACT_COPY_RESET_MS = 2000;
 
 /**
  * Body of the chat-tab assistant info side panel.
@@ -669,11 +670,6 @@ function ContactInfoGrid({ assistant, onOpenContactManager, canWrite }: ContactI
           label="Email"
           value={assistant.email}
           canWrite={canWrite && canManuallyManage}
-          renderValue={(v) => (
-            <a href={`mailto:${v}`} className="text-link min-w-0 truncate">
-              {v}
-            </a>
-          )}
           onAdd={() => onOpenContactManager(assistant, 'email')}
         />
         <ContactRow
@@ -699,25 +695,54 @@ interface ContactRowProps {
   icon: React.ReactNode;
   label: string;
   value: string | null | undefined;
-  /** Custom renderer for the populated value (e.g. mailto link). */
-  renderValue?: (value: string) => React.ReactNode;
   onAdd: () => void;
   canWrite: boolean;
 }
 
-function ContactRow({ icon, label, value, renderValue, onAdd, canWrite }: ContactRowProps) {
-  const isSet = !!value && value.trim() !== '';
+function ContactRow({ icon, label, value, onAdd, canWrite }: ContactRowProps) {
+  const [isCopied, setIsCopied] = React.useState(false);
+  const copyResetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contactValue = value?.trim() ?? '';
+  const isSet = contactValue !== '';
+
+  React.useEffect(
+    () => () => {
+      if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+    },
+    []
+  );
+
+  const copyValue = () => {
+    void navigator.clipboard.writeText(contactValue);
+    setIsCopied(true);
+    if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+    copyResetTimerRef.current = setTimeout(() => {
+      copyResetTimerRef.current = null;
+      setIsCopied(false);
+    }, CONTACT_COPY_RESET_MS);
+  };
+
   return (
     <div className="flex min-w-0 items-center gap-2 text-sm">
       <span className="text-muted-foreground" aria-hidden="true">
         {icon}
       </span>
       {isSet ? (
-        renderValue ? (
-          renderValue(value as string)
-        ) : (
-          <span className="min-w-0 truncate">{value}</span>
-        )
+        <button
+          type="button"
+          className="group/contact flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 text-left text-foreground"
+          onClick={copyValue}
+          aria-label={`Copy ${label.toLowerCase()}`}
+        >
+          <span className="min-w-0 truncate">{contactValue}</span>
+          <Check
+            className={cn(
+              'h-3 w-3 flex-shrink-0 text-[color:var(--status-success)] transition-opacity',
+              isCopied ? 'opacity-100' : 'opacity-0'
+            )}
+            aria-hidden="true"
+          />
+        </button>
       ) : canWrite ? (
         <Button
           type="button"
