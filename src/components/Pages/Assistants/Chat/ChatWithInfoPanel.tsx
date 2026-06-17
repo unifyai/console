@@ -507,7 +507,7 @@ export function ChatWithInfoPanel({
             ? spendingBlockedMessage || 'Spending limit reached'
             : isAnotherCallActive
               ? 'Another call is in progress'
-              : 'Start call';
+              : 'Call';
 
   const startAudioCall = React.useCallback(() => {
     onStartCall(assistant, 'audio');

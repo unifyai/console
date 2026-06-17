@@ -27,7 +27,7 @@ import { cn } from '@/lib/utils';
 import type { Assistant } from '@/types/assistants/assistant';
 import type { ContactType } from '@/types/assistants/contact';
 import { AssistantSetupRoadmap } from '@/components/Pages/Assistants/Onboarding/AssistantSetupRoadmap';
-import { AssistantStartCallDropdown } from '@/components/Pages/Assistants/Communication/AssistantStartCallDropdown';
+import { AssistantStartCallButton } from '@/components/Pages/Assistants/Communication/AssistantStartCallButton';
 import {
   useAssistantOnboardingState,
   type OnboardingDerivationContext,
@@ -124,7 +124,7 @@ const CONTACT_COPY_RESET_MS = 2000;
  * Body of the chat-tab assistant info side panel.
  *
  * Two-zone layout:
- *   1. An identity header (avatar call menu, name, supervisor, copy-id)
+ *   1. An identity header (avatar call action, name, supervisor, copy-id)
  *      with a single icon-only Edit button in the top-right corner.
  *      Tapping the header itself does nothing; interactions stay attached
  *      to explicit controls.
@@ -518,17 +518,15 @@ function IdentityHeader({
   return (
     <div className="flex items-start gap-3">
       {onStartCall ? (
-        <AssistantStartCallDropdown
+        <AssistantStartCallButton
           onStartCall={onStartCall}
           disabled={isStartCallDisabled}
           tooltip={startCallTooltip}
-          contentSide="bottom"
-          contentAlign="start"
           tooltipSide="right"
           testId="assistant-info-avatar-start-call"
         >
           {renderedAvatar}
-        </AssistantStartCallDropdown>
+        </AssistantStartCallButton>
       ) : (
         renderedAvatar
       )}

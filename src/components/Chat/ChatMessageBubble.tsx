@@ -11,7 +11,7 @@ import { MessageAttachmentList } from './ChatAttachments';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { TooltipContent, Tooltip, TooltipTrigger, TooltipProvider } from '@/components/UI/tooltip';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
-import { AssistantStartCallDropdown } from '@/components/Pages/Assistants/Communication/AssistantStartCallDropdown';
+import { AssistantStartCallButton } from '@/components/Pages/Assistants/Communication/AssistantStartCallButton';
 import { DroidCallAvatar } from '@/components/Pages/Assistants/Communication/DroidCallAvatar';
 import { useDroidAudioElementLipsync } from '@/utils/assistants/droid-lipsync';
 
@@ -190,17 +190,15 @@ function ChatMessageBubbleImpl({
   );
 
   const assistantAvatarNode = onAssistantAvatarStartCall ? (
-    <AssistantStartCallDropdown
+    <AssistantStartCallButton
       onStartCall={onAssistantAvatarStartCall}
       disabled={isAssistantAvatarStartCallDisabled}
       tooltip={assistantAvatarStartCallTooltip}
-      contentSide="bottom"
-      contentAlign="start"
       tooltipSide="right"
       testId="chat-avatar-start-call"
     >
       {assistantAvatar}
-    </AssistantStartCallDropdown>
+    </AssistantStartCallButton>
   ) : (
     assistantAvatar
   );

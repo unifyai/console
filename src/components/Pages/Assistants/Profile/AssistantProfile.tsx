@@ -76,7 +76,7 @@ export function AssistantProfilePanel({
             ? spendingGate.blockedMessage || 'Spending limit reached'
             : isAnotherCallActive
               ? 'Another call is in progress'
-              : 'Start call';
+              : 'Call';
 
   const startAudioCall = React.useCallback(() => {
     onStartCall(assistant, 'audio');
