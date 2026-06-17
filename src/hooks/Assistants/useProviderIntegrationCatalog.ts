@@ -80,10 +80,9 @@ function mergeDefinitionsWithConnections(
 }
 
 function statusGroupForDefinition(definition: IntegrationDefinition): ProviderAppStatusGroup {
-  if (definition.status === 'connected') return 'connected';
+  if (definition.status === 'connected' || definition.status === 'configured') return 'connected';
   if (
     [
-      'configured',
       'pending',
       'missing_scope',
       'missing_secrets',

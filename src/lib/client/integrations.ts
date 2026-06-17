@@ -19,6 +19,47 @@ import type {
 type UnknownRecord = Record<string, unknown>;
 
 const BUILTINS_APP_DISPLAY_NAME_FIELD = 'display_name';
+const BUILTINS_APP_PUBLIC_FIELDS = [
+  'backend_id',
+  'provider_app_id',
+  'canonical_app_slug',
+  'display_name',
+  'source_type',
+  'source_label',
+  'description',
+  'category',
+  'icon_url',
+  'auth_modes',
+  'available_scopes',
+  'available_actions',
+  'tool_count',
+  'tools',
+  'derived_scopes',
+  'connection_status',
+  'connection_id',
+  'external_account_label',
+  'overlay',
+  'api_key_schema',
+  'native_metadata',
+].join('&');
+const BUILTINS_TOOL_PUBLIC_FIELDS = [
+  'function_id',
+  'id',
+  'name',
+  'canonical_name',
+  'tool_id',
+  'display_name',
+  'description',
+  'summary',
+  'metadata',
+  'activation_state',
+  'action_class',
+  'behavior_hints',
+  'confirmation_required',
+  'approval_level',
+  'provider_tool_id',
+  'required_scopes',
+].join('&');
 
 interface ProviderScopePayload {
   id?: string;
@@ -167,6 +208,7 @@ async function builtinsLogFetch<T>(args: {
   limit: number;
   offset: number;
   filterExpr?: string;
+  fromFields?: string;
   sorting?: Record<string, 'ascending' | 'descending'>;
 }): Promise<LogPayload<T>> {
   const params = new URLSearchParams();
@@ -175,6 +217,7 @@ async function builtinsLogFetch<T>(args: {
   params.set('limit', String(args.limit));
   params.set('offset', String(args.offset));
   if (args.filterExpr) params.set('filterExpr', args.filterExpr);
+  if (args.fromFields) params.set('fromFields', args.fromFields);
   if (args.sorting) params.set('sorting', JSON.stringify(args.sorting));
   const response = await fetch(`/api/logs?${params.toString()}`, {
     cache: 'no-store',
@@ -439,6 +482,10 @@ function quoteFilterValue(value: string): string {
   return JSON.stringify(value);
 }
 
+function toolAppSlugFilter(slug: string): string {
+  return `metadata["integration"]["app_slug"] == ${quoteFilterValue(slug)}`;
+}
+
 function statusGroupForStatus(status: string): ProviderAppStatusGroup {
   if (status === 'connected' || status === 'configured') return 'connected';
   if (
@@ -661,6 +708,7 @@ export async function listProviderIntegrationDefinitionsPage(args: {
     limit,
     offset,
     filterExpr: catalogFilterExpr({ ...args, connections: providerConnections }),
+    fromFields: BUILTINS_APP_PUBLIC_FIELDS,
     sorting: { [BUILTINS_APP_DISPLAY_NAME_FIELD]: 'ascending' },
   });
   const pageConnections =
@@ -700,12 +748,14 @@ export async function getProviderIntegrationDetails(args: {
       limit: 1,
       offset: 0,
       filterExpr: `canonical_app_slug == ${quoteFilterValue(args.canonicalSlug)}`,
+      fromFields: BUILTINS_APP_PUBLIC_FIELDS,
     }),
     builtinsLogFetch<UnknownRecord>({
       context: 'Integrations/Tools',
       limit: 500,
       offset: 0,
-      filterExpr: `app_slug == ${quoteFilterValue(args.canonicalSlug)}`,
+      filterExpr: toolAppSlugFilter(args.canonicalSlug),
+      fromFields: BUILTINS_TOOL_PUBLIC_FIELDS,
       sorting: { name: 'ascending' },
     }),
     listProviderIntegrationConnections({

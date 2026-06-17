@@ -50,13 +50,36 @@ vi.mock('@/utils/assistants/oauth', () => ({
 
 vi.mock('@/components/Integrations', () => ({
   IntegrationGalleryShell: ({
+    filters,
     items,
     onOpen,
+    onFiltersChange,
+    total,
   }: {
+    filters?: {
+      query: string;
+      category: string;
+      status: 'all' | 'connected' | 'needs_attention' | 'not_connected';
+    };
     items: IntegrationGalleryItem[];
     onOpen: (item: IntegrationGalleryItem) => void;
+    onFiltersChange?: (filters: {
+      query: string;
+      category: string;
+      status: 'all' | 'connected' | 'needs_attention' | 'not_connected';
+    }) => void;
+    total?: number;
   }) => (
     <div data-testid="integration-gallery">
+      <div data-testid="integration-gallery-total">{total}</div>
+      <button
+        type="button"
+        data-testid="integration-gallery-third-party-filter"
+        onClick={() => onFiltersChange?.({ query: '', category: 'third_party', status: 'all' })}
+      >
+        Third-party
+      </button>
+      <div data-testid="integration-gallery-category">{filters?.category}</div>
       {items.map((item) => (
         <button
           key={item.id}
@@ -260,6 +283,45 @@ describe('IntegrationsPane provider disconnect sync', () => {
     });
     expect(refreshProviderCatalog).toHaveBeenCalledTimes(1);
     expect(fetchDetails).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not include native static definitions in third-party catalog totals', async () => {
+    mockUseProviderIntegrationCatalog.mockReturnValue({
+      apps: [],
+      catalogVersion: null,
+      definitions: [],
+      detailsBySlug: {},
+      facets: null,
+      fetchDetails: fetchDetails as ReturnType<
+        typeof useProviderIntegrationCatalog
+      >['fetchDetails'],
+      generatedAt: null,
+      hasMore: false,
+      hasLoaded: true,
+      isConnecting: null,
+      isDetailLoading: null,
+      isLoadingMore: false,
+      isLoading: false,
+      isMock: false,
+      loadMore: vi.fn(),
+      refresh: refreshProviderCatalog as ReturnType<
+        typeof useProviderIntegrationCatalog
+      >['refresh'],
+      startConnect: vi.fn(),
+      total: 1046,
+    });
+
+    render(
+      <IntegrationsPane assistantId="123" ownerId="owner" secretActions={{} as never} isVisible />
+    );
+
+    expect(screen.getByTestId('integration-gallery-total')).toHaveTextContent('1053');
+    fireEvent.click(screen.getByTestId('integration-gallery-third-party-filter'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('integration-gallery-category')).toHaveTextContent('third_party');
+      expect(screen.getByTestId('integration-gallery-total')).toHaveTextContent('1046');
+    });
   });
 
   it('refreshes disconnect UI state when Unity cleanup sync fails', async () => {

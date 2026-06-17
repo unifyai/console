@@ -151,7 +151,7 @@ describe('useProviderIntegrationCatalog', () => {
   });
 
   it('fetches deferred details with tools from Builtins logs', async () => {
-    vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+    const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
       if (url.startsWith('/api/logs?')) {
         const params = new URL(url, window.location.origin).searchParams;
@@ -227,6 +227,53 @@ describe('useProviderIntegrationCatalog', () => {
       actionClass: 'write',
       confirmationRequired: true,
     });
+    const toolsRequests = fetchSpy.mock.calls
+      .map(([input]) => String(input))
+      .filter((url) => {
+        if (!url.startsWith('/api/logs?')) return false;
+        return (
+          new URL(url, window.location.origin).searchParams.get('context') === 'Integrations/Tools'
+        );
+      });
+    expect(toolsRequests.length).toBeGreaterThan(0);
+    for (const url of toolsRequests) {
+      const params = new URL(url, window.location.origin).searchParams;
+      expect(params.get('filterExpr')).toBe('metadata["integration"]["app_slug"] == "slack"');
+      expect(params.get('filterExpr')).not.toBe('app_slug == "slack"');
+      expect(params.get('fromFields')).toContain('metadata');
+      expect(params.get('fromFields')).not.toContain('embedding');
+    }
+  });
+
+  it('keeps configured apps in the connected status group', async () => {
+    vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/logs?')) {
+        return builtinsLogsResponse([
+          providerApp('hubspot', {
+            display_name: 'HubSpot',
+            connection_status: 'configured',
+          }),
+        ]);
+      }
+      if (url.startsWith('/api/integrations/provider/connections')) {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('{}', { status: 404 });
+    });
+
+    const { result } = renderHook(() =>
+      useProviderIntegrationCatalog('123', { statusGroups: ['connected'] })
+    );
+
+    await waitFor(() => expect(result.current.definitions).toHaveLength(1));
+    expect(result.current.definitions[0]).toMatchObject({
+      canonicalSlug: 'hubspot',
+      status: 'configured',
+    });
   });
 });
 
@@ -256,6 +303,10 @@ describe('listProviderIntegrationDefinitionsPage', () => {
     expect(String(fetchSpy.mock.calls[0][0])).toContain(
       'filterExpr=source_type+%3D%3D+%22third_party%22'
     );
+    const params = new URL(String(fetchSpy.mock.calls[0][0]), window.location.origin).searchParams;
+    expect(params.get('fromFields')).toContain('canonical_app_slug');
+    expect(params.get('fromFields')).toContain('display_name');
+    expect(params.get('fromFields')).not.toContain('embedding');
     expect(String(fetchSpy.mock.calls[0][0])).not.toContain('/api/integrations/provider/apps');
     expect(String(fetchSpy.mock.calls[0][0])).not.toContain('/api/integrations/catalog/apps');
   });
