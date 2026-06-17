@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { Camera, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { User } from '@/types/user';
-import { TeammateCreature } from '@/components/Brand';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -134,7 +133,7 @@ const ProfilePhoto = ({ user, onFileSelect, onPhotoRemoved, previewUrl }: Profil
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className={`hover:border-muted-foreground/40 group relative h-32 w-32 shrink-0 cursor-pointer overflow-visible rounded-xl border border-border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${displayUrl ? 'bg-transparent' : 'bg-card'}`}
+            className={`hover:border-muted-foreground/40 group relative h-32 w-32 shrink-0 cursor-pointer overflow-visible rounded-xl border border-border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${displayUrl ? 'bg-transparent' : 'bg-muted'}`}
           >
             {displayUrl ? (
               <Image
@@ -146,7 +145,7 @@ const ProfilePhoto = ({ user, onFileSelect, onPhotoRemoved, previewUrl }: Profil
               />
             ) : (
               <span className="flex h-full w-full items-center justify-center">
-                <TeammateCreature className="h-24 w-24" label="Default profile photo" />
+                <Camera className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
               </span>
             )}
 
