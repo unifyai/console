@@ -132,7 +132,7 @@ export function AssistantProfileChatPanel({
   const displayName = assistantDisplayName(assistant);
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
 
-  const { playMessage, stopPlayback, getAudioState, hasVoice } = useChatTTS({
+  const { playMessage, stopPlayback, getAudioState, hasVoice, audioElement } = useChatTTS({
     voiceId: assistant.voiceId,
     voiceProvider: assistant.voiceProvider,
     generateSpeechAction: assistantActions.voice?.generate,
@@ -815,6 +815,7 @@ export function AssistantProfileChatPanel({
                   // bails out on keystrokes — the bubble builds its own
                   // onClick handler from `messageId` + `message`.
                   const audioEnabled = hasVoice && msg.role === 'assistant' && !!msg.content;
+                  const audioState = audioEnabled ? getAudioState(msg.id) : undefined;
                   return (
                     <React.Fragment key={msg.id}>
                       {showDivider && (
@@ -833,7 +834,8 @@ export function AssistantProfileChatPanel({
                         messageId={msg.id}
                         onPlayAudio={audioEnabled ? playMessage : undefined}
                         onStopAudio={audioEnabled ? stopPlayback : undefined}
-                        audioState={audioEnabled ? getAudioState(msg.id) : undefined}
+                        audioState={audioState}
+                        audioElement={audioState === 'playing' ? audioElement : null}
                         onAssistantAvatarStartCall={onAssistantAvatarStartCall}
                         isAssistantAvatarStartCallDisabled={isAssistantAvatarStartCallDisabled}
                         assistantAvatarStartCallTooltip={assistantAvatarStartCallTooltip}

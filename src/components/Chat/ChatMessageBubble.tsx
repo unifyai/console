@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Volume2, Loader2, Square, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -11,6 +12,8 @@ import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { TooltipContent, Tooltip, TooltipTrigger, TooltipProvider } from '@/components/UI/tooltip';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 import { AssistantStartCallDropdown } from '@/components/Pages/Assistants/Communication/AssistantStartCallDropdown';
+import { DroidCallAvatar } from '@/components/Pages/Assistants/Communication/DroidCallAvatar';
+import { useDroidAudioElementLipsync } from '@/utils/assistants/droid-lipsync';
 
 type ChatBubbleVariant = 'profile' | 'hire';
 
@@ -87,6 +90,7 @@ interface ChatMessageBubbleProps {
   onPlayAudio?: (messageId: string, content: string) => void;
   onStopAudio?: () => void;
   audioState?: 'idle' | 'generating' | 'playing';
+  audioElement?: HTMLAudioElement | null;
   onAssistantAvatarStartCall?: () => void;
   isAssistantAvatarStartCallDisabled?: boolean;
   assistantAvatarStartCallTooltip?: string;
@@ -108,6 +112,7 @@ function ChatMessageBubbleImpl({
   onPlayAudio,
   onStopAudio,
   audioState = 'idle',
+  audioElement,
   onAssistantAvatarStartCall,
   isAssistantAvatarStartCallDisabled,
   assistantAvatarStartCallTooltip,
@@ -120,6 +125,13 @@ function ChatMessageBubbleImpl({
   const isProfile = variant === 'profile';
   const isTypingIndicator = !isUser && isLoading && !message;
   const assistantAvatarClassName = 'h-7 w-7 flex-shrink-0';
+  const creatureAppearance = assistantPhoto ? parseCreatureSentinel(assistantPhoto) : null;
+  const isDroidAudioPlaying = Boolean(
+    creatureAppearance && audioState === 'playing' && audioElement
+  );
+  const droidLipsyncFrame = useDroidAudioElementLipsync(audioElement ?? null, {
+    enabled: isDroidAudioPlaying,
+  });
 
   // Copy lives on the message header row so it sits next to the audio
   // affordance with matching geometry. Disabled while the bubble is
@@ -133,12 +145,43 @@ function ChatMessageBubbleImpl({
 
   const assistantAvatar = isCoordinator ? (
     <CoordinatorLogoAvatar className={assistantAvatarClassName} logoClassName="h-7 w-7" />
-  ) : parseCreatureSentinel(assistantPhoto) ? (
-    <CreatureAvatar
-      appearance={assistantPhoto as string}
-      className={cn(assistantAvatarClassName, 'rounded-full border')}
-      label={assistantName}
-    />
+  ) : creatureAppearance ? (
+    <span
+      className={cn(assistantAvatarClassName, 'relative flex items-center justify-center')}
+      data-speaking={isDroidAudioPlaying || undefined}
+    >
+      <CreatureAvatar
+        appearance={assistantPhoto as string}
+        className="h-full w-full rounded-full border"
+        label={assistantName}
+      />
+      <AnimatePresence>
+        {isDroidAudioPlaying && (
+          <motion.span
+            aria-hidden="true"
+            className="pointer-events-none absolute left-1/2 top-1/2 z-20 flex h-28 w-28 items-center justify-center overflow-visible drop-shadow-lg"
+            initial={{ opacity: 0, scale: 0.25, x: '-50%', y: '-50%' }}
+            animate={{ opacity: 1, scale: 1, x: '-50%', y: '-50%' }}
+            exit={{ opacity: 0, scale: 0.25, x: '-50%', y: '-50%' }}
+            transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.75 }}
+          >
+            <DroidCallAvatar
+              isSpeaking={droidLipsyncFrame.isActive}
+              mouthShape={droidLipsyncFrame.mouthShape}
+              speechLevel={droidLipsyncFrame.speechLevel}
+              antenna={creatureAppearance.antenna}
+              body={creatureAppearance.body}
+              color={creatureAppearance.color}
+              baseEyes={creatureAppearance.eyes}
+              outfit={creatureAppearance.outfit}
+              label={assistantName}
+              className="h-full w-full"
+              creatureClassName="h-full w-full"
+            />
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </span>
   ) : (
     <Avatar className={cn(assistantAvatarClassName, 'border')}>
       <AvatarImage src={assistantPhoto ?? undefined} alt={assistantName} />
