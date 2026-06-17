@@ -41,9 +41,15 @@ const INFO_PANEL_WIDTH_KEY = 'console:assistants:info-panel-width';
 const INFO_PANEL_DEFAULT_WIDTH = 380;
 const INFO_PANEL_MIN_WIDTH = 320;
 const INFO_PANEL_MIN_CHAT_WIDTH = 320;
+const MOBILE_INFO_PANEL_MEDIA_QUERY = '(max-width: 639px)';
 
 function clampInfoPanelWidth(width: number, maxWidth = Number.POSITIVE_INFINITY): number {
   return Math.min(maxWidth, Math.max(INFO_PANEL_MIN_WIDTH, Math.round(width)));
+}
+
+function isMobileInfoPanelViewport(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia(MOBILE_INFO_PANEL_MEDIA_QUERY).matches;
 }
 
 function readInfoPanelOpen(): boolean {
@@ -359,7 +365,7 @@ export function ChatWithInfoPanel({
     // Close the info panel on mobile so the chat is unobstructed when
     // we focus its composer. On desktop the panel sits beside the chat
     // (not over it), so we leave it open.
-    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches) {
+    if (isMobileInfoPanelViewport()) {
       setIsInfoOpen(false);
     }
   }, []);
@@ -431,7 +437,7 @@ export function ChatWithInfoPanel({
     // preference is left untouched so resizing back to desktop restores
     // it. The breakpoint matches the Tailwind `sm` boundary used by the
     // layout below (`hidden sm:flex`).
-    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches) {
+    if (isMobileInfoPanelViewport()) {
       setIsInfoOpen(false);
       return;
     }
@@ -451,6 +457,14 @@ export function ChatWithInfoPanel({
     if (infoPanelFocusLayoutRequest <= 0) return;
     if (assistant.isCoordinator !== true || !hasIncompleteOnboarding) return;
     if (seededInfoFocusLayoutRequestRef.current === infoPanelFocusLayoutRequest) return;
+
+    // On mobile the focus layout would cover the docked call/chat surface,
+    // so we consume the request without auto-opening the panel.
+    if (isMobileInfoPanelViewport()) {
+      seededInfoFocusLayoutRequestRef.current = infoPanelFocusLayoutRequest;
+      setIsInfoOpen(false);
+      return;
+    }
 
     // Open transiently for the onboarding focus layout. We deliberately
     // don't persist here: this is a request-driven override of the global

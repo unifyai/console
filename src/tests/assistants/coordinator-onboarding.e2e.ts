@@ -253,6 +253,32 @@ test('starting a call plays the intro then docks the call in the platform', asyn
   await page.getByRole('button', { name: 'End call' }).click();
 });
 
+test('mobile onboarding keeps the docked Marty call visible instead of auto-opening Assistant info', async ({
+  authedPage: page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    Object.assign(window, {
+      __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 1_400,
+    });
+  });
+  resetCoordinatorIntroWatched();
+  await gotoAssistants(page);
+  await expectPickerVisible(page);
+
+  await page.getByTestId('coordinator-onboarding-start-call').click({ force: true });
+  await expect(page.getByTestId('coordinator-onboarding-call-intro')).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
+
+  await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
+  await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
+  await expect.poll(() => readPersistedIntroWatched(), { timeout: 10_000 }).toBe('true');
+
+  await page.getByRole('button', { name: 'End call' }).click();
+});
+
 test('resolving the picker persists intro_watched and reload defaults to Marty + Assistant info', async ({
   authedPage: page,
 }) => {
