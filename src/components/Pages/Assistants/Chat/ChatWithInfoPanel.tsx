@@ -397,43 +397,48 @@ export function ChatWithInfoPanel({
   // so the open/closed choice carries over from one assistant to the
   // next (rather than being remembered per-assistant).
   //
-  // Two cases override the global preference without mutating it:
+  // Two cases sidestep the global preference without mutating it:
   //   - Mobile: the panel claims the full viewport width (the chat is
   //     hidden behind it), so opening by default would hide the chat
   //     the user came to use. We always start closed and let the user
   //     toggle in explicitly; the global preference is left untouched so
   //     resizing back to desktop restores it.
-  //   - The Coordinator's onboarding panel is request-driven (bootstrap
-  //     and intro completion open it, ordinary switching does not), so it
-  //     starts closed regardless of the global preference.
+  //   - The Coordinator's onboarding focus layout (fresh reload / intro
+  //     completion) is request-driven: while a request is pending we
+  //     defer to the focus effect below, which opens and maximizes the
+  //     panel. Ordinary switches to the Coordinator fall through to the
+  //     shared preference like any other assistant.
   const initializedForRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (!assistant.agentId) return;
     if (initializedForRef.current === assistant.agentId) return;
     initializedForRef.current = assistant.agentId;
+
+    // A pending onboarding focus-layout request (fresh reload / intro
+    // completion) owns opening *and* maximizing the panel; defer to that
+    // effect instead of seeding from the global preference here. This is
+    // the one path that biases the Coordinator's panel open regardless of
+    // the shared preference.
     const isCoordinatorOnboardingPanel =
       assistant.isCoordinator === true && hasIncompleteOnboarding;
     const hasPendingInfoFocusLayoutRequest =
       infoPanelFocusLayoutRequest > 0 &&
       seededInfoFocusLayoutRequestRef.current !== infoPanelFocusLayoutRequest;
-    if (typeof window === 'undefined') {
-      setIsInfoOpen(!isCoordinatorOnboardingPanel && readInfoPanelOpen());
-      return;
-    }
-    // Mobile breakpoint matches the Tailwind `sm` boundary used by
-    // the layout below (`hidden sm:flex`) so the auto-open rule and
-    // the responsive layout agree on what counts as "mobile".
-    const isMobile = window.matchMedia('(max-width: 639px)').matches;
-    if (isMobile) {
-      if (isCoordinatorOnboardingPanel && hasPendingInfoFocusLayoutRequest) return;
+    if (isCoordinatorOnboardingPanel && hasPendingInfoFocusLayoutRequest) return;
+
+    // Mobile always starts closed: the panel claims the full viewport
+    // width there (covering the chat the user came to use). The global
+    // preference is left untouched so resizing back to desktop restores
+    // it. The breakpoint matches the Tailwind `sm` boundary used by the
+    // layout below (`hidden sm:flex`).
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches) {
       setIsInfoOpen(false);
       return;
     }
-    if (isCoordinatorOnboardingPanel) {
-      if (hasPendingInfoFocusLayoutRequest) return;
-      setIsInfoOpen(false);
-      return;
-    }
+
+    // Everything else — including the Coordinator on an ordinary switch —
+    // mirrors the single global open/closed preference (which defaults
+    // open), so an explicit toggle carries across assistants.
     setIsInfoOpen(readInfoPanelOpen());
   }, [
     assistant.agentId,
