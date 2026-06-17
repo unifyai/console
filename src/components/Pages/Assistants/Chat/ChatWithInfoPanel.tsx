@@ -17,22 +17,26 @@ import { assistantDisplayName } from '@/lib/assistants/displayName';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 
 // ---------------------------------------------------------------------------
-// Per-assistant info-panel dismissal persistence
+// Info-panel open/closed persistence
 // ---------------------------------------------------------------------------
 
 /**
- * Default the info side panel *open* for any assistant the user
- * hasn't explicitly closed it for. We persist the set of dismissed
- * agentIds rather than the set of opened ones so the default for a
- * brand-new assistant — including the moment right after hiring —
- * is "open" without any extra bookkeeping (no entry in the set →
- * not dismissed → open).
+ * The info side panel's open/closed state is a single global preference
+ * shared across every assistant, so toggling it for one assistant carries
+ * over when switching to another. We persist one boolean rather than a
+ * per-assistant set: the panel defaults *open* (no stored value → open) so
+ * a brand-new assistant — including the moment right after hiring — shows
+ * the panel without any extra bookkeeping.
  *
- * Stored as a JSON array under a stable key so it survives reloads
- * and (because of the underlying `storage` event) propagates across
- * tabs viewing the same assistant.
+ * Two cases deliberately override this global preference at switch time
+ * without mutating it: mobile always starts closed (the panel would cover
+ * the chat), and the Coordinator's onboarding panel starts closed (it is
+ * request-driven). See the init effect below.
+ *
+ * Stored under a stable key so it survives reloads and propagates across
+ * tabs on the next mount.
  */
-const INFO_PANEL_DISMISSED_KEY = 'console:assistants:info-panel-dismissed';
+const INFO_PANEL_OPEN_KEY = 'console:assistants:info-panel-open';
 const INFO_PANEL_WIDTH_KEY = 'console:assistants:info-panel-width';
 const INFO_PANEL_DEFAULT_WIDTH = 380;
 const INFO_PANEL_MIN_WIDTH = 320;
@@ -42,24 +46,21 @@ function clampInfoPanelWidth(width: number, maxWidth = Number.POSITIVE_INFINITY)
   return Math.min(maxWidth, Math.max(INFO_PANEL_MIN_WIDTH, Math.round(width)));
 }
 
-function readInfoPanelDismissed(): Set<string> {
-  if (typeof window === 'undefined') return new Set();
+function readInfoPanelOpen(): boolean {
+  if (typeof window === 'undefined') return true;
   try {
-    const raw = window.localStorage.getItem(INFO_PANEL_DISMISSED_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed)
-      ? new Set(parsed.filter((x): x is string => typeof x === 'string'))
-      : new Set();
+    const raw = window.localStorage.getItem(INFO_PANEL_OPEN_KEY);
+    // Absent value → never toggled → default open.
+    return raw === null ? true : raw !== 'false';
   } catch {
-    return new Set();
+    return true;
   }
 }
 
-function writeInfoPanelDismissed(set: Set<string>): void {
+function writeInfoPanelOpen(open: boolean): void {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(INFO_PANEL_DISMISSED_KEY, JSON.stringify(Array.from(set)));
+    window.localStorage.setItem(INFO_PANEL_OPEN_KEY, open ? 'true' : 'false');
   } catch {
     /* quota / privacy mode — silently degrade to in-memory only */
   }
@@ -248,26 +249,14 @@ export function ChatWithInfoPanel({
   const [infoPanelWidth, setInfoPanelWidth] = React.useState(INFO_PANEL_DEFAULT_WIDTH);
   const [isResizingInfoPanel, setIsResizingInfoPanel] = React.useState(false);
 
-  // Track per-assistant dismissal across the session and across tabs.
-  // The set lives in localStorage so closing the panel for assistant
-  // X stays closed on the next visit, while a brand-new assistant
-  // (never dismissed) auto-opens. Any explicit toggle from the
-  // header button mutates this set so the choice sticks.
-  const setIsInfoOpenAndPersist = React.useCallback(
-    (next: boolean) => {
-      setIsInfoOpen(next);
-      if (typeof window === 'undefined' || !assistant.agentId) return;
-      try {
-        const dismissed = readInfoPanelDismissed();
-        if (next) dismissed.delete(assistant.agentId);
-        else dismissed.add(assistant.agentId);
-        writeInfoPanelDismissed(dismissed);
-      } catch {
-        /* localStorage unavailable; in-memory state still works */
-      }
-    },
-    [assistant.agentId]
-  );
+  // The open/closed choice is a single global preference persisted in
+  // localStorage, so an explicit toggle from the header button (or the
+  // panel's close affordance) sticks across reloads, tabs, and — most
+  // importantly — switching between assistants.
+  const setIsInfoOpenAndPersist = React.useCallback((next: boolean) => {
+    setIsInfoOpen(next);
+    writeInfoPanelOpen(next);
+  }, []);
   const toggleInfo = React.useCallback(
     () => setIsInfoOpenAndPersist(!isInfoOpen),
     [isInfoOpen, setIsInfoOpenAndPersist]
@@ -403,22 +392,20 @@ export function ChatWithInfoPanel({
     ]
   );
 
-  // Default the info panel open for any regular assistant the user
-  // hasn't explicitly dismissed it for (tracked per agentId in
-  // localStorage). The Coordinator's onboarding panel is request-driven:
-  // bootstrap and intro completion open it, ordinary assistant switching
-  // does not.
+  // Seed the panel from the global open/closed preference. Switching
+  // between assistants re-runs this against the same shared preference,
+  // so the open/closed choice carries over from one assistant to the
+  // next (rather than being remembered per-assistant).
   //
-  // Mobile is the exception: the panel claims the full viewport
-  // width there (the chat is hidden behind it), so opening by default
-  // would hide the chat the user came to use. On mobile we always
-  // start closed and let the user toggle in explicitly. We don't
-  // touch the dismissed set in that case so resizing back to desktop
-  // restores the user's persisted choice.
-  //
-  // Switching between assistants re-evaluates against the dismissed
-  // set, so each assistant remembers its own state without any one
-  // assistant's dismissal leaking across the list.
+  // Two cases override the global preference without mutating it:
+  //   - Mobile: the panel claims the full viewport width (the chat is
+  //     hidden behind it), so opening by default would hide the chat
+  //     the user came to use. We always start closed and let the user
+  //     toggle in explicitly; the global preference is left untouched so
+  //     resizing back to desktop restores it.
+  //   - The Coordinator's onboarding panel is request-driven (bootstrap
+  //     and intro completion open it, ordinary switching does not), so it
+  //     starts closed regardless of the global preference.
   const initializedForRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (!assistant.agentId) return;
@@ -430,7 +417,7 @@ export function ChatWithInfoPanel({
       infoPanelFocusLayoutRequest > 0 &&
       seededInfoFocusLayoutRequestRef.current !== infoPanelFocusLayoutRequest;
     if (typeof window === 'undefined') {
-      setIsInfoOpen(!isCoordinatorOnboardingPanel);
+      setIsInfoOpen(!isCoordinatorOnboardingPanel && readInfoPanelOpen());
       return;
     }
     // Mobile breakpoint matches the Tailwind `sm` boundary used by
@@ -447,8 +434,7 @@ export function ChatWithInfoPanel({
       setIsInfoOpen(false);
       return;
     }
-    const dismissed = readInfoPanelDismissed();
-    setIsInfoOpen(!dismissed.has(assistant.agentId));
+    setIsInfoOpen(readInfoPanelOpen());
   }, [
     assistant.agentId,
     assistant.isCoordinator,
@@ -461,7 +447,11 @@ export function ChatWithInfoPanel({
     if (assistant.isCoordinator !== true || !hasIncompleteOnboarding) return;
     if (seededInfoFocusLayoutRequestRef.current === infoPanelFocusLayoutRequest) return;
 
-    setIsInfoOpenAndPersist(true);
+    // Open transiently for the onboarding focus layout. We deliberately
+    // don't persist here: this is a request-driven override of the global
+    // preference, not the user choosing to open the panel, so it must not
+    // flip the shared open/closed state for every other assistant.
+    setIsInfoOpen(true);
 
     const maximizeInfoPanel = () => {
       const maxWidth = getInfoPanelMaxWidth();
@@ -492,7 +482,6 @@ export function ChatWithInfoPanel({
     hasIncompleteOnboarding,
     infoPanelFocusLayoutRequest,
     setInfoPanelWidthWithinBounds,
-    setIsInfoOpenAndPersist,
   ]);
 
   const { voiceCalls } = useFeatures();
