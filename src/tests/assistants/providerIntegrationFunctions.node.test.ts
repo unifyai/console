@@ -127,7 +127,7 @@ describe('provider integration Functions tab rows', () => {
       'src/tests/helpers/seeds/sync-integration-functions.ts',
       'utf8'
     );
-    expect(seedScript).toContain('include_unconnected: false');
+    expect(seedScript).toContain("include_unconnected: 'false'");
     expect(seedScript).toContain("integration_source: 'provider_backed'");
     expect(seedScript).toContain('depends_on: []');
     expect(seedScript).not.toContain('primitives.integrations.execute_tool');
