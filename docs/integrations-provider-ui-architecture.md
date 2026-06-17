@@ -19,11 +19,12 @@ This is the source-of-truth Console design brief for the revamped Integrations e
 
 The Console agent must not treat this UI as a reason to put every Composio/Pipedream-supported app into Console constants or `unity-deploy` folders. The provider-backed architecture intentionally splits responsibilities:
 
-- `orchestra` is the dynamic integration control plane. It owns provider backends, provider app catalog/cache, connection registry, OAuth/API-key connection state, activation metadata, tool schemas, tool search, provider execution dispatch, and audit rows.
+- `Builtins` project contexts are the durable provider app/tool catalog. Console reads `Builtins/Integrations/Apps` and `Builtins/Integrations/Tools` through the logging API.
+- `orchestra` is the dynamic integration control plane for mutable state. It owns provider backends, bootstrap state, connection registry, OAuth/API-key connection state, scopes, tool policy, provider execution dispatch, approvals, and audit rows.
 - `unity` is the actor-facing runtime surface. It exposes provider tools to the actor as FunctionManager-searchable virtual primitive rows named `primitives.integrations.<app>.<tool>` and provides `primitives.integrations.*` helpers for targeted lookup/schema/execution.
-- `console` owns the user-facing marketplace/connect/manage experience. It renders a unified catalog but should read dynamic provider-backed apps from Orchestra instead of hardcoding them.
+- `console` owns the user-facing marketplace/connect/manage experience. It renders a unified catalog from Builtins catalog rows plus Orchestra connection/policy overlays instead of hardcoding provider-backed apps.
 - `unity-deploy` remains for Level 3 full integration packages only: custom Python code, DataManager sync, bespoke guidance, browser fallback, client-specific workflow logic, unsupported-provider integrations, or integrations requiring strict local package control.
-- `unify` only provides thin SDK helpers over Orchestra integration endpoints. It must not import Composio/Pipedream SDKs or perform local provider search/ranking.
+- `unify` only provides thin SDK helpers over operational Orchestra integration endpoints. It must not import Composio/Pipedream SDKs or perform local provider search/ranking.
 
 Use this three-level rule when deciding where an integration belongs:
 
@@ -56,19 +57,27 @@ The main Integrations pane should have:
 
 ## API Contract
 
-Console reads provider-backed catalog data through:
+Console reads provider-backed catalog data through the logging API against the
+`Builtins` project:
 
-- `GET /api/integrations/provider/apps` with `limit` / `offset` pagination, `query`,
-  `source_type`, `status_group`, `detail_level=summary`, and catalog `facets`
+- `GET /api/logs?projectName=Builtins&context=Integrations/Apps` with logging API
+  `filterExpr`, `sorting`, `limit`, and `offset` for app cards.
+- `GET /api/logs?projectName=Builtins&context=Integrations/Tools` with a logging
+  `filterExpr` for lazy app detail tool rows.
+
+Mutable connection and policy state still goes through the provider operational proxy:
+
 - `GET /api/integrations/provider/connections`
 - `POST /api/integrations/provider/connect/start`
 - `POST /api/integrations/provider/connections/{connection_id}/complete`
 - `POST /api/integrations/provider/connections/{connection_id}/disconnect`
 - `POST /api/integrations/provider/connections/{connection_id}/reconnect`
 - `POST /api/integrations/provider/connections/{connection_id}/test`
-- `GET /api/integrations/provider/tools/search`
+- `GET/PATCH /api/integrations/provider/connections/{connection_id}/tool-policy`
 
-The Next routes proxy to Orchestra `/v0/integrations/*` using the authenticated API key. The browser must never receive provider tokens or raw API key values.
+Deprecated provider catalog transport routes such as `/api/integrations/provider/apps` and
+`/api/integrations/provider/tools/search` return `410`. The browser must never receive
+provider tokens, raw API key values, provider vault refs, or deployment secret refs.
 
 Admin/dev setup uses a separate Console proxy namespace:
 

@@ -369,6 +369,7 @@ export function useProviderIntegrationCatalog(
           assistantId: Number.isNaN(Number(assistantId)) ? assistantId : Number(assistantId),
           canonicalAppSlug: connectDefinition.canonicalSlug,
           backendId: connectDefinition.sourceMetadata.backendId,
+          providerAppId: connectDefinition.sourceMetadata.providerAppId,
           requestedScopes: connectDefinition.scopes.map((scope) => scope.id),
           authMode: primaryAuthMode,
           redirectUrl:

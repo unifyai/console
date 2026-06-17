@@ -18,7 +18,7 @@ function providerApp(slug: string, overrides: Record<string, unknown> = {}) {
   };
 }
 
-function builtinsAppsResponse(items: Array<Record<string, unknown>>, count = items.length) {
+function builtinsLogsResponse(items: Array<Record<string, unknown>>, count = items.length) {
   return new Response(
     JSON.stringify({
       logs: items.map((entries) => ({ entries })),
@@ -53,7 +53,7 @@ describe('useProviderIntegrationCatalog', () => {
     const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
       if (url.startsWith('/api/logs?')) {
-        return builtinsAppsResponse([
+        return builtinsLogsResponse([
           providerApp('slack', {
             display_name: 'Slack',
             category: 'Communication',
@@ -92,9 +92,13 @@ describe('useProviderIntegrationCatalog', () => {
       id: 'conn-slack',
       accountLabel: 'Team Slack',
     });
-    expect(fetchSpy.mock.calls.some(([input]) => String(input).startsWith('/api/logs?'))).toBe(
-      true
-    );
+    expect(
+      fetchSpy.mock.calls.some(
+        ([input]) =>
+          String(input).startsWith('/api/logs?') &&
+          String(input).includes('context=Integrations%2FApps')
+      )
+    ).toBe(true);
     expect(
       fetchSpy.mock.calls.some(([input]) =>
         String(input).startsWith('/api/integrations/provider/apps')
@@ -112,7 +116,7 @@ describe('useProviderIntegrationCatalog', () => {
           offset === 0
             ? Array.from({ length: 100 }, (_, index) => providerApp(`app_${index}`))
             : [providerApp('app_100')];
-        return builtinsAppsResponse(items, 101);
+        return builtinsLogsResponse(items, 101);
       }
       if (url.startsWith('/api/integrations/provider/connections')) {
         return new Response(JSON.stringify([]), {
@@ -139,22 +143,53 @@ describe('useProviderIntegrationCatalog', () => {
       fetchSpy.mock.calls.some(
         ([input]) =>
           String(input).startsWith('/api/logs?') &&
+          String(input).includes('context=Integrations%2FApps') &&
           String(input).includes('limit=100') &&
           String(input).includes('offset=100')
       )
     ).toBe(true);
   });
 
-  it('fetches deferred details from Builtins logs', async () => {
+  it('fetches deferred details with tools from Builtins logs', async () => {
     vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
       if (url.startsWith('/api/logs?')) {
         const params = new URL(url, window.location.origin).searchParams;
-        const isDetail = params.get('filterExpr')?.includes('slack');
-        return builtinsAppsResponse([
+        if (params.get('context') === 'Integrations/Tools') {
+          return builtinsLogsResponse([
+            {
+              function_id: 'fn-slack-send-message',
+              name: 'primitives.integrations.slack.send_message',
+              metadata: {
+                source: 'provider_backed',
+                integration: {
+                  app_slug: 'slack',
+                  tool_id: 'composio:slack:send_message',
+                  tool_display_name: 'Send message',
+                  action_class: 'write',
+                  behavior_hints: ['mutates_state'],
+                  confirmation_required: true,
+                  required_scopes: [{ id: 'chat:write', label: 'Send messages' }],
+                },
+              },
+            },
+          ]);
+        }
+        return builtinsLogsResponse([
           providerApp('slack', {
             display_name: 'Slack',
-            available_scopes: isDetail ? [{ id: 'chat:write', label: 'Send messages' }] : [],
+            available_scopes: [{ id: 'chat:write', label: 'Send messages' }],
+            tools: [
+              {
+                id: 'composio:slack:send_message',
+                name: 'primitives.integrations.slack.send_message',
+                display_name: 'Send message',
+                action_class: 'write',
+                behavior_hints: ['mutates_state'],
+                confirmation_required: true,
+                required_scopes: [{ id: 'chat:write', label: 'Send messages' }],
+              },
+            ],
           }),
         ]);
       }
@@ -186,6 +221,12 @@ describe('useProviderIntegrationCatalog', () => {
         required: undefined,
       },
     ]);
+    expect(resolvedDetail.tools).toHaveLength(1);
+    expect(resolvedDetail.tools[0]).toMatchObject({
+      displayName: 'Send message',
+      actionClass: 'write',
+      confirmationRequired: true,
+    });
   });
 });
 
@@ -194,10 +235,10 @@ describe('listProviderIntegrationDefinitionsPage', () => {
     vi.restoreAllMocks();
   });
 
-  it('fetches Builtins app rows via the logs API', async () => {
+  it('fetches Builtins app rows through the logging API', async () => {
     const fetchSpy = vi
       .spyOn(window, 'fetch')
-      .mockResolvedValue(builtinsAppsResponse([providerApp('notion')], 1));
+      .mockResolvedValue(builtinsLogsResponse([providerApp('notion')], 1));
 
     const page = await listProviderIntegrationDefinitionsPage({
       ownerScope: 'assistant',
@@ -215,5 +256,7 @@ describe('listProviderIntegrationDefinitionsPage', () => {
     expect(String(fetchSpy.mock.calls[0][0])).toContain(
       'filterExpr=source_type+%3D%3D+%22third_party%22'
     );
+    expect(String(fetchSpy.mock.calls[0][0])).not.toContain('/api/integrations/provider/apps');
+    expect(String(fetchSpy.mock.calls[0][0])).not.toContain('/api/integrations/catalog/apps');
   });
 });
