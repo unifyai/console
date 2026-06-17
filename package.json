@@ -51,7 +51,7 @@
     "@dnd-kit/modifiers": "^7.0.0",
     "@dnd-kit/sortable": "^8.0.0",
     "@droid/brand": "file:branding/packages/brand",
-    "@droid/iso": "file:branding/vendor/iso-animation",
+    "@droid/iso": "file:branding/packages/iso",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@fortawesome/fontawesome-svg-core": "^6.6.0",

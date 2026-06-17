@@ -1,7 +1,7 @@
 const path = require('node:path');
 
 const CENTRAL_BRANDING_ROOT = path.resolve(__dirname, 'branding');
-const CENTRAL_ISO_ENTRY = path.join(CENTRAL_BRANDING_ROOT, 'vendor/iso-animation/src/index.ts');
+const CENTRAL_ISO_ENTRY = path.join(CENTRAL_BRANDING_ROOT, 'packages/iso/src/index.ts');
 
 /** @type {import('next').NextConfig} */
 const landingOrigins = (process.env.LANDING_AUTH_ALLOWED_ORIGINS ?? '')
