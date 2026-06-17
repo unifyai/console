@@ -5,7 +5,7 @@
  */
 
 import { expect } from '@playwright/test';
-import { createTestUser, cleanupUser, createAccountTest, getUserFromDb } from './helpers';
+import { createTestUser, cleanupUser, createAccountTest, getUserFromDb, dbExec } from './helpers';
 
 const user = createTestUser({ name: 'Profile', lastName: 'Tester', credits: 5_000 });
 const test = createAccountTest(user);
@@ -92,4 +92,23 @@ test('editing last name and saving persists to the database', async ({ authedPag
 
   const dbUser = getUserFromDb(user.id);
   expect(dbUser.lastName).toBe(newLast);
+});
+
+test('removing the profile photo unsets the database image', async ({ authedPage: page }) => {
+  dbExec(`UPDATE "user" SET image = '/brand/chat-bg.svg' WHERE id = '${user.id}'`);
+
+  await page.goto('/account?tab=profile');
+  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+
+  await page.getByRole('button', { name: /profile photo/i }).click();
+
+  await Promise.all([
+    page.waitForResponse(
+      (resp) => resp.url().includes('/api/user/photo') && resp.request().method() === 'DELETE',
+      { timeout: 15_000 }
+    ),
+    page.getByRole('menuitem', { name: /remove/i }).click(),
+  ]);
+
+  expect(getUserFromDb(user.id).image).toBeNull();
 });
