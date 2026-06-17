@@ -29,7 +29,6 @@ export const COORDINATOR_ONBOARDING_INTRO = {
   initialPauseMs: 1_000,
   backgroundStartDelayMs: 500,
   backgroundAccelerationMs: 2_400,
-  callWarmupDelayMs: 0,
   // Keep the city ascent running through the speech rather than ending early.
   handoffLeadMs: 0,
   surfaceRevealLeadMs: 3_000,

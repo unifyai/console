@@ -267,7 +267,7 @@ type BrowserWindowWithCoordinatorIntroAudio = Window & {
 
 interface CoordinatorOnboardingCallIntroProps {
   initialAvatarOffset: { x: number; y: number };
-  onReadyToStartCall: () => void;
+  timelineEnabled?: boolean;
   onReadyToRevealSurface?: () => void;
   onFinished: () => void;
   skipSignal?: number;
@@ -332,7 +332,7 @@ const MARTY_DROID_APPEARANCE = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID;
 
 export function CoordinatorOnboardingCallIntro({
   initialAvatarOffset,
-  onReadyToStartCall,
+  timelineEnabled = true,
   onReadyToRevealSurface,
   onFinished,
   skipSignal = 0,
@@ -341,11 +341,9 @@ export function CoordinatorOnboardingCallIntro({
 }: CoordinatorOnboardingCallIntroProps) {
   const { droidWidth, framePx } = useCoordinatorDroidLayout();
   const rootRef = React.useRef<HTMLDivElement | null>(null);
-  const onReadyToStartCallRef = React.useRef(onReadyToStartCall);
   const onReadyToRevealSurfaceRef = React.useRef(onReadyToRevealSurface);
   const onFinishedRef = React.useRef(onFinished);
   const onSkippedRef = React.useRef(onSkipped);
-  const hasStartedCallRef = React.useRef(false);
   const hasFinishedRef = React.useRef(false);
   const keepAudioAfterUnmountRef = React.useRef(false);
   // Set when "Skip" is pressed before the audio element has begun playing; the
@@ -364,11 +362,10 @@ export function CoordinatorOnboardingCallIntro({
   const lipsyncTrackRef = React.useRef<PrecomputedDroidLipsyncTrack | null>(null);
 
   React.useEffect(() => {
-    onReadyToStartCallRef.current = onReadyToStartCall;
     onReadyToRevealSurfaceRef.current = onReadyToRevealSurface;
     onFinishedRef.current = onFinished;
     onSkippedRef.current = onSkipped;
-  }, [onFinished, onReadyToRevealSurface, onReadyToStartCall, onSkipped]);
+  }, [onFinished, onReadyToRevealSurface, onSkipped]);
 
   React.useEffect(() => {
     if (!configuredIntroAudioSrc) return undefined;
@@ -386,26 +383,19 @@ export function CoordinatorOnboardingCallIntro({
     };
   }, [configuredIntroAudioSrc]);
 
-  const startCallOnce = React.useCallback(() => {
-    if (hasStartedCallRef.current) return;
-    hasStartedCallRef.current = true;
-    onReadyToStartCallRef.current();
-  }, []);
-
   const finishOnce = React.useCallback(() => {
     if (hasFinishedRef.current) return;
     hasFinishedRef.current = true;
     keepAudioAfterUnmountRef.current = true;
-    startCallOnce();
     onFinishedRef.current();
-  }, [startCallOnce]);
+  }, []);
 
   // Skip the bulk of the monologue: seek the audio to Marty's closing
   // question and compress the city ascent. When the seeked line ends, the
   // existing ``ended`` handler lands and hands off to the call as a natural
   // finish would.
   const skipToClosingQuestion = React.useCallback(() => {
-    if (hasFinishedRef.current || stage === 'landing') return;
+    if (!timelineEnabled || hasFinishedRef.current || stage === 'landing') return;
     skipRequestedRef.current = true;
     // Retire the top-centre "Intro" countdown — it's no longer meaningful
     // once we've jumped to the closing line.
@@ -427,7 +417,7 @@ export function CoordinatorOnboardingCallIntro({
       setSkipped(true);
       setStage('flying');
     }
-  }, [stage]);
+  }, [stage, timelineEnabled]);
 
   React.useEffect(() => {
     if (skipSignal === previousSkipSignalRef.current) return;
@@ -443,6 +433,7 @@ export function CoordinatorOnboardingCallIntro({
   }, []);
 
   React.useEffect(() => {
+    if (!timelineEnabled) return undefined;
     const { durationMs } = getRuntimeTiming();
     const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs);
     const surfaceRevealOffsetMs = getSurfaceRevealOffsetMs(durationMs);
@@ -454,10 +445,6 @@ export function CoordinatorOnboardingCallIntro({
       () => setStage((currentStage) => (currentStage === 'speaking' ? 'flying' : currentStage)),
       COORDINATOR_ONBOARDING_INTRO.initialPauseMs +
         COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs
-    );
-    const callWarmupTimer = window.setTimeout(
-      () => startCallOnce(),
-      COORDINATOR_ONBOARDING_INTRO.callWarmupDelayMs
     );
     const surfaceRevealTimer = window.setTimeout(
       () => onReadyToRevealSurfaceRef.current?.(),
@@ -566,7 +553,6 @@ export function CoordinatorOnboardingCallIntro({
     return () => {
       window.clearTimeout(speakingStartTimer);
       window.clearTimeout(backgroundStartTimer);
-      window.clearTimeout(callWarmupTimer);
       window.clearTimeout(surfaceRevealTimer);
       window.clearTimeout(landingTimer);
       if (landingDelayTimer !== null) window.clearTimeout(landingDelayTimer);
@@ -587,7 +573,7 @@ export function CoordinatorOnboardingCallIntro({
         }
       }
     };
-  }, [configuredIntroAudioSrc, startCallOnce]);
+  }, [configuredIntroAudioSrc, timelineEnabled]);
 
   React.useEffect(() => {
     const root = rootRef.current;
