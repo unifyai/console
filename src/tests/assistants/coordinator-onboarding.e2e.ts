@@ -46,16 +46,23 @@ test.setTimeout(120_000);
 test.describe.configure({ mode: 'serial' });
 
 const COMMS_STEP_IDS = [
+  'email-reference',
   'email-reply',
   'whatsapp-number',
+  'whatsapp-message-reference',
   'whatsapp-message',
+  'whatsapp-call-reference',
   'whatsapp-call',
   'phone-number',
+  'sms-reference',
   'sms-message',
+  'phone-call-reference',
   'phone-call',
   'slack-connect',
+  'slack-reference',
   'slack-message',
   'discord-connect',
+  'discord-reference',
   'discord-message',
 ] as const;
 
@@ -187,10 +194,19 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   // The onboarding checklist now lives in the Coordinator's "Assistant
   // info" panel, seeded from the server-derived snapshot.
   await openOnboardingChecklist(page);
+  await expect(page.getByTestId('coordinator-onboarding-progress-summary')).toHaveText(
+    /\d+ of \d+ sections completed/
+  );
   await expect(page.getByTestId('coordinator-onboarding-progress-phase-meet')).toHaveCount(0);
+  await expect(page.getByTestId('coordinator-onboarding-progress-phase-comms')).toHaveCount(0);
+  await page.getByTestId('coordinator-onboarding-progress-toggle').click();
   await expect(page.getByTestId('coordinator-onboarding-progress-phase-comms')).toBeVisible();
   await expect(page.getByTestId('coordinator-onboarding-progress-phase-connect')).toBeVisible();
   await expect(page.getByTestId('coordinator-onboarding-progress-phase-work')).toBeVisible();
+  await expect(page.getByTestId('coordinator-onboarding-progress-phase-connect')).toHaveAttribute(
+    'data-phase-completed',
+    '0'
+  );
   const emailReferenceRow = page.getByTestId('coordinator-onboarding-item-email-reference').first();
   await expect(emailReferenceRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
   await emailReferenceRow.click();
@@ -203,9 +219,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   await expect
     .poll(() => readPersistedOnboardingStep(coordinator.agentId), { timeout: 10_000 })
     .toBe('email-reply');
-  const workspaceRow = page.getByTestId('coordinator-onboarding-item-workspace').first();
-  await expect(workspaceRow).toBeVisible({ timeout: 15_000 });
-  await expect(workspaceRow).toHaveAttribute('data-status', 'done');
+  await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveCount(0);
 
   // No skip / resume affordances exist on the platform either.
   await expect(page.getByTestId('coordinator-onboarding-skip')).toHaveCount(0);
@@ -263,7 +277,7 @@ test('resolving the picker persists intro_watched and reload defaults to Marty +
   });
   await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 15_000 });
   await openOnboardingChecklist(page);
-  await expect(page.getByTestId('coordinator-onboarding-item-workspace').first()).toBeVisible({
+  await expect(page.getByTestId('coordinator-onboarding-checklist')).toBeVisible({
     timeout: 15_000,
   });
 });

@@ -22,7 +22,7 @@
  */
 
 import * as React from 'react';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { cn } from '@/lib/utils';
@@ -429,6 +429,54 @@ function resolveChecklist(
   });
 }
 
+function flattenChecklistLeaves(items: OnboardingChecklistItem[]): OnboardingChecklistItem[] {
+  const leaves: OnboardingChecklistItem[] = [];
+  for (const item of items) {
+    if (item.children?.length) leaves.push(...flattenChecklistLeaves(item.children));
+    else leaves.push(item);
+  }
+  return leaves;
+}
+
+interface DisplayStepSets {
+  completed: ReadonlySet<string>;
+  skipped: ReadonlySet<string>;
+}
+
+function computeDisplayStepSets(
+  items: OnboardingChecklistItem[],
+  completed: ReadonlySet<string>,
+  skipped: ReadonlySet<string>,
+  isActionWired: (action: ChecklistAction | undefined) => boolean
+): DisplayStepSets {
+  const displayCompleted = new Set<string>();
+  const displaySkipped = new Set<string>();
+  const satisfied = new Set<string>();
+
+  for (const item of flattenChecklistLeaves(items)) {
+    const actionUnavailable = !!item.action && !isActionWired(item.action);
+    if (actionUnavailable) {
+      satisfied.add(item.id);
+      continue;
+    }
+
+    if (item.prerequisiteId && !satisfied.has(item.prerequisiteId)) continue;
+
+    if (completed.has(item.id)) {
+      displayCompleted.add(item.id);
+      satisfied.add(item.id);
+      continue;
+    }
+
+    if (skipped.has(item.id)) {
+      displaySkipped.add(item.id);
+      satisfied.add(item.id);
+    }
+  }
+
+  return { completed: displayCompleted, skipped: displaySkipped };
+}
+
 function filterVisibleChecklist(
   items: ResolvedChecklistItem[],
   completed: ReadonlySet<string>,
@@ -516,53 +564,50 @@ function filterVisibleChecklist(
   return visibleItems;
 }
 
-function countItems(items: ResolvedChecklistItem[]): { total: number; resolved: number } {
-  let total = 0;
-  let resolved = 0;
-  for (const item of items) {
-    if (item.children?.length) {
-      // Parent rows that have children aren't independently scored —
-      // the children carry the weight, so the progress bar reflects
-      // the real granularity of remaining work.
-      for (const child of item.children) {
-        total += 1;
-        if (child.status !== 'pending') resolved += 1;
-      }
-    } else {
-      total += 1;
-      if (item.status !== 'pending') resolved += 1;
-    }
-  }
-  return { total, resolved };
-}
-
 interface PhaseProgress {
   id: string;
   label: string;
   total: number;
-  resolved: number;
+  completed: number;
 }
 
 /**
- * Collapse the top-level checklist into one phase per row so the
- * progress bar can show distinct segments (Quiz / Connect /
- * Delegate) instead of a single anonymous fill. Each phase counts
- * its own leaves: parent rows with children contribute their
- * children's totals, leaf-only phases contribute themselves. The
- * label prefers ``phaseLabel`` (a single word) over the full
- * ``title`` so the three legends fit across the sidebar.
+ * Collapse the top-level checklist into one phase per row. Each
+ * phase counts its own available leaves: parent rows with children
+ * contribute their children's totals, leaf-only phases contribute
+ * themselves. The label prefers ``phaseLabel`` (a single word) over
+ * the full ``title`` so the detail view stays compact.
  */
-function computePhases(items: ResolvedChecklistItem[]): PhaseProgress[] {
-  return items.map((item) => {
+function computePhases(
+  items: ResolvedChecklistItem[],
+  isActionWired: (action: ChecklistAction | undefined) => boolean
+): PhaseProgress[] {
+  return items.flatMap((item) => {
     const label = item.phaseLabel ?? item.title;
-    const children = item.children ?? [];
-    if (children.length) {
-      const total = children.length;
-      const resolved = children.filter((child) => child.status !== 'pending').length;
-      return { id: item.id, label, total, resolved };
-    }
-    return { id: item.id, label, total: 1, resolved: item.status !== 'pending' ? 1 : 0 };
+    const { total, completed } = countAvailableLeaves(item, isActionWired);
+    return total > 0 ? [{ id: item.id, label, total, completed }] : [];
   });
+}
+
+function countAvailableLeaves(
+  item: ResolvedChecklistItem,
+  isActionWired: (action: ChecklistAction | undefined) => boolean
+): { total: number; completed: number } {
+  if (item.children?.length) {
+    return item.children.reduce(
+      (acc, child) => {
+        const childCount = countAvailableLeaves(child, isActionWired);
+        return {
+          total: acc.total + childCount.total,
+          completed: acc.completed + childCount.completed,
+        };
+      },
+      { total: 0, completed: 0 }
+    );
+  }
+
+  if (item.action && !isActionWired(item.action)) return { total: 0, completed: 0 };
+  return { total: 1, completed: item.status === 'done' ? 1 : 0 };
 }
 
 /**
@@ -623,11 +668,21 @@ export function hasOutstandingCoordinatorOnboarding(
   skippedStepIds: ReadonlySet<string>,
   isActionWired: (action: ChecklistAction | undefined) => boolean
 ): boolean {
-  const resolved = resolveChecklist(ONBOARDING_CHECKLIST, completedStepIds, skippedStepIds);
-  const visible = filterVisibleChecklist(
-    resolved,
+  const displayStepSets = computeDisplayStepSets(
+    ONBOARDING_CHECKLIST,
     completedStepIds,
     skippedStepIds,
+    isActionWired
+  );
+  const resolved = resolveChecklist(
+    ONBOARDING_CHECKLIST,
+    displayStepSets.completed,
+    displayStepSets.skipped
+  );
+  const visible = filterVisibleChecklist(
+    resolved,
+    displayStepSets.completed,
+    displayStepSets.skipped,
     isActionWired,
     true
   );
@@ -689,10 +744,7 @@ export function CoordinatorOnboardingChecklist({
   const ctx = useCoordinatorOnboardingContext();
   const completedStepIds = ctx?.completedStepIds ?? EMPTY_SET;
   const skippedStepIds = ctx?.skippedStepIds ?? EMPTY_SET;
-  const rawResolved = React.useMemo(
-    () => resolveChecklist(ONBOARDING_CHECKLIST, completedStepIds, skippedStepIds),
-    [completedStepIds, skippedStepIds]
-  );
+  const [areProgressDetailsOpen, setAreProgressDetailsOpen] = React.useState(false);
 
   const handleAction = React.useCallback(
     (action: ChecklistAction) => {
@@ -801,20 +853,31 @@ export function CoordinatorOnboardingChecklist({
     ]
   );
 
+  const displayStepSets = React.useMemo(
+    () =>
+      computeDisplayStepSets(ONBOARDING_CHECKLIST, completedStepIds, skippedStepIds, isActionWired),
+    [completedStepIds, skippedStepIds, isActionWired]
+  );
+  const displayResolved = React.useMemo(
+    () =>
+      resolveChecklist(ONBOARDING_CHECKLIST, displayStepSets.completed, displayStepSets.skipped),
+    [displayStepSets]
+  );
   const resolved = React.useMemo(
     () =>
       filterVisibleChecklist(
-        rawResolved,
-        completedStepIds,
-        skippedStepIds,
+        displayResolved,
+        displayStepSets.completed,
+        displayStepSets.skipped,
         isActionWired,
         !!onSkipStep
       ),
-    [rawResolved, completedStepIds, skippedStepIds, isActionWired, onSkipStep]
+    [displayResolved, displayStepSets, isActionWired, onSkipStep]
   );
-  const { total, resolved: resolvedCount } = React.useMemo(() => countItems(resolved), [resolved]);
-  const percent = total > 0 ? Math.round((resolvedCount / total) * 100) : 0;
-  const phases = React.useMemo(() => computePhases(resolved), [resolved]);
+  const phases = React.useMemo(
+    () => computePhases(displayResolved, isActionWired),
+    [displayResolved, isActionWired]
+  );
 
   // ID of the leaf row the user should tackle next — drives the
   // "Next" pill + soft highlight that anchors attention without
@@ -826,7 +889,11 @@ export function CoordinatorOnboardingChecklist({
   );
   return (
     <div className={cn('flex flex-col gap-3', className)}>
-      <PhaseProgressBar phases={phases} resolved={resolvedCount} total={total} percent={percent} />
+      <SectionProgressDisclosure
+        phases={phases}
+        isOpen={areProgressDetailsOpen}
+        onToggle={() => setAreProgressDetailsOpen((open) => !open)}
+      />
       <ul className="space-y-2.5" data-testid="coordinator-onboarding-checklist">
         {resolved.map((item) => (
           <ChecklistRow
@@ -845,71 +912,92 @@ export function CoordinatorOnboardingChecklist({
   );
 }
 
-interface PhaseProgressBarProps {
+interface SectionProgressDisclosureProps {
   phases: PhaseProgress[];
-  resolved: number;
-  total: number;
-  percent: number;
+  isOpen: boolean;
+  onToggle: () => void;
 }
 
 /**
- * Multi-segment progress bar that splits the meter by top-level
- * phase. Each segment fills from left to right with its own
- * per-phase fraction so the user can tell *what kind* of work is
- * left, not just how much. The legend underneath labels the
- * segments to keep the affordance discoverable without a tooltip.
+ * Compact section summary with foldable per-section detail. The
+ * default state avoids suggesting progress in future phases that the
+ * current checklist path has not reached yet.
  */
-function PhaseProgressBar({ phases, resolved, total, percent }: PhaseProgressBarProps) {
+function SectionProgressDisclosure({ phases, isOpen, onToggle }: SectionProgressDisclosureProps) {
+  const detailsId = React.useId();
   if (!phases.length) return null;
+  const completedSections = phases.filter(
+    (phase) => phase.total > 0 && phase.completed === phase.total
+  ).length;
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="text-caption flex items-center justify-between text-muted-foreground">
-        <span>
-          {resolved} of {total} resolved
-        </span>
-        <span>{percent}%</span>
-      </div>
-      <div
-        role="progressbar"
-        aria-label={`Onboarding progress: ${resolved} of ${total} steps resolved`}
-        aria-valuenow={percent}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        className="flex h-1.5 w-full gap-1 overflow-hidden"
-        data-testid="coordinator-onboarding-progress"
+    <div className="flex flex-col gap-2" data-testid="coordinator-onboarding-progress">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-controls={detailsId}
+        className={cn(
+          'rounded-control flex w-full items-center justify-between gap-2 text-left',
+          'bg-muted/40 hover:bg-muted/70 px-2.5 py-2 transition-colors',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+        )}
+        data-testid="coordinator-onboarding-progress-toggle"
       >
-        {phases.map((phase) => {
-          const phasePercent =
-            phase.total > 0 ? Math.round((phase.resolved / phase.total) * 100) : 0;
-          return (
-            <div
-              key={phase.id}
-              data-testid={`coordinator-onboarding-progress-phase-${phase.id}`}
-              data-phase-resolved={phase.resolved}
-              data-phase-total={phase.total}
-              className="relative h-full flex-1 overflow-hidden rounded-full bg-muted"
-            >
-              <div
-                className="h-full bg-primary transition-all duration-300"
-                style={{ width: `${phasePercent}%` }}
-              />
-            </div>
-          );
-        })}
-      </div>
-      <div className="text-caption text-muted-foreground/80 flex items-center justify-between">
-        {phases.map((phase) => (
-          <span
-            key={phase.id}
-            className={cn(
-              'truncate',
-              phase.resolved === phase.total && phase.total > 0 && 'text-foreground'
-            )}
-          >
-            {phase.label}
-          </span>
-        ))}
-      </div>
+        <span
+          className="text-body-sm font-medium text-foreground"
+          data-testid="coordinator-onboarding-progress-summary"
+        >
+          {completedSections} of {phases.length} sections completed
+        </span>
+        <span className="text-caption flex flex-shrink-0 items-center gap-1 text-muted-foreground">
+          {isOpen ? 'Hide details' : 'Show details'}
+          <ChevronDown
+            className={cn('h-3.5 w-3.5 transition-transform', isOpen && 'rotate-180')}
+            aria-hidden="true"
+          />
+        </span>
+      </button>
+      {isOpen ? (
+        <ul
+          id={detailsId}
+          className="flex flex-col gap-2"
+          data-testid="coordinator-onboarding-progress-details"
+        >
+          {phases.map((phase) => {
+            const phasePercent =
+              phase.total > 0 ? Math.round((phase.completed / phase.total) * 100) : 0;
+            return (
+              <li
+                key={phase.id}
+                data-testid={`coordinator-onboarding-progress-phase-${phase.id}`}
+                data-phase-completed={phase.completed}
+                data-phase-total={phase.total}
+                className="flex flex-col gap-1"
+              >
+                <div className="text-caption flex items-center justify-between gap-2 text-muted-foreground">
+                  <span className="truncate">{phase.label}</span>
+                  <span className="flex-shrink-0">
+                    {phase.completed} of {phase.total} items completed
+                  </span>
+                </div>
+                <div
+                  role="progressbar"
+                  aria-label={`${phase.label}: ${phase.completed} of ${phase.total} items completed`}
+                  aria-valuenow={phasePercent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  className="h-1.5 overflow-hidden rounded-full bg-muted"
+                >
+                  <div
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{ width: `${phasePercent}%` }}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
     </div>
   );
 }
