@@ -34,6 +34,7 @@ steps:
           -c http.extraheader= \
           -c url."$${AUTH}".insteadOf="git@github.com:" \
           -c url."$${AUTH}".insteadOf="ssh://git@github.com/" \
+          -c url."$${AUTH}".insteadOf="https://github.com/" \
           submodule update --init --recursive --force branding
 
   - name: gcr.io/cloud-builders/docker
