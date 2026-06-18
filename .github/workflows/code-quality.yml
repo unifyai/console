@@ -72,7 +72,15 @@ jobs:
             -c url."${AUTH}".insteadOf="git@github.com:" \
             -c url."${AUTH}".insteadOf="ssh://git@github.com/" \
             -c url."${AUTH}".insteadOf="https://github.com/" \
-            submodule update --init --recursive --force branding
+            submodule update --init --force branding
+          git \
+            -C branding \
+            -c http.https://github.com/.extraheader= \
+            -c http.extraheader= \
+            -c url."${AUTH}".insteadOf="git@github.com:" \
+            -c url."${AUTH}".insteadOf="ssh://git@github.com/" \
+            -c url."${AUTH}".insteadOf="https://github.com/" \
+            submodule update --init --force packages/iso
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -118,7 +126,15 @@ jobs:
             -c url."${AUTH}".insteadOf="git@github.com:" \
             -c url."${AUTH}".insteadOf="ssh://git@github.com/" \
             -c url."${AUTH}".insteadOf="https://github.com/" \
-            submodule update --init --recursive --force branding
+            submodule update --init --force branding
+          git \
+            -C branding \
+            -c http.https://github.com/.extraheader= \
+            -c http.extraheader= \
+            -c url."${AUTH}".insteadOf="git@github.com:" \
+            -c url."${AUTH}".insteadOf="ssh://git@github.com/" \
+            -c url."${AUTH}".insteadOf="https://github.com/" \
+            submodule update --init --force packages/iso
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
