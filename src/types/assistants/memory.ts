@@ -56,8 +56,6 @@ export interface KnowledgeRow {
 
 export interface TaskScheduleRow {
   startAt?: string | null;
-  prevTask?: number | null;
-  nextTask?: number | null;
   [key: string]: unknown;
 }
 

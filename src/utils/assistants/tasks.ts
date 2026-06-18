@@ -36,24 +36,18 @@ const HUMANIZED_TASK_LABELS = new Map<string, string>([
   ['scheduled', 'Scheduled'],
   ['triggered', 'Triggered'],
   ['explicit', 'On demand'],
-  ['queue', 'Queued'],
-  ['queued', 'Queued'],
-  ['primed', 'Primed'],
   ['active', 'Active'],
   ['running', 'Running'],
   ['completed', 'Completed'],
   ['failed', 'Failed'],
   ['cancelled', 'Cancelled'],
   ['pending', 'Pending'],
-  ['paused', 'Paused'],
   ['triggerable', 'Ready'],
   ['manual', 'On demand'],
 ]);
 
 const TASK_STATUS_DESCRIPTIONS = new Map<string, string>([
   ['scheduled', 'Will start automatically at its next scheduled time.'],
-  ['queued', 'Has been lined up and is waiting for its turn to start.'],
-  ['primed', 'Has been prepared so it can start quickly when its scheduled window opens.'],
   ['triggerable', 'Is armed and waiting for a matching event to happen.'],
   ['ready', 'Is armed and waiting for a matching event to happen.'],
   ['active', 'Currently has live work underway.'],
@@ -61,7 +55,6 @@ const TASK_STATUS_DESCRIPTIONS = new Map<string, string>([
   ['completed', 'Finished successfully.'],
   ['failed', 'Stopped because something went wrong during execution.'],
   ['cancelled', 'Was stopped before it finished.'],
-  ['paused', 'Is intentionally on hold until someone resumes it.'],
   ['pending', 'Has been created and is waiting to start.'],
 ]);
 
@@ -80,10 +73,7 @@ const TASK_INACTIVE_TONE =
 
 const TASK_STATUS_TONES: Record<string, string> = {
   pending: TASK_ATTENTION_TONE,
-  paused: TASK_ATTENTION_TONE,
   scheduled: TASK_WAITING_TONE,
-  queued: TASK_WAITING_TONE,
-  primed: TASK_WAITING_TONE,
   triggerable: TASK_WAITING_TONE,
   ready: TASK_WAITING_TONE,
   active: TASK_LIVE_TONE,
@@ -512,8 +502,6 @@ function formatRunSourcePrimary(row: TaskRunRow): string {
         : 'Triggered by an event';
     case 'explicit':
       return 'Started on demand';
-    case 'queue':
-      return 'Started from the queue';
     default:
       return humanizeTaskLabel(row.sourceType);
   }
