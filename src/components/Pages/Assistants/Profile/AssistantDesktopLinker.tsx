@@ -13,9 +13,11 @@ import {
   Info,
   Pencil,
   Trash2,
+  HardDrive,
 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
+import { Switch } from '@/components/UI/switch';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/UI/popover';
 import {
   AlertDialog,
@@ -80,6 +82,14 @@ export function AssistantDesktopLinker({
   const [renameOpenId, setRenameOpenId] = React.useState<number | null>(null);
   const [renameValue, setRenameValue] = React.useState('');
   const [deleteTarget, setDeleteTarget] = React.useState<UserDesktop | null>(null);
+  const [filesysSync, setFilesysSync] = React.useState<boolean>(!!assistant.userDesktopFilesysSync);
+  const [isTogglingFilesys, setIsTogglingFilesys] = React.useState(false);
+
+  // Reflect the link's standing filesystem-access state whenever the dialog
+  // (re)opens or the assistant's resolved link changes.
+  React.useEffect(() => {
+    setFilesysSync(!!assistant.userDesktopFilesysSync);
+  }, [assistant.userDesktopFilesysSync, isOpen]);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -123,6 +133,26 @@ export function AssistantDesktopLinker({
     toast.success('Desktop unlinked');
     onLinked?.(null);
     onClose();
+  };
+
+  const handleToggleFilesys = async (next: boolean) => {
+    if (!currentDesktopId) return;
+    const previous = filesysSync;
+    setFilesysSync(next);
+    setIsTogglingFilesys(true);
+    const result = await assistantActions.desktop.linkDesktop(
+      assistant.agentId,
+      currentDesktopId,
+      next
+    );
+    setIsTogglingFilesys(false);
+    if ('detail' in result && result.detail) {
+      setFilesysSync(previous);
+      console.error('[AssistantDesktopLinker] toggle filesystem access failed:', result.detail);
+      toast.error('Could not update filesystem access. Please try again.');
+      return;
+    }
+    toast.success(next ? 'Filesystem access enabled' : 'Filesystem access disabled');
   };
 
   const handleSavePassword = async (e: React.FormEvent) => {
@@ -223,24 +253,49 @@ export function AssistantDesktopLinker({
         </div>
 
         {currentDesktopId && (
-          <div className="bg-muted/50 flex items-center justify-between rounded-md border border-border px-3 py-2">
-            <span className="text-caption text-muted-foreground">
-              Currently linked to {currentDesktopLabel}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1 text-destructive hover:text-destructive"
-              onClick={handleUnlink}
-              disabled={assigningId !== null}
-            >
-              {assigningId === -1 ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Unlink className="h-3.5 w-3.5" />
-              )}
-              Unlink
-            </Button>
+          <div className="space-y-2">
+            <div className="bg-muted/50 flex items-center justify-between rounded-md border border-border px-3 py-2">
+              <span className="text-caption text-muted-foreground">
+                Currently linked to {currentDesktopLabel}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 text-destructive hover:text-destructive"
+                onClick={handleUnlink}
+                disabled={assigningId !== null}
+              >
+                {assigningId === -1 ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Unlink className="h-3.5 w-3.5" />
+                )}
+                Unlink
+              </Button>
+            </div>
+
+            <div className="bg-muted/50 rounded-md border border-border px-3 py-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <HardDrive className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                  <span className="text-title">Filesystem access</span>
+                  {isTogglingFilesys && (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+                <Switch
+                  checked={filesysSync}
+                  onCheckedChange={handleToggleFilesys}
+                  disabled={isTogglingFilesys || assigningId !== null}
+                  aria-label="Filesystem access"
+                />
+              </div>
+              <p className="text-caption mt-1.5 text-muted-foreground">
+                Lets this assistant read files from your home folder on request and save edited
+                copies back — your originals are never overwritten. This exposes your entire home
+                directory over a secure connection; turn it off any time to revoke access.
+              </p>
+            </div>
           </div>
         )}
 
