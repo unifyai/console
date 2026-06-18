@@ -246,14 +246,66 @@ test.describe('Onboarding', () => {
     );
     expect(coordinatorCount).toBe('1');
 
-    const orgCoordinatorCount = dbExec(
-      `SELECT count(*) FROM assistants WHERE organization_id = ${orgId} AND is_coordinator = TRUE`
+    const managedOrgTeamCount = dbExec(
+      `SELECT count(*) FROM team WHERE organization_id = ${orgId} AND name = 'Org' AND is_org_wide_sharing = TRUE`
     );
-    expect(orgCoordinatorCount).toBe('0');
+    expect(managedOrgTeamCount).toBe('0');
 
     const coordinatorRow = page.getByTestId(`assistant-list-item-${coordinatorId}`);
     await expect(coordinatorRow).toBeVisible({ timeout: 15000 });
     await expect(coordinatorRow).toContainText('Marty');
+  });
+
+  test('creates shared organization workspace with managed Org team', async ({ page }) => {
+    const email = uniqueEmail('onboard-org-shared');
+    const password = 'OnboardP@ss1';
+
+    await page.goto('/login');
+    await register(page, email, password);
+    await expect(page.getByTestId('verification-code-input')).toBeVisible({ timeout: 10000 });
+    const code = setKnownVerificationCode(email, 'signup');
+    await enterVerificationCode(page, code);
+
+    await page.waitForURL(/onboarding/, { timeout: 15000 });
+
+    await page.getByTestId('workspace-organization').click();
+    const orgName = `E2E Shared Org ${Date.now()}`;
+    await page.getByTestId('org-name-input').fill(orgName);
+    await page.getByTestId('onboarding-org-sharing-info').click();
+    await expect(page.getByText('Each user')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.getByTestId('onboarding-org-sharing-shared').click();
+
+    await expect(page.getByTestId('workspace-continue')).toBeEnabled();
+    await page.getByTestId('workspace-continue').click();
+
+    await page.waitForURL(/\/assistants/, { timeout: 15000 });
+
+    const userId = dbExec(`SELECT id FROM "user" WHERE email = '${email.toLowerCase()}'`);
+    if (userId) createdUserIds.push(userId);
+
+    const orgId = dbExec(`SELECT id FROM organization WHERE name = '${orgName}'`);
+    expect(orgId).toBeTruthy();
+
+    const sharingEnabled = dbExec(
+      `SELECT org_wide_sharing_enabled FROM organization WHERE id = ${orgId}`
+    );
+    expect(sharingEnabled).toBe('t');
+
+    const orgTeamId = dbExec(
+      `SELECT id FROM team WHERE organization_id = ${orgId} AND name = 'Org' AND is_org_wide_sharing = TRUE`
+    );
+    expect(orgTeamId).toBeTruthy();
+
+    const orgTeamMemberCount = dbExec(
+      `SELECT count(*) FROM team_member WHERE team_id = ${orgTeamId} AND user_id = '${userId}'`
+    );
+    expect(orgTeamMemberCount).toBe('1');
+
+    const orgTeamAssistantCount = dbExec(
+      `SELECT count(*) FROM team_assistant_memberships tam JOIN assistants a ON a.agent_id = tam.assistant_id WHERE tam.team_id = ${orgTeamId} AND a.organization_id = ${orgId}`
+    );
+    expect(Number(orgTeamAssistantCount)).toBeGreaterThanOrEqual(1);
   });
 
   test('keeps Create Organization button disabled with whitespace-only name', async ({ page }) => {

@@ -1,4 +1,5 @@
 import { ResponseProps } from './common';
+import type { DataSharingMode, OrgSharingSettings } from './organization';
 
 export interface Team {
   id: number;
@@ -8,6 +9,7 @@ export interface Team {
   createdAt: string;
   memberCount?: number;
   members?: string[];
+  isOrgWideSharing?: boolean;
 }
 
 export interface TeamActions {
@@ -27,4 +29,8 @@ export interface TeamActions {
   ) => Promise<void | ResponseProps>;
   getTeams: (orgId: number) => Promise<Team[] | ResponseProps>;
   getTeamDetails: (orgId: number, teamId: number) => Promise<Team | ResponseProps>;
+  updateOrgSharingMode: (
+    orgId: number,
+    dataSharingMode: DataSharingMode
+  ) => Promise<OrgSharingSettings | ResponseProps>;
 }

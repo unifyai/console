@@ -10,4 +10,5 @@ export {
   deleteTeamAction,
   addTeamMemberAction,
   removeTeamMemberAction,
+  updateOrgSharingModeAction,
 } from '@/lib/orchestra/api/organization';

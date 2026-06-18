@@ -344,6 +344,7 @@ export interface CreateOrgOpts {
   ownerId: string;
   /** Credits for the org billing account (default: 10000, or `SEED_CREDITS`) */
   credits?: number;
+  dataSharingMode?: 'private' | 'shared';
 }
 
 /**
@@ -469,6 +470,9 @@ export function createOrg(opts: CreateOrgOpts): SeededOrg {
           `WHERE id = (SELECT billing_account_id FROM organization WHERE id = ${parseInt(existingId, 10)});`
       );
     }
+    if (opts.dataSharingMode === 'shared') {
+      syncOrgWideSharingSeedState(parseInt(existingId, 10), opts.ownerId, true);
+    }
     return {
       id: parseInt(existingId, 10),
       name,
@@ -536,13 +540,141 @@ END
   const orgId = dbExec(
     `SELECT id FROM organization WHERE owner_id = '${opts.ownerId}' ORDER BY id DESC LIMIT 1;`
   );
+  const parsedOrgId = parseInt(orgId, 10);
+
+  if (opts.dataSharingMode === 'shared') {
+    syncOrgWideSharingSeedState(parsedOrgId, opts.ownerId, true);
+  }
 
   return {
-    id: parseInt(orgId, 10),
+    id: parsedOrgId,
     name,
     ownerId: opts.ownerId,
     ownerOrgApiKey: ownerOrgKey,
   };
+}
+
+function syncOrgWideSharingSeedState(
+  orgId: number,
+  actorUserId: string,
+  enableSharing = false
+): void {
+  const isAlreadyShared =
+    dbExec(`SELECT org_wide_sharing_enabled FROM organization WHERE id = ${orgId}`) === 't';
+  if (!enableSharing && !isAlreadyShared) return;
+
+  dbExecBlock(`
+DO \\$\\$
+DECLARE
+  _team_id integer;
+BEGIN
+  SELECT org_wide_sharing_team_id
+  INTO _team_id
+  FROM organization
+  WHERE id = ${orgId};
+
+  IF _team_id IS NULL THEN
+    SELECT id
+    INTO _team_id
+    FROM team
+    WHERE organization_id = ${orgId} AND is_org_wide_sharing = true
+    ORDER BY id
+    LIMIT 1;
+  END IF;
+
+  IF _team_id IS NULL THEN
+    INSERT INTO team (name, description, organization_id, status, is_org_wide_sharing)
+    VALUES (
+      'Org',
+      'Organization-wide shared pool for knowledge, skills, and general know-how.',
+      ${orgId},
+      'active',
+      true
+    )
+    RETURNING id INTO _team_id;
+  END IF;
+
+  UPDATE team
+  SET is_org_wide_sharing = true
+  WHERE id = _team_id;
+
+  UPDATE organization
+  SET org_wide_sharing_enabled = true,
+      org_wide_sharing_team_id = _team_id
+  WHERE id = ${orgId};
+
+  INSERT INTO team_member (team_id, user_id)
+  SELECT _team_id, om.user_id
+  FROM organization_member om
+  WHERE om.organization_id = ${orgId}
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO team_assistant_memberships (team_id, assistant_id, added_by)
+  SELECT _team_id, a.agent_id, ${sqlLiteral(actorUserId)}
+  FROM assistants a
+  WHERE a.organization_id = ${orgId}
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO contact_memberships (
+    assistant_id,
+    authoring_assistant_id,
+    contact_id,
+    target_scope,
+    target_team_id,
+    relationship,
+    should_respond,
+    response_policy,
+    can_edit
+  )
+  SELECT
+    a.agent_id,
+    a.agent_id,
+    COALESCE(self_cm.contact_id, ${COORDINATOR_SELF_CONTACT_ID}),
+    'team',
+    _team_id,
+    'self',
+    true,
+    '',
+    true
+  FROM assistants a
+  LEFT JOIN contact_memberships self_cm
+    ON self_cm.assistant_id = a.agent_id
+    AND self_cm.target_scope = 'personal'
+    AND self_cm.relationship = 'self'
+  WHERE a.organization_id = ${orgId}
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO contact_memberships (
+    assistant_id,
+    authoring_assistant_id,
+    contact_id,
+    target_scope,
+    target_team_id,
+    relationship,
+    should_respond,
+    response_policy,
+    can_edit
+  )
+  SELECT
+    a.agent_id,
+    a.agent_id,
+    COALESCE(boss_cm.contact_id, ${COORDINATOR_BOSS_CONTACT_ID}),
+    'team',
+    _team_id,
+    'boss',
+    true,
+    ${sqlLiteral(DEFAULT_BOSS_RESPONSE_POLICY)},
+    true
+  FROM assistants a
+  LEFT JOIN contact_memberships boss_cm
+    ON boss_cm.assistant_id = a.agent_id
+    AND boss_cm.target_scope = 'personal'
+    AND boss_cm.relationship = 'boss'
+  WHERE a.organization_id = ${orgId}
+  ON CONFLICT DO NOTHING;
+END
+\\$\\$;
+`);
 }
 
 // =============================================================================
@@ -583,6 +715,8 @@ BEGIN
 END
 \\$\\$;
 `);
+
+  syncOrgWideSharingSeedState(opts.orgId, opts.userId);
 
   return orgApiKey;
 }
@@ -760,6 +894,10 @@ VALUES
   )
 ON CONFLICT DO NOTHING;
 `);
+
+  if (opts.orgId !== undefined) {
+    syncOrgWideSharingSeedState(opts.orgId, opts.userId);
+  }
 
   return {
     agentId: parsedAgentId,

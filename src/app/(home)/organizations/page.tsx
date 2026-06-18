@@ -36,6 +36,9 @@ const OrganizationPage = async () => {
       image: org.image,
       timezone: org.timezone,
       freeTrial: org.freeTrial,
+      dataSharingMode: org.dataSharingMode,
+      orgWideSharingEnabled: org.orgWideSharingEnabled,
+      orgWideSharingTeamId: org.orgWideSharingTeamId,
     })) || [];
 
   const isUnifyMember = user.organizations?.some((o: any) => o.name === 'Unify') ?? false;
@@ -64,6 +67,7 @@ const OrganizationPage = async () => {
     removeTeamMember: TeamActions.removeTeamMemberAction,
     getTeams: TeamActions.getTeamsAction,
     getTeamDetails: TeamActions.getTeamDetailsAction,
+    updateOrgSharingMode: TeamActions.updateOrgSharingModeAction,
   };
 
   const roleActions = {

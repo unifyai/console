@@ -12,11 +12,13 @@ import { getCurrentUser } from '@/lib/user/user';
 
 import { cookies } from 'next/headers';
 import {
+  DataSharingMode,
   Organization,
   OrganizationMember,
   OrganizationRole,
   OrganizationListResponse,
   OrganizationInviteListResponse,
+  OrgSharingSettings,
   UserOrganizationCheckResult,
 } from '@/types/organization';
 import { Team } from '@/types/team';
@@ -72,12 +74,13 @@ const safeFetch = async (url: string, options: RequestInit, context: string): Pr
 // =============================================================================
 
 export async function createOrganizationAction(
-  name: string
+  name: string,
+  dataSharingMode: DataSharingMode = 'private'
 ): Promise<Organization | ResponseProps> {
   const apiKey = await requireUserApiKey();
   const client = createOrchestraClient(apiKey);
   const { data, error, response } = await client.POST('/v0/organizations', {
-    body: { name } as never,
+    body: { name, data_sharing_mode: dataSharingMode } as never,
   });
 
   if (error) {
@@ -91,16 +94,19 @@ export async function createOrganizationAction(
   return data as unknown as Organization;
 }
 
-export async function createOrgAction(name: string): Promise<Organization | ResponseProps> {
+export async function createOrgAction(
+  name: string,
+  dataSharingMode: DataSharingMode = 'private'
+): Promise<Organization | ResponseProps> {
   const user = await getCurrentUser();
   if (!user?.apiKey) {
     return { detail: 'Unauthorized', status: 401 };
   }
   const isUnifyMember = user.organizations?.some((o) => o.name === 'Unify') ?? false;
   if (isUnifyMember) {
-    return adminCreateOrganizationAction(user.id, name);
+    return adminCreateOrganizationAction(user.id, name, dataSharingMode);
   }
-  return createOrganizationAction(name);
+  return createOrganizationAction(name, dataSharingMode);
 }
 
 export async function updateOrganizationAction(
@@ -374,7 +380,8 @@ export async function transferOwnershipAction(
 
 export async function adminCreateOrganizationAction(
   creatorUserId: string,
-  name: string
+  name: string,
+  dataSharingMode: DataSharingMode = 'private'
 ): Promise<Organization | ResponseProps> {
   return safeFetch(
     `${backendUrl}/admin/organizations`,
@@ -385,7 +392,11 @@ export async function adminCreateOrganizationAction(
         accept: 'application/json',
         Authorization: `Bearer ${adminKey}`,
       },
-      body: JSON.stringify({ name, creator_user_id: creatorUserId }),
+      body: JSON.stringify({
+        name,
+        creator_user_id: creatorUserId,
+        data_sharing_mode: dataSharingMode,
+      }),
     },
     'adminCreateOrganization'
   ) as Promise<Organization | ResponseProps>;
@@ -773,6 +784,26 @@ export async function removeTeamMemberAction(
   }
 
   return;
+}
+
+export async function updateOrgSharingModeAction(
+  orgId: number,
+  dataSharingMode: DataSharingMode
+): Promise<OrgSharingSettings | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  return safeFetch(
+    `${backendUrl}/organizations/${orgId}/sharing-settings`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ data_sharing_mode: dataSharingMode }),
+    },
+    'updateOrgSharingMode'
+  ) as Promise<OrgSharingSettings | ResponseProps>;
 }
 
 // =============================================================================

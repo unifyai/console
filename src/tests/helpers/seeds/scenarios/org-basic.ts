@@ -1,12 +1,12 @@
 /**
  * Seed Scenario: Organization — Basic
  *
- * Creates a minimal organization with an owner and one member,
+ * Creates a minimal shared organization with an owner and one member,
  * plus one organizational assistant owned by the org owner.
  *
  * **What it creates:**
  *   - 2 users ("owner", "member")
- *   - 1 organization
+ *   - 1 organization with org-wide sharing enabled
  *   - Owner has Owner role, member has Member role
  *   - 1 org assistant created by the owner
  *
@@ -34,7 +34,11 @@ export async function seedOrgBasic(): Promise<SeededState> {
   createEmailLogin({ userId: member.id });
 
   // Create org
-  const org = createOrg({ name: 'Test Org Basic', ownerId: owner.id });
+  const org = createOrg({
+    name: 'Test Org Basic',
+    ownerId: owner.id,
+    dataSharingMode: 'shared',
+  });
 
   // Add member
   const memberOrgKey = addMember({ orgId: org.id, userId: member.id, role: 'Member' });

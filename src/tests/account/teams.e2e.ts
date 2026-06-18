@@ -14,6 +14,7 @@ import {
   createAccountTest,
   createOrg,
   addMember,
+  createAssistant,
   deleteOrg,
   dbExec,
   getTeamByName,
@@ -28,10 +29,40 @@ addMember({ orgId: org.id, userId: member.id, role: 'Member' });
 const test = createAccountTest(owner);
 test.setTimeout(90_000);
 
+const sharingOwner = createTestUser({ name: 'SharingOwner', lastName: 'Test', credits: 5_000 });
+const sharingMember = createTestUser({ name: 'SharingMember', lastName: 'Test', credits: 5_000 });
+const sharingOrg = createOrg({ name: `SharingOrg${Date.now()}`, ownerId: sharingOwner.id });
+addMember({ orgId: sharingOrg.id, userId: sharingMember.id, role: 'Member' });
+const sharingAssistant = createAssistant({
+  userId: sharingOwner.id,
+  orgId: sharingOrg.id,
+  firstName: 'Sharing',
+  surname: 'Droid',
+});
+
+const sharingTest = createAccountTest(sharingOwner);
+sharingTest.setTimeout(90_000);
+
+const creationUser = createTestUser({ name: 'CreateOrgSharing', lastName: 'Test', credits: 5_000 });
+const creationTest = createAccountTest(creationUser);
+creationTest.setTimeout(90_000);
+let createdDialogOrgId: number | null = null;
+
 test.afterAll(() => {
   deleteOrg(org.id);
   cleanupUser(owner.id);
   cleanupUser(member.id);
+});
+
+sharingTest.afterAll(() => {
+  deleteOrg(sharingOrg.id);
+  cleanupUser(sharingOwner.id);
+  cleanupUser(sharingMember.id);
+});
+
+creationTest.afterAll(() => {
+  if (createdDialogOrgId) deleteOrg(createdDialogOrgId);
+  cleanupUser(creationUser.id);
 });
 
 test('creating a team via UI adds it to the database', async ({ authedPage: page }) => {
@@ -174,3 +205,82 @@ test('deleting a team via UI removes it from the database', async ({ authedPage:
   // Verify DB
   expect(getTeamByName(org.id, teamName)).toBeFalsy();
 });
+
+sharingTest(
+  'org-wide sharing toggle manages the Org team lifecycle',
+  async ({ authedPage: page }) => {
+    await page.goto('/organizations?tab=teams');
+    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+    await expect(page.getByTestId('team-list-panel')).toBeVisible({ timeout: 15_000 });
+
+    await page.getByTestId('org-sharing-toggle').click();
+
+    await expect(page.getByTestId('org-sharing-enabled-copy')).toBeVisible({ timeout: 15_000 });
+    const orgTeamRow = page.locator('tr').filter({ hasText: 'Org' });
+    await expect(orgTeamRow).toBeVisible({ timeout: 10_000 });
+    await expect(orgTeamRow).toContainText('Managed');
+    await expect(orgTeamRow.getByRole('button', { name: 'More team' })).toHaveCount(0);
+
+    const sharingEnabled = dbExec(
+      `SELECT org_wide_sharing_enabled FROM organization WHERE id = ${sharingOrg.id}`
+    );
+    expect(sharingEnabled).toBe('t');
+
+    const orgTeamId = getTeamByName(sharingOrg.id, 'Org');
+    expect(orgTeamId).toBeTruthy();
+
+    expect(getTeamMemberCount(orgTeamId!)).toBe(2);
+
+    const assistantMembershipCount = dbExec(
+      `SELECT count(*) FROM team_assistant_memberships WHERE team_id = ${orgTeamId} AND assistant_id = ${sharingAssistant.agentId}`
+    );
+    expect(assistantMembershipCount).toBe('1');
+
+    await page.getByTestId('org-sharing-toggle').click();
+    await expect(page.getByRole('alertdialog')).toBeVisible({ timeout: 5_000 });
+    await page.getByTestId('confirm-disable-org-sharing').click();
+
+    await expect(orgTeamRow).not.toBeVisible({ timeout: 15_000 });
+
+    const sharingDisabled = dbExec(
+      `SELECT org_wide_sharing_enabled FROM organization WHERE id = ${sharingOrg.id}`
+    );
+    expect(sharingDisabled).toBe('f');
+    expect(getTeamByName(sharingOrg.id, 'Org')).toBeFalsy();
+
+    const remainingAssistantMembershipCount = dbExec(
+      `SELECT count(*) FROM team_assistant_memberships WHERE assistant_id = ${sharingAssistant.agentId}`
+    );
+    expect(remainingAssistantMembershipCount).toBe('0');
+  }
+);
+
+creationTest(
+  'creating an organization from Organizations page supports shared mode',
+  async ({ authedPage: page }) => {
+    const orgName = `DialogSharedOrg${Date.now()}`;
+
+    await page.goto('/organizations');
+    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+    await page.getByRole('button', { name: 'Create organization' }).click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
+    await dialog.getByPlaceholder('Acme Corp').fill(orgName);
+    await dialog.getByTestId('create-org-sharing-shared').click();
+    await dialog.getByRole('button', { name: 'Create' }).click();
+
+    const orgId = dbExec(`SELECT id FROM organization WHERE name = '${orgName}'`);
+    expect(orgId).toBeTruthy();
+    createdDialogOrgId = parseInt(orgId, 10);
+
+    const sharingEnabled = dbExec(
+      `SELECT org_wide_sharing_enabled FROM organization WHERE id = ${createdDialogOrgId}`
+    );
+    expect(sharingEnabled).toBe('t');
+
+    const orgTeamId = getTeamByName(createdDialogOrgId, 'Org');
+    expect(orgTeamId).toBeTruthy();
+    expect(getTeamMemberCount(orgTeamId!)).toBe(1);
+  }
+);

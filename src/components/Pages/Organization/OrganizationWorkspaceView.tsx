@@ -15,6 +15,7 @@ import {
 import { ResponseProps } from '@/types/common';
 import { UnifiedMember } from '@/hooks/Organizations/useOrganization';
 import { Team } from '@/types/team';
+import type { DataSharingMode } from '@/types/organization';
 import { Role, Permission } from '@/types/role';
 import { Input } from '@/components/UI/input';
 import { Search, Users, Shield } from 'lucide-react';
@@ -107,6 +108,7 @@ interface OrganizationWorkspaceViewProps {
   onDeleteTeam: (id: number) => void;
   onAddTeamMember: (teamId: number, userId: string) => void;
   onRemoveTeamMember: (teamId: number, userId: string) => void;
+  onUpdateOrgSharingMode: (dataSharingMode: DataSharingMode) => Promise<unknown>;
   // Role Actions
   onCreateRole: (name: string, description: string, permissionIds: number[]) => void;
   onUpdateManagedRole: (roleId: number, name: string, description: string) => void;
@@ -156,6 +158,7 @@ const OrganizationWorkspaceView = ({
   onDeleteTeam,
   onAddTeamMember,
   onRemoveTeamMember,
+  onUpdateOrgSharingMode,
   onCreateRole,
   onUpdateManagedRole,
   onDeleteRole,
@@ -713,6 +716,13 @@ const OrganizationWorkspaceView = ({
               onDeleteTeam={onDeleteTeam}
               onAddMember={onAddTeamMember}
               onRemoveMember={onRemoveTeamMember}
+              orgSharingMode={
+                teams.some((team) => team.isOrgWideSharing)
+                  ? 'shared'
+                  : (organization.dataSharingMode ?? 'private')
+              }
+              canManageOrgSharing={canUpdateOrg}
+              onUpdateOrgSharingMode={onUpdateOrgSharingMode}
             />
           </section>
         </TabsContent>

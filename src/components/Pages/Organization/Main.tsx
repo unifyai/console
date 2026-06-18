@@ -79,6 +79,7 @@ const Main = ({
     handleDeleteTeam,
     handleAddTeamMember,
     handleRemoveTeamMember,
+    handleUpdateOrgSharingMode,
   } = useTeams(currentOrg?.id, teamActions);
 
   // 3. Role Logic (Dependent on currentOrg).
@@ -176,6 +177,7 @@ const Main = ({
             onDeleteTeam={handleDeleteTeam}
             onAddTeamMember={handleAddTeamMember}
             onRemoveTeamMember={handleRemoveTeamMember}
+            onUpdateOrgSharingMode={handleUpdateOrgSharingMode}
             // Role Handlers
             onCreateRole={handleCreateRole}
             onUpdateManagedRole={handleUpdateManagedRole}
