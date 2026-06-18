@@ -4,7 +4,7 @@
  * proxies the call to Orchestra's
  * ``/v0/assistant/{coordinator_id}/onboarding-session-started``
  * endpoint, which fires a ``coordinator_onboarding_event`` to
- * Unity so the Coordinator's first turn is shaped correctly
+ * Droid so the Coordinator's first turn is shaped correctly
  * (intro vs. recap based on the existing transcript history).
  *
  * The endpoint is best-effort on the orchestra side — emissions

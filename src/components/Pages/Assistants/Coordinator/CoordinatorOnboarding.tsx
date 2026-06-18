@@ -118,7 +118,7 @@ export function CoordinatorOnboarding({
     return stopPickerRinging;
   }, [isPickerVisible, startPickerRinging, stopPickerRinging]);
 
-  // Fire the picker-resolution event so Unity opens the session with the
+  // Fire the picker-resolution event so Droid opens the session with the
   // right kind of message. Best-effort: completion never blocks on it.
   const notifySessionStarted = React.useCallback(
     (medium: 'chat' | 'call') => {

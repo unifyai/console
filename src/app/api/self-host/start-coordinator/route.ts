@@ -15,7 +15,7 @@ const execFileAsync = promisify(execFile);
 
 const RUNTIME_FILE =
   process.env.SELF_HOST_COORDINATOR_RUNTIME_FILE ??
-  path.join(os.homedir(), '.unity', 'coordinator-runtime.json');
+  path.join(os.homedir(), '.droid', 'coordinator-runtime.json');
 
 function parseAssistantList(raw: unknown): Assistant[] {
   if (!raw || typeof raw !== 'object') return [];
@@ -26,7 +26,7 @@ function parseAssistantList(raw: unknown): Assistant[] {
 }
 
 async function persistCoordinatorRuntime(agentId: string, apiKey: string): Promise<void> {
-  // In compose mode the Console and the Unity CM run as different uids and
+  // In compose mode the Console and the Droid CM run as different uids and
   // share this file over a volume, so it must be world-readable; the volume
   // itself is the privacy boundary. Host mode keeps it owner-only.
   const mode = isComposeSelfHostRuntime() ? 0o644 : 0o600;
@@ -43,7 +43,7 @@ async function persistCoordinatorRuntime(agentId: string, apiKey: string): Promi
 /**
  * POST /api/self-host/start-coordinator
  *
- * Starts the local Unity ConversationManager for the signed-in user's
+ * Starts the local Droid ConversationManager for the signed-in user's
  * personal Coordinator. Self-host installs only.
  */
 export async function POST() {

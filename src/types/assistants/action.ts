@@ -47,7 +47,7 @@ export interface ActionNode {
   /** Display label — prefers displayLabel (human-readable), falls back to hierarchy segment */
   label: string;
 
-  /** User-facing alias from Unity (e.g., "Checking Contact Book"). Absent on boundary nodes. */
+  /** User-facing alias from Droid (e.g., "Checking Contact Book"). Absent on boundary nodes. */
   displayLabel?: string;
 
   /** Full hierarchy path as array */
@@ -119,7 +119,7 @@ export interface ManagerMethodLogEntries {
   error?: string;
   /** Action/progress indicator (e.g., "done", "next_clarification") */
   action?: string;
-  /** User-facing alias defined in Unity (e.g., "Checking Contact Book") */
+  /** User-facing alias defined in Droid (e.g., "Checking Contact Book") */
   displayLabel?: string;
   /** Globally unique event identifier, used for SSE/poll deduplication */
   eventId?: string;
@@ -155,7 +155,7 @@ export interface ParsedManagerMethodEvent {
   status: 'ok' | 'error';
   content?: string;
   error?: string;
-  /** User-facing alias from Unity (e.g., "Checking Contact Book") */
+  /** User-facing alias from Droid (e.g., "Checking Contact Book") */
   displayLabel?: string;
   /** Globally unique event identifier */
   eventId?: string;

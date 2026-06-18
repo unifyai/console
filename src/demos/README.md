@@ -23,8 +23,8 @@ Each demo script:
 ## Prerequisites
 
 > These demos use Console's internal dev/test harness, not the product run
-> path. To run the whole system locally, use **`unity stack up`** from the
-> [unity repo](https://github.com/unifyai/unity).
+> path. To run the whole system locally, use **`droid stack up`** from the
+> [droid repo](https://github.com/unifyai/droid).
 
 - Local stack running: `./scripts/local.sh start` (starts Orchestra + Console + seeds)
 - Docker (for seed DB access)

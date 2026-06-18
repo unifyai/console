@@ -212,7 +212,7 @@ async function builtinsLogFetch<T>(args: {
   sorting?: Record<string, 'ascending' | 'descending'>;
 }): Promise<LogPayload<T>> {
   const params = new URLSearchParams();
-  params.set('projectName', process.env.NEXT_PUBLIC_UNITY_BUILTINS_PROJECT || 'Builtins');
+  params.set('projectName', process.env.NEXT_PUBLIC_DROID_BUILTINS_PROJECT || 'Builtins');
   params.set('context', args.context);
   params.set('limit', String(args.limit));
   params.set('offset', String(args.offset));
@@ -902,7 +902,7 @@ export async function requestUnityIntegrationToolsSync(args: {
     }
   );
   if (!response.ok) {
-    throw new Error(`Unity integration sync request failed (${response.status})`);
+    throw new Error(`Droid integration sync request failed (${response.status})`);
   }
 }
 

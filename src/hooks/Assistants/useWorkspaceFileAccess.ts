@@ -31,7 +31,7 @@ function errorDetail(value: unknown): string {
  * Holds a lazily-loaded tree plus the allowlist as a `defaultAllow` flag and a
  * map of explicit per-item decisions. Access for any node is resolved by
  * walking its loaded ancestry: the nearest explicit decision wins, else
- * `defaultAllow`. This mirrors the enforcement semantics in Orchestra/Unity.
+ * `defaultAllow`. This mirrors the enforcement semantics in Orchestra/Droid.
  */
 export function useWorkspaceFileAccess({
   assistantId,

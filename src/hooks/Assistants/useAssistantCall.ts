@@ -156,7 +156,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
 
           try {
             // Run getConnectionDetails and dispatchToCall in parallel.
-            // The room name is deterministic (unity_{id}_meet), so dispatch
+            // The room name is deterministic (droid_{id}_meet), so dispatch
             // doesn't need to wait for connection details.
             const [details, dispatchResult] = await Promise.all([
               assistantActions.call.getConnectionDetails(assistant.agentId, assistantName),

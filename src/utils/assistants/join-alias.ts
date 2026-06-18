@@ -2,8 +2,8 @@
  * Translates fully-qualified context paths in join args to the A./B. alias
  * format that Orchestra's _join_query_internal expects.
  *
- * Bindings from Unity use full context paths (e.g.
- * "userId/assistantId/Data/Project/Context.Column") because Unity needs the
+ * Bindings from Droid use full context paths (e.g.
+ * "userId/assistantId/Data/Project/Context.Column") because Droid needs the
  * resolved path for context lookup. Orchestra's join engine, however, expects
  * the two tables to be referenced as A and B:
  *   join_expr: "A.Column == B.Column"

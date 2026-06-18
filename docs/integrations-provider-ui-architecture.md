@@ -21,7 +21,7 @@ The Console agent must not treat this UI as a reason to put every Composio/Piped
 
 - `Builtins` project contexts are the durable provider app/tool catalog. Console reads `Builtins/Integrations/Apps` and `Builtins/Integrations/Tools` through the logging API.
 - `orchestra` is the dynamic integration control plane for mutable state. It owns provider backends, bootstrap state, connection registry, OAuth/API-key connection state, scopes, tool policy, provider execution dispatch, approvals, and audit rows.
-- `unity` is the actor-facing runtime surface. It exposes provider tools to the actor as FunctionManager-searchable virtual primitive rows named `primitives.integrations.<app>.<tool>` and provides `primitives.integrations.*` helpers for targeted lookup/schema/execution.
+- `droid` is the actor-facing runtime surface. It exposes provider tools to the actor as FunctionManager-searchable virtual primitive rows named `primitives.integrations.<app>.<tool>` and provides `primitives.integrations.*` helpers for targeted lookup/schema/execution.
 - `console` owns the user-facing marketplace/connect/manage experience. It renders a unified catalog from Builtins catalog rows plus Orchestra connection/policy overlays instead of hardcoding provider-backed apps.
 - `unity-deploy` remains for Level 3 full integration packages only: custom Python code, DataManager sync, bespoke guidance, browser fallback, client-specific workflow logic, unsupported-provider integrations, or integrations requiring strict local package control.
 - `unify` only provides thin SDK helpers over operational Orchestra integration endpoints. It must not import Composio/Pipedream SDKs or perform local provider search/ranking.

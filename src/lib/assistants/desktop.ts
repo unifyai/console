@@ -350,9 +350,9 @@ async function teardownDesktopTunnel(apiKey: string, url?: string): Promise<void
 
   const hasCommsUrl =
     !!process.env.COMMUNICATION_URL ||
-    !!process.env.UNITY_COMMS_URL ||
+    !!process.env.DROID_COMMS_URL ||
     !!process.env.LOCAL_ADAPTERS_URL ||
-    !!process.env.UNITY_ADAPTERS_URL;
+    !!process.env.DROID_ADAPTERS_URL;
   if (!hasCommsUrl) return;
 
   try {

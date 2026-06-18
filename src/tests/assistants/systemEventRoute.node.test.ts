@@ -77,7 +77,7 @@ describe('assistant system-event route', () => {
 
     expect(response.status).toBe(202);
     expect(fetchSpy).toHaveBeenCalledWith(
-      'http://127.0.0.1:8081/unity/system-event',
+      'http://127.0.0.1:8081/droid/system-event',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({

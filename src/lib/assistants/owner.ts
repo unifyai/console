@@ -9,7 +9,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
  * When a non-owner org member interacts with an assistant via the Console,
  * operations that touch the Assistants project (secrets, tasks, transcripts,
  * etc.) must authenticate as the owner so that reads and writes land in the
- * same Orchestra project namespace the Unity runtime uses.
+ * same Orchestra project namespace the Droid runtime uses.
  *
  * Uses the admin API (`getUserByID`) and caches results for 5 minutes.
  */

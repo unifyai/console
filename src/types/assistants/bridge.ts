@@ -2,7 +2,7 @@
  * Data Bridge types shared between TileViewer (iframe script) and the
  * Next.js proxy routes.
  *
- * Each operation type mirrors a Unity DataBinding variant:
+ * Each operation type mirrors a Droid DataBinding variant:
  *   FilterBinding  -> filter  -> UnifyData.filter()
  *   ReduceBinding  -> reduce  -> UnifyData.reduce()
  *   JoinBinding    -> join    -> UnifyData.join()

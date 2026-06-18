@@ -159,7 +159,7 @@ function ProviderIntegrationCallback() {
         await testProviderIntegration(connection.id);
         if (assistantId) {
           await requestUnityIntegrationToolsSync({ assistantId, connection }).catch((error) => {
-            console.warn('Failed to request Unity integration tool sync', error);
+            console.warn('Failed to request Droid integration tool sync', error);
           });
         }
         setMessage('Integration connected. Returning to Console...');

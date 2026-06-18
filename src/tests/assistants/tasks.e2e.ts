@@ -198,7 +198,7 @@ async function ensureSeeded() {
       started_at: '2025-06-02T12:30:05Z',
       completed_at: '2025-06-02T12:31:00Z',
       source_medium: 'calendar',
-      job_name: 'unity-live-9001',
+      job_name: 'droid-live-9001',
     },
     {
       run_id: 9002,
@@ -214,7 +214,7 @@ async function ensureSeeded() {
       source_contact_id: '1',
       source_contact_display_name: 'Alice Owner',
       started_at: '2025-06-03T09:20:00Z',
-      job_name: 'unity-offline-9002',
+      job_name: 'droid-offline-9002',
     },
   ]);
 
@@ -488,7 +488,7 @@ test('refresh updates tasks and activity together', async ({ authedPage: page })
       started_at: '2025-06-04T12:30:05Z',
       completed_at: '2025-06-04T12:31:00Z',
       source_medium: 'calendar',
-      job_name: `unity-live-${taskId}`,
+      job_name: `droid-live-${taskId}`,
     },
   ]);
 

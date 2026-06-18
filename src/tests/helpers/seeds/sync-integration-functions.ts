@@ -5,7 +5,7 @@
  * This is deliberately for local experimentation and E2E testing. It only
  * materializes tools for currently connected apps; inactive apps should stay
  * undiscoverable through FunctionManager until the user connects them.
- * Production provider-backed materialization is owned by Unity; this script
+ * Production provider-backed materialization is owned by Droid; this script
  * mirrors the row shape only so local Console scenarios can seed data directly.
  */
 
@@ -56,8 +56,8 @@ function localApps(): Set<string> {
 }
 
 function providerIntegrationFunctionId(toolId: string): number {
-  // Local E2E seeding mirrors Unity's materialized provider-row ID shape.
-  // Unity remains the production source of truth; integration_tool_id is the
+  // Local E2E seeding mirrors Droid's materialized provider-row ID shape.
+  // Droid remains the production source of truth; integration_tool_id is the
   // canonical execution identifier, while function_id is only the integer
   // FunctionManager storage/search key required by Functions/Primitives.
   const digest = createHash('sha256')
@@ -149,7 +149,7 @@ function toPrimitiveRow(tool: ProviderTool): Record<string, unknown> | null {
     verify: confirmationRequired || ['write', 'destructive', 'bulk_export'].includes(actionClass),
     is_primitive: true,
     guidance_ids: [],
-    primitive_class: 'unity.integrations.primitives.IntegrationPrimitives',
+    primitive_class: 'droid.integrations.primitives.IntegrationPrimitives',
     primitive_method: tool.function_manager_name || name.replace(/\./g, '__'),
     integration_source: 'provider_backed',
     integration_tool_id: toolId,
