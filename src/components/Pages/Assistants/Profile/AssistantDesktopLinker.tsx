@@ -11,10 +11,22 @@ import {
   Check,
   KeyRound,
   Info,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/UI/popover';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/UI/alert-dialog';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/UI/tooltip';
 import { AssistantHireLocalSetupInstructionsDialog } from '@/components/Pages/Assistants/Hire/AssistantHireLocalSetupInstructions';
 import { cn } from '@/lib/utils';
@@ -64,6 +76,10 @@ export function AssistantDesktopLinker({
   const [passwordValue, setPasswordValue] = React.useState('');
   const [isSavingPassword, setIsSavingPassword] = React.useState(false);
   const [passwordSaved, setPasswordSaved] = React.useState(false);
+  const [mutatingId, setMutatingId] = React.useState<number | null>(null);
+  const [renameOpenId, setRenameOpenId] = React.useState<number | null>(null);
+  const [renameValue, setRenameValue] = React.useState('');
+  const [deleteTarget, setDeleteTarget] = React.useState<UserDesktop | null>(null);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -137,6 +153,50 @@ export function AssistantDesktopLinker({
     }
   };
 
+  const openRename = (desktop: UserDesktop) => {
+    setRenameValue(desktop.name);
+    setRenameOpenId(desktop.id);
+  };
+
+  const handleRename = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (renameOpenId === null) return;
+    const name = renameValue.trim();
+    if (!name) return;
+    const desktopId = renameOpenId;
+    setMutatingId(desktopId);
+    const result = await assistantActions.desktop.renameUserDesktop(desktopId, name);
+    setMutatingId(null);
+
+    if ('detail' in result && result.detail) {
+      console.error('[AssistantDesktopLinker] rename failed:', result.detail);
+      toast.error('Could not rename desktop. Please try again.');
+      return;
+    }
+    setDesktops((prev) => prev.map((d) => (d.id === desktopId ? { ...d, name } : d)));
+    setRenameOpenId(null);
+    toast.success('Desktop renamed');
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    setMutatingId(target.id);
+    const result = await assistantActions.desktop.deleteUserDesktop(target.id, target.url);
+    setMutatingId(null);
+
+    if ('detail' in result && result.detail) {
+      console.error('[AssistantDesktopLinker] delete failed:', result.detail);
+      toast.error('Could not delete desktop. Please try again.');
+      return;
+    }
+    const wasLinkedHere = (target.assignedToAssistantIds ?? []).includes(assistantIdNum);
+    setDesktops((prev) => prev.filter((d) => d.id !== target.id));
+    setDeleteTarget(null);
+    if (wasLinkedHere) onLinked?.(null);
+    toast.success('Desktop deleted');
+  };
+
   // The current user's desktop linked to *this* assistant: the one whose
   // assigned-assistant list includes this assistant. The desktop list is
   // already scoped to the requesting user, so at most one will match.
@@ -204,38 +264,111 @@ export function AssistantDesktopLinker({
                 // desktop linked elsewhere is still selectable here.
                 const otherLinkCount = assignedIds.filter((id) => id !== assistantIdNum).length;
 
+                const isMutating = mutatingId === desktop.id;
+
                 return (
-                  <button
+                  <div
                     key={desktop.id}
-                    disabled={isCurrentlyLinked || assigningId !== null}
-                    onClick={() => handleAssign(desktop.id)}
                     className={cn(
-                      'flex w-full items-center gap-3 rounded-md border px-3 py-2.5 text-left transition-colors',
+                      'flex w-full items-center gap-3 rounded-md border px-3 py-2.5 transition-colors',
                       isCurrentlyLinked
                         ? 'border-primary/40 bg-primary/5'
                         : 'hover:border-primary/30 border-border hover:bg-accent'
                     )}
                   >
-                    <Monitor className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-title truncate">{desktop.name}</p>
-                      <p className="text-caption truncate">
-                        {osLabels[desktop.os] ?? desktop.os}
-                        {!isCurrentlyLinked &&
-                          otherLinkCount > 0 &&
-                          ` · Also linked to ${otherLinkCount} other assistant${
-                            otherLinkCount === 1 ? '' : 's'
-                          }`}
-                      </p>
+                    <button
+                      type="button"
+                      disabled={isCurrentlyLinked || assigningId !== null || isMutating}
+                      onClick={() => handleAssign(desktop.id)}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-default"
+                    >
+                      <Monitor className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-title truncate">{desktop.name}</p>
+                        <p className="text-caption truncate">
+                          {osLabels[desktop.os] ?? desktop.os}
+                          {!isCurrentlyLinked &&
+                            otherLinkCount > 0 &&
+                            ` · Also linked to ${otherLinkCount} other assistant${
+                              otherLinkCount === 1 ? '' : 's'
+                            }`}
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0">
+                        {assigningId === desktop.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        ) : isCurrentlyLinked ? (
+                          <Link2 className="h-4 w-4 text-primary" />
+                        ) : null}
+                      </div>
+                    </button>
+
+                    <div className="flex flex-shrink-0 items-center gap-0.5">
+                      <Popover
+                        open={renameOpenId === desktop.id}
+                        onOpenChange={(open) => {
+                          if (open) openRename(desktop);
+                          else setRenameOpenId(null);
+                        }}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            aria-label={`Rename ${desktop.name}`}
+                            data-testid={`desktop-rename-${desktop.id}`}
+                            disabled={isMutating || assigningId !== null}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-64">
+                          <form onSubmit={handleRename} className="space-y-2">
+                            <p className="text-title leading-none">Rename desktop</p>
+                            <Input
+                              value={renameValue}
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              placeholder="Desktop name"
+                              data-testid="desktop-rename-input"
+                              autoFocus
+                              maxLength={120}
+                            />
+                            <Button
+                              type="submit"
+                              size="sm"
+                              className="w-full gap-1.5"
+                              data-testid="desktop-rename-save"
+                              disabled={
+                                !renameValue.trim() ||
+                                renameValue.trim() === desktop.name ||
+                                isMutating
+                              }
+                            >
+                              {isMutating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                              Save
+                            </Button>
+                          </form>
+                        </PopoverContent>
+                      </Popover>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        aria-label={`Delete ${desktop.name}`}
+                        data-testid={`desktop-delete-${desktop.id}`}
+                        onClick={() => setDeleteTarget(desktop)}
+                        disabled={isMutating || assigningId !== null}
+                      >
+                        {isMutating ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
                     </div>
-                    <div className="flex-shrink-0">
-                      {assigningId === desktop.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      ) : isCurrentlyLinked ? (
-                        <Link2 className="h-4 w-4 text-primary" />
-                      ) : null}
-                    </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -374,6 +507,39 @@ export function AssistantDesktopLinker({
         os={setupOs || 'ubuntu'}
         onClose={() => setSetupOs(null)}
       />
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open && mutatingId === null) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deleteTarget?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This unregisters the desktop, removes it from every assistant it&apos;s linked to, and
+              tears down its secure tunnel. The desktop app will need to be set up again to
+              reconnect. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={mutatingId !== null}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteConfirm();
+              }}
+              disabled={mutatingId !== null}
+              data-testid="desktop-delete-confirm"
+              className="hover:bg-destructive/90 bg-destructive text-destructive-foreground"
+            >
+              {mutatingId !== null && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

@@ -22,6 +22,8 @@ import {
   listUserDesktops,
   linkDesktop,
   unlinkDesktop,
+  renameUserDesktop,
+  deleteUserDesktop,
 } from '@/lib/assistants/desktop';
 import { listAssistants, updateAssistant } from '@/lib/assistants/assistant';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
@@ -71,6 +73,8 @@ const CallPage = async ({ params }: { params: Promise<{ assistantId: string }> }
       listUserDesktops,
       linkDesktop,
       unlinkDesktop,
+      renameUserDesktop,
+      deleteUserDesktop,
     },
   };
 

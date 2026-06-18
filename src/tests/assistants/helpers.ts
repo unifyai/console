@@ -576,6 +576,17 @@ export function deleteUserDesktopsForUser(userId: string): void {
   }
 }
 
+/** Whether a registered desktop row still exists. */
+export function userDesktopExists(desktopId: number): boolean {
+  return parseInt(dbExec(`SELECT count(*) FROM user_desktops WHERE id = ${desktopId}`), 10) > 0;
+}
+
+/** The friendly name of a registered desktop, or null if it no longer exists. */
+export function getUserDesktopName(desktopId: number): string | null {
+  const result = dbExec(`SELECT name FROM user_desktops WHERE id = ${desktopId}`);
+  return result ? result.trim() : null;
+}
+
 // =============================================================================
 // Assistant Secret Helpers
 // =============================================================================

@@ -67,6 +67,8 @@ import {
   listUserDesktops,
   linkDesktop,
   unlinkDesktop,
+  renameUserDesktop,
+  deleteUserDesktop,
 } from '@/lib/assistants/desktop';
 import { setAssistantSpendingLimit } from '@/lib/assistants/spending';
 import {
@@ -174,6 +176,8 @@ const AssistantsPage = async ({
       listUserDesktops,
       linkDesktop,
       unlinkDesktop,
+      renameUserDesktop,
+      deleteUserDesktop,
     },
     spending: {
       setLimit: setAssistantSpendingLimit,

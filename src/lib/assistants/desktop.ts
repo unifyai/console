@@ -9,6 +9,7 @@ import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
 import { resolveOwnerApiKeyForAssistant } from '@/lib/assistants/owner';
 import { isSelfHost } from '@/lib/environment/environment';
 import { dispatchUnitySystemEvent } from '@/lib/assistants/system-event';
+import { extractTunnelId } from '@/utils/assistants/tunnel';
 
 const LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS = 5000;
 const DEFAULT_SELF_HOST_DESKTOP_URL = 'http://127.0.0.1:8090';
@@ -301,6 +302,99 @@ export async function unlinkDesktop(assistantId: string): Promise<ResponseProps>
     return { info: 'Desktop unlinked' };
   } catch (e: unknown) {
     console.error('[unlinkDesktop] Error:', e instanceof Error ? e.message : e);
+    return { detail: 'Failed to connect to backend' };
+  }
+}
+
+export async function renameUserDesktop(
+  desktopId: number,
+  name: string
+): Promise<UserDesktop | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const orchestraUrl = process.env.ORCHESTRA_URL;
+  if (!orchestraUrl) {
+    return { detail: 'Server configuration error: ORCHESTRA_URL is not set.' };
+  }
+
+  try {
+    const response = await fetch(`${orchestraUrl}/v0/desktop/${desktopId}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(camelToSnakeObject({ name })),
+    });
+
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      return (data as ResponseProps) || { detail: 'Failed to rename desktop' };
+    }
+    const desktop = data?.info ?? data;
+    return snakeToCamelObject(desktop) as UserDesktop;
+  } catch (e: unknown) {
+    console.error('[renameUserDesktop] Error:', e instanceof Error ? e.message : e);
+    return { detail: 'Failed to connect to backend' };
+  }
+}
+
+/**
+ * Best-effort teardown of the managed tunnel backing a desktop. Removes the
+ * tunnel from the relay registry so the public URL stops resolving. Never
+ * throws: an orphaned tunnel idles and expires on its own, so teardown failure
+ * must not block desktop deletion.
+ */
+async function teardownDesktopTunnel(apiKey: string, url?: string): Promise<void> {
+  const tunnelId = extractTunnelId(url);
+  if (!tunnelId) return;
+
+  const hasCommsUrl =
+    !!process.env.COMMUNICATION_URL ||
+    !!process.env.UNITY_COMMS_URL ||
+    !!process.env.LOCAL_ADAPTERS_URL ||
+    !!process.env.UNITY_ADAPTERS_URL;
+  if (!hasCommsUrl) return;
+
+  try {
+    const { createCommunicationClient } = await import('@/lib/communication/client');
+    const client = createCommunicationClient(apiKey);
+    await client.delete(`/infra/tunnel/${tunnelId}`);
+  } catch (e: unknown) {
+    console.warn(
+      `[deleteUserDesktop] Tunnel teardown for ${tunnelId} failed (continuing):`,
+      e instanceof Error ? e.message : e
+    );
+  }
+}
+
+export async function deleteUserDesktop(desktopId: number, url?: string): Promise<ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const orchestraUrl = process.env.ORCHESTRA_URL;
+  if (!orchestraUrl) {
+    return { detail: 'Server configuration error: ORCHESTRA_URL is not set.' };
+  }
+
+  // Tear down the managed tunnel first (best-effort) so the user's desktop list
+  // never lingers pointing at a dead tunnel. The Orchestra delete below is the
+  // authoritative step whose result drives success/failure.
+  await teardownDesktopTunnel(apiKey, url);
+
+  try {
+    const response = await fetch(`${orchestraUrl}/v0/desktop/${desktopId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      return (data as ResponseProps) || { detail: 'Failed to delete desktop' };
+    }
+    return { info: 'Desktop deleted' };
+  } catch (e: unknown) {
+    console.error('[deleteUserDesktop] Error:', e instanceof Error ? e.message : e);
     return { detail: 'Failed to connect to backend' };
   }
 }
