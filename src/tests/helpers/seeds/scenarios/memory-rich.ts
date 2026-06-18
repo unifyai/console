@@ -1212,7 +1212,7 @@ const TASKS: Record<string, unknown>[] = [
     name: 'Monthly cost report',
     description:
       'Pull cloud infrastructure costs from AWS Cost Explorer and produce a month-over-month comparison.',
-    status: 'queued',
+    status: 'scheduled',
     trigger_type: 'scheduled',
     entrypoint: 'monthly_cost_report',
     created_at: ts(5, 10),
@@ -1225,7 +1225,7 @@ const TASKS: Record<string, unknown>[] = [
     task_id: 20,
     name: 'Sync CRM contacts',
     description: 'Bi-directional sync between internal contacts and Salesforce CRM every 6 hours.',
-    status: 'paused',
+    status: 'cancelled',
     trigger_type: 'scheduled',
     entrypoint: 'sync_crm_contacts',
     offline: true,
