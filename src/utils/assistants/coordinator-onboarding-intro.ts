@@ -1,4 +1,5 @@
 import type { Transition } from 'framer-motion';
+import { MARTY_CREATURE_APPEARANCE } from '@droid/brand/components';
 import {
   MARTY_ONBOARDING_INTRO_AUDIO_SRC,
   MARTY_ONBOARDING_INTRO_CLOSING_QUESTION_SEC,
@@ -6,10 +7,15 @@ import {
   MARTY_ONBOARDING_INTRO_TRANSCRIPT,
 } from '@droid/brand/audio';
 import type { BrandRole } from '@/components/Brand/shapes';
-import type { CreatureEyes, CreatureMood } from '@/components/Brand/TeammateCreature';
+import type {
+  CreatureAntenna,
+  CreatureEyes,
+  CreatureMood,
+} from '@/components/Brand/TeammateCreature';
 import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
 
 export type CoordinatorOnboardingIntroDroidAppearance = {
+  antenna?: CreatureAntenna;
   baseEyes?: CreatureEyes;
   body: DroidBody;
   color: BrandRole;
@@ -56,6 +62,7 @@ export function getCoordinatorIntroCountdownMs(): number {
 }
 
 export const COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID = {
+  antenna: MARTY_CREATURE_APPEARANCE.antenna,
   baseEyes: 'square',
   body: 'standard',
   color: 'teal',

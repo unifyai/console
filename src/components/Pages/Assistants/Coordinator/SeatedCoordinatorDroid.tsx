@@ -102,6 +102,7 @@ export function SeatedCoordinatorDroid({
         // ``DroidCallAvatar`` hardcodes it the same way — or the voice would
         // never drive the mouth.
         active
+        antenna={droid.antenna}
         className="block h-auto w-full"
         disableSpeechMotion
         emotion={droid.mood ?? 'happy'}

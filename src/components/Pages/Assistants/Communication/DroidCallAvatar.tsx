@@ -3,7 +3,12 @@
 import * as React from 'react';
 import { motion } from 'framer-motion';
 import type { Transition } from 'framer-motion';
-import { AnimatedDroid, getCreatureAccent, getDroidBodyForm } from '@droid/brand/components';
+import {
+  AnimatedDroid,
+  MARTY_CREATURE_APPEARANCE,
+  getCreatureAccent,
+  getDroidBodyForm,
+} from '@droid/brand/components';
 import type { BrandRole } from '@/components/Brand/shapes';
 import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
 import type {
@@ -53,7 +58,7 @@ export function DroidCallAvatar({
   creatureClassName,
   layoutId,
   layoutTransition,
-  antenna,
+  antenna = MARTY_CREATURE_APPEARANCE.antenna,
   body = 'standard',
   color = 'green',
   baseEyes = 'up',

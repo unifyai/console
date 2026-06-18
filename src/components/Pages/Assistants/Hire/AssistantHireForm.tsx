@@ -59,7 +59,11 @@ import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 import type { OAuthProvider } from '@/types/assistants/contact';
 import { DroidCallAvatar } from '@/components/Pages/Assistants/Communication/DroidCallAvatar';
 import { useDroidAudioElementLipsync } from '@/utils/assistants/droid-lipsync';
-import { getDroidBodyForm, getRotatingBotViewBox } from '@droid/brand/components';
+import {
+  MARTY_CREATURE_APPEARANCE,
+  getDroidBodyForm,
+  getRotatingBotViewBox,
+} from '@droid/brand/components';
 
 const staticSkillsText = `The bio doesn't influence the droid's abilities. All droids come with the same foundational skills and can specialize in whichever area you want them to.`;
 const DROID_PREVIEW_SIZE = 120;
@@ -81,7 +85,7 @@ const appearanceColorOptions = droidColorOptions;
 const appearanceOutfitOptions = droidOutfitOptions;
 const DEFAULT_COORDINATOR_APPEARANCE = {
   eyes: 'up',
-  antenna: 'ball',
+  antenna: MARTY_CREATURE_APPEARANCE.antenna,
   body: 'standard',
   color: 'green',
   outfit: 'none',
