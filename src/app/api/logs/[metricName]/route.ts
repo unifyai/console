@@ -8,8 +8,9 @@ const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API_ROUTES === 'true';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { metricName: string; keyName: string } }
+  { params }: { params: Promise<{ metricName: string }> }
 ) {
+  const { metricName } = await params;
   const url = new URL(request.url);
 
   const apiKey = await getApiKeyFromRequest(request);
@@ -26,7 +27,7 @@ export async function GET(
   const snakeQuery = transformQueryParams(url);
 
   try {
-    const res = await fetch(`${baseUrl}/logs/metric/${params.metricName}${snakeQuery}`, {
+    const res = await fetch(`${baseUrl}/logs/metric/${metricName}${snakeQuery}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -41,7 +42,7 @@ export async function GET(
         JSON.stringify({
           route: '/api/logs/[metricName]',
           method: 'GET',
-          upstream: `${baseUrl}/logs/metric/${params.metricName}${snakeQuery}`,
+          upstream: `${baseUrl}/logs/metric/${metricName}${snakeQuery}`,
           status: res.status,
           latencyMs: Date.now() - startedAt,
           correlationId,
@@ -62,7 +63,7 @@ export async function GET(
       JSON.stringify({
         route: '/api/logs/[metricName]',
         method: 'GET',
-        upstream: `${baseUrl}/logs/metric/${params.metricName}${snakeQuery}`,
+        upstream: `${baseUrl}/logs/metric/${metricName}${snakeQuery}`,
         error: msg,
         latencyMs: Date.now() - startedAt,
         correlationId,

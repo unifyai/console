@@ -3,10 +3,15 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
-import { Camera } from 'lucide-react';
+import { Camera, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { User } from '@/types/user';
-import { TeammateCreature } from '@/components/Brand';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/UI/dropdown-menu';
 
 // `PhotoCropDialog` pulls in `react-easy-crop` and only renders
 // after the user picks a file. Lazy-load it so it doesn't bloat
@@ -32,11 +37,13 @@ async function resolvePhotoUrl(image: string): Promise<string> {
 interface ProfilePhotoProps {
   user: User;
   onFileSelect: (file: File) => void;
+  onPhotoRemoved: () => void;
   previewUrl: string | null;
 }
 
-const ProfilePhoto = ({ user, onFileSelect, previewUrl }: ProfilePhotoProps) => {
+const ProfilePhoto = ({ user, onFileSelect, onPhotoRemoved, previewUrl }: ProfilePhotoProps) => {
   const [savedPhotoUrl, setSavedPhotoUrl] = useState<string | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Crop dialog state
@@ -49,6 +56,8 @@ const ProfilePhoto = ({ user, onFileSelect, previewUrl }: ProfilePhotoProps) => 
       resolvePhotoUrl(user.image)
         .then(setSavedPhotoUrl)
         .catch(() => setSavedPhotoUrl(user.image));
+    } else {
+      setSavedPhotoUrl(null);
     }
   }, [user.image]);
 
@@ -96,31 +105,76 @@ const ProfilePhoto = ({ user, onFileSelect, previewUrl }: ProfilePhotoProps) => 
     setCropSourceType(undefined);
   }, [cropSrc]);
 
+  const handleRemovePhoto = useCallback(async () => {
+    if (!displayUrl || isRemoving) return;
+
+    setIsRemoving(true);
+    try {
+      const response = await fetch('/api/user/photo', { method: 'DELETE' });
+      if (!response.ok) {
+        toast.error('Could not remove profile photo. Please try again.');
+        return;
+      }
+
+      setSavedPhotoUrl(null);
+      onPhotoRemoved();
+      toast.success('Profile photo removed.');
+    } catch (error) {
+      console.error('Failed to remove profile photo', error);
+      toast.error('Could not remove profile photo. Please try again.');
+    } finally {
+      setIsRemoving(false);
+    }
+  }, [displayUrl, isRemoving, onPhotoRemoved]);
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        className={`hover:border-muted-foreground/40 group relative h-32 w-32 shrink-0 cursor-pointer overflow-visible rounded-xl border border-border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${displayUrl ? 'bg-transparent' : 'bg-card'}`}
-      >
-        {displayUrl ? (
-          <Image
-            src={displayUrl}
-            alt="Profile photo"
-            fill
-            className="rounded-xl object-cover"
-            unoptimized
-          />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center">
-            <TeammateCreature className="h-24 w-24" label="Default profile photo" />
-          </span>
-        )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className={`hover:border-muted-foreground/40 group relative h-32 w-32 shrink-0 cursor-pointer overflow-visible rounded-xl border border-border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${displayUrl ? 'bg-transparent' : 'bg-muted'}`}
+          >
+            {displayUrl ? (
+              <Image
+                src={displayUrl}
+                alt="Profile photo"
+                fill
+                className="rounded-xl object-cover"
+                unoptimized
+              />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center">
+                <Camera className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
+              </span>
+            )}
 
-        <div className="absolute inset-0 flex items-center justify-center bg-transparent opacity-0 transition-all group-hover:bg-[color:var(--overlay)] group-hover:opacity-100">
-          <Camera className="h-7 w-7 text-[color:var(--cream-white)]" />
-        </div>
-      </button>
+            <div className="absolute inset-0 flex items-center justify-center bg-transparent opacity-0 transition-all group-hover:bg-[color:var(--overlay)] group-hover:opacity-100">
+              <Camera className="h-7 w-7 text-[color:var(--cream-white)]" />
+            </div>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" side="right" className="w-36">
+          <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}>
+            <Pencil className="h-4 w-4" />
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!displayUrl || isRemoving}
+            onSelect={() => {
+              void handleRemovePhoto();
+            }}
+            className="text-destructive focus:text-destructive"
+          >
+            {isRemoving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
+            Remove
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <input
         ref={fileInputRef}

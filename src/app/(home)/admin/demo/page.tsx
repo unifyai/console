@@ -18,7 +18,7 @@ import {
   getDemoSpending,
   deleteDemoAssistant,
 } from '@/lib/demo/assistant';
-import { listAssistants } from '@/lib/assistants/assistant';
+import { listAssistants, listSourceAssistants } from '@/lib/assistants/assistant';
 import { listAvailablePhoneCountries } from '@/lib/assistants/contact';
 import { DemoActions } from '@/types/demo';
 
@@ -26,19 +26,16 @@ const DemoPage = async () => {
   const user = await getCurrentUser();
   if (!user) redirect('/login?signout=true');
 
-  const apiKey = user.apiKey;
-  const adminKey = process.env.ORCHESTRA_ADMIN_KEY!;
-
   const demoActions: DemoActions = {
-    list: await listDemoAssistants(apiKey),
-    create: await createDemoAssistant(apiKey),
-    getMeta: await getDemoMeta(apiKey),
-    listMeta: await listDemoMeta(apiKey),
-    listSourceAssistants: await listAssistants(apiKey, false),
-    listAvailablePhoneCountries: await listAvailablePhoneCountries(adminKey),
-    getContacts: await getDemoContacts(apiKey),
-    getSpending: await getDemoSpending(apiKey),
-    delete: await deleteDemoAssistant(apiKey),
+    list: listDemoAssistants,
+    create: createDemoAssistant,
+    getMeta: getDemoMeta,
+    listMeta: listDemoMeta,
+    listSourceAssistants: listSourceAssistants,
+    listAvailablePhoneCountries,
+    getContacts: getDemoContacts,
+    getSpending: getDemoSpending,
+    delete: deleteDemoAssistant,
   };
 
   return (

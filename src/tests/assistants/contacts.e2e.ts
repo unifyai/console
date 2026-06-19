@@ -65,7 +65,7 @@ VALUES (
   'google_workspace',
   'platform',
   'active',
-  '{"universal_unity": true}'::jsonb
+  '{"universal_droid": true}'::jsonb
 ),
 (
   ${coordinator.agentId},
@@ -74,7 +74,7 @@ VALUES (
   'twilio',
   'platform',
   'active',
-  '{"universal_unity": true, "country": "US"}'::jsonb
+  '{"universal_droid": true, "country": "US"}'::jsonb
 );
 `);
 
@@ -132,6 +132,31 @@ async function openContactManager(
   await expect(page.locator('text=Update Contact')).toBeVisible({ timeout: 5_000 });
 }
 
+async function openWorkspaceManager(
+  page: import('@playwright/test').Page,
+  targetAssistant = assistant
+) {
+  await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
+
+  const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
+  await expect(listItem).toBeVisible({ timeout: 15_000 });
+
+  const menuBtn = page.getByTestId(`assistant-menu-${targetAssistant.agentId}`);
+  await listItem.hover();
+  await expect(menuBtn).toBeVisible({ timeout: 5_000 });
+  await menuBtn.click();
+  await page.waitForTimeout(500);
+
+  const workspaceItem = page.getByTestId('menu-update-workspace');
+  await expect(workspaceItem).toBeVisible({ timeout: 5_000 });
+  await workspaceItem.click();
+
+  await expect(page.getByRole('dialog').getByText('Workspace', { exact: true })).toBeVisible({
+    timeout: 5_000,
+  });
+}
+
 test('adding a phone contact persists it to the database', async ({ authedPage: page }) => {
   await openContactManager(page);
 
@@ -175,8 +200,9 @@ test('deleting a phone contact removes it from the database', async ({ authedPag
   // Switch to Phone via dropdown
   await selectContactType(page, 'phone');
 
-  // Phone should be displayed as read-only
-  await expect(page.locator('text=Assistant Phone Number')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText('Assistant phone contact is active.')).toBeVisible({
+    timeout: 5_000,
+  });
 
   // Delete
   const deleteBtn = page.getByRole('button', { name: 'Delete' });
@@ -295,17 +321,30 @@ test('Marty email tab shows shared Marty address as managed routing', async ({
 
   await selectContactType(page, 'email');
 
-  await expect(page.locator('text=Marty Email Address')).toBeVisible({
+  await expect(page.getByText('Marty email is configured.')).toBeVisible({
     timeout: 5_000,
   });
-  await expect(page.locator('input[value="marty@unify.ai"]')).toBeVisible({
-    timeout: 5_000,
-  });
+  await expect(page.locator('input[value="marty@unify.ai"]')).toHaveCount(0);
   await expect(
     page.locator('text=Messages to this shared address are routed by verified sender identity')
   ).toBeVisible({ timeout: 5_000 });
   await expect(page.getByRole('button', { name: 'Configure' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
+});
+
+test('Marty workspace modal shows BYOD providers despite shared routing email', async ({
+  authedPage: page,
+}) => {
+  await openWorkspaceManager(page, coordinator);
+
+  await expect(page.getByRole('button', { name: 'Google Workspace' })).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(page.getByRole('button', { name: 'Microsoft 365' })).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(page.locator('input[value="marty@unify.ai"]')).toHaveCount(0);
+  await expect(page.locator('text=Platform-managed email')).toHaveCount(0);
 });
 
 test('Marty phone tab shows shared Marty number as managed routing', async ({
@@ -315,10 +354,10 @@ test('Marty phone tab shows shared Marty number as managed routing', async ({
 
   await selectContactType(page, 'phone');
 
-  await expect(page.getByText('Marty Phone Number', { exact: true }).first()).toBeVisible({
+  await expect(page.getByText('Marty phone is configured.', { exact: true })).toBeVisible({
     timeout: 5_000,
   });
-  await expect(page.locator('input[value="+14155552671"]')).toBeVisible({ timeout: 5_000 });
+  await expect(page.locator('input[value="+14155552671"]')).toHaveCount(0);
   await expect(
     page
       .getByText(

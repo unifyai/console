@@ -32,16 +32,16 @@ import type { AdminBillingPlansActions } from '@/types/admin';
 
 const AdminBillingPlansPage = async () => {
   const actions: AdminBillingPlansActions = {
-    listTemplates: await listBillingTemplatesAction(),
-    createTemplate: await createBillingTemplateAction(),
-    deprecateTemplate: await deprecateBillingTemplateAction(),
-    listGroups: await listPlanGroupsAction(),
-    getGroup: await getPlanGroupAction(),
-    createGroup: await createPlanGroupAction(),
-    updateGroup: await updatePlanGroupAction(),
-    addMember: await addPlanGroupMemberAction(),
-    removeMember: await removePlanGroupMemberAction(),
-    setPositions: await setPlanGroupPositionsAction(),
+    listTemplates: listBillingTemplatesAction,
+    createTemplate: createBillingTemplateAction,
+    deprecateTemplate: deprecateBillingTemplateAction,
+    listGroups: listPlanGroupsAction,
+    getGroup: getPlanGroupAction,
+    createGroup: createPlanGroupAction,
+    updateGroup: updatePlanGroupAction,
+    addMember: addPlanGroupMemberAction,
+    removeMember: removePlanGroupMemberAction,
+    setPositions: setPlanGroupPositionsAction,
   };
 
   return (

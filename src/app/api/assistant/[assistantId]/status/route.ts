@@ -5,7 +5,11 @@ import { snakeToCamelObject } from '@/utils/casing';
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
 const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
-export async function GET(request: NextRequest, { params }: { params: { assistantId: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ assistantId: string }> }
+) {
+  const { assistantId } = await params;
   // Verify user is authenticated
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
@@ -19,18 +23,15 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
   }
 
   try {
-    const response = await fetch(
-      `${ORCHESTRA_BASE_URL}/admin/assistant/${params.assistantId}/status`,
-      {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${ORCHESTRA_ADMIN_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        // Add a no-cache header to ensure we get the latest status
-        cache: 'no-store',
-      }
-    );
+    const response = await fetch(`${ORCHESTRA_BASE_URL}/admin/assistant/${assistantId}/status`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${ORCHESTRA_ADMIN_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      // Add a no-cache header to ensure we get the latest status
+      cache: 'no-store',
+    });
 
     // Read the body as text ONCE.
     const responseText = await response.text();
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
 
     if (!response.ok) {
       console.error(
-        `Backend Error (assistant status - ${response.status}) for assistant ${params.assistantId}:`,
+        `Backend Error (assistant status - ${response.status}) for assistant ${assistantId}:`,
         responseData
       );
       // Ensure responseData has a 'detail' property for the client.
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest, { params }: { params: { assistan
     return NextResponse.json(camelCaseResponse, { status: response.status });
   } catch (error: any) {
     console.error(
-      `Error proxying to backend for assistant status (assistant ${params.assistantId}):`,
+      `Error proxying to backend for assistant status (assistant ${assistantId}):`,
       error
     );
     return internalError('Failed to connect to assistant status service');

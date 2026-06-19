@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
       return unauthorized();
     }
 
-    const favourites = await getFavourites(apiKey);
+    const favourites = await getFavourites();
     return NextResponse.json(favourites, { status: 200 });
   } catch (err) {
     console.error('/api/user/favourites error', err);

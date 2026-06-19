@@ -122,9 +122,13 @@ function generateFallbackImage() {
   );
 }
 
-export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ token: string }> }
+) {
+  const { token } = await params;
   console.log('[og/table] === OG Table Image Request ===');
-  console.log('[og/table] Raw token from params:', params.token);
+  console.log('[og/table] Raw token from params:', token);
   console.log('[og/table] Request URL:', request.url);
   console.log(
     '[og/table] Request headers:',
@@ -132,12 +136,12 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
   );
 
   // Strip .png extension if present (URL can be /api/og/table/xxx or /api/og/table/xxx.png)
-  const token = params.token.replace(/\.png$/i, '');
-  console.log('[og/table] Cleaned token:', token);
+  const cleanToken = token.replace(/\.png$/i, '');
+  console.log('[og/table] Cleaned token:', cleanToken);
 
   console.log('[og/table] Calling fetchTableData...');
   const startTime = Date.now();
-  const result = await fetchTableData(token, {
+  const result = await fetchTableData(cleanToken, {
     page: 1,
     pageSize: 5,
     timeoutMs: OG_TIMEOUT_MS,

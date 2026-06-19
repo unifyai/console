@@ -9,6 +9,7 @@ import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 import { populateApiKeyCache, invalidateApiKeyCache } from '@/app/api/_utils/api-key-cache';
 import { resolveAuthMode } from '@/lib/environment/environment';
+import { requireUserApiKey } from '@/lib/server-action-session';
 
 // Note: getUserByID, getUserByEmail, updateUser, deleteUser are defined here
 // but also available from '@/lib/orchestra/api/admin' for new code
@@ -72,7 +73,7 @@ export async function deleteUser(userID: string) {
  * @returns The session information as a Session object if available,
  * otherwise null.
  */
-export const getServerSessionCached = cache(() => getServerSession(authOptions));
+export const getServerSessionCached = cache(async () => getServerSession(authOptions));
 
 export async function getSession() {
   if (resolveAuthMode() === 'external') {
@@ -194,14 +195,14 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 
   // 3. Apply Workspace Context
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const workspaceId = cookieStore.get('unify_workspace_id')?.value;
   let contextResolved = false;
 
   // Priority 1: Header API Key
   let headerApiKey: string | null = null;
   try {
-    const headerStore = headers();
+    const headerStore = await headers();
     headerApiKey = headerStore.get('apiKey');
   } catch (e) {
     // Ignore context errors
@@ -283,17 +284,11 @@ export async function getCurrentUser(): Promise<User | null> {
 }
 
 /**
- * Creates a server action that returns the user's API key.
- * This keeps the API key in a server-side closure so it's never embedded
- * in client-side props/HTML — the client must explicitly call the action
- * to retrieve it.
+ * Returns the authenticated user's API key from the server session.
  */
-export const getUserApiKey = async (apiKey: string) => {
-  return async (): Promise<string> => {
-    'use server';
-    return apiKey;
-  };
-};
+export async function getUserApiKey(): Promise<string> {
+  return requireUserApiKey();
+}
 
 /**
  * Sends a verification code to the user's phone number via SMS.

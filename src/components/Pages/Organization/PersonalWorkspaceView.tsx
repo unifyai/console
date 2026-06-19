@@ -2,12 +2,12 @@
 
 import { Building, Info } from 'lucide-react';
 import CreateOrgDialog from './CreateOrganizationDialog';
-import { OrganizationListResponse } from '@/types/organization';
+import type { DataSharingMode, OrganizationListResponse } from '@/types/organization';
 import { ResponseProps } from '@/types/common';
 import { Alert, AlertDescription } from '@/components/UI/alert';
 
 interface PersonalWorkspaceViewProps {
-  onCreateOrg: (name: string) => void;
+  onCreateOrg: (name: string, dataSharingMode?: DataSharingMode) => void;
   checkNameAvailability: (name: string) => Promise<OrganizationListResponse | ResponseProps>;
   isAlreadyInOrganization?: boolean;
   isUnifyMember?: boolean;

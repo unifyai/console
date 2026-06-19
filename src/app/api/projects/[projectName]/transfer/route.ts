@@ -3,7 +3,11 @@ import { getApiKeyFromRequest, unauthorized, badRequest } from '../../../_utils/
 import { createOrchestraClient } from '@/lib/orchestra/client';
 
 // Transfer project to organization or personal
-export async function POST(request: NextRequest, { params }: { params: { projectName: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ projectName: string }> }
+) {
+  const { projectName } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
@@ -14,7 +18,7 @@ export async function POST(request: NextRequest, { params }: { params: { project
   const transferType = url.searchParams.get('type');
 
   // The projectName here is actually the project ID for transfer operations
-  const projectId = parseInt(params.projectName, 10);
+  const projectId = parseInt(projectName, 10);
 
   try {
     if (transferType === 'organization') {

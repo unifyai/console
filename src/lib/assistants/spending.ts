@@ -1,3 +1,6 @@
+'use server';
+
+import { requireUserApiKey } from '@/lib/server-action-session';
 /**
  * Server actions for assistant spending limits and cumulative spend tracking.
  *
@@ -31,68 +34,64 @@ import { getInternalApiBaseUrl } from '@/utils/assistants/api-utils';
  *   console.log(`Spent: $${result.cumulativeSpend}`);
  * }
  */
-export const getAssistantSpend = async (apiKey: string) => {
-  return async (assistantId: string, month?: string): Promise<AssistantSpend | ResponseProps> => {
-    'use server';
+export async function getAssistantSpend(
+  assistantId: string,
+  month?: string
+): Promise<AssistantSpend | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  const targetMonth = month || getCurrentMonth();
 
-    const targetMonth = month || getCurrentMonth();
+  try {
+    const response = await fetch(
+      `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/spending?month=${targetMonth}`,
+      {
+        method: 'GET',
+        headers: { apiKey: apiKey },
+      }
+    );
 
+    let data;
     try {
-      const response = await fetch(
-        `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/spending?month=${targetMonth}`,
-        {
-          method: 'GET',
-          headers: { apiKey: apiKey },
-        }
-      );
-
-      let data;
-      try {
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          data = await response.json();
-        } else {
-          console.error(
-            `[spending.ts getAssistantSpend] Received non-JSON response with status ${response.status}`
-          );
-          return { detail: 'Received an invalid response from the server.' };
-        }
-      } catch (parseError) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
         console.error(
-          `[spending.ts getAssistantSpend] Failed to parse JSON response ${parseError}`
+          `[spending.ts getAssistantSpend] Received non-JSON response with status ${response.status}`
         );
         return { detail: 'Received an invalid response from the server.' };
       }
+    } catch (parseError) {
+      console.error(`[spending.ts getAssistantSpend] Failed to parse JSON response ${parseError}`);
+      return { detail: 'Received an invalid response from the server.' };
+    }
 
-      if (!response.ok) {
-        // 404 means no spend data yet - return zero spend
-        if (response.status === 404) {
-          return {
-            agentId: assistantId,
-            month: targetMonth,
-            cumulativeSpend: 0,
-            limit: null,
-            percentUsed: 0,
-          } as AssistantSpend;
-        }
-        const errorMessage =
-          data.detail || data.error || `Failed to fetch spending data: ${response.statusText}`;
-        return { detail: errorMessage };
+    if (!response.ok) {
+      // 404 means no spend data yet - return zero spend
+      if (response.status === 404) {
+        return {
+          agentId: assistantId,
+          month: targetMonth,
+          cumulativeSpend: 0,
+          limit: null,
+          percentUsed: 0,
+        } as AssistantSpend;
       }
-
-      return data as AssistantSpend;
-    } catch (error) {
-      console.error(
-        `[spending.ts getAssistantSpend] Error fetching spend for assistant ${assistantId}:`,
-        error
-      );
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown server error occurred.';
+        data.detail || data.error || `Failed to fetch spending data: ${response.statusText}`;
       return { detail: errorMessage };
     }
-  };
-};
 
+    return data as AssistantSpend;
+  } catch (error) {
+    console.error(
+      `[spending.ts getAssistantSpend] Error fetching spend for assistant ${assistantId}:`,
+      error
+    );
+    const errorMessage = error instanceof Error ? error.message : 'Unknown server error occurred.';
+    return { detail: errorMessage };
+  }
+}
 /**
  * Fetch the assistant's spending limit configuration.
  *
@@ -106,56 +105,53 @@ export const getAssistantSpend = async (apiKey: string) => {
  *   console.log(`Limit: $${result.monthlySpendingCap}`);
  * }
  */
-export const getAssistantSpendingLimit = async (apiKey: string) => {
-  return async (assistantId: string): Promise<SpendingLimitResponse | ResponseProps> => {
-    'use server';
+export async function getAssistantSpendingLimit(
+  assistantId: string
+): Promise<SpendingLimitResponse | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const response = await fetch(
+      `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/spending-limit`,
+      {
+        method: 'GET',
+        headers: { apiKey: apiKey },
+      }
+    );
 
+    let data;
     try {
-      const response = await fetch(
-        `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/spending-limit`,
-        {
-          method: 'GET',
-          headers: { apiKey: apiKey },
-        }
-      );
-
-      let data;
-      try {
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          data = await response.json();
-        } else {
-          console.error(
-            `[spending.ts getAssistantSpendingLimit] Received non-JSON response with status ${response.status}`
-          );
-          return { detail: 'Received an invalid response from the server.' };
-        }
-      } catch (parseError) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
         console.error(
-          `[spending.ts getAssistantSpendingLimit] Failed to parse JSON response ${parseError}`
+          `[spending.ts getAssistantSpendingLimit] Received non-JSON response with status ${response.status}`
         );
         return { detail: 'Received an invalid response from the server.' };
       }
-
-      if (!response.ok) {
-        const errorMessage =
-          data.detail || data.error || `Failed to fetch spending limit: ${response.statusText}`;
-        return { detail: errorMessage };
-      }
-
-      return data as SpendingLimitResponse;
-    } catch (error) {
+    } catch (parseError) {
       console.error(
-        `[spending.ts getAssistantSpendingLimit] Error fetching limit for assistant ${assistantId}:`,
-        error
+        `[spending.ts getAssistantSpendingLimit] Failed to parse JSON response ${parseError}`
       );
+      return { detail: 'Received an invalid response from the server.' };
+    }
+
+    if (!response.ok) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown server error occurred.';
+        data.detail || data.error || `Failed to fetch spending limit: ${response.statusText}`;
       return { detail: errorMessage };
     }
-  };
-};
 
+    return data as SpendingLimitResponse;
+  } catch (error) {
+    console.error(
+      `[spending.ts getAssistantSpendingLimit] Error fetching limit for assistant ${assistantId}:`,
+      error
+    );
+    const errorMessage = error instanceof Error ? error.message : 'Unknown server error occurred.';
+    return { detail: errorMessage };
+  }
+}
 /**
  * Update the assistant's spending limit.
  *
@@ -169,66 +165,61 @@ export const getAssistantSpendingLimit = async (apiKey: string) => {
  *   console.log('Limit updated successfully');
  * }
  */
-export const setAssistantSpendingLimit = async (apiKey: string) => {
-  return async (
-    assistantId: string,
-    payload: SpendingLimitRequest
-  ): Promise<(SpendingLimitResponse & ResponseProps) | ResponseProps> => {
-    'use server';
+export async function setAssistantSpendingLimit(
+  assistantId: string,
+  payload: SpendingLimitRequest
+): Promise<(SpendingLimitResponse & ResponseProps) | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const response = await fetch(
+      `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/spending-limit`,
+      {
+        method: 'PUT',
+        headers: {
+          apiKey: apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      }
+    );
 
+    let data;
     try {
-      const response = await fetch(
-        `${getInternalApiBaseUrl()}/api/assistant/${assistantId}/spending-limit`,
-        {
-          method: 'PUT',
-          headers: {
-            apiKey: apiKey,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      let data;
-      try {
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          data = await response.json();
-        } else {
-          console.error(
-            `[spending.ts setAssistantSpendingLimit] Received non-JSON response with status ${response.status}`
-          );
-          return { detail: 'Received an invalid response from the server.' };
-        }
-      } catch (parseError) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
         console.error(
-          `[spending.ts setAssistantSpendingLimit] Failed to parse JSON response ${parseError}`
+          `[spending.ts setAssistantSpendingLimit] Received non-JSON response with status ${response.status}`
         );
         return { detail: 'Received an invalid response from the server.' };
       }
-
-      if (!response.ok) {
-        const errorMessage =
-          data.detail || data.error || `Failed to set spending limit: ${response.statusText}`;
-        return { detail: errorMessage };
-      }
-
-      return {
-        ...data,
-        info: 'Spending limit updated successfully.',
-      } as SpendingLimitResponse & ResponseProps;
-    } catch (error) {
+    } catch (parseError) {
       console.error(
-        `[spending.ts setAssistantSpendingLimit] Error setting limit for assistant ${assistantId}:`,
-        error
+        `[spending.ts setAssistantSpendingLimit] Failed to parse JSON response ${parseError}`
       );
+      return { detail: 'Received an invalid response from the server.' };
+    }
+
+    if (!response.ok) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Unknown server error occurred.';
+        data.detail || data.error || `Failed to set spending limit: ${response.statusText}`;
       return { detail: errorMessage };
     }
-  };
-};
 
+    return {
+      ...data,
+      info: 'Spending limit updated successfully.',
+    } as SpendingLimitResponse & ResponseProps;
+  } catch (error) {
+    console.error(
+      `[spending.ts setAssistantSpendingLimit] Error setting limit for assistant ${assistantId}:`,
+      error
+    );
+    const errorMessage = error instanceof Error ? error.message : 'Unknown server error occurred.';
+    return { detail: errorMessage };
+  }
+}
 /**
  * Remove the assistant's spending limit (set to unlimited).
  *
@@ -242,16 +233,11 @@ export const setAssistantSpendingLimit = async (apiKey: string) => {
  *   console.log('Limit removed successfully');
  * }
  */
-export const removeAssistantSpendingLimit = async (apiKey: string) => {
-  return async (
-    assistantId: string
-  ): Promise<(SpendingLimitResponse & ResponseProps) | ResponseProps> => {
-    'use server';
-
-    const setLimit = await setAssistantSpendingLimit(apiKey);
-    return setLimit(assistantId, { monthlySpendingCap: null });
-  };
-};
+export async function removeAssistantSpendingLimit(
+  assistantId: string
+): Promise<(SpendingLimitResponse & ResponseProps) | ResponseProps> {
+  return setAssistantSpendingLimit(assistantId, { monthlySpendingCap: null });
+}
 
 // Re-export type guards for convenience
 export { isSpendingData, isSpendingLimitData };

@@ -8,10 +8,14 @@ import { Input } from '@/components/UI/input';
 import UnifyLogo from '@/components/Common/Misc/UnifyLogo';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
 import { ResponseProps } from '@/types/common';
-import { Organization } from '@/types/organization';
+import type { DataSharingMode, Organization } from '@/types/organization';
+import OrganizationDataSharingChoice from '@/components/Pages/Organization/OrganizationDataSharingChoice';
 
 interface WorkspaceContentProps {
-  onCreateOrg: (name: string) => Promise<Organization | ResponseProps>;
+  onCreateOrg: (
+    name: string,
+    dataSharingMode?: DataSharingMode
+  ) => Promise<Organization | ResponseProps>;
   onUpdateOnboarding: (update: {
     currentStep: string;
     stepData?: Record<string, unknown>;
@@ -63,6 +67,7 @@ const WorkspaceContent = ({
 }: WorkspaceContentProps) => {
   const [choice, setChoice] = useState<'personal' | 'organization' | null>(null);
   const [orgName, setOrgName] = useState('');
+  const [dataSharingMode, setDataSharingMode] = useState<DataSharingMode>('private');
   const [error, setError] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(autoComplete);
   const autoCompleteTriggered = useRef(false);
@@ -135,7 +140,7 @@ const WorkspaceContent = ({
     setIsLoading(true);
 
     try {
-      const result = await onCreateOrg(trimmed);
+      const result = await onCreateOrg(trimmed, dataSharingMode);
 
       // Check for error response
       if ('detail' in result) {
@@ -162,12 +167,13 @@ const WorkspaceContent = ({
         selectedType: 'organization',
         organizationId: String(org.id),
         organizationName: org.name,
+        dataSharingMode,
       });
     } catch {
       setError('Failed to create organization. Please try again.');
       setIsLoading(false);
     }
-  }, [orgName, onCreateOrg, completeAndRedirect]);
+  }, [orgName, dataSharingMode, onCreateOrg, completeAndRedirect]);
 
   // Auto-complete onboarding on mount when the user already has an org.
   // Server actions can modify cookies when called from a client component,
@@ -302,6 +308,12 @@ const WorkspaceContent = ({
               data-testid="org-name-input"
             />
           </div>
+          <OrganizationDataSharingChoice
+            value={dataSharingMode}
+            onChange={setDataSharingMode}
+            disabled={isLoading}
+            testIdPrefix="onboarding-org-sharing"
+          />
         </motion.div>
       )}
 

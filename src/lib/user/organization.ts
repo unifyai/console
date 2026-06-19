@@ -4,6 +4,7 @@
  */
 export {
   createOrganizationAction,
+  createOrgAction,
   adminCreateOrganizationAction,
   updateOrganizationAction,
   deleteOrganizationAction,

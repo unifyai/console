@@ -99,6 +99,12 @@ const ProfileForm = ({ user, externalIdentity }: { user: User; externalIdentity:
     });
   }, []);
 
+  const handlePhotoRemoved = useCallback(() => {
+    setPendingPhoto(null);
+    clearPendingPreview();
+    router.refresh();
+  }, [clearPendingPreview, router]);
+
   // Sync form state when user prop changes (e.g. after server-side refresh)
   useEffect(() => {
     const next = buildFormState(user);
@@ -180,6 +186,7 @@ const ProfileForm = ({ user, externalIdentity }: { user: User; externalIdentity:
           <MemoizedProfilePhoto
             user={user}
             onFileSelect={handlePhotoSelect}
+            onPhotoRemoved={handlePhotoRemoved}
             previewUrl={pendingPhotoPreview}
           />
           <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-4 gap-y-3">

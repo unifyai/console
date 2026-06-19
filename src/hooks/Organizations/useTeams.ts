@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Team, TeamActions } from '@/types/team';
+import type { DataSharingMode } from '@/types/organization';
 import { toast } from 'sonner';
 
 export const useTeams = (orgId: number | undefined, actions: TeamActions) => {
@@ -129,6 +130,26 @@ export const useTeams = (orgId: number | undefined, actions: TeamActions) => {
     }
   };
 
+  const handleUpdateOrgSharingMode = async (dataSharingMode: DataSharingMode) => {
+    if (!orgId) return null;
+    try {
+      const res = await actions.updateOrgSharingMode(orgId, dataSharingMode);
+
+      if ('detail' in res) {
+        toast.error('Could not update sharing settings. Please try again.');
+        return null;
+      }
+
+      toast.success(dataSharingMode === 'shared' ? 'Org sharing enabled' : 'Org sharing disabled');
+      await fetchTeams();
+      return res;
+    } catch (e) {
+      console.error(e);
+      toast.error('Could not update sharing settings. Please try again.');
+      return null;
+    }
+  };
+
   return {
     teams,
     isLoading,
@@ -138,5 +159,6 @@ export const useTeams = (orgId: number | undefined, actions: TeamActions) => {
     handleDeleteTeam,
     handleAddTeamMember,
     handleRemoveTeamMember,
+    handleUpdateOrgSharingMode,
   };
 };

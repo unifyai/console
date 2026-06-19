@@ -1,20 +1,27 @@
 import type { Transition } from 'framer-motion';
+import { MARTY_CREATURE_APPEARANCE } from '@droid/brand/components';
 import {
   MARTY_ONBOARDING_INTRO_AUDIO_SRC,
   MARTY_ONBOARDING_INTRO_CLOSING_QUESTION_SEC,
   MARTY_ONBOARDING_INTRO_DURATION_MS,
   MARTY_ONBOARDING_INTRO_TRANSCRIPT,
 } from '@droid/brand/audio';
-import type { BrandRole, CreatureShape } from '@/components/Brand/shapes';
-import type { BotSkin, CreatureEyes, CreatureMood } from '@/components/Brand/TeammateCreature';
+import type { BrandRole } from '@/components/Brand/shapes';
+import type {
+  CreatureAntenna,
+  CreatureEyes,
+  CreatureMood,
+} from '@/components/Brand/TeammateCreature';
+import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
 
 export type CoordinatorOnboardingIntroDroidAppearance = {
+  antenna?: CreatureAntenna;
   baseEyes?: CreatureEyes;
+  body: DroidBody;
   color: BrandRole;
   mood?: CreatureMood;
-  shape: CreatureShape;
   /** Optional clothing drawn on the droid's body (e.g. a collar + tie). */
-  skin?: BotSkin;
+  outfit?: DroidOutfit;
 };
 
 export const COORDINATOR_ONBOARDING_INTRO = {
@@ -28,7 +35,6 @@ export const COORDINATOR_ONBOARDING_INTRO = {
   initialPauseMs: 1_000,
   backgroundStartDelayMs: 500,
   backgroundAccelerationMs: 2_400,
-  callWarmupDelayMs: 0,
   // Keep the city ascent running through the speech rather than ending early.
   handoffLeadMs: 0,
   surfaceRevealLeadMs: 3_000,
@@ -56,10 +62,11 @@ export function getCoordinatorIntroCountdownMs(): number {
 }
 
 export const COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID = {
+  antenna: MARTY_CREATURE_APPEARANCE.antenna,
   baseEyes: 'square',
+  body: 'standard',
   color: 'teal',
   mood: 'happy',
-  shape: 'clawd',
 } satisfies CoordinatorOnboardingIntroDroidAppearance;
 
 export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = MARTY_ONBOARDING_INTRO_TRANSCRIPT;

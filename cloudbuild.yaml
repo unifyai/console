@@ -10,16 +10,40 @@ steps:
         set -euo pipefail
         # The brand system lives in the private `branding` submodule (which itself
         # nests the private `iso-animation` submodule). Cloud Build checks out the
-        # console repo without submodule contents, so fetch them here using the
-        # DEVBOT token. The url.insteadOf rewrites are passed inline with `-c` so
-        # they propagate to the child clone processes spawned for each submodule
-        # (a global git config is not reliably honored in this builder image).
+        # console repo without submodule contents, so fetch them here with the
+        # DEVBOT token (which has read access to both private repos).
+        #
+        # Cloud Build injects its own source credential as an `http.<github>.extraheader`
+        # Authorization header. That credential is scoped only to the triggering repo,
+        # so it shadows our token and makes `branding` come back as "Repository not
+        # found". Strip those inherited headers, then auth as the DEVBOT token.
+        AUTH="https://x-access-token:$${GITHUB_TOKEN}@github.com/"
+
+        echo "Inherited github extraheader config (redacted):"
+        git config --get-regexp 'http\..*extraheader' 2>/dev/null | sed 's/=.*/= <redacted>/' || true
+        git config --global --get-regexp 'http\..*extraheader' 2>/dev/null | sed 's/=.*/= <redacted>/' || true
+
+        for scope in --local --global --system; do
+          git config $$scope --unset-all http."https://github.com/".extraheader 2>/dev/null || true
+          git config $$scope --unset-all http.extraheader 2>/dev/null || true
+        done
+
         git submodule sync --recursive branding
         git \
-          -c url."https://x-access-token:$${GITHUB_TOKEN}@github.com/".insteadOf="git@github.com:" \
-          -c url."https://x-access-token:$${GITHUB_TOKEN}@github.com/".insteadOf="ssh://git@github.com/" \
-          -c url."https://x-access-token:$${GITHUB_TOKEN}@github.com/".insteadOf="https://github.com/" \
-          submodule update --init --recursive --force branding
+          -c http."https://github.com/".extraheader= \
+          -c http.extraheader= \
+          -c url."$${AUTH}".insteadOf="git@github.com:" \
+          -c url."$${AUTH}".insteadOf="ssh://git@github.com/" \
+          -c url."$${AUTH}".insteadOf="https://github.com/" \
+          submodule update --init --force branding
+        git \
+          -C branding \
+          -c http."https://github.com/".extraheader= \
+          -c http.extraheader= \
+          -c url."$${AUTH}".insteadOf="git@github.com:" \
+          -c url."$${AUTH}".insteadOf="ssh://git@github.com/" \
+          -c url."$${AUTH}".insteadOf="https://github.com/" \
+          submodule update --init --force packages/iso
 
   - name: gcr.io/cloud-builders/docker
     entrypoint: bash
@@ -84,61 +108,76 @@ steps:
           done
         }
         repair_traffic_state() {
-        SERVICE_JSON=/tmp/service.json
-        gcloud run services describe $_SERVICE_NAME \
-          --region=$_DEPLOY_REGION \
-          --platform=managed \
-          --format=json > "$$SERVICE_JSON"
-        python3 - "$$SERVICE_JSON" > /tmp/traffic-args.txt <<'PY'
-        import json
-        import sys
+          local revision percent tag status_rows spec_rows
+          local -a revisions=() update_tags=() remove_tags=() TRAFFIC_ARGS=()
+          declare -A status_tags=() spec_tags=()
 
-        with open(sys.argv[1], encoding="utf-8") as service_file:
-            service = json.load(service_file)
+          join_by() {
+            local IFS="$$1"
+            shift
+            printf '%s' "$$*"
+          }
 
-        revisions: list[str] = []
-        status_tags: dict[str, str] = {}
-        for entry in service.get("status", {}).get("traffic", []):
-            revision = entry.get("revisionName")
-            if not revision:
-                continue
-            percent = entry.get("percent")
-            if percent is not None and int(percent) > 0:
-                revisions.append(f"{revision}={int(percent)}")
-            tag = entry.get("tag")
-            if tag:
-                status_tags[tag] = revision
+          status_rows=$$(gcloud run services describe $_SERVICE_NAME \
+            --region=$_DEPLOY_REGION \
+            --platform=managed \
+            --flatten='status.traffic[]' \
+            --format='csv[no-heading](status.traffic.revisionName,status.traffic.percent,status.traffic.tag)')
 
-        if not revisions:
-            raise SystemExit("No live traffic revision found to preserve")
+          while IFS=, read -r revision percent tag; do
+            if [ -z "$$revision" ]; then
+              continue
+            fi
+            if [ -n "$$percent" ] && [ "$$percent" -gt 0 ]; then
+              revisions+=("$$revision=$$percent")
+            fi
+            if [ -n "$$tag" ]; then
+              status_tags["$$tag"]="$$revision"
+            fi
+          done <<< "$$status_rows"
 
-        spec_tags = {
-            entry["tag"]: entry.get("revisionName")
-            for entry in service.get("spec", {}).get("traffic", [])
-            if entry.get("tag")
-        }
-        update_tags = [
-            f"{tag}={revision}"
-            for tag, revision in sorted(status_tags.items())
-            if spec_tags.get(tag) != revision
-        ]
-        remove_tags = sorted(
-            tag for tag in spec_tags
-            if tag not in status_tags
-        )
+          if [ "$${#revisions[@]}" -eq 0 ]; then
+            echo "No live traffic revision found to preserve" >&2
+            return 1
+          fi
 
-        print("--to-revisions=" + ",".join(revisions))
-        if update_tags:
-            print("--update-tags=" + ",".join(update_tags))
-        if remove_tags:
-            print("--remove-tags=" + ",".join(remove_tags))
-        PY
-        mapfile -t TRAFFIC_ARGS < /tmp/traffic-args.txt
-        run_cloud_run_with_retry gcloud run services update-traffic $_SERVICE_NAME \
-          --region=$_DEPLOY_REGION \
-          --platform=managed \
-          "$${TRAFFIC_ARGS[@]}" \
-          --quiet
+          spec_rows=$$(gcloud run services describe $_SERVICE_NAME \
+            --region=$_DEPLOY_REGION \
+            --platform=managed \
+            --flatten='spec.traffic[]' \
+            --format='csv[no-heading](spec.traffic.revisionName,spec.traffic.tag)')
+
+          while IFS=, read -r revision tag; do
+            if [ -n "$$tag" ]; then
+              spec_tags["$$tag"]="$$revision"
+            fi
+          done <<< "$$spec_rows"
+
+          for tag in "$${!status_tags[@]}"; do
+            if [ "$${spec_tags[$$tag]:-}" != "$${status_tags[$$tag]}" ]; then
+              update_tags+=("$$tag=$${status_tags[$$tag]}")
+            fi
+          done
+
+          for tag in "$${!spec_tags[@]}"; do
+            if [ -z "$${status_tags[$$tag]+x}" ]; then
+              remove_tags+=("$$tag")
+            fi
+          done
+
+          TRAFFIC_ARGS=("--to-revisions=$$(join_by , "$${revisions[@]}")")
+          if [ "$${#update_tags[@]}" -gt 0 ]; then
+            TRAFFIC_ARGS+=("--update-tags=$$(join_by , "$${update_tags[@]}")")
+          fi
+          if [ "$${#remove_tags[@]}" -gt 0 ]; then
+            TRAFFIC_ARGS+=("--remove-tags=$$(join_by , "$${remove_tags[@]}")")
+          fi
+
+          run_cloud_run_with_retry gcloud run services update-traffic $_SERVICE_NAME \
+            --region=$_DEPLOY_REGION \
+            --platform=managed \
+            "$${TRAFFIC_ARGS[@]}" \
+            --quiet
         }
         run_cloud_run_with_retry repair_traffic_state
     id: Repair Traffic State

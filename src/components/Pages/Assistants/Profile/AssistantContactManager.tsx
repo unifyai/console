@@ -73,7 +73,7 @@ interface AssistantContactManagerProps {
   assistant: Assistant;
   assistantActions: AssistantActions;
   onSuccess: () => void;
-  initialTab?: ContactType;
+  initialTab?: ContactType | 'slack';
   /** Whether the current user can edit contact details */
   canWrite?: boolean;
   /** Callback to open the Stripe payment panel when credits are insufficient */
@@ -179,6 +179,33 @@ export const ProviderBadge: React.FC<{ provider: string }> = ({ provider }) => (
   <Badge variant="secondary" className="ml-2 text-xs font-normal">
     {PROVIDER_LABELS[provider] ?? provider}
   </Badge>
+);
+
+const ContactReadyMessage: React.FC<{
+  children: React.ReactNode;
+  badge?: React.ReactNode;
+}> = ({ children, badge }) => (
+  <div className="flex items-center gap-2">
+    <CheckCircle2 className="h-5 w-5 text-[color:var(--status-success)]" />
+    <span className="text-body">{children}</span>
+    {badge}
+  </div>
+);
+
+const ProfileContactRequiredNotice: React.FC<{
+  message: string;
+  linkLabel: string;
+  suffix: string;
+}> = ({ message, linkLabel, suffix }) => (
+  <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
+    <p className="text-body text-muted-foreground">
+      {message}{' '}
+      <a href="/account?tab=contact-info" className="hover:text-primary/80 text-primary underline">
+        {linkLabel}
+      </a>{' '}
+      {suffix}
+    </p>
+  </div>
 );
 
 // ---------------------------------------------------------------------------
@@ -335,7 +362,7 @@ export function AssistantContactManager({
     isOpen,
     assistantActions,
     onSuccess,
-    initialTab,
+    initialTab: initialTab === 'slack' ? undefined : initialTab,
     userPhoneNumber,
     userWhatsappNumber,
     userDiscordId,
@@ -408,10 +435,8 @@ export function AssistantContactManager({
   };
 
   // -------------------------------------------------------------------------
-  // Email tab content — display-only.  Connect / disconnect / feature
-  // configuration moved to the Workspace modal (``AssistantWorkspaceManager``);
-  // this tab now just shows the email address (if connected) plus a
-  // CTA that opens that modal.
+  // Email tab content — display-only. Workspace account configuration lives in
+  // ``AssistantWorkspaceManager``; this tab exposes the relevant CTA.
   // -------------------------------------------------------------------------
 
   const openWorkspace = () => {
@@ -433,11 +458,9 @@ export function AssistantContactManager({
 
       return (
         <div className="space-y-2">
-          <div className="flex items-center">
-            <Label>Marty Email Address</Label>
-            <ProviderBadge provider="Platform-managed" />
-          </div>
-          <DisplayContactField label="Marty Email Address" value={assistant.email} />
+          <ContactReadyMessage badge={<ProviderBadge provider="Platform-managed" />}>
+            Marty email is configured.
+          </ContactReadyMessage>
           <p className="text-caption text-muted-foreground">
             Marty email is managed automatically. Messages to this shared address are routed by
             verified sender identity.
@@ -449,11 +472,11 @@ export function AssistantContactManager({
     if (assistant.email) {
       return (
         <div className="space-y-3">
-          <div className="flex items-center">
-            <Label>Email Address</Label>
-            {assistant.emailProvider && <ProviderBadge provider={assistant.emailProvider} />}
-          </div>
-          <DisplayContactField label="" value={assistant.email} />
+          <ContactReadyMessage
+            badge={assistant.emailProvider && <ProviderBadge provider={assistant.emailProvider} />}
+          >
+            Email is connected.
+          </ContactReadyMessage>
           {canWrite && onOpenWorkspaceManager && (
             <Button variant="outline" size="sm" onClick={openWorkspace}>
               <Pencil className="mr-2 h-3.5 w-3.5" />
@@ -766,11 +789,9 @@ const PhoneTabContent: React.FC<{
 
     return (
       <div className="space-y-2">
-        <div className="flex items-center">
-          <Label>Marty Phone Number</Label>
-          <ProviderBadge provider="Platform-managed" />
-        </div>
-        <DisplayContactField label="Marty Phone Number" value={assistant.phone} />
+        <ContactReadyMessage badge={<ProviderBadge provider="Platform-managed" />}>
+          Marty phone is configured.
+        </ContactReadyMessage>
         <p className="text-caption text-muted-foreground">
           Marty phone is managed automatically. SMS messages and calls to this shared number are
           routed by verified sender identity.
@@ -780,7 +801,7 @@ const PhoneTabContent: React.FC<{
   }
 
   if (assistant.phone) {
-    return <DisplayContactField label="Assistant Phone Number" value={assistant.phone} />;
+    return <ContactReadyMessage>Assistant phone contact is active.</ContactReadyMessage>;
   }
   if (!canWrite) {
     return <p className="text-body text-muted-foreground">No phone number configured.</p>;
@@ -837,44 +858,13 @@ const PhoneTabContent: React.FC<{
           </p>
         )}
       </div>
-      <div>
-        <div className="flex flex-row items-center gap-2 pb-1">
-          <Label>Your Phone</Label>
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <InfoSquareButton />
-              </TooltipTrigger>
-              <TooltipContent side="right" align="end" className="text-caption max-w-xs">
-                <p>
-                  {
-                    'This is the phone number you will contact the assistant with. Manage it in your profile.'
-                  }
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-        {userPhoneNumber ? (
-          <div className="flex items-center gap-2">
-            <Input value={userPhoneNumber} readOnly disabled className="flex-1" />
-            <CheckCircle2 className="h-5 w-5 text-[color:var(--status-success)]" />
-          </div>
-        ) : (
-          <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
-            <p className="text-body text-muted-foreground">
-              No phone number set in your profile.{' '}
-              <a
-                href="/account?tab=contact-info"
-                className="hover:text-primary/80 text-primary underline"
-              >
-                Add your phone number
-              </a>{' '}
-              to enable phone interactions with your assistant.
-            </p>
-          </div>
-        )}
-      </div>
+      {!userPhoneNumber && (
+        <ProfileContactRequiredNotice
+          message="No phone number set in your profile."
+          linkLabel="Add your phone number"
+          suffix="to enable phone interactions with your assistant."
+        />
+      )}
     </div>
   );
 };
@@ -887,10 +877,11 @@ const WhatsAppTabContent: React.FC<{
   if (assistant.assistantWhatsappNumber) {
     return (
       <div className="space-y-2">
-        <DisplayContactField
-          label={assistant.isCoordinator ? 'Marty WhatsApp Number' : 'Assistant WhatsApp Number'}
-          value={assistant.assistantWhatsappNumber}
-        />
+        <ContactReadyMessage>
+          {assistant.isCoordinator
+            ? 'Marty WhatsApp is configured.'
+            : 'Assistant WhatsApp contact is active.'}
+        </ContactReadyMessage>
         <p className="text-caption text-muted-foreground">
           {assistant.isCoordinator
             ? 'Marty WhatsApp is managed automatically. Messages to this shared number are routed by verified sender identity.'
@@ -911,43 +902,17 @@ const WhatsAppTabContent: React.FC<{
   }
   return (
     <div className="space-y-4">
-      <div>
-        <div className="flex flex-row items-center gap-2 pb-1">
-          <Label>Your WhatsApp</Label>
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <InfoSquareButton />
-              </TooltipTrigger>
-              <TooltipContent side="right" align="end" className="text-caption max-w-xs">
-                <p>
-                  The WhatsApp number you will use to message your assistant. Manage it in your
-                  profile.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-        {userWhatsappNumber ? (
-          <div className="flex items-center gap-2">
-            <Input value={userWhatsappNumber} readOnly disabled className="flex-1" />
-            <CheckCircle2 className="h-5 w-5 text-[color:var(--status-success)]" />
-          </div>
-        ) : (
-          <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
-            <p className="text-body text-muted-foreground">
-              No WhatsApp number set in your profile.{' '}
-              <a
-                href="/account?tab=contact-info"
-                className="hover:text-primary/80 text-primary underline"
-              >
-                Add your WhatsApp number
-              </a>{' '}
-              to enable WhatsApp messaging with your assistant.
-            </p>
-          </div>
-        )}
-      </div>
+      {userWhatsappNumber ? (
+        <p className="text-body text-muted-foreground">
+          Create a WhatsApp contact to enable WhatsApp messaging with your assistant.
+        </p>
+      ) : (
+        <ProfileContactRequiredNotice
+          message="No WhatsApp number set in your profile."
+          linkLabel="Add your WhatsApp number"
+          suffix="to enable WhatsApp messaging with your assistant."
+        />
+      )}
     </div>
   );
 };
@@ -961,7 +926,7 @@ const DiscordTabContent: React.FC<{
     const installUrl = `https://discord.com/oauth2/authorize?client_id=${assistant.assistantDiscordBotId}`;
     return (
       <div className="space-y-3">
-        <DisplayContactField label="Discord Bot ID" value={assistant.assistantDiscordBotId} />
+        <ContactReadyMessage>Discord bot is configured.</ContactReadyMessage>
         {canWrite && (
           <Button asChild className="gap-2">
             <a href={installUrl} target="_blank" rel="noopener noreferrer">
@@ -991,40 +956,16 @@ const DiscordTabContent: React.FC<{
   }
   return (
     <div className="space-y-4">
-      <div className="flex flex-row items-center gap-2 pb-1">
-        <Label>Your Discord</Label>
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <InfoSquareButton />
-            </TooltipTrigger>
-            <TooltipContent side="right" align="end" className="text-caption max-w-xs">
-              <p>
-                Your Discord user ID, used to route DMs from the assigned bot. Manage it in your
-                profile.
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
       {userDiscordId ? (
-        <div className="flex items-center gap-2">
-          <Input value={userDiscordId} readOnly disabled className="flex-1" />
-          <CheckCircle2 className="h-5 w-5 text-[color:var(--status-success)]" />
-        </div>
+        <p className="text-body text-muted-foreground">
+          Create a Discord bot to enable Discord messaging with your assistant.
+        </p>
       ) : (
-        <div className="border-muted-foreground/40 rounded-md border border-dashed p-3">
-          <p className="text-body text-muted-foreground">
-            No Discord ID set in your profile.{' '}
-            <a
-              href="/account?tab=contact-info"
-              className="hover:text-primary/80 text-primary underline"
-            >
-              Link your Discord account
-            </a>{' '}
-            to enable Discord messaging with your assistant.
-          </p>
-        </div>
+        <ProfileContactRequiredNotice
+          message="No Discord ID set in your profile."
+          linkLabel="Link your Discord account"
+          suffix="to enable Discord messaging with your assistant."
+        />
       )}
     </div>
   );
@@ -1085,22 +1026,16 @@ const SlackTabContent: React.FC<{
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <CheckCircle2 className="h-5 w-5 text-[color:var(--status-success)]" />
-        <span className="text-body">
-          Connected to <strong>{install.slackTeamName ?? install.slackTeamId}</strong>
-        </span>
-      </div>
+      <ContactReadyMessage>
+        Connected to <strong>{install.slackTeamName ?? install.slackTeamId}</strong>.
+      </ContactReadyMessage>
 
       <div className="space-y-3">
         <p className="text-caption text-muted-foreground">
-          Address this assistant in Slack by mentioning the app, then one of:
+          Address this assistant in Slack by mentioning the app with{' '}
+          <span className="font-medium text-foreground">{fullName || assistant.firstName}</span> or
+          ID <span className="font-medium text-foreground">{assistant.agentId}</span>.
         </p>
-        <DisplayContactField label="By ID (always unique)" value={String(assistant.agentId)} />
-        {fullName && <DisplayContactField label="By full name" value={fullName} />}
-        {assistant.firstName && (
-          <DisplayContactField label="By first name" value={assistant.firstName} />
-        )}
       </div>
 
       {install.revoked && (

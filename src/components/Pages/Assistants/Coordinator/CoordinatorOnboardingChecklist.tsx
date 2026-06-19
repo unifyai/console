@@ -22,13 +22,35 @@
  */
 
 import * as React from 'react';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { cn } from '@/lib/utils';
 import { useCoordinatorOnboardingContext } from './CoordinatorOnboardingContext';
 
-export type ChecklistAction = 'connect-workspace' | 'connect-apps' | 'act' | 'schedule';
+export type ChecklistAction =
+  | 'trigger-email-reference'
+  | 'start-email-reply'
+  | 'add-whatsapp-number'
+  | 'trigger-whatsapp-message-reference'
+  | 'start-whatsapp-message'
+  | 'trigger-whatsapp-call-reference'
+  | 'start-whatsapp-call'
+  | 'add-phone-number'
+  | 'trigger-sms-reference'
+  | 'start-sms-message'
+  | 'trigger-phone-call-reference'
+  | 'start-phone-call'
+  | 'connect-slack'
+  | 'trigger-slack-reference'
+  | 'start-slack-message'
+  | 'connect-discord'
+  | 'trigger-discord-reference'
+  | 'start-discord-message'
+  | 'connect-workspace'
+  | 'connect-apps'
+  | 'act'
+  | 'schedule';
 
 interface OnboardingChecklistItem {
   id: string;
@@ -58,35 +80,188 @@ interface OnboardingChecklistItem {
    * progress bar — same accounting model as the per-assistant setup
    * roadmap. */
   children?: OnboardingChecklistItem[];
+  /** Whether the row can be deferred with the inline Later affordance. */
+  canSkip?: boolean;
 }
 
 const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
   {
-    id: 'meet',
-    title: 'Meet Marty',
-    phaseLabel: 'Meet',
-    description: 'Say hi to Marty.',
-    estimatedTime: '~1 min',
+    id: 'comms',
+    title: 'Guess the reference',
+    phaseLabel: 'Quiz',
+    description: 'Identify clues sent over email, WhatsApp, phone, Slack, and Discord.',
+    children: [
+      {
+        id: 'email-reference',
+        title: 'Email the first reference',
+        description: 'Marty sends the first reference clue over email.',
+        estimatedTime: '~10s',
+        action: 'trigger-email-reference',
+        canSkip: false,
+      },
+      {
+        id: 'email-reply',
+        title: 'Reply to email',
+        description: 'Marty sends you a quick email.',
+        estimatedTime: '~30s',
+        action: 'start-email-reply',
+        prerequisiteId: 'email-reference',
+      },
+      {
+        id: 'whatsapp-number',
+        title: 'Add your WhatsApp number',
+        description: 'Add the WhatsApp number Marty should use.',
+        estimatedTime: '~30s',
+        action: 'add-whatsapp-number',
+        prerequisiteId: 'email-reply',
+      },
+      {
+        id: 'whatsapp-message-reference',
+        title: 'WhatsApp the next reference',
+        description: 'Marty sends the next reference clue over WhatsApp.',
+        estimatedTime: '~10s',
+        action: 'trigger-whatsapp-message-reference',
+        prerequisiteId: 'whatsapp-number',
+        canSkip: false,
+      },
+      {
+        id: 'whatsapp-message',
+        title: 'Guess a WhatsApp clue',
+        description: 'Marty sends you a reference clue over WhatsApp.',
+        estimatedTime: '~1 min',
+        action: 'start-whatsapp-message',
+        prerequisiteId: 'whatsapp-message-reference',
+      },
+      {
+        id: 'whatsapp-call-reference',
+        title: 'WhatsApp call for the next reference',
+        description: 'Marty calls with the next reference clue over WhatsApp.',
+        estimatedTime: '~10s',
+        action: 'trigger-whatsapp-call-reference',
+        prerequisiteId: 'whatsapp-message',
+        canSkip: false,
+      },
+      {
+        id: 'whatsapp-call',
+        title: 'Guess a WhatsApp call clue',
+        description: 'Marty gives you a reference clue over WhatsApp voice.',
+        estimatedTime: '~1 min',
+        action: 'start-whatsapp-call',
+        prerequisiteId: 'whatsapp-call-reference',
+      },
+      {
+        id: 'phone-number',
+        title: 'Add your phone number',
+        description: 'Add the phone number Marty should use for calls and SMS.',
+        estimatedTime: '~30s',
+        action: 'add-phone-number',
+        prerequisiteId: 'whatsapp-call',
+      },
+      {
+        id: 'sms-reference',
+        title: 'Text the next reference',
+        description: 'Marty sends the next reference clue over SMS.',
+        estimatedTime: '~10s',
+        action: 'trigger-sms-reference',
+        prerequisiteId: 'phone-number',
+        canSkip: false,
+      },
+      {
+        id: 'sms-message',
+        title: 'Guess an SMS clue',
+        description: 'Marty sends you a reference clue over SMS.',
+        estimatedTime: '~1 min',
+        action: 'start-sms-message',
+        prerequisiteId: 'sms-reference',
+      },
+      {
+        id: 'phone-call-reference',
+        title: 'Call for the next reference',
+        description: 'Marty calls with the next reference clue.',
+        estimatedTime: '~10s',
+        action: 'trigger-phone-call-reference',
+        prerequisiteId: 'sms-message',
+        canSkip: false,
+      },
+      {
+        id: 'phone-call',
+        title: 'Guess a phone call clue',
+        description: 'Marty gives you a reference clue over a phone call.',
+        estimatedTime: '~1 min',
+        action: 'start-phone-call',
+        prerequisiteId: 'phone-call-reference',
+      },
+      {
+        id: 'slack-connect',
+        title: 'Connect Slack',
+        description: 'Connect Marty through the Unify Slack app.',
+        estimatedTime: '~1 min',
+        action: 'connect-slack',
+        prerequisiteId: 'phone-call',
+      },
+      {
+        id: 'slack-reference',
+        title: 'Send the next reference via Slack',
+        description: 'Marty sends the next reference clue in Slack.',
+        estimatedTime: '~10s',
+        action: 'trigger-slack-reference',
+        prerequisiteId: 'slack-connect',
+        canSkip: false,
+      },
+      {
+        id: 'slack-message',
+        title: 'Guess a Slack clue',
+        description: 'Marty sends you a reference clue in Slack.',
+        estimatedTime: '~1 min',
+        action: 'start-slack-message',
+        prerequisiteId: 'slack-reference',
+      },
+      {
+        id: 'discord-connect',
+        title: 'Connect Discord',
+        description: 'Connect Marty through the public Discord bot.',
+        estimatedTime: '~1 min',
+        action: 'connect-discord',
+        prerequisiteId: 'slack-message',
+      },
+      {
+        id: 'discord-reference',
+        title: 'Send the next reference via discord',
+        description: 'Marty sends the next reference clue in Discord.',
+        estimatedTime: '~10s',
+        action: 'trigger-discord-reference',
+        prerequisiteId: 'discord-connect',
+        canSkip: false,
+      },
+      {
+        id: 'discord-message',
+        title: 'Guess a Discord clue',
+        description: 'Marty sends you a reference clue in Discord.',
+        estimatedTime: '~1 min',
+        action: 'start-discord-message',
+        prerequisiteId: 'discord-reference',
+      },
+    ],
   },
   {
     id: 'connect',
-    title: 'Connect Marty',
+    title: 'Connect me',
     phaseLabel: 'Connect',
-    description: 'Plug it into your workspace and apps.',
+    description: 'Plug me into your workspace and apps.',
     // No action: the parent row is purely a grouping header; the
     // workspace OAuth + integrations actions live on its children.
     children: [
       {
         id: 'workspace',
-        title: 'Give Marty access to your workspace',
+        title: 'Give me access to your workspace',
         description: 'Required for everything else in onboarding.',
         estimatedTime: '~30s',
         action: 'connect-workspace',
-        prerequisiteId: 'meet',
+        prerequisiteId: 'discord-message',
       },
       {
         id: 'apps',
-        title: 'Connect Marty with your apps',
+        title: 'Connect me with your apps',
         description: 'Hook up at least one app (Slack, Gmail…).',
         estimatedTime: '~2 min',
         action: 'connect-apps',
@@ -112,8 +287,8 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         // and guide" row is folded in: asking + watching it run is
         // a single moment on the Actions panel.
         id: 'act',
-        title: 'Ask Marty to do something now',
-        description: 'Give it a one-off job and watch it run live.',
+        title: 'Ask me to do something now',
+        description: 'Give me a one-off job and watch it run live.',
         estimatedTime: '~2 min',
         action: 'act',
         prerequisiteId: 'apps',
@@ -254,6 +429,54 @@ function resolveChecklist(
   });
 }
 
+function flattenChecklistLeaves(items: OnboardingChecklistItem[]): OnboardingChecklistItem[] {
+  const leaves: OnboardingChecklistItem[] = [];
+  for (const item of items) {
+    if (item.children?.length) leaves.push(...flattenChecklistLeaves(item.children));
+    else leaves.push(item);
+  }
+  return leaves;
+}
+
+interface DisplayStepSets {
+  completed: ReadonlySet<string>;
+  skipped: ReadonlySet<string>;
+}
+
+function computeDisplayStepSets(
+  items: OnboardingChecklistItem[],
+  completed: ReadonlySet<string>,
+  skipped: ReadonlySet<string>,
+  isActionWired: (action: ChecklistAction | undefined) => boolean
+): DisplayStepSets {
+  const displayCompleted = new Set<string>();
+  const displaySkipped = new Set<string>();
+  const satisfied = new Set<string>();
+
+  for (const item of flattenChecklistLeaves(items)) {
+    const actionUnavailable = !!item.action && !isActionWired(item.action);
+    if (actionUnavailable) {
+      satisfied.add(item.id);
+      continue;
+    }
+
+    if (item.prerequisiteId && !satisfied.has(item.prerequisiteId)) continue;
+
+    if (completed.has(item.id)) {
+      displayCompleted.add(item.id);
+      satisfied.add(item.id);
+      continue;
+    }
+
+    if (skipped.has(item.id)) {
+      displaySkipped.add(item.id);
+      satisfied.add(item.id);
+    }
+  }
+
+  return { completed: displayCompleted, skipped: displaySkipped };
+}
+
 function filterVisibleChecklist(
   items: ResolvedChecklistItem[],
   completed: ReadonlySet<string>,
@@ -341,53 +564,50 @@ function filterVisibleChecklist(
   return visibleItems;
 }
 
-function countItems(items: ResolvedChecklistItem[]): { total: number; resolved: number } {
-  let total = 0;
-  let resolved = 0;
-  for (const item of items) {
-    if (item.children?.length) {
-      // Parent rows that have children aren't independently scored —
-      // the children carry the weight, so the progress bar reflects
-      // the real granularity of remaining work.
-      for (const child of item.children) {
-        total += 1;
-        if (child.status !== 'pending') resolved += 1;
-      }
-    } else {
-      total += 1;
-      if (item.status !== 'pending') resolved += 1;
-    }
-  }
-  return { total, resolved };
-}
-
 interface PhaseProgress {
   id: string;
   label: string;
   total: number;
-  resolved: number;
+  completed: number;
 }
 
 /**
- * Collapse the top-level checklist into one phase per row so the
- * progress bar can show distinct segments (Meet / Connect /
- * Delegate) instead of a single anonymous fill. Each phase counts
- * its own leaves: parent rows with children contribute their
- * children's totals, leaf-only phases contribute themselves. The
- * label prefers ``phaseLabel`` (a single word) over the full
- * ``title`` so the three legends fit across the sidebar.
+ * Collapse the top-level checklist into one phase per row. Each
+ * phase counts its own available leaves: parent rows with children
+ * contribute their children's totals, leaf-only phases contribute
+ * themselves. The label prefers ``phaseLabel`` (a single word) over
+ * the full ``title`` so the detail view stays compact.
  */
-function computePhases(items: ResolvedChecklistItem[]): PhaseProgress[] {
-  return items.map((item) => {
+function computePhases(
+  items: ResolvedChecklistItem[],
+  isActionWired: (action: ChecklistAction | undefined) => boolean
+): PhaseProgress[] {
+  return items.flatMap((item) => {
     const label = item.phaseLabel ?? item.title;
-    const children = item.children ?? [];
-    if (children.length) {
-      const total = children.length;
-      const resolved = children.filter((child) => child.status !== 'pending').length;
-      return { id: item.id, label, total, resolved };
-    }
-    return { id: item.id, label, total: 1, resolved: item.status !== 'pending' ? 1 : 0 };
+    const { total, completed } = countAvailableLeaves(item, isActionWired);
+    return total > 0 ? [{ id: item.id, label, total, completed }] : [];
   });
+}
+
+function countAvailableLeaves(
+  item: ResolvedChecklistItem,
+  isActionWired: (action: ChecklistAction | undefined) => boolean
+): { total: number; completed: number } {
+  if (item.children?.length) {
+    return item.children.reduce(
+      (acc, child) => {
+        const childCount = countAvailableLeaves(child, isActionWired);
+        return {
+          total: acc.total + childCount.total,
+          completed: acc.completed + childCount.completed,
+        };
+      },
+      { total: 0, completed: 0 }
+    );
+  }
+
+  if (item.action && !isActionWired(item.action)) return { total: 0, completed: 0 };
+  return { total: 1, completed: item.status === 'done' ? 1 : 0 };
 }
 
 /**
@@ -439,7 +659,7 @@ function findNextChildAction(
  * outstanding, given which actions are wired (available) on the current
  * deployment. Reuses the same resolve → visibility-filter → next-actionable
  * pipeline the rendered checklist uses, so the "incomplete" signal that
- * drives the info-card nudge (and the mobile auto-open) can't drift from
+ * drives the info-card nudge and onboarding focus default can't drift from
  * what the user actually sees — unavailable steps don't count, fully
  * skipped/complete checklists report ``false``.
  */
@@ -448,11 +668,21 @@ export function hasOutstandingCoordinatorOnboarding(
   skippedStepIds: ReadonlySet<string>,
   isActionWired: (action: ChecklistAction | undefined) => boolean
 ): boolean {
-  const resolved = resolveChecklist(ONBOARDING_CHECKLIST, completedStepIds, skippedStepIds);
-  const visible = filterVisibleChecklist(
-    resolved,
+  const displayStepSets = computeDisplayStepSets(
+    ONBOARDING_CHECKLIST,
     completedStepIds,
     skippedStepIds,
+    isActionWired
+  );
+  const resolved = resolveChecklist(
+    ONBOARDING_CHECKLIST,
+    displayStepSets.completed,
+    displayStepSets.skipped
+  );
+  const visible = filterVisibleChecklist(
+    resolved,
+    displayStepSets.completed,
+    displayStepSets.skipped,
     isActionWired,
     true
   );
@@ -460,16 +690,22 @@ export function hasOutstandingCoordinatorOnboarding(
 }
 
 export interface CoordinatorOnboardingChecklistProps {
-  /** Opens the workspace OAuth dialog. Hung off the "Give your
-   * Marty access to your workspace" sub-item. Unset means
+  onStartOnboardingStep?: (stepId: string) => void;
+  onTriggerReferenceStep?: (stepId: string) => void;
+  onAddWhatsappNumber?: () => void;
+  onAddPhoneNumber?: () => void;
+  onConnectSlack?: () => void;
+  onConnectDiscord?: () => void;
+  /** Opens the workspace OAuth dialog. Hung off the "Give me
+   * access to your workspace" sub-item. Unset means
    * the row degrades to a static checklist entry. */
   onConnectWorkspace?: () => void;
   /** Opens the Integrations pane in the current surface. Hung off
-   * "Connect Marty with your apps". Unset means the
+   * "Connect me with your apps". Unset means the
    * row degrades to a static entry. */
   onConnectApps?: () => void;
   /** Opens the live Actions viewer in the current surface. Hung off
-   * "Ask Marty to do something now" — the user gives a
+   * "Ask me to do something now" — the user gives a
    * one-off job and watches it run live. Unset means the row
    * degrades to a static entry. */
   onActNow?: () => void;
@@ -490,6 +726,12 @@ export interface CoordinatorOnboardingChecklistProps {
 const EMPTY_SET: ReadonlySet<string> = new Set();
 
 export function CoordinatorOnboardingChecklist({
+  onStartOnboardingStep,
+  onTriggerReferenceStep,
+  onAddWhatsappNumber,
+  onAddPhoneNumber,
+  onConnectSlack,
+  onConnectDiscord,
   onConnectWorkspace,
   onConnectApps,
   onActNow,
@@ -502,19 +744,49 @@ export function CoordinatorOnboardingChecklist({
   const ctx = useCoordinatorOnboardingContext();
   const completedStepIds = ctx?.completedStepIds ?? EMPTY_SET;
   const skippedStepIds = ctx?.skippedStepIds ?? EMPTY_SET;
-  const rawResolved = React.useMemo(
-    () => resolveChecklist(ONBOARDING_CHECKLIST, completedStepIds, skippedStepIds),
-    [completedStepIds, skippedStepIds]
-  );
+  const [areProgressDetailsOpen, setAreProgressDetailsOpen] = React.useState(false);
 
   const handleAction = React.useCallback(
     (action: ChecklistAction) => {
-      if (action === 'connect-workspace') onConnectWorkspace?.();
+      if (action === 'trigger-email-reference') onTriggerReferenceStep?.('email-reference');
+      else if (action === 'start-email-reply') onStartOnboardingStep?.('email-reply');
+      else if (action === 'add-whatsapp-number') onAddWhatsappNumber?.();
+      else if (action === 'trigger-whatsapp-message-reference')
+        onTriggerReferenceStep?.('whatsapp-message-reference');
+      else if (action === 'start-whatsapp-message') onStartOnboardingStep?.('whatsapp-message');
+      else if (action === 'trigger-whatsapp-call-reference')
+        onTriggerReferenceStep?.('whatsapp-call-reference');
+      else if (action === 'start-whatsapp-call') onStartOnboardingStep?.('whatsapp-call');
+      else if (action === 'add-phone-number') onAddPhoneNumber?.();
+      else if (action === 'trigger-sms-reference') onTriggerReferenceStep?.('sms-reference');
+      else if (action === 'start-sms-message') onStartOnboardingStep?.('sms-message');
+      else if (action === 'trigger-phone-call-reference')
+        onTriggerReferenceStep?.('phone-call-reference');
+      else if (action === 'start-phone-call') onStartOnboardingStep?.('phone-call');
+      else if (action === 'connect-slack') onConnectSlack?.();
+      else if (action === 'trigger-slack-reference') onTriggerReferenceStep?.('slack-reference');
+      else if (action === 'start-slack-message') onStartOnboardingStep?.('slack-message');
+      else if (action === 'connect-discord') onConnectDiscord?.();
+      else if (action === 'trigger-discord-reference')
+        onTriggerReferenceStep?.('discord-reference');
+      else if (action === 'start-discord-message') onStartOnboardingStep?.('discord-message');
+      else if (action === 'connect-workspace') onConnectWorkspace?.();
       else if (action === 'connect-apps') onConnectApps?.();
       else if (action === 'act') onActNow?.();
       else if (action === 'schedule') onScheduleTask?.();
     },
-    [onConnectWorkspace, onConnectApps, onActNow, onScheduleTask]
+    [
+      onStartOnboardingStep,
+      onTriggerReferenceStep,
+      onAddWhatsappNumber,
+      onAddPhoneNumber,
+      onConnectSlack,
+      onConnectDiscord,
+      onConnectWorkspace,
+      onConnectApps,
+      onActNow,
+      onScheduleTask,
+    ]
   );
 
   // An action is reachable when the parent has wired the
@@ -523,29 +795,89 @@ export function CoordinatorOnboardingChecklist({
   const isActionWired = React.useCallback(
     (action: ChecklistAction | undefined): boolean => {
       if (!action) return false;
+      if (action === 'trigger-email-reference') {
+        return !!onTriggerReferenceStep;
+      }
+      if (
+        action === 'trigger-whatsapp-message-reference' ||
+        action === 'trigger-whatsapp-call-reference'
+      ) {
+        return !!onTriggerReferenceStep && !!onAddWhatsappNumber;
+      }
+      if (action === 'trigger-sms-reference' || action === 'trigger-phone-call-reference') {
+        return !!onTriggerReferenceStep && !!onAddPhoneNumber;
+      }
+      if (action === 'trigger-slack-reference') {
+        return !!onTriggerReferenceStep && !!onConnectSlack;
+      }
+      if (action === 'trigger-discord-reference') {
+        return !!onTriggerReferenceStep && !!onConnectDiscord;
+      }
+      if (action === 'start-email-reply') return !!onStartOnboardingStep;
+      if (
+        action === 'start-whatsapp-message' ||
+        action === 'start-whatsapp-call' ||
+        action === 'start-sms-message' ||
+        action === 'start-phone-call'
+      ) {
+        return (
+          !!onStartOnboardingStep &&
+          (action === 'start-whatsapp-message' || action === 'start-whatsapp-call'
+            ? !!onAddWhatsappNumber
+            : !!onAddPhoneNumber)
+        );
+      }
+      if (action === 'start-slack-message') return !!onStartOnboardingStep && !!onConnectSlack;
+      if (action === 'start-discord-message') return !!onStartOnboardingStep && !!onConnectDiscord;
+      if (action === 'add-whatsapp-number') return !!onAddWhatsappNumber;
+      if (action === 'add-phone-number') return !!onAddPhoneNumber;
+      if (action === 'connect-slack') return !!onConnectSlack;
+      if (action === 'connect-discord') return !!onConnectDiscord;
       if (action === 'connect-workspace') return !!onConnectWorkspace;
       if (action === 'connect-apps') return !!onConnectApps;
       if (action === 'act') return !!onActNow;
       if (action === 'schedule') return !!onScheduleTask;
       return false;
     },
-    [onConnectWorkspace, onConnectApps, onActNow, onScheduleTask]
+    [
+      onStartOnboardingStep,
+      onTriggerReferenceStep,
+      onAddWhatsappNumber,
+      onAddPhoneNumber,
+      onConnectSlack,
+      onConnectDiscord,
+      onConnectWorkspace,
+      onConnectApps,
+      onActNow,
+      onScheduleTask,
+    ]
   );
 
+  const displayStepSets = React.useMemo(
+    () =>
+      computeDisplayStepSets(ONBOARDING_CHECKLIST, completedStepIds, skippedStepIds, isActionWired),
+    [completedStepIds, skippedStepIds, isActionWired]
+  );
+  const displayResolved = React.useMemo(
+    () =>
+      resolveChecklist(ONBOARDING_CHECKLIST, displayStepSets.completed, displayStepSets.skipped),
+    [displayStepSets]
+  );
   const resolved = React.useMemo(
     () =>
       filterVisibleChecklist(
-        rawResolved,
-        completedStepIds,
-        skippedStepIds,
+        displayResolved,
+        displayStepSets.completed,
+        displayStepSets.skipped,
         isActionWired,
         !!onSkipStep
       ),
-    [rawResolved, completedStepIds, skippedStepIds, isActionWired, onSkipStep]
+    [displayResolved, displayStepSets, isActionWired, onSkipStep]
   );
-  const { total, resolved: resolvedCount } = React.useMemo(() => countItems(resolved), [resolved]);
-  const percent = total > 0 ? Math.round((resolvedCount / total) * 100) : 0;
-  const phases = React.useMemo(() => computePhases(resolved), [resolved]);
+  const phases = React.useMemo(
+    () => computePhases(displayResolved, isActionWired),
+    [displayResolved, isActionWired]
+  );
 
   // ID of the leaf row the user should tackle next — drives the
   // "Next" pill + soft highlight that anchors attention without
@@ -557,7 +889,11 @@ export function CoordinatorOnboardingChecklist({
   );
   return (
     <div className={cn('flex flex-col gap-3', className)}>
-      <PhaseProgressBar phases={phases} resolved={resolvedCount} total={total} percent={percent} />
+      <SectionProgressDisclosure
+        phases={phases}
+        isOpen={areProgressDetailsOpen}
+        onToggle={() => setAreProgressDetailsOpen((open) => !open)}
+      />
       <ul className="space-y-2.5" data-testid="coordinator-onboarding-checklist">
         {resolved.map((item) => (
           <ChecklistRow
@@ -576,71 +912,92 @@ export function CoordinatorOnboardingChecklist({
   );
 }
 
-interface PhaseProgressBarProps {
+interface SectionProgressDisclosureProps {
   phases: PhaseProgress[];
-  resolved: number;
-  total: number;
-  percent: number;
+  isOpen: boolean;
+  onToggle: () => void;
 }
 
 /**
- * Multi-segment progress bar that splits the meter by top-level
- * phase. Each segment fills from left to right with its own
- * per-phase fraction so the user can tell *what kind* of work is
- * left, not just how much. The legend underneath labels the
- * segments to keep the affordance discoverable without a tooltip.
+ * Compact section summary with foldable per-section detail. The
+ * default state avoids suggesting progress in future phases that the
+ * current checklist path has not reached yet.
  */
-function PhaseProgressBar({ phases, resolved, total, percent }: PhaseProgressBarProps) {
+function SectionProgressDisclosure({ phases, isOpen, onToggle }: SectionProgressDisclosureProps) {
+  const detailsId = React.useId();
   if (!phases.length) return null;
+  const completedSections = phases.filter(
+    (phase) => phase.total > 0 && phase.completed === phase.total
+  ).length;
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="text-caption flex items-center justify-between text-muted-foreground">
-        <span>
-          {resolved} of {total} resolved
-        </span>
-        <span>{percent}%</span>
-      </div>
-      <div
-        role="progressbar"
-        aria-label={`Onboarding progress: ${resolved} of ${total} steps resolved`}
-        aria-valuenow={percent}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        className="flex h-1.5 w-full gap-1 overflow-hidden"
-        data-testid="coordinator-onboarding-progress"
+    <div className="flex flex-col gap-2" data-testid="coordinator-onboarding-progress">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-controls={detailsId}
+        className={cn(
+          'rounded-control flex w-full items-center justify-between gap-2 text-left',
+          'bg-muted/40 hover:bg-muted/70 px-2.5 py-2 transition-colors',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+        )}
+        data-testid="coordinator-onboarding-progress-toggle"
       >
-        {phases.map((phase) => {
-          const phasePercent =
-            phase.total > 0 ? Math.round((phase.resolved / phase.total) * 100) : 0;
-          return (
-            <div
-              key={phase.id}
-              data-testid={`coordinator-onboarding-progress-phase-${phase.id}`}
-              data-phase-resolved={phase.resolved}
-              data-phase-total={phase.total}
-              className="relative h-full flex-1 overflow-hidden rounded-full bg-muted"
-            >
-              <div
-                className="h-full bg-primary transition-all duration-300"
-                style={{ width: `${phasePercent}%` }}
-              />
-            </div>
-          );
-        })}
-      </div>
-      <div className="text-caption text-muted-foreground/80 flex items-center justify-between">
-        {phases.map((phase) => (
-          <span
-            key={phase.id}
-            className={cn(
-              'truncate',
-              phase.resolved === phase.total && phase.total > 0 && 'text-foreground'
-            )}
-          >
-            {phase.label}
-          </span>
-        ))}
-      </div>
+        <span
+          className="text-body-sm font-medium text-foreground"
+          data-testid="coordinator-onboarding-progress-summary"
+        >
+          {completedSections} of {phases.length} sections completed
+        </span>
+        <span className="text-caption flex flex-shrink-0 items-center gap-1 text-muted-foreground">
+          {isOpen ? 'Hide details' : 'Show details'}
+          <ChevronDown
+            className={cn('h-3.5 w-3.5 transition-transform', isOpen && 'rotate-180')}
+            aria-hidden="true"
+          />
+        </span>
+      </button>
+      {isOpen ? (
+        <ul
+          id={detailsId}
+          className="flex flex-col gap-2"
+          data-testid="coordinator-onboarding-progress-details"
+        >
+          {phases.map((phase) => {
+            const phasePercent =
+              phase.total > 0 ? Math.round((phase.completed / phase.total) * 100) : 0;
+            return (
+              <li
+                key={phase.id}
+                data-testid={`coordinator-onboarding-progress-phase-${phase.id}`}
+                data-phase-completed={phase.completed}
+                data-phase-total={phase.total}
+                className="flex flex-col gap-1"
+              >
+                <div className="text-caption flex items-center justify-between gap-2 text-muted-foreground">
+                  <span className="truncate">{phase.label}</span>
+                  <span className="flex-shrink-0">
+                    {phase.completed} of {phase.total} items completed
+                  </span>
+                </div>
+                <div
+                  role="progressbar"
+                  aria-label={`${phase.label}: ${phase.completed} of ${phase.total} items completed`}
+                  aria-valuenow={phasePercent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  className="h-1.5 overflow-hidden rounded-full bg-muted"
+                >
+                  <div
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{ width: `${phasePercent}%` }}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
     </div>
   );
 }
@@ -681,7 +1038,7 @@ function ChecklistRow({
     [item, isActionWired]
   );
   const canOpenChildAction = !!nextChildAction && !isResolved;
-  const canSkip = !!onSkipStep && !item.children?.length && !isResolved;
+  const canSkip = !!onSkipStep && item.canSkip !== false && !item.children?.length && !isResolved;
   const canUnskip = !!onUnskipStep && !item.children?.length && item.status === 'skipped';
   // Whether the next actionable leaf sits somewhere inside this
   // row's subtree. Parents on the path to "Next" stay at full
@@ -882,7 +1239,7 @@ function ChecklistRow({
     );
   } else {
     // Static informational row: a non-actionable grouping header
-    // ("Connect Marty") that can open its visible child.
+    // ("Connect me") that can open its visible child.
     row = canOpenChildAction ? (
       <div
         role="button"
@@ -984,23 +1341,40 @@ function ChecklistRow({
 }
 
 function ChecklistMarker({ status }: { status: 'pending' | 'done' | 'skipped' }) {
+  const markerClasses = cn(
+    'rounded-control mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center border',
+    status === 'done'
+      ? 'border-[color:var(--role-green-deep)] bg-[color:var(--status-success-bg)] text-[color:var(--role-green-deep)]'
+      : status === 'skipped'
+        ? 'border-muted-foreground/60 bg-muted text-muted-foreground'
+        : 'border-muted-foreground/40 bg-transparent'
+  );
+
+  // Skipped rows mark the box with an "L" (for "Later"). The glyph
+  // alone is opaque, so the box doubles as a tooltip trigger that
+  // spells out "Later" on hover/focus.
+  if (status === 'skipped') {
+    return (
+      <TooltipProvider delayDuration={150}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span tabIndex={0} aria-label="Later" className={markerClasses}>
+              <span aria-hidden="true" className="text-caption font-semibold leading-none">
+                L
+              </span>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            <p className="text-caption">Later</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
   return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        'rounded-control mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center border',
-        status === 'done'
-          ? 'border-[color:var(--role-green-deep)] bg-[color:var(--status-success-bg)] text-[color:var(--role-green-deep)]'
-          : status === 'skipped'
-            ? 'border-muted-foreground/60 bg-muted text-muted-foreground'
-            : 'border-muted-foreground/40 bg-transparent'
-      )}
-    >
-      {status === 'done' ? (
-        <Check className="h-3 w-3 stroke-[4]" />
-      ) : status === 'skipped' ? (
-        <span className="text-caption font-semibold leading-none">S</span>
-      ) : null}
+    <span aria-hidden="true" className={markerClasses}>
+      {status === 'done' ? <Check className="h-3 w-3 stroke-[4]" /> : null}
     </span>
   );
 }

@@ -1,6 +1,8 @@
 import { ResponseProps } from './common';
 import { SpendingDisplayProps } from './assistants/spending';
 
+export type DataSharingMode = 'private' | 'shared';
+
 // Re-export spending display types for organization spending
 export type { SpendingDisplayProps } from './assistants/spending';
 export { formatSpendAmount, getCurrentMonth } from './assistants/spending';
@@ -31,6 +33,9 @@ export interface Organization {
   image?: string | null;
   timezone?: string | null;
   freeTrial?: boolean;
+  dataSharingMode?: DataSharingMode;
+  orgWideSharingEnabled?: boolean;
+  orgWideSharingTeamId?: number | null;
 }
 
 export interface OrganizationMember {
@@ -102,7 +107,10 @@ export interface UserOrganizationCheckResult {
 }
 
 export interface OrganizationActions {
-  createOrg: (name: string) => Promise<Organization | ResponseProps>;
+  createOrg: (
+    name: string,
+    dataSharingMode?: DataSharingMode
+  ) => Promise<Organization | ResponseProps>;
   deleteOrg: (id: number) => Promise<void | ResponseProps>;
   updateOrg: (
     orgId: number,
@@ -119,6 +127,12 @@ export interface OrganizationActions {
   getInvites: (orgId: number) => Promise<OrganizationInviteListResponse | ResponseProps>;
   cancelInvite: (orgId: number, inviteId: string) => Promise<void | ResponseProps>;
   checkUserOrganization?: (email: string) => Promise<UserOrganizationCheckResult | ResponseProps>;
+}
+
+export interface OrgSharingSettings {
+  dataSharingMode: DataSharingMode;
+  orgWideSharingEnabled: boolean;
+  orgWideSharingTeamId?: number | null;
 }
 
 // =============================================================================

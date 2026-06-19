@@ -14,7 +14,11 @@ import { camelToSnakeObject } from '@/utils/casing';
  *
  * Uses getOrchestraUserClient which automatically handles snake_case ↔ camelCase.
  */
-export async function POST(request: NextRequest, { params }: { params: { assistantId: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ assistantId: string }> }
+) {
+  const { assistantId } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
@@ -27,13 +31,13 @@ export async function POST(request: NextRequest, { params }: { params: { assista
     return badRequest('Invalid JSON body for contact creation');
   }
 
-  const assistantId = parseInt(params.assistantId, 10);
+  const assistantIdNum = parseInt(assistantId, 10);
   const client = await getOrchestraUserClient(apiKey);
 
   try {
     // Client interceptors handle camelCase → snake_case for request body
     // and snake_case → camelCase for response data
-    const response = await client.post(`/assistant/${assistantId}/contact`, requestBody);
+    const response = await client.post(`/assistant/${assistantIdNum}/contact`, requestBody);
 
     return NextResponse.json(response.data ?? { success: true }, { status: response.status });
   } catch (e: unknown) {
@@ -59,7 +63,11 @@ export async function POST(request: NextRequest, { params }: { params: { assista
  *
  * Uses getOrchestraUserClient which automatically handles snake_case ↔ camelCase.
  */
-export async function PUT(request: NextRequest, { params }: { params: { assistantId: string } }) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ assistantId: string }> }
+) {
+  const { assistantId } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
@@ -72,11 +80,11 @@ export async function PUT(request: NextRequest, { params }: { params: { assistan
     return badRequest('Invalid JSON body for contact update');
   }
 
-  const assistantId = parseInt(params.assistantId, 10);
+  const assistantIdNum = parseInt(assistantId, 10);
   const client = await getOrchestraUserClient(apiKey);
 
   try {
-    const response = await client.put(`/assistant/${assistantId}/contact`, requestBody);
+    const response = await client.put(`/assistant/${assistantIdNum}/contact`, requestBody);
 
     return NextResponse.json(response.data ?? { success: true }, { status: response.status });
   } catch (e: unknown) {
@@ -98,8 +106,9 @@ export async function PUT(request: NextRequest, { params }: { params: { assistan
 // openapi-fetch/axios don't reliably send bodies for DELETE requests.
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { assistantId: string } }
+  { params }: { params: Promise<{ assistantId: string }> }
 ) {
+  const { assistantId } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
@@ -112,12 +121,12 @@ export async function DELETE(
     return badRequest('Invalid JSON body for contact deletion');
   }
 
-  const assistantId = parseInt(params.assistantId, 10);
+  const assistantIdNum = parseInt(assistantId, 10);
   const orchestraUrl = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
 
   try {
     // Use direct fetch for DELETE because axios/openapi-fetch don't properly send body for DELETE requests
-    const response = await fetch(`${orchestraUrl}/v0/assistant/${assistantId}/contact`, {
+    const response = await fetch(`${orchestraUrl}/v0/assistant/${assistantIdNum}/contact`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',

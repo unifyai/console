@@ -22,6 +22,8 @@ import {
   listUserDesktops,
   linkDesktop,
   unlinkDesktop,
+  renameUserDesktop,
+  deleteUserDesktop,
 } from '@/lib/assistants/desktop';
 import { listAssistants, updateAssistant } from '@/lib/assistants/assistant';
 import { Assistant, AssistantActions } from '@/types/assistants/assistant';
@@ -29,7 +31,8 @@ import AssistantCommunicationFullScreen from '@/components/Pages/Assistants/Comm
 import { notFound } from 'next/navigation';
 import { getActiveOrganization } from '@/lib/user/workspace';
 
-const CallPage = async ({ params }: { params: { assistantId: string } }) => {
+const CallPage = async ({ params }: { params: Promise<{ assistantId: string }> }) => {
+  const { assistantId } = await params;
   const user = await getCurrentUser();
   if (!user) {
     redirect('/login');
@@ -41,50 +44,49 @@ const CallPage = async ({ params }: { params: { assistantId: string } }) => {
   if (!(await getServerFeatures()).voiceCalls) {
     notFound();
   }
-  const apiKey = user.apiKey;
   const isOrgContext = getActiveOrganization(user) !== null;
 
   const assistantActions: Pick<AssistantActions, 'chat' | 'call' | 'desktop'> & {
     assistant: Pick<AssistantActions['assistant'], 'update'>;
   } = {
     assistant: {
-      update: await updateAssistant(apiKey),
+      update: updateAssistant,
     },
     chat: {
-      getContactId: await getContactIdByEmail(apiKey),
-      getTranscripts: await getTranscripts(apiKey),
-      message: await messageAssistant(apiKey),
-      getAssistantOwnerById: await getAssistantOwnerById(),
-      uploadAttachment: await uploadAttachment(apiKey),
+      getContactId: getContactIdByEmail,
+      getTranscripts,
+      message: messageAssistant,
+      getAssistantOwnerById,
+      uploadAttachment,
     },
     call: {
-      getConnectionDetails: await getCallConnectionDetails(apiKey),
-      dispatchToCall: await dispatchAssistantToCall(apiKey),
-      deleteRoom: await deleteCallRoom(),
+      getConnectionDetails: getCallConnectionDetails,
+      dispatchToCall: dispatchAssistantToCall,
+      deleteRoom: deleteCallRoom,
     },
     desktop: {
-      getLiveviewUrl: await getLiveviewUrl(),
-      buildLiveviewUrl: await buildLiveviewUrl(),
-      checkLiveviewHealth: await checkLiveviewHealth(),
-      sendSystemEvent: await sendSystemEvent(),
-      getApiKey: await getDesktopApiKey(apiKey),
-      listUserDesktops: await listUserDesktops(apiKey),
-      linkDesktop: await linkDesktop(apiKey),
-      unlinkDesktop: await unlinkDesktop(apiKey),
+      getLiveviewUrl,
+      buildLiveviewUrl,
+      checkLiveviewHealth,
+      sendSystemEvent,
+      getApiKey: getDesktopApiKey,
+      listUserDesktops,
+      linkDesktop,
+      unlinkDesktop,
+      renameUserDesktop,
+      deleteUserDesktop,
     },
   };
 
-  // Include demo assistants so demoers can access them via direct URL
   const includeDemo = true;
-  const listAssistantsAction = await listAssistants(apiKey, isOrgContext, includeDemo);
-  const assistantsResult = await listAssistantsAction();
+  const assistantsResult = await listAssistants(isOrgContext, includeDemo);
 
   if ('detail' in assistantsResult) {
     console.error('Failed to fetch assistants list in call page:', assistantsResult.detail);
     return <div>Error loading assistant data. Please close this tab and try again.</div>;
   }
 
-  const assistant = (assistantsResult as Assistant[]).find((a) => a.agentId === params.assistantId);
+  const assistant = (assistantsResult as Assistant[]).find((a) => a.agentId === assistantId);
 
   if (!assistant) {
     notFound();

@@ -305,12 +305,23 @@ interface RightPaneContainerProps {
    *  dot on the chat header's "Assistant info" button. */
   hasIncompleteOnboarding?: boolean;
   /**
+   * One-shot request id that seeds the assistant info panel open at its
+   * maximum available width.
+   */
+  infoPanelFocusLayoutRequest?: number;
+  /**
    * Coordinator-only handler bag forwarded down to the info panel.
    * When the active assistant is the canonical Coordinator and it's
    * still in onboarding mode, the info panel surfaces a third
    * "Onboarding" sub-tab whose action rows are wired from here.
    * Ignored for non-coordinator assistants. */
   coordinatorOnboarding?: {
+    onStartOnboardingStep?: (stepId: string) => void;
+    onTriggerReferenceStep?: (stepId: string) => void;
+    onAddWhatsappNumber?: () => void;
+    onAddPhoneNumber?: () => void;
+    onConnectSlack?: () => void;
+    onConnectDiscord?: () => void;
     onConnectWorkspace?: () => void;
     onConnectApps?: () => void;
     onActNow?: () => void;
@@ -374,6 +385,7 @@ export function RightPaneContainer({
   userPhoneNumber,
   onOpenUserSettings,
   hasIncompleteOnboarding,
+  infoPanelFocusLayoutRequest,
   coordinatorOnboarding,
   unreadChatCount = 0,
   renderDockedCall,
@@ -901,6 +913,7 @@ export function RightPaneContainer({
             userPhoneNumber={userPhoneNumber}
             onOpenUserSettings={onOpenUserSettings}
             hasIncompleteOnboarding={hasIncompleteOnboarding}
+            infoPanelFocusLayoutRequest={infoPanelFocusLayoutRequest}
             coordinatorOnboarding={coordinatorOnboarding}
             // The docked call lives in a single slot — the primary
             // one — so split layouts do not mirror the same call UI

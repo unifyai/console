@@ -4,7 +4,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { Phone, Video, Search, Loader2, IdCard } from 'lucide-react';
+import { Phone, Search, Loader2, IdCard } from 'lucide-react';
 import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
 import { AssistantInfoSidePanelContent } from '@/components/Pages/Assistants/Profile/AssistantInfoSidePanelContent';
 import { ChatSidePanel } from './ChatSidePanel';
@@ -17,49 +17,56 @@ import { assistantDisplayName } from '@/lib/assistants/displayName';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 
 // ---------------------------------------------------------------------------
-// Per-assistant info-panel dismissal persistence
+// Info-panel open/closed persistence
 // ---------------------------------------------------------------------------
 
 /**
- * Default the info side panel *open* for any assistant the user
- * hasn't explicitly closed it for. We persist the set of dismissed
- * agentIds rather than the set of opened ones so the default for a
- * brand-new assistant — including the moment right after hiring —
- * is "open" without any extra bookkeeping (no entry in the set →
- * not dismissed → open).
+ * The info side panel's open/closed state is a single global preference
+ * shared across every assistant, so toggling it for one assistant carries
+ * over when switching to another. We persist one boolean rather than a
+ * per-assistant set: the panel defaults *open* (no stored value → open) so
+ * a brand-new assistant — including the moment right after hiring — shows
+ * the panel without any extra bookkeeping.
  *
- * Stored as a JSON array under a stable key so it survives reloads
- * and (because of the underlying `storage` event) propagates across
- * tabs viewing the same assistant.
+ * Two cases deliberately override this global preference at switch time
+ * without mutating it: mobile always starts closed (the panel would cover
+ * the chat), and the Coordinator's onboarding panel starts closed (it is
+ * request-driven). See the init effect below.
+ *
+ * Stored under a stable key so it survives reloads and propagates across
+ * tabs on the next mount.
  */
-const INFO_PANEL_DISMISSED_KEY = 'console:assistants:info-panel-dismissed';
+const INFO_PANEL_OPEN_KEY = 'console:assistants:info-panel-open';
 const INFO_PANEL_WIDTH_KEY = 'console:assistants:info-panel-width';
 const INFO_PANEL_DEFAULT_WIDTH = 380;
 const INFO_PANEL_MIN_WIDTH = 320;
 const INFO_PANEL_MIN_CHAT_WIDTH = 320;
+const MOBILE_INFO_PANEL_MEDIA_QUERY = '(max-width: 639px)';
 
 function clampInfoPanelWidth(width: number, maxWidth = Number.POSITIVE_INFINITY): number {
   return Math.min(maxWidth, Math.max(INFO_PANEL_MIN_WIDTH, Math.round(width)));
 }
 
-function readInfoPanelDismissed(): Set<string> {
-  if (typeof window === 'undefined') return new Set();
+function isMobileInfoPanelViewport(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia(MOBILE_INFO_PANEL_MEDIA_QUERY).matches;
+}
+
+function readInfoPanelOpen(): boolean {
+  if (typeof window === 'undefined') return true;
   try {
-    const raw = window.localStorage.getItem(INFO_PANEL_DISMISSED_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed)
-      ? new Set(parsed.filter((x): x is string => typeof x === 'string'))
-      : new Set();
+    const raw = window.localStorage.getItem(INFO_PANEL_OPEN_KEY);
+    // Absent value → never toggled → default open.
+    return raw === null ? true : raw !== 'false';
   } catch {
-    return new Set();
+    return true;
   }
 }
 
-function writeInfoPanelDismissed(set: Set<string>): void {
+function writeInfoPanelOpen(open: boolean): void {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(INFO_PANEL_DISMISSED_KEY, JSON.stringify(Array.from(set)));
+    window.localStorage.setItem(INFO_PANEL_OPEN_KEY, open ? 'true' : 'false');
   } catch {
     /* quota / privacy mode — silently degrade to in-memory only */
   }
@@ -91,7 +98,7 @@ function writeInfoPanelWidth(width: number): void {
  *
  * The info panel is the *only* side surface here — actions live in their
  * own (split-able) right-pane tab now, and the page-level chat sub-header
- * keeps its call / video / info buttons regardless of split state. The
+ * keeps its call / info buttons regardless of split state. The
  * panel sits in the same flex row as the chat (not a modal sheet), so on
  * desktop the chat stays interactive beside it and on mobile the panel
  * claims the full row width.
@@ -159,12 +166,24 @@ export interface ChatWithInfoPanelProps {
    */
   hasIncompleteOnboarding?: boolean;
   /**
+   * One-shot request id for the onboarding-focused chat/info shape:
+   * the assistant info panel opens and grows to its maximum width inside
+   * the chat row.
+   */
+  infoPanelFocusLayoutRequest?: number;
+  /**
    * Coordinator-only handler bag forwarded to the info panel so the
    * "Onboarding" sub-tab on the coordinator's info panel can wire
    * its action rows. Ignored entirely for non-coordinator
    * assistants. See ``AssistantInfoSidePanelContent`` for details.
    */
   coordinatorOnboarding?: {
+    onStartOnboardingStep?: (stepId: string) => void;
+    onTriggerReferenceStep?: (stepId: string) => void;
+    onAddWhatsappNumber?: () => void;
+    onAddPhoneNumber?: () => void;
+    onConnectSlack?: () => void;
+    onConnectDiscord?: () => void;
     onConnectWorkspace?: () => void;
     onConnectApps?: () => void;
     onActNow?: () => void;
@@ -213,6 +232,7 @@ export function ChatWithInfoPanel({
   userPhoneNumber,
   onOpenUserSettings,
   hasIncompleteOnboarding = false,
+  infoPanelFocusLayoutRequest = 0,
   coordinatorOnboarding,
   renderDockedCall,
 }: ChatWithInfoPanelProps) {
@@ -235,26 +255,14 @@ export function ChatWithInfoPanel({
   const [infoPanelWidth, setInfoPanelWidth] = React.useState(INFO_PANEL_DEFAULT_WIDTH);
   const [isResizingInfoPanel, setIsResizingInfoPanel] = React.useState(false);
 
-  // Track per-assistant dismissal across the session and across tabs.
-  // The set lives in localStorage so closing the panel for assistant
-  // X stays closed on the next visit, while a brand-new assistant
-  // (never dismissed) auto-opens. Any explicit toggle from the
-  // header button mutates this set so the choice sticks.
-  const setIsInfoOpenAndPersist = React.useCallback(
-    (next: boolean) => {
-      setIsInfoOpen(next);
-      if (typeof window === 'undefined' || !assistant.agentId) return;
-      try {
-        const dismissed = readInfoPanelDismissed();
-        if (next) dismissed.delete(assistant.agentId);
-        else dismissed.add(assistant.agentId);
-        writeInfoPanelDismissed(dismissed);
-      } catch {
-        /* localStorage unavailable; in-memory state still works */
-      }
-    },
-    [assistant.agentId]
-  );
+  // The open/closed choice is a single global preference persisted in
+  // localStorage, so an explicit toggle from the header button (or the
+  // panel's close affordance) sticks across reloads, tabs, and — most
+  // importantly — switching between assistants.
+  const setIsInfoOpenAndPersist = React.useCallback((next: boolean) => {
+    setIsInfoOpen(next);
+    writeInfoPanelOpen(next);
+  }, []);
   const toggleInfo = React.useCallback(
     () => setIsInfoOpenAndPersist(!isInfoOpen),
     [isInfoOpen, setIsInfoOpenAndPersist]
@@ -283,6 +291,8 @@ export function ChatWithInfoPanel({
     },
     [getInfoPanelMaxWidth]
   );
+
+  const seededInfoFocusLayoutRequestRef = React.useRef(0);
 
   const handleInfoPanelResizeKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -355,7 +365,7 @@ export function ChatWithInfoPanel({
     // Close the info panel on mobile so the chat is unobstructed when
     // we focus its composer. On desktop the panel sits beside the chat
     // (not over it), so we leave it open.
-    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches) {
+    if (isMobileInfoPanelViewport()) {
       setIsInfoOpen(false);
     }
   }, []);
@@ -388,59 +398,115 @@ export function ChatWithInfoPanel({
     ]
   );
 
-  // Default the info panel open for any assistant the user hasn't
-  // explicitly dismissed it for (tracked per agentId in localStorage).
-  // This subsumes the previous "first view after hiring" auto-open —
-  // a freshly hired assistant has no entry in the dismissed set, so
-  // it still opens by default — but also surfaces the panel on
-  // subsequent visits to assistants the user has never closed it for.
+  // Seed the panel from the global open/closed preference. Switching
+  // between assistants re-runs this against the same shared preference,
+  // so the open/closed choice carries over from one assistant to the
+  // next (rather than being remembered per-assistant).
   //
-  // Mobile is the exception: the panel claims the full viewport
-  // width there (the chat is hidden behind it), so opening by default
-  // would hide the chat the user came to use. On mobile we always
-  // start closed and let the user toggle in explicitly. We don't
-  // touch the dismissed set in that case so resizing back to desktop
-  // restores the user's persisted choice.
-  //
-  // Switching between assistants re-evaluates against the dismissed
-  // set, so each assistant remembers its own state without any one
-  // assistant's dismissal leaking across the list.
+  // Two cases sidestep the global preference without mutating it:
+  //   - Mobile: the panel claims the full viewport width (the chat is
+  //     hidden behind it), so opening by default would hide the chat
+  //     the user came to use. We always start closed and let the user
+  //     toggle in explicitly; the global preference is left untouched so
+  //     resizing back to desktop restores it.
+  //   - The Coordinator's onboarding focus layout (fresh reload / intro
+  //     completion) is request-driven: while a request is pending we
+  //     defer to the focus effect below, which opens and maximizes the
+  //     panel. Ordinary switches to the Coordinator fall through to the
+  //     shared preference like any other assistant.
   const initializedForRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (!assistant.agentId) return;
     if (initializedForRef.current === assistant.agentId) return;
     initializedForRef.current = assistant.agentId;
-    if (typeof window === 'undefined') {
-      setIsInfoOpen(true);
+
+    // A pending onboarding focus-layout request (fresh reload / intro
+    // completion) owns opening *and* maximizing the panel; defer to that
+    // effect instead of seeding from the global preference here. This is
+    // the one path that biases the Coordinator's panel open regardless of
+    // the shared preference.
+    const isCoordinatorOnboardingPanel =
+      assistant.isCoordinator === true && hasIncompleteOnboarding;
+    const hasPendingInfoFocusLayoutRequest =
+      infoPanelFocusLayoutRequest > 0 &&
+      seededInfoFocusLayoutRequestRef.current !== infoPanelFocusLayoutRequest;
+    if (isCoordinatorOnboardingPanel && hasPendingInfoFocusLayoutRequest) return;
+
+    // Mobile always starts closed: the panel claims the full viewport
+    // width there (covering the chat the user came to use). The global
+    // preference is left untouched so resizing back to desktop restores
+    // it. The breakpoint matches the Tailwind `sm` boundary used by the
+    // layout below (`hidden sm:flex`).
+    if (isMobileInfoPanelViewport()) {
+      setIsInfoOpen(false);
       return;
     }
-    // Mobile breakpoint matches the Tailwind `sm` boundary used by
-    // the layout below (`hidden sm:flex`) so the auto-open rule and
-    // the responsive layout agree on what counts as "mobile".
-    const isMobile = window.matchMedia('(max-width: 639px)').matches;
-    if (isMobile) {
-      // The Coordinator's onboarding checklist lives in this card, and a
-      // phone has no room for a side-by-side panel — so surface the card
-      // full-width by default while onboarding is still outstanding,
-      // mirroring the old onboarding layout's always-visible checklist.
-      // Other assistants (and a finished Coordinator) keep chat-first.
-      // A prior dismissal is still honoured so it doesn't fight the user.
-      const dismissed = readInfoPanelDismissed();
-      const surfaceCoordinatorOnboarding =
-        assistant.isCoordinator === true &&
-        hasIncompleteOnboarding &&
-        !dismissed.has(assistant.agentId);
-      setIsInfoOpen(surfaceCoordinatorOnboarding);
+
+    // Everything else — including the Coordinator on an ordinary switch —
+    // mirrors the single global open/closed preference (which defaults
+    // open), so an explicit toggle carries across assistants.
+    setIsInfoOpen(readInfoPanelOpen());
+  }, [
+    assistant.agentId,
+    assistant.isCoordinator,
+    hasIncompleteOnboarding,
+    infoPanelFocusLayoutRequest,
+  ]);
+
+  React.useEffect(() => {
+    if (infoPanelFocusLayoutRequest <= 0) return;
+    if (assistant.isCoordinator !== true || !hasIncompleteOnboarding) return;
+    if (seededInfoFocusLayoutRequestRef.current === infoPanelFocusLayoutRequest) return;
+
+    // On mobile the focus layout would cover the docked call/chat surface,
+    // so we consume the request without auto-opening the panel.
+    if (isMobileInfoPanelViewport()) {
+      seededInfoFocusLayoutRequestRef.current = infoPanelFocusLayoutRequest;
+      setIsInfoOpen(false);
       return;
     }
-    const dismissed = readInfoPanelDismissed();
-    setIsInfoOpen(!dismissed.has(assistant.agentId));
-  }, [assistant.agentId, assistant.isCoordinator, hasIncompleteOnboarding]);
+
+    // Open transiently for the onboarding focus layout. We deliberately
+    // don't persist here: this is a request-driven override of the global
+    // preference, not the user choosing to open the panel, so it must not
+    // flip the shared open/closed state for every other assistant.
+    setIsInfoOpen(true);
+
+    const maximizeInfoPanel = () => {
+      const maxWidth = getInfoPanelMaxWidth();
+      if (!Number.isFinite(maxWidth)) return false;
+      setInfoPanelWidthWithinBounds(maxWidth);
+      return true;
+    };
+
+    if (maximizeInfoPanel()) {
+      seededInfoFocusLayoutRequestRef.current = infoPanelFocusLayoutRequest;
+      return;
+    }
+
+    const container = infoPanelContainerRef.current;
+    if (!container || typeof ResizeObserver === 'undefined') return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (maximizeInfoPanel()) {
+        seededInfoFocusLayoutRequestRef.current = infoPanelFocusLayoutRequest;
+        resizeObserver.disconnect();
+      }
+    });
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, [
+    assistant.isCoordinator,
+    getInfoPanelMaxWidth,
+    hasIncompleteOnboarding,
+    infoPanelFocusLayoutRequest,
+    setInfoPanelWidthWithinBounds,
+  ]);
 
   const { voiceCalls } = useFeatures();
   const isInThisCall = activeCallAssistantId === assistant.agentId;
   const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
-  // Disable the call buttons whenever ANY call is active —
+  // Disable the call button whenever ANY call is active —
   // same-assistant in another slot (the docked call lives in the
   // primary slot only, see ``RightPaneContainer``) or a different
   // assistant entirely. The compose path is unreachable in both
@@ -449,7 +515,7 @@ export function ChatWithInfoPanel({
   const isCallButtonDisabled =
     !voiceCalls || isAnotherCallActive || isInThisCall || (isSpendingBlocked && !isInThisCall);
 
-  const callButtonTooltip = (type: 'audio' | 'video') =>
+  const callButtonTooltip = () =>
     !voiceCalls
       ? "Voice calls aren't enabled on this deployment"
       : isInThisCall && isConnectingCall
@@ -460,9 +526,11 @@ export function ChatWithInfoPanel({
             ? spendingBlockedMessage || 'Spending limit reached'
             : isAnotherCallActive
               ? 'Another call is in progress'
-              : type === 'audio'
-                ? 'Start audio call'
-                : 'Start video call';
+              : 'Call';
+
+  const startAudioCall = React.useCallback(() => {
+    onStartCall(assistant, 'audio');
+  }, [assistant, onStartCall]);
 
   const chatPanel = (
     <AssistantProfileChatPanel
@@ -485,6 +553,9 @@ export function ChatWithInfoPanel({
       searchOpen={searchOpen}
       onSearchOpenChange={setSearchOpen}
       draftSeed={draftSeed}
+      onAssistantAvatarStartCall={startAudioCall}
+      isAssistantAvatarStartCallDisabled={isCallButtonDisabled}
+      assistantAvatarStartCallTooltip={callButtonTooltip()}
     />
   );
   const infoPanelStyle = React.useMemo<React.CSSProperties>(
@@ -494,7 +565,7 @@ export function ChatWithInfoPanel({
 
   return (
     <div className="flex h-full w-full flex-col">
-      {/* Sub-header: chat search + call buttons + info toggle.
+      {/* Sub-header: chat search + call button + info toggle.
           `py-2` (rather than `py-1.5`) is load-bearing in split mode —
           it matches the LiveActionsHeader's vertical padding so that
           when Chat is in one slot and Actions in the other, the bottom
@@ -517,7 +588,7 @@ export function ChatWithInfoPanel({
           />
         </div>
         <div className="flex items-center gap-0.5">
-          {/* Call buttons stay visible even when voice calls aren't configured
+          {/* The call button stays visible even when voice calls aren't configured
               on the deployment — they're disabled with an explanatory tooltip
               instead of hidden. The span wrapper is load-bearing: a disabled
               Button has `pointer-events-none`, so the tooltip has to trigger
@@ -531,7 +602,7 @@ export function ChatWithInfoPanel({
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={() => onStartCall(assistant, 'audio')}
+                    onClick={startAudioCall}
                     disabled={isCallButtonDisabled}
                     data-testid="call-audio-button"
                   >
@@ -544,29 +615,7 @@ export function ChatWithInfoPanel({
                 </span>
               </TooltipTrigger>
               <TooltipContent side="top">
-                <p>{callButtonTooltip('audio')}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => onStartCall(assistant, 'video')}
-                    disabled={isCallButtonDisabled}
-                    data-testid="call-video-button"
-                  >
-                    <Video className="h-4 w-4" />
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>{callButtonTooltip('video')}</p>
+                <p>{callButtonTooltip()}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -661,6 +710,9 @@ export function ChatWithInfoPanel({
               roadmap={roadmap}
               canWrite={canWrite}
               coordinatorOnboarding={coordinatorOnboarding}
+              onStartCall={onStartCall}
+              isStartCallDisabled={isCallButtonDisabled}
+              startCallTooltip={callButtonTooltip()}
             />
           </ChatSidePanel>
         )}

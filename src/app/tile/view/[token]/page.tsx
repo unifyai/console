@@ -11,12 +11,13 @@ import { fetchTileData } from '@/lib/tileData';
 import { TileViewer } from '@/components/Pages/Tile/TileViewer';
 
 interface PageProps {
-  params: { token: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const result = await fetchTileData(params.token);
+  const { token } = await params;
+  const result = await fetchTileData(token);
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://console.unify.ai';
 
@@ -28,7 +29,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const title = result.data.title || 'Tile View';
-  const pageUrl = `${baseUrl}/tile/view/${params.token}`;
+  const pageUrl = `${baseUrl}/tile/view/${token}`;
 
   return {
     title,
@@ -96,8 +97,10 @@ function ErrorMessage({ message }: { message: string }) {
 }
 
 export default async function TileViewPage({ params, searchParams }: PageProps) {
-  const result = await fetchTileData(params.token);
-  const embed = searchParams.embed === 'true';
+  const { token } = await params;
+  const resolvedSearchParams = await searchParams;
+  const result = await fetchTileData(token);
+  const embed = resolvedSearchParams.embed === 'true';
 
   if (!result.success) {
     if (result.error.status === 404) {
@@ -115,7 +118,7 @@ export default async function TileViewPage({ params, searchParams }: PageProps) 
   return (
     <main className="brand-page-stencil-bg h-screen overflow-hidden bg-background">
       <TileViewer
-        token={params.token}
+        token={token}
         title={data.title}
         htmlContent={data.htmlContent}
         hasDataBindings={data.hasDataBindings}

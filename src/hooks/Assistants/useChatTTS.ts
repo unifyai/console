@@ -42,6 +42,7 @@ interface UseChatTTSProps {
 export function useChatTTS({ voiceId, voiceProvider, generateSpeechAction }: UseChatTTSProps) {
   const [playingMessageId, setPlayingMessageId] = React.useState<string | null>(null);
   const [generatingMessageId, setGeneratingMessageId] = React.useState<string | null>(null);
+  const [audioElement, setAudioElement] = React.useState<HTMLAudioElement | null>(null);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const cacheRef = React.useRef(new Map<string, string>());
 
@@ -53,6 +54,7 @@ export function useChatTTS({ voiceId, voiceProvider, generateSpeechAction }: Use
         toast.error('Error playing audio.');
         setPlayingMessageId(null);
       };
+      setAudioElement(audioRef.current);
     }
     const cache = cacheRef.current;
     return () => {
@@ -153,5 +155,5 @@ export function useChatTTS({ voiceId, voiceProvider, generateSpeechAction }: Use
 
   const hasVoice = Boolean(voiceId && voiceProvider && generateSpeechAction);
 
-  return { playMessage, stopPlayback, getAudioState, hasVoice };
+  return { playMessage, stopPlayback, getAudioState, hasVoice, audioElement };
 }

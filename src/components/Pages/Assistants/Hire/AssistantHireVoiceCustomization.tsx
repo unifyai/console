@@ -53,7 +53,8 @@ interface VoiceCustomizationProps {
   disabled?: boolean;
   onProcessingStateChange?: (isProcessing: boolean) => void;
   onPreviewPlayingChange?: (isPlaying: boolean) => void;
-  onPreviewSpeechLevelChange?: (level: number) => void;
+  onPreviewAudioElementChange?: (audioElement: HTMLAudioElement | null) => void;
+  onPlaySelectedVoicePreviewChange?: (playSelectedVoicePreview: (() => void) | null) => void;
   allDisplayableVoices: VoiceOption[];
   isLoadingUserVoices: boolean;
   fetchUserVoices: () => void;
@@ -172,7 +173,8 @@ export function VoiceCustomization({
   activeTab: activeMainTab,
   setActiveTab: setActiveMainTab,
   onPreviewPlayingChange,
-  onPreviewSpeechLevelChange,
+  onPreviewAudioElementChange,
+  onPlaySelectedVoicePreviewChange,
 }: VoiceCustomizationProps) {
   const [selectedVoiceId, setSelectedVoiceId] = React.useState<string | null>(initialVoiceId);
 
@@ -242,14 +244,32 @@ export function VoiceCustomization({
     }
   }, [isProcessingCreate, isGeneratingPreviews, onProcessingStateChange]);
 
-  const { playPreview, isLoadingPreviewForVoiceId, isPlayingPreviewForVoiceId } = useTTSPreview({
+  const {
+    playPreview,
+    isLoadingPreviewForVoiceId,
+    isPlayingPreviewForVoiceId,
+    previewAudioElement,
+  } = useTTSPreview({
     generateSpeechAction: assistantActions.voice.generate,
-    onSpeechLevelChange: onPreviewSpeechLevelChange,
   });
 
   React.useEffect(() => {
     onPreviewPlayingChange?.(Boolean(isPlayingPreviewForVoiceId));
   }, [isPlayingPreviewForVoiceId, onPreviewPlayingChange]);
+
+  React.useEffect(() => {
+    onPreviewAudioElementChange?.(previewAudioElement);
+  }, [onPreviewAudioElementChange, previewAudioElement]);
+
+  const playSelectedVoicePreview = React.useCallback(() => {
+    if (!selectedVoice) return;
+    playPreview(selectedVoice, { restart: true });
+  }, [playPreview, selectedVoice]);
+
+  React.useEffect(() => {
+    onPlaySelectedVoicePreviewChange?.(selectedVoice ? playSelectedVoicePreview : null);
+    return () => onPlaySelectedVoicePreviewChange?.(null);
+  }, [onPlaySelectedVoicePreviewChange, playSelectedVoicePreview, selectedVoice]);
 
   const handleSelectVoiceDisplay = React.useCallback(
     (voice: VoiceOption | null) => {

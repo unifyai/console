@@ -12,13 +12,18 @@ Browser-based end-to-end tests that validate **complete user flows** through the
 
 ## Local Setup
 
+> **This is the E2E dev/test harness, not the way to run the product.** To run
+> the whole system locally, use **`droid stack up`** from the
+> [droid repo](https://github.com/unifyai/droid) (see its
+> [self-host docs](https://github.com/unifyai/droid/blob/staging/deploy/selfhost/README.md)).
+> The seeded harness below exists for Console E2E tests.
+
 E2E tests run against the full local stack. No cloud credentials, external API keys, or third-party services are required — the system automatically stubs everything that isn't available locally.
 
 ### Prerequisites
 
-1. **Orchestra + PostgreSQL** — start via `scripts/local.sh` in the Orchestra repo. This sets `ORCHESTRA_ENVIRONMENT=dev`, which activates server-side stubs for all external services.
-2. **Console** — start via `npm run dev` in this repo.
-3. **Docker** — required for PostgreSQL access (seed helpers use `docker exec psql`).
+1. **Console + Orchestra + PostgreSQL** — start everything with `./scripts/local.sh start` in **this** repo (it brings up PostgreSQL, Orchestra in `ORCHESTRA_ENVIRONMENT=dev` with all external-service stubs active, seeds data, and Console). You do not need to start Orchestra or `npm run dev` separately.
+2. **Docker** — required for PostgreSQL access (seed helpers use `docker exec psql`).
 
 ### How services are stubbed locally
 
@@ -80,7 +85,7 @@ src/tests/
 # One command — starts PostgreSQL, Orchestra, seeds, and Console:
 ./scripts/local.sh start
 
-# Or with chat support (Pub/Sub emulator + local Unity gateway):
+# Or with chat support (Pub/Sub emulator + local Droid gateway):
 ./scripts/local.sh start --chat
 ```
 
@@ -95,13 +100,13 @@ For full local chat smoke tests, configure the local gateway first:
 ```bash
 ./scripts/local.sh gateway-setup
 ./scripts/local.sh gateway-doctor --check-credentials
-./scripts/local.sh gateway-urls --public-url "$UNITY_GATEWAY_PUBLIC_URL"
+./scripts/local.sh gateway-urls --public-url "$DROID_GATEWAY_PUBLIC_URL"
 ./scripts/local.sh start --chat --echo --seed personal-workspace-multi
 ```
 
 `--echo` keeps the smoke independent of LLM/provider credentials. Real provider
 channels still require provider accounts, API keys, and public HTTPS callback
-URLs configured through the Unity gateway wizard.
+URLs configured through the Droid gateway wizard.
 
 See `./scripts/local.sh help` for all options.
 
@@ -165,9 +170,9 @@ This means calls simulate a connected session, file uploads go to `/tmp`, and al
 2. Open `index.html` locally — it contains screenshots, traces, and step-by-step logs
 3. Check `test-logs-<suite>` for Console and Orchestra server logs
 
-### Communication & Unity in CI
+### Communication & Droid in CI
 
-Communication adapters and Unity (the conversation manager) are **not** started in CI. Chat tests verify the sending side (message appears in UI) and database persistence. Assistant responses that would come through Unity are not expected in CI.
+Communication adapters and Droid (the conversation manager) are **not** started in CI. Chat tests verify the sending side (message appears in UI) and database persistence. Assistant responses that would come through Droid are not expected in CI.
 
 To test full round-trip chat locally, use `./scripts/local.sh start --chat`.
 

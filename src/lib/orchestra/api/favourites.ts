@@ -1,20 +1,17 @@
-/**
- * Favourites-related Orchestra API calls
- *
- * This file consolidates all direct Orchestra calls for user favourites.
- * Uses the typed OpenAPI client for type-safe API calls.
- */
 'use server';
 
+import { requireUserApiKey } from '@/lib/server-action-session';
 import { Favourite } from '@/types/interfaces/grid';
 import { createOrchestraClient } from '@/lib/orchestra/client';
 
 /**
- * Get all favourites for the current user
+ * Favourites-related Orchestra API calls.
+ *
+ * Uses the typed OpenAPI client for type-safe API calls.
  */
-export const getFavourites = async (apiKey: string): Promise<Favourite[]> => {
-  'use server';
 
+export async function getFavourites(): Promise<Favourite[]> {
+  const apiKey = await requireUserApiKey();
   const client = createOrchestraClient(apiKey);
   const { data, error } = await client.GET('/v0/project/favorites');
 
@@ -24,91 +21,74 @@ export const getFavourites = async (apiKey: string): Promise<Favourite[]> => {
   }
 
   return data as unknown as Favourite[];
-};
+}
 
-/**
- * Create a new favourite for the current user
- */
-export const createFavourite = async (apiKey: string) => {
-  return async (projectName: string, icon: string, position: number) => {
-    'use server';
+export async function createFavourite(
+  projectName: string,
+  icon: string,
+  position: number
+): Promise<Favourite> {
+  const apiKey = await requireUserApiKey();
+  if (!projectName || typeof projectName !== 'string') {
+    throw new Error(`Invalid project name: ${projectName}`);
+  }
 
-    // Validate inputs
-    if (!projectName || typeof projectName !== 'string') {
-      throw new Error(`Invalid project name: ${projectName}`);
-    }
+  const resolvedIcon = !icon || typeof icon !== 'string' ? 'folder' : icon;
+  const resolvedPosition = typeof position !== 'number' ? 0 : position;
 
-    if (!icon || typeof icon !== 'string') {
-      icon = 'folder'; // Use default if invalid
-    }
+  const client = createOrchestraClient(apiKey);
+  const { data, error } = await client.POST('/v0/project/favorites', {
+    body: {
+      project_name: projectName,
+      icon: resolvedIcon,
+      position: resolvedPosition,
+    } as never,
+  });
 
-    if (typeof position !== 'number') {
-      position = 0; // Use default if invalid
-    }
+  if (error) {
+    console.error('Error in createFavourite:', error);
+    throw new Error(
+      ((error as Record<string, unknown>)?.detail as string) || 'Failed to create favourite'
+    );
+  }
 
-    const client = createOrchestraClient(apiKey);
-    const { data, error } = await client.POST('/v0/project/favorites', {
-      body: {
-        project_name: projectName,
-        icon,
-        position,
-      } as never,
-    });
+  return data as unknown as Favourite;
+}
 
-    if (error) {
-      console.error('Error in createFavourite:', error);
-      throw new Error(
-        ((error as Record<string, unknown>)?.detail as string) || 'Failed to create favourite'
-      );
-    }
+export async function updateFavourite(
+  id: number,
+  updates: { icon?: string; position?: number }
+): Promise<Favourite> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { data, error } = await client.PATCH('/v0/project/favorites/{id}', {
+    params: { path: { id } },
+    body: updates as never,
+  });
 
-    return data as unknown as Favourite;
-  };
-};
+  if (error) {
+    console.error('Error in updateFavourite:', error);
+    throw new Error(
+      ((error as Record<string, unknown>)?.detail as string) || 'Failed to update favourite'
+    );
+  }
 
-/**
- * Update an existing favourite
- */
-export const updateFavourite = async (apiKey: string) => {
-  return async (id: number, updates: { icon?: string; position?: number }) => {
-    'use server';
+  return data as unknown as Favourite;
+}
 
-    const client = createOrchestraClient(apiKey);
-    const { data, error } = await client.PATCH('/v0/project/favorites/{id}', {
-      params: { path: { id } },
-      body: updates as never,
-    });
+export async function deleteFavourite(id: number): Promise<boolean> {
+  const apiKey = await requireUserApiKey();
+  const client = createOrchestraClient(apiKey);
+  const { error, response } = await client.DELETE('/v0/project/favorites/{id}', {
+    params: { path: { id } },
+  });
 
-    if (error) {
-      console.error('Error in updateFavourite:', error);
-      throw new Error(
-        ((error as Record<string, unknown>)?.detail as string) || 'Failed to update favourite'
-      );
-    }
+  if (error) {
+    console.error('Error in deleteFavourite:', error);
+    throw new Error(
+      ((error as Record<string, unknown>)?.detail as string) || 'Failed to delete favourite'
+    );
+  }
 
-    return data as unknown as Favourite;
-  };
-};
-
-/**
- * Delete a favourite
- */
-export const deleteFavourite = async (apiKey: string) => {
-  return async (id: number) => {
-    'use server';
-
-    const client = createOrchestraClient(apiKey);
-    const { error, response } = await client.DELETE('/v0/project/favorites/{id}', {
-      params: { path: { id } },
-    });
-
-    if (error) {
-      console.error('Error in deleteFavourite:', error);
-      throw new Error(
-        ((error as Record<string, unknown>)?.detail as string) || 'Failed to delete favourite'
-      );
-    }
-
-    return response?.ok ?? true;
-  };
-};
+  return response?.ok ?? true;
+}

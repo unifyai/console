@@ -32,6 +32,8 @@ import {
   getLinkedDesktopIds,
   getDesktopLinkCount,
   getAssistantSecretNames,
+  userDesktopExists,
+  getUserDesktopName,
   ensureProjectSync,
 } from './helpers';
 
@@ -125,6 +127,28 @@ test('shows the currently-linked machine and unlinks only that assistant', async
   expect(getDesktopLinkCount(macbook.id)).toBe(1);
 });
 
+test('renames a registered desktop from the linker row', async ({ authedPage: page }) => {
+  const newName = "Owner's MacBook Pro";
+
+  await navigateForLinker(page);
+  await openDesktopLinker(page, alan.agentId);
+
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText("Owner's MacBook");
+
+  // Open the rename popover for this desktop and submit a new name.
+  await page.getByTestId(`desktop-rename-${macbook.id}`).click();
+  const input = page.getByTestId('desktop-rename-input');
+  await expect(input).toBeVisible();
+  await input.fill(newName);
+  await page.getByTestId('desktop-rename-save').click();
+
+  await expect(page.getByText('Desktop renamed')).toBeVisible({ timeout: 10_000 });
+
+  // DB: the friendly name is persisted.
+  await expect.poll(() => getUserDesktopName(macbook.id), { timeout: 10_000 }).toBe(newName);
+});
+
 test('saves the macOS user password as a per-assistant secret', async ({ authedPage: page }) => {
   // Precondition: the assistant has no macOS password secret yet.
   expect(await getAssistantSecretNames(user.apiKey, user.id, alan.agentId)).not.toContain(
@@ -155,4 +179,27 @@ test('saves the macOS user password as a per-assistant secret', async ({ authedP
   await expect
     .poll(() => getAssistantSecretNames(user.apiKey, user.id, alan.agentId), { timeout: 10_000 })
     .toContain('MACOS_USER_DESKTOP_PASSWORD');
+});
+
+test('deletes a registered desktop and clears its links', async ({ authedPage: page }) => {
+  // Precondition: the machine still exists and is linked to Alan.
+  expect(userDesktopExists(macbook.id)).toBe(true);
+  expect(getLinkedDesktopIds(alan.agentId, user.id)).toEqual([macbook.id]);
+
+  await navigateForLinker(page);
+  await openDesktopLinker(page, alan.agentId);
+
+  await page.getByTestId(`desktop-delete-${macbook.id}`).click();
+
+  // Confirm in the AlertDialog.
+  const confirm = page.getByTestId('desktop-delete-confirm');
+  await expect(confirm).toBeVisible();
+  await confirm.click();
+
+  await expect(page.getByText('Desktop deleted')).toBeVisible({ timeout: 10_000 });
+
+  // DB: the desktop row and every assignment are gone (FK cascade).
+  await expect.poll(() => userDesktopExists(macbook.id), { timeout: 10_000 }).toBe(false);
+  expect(getLinkedDesktopIds(alan.agentId, user.id)).toEqual([]);
+  expect(getDesktopLinkCount(macbook.id)).toBe(0);
 });

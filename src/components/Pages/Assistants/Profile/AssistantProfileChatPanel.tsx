@@ -89,6 +89,9 @@ interface AssistantProfileChatPanelProps {
    * input value in a one-way external prop.
    */
   draftSeed?: { text: string; nonce: number } | null;
+  onAssistantAvatarStartCall?: () => void;
+  isAssistantAvatarStartCallDisabled?: boolean;
+  assistantAvatarStartCallTooltip?: string;
   /**
    * Force the assistant-replying typing bubble to render even when
    * no real reply is in flight. Used by the Coordinator onboarding
@@ -121,12 +124,15 @@ export function AssistantProfileChatPanel({
   searchOpen: externalSearchOpen,
   onSearchOpenChange,
   draftSeed,
+  onAssistantAvatarStartCall,
+  isAssistantAvatarStartCallDisabled,
+  assistantAvatarStartCallTooltip,
   forceTypingIndicator = false,
 }: AssistantProfileChatPanelProps) {
   const displayName = assistantDisplayName(assistant);
   const photoSrc = assistant.signedProfilePhotoUrl || assistant.profilePhoto || undefined;
 
-  const { playMessage, stopPlayback, getAudioState, hasVoice } = useChatTTS({
+  const { playMessage, stopPlayback, getAudioState, hasVoice, audioElement } = useChatTTS({
     voiceId: assistant.voiceId,
     voiceProvider: assistant.voiceProvider,
     generateSpeechAction: assistantActions.voice?.generate,
@@ -741,6 +747,9 @@ export function AssistantProfileChatPanel({
                             timezone={userTimezone}
                             index={i}
                             attachments={item.attachments}
+                            onAssistantAvatarStartCall={onAssistantAvatarStartCall}
+                            isAssistantAvatarStartCallDisabled={isAssistantAvatarStartCallDisabled}
+                            assistantAvatarStartCallTooltip={assistantAvatarStartCallTooltip}
                           />
                         </div>
                       </React.Fragment>
@@ -806,6 +815,7 @@ export function AssistantProfileChatPanel({
                   // bails out on keystrokes — the bubble builds its own
                   // onClick handler from `messageId` + `message`.
                   const audioEnabled = hasVoice && msg.role === 'assistant' && !!msg.content;
+                  const audioState = audioEnabled ? getAudioState(msg.id) : undefined;
                   return (
                     <React.Fragment key={msg.id}>
                       {showDivider && (
@@ -824,7 +834,11 @@ export function AssistantProfileChatPanel({
                         messageId={msg.id}
                         onPlayAudio={audioEnabled ? playMessage : undefined}
                         onStopAudio={audioEnabled ? stopPlayback : undefined}
-                        audioState={audioEnabled ? getAudioState(msg.id) : undefined}
+                        audioState={audioState}
+                        audioElement={audioState === 'playing' ? audioElement : null}
+                        onAssistantAvatarStartCall={onAssistantAvatarStartCall}
+                        isAssistantAvatarStartCallDisabled={isAssistantAvatarStartCallDisabled}
+                        assistantAvatarStartCallTooltip={assistantAvatarStartCallTooltip}
                       />
                     </React.Fragment>
                   );
@@ -838,6 +852,9 @@ export function AssistantProfileChatPanel({
                     isCoordinator={assistant.isCoordinator}
                     isLoading={true}
                     index={messages.length}
+                    onAssistantAvatarStartCall={onAssistantAvatarStartCall}
+                    isAssistantAvatarStartCallDisabled={isAssistantAvatarStartCallDisabled}
+                    assistantAvatarStartCallTooltip={assistantAvatarStartCallTooltip}
                   />
                 )}
               </>

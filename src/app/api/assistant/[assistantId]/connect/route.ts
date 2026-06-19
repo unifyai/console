@@ -11,7 +11,11 @@ import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
  * Initiates an OAuth flow for BYOD account connection.  Accepts
  * { provider, features, redirect_after } and returns { oauth_url }.
  */
-export async function POST(request: NextRequest, { params }: { params: { assistantId: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ assistantId: string }> }
+) {
+  const { assistantId } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
@@ -24,11 +28,11 @@ export async function POST(request: NextRequest, { params }: { params: { assista
     return badRequest('Invalid JSON body for connect');
   }
 
-  const assistantId = parseInt(params.assistantId, 10);
+  const assistantIdNum = parseInt(assistantId, 10);
   const client = await getOrchestraUserClient(apiKey);
 
   try {
-    const response = await client.post(`/assistant/${assistantId}/connect`, requestBody);
+    const response = await client.post(`/assistant/${assistantIdNum}/connect`, requestBody);
     return NextResponse.json(response.data ?? { success: true }, { status: response.status });
   } catch (e: unknown) {
     if (e instanceof AxiosError && e.response) {
@@ -54,18 +58,19 @@ export async function POST(request: NextRequest, { params }: { params: { assista
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { assistantId: string } }
+  { params }: { params: Promise<{ assistantId: string }> }
 ) {
+  const { assistantId } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
   }
 
-  const assistantId = parseInt(params.assistantId, 10);
+  const assistantIdNum = parseInt(assistantId, 10);
   const orchestraUrl = process.env.ORCHESTRA_URL || 'https://api.unify.ai';
 
   try {
-    const response = await fetch(`${orchestraUrl}/v0/assistant/${assistantId}/connect`, {
+    const response = await fetch(`${orchestraUrl}/v0/assistant/${assistantIdNum}/connect`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',

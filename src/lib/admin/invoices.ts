@@ -65,32 +65,29 @@ const safeFetch = async (url: string, options: RequestInit, context: string): Pr
  * `includeUpcoming !== false`. Subsequent pages return historical
  * rows only, since UPCOMING rows have no stable id to cursor against.
  */
-export async function listAdminInvoicesAction() {
-  return async (
-    filters?: AdminInvoiceListFilters
-  ): Promise<AdminInvoiceListResponse | ResponseProps> => {
-    'use server';
-    const denied = await requireUnifyAdmin();
-    if (denied) return denied;
-    const params = new URLSearchParams();
-    if (filters?.limit !== undefined) params.set('limit', String(filters.limit));
-    if (filters?.offset !== undefined) params.set('offset', String(filters.offset));
-    if (filters?.status) params.set('status', filters.status);
-    if (filters?.currency) params.set('currency', filters.currency);
-    if (filters?.planTemplateId !== undefined) {
-      params.set('plan_template_id', String(filters.planTemplateId));
-    }
-    if (filters?.fromDate) params.set('from_date', filters.fromDate);
-    if (filters?.toDate) params.set('to_date', filters.toDate);
-    if (filters?.q) params.set('q', filters.q);
-    if (filters?.includeUpcoming !== undefined) {
-      params.set('include_upcoming', String(filters.includeUpcoming));
-    }
-    const qs = params.toString();
-    return safeFetch(
-      `${backendUrl}/admin/invoices${qs ? `?${qs}` : ''}`,
-      { method: 'GET', headers: adminHeaders },
-      'listAdminInvoices'
-    ) as Promise<AdminInvoiceListResponse | ResponseProps>;
-  };
+export async function listAdminInvoicesAction(
+  filters?: AdminInvoiceListFilters
+): Promise<AdminInvoiceListResponse | ResponseProps> {
+  const denied = await requireUnifyAdmin();
+  if (denied) return denied;
+  const params = new URLSearchParams();
+  if (filters?.limit !== undefined) params.set('limit', String(filters.limit));
+  if (filters?.offset !== undefined) params.set('offset', String(filters.offset));
+  if (filters?.status) params.set('status', filters.status);
+  if (filters?.currency) params.set('currency', filters.currency);
+  if (filters?.planTemplateId !== undefined) {
+    params.set('plan_template_id', String(filters.planTemplateId));
+  }
+  if (filters?.fromDate) params.set('from_date', filters.fromDate);
+  if (filters?.toDate) params.set('to_date', filters.toDate);
+  if (filters?.q) params.set('q', filters.q);
+  if (filters?.includeUpcoming !== undefined) {
+    params.set('include_upcoming', String(filters.includeUpcoming));
+  }
+  const qs = params.toString();
+  return safeFetch(
+    `${backendUrl}/admin/invoices${qs ? `?${qs}` : ''}`,
+    { method: 'GET', headers: adminHeaders },
+    'listAdminInvoices'
+  ) as Promise<AdminInvoiceListResponse | ResponseProps>;
 }

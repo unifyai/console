@@ -3,10 +3,15 @@
 import * as React from 'react';
 import { motion } from 'framer-motion';
 import type { Transition } from 'framer-motion';
-import { AnimatedDroid, getCreatureAccent, getCreatureForm } from '@droid/brand/components';
-import type { BrandRole, CreatureShape } from '@/components/Brand/shapes';
+import {
+  AnimatedDroid,
+  MARTY_CREATURE_APPEARANCE,
+  getCreatureAccent,
+  getDroidBodyForm,
+} from '@droid/brand/components';
+import type { BrandRole } from '@/components/Brand/shapes';
+import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
 import type {
-  BotSkin,
   CreatureAntenna,
   CreatureEyes,
   CreatureMood,
@@ -29,10 +34,10 @@ interface DroidCallAvatarProps {
   layoutId?: string;
   layoutTransition?: Transition;
   antenna?: CreatureAntenna;
-  shape?: CreatureShape;
+  body?: DroidBody;
   color?: BrandRole;
   baseEyes?: CreatureEyes;
-  skin?: BotSkin;
+  outfit?: DroidOutfit;
   label?: string;
   /** When true the droid rests in an isometric 3/4 view and turns to camera while the call is active. */
   isometricRest?: boolean;
@@ -53,11 +58,11 @@ export function DroidCallAvatar({
   creatureClassName,
   layoutId,
   layoutTransition,
-  antenna,
-  shape = 'clawd',
+  antenna = MARTY_CREATURE_APPEARANCE.antenna,
+  body = 'standard',
   color = 'green',
   baseEyes = 'up',
-  skin,
+  outfit = 'none',
   label = 'Marty',
   isometricRest = false,
   teleportInOnMount = false,
@@ -80,7 +85,7 @@ export function DroidCallAvatar({
       active={active}
       disableSpeechMotion={!animateBodyMotion}
       fixed={fixed}
-      form={getCreatureForm(shape)}
+      form={getDroidBodyForm(body)}
       emotion={mood}
       isSpeaking={isSpeaking}
       isUserSpeaking={isUserSpeaking}
@@ -88,7 +93,7 @@ export function DroidCallAvatar({
       stableBox
       speechLevel={displayedSpeechLevel}
       mouthShape={displayedMouthShape}
-      skin={skin}
+      skin={outfit}
     />
   );
 

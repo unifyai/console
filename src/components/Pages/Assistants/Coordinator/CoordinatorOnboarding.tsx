@@ -48,8 +48,10 @@ import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { notifyOnboardingSessionStarted } from '@/lib/client/coordinator';
 import type { Assistant, AssistantCallConnectOptions } from '@/types/assistants/assistant';
+import { toast } from 'sonner';
 
 type OnboardingPhase = 'picker' | 'intro';
+type CallStartFailureBehavior = 'picker' | 'dismiss';
 type IntroAvatarOffset = { x: number; y: number };
 
 interface CoordinatorOnboardingProps {
@@ -91,28 +93,18 @@ export function CoordinatorOnboarding({
     y: -72,
   });
   const [introSkipSignal, setIntroSkipSignal] = React.useState(0);
+  const [isIntroTimelineReady, setIsIntroTimelineReady] = React.useState(false);
   // Pre-recorded intro countdown badge. ``introStartedAt`` anchors the
   // countdown clock; ``introCountdownMs`` is the wall-clock span until
   // Marty stops speaking; ``introReady`` flips when the intro finishes
   // so the badge stops counting.
-  const [introStartedAt, setIntroStartedAt] = React.useState<number | null>(
-    autoStartIntro ? Date.now() : null
-  );
-  const [introCountdownMs, setIntroCountdownMs] = React.useState(
-    autoStartIntro ? getCoordinatorIntroCountdownMs() : 0
-  );
+  const [introStartedAt, setIntroStartedAt] = React.useState<number | null>(null);
+  const [introCountdownMs, setIntroCountdownMs] = React.useState(0);
   const [introReady, setIntroReady] = React.useState(false);
   const [isStartingCall, setIsStartingCall] = React.useState(false);
+  const isBeginningIntroRef = React.useRef(false);
   const hasTriggeredCallStartRef = React.useRef(false);
   const hasCompletedRef = React.useRef(false);
-
-  // Replay path: warm up the soundscape on mount so the auto-started
-  // intro has its audio buffers ready, matching the picker's "Start Call".
-  React.useEffect(() => {
-    if (autoStartIntro) primeCoordinatorOnboardingCitySoundscape();
-    // Mount-only: ``autoStartIntro`` is fixed for the overlay's lifetime.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const { startRinging: startPickerRinging, stopRinging: stopPickerRinging } = useCallSounds();
   const isPickerVisible = phase === 'picker';
@@ -126,7 +118,7 @@ export function CoordinatorOnboarding({
     return stopPickerRinging;
   }, [isPickerVisible, startPickerRinging, stopPickerRinging]);
 
-  // Fire the picker-resolution event so Unity opens the session with the
+  // Fire the picker-resolution event so Droid opens the session with the
   // right kind of message. Best-effort: completion never blocks on it.
   const notifySessionStarted = React.useCallback(
     (medium: 'chat' | 'call') => {
@@ -146,10 +138,27 @@ export function CoordinatorOnboarding({
     [onComplete, updateState]
   );
 
+  const startIntroTimeline = React.useCallback(() => {
+    setIntroReady(false);
+    setIntroStartedAt(Date.now());
+    setIntroCountdownMs(getCoordinatorIntroCountdownMs());
+    setIsIntroTimelineReady(true);
+  }, []);
+
+  const requestMicrophoneAccess = React.useCallback(async () => {
+    if (typeof window === 'undefined') return;
+    const mediaDevices = navigator.mediaDevices;
+    if (!mediaDevices?.getUserMedia) return;
+
+    const stream = await mediaDevices.getUserMedia({ audio: true });
+    for (const track of stream.getTracks()) {
+      track.stop();
+    }
+  }, []);
+
   const triggerCoordinatorCallStart = React.useCallback(async () => {
-    if (hasTriggeredCallStartRef.current) return;
+    if (hasTriggeredCallStartRef.current) return true;
     hasTriggeredCallStartRef.current = true;
-    setIsStartingCall(true);
     try {
       await onStartCall(coordinator, 'audio', {
         suppressRinging: true,
@@ -163,38 +172,83 @@ export function CoordinatorOnboarding({
     } catch (error) {
       console.error('[CoordinatorOnboarding] Failed to start intro call:', error);
       hasTriggeredCallStartRef.current = false;
-      setPhase('picker');
-    } finally {
-      setIsStartingCall(false);
+      return false;
     }
+    return true;
   }, [coordinator, onStartCall, notifySessionStarted]);
 
+  const beginCallIntro = React.useCallback(
+    async (failureBehavior: CallStartFailureBehavior) => {
+      if (isBeginningIntroRef.current) return;
+      isBeginningIntroRef.current = true;
+      setIsStartingCall(true);
+      try {
+        try {
+          await requestMicrophoneAccess();
+        } catch (error) {
+          console.error('[CoordinatorOnboarding] Failed to access microphone:', error);
+          toast.error('Microphone access is required to start the call.');
+          isBeginningIntroRef.current = false;
+          if (failureBehavior === 'dismiss') {
+            complete('chat');
+          }
+          return;
+        }
+
+        setIntroReady(false);
+        setIntroStartedAt(null);
+        setIntroCountdownMs(0);
+        setIsIntroTimelineReady(false);
+        setPhase('intro');
+        startIntroTimeline();
+
+        void triggerCoordinatorCallStart().then((started) => {
+          if (started) return;
+          if (failureBehavior === 'picker') {
+            isBeginningIntroRef.current = false;
+            setIntroReady(false);
+            setIntroStartedAt(null);
+            setIntroCountdownMs(0);
+            setIsIntroTimelineReady(false);
+            setPhase('picker');
+            return;
+          }
+          complete('chat');
+        });
+      } finally {
+        setIsStartingCall(false);
+      }
+    },
+    [complete, requestMicrophoneAccess, startIntroTimeline, triggerCoordinatorCallStart]
+  );
+
+  // Replay path: warm up the soundscape on mount so the auto-started
+  // intro has its audio buffers ready, matching the picker's "Start Call".
+  React.useEffect(() => {
+    if (!autoStartIntro) return;
+    primeCoordinatorOnboardingCitySoundscape();
+    void beginCallIntro('dismiss');
+  }, [autoStartIntro, beginCallIntro]);
+
   const handleStartCall = React.useCallback(
-    (avatarOffset: IntroAvatarOffset) => {
+    async (avatarOffset: IntroAvatarOffset) => {
       if (phase !== 'picker') return;
       primeCoordinatorOnboardingCitySoundscape();
       setIntroAvatarOffset(avatarOffset);
       setIntroSkipSignal(0);
-      setIntroStartedAt(Date.now());
-      setIntroCountdownMs(getCoordinatorIntroCountdownMs());
-      setIntroReady(false);
-      setPhase('intro');
+      await beginCallIntro('picker');
     },
-    [phase]
+    [beginCallIntro, phase]
   );
 
   // Restart the currently-playing intro from the top. Bumping
-  // ``introStartedAt`` re-keys the intro element (forcing a clean
-  // remount of its audio + animation timeline) and re-arms the
-  // call-start trigger.
+  // ``introStartedAt`` re-keys the intro element so its audio and
+  // stage timers restart against the already-live call.
   const handleRestartIntro = React.useCallback(() => {
     primeCoordinatorOnboardingCitySoundscape();
-    hasTriggeredCallStartRef.current = false;
     setIntroSkipSignal(0);
-    setIntroReady(false);
-    setIntroStartedAt(Date.now());
-    setIntroCountdownMs(getCoordinatorIntroCountdownMs());
-  }, []);
+    startIntroTimeline();
+  }, [startIntroTimeline]);
 
   const handleSkipIntro = React.useCallback(() => {
     setIntroReady(true);
@@ -242,7 +296,7 @@ export function CoordinatorOnboarding({
         <CoordinatorOnboardingCallIntro
           key={introStartedAt ?? 'intro'}
           initialAvatarOffset={introAvatarOffset}
-          onReadyToStartCall={triggerCoordinatorCallStart}
+          timelineEnabled={isIntroTimelineReady}
           onFinished={() => complete('call')}
           skipSignal={introSkipSignal}
           onSkipped={() => setIntroReady(true)}

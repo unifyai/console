@@ -35,8 +35,7 @@ describe('@real logsCore + getLogs (Real API)', () => {
     await projectsApi.create(testProjectName);
 
     // Create some test logs
-    const createLogsFn = await createLogs(TEST_API_KEY);
-    const result = await createLogsFn(
+    const result = await createLogs(
       testProjectName,
       null, // context
       [
@@ -57,8 +56,7 @@ describe('@real logsCore + getLogs (Real API)', () => {
     // Cleanup logs
     if (createdLogIds.length > 0) {
       try {
-        const deleteLogsFn = await deleteLogs(TEST_API_KEY);
-        await deleteLogsFn(
+        await deleteLogs(
           testProjectName,
           null,
           createdLogIds.map((id) => [id, ''] as [number, string])
@@ -76,11 +74,9 @@ describe('@real logsCore + getLogs (Real API)', () => {
     '@real fetchLogsCore fetches real logs and returns correct metadata',
     realTestOptionsExtended,
     async () => {
-      const getLogsFn = await getLogs(TEST_API_KEY);
-
       const logsActions = {
         create: async () => ({ detail: 'not-used' }),
-        get: getLogsFn,
+        get: getLogs,
         getLatest: async () => '',
         getMetrics: async () => ({}),
         delete: async () => ({ detail: 'not-used' }),
@@ -124,11 +120,9 @@ describe('@real logsCore + getLogs (Real API)', () => {
   );
 
   it('@real fetchLogsCore handles pagination correctly', realTestOptionsExtended, async () => {
-    const getLogsFn = await getLogs(TEST_API_KEY);
-
     const logsActions = {
       create: async () => ({ detail: 'not-used' }),
-      get: getLogsFn,
+      get: getLogs,
       getLatest: async () => '',
       getMetrics: async () => ({}),
       delete: async () => ({ detail: 'not-used' }),
@@ -170,11 +164,9 @@ describe('@real logsCore + getLogs (Real API)', () => {
     await projectsApi.create(emptyProjectName);
 
     try {
-      const getLogsFn = await getLogs(TEST_API_KEY);
-
       const logsActions = {
         create: async () => ({ detail: 'not-used' }),
-        get: getLogsFn,
+        get: getLogs,
         getLatest: async () => '',
         getMetrics: async () => ({}),
         delete: async () => ({ detail: 'not-used' }),

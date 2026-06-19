@@ -1,7 +1,7 @@
 /**
  * Memory tab types for the assistant right pane.
  *
- * CamelCase mirrors of the Python Pydantic models in Unity's
+ * CamelCase mirrors of the Python Pydantic models in Droid's
  * contact_manager, transcript_manager, knowledge_manager,
  * task_scheduler, guidance, and function modules.
  *
@@ -56,8 +56,6 @@ export interface KnowledgeRow {
 
 export interface TaskScheduleRow {
   startAt?: string | null;
-  prevTask?: number | null;
-  nextTask?: number | null;
   [key: string]: unknown;
 }
 

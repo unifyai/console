@@ -39,7 +39,7 @@ describe('assistant system-event route', () => {
     getApiKeyFromRequestMock.mockResolvedValue(null);
 
     const response = await POST(request({ eventType: 'integration_tools_sync_requested' }), {
-      params: { assistantId: '123' },
+      params: Promise.resolve({ assistantId: '123' }),
     });
 
     expect(response.status).toBe(401);
@@ -47,7 +47,7 @@ describe('assistant system-event route', () => {
 
   it('validates eventType', async () => {
     const response = await POST(request({ message: 'missing event type' }), {
-      params: { assistantId: '123' },
+      params: Promise.resolve({ assistantId: '123' }),
     });
 
     expect(response.status).toBe(400);
@@ -72,12 +72,12 @@ describe('assistant system-event route', () => {
           operation: 'cleanup',
         },
       }),
-      { params: { assistantId: '123' } }
+      { params: Promise.resolve({ assistantId: '123' }) }
     );
 
     expect(response.status).toBe(202);
     expect(fetchSpy).toHaveBeenCalledWith(
-      'http://127.0.0.1:8081/unity/system-event',
+      'http://127.0.0.1:8081/droid/system-event',
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
@@ -105,7 +105,7 @@ describe('assistant system-event route', () => {
     );
 
     const response = await POST(request({ eventType: 'integration_tools_sync_requested' }), {
-      params: { assistantId: '123' },
+      params: Promise.resolve({ assistantId: '123' }),
     });
     const body = await response.json();
 

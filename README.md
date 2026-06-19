@@ -15,7 +15,7 @@ Console is the web UI and observability dashboard in a multi-repository system:
     └────┬───────────────────────────────┘
          │
     ┌────┴────┐    ┌─────────┐    ┌─────────┐
-    │  Unity  │    │  Unify  │    │Orchestra│
+    │  Droid  │    │  Unify  │    │Orchestra│
     │ (Brain) │───▶│  (SDK)  │───▶│  (API)  │
     │         │    │         │    │  (DB)   │
     └────┬────┘    └────┬────┘    └────┬────┘
@@ -32,8 +32,8 @@ Console is the web UI and observability dashboard in a multi-repository system:
 Related repositories:
 
 - [Orchestra](https://github.com/unifyai/orchestra) — Backend API that Console communicates with
-- [Unity](https://github.com/unifyai/unity) — AI assistant brain (operations displayed in Console)
-- [Unity Gateway](https://github.com/unifyai/unity/tree/staging/unity/gateway) — Local external communication gateway for self-hosted development
+- [Droid](https://github.com/unifyai/droid) — AI assistant brain (operations displayed in Console)
+- [Droid Gateway](https://github.com/unifyai/droid/tree/staging/droid/gateway) — Local external communication gateway for self-hosted development
 - [Unity Deploy](https://github.com/unifyai/unity-deploy) — Hosted deployment and communication infrastructure
 
 ---
@@ -133,7 +133,14 @@ poetry --version  # Any recent version
 
 ## Quick Start
 
-The fastest way to get a fully working local environment:
+> **This is an internal dev/test harness, not the product run path.** To run
+> the full local product end-to-end across all repos, use **`droid stack up`**
+> (see the [Droid self-host docs](https://github.com/unifyai/droid/blob/staging/deploy/selfhost/README.md)) — it starts Orchestra, the Droid gateway, Console (in
+> self-host mode), and the Coordinator for you. The seeded modes below exist for
+> Console development, QA, and E2E tests. To seed without starting the stack,
+> run the scenario runner directly: `npx tsx src/tests/helpers/seeds/run.ts <scenario|all|--list>`.
+
+The fastest way to get a fully working local (seeded dev) environment:
 
 ```bash
 # 1. Install dependencies
@@ -172,15 +179,15 @@ This starts a local Orchestra backend (PostgreSQL + FastAPI), seeds a test user 
 ./scripts/local.sh stop     # Stop Console and Orchestra
 ./scripts/local.sh restart  # Stop then start (wipes database)
 ./scripts/local.sh status   # Show service status
-./scripts/local.sh start --chat --echo  # Add Pub/Sub emulator + local Unity gateway
-./scripts/local.sh gateway-setup        # Run Unity gateway setup wizard
+./scripts/local.sh start --chat --echo  # Add Pub/Sub emulator + local Droid gateway
+./scripts/local.sh gateway-setup        # Run Droid gateway setup wizard
 ./scripts/local.sh gateway-doctor       # Validate local gateway config
 ./scripts/local.sh gateway-urls --public-url https://callbacks.example.com
 ```
 
-Local chat routes Console adapter calls to `unity.gateway`, not the private
+Local chat routes Console adapter calls to `droid.gateway`, not the private
 hosted `communication` repository. The wrapper commands above delegate to the
-sibling Unity repo via `UNITY_REPO_PATH` and use Console's `.env.local` by
+sibling Droid repo via `DROID_REPO_PATH` and use Console's `.env.local` by
 default. Hosted deployments may still use managed Communication infrastructure.
 
 ### Configuration
@@ -197,12 +204,12 @@ default. Hosted deployments may still use managed Communication infrastructure.
 
 ### Development
 
-| Script               | Description                                                |
-| -------------------- | ---------------------------------------------------------- |
-| `./scripts/local.sh` | Start full local environment (Orchestra + Console)         |
-| `npm run dev`        | Start Console dev server only (needs Orchestra separately) |
-| `npm run build`      | Build production bundle                                    |
-| `npm run start`      | Start production server (run after build)                  |
+| Script               | Description                                                                                              |
+| -------------------- | -------------------------------------------------------------------------------------------------------- |
+| `./scripts/local.sh` | Internal dev/test harness (Orchestra + Console + seed data). For the full product, use `droid stack up`. |
+| `npm run dev`        | Start Console dev server only (needs Orchestra separately)                                               |
+| `npm run build`      | Build production bundle                                                                                  |
+| `npm run start`      | Start production server (run after build)                                                                |
 
 ### Code Quality
 

@@ -9,15 +9,18 @@ import { Plus, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { OrganizationListItem, OrganizationListResponse } from '@/types/organization';
 import { ResponseProps } from '@/types/common';
+import type { DataSharingMode } from '@/types/organization';
+import OrganizationDataSharingChoice from './OrganizationDataSharingChoice';
 
 interface CreateOrgDialogProps {
-  onCreate: (name: string) => void;
+  onCreate: (name: string, dataSharingMode?: DataSharingMode) => void;
   checkNameAvailability: (name: string) => Promise<OrganizationListResponse | ResponseProps>;
 }
 
 const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogProps) => {
   const [open, setOpen] = useState(false);
   const [orgName, setOrgName] = useState('');
+  const [dataSharingMode, setDataSharingMode] = useState<DataSharingMode>('private');
   const [error, setError] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
 
@@ -52,9 +55,10 @@ const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogPro
       }
 
       // If valid, proceed with creation
-      onCreate(trimmedName);
+      onCreate(trimmedName, dataSharingMode);
       setOpen(false);
       setOrgName('');
+      setDataSharingMode('private');
     } catch (err) {
       console.error(err);
       setError('An unexpected error occurred.');
@@ -67,6 +71,7 @@ const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogPro
     setOpen(isOpen);
     if (!isOpen) {
       setOrgName('');
+      setDataSharingMode('private');
       setError(null);
     }
   };
@@ -101,6 +106,12 @@ const CreateOrgDialog = ({ onCreate, checkNameAvailability }: CreateOrgDialogPro
               </div>
             )}
           </div>
+          <OrganizationDataSharingChoice
+            value={dataSharingMode}
+            onChange={setDataSharingMode}
+            disabled={isValidating}
+            testIdPrefix="create-org-sharing"
+          />
           <div className="flex justify-end gap-2">
             <SecondaryButton
               label="Cancel"

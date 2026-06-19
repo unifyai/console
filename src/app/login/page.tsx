@@ -4,10 +4,12 @@ import { LayoutGroup, motion } from 'framer-motion';
 import { signIn, signOut, useSession } from 'next-auth/react';
 import { redirect, useSearchParams, useRouter } from 'next/navigation';
 import LoginFragment from '@/components/Pages/Login/LoginFragment';
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import CheckElement from '@/components/Pages/Login/CheckElement';
 import AnimatedTabs from '@/components/Common/Tabs/AnimatedTabs';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
+import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
+import { selfHostAutoLogin } from '@/lib/self-host/actions';
 const ERRORS: Record<string, string> = {
   Signin: 'Try signing with a different account.',
   OAuthSignin: 'Try signing with a different account.',
@@ -27,6 +29,7 @@ const Login = () => {
   const session = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isSelfHost } = useEnvironment();
 
   const shouldSignOut = searchParams?.get('signout') === 'true';
   const callbackUrl = searchParams?.get('callbackUrl');
@@ -69,6 +72,13 @@ const Login = () => {
   const [tab, setTab] = useState<'login' | 'loading' | 'check'>('login');
   const [error, setError] = useState<string | undefined>(searchErrorMessage);
 
+  // Self-host single-owner auto-login: once an account exists locally, sign the
+  // owner in automatically (no password, no click). Start in the
+  // "signing in" state on self-host so the create/sign-in form never flashes
+  // before we know whether an account exists.
+  const [selfHostAutoLoggingIn, setSelfHostAutoLoggingIn] = useState(isSelfHost && !shouldSignOut);
+  const selfHostAutoLoginAttempted = useRef(false);
+
   // Persist the referral code as soon as we see it so it isn't lost across
   // the OAuth round-trip (localStorage survives the same-origin redirect).
   useEffect(() => {
@@ -83,6 +93,16 @@ const Login = () => {
 
   useEffect(() => {
     if (!shouldSignOut) return;
+
+    // An explicit sign-out is the escape hatch from auto-login: remember it for
+    // this tab so we don't immediately sign the owner back in.
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('sh_suppress_autologin', '1');
+      } catch {
+        // sessionStorage may be unavailable in some contexts
+      }
+    }
 
     if (session.status === 'authenticated') {
       // Session exists but backend user is gone — clear the JWT cookie
@@ -103,6 +123,39 @@ const Login = () => {
     // While session.status === 'loading', we wait
   }, [shouldSignOut, session.status, router, creditToken]);
 
+  // Self-host: attempt passwordless auto-login for the recorded local owner.
+  // Resolves the `selfHostAutoLoggingIn` loader either by redirecting (success)
+  // or by falling through to the create-account screen (no/stale account).
+  useEffect(() => {
+    if (!isSelfHost) return;
+    if (shouldSignOut) {
+      setSelfHostAutoLoggingIn(false);
+      return;
+    }
+    if (session.status === 'loading') return; // wait for session resolution
+    if (session.status === 'authenticated') return; // render-time redirect handles it
+    if (selfHostAutoLoginAttempted.current) return;
+
+    if (typeof window !== 'undefined' && sessionStorage.getItem('sh_suppress_autologin') === '1') {
+      setSelfHostAutoLoggingIn(false);
+      return;
+    }
+
+    selfHostAutoLoginAttempted.current = true;
+    setSelfHostAutoLoggingIn(true);
+    (async () => {
+      const result = await selfHostAutoLogin();
+      if (result.ok) {
+        const dest = callbackUrl && callbackUrl.startsWith('/') ? callbackUrl : '/assistants';
+        window.location.href = dest;
+      } else {
+        // No account yet (first run) or a stale/unreachable owner — show the
+        // create-account screen.
+        setSelfHostAutoLoggingIn(false);
+      }
+    })();
+  }, [isSelfHost, shouldSignOut, session.status, callbackUrl]);
+
   // Redirect authenticated users — but NOT if we're in the middle of signing
   // them out due to a deleted backend account.  Honour the callbackUrl
   // (which may contain a credit-grant token) so the token survives.
@@ -118,6 +171,16 @@ const Login = () => {
 
   // Show a loader while we're clearing a stale session
   if (isSigningOut) {
+    return (
+      <div className="m-auto flex items-center justify-center">
+        <LoadingElement />
+      </div>
+    );
+  }
+
+  // Self-host: while we attempt passwordless auto-login, show a loader instead
+  // of flashing the create/sign-in form.
+  if (isSelfHost && selfHostAutoLoggingIn) {
     return (
       <div className="m-auto flex items-center justify-center">
         <LoadingElement />

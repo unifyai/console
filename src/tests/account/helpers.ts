@@ -101,10 +101,17 @@ import { dbExec } from '../helpers/seeds/client';
 
 export function getUserFromDb(userId: string) {
   const row = dbExec(
-    `SELECT name, last_name, email, timezone, monthly_spending_cap FROM "user" WHERE id = '${userId}'`
+    `SELECT name, last_name, email, timezone, monthly_spending_cap, image FROM "user" WHERE id = '${userId}'`
   );
-  const [name, lastName, email, timezone, spendingCap] = row.split('|');
-  return { name, lastName, email, timezone, spendingCap: spendingCap || null };
+  const [name, lastName, email, timezone, spendingCap, image] = row.split('|');
+  return {
+    name,
+    lastName,
+    email,
+    timezone,
+    spendingCap: spendingCap || null,
+    image: image || null,
+  };
 }
 
 export function getUserApiKeyFromDb(userId: string, orgId?: number): string {

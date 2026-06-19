@@ -4,7 +4,7 @@ import * as React from 'react';
 import {
   AnimatedDroid,
   getCreatureAccent,
-  getCreatureForm,
+  getDroidBodyForm,
   getRotatingBotAnchorRatios,
 } from '@droid/brand/components';
 import type { CreatureMouthShape } from '@/components/Brand/TeammateCreature';
@@ -83,7 +83,7 @@ export function SeatedCoordinatorDroid({
   mouthShape?: CreatureMouthShape;
   speechLevel?: number;
 }) {
-  const form = getCreatureForm(droid.shape);
+  const form = getDroidBodyForm(droid.body);
   const anchor = getRotatingBotAnchorRatios(form);
 
   return (
@@ -102,6 +102,7 @@ export function SeatedCoordinatorDroid({
         // ``DroidCallAvatar`` hardcodes it the same way — or the voice would
         // never drive the mouth.
         active
+        antenna={droid.antenna}
         className="block h-auto w-full"
         disableSpeechMotion
         emotion={droid.mood ?? 'happy'}
@@ -110,7 +111,7 @@ export function SeatedCoordinatorDroid({
         isSpeaking={isSpeaking}
         mouthShape={mouthShape}
         restingEyes={droid.baseEyes ?? 'up'}
-        skin={droid.skin}
+        skin={droid.outfit}
         speechLevel={clampDroidSpeechLevel(speechLevel ?? 0)}
         stableBox
       />

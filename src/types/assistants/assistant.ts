@@ -12,6 +12,11 @@ import {
   OAuthProvider,
   GrantedFeaturesResponse,
 } from './contact';
+import type {
+  WorkspaceFileNode,
+  WorkspaceFilePolicy,
+  WorkspaceFileDecision,
+} from './workspace-files';
 
 export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
 
@@ -49,6 +54,8 @@ export interface UserDesktop {
   id: number;
   name: string;
   os: string;
+  /** Public tunnel URL the desktop app registered (e.g. https://abc123.tunnel.unify.ai). */
+  url: string;
   /** Agent IDs of every assistant this desktop is currently linked to. */
   assignedToAssistantIds: number[];
 }
@@ -539,6 +546,28 @@ export interface AssistantActions {
     ) => Promise<{ verificationCode: string; sentAt: string } | ResponseProps>;
     fetchContactCosts: () => Promise<ContactCosts | ResponseProps>;
   };
+  workspaceFiles: {
+    listRoots: (
+      assistantId: string,
+      provider: OAuthProvider
+    ) => Promise<WorkspaceFileNode[] | ResponseProps>;
+    listChildren: (
+      assistantId: string,
+      provider: OAuthProvider,
+      driveId: string,
+      itemId: string
+    ) => Promise<WorkspaceFileNode[] | ResponseProps>;
+    getPolicy: (
+      assistantId: string,
+      provider: OAuthProvider
+    ) => Promise<WorkspaceFilePolicy | ResponseProps>;
+    updatePolicy: (
+      assistantId: string,
+      provider: OAuthProvider,
+      defaultAllow: boolean,
+      decisions: WorkspaceFileDecision[]
+    ) => Promise<WorkspaceFilePolicy | ResponseProps>;
+  };
   secret: SecretActions;
   /**
    * Slack workspace install management (owner-scoped). Optional — only
@@ -584,6 +613,8 @@ export interface AssistantActions {
       filesysSync?: boolean
     ) => Promise<ResponseProps>;
     unlinkDesktop: (assistantId: string) => Promise<ResponseProps>;
+    renameUserDesktop: (desktopId: number, name: string) => Promise<UserDesktop | ResponseProps>;
+    deleteUserDesktop: (desktopId: number, url?: string) => Promise<ResponseProps>;
   };
   spending: {
     setLimit: (

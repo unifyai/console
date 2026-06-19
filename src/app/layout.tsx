@@ -23,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${fontSans.variable} ${fontSpaceGrotesk.variable} ${fontMono.variable} ${fontSerif.variable}`}
     >
       <body>

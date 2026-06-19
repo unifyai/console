@@ -38,10 +38,6 @@ import {
 } from '@/components/UI/alert-dialog';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 
-// Temporarily hides the "Connect your desktop" row entry while the local
-// desktop flow is being verified. Flip to true (or remove the gate) to restore.
-const CONNECT_DESKTOP_VISIBLE = false;
-
 interface AssistantListItemProps {
   assistant: Assistant;
   status: AssistantStatus | null;
@@ -51,8 +47,8 @@ interface AssistantListItemProps {
   onOpenWorkspaceManager: (assistant: Assistant) => void;
   onEditAssistant: (assistant: Assistant) => void;
   /** When provided, shows a "Connect your desktop" entry that opens the
-   *  desktop linker. Gated upstream so it only appears for assistants the
-   *  current user owns. */
+   *  desktop linker. Only passed for assistants the current user owns, so
+   *  the entry's presence is itself the owner gate. */
   onConnectDesktop?: (assistant: Assistant) => void;
   onEndContract?: (assistant: Assistant) => Promise<void>;
   /** When false, the row's "Profile" / "Workspace" / "Contact Details"
@@ -217,7 +213,7 @@ export function AssistantListItem({
           {isCoordinator ? (
             <CoordinatorLogoAvatar className="h-9 w-9 flex-shrink-0" />
           ) : (
-            renderPhotoAvatar('rounded-control h-9 w-9 flex-shrink-0 cursor-default')
+            renderPhotoAvatar('rounded-control h-9 w-9 flex-shrink-0')
           )}
           {status !== null && (
             <span
@@ -314,7 +310,7 @@ export function AssistantListItem({
             menu just adds noise. With canEdit and onEndContract
             both gated, a viewer with neither permission gets a
             cleaner row. */}
-        {(canEdit || canEndContract || (onConnectDesktop && CONNECT_DESKTOP_VISIBLE)) && (
+        {(canEdit || canEndContract || !!onConnectDesktop) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -356,7 +352,7 @@ export function AssistantListItem({
                   </DropdownMenuItem>
                 </>
               )}
-              {onConnectDesktop && CONNECT_DESKTOP_VISIBLE && (
+              {onConnectDesktop && (
                 <DropdownMenuItem
                   onClick={() => onConnectDesktop(assistant)}
                   data-testid="menu-connect-desktop"
@@ -367,9 +363,7 @@ export function AssistantListItem({
               )}
               {canEndContract && (
                 <>
-                  {(canEdit || (onConnectDesktop && CONNECT_DESKTOP_VISIBLE)) && (
-                    <DropdownMenuSeparator />
-                  )}
+                  {(canEdit || !!onConnectDesktop) && <DropdownMenuSeparator />}
                   <DropdownMenuItem
                     onClick={() => setIsEndContractAlertOpen(true)}
                     data-testid="menu-end-contract"

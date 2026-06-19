@@ -170,6 +170,7 @@ export interface ProviderIntegrationConnectStartRequest {
   assistantId?: string | number;
   canonicalAppSlug: string;
   backendId?: string | null;
+  providerAppId?: string | null;
   requestedScopes: string[];
   authMode: IntegrationAuthMode;
   redirectUrl: string;

@@ -717,17 +717,19 @@ export function ProviderIntegrationDetailSheet({
       if (action.type === 'reset') {
         setPolicyByToolId({});
       } else {
+        const toolPolicies: Record<string, IntegrationToolApprovalLevel> = {};
+        for (const tool of displayItem?.tools ?? []) {
+          if (
+            action.actionClasses?.length &&
+            !action.actionClasses.includes(String(tool.actionClass || 'read'))
+          ) {
+            continue;
+          }
+          toolPolicies[tool.id] = action.level;
+        }
         setPolicyByToolId((current) => {
           const next = { ...current };
-          for (const tool of displayItem?.tools ?? []) {
-            if (
-              action.actionClasses?.length &&
-              !action.actionClasses.includes(String(tool.actionClass || 'read'))
-            ) {
-              continue;
-            }
-            next[tool.id] = action.level;
-          }
+          for (const [toolId, level] of Object.entries(toolPolicies)) next[toolId] = level;
           return next;
         });
       }
@@ -736,8 +738,15 @@ export function ProviderIntegrationDetailSheet({
         action.type === 'reset'
           ? { resetToDefaults: true }
           : {
-              bulkApprovalLevel: action.level,
-              actionClasses: action.actionClasses,
+              toolPolicies: Object.fromEntries(
+                (displayItem?.tools ?? [])
+                  .filter(
+                    (tool) =>
+                      !action.actionClasses?.length ||
+                      action.actionClasses.includes(String(tool.actionClass || 'read'))
+                  )
+                  .map((tool) => [tool.id, action.level])
+              ),
             },
         policyOwnerContext
       )

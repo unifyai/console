@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import type { Assistant } from '@/types/assistants/assistant';
 import type { ContactType } from '@/types/assistants/contact';
 import { AssistantSetupRoadmap } from '@/components/Pages/Assistants/Onboarding/AssistantSetupRoadmap';
+import { AssistantStartCallButton } from '@/components/Pages/Assistants/Communication/AssistantStartCallButton';
 import {
   useAssistantOnboardingState,
   type OnboardingDerivationContext,
@@ -91,6 +92,12 @@ export interface AssistantInfoSidePanelContentProps {
    * surfaces. Unset means the new tab won't render even for the
    * coordinator (e.g. on non-owner viewers). */
   coordinatorOnboarding?: {
+    onStartOnboardingStep?: (stepId: string) => void;
+    onTriggerReferenceStep?: (stepId: string) => void;
+    onAddWhatsappNumber?: () => void;
+    onAddPhoneNumber?: () => void;
+    onConnectSlack?: () => void;
+    onConnectDiscord?: () => void;
     onConnectWorkspace?: () => void;
     onConnectApps?: () => void;
     onActNow?: () => void;
@@ -104,20 +111,23 @@ export interface AssistantInfoSidePanelContentProps {
      * call- vs chat-flavoured "Ask Marty to do something" chips. */
     isOnCall?: boolean;
   };
+  onStartCall?: (assistant: Assistant, type: 'audio' | 'video') => void;
+  isStartCallDisabled?: boolean;
+  startCallTooltip?: string;
   className?: string;
 }
 
 const COORDINATOR_COPY_RESET_MS = 2000;
+const CONTACT_COPY_RESET_MS = 2000;
 
 /**
  * Body of the chat-tab assistant info side panel.
  *
  * Two-zone layout:
- *   1. A non-interactive identity header (avatar, name, supervisor,
- *      copy-id) with a single icon-only Edit button in the top-right
- *      corner. Tapping the header itself does nothing — the explicit
- *      pencil is the only edit affordance, which keeps the header
- *      purely informational.
+ *   1. An identity header (avatar call action, name, supervisor, copy-id)
+ *      with a single icon-only Edit button in the top-right corner.
+ *      Tapping the header itself does nothing; interactions stay attached
+ *      to explicit controls.
  *   2. A tabbed body. While onboarding is in progress we render two
  *      tabs (Onboarding / Contact Info); the moment every onboarding
  *      step resolves we drop the tab strip entirely and show Contact
@@ -141,6 +151,9 @@ export function AssistantInfoSidePanelContent({
         onOpenContactManager={props.onOpenContactManager}
         canWrite={props.canWrite}
         coordinatorOnboarding={props.coordinatorOnboarding}
+        onStartCall={props.onStartCall}
+        isStartCallDisabled={props.isStartCallDisabled}
+        startCallTooltip={props.startCallTooltip}
       />
     );
   }
@@ -157,6 +170,9 @@ function CoordinatorAssistantInfoSidePanelContent({
   className,
   canWrite = true,
   coordinatorOnboarding,
+  onStartCall,
+  isStartCallDisabled,
+  startCallTooltip,
 }: {
   assistant: Assistant;
   onEditProfile?: (assistant: Assistant) => void;
@@ -164,6 +180,9 @@ function CoordinatorAssistantInfoSidePanelContent({
   className?: string;
   canWrite?: boolean;
   coordinatorOnboarding?: AssistantInfoSidePanelContentProps['coordinatorOnboarding'];
+  onStartCall?: AssistantInfoSidePanelContentProps['onStartCall'];
+  isStartCallDisabled?: boolean;
+  startCallTooltip?: string;
 }) {
   const showOnboardingTab = !!coordinatorOnboarding;
 
@@ -211,6 +230,9 @@ function CoordinatorAssistantInfoSidePanelContent({
           isIdCopied={isIdCopied}
           onCopyId={copyId}
           onEdit={canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined}
+          onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
+          isStartCallDisabled={isStartCallDisabled}
+          startCallTooltip={startCallTooltip}
           avatarNode={
             <CoordinatorLogoAvatar
               className="h-20 w-20 flex-shrink-0"
@@ -244,6 +266,12 @@ function CoordinatorAssistantInfoSidePanelContent({
             {coordinatorOnboarding && (
               <TabsContent value="onboarding" className="mt-0">
                 <CoordinatorOnboardingChecklist
+                  onStartOnboardingStep={coordinatorOnboarding.onStartOnboardingStep}
+                  onTriggerReferenceStep={coordinatorOnboarding.onTriggerReferenceStep}
+                  onAddWhatsappNumber={coordinatorOnboarding.onAddWhatsappNumber}
+                  onAddPhoneNumber={coordinatorOnboarding.onAddPhoneNumber}
+                  onConnectSlack={coordinatorOnboarding.onConnectSlack}
+                  onConnectDiscord={coordinatorOnboarding.onConnectDiscord}
                   onConnectWorkspace={coordinatorOnboarding.onConnectWorkspace}
                   onConnectApps={coordinatorOnboarding.onConnectApps}
                   onActNow={coordinatorOnboarding.onActNow}
@@ -295,6 +323,9 @@ function RegularAssistantInfoSidePanelContent({
   className,
   canWrite = true,
   currentUserId,
+  onStartCall,
+  isStartCallDisabled,
+  startCallTooltip,
 }: AssistantInfoSidePanelContentProps) {
   const [isIdCopied, setIsIdCopied] = React.useState(false);
 
@@ -366,6 +397,9 @@ function RegularAssistantInfoSidePanelContent({
           isIdCopied={isIdCopied}
           onCopyId={copyId}
           onEdit={canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined}
+          onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
+          isStartCallDisabled={isStartCallDisabled}
+          startCallTooltip={startCallTooltip}
         />
 
         {showOnboardingTab && roadmap ? (
@@ -438,6 +472,9 @@ interface IdentityHeaderProps {
   isIdCopied: boolean;
   onCopyId: () => void;
   onEdit?: () => void;
+  onStartCall?: () => void;
+  isStartCallDisabled?: boolean;
+  startCallTooltip?: string;
   avatarNode?: React.ReactNode;
 }
 
@@ -451,26 +488,48 @@ function IdentityHeader({
   isIdCopied,
   onCopyId,
   onEdit,
+  onStartCall,
+  isStartCallDisabled,
+  startCallTooltip,
   avatarNode,
 }: IdentityHeaderProps) {
   const metadataRowClass =
     'text-caption grid min-w-0 grid-cols-[10ch_minmax(0,1fr)] items-center gap-x-1 text-muted-foreground';
+  const creatureAppearance = parseCreatureSentinel(photoSrc);
+  const creatureAvatarClassName = cn(
+    'w-14 flex-shrink-0 rounded-md',
+    creatureAppearance?.body === 'tall' ? 'h-16' : 'h-14'
+  );
+  const renderedAvatar =
+    avatarNode ??
+    (creatureAppearance ? (
+      <CreatureAvatar
+        appearance={creatureAppearance}
+        className={creatureAvatarClassName}
+        label={name}
+      />
+    ) : (
+      <Avatar className="h-14 w-14 flex-shrink-0 rounded-md">
+        <AvatarImage src={photoSrc} alt={name} className="rounded-md" />
+        <AvatarFallback className="rounded-md">{initials}</AvatarFallback>
+      </Avatar>
+    ));
 
   return (
     <div className="flex items-start gap-3">
-      {avatarNode ??
-        (parseCreatureSentinel(photoSrc) ? (
-          <CreatureAvatar
-            appearance={photoSrc as string}
-            className="h-14 w-14 flex-shrink-0 rounded-md"
-            label={name}
-          />
-        ) : (
-          <Avatar className="h-14 w-14 flex-shrink-0 rounded-md">
-            <AvatarImage src={photoSrc} alt={name} className="rounded-md" />
-            <AvatarFallback className="rounded-md">{initials}</AvatarFallback>
-          </Avatar>
-        ))}
+      {onStartCall ? (
+        <AssistantStartCallButton
+          onStartCall={onStartCall}
+          disabled={isStartCallDisabled}
+          tooltip={startCallTooltip}
+          tooltipSide="right"
+          testId="assistant-info-avatar-start-call"
+        >
+          {renderedAvatar}
+        </AssistantStartCallButton>
+      ) : (
+        renderedAvatar
+      )}
       <div className="min-w-0 flex-1 space-y-0.5">
         <div className="text-title truncate" data-testid="assistant-info-name">
           {name}
@@ -611,11 +670,6 @@ function ContactInfoGrid({ assistant, onOpenContactManager, canWrite }: ContactI
           label="Email"
           value={assistant.email}
           canWrite={canWrite && canManuallyManage}
-          renderValue={(v) => (
-            <a href={`mailto:${v}`} className="text-link min-w-0 truncate">
-              {v}
-            </a>
-          )}
           onAdd={() => onOpenContactManager(assistant, 'email')}
         />
         <ContactRow
@@ -641,25 +695,54 @@ interface ContactRowProps {
   icon: React.ReactNode;
   label: string;
   value: string | null | undefined;
-  /** Custom renderer for the populated value (e.g. mailto link). */
-  renderValue?: (value: string) => React.ReactNode;
   onAdd: () => void;
   canWrite: boolean;
 }
 
-function ContactRow({ icon, label, value, renderValue, onAdd, canWrite }: ContactRowProps) {
-  const isSet = !!value && value.trim() !== '';
+function ContactRow({ icon, label, value, onAdd, canWrite }: ContactRowProps) {
+  const [isCopied, setIsCopied] = React.useState(false);
+  const copyResetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contactValue = value?.trim() ?? '';
+  const isSet = contactValue !== '';
+
+  React.useEffect(
+    () => () => {
+      if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+    },
+    []
+  );
+
+  const copyValue = () => {
+    void navigator.clipboard.writeText(contactValue);
+    setIsCopied(true);
+    if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+    copyResetTimerRef.current = setTimeout(() => {
+      copyResetTimerRef.current = null;
+      setIsCopied(false);
+    }, CONTACT_COPY_RESET_MS);
+  };
+
   return (
     <div className="flex min-w-0 items-center gap-2 text-sm">
       <span className="text-muted-foreground" aria-hidden="true">
         {icon}
       </span>
       {isSet ? (
-        renderValue ? (
-          renderValue(value as string)
-        ) : (
-          <span className="min-w-0 truncate">{value}</span>
-        )
+        <button
+          type="button"
+          className="group/contact flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 text-left text-foreground"
+          onClick={copyValue}
+          aria-label={`Copy ${label.toLowerCase()}`}
+        >
+          <span className="min-w-0 truncate">{contactValue}</span>
+          <Check
+            className={cn(
+              'h-3 w-3 flex-shrink-0 text-[color:var(--status-success)] transition-opacity',
+              isCopied ? 'opacity-100' : 'opacity-0'
+            )}
+            aria-hidden="true"
+          />
+        </button>
       ) : canWrite ? (
         <Button
           type="button"

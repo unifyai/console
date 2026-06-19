@@ -177,8 +177,7 @@ export async function handleOAuthCallback(args: {
   const [clientIdKey, clientSecretKey] = customerKeys;
 
   // 4. Read CLIENT_ID + CLIENT_SECRET from the assistant's secrets.
-  const getSecretsFn = await getSecrets(apiKey, orgId);
-  const list = await getSecretsFn(payload.assistantId, payload.ownerId);
+  const list = await getSecrets(payload.assistantId, payload.ownerId);
   if (!Array.isArray(list)) {
     return Response.redirect(
       `${consoleUrl}${payload.redirectAfter}?integration_error=secrets_unreadable`,
@@ -192,10 +191,9 @@ export async function handleOAuthCallback(args: {
     );
   }
 
-  const getSecretValueFn = await getSecretValue(apiKey, orgId);
   const [clientId, clientSecret] = await Promise.all([
-    getSecretValueFn(payload.assistantId, payload.ownerId, clientIdKey),
-    getSecretValueFn(payload.assistantId, payload.ownerId, clientSecretKey),
+    getSecretValue(payload.assistantId, payload.ownerId, clientIdKey),
+    getSecretValue(payload.assistantId, payload.ownerId, clientSecretKey),
   ]);
   if (!clientId || !clientSecret) {
     return Response.redirect(
@@ -252,16 +250,14 @@ export async function handleOAuthCallback(args: {
   //    sees multiple named orgs and can't auto-pin — gets cleared.
   const managedKeySet = new Set(provider.auth.oauth.managedSecretKeys);
   const existingManagedSecrets = list.filter((s) => managedKeySet.has(s.name));
-  const deleteSecretFn = await deleteSecret(apiKey, orgId);
   for (const s of existingManagedSecrets) {
-    await deleteSecretFn(s.logId, payload.ownerId, payload.assistantId).catch(() => undefined);
+    await deleteSecret(s.logId, payload.ownerId, payload.assistantId).catch(() => undefined);
   }
 
   // Filter writes to managed keys + trim values.  Trim defensively
   // against trailing whitespace from upstream — the runtime's
   // ``_client.py`` already ``.strip()``s, but stored values stay clean
   // too, and the empty-after-trim check below catches degenerate cases.
-  const createSecretFn = await createSecret(apiKey, orgId, orgName);
   for (const [name, rawValue] of Object.entries(writes)) {
     if (!managedKeySet.has(name)) continue;
     const value = rawValue.trim();
@@ -271,7 +267,7 @@ export async function handleOAuthCallback(args: {
         302
       );
     }
-    const result = await createSecretFn(payload.assistantId, payload.ownerId, { name, value });
+    const result = await createSecret(payload.assistantId, payload.ownerId, { name, value });
     if ('detail' in result && result.detail) {
       return Response.redirect(
         `${consoleUrl}${payload.redirectAfter}?integration_error=write_failed:${encodeURIComponent(name)}`,

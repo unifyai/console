@@ -21,15 +21,17 @@ import { hasCredentials, publish } from '@/lib/pubsub/local-event-bus';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: NextRequest, { params }: { params: { assistantId: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ assistantId: string }> }
+) {
+  const { assistantId } = await params;
   if (hasCredentials()) {
     return NextResponse.json(
       { detail: 'Push endpoint is only available in local development mode.' },
       { status: 403 }
     );
   }
-
-  const { assistantId } = params;
   if (!assistantId) {
     return NextResponse.json({ detail: 'Assistant ID is required.' }, { status: 400 });
   }

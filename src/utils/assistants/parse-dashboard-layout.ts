@@ -1,7 +1,7 @@
 /**
- * Parse dashboard layout JSON from Orchestra / Unity (Dashboards/Layouts).
+ * Parse dashboard layout JSON from Orchestra / Droid (Dashboards/Layouts).
  *
- * Unity serializes TilePosition with snake_case keys (`tile_token`, etc.) via
+ * Droid serializes TilePosition with snake_case keys (`tile_token`, etc.) via
  * Pydantic model_dump(). Client code must not assume `tileToken` without
  * transforming keys — raw JSON.parse leaves `tile_token` and breaks
  * `pos.tileToken`, which becomes `undefined` in URLs and filter expressions.

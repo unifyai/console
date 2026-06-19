@@ -11,7 +11,11 @@ import { fetchTableData } from '@/lib/tableData';
 const DEFAULT_PAGE_SIZE = 100;
 const MAX_PAGE_SIZE = 500;
 
-export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ token: string }> }
+) {
+  const { token } = await params;
   // Parse pagination parameters from query string
   const { searchParams } = new URL(request.url);
   const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
@@ -20,7 +24,7 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
     Math.max(1, parseInt(searchParams.get('pageSize') || String(DEFAULT_PAGE_SIZE), 10))
   );
 
-  const result = await fetchTableData(params.token, { page, pageSize });
+  const result = await fetchTableData(token, { page, pageSize });
 
   if (!result.success) {
     return NextResponse.json(

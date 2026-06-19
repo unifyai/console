@@ -2,14 +2,13 @@
 
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
 import { isAuthPopupProvider, safeAuthPopupCallbackUrl } from '@/lib/auth/popup';
 
 function PopupStart() {
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | undefined>();
-  const hasStartedRef = useRef(false);
   const provider = searchParams?.get('provider');
 
   useEffect(() => {
@@ -29,9 +28,6 @@ function PopupStart() {
       return;
     }
     const callbackUrl = safeCallbackUrl;
-
-    if (hasStartedRef.current) return;
-    hasStartedRef.current = true;
 
     let cancelled = false;
 

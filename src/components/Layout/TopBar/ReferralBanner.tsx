@@ -51,11 +51,13 @@ export default function ReferralBanner() {
       <div className="rounded-control bg-muted/60 pointer-events-auto flex h-7 items-center gap-1 border border-border pl-2.5 pr-1">
         <Link
           href="/billing"
+          target="_blank"
+          rel="noopener noreferrer"
           className="text-body-muted flex items-center gap-1.5 transition-colors hover:text-foreground"
           data-testid="referral-banner-link"
         >
           <Gift className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-label">Refer a friend to earn special credits</span>
+          <span className="text-label">Refer a friend to earn $100 in credits</span>
         </Link>
         <button
           type="button"

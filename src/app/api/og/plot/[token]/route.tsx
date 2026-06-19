@@ -306,9 +306,13 @@ function generateFallbackImage() {
   );
 }
 
-export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ token: string }> }
+) {
+  const { token } = await params;
   console.log('[og/plot] === OG Plot Image Request ===');
-  console.log('[og/plot] Raw token from params:', params.token);
+  console.log('[og/plot] Raw token from params:', token);
   console.log('[og/plot] Request URL:', request.url);
   console.log(
     '[og/plot] Request headers:',
@@ -316,12 +320,12 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
   );
 
   // Strip .png extension if present (URL can be /api/og/plot/xxx or /api/og/plot/xxx.png)
-  const token = params.token.replace(/\.png$/i, '');
-  console.log('[og/plot] Cleaned token:', token);
+  const cleanToken = token.replace(/\.png$/i, '');
+  console.log('[og/plot] Cleaned token:', cleanToken);
 
   console.log('[og/plot] Calling fetchPlotData...');
   const startTime = Date.now();
-  const result = await fetchPlotData(token, {
+  const result = await fetchPlotData(cleanToken, {
     timeoutMs: OG_TIMEOUT_MS,
   });
   const elapsed = Date.now() - startTime;

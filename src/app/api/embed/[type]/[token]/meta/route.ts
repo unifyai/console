@@ -41,12 +41,11 @@ async function resolveEmbedMeta(type: string, token: string): Promise<EmbedMeta 
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { type: string; token: string } }
+  { params }: { params: Promise<{ type: string; token: string }> }
 ) {
+  const { type, token } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) return unauthorized();
-
-  const { type, token } = params;
 
   if (!VALID_TYPES.has(type)) {
     return NextResponse.json({ error: 'Invalid embed type' }, { status: 400 });

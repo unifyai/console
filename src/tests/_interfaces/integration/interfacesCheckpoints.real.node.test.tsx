@@ -64,8 +64,7 @@ describe('@real Interface Checkpoint Hooks (Real API)', () => {
   afterAll(async () => {
     // Cleanup interfaces
     for (const id of createdInterfaceIds) {
-      const deleteFn = await deleteInterfaceById(TEST_API_KEY);
-      await safeDelete(() => deleteFn(id), `interface: ${id}`);
+      await safeDelete(() => deleteInterfaceById(id), `interface: ${id}`);
     }
     // Cleanup project
     await safeDelete(() => projectsApi.delete(testProjectName), `project: ${testProjectName}`);
@@ -73,14 +72,12 @@ describe('@real Interface Checkpoint Hooks (Real API)', () => {
 
   it('@real creates interface checkpoint and retrieves it', realTestOptionsExtended, async () => {
     // Create an interface
-    const createFn = await createNewInterface(TEST_API_KEY);
     const interfaceName = uniqueName('test-checkpoint');
-    const created = await createFn(testProjectName, interfaceName);
+    const created = await createNewInterface(testProjectName, interfaceName);
     createdInterfaceIds.push(created.id);
 
     // Create a checkpoint
-    const checkpointFn = await createInterfaceCheckpoint(TEST_API_KEY);
-    const checkpointResult = await checkpointFn(
+    const checkpointResult = await createInterfaceCheckpoint(
       testProjectName,
       interfaceName,
       'Test checkpoint description'
@@ -95,19 +92,16 @@ describe('@real Interface Checkpoint Hooks (Real API)', () => {
     realTestOptionsExtended,
     async () => {
       // Create an interface
-      const createFn = await createNewInterface(TEST_API_KEY);
       const interfaceName = uniqueName('test-get-checkpoint');
-      const created = await createFn(testProjectName, interfaceName);
+      const created = await createNewInterface(testProjectName, interfaceName);
       createdInterfaceIds.push(created.id);
 
       // Create a checkpoint
-      const checkpointFn = await createInterfaceCheckpoint(TEST_API_KEY);
-      await checkpointFn(testProjectName, interfaceName, 'Checkpoint for get test');
+      await createInterfaceCheckpoint(testProjectName, interfaceName, 'Checkpoint for get test');
 
       // Get with checkpoint flag
-      const getByNameFn = await getInterfaceByName(TEST_API_KEY);
       const actions = {
-        getByName: getByNameFn,
+        getByName: getInterfaceByName,
       } as unknown as GranularInterfaceActions;
 
       const { Wrapper } = createWrapper();
@@ -146,19 +140,16 @@ describe('@real Interface Checkpoint Hooks (Real API)', () => {
     realTestOptionsExtended,
     async () => {
       // Create an interface
-      const createFn = await createNewInterface(TEST_API_KEY);
       const interfaceName = uniqueName('test-update-checkpoint');
-      const created = await createFn(testProjectName, interfaceName);
+      const created = await createNewInterface(testProjectName, interfaceName);
       createdInterfaceIds.push(created.id);
 
       // Create a checkpoint
-      const checkpointFn = await createInterfaceCheckpoint(TEST_API_KEY);
-      await checkpointFn(testProjectName, interfaceName, 'Checkpoint for update test');
+      await createInterfaceCheckpoint(testProjectName, interfaceName, 'Checkpoint for update test');
 
       // Update the active interface (not the checkpoint directly)
-      const updateByNameFn = await updateInterfaceByName(TEST_API_KEY);
       const actions = {
-        updateByName: updateByNameFn,
+        updateByName: updateInterfaceByName,
       } as unknown as GranularInterfaceActions;
 
       const { Wrapper } = createWrapper();
@@ -182,24 +173,19 @@ describe('@real Interface Checkpoint Hooks (Real API)', () => {
 
   it('@real checkpoint and active versions are independent', realTestOptionsExtended, async () => {
     // Create an interface with initial color
-    const createFn = await createNewInterface(TEST_API_KEY);
     const interfaceName = uniqueName('test-independent-checkpoint');
-    const created = await createFn(testProjectName, interfaceName, '#initial');
+    const created = await createNewInterface(testProjectName, interfaceName, '#initial');
     createdInterfaceIds.push(created.id);
 
     // Create a checkpoint (saves current state)
-    const checkpointFn = await createInterfaceCheckpoint(TEST_API_KEY);
-    await checkpointFn(testProjectName, interfaceName, 'Checkpoint before update');
+    await createInterfaceCheckpoint(testProjectName, interfaceName, 'Checkpoint before update');
 
     // Update the active version
-    const updateByNameFn = await updateInterfaceByName(TEST_API_KEY);
-    await updateByNameFn(testProjectName, interfaceName, { color: '#updated' }, false);
+    await updateInterfaceByName(testProjectName, interfaceName, { color: '#updated' }, false);
 
     // Get both versions
-    const getByNameFn = await getInterfaceByName(TEST_API_KEY);
-
-    const activeVersion = await getByNameFn(testProjectName, interfaceName, false);
-    const checkpointVersion = await getByNameFn(testProjectName, interfaceName, true);
+    const activeVersion = await getInterfaceByName(testProjectName, interfaceName, false);
+    const checkpointVersion = await getInterfaceByName(testProjectName, interfaceName, true);
 
     // Active should have the new color
     expect(activeVersion.color).toBe('#updated');

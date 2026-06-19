@@ -14,7 +14,11 @@ import { aliasJoinPaths } from '@/utils/assistants/join-alias';
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'http://localhost:8000';
 const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
 
-export async function POST(request: NextRequest, { params }: { params: { token: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ token: string }> }
+) {
+  const { token } = await params;
   if (!ORCHESTRA_ADMIN_KEY) {
     return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
   }
@@ -59,7 +63,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   if (body.resultOffset != null) orchestraBody.result_offset = body.resultOffset;
 
   try {
-    const res = await fetch(`${ORCHESTRA_URL}/v0/admin/dashboards/tiles/${params.token}/join`, {
+    const res = await fetch(`${ORCHESTRA_URL}/v0/admin/dashboards/tiles/${token}/join`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${ORCHESTRA_ADMIN_KEY}`,

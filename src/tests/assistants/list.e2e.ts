@@ -99,6 +99,51 @@ test('clicking an assistant in the list selects it and shows the Chat tab', asyn
   });
 });
 
+test('rapid select/deselect settles on the final click and does not snap back', async ({
+  authedPage: page,
+}) => {
+  const agentIds = getAssistantAgentIds(user.id);
+  expect(agentIds.length).toBeGreaterThan(0);
+  const agentId = agentIds[0];
+
+  await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
+
+  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
+  await expect(listItem).toBeVisible({ timeout: 15_000 });
+
+  const chatTab = page.getByTestId('right-pane-tab-chat');
+  const emptyState = page.locator('text=Select a droid to watch live actions.');
+
+  // Normalise to a known deselected starting point.
+  if (await chatTab.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    await listItem.click();
+    await expect(emptyState).toBeVisible({ timeout: 5_000 });
+  }
+
+  // Three back-to-back clicks => the final intent is "selected". The
+  // `?profile=` URL sync runs through an async `router.replace`; a stale
+  // navigation resolving late must not flip the selection back off.
+  await listItem.click();
+  await listItem.click();
+  await listItem.click();
+
+  await expect(chatTab).toHaveAttribute('data-state', 'active', { timeout: 5_000 });
+  // Give any in-flight URL navigations time to resolve, then re-assert the
+  // selection held — the regression manifested as a delayed self-undo.
+  await page.waitForTimeout(1_500);
+  await expect(chatTab).toHaveAttribute('data-state', 'active');
+
+  // Two back-to-back clicks => the final intent is "deselected"; it must
+  // stay deselected after the URL round-trip settles.
+  await listItem.click();
+  await listItem.click();
+
+  await expect(emptyState).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(1_500);
+  await expect(emptyState).toBeVisible();
+});
+
 test('the chat info side panel can be resized down to its minimum width', async ({
   authedPage: page,
 }) => {

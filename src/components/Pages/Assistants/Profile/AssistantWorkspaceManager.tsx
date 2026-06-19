@@ -25,6 +25,7 @@ import {
   ProviderBadge,
 } from './AssistantContactManager';
 import type { OAuthProvider } from '@/types/assistants/contact';
+import { WorkspaceFileTree } from './WorkspaceFileTree';
 
 interface AssistantWorkspaceManagerProps {
   isOpen: boolean;
@@ -159,8 +160,9 @@ export function AssistantWorkspaceManager({
       return <p className="text-body text-muted-foreground">No workspace configured.</p>;
     }
 
-    // Platform-managed mailbox (legacy)
-    if (isPlatformEmail) {
+    // Coordinator contact mailboxes are shared routing addresses; they do not
+    // represent a connected workspace account.
+    if (isPlatformEmail && !assistant.isCoordinator) {
       return (
         <div className="space-y-3">
           <div className="flex items-center">
@@ -205,6 +207,25 @@ export function AssistantWorkspaceManager({
               />
             </div>
           ) : null}
+
+          {(() => {
+            const fileProvider = (grantedFeatures?.provider ?? null) as OAuthProvider | null;
+            const grantedSet = new Set(grantedFeatures?.features ?? []);
+            const showFiles =
+              !!fileProvider && (grantedSet.has('drive') || grantedSet.has('sharepoint'));
+            if (!showFiles) return null;
+            return (
+              <div className="border-t pt-4">
+                <WorkspaceFileTree
+                  assistantId={assistant.agentId}
+                  provider={fileProvider as OAuthProvider}
+                  assistantActions={assistantActions}
+                  isOpen={isOpen}
+                  canWrite={canWrite}
+                />
+              </div>
+            );
+          })()}
         </div>
       );
     }

@@ -11,12 +11,13 @@ import { fetchDashboardData } from '@/lib/dashboardData';
 import { DashboardViewer } from '@/components/Pages/Dashboard/DashboardViewer';
 
 interface PageProps {
-  params: { token: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const result = await fetchDashboardData(params.token);
+  const { token } = await params;
+  const result = await fetchDashboardData(token);
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'https://console.unify.ai';
 
@@ -28,7 +29,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const title = result.data.title || 'Dashboard';
-  const pageUrl = `${baseUrl}/dashboard/view/${params.token}`;
+  const pageUrl = `${baseUrl}/dashboard/view/${token}`;
 
   return {
     title,
@@ -100,8 +101,10 @@ function ErrorMessage({ message }: { message: string }) {
 }
 
 export default async function DashboardViewPage({ params, searchParams }: PageProps) {
-  const result = await fetchDashboardData(params.token);
-  const embed = searchParams.embed === 'true';
+  const { token } = await params;
+  const resolvedSearchParams = await searchParams;
+  const result = await fetchDashboardData(token);
+  const embed = resolvedSearchParams.embed === 'true';
 
   if (!result.success) {
     if (result.error.status === 404) {
@@ -115,7 +118,7 @@ export default async function DashboardViewPage({ params, searchParams }: PagePr
   return (
     <main className="brand-page-stencil-bg min-h-screen bg-background">
       <DashboardViewer
-        token={params.token}
+        token={token}
         title={data.title}
         description={data.description}
         tiles={data.tiles}

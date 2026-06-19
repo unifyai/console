@@ -22,46 +22,20 @@ describe('provider integration proxy route', () => {
     process.env.ORCHESTRA_ADMIN_KEY = 'orchestra-admin-key';
   });
 
-  it('forwards GET path, query params, and auth to Orchestra', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          items: [{ canonical_app_slug: 'slack' }],
-          total: 1,
-          limit: 50,
-          offset: 100,
-        }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      )
-    );
+  it('does not proxy app catalog GET paths to Orchestra', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch');
     const request = new NextRequest(
-      'http://localhost/api/integrations/provider/apps?owner_scope=assistant&assistant_id=123&query=slack&source_type=third_party&status_group=connected&detail_level=summary&limit=50&offset=100',
+      'http://localhost/api/integrations/provider/apps?owner_scope=assistant&assistant_id=123&query=slack&source_type=third_party&status_group=connected&detail_level=summary&limit=50&offset=0',
       { headers: { apiKey: 'test-api-key' } }
     );
 
-    const response = await GET(request, { params: { path: ['apps'] } });
+    const response = await GET(request, { params: Promise.resolve({ path: ['apps'] }) });
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(410);
     await expect(response.json()).resolves.toMatchObject({
-      items: [{ canonical_app_slug: 'slack' }],
-      total: 1,
-      limit: 50,
-      offset: 100,
+      detail: expect.stringContaining('Builtins logs'),
     });
-    const [target, init] = fetchSpy.mock.calls[0];
-    expect(String(target)).toBe(
-      'http://127.0.0.1:8000/v0/integrations/apps?owner_scope=assistant&assistant_id=123&query=slack&source_type=third_party&status_group=connected&detail_level=summary&limit=50&offset=100'
-    );
-    expect(init).toMatchObject({
-      method: 'GET',
-      headers: {
-        Authorization: 'Bearer test-api-key',
-        'Content-Type': 'application/json',
-      },
-    });
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('forwards POST body to the matching Orchestra path', async () => {
@@ -81,7 +55,9 @@ describe('provider integration proxy route', () => {
       }
     );
 
-    const response = await POST(request, { params: { path: ['connect', 'start'] } });
+    const response = await POST(request, {
+      params: Promise.resolve({ path: ['connect', 'start'] }),
+    });
 
     expect(response.status).toBe(200);
     const [target, init] = fetchSpy.mock.calls[0];
@@ -112,7 +88,7 @@ describe('provider integration proxy route', () => {
     );
 
     const response = await PATCH(request, {
-      params: { path: ['connections', 'ic_123', 'tool-policy'] },
+      params: Promise.resolve({ path: ['connections', 'ic_123', 'tool-policy'] }),
     });
 
     expect(response.status).toBe(200);
@@ -126,7 +102,7 @@ describe('provider integration proxy route', () => {
     });
   });
 
-  it('forwards deferred app details and pending cancel paths', async () => {
+  it('blocks app detail catalog reads but forwards pending cancel paths', async () => {
     const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(
       async () =>
         new Response(JSON.stringify({ ok: true }), {
@@ -139,20 +115,23 @@ describe('provider integration proxy route', () => {
       { headers: { apiKey: 'test-api-key' } }
     );
 
-    await GET(detailRequest, { params: { path: ['apps', 'discord'] } });
+    const detailResponse = await GET(detailRequest, {
+      params: Promise.resolve({ path: ['apps', 'discord'] }),
+    });
 
-    expect(String(fetchSpy.mock.calls[0][0])).toBe(
-      'http://127.0.0.1:8000/v0/integrations/apps/discord?owner_scope=assistant&assistant_id=123'
-    );
+    expect(detailResponse.status).toBe(410);
+    expect(fetchSpy).not.toHaveBeenCalled();
 
     const cancelRequest = new NextRequest(
       'http://localhost/api/integrations/provider/connections/ic_pending/cancel',
       { method: 'POST', headers: { apiKey: 'test-api-key' } }
     );
 
-    await POST(cancelRequest, { params: { path: ['connections', 'ic_pending', 'cancel'] } });
+    await POST(cancelRequest, {
+      params: Promise.resolve({ path: ['connections', 'ic_pending', 'cancel'] }),
+    });
 
-    expect(String(fetchSpy.mock.calls[1][0])).toBe(
+    expect(String(fetchSpy.mock.calls[0][0])).toBe(
       'http://127.0.0.1:8000/v0/integrations/connections/ic_pending/cancel'
     );
   });
@@ -170,7 +149,7 @@ describe('provider integration proxy route', () => {
       body: JSON.stringify({ backend_id: 'pipedream', apps: [], tools: [] }),
     });
 
-    const response = await ADMIN_POST(request, { params: { path: ['sync'] } });
+    const response = await ADMIN_POST(request, { params: Promise.resolve({ path: ['sync'] }) });
 
     expect(response.status).toBe(200);
     const [target, init] = fetchSpy.mock.calls[0];
@@ -202,7 +181,7 @@ describe('provider integration proxy route', () => {
       }),
     });
 
-    const response = await ADMIN_POST(request, { params: { path: ['sync'] } });
+    const response = await ADMIN_POST(request, { params: Promise.resolve({ path: ['sync'] }) });
 
     expect(response.status).toBe(200);
     const [target, init] = fetchSpy.mock.calls[0];
@@ -239,7 +218,7 @@ describe('provider integration proxy route', () => {
     );
 
     const patchResponse = await ADMIN_PATCH(patchRequest, {
-      params: { path: ['backends', 'pipedream'] },
+      params: Promise.resolve({ path: ['backends', 'pipedream'] }),
     });
 
     expect(patchResponse.status).toBe(200);
@@ -261,7 +240,7 @@ describe('provider integration proxy route', () => {
       }),
     });
 
-    await ADMIN_POST(syncRequest, { params: { path: ['sync'] } });
+    await ADMIN_POST(syncRequest, { params: Promise.resolve({ path: ['sync'] }) });
 
     expect(String(fetchSpy.mock.calls[1][0])).toBe(
       'http://127.0.0.1:8000/v0/admin/integrations/sync'

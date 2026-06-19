@@ -251,17 +251,21 @@ describe('ProjectPermissions UI Behavior', () => {
       granteeId: 'user-456',
       createdAt: '2024-01-01T00:00:00Z',
     });
-    (grantResourceAccessAction as any).mockReturnValue(mockGrantFn);
+    (grantResourceAccessAction as any).mockResolvedValue({
+      roleId: 2,
+      roleName: 'Viewer',
+      granteeType: 'user',
+      granteeId: 'user-456',
+      createdAt: '2024-01-01T00:00:00Z',
+    });
 
-    // Simulate calling grant
-    const grantAction = grantResourceAccessAction('test-key');
-    const result = await grantAction('project', 1, {
+    const result = await grantResourceAccessAction('project', 1, {
       roleId: 2,
       granteeType: 'user',
       granteeId: 'user-456',
     });
 
-    expect(mockGrantFn).toHaveBeenCalledWith('project', 1, {
+    expect(grantResourceAccessAction).toHaveBeenCalledWith('project', 1, {
       roleId: 2,
       granteeType: 'user',
       granteeId: 'user-456',
@@ -389,16 +393,15 @@ describe('ProjectPermissions UI Behavior', () => {
   it('calls revoke_resource_access action correctly', async () => {
     const { revokeResourceAccessAction } = await import('@/lib/user/resource-access');
     const mockRevokeFn = vi.fn().mockResolvedValue({});
-    (revokeResourceAccessAction as any).mockReturnValue(mockRevokeFn);
+    (revokeResourceAccessAction as any).mockResolvedValue({});
 
-    const revokeAction = revokeResourceAccessAction('test-key');
-    await revokeAction('project', 1, {
+    await revokeResourceAccessAction('project', 1, {
       granteeType: 'user',
       granteeId: 'user-456',
       roleId: 2,
     });
 
-    expect(mockRevokeFn).toHaveBeenCalledWith('project', 1, {
+    expect(revokeResourceAccessAction).toHaveBeenCalledWith('project', 1, {
       granteeType: 'user',
       granteeId: 'user-456',
       roleId: 2,
@@ -417,14 +420,22 @@ describe('ProjectPermissions UI Behavior', () => {
       granteeId: 'user-456',
       createdAt: '2024-01-01T00:00:00Z',
     });
-    (updateResourceAccessAction as any).mockReturnValue(mockUpdateFn);
+    (updateResourceAccessAction as any).mockResolvedValue({
+      id: 1,
+      resource_type: 'project',
+      resource_id: 1,
+      roleId: 3,
+      roleName: 'Editor',
+      granteeType: 'user',
+      granteeId: 'user-456',
+      createdAt: '2024-01-01T00:00:00Z',
+    });
 
-    const updateAction = updateResourceAccessAction('test-key');
-    const result = await updateAction('project', 1, 1, {
+    const result = await updateResourceAccessAction('project', 1, 1, {
       roleId: 3,
     });
 
-    expect(mockUpdateFn).toHaveBeenCalledWith('project', 1, 1, {
+    expect(updateResourceAccessAction).toHaveBeenCalledWith('project', 1, 1, {
       roleId: 3,
     });
     expect(result.roleName).toBe('Editor');

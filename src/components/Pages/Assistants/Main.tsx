@@ -36,7 +36,7 @@ import { useAssistantStatus } from '@/hooks/Assistants/useAssistantStatus';
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
 import { useAssistantOnboardingSummaries } from '@/hooks/Assistants/useAssistantOnboardingSummaries';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
-import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
+import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
@@ -88,11 +88,37 @@ import { useSearchParams } from 'next/navigation';
 import { useSpendingGate } from '@/hooks/Assistants/useSpendingGate';
 import { SpendingDisplayProps } from '@/types/assistants/spending';
 import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemErrors';
+import { useAssistantPresenceWake } from '@/hooks/Assistants/useAssistantPresenceWake';
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { createRandomDroidProfile } from '@/utils/assistants/droid-profile-randomizer';
+import {
+  coordinatorReferenceQuizTriggerStepForReplyStep,
+  dispatchCoordinatorReferenceQuizClue,
+} from '@/utils/assistants/coordinator-reference-quiz';
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
+const COORDINATOR_REFERENCE_QUIZ_ACTIONS = new Set<ChecklistAction>([
+  'trigger-email-reference',
+  'start-email-reply',
+  'add-whatsapp-number',
+  'trigger-whatsapp-message-reference',
+  'start-whatsapp-message',
+  'trigger-whatsapp-call-reference',
+  'start-whatsapp-call',
+  'add-phone-number',
+  'trigger-sms-reference',
+  'start-sms-message',
+  'trigger-phone-call-reference',
+  'start-phone-call',
+  'connect-slack',
+  'trigger-slack-reference',
+  'start-slack-message',
+  'connect-discord',
+  'trigger-discord-reference',
+  'start-discord-message',
+]);
+type ContactManagerInitialTab = ContactType | 'slack';
 
 interface MainProps {
   assistantActions: AssistantActions;
@@ -146,11 +172,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
   const { activeWorkspace, currentUserId } = useWorkspace();
+  const { isSelfHost } = useEnvironment();
   // Workspace connect (Gmail/Outlook BYOD) needs an OAuth client configured on
   // the deployment. When neither provider is available, the onboarding
   // "Connect workspace" step is suppressed rather than leading to a dead end.
-  const { workspaceGoogle, workspaceMicrosoft } = useFeatures();
+  const { workspaceGoogle, workspaceMicrosoft, contactPhone, contactWhatsapp, contactDiscord } =
+    useFeatures();
   const workspaceConnectAvailable = workspaceGoogle || workspaceMicrosoft;
+  const coordinatorReferenceQuizAvailable = !isSelfHost;
   const coordinatorWorkspace = React.useMemo<CoordinatorWorkspaceScope>(() => {
     if (activeWorkspace?.type === 'organization') {
       const parsedOrganizationId = Number.parseInt(activeWorkspace.id, 10);
@@ -192,6 +221,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleShowProfile: setPanelProfileAssistant,
     handleProfileClose: clearPanelProfileAssistant,
   } = usePanelManager(profileParam);
+  useAssistantPresenceWake(profileAssistantId);
   const handleShowProfile = React.useCallback(
     (assistantId: string) => {
       setPanelProfileAssistant(assistantId);
@@ -451,20 +481,23 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     coordinatorOnboardingState?.introWatched === false;
   const showCoordinatorOnboardingIntro =
     showCoordinatorOnboardingFreshIntro || coordinatorIntroReplay;
+  const [coordinatorOnboardingFocusLayoutRequest, setCoordinatorOnboardingFocusLayoutRequest] =
+    React.useState(0);
+  const requestCoordinatorOnboardingFocusLayout = React.useCallback(() => {
+    setCoordinatorOnboardingFocusLayoutRequest((current) => current + 1);
+  }, []);
 
   // Shared onboarding step progress for the Coordinator onboarding
   // flow. Lifted out of ``CoordinatorOnboarding`` so the same set
   // survives the gradual ↔ info-panel layout transition — the
   // Onboarding tab follows the user into the coordinator's assistant
   // info panel on the base /assistants shell.
-  // ``'meet'`` is seeded because the picker is always resolved by
-  // the time we render anything substantive; the durable steps
-  // (workspace/apps/act/schedule) are seeded from the server-derived
-  // ``completedStepIds`` on the Coordinator/State read (see the
-  // effect below), so progress survives reloads without a separate
-  // persisted copy.
+  // Durable steps are seeded from the server-derived
+  // ``completedStepIds`` on the Coordinator/State read (see the effect
+  // below), so progress survives reloads without a separate persisted
+  // copy.
   const [completedStepIds, setCompletedStepIds] = React.useState<ReadonlySet<string>>(
-    () => new Set(['meet'])
+    () => new Set()
   );
   const [skippedStepIds, setSkippedStepIds] = React.useState<ReadonlySet<string>>(() => new Set());
   // Engagement is a strict superset of completion — engaging
@@ -472,9 +505,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // tab even though the row stays pending until a secret actually
   // lands. Completion always implies engagement, so
   // ``markStepCompleted`` below back-fills the engaged set too.
-  const [engagedStepIds, setEngagedStepIds] = React.useState<ReadonlySet<string>>(
-    () => new Set(['meet'])
-  );
+  const [engagedStepIds, setEngagedStepIds] = React.useState<ReadonlySet<string>>(() => new Set());
   const markStepCompleted = React.useCallback((stepId: string) => {
     setCompletedStepIds((prev) => {
       if (prev.has(stepId)) return prev;
@@ -519,21 +550,28 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       return next;
     });
   }, []);
+  // Optimistic: flip the local checklist state immediately so the
+  // row resolves (and downstream rows unlock) on the same frame as
+  // the click. The orchestra write happens in the background; we roll
+  // the local state back if it fails (the hook surfaces its own error
+  // toast). Awaiting the round-trip before updating made "Later" feel
+  // multi-second-slow because the server action + DB write gated the
+  // re-render.
   const handleCoordinatorOnboardingStepSkip = React.useCallback(
     async (stepId: string) => {
-      const skipped = await updateCoordinatorOnboardingState({ skipOnboardingStep: stepId });
-      if (!skipped) return;
       markStepSkipped(stepId);
+      const skipped = await updateCoordinatorOnboardingState({ skipOnboardingStep: stepId });
+      if (!skipped) markStepUnskipped(stepId);
     },
-    [markStepSkipped, updateCoordinatorOnboardingState]
+    [markStepSkipped, markStepUnskipped, updateCoordinatorOnboardingState]
   );
   const handleCoordinatorOnboardingStepUnskip = React.useCallback(
     async (stepId: string) => {
-      const unskipped = await updateCoordinatorOnboardingState({ unskipOnboardingStep: stepId });
-      if (!unskipped) return;
       markStepUnskipped(stepId);
+      const unskipped = await updateCoordinatorOnboardingState({ unskipOnboardingStep: stepId });
+      if (!unskipped) markStepSkipped(stepId);
     },
-    [markStepUnskipped, updateCoordinatorOnboardingState]
+    [markStepSkipped, markStepUnskipped, updateCoordinatorOnboardingState]
   );
   const coordinatorOnboardingCtxValue = React.useMemo<CoordinatorOnboardingContextValue>(
     () => ({
@@ -603,15 +641,23 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   // Default landing selection: a bare ``/assistants`` visit (no
   // ``?profile=`` deep link) selects the workspace Coordinator and opens
-  // its "Assistant info" card, regardless of onboarding state. Applied
-  // once on first load so the user can still deselect afterwards; a deep
-  // link to another assistant takes precedence (``profileAssistantId``
-  // is already set when it lands).
+  // its "Assistant info" card, regardless of onboarding state. A deep link
+  // to an assistant takes precedence — the target is already selected when
+  // it lands, so the coordinator is not forced on top of it.
+  //
+  // The "did the page land with a deep link?" decision is captured at mount
+  // rather than read from the live ``profileAssistantId``. Assistant data
+  // loads asynchronously, so this effect can fire after the user has already
+  // interacted with the list. Reading live state here would let a deselect
+  // performed during loading be clobbered by the coordinator reselection
+  // once the data arrives.
+  const landedWithProfileDeepLinkRef = React.useRef(profileParam != null);
   const defaultCoordinatorSelectionRef = React.useRef(false);
   React.useEffect(() => {
     if (defaultCoordinatorSelectionRef.current) return;
     if (isLoadingAssistants || !canonicalCoordinatorId) return;
     defaultCoordinatorSelectionRef.current = true;
+    if (landedWithProfileDeepLinkRef.current) return;
     if (!profileAssistantId) {
       handleShowProfile(canonicalCoordinatorId);
     }
@@ -661,7 +707,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     null
   );
   const [contactManagerInitialTab, setContactManagerInitialTab] =
-    React.useState<ContactType>('email');
+    React.useState<ContactManagerInitialTab>('email');
   const [workspaceManagerAssistant, setWorkspaceManagerAssistant] =
     React.useState<Assistant | null>(null);
   const [workspaceManagerInitialProvider, setWorkspaceManagerInitialProvider] =
@@ -1503,11 +1549,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [loadAssistantForEdit]
   );
 
-  const handleOpenContactManager = (assistant: Assistant, tab: ContactType = 'email') => {
-    loadAssistantForEdit(assistant);
-    setContactManagerInitialTab(tab);
-    setContactManagerAssistant(assistant);
-  };
+  const handleOpenContactManager = React.useCallback(
+    (assistant: Assistant, tab: ContactManagerInitialTab = 'email') => {
+      loadAssistantForEdit(assistant);
+      setContactManagerInitialTab(tab);
+      setContactManagerAssistant(assistant);
+    },
+    [loadAssistantForEdit]
+  );
 
   const handleOpenWorkspaceManager = (assistant: Assistant) => {
     loadAssistantForEdit(assistant);
@@ -1545,22 +1594,136 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [markStepEngaged]
   );
 
+  // Open the user's account settings in a new tab so the chat session
+  // isn't disrupted while they configure their profile. Optional `tab`
+  // mirrors the /account page's `?tab=` param (see ProfileTabs) so
+  // callers can deep-link straight to the relevant section.
+  const handleOpenUserSettings = React.useCallback((tab?: string) => {
+    if (typeof window === 'undefined') return;
+    const url = tab ? `/account?tab=${encodeURIComponent(tab)}` : '/account';
+    try {
+      window.localStorage.setItem('console:assistants:user-settings-opened-at', String(Date.now()));
+    } catch {
+      /* private mode / quota — refresh just won't trigger */
+    }
+    window.open(url, '_blank', 'noopener');
+  }, []);
+
+  const handleCoordinatorStartOnboardingStep = React.useCallback(
+    (stepId: string) => {
+      markStepEngaged(stepId);
+      void updateCoordinatorOnboardingState({ onboardingStep: stepId });
+    },
+    [markStepEngaged, updateCoordinatorOnboardingState]
+  );
+
+  const handleCoordinatorTriggerReferenceStep = React.useCallback(
+    (stepId: string) => {
+      if (!canonicalCoordinator) return;
+      markStepEngaged(stepId);
+      void (async () => {
+        try {
+          const clue = await dispatchCoordinatorReferenceQuizClue(
+            canonicalCoordinator.agentId,
+            stepId
+          );
+          if (!clue) return;
+
+          markStepCompleted(clue.triggerStepId);
+          markStepEngaged(clue.replyStepId);
+          void updateCoordinatorOnboardingState({ onboardingStep: clue.replyStepId });
+        } catch (error) {
+          console.error('[Coordinator onboarding] Failed to dispatch reference quiz clue:', error);
+          toast.error('Could not send the reference clue. Please try again.');
+        }
+      })();
+    },
+    [canonicalCoordinator, markStepCompleted, markStepEngaged, updateCoordinatorOnboardingState]
+  );
+
+  const handleCoordinatorAddWhatsappNumber = React.useCallback(() => {
+    handleCoordinatorStartOnboardingStep('whatsapp-number');
+    handleOpenUserSettings('contact-info');
+  }, [handleCoordinatorStartOnboardingStep, handleOpenUserSettings]);
+
+  const handleCoordinatorAddPhoneNumber = React.useCallback(() => {
+    handleCoordinatorStartOnboardingStep('phone-number');
+    handleOpenUserSettings('contact-info');
+  }, [handleCoordinatorStartOnboardingStep, handleOpenUserSettings]);
+
+  const handleCoordinatorConnectSlack = React.useCallback(() => {
+    if (!canonicalCoordinator) return;
+    handleCoordinatorStartOnboardingStep('slack-connect');
+    handleOpenContactManager(canonicalCoordinator, 'slack');
+  }, [canonicalCoordinator, handleCoordinatorStartOnboardingStep, handleOpenContactManager]);
+
+  const handleCoordinatorConnectDiscord = React.useCallback(() => {
+    if (!canonicalCoordinator) return;
+    handleCoordinatorStartOnboardingStep('discord-connect');
+    handleOpenContactManager(canonicalCoordinator, 'discord');
+  }, [canonicalCoordinator, handleCoordinatorStartOnboardingStep, handleOpenContactManager]);
+
   // Which checklist actions are available (wired) on this deployment.
-  // Workspace OAuth needs a configured provider; the rest are always
-  // reachable in the full platform. Mirrors the handler wiring below so
-  // the outstanding-step signal and the rendered rows agree.
+  // Workspace OAuth needs a configured provider, and the reference quiz relies
+  // on hosted communication channels that self-host installs don't expose.
+  // Mirrors the handler wiring below so the outstanding-step signal and the
+  // rendered rows agree.
   const isCoordinatorActionWired = React.useCallback(
     (action: ChecklistAction | undefined): boolean => {
+      if (action && COORDINATOR_REFERENCE_QUIZ_ACTIONS.has(action)) {
+        if (!coordinatorReferenceQuizAvailable) return false;
+      }
+      if (action === 'trigger-email-reference' || action === 'start-email-reply') return true;
+      if (action === 'add-whatsapp-number' || action === 'start-whatsapp-message') {
+        return contactWhatsapp;
+      }
+      if (
+        action === 'trigger-whatsapp-message-reference' ||
+        action === 'trigger-whatsapp-call-reference' ||
+        action === 'start-whatsapp-call'
+      ) {
+        return contactWhatsapp;
+      }
+      if (action === 'add-phone-number' || action === 'start-sms-message') return contactPhone;
+      if (
+        action === 'trigger-sms-reference' ||
+        action === 'trigger-phone-call-reference' ||
+        action === 'start-phone-call'
+      ) {
+        return contactPhone;
+      }
+      if (
+        action === 'connect-slack' ||
+        action === 'trigger-slack-reference' ||
+        action === 'start-slack-message'
+      ) {
+        return !!userMeta.slackOwner && !!assistantActions.slack;
+      }
+      if (
+        action === 'connect-discord' ||
+        action === 'trigger-discord-reference' ||
+        action === 'start-discord-message'
+      ) {
+        return contactDiscord;
+      }
       if (action === 'connect-workspace') return workspaceConnectAvailable;
       if (action === 'connect-apps' || action === 'act' || action === 'schedule') return true;
       return false;
     },
-    [workspaceConnectAvailable]
+    [
+      assistantActions.slack,
+      coordinatorReferenceQuizAvailable,
+      contactDiscord,
+      contactPhone,
+      contactWhatsapp,
+      userMeta.slackOwner,
+      workspaceConnectAvailable,
+    ]
   );
 
   // Whether the Coordinator still has an actionable onboarding step left.
-  // Drives the "Assistant info" nudge dot and the mobile auto-open so
-  // both track the coordinator checklist (not the per-assistant roadmap).
+  // Drives the "Assistant info" nudge dot and request-scoped onboarding
+  // focus layout from the coordinator checklist (not the per-assistant roadmap).
   const coordinatorOnboardingOutstanding = React.useMemo(
     () =>
       isCanonicalCoordinatorOwned &&
@@ -1571,6 +1734,80 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       ),
     [isCanonicalCoordinatorOwned, completedStepIds, skippedStepIds, isCoordinatorActionWired]
   );
+  const canApplyCoordinatorOnboardingFocusLayout =
+    ENABLE_COORDINATOR_ONBOARDING &&
+    isCanonicalCoordinatorOwned &&
+    coordinatorOnboardingState?.mode === 'onboarding' &&
+    coordinatorOnboardingOutstanding &&
+    !showCoordinatorOnboardingIntro &&
+    canonicalCoordinatorId !== null &&
+    profileAssistantId === canonicalCoordinatorId &&
+    (coordinatorIntroDismissed || coordinatorOnboardingState?.introWatched === true);
+  const isCoordinatorOnboardingFocusLayout =
+    canApplyCoordinatorOnboardingFocusLayout && coordinatorOnboardingFocusLayoutRequest > 0;
+
+  const hasRequestedInitialCoordinatorFocusLayoutRef = React.useRef(false);
+  React.useEffect(() => {
+    if (hasRequestedInitialCoordinatorFocusLayoutRef.current) return;
+    if (isCoordinatorOnboardingResolvePending || isLoadingAssistants) return;
+
+    const awaitingBareLandingSelection =
+      !landedWithProfileDeepLinkRef.current && !!canonicalCoordinatorId && !profileAssistantId;
+    if (awaitingBareLandingSelection) return;
+
+    hasRequestedInitialCoordinatorFocusLayoutRef.current = true;
+    if (canApplyCoordinatorOnboardingFocusLayout) {
+      requestCoordinatorOnboardingFocusLayout();
+    }
+  }, [
+    canApplyCoordinatorOnboardingFocusLayout,
+    canonicalCoordinatorId,
+    isCoordinatorOnboardingResolvePending,
+    isLoadingAssistants,
+    profileAssistantId,
+    requestCoordinatorOnboardingFocusLayout,
+  ]);
+
+  // Apply the onboarding-focus rail layout once per explicit request.
+  // Requests are issued for initial page load and intro completion, not
+  // for ordinary assistant selection changes.
+  const seededCoordinatorFocusRailRequestRef = React.useRef(0);
+  React.useEffect(() => {
+    if (!isCoordinatorOnboardingFocusLayout) return;
+    if (seededCoordinatorFocusRailRequestRef.current === coordinatorOnboardingFocusLayoutRequest) {
+      return;
+    }
+    seededCoordinatorFocusRailRequestRef.current = coordinatorOnboardingFocusLayoutRequest;
+    if (!isAssistantListFolded) {
+      preSnapWidthRef.current = assistantListWidth;
+    }
+    setIsAssistantListFolded(true);
+    setAssistantListWidth(LIST_MIN_WIDTH);
+  }, [
+    LIST_MIN_WIDTH,
+    assistantListWidth,
+    coordinatorOnboardingFocusLayoutRequest,
+    isAssistantListFolded,
+    isCoordinatorOnboardingFocusLayout,
+  ]);
+
+  const seededCoordinatorFocusPaneRequestRef = React.useRef(0);
+  React.useEffect(() => {
+    if (!isCoordinatorOnboardingFocusLayout) return;
+    if (seededCoordinatorFocusPaneRequestRef.current === coordinatorOnboardingFocusLayoutRequest) {
+      return;
+    }
+    seededCoordinatorFocusPaneRequestRef.current = coordinatorOnboardingFocusLayoutRequest;
+    setPaneState((prev) =>
+      prev.primary.tab === 'chat' && prev.secondary === null
+        ? prev
+        : {
+            ...prev,
+            primary: { tab: 'chat' },
+            secondary: null,
+          }
+    );
+  }, [coordinatorOnboardingFocusLayoutRequest, isCoordinatorOnboardingFocusLayout]);
 
   const coordinatorOnboardingPanelHandlers = React.useMemo(() => {
     if (!isCanonicalCoordinatorOwned || !canonicalCoordinator) return undefined;
@@ -1581,6 +1818,28 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     // Coordinator's onboarding steps.
     const isProfileCoordinator = profileAssistantId === canonicalCoordinator.agentId;
     return {
+      onStartOnboardingStep: coordinatorReferenceQuizAvailable
+        ? handleCoordinatorStartOnboardingStep
+        : undefined,
+      onTriggerReferenceStep: coordinatorReferenceQuizAvailable
+        ? handleCoordinatorTriggerReferenceStep
+        : undefined,
+      onAddWhatsappNumber:
+        coordinatorReferenceQuizAvailable && contactWhatsapp
+          ? handleCoordinatorAddWhatsappNumber
+          : undefined,
+      onAddPhoneNumber:
+        coordinatorReferenceQuizAvailable && contactPhone
+          ? handleCoordinatorAddPhoneNumber
+          : undefined,
+      onConnectSlack:
+        coordinatorReferenceQuizAvailable && userMeta.slackOwner && assistantActions.slack
+          ? handleCoordinatorConnectSlack
+          : undefined,
+      onConnectDiscord:
+        coordinatorReferenceQuizAvailable && contactDiscord
+          ? handleCoordinatorConnectDiscord
+          : undefined,
       onConnectWorkspace: workspaceConnectAvailable
         ? () => {
             markStepEngaged('workspace');
@@ -1610,8 +1869,20 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     canonicalCoordinator,
     profileAssistantId,
     activeCallAssistant,
+    assistantActions.slack,
+    coordinatorReferenceQuizAvailable,
+    contactDiscord,
+    contactPhone,
+    contactWhatsapp,
+    userMeta.slackOwner,
     markStepEngaged,
     markStepCompleted,
+    handleCoordinatorStartOnboardingStep,
+    handleCoordinatorTriggerReferenceStep,
+    handleCoordinatorAddWhatsappNumber,
+    handleCoordinatorAddPhoneNumber,
+    handleCoordinatorConnectSlack,
+    handleCoordinatorConnectDiscord,
     handleCoordinatorOpenPaneTab,
     handleCoordinatorOnboardingStepSkip,
     handleCoordinatorOnboardingStepUnskip,
@@ -1683,18 +1954,65 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // freely.
   const serverCompletedStepIds = coordinatorOnboardingState?.completedStepIds;
   const serverSkippedStepIds = coordinatorOnboardingState?.skippedStepIds;
+  const activeCoordinatorOnboardingStep = coordinatorOnboardingState?.onboardingStep;
   React.useEffect(() => {
     if (!serverCompletedStepIds) return;
     for (const stepId of serverCompletedStepIds) {
       markStepCompleted(stepId);
+      const triggerStepId = coordinatorReferenceQuizTriggerStepForReplyStep(stepId);
+      if (triggerStepId) markStepCompleted(triggerStepId);
     }
   }, [serverCompletedStepIds, markStepCompleted]);
   React.useEffect(() => {
     if (!serverSkippedStepIds) return;
     for (const stepId of serverSkippedStepIds) {
       markStepSkipped(stepId);
+      const triggerStepId = coordinatorReferenceQuizTriggerStepForReplyStep(stepId);
+      if (triggerStepId) markStepSkipped(triggerStepId);
     }
   }, [serverSkippedStepIds, markStepSkipped]);
+  React.useEffect(() => {
+    if (!activeCoordinatorOnboardingStep) return;
+    const triggerStepId = coordinatorReferenceQuizTriggerStepForReplyStep(
+      activeCoordinatorOnboardingStep
+    );
+    if (triggerStepId) markStepCompleted(triggerStepId);
+  }, [activeCoordinatorOnboardingStep, markStepCompleted]);
+  React.useEffect(() => {
+    if (
+      !activeCoordinatorOnboardingStep ||
+      coordinatorOnboardingState?.mode !== 'onboarding' ||
+      serverCompletedStepIds?.includes(activeCoordinatorOnboardingStep) ||
+      serverSkippedStepIds?.includes(activeCoordinatorOnboardingStep)
+    ) {
+      return;
+    }
+    const handle = window.setInterval(() => {
+      void refetchCoordinatorOnboardingState();
+    }, 4_000);
+    return () => window.clearInterval(handle);
+  }, [
+    activeCoordinatorOnboardingStep,
+    coordinatorOnboardingState?.mode,
+    refetchCoordinatorOnboardingState,
+    serverCompletedStepIds,
+    serverSkippedStepIds,
+  ]);
+  React.useEffect(() => {
+    if (!activeCoordinatorOnboardingStep) return;
+    if (
+      !serverCompletedStepIds?.includes(activeCoordinatorOnboardingStep) &&
+      !serverSkippedStepIds?.includes(activeCoordinatorOnboardingStep)
+    ) {
+      return;
+    }
+    void updateCoordinatorOnboardingState({ clearOnboardingStep: true });
+  }, [
+    activeCoordinatorOnboardingStep,
+    serverCompletedStepIds,
+    serverSkippedStepIds,
+    updateCoordinatorOnboardingState,
+  ]);
 
   const handleRandomizeProfile = () => {
     setUserHasChangedPreset(true);
@@ -1877,28 +2195,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleShowInstallInstructions = React.useCallback((assistant: Assistant) => {
     setDesktopLinkerAssistant(assistant);
   }, []);
-  // Open the user's account settings in a new tab so the chat session
-  // isn't disrupted while they configure their profile. Optional `tab`
-  // mirrors the /account page's `?tab=` param (see ProfileTabs) so
-  // callers can deep-link straight to the relevant section — e.g. the
-  // "Add phone to profile" step lands on Contact Info directly.
-  //
   // We also stamp a localStorage flag so the focus-refresh effect
   // below knows the user might have just changed something on their
   // profile — refreshing server data on every focus event is
   // wasteful, but doing so after an account-page round-trip ensures
   // derivations like `hasUserPhoneNumber` reflect the edit without
   // a manual reload.
-  const handleOpenUserSettings = React.useCallback((tab?: string) => {
-    if (typeof window === 'undefined') return;
-    const url = tab ? `/account?tab=${encodeURIComponent(tab)}` : '/account';
-    try {
-      window.localStorage.setItem('console:assistants:user-settings-opened-at', String(Date.now()));
-    } catch {
-      /* private mode / quota — refresh just won't trigger */
-    }
-    window.open(url, '_blank', 'noopener');
-  }, []);
   // Refresh server data (re-pulls userMeta) when the window regains
   // focus AFTER the user opened account settings. Gated on the flag
   // + a sane TTL so we don't trigger expensive RSC re-renders on
@@ -1963,10 +2265,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               : "Couldn't finish connecting the workspace. Please try again."
           );
         } else {
-          setWorkspaceManagerAssistant(null);
+          // Keep the workspace dialog open so it transitions into the
+          // connected view (where the file-access step lives). The
+          // ``assistants`` re-sync effect below repoints the held snapshot at
+          // the freshly-connected assistant once the refetch lands.
           setWorkspaceManagerInitialProvider(null);
           setContactManagerAssistant(null);
-          toast.success('Workspace connected.');
+          toast.success('Workspace connected. Choose which files to share below.');
         }
       }
     });
@@ -1975,6 +2280,21 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       retryTimers.forEach(clearTimeout);
     };
   }, [refreshAssistants, refetchCoordinatorOnboardingState]);
+
+  // Keep the open workspace dialog's held assistant in sync with the refreshed
+  // list so a just-connected mailbox/provider surfaces (and the file-access
+  // step appears) without forcing the user to reopen the dialog.
+  React.useEffect(() => {
+    if (!workspaceManagerAssistant) return;
+    const fresh = assistants.find((a) => a.agentId === workspaceManagerAssistant.agentId);
+    if (
+      fresh &&
+      (fresh.email !== workspaceManagerAssistant.email ||
+        fresh.emailProvider !== workspaceManagerAssistant.emailProvider)
+    ) {
+      setWorkspaceManagerAssistant(fresh);
+    }
+  }, [assistants, workspaceManagerAssistant]);
 
   const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
 
@@ -2031,7 +2351,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   canEndContract={canEndContract}
                   isFolded={isAssistantListFolded}
                   activeCallAssistantId={activeCallId}
-                  onHangUp={handleHangUp}
                   canHire={canHire}
                   onToggleFold={handleToggleListFold}
                   unreadCounts={chatStreamUnreadCounts}
@@ -2110,6 +2429,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                         : !!onboardingIncompleteByAgentId[profileAssistant.agentId]
                       : false
                   }
+                  infoPanelFocusLayoutRequest={
+                    canApplyCoordinatorOnboardingFocusLayout
+                      ? coordinatorOnboardingFocusLayoutRequest
+                      : 0
+                  }
                   coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
                   // Dock the call into the chat slot whenever an active
                   // call's assistant matches the chat's assistant and the
@@ -2183,6 +2507,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   onComplete={(medium) => {
                     setCoordinatorIntroDismissed(true);
                     setCoordinatorIntroReplay(false);
+                    requestCoordinatorOnboardingFocusLayout();
                     // The intro handed off to a live call — arm the
                     // "Talk now!" cue to fire once that call connects.
                     if (medium === 'call') setCoordinatorTalkNowPending(true);

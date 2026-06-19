@@ -24,8 +24,7 @@ export default async function OnboardingPage() {
     redirect('/login');
   }
 
-  const createOrgAction = await createOrganizationAction(user.apiKey);
-  const onUpdateOnboarding = await updateOnboardingAction(user.apiKey);
+  const onUpdateOnboarding = updateOnboardingAction;
 
   const existingOrgs = user.organizations ?? [];
 
@@ -60,7 +59,7 @@ export default async function OnboardingPage() {
 
   return (
     <WorkspaceContent
-      onCreateOrg={createOrgAction}
+      onCreateOrg={createOrganizationAction}
       onUpdateOnboarding={onUpdateOnboarding}
       onPatchSession={patchSessionAndRedirect}
       autoComplete={shouldAutoComplete}

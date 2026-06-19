@@ -31,6 +31,8 @@ function allowedOrigins(): Set<string> {
 
   return new Set(
     [
+      'https://usedroids.ai',
+      'https://www.usedroids.ai',
       'https://unify.ai',
       'https://www.unify.ai',
       'http://localhost:3007',
@@ -310,9 +312,9 @@ export function OPTIONS(request: NextRequest) {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { action: LandingAuthAction } }
+  { params }: { params: Promise<{ action: string }> }
 ) {
-  const action = params.action;
+  const { action } = await params;
   const body = await request.json().catch(() => ({}));
 
   switch (action) {

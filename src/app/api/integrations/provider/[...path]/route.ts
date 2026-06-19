@@ -3,14 +3,28 @@ import { getApiKeyFromRequest, unauthorized } from '../../../_utils/auth';
 import { buildOrchestraV0Url } from '../../_utils/orchestra-url';
 
 type RouteContext = {
-  params: { path: string[] };
+  params: Promise<{ path: string[] }>;
 };
 
 async function proxy(request: NextRequest, context: RouteContext) {
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) return unauthorized();
 
-  const { path } = context.params;
+  const { path } = await context.params;
+  const isCatalogGet =
+    request.method === 'GET' &&
+    (path[0] === 'apps' ||
+      (path[0] === 'tools' &&
+        (path.length === 1 || path[1] === 'search' || path[path.length - 1] === 'schema')));
+  if (isCatalogGet) {
+    return NextResponse.json(
+      {
+        detail:
+          'Integration app and tool catalog reads use Builtins logs, not the Orchestra provider proxy.',
+      },
+      { status: 410 }
+    );
+  }
   const target = buildOrchestraV0Url(`/integrations/${path.join('/')}`);
   request.nextUrl.searchParams.forEach((value, key) => target.searchParams.set(key, value));
 

@@ -163,9 +163,9 @@ async function seedTranscript(
 //
 // The local `./scripts/local.sh --chat` harness runs a Pub/Sub emulator on
 // `localhost:8085` under project `local-test-project`, and Console's SSE
-// routes derive topic names as `unity-{agentId}-staging` (see
+// routes derive topic names as `droid-{agentId}-staging` (see
 // `getTopicName`). These helpers mirror what the Communication adapters and
-// Unity's `echo_responder.py` publish, so tests can inject a live assistant
+// Droid's `echo_responder.py` publish, so tests can inject a live assistant
 // reply without standing up the full adapter pipeline.
 //
 // Topics must exist before subscriptions can pull from them, and the
@@ -185,7 +185,7 @@ function pubsubEmulatorUrl(path: string): string {
 }
 
 async function ensurePubSubTopic(assistantId: number): Promise<void> {
-  const topicName = `unity-${assistantId}-staging`;
+  const topicName = `droid-${assistantId}-staging`;
   const url = pubsubEmulatorUrl(`/projects/${PUBSUB_PROJECT_ID}/topics/${topicName}`);
   const res = await fetch(url, { method: 'PUT' });
   // 200 = created, 409 = already exists — both fine.
@@ -198,7 +198,7 @@ async function publishUnifyMessageOutbound(
   assistantId: number,
   opts: { content: string; contactId: number }
 ): Promise<void> {
-  const topicName = `unity-${assistantId}-staging`;
+  const topicName = `droid-${assistantId}-staging`;
   const payload = {
     thread: 'unify_message_outbound',
     event: {
@@ -1659,7 +1659,7 @@ test('switching to another assistant and back keeps each chat working independen
 // Requires the local `--chat` harness: the Pub/Sub emulator (localhost:8085)
 // has to be up so the test can publish `unify_message_outbound` frames
 // directly to the assistant's topic, bypassing the full Communication +
-// Unity adapter pipeline.
+// Droid adapter pipeline.
 
 test('unread message badge appears for an inactive assistant and clears when its chat is opened', async ({
   authedPage: page,

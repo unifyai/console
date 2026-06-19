@@ -4,6 +4,7 @@ import {
   OrganizationMember,
   OrganizationActions,
   OrganizationInvite,
+  DataSharingMode,
 } from '@/types/organization';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -67,7 +68,10 @@ export const useOrganization = (
             o.roleId === next.roleId &&
             o.roleName === next.roleName &&
             o.ownerId === next.ownerId &&
-            o.freeTrial === next.freeTrial
+            o.freeTrial === next.freeTrial &&
+            o.dataSharingMode === next.dataSharingMode &&
+            o.orgWideSharingEnabled === next.orgWideSharingEnabled &&
+            o.orgWideSharingTeamId === next.orgWideSharingTeamId
           );
         })
       ) {
@@ -167,10 +171,10 @@ export const useOrganization = (
     return [...activeMembers, ...pendingInvites];
   }, [members, invites]);
 
-  const handleCreateOrg = async (name: string) => {
+  const handleCreateOrg = async (name: string, dataSharingMode: DataSharingMode = 'private') => {
     setIsLoading(true);
     try {
-      const result = await actions.createOrg(name);
+      const result = await actions.createOrg(name, dataSharingMode);
       if ('detail' in result) {
         toast.error(result.detail);
       } else {

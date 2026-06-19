@@ -18,6 +18,49 @@ import type {
 
 type UnknownRecord = Record<string, unknown>;
 
+const BUILTINS_APP_DISPLAY_NAME_FIELD = 'display_name';
+const BUILTINS_APP_PUBLIC_FIELDS = [
+  'backend_id',
+  'provider_app_id',
+  'canonical_app_slug',
+  'display_name',
+  'source_type',
+  'source_label',
+  'description',
+  'category',
+  'icon_url',
+  'auth_modes',
+  'available_scopes',
+  'available_actions',
+  'tool_count',
+  'tools',
+  'derived_scopes',
+  'connection_status',
+  'connection_id',
+  'external_account_label',
+  'overlay',
+  'api_key_schema',
+  'native_metadata',
+].join('&');
+const BUILTINS_TOOL_PUBLIC_FIELDS = [
+  'function_id',
+  'id',
+  'name',
+  'canonical_name',
+  'tool_id',
+  'display_name',
+  'description',
+  'summary',
+  'metadata',
+  'activation_state',
+  'action_class',
+  'behavior_hints',
+  'confirmation_required',
+  'approval_level',
+  'provider_tool_id',
+  'required_scopes',
+].join('&');
+
 interface ProviderScopePayload {
   id?: string;
   label?: string;
@@ -58,6 +101,11 @@ interface ProviderAppPagePayload {
   facets?: ProviderAppCatalogFacets;
   catalogVersion?: string | null;
   generatedAt?: string | null;
+}
+
+interface LogPayload<T> {
+  logs?: Array<{ entries?: T }>;
+  count?: number;
 }
 
 export type ProviderAppStatusGroup = 'connected' | 'needs_attention' | 'not_connected';
@@ -155,6 +203,35 @@ async function integrationFetch<T>(path: string, init: RequestInit = {}): Promis
   return readJsonResponse<T>(response);
 }
 
+async function builtinsLogFetch<T>(args: {
+  context: string;
+  limit: number;
+  offset: number;
+  filterExpr?: string;
+  fromFields?: string;
+  sorting?: Record<string, 'ascending' | 'descending'>;
+}): Promise<LogPayload<T>> {
+  const params = new URLSearchParams();
+  params.set('projectName', process.env.NEXT_PUBLIC_DROID_BUILTINS_PROJECT || 'Builtins');
+  params.set('context', args.context);
+  params.set('limit', String(args.limit));
+  params.set('offset', String(args.offset));
+  if (args.filterExpr) params.set('filterExpr', args.filterExpr);
+  if (args.fromFields) params.set('fromFields', args.fromFields);
+  if (args.sorting) params.set('sorting', JSON.stringify(args.sorting));
+  const response = await fetch(`/api/logs?${params.toString()}`, {
+    cache: 'no-store',
+  });
+  try {
+    return await readJsonResponse<LogPayload<T>>(response);
+  } catch (error) {
+    if (error instanceof Error && /Builtins|project/i.test(error.message)) {
+      return { logs: [], count: 0 };
+    }
+    throw error;
+  }
+}
+
 function buildOwnerQuery(args?: {
   ownerScope?: IntegrationOwnerScope;
   assistantId?: string | number;
@@ -191,11 +268,28 @@ function normalizeTool(
       activationState: 'not_connected',
     };
   }
+  const metadata = (
+    action.metadata && typeof action.metadata === 'object' ? (action.metadata as UnknownRecord) : {}
+  ) as UnknownRecord;
+  const integration = (
+    metadata.integration && typeof metadata.integration === 'object'
+      ? (metadata.integration as UnknownRecord)
+      : {}
+  ) as UnknownRecord;
+  const labels = (
+    integration.labels && typeof integration.labels === 'object'
+      ? (integration.labels as UnknownRecord)
+      : {}
+  ) as UnknownRecord;
   const name = String(
     action.name ||
       action.canonicalName ||
       action.canonical_name ||
+      integration.canonicalName ||
+      integration.canonical_name ||
       action.toolId ||
+      integration.toolId ||
+      integration.tool_id ||
       action.id ||
       `tool-${index}`
   );
@@ -204,10 +298,21 @@ function normalizeTool(
       action.display_name ||
       action.toolDisplayName ||
       action.tool_display_name ||
+      integration.toolDisplayName ||
+      integration.tool_display_name ||
+      labels.toolDisplayName ||
+      labels.tool_display_name ||
       name
   ).replace(/[_-]/g, ' ');
   return {
-    id: String(action.id || action.toolId || `${canonicalSlug}:${name}`),
+    id: String(
+      action.id ||
+        action.toolId ||
+        action.tool_id ||
+        integration.toolId ||
+        integration.tool_id ||
+        `${canonicalSlug}:${name}`
+    ),
     name,
     displayName,
     description:
@@ -215,13 +320,24 @@ function normalizeTool(
         ? action.description
         : (action.summary as string) || null,
     activationState: action.activationState as IntegrationToolPreview['activationState'],
-    actionClass: action.actionClass as IntegrationToolPreview['actionClass'],
+    actionClass: (action.actionClass ?? integration.actionClass ?? integration.action_class) as
+      | IntegrationToolPreview['actionClass']
+      | undefined,
     behaviorHints: (Array.isArray(action.behaviorHints)
       ? action.behaviorHints
       : Array.isArray(action.behavior_hints)
         ? action.behavior_hints
-        : []) as IntegrationToolBehaviorHint[],
-    confirmationRequired: Boolean(action.confirmationRequired ?? action.confirmation_required),
+        : Array.isArray(integration.behaviorHints)
+          ? integration.behaviorHints
+          : Array.isArray(integration.behavior_hints)
+            ? integration.behavior_hints
+            : []) as IntegrationToolBehaviorHint[],
+    confirmationRequired: Boolean(
+      action.confirmationRequired ??
+      action.confirmation_required ??
+      integration.confirmationRequired ??
+      integration.confirmation_required
+    ),
     approvalLevel: (action.approvalLevel ?? action.approval_level) as
       | IntegrationToolApprovalLevel
       | undefined,
@@ -230,7 +346,11 @@ function normalizeTool(
         ? action.providerToolId
         : typeof action.provider_tool_id === 'string'
           ? action.provider_tool_id
-          : null,
+          : typeof integration.providerToolId === 'string'
+            ? integration.providerToolId
+            : typeof integration.provider_tool_id === 'string'
+              ? integration.provider_tool_id
+              : null,
     canonicalName:
       typeof action.canonicalName === 'string'
         ? action.canonicalName
@@ -241,7 +361,13 @@ function normalizeTool(
       ? (action.requiredScopes as Array<ProviderScopePayload | string>).map(normalizeScope)
       : Array.isArray(action.required_scopes)
         ? (action.required_scopes as Array<ProviderScopePayload | string>).map(normalizeScope)
-        : [],
+        : Array.isArray(integration.requiredScopes)
+          ? (integration.requiredScopes as Array<ProviderScopePayload | string>).map(normalizeScope)
+          : Array.isArray(integration.required_scopes)
+            ? (integration.required_scopes as Array<ProviderScopePayload | string>).map(
+                normalizeScope
+              )
+            : [],
   };
 }
 
@@ -352,17 +478,207 @@ export function mapProviderConnection(
   };
 }
 
+function quoteFilterValue(value: string): string {
+  return JSON.stringify(value);
+}
+
+function toolAppSlugFilter(slug: string): string {
+  return `metadata["integration"]["app_slug"] == ${quoteFilterValue(slug)}`;
+}
+
+function statusGroupForStatus(status: string): ProviderAppStatusGroup {
+  if (status === 'connected' || status === 'configured') return 'connected';
+  if (
+    [
+      'pending',
+      'missing_scope',
+      'missing_secrets',
+      'needs_reconnect',
+      'expired',
+      'revoked',
+      'error',
+    ].includes(status)
+  ) {
+    return 'needs_attention';
+  }
+  return 'not_connected';
+}
+
+function connectionStatusBySlug(connections: IntegrationConnection[]): Map<string, string> {
+  const bySlug = new Map<string, string>();
+  for (const connection of connections) {
+    if (connection.status === 'disconnected' || bySlug.has(connection.canonicalSlug)) continue;
+    bySlug.set(connection.canonicalSlug, connection.status);
+  }
+  return bySlug;
+}
+
+function slugMembershipFilter(slugs: string[], negate = false): string | null {
+  const unique = [...new Set(slugs)].filter(Boolean).sort();
+  if (unique.length === 0) return negate ? null : 'canonical_app_slug == "__no_matching_apps__"';
+  return `canonical_app_slug ${negate ? 'not in' : 'in'} ${JSON.stringify(unique)}`;
+}
+
+function catalogFilterExpr(args: {
+  query?: string;
+  sourceType?: 'native' | 'third_party' | null;
+  statuses?: IntegrationConnectionStatus[];
+  statusGroups?: ProviderAppStatusGroup[];
+  connections?: IntegrationConnection[];
+}): string | undefined {
+  const filters: string[] = [];
+  if (args.sourceType) filters.push(`source_type == ${quoteFilterValue(args.sourceType)}`);
+  const query = args.query?.trim().toLowerCase();
+  if (query) {
+    const quoted = quoteFilterValue(query);
+    filters.push(
+      `(${[
+        `display_name.lower().contains(${quoted})`,
+        `canonical_app_slug.lower().contains(${quoted})`,
+        `description.lower().contains(${quoted})`,
+        `category.lower().contains(${quoted})`,
+        `source_label.lower().contains(${quoted})`,
+      ].join(' or ')})`
+    );
+  }
+
+  const statuses = new Set(args.statuses ?? []);
+  const statusGroups = new Set(args.statusGroups ?? []);
+  if (statuses.size > 0 || statusGroups.size > 0) {
+    const bySlug = connectionStatusBySlug(args.connections ?? []);
+    const includeSlugs: string[] = [];
+    const excludeSlugs = [...bySlug.keys()];
+    let includeNativeConfigured = false;
+    let includeNotConnected = false;
+
+    for (const [slug, status] of bySlug) {
+      if (
+        statuses.has(status as IntegrationConnectionStatus) ||
+        statusGroups.has(statusGroupForStatus(status))
+      ) {
+        includeSlugs.push(slug);
+      }
+    }
+    if (statuses.has('configured') || statusGroups.has('connected')) includeNativeConfigured = true;
+    if (statuses.has('not_connected') || statusGroups.has('not_connected'))
+      includeNotConnected = true;
+
+    const statusFilters: string[] = [];
+    const included = slugMembershipFilter(includeSlugs);
+    if (included) statusFilters.push(included);
+    if (includeNativeConfigured) statusFilters.push('source_type == "native"');
+    if (includeNotConnected) {
+      const excluded = slugMembershipFilter(excludeSlugs, true);
+      statusFilters.push(
+        excluded ? `(${excluded} and source_type != "native")` : 'source_type != "native"'
+      );
+    }
+    filters.push(
+      statusFilters.length > 0
+        ? `(${statusFilters.join(' or ')})`
+        : 'canonical_app_slug == "__no_matching_apps__"'
+    );
+  }
+
+  return filters.length > 0 ? filters.join(' and ') : undefined;
+}
+
+function overlayAppConnections(
+  app: ProviderAppPayload,
+  connectionsBySlug: Map<string, IntegrationConnection[]>
+): ProviderAppPayload {
+  const connections = connectionsBySlug.get(app.canonicalAppSlug) ?? [];
+  const primary = connections[0];
+  if (!primary) {
+    return {
+      ...app,
+      connectionStatus:
+        app.connectionStatus ?? (app.sourceType === 'native' ? 'configured' : 'not_connected'),
+    };
+  }
+  return {
+    ...app,
+    connectionStatus: primary.status,
+    connectionId: primary.id,
+    externalAccountLabel: primary.accountLabel,
+  };
+}
+
+function connectionsBySlug(
+  connections: IntegrationConnection[]
+): Map<string, IntegrationConnection[]> {
+  const bySlug = new Map<string, IntegrationConnection[]>();
+  for (const connection of connections) {
+    if (connection.status === 'disconnected') continue;
+    bySlug.set(connection.canonicalSlug, [
+      ...(bySlug.get(connection.canonicalSlug) ?? []),
+      connection,
+    ]);
+  }
+  return bySlug;
+}
+
+function facetsFromConnections(
+  total: number,
+  connections: IntegrationConnection[]
+): ProviderAppCatalogFacets {
+  const bySlug = connectionStatusBySlug(connections);
+  const status = {
+    connected: 0,
+    configured: 0,
+    pending: 0,
+    missingScope: 0,
+    missingSecrets: 0,
+    needsReconnect: 0,
+    expired: 0,
+    revoked: 0,
+    error: 0,
+    notConnected: 0,
+  };
+  for (const connectionStatus of bySlug.values()) {
+    const key =
+      connectionStatus === 'missing_scope'
+        ? 'missingScope'
+        : connectionStatus === 'missing_secrets'
+          ? 'missingSecrets'
+          : connectionStatus === 'needs_reconnect'
+            ? 'needsReconnect'
+            : connectionStatus;
+    if (key in status) status[key as keyof typeof status] += 1;
+  }
+  const connected = status.connected + status.configured;
+  const needsAttention =
+    status.pending +
+    status.missingScope +
+    status.missingSecrets +
+    status.needsReconnect +
+    status.expired +
+    status.revoked +
+    status.error;
+  status.notConnected = Math.max(total - connected - needsAttention, 0);
+  return {
+    total,
+    sourceType: { native: 0, thirdParty: total },
+    status,
+    statusGroup: {
+      connected,
+      needsAttention,
+      notConnected: status.notConnected,
+    },
+  };
+}
+
 export async function listProviderIntegrationDefinitions(args: {
   ownerScope: IntegrationOwnerScope;
   assistantId?: string | number;
 }): Promise<IntegrationDefinition[]> {
-  const params = new URLSearchParams();
-  params.set('owner_scope', args.ownerScope);
-  if (args.assistantId !== undefined) params.set('assistant_id', String(args.assistantId));
-  const data = await integrationFetch<
-    ProviderAppPayload[] | { apps?: ProviderAppPayload[]; items?: ProviderAppPayload[] }
-  >(`apps?${params.toString()}`);
-  return asArray<ProviderAppPayload>(data).map(mapProviderAppToDefinition);
+  const page = await listProviderIntegrationDefinitionsPage({
+    ownerScope: args.ownerScope,
+    assistantId: args.assistantId,
+    limit: 500,
+    offset: 0,
+  });
+  return page.definitions;
 }
 
 export async function listProviderIntegrationDefinitionsPage(args: {
@@ -376,35 +692,48 @@ export async function listProviderIntegrationDefinitionsPage(args: {
   limit?: number;
   offset?: number;
 }): Promise<ProviderIntegrationDefinitionsPage> {
-  const params = new URLSearchParams();
   const limit = args.limit ?? 100;
   const offset = args.offset ?? 0;
-  params.set('owner_scope', args.ownerScope);
-  params.set('limit', String(limit));
-  params.set('offset', String(offset));
-  params.set('detail_level', args.detailLevel ?? 'summary');
-  if (args.assistantId !== undefined) params.set('assistant_id', String(args.assistantId));
-  if (args.query?.trim()) params.set('query', args.query.trim());
-  if (args.sourceType) params.set('source_type', args.sourceType);
-  for (const status of args.statuses ?? []) {
-    params.append('status', status);
-  }
-  for (const statusGroup of args.statusGroups ?? []) {
-    params.append('status_group', statusGroup);
-  }
-  const data = await integrationFetch<ProviderAppPagePayload | ProviderAppPayload[]>(
-    `apps?${params.toString()}`
-  );
-  const items = asArray<ProviderAppPayload>(data);
-  const page = data && typeof data === 'object' && !Array.isArray(data) ? data : null;
+  const needsConnectionFilter =
+    (args.statuses?.length ?? 0) > 0 || (args.statusGroups?.length ?? 0) > 0;
+  const providerConnections =
+    needsConnectionFilter || args.detailLevel === 'summary'
+      ? await listProviderIntegrationConnections({
+          ownerScope: args.ownerScope,
+          assistantId: args.assistantId,
+        }).catch(() => [])
+      : [];
+  const data = await builtinsLogFetch<ProviderAppPayload>({
+    context: 'Integrations/Apps',
+    limit,
+    offset,
+    filterExpr: catalogFilterExpr({ ...args, connections: providerConnections }),
+    fromFields: BUILTINS_APP_PUBLIC_FIELDS,
+    sorting: { [BUILTINS_APP_DISPLAY_NAME_FIELD]: 'ascending' },
+  });
+  const pageConnections =
+    providerConnections.length > 0 || args.detailLevel === 'summary'
+      ? providerConnections
+      : await listProviderIntegrationConnections({
+          ownerScope: args.ownerScope,
+          assistantId: args.assistantId,
+        }).catch(() => []);
+  const bySlug = connectionsBySlug(pageConnections);
+  const items = (data.logs ?? [])
+    .map((log) => log.entries)
+    .filter(Boolean)
+    .map((app) => overlayAppConnections(app as ProviderAppPayload, bySlug));
   return {
     definitions: items.map(mapProviderAppToDefinition),
-    total: typeof page?.total === 'number' ? page.total : items.length,
-    limit: typeof page?.limit === 'number' ? page.limit : limit,
-    offset: typeof page?.offset === 'number' ? page.offset : offset,
-    facets: page?.facets ?? null,
-    catalogVersion: page?.catalogVersion ?? null,
-    generatedAt: page?.generatedAt ?? null,
+    total: typeof data.count === 'number' ? data.count : items.length,
+    limit,
+    offset,
+    facets: facetsFromConnections(
+      typeof data.count === 'number' ? data.count : items.length,
+      pageConnections
+    ),
+    catalogVersion: null,
+    generatedAt: null,
   };
 }
 
@@ -413,13 +742,39 @@ export async function getProviderIntegrationDetails(args: {
   assistantId?: string | number;
   canonicalSlug: string;
 }): Promise<IntegrationDefinition> {
-  const params = new URLSearchParams();
-  params.set('owner_scope', args.ownerScope);
-  if (args.assistantId !== undefined) params.set('assistant_id', String(args.assistantId));
-  const data = await integrationFetch<ProviderAppPayload>(
-    `apps/${encodeURIComponent(args.canonicalSlug)}?${params.toString()}`
+  const [appPage, toolPage, providerConnections] = await Promise.all([
+    builtinsLogFetch<ProviderAppPayload>({
+      context: 'Integrations/Apps',
+      limit: 1,
+      offset: 0,
+      filterExpr: `canonical_app_slug == ${quoteFilterValue(args.canonicalSlug)}`,
+      fromFields: BUILTINS_APP_PUBLIC_FIELDS,
+    }),
+    builtinsLogFetch<UnknownRecord>({
+      context: 'Integrations/Tools',
+      limit: 500,
+      offset: 0,
+      filterExpr: toolAppSlugFilter(args.canonicalSlug),
+      fromFields: BUILTINS_TOOL_PUBLIC_FIELDS,
+      sorting: { name: 'ascending' },
+    }),
+    listProviderIntegrationConnections({
+      ownerScope: args.ownerScope,
+      assistantId: args.assistantId,
+    }).catch(() => []),
+  ]);
+  const app = appPage.logs?.[0]?.entries;
+  if (!app) throw new Error(`Integration ${args.canonicalSlug} was not found`);
+  const bySlug = connectionsBySlug(providerConnections);
+  return mapProviderAppToDefinition(
+    overlayAppConnections(
+      {
+        ...app,
+        tools: (toolPage.logs ?? []).map((log) => log.entries).filter(Boolean) as UnknownRecord[],
+      },
+      bySlug
+    )
   );
-  return mapProviderAppToDefinition(data);
 }
 
 export async function listProviderIntegrationConnections(args: {
@@ -547,7 +902,7 @@ export async function requestUnityIntegrationToolsSync(args: {
     }
   );
   if (!response.ok) {
-    throw new Error(`Unity integration sync request failed (${response.status})`);
+    throw new Error(`Droid integration sync request failed (${response.status})`);
   }
 }
 
@@ -627,8 +982,6 @@ export interface ProviderBackendSetupRequest {
   environment?: string;
   displayName: string;
   status?: 'enabled' | 'disabled';
-  credentialsSecretRef?: string | null;
-  webhookSecretRef?: string | null;
   allowedOrgsOrTenants?: string[];
   defaultPriority?: number;
   configJson?: ProviderBackendOperationalConfig;

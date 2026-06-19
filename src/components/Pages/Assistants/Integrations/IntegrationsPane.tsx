@@ -52,7 +52,11 @@ import type {
   IntegrationProviderConfig,
   IntegrationProviderId,
 } from '@/types/assistants/integration';
-import type { IntegrationConnection, IntegrationGalleryItem } from '@/types/integrations';
+import type {
+  IntegrationConnection,
+  IntegrationDefinition,
+  IntegrationGalleryItem,
+} from '@/types/integrations';
 import {
   IntegrationGalleryShell,
   ProviderIntegrationDetailSheet,
@@ -105,6 +109,61 @@ function statusGroupsForFilter(
   if (status === 'needs_attention') return ['needs_attention'];
   if (status === 'not_connected') return ['not_connected'];
   return [];
+}
+
+function sourceTypeForDefinition(definition: IntegrationDefinition): 'native' | 'third_party' {
+  if (definition.sourceMetadata?.sourceType === 'native') return 'native';
+  if (definition.sourceMetadata?.sourceType === 'third_party') return 'third_party';
+  return definition.source === 'provider_backed' || definition.source === 'overlay_curated'
+    ? 'third_party'
+    : 'native';
+}
+
+function definitionNeedsAttention(definition: IntegrationDefinition): boolean {
+  return [
+    'missing_scope',
+    'missing_secrets',
+    'needs_reconnect',
+    'expired',
+    'revoked',
+    'error',
+    'pending',
+  ].includes(definition.status);
+}
+
+function staticDefinitionMatchesFilters(
+  definition: IntegrationDefinition,
+  filters: IntegrationGalleryFilters
+): boolean {
+  const query = filters.query.trim().toLowerCase();
+  if (query) {
+    const haystack = [
+      definition.displayName,
+      definition.description,
+      definition.category,
+      definition.canonicalSlug,
+      definition.sourceMetadata.label,
+      definition.sourceMetadata.providerAppId,
+      ...definition.tools.map((tool) => `${tool.displayName} ${tool.description ?? ''}`),
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    if (!haystack.includes(query)) return false;
+  }
+  if (filters.category !== 'all' && sourceTypeForDefinition(definition) !== filters.category) {
+    return false;
+  }
+  if (filters.status === 'connected') {
+    return definition.status === 'connected' || definition.status === 'configured';
+  }
+  if (filters.status === 'needs_attention') {
+    return definitionNeedsAttention(definition);
+  }
+  if (filters.status === 'not_connected') {
+    return definition.status === 'not_connected';
+  }
+  return true;
 }
 
 /**
@@ -233,10 +292,17 @@ export function IntegrationsPane({
     () => buildStaticIntegrationDefinitions({ cards, includeUnconfigured: true }),
     [cards]
   );
+  const filteredStaticDefinitions = React.useMemo(
+    () =>
+      staticDefinitions.filter((definition) =>
+        staticDefinitionMatchesFilters(definition, galleryFilters)
+      ),
+    [galleryFilters, staticDefinitions]
+  );
 
   const galleryItems = useIntegrationGalleryModel({
     providerDefinitions,
-    staticDefinitions,
+    staticDefinitions: filteredStaticDefinitions,
     mockDefinitions: providerDefinitions,
     useMock: isProviderCatalogMock,
   });
@@ -446,7 +512,7 @@ export function IntegrationsPane({
           assistantId,
           connection: updatedConnection,
         }).catch((error) => {
-          console.warn('Failed to request Unity integration tool sync after reconnect', error);
+          console.warn('Failed to request Droid integration tool sync after reconnect', error);
         });
         toast.success('Reconnect started.');
       }
@@ -483,7 +549,7 @@ export function IntegrationsPane({
         connection,
         reason: 'disconnected',
       }).catch((error) => {
-        console.warn('Failed to request Unity integration tool sync after disconnect', error);
+        console.warn('Failed to request Droid integration tool sync after disconnect', error);
       });
       toast.success('Disconnected.');
       await refreshProviderCatalog();
@@ -521,7 +587,7 @@ export function IntegrationsPane({
         assistantId,
         connection: updatedConnection,
       }).catch((error) => {
-        console.warn('Failed to request Unity integration tool sync after connection test', error);
+        console.warn('Failed to request Droid integration tool sync after connection test', error);
       });
       toast.success('Connection is healthy.');
       await refreshProviderCatalog();
@@ -745,7 +811,7 @@ export function IntegrationsPane({
             isRefreshing={isProviderCatalogLoading}
             filters={galleryFilters}
             onFiltersChange={setGalleryFilters}
-            total={providerCatalogTotal + staticDefinitions.length}
+            total={providerCatalogTotal + filteredStaticDefinitions.length}
             facets={providerCatalogFacets}
             hasMore={hasMoreProviderIntegrations}
             isLoadingMore={isProviderCatalogLoadingMore}

@@ -7,7 +7,7 @@ import { acceptInviteAction } from '@/lib/user/organization';
 import { patchSessionAndRedirect } from '@/lib/user/onboarding';
 
 interface InvitePageProps {
-  searchParams: { token?: string };
+  searchParams: Promise<{ token?: string }>;
 }
 
 /**
@@ -24,7 +24,7 @@ interface InvitePageProps {
  *   - If authenticated, the invite is processed inline.
  */
 export default async function InvitePage({ searchParams }: InvitePageProps) {
-  const token = searchParams.token;
+  const { token } = await searchParams;
 
   // 1. Validate Token Presence
   if (!token) {
@@ -55,11 +55,11 @@ export default async function InvitePage({ searchParams }: InvitePageProps) {
     );
   }
 
-  // 3. Initialize Server Action with API Key
-  const acceptAction = await acceptInviteAction(user.apiKey);
-
-  // 4. Render Client View
   return (
-    <InviteContent token={token} onAccept={acceptAction} onPatchSession={patchSessionAndRedirect} />
+    <InviteContent
+      token={token}
+      onAccept={acceptInviteAction}
+      onPatchSession={patchSessionAndRedirect}
+    />
   );
 }

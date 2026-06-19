@@ -1,3 +1,6 @@
+'use server';
+
+import { requireUserApiKey } from '@/lib/server-action-session';
 /**
  * Server Actions for Assistant Actions Panel
  *
@@ -164,68 +167,63 @@ async function fetchAllPages(
  * @param apiKey - API key for authentication
  * @returns Async function to fetch ManagerMethod events
  */
-export const getManagerMethodEvents = async (apiKey: string) => {
-  return async (
-    ownerId: string,
-    assistantId: string,
-    startTime: string | null,
-    limit: number | null,
-    offset?: number,
-    extraFilters?: string[]
-  ): Promise<ActionsLogsResponse | ResponseProps> => {
-    'use server';
+export async function getManagerMethodEvents(
+  ownerId: string,
+  assistantId: string,
+  startTime: string | null,
+  limit: number | null,
+  offset?: number,
+  extraFilters?: string[]
+): Promise<ActionsLogsResponse | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const context = `${ownerId}/${assistantId}/Events/ManagerMethod`;
+    let baseUrl = `${getInternalApiBaseUrl()}/api/logs?projectName=Assistants&context=${context}`;
 
-    try {
-      const context = `${ownerId}/${assistantId}/Events/ManagerMethod`;
-      let baseUrl = `${getInternalApiBaseUrl()}/api/logs?projectName=Assistants&context=${context}`;
-
-      const filters: string[] = [...buildExcludedManagerFilters()];
-      if (startTime) {
-        filters.push(buildTimestampFilter(startTime));
-      }
-      if (extraFilters) {
-        filters.push(...extraFilters);
-      }
-      const filterExpr = combineFilters(filters);
-      if (filterExpr) {
-        baseUrl += `&filterExpr=${encodeURIComponent(filterExpr)}`;
-      }
-
-      if (limit === null && offset === undefined) {
-        return await fetchAllPages(baseUrl, apiKey, 'getManagerMethodEvents', MM_PAGE_SIZE);
-      }
-
-      // Explicit limit/offset: single-page fetch (progressive load or loadMore)
-      const pageLimit = limit ?? MM_PAGE_SIZE;
-      const pageOffset = offset ?? 0;
-      const result = await fetchPage(
-        baseUrl,
-        apiKey,
-        pageLimit,
-        pageOffset,
-        'getManagerMethodEvents'
-      );
-      if ('detail' in result) return result;
-
-      if (result.data?.logs) {
-        result.data.logs = result.data.logs
-          .map((log: any) => ({
-            ...log,
-            entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
-          }))
-          .sort(compareLogsByTime);
-      }
-
-      return result.data as ActionsLogsResponse;
-    } catch (error) {
-      console.error(`[action.ts getManagerMethodEvents] Error fetching events:`, error);
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown server error occurred.';
-      return { detail: errorMessage };
+    const filters: string[] = [...buildExcludedManagerFilters()];
+    if (startTime) {
+      filters.push(buildTimestampFilter(startTime));
     }
-  };
-};
+    if (extraFilters) {
+      filters.push(...extraFilters);
+    }
+    const filterExpr = combineFilters(filters);
+    if (filterExpr) {
+      baseUrl += `&filterExpr=${encodeURIComponent(filterExpr)}`;
+    }
 
+    if (limit === null && offset === undefined) {
+      return await fetchAllPages(baseUrl, apiKey, 'getManagerMethodEvents', MM_PAGE_SIZE);
+    }
+
+    // Explicit limit/offset: single-page fetch (progressive load or loadMore)
+    const pageLimit = limit ?? MM_PAGE_SIZE;
+    const pageOffset = offset ?? 0;
+    const result = await fetchPage(
+      baseUrl,
+      apiKey,
+      pageLimit,
+      pageOffset,
+      'getManagerMethodEvents'
+    );
+    if ('detail' in result) return result;
+
+    if (result.data?.logs) {
+      result.data.logs = result.data.logs
+        .map((log: any) => ({
+          ...log,
+          entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
+        }))
+        .sort(compareLogsByTime);
+    }
+
+    return result.data as ActionsLogsResponse;
+  } catch (error) {
+    console.error(`[action.ts getManagerMethodEvents] Error fetching events:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown server error occurred.';
+    return { detail: errorMessage };
+  }
+}
 /**
  * Factory for getToolLoopEvents server action.
  *
@@ -240,63 +238,58 @@ export const getManagerMethodEvents = async (apiKey: string) => {
  * @param apiKey - API key for authentication
  * @returns Async function to fetch ToolLoop events
  */
-export const getToolLoopEvents = async (apiKey: string) => {
-  return async (
-    ownerId: string,
-    assistantId: string,
-    hierarchy: string[],
-    limit: number | null,
-    startTime?: string,
-    endTime?: string
-  ): Promise<ActionsLogsResponse | ResponseProps> => {
-    'use server';
+export async function getToolLoopEvents(
+  ownerId: string,
+  assistantId: string,
+  hierarchy: string[],
+  limit: number | null,
+  startTime?: string,
+  endTime?: string
+): Promise<ActionsLogsResponse | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const context = `${ownerId}/${assistantId}/Events/ToolLoop`;
+    let baseUrl = `${getInternalApiBaseUrl()}/api/logs?projectName=Assistants&context=${context}`;
 
-    try {
-      const context = `${ownerId}/${assistantId}/Events/ToolLoop`;
-      let baseUrl = `${getInternalApiBaseUrl()}/api/logs?projectName=Assistants&context=${context}`;
-
-      const joinedHierarchy = hierarchy.join('->');
-      const filters: string[] = [
-        `hierarchy_label.startswith('${escapeFilterValue(joinedHierarchy)}')`,
-      ];
-      if (startTime) {
-        filters.push(`event_timestamp >= '${escapeFilterValue(startTime)}'`);
-      }
-      if (endTime) {
-        filters.push(`event_timestamp <= '${escapeFilterValue(endTime)}'`);
-      }
-      const filterExpr = combineFilters(filters);
-      if (filterExpr) {
-        baseUrl += `&filterExpr=${encodeURIComponent(filterExpr)}`;
-      }
-
-      if (limit === null) {
-        return await fetchAllPages(baseUrl, apiKey, 'getToolLoopEvents', TL_PAGE_SIZE);
-      }
-
-      // Explicit limit: single-page fetch
-      const result = await fetchPage(baseUrl, apiKey, limit, 0, 'getToolLoopEvents');
-      if ('detail' in result) return result;
-
-      if (result.data?.logs) {
-        result.data.logs = result.data.logs
-          .map((log: any) => ({
-            ...log,
-            entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
-          }))
-          .sort(compareLogsByTime);
-      }
-
-      return result.data as ActionsLogsResponse;
-    } catch (error) {
-      console.error(`[action.ts getToolLoopEvents] Error fetching events:`, error);
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown server error occurred.';
-      return { detail: errorMessage };
+    const joinedHierarchy = hierarchy.join('->');
+    const filters: string[] = [
+      `hierarchy_label.startswith('${escapeFilterValue(joinedHierarchy)}')`,
+    ];
+    if (startTime) {
+      filters.push(`event_timestamp >= '${escapeFilterValue(startTime)}'`);
     }
-  };
-};
+    if (endTime) {
+      filters.push(`event_timestamp <= '${escapeFilterValue(endTime)}'`);
+    }
+    const filterExpr = combineFilters(filters);
+    if (filterExpr) {
+      baseUrl += `&filterExpr=${encodeURIComponent(filterExpr)}`;
+    }
 
+    if (limit === null) {
+      return await fetchAllPages(baseUrl, apiKey, 'getToolLoopEvents', TL_PAGE_SIZE);
+    }
+
+    // Explicit limit: single-page fetch
+    const result = await fetchPage(baseUrl, apiKey, limit, 0, 'getToolLoopEvents');
+    if ('detail' in result) return result;
+
+    if (result.data?.logs) {
+      result.data.logs = result.data.logs
+        .map((log: any) => ({
+          ...log,
+          entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
+        }))
+        .sort(compareLogsByTime);
+    }
+
+    return result.data as ActionsLogsResponse;
+  } catch (error) {
+    console.error(`[action.ts getToolLoopEvents] Error fetching events:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown server error occurred.';
+    return { detail: errorMessage };
+  }
+}
 /**
  * Factory for backfillByCallingIds server action.
  *
@@ -309,85 +302,79 @@ export const getToolLoopEvents = async (apiKey: string) => {
  * No time constraint — this reaches back as far as Orchestra stores data
  * to guarantee the root is found.
  */
-export const backfillByCallingIds = async (apiKey: string) => {
-  return async (
-    ownerId: string,
-    assistantId: string,
-    callingIds: string[]
-  ): Promise<ActionsLogsResponse | ResponseProps> => {
-    'use server';
+export async function backfillByCallingIds(
+  ownerId: string,
+  assistantId: string,
+  callingIds: string[]
+): Promise<ActionsLogsResponse | ResponseProps> {
+  const apiKey = await requireUserApiKey();
+  if (callingIds.length === 0) {
+    return { logs: [], count: 0 };
+  }
 
-    if (callingIds.length === 0) {
-      return { logs: [], count: 0 };
+  try {
+    const context = `${ownerId}/${assistantId}/Events/ManagerMethod`;
+    let url = `${getInternalApiBaseUrl()}/api/logs?projectName=Assistants&context=${context}`;
+
+    const callingIdConditions = callingIds
+      .map((id) => `calling_id == '${escapeFilterValue(id)}'`)
+      .join(' or ');
+    const callingIdFilter =
+      callingIds.length === 1 ? callingIdConditions : `(${callingIdConditions})`;
+
+    const filters: string[] = [callingIdFilter, `phase == 'incoming'`];
+
+    const filterExpr = combineFilters(filters);
+    if (filterExpr) {
+      url += `&filterExpr=${encodeURIComponent(filterExpr)}`;
     }
 
+    // One incoming event per calling_id
+    url += `&limit=${callingIds.length}`;
+
+    if (__DEV__) console.log(`[DEBUG][action.ts] backfillByCallingIds URL: ${url}`);
+
+    const response = await fetch(url, { method: 'GET', headers: { apiKey: apiKey } });
+
+    let data;
     try {
-      const context = `${ownerId}/${assistantId}/Events/ManagerMethod`;
-      let url = `${getInternalApiBaseUrl()}/api/logs?projectName=Assistants&context=${context}`;
-
-      const callingIdConditions = callingIds
-        .map((id) => `calling_id == '${escapeFilterValue(id)}'`)
-        .join(' or ');
-      const callingIdFilter =
-        callingIds.length === 1 ? callingIdConditions : `(${callingIdConditions})`;
-
-      const filters: string[] = [callingIdFilter, `phase == 'incoming'`];
-
-      const filterExpr = combineFilters(filters);
-      if (filterExpr) {
-        url += `&filterExpr=${encodeURIComponent(filterExpr)}`;
-      }
-
-      // One incoming event per calling_id
-      url += `&limit=${callingIds.length}`;
-
-      if (__DEV__) console.log(`[DEBUG][action.ts] backfillByCallingIds URL: ${url}`);
-
-      const response = await fetch(url, { method: 'GET', headers: { apiKey: apiKey } });
-
-      let data;
-      try {
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          data = await response.json();
-        } else {
-          console.error(
-            `[action.ts backfillByCallingIds] Received non-JSON response with status ${response.status}`
-          );
-          return { detail: 'Received an invalid response from the server.' };
-        }
-      } catch (parseError) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
         console.error(
-          `[action.ts backfillByCallingIds] Failed to parse JSON response ${parseError}`
+          `[action.ts backfillByCallingIds] Received non-JSON response with status ${response.status}`
         );
         return { detail: 'Received an invalid response from the server.' };
       }
+    } catch (parseError) {
+      console.error(`[action.ts backfillByCallingIds] Failed to parse JSON response ${parseError}`);
+      return { detail: 'Received an invalid response from the server.' };
+    }
 
-      if (!response.ok) {
-        const errorMessage = data.detail || `Failed to backfill events: ${response.statusText}`;
-        return { detail: errorMessage };
-      }
-
-      if (data?.logs) {
-        data.logs = data.logs
-          .map((log: any) => ({
-            ...log,
-            entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
-          }))
-          .sort(compareLogsByTime);
-      }
-
-      if (__DEV__)
-        console.log(
-          `[DEBUG][action.ts] backfillByCallingIds: fetched ${data?.logs?.length ?? 0} incoming event(s) for ${callingIds.length} calling_id(s)`
-        );
-
-      return data as ActionsLogsResponse;
-    } catch (error) {
-      console.error(`[action.ts backfillByCallingIds] Error:`, error);
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown server error occurred.';
+    if (!response.ok) {
+      const errorMessage = data.detail || `Failed to backfill events: ${response.statusText}`;
       return { detail: errorMessage };
     }
-  };
-};
+
+    if (data?.logs) {
+      data.logs = data.logs
+        .map((log: any) => ({
+          ...log,
+          entries: snakeToCamelObject<Record<string, unknown>>(log.entries),
+        }))
+        .sort(compareLogsByTime);
+    }
+
+    if (__DEV__)
+      console.log(
+        `[DEBUG][action.ts] backfillByCallingIds: fetched ${data?.logs?.length ?? 0} incoming event(s) for ${callingIds.length} calling_id(s)`
+      );
+
+    return data as ActionsLogsResponse;
+  } catch (error) {
+    console.error(`[action.ts backfillByCallingIds] Error:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown server error occurred.';
+    return { detail: errorMessage };
+  }
+}

@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized } from '../../../../_utils/auth';
 import { createOrchestraClient } from '@/lib/orchestra/client';
 
-export async function GET(request: NextRequest, { params }: { params: { predictionId: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ predictionId: string }> }
+) {
+  const { predictionId } = await params;
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
@@ -15,7 +19,7 @@ export async function GET(request: NextRequest, { params }: { params: { predicti
       '/v0/assistant/photo/animate/{prediction_id}',
       {
         params: {
-          path: { prediction_id: params.predictionId },
+          path: { prediction_id: predictionId },
         },
       }
     );

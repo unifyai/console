@@ -24,7 +24,7 @@ type EnvVars = Record<string, string | undefined>;
  * Deployment topology. Mutually exclusive — resolved by priority so a single
  * value always describes the install.
  *
- *  - `selfhost`   — local single-owner install co-located with a Unity runtime
+ *  - `selfhost`   — local single-owner install co-located with a Droid runtime
  *                   it can spawn (highest priority; orthogonal to NODE_ENV).
  *  - `staging`    — hosted pre-production (Orchestra URL points at staging).
  *  - `dev`        — local development with seeded data (NODE_ENV !== production).
