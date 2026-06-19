@@ -16,6 +16,8 @@ const selfHostLiveKitConnectSrc = isSelfHost
   : '';
 
 const serverActionAllowedOrigins = [
+  'usedroids.ai',
+  'www.usedroids.ai',
   'unify.ai',
   'www.unify.ai',
   'staging.unify.ai',

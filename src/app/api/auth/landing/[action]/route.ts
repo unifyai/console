@@ -31,6 +31,8 @@ function allowedOrigins(): Set<string> {
 
   return new Set(
     [
+      'https://usedroids.ai',
+      'https://www.usedroids.ai',
       'https://unify.ai',
       'https://www.unify.ai',
       'http://localhost:3007',
