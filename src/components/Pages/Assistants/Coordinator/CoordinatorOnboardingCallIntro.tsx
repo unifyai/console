@@ -45,15 +45,16 @@ type MartyTextBubbleCue = {
 const SKIP_FLY_MS = 1_400;
 const ASCENT_SOUND_VOLUME = 0.27;
 const ASCENT_SOUND_SKIP_OFFSET_SEC = 32;
+const COORDINATOR_INTRO_VOICE_VOLUME = 0.8;
 const COORDINATOR_INTRO_RADIO_STORAGE_KEY = 'console:coordinator-onboarding-radio-enabled';
 const COORDINATOR_INTRO_RADIO_STATIONS: readonly CoordinatorIntroRadioStation[] = [
   {
     src: COORDINATOR_ONBOARDING_INTRO.backgroundMusicSrc,
     volume: COORDINATOR_ONBOARDING_INTRO.backgroundMusicVolume,
   },
-  { src: '/sounds/retro-fun-upbeat-radio.mp3', volume: 0.02114 },
-  { src: '/sounds/holiday-party-radio.mp3', volume: 0.02054 },
-  { src: '/sounds/goodbye-moonmen-radio.mp3', volume: 0.02026 },
+  { src: '/sounds/retro-fun-upbeat-radio.mp3', volume: 0.04228 },
+  { src: '/sounds/holiday-party-radio.mp3', volume: 0.04108 },
+  { src: '/sounds/goodbye-moonmen-radio.mp3', volume: 0.04052 },
 ];
 const COORDINATOR_INTRO_RADIO_STATION_CUE_SRC = '/sounds/radio-tuning-transition.mp3';
 const COORDINATOR_INTRO_RADIO_STATION_CUE_VOLUME = 0.06;
@@ -792,6 +793,7 @@ export function CoordinatorOnboardingCallIntro({
       audio = new Audio(configuredIntroAudioSrc);
       audio.preload = 'auto';
       audio.loop = false;
+      audio.volume = COORDINATOR_INTRO_VOICE_VOLUME;
       audioTimer = window.setTimeout(() => {
         if (!audio) return;
         if (hasStartedAudio) return;
