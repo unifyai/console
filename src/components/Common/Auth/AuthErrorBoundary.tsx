@@ -54,8 +54,8 @@ export function AuthErrorBoundary({ children }: { children: React.ReactNode }) {
 
   const handleReLogin = async () => {
     setShowAuthModal(false);
-    // Sign out and redirect to login
-    await signOut({ callbackUrl: '/login' });
+    await signOut({ redirect: false });
+    window.location.assign('/login');
   };
 
   const handleRetry = () => {

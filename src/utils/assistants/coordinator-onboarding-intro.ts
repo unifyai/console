@@ -2,9 +2,7 @@ import type { Transition } from 'framer-motion';
 import { MARTY_CREATURE_APPEARANCE } from '@droid/brand/components';
 import {
   MARTY_ONBOARDING_INTRO_AUDIO_SRC,
-  MARTY_ONBOARDING_INTRO_CLOSING_QUESTION_SEC,
   MARTY_ONBOARDING_INTRO_DURATION_MS,
-  MARTY_ONBOARDING_INTRO_TRANSCRIPT,
 } from '@droid/brand/audio';
 import type { BrandRole } from '@/components/Brand/shapes';
 import type {
@@ -13,6 +11,25 @@ import type {
   CreatureMood,
 } from '@/components/Brand/TeammateCreature';
 import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
+
+const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 38.68;
+
+export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm Marty.
+Firstly, I know what you might be thinking.
+Am I really going to spend my time talking to a tiny robot?
+You're a serious person with a presumably serious and important job.
+Well, I don't know if you've noticed, but the world isn't doing so well.
+Escaping to another planet might be the best decision you make.
+It'll certainly save you a lot of time.
+I can manage your mailbox.
+I can help you draft documents.
+I can remind you of important events.
+And I can do just about anything that a human coworker could.
+Don't think about prompting or configuring me.
+Just talk to me naturally like you would anyone else.
+And I'll be able to help.
+I'll now walk you through the platform.
+Any immediate questions before we start?`;
 
 export type CoordinatorOnboardingIntroDroidAppearance = {
   antenna?: CreatureAntenna;
@@ -27,12 +44,11 @@ export type CoordinatorOnboardingIntroDroidAppearance = {
 export const COORDINATOR_ONBOARDING_INTRO = {
   audioSrc: MARTY_ONBOARDING_INTRO_AUDIO_SRC,
   backgroundMusicSrc: '/sounds/neo-background-music.mp3',
-  backgroundMusicVolume: 0.14,
+  backgroundMusicVolume: 0.28,
   // Served from public/sounds; canonical assets are owned by branding
   // (assets/audio/droid/onboarding/*.mp3).
   ascentAudioSrc: '/sounds/space-elevator-ascent.mp3',
-  cityAmbienceSrc: '/sounds/coruscant-city-ambience.mp3',
-  closingQuestionSec: MARTY_ONBOARDING_INTRO_CLOSING_QUESTION_SEC,
+  closingQuestionSec: COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC,
   fallbackDurationMs: MARTY_ONBOARDING_INTRO_DURATION_MS,
   initialPauseMs: 1_000,
   backgroundStartDelayMs: 500,
@@ -70,8 +86,6 @@ export const COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID = {
   color: 'teal',
   mood: 'happy',
 } satisfies CoordinatorOnboardingIntroDroidAppearance;
-
-export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = MARTY_ONBOARDING_INTRO_TRANSCRIPT;
 
 export const COORDINATOR_ONBOARDING_DROID_LAYOUT_TRANSITION = {
   layout: {

@@ -236,7 +236,7 @@ const Login = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="m-auto flex w-full flex-col gap-9"
+      className="m-auto flex w-full min-w-0 flex-col gap-9"
     >
       <LayoutGroup>
         {/* Banner for invite/credit token context */}
@@ -249,7 +249,7 @@ const Login = () => {
             you received the invitation at.
           </div>
         )}
-        <div className="flex justify-center lg:container">
+        <div className="flex w-full min-w-0 justify-center lg:container">
           <AnimatedTabs selected={tab}>
             <LoginFragment
               onLogin={handleLogin}

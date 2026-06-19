@@ -9,7 +9,6 @@ import {
 import {
   COORDINATOR_ONBOARDING_INTRO,
   COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID,
-  COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT,
 } from '@/utils/assistants/coordinator-onboarding-intro';
 import { DroidTeleportFizzle } from '@/components/Pages/Assistants/Communication/DroidTeleportFizzle';
 import type { CreatureMouthShape } from '@/components/Brand/TeammateCreature';
@@ -23,27 +22,64 @@ type CoordinatorCitySoundscapeState = {
   ascentBufferPromise: Promise<AudioBuffer> | null;
   ascentGain: GainNode;
   ascentSource: AudioBufferSourceNode | null;
-  cityBufferPromise: Promise<AudioBuffer> | null;
-  citySource: AudioBufferSourceNode | null;
   context: AudioContext;
-  latestVolume: number;
-  masterGain: GainNode;
 };
 type CoordinatorIntroBackgroundMusicState = {
   audio: HTMLAudioElement;
   src: string;
 };
+type CoordinatorIntroBackgroundMusicStartOptions = {
+  fadeIn?: boolean;
+};
+type CoordinatorIntroRadioStation = {
+  src: string;
+  volume: number;
+};
+type MartyTextBubbleCue = {
+  startMs: number;
+  text: string;
+};
 
 // When skipping, the elevator ascent is compressed to a quick rise so the
 // droid reaches his call position in step with the seeked-to closing line.
 const SKIP_FLY_MS = 1_400;
-const CITY_SOUNDSCAPE_MAX_VOLUME = 0.4;
-const CITY_SOUNDSCAPE_FADE_IN_MS = 2_500;
 const ASCENT_SOUND_VOLUME = 0.27;
 const ASCENT_SOUND_SKIP_OFFSET_SEC = 32;
+const COORDINATOR_INTRO_VOICE_VOLUME = 0.8;
+const COORDINATOR_INTRO_RADIO_STORAGE_KEY = 'console:coordinator-onboarding-radio-enabled';
+const COORDINATOR_INTRO_RADIO_STATIONS: readonly CoordinatorIntroRadioStation[] = [
+  {
+    src: COORDINATOR_ONBOARDING_INTRO.backgroundMusicSrc,
+    volume: COORDINATOR_ONBOARDING_INTRO.backgroundMusicVolume,
+  },
+  { src: '/sounds/retro-fun-upbeat-radio.mp3', volume: 0.04228 },
+  { src: '/sounds/holiday-party-radio.mp3', volume: 0.04108 },
+  { src: '/sounds/goodbye-moonmen-radio.mp3', volume: 0.04052 },
+];
+const COORDINATOR_INTRO_RADIO_STATION_CUE_SRC = '/sounds/radio-tuning-transition.mp3';
+const COORDINATOR_INTRO_RADIO_STATION_CUE_VOLUME = 0.06;
+const COORDINATOR_INTRO_RADIO_STATION_CUE_MS = 1_500;
+const COORDINATOR_INTRO_RADIO_TOGGLE_CUE_SRC = '/sounds/radio-station-crackle.wav';
+const COORDINATOR_INTRO_RADIO_TOGGLE_CUE_VOLUME = 0.22;
+const COORDINATOR_INTRO_RADIO_TOGGLE_CUE_MS = 620;
+const COORDINATOR_INTRO_RADIO_MUSIC_FADE_OUT_MS = 90;
+const COORDINATOR_INTRO_RADIO_MUSIC_FADE_IN_MS = 160;
 let coordinatorCitySoundscapeState: CoordinatorCitySoundscapeState | null = null;
 let coordinatorCitySoundscapeCleanupTimer: number | null = null;
 let coordinatorIntroBackgroundMusicState: CoordinatorIntroBackgroundMusicState | null = null;
+let coordinatorIntroStationCueAudio: HTMLAudioElement | null = null;
+let coordinatorIntroStationCueStopTimer: number | null = null;
+let coordinatorIntroToggleCueAudio: HTMLAudioElement | null = null;
+let coordinatorIntroToggleCueStopTimer: number | null = null;
+let coordinatorIntroStationChangeTimer: number | null = null;
+let coordinatorIntroMusicFadeFrame: number | null = null;
+let coordinatorIntroStationTransitionActive = false;
+let coordinatorIntroRadioEnabled = true;
+let coordinatorIntroRadioPreferenceLoaded = false;
+let coordinatorIntroRadioStationIndex = 0;
+let coordinatorIntroBackgroundMusicVolume: number =
+  COORDINATOR_ONBOARDING_INTRO.backgroundMusicVolume;
+let coordinatorIntroBackgroundMusicVolumeScale = 1;
 
 function getAudioContextConstructor() {
   if (typeof window === 'undefined') return null;
@@ -58,89 +94,283 @@ function clampAudioVolume(volume: number) {
   return Math.max(0, Math.min(1, volume));
 }
 
-export function startCoordinatorOnboardingBackgroundMusic() {
+function getCoordinatorIntroRadioStation() {
+  return (
+    COORDINATOR_INTRO_RADIO_STATIONS[coordinatorIntroRadioStationIndex] ??
+    COORDINATOR_INTRO_RADIO_STATIONS[0]
+  );
+}
+
+function getCoordinatorIntroRadioStationTargetVolume() {
+  return getCoordinatorIntroRadioStation().volume * coordinatorIntroBackgroundMusicVolumeScale;
+}
+
+function resetCoordinatorIntroBackgroundMusicVolumeScale() {
+  coordinatorIntroBackgroundMusicVolumeScale = 1;
+  coordinatorIntroBackgroundMusicVolume = getCoordinatorIntroRadioStationTargetVolume();
+}
+
+function cancelCoordinatorIntroMusicFade() {
+  if (coordinatorIntroMusicFadeFrame === null) return;
+  window.cancelAnimationFrame(coordinatorIntroMusicFadeFrame);
+  coordinatorIntroMusicFadeFrame = null;
+}
+
+function fadeCoordinatorIntroBackgroundMusicVolume(
+  audio: HTMLAudioElement,
+  toVolume: number,
+  durationMs: number,
+  onComplete?: () => void
+) {
+  cancelCoordinatorIntroMusicFade();
+
+  const fromVolume = audio.volume;
+  const startedAt = performance.now();
+
+  const step = (now: number) => {
+    const progress = durationMs <= 0 ? 1 : Math.min(1, (now - startedAt) / durationMs);
+    audio.volume = clampAudioVolume(fromVolume + (toVolume - fromVolume) * progress);
+
+    if (progress < 1) {
+      coordinatorIntroMusicFadeFrame = window.requestAnimationFrame(step);
+      return;
+    }
+
+    coordinatorIntroMusicFadeFrame = null;
+    onComplete?.();
+  };
+
+  coordinatorIntroMusicFadeFrame = window.requestAnimationFrame(step);
+}
+
+function stopCoordinatorIntroAudio(audio: HTMLAudioElement | null, releaseSource = false) {
+  if (!audio) return;
+  audio.pause();
+  audio.currentTime = 0;
+  if (!releaseSource) return;
+  audio.removeAttribute('src');
+  audio.load();
+}
+
+function stopCoordinatorIntroStationCue(releaseSource = false) {
+  if (coordinatorIntroStationCueStopTimer !== null) {
+    window.clearTimeout(coordinatorIntroStationCueStopTimer);
+    coordinatorIntroStationCueStopTimer = null;
+  }
+  stopCoordinatorIntroAudio(coordinatorIntroStationCueAudio, releaseSource);
+  if (releaseSource) coordinatorIntroStationCueAudio = null;
+}
+
+function stopCoordinatorIntroToggleCue(releaseSource = false) {
+  if (coordinatorIntroToggleCueStopTimer !== null) {
+    window.clearTimeout(coordinatorIntroToggleCueStopTimer);
+    coordinatorIntroToggleCueStopTimer = null;
+  }
+  stopCoordinatorIntroAudio(coordinatorIntroToggleCueAudio, releaseSource);
+  if (releaseSource) coordinatorIntroToggleCueAudio = null;
+}
+
+function clearCoordinatorIntroStationTransition() {
+  if (coordinatorIntroStationChangeTimer !== null) {
+    window.clearTimeout(coordinatorIntroStationChangeTimer);
+    coordinatorIntroStationChangeTimer = null;
+  }
+  stopCoordinatorIntroStationCue();
+  coordinatorIntroStationTransitionActive = false;
+}
+
+function playCoordinatorIntroStationCue() {
+  if (typeof window === 'undefined' || document.hidden) return;
+  stopCoordinatorIntroStationCue();
+
+  if (!coordinatorIntroStationCueAudio) {
+    coordinatorIntroStationCueAudio = new Audio(COORDINATOR_INTRO_RADIO_STATION_CUE_SRC);
+    coordinatorIntroStationCueAudio.preload = 'auto';
+  }
+
+  const audio = coordinatorIntroStationCueAudio;
+  audio.volume = COORDINATOR_INTRO_RADIO_STATION_CUE_VOLUME;
+  void audio.play().catch(() => undefined);
+
+  coordinatorIntroStationCueStopTimer = window.setTimeout(() => {
+    stopCoordinatorIntroStationCue();
+  }, COORDINATOR_INTRO_RADIO_STATION_CUE_MS);
+}
+
+function playCoordinatorIntroToggleCue() {
+  if (typeof window === 'undefined' || document.hidden) return;
+  stopCoordinatorIntroToggleCue();
+
+  if (!coordinatorIntroToggleCueAudio) {
+    coordinatorIntroToggleCueAudio = new Audio(COORDINATOR_INTRO_RADIO_TOGGLE_CUE_SRC);
+    coordinatorIntroToggleCueAudio.preload = 'auto';
+  }
+
+  const audio = coordinatorIntroToggleCueAudio;
+  audio.volume = COORDINATOR_INTRO_RADIO_TOGGLE_CUE_VOLUME;
+  void audio.play().catch(() => undefined);
+
+  coordinatorIntroToggleCueStopTimer = window.setTimeout(() => {
+    stopCoordinatorIntroToggleCue();
+  }, COORDINATOR_INTRO_RADIO_TOGGLE_CUE_MS);
+}
+
+function selectCoordinatorIntroRadioStation(direction: -1 | 1) {
+  coordinatorIntroRadioStationIndex =
+    (coordinatorIntroRadioStationIndex + direction + COORDINATOR_INTRO_RADIO_STATIONS.length) %
+    COORDINATOR_INTRO_RADIO_STATIONS.length;
+}
+
+function persistCoordinatorIntroRadioPreference() {
   if (typeof window === 'undefined') return;
-  const { backgroundMusicSrc, backgroundMusicVolume } = COORDINATOR_ONBOARDING_INTRO;
-  if (!backgroundMusicSrc) return;
+  try {
+    window.localStorage.setItem(
+      COORDINATOR_INTRO_RADIO_STORAGE_KEY,
+      coordinatorIntroRadioEnabled ? 'on' : 'off'
+    );
+  } catch {
+    // Storage can be unavailable in private or locked-down browsing modes.
+  }
+}
+
+function loadCoordinatorIntroRadioPreference() {
+  if (coordinatorIntroRadioPreferenceLoaded || typeof window === 'undefined') return;
+  coordinatorIntroRadioPreferenceLoaded = true;
+  try {
+    const stored = window.localStorage.getItem(COORDINATOR_INTRO_RADIO_STORAGE_KEY);
+    if (stored === 'on') coordinatorIntroRadioEnabled = true;
+    if (stored === 'off') coordinatorIntroRadioEnabled = false;
+  } catch {
+    coordinatorIntroRadioEnabled = true;
+  }
+}
+
+export function getCoordinatorOnboardingBackgroundMusicEnabled() {
+  loadCoordinatorIntroRadioPreference();
+  return coordinatorIntroRadioEnabled;
+}
+
+export function setCoordinatorOnboardingBackgroundMusicEnabled(enabled: boolean) {
+  loadCoordinatorIntroRadioPreference();
+  coordinatorIntroRadioEnabled = enabled;
+  persistCoordinatorIntroRadioPreference();
+  playCoordinatorIntroToggleCue();
+
+  if (enabled) {
+    resetCoordinatorIntroBackgroundMusicVolumeScale();
+    startCoordinatorOnboardingBackgroundMusic({ fadeIn: true });
+    return;
+  }
+
+  clearCoordinatorIntroStationTransition();
+  const state = coordinatorIntroBackgroundMusicState;
+  if (!state) return;
+  fadeCoordinatorIntroBackgroundMusicVolume(
+    state.audio,
+    0,
+    COORDINATOR_INTRO_RADIO_MUSIC_FADE_OUT_MS,
+    () => {
+      state.audio.pause();
+      state.audio.currentTime = 0;
+    }
+  );
+}
+
+export function changeCoordinatorOnboardingBackgroundMusicStation(direction: -1 | 1) {
+  loadCoordinatorIntroRadioPreference();
+  coordinatorIntroRadioEnabled = true;
+  persistCoordinatorIntroRadioPreference();
+  if (typeof window === 'undefined') return;
+
+  clearCoordinatorIntroStationTransition();
+  resetCoordinatorIntroBackgroundMusicVolumeScale();
+  coordinatorIntroStationTransitionActive = true;
+  const state = coordinatorIntroBackgroundMusicState;
+  if (state && !state.audio.paused) {
+    fadeCoordinatorIntroBackgroundMusicVolume(
+      state.audio,
+      0,
+      COORDINATOR_INTRO_RADIO_MUSIC_FADE_OUT_MS,
+      () => state.audio.pause()
+    );
+  }
+  playCoordinatorIntroStationCue();
+
+  coordinatorIntroStationChangeTimer = window.setTimeout(() => {
+    selectCoordinatorIntroRadioStation(direction);
+    coordinatorIntroStationTransitionActive = false;
+    coordinatorIntroStationChangeTimer = null;
+    startCoordinatorOnboardingBackgroundMusic({ fadeIn: true });
+  }, COORDINATOR_INTRO_RADIO_STATION_CUE_MS);
+}
+
+export function startCoordinatorOnboardingBackgroundMusic(
+  options: CoordinatorIntroBackgroundMusicStartOptions = {}
+) {
+  if (typeof window === 'undefined') return;
+  loadCoordinatorIntroRadioPreference();
+  if (!coordinatorIntroRadioEnabled || coordinatorIntroStationTransitionActive) return;
+
+  const station = getCoordinatorIntroRadioStation();
+  if (!station?.src) return;
 
   let state = coordinatorIntroBackgroundMusicState;
-  if (!state || state.src !== backgroundMusicSrc) {
+  if (!state || state.src !== station.src) {
     if (state) {
       state.audio.pause();
       state.audio.removeAttribute('src');
       state.audio.load();
     }
-    const audio = new Audio(backgroundMusicSrc);
+    const audio = new Audio(station.src);
     audio.loop = true;
     audio.preload = 'auto';
-    state = { audio, src: backgroundMusicSrc };
+    state = { audio, src: station.src };
     coordinatorIntroBackgroundMusicState = state;
   }
 
-  state.audio.volume = clampAudioVolume(backgroundMusicVolume);
+  const targetVolume = getCoordinatorIntroRadioStationTargetVolume();
+  coordinatorIntroBackgroundMusicVolume = targetVolume;
+  cancelCoordinatorIntroMusicFade();
+
+  if (options.fadeIn) {
+    state.audio.volume = 0;
+    void state.audio
+      .play()
+      .then(() => {
+        fadeCoordinatorIntroBackgroundMusicVolume(
+          state.audio,
+          targetVolume,
+          COORDINATOR_INTRO_RADIO_MUSIC_FADE_IN_MS
+        );
+      })
+      .catch(() => undefined);
+    return;
+  }
+
+  state.audio.volume = clampAudioVolume(coordinatorIntroBackgroundMusicVolume);
   void state.audio.play().catch(() => undefined);
 }
 
 function setCoordinatorOnboardingBackgroundMusicVolume(volume: number) {
+  const stationVolume = getCoordinatorIntroRadioStation().volume;
+  coordinatorIntroBackgroundMusicVolumeScale =
+    stationVolume > 0 ? clampAudioVolume(volume / stationVolume) : 0;
+  coordinatorIntroBackgroundMusicVolume = getCoordinatorIntroRadioStationTargetVolume();
   const state = coordinatorIntroBackgroundMusicState;
   if (!state) return;
-  state.audio.volume = clampAudioVolume(volume);
+  state.audio.volume = clampAudioVolume(coordinatorIntroBackgroundMusicVolume);
 }
 
 export function stopCoordinatorOnboardingBackgroundMusic() {
+  clearCoordinatorIntroStationTransition();
+  stopCoordinatorIntroToggleCue(true);
+  cancelCoordinatorIntroMusicFade();
   const state = coordinatorIntroBackgroundMusicState;
   if (!state) return;
 
-  state.audio.pause();
-  state.audio.currentTime = 0;
-  state.audio.removeAttribute('src');
-  state.audio.load();
+  stopCoordinatorIntroAudio(state.audio, true);
   coordinatorIntroBackgroundMusicState = null;
-}
-
-function loadCoordinatorCitySoundBuffer(state: CoordinatorCitySoundscapeState, src: string) {
-  if (!state.cityBufferPromise) {
-    state.cityBufferPromise = fetch(src, { cache: 'no-cache' })
-      .then((res) => {
-        if (!res.ok) throw new Error(`Failed to load city ambience: ${res.status}`);
-        return res.arrayBuffer();
-      })
-      .then((buffer) => state.context.decodeAudioData(buffer));
-  }
-  return state.cityBufferPromise;
-}
-
-function stopCoordinatorCityAmbience(state = coordinatorCitySoundscapeState) {
-  if (!state || !state.citySource) return;
-  state.citySource.stop();
-  state.citySource = null;
-}
-
-// Plays the city ambience clip from its start into ``masterGain``. The fade in
-// and out across the ascent is driven separately by
-// ``setCoordinatorCitySoundscapeVolume`` ramping ``masterGain``.
-function playCoordinatorCityAmbience(src: string) {
-  const state = ensureCoordinatorCitySoundscape();
-  if (!state) return;
-
-  void state.context.resume();
-  void loadCoordinatorCitySoundBuffer(state, src)
-    .then((buffer) => {
-      if (coordinatorCitySoundscapeState !== state) return;
-      stopCoordinatorCityAmbience(state);
-
-      const source = state.context.createBufferSource();
-      source.buffer = buffer;
-      source.connect(state.masterGain);
-      state.citySource = source;
-      source.start(state.context.currentTime);
-      source.onended = () => {
-        if (state.citySource === source) state.citySource = null;
-      };
-    })
-    .catch(() => {
-      state.cityBufferPromise = null;
-    });
+  resetCoordinatorIntroBackgroundMusicVolumeScale();
 }
 
 function ensureCoordinatorCitySoundscape() {
@@ -154,22 +384,15 @@ function ensureCoordinatorCitySoundscape() {
   if (!AudioContextCtor) return null;
 
   const context = new AudioContextCtor();
-  const masterGain = context.createGain();
   const ascentGain = context.createGain();
-  masterGain.gain.value = 0;
   ascentGain.gain.value = 0;
-  masterGain.connect(context.destination);
   ascentGain.connect(context.destination);
 
   coordinatorCitySoundscapeState = {
     ascentBufferPromise: null,
     ascentGain,
     ascentSource: null,
-    cityBufferPromise: null,
-    citySource: null,
     context,
-    latestVolume: 0,
-    masterGain,
   };
   return coordinatorCitySoundscapeState;
 }
@@ -231,28 +454,11 @@ function playCoordinatorAscentSound(src: string, skipped: boolean) {
     });
 }
 
-function setCoordinatorCitySoundscapeVolume(volume: number) {
-  const state = ensureCoordinatorCitySoundscape();
-  if (!state) return;
-
-  state.latestVolume = volume;
-  const now = state.context.currentTime;
-  state.masterGain.gain.cancelScheduledValues(now);
-  state.masterGain.gain.setTargetAtTime(volume, now, 0.16);
-
-  if (volume > 0) void state.context.resume();
-}
-
 function cleanupCoordinatorCitySoundscape() {
   const state = coordinatorCitySoundscapeState;
   if (!state) return;
 
   stopCoordinatorAscentSound(state);
-  stopCoordinatorCityAmbience(state);
-  state.latestVolume = 0;
-  const now = state.context.currentTime;
-  state.masterGain.gain.cancelScheduledValues(now);
-  state.masterGain.gain.setTargetAtTime(0, now, 0.12);
 
   if (coordinatorCitySoundscapeCleanupTimer !== null) {
     window.clearTimeout(coordinatorCitySoundscapeCleanupTimer);
@@ -269,15 +475,9 @@ export function primeCoordinatorOnboardingCitySoundscape() {
   const state = ensureCoordinatorCitySoundscape();
   if (!state) return;
 
-  state.masterGain.gain.setValueAtTime(0, state.context.currentTime);
   void loadCoordinatorAscentSoundBuffer(state, COORDINATOR_ONBOARDING_INTRO.ascentAudioSrc).catch(
     () => {
       state.ascentBufferPromise = null;
-    }
-  );
-  void loadCoordinatorCitySoundBuffer(state, COORDINATOR_ONBOARDING_INTRO.cityAmbienceSrc).catch(
-    () => {
-      state.cityBufferPromise = null;
     }
   );
   void state.context.resume();
@@ -324,7 +524,6 @@ interface CoordinatorOnboardingCallIntroProps {
   skipSignal?: number;
   onSkipped?: () => void;
   surfaceVisible?: boolean;
-  controlOverlay?: React.ReactNode;
 }
 
 function getRuntimeTiming() {
@@ -381,9 +580,37 @@ function getSurfaceRevealOffsetMs(durationMs: number) {
 }
 
 const MARTY_DROID_APPEARANCE = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID;
-const MARTY_TEXT_BUBBLE_LINES = COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT.split('\n').filter(
-  (line) => line.trim().length > 0
-);
+const MARTY_TEXT_BUBBLE_CUES = [
+  { startMs: 0, text: "Hi, I'm Marty." },
+  { startMs: 1_400, text: 'Firstly, I know what you might be thinking.' },
+  { startMs: 3_320, text: 'Am I really going to spend my time talking to a tiny robot?' },
+  { startMs: 6_580, text: "You're a serious person with a presumably serious and important job." },
+  { startMs: 10_480, text: 'Well,' },
+  { startMs: 11_560, text: "I don't know if you've noticed," },
+  { startMs: 12_480, text: "but the world isn't doing so well." },
+  { startMs: 14_560, text: 'Escaping to another planet might be the best decision you make.' },
+  { startMs: 18_000, text: "It'll certainly save you a lot of time." },
+  { startMs: 20_120, text: 'I can manage your mailbox.' },
+  { startMs: 21_720, text: 'I can help you draft documents.' },
+  { startMs: 23_420, text: 'I can remind you of important events.' },
+  { startMs: 25_680, text: 'And I can do just about anything that a human coworker could.' },
+  { startMs: 29_500, text: "Don't think about prompting or configuring me." },
+  { startMs: 32_540, text: 'Just talk to me naturally like you would anyone else.' },
+  { startMs: 35_180, text: "And I'll be able to help." },
+  { startMs: 36_740, text: "I'll now walk you through the platform." },
+  { startMs: 38_680, text: 'Any immediate questions before we start?' },
+] as const satisfies readonly MartyTextBubbleCue[];
+
+function getMartyTextBubbleCueIndex(elapsedMs: number, durationMs: number) {
+  const sourceElapsedMs =
+    (elapsedMs * COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs) / Math.max(1, durationMs);
+  let cueIndex = 0;
+  for (let index = 1; index < MARTY_TEXT_BUBBLE_CUES.length; index += 1) {
+    if (sourceElapsedMs < MARTY_TEXT_BUBBLE_CUES[index].startMs) break;
+    cueIndex = index;
+  }
+  return cueIndex;
+}
 
 export function CoordinatorOnboardingCallIntro({
   initialAvatarOffset,
@@ -394,7 +621,6 @@ export function CoordinatorOnboardingCallIntro({
   skipSignal = 0,
   onSkipped,
   surfaceVisible = false,
-  controlOverlay,
 }: CoordinatorOnboardingCallIntroProps) {
   const { droidWidth, framePx } = useCoordinatorDroidLayout();
   const rootRef = React.useRef<HTMLDivElement | null>(null);
@@ -567,6 +793,7 @@ export function CoordinatorOnboardingCallIntro({
       audio = new Audio(configuredIntroAudioSrc);
       audio.preload = 'auto';
       audio.loop = false;
+      audio.volume = COORDINATOR_INTRO_VOICE_VOLUME;
       audioTimer = window.setTimeout(() => {
         if (!audio) return;
         if (hasStartedAudio) return;
@@ -650,12 +877,9 @@ export function CoordinatorOnboardingCallIntro({
           const elapsedMs = timestamp - startTimestamp;
           const progress = Math.max(0, Math.min(1, elapsedMs / Math.max(1, durationMs)));
           const lineIndex = skipped
-            ? MARTY_TEXT_BUBBLE_LINES.length - 1
-            : Math.min(
-                MARTY_TEXT_BUBBLE_LINES.length - 1,
-                Math.floor(progress * MARTY_TEXT_BUBBLE_LINES.length)
-              );
-          setTextBubbleIndex(lineIndex);
+            ? MARTY_TEXT_BUBBLE_CUES.length - 1
+            : getMartyTextBubbleCueIndex(elapsedMs, durationMs);
+          setTextBubbleIndex((current) => (current === lineIndex ? current : lineIndex));
           if (progress < 1) {
             animationFrame = window.requestAnimationFrame(tick);
           }
@@ -678,8 +902,6 @@ export function CoordinatorOnboardingCallIntro({
   React.useEffect(() => {
     const root = rootRef.current;
     if (!root || stage !== 'flying') return;
-
-    playCoordinatorCityAmbience(COORDINATOR_ONBOARDING_INTRO.cityAmbienceSrc);
 
     const { durationMs } = getRuntimeTiming();
     const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs);
@@ -708,12 +930,10 @@ export function CoordinatorOnboardingCallIntro({
       const position = skipped ? startPosition * (1 - progress) : (1 - progress) * 100;
       const ascentProgress = 1 - position / 100;
       const cityOpacity = getCityBackdropOpacity(ascentProgress);
-      const soundFadeIn = skipped ? 1 : Math.min(1, elapsedMs / CITY_SOUNDSCAPE_FADE_IN_MS);
       root.style.setProperty('--coordinator-intro-city-position', `${position}%`);
       root.style.setProperty('--coordinator-intro-city-opacity', cityOpacity.toString());
-      setCoordinatorCitySoundscapeVolume(CITY_SOUNDSCAPE_MAX_VOLUME * cityOpacity * soundFadeIn);
       setCoordinatorOnboardingBackgroundMusicVolume(
-        COORDINATOR_ONBOARDING_INTRO.backgroundMusicVolume * cityOpacity
+        getCoordinatorIntroRadioStation().volume * cityOpacity
       );
       if (progress < 1) {
         animationFrame = window.requestAnimationFrame(tick);
@@ -723,7 +943,6 @@ export function CoordinatorOnboardingCallIntro({
     animationFrame = window.requestAnimationFrame(tick);
     return () => {
       window.cancelAnimationFrame(animationFrame);
-      stopCoordinatorCityAmbience();
     };
   }, [skipped, stage]);
 
@@ -743,7 +962,6 @@ export function CoordinatorOnboardingCallIntro({
 
     root.style.setProperty('--coordinator-intro-city-position', '0%');
     root.style.setProperty('--coordinator-intro-city-opacity', '0');
-    setCoordinatorCitySoundscapeVolume(0);
     setCoordinatorOnboardingBackgroundMusicVolume(0);
     const handle = window.setTimeout(() => {
       finishOnce();
@@ -751,6 +969,8 @@ export function CoordinatorOnboardingCallIntro({
 
     return () => window.clearTimeout(handle);
   }, [finishOnce, stage]);
+
+  const textBubbleCue = textBubbleIndex >= 0 ? MARTY_TEXT_BUBBLE_CUES[textBubbleIndex] : undefined;
 
   return (
     <div
@@ -766,14 +986,6 @@ export function CoordinatorOnboardingCallIntro({
       }
       data-testid="coordinator-onboarding-call-intro"
     >
-      {controlOverlay && (
-        <div
-          className="pointer-events-none absolute bottom-4 right-4 z-50 transition-opacity duration-300"
-          style={{ opacity: 'var(--coordinator-intro-city-opacity, 1)' }}
-        >
-          {controlOverlay}
-        </div>
-      )}
       <motion.div
         initial={{ opacity: 1, x: initialAvatarOffset.x, y: initialAvatarOffset.y, scale: 1 }}
         animate={{
@@ -787,9 +999,12 @@ export function CoordinatorOnboardingCallIntro({
         className="flex items-center justify-center"
       >
         <div className="relative" style={{ width: framePx, height: framePx }}>
-          {presentationMode === 'text' && stage !== 'landing' && textBubbleIndex >= 0 && (
-            <span className="coordinator-onboarding-droid-speech is-visible">
-              {MARTY_TEXT_BUBBLE_LINES[textBubbleIndex]}
+          {presentationMode === 'text' && stage !== 'landing' && textBubbleCue && (
+            <span
+              className="coordinator-onboarding-droid-speech is-visible"
+              data-testid="coordinator-onboarding-droid-speech"
+            >
+              {textBubbleCue.text}
             </span>
           )}
           {/* One Marty avatar speaks throughout, then teleports the same fixed

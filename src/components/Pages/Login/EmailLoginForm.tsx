@@ -351,13 +351,16 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
 
   return (
     <div
-      className="flex flex-col gap-4"
+      className="flex w-full min-w-0 flex-col gap-4"
       data-testid={isRegister ? 'email-register-form' : 'email-login-form'}
     >
-      <form onSubmit={isRegister ? handleRegister : handleLogin} className="flex flex-col gap-3">
+      <form
+        onSubmit={isRegister ? handleRegister : handleLogin}
+        className="flex w-full flex-col gap-3"
+      >
         {isRegister && (
-          <div className="flex gap-3">
-            <div className="flex-1">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="min-w-0 flex-1">
               <label
                 htmlFor="email-first-name"
                 className="text-caption font-medium text-foreground"
@@ -375,7 +378,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
                 data-testid="email-first-name-input"
               />
             </div>
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <label htmlFor="email-last-name" className="text-caption font-medium text-foreground">
                 Last name*
               </label>

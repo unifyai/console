@@ -5,7 +5,6 @@ import { useSearchParams, useParams } from 'next/navigation';
 import { Room, RoomEvent, Track } from 'livekit-client';
 import {
   RoomContext,
-  RoomAudioRenderer,
   useTrackToggle,
   useVoiceAssistant,
   useLocalParticipant,
@@ -39,6 +38,7 @@ import type { ParsedInboundChatMessage } from '@/utils/assistants/chat-sse-frame
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
 import { DEFAULT_AVATAR_MOOD, parseMoodClassificationMessage } from '@/utils/assistants/droid-mood';
+import { AssistantLiveKitAudioRenderer } from './AssistantLiveKitAudioRenderer';
 
 type AssistantActionsSubset = Pick<AssistantActions, 'chat' | 'call' | 'desktop'> &
   Partial<Pick<AssistantActions, 'voice'>>;
@@ -995,7 +995,7 @@ const AssistantCommunicationFullScreen: React.FC<AssistantCommunicationFullScree
 
   return (
     <RoomContext.Provider value={room}>
-      <RoomAudioRenderer />
+      <AssistantLiveKitAudioRenderer />
       <FullScreenCallUI
         room={room}
         assistant={assistant}

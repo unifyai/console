@@ -13,7 +13,6 @@ import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import {
-  RoomAudioRenderer,
   RoomContext,
   useTrackToggle,
   useVoiceAssistant,
@@ -24,6 +23,7 @@ import {
   useMediaDeviceSelect,
 } from '@livekit/components-react';
 import { Room, Track } from 'livekit-client';
+import { AssistantLiveKitAudioRenderer } from './AssistantLiveKitAudioRenderer';
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
@@ -800,7 +800,7 @@ export function AssistantCommunicationDialog({
         className="relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground"
         data-testid="assistant-call-docked"
       >
-        {!isCoordinatorIntroAudioPlaying && <RoomAudioRenderer />}
+        {!isCoordinatorIntroAudioPlaying && <AssistantLiveKitAudioRenderer />}
         <AssistantCommunicationDialogContent
           assistant={assistant}
           onHangUp={onClose}
@@ -892,7 +892,7 @@ export function AssistantCommunicationDialog({
         }
         onPointerDown={isCompact ? handleHeaderPointerDown : undefined}
       >
-        {!isCoordinatorIntroAudioPlaying && <RoomAudioRenderer />}
+        {!isCoordinatorIntroAudioPlaying && <AssistantLiveKitAudioRenderer />}
 
         {isCompact ? (
           /* Compact / simplified view */

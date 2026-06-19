@@ -7,7 +7,9 @@
   },
   "scripts": {
     "generate:api": "openapi-typescript https://api.unify.ai/v0/openapi.json -o src/lib/orchestra/schema.d.ts",
+    "predev": "node scripts/guard-next-live-stack.mjs predev",
     "dev": "next dev",
+    "prebuild": "node scripts/guard-next-live-stack.mjs prebuild",
     "build": "npm run check:styles:all && next build",
     "start": "next start",
     "lint": "next lint",
@@ -16,6 +18,7 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "ci": "npm run lint && npm run typecheck && npm run format:check && npm run check:styles:all && npm run build",
+    "ci:live-safe": "npm run lint && npm run typecheck && npm run format:check && npm run check:styles:all",
     "prepare": "husky",
     "test:node": "vitest --project node",
     "test:node:matrix": "bash src/tests/scripts/test-node-matrix.sh",

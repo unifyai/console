@@ -465,8 +465,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [coordinatorIntroDismissed, setCoordinatorIntroDismissed] = React.useState(false);
   // On-demand "Repeat intro" replays the intro overlay regardless of
   // ``intro_watched`` — driven from the Coordinator's "Assistant info"
-  // onboarding tab. It mounts the overlay straight into the intro
-  // (skipping the picker) and clears itself once the intro finishes.
+  // onboarding tab. It clears itself once the replayed intro finishes.
   const [coordinatorIntroReplay, setCoordinatorIntroReplay] = React.useState(false);
   // "Talk now!" cue lifecycle. The intro overlay tears down when it hands
   // off to the call, so the cue lives here (over the docked call): the
@@ -2623,7 +2622,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               <div className="absolute inset-0 z-50">
                 <CoordinatorOnboarding
                   coordinator={canonicalCoordinator}
-                  autoStartIntro={coordinatorIntroReplay}
                   onStartCall={handleStartCoordinatorIntroCall}
                   onComplete={(medium) => {
                     setCoordinatorIntroDismissed(true);

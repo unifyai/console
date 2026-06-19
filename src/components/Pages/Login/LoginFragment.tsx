@@ -55,8 +55,8 @@ const LoginFragment = ({
   const [authTab, setAuthTab] = useState<AuthTab>(emailOnly || !hasOAuth ? 'email' : 'oauth');
 
   return (
-    <div className="flex flex-wrap">
-      <div className="flex flex-1 flex-col gap-10">
+    <div className="flex w-full min-w-0 flex-wrap">
+      <div className="flex w-full min-w-0 flex-1 flex-col gap-10">
         {/* Header */}
         <div className="relative flex flex-col items-center gap-6 text-center">
           <div className="flex justify-center">
@@ -79,7 +79,7 @@ const LoginFragment = ({
         </div>
 
         {/* Content — auth buttons / email form */}
-        <div className="flex flex-col gap-3">
+        <div className="flex w-full min-w-0 flex-col gap-3">
           {error && authTab === 'oauth' && (
             <div className="text-body text-error" data-testid="oauth-error">
               {error}
