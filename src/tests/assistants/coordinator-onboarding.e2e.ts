@@ -237,6 +237,19 @@ test('picking chat lands in the full platform with the checklist in Assistant in
     .toBe('email-reply');
   await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveCount(0);
 
+  const commsReset = page.getByTestId('coordinator-onboarding-reset-section-comms');
+  await expect(commsReset).toBeVisible();
+  await commsReset.click();
+  await expect(page.getByTestId('coordinator-onboarding-reset-dialog-comms')).toBeVisible();
+  await page.getByTestId('coordinator-onboarding-reset-cancel-comms').click();
+  await expect(emailReferenceRow).toHaveAttribute('data-status', 'done');
+
+  await commsReset.click();
+  await page.getByTestId('coordinator-onboarding-reset-confirm-comms').click();
+  await expect(emailReferenceRow).toHaveAttribute('data-next', 'true');
+  await expect(page.getByTestId('coordinator-onboarding-item-email-reply')).toHaveCount(0);
+  await expectOnlyNextChecklistItemClickable(page);
+
   // No skip / resume affordances exist on the platform either.
   await expect(page.getByTestId('coordinator-onboarding-skip')).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-resume')).toHaveCount(0);

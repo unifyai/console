@@ -98,6 +98,8 @@ import {
 } from '@/utils/assistants/coordinator-reference-quiz';
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
+const COORDINATOR_ONBOARDING_RESET_STORAGE_PREFIX =
+  'console:coordinator-onboarding:reset-step-ids:';
 const COORDINATOR_REFERENCE_QUIZ_ACTIONS = new Set<ChecklistAction>([
   'trigger-email-reference',
   'start-email-reply',
@@ -500,6 +502,41 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     () => new Set()
   );
   const [skippedStepIds, setSkippedStepIds] = React.useState<ReadonlySet<string>>(() => new Set());
+  const [resetStepIds, setResetStepIds] = React.useState<ReadonlySet<string>>(() => new Set());
+  const activeCoordinatorOnboardingStep = coordinatorOnboardingState?.onboardingStep;
+  React.useEffect(() => {
+    if (canonicalCoordinatorId === null) {
+      setResetStepIds(new Set());
+      return;
+    }
+    const storageKey = `${COORDINATOR_ONBOARDING_RESET_STORAGE_PREFIX}${canonicalCoordinatorId}`;
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      setResetStepIds(
+        new Set(
+          Array.isArray(parsed)
+            ? parsed.filter((stepId): stepId is string => typeof stepId === 'string')
+            : []
+        )
+      );
+    } catch {
+      setResetStepIds(new Set());
+    }
+  }, [canonicalCoordinatorId]);
+  React.useEffect(() => {
+    if (canonicalCoordinatorId === null) return;
+    const storageKey = `${COORDINATOR_ONBOARDING_RESET_STORAGE_PREFIX}${canonicalCoordinatorId}`;
+    try {
+      if (resetStepIds.size === 0) {
+        window.localStorage.removeItem(storageKey);
+      } else {
+        window.localStorage.setItem(storageKey, JSON.stringify([...resetStepIds]));
+      }
+    } catch {
+      /* private mode / quota: reset state remains in memory for this page. */
+    }
+  }, [canonicalCoordinatorId, resetStepIds]);
   // Engagement is a strict superset of completion — engaging
   // ``apps`` (clicking "Connect apps") unlocks the integrations
   // tab even though the row stays pending until a secret actually
@@ -507,6 +544,26 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // ``markStepCompleted`` below back-fills the engaged set too.
   const [engagedStepIds, setEngagedStepIds] = React.useState<ReadonlySet<string>>(() => new Set());
   const markStepCompleted = React.useCallback((stepId: string) => {
+    setResetStepIds((prev) => {
+      if (!prev.has(stepId)) return prev;
+      const next = new Set(prev);
+      next.delete(stepId);
+      return next;
+    });
+    setCompletedStepIds((prev) => {
+      if (prev.has(stepId)) return prev;
+      const next = new Set(prev);
+      next.add(stepId);
+      return next;
+    });
+    setEngagedStepIds((prev) => {
+      if (prev.has(stepId)) return prev;
+      const next = new Set(prev);
+      next.add(stepId);
+      return next;
+    });
+  }, []);
+  const seedStepCompleted = React.useCallback((stepId: string) => {
     setCompletedStepIds((prev) => {
       if (prev.has(stepId)) return prev;
       const next = new Set(prev);
@@ -521,6 +578,26 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     });
   }, []);
   const markStepSkipped = React.useCallback((stepId: string) => {
+    setResetStepIds((prev) => {
+      if (!prev.has(stepId)) return prev;
+      const next = new Set(prev);
+      next.delete(stepId);
+      return next;
+    });
+    setSkippedStepIds((prev) => {
+      if (prev.has(stepId)) return prev;
+      const next = new Set(prev);
+      next.add(stepId);
+      return next;
+    });
+    setEngagedStepIds((prev) => {
+      if (prev.has(stepId)) return prev;
+      const next = new Set(prev);
+      next.add(stepId);
+      return next;
+    });
+  }, []);
+  const seedStepSkipped = React.useCallback((stepId: string) => {
     setSkippedStepIds((prev) => {
       if (prev.has(stepId)) return prev;
       const next = new Set(prev);
@@ -550,6 +627,44 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       return next;
     });
   }, []);
+  const resetStepProgress = React.useCallback(
+    (stepIds: readonly string[]) => {
+      const ids = new Set(stepIds);
+      if (ids.size === 0) return;
+      setResetStepIds((prev) => new Set([...prev, ...ids]));
+      setCompletedStepIds((prev) => {
+        const next = new Set(prev);
+        for (const stepId of ids) next.delete(stepId);
+        return next.size === prev.size ? prev : next;
+      });
+      setSkippedStepIds((prev) => {
+        const next = new Set(prev);
+        for (const stepId of ids) next.delete(stepId);
+        return next.size === prev.size ? prev : next;
+      });
+      setEngagedStepIds((prev) => {
+        const next = new Set(prev);
+        for (const stepId of ids) next.delete(stepId);
+        return next.size === prev.size ? prev : next;
+      });
+      if (activeCoordinatorOnboardingStep && ids.has(activeCoordinatorOnboardingStep)) {
+        void updateCoordinatorOnboardingState({ clearOnboardingStep: true });
+      }
+    },
+    [activeCoordinatorOnboardingStep, updateCoordinatorOnboardingState]
+  );
+  const visibleCompletedStepIds = React.useMemo<ReadonlySet<string>>(() => {
+    if (resetStepIds.size === 0) return completedStepIds;
+    const next = new Set(completedStepIds);
+    for (const stepId of resetStepIds) next.delete(stepId);
+    return next;
+  }, [completedStepIds, resetStepIds]);
+  const visibleSkippedStepIds = React.useMemo<ReadonlySet<string>>(() => {
+    if (resetStepIds.size === 0) return skippedStepIds;
+    const next = new Set(skippedStepIds);
+    for (const stepId of resetStepIds) next.delete(stepId);
+    return next;
+  }, [resetStepIds, skippedStepIds]);
   // Optimistic: flip the local checklist state immediately so the
   // row resolves (and downstream rows unlock) on the same frame as
   // the click. The orchestra write happens in the background; we roll
@@ -575,18 +690,20 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
   const coordinatorOnboardingCtxValue = React.useMemo<CoordinatorOnboardingContextValue>(
     () => ({
-      completedStepIds,
+      completedStepIds: visibleCompletedStepIds,
       markStepCompleted,
-      skippedStepIds,
+      resetStepProgress,
+      skippedStepIds: visibleSkippedStepIds,
       markStepSkipped,
       markStepUnskipped,
       engagedStepIds,
       markStepEngaged,
     }),
     [
-      completedStepIds,
+      visibleCompletedStepIds,
       markStepCompleted,
-      skippedStepIds,
+      resetStepProgress,
+      visibleSkippedStepIds,
       markStepSkipped,
       markStepUnskipped,
       engagedStepIds,
@@ -1728,11 +1845,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     () =>
       isCanonicalCoordinatorOwned &&
       hasOutstandingCoordinatorOnboarding(
-        completedStepIds,
-        skippedStepIds,
+        visibleCompletedStepIds,
+        visibleSkippedStepIds,
         isCoordinatorActionWired
       ),
-    [isCanonicalCoordinatorOwned, completedStepIds, skippedStepIds, isCoordinatorActionWired]
+    [
+      isCanonicalCoordinatorOwned,
+      visibleCompletedStepIds,
+      visibleSkippedStepIds,
+      isCoordinatorActionWired,
+    ]
   );
   const canApplyCoordinatorOnboardingFocusLayout =
     ENABLE_COORDINATOR_ONBOARDING &&
@@ -1954,30 +2076,29 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // freely.
   const serverCompletedStepIds = coordinatorOnboardingState?.completedStepIds;
   const serverSkippedStepIds = coordinatorOnboardingState?.skippedStepIds;
-  const activeCoordinatorOnboardingStep = coordinatorOnboardingState?.onboardingStep;
   React.useEffect(() => {
     if (!serverCompletedStepIds) return;
     for (const stepId of serverCompletedStepIds) {
-      markStepCompleted(stepId);
+      seedStepCompleted(stepId);
       const triggerStepId = coordinatorReferenceQuizTriggerStepForReplyStep(stepId);
-      if (triggerStepId) markStepCompleted(triggerStepId);
+      if (triggerStepId) seedStepCompleted(triggerStepId);
     }
-  }, [serverCompletedStepIds, markStepCompleted]);
+  }, [serverCompletedStepIds, seedStepCompleted]);
   React.useEffect(() => {
     if (!serverSkippedStepIds) return;
     for (const stepId of serverSkippedStepIds) {
-      markStepSkipped(stepId);
+      seedStepSkipped(stepId);
       const triggerStepId = coordinatorReferenceQuizTriggerStepForReplyStep(stepId);
-      if (triggerStepId) markStepSkipped(triggerStepId);
+      if (triggerStepId) seedStepSkipped(triggerStepId);
     }
-  }, [serverSkippedStepIds, markStepSkipped]);
+  }, [serverSkippedStepIds, seedStepSkipped]);
   React.useEffect(() => {
     if (!activeCoordinatorOnboardingStep) return;
     const triggerStepId = coordinatorReferenceQuizTriggerStepForReplyStep(
       activeCoordinatorOnboardingStep
     );
-    if (triggerStepId) markStepCompleted(triggerStepId);
-  }, [activeCoordinatorOnboardingStep, markStepCompleted]);
+    if (triggerStepId) seedStepCompleted(triggerStepId);
+  }, [activeCoordinatorOnboardingStep, seedStepCompleted]);
   React.useEffect(() => {
     if (
       !activeCoordinatorOnboardingStep ||

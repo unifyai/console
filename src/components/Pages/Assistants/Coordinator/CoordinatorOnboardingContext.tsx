@@ -40,6 +40,9 @@ export interface CoordinatorOnboardingContextValue {
   /** Idempotently records a step as completed. Re-marking a step
    * already in the set is a no-op (no extra render). */
   markStepCompleted: (stepId: string) => void;
+  /** Clears local completion, skip, and engagement state for a group of
+   * checklist leaves so the user can walk that section again. */
+  resetStepProgress: (stepIds: readonly string[]) => void;
   /** Per-session record of steps the user explicitly chose not to do.
    * Skipped steps satisfy downstream prerequisites, but remain
    * visually distinct from genuinely completed steps. */
