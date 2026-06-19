@@ -2623,6 +2623,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 <CoordinatorOnboarding
                   coordinator={canonicalCoordinator}
                   onStartCall={handleStartCoordinatorIntroCall}
+                  onDiscardCall={handleHangUp}
                   onComplete={(medium) => {
                     setCoordinatorIntroDismissed(true);
                     setCoordinatorIntroReplay(false);
