@@ -2,7 +2,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { TeammateCreature } from '@/components/Brand';
 import type { CreatureEyes } from '@/components/Brand/TeammateCreature';
-import { MARTY_CREATURE_APPEARANCE } from '@droid/brand/components';
+import { TWIN_CREATURE_APPEARANCE } from '@droid/brand/components';
 
 interface CoordinatorLogoAvatarProps {
   className?: string;
@@ -29,10 +29,10 @@ export function CoordinatorLogoAvatar({
       onMouseLeave={() => setIsHovered(false)}
     >
       <TeammateCreature
-        antenna={MARTY_CREATURE_APPEARANCE.antenna}
+        antenna={TWIN_CREATURE_APPEARANCE.antenna}
         className={cn('h-full w-full', logoClassName)}
         eyes={isHovered ? getHoverEyes(eyes) : eyes}
-        label="Marty"
+        label="Twin"
       />
     </span>
   );

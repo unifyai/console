@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import type { Transition } from 'framer-motion';
 import {
   AnimatedDroid,
-  MARTY_CREATURE_APPEARANCE,
+  TWIN_CREATURE_APPEARANCE,
   getCreatureAccent,
   getDroidBodyForm,
 } from '@droid/brand/components';
@@ -58,12 +58,12 @@ export function DroidCallAvatar({
   creatureClassName,
   layoutId,
   layoutTransition,
-  antenna = MARTY_CREATURE_APPEARANCE.antenna,
+  antenna = TWIN_CREATURE_APPEARANCE.antenna,
   body = 'standard',
   color = 'green',
   baseEyes = 'up',
   outfit = 'none',
-  label = 'Marty',
+  label = 'Twin',
   isometricRest = false,
   teleportInOnMount = false,
 }: DroidCallAvatarProps) {

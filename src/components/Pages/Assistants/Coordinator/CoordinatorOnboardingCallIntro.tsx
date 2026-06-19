@@ -35,7 +35,7 @@ type CoordinatorIntroRadioStation = {
   src: string;
   volume: number;
 };
-type MartyTextBubbleCue = {
+type TwinTextBubbleCue = {
   startMs: number;
   text: string;
 };
@@ -579,9 +579,9 @@ function getSurfaceRevealOffsetMs(durationMs: number) {
   );
 }
 
-const MARTY_DROID_APPEARANCE = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID;
-const MARTY_TEXT_BUBBLE_CUES = [
-  { startMs: 0, text: "Hi, I'm Marty." },
+const TWIN_DROID_APPEARANCE = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID;
+const TWIN_TEXT_BUBBLE_CUES = [
+  { startMs: 0, text: "Hi, I'm Twin." },
   { startMs: 1_400, text: 'Firstly, I know what you might be thinking.' },
   { startMs: 3_320, text: 'Am I really going to spend my time talking to a tiny robot?' },
   { startMs: 6_580, text: "You're a serious person with a presumably serious and important job." },
@@ -599,30 +599,30 @@ const MARTY_TEXT_BUBBLE_CUES = [
   { startMs: 35_180, text: "And I'll be able to help." },
   { startMs: 36_740, text: "I'll now walk you through the platform." },
   { startMs: 38_680, text: 'Any immediate questions before we start?' },
-] as const satisfies readonly MartyTextBubbleCue[];
+] as const satisfies readonly TwinTextBubbleCue[];
 
-function getMartyTextBubbleCueIndex(elapsedMs: number, durationMs: number) {
+function getTwinTextBubbleCueIndex(elapsedMs: number, durationMs: number) {
   const sourceElapsedMs =
     (elapsedMs * COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs) / Math.max(1, durationMs);
-  return getMartyTextBubbleCueIndexForSourceElapsed(sourceElapsedMs);
+  return getTwinTextBubbleCueIndexForSourceElapsed(sourceElapsedMs);
 }
 
-function getMartyTextBubbleCueIndexForSourceElapsed(sourceElapsedMs: number) {
+function getTwinTextBubbleCueIndexForSourceElapsed(sourceElapsedMs: number) {
   let cueIndex = 0;
-  for (let index = 1; index < MARTY_TEXT_BUBBLE_CUES.length; index += 1) {
-    if (sourceElapsedMs < MARTY_TEXT_BUBBLE_CUES[index].startMs) break;
+  for (let index = 1; index < TWIN_TEXT_BUBBLE_CUES.length; index += 1) {
+    if (sourceElapsedMs < TWIN_TEXT_BUBBLE_CUES[index].startMs) break;
     cueIndex = index;
   }
   return cueIndex;
 }
 
-const MARTY_TEXT_SKIP_CUE_INDEX = Math.max(
+const TWIN_TEXT_SKIP_CUE_INDEX = Math.max(
   0,
-  MARTY_TEXT_BUBBLE_CUES.findIndex(
+  TWIN_TEXT_BUBBLE_CUES.findIndex(
     (cue) => cue.startMs >= COORDINATOR_ONBOARDING_INTRO.closingQuestionSec * 1_000
   ) - 1
 );
-const MARTY_TEXT_SKIP_START_MS = MARTY_TEXT_BUBBLE_CUES[MARTY_TEXT_SKIP_CUE_INDEX].startMs;
+const TWIN_TEXT_SKIP_START_MS = TWIN_TEXT_BUBBLE_CUES[TWIN_TEXT_SKIP_CUE_INDEX].startMs;
 
 export function CoordinatorOnboardingCallIntro({
   initialAvatarOffset,
@@ -700,7 +700,7 @@ export function CoordinatorOnboardingCallIntro({
     }, COORDINATOR_ONBOARDING_INTRO.teleportOutDelayMs);
   }, []);
 
-  // Skip the bulk of the monologue: seek the audio to Marty's closing
+  // Skip the bulk of the monologue: seek the audio to Twin's closing
   // question and compress the city ascent. When the seeked line ends, the
   // existing ``ended`` handler lands and hands off to the call as a natural
   // finish would.
@@ -915,7 +915,7 @@ export function CoordinatorOnboardingCallIntro({
           if (startTimestamp === null) startTimestamp = timestamp;
           const elapsedMs = timestamp - startTimestamp;
           const sourceElapsedMs = skipped
-            ? MARTY_TEXT_SKIP_START_MS + elapsedMs
+            ? TWIN_TEXT_SKIP_START_MS + elapsedMs
             : textModeSourceOffsetMs > 0
               ? textModeSourceOffsetMs + elapsedMs
               : (elapsedMs * COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs) /
@@ -923,8 +923,8 @@ export function CoordinatorOnboardingCallIntro({
           latestSourceElapsedMsRef.current = sourceElapsedMs;
           const lineIndex =
             skipped || textModeSourceOffsetMs > 0
-              ? getMartyTextBubbleCueIndexForSourceElapsed(sourceElapsedMs)
-              : getMartyTextBubbleCueIndex(elapsedMs, durationMs);
+              ? getTwinTextBubbleCueIndexForSourceElapsed(sourceElapsedMs)
+              : getTwinTextBubbleCueIndex(elapsedMs, durationMs);
           setTextBubbleIndex((current) => (current === lineIndex ? current : lineIndex));
           if (sourceElapsedMs < COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs) {
             animationFrame = window.requestAnimationFrame(tick);
@@ -949,7 +949,7 @@ export function CoordinatorOnboardingCallIntro({
     if (!timelineEnabled || presentationMode !== 'text' || !skipped || stage !== 'flying') return;
     const remainingTextMs = Math.max(
       0,
-      COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs - MARTY_TEXT_SKIP_START_MS
+      COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs - TWIN_TEXT_SKIP_START_MS
     );
     const landingDelayMs =
       Math.max(SKIP_FLY_MS, remainingTextMs) + COORDINATOR_ONBOARDING_INTRO.teleportOutDelayMs;
@@ -1031,7 +1031,7 @@ export function CoordinatorOnboardingCallIntro({
     return () => window.clearTimeout(handle);
   }, [finishOnce, stage]);
 
-  const textBubbleCue = textBubbleIndex >= 0 ? MARTY_TEXT_BUBBLE_CUES[textBubbleIndex] : undefined;
+  const textBubbleCue = textBubbleIndex >= 0 ? TWIN_TEXT_BUBBLE_CUES[textBubbleIndex] : undefined;
 
   return (
     <div
@@ -1068,7 +1068,7 @@ export function CoordinatorOnboardingCallIntro({
               {textBubbleCue.text}
             </span>
           )}
-          {/* One Marty avatar speaks throughout, then teleports the same fixed
+          {/* One Twin avatar speaks throughout, then teleports the same fixed
            * appearance into the docked call surface. */}
           <DroidTeleportFizzle
             mode="out"
@@ -1076,7 +1076,7 @@ export function CoordinatorOnboardingCallIntro({
             className="absolute inset-0 block"
           >
             <SeatedCoordinatorDroid
-              droid={MARTY_DROID_APPEARANCE}
+              droid={TWIN_DROID_APPEARANCE}
               width={droidWidth}
               isSpeaking={
                 presentationMode === 'voice'

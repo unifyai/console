@@ -1,5 +1,5 @@
 /**
- * API route for seeding a Marty opener transcript row.
+ * API route for seeding a Twin opener transcript row.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -54,15 +54,14 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     const detail =
-      ((error as Record<string, unknown>)?.detail as string) || 'Failed to seed Marty opener';
+      ((error as Record<string, unknown>)?.detail as string) || 'Failed to seed Twin opener';
     if (response?.status === 401) return unauthorized(detail);
     return NextResponse.json({ error: detail }, { status: response?.status || 500 });
   }
 
   const info = data?.info as CoordinatorTranscriptSeedInfo | undefined;
   const logEventId = info?.logEventId;
-  if (typeof logEventId !== 'number')
-    return internalError('Marty opener seed response was invalid');
+  if (typeof logEventId !== 'number') return internalError('Twin opener seed response was invalid');
 
   return NextResponse.json({ logEventId });
 }

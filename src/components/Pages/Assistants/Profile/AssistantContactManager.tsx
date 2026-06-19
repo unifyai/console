@@ -451,7 +451,7 @@ export function AssistantContactManager({
       if (!assistant.email) {
         return (
           <p className="text-body text-muted-foreground">
-            Marty email is managed automatically and will appear here once configured.
+            Twin email is managed automatically and will appear here once configured.
           </p>
         );
       }
@@ -459,10 +459,10 @@ export function AssistantContactManager({
       return (
         <div className="space-y-2">
           <ContactReadyMessage badge={<ProviderBadge provider="Platform-managed" />}>
-            Marty email is configured.
+            Twin email is configured.
           </ContactReadyMessage>
           <p className="text-caption text-muted-foreground">
-            Marty email is managed automatically. Messages to this shared address are routed by
+            Twin email is managed automatically. Messages to this shared address are routed by
             verified sender identity.
           </p>
         </div>
@@ -600,7 +600,7 @@ export function AssistantContactManager({
             <DialogTitle className="text-title">Update Contact</DialogTitle>
             <DialogDescription className="text-subtitle">
               {assistant.isCoordinator
-                ? 'Marty contacts are platform-managed: Contact details are automatically provisioned and incoming messages are routed to Marty using your verified sender identity — there is nothing to create or configure.'
+                ? 'Twin contacts are platform-managed: Contact details are automatically provisioned and incoming messages are routed to Twin using your verified sender identity — there is nothing to create or configure.'
                 : `Manage contact details for ${assistant.firstName}.`}
             </DialogDescription>
           </DialogHeader>
@@ -617,7 +617,7 @@ export function AssistantContactManager({
           ) : coordinatorSelfHostGated ? (
             <div className="py-8 text-center">
               <p className="text-body-muted mx-auto max-w-sm">
-                Marty contacts are managed by the hosted Unify platform and aren&apos;t available in
+                Twin contacts are managed by the hosted Unify platform and aren&apos;t available in
                 self-hosted deployments.
               </p>
             </div>
@@ -782,7 +782,7 @@ const PhoneTabContent: React.FC<{
     if (!assistant.phone) {
       return (
         <p className="text-body text-muted-foreground">
-          Marty phone is managed automatically and will appear here once configured.
+          Twin phone is managed automatically and will appear here once configured.
         </p>
       );
     }
@@ -790,10 +790,10 @@ const PhoneTabContent: React.FC<{
     return (
       <div className="space-y-2">
         <ContactReadyMessage badge={<ProviderBadge provider="Platform-managed" />}>
-          Marty phone is configured.
+          Twin phone is configured.
         </ContactReadyMessage>
         <p className="text-caption text-muted-foreground">
-          Marty phone is managed automatically. SMS messages and calls to this shared number are
+          Twin phone is managed automatically. SMS messages and calls to this shared number are
           routed by verified sender identity.
         </p>
       </div>
@@ -879,12 +879,12 @@ const WhatsAppTabContent: React.FC<{
       <div className="space-y-2">
         <ContactReadyMessage>
           {assistant.isCoordinator
-            ? 'Marty WhatsApp is configured.'
+            ? 'Twin WhatsApp is configured.'
             : 'Assistant WhatsApp contact is active.'}
         </ContactReadyMessage>
         <p className="text-caption text-muted-foreground">
           {assistant.isCoordinator
-            ? 'Marty WhatsApp is managed automatically. Messages to this shared number are routed by verified sender identity.'
+            ? 'Twin WhatsApp is managed automatically. Messages to this shared number are routed by verified sender identity.'
             : 'Send a message first — your assistant can only call you on WhatsApp after you start a conversation.'}
         </p>
       </div>
@@ -893,7 +893,7 @@ const WhatsAppTabContent: React.FC<{
   if (assistant.isCoordinator) {
     return (
       <p className="text-body text-muted-foreground">
-        Marty WhatsApp is managed automatically and will appear here once configured.
+        Twin WhatsApp is managed automatically and will appear here once configured.
       </p>
     );
   }

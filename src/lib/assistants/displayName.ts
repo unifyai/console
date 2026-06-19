@@ -9,7 +9,7 @@ function normalizeNamePart(value: unknown): string {
 /**
  * Formats an assistant display name for UI surfaces.
  *
- * Coordinators always render with the public Marty name. Non-coordinator names
+ * Coordinators always render with the public Twin name. Non-coordinator names
  * are whitespace-trimmed and null-safe to avoid leaking placeholder strings.
  */
 export function assistantDisplayName(
@@ -17,7 +17,7 @@ export function assistantDisplayName(
   fallback = 'Assistant'
 ): string {
   if (!assistant) return fallback;
-  if (assistant.isCoordinator) return 'Marty';
+  if (assistant.isCoordinator) return 'Twin';
 
   const fullName = [normalizeNamePart(assistant.firstName), normalizeNamePart(assistant.surname)]
     .filter(Boolean)

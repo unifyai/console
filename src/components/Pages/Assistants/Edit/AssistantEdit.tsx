@@ -140,7 +140,7 @@ export function AssistantEdit({
     if (isSubmitting) return 'Updating...';
     if (isProcessingVoice) return 'Processing Voice...';
     if (isProcessingPhoto) return 'Processing Photo...';
-    if (assistant.isCoordinator) return 'Update Marty';
+    if (assistant.isCoordinator) return 'Update Twin';
     return 'Update Droid';
   };
 

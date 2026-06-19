@@ -61,7 +61,7 @@ INSERT INTO assistant_contacts (
 VALUES (
   ${coordinator.agentId},
   'email',
-  'marty@unify.ai',
+  'twin@unify.ai',
   'google_workspace',
   'platform',
   'active',
@@ -314,17 +314,17 @@ test('email tab hides platform provider cards (no @unify.ai / @unifyailtd123 pro
   await expect(page.locator('text=@tenant.onmicrosoft.com')).toHaveCount(0);
 });
 
-test('Marty email tab shows shared Marty address as managed routing', async ({
+test('Twin email tab shows shared Twin address as managed routing', async ({
   authedPage: page,
 }) => {
   await openContactManager(page, coordinator);
 
   await selectContactType(page, 'email');
 
-  await expect(page.getByText('Marty email is configured.')).toBeVisible({
+  await expect(page.getByText('Twin email is configured.')).toBeVisible({
     timeout: 5_000,
   });
-  await expect(page.locator('input[value="marty@unify.ai"]')).toHaveCount(0);
+  await expect(page.locator('input[value="twin@unify.ai"]')).toHaveCount(0);
   await expect(
     page.locator('text=Messages to this shared address are routed by verified sender identity')
   ).toBeVisible({ timeout: 5_000 });
@@ -332,7 +332,7 @@ test('Marty email tab shows shared Marty address as managed routing', async ({
   await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
 });
 
-test('Marty workspace modal shows BYOD providers despite shared routing email', async ({
+test('Twin workspace modal shows BYOD providers despite shared routing email', async ({
   authedPage: page,
 }) => {
   await openWorkspaceManager(page, coordinator);
@@ -343,25 +343,23 @@ test('Marty workspace modal shows BYOD providers despite shared routing email', 
   await expect(page.getByRole('button', { name: 'Microsoft 365' })).toBeVisible({
     timeout: 5_000,
   });
-  await expect(page.locator('input[value="marty@unify.ai"]')).toHaveCount(0);
+  await expect(page.locator('input[value="twin@unify.ai"]')).toHaveCount(0);
   await expect(page.locator('text=Platform-managed email')).toHaveCount(0);
 });
 
-test('Marty phone tab shows shared Marty number as managed routing', async ({
-  authedPage: page,
-}) => {
+test('Twin phone tab shows shared Twin number as managed routing', async ({ authedPage: page }) => {
   await openContactManager(page, coordinator);
 
   await selectContactType(page, 'phone');
 
-  await expect(page.getByText('Marty phone is configured.', { exact: true })).toBeVisible({
+  await expect(page.getByText('Twin phone is configured.', { exact: true })).toBeVisible({
     timeout: 5_000,
   });
   await expect(page.locator('input[value="+14155552671"]')).toHaveCount(0);
   await expect(
     page
       .getByText(
-        'Marty phone is managed automatically. SMS messages and calls to this shared number are routed by verified sender identity.',
+        'Twin phone is managed automatically. SMS messages and calls to this shared number are routed by verified sender identity.',
         { exact: true }
       )
       .first()

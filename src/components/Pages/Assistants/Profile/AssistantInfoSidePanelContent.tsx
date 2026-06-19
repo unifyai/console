@@ -104,11 +104,11 @@ export interface AssistantInfoSidePanelContentProps {
     onScheduleTask?: () => void;
     onSkipStep?: (stepId: string) => void;
     onUnskipStep?: (stepId: string) => void;
-    /** Replays the Marty call intro on demand. Surfaces a "Repeat
+    /** Replays the Twin call intro on demand. Surfaces a "Repeat
      * intro" affordance at the bottom of the onboarding sub-tab. */
     onReplayIntro?: () => void;
     /** Whether the Coordinator is currently on a voice call — selects
-     * call- vs chat-flavoured "Ask Marty to do something" chips. */
+     * call- vs chat-flavoured "Ask Twin to do something" chips. */
     isOnCall?: boolean;
   };
   onStartCall?: (assistant: Assistant, type: 'audio' | 'video') => void;
@@ -217,10 +217,10 @@ function CoordinatorAssistantInfoSidePanelContent({
     <ScrollArea className={cn('flex-1', className)}>
       <div className="flex flex-col gap-4 px-4 py-4">
         <IdentityHeader
-          name="Marty"
+          name="Twin"
           photoSrc={undefined}
           initials="M"
-          summary="Your personal Marty"
+          summary="Your personal Twin"
           visibilityLabel={
             <span className="inline-flex items-center gap-1">
               Only you
@@ -627,7 +627,7 @@ function ContactInfoGrid({ assistant, onOpenContactManager, canWrite }: ContactI
           <h3 className="text-label text-semibold">Contact info</h3>
         </div>
         <p className="text-caption text-muted-foreground">
-          Marty contacts are managed by the hosted platform and aren&apos;t available in self-hosted
+          Twin contacts are managed by the hosted platform and aren&apos;t available in self-hosted
           deployments.
         </p>
       </section>

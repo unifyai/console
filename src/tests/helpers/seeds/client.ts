@@ -996,7 +996,7 @@ export type CreatePersonalCoordinatorOpts = Pick<
  * Create the user's personal Coordinator.
  *
  * Mirrors Orchestra's coordinator provisioning:
- *   - `first_name = 'Marty'`, `job_title = 'Coordinator'`
+ *   - `first_name = 'Twin'`, `job_title = 'Coordinator'`
  *   - `nationality = 'United States'`, `desktop_mode = 'ubuntu'`
  *   - Numeric limits default to NULL; voice uses the coordinator's fixed ElevenLabs profile
  *   - `is_coordinator = TRUE`, `organization_id = NULL`
@@ -1018,11 +1018,11 @@ export function createPersonalCoordinator(
     if (Number.isFinite(parsed)) {
       ensureVoicePreset(userId);
       dbExec(
-        `UPDATE assistants SET first_name = 'Marty', surname = NULL, voice_id = ${sqlLiteral(coordinatorFixedVoiceId)}, voice_provider = ${sqlLiteral(approvedCharacterVoiceMetadata[coordinatorFixedVoiceId].provider)}, job_title = ${sqlLiteral(COORDINATOR_DEFAULT_JOB_TITLE)}, about = CASE WHEN about IS NULL OR about = ${sqlLiteral(COORDINATOR_LEGACY_ABOUT)} THEN ${sqlLiteral(COORDINATOR_DEFAULT_ABOUT)} ELSE about END WHERE agent_id = ${parsed};`
+        `UPDATE assistants SET first_name = 'Twin', surname = NULL, voice_id = ${sqlLiteral(coordinatorFixedVoiceId)}, voice_provider = ${sqlLiteral(approvedCharacterVoiceMetadata[coordinatorFixedVoiceId].provider)}, job_title = ${sqlLiteral(COORDINATOR_DEFAULT_JOB_TITLE)}, about = CASE WHEN about IS NULL OR about = ${sqlLiteral(COORDINATOR_LEGACY_ABOUT)} THEN ${sqlLiteral(COORDINATOR_DEFAULT_ABOUT)} ELSE about END WHERE agent_id = ${parsed};`
       );
       return {
         agentId: parsed,
-        firstName: 'Marty',
+        firstName: 'Twin',
         surname: '',
         userId,
         organizationId: null,
@@ -1035,7 +1035,7 @@ export function createPersonalCoordinator(
 
   return createAssistant({
     userId,
-    firstName: 'Marty',
+    firstName: 'Twin',
     surname: null,
     jobTitle: COORDINATOR_DEFAULT_JOB_TITLE,
     isCoordinator: true,

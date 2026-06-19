@@ -15,10 +15,10 @@
  *     Coordinator selected. Starting a call advances to audio setup.
  *
  *   - **Preparing** (``phase === 'preparing'``): the real call is warmed
- *     before Marty starts speaking so browser audio-device handoffs happen
+ *     before Twin starts speaking so browser audio-device handoffs happen
  *     over the loading state instead of the prerecorded intro.
  *
- *   - **Intro** (``phase === 'intro'``): the animated Marty intro. If audio
+ *   - **Intro** (``phase === 'intro'``): the animated Twin intro. If audio
  *     remains enabled when the animation lands, the call docks in the
  *     platform's right pane; muting the intro discards the warmed call and
  *     hands off to chat.
@@ -102,7 +102,7 @@ export function CoordinatorOnboarding({
   const [isIntroTimelineReady, setIsIntroTimelineReady] = React.useState(false);
   // Pre-recorded intro countdown badge. ``introStartedAt`` anchors the
   // countdown clock; ``introCountdownMs`` is the wall-clock span until
-  // Marty stops speaking; ``introReady`` flips when the intro finishes
+  // Twin stops speaking; ``introReady`` flips when the intro finishes
   // so the badge stops counting.
   const [introStartedAt, setIntroStartedAt] = React.useState<number | null>(null);
   const [introCountdownMs, setIntroCountdownMs] = React.useState(0);
@@ -175,7 +175,7 @@ export function CoordinatorOnboarding({
           openingConfig: {
             mode: 'simulated',
             simulatedUtterance: COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT,
-            source: 'marty_onboarding_intro',
+            source: 'twin_onboarding_intro',
           },
         });
       } catch (error) {
@@ -433,7 +433,7 @@ export function CoordinatorOnboarding({
 /**
  * Full-screen cue shown briefly once the onboarding intro hands off to a
  * live call, prompting the user that the pre-recorded intro is over and
- * Marty is now listening. Rendered at the platform level (over the docked
+ * Twin is now listening. Rendered at the platform level (over the docked
  * call) since the intro overlay has already torn down by this point.
  */
 export function CoordinatorTalkNowCue({ show }: { show: boolean }) {
@@ -500,7 +500,7 @@ export function CoordinatorTalkNowCue({ show }: { show: boolean }) {
                 <Mic className="relative h-12 w-12" aria-hidden="true" />
               </div>
               <p className="text-h1 font-semibold text-foreground">Talk now!</p>
-              <p className="text-body mt-2 text-muted-foreground">Marty is listening.</p>
+              <p className="text-body mt-2 text-muted-foreground">Twin is listening.</p>
             </div>
           </motion.div>
         </motion.div>
@@ -520,7 +520,7 @@ function formatIntroCountdown(totalSeconds: number): string {
 
 /**
  * Top-centre badge that signals the opening call is a pre-recorded intro the
- * user can't talk over yet: while Marty speaks it shows "Intro" with a live
+ * user can't talk over yet: while Twin speaks it shows "Intro" with a live
  * countdown to when he finishes, then disappears. ``startedAt === null`` keeps
  * it fully hidden (e.g. before the intro begins).
  */
@@ -800,7 +800,7 @@ function CoordinatorOnboardingCallPreparing() {
         <div>
           <p className="text-h3 font-medium text-card-foreground">Getting your audio ready</p>
           <p className="text-body mt-2 text-muted-foreground">
-            Marty will start once the call is connected.
+            Twin will start once the call is connected.
           </p>
         </div>
       </div>
@@ -894,7 +894,7 @@ function CoordinatorOnboardingPicker({
         style={{ marginTop: -cardOverlapPx, paddingTop: cardOverlapPx + 24 }}
       >
         <p className="text-h3 font-medium text-card-foreground">
-          {voiceCalls ? 'Marty is calling to onboard you' : 'Start onboarding with Marty'}
+          {voiceCalls ? 'Twin is calling to onboard you' : 'Start onboarding with Twin'}
         </p>
         <div className="flex flex-col items-center gap-3 sm:flex-row">
           {voiceCalls ? (
