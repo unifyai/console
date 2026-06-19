@@ -37,6 +37,8 @@ import {
 import {
   CoordinatorOnboardingCallIntro,
   primeCoordinatorOnboardingCitySoundscape,
+  startCoordinatorOnboardingBackgroundMusic,
+  stopCoordinatorOnboardingBackgroundMusic,
 } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingCallIntro';
 import {
   COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID,
@@ -108,6 +110,11 @@ export function CoordinatorOnboarding({
 
   const { startRinging: startPickerRinging, stopRinging: stopPickerRinging } = useCallSounds();
   const isPickerVisible = phase === 'picker';
+
+  React.useEffect(() => {
+    startCoordinatorOnboardingBackgroundMusic();
+    return stopCoordinatorOnboardingBackgroundMusic;
+  }, []);
 
   React.useEffect(() => {
     if (!isPickerVisible) {
@@ -233,6 +240,7 @@ export function CoordinatorOnboarding({
   const handleStartCall = React.useCallback(
     async (avatarOffset: IntroAvatarOffset) => {
       if (phase !== 'picker') return;
+      startCoordinatorOnboardingBackgroundMusic();
       primeCoordinatorOnboardingCitySoundscape();
       setIntroAvatarOffset(avatarOffset);
       setIntroSkipSignal(0);
@@ -245,6 +253,7 @@ export function CoordinatorOnboarding({
   // ``introStartedAt`` re-keys the intro element so its audio and
   // stage timers restart against the already-live call.
   const handleRestartIntro = React.useCallback(() => {
+    startCoordinatorOnboardingBackgroundMusic();
     primeCoordinatorOnboardingCitySoundscape();
     setIntroSkipSignal(0);
     startIntroTimeline();
@@ -291,7 +300,6 @@ export function CoordinatorOnboarding({
       className="relative flex h-full w-full items-center justify-center overflow-hidden bg-background"
       data-testid="coordinator-onboarding"
     >
-      {introCountdownBadge}
       <AnimatePresence mode="wait">
         <CoordinatorOnboardingCallIntro
           key={introStartedAt ?? 'intro'}
@@ -300,6 +308,7 @@ export function CoordinatorOnboarding({
           onFinished={() => complete('call')}
           skipSignal={introSkipSignal}
           onSkipped={() => setIntroReady(true)}
+          controlOverlay={introCountdownBadge}
         />
       </AnimatePresence>
     </div>
@@ -397,10 +406,10 @@ function formatIntroCountdown(totalSeconds: number): string {
 }
 
 /**
- * Top-centre badge that signals the opening call is a pre-recorded intro
- * the user can't talk over yet: while Marty speaks it shows "Intro" with a
- * live countdown to when he finishes, then disappears. ``startedAt === null``
- * keeps it fully hidden (e.g. before the intro begins).
+ * Badge that signals the opening call is a pre-recorded intro the user can't
+ * talk over yet: while Marty speaks it shows "Intro" with a live countdown to
+ * when he finishes. ``startedAt === null`` keeps it fully hidden (e.g. before
+ * the intro begins).
  */
 function OnboardingIntroCountdownBadge({
   startedAt,
@@ -428,7 +437,6 @@ function OnboardingIntroCountdownBadge({
 
   const elapsedMs = nowMs - startedAt;
   const isReady = ready || elapsedMs >= totalMs;
-  if (isReady) return null;
 
   const remainingSeconds = Math.ceil(Math.max(0, totalMs - elapsedMs) / 1000);
   const showRestart = !!onRestart;
@@ -438,9 +446,9 @@ function OnboardingIntroCountdownBadge({
 
   return (
     <div
-      className="pointer-events-none absolute left-1/2 top-4 z-50 -translate-x-1/2"
+      className="pointer-events-none"
       data-testid="coordinator-onboarding-intro-countdown"
-      data-state="counting"
+      data-state={isReady ? 'ready' : 'counting'}
     >
       <TooltipProvider>
         <div className="bg-card/80 flex items-center rounded-full border border-border px-2 py-1.5 text-card-foreground shadow-lg backdrop-blur-md">

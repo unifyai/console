@@ -26,6 +26,8 @@ export type CoordinatorOnboardingIntroDroidAppearance = {
 
 export const COORDINATOR_ONBOARDING_INTRO = {
   audioSrc: MARTY_ONBOARDING_INTRO_AUDIO_SRC,
+  backgroundMusicSrc: '/sounds/neo-background-music.mp3',
+  backgroundMusicVolume: 0.14,
   // Served from public/sounds; canonical assets are owned by branding
   // (assets/audio/droid/onboarding/*.mp3).
   ascentAudioSrc: '/sounds/space-elevator-ascent.mp3',

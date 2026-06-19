@@ -22,7 +22,18 @@
  */
 
 import * as React from 'react';
-import { ArrowLeft, Check, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, RotateCcw } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/UI/alert-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { cn } from '@/lib/utils';
@@ -610,6 +621,16 @@ function countAvailableLeaves(
   return { total: 1, completed: item.status === 'done' ? 1 : 0 };
 }
 
+function collectVisibleLeafIds(item: ResolvedChecklistItem): string[] {
+  if (!item.children?.length) return [item.id];
+  return item.children.flatMap(collectVisibleLeafIds);
+}
+
+function hasResolvedLeaf(item: ResolvedChecklistItem): boolean {
+  if (!item.children?.length) return item.status !== 'pending';
+  return item.children.some(hasResolvedLeaf);
+}
+
 /**
  * Identify the next actionable leaf so the UI can call it out with
  * a "Next" affordance. Walks the resolved tree in render order and
@@ -631,24 +652,6 @@ function findNextActionableId(
     }
     if (item.status === 'pending' && (isActionWired(item.action) || canMarkLater)) {
       return item.id;
-    }
-  }
-  return null;
-}
-
-function findNextChildAction(
-  item: ResolvedChecklistItem,
-  isActionWired: (action: ChecklistAction | undefined) => boolean
-): ChecklistAction | null {
-  const children = item.children ?? [];
-  for (const child of children) {
-    if (child.children?.length) {
-      const inner = findNextChildAction(child, isActionWired);
-      if (inner) return inner;
-      continue;
-    }
-    if (child.status === 'pending' && child.action && isActionWired(child.action)) {
-      return child.action;
     }
   }
   return null;
@@ -744,6 +747,7 @@ export function CoordinatorOnboardingChecklist({
   const ctx = useCoordinatorOnboardingContext();
   const completedStepIds = ctx?.completedStepIds ?? EMPTY_SET;
   const skippedStepIds = ctx?.skippedStepIds ?? EMPTY_SET;
+  const resetStepProgress = ctx?.resetStepProgress;
   const [areProgressDetailsOpen, setAreProgressDetailsOpen] = React.useState(false);
 
   const handleAction = React.useCallback(
@@ -905,6 +909,7 @@ export function CoordinatorOnboardingChecklist({
             isOnCall={isOnCall}
             onSkipStep={onSkipStep}
             onUnskipStep={onUnskipStep}
+            onResetStepProgress={resetStepProgress}
           />
         ))}
       </ul>
@@ -1017,6 +1022,7 @@ interface ChecklistRowProps {
   isOnCall: boolean;
   onSkipStep?: (stepId: string) => void;
   onUnskipStep?: (stepId: string) => void;
+  onResetStepProgress?: (stepIds: readonly string[]) => void;
 }
 
 function ChecklistRow({
@@ -1028,18 +1034,18 @@ function ChecklistRow({
   isOnCall,
   onSkipStep,
   onUnskipStep,
+  onResetStepProgress,
 }: ChecklistRowProps) {
   const hasWiredAction = isActionWired(item.action);
   const isResolved = item.status !== 'pending';
-  const isActionable = hasWiredAction && !isResolved;
   const isNext = nextActionableId === item.id;
-  const nextChildAction = React.useMemo(
-    () => findNextChildAction(item, isActionWired),
-    [item, isActionWired]
-  );
-  const canOpenChildAction = !!nextChildAction && !isResolved;
-  const canSkip = !!onSkipStep && item.canSkip !== false && !item.children?.length && !isResolved;
+  const isActionable = hasWiredAction && !isResolved && isNext;
+  const canSkip =
+    !!onSkipStep && item.canSkip !== false && !item.children?.length && !isResolved && isNext;
   const canUnskip = !!onUnskipStep && !item.children?.length && item.status === 'skipped';
+  const canResetSection =
+    !isChild && !!item.children?.length && !!onResetStepProgress && hasResolvedLeaf(item);
+  const resetStepIds = React.useMemo(() => collectVisibleLeafIds(item), [item]);
   // Whether the next actionable leaf sits somewhere inside this
   // row's subtree. Parents on the path to "Next" stay at full
   // opacity so the user's eye flows from the phase header straight
@@ -1071,20 +1077,6 @@ function ChecklistRow({
     [handleClick]
   );
 
-  const handleParentClick = React.useCallback(() => {
-    if (!nextChildAction) return;
-    onAction(nextChildAction);
-  }, [nextChildAction, onAction]);
-
-  const handleParentKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      event.preventDefault();
-      handleParentClick();
-    },
-    [handleParentClick]
-  );
-
   const handleSkipClick = React.useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
@@ -1104,8 +1096,7 @@ function ChecklistRow({
   const rowClassName = (variant: 'done' | 'skipped' | 'actionable' | 'static') =>
     cn(
       'flex w-full items-start gap-2 rounded-md px-1.5 py-1 -mx-1.5',
-      variant === 'actionable' && 'cursor-pointer hover:bg-muted/50',
-      variant === 'static' && canOpenChildAction && 'cursor-pointer hover:bg-muted/50'
+      variant === 'actionable' && 'cursor-pointer hover:bg-muted/50'
       // "Next" anchor: the Next pill + the row label going
       // ``font-medium`` carries the affordance — we leave the row
       // chrome flat so the highlight reads as a guide rather than
@@ -1169,6 +1160,49 @@ function ChecklistRow({
       </span>
     ) : null;
 
+  const renderResetSectionButton = () =>
+    canResetSection ? (
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <button
+            type="button"
+            aria-label={`Reset ${item.title}`}
+            onClick={(event) => event.stopPropagation()}
+            className={cn(
+              'rounded-control text-muted-foreground hover:bg-muted hover:text-foreground',
+              'ml-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+            )}
+            data-testid={`coordinator-onboarding-reset-section-${item.id}`}
+          >
+            <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </AlertDialogTrigger>
+        <AlertDialogContent
+          className="max-w-sm"
+          data-testid={`coordinator-onboarding-reset-dialog-${item.id}`}
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset {item.title}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              All progress in this section will be removed, so you can redo each task. Are you sure?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid={`coordinator-onboarding-reset-cancel-${item.id}`}>
+              No
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => onResetStepProgress?.(resetStepIds)}
+              data-testid={`coordinator-onboarding-reset-confirm-${item.id}`}
+            >
+              Yes, reset
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    ) : null;
+
   const renderInfoTooltip = () =>
     hasInfo ? (
       <TooltipProvider delayDuration={150}>
@@ -1204,6 +1238,7 @@ function ChecklistRow({
       <ChecklistMarker status={item.status} />
       {renderLabel(variant)}
       {renderNextPill()}
+      {renderResetSectionButton()}
       {renderInfoTooltip()}
       {renderSkipButton()}
       {renderUnskipButton()}
@@ -1238,22 +1273,7 @@ function ChecklistRow({
       </div>
     );
   } else {
-    // Static informational row: a non-actionable grouping header
-    // ("Connect me") that can open its visible child.
-    row = canOpenChildAction ? (
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={handleParentClick}
-        onKeyDown={handleParentKeyDown}
-        className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        data-testid={`coordinator-onboarding-item-${item.id}`}
-        data-next={isNext ? 'true' : undefined}
-        aria-label={`Open next step in ${item.title}`}
-      >
-        {rowBody('static')}
-      </div>
-    ) : (
+    row = (
       <div
         data-testid={`coordinator-onboarding-item-${item.id}`}
         data-next={isNext ? 'true' : undefined}
@@ -1332,6 +1352,7 @@ function ChecklistRow({
               isOnCall={isOnCall}
               onSkipStep={onSkipStep}
               onUnskipStep={onUnskipStep}
+              onResetStepProgress={onResetStepProgress}
             />
           ))}
         </ul>
