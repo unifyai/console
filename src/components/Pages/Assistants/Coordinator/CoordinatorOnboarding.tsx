@@ -12,12 +12,16 @@
  *     prompt over the city backdrop. Picking chat fires the chat
  *     session-start event and dismisses the overlay immediately,
  *     dropping the user into the regular platform with the
- *     Coordinator selected. Starting a call advances to the intro.
+ *     Coordinator selected. Starting a call advances to audio setup.
  *
- *   - **Intro** (``phase === 'intro'``): the animated Marty intro.
- *     It warms up the real call early. If audio remains enabled when
- *     the animation lands, the call docks in the platform's right pane;
- *     muting the intro discards the warmed call and hands off to chat.
+ *   - **Preparing** (``phase === 'preparing'``): the real call is warmed
+ *     before Marty starts speaking so browser audio-device handoffs happen
+ *     over the loading state instead of the prerecorded intro.
+ *
+ *   - **Intro** (``phase === 'intro'``): the animated Marty intro. If audio
+ *     remains enabled when the animation lands, the call docks in the
+ *     platform's right pane; muting the intro discards the warmed call and
+ *     hands off to chat.
  *
  * There is no skip affordance and no post-intro shell — the onboarding
  * checklist lives in the Coordinator's "Assistant info" panel on the
@@ -54,15 +58,14 @@ import { notifyOnboardingSessionStarted } from '@/lib/client/coordinator';
 import type { Assistant, AssistantCallConnectOptions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 
-type OnboardingPhase = 'picker' | 'intro';
+type OnboardingPhase = 'picker' | 'preparing' | 'intro';
 type IntroMedium = 'call' | 'chat';
 type IntroAvatarOffset = { x: number; y: number };
 
 interface CoordinatorOnboardingProps {
   coordinator: Assistant;
-  /** Starts the real Coordinator call. The intro warms this up early so
-   * the docked call is already live in the platform when the overlay
-   * dismisses. */
+  /** Starts the real Coordinator call so the docked call is already live in
+   * the platform when the intro overlay dismisses. */
   onStartCall: (
     assistant: Assistant,
     callType: 'video' | 'audio',
@@ -111,6 +114,7 @@ export function CoordinatorOnboarding({
   const introMediumRef = React.useRef(introMedium);
   const warmCallCancelledRef = React.useRef(false);
   const callStartPromiseRef = React.useRef<Promise<boolean> | null>(null);
+  const callAudioReadyRef = React.useRef(false);
 
   const isPickerVisible = phase === 'picker';
 
@@ -190,14 +194,23 @@ export function CoordinatorOnboarding({
 
   const warmCoordinatorCallStart = React.useCallback(async () => {
     if (!voiceCalls) return false;
+    callAudioReadyRef.current = false;
     try {
       await requestMicrophoneAccess();
     } catch (error) {
       console.error('[CoordinatorOnboarding] Failed to access microphone:', error);
+      toast.error('Microphone access is required to start the call.');
       return false;
     }
     if (warmCallCancelledRef.current || hasCompletedRef.current) return false;
-    return triggerCoordinatorCallStart();
+    const started = await triggerCoordinatorCallStart();
+    if (!started) {
+      toast.error('Could not start the call. Please try again.');
+    }
+    if (started && !warmCallCancelledRef.current && !hasCompletedRef.current) {
+      callAudioReadyRef.current = true;
+    }
+    return started;
   }, [requestMicrophoneAccess, triggerCoordinatorCallStart, voiceCalls]);
 
   const beginIntro = React.useCallback(
@@ -205,19 +218,36 @@ export function CoordinatorOnboarding({
       if (isBeginningIntroRef.current) return;
       isBeginningIntroRef.current = true;
       setIsStartingCall(true);
+      let introStarted = false;
       try {
         warmCallCancelledRef.current = false;
+        callAudioReadyRef.current = false;
         introMediumRef.current = medium;
         setIntroMedium(medium);
         setIntroReady(false);
         setIntroStartedAt(null);
         setIntroCountdownMs(0);
         setIsIntroTimelineReady(false);
+
+        if (medium === 'call') {
+          setPhase('preparing');
+          const warmed = await warmCoordinatorCallStart();
+          if (!warmed) {
+            warmCallCancelledRef.current = true;
+            hasTriggeredCallStartRef.current = false;
+            callStartPromiseRef.current = null;
+            setPhase('picker');
+            return;
+          }
+        }
+
+        if (warmCallCancelledRef.current || hasCompletedRef.current) return;
         setPhase('intro');
         startIntroTimeline();
-        void warmCoordinatorCallStart();
+        introStarted = true;
       } finally {
         setIsStartingCall(false);
+        if (!introStarted) isBeginningIntroRef.current = false;
       }
     },
     [startIntroTimeline, warmCoordinatorCallStart]
@@ -242,6 +272,9 @@ export function CoordinatorOnboarding({
     primeCoordinatorOnboardingCitySoundscape();
     isBeginningIntroRef.current = false;
     warmCallCancelledRef.current = true;
+    callAudioReadyRef.current = false;
+    hasTriggeredCallStartRef.current = false;
+    callStartPromiseRef.current = null;
     setIsStartingCall(false);
     setPhase('picker');
     setIntroAvatarOffset({ x: 0, y: -72 });
@@ -288,19 +321,21 @@ export function CoordinatorOnboarding({
 
     setIsStartingCall(true);
     try {
-      try {
-        await requestMicrophoneAccess();
-      } catch (error) {
-        console.error('[CoordinatorOnboarding] Failed to access microphone:', error);
-        toast.error('Microphone access is required to start the call.');
-        warmCallCancelledRef.current = true;
-        await onDiscardCall();
-        notifySessionStarted('chat');
-        complete('chat');
-        return;
+      if (!callAudioReadyRef.current) {
+        try {
+          await requestMicrophoneAccess();
+        } catch (error) {
+          console.error('[CoordinatorOnboarding] Failed to access microphone:', error);
+          toast.error('Microphone access is required to start the call.');
+          warmCallCancelledRef.current = true;
+          await onDiscardCall();
+          notifySessionStarted('chat');
+          complete('chat');
+          return;
+        }
       }
 
-      const started = await triggerCoordinatorCallStart();
+      const started = callAudioReadyRef.current || (await triggerCoordinatorCallStart());
       if (started) {
         notifySessionStarted('call');
         complete('call');
@@ -353,6 +388,18 @@ export function CoordinatorOnboarding({
           onPickChat={handlePickChat}
           isStartingCall={isStartingCall}
         />
+        {radioSwitcher}
+      </div>
+    );
+  }
+
+  if (phase === 'preparing') {
+    return (
+      <div
+        className="brand-page-stencil-bg coordinator-onboarding-city-bg relative flex h-full w-full items-center justify-center overflow-hidden bg-background"
+        data-testid="coordinator-onboarding"
+      >
+        <CoordinatorOnboardingCallPreparing />
         {radioSwitcher}
       </div>
     );
@@ -721,6 +768,43 @@ function CoordinatorOnboardingSoundSwitcher({
         )}
       </svg>
     </button>
+  );
+}
+
+function CoordinatorOnboardingCallPreparing() {
+  const { droidWidth, framePx } = useCoordinatorDroidLayout();
+  const cardOverlapPx = Math.round(droidWidth * 0.22);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
+      className="flex w-full max-w-md flex-col items-center px-6 text-center"
+      data-testid="coordinator-onboarding-call-preparing"
+    >
+      <div className="relative z-10" style={{ width: framePx, height: framePx }}>
+        <SeatedCoordinatorDroid
+          droid={COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID}
+          width={droidWidth}
+          isSpeaking={false}
+        />
+      </div>
+      <div
+        className="coordinator-onboarding-card relative flex w-full flex-col items-center gap-4 rounded-2xl border border-border px-8 pb-7 shadow-xl"
+        style={{ marginTop: -cardOverlapPx, paddingTop: cardOverlapPx + 24 }}
+      >
+        <div className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary">
+          <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+        </div>
+        <div>
+          <p className="text-h3 font-medium text-card-foreground">Getting your audio ready</p>
+          <p className="text-body mt-2 text-muted-foreground">
+            Marty will start once the call is connected.
+          </p>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
