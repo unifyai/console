@@ -53,6 +53,7 @@ import type { Assistant, AssistantCallConnectOptions } from '@/types/assistants/
 import { toast } from 'sonner';
 
 type OnboardingPhase = 'picker' | 'intro';
+type IntroMedium = 'call' | 'chat';
 type CallStartFailureBehavior = 'picker' | 'dismiss';
 type IntroAvatarOffset = { x: number; y: number };
 
@@ -90,6 +91,7 @@ export function CoordinatorOnboarding({
   const { voiceCalls } = useFeatures();
 
   const [phase, setPhase] = React.useState<OnboardingPhase>(autoStartIntro ? 'intro' : 'picker');
+  const [introMedium, setIntroMedium] = React.useState<IntroMedium>('call');
   const [introAvatarOffset, setIntroAvatarOffset] = React.useState<IntroAvatarOffset>({
     x: 0,
     y: -72,
@@ -184,30 +186,38 @@ export function CoordinatorOnboarding({
     return true;
   }, [coordinator, onStartCall, notifySessionStarted]);
 
-  const beginCallIntro = React.useCallback(
-    async (failureBehavior: CallStartFailureBehavior) => {
+  const beginIntro = React.useCallback(
+    async (medium: IntroMedium, failureBehavior: CallStartFailureBehavior) => {
       if (isBeginningIntroRef.current) return;
       isBeginningIntroRef.current = true;
       setIsStartingCall(true);
       try {
-        try {
-          await requestMicrophoneAccess();
-        } catch (error) {
-          console.error('[CoordinatorOnboarding] Failed to access microphone:', error);
-          toast.error('Microphone access is required to start the call.');
-          isBeginningIntroRef.current = false;
-          if (failureBehavior === 'dismiss') {
-            complete('chat');
+        if (medium === 'call') {
+          try {
+            await requestMicrophoneAccess();
+          } catch (error) {
+            console.error('[CoordinatorOnboarding] Failed to access microphone:', error);
+            toast.error('Microphone access is required to start the call.');
+            isBeginningIntroRef.current = false;
+            if (failureBehavior === 'dismiss') {
+              complete('chat');
+            }
+            return;
           }
-          return;
         }
 
+        setIntroMedium(medium);
         setIntroReady(false);
         setIntroStartedAt(null);
         setIntroCountdownMs(0);
         setIsIntroTimelineReady(false);
         setPhase('intro');
         startIntroTimeline();
+
+        if (medium === 'chat') {
+          notifySessionStarted('chat');
+          return;
+        }
 
         void triggerCoordinatorCallStart().then((started) => {
           if (started) return;
@@ -226,7 +236,13 @@ export function CoordinatorOnboarding({
         setIsStartingCall(false);
       }
     },
-    [complete, requestMicrophoneAccess, startIntroTimeline, triggerCoordinatorCallStart]
+    [
+      complete,
+      notifySessionStarted,
+      requestMicrophoneAccess,
+      startIntroTimeline,
+      triggerCoordinatorCallStart,
+    ]
   );
 
   // Replay path: warm up the soundscape on mount so the auto-started
@@ -234,8 +250,8 @@ export function CoordinatorOnboarding({
   React.useEffect(() => {
     if (!autoStartIntro) return;
     primeCoordinatorOnboardingCitySoundscape();
-    void beginCallIntro('dismiss');
-  }, [autoStartIntro, beginCallIntro]);
+    void beginIntro('call', 'dismiss');
+  }, [autoStartIntro, beginIntro]);
 
   const handleStartCall = React.useCallback(
     async (avatarOffset: IntroAvatarOffset) => {
@@ -244,9 +260,9 @@ export function CoordinatorOnboarding({
       primeCoordinatorOnboardingCitySoundscape();
       setIntroAvatarOffset(avatarOffset);
       setIntroSkipSignal(0);
-      await beginCallIntro('picker');
+      await beginIntro('call', 'picker');
     },
-    [beginCallIntro, phase]
+    [beginIntro, phase]
   );
 
   // Restart the currently-playing intro from the top. Bumping
@@ -265,9 +281,13 @@ export function CoordinatorOnboarding({
   }, []);
 
   const handlePickChat = React.useCallback(() => {
-    notifySessionStarted('chat');
-    complete('chat');
-  }, [complete, notifySessionStarted]);
+    if (phase !== 'picker') return;
+    startCoordinatorOnboardingBackgroundMusic();
+    primeCoordinatorOnboardingCitySoundscape();
+    setIntroAvatarOffset({ x: 0, y: -72 });
+    setIntroSkipSignal(0);
+    void beginIntro('chat', 'picker');
+  }, [beginIntro, phase]);
 
   const introCountdownBadge = (
     <OnboardingIntroCountdownBadge
@@ -305,7 +325,8 @@ export function CoordinatorOnboarding({
           key={introStartedAt ?? 'intro'}
           initialAvatarOffset={introAvatarOffset}
           timelineEnabled={isIntroTimelineReady}
-          onFinished={() => complete('call')}
+          presentationMode={introMedium === 'call' ? 'voice' : 'text'}
+          onFinished={() => complete(introMedium)}
           skipSignal={introSkipSignal}
           onSkipped={() => setIntroReady(true)}
           controlOverlay={introCountdownBadge}
