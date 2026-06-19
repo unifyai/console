@@ -9,6 +9,7 @@ import {
 import {
   COORDINATOR_ONBOARDING_INTRO,
   COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID,
+  COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT,
 } from '@/utils/assistants/coordinator-onboarding-intro';
 import { DroidTeleportFizzle } from '@/components/Pages/Assistants/Communication/DroidTeleportFizzle';
 import type { CreatureMouthShape } from '@/components/Brand/TeammateCreature';
@@ -317,6 +318,7 @@ type BrowserWindowWithCoordinatorIntroAudio = Window & {
 interface CoordinatorOnboardingCallIntroProps {
   initialAvatarOffset: { x: number; y: number };
   timelineEnabled?: boolean;
+  presentationMode?: 'voice' | 'text';
   onReadyToRevealSurface?: () => void;
   onFinished: () => void;
   skipSignal?: number;
@@ -379,10 +381,14 @@ function getSurfaceRevealOffsetMs(durationMs: number) {
 }
 
 const MARTY_DROID_APPEARANCE = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID;
+const MARTY_TEXT_BUBBLE_LINES = COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT.split('\n').filter(
+  (line) => line.trim().length > 0
+);
 
 export function CoordinatorOnboardingCallIntro({
   initialAvatarOffset,
   timelineEnabled = true,
+  presentationMode = 'voice',
   onReadyToRevealSurface,
   onFinished,
   skipSignal = 0,
@@ -405,7 +411,9 @@ export function CoordinatorOnboardingCallIntro({
   const [skipped, setSkipped] = React.useState(false);
   const [audioSpeechLevel, setAudioSpeechLevel] = React.useState(0);
   const [audioMouthShape, setAudioMouthShape] = React.useState<CreatureMouthShape>('closed');
-  const configuredIntroAudioSrc = COORDINATOR_ONBOARDING_INTRO.audioSrc;
+  const [textBubbleIndex, setTextBubbleIndex] = React.useState(-1);
+  const configuredIntroAudioSrc =
+    presentationMode === 'voice' ? COORDINATOR_ONBOARDING_INTRO.audioSrc : null;
   const configuredAscentAudioSrc = COORDINATOR_ONBOARDING_INTRO.ascentAudioSrc;
   // Pre-computed lipsync track for the intro audio (same offline flow as the
   // landing page). The mouth is sampled from this by playback time rather than
@@ -448,8 +456,8 @@ export function CoordinatorOnboardingCallIntro({
   const skipToClosingQuestion = React.useCallback(() => {
     if (!timelineEnabled || hasFinishedRef.current || stage === 'landing') return;
     skipRequestedRef.current = true;
-    // Retire the top-centre "Intro" countdown — it's no longer meaningful
-    // once we've jumped to the closing line.
+    // Retire the countdown — it's no longer meaningful once we've jumped to
+    // the closing line.
     onSkippedRef.current?.();
     onReadyToRevealSurfaceRef.current?.();
     const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
@@ -627,6 +635,47 @@ export function CoordinatorOnboardingCallIntro({
   }, [configuredIntroAudioSrc, timelineEnabled]);
 
   React.useEffect(() => {
+    if (!timelineEnabled || presentationMode !== 'text') {
+      setTextBubbleIndex(-1);
+      return undefined;
+    }
+
+    const { durationMs } = getRuntimeTiming();
+    let animationFrame = 0;
+    let startTimestamp: number | null = null;
+    const startTimer = window.setTimeout(
+      () => {
+        const tick = (timestamp: number) => {
+          if (startTimestamp === null) startTimestamp = timestamp;
+          const elapsedMs = timestamp - startTimestamp;
+          const progress = Math.max(0, Math.min(1, elapsedMs / Math.max(1, durationMs)));
+          const lineIndex = skipped
+            ? MARTY_TEXT_BUBBLE_LINES.length - 1
+            : Math.min(
+                MARTY_TEXT_BUBBLE_LINES.length - 1,
+                Math.floor(progress * MARTY_TEXT_BUBBLE_LINES.length)
+              );
+          setTextBubbleIndex(lineIndex);
+          if (progress < 1) {
+            animationFrame = window.requestAnimationFrame(tick);
+          }
+        };
+        animationFrame = window.requestAnimationFrame(tick);
+      },
+      skipped ? 0 : COORDINATOR_ONBOARDING_INTRO.initialPauseMs
+    );
+
+    return () => {
+      window.clearTimeout(startTimer);
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+    };
+  }, [presentationMode, skipped, timelineEnabled]);
+
+  React.useEffect(() => {
+    if (stage === 'landing') setTextBubbleIndex(-1);
+  }, [stage]);
+
+  React.useEffect(() => {
     const root = rootRef.current;
     if (!root || stage !== 'flying') return;
 
@@ -738,6 +787,11 @@ export function CoordinatorOnboardingCallIntro({
         className="flex items-center justify-center"
       >
         <div className="relative" style={{ width: framePx, height: framePx }}>
+          {presentationMode === 'text' && stage !== 'landing' && textBubbleIndex >= 0 && (
+            <span className="coordinator-onboarding-droid-speech is-visible">
+              {MARTY_TEXT_BUBBLE_LINES[textBubbleIndex]}
+            </span>
+          )}
           {/* One Marty avatar speaks throughout, then teleports the same fixed
            * appearance into the docked call surface. */}
           <DroidTeleportFizzle
@@ -748,9 +802,21 @@ export function CoordinatorOnboardingCallIntro({
             <SeatedCoordinatorDroid
               droid={MARTY_DROID_APPEARANCE}
               width={droidWidth}
-              isSpeaking={stage !== 'pause'}
-              mouthShape={audioMouthShape}
-              speechLevel={configuredIntroAudioSrc ? audioSpeechLevel : undefined}
+              isSpeaking={
+                presentationMode === 'voice'
+                  ? stage !== 'pause'
+                  : stage !== 'pause' && textBubbleIndex >= 0
+              }
+              mouthShape={presentationMode === 'voice' ? audioMouthShape : 'narrow'}
+              speechLevel={
+                presentationMode === 'voice'
+                  ? configuredIntroAudioSrc
+                    ? audioSpeechLevel
+                    : undefined
+                  : textBubbleIndex >= 0
+                    ? 0.48
+                    : 0
+              }
             />
           </DroidTeleportFizzle>
         </div>

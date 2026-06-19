@@ -11,12 +11,9 @@ function PopupStart() {
   const [error, setError] = useState<string | undefined>();
   const provider = searchParams?.get('provider');
 
-  // Guards against launching more than one sign-in. Re-renders (App Router
-  // search-param identity churn, session settling, dev StrictMode) can run this
-  // effect repeatedly; two concurrent signIn() calls race on the CSRF
-  // token, and the loser paints the error screen for ~0.5s before the winner
-  // redirects to the provider. A single in-flight call avoids that flash while
-  // still completing the redirect.
+  // Launch sign-in at most once. Effect re-runs (App Router search-param
+  // identity churn, session settling, dev StrictMode) would otherwise kick off
+  // redundant signIn() calls.
   const signInStartedRef = useRef(false);
 
   useEffect(() => {
@@ -43,16 +40,20 @@ function PopupStart() {
 
     async function startOAuth() {
       try {
+        // next-auth only "supports return" for credentials/email providers. For
+        // OAuth (google/azure-ad) it ignores `redirect: false`, performs the
+        // navigation to the provider itself, and resolves to `undefined`. So a
+        // resolved promise is the success path here and must NOT be treated as a
+        // failure -- doing so painted "Couldn't start sign in" in this same
+        // window for ~0.5s while next-auth's redirect was in flight. Only a
+        // thrown error means sign-in genuinely could not start. The
+        // `result?.url` navigation is kept as a harmless fallback for any
+        // return-supporting provider.
         const result = await signIn(providerId, { callbackUrl, redirect: false });
 
-        if (!result?.url || result.error || result.url.includes('/api/auth/error')) {
-          setError(
-            'Could not start this sign-in method. Check the OAuth credentials for this environment.'
-          );
-          return;
+        if (result?.url && !result.url.includes('/api/auth/error')) {
+          window.location.href = result.url;
         }
-
-        window.location.href = result.url;
       } catch {
         setError(
           'Could not start this sign-in method. Check the OAuth credentials for this environment.'

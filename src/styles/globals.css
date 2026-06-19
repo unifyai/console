@@ -32,6 +32,10 @@
     --neo-coral-dark: #8f3b39;
     --neo-amber: #cf9a3e;
     --neo-amber-dark: #8f6824;
+    --neo-speech-bg: #fff9ed;
+    --neo-speech-ink: #241a2b;
+    --neo-speech-shadow-low: rgba(36, 26, 43, 0.28);
+    --neo-speech-shadow-high: rgba(12, 9, 20, 0.22);
 
     --alert-red: #d94a3d;
     --soft-amber: #c47a00;
@@ -158,6 +162,10 @@
     --neo-coral-dark: #8f3b39;
     --neo-amber: #cf9a3e;
     --neo-amber-dark: #8f6824;
+    --neo-speech-bg: #fff9ed;
+    --neo-speech-ink: #241a2b;
+    --neo-speech-shadow-low: rgba(36, 26, 43, 0.28);
+    --neo-speech-shadow-high: rgba(12, 9, 20, 0.22);
 
     --primary: var(--role-green);
     --primary-foreground: #fffaf1;
@@ -644,6 +652,53 @@
     background-color: color-mix(in srgb, var(--card) 45%, transparent);
     backdrop-filter: blur(20px) saturate(115%);
     -webkit-backdrop-filter: blur(20px) saturate(115%);
+  }
+  .coordinator-onboarding-droid-speech {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    z-index: 12;
+    display: block;
+    width: max-content;
+    min-width: 128px;
+    max-width: min(220px, 68vw);
+    border: 2px solid var(--neo-speech-ink);
+    border-radius: 14px;
+    background: var(--neo-speech-bg);
+    box-shadow:
+      0 4px 0 var(--neo-speech-shadow-low),
+      0 12px 24px var(--neo-speech-shadow-high);
+    color: var(--neo-speech-ink);
+    font-family: var(--font-space-grotesk), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 750;
+    line-height: 1.15;
+    opacity: 0;
+    padding: 8px 11px 9px;
+    pointer-events: none;
+    text-align: center;
+    text-wrap: balance;
+    transform: translate(-50%, 8px) scale(0.96);
+    transform-origin: 50% 100%;
+    transition:
+      opacity 150ms ease,
+      transform 150ms ease;
+  }
+  .coordinator-onboarding-droid-speech::after {
+    position: absolute;
+    bottom: -7px;
+    left: 50%;
+    height: 12px;
+    width: 12px;
+    border-bottom: 2px solid var(--neo-speech-ink);
+    border-right: 2px solid var(--neo-speech-ink);
+    background: var(--neo-speech-bg);
+    content: '';
+    transform: translateX(-50%) rotate(45deg);
+  }
+  .coordinator-onboarding-droid-speech.is-visible {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
   }
   .brand-fallback-scene {
     position: relative;
