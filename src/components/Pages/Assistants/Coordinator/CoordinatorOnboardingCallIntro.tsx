@@ -22,11 +22,7 @@ type CoordinatorCitySoundscapeState = {
   ascentBufferPromise: Promise<AudioBuffer> | null;
   ascentGain: GainNode;
   ascentSource: AudioBufferSourceNode | null;
-  cityBufferPromise: Promise<AudioBuffer> | null;
-  citySource: AudioBufferSourceNode | null;
   context: AudioContext;
-  latestVolume: number;
-  masterGain: GainNode;
 };
 type CoordinatorIntroBackgroundMusicState = {
   audio: HTMLAudioElement;
@@ -47,8 +43,6 @@ type MartyTextBubbleCue = {
 // When skipping, the elevator ascent is compressed to a quick rise so the
 // droid reaches his call position in step with the seeked-to closing line.
 const SKIP_FLY_MS = 1_400;
-const CITY_SOUNDSCAPE_MAX_VOLUME = 0.4;
-const CITY_SOUNDSCAPE_FADE_IN_MS = 2_500;
 const ASCENT_SOUND_VOLUME = 0.27;
 const ASCENT_SOUND_SKIP_OFFSET_SEC = 32;
 const COORDINATOR_INTRO_RADIO_STORAGE_KEY = 'console:coordinator-onboarding-radio-enabled';
@@ -378,51 +372,6 @@ export function stopCoordinatorOnboardingBackgroundMusic() {
   resetCoordinatorIntroBackgroundMusicVolumeScale();
 }
 
-function loadCoordinatorCitySoundBuffer(state: CoordinatorCitySoundscapeState, src: string) {
-  if (!state.cityBufferPromise) {
-    state.cityBufferPromise = fetch(src, { cache: 'no-cache' })
-      .then((res) => {
-        if (!res.ok) throw new Error(`Failed to load city ambience: ${res.status}`);
-        return res.arrayBuffer();
-      })
-      .then((buffer) => state.context.decodeAudioData(buffer));
-  }
-  return state.cityBufferPromise;
-}
-
-function stopCoordinatorCityAmbience(state = coordinatorCitySoundscapeState) {
-  if (!state || !state.citySource) return;
-  state.citySource.stop();
-  state.citySource = null;
-}
-
-// Plays the city ambience clip from its start into ``masterGain``. The fade in
-// and out across the ascent is driven separately by
-// ``setCoordinatorCitySoundscapeVolume`` ramping ``masterGain``.
-function playCoordinatorCityAmbience(src: string) {
-  const state = ensureCoordinatorCitySoundscape();
-  if (!state) return;
-
-  void state.context.resume();
-  void loadCoordinatorCitySoundBuffer(state, src)
-    .then((buffer) => {
-      if (coordinatorCitySoundscapeState !== state) return;
-      stopCoordinatorCityAmbience(state);
-
-      const source = state.context.createBufferSource();
-      source.buffer = buffer;
-      source.connect(state.masterGain);
-      state.citySource = source;
-      source.start(state.context.currentTime);
-      source.onended = () => {
-        if (state.citySource === source) state.citySource = null;
-      };
-    })
-    .catch(() => {
-      state.cityBufferPromise = null;
-    });
-}
-
 function ensureCoordinatorCitySoundscape() {
   if (coordinatorCitySoundscapeCleanupTimer !== null) {
     window.clearTimeout(coordinatorCitySoundscapeCleanupTimer);
@@ -434,22 +383,15 @@ function ensureCoordinatorCitySoundscape() {
   if (!AudioContextCtor) return null;
 
   const context = new AudioContextCtor();
-  const masterGain = context.createGain();
   const ascentGain = context.createGain();
-  masterGain.gain.value = 0;
   ascentGain.gain.value = 0;
-  masterGain.connect(context.destination);
   ascentGain.connect(context.destination);
 
   coordinatorCitySoundscapeState = {
     ascentBufferPromise: null,
     ascentGain,
     ascentSource: null,
-    cityBufferPromise: null,
-    citySource: null,
     context,
-    latestVolume: 0,
-    masterGain,
   };
   return coordinatorCitySoundscapeState;
 }
@@ -511,28 +453,11 @@ function playCoordinatorAscentSound(src: string, skipped: boolean) {
     });
 }
 
-function setCoordinatorCitySoundscapeVolume(volume: number) {
-  const state = ensureCoordinatorCitySoundscape();
-  if (!state) return;
-
-  state.latestVolume = volume;
-  const now = state.context.currentTime;
-  state.masterGain.gain.cancelScheduledValues(now);
-  state.masterGain.gain.setTargetAtTime(volume, now, 0.16);
-
-  if (volume > 0) void state.context.resume();
-}
-
 function cleanupCoordinatorCitySoundscape() {
   const state = coordinatorCitySoundscapeState;
   if (!state) return;
 
   stopCoordinatorAscentSound(state);
-  stopCoordinatorCityAmbience(state);
-  state.latestVolume = 0;
-  const now = state.context.currentTime;
-  state.masterGain.gain.cancelScheduledValues(now);
-  state.masterGain.gain.setTargetAtTime(0, now, 0.12);
 
   if (coordinatorCitySoundscapeCleanupTimer !== null) {
     window.clearTimeout(coordinatorCitySoundscapeCleanupTimer);
@@ -549,15 +474,9 @@ export function primeCoordinatorOnboardingCitySoundscape() {
   const state = ensureCoordinatorCitySoundscape();
   if (!state) return;
 
-  state.masterGain.gain.setValueAtTime(0, state.context.currentTime);
   void loadCoordinatorAscentSoundBuffer(state, COORDINATOR_ONBOARDING_INTRO.ascentAudioSrc).catch(
     () => {
       state.ascentBufferPromise = null;
-    }
-  );
-  void loadCoordinatorCitySoundBuffer(state, COORDINATOR_ONBOARDING_INTRO.cityAmbienceSrc).catch(
-    () => {
-      state.cityBufferPromise = null;
     }
   );
   void state.context.resume();
@@ -981,8 +900,6 @@ export function CoordinatorOnboardingCallIntro({
     const root = rootRef.current;
     if (!root || stage !== 'flying') return;
 
-    playCoordinatorCityAmbience(COORDINATOR_ONBOARDING_INTRO.cityAmbienceSrc);
-
     const { durationMs } = getRuntimeTiming();
     const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs);
     const motionDurationMs = skipped
@@ -1010,10 +927,8 @@ export function CoordinatorOnboardingCallIntro({
       const position = skipped ? startPosition * (1 - progress) : (1 - progress) * 100;
       const ascentProgress = 1 - position / 100;
       const cityOpacity = getCityBackdropOpacity(ascentProgress);
-      const soundFadeIn = skipped ? 1 : Math.min(1, elapsedMs / CITY_SOUNDSCAPE_FADE_IN_MS);
       root.style.setProperty('--coordinator-intro-city-position', `${position}%`);
       root.style.setProperty('--coordinator-intro-city-opacity', cityOpacity.toString());
-      setCoordinatorCitySoundscapeVolume(CITY_SOUNDSCAPE_MAX_VOLUME * cityOpacity * soundFadeIn);
       setCoordinatorOnboardingBackgroundMusicVolume(
         getCoordinatorIntroRadioStation().volume * cityOpacity
       );
@@ -1025,7 +940,6 @@ export function CoordinatorOnboardingCallIntro({
     animationFrame = window.requestAnimationFrame(tick);
     return () => {
       window.cancelAnimationFrame(animationFrame);
-      stopCoordinatorCityAmbience();
     };
   }, [skipped, stage]);
 
@@ -1045,7 +959,6 @@ export function CoordinatorOnboardingCallIntro({
 
     root.style.setProperty('--coordinator-intro-city-position', '0%');
     root.style.setProperty('--coordinator-intro-city-opacity', '0');
-    setCoordinatorCitySoundscapeVolume(0);
     setCoordinatorOnboardingBackgroundMusicVolume(0);
     const handle = window.setTimeout(() => {
       finishOnce();
