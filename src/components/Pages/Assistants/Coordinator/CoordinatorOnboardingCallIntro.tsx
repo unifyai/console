@@ -28,6 +28,10 @@ type CoordinatorCitySoundscapeState = {
   latestVolume: number;
   masterGain: GainNode;
 };
+type CoordinatorIntroBackgroundMusicState = {
+  audio: HTMLAudioElement;
+  src: string;
+};
 
 // When skipping, the elevator ascent is compressed to a quick rise so the
 // droid reaches his call position in step with the seeked-to closing line.
@@ -38,6 +42,7 @@ const ASCENT_SOUND_VOLUME = 0.27;
 const ASCENT_SOUND_SKIP_OFFSET_SEC = 32;
 let coordinatorCitySoundscapeState: CoordinatorCitySoundscapeState | null = null;
 let coordinatorCitySoundscapeCleanupTimer: number | null = null;
+let coordinatorIntroBackgroundMusicState: CoordinatorIntroBackgroundMusicState | null = null;
 
 function getAudioContextConstructor() {
   if (typeof window === 'undefined') return null;
@@ -46,6 +51,50 @@ function getAudioContextConstructor() {
     (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext ||
     null
   );
+}
+
+function clampAudioVolume(volume: number) {
+  return Math.max(0, Math.min(1, volume));
+}
+
+export function startCoordinatorOnboardingBackgroundMusic() {
+  if (typeof window === 'undefined') return;
+  const { backgroundMusicSrc, backgroundMusicVolume } = COORDINATOR_ONBOARDING_INTRO;
+  if (!backgroundMusicSrc) return;
+
+  let state = coordinatorIntroBackgroundMusicState;
+  if (!state || state.src !== backgroundMusicSrc) {
+    if (state) {
+      state.audio.pause();
+      state.audio.removeAttribute('src');
+      state.audio.load();
+    }
+    const audio = new Audio(backgroundMusicSrc);
+    audio.loop = true;
+    audio.preload = 'auto';
+    state = { audio, src: backgroundMusicSrc };
+    coordinatorIntroBackgroundMusicState = state;
+  }
+
+  state.audio.volume = clampAudioVolume(backgroundMusicVolume);
+  void state.audio.play().catch(() => undefined);
+}
+
+function setCoordinatorOnboardingBackgroundMusicVolume(volume: number) {
+  const state = coordinatorIntroBackgroundMusicState;
+  if (!state) return;
+  state.audio.volume = clampAudioVolume(volume);
+}
+
+export function stopCoordinatorOnboardingBackgroundMusic() {
+  const state = coordinatorIntroBackgroundMusicState;
+  if (!state) return;
+
+  state.audio.pause();
+  state.audio.currentTime = 0;
+  state.audio.removeAttribute('src');
+  state.audio.load();
+  coordinatorIntroBackgroundMusicState = null;
 }
 
 function loadCoordinatorCitySoundBuffer(state: CoordinatorCitySoundscapeState, src: string) {
@@ -273,6 +322,7 @@ interface CoordinatorOnboardingCallIntroProps {
   skipSignal?: number;
   onSkipped?: () => void;
   surfaceVisible?: boolean;
+  controlOverlay?: React.ReactNode;
 }
 
 function getRuntimeTiming() {
@@ -338,6 +388,7 @@ export function CoordinatorOnboardingCallIntro({
   skipSignal = 0,
   onSkipped,
   surfaceVisible = false,
+  controlOverlay,
 }: CoordinatorOnboardingCallIntroProps) {
   const { droidWidth, framePx } = useCoordinatorDroidLayout();
   const rootRef = React.useRef<HTMLDivElement | null>(null);
@@ -612,6 +663,9 @@ export function CoordinatorOnboardingCallIntro({
       root.style.setProperty('--coordinator-intro-city-position', `${position}%`);
       root.style.setProperty('--coordinator-intro-city-opacity', cityOpacity.toString());
       setCoordinatorCitySoundscapeVolume(CITY_SOUNDSCAPE_MAX_VOLUME * cityOpacity * soundFadeIn);
+      setCoordinatorOnboardingBackgroundMusicVolume(
+        COORDINATOR_ONBOARDING_INTRO.backgroundMusicVolume * cityOpacity
+      );
       if (progress < 1) {
         animationFrame = window.requestAnimationFrame(tick);
       }
@@ -641,6 +695,7 @@ export function CoordinatorOnboardingCallIntro({
     root.style.setProperty('--coordinator-intro-city-position', '0%');
     root.style.setProperty('--coordinator-intro-city-opacity', '0');
     setCoordinatorCitySoundscapeVolume(0);
+    setCoordinatorOnboardingBackgroundMusicVolume(0);
     const handle = window.setTimeout(() => {
       finishOnce();
     }, COORDINATOR_ONBOARDING_INTRO.landingDurationMs);
@@ -652,7 +707,7 @@ export function CoordinatorOnboardingCallIntro({
     <div
       ref={rootRef}
       className={cn(
-        'flex h-full w-full items-center justify-center overflow-hidden',
+        'relative flex h-full w-full items-center justify-center overflow-hidden',
         surfaceVisible
           ? 'pointer-events-none bg-transparent'
           : 'brand-page-stencil-bg coordinator-onboarding-city-bg bg-background'
@@ -662,6 +717,14 @@ export function CoordinatorOnboardingCallIntro({
       }
       data-testid="coordinator-onboarding-call-intro"
     >
+      {controlOverlay && (
+        <div
+          className="pointer-events-none absolute bottom-4 right-4 z-50 transition-opacity duration-300"
+          style={{ opacity: 'var(--coordinator-intro-city-opacity, 1)' }}
+        >
+          {controlOverlay}
+        </div>
+      )}
       <motion.div
         initial={{ opacity: 1, x: initialAvatarOffset.x, y: initialAvatarOffset.y, scale: 1 }}
         animate={{
