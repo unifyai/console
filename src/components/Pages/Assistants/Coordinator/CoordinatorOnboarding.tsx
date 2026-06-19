@@ -46,7 +46,6 @@ import {
   getCoordinatorIntroCountdownMs,
 } from '@/utils/assistants/coordinator-onboarding-intro';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
-import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { notifyOnboardingSessionStarted } from '@/lib/client/coordinator';
 import type { Assistant, AssistantCallConnectOptions } from '@/types/assistants/assistant';
@@ -59,10 +58,6 @@ type IntroAvatarOffset = { x: number; y: number };
 
 interface CoordinatorOnboardingProps {
   coordinator: Assistant;
-  /** When true the overlay mounts straight into the animated intro
-   * (skipping the call-vs-chat picker) — used by the "Repeat intro"
-   * affordance on the Coordinator's "Assistant info" card. */
-  autoStartIntro?: boolean;
   /** Starts the real Coordinator call. The intro warms this up early so
    * the docked call is already live in the platform when the overlay
    * dismisses. */
@@ -81,7 +76,6 @@ interface CoordinatorOnboardingProps {
 
 export function CoordinatorOnboarding({
   coordinator,
-  autoStartIntro = false,
   onStartCall,
   onComplete,
 }: CoordinatorOnboardingProps) {
@@ -90,7 +84,7 @@ export function CoordinatorOnboarding({
   // "Start Call" is shown disabled (with a reason) and chat is the only path.
   const { voiceCalls } = useFeatures();
 
-  const [phase, setPhase] = React.useState<OnboardingPhase>(autoStartIntro ? 'intro' : 'picker');
+  const [phase, setPhase] = React.useState<OnboardingPhase>('picker');
   const [introMedium, setIntroMedium] = React.useState<IntroMedium>('call');
   const [introAvatarOffset, setIntroAvatarOffset] = React.useState<IntroAvatarOffset>({
     x: 0,
@@ -110,22 +104,12 @@ export function CoordinatorOnboarding({
   const hasTriggeredCallStartRef = React.useRef(false);
   const hasCompletedRef = React.useRef(false);
 
-  const { startRinging: startPickerRinging, stopRinging: stopPickerRinging } = useCallSounds();
   const isPickerVisible = phase === 'picker';
 
   React.useEffect(() => {
     startCoordinatorOnboardingBackgroundMusic();
     return stopCoordinatorOnboardingBackgroundMusic;
   }, []);
-
-  React.useEffect(() => {
-    if (!isPickerVisible) {
-      stopPickerRinging();
-      return;
-    }
-    startPickerRinging();
-    return stopPickerRinging;
-  }, [isPickerVisible, startPickerRinging, stopPickerRinging]);
 
   // Fire the picker-resolution event so Droid opens the session with the
   // right kind of message. Best-effort: completion never blocks on it.
@@ -244,14 +228,6 @@ export function CoordinatorOnboarding({
       triggerCoordinatorCallStart,
     ]
   );
-
-  // Replay path: warm up the soundscape on mount so the auto-started
-  // intro has its audio buffers ready, matching the picker's "Start Call".
-  React.useEffect(() => {
-    if (!autoStartIntro) return;
-    primeCoordinatorOnboardingCitySoundscape();
-    void beginIntro('call', 'dismiss');
-  }, [autoStartIntro, beginIntro]);
 
   const handleStartCall = React.useCallback(
     async (avatarOffset: IntroAvatarOffset) => {
