@@ -244,15 +244,21 @@ export function CoordinatorOnboarding({
     [beginIntro, phase]
   );
 
-  // Restart the currently-playing intro from the top. Bumping
-  // ``introStartedAt`` re-keys the intro element so its audio and
-  // stage timers restart against the already-live call.
+  // Return to the lightweight picker so replaying the intro still begins with
+  // an explicit call/text choice.
   const handleRestartIntro = React.useCallback(() => {
     startCoordinatorOnboardingBackgroundMusic();
     primeCoordinatorOnboardingCitySoundscape();
+    isBeginningIntroRef.current = false;
+    setIsStartingCall(false);
+    setPhase('picker');
+    setIntroAvatarOffset({ x: 0, y: -72 });
     setIntroSkipSignal(0);
-    startIntroTimeline();
-  }, [startIntroTimeline]);
+    setIntroReady(false);
+    setIntroStartedAt(null);
+    setIntroCountdownMs(0);
+    setIsIntroTimelineReady(false);
+  }, []);
 
   const handleSkipIntro = React.useCallback(() => {
     setIntroReady(true);

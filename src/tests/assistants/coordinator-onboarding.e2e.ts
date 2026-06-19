@@ -282,6 +282,29 @@ test('starting a call plays the intro then docks the call in the platform', asyn
   await page.getByRole('button', { name: 'End call' }).click();
 });
 
+test('top repeat button returns the intro to the picker controls', async ({ authedPage: page }) => {
+  await page.addInitScript(() => {
+    Object.assign(window, {
+      __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 10_000,
+    });
+  });
+  resetCoordinatorIntroWatched();
+  await gotoAssistants(page);
+  await expectPickerVisible(page);
+
+  await page.getByTestId('coordinator-onboarding-start-call').click({ force: true });
+  await expect(page.getByTestId('coordinator-onboarding-call-intro')).toBeVisible({
+    timeout: 10_000,
+  });
+
+  await page.getByTestId('coordinator-onboarding-intro-restart').click();
+  await expectPickerVisible(page);
+  await expect(page.getByTestId('coordinator-onboarding-call-intro')).toHaveCount(0);
+
+  await page.getByTestId('coordinator-onboarding-pick-chat').click();
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
+});
+
 test('mobile onboarding keeps the docked Marty call visible instead of auto-opening Assistant info', async ({
   authedPage: page,
 }) => {
