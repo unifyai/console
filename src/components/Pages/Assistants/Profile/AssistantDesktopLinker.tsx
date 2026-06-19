@@ -212,7 +212,11 @@ export function AssistantDesktopLinker({
     if (!deleteTarget) return;
     const target = deleteTarget;
     setMutatingId(target.id);
-    const result = await assistantActions.desktop.deleteUserDesktop(target.id, target.url);
+    const result = await assistantActions.desktop.deleteUserDesktop(
+      target.id,
+      target.url,
+      target.assignedToAssistantIds ?? []
+    );
     setMutatingId(null);
 
     if ('detail' in result && result.detail) {

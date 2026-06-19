@@ -625,7 +625,11 @@ export interface AssistantActions {
     ) => Promise<ResponseProps>;
     unlinkDesktop: (assistantId: string) => Promise<ResponseProps>;
     renameUserDesktop: (desktopId: number, name: string) => Promise<UserDesktop | ResponseProps>;
-    deleteUserDesktop: (desktopId: number, url?: string) => Promise<ResponseProps>;
+    deleteUserDesktop: (
+      desktopId: number,
+      url?: string,
+      linkedAssistantIds?: number[]
+    ) => Promise<ResponseProps>;
   };
   spending: {
     setLimit: (
