@@ -104,6 +104,20 @@ async function openOnboardingChecklist(page: Page) {
   await onboardingTab.click();
 }
 
+async function expectOnlyNextChecklistItemClickable(page: Page) {
+  const rows = page.locator('[data-testid^="coordinator-onboarding-item-"]');
+  const count = await rows.count();
+  for (let index = 0; index < count; index += 1) {
+    const row = rows.nth(index);
+    const isNext = (await row.getAttribute('data-next')) === 'true';
+    if (isNext) {
+      await expect(row).toHaveAttribute('role', 'button');
+    } else {
+      await expect(row).not.toHaveAttribute('role', 'button');
+    }
+  }
+}
+
 /**
  * Restore the fresh picker on the shared workspace coordinator.
  *
@@ -209,6 +223,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   );
   const emailReferenceRow = page.getByTestId('coordinator-onboarding-item-email-reference').first();
   await expect(emailReferenceRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
+  await expectOnlyNextChecklistItemClickable(page);
   await emailReferenceRow.click();
   await expect(emailReferenceRow).toHaveAttribute('data-status', 'done', { timeout: 10_000 });
   await expect(page.getByTestId('coordinator-onboarding-item-email-reply').first()).toHaveAttribute(
@@ -216,6 +231,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
     'true',
     { timeout: 10_000 }
   );
+  await expectOnlyNextChecklistItemClickable(page);
   await expect
     .poll(() => readPersistedOnboardingStep(coordinator.agentId), { timeout: 10_000 })
     .toBe('email-reply');
@@ -381,6 +397,7 @@ test('skipping an inline checklist step can be reversed later', async ({ authedP
   await openOnboardingChecklist(page);
   const appsRow = page.getByTestId('coordinator-onboarding-item-apps').first();
   await expect(appsRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
+  await expectOnlyNextChecklistItemClickable(page);
 
   await page.getByTestId('coordinator-onboarding-skip-step-apps').click();
   await expect(appsRow).toHaveAttribute('data-status', 'skipped');
@@ -388,6 +405,7 @@ test('skipping an inline checklist step can be reversed later', async ({ authedP
     'data-next',
     'true'
   );
+  await expectOnlyNextChecklistItemClickable(page);
 
   const skippedState = dbExec(
     `SELECT le.data->'skipped_step_ids' FROM log_event le ` +
