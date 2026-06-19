@@ -35,7 +35,7 @@ type CoordinatorIntroRadioStation = {
   src: string;
   volume: number;
 };
-type MartyTextBubbleCue = {
+type TwinTextBubbleCue = {
   startMs: number;
   text: string;
 };
@@ -579,9 +579,9 @@ function getSurfaceRevealOffsetMs(durationMs: number) {
   );
 }
 
-const MARTY_DROID_APPEARANCE = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID;
-const MARTY_TEXT_BUBBLE_CUES = [
-  { startMs: 0, text: "Hi, I'm Marty." },
+const TWIN_DROID_APPEARANCE = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID;
+const TWIN_TEXT_BUBBLE_CUES = [
+  { startMs: 0, text: "Hi, I'm Twin." },
   { startMs: 1_400, text: 'Firstly, I know what you might be thinking.' },
   { startMs: 3_320, text: 'Am I really going to spend my time talking to a tiny robot?' },
   { startMs: 6_580, text: "You're a serious person with a presumably serious and important job." },
@@ -599,18 +599,30 @@ const MARTY_TEXT_BUBBLE_CUES = [
   { startMs: 35_180, text: "And I'll be able to help." },
   { startMs: 36_740, text: "I'll now walk you through the platform." },
   { startMs: 38_680, text: 'Any immediate questions before we start?' },
-] as const satisfies readonly MartyTextBubbleCue[];
+] as const satisfies readonly TwinTextBubbleCue[];
 
-function getMartyTextBubbleCueIndex(elapsedMs: number, durationMs: number) {
+function getTwinTextBubbleCueIndex(elapsedMs: number, durationMs: number) {
   const sourceElapsedMs =
     (elapsedMs * COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs) / Math.max(1, durationMs);
+  return getTwinTextBubbleCueIndexForSourceElapsed(sourceElapsedMs);
+}
+
+function getTwinTextBubbleCueIndexForSourceElapsed(sourceElapsedMs: number) {
   let cueIndex = 0;
-  for (let index = 1; index < MARTY_TEXT_BUBBLE_CUES.length; index += 1) {
-    if (sourceElapsedMs < MARTY_TEXT_BUBBLE_CUES[index].startMs) break;
+  for (let index = 1; index < TWIN_TEXT_BUBBLE_CUES.length; index += 1) {
+    if (sourceElapsedMs < TWIN_TEXT_BUBBLE_CUES[index].startMs) break;
     cueIndex = index;
   }
   return cueIndex;
 }
+
+const TWIN_TEXT_SKIP_CUE_INDEX = Math.max(
+  0,
+  TWIN_TEXT_BUBBLE_CUES.findIndex(
+    (cue) => cue.startMs >= COORDINATOR_ONBOARDING_INTRO.closingQuestionSec * 1_000
+  ) - 1
+);
+const TWIN_TEXT_SKIP_START_MS = TWIN_TEXT_BUBBLE_CUES[TWIN_TEXT_SKIP_CUE_INDEX].startMs;
 
 export function CoordinatorOnboardingCallIntro({
   initialAvatarOffset,
@@ -629,6 +641,9 @@ export function CoordinatorOnboardingCallIntro({
   const onSkippedRef = React.useRef(onSkipped);
   const hasFinishedRef = React.useRef(false);
   const keepAudioAfterUnmountRef = React.useRef(false);
+  const landingDelayTimerRef = React.useRef<number | null>(null);
+  const presentationModeRef = React.useRef(presentationMode);
+  const latestSourceElapsedMsRef = React.useRef(0);
   // Set when "Skip" is pressed before the audio element has begun playing; the
   // start handler then seeks immediately.
   const skipRequestedRef = React.useRef(false);
@@ -638,6 +653,7 @@ export function CoordinatorOnboardingCallIntro({
   const [audioSpeechLevel, setAudioSpeechLevel] = React.useState(0);
   const [audioMouthShape, setAudioMouthShape] = React.useState<CreatureMouthShape>('closed');
   const [textBubbleIndex, setTextBubbleIndex] = React.useState(-1);
+  const [textModeSourceOffsetMs, setTextModeSourceOffsetMs] = React.useState(0);
   const configuredIntroAudioSrc =
     presentationMode === 'voice' ? COORDINATOR_ONBOARDING_INTRO.audioSrc : null;
   const configuredAscentAudioSrc = COORDINATOR_ONBOARDING_INTRO.ascentAudioSrc;
@@ -645,6 +661,7 @@ export function CoordinatorOnboardingCallIntro({
   // landing page). The mouth is sampled from this by playback time rather than
   // analysed live, which keeps it deterministic.
   const lipsyncTrackRef = React.useRef<PrecomputedDroidLipsyncTrack | null>(null);
+  presentationModeRef.current = presentationMode;
 
   React.useEffect(() => {
     onReadyToRevealSurfaceRef.current = onReadyToRevealSurface;
@@ -675,7 +692,15 @@ export function CoordinatorOnboardingCallIntro({
     onFinishedRef.current();
   }, []);
 
-  // Skip the bulk of the monologue: seek the audio to Marty's closing
+  const scheduleLanding = React.useCallback(() => {
+    if (hasFinishedRef.current || landingDelayTimerRef.current !== null) return;
+    landingDelayTimerRef.current = window.setTimeout(() => {
+      landingDelayTimerRef.current = null;
+      if (!hasFinishedRef.current) setStage('landing');
+    }, COORDINATOR_ONBOARDING_INTRO.teleportOutDelayMs);
+  }, []);
+
+  // Skip the bulk of the monologue: seek the audio to Twin's closing
   // question and compress the city ascent. When the seeked line ends, the
   // existing ``ended`` handler lands and hands off to the call as a natural
   // finish would.
@@ -693,15 +718,14 @@ export function CoordinatorOnboardingCallIntro({
         audio,
         COORDINATOR_ONBOARDING_INTRO.closingQuestionSec
       );
+      latestSourceElapsedMsRef.current = audio.currentTime * 1_000;
       void audio.play().catch(() => undefined);
     }
-    // From the seated speaking beats, kick off the compressed ascent into
-    // the call position. If we're already flying, leave the in-flight
-    // ascent untouched and just let the seeked-to line carry us to landing.
-    if (stage === 'pause' || stage === 'speaking') {
-      setSkipped(true);
-      setStage('flying');
-    }
+    // From any pre-landing beat, compress the ascent into the call position.
+    setSkipped(true);
+    setStage((currentStage) =>
+      currentStage === 'pause' || currentStage === 'speaking' ? 'flying' : currentStage
+    );
   }, [stage, timelineEnabled]);
 
   React.useEffect(() => {
@@ -713,6 +737,10 @@ export function CoordinatorOnboardingCallIntro({
 
   React.useEffect(() => {
     return () => {
+      if (landingDelayTimerRef.current !== null) {
+        window.clearTimeout(landingDelayTimerRef.current);
+        landingDelayTimerRef.current = null;
+      }
       cleanupCoordinatorCitySoundscape();
     };
   }, []);
@@ -739,20 +767,27 @@ export function CoordinatorOnboardingCallIntro({
       () => scheduleLanding(),
       COORDINATOR_ONBOARDING_INTRO.initialPauseMs + handoffOffsetMs
     );
-    let landingDelayTimer: number | null = null;
-    let audio: HTMLAudioElement | null = null;
+
+    return () => {
+      window.clearTimeout(speakingStartTimer);
+      window.clearTimeout(backgroundStartTimer);
+      window.clearTimeout(surfaceRevealTimer);
+      window.clearTimeout(landingTimer);
+    };
+  }, [scheduleLanding, timelineEnabled]);
+
+  React.useEffect(() => {
+    if (!timelineEnabled || !configuredIntroAudioSrc) return undefined;
+
+    let audio: HTMLAudioElement | null = new Audio(configuredIntroAudioSrc);
     let audioTimer: number | null = null;
     let animationFrame = 0;
     let hasStartedAudio = false;
     let shouldPublishToComponent = true;
 
-    function scheduleLanding() {
-      if (hasFinishedRef.current || landingDelayTimer !== null) return;
-      landingDelayTimer = window.setTimeout(() => {
-        landingDelayTimer = null;
-        if (!hasFinishedRef.current) setStage('landing');
-      }, COORDINATOR_ONBOARDING_INTRO.teleportOutDelayMs);
-    }
+    audio.preload = 'auto';
+    audio.loop = false;
+    audio.volume = COORDINATOR_INTRO_VOICE_VOLUME;
 
     const stopAudioAnalysis = (resetSpeechLevel = true) => {
       if (animationFrame) {
@@ -772,6 +807,7 @@ export function CoordinatorOnboardingCallIntro({
     // analyser is constructed, so the mouth animation is stable across runs.
     const startAudioAnalysis = (audioElement: HTMLAudioElement) => {
       const tick = () => {
+        latestSourceElapsedMsRef.current = audioElement.currentTime * 1_000;
         const track = lipsyncTrackRef.current;
         const { mouthShape, speechLevel } = track
           ? sampleIntroLipsyncTrack(track, audioElement.currentTime)
@@ -789,12 +825,20 @@ export function CoordinatorOnboardingCallIntro({
       animationFrame = window.requestAnimationFrame(tick);
     };
 
-    if (configuredIntroAudioSrc) {
-      audio = new Audio(configuredIntroAudioSrc);
-      audio.preload = 'auto';
-      audio.loop = false;
-      audio.volume = COORDINATOR_INTRO_VOICE_VOLUME;
-      audioTimer = window.setTimeout(() => {
+    const handleEnded = () => {
+      const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
+      if (coordinatorWindow.__coordinatorOnboardingIntroAudio === audio) {
+        coordinatorWindow.__coordinatorOnboardingIntroAudio = undefined;
+      }
+      stopAudioAnalysis(!hasFinishedRef.current);
+      if (!hasFinishedRef.current) {
+        scheduleLanding();
+      }
+    };
+
+    audio.addEventListener('ended', handleEnded, { once: true });
+    audioTimer = window.setTimeout(
+      () => {
         if (!audio) return;
         if (hasStartedAudio) return;
         hasStartedAudio = true;
@@ -814,41 +858,35 @@ export function CoordinatorOnboardingCallIntro({
             audio,
             COORDINATOR_ONBOARDING_INTRO.closingQuestionSec
           );
+        } else if (latestSourceElapsedMsRef.current > 0) {
+          audio.currentTime = getPlayableAudioTime(audio, latestSourceElapsedMsRef.current / 1_000);
         }
         startAudioAnalysis(audio);
         audio.play().catch(() => {
           stopAudioAnalysis();
         });
-      }, COORDINATOR_ONBOARDING_INTRO.initialPauseMs);
-      audio.addEventListener(
-        'ended',
-        () => {
-          const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
-          if (coordinatorWindow.__coordinatorOnboardingIntroAudio === audio) {
-            coordinatorWindow.__coordinatorOnboardingIntroAudio = undefined;
-          }
-          stopAudioAnalysis(!hasFinishedRef.current);
-          if (!hasFinishedRef.current) {
-            scheduleLanding();
-          }
-        },
-        { once: true }
-      );
-    }
+      },
+      latestSourceElapsedMsRef.current > 0 ? 0 : COORDINATOR_ONBOARDING_INTRO.initialPauseMs
+    );
 
     return () => {
-      window.clearTimeout(speakingStartTimer);
-      window.clearTimeout(backgroundStartTimer);
-      window.clearTimeout(surfaceRevealTimer);
-      window.clearTimeout(landingTimer);
-      if (landingDelayTimer !== null) window.clearTimeout(landingDelayTimer);
       if (audioTimer !== null) window.clearTimeout(audioTimer);
       const keepAudioPlaying = keepAudioAfterUnmountRef.current && !!audio && !audio.ended;
       shouldPublishToComponent = false;
+      if (
+        audio &&
+        presentationModeRef.current === 'text' &&
+        !hasFinishedRef.current &&
+        !audio.ended
+      ) {
+        latestSourceElapsedMsRef.current = audio.currentTime * 1_000;
+        setTextModeSourceOffsetMs(latestSourceElapsedMsRef.current);
+      }
       if (!keepAudioPlaying) {
         stopAudioAnalysis();
       }
       if (audio) {
+        audio.removeEventListener('ended', handleEnded);
         const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
         if (!keepAudioPlaying && coordinatorWindow.__coordinatorOnboardingIntroAudio === audio) {
           coordinatorWindow.__coordinatorOnboardingIntroAudio = undefined;
@@ -857,9 +895,10 @@ export function CoordinatorOnboardingCallIntro({
           audio.pause();
           audio.currentTime = 0;
         }
+        audio = null;
       }
     };
-  }, [configuredIntroAudioSrc, timelineEnabled]);
+  }, [configuredIntroAudioSrc, scheduleLanding, timelineEnabled]);
 
   React.useEffect(() => {
     if (!timelineEnabled || presentationMode !== 'text') {
@@ -875,29 +914,51 @@ export function CoordinatorOnboardingCallIntro({
         const tick = (timestamp: number) => {
           if (startTimestamp === null) startTimestamp = timestamp;
           const elapsedMs = timestamp - startTimestamp;
-          const progress = Math.max(0, Math.min(1, elapsedMs / Math.max(1, durationMs)));
-          const lineIndex = skipped
-            ? MARTY_TEXT_BUBBLE_CUES.length - 1
-            : getMartyTextBubbleCueIndex(elapsedMs, durationMs);
+          const sourceElapsedMs = skipped
+            ? TWIN_TEXT_SKIP_START_MS + elapsedMs
+            : textModeSourceOffsetMs > 0
+              ? textModeSourceOffsetMs + elapsedMs
+              : (elapsedMs * COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs) /
+                Math.max(1, durationMs);
+          latestSourceElapsedMsRef.current = sourceElapsedMs;
+          const lineIndex =
+            skipped || textModeSourceOffsetMs > 0
+              ? getTwinTextBubbleCueIndexForSourceElapsed(sourceElapsedMs)
+              : getTwinTextBubbleCueIndex(elapsedMs, durationMs);
           setTextBubbleIndex((current) => (current === lineIndex ? current : lineIndex));
-          if (progress < 1) {
+          if (sourceElapsedMs < COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs) {
             animationFrame = window.requestAnimationFrame(tick);
           }
         };
         animationFrame = window.requestAnimationFrame(tick);
       },
-      skipped ? 0 : COORDINATOR_ONBOARDING_INTRO.initialPauseMs
+      skipped || textModeSourceOffsetMs > 0 ? 0 : COORDINATOR_ONBOARDING_INTRO.initialPauseMs
     );
 
     return () => {
       window.clearTimeout(startTimer);
       if (animationFrame) window.cancelAnimationFrame(animationFrame);
     };
-  }, [presentationMode, skipped, timelineEnabled]);
+  }, [presentationMode, skipped, textModeSourceOffsetMs, timelineEnabled]);
 
   React.useEffect(() => {
     if (stage === 'landing') setTextBubbleIndex(-1);
   }, [stage]);
+
+  React.useEffect(() => {
+    if (!timelineEnabled || presentationMode !== 'text' || !skipped || stage !== 'flying') return;
+    const remainingTextMs = Math.max(
+      0,
+      COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs - TWIN_TEXT_SKIP_START_MS
+    );
+    const landingDelayMs =
+      Math.max(SKIP_FLY_MS, remainingTextMs) + COORDINATOR_ONBOARDING_INTRO.teleportOutDelayMs;
+    const handle = window.setTimeout(() => {
+      if (!hasFinishedRef.current) setStage('landing');
+    }, landingDelayMs);
+
+    return () => window.clearTimeout(handle);
+  }, [presentationMode, skipped, stage, timelineEnabled]);
 
   React.useEffect(() => {
     const root = rootRef.current;
@@ -970,7 +1031,7 @@ export function CoordinatorOnboardingCallIntro({
     return () => window.clearTimeout(handle);
   }, [finishOnce, stage]);
 
-  const textBubbleCue = textBubbleIndex >= 0 ? MARTY_TEXT_BUBBLE_CUES[textBubbleIndex] : undefined;
+  const textBubbleCue = textBubbleIndex >= 0 ? TWIN_TEXT_BUBBLE_CUES[textBubbleIndex] : undefined;
 
   return (
     <div
@@ -1007,7 +1068,7 @@ export function CoordinatorOnboardingCallIntro({
               {textBubbleCue.text}
             </span>
           )}
-          {/* One Marty avatar speaks throughout, then teleports the same fixed
+          {/* One Twin avatar speaks throughout, then teleports the same fixed
            * appearance into the docked call surface. */}
           <DroidTeleportFizzle
             mode="out"
@@ -1015,7 +1076,7 @@ export function CoordinatorOnboardingCallIntro({
             className="absolute inset-0 block"
           >
             <SeatedCoordinatorDroid
-              droid={MARTY_DROID_APPEARANCE}
+              droid={TWIN_DROID_APPEARANCE}
               width={droidWidth}
               isSpeaking={
                 presentationMode === 'voice'

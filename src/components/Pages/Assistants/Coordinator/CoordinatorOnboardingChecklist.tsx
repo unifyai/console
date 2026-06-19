@@ -105,7 +105,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'email-reference',
         title: 'Email the first reference',
-        description: 'Marty sends the first reference clue over email.',
+        description: 'Twin sends the first reference clue over email.',
         estimatedTime: '~10s',
         action: 'trigger-email-reference',
         canSkip: false,
@@ -113,7 +113,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'email-reply',
         title: 'Reply to email',
-        description: 'Marty sends you a quick email.',
+        description: 'Twin sends you a quick email.',
         estimatedTime: '~30s',
         action: 'start-email-reply',
         prerequisiteId: 'email-reference',
@@ -121,7 +121,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'whatsapp-number',
         title: 'Add your WhatsApp number',
-        description: 'Add the WhatsApp number Marty should use.',
+        description: 'Add the WhatsApp number Twin should use.',
         estimatedTime: '~30s',
         action: 'add-whatsapp-number',
         prerequisiteId: 'email-reply',
@@ -129,7 +129,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'whatsapp-message-reference',
         title: 'WhatsApp the next reference',
-        description: 'Marty sends the next reference clue over WhatsApp.',
+        description: 'Twin sends the next reference clue over WhatsApp.',
         estimatedTime: '~10s',
         action: 'trigger-whatsapp-message-reference',
         prerequisiteId: 'whatsapp-number',
@@ -138,7 +138,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'whatsapp-message',
         title: 'Guess a WhatsApp clue',
-        description: 'Marty sends you a reference clue over WhatsApp.',
+        description: 'Twin sends you a reference clue over WhatsApp.',
         estimatedTime: '~1 min',
         action: 'start-whatsapp-message',
         prerequisiteId: 'whatsapp-message-reference',
@@ -146,7 +146,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'whatsapp-call-reference',
         title: 'WhatsApp call for the next reference',
-        description: 'Marty calls with the next reference clue over WhatsApp.',
+        description: 'Twin calls with the next reference clue over WhatsApp.',
         estimatedTime: '~10s',
         action: 'trigger-whatsapp-call-reference',
         prerequisiteId: 'whatsapp-message',
@@ -155,7 +155,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'whatsapp-call',
         title: 'Guess a WhatsApp call clue',
-        description: 'Marty gives you a reference clue over WhatsApp voice.',
+        description: 'Twin gives you a reference clue over WhatsApp voice.',
         estimatedTime: '~1 min',
         action: 'start-whatsapp-call',
         prerequisiteId: 'whatsapp-call-reference',
@@ -163,7 +163,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'phone-number',
         title: 'Add your phone number',
-        description: 'Add the phone number Marty should use for calls and SMS.',
+        description: 'Add the phone number Twin should use for calls and SMS.',
         estimatedTime: '~30s',
         action: 'add-phone-number',
         prerequisiteId: 'whatsapp-call',
@@ -171,7 +171,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'sms-reference',
         title: 'Text the next reference',
-        description: 'Marty sends the next reference clue over SMS.',
+        description: 'Twin sends the next reference clue over SMS.',
         estimatedTime: '~10s',
         action: 'trigger-sms-reference',
         prerequisiteId: 'phone-number',
@@ -180,7 +180,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'sms-message',
         title: 'Guess an SMS clue',
-        description: 'Marty sends you a reference clue over SMS.',
+        description: 'Twin sends you a reference clue over SMS.',
         estimatedTime: '~1 min',
         action: 'start-sms-message',
         prerequisiteId: 'sms-reference',
@@ -188,7 +188,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'phone-call-reference',
         title: 'Call for the next reference',
-        description: 'Marty calls with the next reference clue.',
+        description: 'Twin calls with the next reference clue.',
         estimatedTime: '~10s',
         action: 'trigger-phone-call-reference',
         prerequisiteId: 'sms-message',
@@ -197,7 +197,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'phone-call',
         title: 'Guess a phone call clue',
-        description: 'Marty gives you a reference clue over a phone call.',
+        description: 'Twin gives you a reference clue over a phone call.',
         estimatedTime: '~1 min',
         action: 'start-phone-call',
         prerequisiteId: 'phone-call-reference',
@@ -205,7 +205,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'slack-connect',
         title: 'Connect Slack',
-        description: 'Connect Marty through the Unify Slack app.',
+        description: 'Connect Twin through the Unify Slack app.',
         estimatedTime: '~1 min',
         action: 'connect-slack',
         prerequisiteId: 'phone-call',
@@ -213,7 +213,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'slack-reference',
         title: 'Send the next reference via Slack',
-        description: 'Marty sends the next reference clue in Slack.',
+        description: 'Twin sends the next reference clue in Slack.',
         estimatedTime: '~10s',
         action: 'trigger-slack-reference',
         prerequisiteId: 'slack-connect',
@@ -222,7 +222,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'slack-message',
         title: 'Guess a Slack clue',
-        description: 'Marty sends you a reference clue in Slack.',
+        description: 'Twin sends you a reference clue in Slack.',
         estimatedTime: '~1 min',
         action: 'start-slack-message',
         prerequisiteId: 'slack-reference',
@@ -230,7 +230,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'discord-connect',
         title: 'Connect Discord',
-        description: 'Connect Marty through the public Discord bot.',
+        description: 'Connect Twin through the public Discord bot.',
         estimatedTime: '~1 min',
         action: 'connect-discord',
         prerequisiteId: 'slack-message',
@@ -238,7 +238,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'discord-reference',
         title: 'Send the next reference via discord',
-        description: 'Marty sends the next reference clue in Discord.',
+        description: 'Twin sends the next reference clue in Discord.',
         estimatedTime: '~10s',
         action: 'trigger-discord-reference',
         prerequisiteId: 'discord-connect',
@@ -247,7 +247,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
       {
         id: 'discord-message',
         title: 'Guess a Discord clue',
-        description: 'Marty sends you a reference clue in Discord.',
+        description: 'Twin sends you a reference clue in Discord.',
         estimatedTime: '~1 min',
         action: 'start-discord-message',
         prerequisiteId: 'discord-reference',

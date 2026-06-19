@@ -410,7 +410,7 @@ export function useAssistantForm(
         ...getValues(),
 
         // Profile
-        firstName: assistant.isCoordinator ? 'Marty' : assistant.firstName,
+        firstName: assistant.isCoordinator ? 'Twin' : assistant.firstName,
         surname: assistant.isCoordinator ? '' : assistant.surname,
         jobTitle: assistant.isCoordinator
           ? resolveCoordinatorJobTitle(assistant.jobTitle)
@@ -547,7 +547,7 @@ export function useAssistantForm(
       // Orchestra requires both voice_id and voice_provider together — always
       // send them as a pair when either one has changed. The Coordinator's
       // fixed voice is enforced server-side and its picker is hidden, so
-      // this never fires for Marty.
+      // this never fires for Twin.
       const nextVoiceProvider = data.voiceProvider ?? PRIMARY_VOICE_PROVIDER;
       const voiceIdChanged = data.voiceId !== editingAssistant.voiceId;
       const voiceProviderChanged = nextVoiceProvider !== editingAssistant.voiceProvider;

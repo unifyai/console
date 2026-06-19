@@ -23,7 +23,7 @@ export async function seedCoordinatorOpener(
 
     if (!res.ok) {
       return {
-        detail: data?.detail || data?.error || `Failed to seed Marty opener: ${res.statusText}`,
+        detail: data?.detail || data?.error || `Failed to seed Twin opener: ${res.statusText}`,
         status: res.status,
       };
     }
@@ -31,7 +31,7 @@ export async function seedCoordinatorOpener(
     return data as CoordinatorTranscriptSeedResult;
   } catch (error) {
     return {
-      detail: error instanceof Error ? error.message : 'Failed to seed Marty opener',
+      detail: error instanceof Error ? error.message : 'Failed to seed Twin opener',
     };
   }
 }

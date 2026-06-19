@@ -471,7 +471,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // off to the call, so the cue lives here (over the docked call): the
   // intro completing via the call path arms it, and it fires once the
   // Coordinator's call actually connects so the user isn't told to talk
-  // before Marty is listening.
+  // before Twin is listening.
   const [coordinatorTalkNowPending, setCoordinatorTalkNowPending] = React.useState(false);
   const [showCoordinatorTalkNow, setShowCoordinatorTalkNow] = React.useState(false);
   const showCoordinatorOnboardingFreshIntro =
@@ -1689,7 +1689,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // the workspace manager but doesn't mark the step done. Real
   // completion is observed by the effect below that watches
   // ``canonicalCoordinator.email`` / ``.emailProvider`` landing.
-  // Replays the Marty call intro on demand from the Coordinator's
+  // Replays the Twin call intro on demand from the Coordinator's
   // "Assistant info" onboarding tab. Mounts the intro overlay straight
   // into the animation (no picker); it clears itself on finish.
   const handleReplayCoordinatorIntro = React.useCallback(() => {
@@ -1974,7 +1974,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onUnskipStep: handleCoordinatorOnboardingStepUnskip,
       onReplayIntro: handleReplayCoordinatorIntro,
       onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
-      // Flavours the "Ask Marty to do something" suggestion chips:
+      // Flavours the "Ask Twin to do something" suggestion chips:
       // call-friendly prompts while on a voice call, chat-friendly
       // otherwise.
       isOnCall:
@@ -2623,6 +2623,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 <CoordinatorOnboarding
                   coordinator={canonicalCoordinator}
                   onStartCall={handleStartCoordinatorIntroCall}
+                  onDiscardCall={handleHangUp}
                   onComplete={(medium) => {
                     setCoordinatorIntroDismissed(true);
                     setCoordinatorIntroReplay(false);

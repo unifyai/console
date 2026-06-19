@@ -63,7 +63,8 @@ export function AssistantProfilePanel({
   const isInThisCall = activeCallAssistantId === assistant.agentId;
   const isAnotherCallActive = activeCallAssistantId !== null && !isInThisCall;
   const isSpendingBlocked = spendingGate.isBlocked && !isInThisCall;
-  const isCallButtonDisabled = !voiceCalls || isAnotherCallActive || isSpendingBlocked;
+  const isCallButtonDisabled =
+    !voiceCalls || isInThisCall || isAnotherCallActive || isSpendingBlocked;
 
   const callButtonTooltip = () =>
     !voiceCalls
@@ -71,7 +72,7 @@ export function AssistantProfilePanel({
       : isInThisCall && isConnectingCall
         ? 'Connecting call...'
         : isInThisCall
-          ? 'Return to call'
+          ? 'Call in progress'
           : isSpendingBlocked
             ? spendingGate.blockedMessage || 'Spending limit reached'
             : isAnotherCallActive

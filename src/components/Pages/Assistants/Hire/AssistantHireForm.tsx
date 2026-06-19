@@ -60,7 +60,7 @@ import type { OAuthProvider } from '@/types/assistants/contact';
 import { DroidCallAvatar } from '@/components/Pages/Assistants/Communication/DroidCallAvatar';
 import { useDroidAudioElementLipsync } from '@/utils/assistants/droid-lipsync';
 import {
-  MARTY_CREATURE_APPEARANCE,
+  TWIN_CREATURE_APPEARANCE,
   getDroidBodyForm,
   getRotatingBotViewBox,
 } from '@droid/brand/components';
@@ -85,7 +85,7 @@ const appearanceColorOptions = droidColorOptions;
 const appearanceOutfitOptions = droidOutfitOptions;
 const DEFAULT_COORDINATOR_APPEARANCE = {
   eyes: 'up',
-  antenna: MARTY_CREATURE_APPEARANCE.antenna,
+  antenna: TWIN_CREATURE_APPEARANCE.antenna,
   body: 'standard',
   color: 'green',
   outfit: 'none',
@@ -572,7 +572,7 @@ export function HireForm({
                             readOnly={lockIdentityFields}
                             aria-readonly={lockIdentityFields}
                             tabIndex={lockIdentityFields ? -1 : undefined}
-                            title={lockIdentityFields ? "Marty's name is fixed" : undefined}
+                            title={lockIdentityFields ? "Twin's name is fixed" : undefined}
                             className={cn(
                               lockIdentityFields &&
                                 'cursor-not-allowed border-muted bg-muted text-muted-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0'
@@ -596,7 +596,7 @@ export function HireForm({
                             readOnly={lockIdentityFields}
                             aria-readonly={lockIdentityFields}
                             tabIndex={lockIdentityFields ? -1 : undefined}
-                            title={lockIdentityFields ? "Marty's name is fixed" : undefined}
+                            title={lockIdentityFields ? "Twin's name is fixed" : undefined}
                             className={cn(
                               lockIdentityFields &&
                                 'cursor-not-allowed border-muted bg-muted text-muted-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0'
@@ -864,7 +864,7 @@ export function HireForm({
                                     color={selectedDroidColor}
                                     baseEyes={selectedDroidEyes}
                                     outfit={selectedDroidOutfit}
-                                    label="Marty avatar"
+                                    label="Twin avatar"
                                   />
                                 </span>
                               </span>
@@ -1203,7 +1203,7 @@ export function HireForm({
                                   not
                                 </strong>{' '}
                                 connect {workspaceAssistantName} to your own Google/Microsoft
-                                account. Only Marty should have access to your personal account.
+                                account. Only Twin should have access to your personal account.
                               </span>
                               <span
                                 className={cn(

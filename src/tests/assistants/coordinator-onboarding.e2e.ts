@@ -11,7 +11,7 @@
  *     drops the user into the regular platform (assistant list +
  *     right pane) with the Coordinator selected and the onboarding
  *     checklist living in its "Assistant info" panel.
- *   - Choosing "Start Call" plays the Marty intro, then lands in the
+ *   - Choosing "Start Call" plays the Twin intro, then lands in the
  *     regular platform with the call docked in the Coordinator's
  *     right pane.
  *   - Resolving the picker persists ``intro_watched`` on the
@@ -282,7 +282,30 @@ test('starting a call plays the intro then docks the call in the platform', asyn
   await page.getByRole('button', { name: 'End call' }).click();
 });
 
-test('mobile onboarding keeps the docked Marty call visible instead of auto-opening Assistant info', async ({
+test('top repeat button returns the intro to the picker controls', async ({ authedPage: page }) => {
+  await page.addInitScript(() => {
+    Object.assign(window, {
+      __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 10_000,
+    });
+  });
+  resetCoordinatorIntroWatched();
+  await gotoAssistants(page);
+  await expectPickerVisible(page);
+
+  await page.getByTestId('coordinator-onboarding-start-call').click({ force: true });
+  await expect(page.getByTestId('coordinator-onboarding-call-intro')).toBeVisible({
+    timeout: 10_000,
+  });
+
+  await page.getByTestId('coordinator-onboarding-intro-restart').click();
+  await expectPickerVisible(page);
+  await expect(page.getByTestId('coordinator-onboarding-call-intro')).toHaveCount(0);
+
+  await page.getByTestId('coordinator-onboarding-pick-chat').click();
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
+});
+
+test('mobile onboarding keeps the docked Twin call visible instead of auto-opening Assistant info', async ({
   authedPage: page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -308,7 +331,7 @@ test('mobile onboarding keeps the docked Marty call visible instead of auto-open
   await page.getByRole('button', { name: 'End call' }).click();
 });
 
-test('resolving the picker persists intro_watched and reload defaults to Marty + Assistant info', async ({
+test('resolving the picker persists intro_watched and reload defaults to Twin + Assistant info', async ({
   authedPage: page,
 }) => {
   resetCoordinatorIntroWatched();
@@ -337,7 +360,7 @@ test('resolving the picker persists intro_watched and reload defaults to Marty +
   });
 });
 
-test('switching back to Marty does not reapply the onboarding focus layout', async ({
+test('switching back to Twin does not reapply the onboarding focus layout', async ({
   authedPage: page,
 }) => {
   const coordinator = createPersonalCoordinator(user.id);
@@ -377,7 +400,7 @@ test('the "Repeat intro" affordance replays the intro from the Assistant info ca
     });
   });
   // Continues from the previous test's state: intro already watched, so we
-  // land directly on the platform with Marty selected (no reset).
+  // land directly on the platform with Twin selected (no reset).
   await gotoAssistants(page);
   await openOnboardingChecklist(page);
 

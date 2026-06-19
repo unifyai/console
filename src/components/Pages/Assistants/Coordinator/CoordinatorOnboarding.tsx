@@ -12,12 +12,16 @@
  *     prompt over the city backdrop. Picking chat fires the chat
  *     session-start event and dismisses the overlay immediately,
  *     dropping the user into the regular platform with the
- *     Coordinator selected. Starting a call advances to the intro.
+ *     Coordinator selected. Starting a call advances to audio setup.
  *
- *   - **Intro** (``phase === 'intro'``): the animated Marty intro.
- *     It warms up the real call early (``onStartCall``) so by the
- *     time the animation lands the docked call is already live in the
- *     platform's right pane underneath; the overlay then dismisses.
+ *   - **Preparing** (``phase === 'preparing'``): the real call is warmed
+ *     before Twin starts speaking so browser audio-device handoffs happen
+ *     over the loading state instead of the prerecorded intro.
+ *
+ *   - **Intro** (``phase === 'intro'``): the animated Twin intro. If audio
+ *     remains enabled when the animation lands, the call docks in the
+ *     platform's right pane; muting the intro discards the warmed call and
+ *     hands off to chat.
  *
  * There is no skip affordance and no post-intro shell — the onboarding
  * checklist lives in the Coordinator's "Assistant info" panel on the
@@ -54,21 +58,21 @@ import { notifyOnboardingSessionStarted } from '@/lib/client/coordinator';
 import type { Assistant, AssistantCallConnectOptions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 
-type OnboardingPhase = 'picker' | 'intro';
+type OnboardingPhase = 'picker' | 'preparing' | 'intro';
 type IntroMedium = 'call' | 'chat';
-type CallStartFailureBehavior = 'picker' | 'dismiss';
 type IntroAvatarOffset = { x: number; y: number };
 
 interface CoordinatorOnboardingProps {
   coordinator: Assistant;
-  /** Starts the real Coordinator call. The intro warms this up early so
-   * the docked call is already live in the platform when the overlay
-   * dismisses. */
+  /** Starts the real Coordinator call so the docked call is already live in
+   * the platform when the intro overlay dismisses. */
   onStartCall: (
     assistant: Assistant,
     callType: 'video' | 'audio',
     options?: AssistantCallConnectOptions
   ) => Promise<void> | void;
+  /** Cancels the warmed call when the intro finishes in text mode. */
+  onDiscardCall: () => Promise<void> | void;
   /** Invoked once the picker is resolved (chat) or the intro finishes
    * (call). The parent tears down the overlay and reveals the regular
    * platform underneath. ``medium`` lets the parent react to the path
@@ -80,6 +84,7 @@ interface CoordinatorOnboardingProps {
 export function CoordinatorOnboarding({
   coordinator,
   onStartCall,
+  onDiscardCall,
   onComplete,
 }: CoordinatorOnboardingProps) {
   const { updateState } = useCoordinatorOnboarding(coordinator.agentId);
@@ -97,7 +102,7 @@ export function CoordinatorOnboarding({
   const [isIntroTimelineReady, setIsIntroTimelineReady] = React.useState(false);
   // Pre-recorded intro countdown badge. ``introStartedAt`` anchors the
   // countdown clock; ``introCountdownMs`` is the wall-clock span until
-  // Marty stops speaking; ``introReady`` flips when the intro finishes
+  // Twin stops speaking; ``introReady`` flips when the intro finishes
   // so the badge stops counting.
   const [introStartedAt, setIntroStartedAt] = React.useState<number | null>(null);
   const [introCountdownMs, setIntroCountdownMs] = React.useState(0);
@@ -106,8 +111,14 @@ export function CoordinatorOnboarding({
   const isBeginningIntroRef = React.useRef(false);
   const hasTriggeredCallStartRef = React.useRef(false);
   const hasCompletedRef = React.useRef(false);
+  const introMediumRef = React.useRef(introMedium);
+  const warmCallCancelledRef = React.useRef(false);
+  const callStartPromiseRef = React.useRef<Promise<boolean> | null>(null);
+  const callAudioReadyRef = React.useRef(false);
 
   const isPickerVisible = phase === 'picker';
+
+  introMediumRef.current = introMedium;
 
   React.useEffect(() => {
     startCoordinatorOnboardingBackgroundMusic();
@@ -154,82 +165,92 @@ export function CoordinatorOnboarding({
 
   const triggerCoordinatorCallStart = React.useCallback(async () => {
     if (hasTriggeredCallStartRef.current) return true;
-    hasTriggeredCallStartRef.current = true;
+    if (callStartPromiseRef.current) return callStartPromiseRef.current;
+
+    const startPromise = (async () => {
+      hasTriggeredCallStartRef.current = true;
+      try {
+        await onStartCall(coordinator, 'audio', {
+          suppressRinging: true,
+          openingConfig: {
+            mode: 'simulated',
+            simulatedUtterance: COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT,
+            source: 'twin_onboarding_intro',
+          },
+        });
+      } catch (error) {
+        console.error('[CoordinatorOnboarding] Failed to start intro call:', error);
+        hasTriggeredCallStartRef.current = false;
+        return false;
+      } finally {
+        callStartPromiseRef.current = null;
+      }
+      return true;
+    })();
+
+    callStartPromiseRef.current = startPromise;
+    return startPromise;
+  }, [coordinator, onStartCall]);
+
+  const warmCoordinatorCallStart = React.useCallback(async () => {
+    if (!voiceCalls) return false;
+    callAudioReadyRef.current = false;
     try {
-      await onStartCall(coordinator, 'audio', {
-        suppressRinging: true,
-        openingConfig: {
-          mode: 'simulated',
-          simulatedUtterance: COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT,
-          source: 'marty_onboarding_intro',
-        },
-      });
-      notifySessionStarted('call');
+      await requestMicrophoneAccess();
     } catch (error) {
-      console.error('[CoordinatorOnboarding] Failed to start intro call:', error);
-      hasTriggeredCallStartRef.current = false;
+      console.error('[CoordinatorOnboarding] Failed to access microphone:', error);
+      toast.error('Microphone access is required to start the call.');
       return false;
     }
-    return true;
-  }, [coordinator, onStartCall, notifySessionStarted]);
+    if (warmCallCancelledRef.current || hasCompletedRef.current) return false;
+    const started = await triggerCoordinatorCallStart();
+    if (!started) {
+      toast.error('Could not start the call. Please try again.');
+    }
+    if (started && !warmCallCancelledRef.current && !hasCompletedRef.current) {
+      callAudioReadyRef.current = true;
+    }
+    return started;
+  }, [requestMicrophoneAccess, triggerCoordinatorCallStart, voiceCalls]);
 
   const beginIntro = React.useCallback(
-    async (medium: IntroMedium, failureBehavior: CallStartFailureBehavior) => {
+    async (medium: IntroMedium) => {
       if (isBeginningIntroRef.current) return;
       isBeginningIntroRef.current = true;
       setIsStartingCall(true);
+      let introStarted = false;
       try {
-        if (medium === 'call') {
-          try {
-            await requestMicrophoneAccess();
-          } catch (error) {
-            console.error('[CoordinatorOnboarding] Failed to access microphone:', error);
-            toast.error('Microphone access is required to start the call.');
-            isBeginningIntroRef.current = false;
-            if (failureBehavior === 'dismiss') {
-              complete('chat');
-            }
-            return;
-          }
-        }
-
+        warmCallCancelledRef.current = false;
+        callAudioReadyRef.current = false;
+        introMediumRef.current = medium;
         setIntroMedium(medium);
         setIntroReady(false);
         setIntroStartedAt(null);
         setIntroCountdownMs(0);
         setIsIntroTimelineReady(false);
-        setPhase('intro');
-        startIntroTimeline();
 
-        if (medium === 'chat') {
-          notifySessionStarted('chat');
-          return;
-        }
-
-        void triggerCoordinatorCallStart().then((started) => {
-          if (started) return;
-          if (failureBehavior === 'picker') {
-            isBeginningIntroRef.current = false;
-            setIntroReady(false);
-            setIntroStartedAt(null);
-            setIntroCountdownMs(0);
-            setIsIntroTimelineReady(false);
+        if (medium === 'call') {
+          setPhase('preparing');
+          const warmed = await warmCoordinatorCallStart();
+          if (!warmed) {
+            warmCallCancelledRef.current = true;
+            hasTriggeredCallStartRef.current = false;
+            callStartPromiseRef.current = null;
             setPhase('picker');
             return;
           }
-          complete('chat');
-        });
+        }
+
+        if (warmCallCancelledRef.current || hasCompletedRef.current) return;
+        setPhase('intro');
+        startIntroTimeline();
+        introStarted = true;
       } finally {
         setIsStartingCall(false);
+        if (!introStarted) isBeginningIntroRef.current = false;
       }
     },
-    [
-      complete,
-      notifySessionStarted,
-      requestMicrophoneAccess,
-      startIntroTimeline,
-      triggerCoordinatorCallStart,
-    ]
+    [startIntroTimeline, warmCoordinatorCallStart]
   );
 
   const handleStartCall = React.useCallback(
@@ -239,20 +260,31 @@ export function CoordinatorOnboarding({
       primeCoordinatorOnboardingCitySoundscape();
       setIntroAvatarOffset(avatarOffset);
       setIntroSkipSignal(0);
-      await beginIntro('call', 'picker');
+      await beginIntro('call');
     },
     [beginIntro, phase]
   );
 
-  // Restart the currently-playing intro from the top. Bumping
-  // ``introStartedAt`` re-keys the intro element so its audio and
-  // stage timers restart against the already-live call.
+  // Return to the lightweight picker so replaying the intro still begins with
+  // an explicit call/text choice.
   const handleRestartIntro = React.useCallback(() => {
     startCoordinatorOnboardingBackgroundMusic();
     primeCoordinatorOnboardingCitySoundscape();
+    isBeginningIntroRef.current = false;
+    warmCallCancelledRef.current = true;
+    callAudioReadyRef.current = false;
+    hasTriggeredCallStartRef.current = false;
+    callStartPromiseRef.current = null;
+    setIsStartingCall(false);
+    setPhase('picker');
+    setIntroAvatarOffset({ x: 0, y: -72 });
     setIntroSkipSignal(0);
-    startIntroTimeline();
-  }, [startIntroTimeline]);
+    setIntroReady(false);
+    setIntroStartedAt(null);
+    setIntroCountdownMs(0);
+    setIsIntroTimelineReady(false);
+    void onDiscardCall();
+  }, [onDiscardCall]);
 
   const handleSkipIntro = React.useCallback(() => {
     setIntroReady(true);
@@ -265,8 +297,66 @@ export function CoordinatorOnboarding({
     primeCoordinatorOnboardingCitySoundscape();
     setIntroAvatarOffset({ x: 0, y: -72 });
     setIntroSkipSignal(0);
-    void beginIntro('chat', 'picker');
+    void beginIntro('chat');
   }, [beginIntro, phase]);
+
+  const handleIntroAudioToggle = React.useCallback(() => {
+    setIntroMedium((current) => {
+      const next = current === 'call' ? 'chat' : voiceCalls ? 'call' : 'chat';
+      introMediumRef.current = next;
+      return next;
+    });
+  }, [voiceCalls]);
+
+  const handleIntroFinished = React.useCallback(async () => {
+    setIntroReady(true);
+
+    if (introMediumRef.current === 'chat') {
+      warmCallCancelledRef.current = true;
+      await onDiscardCall();
+      notifySessionStarted('chat');
+      complete('chat');
+      return;
+    }
+
+    setIsStartingCall(true);
+    try {
+      if (!callAudioReadyRef.current) {
+        try {
+          await requestMicrophoneAccess();
+        } catch (error) {
+          console.error('[CoordinatorOnboarding] Failed to access microphone:', error);
+          toast.error('Microphone access is required to start the call.');
+          warmCallCancelledRef.current = true;
+          await onDiscardCall();
+          notifySessionStarted('chat');
+          complete('chat');
+          return;
+        }
+      }
+
+      const started = callAudioReadyRef.current || (await triggerCoordinatorCallStart());
+      if (started) {
+        notifySessionStarted('call');
+        complete('call');
+        return;
+      }
+
+      toast.error('Could not start the call. Continuing in chat.');
+      warmCallCancelledRef.current = true;
+      await onDiscardCall();
+      notifySessionStarted('chat');
+      complete('chat');
+    } finally {
+      setIsStartingCall(false);
+    }
+  }, [
+    complete,
+    notifySessionStarted,
+    onDiscardCall,
+    requestMicrophoneAccess,
+    triggerCoordinatorCallStart,
+  ]);
 
   const introCountdownBadge = (
     <OnboardingIntroCountdownBadge
@@ -278,6 +368,13 @@ export function CoordinatorOnboarding({
     />
   );
   const radioSwitcher = <CoordinatorOnboardingRadioSwitcher />;
+  const introRadioSwitcher = <CoordinatorOnboardingRadioSwitcher className="bottom-20" />;
+  const introSoundSwitcher = (
+    <CoordinatorOnboardingSoundSwitcher
+      audioEnabled={introMedium === 'call'}
+      onToggle={handleIntroAudioToggle}
+    />
+  );
 
   if (isPickerVisible) {
     return (
@@ -296,20 +393,33 @@ export function CoordinatorOnboarding({
     );
   }
 
+  if (phase === 'preparing') {
+    return (
+      <div
+        className="brand-page-stencil-bg coordinator-onboarding-city-bg relative flex h-full w-full items-center justify-center overflow-hidden bg-background"
+        data-testid="coordinator-onboarding"
+      >
+        <CoordinatorOnboardingCallPreparing />
+        {radioSwitcher}
+      </div>
+    );
+  }
+
   return (
     <div
       className="relative flex h-full w-full items-center justify-center overflow-hidden bg-background"
       data-testid="coordinator-onboarding"
     >
       {introCountdownBadge}
-      {radioSwitcher}
+      {introRadioSwitcher}
+      {voiceCalls && introSoundSwitcher}
       <AnimatePresence mode="wait">
         <CoordinatorOnboardingCallIntro
           key={introStartedAt ?? 'intro'}
           initialAvatarOffset={introAvatarOffset}
           timelineEnabled={isIntroTimelineReady}
           presentationMode={introMedium === 'call' ? 'voice' : 'text'}
-          onFinished={() => complete(introMedium)}
+          onFinished={() => void handleIntroFinished()}
           skipSignal={introSkipSignal}
           onSkipped={() => setIntroReady(true)}
         />
@@ -323,7 +433,7 @@ export function CoordinatorOnboarding({
 /**
  * Full-screen cue shown briefly once the onboarding intro hands off to a
  * live call, prompting the user that the pre-recorded intro is over and
- * Marty is now listening. Rendered at the platform level (over the docked
+ * Twin is now listening. Rendered at the platform level (over the docked
  * call) since the intro overlay has already torn down by this point.
  */
 export function CoordinatorTalkNowCue({ show }: { show: boolean }) {
@@ -390,7 +500,7 @@ export function CoordinatorTalkNowCue({ show }: { show: boolean }) {
                 <Mic className="relative h-12 w-12" aria-hidden="true" />
               </div>
               <p className="text-h1 font-semibold text-foreground">Talk now!</p>
-              <p className="text-body mt-2 text-muted-foreground">Marty is listening.</p>
+              <p className="text-body mt-2 text-muted-foreground">Twin is listening.</p>
             </div>
           </motion.div>
         </motion.div>
@@ -410,7 +520,7 @@ function formatIntroCountdown(totalSeconds: number): string {
 
 /**
  * Top-centre badge that signals the opening call is a pre-recorded intro the
- * user can't talk over yet: while Marty speaks it shows "Intro" with a live
+ * user can't talk over yet: while Twin speaks it shows "Intro" with a live
  * countdown to when he finishes, then disappears. ``startedAt === null`` keeps
  * it fully hidden (e.g. before the intro begins).
  */
@@ -500,7 +610,7 @@ function OnboardingIntroCountdownBadge({
   );
 }
 
-function CoordinatorOnboardingRadioSwitcher() {
+function CoordinatorOnboardingRadioSwitcher({ className }: { className?: string }) {
   const [radioEnabled, setRadioEnabled] = React.useState(() =>
     getCoordinatorOnboardingBackgroundMusicEnabled()
   );
@@ -527,7 +637,7 @@ function CoordinatorOnboardingRadioSwitcher() {
 
   return (
     <div
-      className="absolute bottom-4 right-4 isolate z-50 h-12 w-12"
+      className={cn('absolute bottom-4 right-4 isolate z-50 h-12 w-12', className)}
       data-testid="coordinator-onboarding-radio-switcher"
     >
       <button
@@ -600,6 +710,101 @@ function CoordinatorOnboardingRadioSwitcher() {
         </svg>
       </button>
     </div>
+  );
+}
+
+function CoordinatorOnboardingSoundSwitcher({
+  audioEnabled,
+  onToggle,
+}: {
+  audioEnabled: boolean;
+  onToggle: () => void;
+}) {
+  const buttonClass = cn(
+    'pointer-events-auto absolute bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card/80 text-card-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    !audioEnabled && 'text-muted-foreground'
+  );
+
+  return (
+    <button
+      aria-label={audioEnabled ? 'Mute intro audio' : 'Unmute intro audio'}
+      aria-pressed={!audioEnabled}
+      className={buttonClass}
+      data-testid="coordinator-onboarding-audio-switcher"
+      onClick={onToggle}
+      title="volume"
+      type="button"
+    >
+      <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" className="h-6 w-6">
+        <path
+          d="M4.4 9.2h3.1l4.8-4.1c.7-.6 1.7-.1 1.7.8v12.2c0 .9-1 1.4-1.7.8l-4.8-4.1H4.4c-.8 0-1.4-.6-1.4-1.4v-2.8c0-.8.6-1.4 1.4-1.4Z"
+          fill="currentColor"
+        />
+        {audioEnabled ? (
+          <>
+            <path
+              d="M16.4 8.2c.9.9 1.4 2.2 1.4 3.8s-.5 2.9-1.4 3.8"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeWidth="1.8"
+            />
+            <path
+              d="M18.9 5.8c1.4 1.5 2.2 3.6 2.2 6.2s-.8 4.7-2.2 6.2"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeWidth="1.8"
+            />
+          </>
+        ) : (
+          <path
+            d="M18.7 7.3 7.1 18.9"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeWidth="2.2"
+          />
+        )}
+      </svg>
+    </button>
+  );
+}
+
+function CoordinatorOnboardingCallPreparing() {
+  const { droidWidth, framePx } = useCoordinatorDroidLayout();
+  const cardOverlapPx = Math.round(droidWidth * 0.22);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
+      className="flex w-full max-w-md flex-col items-center px-6 text-center"
+      data-testid="coordinator-onboarding-call-preparing"
+    >
+      <div className="relative z-10" style={{ width: framePx, height: framePx }}>
+        <SeatedCoordinatorDroid
+          droid={COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID}
+          width={droidWidth}
+          isSpeaking={false}
+        />
+      </div>
+      <div
+        className="coordinator-onboarding-card relative flex w-full flex-col items-center gap-4 rounded-2xl border border-border px-8 pb-7 shadow-xl"
+        style={{ marginTop: -cardOverlapPx, paddingTop: cardOverlapPx + 24 }}
+      >
+        <div className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary">
+          <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+        </div>
+        <div>
+          <p className="text-h3 font-medium text-card-foreground">Getting your audio ready</p>
+          <p className="text-body mt-2 text-muted-foreground">
+            Twin will start once the call is connected.
+          </p>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -689,7 +894,7 @@ function CoordinatorOnboardingPicker({
         style={{ marginTop: -cardOverlapPx, paddingTop: cardOverlapPx + 24 }}
       >
         <p className="text-h3 font-medium text-card-foreground">
-          {voiceCalls ? 'Marty is calling to onboard you' : 'Start onboarding with Marty'}
+          {voiceCalls ? 'Twin is calling to onboard you' : 'Start onboarding with Twin'}
         </p>
         <div className="flex flex-col items-center gap-3 sm:flex-row">
           {voiceCalls ? (

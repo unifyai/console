@@ -1,8 +1,8 @@
 import type { Transition } from 'framer-motion';
-import { MARTY_CREATURE_APPEARANCE } from '@droid/brand/components';
+import { TWIN_CREATURE_APPEARANCE } from '@droid/brand/components';
 import {
-  MARTY_ONBOARDING_INTRO_AUDIO_SRC,
-  MARTY_ONBOARDING_INTRO_DURATION_MS,
+  TWIN_ONBOARDING_INTRO_AUDIO_SRC,
+  TWIN_ONBOARDING_INTRO_DURATION_MS,
 } from '@droid/brand/audio';
 import type { BrandRole } from '@/components/Brand/shapes';
 import type {
@@ -14,7 +14,7 @@ import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance'
 
 const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 38.68;
 
-export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm Marty.
+export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm Twin.
 Firstly, I know what you might be thinking.
 Am I really going to spend my time talking to a tiny robot?
 You're a serious person with a presumably serious and important job.
@@ -42,14 +42,14 @@ export type CoordinatorOnboardingIntroDroidAppearance = {
 };
 
 export const COORDINATOR_ONBOARDING_INTRO = {
-  audioSrc: MARTY_ONBOARDING_INTRO_AUDIO_SRC,
+  audioSrc: TWIN_ONBOARDING_INTRO_AUDIO_SRC,
   backgroundMusicSrc: '/sounds/neo-background-music.mp3',
   backgroundMusicVolume: 0.28,
   // Served from public/sounds; canonical assets are owned by branding
   // (assets/audio/droid/onboarding/*.mp3).
   ascentAudioSrc: '/sounds/space-elevator-ascent.mp3',
   closingQuestionSec: COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC,
-  fallbackDurationMs: MARTY_ONBOARDING_INTRO_DURATION_MS,
+  fallbackDurationMs: TWIN_ONBOARDING_INTRO_DURATION_MS,
   initialPauseMs: 1_000,
   backgroundStartDelayMs: 500,
   backgroundAccelerationMs: 2_400,
@@ -64,7 +64,7 @@ export type CoordinatorOnboardingIntroConfig = typeof COORDINATOR_ONBOARDING_INT
 
 /**
  * Wall-clock duration (ms) of the pre-recorded intro from the moment
- * the intro mounts to the moment Marty stops speaking — i.e. when the
+ * the intro mounts to the moment Twin stops speaking — i.e. when the
  * user may start talking. Drives the "Intro" countdown badge. Honours
  * the same runtime duration override the intro animation reads so the
  * badge stays in lockstep during tests and previews.
@@ -80,7 +80,7 @@ export function getCoordinatorIntroCountdownMs(): number {
 }
 
 export const COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID = {
-  antenna: MARTY_CREATURE_APPEARANCE.antenna,
+  antenna: TWIN_CREATURE_APPEARANCE.antenna,
   baseEyes: 'square',
   body: 'standard',
   color: 'teal',
