@@ -521,6 +521,7 @@ function IdentityHeader({
         <AssistantStartCallButton
           onStartCall={onStartCall}
           disabled={isStartCallDisabled}
+          disabledBehavior="inert"
           tooltip={startCallTooltip}
           tooltipSide="right"
           testId="assistant-info-avatar-start-call"

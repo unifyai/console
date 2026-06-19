@@ -193,6 +193,7 @@ function ChatMessageBubbleImpl({
     <AssistantStartCallButton
       onStartCall={onAssistantAvatarStartCall}
       disabled={isAssistantAvatarStartCallDisabled}
+      disabledBehavior="inert"
       tooltip={assistantAvatarStartCallTooltip}
       tooltipSide="right"
       testId="chat-avatar-start-call"

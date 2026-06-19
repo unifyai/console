@@ -6,6 +6,7 @@ interface AssistantStartCallButtonProps {
   children: React.ReactNode;
   onStartCall: () => void;
   disabled?: boolean;
+  disabledBehavior?: 'tooltip' | 'inert';
   tooltip?: string;
   triggerClassName?: string;
   tooltipSide?: 'top' | 'right' | 'bottom' | 'left';
@@ -17,6 +18,7 @@ export function AssistantStartCallButton({
   children,
   onStartCall,
   disabled = false,
+  disabledBehavior = 'tooltip',
   tooltip = 'Call',
   triggerClassName,
   tooltipSide = 'right',
@@ -31,6 +33,14 @@ export function AssistantStartCallButton({
     },
     [disabled, onStartCall]
   );
+
+  if (disabled && disabledBehavior === 'inert') {
+    return (
+      <span className={cn('inline-flex cursor-default', triggerClassName)} data-testid={testId}>
+        {children}
+      </span>
+    );
+  }
 
   return (
     <TooltipProvider delayDuration={100}>
