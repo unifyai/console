@@ -147,5 +147,6 @@ export async function middleware(request: NextRequestWithAuth, event: NextFetchE
 }
 
 export const config = {
-  matcher: '/((?!api|_next/static|_next/image|.*\\.png$|.*\\.jpe?g$|.*\\.svg$).*)',
+  matcher:
+    '/((?!api|_next/static|_next/image|.*\\.(?:png|jpe?g|svg|gif|webp|ico|mp3|wav|ogg|m4a|json)$).*)',
 };

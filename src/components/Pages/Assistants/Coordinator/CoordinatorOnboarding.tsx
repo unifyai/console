@@ -26,7 +26,7 @@
 
 import * as React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Loader2, Mic, Phone, Radio, RotateCcw, SkipForward } from 'lucide-react';
+import { Loader2, Mic, Phone, RotateCcw, SkipForward } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
@@ -36,7 +36,10 @@ import {
 } from '@/components/Pages/Assistants/Coordinator/SeatedCoordinatorDroid';
 import {
   CoordinatorOnboardingCallIntro,
+  changeCoordinatorOnboardingBackgroundMusicStation,
+  getCoordinatorOnboardingBackgroundMusicEnabled,
   primeCoordinatorOnboardingCitySoundscape,
+  setCoordinatorOnboardingBackgroundMusicEnabled,
   startCoordinatorOnboardingBackgroundMusic,
   stopCoordinatorOnboardingBackgroundMusic,
 } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingCallIntro';
@@ -274,11 +277,12 @@ export function CoordinatorOnboarding({
       onSkip={handleSkipIntro}
     />
   );
+  const radioSwitcher = <CoordinatorOnboardingRadioSwitcher />;
 
   if (isPickerVisible) {
     return (
       <div
-        className="brand-page-stencil-bg coordinator-onboarding-city-bg flex h-full w-full items-center justify-center overflow-hidden bg-background"
+        className="brand-page-stencil-bg coordinator-onboarding-city-bg relative flex h-full w-full items-center justify-center overflow-hidden bg-background"
         data-testid="coordinator-onboarding"
       >
         <CoordinatorOnboardingPicker
@@ -287,6 +291,7 @@ export function CoordinatorOnboarding({
           onPickChat={handlePickChat}
           isStartingCall={isStartingCall}
         />
+        {radioSwitcher}
       </div>
     );
   }
@@ -296,6 +301,8 @@ export function CoordinatorOnboarding({
       className="relative flex h-full w-full items-center justify-center overflow-hidden bg-background"
       data-testid="coordinator-onboarding"
     >
+      {introCountdownBadge}
+      {radioSwitcher}
       <AnimatePresence mode="wait">
         <CoordinatorOnboardingCallIntro
           key={introStartedAt ?? 'intro'}
@@ -305,7 +312,6 @@ export function CoordinatorOnboarding({
           onFinished={() => complete(introMedium)}
           skipSignal={introSkipSignal}
           onSkipped={() => setIntroReady(true)}
-          controlOverlay={introCountdownBadge}
         />
       </AnimatePresence>
     </div>
@@ -403,10 +409,10 @@ function formatIntroCountdown(totalSeconds: number): string {
 }
 
 /**
- * Badge that signals the opening call is a pre-recorded intro the user can't
- * talk over yet: while Marty speaks it shows "Intro" with a live countdown to
- * when he finishes. ``startedAt === null`` keeps it fully hidden (e.g. before
- * the intro begins).
+ * Top-centre badge that signals the opening call is a pre-recorded intro the
+ * user can't talk over yet: while Marty speaks it shows "Intro" with a live
+ * countdown to when he finishes, then disappears. ``startedAt === null`` keeps
+ * it fully hidden (e.g. before the intro begins).
  */
 function OnboardingIntroCountdownBadge({
   startedAt,
@@ -434,6 +440,7 @@ function OnboardingIntroCountdownBadge({
 
   const elapsedMs = nowMs - startedAt;
   const isReady = ready || elapsedMs >= totalMs;
+  if (isReady) return null;
 
   const remainingSeconds = Math.ceil(Math.max(0, totalMs - elapsedMs) / 1000);
   const showRestart = !!onRestart;
@@ -443,14 +450,13 @@ function OnboardingIntroCountdownBadge({
 
   return (
     <div
-      className="pointer-events-none"
+      className="pointer-events-none absolute left-1/2 top-4 z-50 -translate-x-1/2"
       data-testid="coordinator-onboarding-intro-countdown"
-      data-state={isReady ? 'ready' : 'counting'}
+      data-state="counting"
     >
       <TooltipProvider>
         <div className="bg-card/80 flex items-center rounded-full border border-border px-2 py-1.5 text-card-foreground shadow-lg backdrop-blur-md">
-          <Radio className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-          <span className="text-label ml-2 font-semibold">Intro</span>
+          <span className="text-label font-semibold">Intro</span>
           <span className="text-label ml-2 tabular-nums text-muted-foreground">
             {formatIntroCountdown(remainingSeconds)}
           </span>
@@ -490,6 +496,109 @@ function OnboardingIntroCountdownBadge({
           )}
         </div>
       </TooltipProvider>
+    </div>
+  );
+}
+
+function CoordinatorOnboardingRadioSwitcher() {
+  const [radioEnabled, setRadioEnabled] = React.useState(() =>
+    getCoordinatorOnboardingBackgroundMusicEnabled()
+  );
+
+  const toggleRadio = React.useCallback(() => {
+    setRadioEnabled((current) => {
+      const enabled = !current;
+      setCoordinatorOnboardingBackgroundMusicEnabled(enabled);
+      return enabled;
+    });
+  }, []);
+
+  const changeStation = React.useCallback((direction: -1 | 1) => {
+    changeCoordinatorOnboardingBackgroundMusicStation(direction);
+    setRadioEnabled(true);
+  }, []);
+
+  const stationButtonClass =
+    'pointer-events-auto absolute top-1/2 z-0 flex h-6 w-5 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card/80 text-card-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+  const radioButtonClass = cn(
+    'pointer-events-auto relative z-10 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card/80 text-card-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    !radioEnabled && 'text-muted-foreground'
+  );
+
+  return (
+    <div
+      className="absolute bottom-4 right-4 isolate z-50 h-12 w-12"
+      data-testid="coordinator-onboarding-radio-switcher"
+    >
+      <button
+        aria-label="Previous radio station"
+        className={cn(stationButtonClass, '-left-3')}
+        onClick={() => changeStation(-1)}
+        type="button"
+      >
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" className="h-3 w-3">
+          <path
+            d="M10.5 3.5 6 8l4.5 4.5"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+          />
+        </svg>
+      </button>
+      <button
+        aria-label={radioEnabled ? 'Turn radio off' : 'Turn radio on'}
+        aria-pressed={radioEnabled}
+        className={radioButtonClass}
+        onClick={toggleRadio}
+        title="space radio"
+        type="button"
+      >
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 32 32" className="h-7 w-7">
+          <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8.6 27.5 16 11.4l7.4 16.1" strokeWidth="2.6" />
+            <path d="M11.9 20.4h8.2M10.4 24.2h11.2" strokeWidth="2.3" />
+            <path d="m12.4 24 7.2-4.7M19.6 24l-7.2-4.7" strokeWidth="2" />
+            <path d="M16 11.4V8" strokeWidth="2.4" />
+            <path
+              d="M10.6 8.5c-1.8 1.5-2.9 3.8-2.9 6.1M21.4 8.5c1.8 1.5 2.9 3.8 2.9 6.1"
+              strokeWidth="2.25"
+            />
+            <path
+              d="M6.4 5.1c-2.5 2.4-4 5.7-4 9.5M25.6 5.1c2.5 2.4 4 5.7 4 9.5"
+              strokeWidth="2.25"
+            />
+          </g>
+          <circle cx="16" cy="8" r="2.5" fill="currentColor" />
+          {!radioEnabled ? (
+            <path
+              d="M25.6 6.4 6.4 25.6"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeWidth="3"
+            />
+          ) : null}
+        </svg>
+      </button>
+      <button
+        aria-label="Next radio station"
+        className={cn(stationButtonClass, '-right-3')}
+        onClick={() => changeStation(1)}
+        type="button"
+      >
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" className="h-3 w-3">
+          <path
+            d="M5.5 3.5 10 8l-4.5 4.5"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+          />
+        </svg>
+      </button>
     </div>
   );
 }
