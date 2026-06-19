@@ -21,7 +21,7 @@ const AnimatedTabs = ({ children, selected }: { children: ReactElement[]; select
         return (
           <motion.div
             key={index}
-            className="overflow-hidden opacity-0"
+            className="w-full min-w-0 overflow-hidden opacity-0"
             initial={{ x: 500, opacity: 0, height: 256 }}
             animate={{ x: 0, opacity: 1, height: 'auto' }}
             exit={{ x: -500, opacity: 0, height: 256 }}

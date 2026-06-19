@@ -22,22 +22,26 @@ export async function requestAssistantPresenceWake({
   pageVisibility,
   occurredAt = new Date().toISOString(),
 }: AssistantPresenceWakeArgs): Promise<void> {
-  const response = await fetch(`/api/assistant/${encodeURIComponent(assistantId)}/system-event`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      eventType: 'assistant_presence_observed',
-      message: 'User presence observed in Console.',
-      extraEventFields: {
-        source,
-        reason,
-        pageVisibility,
-        occurredAt,
-      },
-    }),
-  });
+  try {
+    const response = await fetch(`/api/assistant/${encodeURIComponent(assistantId)}/system-event`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eventType: 'assistant_presence_observed',
+        message: 'User presence observed in Console.',
+        extraEventFields: {
+          source,
+          reason,
+          pageVisibility,
+          occurredAt,
+        },
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error(`Assistant presence wake failed (${response.status})`);
+    if (!response.ok) {
+      console.warn(`Assistant presence wake failed (${response.status})`);
+    }
+  } catch (error) {
+    console.warn('Assistant presence wake request failed', error);
   }
 }

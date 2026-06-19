@@ -69,7 +69,16 @@ DROID_REPO_PATH="${DROID_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../droid" 2>/dev/nu
 DROID_LOCAL_SCRIPT="${DROID_REPO_PATH:+$DROID_REPO_PATH/scripts/local.sh}"
 DROID_GATEWAY_CONFIG_FILE="/tmp/droid-local.config"
 ENSURE_PREREQS_SCRIPT="${DROID_REPO_PATH:+$DROID_REPO_PATH/scripts/ensure_prereqs.sh}"
-SELF_HOST_ENV_SCRIPT="${DROID_REPO_PATH:+$DROID_REPO_PATH/scripts/self_host_env.sh}"
+DROID_DEPLOY_REPO_PATH="${DROID_DEPLOY_REPO_PATH:-${DEPLOY_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../droid-deploy" 2>/dev/null && pwd -P || echo "")}}"
+DROID_DEPLOY_SELF_HOST_ENV_SCRIPT="${DROID_DEPLOY_REPO_PATH:+$DROID_DEPLOY_REPO_PATH/selfhost/self_host_env.sh}"
+DROID_LEGACY_SELF_HOST_ENV_SCRIPT="${DROID_REPO_PATH:+$DROID_REPO_PATH/scripts/self_host_env.sh}"
+if [[ -z "${SELF_HOST_ENV_SCRIPT:-}" ]]; then
+  if [[ -n "$DROID_DEPLOY_SELF_HOST_ENV_SCRIPT" && -f "$DROID_DEPLOY_SELF_HOST_ENV_SCRIPT" ]]; then
+    SELF_HOST_ENV_SCRIPT="$DROID_DEPLOY_SELF_HOST_ENV_SCRIPT"
+  else
+    SELF_HOST_ENV_SCRIPT="$DROID_LEGACY_SELF_HOST_ENV_SCRIPT"
+  fi
+fi
 SELF_HOST_DESKTOP_SCRIPT="${DROID_REPO_PATH:+$DROID_REPO_PATH/scripts/self_host_desktop.sh}"
 
 CONSOLE_PORT="${CONSOLE_PORT:-3000}"
@@ -77,6 +86,7 @@ ORCHESTRA_PORT="${ORCHESTRA_PORT:-8000}"
 
 CONSOLE_PIDFILE="/tmp/console-local-dev.pid"
 CONSOLE_LOGFILE="/tmp/console-local-dev.log"
+CONSOLE_ENVFILE="/tmp/console-local-dev.env.json"
 
 # Read keys from local env files (needed so Orchestra accepts admin API calls
 # and Stripe-dependent billing flows work end-to-end).
@@ -229,6 +239,64 @@ load_self_host_runtime_env() {
   load_self_host_env_file "$DROID_REPO_PATH/.env"
 }
 
+write_console_env_fingerprint() {
+  python3 - "$CONSOLE_ENVFILE" <<'PY'
+import json
+import os
+import sys
+from datetime import datetime, timezone
+
+keys = [
+    "SELF_HOST",
+    "NEXT_PUBLIC_SELF_HOST",
+    "NEXTAUTH_URL",
+    "ORCHESTRA_URL",
+    "LOCAL_ADAPTERS_URL",
+    "DROID_ADAPTERS_URL",
+    "COMMUNICATION_URL",
+    "DROID_COMMS_URL",
+    "PUBSUB_EMULATOR_HOST",
+    "GCP_PROJECT_ID",
+    "PUBSUB_TOPIC_SUFFIX",
+    "LIVEKIT_URL",
+    "SELF_HOST_DESKTOP_URL",
+    "CONSOLE_PORT",
+    "ORCHESTRA_PORT",
+]
+data = {
+    "updated_at": datetime.now(timezone.utc).isoformat(),
+    "cwd": os.getcwd(),
+    "env": {key: os.environ.get(key, "") for key in keys},
+}
+with open(sys.argv[1], "w", encoding="utf-8") as fh:
+    json.dump(data, fh, indent=2, sort_keys=True)
+    fh.write("\n")
+PY
+}
+
+console_env_missing_self_host_keys() {
+  [[ -f "$CONSOLE_ENVFILE" ]] || return 0
+  python3 - "$CONSOLE_ENVFILE" <<'PY'
+import json
+import sys
+
+required = [
+    "SELF_HOST",
+    "NEXT_PUBLIC_SELF_HOST",
+    "ORCHESTRA_URL",
+    "LOCAL_ADAPTERS_URL",
+    "DROID_ADAPTERS_URL",
+    "PUBSUB_EMULATOR_HOST",
+    "LIVEKIT_URL",
+]
+with open(sys.argv[1], encoding="utf-8") as fh:
+    env = json.load(fh).get("env", {})
+missing = [key for key in required if not env.get(key)]
+if missing:
+    print(", ".join(missing))
+PY
+}
+
 ensure_service_gateway() {
   if ! is_droid_available; then
     log_error "Droid repo not found — cannot start gateway"
@@ -264,7 +332,7 @@ ensure_service_gateway() {
   fi
 
   log_info "Starting Droid gateway for service runtime ($gateway_url) ..."
-  if ! bash "$DROID_LOCAL_SCRIPT" start-gateway; then
+  if ! DROID_STACK_ORCHESTRATOR=console-local-harness bash "$DROID_LOCAL_SCRIPT" start-gateway; then
     log_error "Failed to start Droid gateway"
     return 1
   fi
@@ -307,7 +375,7 @@ start_self_host_stack_gateway() {
     append_workspace_oauth_env gateway_env
   fi
 
-  if ! env "${gateway_env[@]}" bash "$DROID_LOCAL_SCRIPT" start-gateway; then
+  if ! env DROID_STACK_ORCHESTRATOR=console-local-harness "${gateway_env[@]}" bash "$DROID_LOCAL_SCRIPT" start-gateway; then
     log_error "Failed to start Droid gateway"
     return 1
   fi
@@ -475,7 +543,7 @@ start_orchestra() {
       && self_host_desktop_enabled \
       && ! orchestra_listens_on_lan; then
       log_info "Restarting Orchestra so desktop containers can reach it on 0.0.0.0 ..."
-      bash "$ORCHESTRA_LOCAL_SCRIPT" stop 2>/dev/null || true
+      DROID_STACK_ORCHESTRATOR=console-local-harness bash "$ORCHESTRA_LOCAL_SCRIPT" stop 2>/dev/null || true
       sleep 1
     else
       log_success "Orchestra already running on port $ORCHESTRA_PORT"
@@ -584,7 +652,7 @@ start_orchestra() {
     fi
   fi
 
-  if ! ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" start; then
+  if ! DROID_STACK_ORCHESTRATOR=console-local-harness ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" start; then
     log_error "Failed to start Orchestra"
     return 1
   fi
@@ -594,7 +662,7 @@ start_orchestra() {
 
 stop_orchestra() {
   log_info "Stopping Orchestra..."
-  ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" stop 2>/dev/null || true
+  DROID_STACK_ORCHESTRATOR=console-local-harness ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" stop 2>/dev/null || true
   log_success "Orchestra stopped"
 }
 
@@ -605,7 +673,7 @@ stop_orchestra() {
 # stale logins (and stale credit balances) in the Quick Sign-In panel.
 purge_orchestra_db() {
   log_info "Wiping Orchestra database (fresh schema + single seed on start)..."
-  ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" purge 2>/dev/null || true
+  DROID_STACK_ORCHESTRATOR=console-local-harness ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" purge 2>/dev/null || true
   log_success "Orchestra database wiped"
 }
 
@@ -848,7 +916,7 @@ start_droid() {
     droid_args+=(--full)
   fi
 
-  if ! env "${droid_env[@]}" bash "$DROID_LOCAL_SCRIPT" "${droid_args[@]}"; then
+  if ! env DROID_STACK_ORCHESTRATOR=console-local-harness "${droid_env[@]}" bash "$DROID_LOCAL_SCRIPT" "${droid_args[@]}"; then
     log_warn "Droid failed to start — chat will work but no responses will come back."
     return 0
   fi
@@ -871,7 +939,7 @@ stop_droid() {
 
   if is_droid_available; then
     log_info "Stopping Droid..."
-    DROID_ALLOW_RUNTIME_STOP=1 bash "$DROID_LOCAL_SCRIPT" stop 2>/dev/null || true
+    DROID_STACK_ORCHESTRATOR=console-local-harness DROID_ALLOW_RUNTIME_STOP=1 bash "$DROID_LOCAL_SCRIPT" stop 2>/dev/null || true
     if [[ -n "${SELF_HOST_DESKTOP_SCRIPT:-}" && -f "$SELF_HOST_DESKTOP_SCRIPT" ]]; then
       bash "$SELF_HOST_DESKTOP_SCRIPT" stop 2>/dev/null || true
     fi
@@ -1097,7 +1165,7 @@ start_droid_coordinator() {
       fi
       if [[ "${DROID_REFRESH_INBOUND_SUBSCRIPTION:-0}" == "1" ]]; then
         log_info "Restarting Coordinator to refresh Pub/Sub subscription..."
-        DROID_ALLOW_RUNTIME_STOP=1 bash "$DROID_LOCAL_SCRIPT" stop 2>/dev/null || true
+        DROID_STACK_ORCHESTRATOR=console-local-harness DROID_ALLOW_RUNTIME_STOP=1 bash "$DROID_LOCAL_SCRIPT" stop 2>/dev/null || true
         sleep 1
       else
         log_success "Droid Coordinator runtime already running (assistant=$coordinator_agent_id)"
@@ -1116,7 +1184,7 @@ start_droid_coordinator() {
       fi
     fi
     log_info "Restarting Droid for Coordinator assistant=$coordinator_agent_id ..."
-    DROID_ALLOW_RUNTIME_STOP=1 bash "$DROID_LOCAL_SCRIPT" stop 2>/dev/null || true
+    DROID_STACK_ORCHESTRATOR=console-local-harness DROID_ALLOW_RUNTIME_STOP=1 bash "$DROID_LOCAL_SCRIPT" stop 2>/dev/null || true
     sleep 1
   fi
 
@@ -1252,7 +1320,7 @@ start_droid_coordinator() {
     DROID_REPO="$DROID_REPO_PATH" self_host_apply_user_desktops_export "$coordinator_agent_id"
   fi
 
-  if ! env "${droid_env[@]}" bash "$DROID_LOCAL_SCRIPT" start --full; then
+  if ! env DROID_STACK_ORCHESTRATOR=console-local-harness "${droid_env[@]}" bash "$DROID_LOCAL_SCRIPT" start --full; then
     log_warn "Droid failed to start — chat will not get Coordinator replies"
     return 1
   fi
@@ -1405,7 +1473,7 @@ cmd_start_runtime_backend() {
         && ! self_host_gateway_is_healthy; then
         log_warn "Service gateway unhealthy — restarting gateway"
         export DROID_RUNTIME_GATEWAY_OWNER="${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}"
-        bash "$DROID_LOCAL_SCRIPT" start-gateway || return 1
+        DROID_STACK_ORCHESTRATOR=console-local-harness bash "$DROID_LOCAL_SCRIPT" start-gateway || return 1
       fi
       return 0
     fi
@@ -1424,7 +1492,7 @@ cmd_stop_runtime_backend() {
 
   if is_droid_available && is_droid_running; then
     log_info "Stopping service-managed Coordinator runtime..."
-    bash "$DROID_LOCAL_SCRIPT" stop 2>/dev/null || true
+    DROID_STACK_ORCHESTRATOR=console-local-harness bash "$DROID_LOCAL_SCRIPT" stop 2>/dev/null || true
   fi
   self_host_clear_runtime_state
 
@@ -1892,10 +1960,12 @@ PY
     fi
   fi
 
+  write_console_env_fingerprint
+
   if command -v setsid &>/dev/null; then
-    setsid npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 < /dev/null &
+    setsid env DROID_STACK_ORCHESTRATOR=console-local-harness npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 < /dev/null &
   else
-    nohup npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 < /dev/null &
+    nohup env DROID_STACK_ORCHESTRATOR=console-local-harness npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 < /dev/null &
   fi
   local pid=$!
   echo "$pid" > "$CONSOLE_PIDFILE"
@@ -1981,6 +2051,41 @@ stop_console() {
   fi
 
   log_success "Console stopped"
+}
+
+cmd_repair_console() {
+  local with_self_host="${1:-false}"
+
+  if [[ "$with_self_host" == "true" ]]; then
+    export SELF_HOST=1
+    export NEXT_PUBLIC_SELF_HOST=1
+    export NEXTAUTH_URL="http://localhost:${CONSOLE_PORT}"
+    export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
+    export PUBSUB_EMULATOR_HOST="${PUBSUB_EMULATOR_HOST:-$LOCAL_PUBSUB_HOST}"
+    export GCP_PROJECT_ID="${GCP_PROJECT_ID:-$PUBSUB_GCP_PROJECT_ID}"
+    export PUBSUB_TOPIC_SUFFIX="${PUBSUB_TOPIC_SUFFIX:-$PUBSUB_TOPIC_SUFFIX_VAL}"
+    export LIVEKIT_URL="${LIVEKIT_URL:-ws://localhost:7880}"
+    export LIVEKIT_API_KEY="${LIVEKIT_API_KEY:-devkey}"
+    export LIVEKIT_API_SECRET="${LIVEKIT_API_SECRET:-secret}"
+    export SELF_HOST_DESKTOP_URL="${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}"
+    CHAT_ADAPTERS_URL="${CHAT_ADAPTERS_URL:-${LOCAL_ADAPTERS_URL:-${DROID_ADAPTERS_URL:-http://127.0.0.1:${DROID_GATEWAY_PORT:-8001}}}}"
+    export CHAT_ADAPTERS_URL
+    export COMMUNICATION_URL="${COMMUNICATION_URL:-$CHAT_ADAPTERS_URL}"
+    export LOCAL_ADAPTERS_URL="${LOCAL_ADAPTERS_URL:-$CHAT_ADAPTERS_URL}"
+    export DROID_ADAPTERS_URL="${DROID_ADAPTERS_URL:-$CHAT_ADAPTERS_URL}"
+    export DROID_COMMS_URL="${DROID_COMMS_URL:-${CHAT_COMMS_URL:-$CHAT_ADAPTERS_URL}}"
+    load_self_host_runtime_env
+  fi
+
+  log_info "Repairing Console on port $CONSOLE_PORT ..."
+  stop_console
+  if [[ -d "$CONSOLE_REPO_PATH/.next" ]]; then
+    local stale_dir
+    stale_dir="$CONSOLE_REPO_PATH/.next-stale-$(date +%s)"
+    log_info "Moving stale Next cache to $stale_dir"
+    mv "$CONSOLE_REPO_PATH/.next" "$stale_dir"
+  fi
+  start_console
 }
 
 # =============================================================================
@@ -2365,7 +2470,7 @@ cmd_stop() {
     fi
   fi
   if [[ "$preserve_background" != "true" ]] && is_droid_available; then
-    bash "$DROID_LOCAL_SCRIPT" stop-gateway 2>/dev/null || true
+    DROID_STACK_ORCHESTRATOR=console-local-harness bash "$DROID_LOCAL_SCRIPT" stop-gateway 2>/dev/null || true
   fi
   if is_emulator_running && [[ "$preserve_background" != "true" ]]; then
     stop_pubsub_emulator || failed=true
@@ -2439,6 +2544,12 @@ cmd_status() {
   echo -n "  Console:   "
   if is_console_running; then
     echo -e "${GREEN}running${NC} (http://localhost:${CONSOLE_PORT})"
+    local missing_env=""
+    missing_env="$(console_env_missing_self_host_keys 2>/dev/null || true)"
+    if [[ -n "$missing_env" ]]; then
+      echo -e "             ${YELLOW}missing self-host env:${NC} $missing_env"
+      echo "             repair with: droid-deploy/selfhost/stack.sh repair-console"
+    fi
   else
     echo -e "${RED}not running${NC}"
   fi
@@ -2599,6 +2710,7 @@ main() {
     start-coordinator) cmd_start_coordinator ;;
     start-runtime-backend) cmd_start_runtime_backend ;;
     stop-runtime-backend) cmd_stop_runtime_backend ;;
+    repair-console|console) cmd_repair_console "$with_self_host" ;;
     start)   cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$with_integrations" "$integrations_provider" "$droid_echo" "$with_integration_functions" "$with_self_host" ;;
     stop)
       if [[ "$interactive_stop" == "true" ]]; then
@@ -2611,7 +2723,7 @@ main() {
     status)  cmd_status ;;
     logs)    cmd_logs "$logs_service" ;;
     help)
-      echo "Usage: $0 [start|stop|restart|status|logs|ensure-coordinator-topics|start-coordinator|gateway-setup|gateway-doctor|gateway-urls] [--org] [--stripe] [--pubsub] [--chat] [--self-host] [--integrations] [--integrations-functions] [--provider composio] [--echo] [--seed <scenario>] [--credits <n>]"
+      echo "Usage: $0 [start|stop|restart|repair-console|status|logs|ensure-coordinator-topics|start-coordinator|gateway-setup|gateway-doctor|gateway-urls] [--org] [--stripe] [--pubsub] [--chat] [--self-host] [--integrations] [--integrations-functions] [--provider composio] [--echo] [--seed <scenario>] [--credits <n>]"
       echo ""
       echo "Commands:"
       echo "  ensure-coordinator-topics  Ensure Pub/Sub topics/subscriptions for the Coordinator"
@@ -2619,6 +2731,7 @@ main() {
       echo "  start    Start Console + Orchestra + seed data (default)"
       echo "  stop     Stop Console, Orchestra, Pub/Sub emulator, Droid, and Stripe listener"
       echo "  restart  Stop then start (wipes database)"
+      echo "  repair-console  Restart only Console with the current local-stack env"
       echo "  status   Show service status"
       echo "  gateway-setup   Run Droid gateway local setup wizard"
       echo "  gateway-doctor  Run Droid gateway doctor using Console's local env"

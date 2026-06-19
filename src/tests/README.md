@@ -22,7 +22,7 @@ E2E tests run against the full local stack. No cloud credentials, external API k
 
 ### Prerequisites
 
-1. **Console + Orchestra + PostgreSQL** — start everything with `./scripts/local.sh start` in **this** repo (it brings up PostgreSQL, Orchestra in `ORCHESTRA_ENVIRONMENT=dev` with all external-service stubs active, seeds data, and Console). You do not need to start Orchestra or `npm run dev` separately.
+1. **Console + Orchestra + PostgreSQL** — start everything with `./scripts/local.sh start` in **this** repo (it brings up PostgreSQL, Orchestra in `ORCHESTRA_ENVIRONMENT=dev` with all external-service stubs active, seeds data, and Console). You do not need to start Orchestra or `npm run dev` separately. For internal full-product self-host development, use `droid-deploy/selfhost/stack.sh up` and the runbook at `droid-deploy/docs/local-full-stack-inner-loop.md` instead of starting repo pieces by hand.
 2. **Docker** — required for PostgreSQL access (seed helpers use `docker exec psql`).
 
 ### How services are stubbed locally

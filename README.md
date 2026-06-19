@@ -134,10 +134,11 @@ poetry --version  # Any recent version
 ## Quick Start
 
 > **This is an internal dev/test harness, not the product run path.** To run
-> the full local product end-to-end across all repos, use **`droid stack up`**
-> (see the [Droid self-host docs](https://github.com/unifyai/droid/blob/staging/deploy/selfhost/README.md)) — it starts Orchestra, the Droid gateway, Console (in
-> self-host mode), and the Coordinator for you. The seeded modes below exist for
-> Console development, QA, and E2E tests. To seed without starting the stack,
+> the full local product end-to-end across all repos, use
+> `droid-deploy/selfhost/stack.sh up` from the private deployment checkout. See
+> `droid-deploy/docs/local-full-stack-inner-loop.md` for the internal workflow.
+> The seeded modes below exist for Console development, QA, and E2E tests. To
+> seed without starting the stack,
 > run the scenario runner directly: `npx tsx src/tests/helpers/seeds/run.ts <scenario|all|--list>`.
 
 The fastest way to get a fully working local (seeded dev) environment:
@@ -148,7 +149,7 @@ npm install
 
 # 2. Create .env.local (if you don't have one)
 cat > .env.local << 'EOF'
-NEXTAUTH_URL=http://localhost:3333
+NEXTAUTH_URL=http://localhost:3000
 ORCHESTRA_URL=http://localhost:8000
 JWT_SECRET=local-sandbox-dev-secret
 ORCHESTRA_ADMIN_KEY=local-dev-admin-key
@@ -157,7 +158,7 @@ EOF
 # 3. Start everything (Orchestra + Console + seed data)
 ./scripts/local.sh
 
-# 4. Open http://localhost:3333
+# 4. Open http://localhost:3000
 #    Login: test@example.com / testpass123
 ```
 
@@ -195,7 +196,7 @@ default. Hosted deployments may still use managed Communication infrastructure.
 | Variable              | Default        | Description             |
 | --------------------- | -------------- | ----------------------- |
 | `ORCHESTRA_REPO_PATH` | `../orchestra` | Path to Orchestra repo  |
-| `CONSOLE_PORT`        | `3333`         | Next.js dev server port |
+| `CONSOLE_PORT`        | `3000`         | Next.js dev server port |
 | `ORCHESTRA_PORT`      | `8000`         | Orchestra API port      |
 
 ---
