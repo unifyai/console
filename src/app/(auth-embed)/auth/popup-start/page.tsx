@@ -2,7 +2,7 @@
 
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
 import { isAuthPopupProvider, safeAuthPopupCallbackUrl } from '@/lib/auth/popup';
 
@@ -11,7 +11,17 @@ function PopupStart() {
   const [error, setError] = useState<string | undefined>();
   const provider = searchParams?.get('provider');
 
+  // Guards against launching more than one sign-in. Re-renders (App Router
+  // search-param identity churn, session settling, dev StrictMode) can run this
+  // effect repeatedly; two concurrent signIn() calls race on the CSRF
+  // token, and the loser paints the error screen for ~0.5s before the winner
+  // redirects to the provider. A single in-flight call avoids that flash while
+  // still completing the redirect.
+  const signInStartedRef = useRef(false);
+
   useEffect(() => {
+    if (signInStartedRef.current) return;
+
     if (!isAuthPopupProvider(provider)) {
       setError('Unsupported auth provider.');
       return;
@@ -29,13 +39,11 @@ function PopupStart() {
     }
     const callbackUrl = safeCallbackUrl;
 
-    let cancelled = false;
+    signInStartedRef.current = true;
 
     async function startOAuth() {
       try {
         const result = await signIn(providerId, { callbackUrl, redirect: false });
-
-        if (cancelled) return;
 
         if (!result?.url || result.error || result.url.includes('/api/auth/error')) {
           setError(
@@ -46,7 +54,6 @@ function PopupStart() {
 
         window.location.href = result.url;
       } catch {
-        if (cancelled) return;
         setError(
           'Could not start this sign-in method. Check the OAuth credentials for this environment.'
         );
@@ -54,10 +61,6 @@ function PopupStart() {
     }
 
     void startOAuth();
-
-    return () => {
-      cancelled = true;
-    };
   }, [provider, searchParams]);
 
   if (error) {
