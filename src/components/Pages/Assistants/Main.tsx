@@ -1908,7 +1908,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // Requests are issued for initial page load and intro completion, not
   // for ordinary assistant selection changes.
   const seededCoordinatorFocusRailRequestRef = React.useRef(0);
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     if (!isCoordinatorOnboardingFocusLayout) return;
     if (seededCoordinatorFocusRailRequestRef.current === coordinatorOnboardingFocusLayoutRequest) {
       return;
@@ -1928,7 +1928,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   ]);
 
   const seededCoordinatorFocusPaneRequestRef = React.useRef(0);
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     if (!isCoordinatorOnboardingFocusLayout) return;
     if (seededCoordinatorFocusPaneRequestRef.current === coordinatorOnboardingFocusLayoutRequest) {
       return;
@@ -2679,7 +2679,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 />
               </div>
             )}
-            <CoordinatorTalkNowCue show={showCoordinatorTalkNow} />
+            <CoordinatorTalkNowCue
+              show={showCoordinatorTalkNow}
+              onDismiss={() => setShowCoordinatorTalkNow(false)}
+            />
           </div>
         )}
 

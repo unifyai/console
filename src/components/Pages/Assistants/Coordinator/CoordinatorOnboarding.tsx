@@ -508,17 +508,24 @@ export function CoordinatorOnboarding({
  * Twin is now listening. Rendered at the platform level (over the docked
  * call) since the intro overlay has already torn down by this point.
  */
-export function CoordinatorTalkNowCue({ show }: { show: boolean }) {
+export function CoordinatorTalkNowCue({
+  show,
+  onDismiss,
+}: {
+  show: boolean;
+  onDismiss?: () => void;
+}) {
   return (
     <AnimatePresence>
       {show && (
         <motion.div
-          className="bg-background/55 pointer-events-none fixed inset-0 z-[100] flex items-center justify-center overflow-hidden p-6 backdrop-blur-md"
+          className="bg-background/55 fixed inset-0 z-[100] flex items-center justify-center overflow-hidden p-6 backdrop-blur-md"
           data-testid="coordinator-onboarding-talk-now"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.24 }}
+          onClick={onDismiss}
         >
           <motion.div
             className="relative w-full max-w-lg overflow-hidden rounded-[18px] border-2 border-foreground bg-[radial-gradient(circle_at_18%_10%,color-mix(in_srgb,var(--droid-glow)_42%,transparent),transparent_31%),radial-gradient(circle_at_94%_22%,color-mix(in_srgb,var(--neo-coral)_25%,transparent),transparent_28%),radial-gradient(circle_at_28%_102%,color-mix(in_srgb,var(--neo-amber)_32%,transparent),transparent_34%),linear-gradient(140deg,color-mix(in_srgb,var(--card)_88%,var(--background)),var(--card)),var(--brand-grain-texture)] bg-[length:auto,auto,auto,auto,128px_128px] p-8 text-center bg-blend-normal shadow-[0_10px_0_color-mix(in_srgb,var(--foreground)_18%,transparent),0_34px_90px_color-mix(in_srgb,var(--foreground)_18%,transparent)]"
@@ -526,6 +533,7 @@ export function CoordinatorTalkNowCue({ show }: { show: boolean }) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -8 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="bg-card/70 relative mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-full border-2 border-foreground text-primary shadow-md">
               <Mic className="h-12 w-12" aria-hidden="true" />
