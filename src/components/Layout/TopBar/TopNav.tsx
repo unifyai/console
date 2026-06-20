@@ -582,10 +582,10 @@ export default function TopNav() {
               Reset Local Self-Host State?
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3 text-left">
-              <p>
+              <span className="block">
                 This clears local chat, onboarding, organization, and assistant history while
                 keeping the self-host owner account and Twin Coordinator.
-              </p>
+              </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
