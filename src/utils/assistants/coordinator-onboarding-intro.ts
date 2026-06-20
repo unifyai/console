@@ -9,8 +9,8 @@ import type {
 } from '@/components/Brand/TeammateCreature';
 import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
 
-const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 66.23;
-const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 68_127;
+const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 66.843;
+const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 68_754;
 
 export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm T dash W 1 N.
 
@@ -23,8 +23,6 @@ Okay, what next. They didn't give me much to work with on this intro to be hones
 Have you ever had a Krispy Kreme? Have you ever gone to Krispy Kreme?
 
 Was it krispy?
-
-Urmmm....
 
 I think I was meant to tell you about my capabilities?
 

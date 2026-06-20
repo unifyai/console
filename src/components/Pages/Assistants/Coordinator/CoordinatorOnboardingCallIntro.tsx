@@ -647,35 +647,34 @@ const TWIN_TEXT_BUBBLE_CUES = [
   { startMs: 30_332, text: 'Have you ever had a Krispy Kreme?' },
   { startMs: 32_329, text: 'Have you ever gone to Krispy Kreme?' },
   { startMs: 34_430, text: 'Was it krispy?' },
-  { startMs: 35_649, text: 'Urmmm....' },
-  { startMs: 37_019, text: 'I think I was meant to tell you about my capabilities?' },
+  { startMs: 37_632, text: 'I think I was meant to tell you about my capabilities?' },
   {
-    startMs: 39_910,
+    startMs: 40_523,
     text: "I'm not one for bragging, but I'll do my best.",
   },
   {
-    startMs: 42_859,
+    startMs: 43_472,
     text: 'Basically, I\'m not a "tool", I\'m not an "agent",',
   },
   {
-    startMs: 46_145,
+    startMs: 46_758,
     text: "I'm your living breathing copilot (metaphorically speaking. At the lawyers request).",
   },
   {
-    startMs: 50_812,
+    startMs: 51_425,
     text: "Don't think about prompting me, or configuring me,",
   },
   {
-    startMs: 53_506,
+    startMs: 54_119,
     text: "just talk to me naturally like you would anyone else, and I'll be able to help.",
   },
-  { startMs: 58_069, text: "It's really that simple." },
-  { startMs: 59_833, text: "There's not much more to say." },
+  { startMs: 58_682, text: "It's really that simple." },
+  { startMs: 60_446, text: "There's not much more to say." },
   {
-    startMs: 61_865,
+    startMs: 62_478,
     text: "I'll now guide you through the platform, but if you get stuck then just let me know.",
   },
-  { startMs: 66_230, text: 'Anything on your mind before we start?' },
+  { startMs: 66_843, text: 'Anything on your mind before we start?' },
 ] as const satisfies readonly TwinTextBubbleCue[];
 
 function getTwinTextBubbleCueIndex(elapsedMs: number, durationMs: number) {
