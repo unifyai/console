@@ -1989,15 +1989,6 @@ PY
       log_info "Check logs: $CONSOLE_LOGFILE"
       return 1
     fi
-    if ! kill -0 "$pid" 2>/dev/null; then
-      rm -f "$CONSOLE_PIDFILE"
-      log_error "Console process exited before it became ready."
-      if grep -q "EADDRINUSE" "$CONSOLE_LOGFILE" 2>/dev/null; then
-        log_error "Port $CONSOLE_PORT is already in use."
-      fi
-      log_info "Check logs: $CONSOLE_LOGFILE"
-      return 1
-    fi
     if console_log_has_ready_signal && curl -s --connect-timeout 2 --max-time 5 "http://localhost:${CONSOLE_PORT}" &>/dev/null; then
       local listener_pids
       listener_pids=$(console_port_pids)
@@ -2006,6 +1997,15 @@ PY
       fi
       log_success "Console is ready at http://localhost:${CONSOLE_PORT}"
       return 0
+    fi
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$CONSOLE_PIDFILE"
+      log_error "Console process exited before it became ready."
+      if grep -q "EADDRINUSE" "$CONSOLE_LOGFILE" 2>/dev/null; then
+        log_error "Port $CONSOLE_PORT is already in use."
+      fi
+      log_info "Check logs: $CONSOLE_LOGFILE"
+      return 1
     fi
     sleep 1
     ((attempt++)) || true
