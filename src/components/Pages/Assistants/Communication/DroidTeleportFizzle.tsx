@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 
 type TeleportMode = 'in' | 'out';
 
-const DEFAULT_DURATION_MS = 450;
+const DEFAULT_DURATION_MS = 225;
 
 /**
  * Simple paired fade used for the coordinator handoff. ``out`` fades the droid

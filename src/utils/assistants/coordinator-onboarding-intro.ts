@@ -9,7 +9,7 @@ import type {
 import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
 
 const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 76.4;
-const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 79_700;
+const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 79_400;
 // Regenerate through docs/coordinator-onboarding-audio.md so the walkie
 // treatment stays aligned with the shared branding pipeline.
 const COORDINATOR_ONBOARDING_INTRO_AUDIO_SRC = '/sounds/twin-onboarding-intro.mp3?v=7c5955d4';
@@ -66,8 +66,8 @@ export const COORDINATOR_ONBOARDING_INTRO = {
   backgroundAccelerationMs: 2_400,
   // Keep the city ascent running through the speech rather than ending early.
   handoffLeadMs: 0,
-  teleportOutDelayMs: 500,
-  landingDurationMs: 450,
+  teleportOutDelayMs: 0,
+  landingDurationMs: 225,
 } as const;
 
 export type CoordinatorOnboardingIntroConfig = typeof COORDINATOR_ONBOARDING_INTRO;
