@@ -56,6 +56,10 @@ import {
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { notifyOnboardingSessionStarted } from '@/lib/client/coordinator';
+import {
+  injectAssistantVoiceTurn,
+  setAssistantProactiveSpeech,
+} from '@/lib/client/assistant-voice-control';
 import type { Assistant, AssistantCallConnectOptions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 
@@ -174,8 +178,7 @@ export function CoordinatorOnboarding({
         await onStartCall(coordinator, 'audio', {
           suppressRinging: true,
           openingConfig: {
-            mode: 'simulated',
-            simulatedUtterance: COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT,
+            mode: 'silent',
             source: 'twin_onboarding_intro',
           },
         });
@@ -210,9 +213,13 @@ export function CoordinatorOnboarding({
     }
     if (started && !warmCallCancelledRef.current && !hasCompletedRef.current) {
       callAudioReadyRef.current = true;
+      void setAssistantProactiveSpeech(coordinator.agentId, false, {
+        source: 'twin_onboarding_intro',
+        reason: 'prerecorded_intro',
+      });
     }
     return started;
-  }, [requestMicrophoneAccess, triggerCoordinatorCallStart, voiceCalls]);
+  }, [coordinator.agentId, requestMicrophoneAccess, triggerCoordinatorCallStart, voiceCalls]);
 
   const beginIntro = React.useCallback(
     async (medium: IntroMedium) => {
@@ -237,6 +244,10 @@ export function CoordinatorOnboarding({
             warmCallCancelledRef.current = true;
             hasTriggeredCallStartRef.current = false;
             callStartPromiseRef.current = null;
+            void setAssistantProactiveSpeech(coordinator.agentId, true, {
+              source: 'twin_onboarding_intro',
+              reason: 'intro_warmup_failed',
+            });
             setPhase('picker');
             return;
           }
@@ -251,7 +262,7 @@ export function CoordinatorOnboarding({
         if (!introStarted) isBeginningIntroRef.current = false;
       }
     },
-    [startIntroTimeline, warmCoordinatorCallStart]
+    [coordinator.agentId, startIntroTimeline, warmCoordinatorCallStart]
   );
 
   const handleStartCall = React.useCallback(
@@ -316,6 +327,10 @@ export function CoordinatorOnboarding({
     if (introMediumRef.current === 'chat') {
       warmCallCancelledRef.current = true;
       await onDiscardCall();
+      void setAssistantProactiveSpeech(coordinator.agentId, true, {
+        source: 'twin_onboarding_intro',
+        reason: 'intro_finished_in_chat',
+      });
       notifySessionStarted('chat');
       complete('chat');
       return;
@@ -339,6 +354,22 @@ export function CoordinatorOnboarding({
 
       const started = callAudioReadyRef.current || (await triggerCoordinatorCallStart());
       if (started) {
+        const injection = await injectAssistantVoiceTurn(
+          coordinator.agentId,
+          COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT,
+          {
+            source: 'twin_onboarding_intro',
+            scheduleProactive: true,
+          }
+        );
+        if (!injection.ok) {
+          console.warn('[CoordinatorOnboarding] Failed to inject intro transcript:', injection);
+        }
+        void setAssistantProactiveSpeech(coordinator.agentId, true, {
+          source: 'twin_onboarding_intro',
+          reason: 'intro_handoff',
+          scheduleNow: true,
+        });
         notifySessionStarted('call');
         complete('call');
         return;
@@ -347,6 +378,10 @@ export function CoordinatorOnboarding({
       toast.error('Could not start the call. Continuing in chat.');
       warmCallCancelledRef.current = true;
       await onDiscardCall();
+      void setAssistantProactiveSpeech(coordinator.agentId, true, {
+        source: 'twin_onboarding_intro',
+        reason: 'intro_call_failed',
+      });
       notifySessionStarted('chat');
       complete('chat');
     } finally {
@@ -354,6 +389,7 @@ export function CoordinatorOnboarding({
     }
   }, [
     complete,
+    coordinator.agentId,
     notifySessionStarted,
     onDiscardCall,
     requestMicrophoneAccess,
