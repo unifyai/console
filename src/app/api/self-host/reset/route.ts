@@ -1,0 +1,55 @@
+import { execFile } from 'child_process';
+import path from 'path';
+import { promisify } from 'util';
+import { NextResponse } from 'next/server';
+import { isSelfHost } from '@/lib/environment/environment';
+import { getCurrentUser } from '@/lib/user/user';
+
+const execFileAsync = promisify(execFile);
+
+function resetEnabled(): boolean {
+  return isSelfHost() && process.env.NODE_ENV === 'development';
+}
+
+function resolveDeployRepoPath(): string {
+  return (
+    process.env.DROID_DEPLOY_REPO_PATH ??
+    process.env.DEPLOY_REPO_PATH ??
+    path.resolve(process.cwd(), '..', 'droid-deploy')
+  );
+}
+
+export async function POST() {
+  if (!resetEnabled()) {
+    return NextResponse.json({ error: 'not_available' }, { status: 404 });
+  }
+
+  const user = await getCurrentUser();
+  if (!user?.apiKey) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+
+  const script = path.join(resolveDeployRepoPath(), 'selfhost', 'reset_db.sh');
+  try {
+    const { stdout } = await execFileAsync('bash', [script, '--yes'], {
+      env: {
+        ...process.env,
+        SELF_HOST: '1',
+        SELF_HOST_RESET_API_KEY: user.apiKey,
+      },
+      timeout: 180_000,
+      maxBuffer: 1024 * 1024,
+    });
+    const lastLine = stdout.trim().split('\n').filter(Boolean).at(-1);
+    const payload = lastLine ? JSON.parse(lastLine) : { ok: true };
+    return NextResponse.json(payload);
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : 'Local reset failed';
+    return NextResponse.json({ error: 'reset_failed', message }, { status: 500 });
+  }
+}
