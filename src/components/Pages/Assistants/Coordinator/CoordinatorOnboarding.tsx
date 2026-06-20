@@ -838,7 +838,7 @@ function CoordinatorOnboardingCallPreparing() {
         <div>
           <p className="text-h3 font-medium text-card-foreground">Getting your audio ready</p>
           <p className="text-body mt-2 text-muted-foreground">
-            Twin will start once the call is connected.
+            T-W1N will start once the call is connected.
           </p>
         </div>
       </div>
