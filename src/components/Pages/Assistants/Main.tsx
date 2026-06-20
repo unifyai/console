@@ -1701,9 +1701,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // Replays the Twin call intro on demand from the Coordinator's
   // "Assistant info" onboarding tab. Mounts the intro overlay straight
   // into the animation (no picker); it clears itself on finish.
-  const handleReplayCoordinatorIntro = React.useCallback(() => {
+  const handleReplayCoordinatorIntro = React.useCallback(async () => {
+    if (activeCallAssistant || isCallConnected || isConnectingCall) {
+      await handleHangUp();
+    }
+    setCoordinatorIntroSurfaceRevealed(false);
     setCoordinatorIntroReplay(true);
-  }, []);
+  }, [activeCallAssistant, handleHangUp, isCallConnected, isConnectingCall]);
 
   // Carries the gradual-onboarding "open the next surface" behaviour into
   // the info-panel checklist: a checklist row engages its step and

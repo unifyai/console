@@ -121,6 +121,7 @@ export function CoordinatorOnboarding({
   const hasCompletedRef = React.useRef(false);
   const introMediumRef = React.useRef(introMedium);
   const warmCallCancelledRef = React.useRef(false);
+  const isRestartingIntroRef = React.useRef(false);
   const callStartPromiseRef = React.useRef<Promise<boolean> | null>(null);
   const callAudioReadyRef = React.useRef(false);
 
@@ -287,27 +288,34 @@ export function CoordinatorOnboarding({
 
   // Return to the lightweight picker so replaying the intro still begins with
   // an explicit call/text choice.
-  const handleRestartIntro = React.useCallback(() => {
-    startCoordinatorOnboardingBackgroundMusic({
-      keepClockWhenMuted: true,
-      resetTimelineStop: true,
-    });
-    primeCoordinatorOnboardingCitySoundscape();
-    isBeginningIntroRef.current = false;
-    warmCallCancelledRef.current = true;
-    callAudioReadyRef.current = false;
-    hasTriggeredCallStartRef.current = false;
-    callStartPromiseRef.current = null;
-    setIsStartingCall(false);
-    setPhase('picker');
-    setIntroAvatarOffset({ x: 0, y: -72 });
-    setIntroSkipSignal(0);
-    setIntroReady(false);
-    setIntroStartedAt(null);
-    setIntroCountdownMs(0);
-    setIsIntroTimelineReady(false);
-    setSurfaceVisible(false);
-    void onDiscardCall();
+  const handleRestartIntro = React.useCallback(async () => {
+    if (isRestartingIntroRef.current) return;
+    isRestartingIntroRef.current = true;
+    try {
+      warmCallCancelledRef.current = true;
+      callAudioReadyRef.current = false;
+      hasTriggeredCallStartRef.current = false;
+      callStartPromiseRef.current = null;
+      setIsStartingCall(true);
+      await onDiscardCall();
+      startCoordinatorOnboardingBackgroundMusic({
+        keepClockWhenMuted: true,
+        resetTimelineStop: true,
+      });
+      primeCoordinatorOnboardingCitySoundscape();
+      isBeginningIntroRef.current = false;
+      setPhase('picker');
+      setIntroAvatarOffset({ x: 0, y: -72 });
+      setIntroSkipSignal(0);
+      setIntroReady(false);
+      setIntroStartedAt(null);
+      setIntroCountdownMs(0);
+      setIsIntroTimelineReady(false);
+      setSurfaceVisible(false);
+    } finally {
+      setIsStartingCall(false);
+      isRestartingIntroRef.current = false;
+    }
   }, [onDiscardCall]);
 
   const handleSkipIntro = React.useCallback(() => {
