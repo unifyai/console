@@ -8,11 +8,11 @@ import type {
 } from '@/components/Brand/TeammateCreature';
 import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
 
-const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 81.774;
-const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 84_297;
+const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 81.6;
+const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 84_219;
 // Regenerate through docs/coordinator-onboarding-audio.md so the walkie
 // treatment stays aligned with the shared branding pipeline.
-const COORDINATOR_ONBOARDING_INTRO_AUDIO_SRC = '/sounds/twin-onboarding-intro.mp3?v=47c56b28';
+const COORDINATOR_ONBOARDING_INTRO_AUDIO_SRC = '/sounds/twin-onboarding-intro.mp3?v=b754e4af';
 
 export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm T dash W 1 N.
 
