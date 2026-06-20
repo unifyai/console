@@ -217,10 +217,10 @@ function CoordinatorAssistantInfoSidePanelContent({
     <ScrollArea className={cn('flex-1', className)}>
       <div className="flex flex-col gap-4 px-4 py-4">
         <IdentityHeader
-          name="Twin"
+          name="T-W1N"
           photoSrc={undefined}
           initials="M"
-          summary="Your personal Twin"
+          summary="Your personal twin"
           visibilityLabel={
             <span className="inline-flex items-center gap-1">
               Only you

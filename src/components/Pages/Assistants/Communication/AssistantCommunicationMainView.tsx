@@ -191,7 +191,7 @@ export function AssistantCommunicationMainView({
     const updateIntroAudioState = () => {
       const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
       const audio = coordinatorWindow.__coordinatorOnboardingIntroAudio;
-      setIsIntroAudioPlaying(!!audio && !audio.paused && !audio.ended);
+      setIsIntroAudioPlaying(!!audio && !audio.ended);
       setIntroAudioSpeechLevel(coordinatorWindow.__coordinatorOnboardingIntroSpeechLevel ?? 0);
       setIntroAudioMouthShape(coordinatorWindow.__coordinatorOnboardingIntroMouthShape ?? 'closed');
     };
@@ -371,8 +371,14 @@ export function AssistantCommunicationMainView({
                   isSpeaking={isCoordinatorSpeaking}
                   isCallActive={isCallActive}
                   isUserSpeaking={isUserSpeaking}
-                  layoutTransition={COORDINATOR_ONBOARDING_DROID_LAYOUT_TRANSITION}
-                  layoutId="coordinator-onboarding-call-avatar"
+                  layoutTransition={
+                    coordinatorTeleportIn
+                      ? undefined
+                      : COORDINATOR_ONBOARDING_DROID_LAYOUT_TRANSITION
+                  }
+                  layoutId={
+                    coordinatorTeleportIn ? undefined : 'coordinator-onboarding-call-avatar'
+                  }
                   teleportInOnMount={coordinatorTeleportIn}
                   mood={mood}
                   mouthShape={coordinatorMouthShape}

@@ -453,7 +453,7 @@ export function ChatWithInfoPanel({
     infoPanelFocusLayoutRequest,
   ]);
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     if (infoPanelFocusLayoutRequest <= 0) return;
     if (assistant.isCoordinator !== true || !hasIncompleteOnboarding) return;
     if (seededInfoFocusLayoutRequestRef.current === infoPanelFocusLayoutRequest) return;

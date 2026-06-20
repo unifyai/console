@@ -16,6 +16,7 @@ import {
   Settings,
   Loader2,
   ShieldCheck,
+  RotateCcw,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { Button } from '@/components/UI/button';
@@ -80,6 +81,8 @@ export default function TopNav() {
   const [avatarJSX, setAvatarJSX] = useState<JSX.Element | null>(null);
   const [userOrgs, setUserOrgs] = useState<UserOrganization[]>([]);
   const [showPersonalWorkspaceConfirm, setShowPersonalWorkspaceConfirm] = useState(false);
+  const [showSelfHostResetConfirm, setShowSelfHostResetConfirm] = useState(false);
+  const [isSelfHostResetting, setIsSelfHostResetting] = useState(false);
   const [workspacePhotos, setWorkspacePhotos] = useState<Record<string, string>>({});
 
   const {
@@ -132,6 +135,22 @@ export default function TopNav() {
   const handleSignOut = async () => {
     await signOut({ redirect: false });
     window.location.assign('/login');
+  };
+
+  const handleSelfHostReset = async () => {
+    setIsSelfHostResetting(true);
+    try {
+      const response = await fetch('/api/self-host/reset', { method: 'POST' });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body?.message || body?.error || 'Reset failed');
+      }
+      window.location.reload();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Reset failed';
+      window.alert(message);
+      setIsSelfHostResetting(false);
+    }
   };
 
   // Populate user info from session provider
@@ -220,6 +239,7 @@ export default function TopNav() {
   const isUnifyAdmin = userOrgs.some(
     (o) => o.name === 'Unify' && ['owner', 'admin'].includes(o.roleName?.toLowerCase() ?? '')
   );
+  const showSelfHostReset = isSelfHost && process.env.NODE_ENV === 'development';
 
   return (
     <div className="fixed left-0 right-0 top-0 z-50 h-10 border-b border-border bg-card">
@@ -409,6 +429,31 @@ export default function TopNav() {
           {/* Support Ticket — only when a support delivery channel is configured */}
           {supportEnabled && <SupportTicketDialog />}
 
+          {showSelfHostReset && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="text-body-muted h-6 gap-1.5 px-2 hover:text-foreground"
+                    onClick={() => setShowSelfHostResetConfirm(true)}
+                    disabled={isSelfHostResetting}
+                  >
+                    {isSelfHostResetting ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    )}
+                    <span>Reset</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Clear local self-host onboarding and chat history</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
           {/* Dark Mode Toggle */}
           <DarkModeToggle />
 
@@ -524,6 +569,29 @@ export default function TopNav() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmPersonalWorkspaceSwitch}>
               Switch to Personal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showSelfHostResetConfirm} onOpenChange={setShowSelfHostResetConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-[color:var(--status-warning)]" />
+              Reset Local Self-Host State?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 text-left">
+              <span className="block">
+                This clears local chat, onboarding, organization, and assistant history while
+                keeping the self-host owner account and Twin Coordinator.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSelfHostResetting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSelfHostReset} disabled={isSelfHostResetting}>
+              {isSelfHostResetting ? 'Resetting…' : 'Reset'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

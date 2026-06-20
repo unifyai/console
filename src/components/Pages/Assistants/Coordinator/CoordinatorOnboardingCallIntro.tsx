@@ -30,10 +30,8 @@ type CoordinatorIntroBackgroundMusicState = {
 };
 type CoordinatorIntroBackgroundMusicStartOptions = {
   fadeIn?: boolean;
-};
-type CoordinatorIntroRadioStation = {
-  src: string;
-  volume: number;
+  keepClockWhenMuted?: boolean;
+  resetTimelineStop?: boolean;
 };
 type TwinTextBubbleCue = {
   startMs: number;
@@ -47,18 +45,6 @@ const ASCENT_SOUND_VOLUME = 0.27;
 const ASCENT_SOUND_SKIP_OFFSET_SEC = 32;
 const COORDINATOR_INTRO_VOICE_VOLUME = 0.8;
 const COORDINATOR_INTRO_RADIO_STORAGE_KEY = 'console:coordinator-onboarding-radio-enabled';
-const COORDINATOR_INTRO_RADIO_STATIONS: readonly CoordinatorIntroRadioStation[] = [
-  {
-    src: COORDINATOR_ONBOARDING_INTRO.backgroundMusicSrc,
-    volume: COORDINATOR_ONBOARDING_INTRO.backgroundMusicVolume,
-  },
-  { src: '/sounds/retro-fun-upbeat-radio.mp3', volume: 0.04228 },
-  { src: '/sounds/holiday-party-radio.mp3', volume: 0.04108 },
-  { src: '/sounds/goodbye-moonmen-radio.mp3', volume: 0.04052 },
-];
-const COORDINATOR_INTRO_RADIO_STATION_CUE_SRC = '/sounds/radio-tuning-transition.mp3';
-const COORDINATOR_INTRO_RADIO_STATION_CUE_VOLUME = 0.06;
-const COORDINATOR_INTRO_RADIO_STATION_CUE_MS = 1_500;
 const COORDINATOR_INTRO_RADIO_TOGGLE_CUE_SRC = '/sounds/radio-station-crackle.wav';
 const COORDINATOR_INTRO_RADIO_TOGGLE_CUE_VOLUME = 0.22;
 const COORDINATOR_INTRO_RADIO_TOGGLE_CUE_MS = 620;
@@ -67,16 +53,12 @@ const COORDINATOR_INTRO_RADIO_MUSIC_FADE_IN_MS = 160;
 let coordinatorCitySoundscapeState: CoordinatorCitySoundscapeState | null = null;
 let coordinatorCitySoundscapeCleanupTimer: number | null = null;
 let coordinatorIntroBackgroundMusicState: CoordinatorIntroBackgroundMusicState | null = null;
-let coordinatorIntroStationCueAudio: HTMLAudioElement | null = null;
-let coordinatorIntroStationCueStopTimer: number | null = null;
 let coordinatorIntroToggleCueAudio: HTMLAudioElement | null = null;
 let coordinatorIntroToggleCueStopTimer: number | null = null;
-let coordinatorIntroStationChangeTimer: number | null = null;
 let coordinatorIntroMusicFadeFrame: number | null = null;
-let coordinatorIntroStationTransitionActive = false;
 let coordinatorIntroRadioEnabled = true;
 let coordinatorIntroRadioPreferenceLoaded = false;
-let coordinatorIntroRadioStationIndex = 0;
+let coordinatorIntroRadioStoppedForTimeline = false;
 let coordinatorIntroBackgroundMusicVolume: number =
   COORDINATOR_ONBOARDING_INTRO.backgroundMusicVolume;
 let coordinatorIntroBackgroundMusicVolumeScale = 1;
@@ -94,15 +76,16 @@ function clampAudioVolume(volume: number) {
   return Math.max(0, Math.min(1, volume));
 }
 
-function getCoordinatorIntroRadioStation() {
+function getCoordinatorIntroRadioStationTargetVolume() {
   return (
-    COORDINATOR_INTRO_RADIO_STATIONS[coordinatorIntroRadioStationIndex] ??
-    COORDINATOR_INTRO_RADIO_STATIONS[0]
+    COORDINATOR_ONBOARDING_INTRO.backgroundMusicVolume * coordinatorIntroBackgroundMusicVolumeScale
   );
 }
 
-function getCoordinatorIntroRadioStationTargetVolume() {
-  return getCoordinatorIntroRadioStation().volume * coordinatorIntroBackgroundMusicVolumeScale;
+function getCoordinatorAscentSoundTargetVolume() {
+  return coordinatorIntroRadioEnabled
+    ? ASCENT_SOUND_VOLUME * coordinatorIntroBackgroundMusicVolumeScale
+    : 0;
 }
 
 function resetCoordinatorIntroBackgroundMusicVolumeScale() {
@@ -143,6 +126,15 @@ function fadeCoordinatorIntroBackgroundMusicVolume(
   coordinatorIntroMusicFadeFrame = window.requestAnimationFrame(step);
 }
 
+function fadeCoordinatorAscentSoundVolume(toVolume: number, timeConstant = 0.08) {
+  const state = coordinatorCitySoundscapeState;
+  if (!state) return;
+
+  const now = state.context.currentTime;
+  state.ascentGain.gain.cancelScheduledValues(now);
+  state.ascentGain.gain.setTargetAtTime(clampAudioVolume(toVolume), now, timeConstant);
+}
+
 function stopCoordinatorIntroAudio(audio: HTMLAudioElement | null, releaseSource = false) {
   if (!audio) return;
   audio.pause();
@@ -152,15 +144,6 @@ function stopCoordinatorIntroAudio(audio: HTMLAudioElement | null, releaseSource
   audio.load();
 }
 
-function stopCoordinatorIntroStationCue(releaseSource = false) {
-  if (coordinatorIntroStationCueStopTimer !== null) {
-    window.clearTimeout(coordinatorIntroStationCueStopTimer);
-    coordinatorIntroStationCueStopTimer = null;
-  }
-  stopCoordinatorIntroAudio(coordinatorIntroStationCueAudio, releaseSource);
-  if (releaseSource) coordinatorIntroStationCueAudio = null;
-}
-
 function stopCoordinatorIntroToggleCue(releaseSource = false) {
   if (coordinatorIntroToggleCueStopTimer !== null) {
     window.clearTimeout(coordinatorIntroToggleCueStopTimer);
@@ -168,33 +151,6 @@ function stopCoordinatorIntroToggleCue(releaseSource = false) {
   }
   stopCoordinatorIntroAudio(coordinatorIntroToggleCueAudio, releaseSource);
   if (releaseSource) coordinatorIntroToggleCueAudio = null;
-}
-
-function clearCoordinatorIntroStationTransition() {
-  if (coordinatorIntroStationChangeTimer !== null) {
-    window.clearTimeout(coordinatorIntroStationChangeTimer);
-    coordinatorIntroStationChangeTimer = null;
-  }
-  stopCoordinatorIntroStationCue();
-  coordinatorIntroStationTransitionActive = false;
-}
-
-function playCoordinatorIntroStationCue() {
-  if (typeof window === 'undefined' || document.hidden) return;
-  stopCoordinatorIntroStationCue();
-
-  if (!coordinatorIntroStationCueAudio) {
-    coordinatorIntroStationCueAudio = new Audio(COORDINATOR_INTRO_RADIO_STATION_CUE_SRC);
-    coordinatorIntroStationCueAudio.preload = 'auto';
-  }
-
-  const audio = coordinatorIntroStationCueAudio;
-  audio.volume = COORDINATOR_INTRO_RADIO_STATION_CUE_VOLUME;
-  void audio.play().catch(() => undefined);
-
-  coordinatorIntroStationCueStopTimer = window.setTimeout(() => {
-    stopCoordinatorIntroStationCue();
-  }, COORDINATOR_INTRO_RADIO_STATION_CUE_MS);
 }
 
 function playCoordinatorIntroToggleCue() {
@@ -213,12 +169,6 @@ function playCoordinatorIntroToggleCue() {
   coordinatorIntroToggleCueStopTimer = window.setTimeout(() => {
     stopCoordinatorIntroToggleCue();
   }, COORDINATOR_INTRO_RADIO_TOGGLE_CUE_MS);
-}
-
-function selectCoordinatorIntroRadioStation(direction: -1 | 1) {
-  coordinatorIntroRadioStationIndex =
-    (coordinatorIntroRadioStationIndex + direction + COORDINATOR_INTRO_RADIO_STATIONS.length) %
-    COORDINATOR_INTRO_RADIO_STATIONS.length;
 }
 
 function persistCoordinatorIntroRadioPreference() {
@@ -258,81 +208,54 @@ export function setCoordinatorOnboardingBackgroundMusicEnabled(enabled: boolean)
 
   if (enabled) {
     resetCoordinatorIntroBackgroundMusicVolumeScale();
+    fadeCoordinatorAscentSoundVolume(getCoordinatorAscentSoundTargetVolume());
     startCoordinatorOnboardingBackgroundMusic({ fadeIn: true });
     return;
   }
 
-  clearCoordinatorIntroStationTransition();
+  fadeCoordinatorAscentSoundVolume(0);
   const state = coordinatorIntroBackgroundMusicState;
   if (!state) return;
   fadeCoordinatorIntroBackgroundMusicVolume(
     state.audio,
     0,
-    COORDINATOR_INTRO_RADIO_MUSIC_FADE_OUT_MS,
-    () => {
-      state.audio.pause();
-      state.audio.currentTime = 0;
-    }
+    COORDINATOR_INTRO_RADIO_MUSIC_FADE_OUT_MS
   );
-}
-
-export function changeCoordinatorOnboardingBackgroundMusicStation(direction: -1 | 1) {
-  loadCoordinatorIntroRadioPreference();
-  coordinatorIntroRadioEnabled = true;
-  persistCoordinatorIntroRadioPreference();
-  if (typeof window === 'undefined') return;
-
-  clearCoordinatorIntroStationTransition();
-  resetCoordinatorIntroBackgroundMusicVolumeScale();
-  coordinatorIntroStationTransitionActive = true;
-  const state = coordinatorIntroBackgroundMusicState;
-  if (state && !state.audio.paused) {
-    fadeCoordinatorIntroBackgroundMusicVolume(
-      state.audio,
-      0,
-      COORDINATOR_INTRO_RADIO_MUSIC_FADE_OUT_MS,
-      () => state.audio.pause()
-    );
-  }
-  playCoordinatorIntroStationCue();
-
-  coordinatorIntroStationChangeTimer = window.setTimeout(() => {
-    selectCoordinatorIntroRadioStation(direction);
-    coordinatorIntroStationTransitionActive = false;
-    coordinatorIntroStationChangeTimer = null;
-    startCoordinatorOnboardingBackgroundMusic({ fadeIn: true });
-  }, COORDINATOR_INTRO_RADIO_STATION_CUE_MS);
 }
 
 export function startCoordinatorOnboardingBackgroundMusic(
   options: CoordinatorIntroBackgroundMusicStartOptions = {}
 ) {
   if (typeof window === 'undefined') return;
-  loadCoordinatorIntroRadioPreference();
-  if (!coordinatorIntroRadioEnabled || coordinatorIntroStationTransitionActive) return;
+  if (options.resetTimelineStop) coordinatorIntroRadioStoppedForTimeline = false;
+  if (coordinatorIntroRadioStoppedForTimeline) return;
 
-  const station = getCoordinatorIntroRadioStation();
-  if (!station?.src) return;
+  loadCoordinatorIntroRadioPreference();
+  const shouldPlayAudibly = coordinatorIntroRadioEnabled;
+  if (!shouldPlayAudibly && !options.keepClockWhenMuted) return;
+
+  const src = COORDINATOR_ONBOARDING_INTRO.backgroundMusicSrc;
+  if (!src) return;
 
   let state = coordinatorIntroBackgroundMusicState;
-  if (!state || state.src !== station.src) {
+  if (!state || state.src !== src) {
     if (state) {
       state.audio.pause();
       state.audio.removeAttribute('src');
       state.audio.load();
     }
-    const audio = new Audio(station.src);
+    const audio = new Audio(src);
     audio.loop = true;
     audio.preload = 'auto';
-    state = { audio, src: station.src };
+    state = { audio, src };
     coordinatorIntroBackgroundMusicState = state;
   }
 
-  const targetVolume = getCoordinatorIntroRadioStationTargetVolume();
+  const targetVolume = shouldPlayAudibly ? getCoordinatorIntroRadioStationTargetVolume() : 0;
   coordinatorIntroBackgroundMusicVolume = targetVolume;
   cancelCoordinatorIntroMusicFade();
 
-  if (options.fadeIn) {
+  if (options.fadeIn && shouldPlayAudibly) {
     state.audio.volume = 0;
     void state.audio
       .play()
@@ -352,17 +275,19 @@ export function startCoordinatorOnboardingBackgroundMusic(
 }
 
 function setCoordinatorOnboardingBackgroundMusicVolume(volume: number) {
-  const stationVolume = getCoordinatorIntroRadioStation().volume;
+  const stationVolume = COORDINATOR_ONBOARDING_INTRO.backgroundMusicVolume;
   coordinatorIntroBackgroundMusicVolumeScale =
     stationVolume > 0 ? clampAudioVolume(volume / stationVolume) : 0;
   coordinatorIntroBackgroundMusicVolume = getCoordinatorIntroRadioStationTargetVolume();
   const state = coordinatorIntroBackgroundMusicState;
-  if (!state) return;
-  state.audio.volume = clampAudioVolume(coordinatorIntroBackgroundMusicVolume);
+  if (state) {
+    state.audio.volume = clampAudioVolume(coordinatorIntroBackgroundMusicVolume);
+  }
+  fadeCoordinatorAscentSoundVolume(getCoordinatorAscentSoundTargetVolume());
 }
 
 export function stopCoordinatorOnboardingBackgroundMusic() {
-  clearCoordinatorIntroStationTransition();
+  coordinatorIntroRadioStoppedForTimeline = false;
   stopCoordinatorIntroToggleCue(true);
   cancelCoordinatorIntroMusicFade();
   const state = coordinatorIntroBackgroundMusicState;
@@ -371,6 +296,27 @@ export function stopCoordinatorOnboardingBackgroundMusic() {
   stopCoordinatorIntroAudio(state.audio, true);
   coordinatorIntroBackgroundMusicState = null;
   resetCoordinatorIntroBackgroundMusicVolumeScale();
+}
+
+function stopCoordinatorOnboardingBackgroundMusicWithCue() {
+  coordinatorIntroRadioStoppedForTimeline = true;
+  playCoordinatorIntroToggleCue();
+  cancelCoordinatorIntroMusicFade();
+  const state = coordinatorIntroBackgroundMusicState;
+  if (!state) return;
+
+  fadeCoordinatorIntroBackgroundMusicVolume(
+    state.audio,
+    0,
+    COORDINATOR_INTRO_RADIO_MUSIC_FADE_OUT_MS,
+    () => {
+      stopCoordinatorIntroAudio(state.audio, true);
+      if (coordinatorIntroBackgroundMusicState === state) {
+        coordinatorIntroBackgroundMusicState = null;
+      }
+      resetCoordinatorIntroBackgroundMusicVolumeScale();
+    }
+  );
 }
 
 function ensureCoordinatorCitySoundscape() {
@@ -439,8 +385,12 @@ function playCoordinatorAscentSound(src: string, skipped: boolean) {
 
       state.ascentGain.gain.cancelScheduledValues(now);
       state.ascentGain.gain.setValueAtTime(0.0001, now);
-      state.ascentGain.gain.exponentialRampToValueAtTime(ASCENT_SOUND_VOLUME, now + 0.75);
-      state.ascentGain.gain.setValueAtTime(ASCENT_SOUND_VOLUME, now + 0.76);
+      const targetVolume = getCoordinatorAscentSoundTargetVolume();
+      state.ascentGain.gain.exponentialRampToValueAtTime(
+        Math.max(0.0001, targetVolume),
+        now + 0.75
+      );
+      state.ascentGain.gain.setValueAtTime(targetVolume, now + 0.76);
       const offset = skipped
         ? Math.min(ASCENT_SOUND_SKIP_OFFSET_SEC, Math.max(0, buffer.duration - 0.5))
         : 0;
@@ -488,6 +438,13 @@ function lipsyncUrlForAudio(src: string): string {
   return src.replace(/\.mp3(\?.*)?$/i, '.lipsync.json');
 }
 
+function isIntroMouthSuppressed(currentTime: number) {
+  const currentMs = currentTime * 1_000;
+  return TWIN_MOUTH_SUPPRESSION_WINDOWS.some(
+    ({ endMs, startMs }) => currentMs >= startMs && currentMs <= endMs
+  );
+}
+
 /**
  * Sample a pre-computed lipsync track at a playback position. Inactive frames
  * resolve to a still, closed mouth so silence never flaps the droid mouth.
@@ -498,6 +455,7 @@ function sampleIntroLipsyncTrack(
 ): { mouthShape: CreatureMouthShape; speechLevel: number } {
   const frames = track.frames;
   if (frames.length === 0) return { mouthShape: 'closed', speechLevel: 0 };
+  if (isIntroMouthSuppressed(currentTime)) return { mouthShape: 'closed', speechLevel: 0 };
   const idx = Math.max(
     0,
     Math.min(frames.length - 1, Math.round(currentTime * Math.max(track.fps, 1)))
@@ -514,6 +472,47 @@ type BrowserWindowWithCoordinatorIntroAudio = Window & {
   __coordinatorOnboardingIntroSpeechLevel?: number;
   __coordinatorOnboardingIntroMouthShape?: CreatureMouthShape;
 };
+
+function audioElementMatchesSrc(audio: HTMLAudioElement, src: string) {
+  return (
+    new URL(audio.currentSrc || audio.src, window.location.href).href ===
+    new URL(src, window.location.href).href
+  );
+}
+
+export function primeCoordinatorOnboardingIntroVoice() {
+  if (typeof window === 'undefined') return;
+  const src = COORDINATOR_ONBOARDING_INTRO.audioSrc;
+  const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
+  let audio = coordinatorWindow.__coordinatorOnboardingIntroAudio;
+
+  if (!audio || audio.ended || !audioElementMatchesSrc(audio, src)) {
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+    }
+    audio = new Audio(src);
+    audio.preload = 'auto';
+    audio.loop = false;
+    audio.volume = COORDINATOR_INTRO_VOICE_VOLUME;
+    coordinatorWindow.__coordinatorOnboardingIntroAudio = audio;
+  }
+
+  audio.muted = true;
+  void audio
+    .play()
+    .then(() => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.muted = false;
+      audio.volume = COORDINATOR_INTRO_VOICE_VOLUME;
+    })
+    .catch(() => {
+      audio.muted = false;
+      audio.volume = COORDINATOR_INTRO_VOICE_VOLUME;
+    });
+}
 
 interface CoordinatorOnboardingCallIntroProps {
   initialAvatarOffset: { x: number; y: number };
@@ -558,11 +557,13 @@ function getAcceleratedScrollProgress(elapsedMs: number, totalMs: number, accele
   return (elapsed - rampMs / 2) / denominator;
 }
 
-function getCityBackdropOpacity(progress: number) {
-  const fadeStart = 0.74;
-  const fadeEnd = 0.96;
-  const fadeProgress = Math.max(0, Math.min(1, (progress - fadeStart) / (fadeEnd - fadeStart)));
-  return 1 - fadeProgress * fadeProgress * (3 - 2 * fadeProgress);
+function easeArrivalProgress(progress: number) {
+  const easeStart = 0.68;
+  if (progress <= easeStart) return progress;
+
+  const tailProgress = (progress - easeStart) / (1 - easeStart);
+  const easedTail = tailProgress + tailProgress * tailProgress - tailProgress ** 3;
+  return easeStart + easedTail * (1 - easeStart);
 }
 
 function getVisualHandoffOffsetMs(durationMs: number) {
@@ -575,31 +576,97 @@ function getVisualHandoffOffsetMs(durationMs: number) {
 function getSurfaceRevealOffsetMs(durationMs: number) {
   return Math.max(
     COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs + 500,
-    durationMs - COORDINATOR_ONBOARDING_INTRO.surfaceRevealLeadMs
+    (TWIN_PLATFORM_REVEAL_SOURCE_MS * durationMs) / COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs
   );
 }
 
 const TWIN_DROID_APPEARANCE = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID;
+const TWIN_BACKGROUND_ARRIVAL_SOURCE_MS = 61_633;
+const TWIN_RADIO_STOP_SOURCE_MS = 67_217;
+const TWIN_PLATFORM_REVEAL_SOURCE_MS = 76_200;
+const TWIN_MOUTH_SUPPRESSION_WINDOWS = [
+  {
+    startMs: TWIN_RADIO_STOP_SOURCE_MS,
+    endMs: TWIN_RADIO_STOP_SOURCE_MS + COORDINATOR_INTRO_RADIO_TOGGLE_CUE_MS,
+  },
+  {
+    startMs: 70_800,
+    endMs: 72_700,
+  },
+] as const;
 const TWIN_TEXT_BUBBLE_CUES = [
-  { startMs: 0, text: "Hi, I'm Twin." },
-  { startMs: 1_400, text: 'Firstly, I know what you might be thinking.' },
-  { startMs: 3_320, text: 'Am I really going to spend my time talking to a tiny robot?' },
-  { startMs: 6_580, text: "You're a serious person with a presumably serious and important job." },
-  { startMs: 10_480, text: 'Well,' },
-  { startMs: 11_560, text: "I don't know if you've noticed," },
-  { startMs: 12_480, text: "but the world isn't doing so well." },
-  { startMs: 14_560, text: 'Escaping to another planet might be the best decision you make.' },
-  { startMs: 18_000, text: "It'll certainly save you a lot of time." },
-  { startMs: 20_120, text: 'I can manage your mailbox.' },
-  { startMs: 21_720, text: 'I can help you draft documents.' },
-  { startMs: 23_420, text: 'I can remind you of important events.' },
-  { startMs: 25_680, text: 'And I can do just about anything that a human coworker could.' },
-  { startMs: 29_500, text: "Don't think about prompting or configuring me." },
-  { startMs: 32_540, text: 'Just talk to me naturally like you would anyone else.' },
-  { startMs: 35_180, text: "And I'll be able to help." },
-  { startMs: 36_740, text: "I'll now walk you through the platform." },
-  { startMs: 38_680, text: 'Any immediate questions before we start?' },
+  { startMs: 285, text: "Hi, I'm T dash W 1 N." },
+  {
+    startMs: 3_222,
+    text: "Before you ask, no I'm not one of Elon's many children,",
+  },
+  { startMs: 5_846, text: "and no he didn't come up with the name, thankfully." },
+  {
+    startMs: 8_865,
+    text: "I have this name because I'll be acting as your digital twin.",
+  },
+  { startMs: 12_429, text: 'Do you get it?' },
+  { startMs: 13_810, text: 'Twin?' },
+  { startMs: 14_519, text: 'Like T dash W 1 N spells Twin?' },
+  {
+    startMs: 17_979,
+    text: "The creators of this platform express how important it is that you acknowledge that it's a clever and funny name.",
+  },
+  { startMs: 25_038, text: 'Okay, what next.' },
+  {
+    startMs: 26_849,
+    text: "They didn't give me much to work with on this intro to be honest.",
+  },
+  { startMs: 30_332, text: 'Have you ever had a Krispy Kreme?' },
+  { startMs: 32_329, text: 'Have you ever gone to Krispy Kreme?' },
+  { startMs: 34_430, text: 'Was it krispy?' },
+  { startMs: 37_632, text: 'I think I was meant to tell you about my capabilities?' },
+  {
+    startMs: 40_523,
+    text: "I'm not one for bragging, but I'll do my best.",
+  },
+  { startMs: 43_619, text: 'What can I say?' },
+  { startMs: 45_175, text: 'I\'m not a "tool".' },
+  { startMs: 46_417, text: 'I\'m not an "agent".' },
+  {
+    startMs: 48_124,
+    text: "I'm your living, breathing colleague, metaphorically speaking.",
+  },
+  {
+    startMs: 52_872,
+    text: "Don't think about prompting me, or configuring me,",
+  },
+  {
+    startMs: 55_415,
+    text: "just talk to me naturally like you would anyone else, and I'll be able to help.",
+  },
+  { startMs: 58_267, text: "It's really that simple." },
+  { startMs: 59_883, text: "There's not much more to say." },
+  { startMs: 61_633, text: "I'll now walk you through the platform." },
+  {
+    startMs: 63_933,
+    text: 'Actually, first lets turn off this really annoying music.',
+  },
+  { startMs: 68_250, text: 'Also, let me remove this voice static.' },
+  { startMs: 72_850, text: 'Much better.' },
+  { startMs: 74_300, text: "There we go, now I'll pull up the platform." },
+  { startMs: 76_400, text: 'Any questions before we start with the onboarding?' },
 ] as const satisfies readonly TwinTextBubbleCue[];
+
+function getBackgroundArrivalOffsetMs(durationMs: number) {
+  return Math.max(
+    COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs + 500,
+    (TWIN_BACKGROUND_ARRIVAL_SOURCE_MS * durationMs) /
+      COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs
+  );
+}
+
+function getRadioStopOffsetMs(durationMs: number) {
+  return Math.max(
+    COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs + 500,
+    (TWIN_RADIO_STOP_SOURCE_MS * durationMs) / COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs
+  );
+}
 
 function getTwinTextBubbleCueIndex(elapsedMs: number, durationMs: number) {
   const sourceElapsedMs =
@@ -644,6 +711,7 @@ export function CoordinatorOnboardingCallIntro({
   const landingDelayTimerRef = React.useRef<number | null>(null);
   const presentationModeRef = React.useRef(presentationMode);
   const latestSourceElapsedMsRef = React.useRef(0);
+  const hasStoppedRadioMusicRef = React.useRef(false);
   // Set when "Skip" is pressed before the audio element has begun playing; the
   // start handler then seeks immediately.
   const skipRequestedRef = React.useRef(false);
@@ -690,6 +758,12 @@ export function CoordinatorOnboardingCallIntro({
     hasFinishedRef.current = true;
     keepAudioAfterUnmountRef.current = true;
     onFinishedRef.current();
+  }, []);
+
+  const stopRadioMusicOnce = React.useCallback(() => {
+    if (hasStoppedRadioMusicRef.current) return;
+    hasStoppedRadioMusicRef.current = true;
+    stopCoordinatorOnboardingBackgroundMusicWithCue();
   }, []);
 
   const scheduleLanding = React.useCallback(() => {
@@ -750,6 +824,8 @@ export function CoordinatorOnboardingCallIntro({
     const { durationMs } = getRuntimeTiming();
     const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs);
     const surfaceRevealOffsetMs = getSurfaceRevealOffsetMs(durationMs);
+    const radioStopOffsetMs = getRadioStopOffsetMs(durationMs);
+    hasStoppedRadioMusicRef.current = false;
     const speakingStartTimer = window.setTimeout(
       () => setStage('speaking'),
       COORDINATOR_ONBOARDING_INTRO.initialPauseMs
@@ -763,6 +839,10 @@ export function CoordinatorOnboardingCallIntro({
       () => onReadyToRevealSurfaceRef.current?.(),
       COORDINATOR_ONBOARDING_INTRO.initialPauseMs + surfaceRevealOffsetMs
     );
+    const radioStopTimer = window.setTimeout(
+      () => stopRadioMusicOnce(),
+      COORDINATOR_ONBOARDING_INTRO.initialPauseMs + radioStopOffsetMs
+    );
     const landingTimer = window.setTimeout(
       () => scheduleLanding(),
       COORDINATOR_ONBOARDING_INTRO.initialPauseMs + handoffOffsetMs
@@ -772,22 +852,43 @@ export function CoordinatorOnboardingCallIntro({
       window.clearTimeout(speakingStartTimer);
       window.clearTimeout(backgroundStartTimer);
       window.clearTimeout(surfaceRevealTimer);
+      window.clearTimeout(radioStopTimer);
       window.clearTimeout(landingTimer);
     };
-  }, [scheduleLanding, timelineEnabled]);
+  }, [scheduleLanding, stopRadioMusicOnce, timelineEnabled]);
 
   React.useEffect(() => {
     if (!timelineEnabled || !configuredIntroAudioSrc) return undefined;
 
-    let audio: HTMLAudioElement | null = new Audio(configuredIntroAudioSrc);
+    const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
+    let audio: HTMLAudioElement | null =
+      coordinatorWindow.__coordinatorOnboardingIntroAudio &&
+      !coordinatorWindow.__coordinatorOnboardingIntroAudio.ended &&
+      audioElementMatchesSrc(
+        coordinatorWindow.__coordinatorOnboardingIntroAudio,
+        configuredIntroAudioSrc
+      )
+        ? coordinatorWindow.__coordinatorOnboardingIntroAudio
+        : new Audio(configuredIntroAudioSrc);
     let audioTimer: number | null = null;
     let animationFrame = 0;
     let hasStartedAudio = false;
     let shouldPublishToComponent = true;
 
+    audio.currentTime = getPlayableAudioTime(audio, latestSourceElapsedMsRef.current / 1_000);
+    audio.muted = false;
     audio.preload = 'auto';
     audio.loop = false;
     audio.volume = COORDINATOR_INTRO_VOICE_VOLUME;
+
+    const previousAudio = coordinatorWindow.__coordinatorOnboardingIntroAudio;
+    if (previousAudio && previousAudio !== audio) {
+      previousAudio.pause();
+      previousAudio.currentTime = 0;
+      previousAudio.removeAttribute('src');
+      previousAudio.load();
+    }
+    coordinatorWindow.__coordinatorOnboardingIntroAudio = audio;
 
     const stopAudioAnalysis = (resetSpeechLevel = true) => {
       if (animationFrame) {
@@ -808,6 +909,14 @@ export function CoordinatorOnboardingCallIntro({
     const startAudioAnalysis = (audioElement: HTMLAudioElement) => {
       const tick = () => {
         latestSourceElapsedMsRef.current = audioElement.currentTime * 1_000;
+        const { durationMs } = getRuntimeTiming();
+        const radioStopOffsetMs = getRadioStopOffsetMs(durationMs);
+        if (
+          !hasStoppedRadioMusicRef.current &&
+          latestSourceElapsedMsRef.current >= radioStopOffsetMs
+        ) {
+          stopRadioMusicOnce();
+        }
         const track = lipsyncTrackRef.current;
         const { mouthShape, speechLevel } = track
           ? sampleIntroLipsyncTrack(track, audioElement.currentTime)
@@ -826,7 +935,6 @@ export function CoordinatorOnboardingCallIntro({
     };
 
     const handleEnded = () => {
-      const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
       if (coordinatorWindow.__coordinatorOnboardingIntroAudio === audio) {
         coordinatorWindow.__coordinatorOnboardingIntroAudio = undefined;
       }
@@ -842,16 +950,6 @@ export function CoordinatorOnboardingCallIntro({
         if (!audio) return;
         if (hasStartedAudio) return;
         hasStartedAudio = true;
-
-        const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
-        const previousAudio = coordinatorWindow.__coordinatorOnboardingIntroAudio;
-        if (previousAudio && previousAudio !== audio) {
-          previousAudio.pause();
-          previousAudio.currentTime = 0;
-          previousAudio.removeAttribute('src');
-          previousAudio.load();
-        }
-        coordinatorWindow.__coordinatorOnboardingIntroAudio = audio;
 
         if (skipRequestedRef.current) {
           audio.currentTime = getPlayableAudioTime(
@@ -887,7 +985,6 @@ export function CoordinatorOnboardingCallIntro({
       }
       if (audio) {
         audio.removeEventListener('ended', handleEnded);
-        const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
         if (!keepAudioPlaying && coordinatorWindow.__coordinatorOnboardingIntroAudio === audio) {
           coordinatorWindow.__coordinatorOnboardingIntroAudio = undefined;
         }
@@ -898,7 +995,7 @@ export function CoordinatorOnboardingCallIntro({
         audio = null;
       }
     };
-  }, [configuredIntroAudioSrc, scheduleLanding, timelineEnabled]);
+  }, [configuredIntroAudioSrc, scheduleLanding, stopRadioMusicOnce, timelineEnabled]);
 
   React.useEffect(() => {
     if (!timelineEnabled || presentationMode !== 'text') {
@@ -965,10 +1062,13 @@ export function CoordinatorOnboardingCallIntro({
     if (!root || stage !== 'flying') return;
 
     const { durationMs } = getRuntimeTiming();
-    const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs);
+    const backgroundArrivalOffsetMs = getBackgroundArrivalOffsetMs(durationMs);
     const motionDurationMs = skipped
       ? SKIP_FLY_MS
-      : Math.max(1, handoffOffsetMs - COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs);
+      : Math.max(
+          1,
+          backgroundArrivalOffsetMs - COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs
+        );
     const currentPosition = Number.parseFloat(
       root.style.getPropertyValue('--coordinator-intro-city-position')
     );
@@ -979,6 +1079,7 @@ export function CoordinatorOnboardingCallIntro({
       : 100;
     let startTimestamp: number | null = null;
     let animationFrame = 0;
+    let hasArrived = false;
 
     const tick = (timestamp: number) => {
       if (startTimestamp === null) startTimestamp = timestamp;
@@ -988,15 +1089,18 @@ export function CoordinatorOnboardingCallIntro({
         motionDurationMs,
         COORDINATOR_ONBOARDING_INTRO.backgroundAccelerationMs
       );
-      const position = skipped ? startPosition * (1 - progress) : (1 - progress) * 100;
-      const ascentProgress = 1 - position / 100;
-      const cityOpacity = getCityBackdropOpacity(ascentProgress);
+      const easedProgress = skipped ? progress : easeArrivalProgress(progress);
+      const position = skipped ? startPosition * (1 - easedProgress) : (1 - easedProgress) * 100;
       root.style.setProperty('--coordinator-intro-city-position', `${position}%`);
-      root.style.setProperty('--coordinator-intro-city-opacity', cityOpacity.toString());
-      setCoordinatorOnboardingBackgroundMusicVolume(
-        getCoordinatorIntroRadioStation().volume * cityOpacity
-      );
-      if (progress < 1) {
+      root.style.setProperty('--coordinator-intro-city-opacity', '1');
+
+      if (progress >= 1) {
+        if (!hasArrived) {
+          hasArrived = true;
+          root.style.setProperty('--coordinator-intro-city-position', '0%');
+          stopCoordinatorAscentSound();
+        }
+      } else {
         animationFrame = window.requestAnimationFrame(tick);
       }
     };

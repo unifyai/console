@@ -1,9 +1,5 @@
 import type { Transition } from 'framer-motion';
 import { TWIN_CREATURE_APPEARANCE } from '@droid/brand/components';
-import {
-  TWIN_ONBOARDING_INTRO_AUDIO_SRC,
-  TWIN_ONBOARDING_INTRO_DURATION_MS,
-} from '@droid/brand/audio';
 import type { BrandRole } from '@/components/Brand/shapes';
 import type {
   CreatureAntenna,
@@ -12,24 +8,41 @@ import type {
 } from '@/components/Brand/TeammateCreature';
 import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
 
-const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 38.68;
+const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 76.4;
+const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 79_400;
+// Regenerate through docs/coordinator-onboarding-audio.md so the walkie
+// treatment stays aligned with the shared branding pipeline.
+const COORDINATOR_ONBOARDING_INTRO_AUDIO_SRC = '/sounds/twin-onboarding-intro.mp3?v=7c5955d4';
 
-export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm Twin.
-Firstly, I know what you might be thinking.
-Am I really going to spend my time talking to a tiny robot?
-You're a serious person with a presumably serious and important job.
-Well, I don't know if you've noticed, but the world isn't doing so well.
-Escaping to another planet might be the best decision you make.
-It'll certainly save you a lot of time.
-I can manage your mailbox.
-I can help you draft documents.
-I can remind you of important events.
-And I can do just about anything that a human coworker could.
-Don't think about prompting or configuring me.
-Just talk to me naturally like you would anyone else.
-And I'll be able to help.
+export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm T dash W 1 N.
+
+Before you ask, no I'm not one of Elon's many children, and no he didn't come up with the name, thankfully.
+
+I have this name because I'll be acting as your digital twin. Do you get it? Twin? Like T dash W 1 N spells Twin? The creators of this platform express how important it is that you acknowledge that it's a clever and funny name.
+
+Okay, what next. They didn't give me much to work with on this intro to be honest.
+
+Have you ever had a Krispy Kreme? Have you ever gone to Krispy Kreme?
+
+Was it krispy?
+
+I think I was meant to tell you about my capabilities?
+
+I'm not one for bragging, but I'll do my best. What can I say? I'm not a "tool". I'm not an "agent". I'm your living, breathing colleague, metaphorically speaking.
+
+Don't think about prompting me, or configuring me, just talk to me naturally like you would anyone else, and I'll be able to help. It's really that simple.
+
+There's not much more to say.
+
 I'll now walk you through the platform.
-Any immediate questions before we start?`;
+
+Actually, first lets turn off this really annoying music.
+
+Also, let me remove this voice static.
+
+Much better. There we go, now I'll pull up the platform.
+
+Any questions before we start with the onboarding?`;
 
 export type CoordinatorOnboardingIntroDroidAppearance = {
   antenna?: CreatureAntenna;
@@ -42,22 +55,19 @@ export type CoordinatorOnboardingIntroDroidAppearance = {
 };
 
 export const COORDINATOR_ONBOARDING_INTRO = {
-  audioSrc: TWIN_ONBOARDING_INTRO_AUDIO_SRC,
+  audioSrc: COORDINATOR_ONBOARDING_INTRO_AUDIO_SRC,
   backgroundMusicSrc: '/sounds/neo-background-music.mp3',
-  backgroundMusicVolume: 0.28,
-  // Served from public/sounds; canonical assets are owned by branding
-  // (assets/audio/droid/onboarding/*.mp3).
+  backgroundMusicVolume: 0.42,
   ascentAudioSrc: '/sounds/space-elevator-ascent.mp3',
   closingQuestionSec: COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC,
-  fallbackDurationMs: TWIN_ONBOARDING_INTRO_DURATION_MS,
+  fallbackDurationMs: COORDINATOR_ONBOARDING_INTRO_DURATION_MS,
   initialPauseMs: 1_000,
   backgroundStartDelayMs: 500,
   backgroundAccelerationMs: 2_400,
   // Keep the city ascent running through the speech rather than ending early.
   handoffLeadMs: 0,
-  surfaceRevealLeadMs: 3_000,
-  teleportOutDelayMs: 500,
-  landingDurationMs: 450,
+  teleportOutDelayMs: 0,
+  landingDurationMs: 225,
 } as const;
 
 export type CoordinatorOnboardingIntroConfig = typeof COORDINATOR_ONBOARDING_INTRO;
