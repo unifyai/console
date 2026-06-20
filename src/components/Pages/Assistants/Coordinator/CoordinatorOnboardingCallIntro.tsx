@@ -293,6 +293,26 @@ export function stopCoordinatorOnboardingBackgroundMusic() {
   resetCoordinatorIntroBackgroundMusicVolumeScale();
 }
 
+function stopCoordinatorOnboardingBackgroundMusicWithCue() {
+  playCoordinatorIntroToggleCue();
+  cancelCoordinatorIntroMusicFade();
+  const state = coordinatorIntroBackgroundMusicState;
+  if (!state) return;
+
+  fadeCoordinatorIntroBackgroundMusicVolume(
+    state.audio,
+    0,
+    COORDINATOR_INTRO_RADIO_MUSIC_FADE_OUT_MS,
+    () => {
+      stopCoordinatorIntroAudio(state.audio, true);
+      if (coordinatorIntroBackgroundMusicState === state) {
+        coordinatorIntroBackgroundMusicState = null;
+      }
+      resetCoordinatorIntroBackgroundMusicVolumeScale();
+    }
+  );
+}
+
 function ensureCoordinatorCitySoundscape() {
   if (coordinatorCitySoundscapeCleanupTimer !== null) {
     window.clearTimeout(coordinatorCitySoundscapeCleanupTimer);
@@ -543,11 +563,14 @@ function getVisualHandoffOffsetMs(durationMs: number) {
 function getSurfaceRevealOffsetMs(durationMs: number) {
   return Math.max(
     COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs + 500,
-    durationMs - COORDINATOR_ONBOARDING_INTRO.surfaceRevealLeadMs
+    (TWIN_PLATFORM_REVEAL_SOURCE_MS * durationMs) / COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs
   );
 }
 
 const TWIN_DROID_APPEARANCE = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID;
+const TWIN_BACKGROUND_ARRIVAL_SOURCE_MS = 63_961;
+const TWIN_RADIO_STOP_SOURCE_MS = 66_423;
+const TWIN_PLATFORM_REVEAL_SOURCE_MS = 71_971;
 const TWIN_TEXT_BUBBLE_CUES = [
   { startMs: 285, text: "Hi, I'm T dash W 1 N." },
   {
@@ -597,39 +620,32 @@ const TWIN_TEXT_BUBBLE_CUES = [
   },
   { startMs: 58_682, text: "It's really that simple." },
   { startMs: 60_446, text: "There's not much more to say." },
-  { startMs: 61_749, text: "Oh actually, I'm sorry I just found the script." },
-  { startMs: 64_350, text: 'I got ahead of myself.' },
-  { startMs: 65_813, text: 'Let me start over.' },
+  { startMs: 61_717, text: "I'll now walk you through the platform." },
   {
-    startMs: 67_403,
-    text: 'Also, lets turn off this really annoying music.',
+    startMs: 63_703,
+    text: 'Actually, first lets turn off this really annoying music.',
   },
-  { startMs: 71_177, text: 'Okay.' },
-  { startMs: 72_814, text: 'Hi there, you on the laptop.' },
-  { startMs: 74_938, text: "I wonder if you'd mind taking a brief survey?" },
-  { startMs: 78_375, text: 'Five questions.' },
-  { startMs: 80_209, text: "Now, I know you're sleepy," },
-  { startMs: 81_521, text: "but I just bet it'll make you feel right as rain." },
-  { startMs: 84_737, text: "I'd be just thrilled to chat once we've run the survey." },
-  { startMs: 88_209, text: 'Shall we begin with question one?' },
-  { startMs: 90_449, text: 'Who are you?' },
-  { startMs: 92_249, text: 'First name will do.' },
+  { startMs: 66_907, text: 'Much better.' },
   {
-    startMs: 94_362,
-    text: "It's okay, if you can't answer the question feel free to say unknown.",
+    startMs: 68_196,
+    text: "Also, let me fix my audio, it's a bit crackly.",
   },
+  { startMs: 71_971, text: "There we go, now I'll pull up the platform." },
+  { startMs: 74_165, text: 'Any questions before we start with the onboarding?' },
 ] as const satisfies readonly TwinTextBubbleCue[];
-
-const TWIN_BACKGROUND_ARRIVAL_LEAD_MS = 250;
-const TWIN_BACKGROUND_ARRIVAL_SOURCE_MS =
-  TWIN_TEXT_BUBBLE_CUES.find((cue) => cue.text === 'Okay.')!.startMs -
-  TWIN_BACKGROUND_ARRIVAL_LEAD_MS;
 
 function getBackgroundArrivalOffsetMs(durationMs: number) {
   return Math.max(
     COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs + 500,
     (TWIN_BACKGROUND_ARRIVAL_SOURCE_MS * durationMs) /
       COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs
+  );
+}
+
+function getRadioStopOffsetMs(durationMs: number) {
+  return Math.max(
+    COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs + 500,
+    (TWIN_RADIO_STOP_SOURCE_MS * durationMs) / COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs
   );
 }
 
@@ -782,6 +798,7 @@ export function CoordinatorOnboardingCallIntro({
     const { durationMs } = getRuntimeTiming();
     const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs);
     const surfaceRevealOffsetMs = getSurfaceRevealOffsetMs(durationMs);
+    const radioStopOffsetMs = getRadioStopOffsetMs(durationMs);
     const speakingStartTimer = window.setTimeout(
       () => setStage('speaking'),
       COORDINATOR_ONBOARDING_INTRO.initialPauseMs
@@ -795,6 +812,10 @@ export function CoordinatorOnboardingCallIntro({
       () => onReadyToRevealSurfaceRef.current?.(),
       COORDINATOR_ONBOARDING_INTRO.initialPauseMs + surfaceRevealOffsetMs
     );
+    const radioStopTimer = window.setTimeout(
+      () => stopCoordinatorOnboardingBackgroundMusicWithCue(),
+      COORDINATOR_ONBOARDING_INTRO.initialPauseMs + radioStopOffsetMs
+    );
     const landingTimer = window.setTimeout(
       () => scheduleLanding(),
       COORDINATOR_ONBOARDING_INTRO.initialPauseMs + handoffOffsetMs
@@ -804,6 +825,7 @@ export function CoordinatorOnboardingCallIntro({
       window.clearTimeout(speakingStartTimer);
       window.clearTimeout(backgroundStartTimer);
       window.clearTimeout(surfaceRevealTimer);
+      window.clearTimeout(radioStopTimer);
       window.clearTimeout(landingTimer);
     };
   }, [scheduleLanding, timelineEnabled]);
@@ -1043,7 +1065,6 @@ export function CoordinatorOnboardingCallIntro({
           root.style.setProperty('--coordinator-intro-city-position', '0%');
           playCoordinatorIntroArrivalDing();
           stopCoordinatorAscentSound();
-          stopCoordinatorOnboardingBackgroundMusic();
         }
       } else {
         animationFrame = window.requestAnimationFrame(tick);

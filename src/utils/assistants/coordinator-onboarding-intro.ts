@@ -8,8 +8,8 @@ import type {
 } from '@/components/Brand/TeammateCreature';
 import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
 
-const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 90.449;
-const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 98_508;
+const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 74.165;
+const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 77_113;
 const COORDINATOR_ONBOARDING_INTRO_AUDIO_SRC = '/sounds/twin-onboarding-intro.mp3';
 
 export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm T dash W 1 N.
@@ -32,19 +32,15 @@ Don't think about prompting me, or configuring me, just talk to me naturally lik
 
 There's not much more to say.
 
-Oh actually, I'm sorry I just found the script. I got ahead of myself. Let me start over.
+I'll now walk you through the platform.
 
-Also, lets turn off this really annoying music.
+Actually, first lets turn off this really annoying music.
 
-Okay.
+Much better. Also, let me fix my audio, it's a bit crackly.
 
-Hi there, you on the laptop. I wonder if you'd mind taking a brief survey?
+There we go, now I'll pull up the platform.
 
-Five questions. Now, I know you're sleepy, but I just bet it'll make you feel right as rain.
-
-I'd be just thrilled to chat once we've run the survey. Shall we begin with question one?
-
-Who are you? First name will do. It's okay, if you can't answer the question feel free to say unknown.`;
+Any questions before we start with the onboarding?`;
 
 export type CoordinatorOnboardingIntroDroidAppearance = {
   antenna?: CreatureAntenna;
@@ -68,7 +64,6 @@ export const COORDINATOR_ONBOARDING_INTRO = {
   backgroundAccelerationMs: 2_400,
   // Keep the city ascent running through the speech rather than ending early.
   handoffLeadMs: 0,
-  surfaceRevealLeadMs: 3_000,
   teleportOutDelayMs: 500,
   landingDurationMs: 450,
 } as const;
