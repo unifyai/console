@@ -8,8 +8,8 @@ import type {
 } from '@/components/Brand/TeammateCreature';
 import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
 
-const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 78.334;
-const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 80_718;
+const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 81.925;
+const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 84_402;
 // Regenerate through docs/coordinator-onboarding-audio.md so the walkie
 // treatment stays aligned with the shared branding pipeline.
 const COORDINATOR_ONBOARDING_INTRO_AUDIO_SRC = '/sounds/twin-onboarding-intro.mp3';
@@ -59,7 +59,7 @@ export type CoordinatorOnboardingIntroDroidAppearance = {
 export const COORDINATOR_ONBOARDING_INTRO = {
   audioSrc: COORDINATOR_ONBOARDING_INTRO_AUDIO_SRC,
   backgroundMusicSrc: '/sounds/neo-background-music.mp3',
-  backgroundMusicVolume: 0.28,
+  backgroundMusicVolume: 0.42,
   ascentAudioSrc: '/sounds/space-elevator-ascent.mp3',
   closingQuestionSec: COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC,
   fallbackDurationMs: COORDINATOR_ONBOARDING_INTRO_DURATION_MS,

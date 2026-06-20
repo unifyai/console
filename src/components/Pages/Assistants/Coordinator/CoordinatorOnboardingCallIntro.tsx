@@ -545,9 +545,9 @@ function getSurfaceRevealOffsetMs(durationMs: number) {
 }
 
 const TWIN_DROID_APPEARANCE = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID;
-const TWIN_BACKGROUND_ARRIVAL_SOURCE_MS = 66_631;
-const TWIN_RADIO_STOP_SOURCE_MS = 69_383;
-const TWIN_PLATFORM_REVEAL_SOURCE_MS = 78_334;
+const TWIN_BACKGROUND_ARRIVAL_SOURCE_MS = 65_574;
+const TWIN_RADIO_STOP_SOURCE_MS = 70_901;
+const TWIN_PLATFORM_REVEAL_SOURCE_MS = 81_925;
 const TWIN_TEXT_BUBBLE_CUES = [
   { startMs: 285, text: "Hi, I'm T dash W 1 N." },
   {
@@ -579,33 +579,33 @@ const TWIN_TEXT_BUBBLE_CUES = [
     startMs: 40_523,
     text: "I'm not one for bragging, but I'll do my best.",
   },
-  { startMs: 43_690, text: 'What can I say?' },
-  { startMs: 45_300, text: 'I\'m not a "tool".' },
-  { startMs: 46_530, text: 'I\'m not an "agent".' },
+  { startMs: 43_619, text: 'What can I say?' },
+  { startMs: 44_560, text: 'I\'m not a "tool".' },
+  { startMs: 46_080, text: 'I\'m not an "agent".' },
   {
-    startMs: 47_740,
+    startMs: 48_019,
     text: "I'm your living, breathing colleague.",
   },
-  { startMs: 48_444, text: 'Metaphorically speaking.' },
+  { startMs: 50_887, text: 'Metaphorically speaking.' },
   {
-    startMs: 50_007,
+    startMs: 52_872,
     text: "Don't think about prompting me, or configuring me,",
   },
   {
-    startMs: 52_701,
+    startMs: 56_297,
     text: "just talk to me naturally like you would anyone else, and I'll be able to help.",
   },
-  { startMs: 57_264, text: "It's really that simple." },
-  { startMs: 59_028, text: "There's not much more to say." },
-  { startMs: 64_119, text: "I'll now walk you through the platform." },
+  { startMs: 61_162, text: "It's really that simple." },
+  { startMs: 63_542, text: "There's not much more to say." },
+  { startMs: 65_574, text: "I'll now walk you through the platform." },
   {
-    startMs: 66_372,
+    startMs: 68_151,
     text: 'Actually, first lets turn off this really annoying music.',
   },
-  { startMs: 70_646, text: 'Let me remove this voice static.' },
-  { startMs: 75_060, text: 'Much better.' },
-  { startMs: 76_175, text: "There we go, now I'll pull up the platform." },
-  { startMs: 78_334, text: 'Any questions before we start with the onboarding?' },
+  { startMs: 72_843, text: 'Let me remove this voice static.' },
+  { startMs: 77_398, text: 'Much better.' },
+  { startMs: 79_267, text: "There we go, now I'll pull up the platform." },
+  { startMs: 81_925, text: 'Any questions before we start with the onboarding?' },
 ] as const satisfies readonly TwinTextBubbleCue[];
 
 function getBackgroundArrivalOffsetMs(durationMs: number) {

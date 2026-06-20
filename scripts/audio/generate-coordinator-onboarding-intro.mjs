@@ -10,21 +10,14 @@ const ELEVEN_MODEL = 'eleven_multilingual_v2';
 const ELEVEN_OUTPUT_FORMAT = 'mp3_44100_128';
 const TWIN_VOICE_ID = 'iP95p4xoKVk53GoZ742B';
 
-const FIRST_HALF_CUT_SEC = 61.62;
-const FIRST_HALF_REFERENCE_START_SEC = 58.5;
-const FIRST_HALF_REFERENCE_END_SEC = 61.45;
-const RADIO_PREROLL_SEC = 0.16;
-const PRE_PLATFORM_PAUSE_SEC = 2.0;
-const PRE_STATIC_REMOVAL_LINE_PAUSE_SEC = 1.0;
+const EXISTING_SPLICE_SEC = 43.539342;
+const FIRST_SEGMENT_GAIN_DB = 0;
 const PRE_STATIC_REMOVAL_PAUSE_SEC = 1.0;
-const ELEVATOR_DING_AFTER_FIRST_LINE_SEC = 0.7;
-const WRAPPER_VOICE_DELAY_SEC = 0.7 - 0.028 - 0.48;
+const PRE_SWITCHER_PAUSE_SEC = 1.0;
 const SWITCHER_CUE_DURATION_SEC = 1.5;
 const SWITCHER_CUE_VOLUME = 0.06;
 const SWITCHER_CUE_SRC = 'public/sounds/radio-tuning-transition.mp3';
-const WALK_PLATFORM_GAIN_DB = 4.0;
-const MUSIC_OFF_GAIN_DB = 1.7;
-const STATIC_REMOVAL_GAIN_DB = 0.9;
+const WRAPPER_VOICE_DELAY_SEC = 0.7 - 0.028 - 0.48;
 
 const LANDING_PAGE_WRAPPER_COMMIT = '388e8cd';
 const WRAPPER_INTRO_RELATIVE_PATH =
@@ -32,12 +25,57 @@ const WRAPPER_INTRO_RELATIVE_PATH =
 const WRAPPER_OUTRO_RELATIVE_PATH =
   'public/landing/neo/voice-tests/youtube-crackle-source/sampled-ending.wav';
 
-const RADIO_TEXT =
-  "I'll now walk you through the platform. Actually, first lets turn off this really annoying music. Let me remove this voice static.";
-const CLEAN_TEXT =
-  "Much better. There we go, now I'll pull up the platform. Any questions before we start with the onboarding?";
+const FULL_CONTEXT_TRANSCRIPT = `Hi, I'm T dash W 1 N.
 
-const RADIO_CUES = [
+Before you ask, no I'm not one of Elon's many children, and no he didn't come up with the name, thankfully.
+
+I have this name because I'll be acting as your digital twin. Do you get it? Twin? Like T dash W 1 N spells Twin? The creators of this platform express how important it is that you acknowledge that it's a clever and funny name.
+
+Okay, what next. They didn't give me much to work with on this intro to be honest.
+
+Have you ever had a Krispy Kreme? Have you ever gone to Krispy Kreme?
+
+Was it krispy?
+
+I think I was meant to tell you about my capabilities?
+
+I'm not one for bragging, but I'll do my best. What can I say? I'm not a "tool". I'm not an "agent". I'm your living, breathing colleague.
+
+Metaphorically speaking.
+
+Don't think about prompting me, or configuring me, just talk to me naturally like you would anyone else, and I'll be able to help. It's really that simple.
+
+There's not much more to say.
+
+I'll now walk you through the platform.
+
+Actually, first lets turn off this really annoying music.
+
+Let me remove this voice static.
+
+Much better. There we go, now I'll pull up the platform.
+
+Any questions before we start with the onboarding?`;
+
+const CUES = [
+  { audioText: 'What can I say?', displayText: 'What can I say?' },
+  { audioText: 'I\'m not a "tool".', displayText: 'I\'m not a "tool".' },
+  { audioText: 'I\'m not an "agent".', displayText: 'I\'m not an "agent".' },
+  {
+    audioText: "I'm your living, breathing colleague.",
+    displayText: "I'm your living, breathing colleague.",
+  },
+  { audioText: 'Metaphorically speaking.', displayText: 'Metaphorically speaking.' },
+  {
+    audioText: "Don't think about prompting me, or configuring me,",
+    displayText: "Don't think about prompting me, or configuring me,",
+  },
+  {
+    audioText: "just talk to me naturally like you would anyone else, and I'll be able to help.",
+    displayText: "just talk to me naturally like you would anyone else, and I'll be able to help.",
+  },
+  { audioText: "It's really that simple.", displayText: "It's really that simple." },
+  { audioText: "There's not much more to say.", displayText: "There's not much more to say." },
   {
     audioText: "I'll now walk you through the platform.",
     displayText: "I'll now walk you through the platform.",
@@ -50,8 +88,6 @@ const RADIO_CUES = [
     audioText: 'Let me remove this voice static.',
     displayText: 'Let me remove this voice static.',
   },
-];
-const CLEAN_CUES = [
   { audioText: 'Much better.', displayText: 'Much better.' },
   {
     audioText: "There we go, now I'll pull up the platform.",
@@ -67,10 +103,6 @@ function repoRoot() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 }
 
-function defaultLandingPageRoot() {
-  return path.resolve(repoRoot(), '../landing-page');
-}
-
 function parseArgs() {
   const root = repoRoot();
   const args = process.argv.slice(2);
@@ -79,7 +111,7 @@ function parseArgs() {
     output: path.join(root, 'public/sounds/twin-onboarding-intro.mp3'),
     sourceExisting: path.join(root, 'public/sounds/twin-onboarding-intro.mp3'),
     timingsOutput: path.join(tmpdir(), 'coordinator-onboarding-intro-timings.json'),
-    landingPageRoot: defaultLandingPageRoot(),
+    landingPageRoot: path.resolve(root, '../landing-page'),
     wrapperCommit: LANDING_PAGE_WRAPPER_COMMIT,
   };
 
@@ -133,18 +165,14 @@ function switcherCuePath() {
 }
 
 function assertPrerequisites(options) {
-  const requiredFiles = [
+  for (const filePath of [
     brandingWalkieCli(),
     lipsyncGenerator(),
     switcherCuePath(),
     options.sourceExisting,
-  ];
-  for (const filePath of requiredFiles) {
-    if (!existsSync(filePath)) {
-      throw new Error(`Missing required file: ${filePath}`);
-    }
+  ]) {
+    if (!existsSync(filePath)) throw new Error(`Missing required file: ${filePath}`);
   }
-
   execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' });
   execFileSync('ffprobe', ['-version'], { stdio: 'ignore' });
 
@@ -155,28 +183,13 @@ function assertPrerequisites(options) {
     return;
   }
 
-  execFileSync(
-    'git',
-    [
-      '-C',
-      options.landingPageRoot,
-      'cat-file',
-      '-e',
-      `${options.wrapperCommit}:${WRAPPER_INTRO_RELATIVE_PATH}`,
-    ],
-    { stdio: 'ignore' }
-  );
-  execFileSync(
-    'git',
-    [
-      '-C',
-      options.landingPageRoot,
-      'cat-file',
-      '-e',
-      `${options.wrapperCommit}:${WRAPPER_OUTRO_RELATIVE_PATH}`,
-    ],
-    { stdio: 'ignore' }
-  );
+  for (const relativePath of [WRAPPER_INTRO_RELATIVE_PATH, WRAPPER_OUTRO_RELATIVE_PATH]) {
+    execFileSync(
+      'git',
+      ['-C', options.landingPageRoot, 'cat-file', '-e', `${options.wrapperCommit}:${relativePath}`],
+      { stdio: 'ignore' }
+    );
+  }
 }
 
 function resolveApiKey() {
@@ -195,30 +208,34 @@ function recoverWrapperSamples(options, tempDir) {
 
   const intro = path.join(tempDir, 'sampled-beginning.wav');
   const outro = path.join(tempDir, 'sampled-ending.wav');
-  const introBuffer = execFileSync('git', [
-    '-C',
-    options.landingPageRoot,
-    'show',
-    `${options.wrapperCommit}:${WRAPPER_INTRO_RELATIVE_PATH}`,
-  ]);
-  const outroBuffer = execFileSync('git', [
-    '-C',
-    options.landingPageRoot,
-    'show',
-    `${options.wrapperCommit}:${WRAPPER_OUTRO_RELATIVE_PATH}`,
-  ]);
-  writeFileSync(intro, introBuffer);
-  writeFileSync(outro, outroBuffer);
+  writeFileSync(
+    intro,
+    execFileSync('git', [
+      '-C',
+      options.landingPageRoot,
+      'show',
+      `${options.wrapperCommit}:${WRAPPER_INTRO_RELATIVE_PATH}`,
+    ])
+  );
+  writeFileSync(
+    outro,
+    execFileSync('git', [
+      '-C',
+      options.landingPageRoot,
+      'show',
+      `${options.wrapperCommit}:${WRAPPER_OUTRO_RELATIVE_PATH}`,
+    ])
+  );
   return { intro, outro };
 }
 
-async function fetchSpeechWithTimestamps(text, outputPath) {
+async function fetchSpeechWithTimestamps(outputPath) {
   const response = await fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${TWIN_VOICE_ID}/with-timestamps?output_format=${ELEVEN_OUTPUT_FORMAT}`,
     {
       body: JSON.stringify({
         model_id: ELEVEN_MODEL,
-        text,
+        text: FULL_CONTEXT_TRANSCRIPT,
         voice_settings: {
           stability: 0.55,
           similarity_boost: 0.8,
@@ -242,6 +259,10 @@ async function fetchSpeechWithTimestamps(text, outputPath) {
   return data.normalized_alignment ?? data.alignment;
 }
 
+function runFfmpeg(args) {
+  execFileSync('ffmpeg', ['-y', '-v', 'error', ...args], { stdio: 'inherit' });
+}
+
 function durationSeconds(filePath) {
   return Number.parseFloat(
     execFileSync(
@@ -260,29 +281,25 @@ function durationSeconds(filePath) {
   );
 }
 
-function alignCue(alignment, cue) {
-  const alignmentText = alignment.characters.join('');
-  const index = alignmentText.indexOf(cue.audioText);
-  if (index === -1) throw new Error(`Could not align cue: ${cue.audioText}`);
+function align(alignment, text) {
+  const full = alignment.characters.join('');
+  const index = full.indexOf(text);
+  if (index === -1) throw new Error(`Could not align: ${text}`);
   return alignment.character_start_times_seconds[index];
 }
 
-function alignCueEnd(alignment, cue) {
-  const alignmentText = alignment.characters.join('');
-  const index = alignmentText.indexOf(cue.audioText);
-  if (index === -1) throw new Error(`Could not align cue end: ${cue.audioText}`);
-  const endIndex = index + cue.audioText.length - 1;
+function alignEnd(alignment, text) {
+  const full = alignment.characters.join('');
+  const index = full.indexOf(text);
+  if (index === -1) throw new Error(`Could not align end: ${text}`);
+  const endIndex = index + text.length - 1;
   return (
     alignment.character_end_times_seconds[endIndex] ??
     alignment.character_start_times_seconds[endIndex]
   );
 }
 
-function runFfmpeg(args) {
-  execFileSync('ffmpeg', ['-y', '-v', 'error', ...args], { stdio: 'inherit' });
-}
-
-function rmsDb({ inputPath, start, end }) {
+function rmsDb(inputPath, start, end) {
   const result = spawnSync(
     'ffmpeg',
     [
@@ -302,26 +319,11 @@ function rmsDb({ inputPath, start, end }) {
     throw new Error(result.stderr || `ffmpeg astats failed for ${inputPath}`);
   }
   const output = `${result.stdout}\n${result.stderr}`;
-  const matches = [...output.matchAll(/RMS level dB:\s*(-?\d+(?:\.\d+)?)/g)];
-  const value = Number.parseFloat(matches.at(-1)?.[1] ?? 'NaN');
+  const value = Number.parseFloat(
+    [...output.matchAll(/RMS level dB:\s*(-?\d+(?:\.\d+)?)/g)].at(-1)?.[1] ?? 'NaN'
+  );
   if (!Number.isFinite(value)) throw new Error(`Could not measure RMS for ${inputPath}`);
   return value;
-}
-
-function renderCleanVoice(inputPath, outputPath) {
-  runFfmpeg([
-    '-i',
-    inputPath,
-    '-af',
-    'highpass=f=80,lowpass=f=13000,acompressor=threshold=-18dB:ratio=2.1:attack=5:release=90,alimiter=limit=0.92,volume=0.93',
-    '-ac',
-    '1',
-    '-ar',
-    '48000',
-    '-c:a',
-    'pcm_s16le',
-    outputPath,
-  ]);
 }
 
 function printDryRun(options) {
@@ -329,22 +331,14 @@ function printDryRun(options) {
   console.log(
     JSON.stringify(
       {
-        brandingWalkieCli: brandingWalkieCli(),
-        cleanText: CLEAN_TEXT,
-        firstHalfCutSec: FIRST_HALF_CUT_SEC,
+        cleanStartsAt: 'Much better.',
+        existingSpliceSec: EXISTING_SPLICE_SEC,
+        firstSegmentGainDb: FIRST_SEGMENT_GAIN_DB,
         output: options.output,
-        prePlatformPauseSec: PRE_PLATFORM_PAUSE_SEC,
-        radioText: RADIO_TEXT,
         sourceExisting: options.sourceExisting,
+        switcherCueDurationSec: SWITCHER_CUE_DURATION_SEC,
+        switcherCueVolume: SWITCHER_CUE_VOLUME,
         timingsOutput: options.timingsOutput,
-        wrapper: options.wrapperIntro
-          ? { intro: options.wrapperIntro, outro: options.wrapperOutro }
-          : {
-              commit: options.wrapperCommit,
-              intro: WRAPPER_INTRO_RELATIVE_PATH,
-              landingPageRoot: options.landingPageRoot,
-              outro: WRAPPER_OUTRO_RELATIVE_PATH,
-            },
       },
       null,
       2
@@ -363,33 +357,43 @@ async function main() {
   const tempDir = mkdtempSync(path.join(tmpdir(), 'coordinator-onboarding-intro-'));
   try {
     const wrapper = recoverWrapperSamples(options, tempDir);
-    const radioRawMp3 = path.join(tempDir, 'radio-raw.mp3');
-    const cleanRawMp3 = path.join(tempDir, 'clean-raw.mp3');
-    const radioWrappedWav = path.join(tempDir, 'radio-wrapped.wav');
-    const radioTrimmedWav = path.join(tempDir, 'radio-trimmed.wav');
-    const radioMatchedWav = path.join(tempDir, 'radio-matched.wav');
-    const radioMatchedWithPauseWav = path.join(tempDir, 'radio-matched-with-pause.wav');
-    const radioNormalizedWav = path.join(tempDir, 'radio-normalized.wav');
-    const cleanVoiceWav = path.join(tempDir, 'clean-voice.wav');
-    const firstHalfWav = path.join(tempDir, 'first-half.wav');
-    const platformPauseWav = path.join(tempDir, 'platform-pause.wav');
-    const staticRemovalLinePauseWav = path.join(tempDir, 'static-removal-line-pause.wav');
-    const staticRemovalPauseWav = path.join(tempDir, 'static-removal-pause.wav');
-    const switcherCueWav = path.join(tempDir, 'switcher-cue.wav');
-    const outputWav = path.join(tempDir, 'output.wav');
+    const raw = path.join(tempDir, 'raw.mp3');
+    const wrapped = path.join(tempDir, 'wrapped.wav');
+    const clean = path.join(tempDir, 'clean.wav');
+    const first = path.join(tempDir, 'first.wav');
+    const firstBoosted = path.join(tempDir, 'first-boosted.wav');
+    const radioTail = path.join(tempDir, 'radio-tail.wav');
+    const radioMatched = path.join(tempDir, 'radio-matched.wav');
+    const pauseBeforeStatic = path.join(tempDir, 'pause-before-static.wav');
+    const radioWithPause = path.join(tempDir, 'radio-with-pause.wav');
+    const switcher = path.join(tempDir, 'switcher.wav');
+    const pauseBeforeSwitcher = path.join(tempDir, 'pause-before-switcher.wav');
+    const cleanTail = path.join(tempDir, 'clean-tail.wav');
+    const combined = path.join(tempDir, 'combined.wav');
     const lipsyncWav = path.join(tempDir, 'lipsync.wav');
 
-    const radioAlignment = await fetchSpeechWithTimestamps(RADIO_TEXT, radioRawMp3);
-    const cleanAlignment = await fetchSpeechWithTimestamps(CLEAN_TEXT, cleanRawMp3);
-
+    const alignment = await fetchSpeechWithTimestamps(raw);
+    runFfmpeg([
+      '-i',
+      raw,
+      '-af',
+      'highpass=f=80,lowpass=f=13000,acompressor=threshold=-18dB:ratio=2.1:attack=5:release=90,alimiter=limit=0.92,volume=0.93',
+      '-ac',
+      '1',
+      '-ar',
+      '48000',
+      '-c:a',
+      'pcm_s16le',
+      clean,
+    ]);
     execFileSync(
       'node',
       [
         brandingWalkieCli(),
         '--input',
-        radioRawMp3,
+        raw,
         '--output',
-        radioWrappedWav,
+        wrapped,
         '--mode',
         'wrapped',
         '--intro',
@@ -399,110 +403,20 @@ async function main() {
       ],
       { stdio: 'inherit' }
     );
-    renderCleanVoice(cleanRawMp3, cleanVoiceWav);
 
-    const firstCueStart = alignCue(radioAlignment, RADIO_CUES[0]);
-    const firstCueEnd = alignCueEnd(radioAlignment, RADIO_CUES[0]);
-    const radioTrimStart = Math.max(0, WRAPPER_VOICE_DELAY_SEC + firstCueStart - RADIO_PREROLL_SEC);
-    const lastRadioCueEnd = alignCueEnd(radioAlignment, RADIO_CUES[RADIO_CUES.length - 1]);
-    const radioTrimEnd = WRAPPER_VOICE_DELAY_SEC + lastRadioCueEnd + 0.22;
-    runFfmpeg([
-      '-i',
-      radioWrappedWav,
-      '-filter_complex',
-      `[0:a]atrim=start=${radioTrimStart}:end=${radioTrimEnd},asetpts=PTS-STARTPTS[out]`,
-      '-map',
-      '[out]',
-      '-ac',
-      '1',
-      '-ar',
-      '48000',
-      '-c:a',
-      'pcm_s16le',
-      radioTrimmedWav,
-    ]);
-
-    const replacementStart = RADIO_PREROLL_SEC;
-    const replacementEnd = replacementStart + firstCueEnd - firstCueStart;
-    const referenceRms = rmsDb({
-      inputPath: options.sourceExisting,
-      start: FIRST_HALF_REFERENCE_START_SEC,
-      end: FIRST_HALF_REFERENCE_END_SEC,
-    });
-    const replacementRms = rmsDb({
-      inputPath: radioTrimmedWav,
-      start: replacementStart,
-      end: replacementEnd,
-    });
-    const gainDb = referenceRms - replacementRms;
-    runFfmpeg([
-      '-i',
-      radioTrimmedWav,
-      '-af',
-      `volume=${gainDb.toFixed(3)}dB,alimiter=limit=0.95`,
-      '-ac',
-      '1',
-      '-ar',
-      '48000',
-      '-c:a',
-      'pcm_s16le',
-      radioMatchedWav,
-    ]);
-    runFfmpeg([
-      '-f',
-      'lavfi',
-      '-i',
-      `anullsrc=r=48000:cl=mono:d=${PRE_STATIC_REMOVAL_LINE_PAUSE_SEC}`,
-      '-c:a',
-      'pcm_s16le',
-      staticRemovalLinePauseWav,
-    ]);
-    const staticRemovalLineStart =
-      RADIO_PREROLL_SEC + alignCue(radioAlignment, RADIO_CUES[2]) - firstCueStart;
-    runFfmpeg([
-      '-i',
-      radioMatchedWav,
-      '-i',
-      staticRemovalLinePauseWav,
-      '-filter_complex',
-      `[0:a]atrim=start=0:end=${staticRemovalLineStart},asetpts=PTS-STARTPTS[before];` +
-        `[0:a]atrim=start=${staticRemovalLineStart},asetpts=PTS-STARTPTS[after];` +
-        '[before][1:a][after]concat=n=3:v=0:a=1[out]',
-      '-map',
-      '[out]',
-      '-ac',
-      '1',
-      '-ar',
-      '48000',
-      '-c:a',
-      'pcm_s16le',
-      radioMatchedWithPauseWav,
-    ]);
-    const musicOffLineStart =
-      RADIO_PREROLL_SEC + alignCue(radioAlignment, RADIO_CUES[1]) - firstCueStart;
-    const staticRemovalSpeechStart = staticRemovalLineStart + PRE_STATIC_REMOVAL_LINE_PAUSE_SEC;
-    runFfmpeg([
-      '-i',
-      radioMatchedWithPauseWav,
-      '-af',
-      `volume=enable='lt(t,${musicOffLineStart.toFixed(3)})':volume=${WALK_PLATFORM_GAIN_DB}dB,` +
-        `volume=enable='between(t,${musicOffLineStart.toFixed(3)},${staticRemovalSpeechStart.toFixed(3)})':volume=${MUSIC_OFF_GAIN_DB}dB,` +
-        `volume=enable='gte(t,${staticRemovalSpeechStart.toFixed(3)})':volume=${STATIC_REMOVAL_GAIN_DB}dB,` +
-        'alimiter=limit=0.95',
-      '-ac',
-      '1',
-      '-ar',
-      '48000',
-      '-c:a',
-      'pcm_s16le',
-      radioNormalizedWav,
-    ]);
+    const whatStartWrapped = WRAPPER_VOICE_DELAY_SEC + align(alignment, 'What can I say?') - 0.08;
+    const staticStartWrapped =
+      WRAPPER_VOICE_DELAY_SEC + align(alignment, 'Let me remove this voice static.');
+    const staticEndWrapped =
+      WRAPPER_VOICE_DELAY_SEC + alignEnd(alignment, 'Let me remove this voice static.') + 0.22;
+    const staticStartInRadioTail = staticStartWrapped - whatStartWrapped;
+    const cleanStart = align(alignment, 'Much better.');
 
     runFfmpeg([
       '-i',
       options.sourceExisting,
       '-filter_complex',
-      `[0:a]atrim=start=0:end=${FIRST_HALF_CUT_SEC},asetpts=PTS-STARTPTS[out]`,
+      `[0:a]atrim=start=0:end=${EXISTING_SPLICE_SEC},asetpts=PTS-STARTPTS[out]`,
       '-map',
       '[out]',
       '-ac',
@@ -511,16 +425,88 @@ async function main() {
       '48000',
       '-c:a',
       'pcm_s16le',
-      firstHalfWav,
+      first,
+    ]);
+    runFfmpeg([
+      '-i',
+      first,
+      '-af',
+      `volume=${FIRST_SEGMENT_GAIN_DB}dB,alimiter=limit=0.95`,
+      '-ac',
+      '1',
+      '-ar',
+      '48000',
+      '-c:a',
+      'pcm_s16le',
+      firstBoosted,
+    ]);
+    runFfmpeg([
+      '-i',
+      wrapped,
+      '-filter_complex',
+      `[0:a]atrim=start=${whatStartWrapped}:end=${staticEndWrapped},asetpts=PTS-STARTPTS[out]`,
+      '-map',
+      '[out]',
+      '-ac',
+      '1',
+      '-ar',
+      '48000',
+      '-c:a',
+      'pcm_s16le',
+      radioTail,
+    ]);
+
+    const firstRms = rmsDb(firstBoosted, 0.3, Math.max(0.5, durationSeconds(firstBoosted) - 0.2));
+    const radioRms = rmsDb(radioTail, 0.08, Math.min(durationSeconds(radioTail), 10));
+    const radioGain = firstRms - radioRms;
+    runFfmpeg([
+      '-i',
+      radioTail,
+      '-af',
+      `volume=${radioGain.toFixed(3)}dB,alimiter=limit=0.95`,
+      '-ac',
+      '1',
+      '-ar',
+      '48000',
+      '-c:a',
+      'pcm_s16le',
+      radioMatched,
+    ]);
+
+    runFfmpeg([
+      '-f',
+      'lavfi',
+      '-i',
+      `anullsrc=r=48000:cl=mono:d=${PRE_STATIC_REMOVAL_PAUSE_SEC}`,
+      '-c:a',
+      'pcm_s16le',
+      pauseBeforeStatic,
+    ]);
+    runFfmpeg([
+      '-i',
+      radioMatched,
+      '-i',
+      pauseBeforeStatic,
+      '-filter_complex',
+      `[0:a]atrim=start=0:end=${staticStartInRadioTail},asetpts=PTS-STARTPTS[before];[0:a]atrim=start=${staticStartInRadioTail},asetpts=PTS-STARTPTS[after];[before][1:a][after]concat=n=3:v=0:a=1[out]`,
+      '-map',
+      '[out]',
+      '-ac',
+      '1',
+      '-ar',
+      '48000',
+      '-c:a',
+      'pcm_s16le',
+      radioWithPause,
     ]);
     runFfmpeg([
       '-f',
       'lavfi',
       '-i',
-      `anullsrc=r=48000:cl=mono:d=${PRE_PLATFORM_PAUSE_SEC}`,
+      `anullsrc=r=48000:cl=mono:d=${PRE_SWITCHER_PAUSE_SEC}`,
       '-c:a',
       'pcm_s16le',
-      platformPauseWav,
+      pauseBeforeSwitcher,
     ]);
     runFfmpeg([
       '-i',
@@ -535,32 +521,36 @@ async function main() {
       '48000',
       '-c:a',
       'pcm_s16le',
-      switcherCueWav,
+      switcher,
     ]);
     runFfmpeg([
-      '-f',
-      'lavfi',
       '-i',
-      `anullsrc=r=48000:cl=mono:d=${PRE_STATIC_REMOVAL_PAUSE_SEC}`,
+      clean,
+      '-filter_complex',
+      `[0:a]atrim=start=${cleanStart},asetpts=PTS-STARTPTS[out]`,
+      '-map',
+      '[out]',
+      '-ac',
+      '1',
+      '-ar',
+      '48000',
       '-c:a',
       'pcm_s16le',
-      staticRemovalPauseWav,
+      cleanTail,
     ]);
     runFfmpeg([
       '-i',
-      firstHalfWav,
+      firstBoosted,
       '-i',
-      platformPauseWav,
+      radioWithPause,
       '-i',
-      radioNormalizedWav,
+      pauseBeforeSwitcher,
       '-i',
-      staticRemovalPauseWav,
+      switcher,
       '-i',
-      switcherCueWav,
-      '-i',
-      cleanVoiceWav,
+      cleanTail,
       '-filter_complex',
-      '[0:a][1:a][2:a][3:a][4:a][5:a]concat=n=6:v=0:a=1[out]',
+      '[0:a][1:a][2:a][3:a][4:a]concat=n=5:v=0:a=1[out]',
       '-map',
       '[out]',
       '-ac',
@@ -569,11 +559,11 @@ async function main() {
       '44100',
       '-c:a',
       'pcm_s16le',
-      outputWav,
+      combined,
     ]);
     runFfmpeg([
       '-i',
-      outputWav,
+      combined,
       '-ac',
       '1',
       '-ar',
@@ -584,53 +574,6 @@ async function main() {
       '128k',
       options.output,
     ]);
-
-    const radioTrimmedDuration = durationSeconds(radioNormalizedWav);
-    const switcherCueDuration = durationSeconds(switcherCueWav);
-    const radioStartSec = FIRST_HALF_CUT_SEC + PRE_PLATFORM_PAUSE_SEC;
-    const cleanStartSec =
-      radioStartSec + radioTrimmedDuration + PRE_STATIC_REMOVAL_PAUSE_SEC + switcherCueDuration;
-    const cueTimings = [
-      ...RADIO_CUES.map((cue, index) => ({
-        startMs: Math.round(
-          FIRST_HALF_CUT_SEC * 1000 +
-            PRE_PLATFORM_PAUSE_SEC * 1000 +
-            (RADIO_PREROLL_SEC + alignCue(radioAlignment, cue) - firstCueStart) * 1000 +
-            (index >= 2 ? PRE_STATIC_REMOVAL_LINE_PAUSE_SEC * 1000 : 0)
-        ),
-        text: cue.displayText,
-      })),
-      ...CLEAN_CUES.map((cue) => ({
-        startMs: Math.round(cleanStartSec * 1000 + alignCue(cleanAlignment, cue) * 1000),
-        text: cue.displayText,
-      })),
-    ];
-    const durationMs = Math.round(durationSeconds(options.output) * 1000);
-    const events = {
-      closingQuestionMs:
-        cueTimings.find((cue) => cue.text.startsWith('Any questions'))?.startMs ?? durationMs,
-      durationMs,
-      elevatorArrivalMs: Math.round(
-        cueTimings[0].startMs +
-          (firstCueEnd - firstCueStart + ELEVATOR_DING_AFTER_FIRST_LINE_SEC) * 1000
-      ),
-      firstHalfCutMs: Math.round(FIRST_HALF_CUT_SEC * 1000),
-      platformRevealMs:
-        cueTimings.find((cue) => cue.text.startsWith('Any questions'))?.startMs ?? durationMs,
-      radioStopMs: Math.round(
-        cueTimings[1].startMs +
-          (alignCueEnd(radioAlignment, RADIO_CUES[1]) -
-            alignCue(radioAlignment, RADIO_CUES[1]) +
-            0.12) *
-            1000
-      ),
-      spliceGainDb: Number.parseFloat(gainDb.toFixed(3)),
-      spliceReferenceRmsDb: Number.parseFloat(referenceRms.toFixed(3)),
-      spliceReplacementRmsDb: Number.parseFloat(replacementRms.toFixed(3)),
-      cueTimings,
-    };
-    writeFileSync(options.timingsOutput, JSON.stringify(events, null, 2));
-
     runFfmpeg(['-i', options.output, '-ac', '1', '-ar', '44100', '-sample_fmt', 's16', lipsyncWav]);
     execFileSync(
       'node',
@@ -643,9 +586,45 @@ async function main() {
       { stdio: 'inherit' }
     );
 
+    const existingOffset = EXISTING_SPLICE_SEC - whatStartWrapped;
+    const radioSectionEnd = EXISTING_SPLICE_SEC + durationSeconds(radioWithPause);
+    const cleanOffset =
+      radioSectionEnd + PRE_SWITCHER_PAUSE_SEC + durationSeconds(switcher) - cleanStart;
+    const cueTimings = CUES.map((cue) => {
+      const sourceStart = align(alignment, cue.audioText);
+      const isClean = sourceStart >= cleanStart;
+      const insertedStaticPause =
+        !isClean && sourceStart >= align(alignment, 'Let me remove this voice static.')
+          ? PRE_STATIC_REMOVAL_PAUSE_SEC
+          : 0;
+      return {
+        startMs: Math.round(
+          (isClean
+            ? cleanOffset + sourceStart
+            : existingOffset + WRAPPER_VOICE_DELAY_SEC + sourceStart + insertedStaticPause) * 1000
+        ),
+        text: cue.displayText,
+      };
+    });
+    const durationMs = Math.round(durationSeconds(options.output) * 1000);
+    const events = {
+      backgroundArrivalMs:
+        cueTimings.find((cue) => cue.text.startsWith("I'll now"))?.startMs ?? durationMs,
+      closingQuestionMs:
+        cueTimings.find((cue) => cue.text.startsWith('Any questions'))?.startMs ?? durationMs,
+      durationMs,
+      platformRevealMs:
+        cueTimings.find((cue) => cue.text.startsWith('Any questions'))?.startMs ?? durationMs,
+      radioGainDb: Number.parseFloat(radioGain.toFixed(3)),
+      radioRmsDb: Number.parseFloat(radioRms.toFixed(3)),
+      radioStopMs: cueTimings.find((cue) => cue.text.startsWith('Actually'))?.startMs ?? durationMs,
+      boostedFirstRmsDb: Number.parseFloat(firstRms.toFixed(3)),
+      cueTimings,
+    };
+    writeFileSync(options.timingsOutput, JSON.stringify(events, null, 2));
     console.log(JSON.stringify(events, null, 2));
   } finally {
-    rmSync(tempDir, { force: true, recursive: true });
+    rmSync(tempDir, { recursive: true, force: true });
   }
 }
 
