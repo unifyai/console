@@ -410,6 +410,13 @@ function lipsyncUrlForAudio(src: string): string {
   return src.replace(/\.mp3(\?.*)?$/i, '.lipsync.json');
 }
 
+function isIntroMouthSuppressed(currentTime: number) {
+  const currentMs = currentTime * 1_000;
+  return TWIN_MOUTH_SUPPRESSION_WINDOWS.some(
+    ({ endMs, startMs }) => currentMs >= startMs && currentMs <= endMs
+  );
+}
+
 /**
  * Sample a pre-computed lipsync track at a playback position. Inactive frames
  * resolve to a still, closed mouth so silence never flaps the droid mouth.
@@ -420,6 +427,7 @@ function sampleIntroLipsyncTrack(
 ): { mouthShape: CreatureMouthShape; speechLevel: number } {
   const frames = track.frames;
   if (frames.length === 0) return { mouthShape: 'closed', speechLevel: 0 };
+  if (isIntroMouthSuppressed(currentTime)) return { mouthShape: 'closed', speechLevel: 0 };
   const idx = Math.max(
     0,
     Math.min(frames.length - 1, Math.round(currentTime * Math.max(track.fps, 1)))
@@ -545,9 +553,19 @@ function getSurfaceRevealOffsetMs(durationMs: number) {
 }
 
 const TWIN_DROID_APPEARANCE = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID;
-const TWIN_BACKGROUND_ARRIVAL_SOURCE_MS = 64_297;
-const TWIN_RADIO_STOP_SOURCE_MS = 70_020;
-const TWIN_PLATFORM_REVEAL_SOURCE_MS = 81_600;
+const TWIN_BACKGROUND_ARRIVAL_SOURCE_MS = 61_633;
+const TWIN_RADIO_STOP_SOURCE_MS = 67_717;
+const TWIN_PLATFORM_REVEAL_SOURCE_MS = 77_700;
+const TWIN_MOUTH_SUPPRESSION_WINDOWS = [
+  {
+    startMs: TWIN_RADIO_STOP_SOURCE_MS,
+    endMs: TWIN_RADIO_STOP_SOURCE_MS + COORDINATOR_INTRO_RADIO_TOGGLE_CUE_MS,
+  },
+  {
+    startMs: 71_800,
+    endMs: 73_700,
+  },
+] as const;
 const TWIN_TEXT_BUBBLE_CUES = [
   { startMs: 285, text: "Hi, I'm T dash W 1 N." },
   {
@@ -594,17 +612,17 @@ const TWIN_TEXT_BUBBLE_CUES = [
     startMs: 55_415,
     text: "just talk to me naturally like you would anyone else, and I'll be able to help.",
   },
-  { startMs: 60_047, text: "It's really that simple." },
-  { startMs: 61_905, text: "There's not much more to say." },
-  { startMs: 64_297, text: "I'll now walk you through the platform." },
+  { startMs: 58_267, text: "It's really that simple." },
+  { startMs: 59_883, text: "There's not much more to say." },
+  { startMs: 61_633, text: "I'll now walk you through the platform." },
   {
-    startMs: 66_665,
+    startMs: 63_933,
     text: 'Actually, first lets turn off this really annoying music.',
   },
-  { startMs: 71_833, text: 'Also, let me remove this voice static.' },
-  { startMs: 77_177, text: 'Much better.' },
-  { startMs: 78_953, text: "There we go, now I'll pull up the platform." },
-  { startMs: 81_600, text: 'Any questions before we start with the onboarding?' },
+  { startMs: 68_750, text: 'Also, let me remove this voice static.' },
+  { startMs: 73_850, text: 'Much better.' },
+  { startMs: 75_800, text: "There we go, now I'll pull up the platform." },
+  { startMs: 77_900, text: 'Any questions before we start with the onboarding?' },
 ] as const satisfies readonly TwinTextBubbleCue[];
 
 function getBackgroundArrivalOffsetMs(durationMs: number) {
