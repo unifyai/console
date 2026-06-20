@@ -597,18 +597,33 @@ const TWIN_TEXT_BUBBLE_CUES = [
   },
   { startMs: 58_682, text: "It's really that simple." },
   { startMs: 60_446, text: "There's not much more to say." },
+  { startMs: 61_749, text: "Oh actually, I'm sorry I just found the script." },
+  { startMs: 64_350, text: 'I got ahead of myself.' },
+  { startMs: 65_813, text: 'Let me start over.' },
   {
-    startMs: 62_478,
-    text: "I'll now guide you through the platform, but if you get stuck then just let me know.",
+    startMs: 67_403,
+    text: 'Also, lets turn off this really annoying music.',
   },
-  { startMs: 66_843, text: 'Anything on your mind before we start?' },
+  { startMs: 71_177, text: 'Okay.' },
+  { startMs: 72_814, text: 'Hi there, you on the laptop.' },
+  { startMs: 74_938, text: "I wonder if you'd mind taking a brief survey?" },
+  { startMs: 78_375, text: 'Five questions.' },
+  { startMs: 80_209, text: "Now, I know you're sleepy," },
+  { startMs: 81_521, text: "but I just bet it'll make you feel right as rain." },
+  { startMs: 84_737, text: "I'd be just thrilled to chat once we've run the survey." },
+  { startMs: 88_209, text: 'Shall we begin with question one?' },
+  { startMs: 90_449, text: 'Who are you?' },
+  { startMs: 92_249, text: 'First name will do.' },
+  {
+    startMs: 94_362,
+    text: "It's okay, if you can't answer the question feel free to say unknown.",
+  },
 ] as const satisfies readonly TwinTextBubbleCue[];
 
 const TWIN_BACKGROUND_ARRIVAL_LEAD_MS = 250;
 const TWIN_BACKGROUND_ARRIVAL_SOURCE_MS =
-  TWIN_TEXT_BUBBLE_CUES.find((cue) =>
-    cue.text.startsWith("I'll now guide you through the platform")
-  )!.startMs - TWIN_BACKGROUND_ARRIVAL_LEAD_MS;
+  TWIN_TEXT_BUBBLE_CUES.find((cue) => cue.text === 'Okay.')!.startMs -
+  TWIN_BACKGROUND_ARRIVAL_LEAD_MS;
 
 function getBackgroundArrivalOffsetMs(durationMs: number) {
   return Math.max(

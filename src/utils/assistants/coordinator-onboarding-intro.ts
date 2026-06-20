@@ -9,8 +9,8 @@ import type {
 } from '@/components/Brand/TeammateCreature';
 import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
 
-const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 66.843;
-const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 68_754;
+const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 90.449;
+const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 98_508;
 
 export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm T dash W 1 N.
 
@@ -32,7 +32,19 @@ Don't think about prompting me, or configuring me, just talk to me naturally lik
 
 There's not much more to say.
 
-I'll now guide you through the platform, but if you get stuck then just let me know. Anything on your mind before we start?`;
+Oh actually, I'm sorry I just found the script. I got ahead of myself. Let me start over.
+
+Also, lets turn off this really annoying music.
+
+Okay.
+
+Hi there, you on the laptop. I wonder if you'd mind taking a brief survey?
+
+Five questions. Now, I know you're sleepy, but I just bet it'll make you feel right as rain.
+
+I'd be just thrilled to chat once we've run the survey. Shall we begin with question one?
+
+Who are you? First name will do. It's okay, if you can't answer the question feel free to say unknown.`;
 
 export type CoordinatorOnboardingIntroDroidAppearance = {
   antenna?: CreatureAntenna;
