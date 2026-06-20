@@ -191,7 +191,7 @@ export function AssistantCommunicationMainView({
     const updateIntroAudioState = () => {
       const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
       const audio = coordinatorWindow.__coordinatorOnboardingIntroAudio;
-      setIsIntroAudioPlaying(!!audio && !audio.paused && !audio.ended);
+      setIsIntroAudioPlaying(!!audio && !audio.ended);
       setIntroAudioSpeechLevel(coordinatorWindow.__coordinatorOnboardingIntroSpeechLevel ?? 0);
       setIntroAudioMouthShape(coordinatorWindow.__coordinatorOnboardingIntroMouthShape ?? 'closed');
     };

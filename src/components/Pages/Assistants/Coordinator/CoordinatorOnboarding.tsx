@@ -43,6 +43,7 @@ import {
   changeCoordinatorOnboardingBackgroundMusicStation,
   getCoordinatorOnboardingBackgroundMusicEnabled,
   primeCoordinatorOnboardingCitySoundscape,
+  primeCoordinatorOnboardingIntroVoice,
   setCoordinatorOnboardingBackgroundMusicEnabled,
   startCoordinatorOnboardingBackgroundMusic,
   stopCoordinatorOnboardingBackgroundMusic,
@@ -258,6 +259,7 @@ export function CoordinatorOnboarding({
       if (phase !== 'picker') return;
       startCoordinatorOnboardingBackgroundMusic();
       primeCoordinatorOnboardingCitySoundscape();
+      primeCoordinatorOnboardingIntroVoice();
       setIntroAvatarOffset(avatarOffset);
       setIntroSkipSignal(0);
       await beginIntro('call');

@@ -515,6 +515,47 @@ type BrowserWindowWithCoordinatorIntroAudio = Window & {
   __coordinatorOnboardingIntroMouthShape?: CreatureMouthShape;
 };
 
+function audioElementMatchesSrc(audio: HTMLAudioElement, src: string) {
+  return (
+    new URL(audio.currentSrc || audio.src, window.location.href).href ===
+    new URL(src, window.location.href).href
+  );
+}
+
+export function primeCoordinatorOnboardingIntroVoice() {
+  if (typeof window === 'undefined') return;
+  const src = COORDINATOR_ONBOARDING_INTRO.audioSrc;
+  const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
+  let audio = coordinatorWindow.__coordinatorOnboardingIntroAudio;
+
+  if (!audio || audio.ended || !audioElementMatchesSrc(audio, src)) {
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+    }
+    audio = new Audio(src);
+    audio.preload = 'auto';
+    audio.loop = false;
+    audio.volume = COORDINATOR_INTRO_VOICE_VOLUME;
+    coordinatorWindow.__coordinatorOnboardingIntroAudio = audio;
+  }
+
+  audio.muted = true;
+  void audio
+    .play()
+    .then(() => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.muted = false;
+      audio.volume = COORDINATOR_INTRO_VOICE_VOLUME;
+    })
+    .catch(() => {
+      audio.muted = false;
+      audio.volume = COORDINATOR_INTRO_VOICE_VOLUME;
+    });
+}
+
 interface CoordinatorOnboardingCallIntroProps {
   initialAvatarOffset: { x: number; y: number };
   timelineEnabled?: boolean;
@@ -581,24 +622,61 @@ function getSurfaceRevealOffsetMs(durationMs: number) {
 
 const TWIN_DROID_APPEARANCE = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID;
 const TWIN_TEXT_BUBBLE_CUES = [
-  { startMs: 0, text: "Hi, I'm Twin." },
-  { startMs: 1_400, text: 'Firstly, I know what you might be thinking.' },
-  { startMs: 3_320, text: 'Am I really going to spend my time talking to a tiny robot?' },
-  { startMs: 6_580, text: "You're a serious person with a presumably serious and important job." },
-  { startMs: 10_480, text: 'Well,' },
-  { startMs: 11_560, text: "I don't know if you've noticed," },
-  { startMs: 12_480, text: "but the world isn't doing so well." },
-  { startMs: 14_560, text: 'Escaping to another planet might be the best decision you make.' },
-  { startMs: 18_000, text: "It'll certainly save you a lot of time." },
-  { startMs: 20_120, text: 'I can manage your mailbox.' },
-  { startMs: 21_720, text: 'I can help you draft documents.' },
-  { startMs: 23_420, text: 'I can remind you of important events.' },
-  { startMs: 25_680, text: 'And I can do just about anything that a human coworker could.' },
-  { startMs: 29_500, text: "Don't think about prompting or configuring me." },
-  { startMs: 32_540, text: 'Just talk to me naturally like you would anyone else.' },
-  { startMs: 35_180, text: "And I'll be able to help." },
-  { startMs: 36_740, text: "I'll now walk you through the platform." },
-  { startMs: 38_680, text: 'Any immediate questions before we start?' },
+  { startMs: 262, text: "Hi, I'm T dash W 1 N." },
+  {
+    startMs: 3_396,
+    text: "Before you ask, no I'm not one of Elon's many children,",
+  },
+  { startMs: 6_229, text: "and no he didn't come up with the name, thankfully." },
+  {
+    startMs: 9_259,
+    text: "I have this name because I'll be acting as your digital twin.",
+  },
+  { startMs: 12_348, text: 'Do you get it?' },
+  { startMs: 13_985, text: 'Twin?' },
+  { startMs: 15_192, text: 'Like T dash W 1 N spells Twin?' },
+  {
+    startMs: 18_965,
+    text: "The creators of this platform express how important it is that you acknowledge that it's a clever and funny name.",
+  },
+  { startMs: 25_362, text: 'Okay, what next.' },
+  {
+    startMs: 27_057,
+    text: "They didn't give me much to work with on this intro to be honest.",
+  },
+  { startMs: 30_587, text: 'Have you ever had a krispy creme?' },
+  { startMs: 32_595, text: 'Have you ever gone to krispy creme?' },
+  { startMs: 34_836, text: 'Was it krispy?' },
+  { startMs: 36_566, text: "No that's not really appropriate." },
+  { startMs: 39_260, text: 'Erm....' },
+  { startMs: 40_804, text: 'I think I was meant to tell you about my capabilities?' },
+  {
+    startMs: 44_043,
+    text: "I'm not one for bragging, but I'll do my best.",
+  },
+  {
+    startMs: 47_503,
+    text: 'Basically, I\'m not a "tool", I\'m not an "agent",',
+  },
+  {
+    startMs: 50_974,
+    text: "I'm your living breathing copilot (metaphorically speaking, at the lawyers request).",
+  },
+  {
+    startMs: 56_024,
+    text: "Don't think about prompting me, or configuring me,",
+  },
+  {
+    startMs: 58_857,
+    text: "just talk to me naturally like you would anyone else, and I'll be able to help.",
+  },
+  { startMs: 62_700, text: "It's really that simple." },
+  { startMs: 64_314, text: "There's not much more to say." },
+  {
+    startMs: 65_986,
+    text: "I'll now guide you through the platform, but if you get stuck then just let me know.",
+  },
+  { startMs: 70_606, text: 'Anything on your mind before we start?' },
 ] as const satisfies readonly TwinTextBubbleCue[];
 
 function getTwinTextBubbleCueIndex(elapsedMs: number, durationMs: number) {
@@ -779,15 +857,35 @@ export function CoordinatorOnboardingCallIntro({
   React.useEffect(() => {
     if (!timelineEnabled || !configuredIntroAudioSrc) return undefined;
 
-    let audio: HTMLAudioElement | null = new Audio(configuredIntroAudioSrc);
+    const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
+    let audio: HTMLAudioElement | null =
+      coordinatorWindow.__coordinatorOnboardingIntroAudio &&
+      !coordinatorWindow.__coordinatorOnboardingIntroAudio.ended &&
+      audioElementMatchesSrc(
+        coordinatorWindow.__coordinatorOnboardingIntroAudio,
+        configuredIntroAudioSrc
+      )
+        ? coordinatorWindow.__coordinatorOnboardingIntroAudio
+        : new Audio(configuredIntroAudioSrc);
     let audioTimer: number | null = null;
     let animationFrame = 0;
     let hasStartedAudio = false;
     let shouldPublishToComponent = true;
 
+    audio.currentTime = getPlayableAudioTime(audio, latestSourceElapsedMsRef.current / 1_000);
+    audio.muted = false;
     audio.preload = 'auto';
     audio.loop = false;
     audio.volume = COORDINATOR_INTRO_VOICE_VOLUME;
+
+    const previousAudio = coordinatorWindow.__coordinatorOnboardingIntroAudio;
+    if (previousAudio && previousAudio !== audio) {
+      previousAudio.pause();
+      previousAudio.currentTime = 0;
+      previousAudio.removeAttribute('src');
+      previousAudio.load();
+    }
+    coordinatorWindow.__coordinatorOnboardingIntroAudio = audio;
 
     const stopAudioAnalysis = (resetSpeechLevel = true) => {
       if (animationFrame) {
@@ -826,7 +924,6 @@ export function CoordinatorOnboardingCallIntro({
     };
 
     const handleEnded = () => {
-      const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
       if (coordinatorWindow.__coordinatorOnboardingIntroAudio === audio) {
         coordinatorWindow.__coordinatorOnboardingIntroAudio = undefined;
       }
@@ -842,16 +939,6 @@ export function CoordinatorOnboardingCallIntro({
         if (!audio) return;
         if (hasStartedAudio) return;
         hasStartedAudio = true;
-
-        const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
-        const previousAudio = coordinatorWindow.__coordinatorOnboardingIntroAudio;
-        if (previousAudio && previousAudio !== audio) {
-          previousAudio.pause();
-          previousAudio.currentTime = 0;
-          previousAudio.removeAttribute('src');
-          previousAudio.load();
-        }
-        coordinatorWindow.__coordinatorOnboardingIntroAudio = audio;
 
         if (skipRequestedRef.current) {
           audio.currentTime = getPlayableAudioTime(
@@ -887,7 +974,6 @@ export function CoordinatorOnboardingCallIntro({
       }
       if (audio) {
         audio.removeEventListener('ended', handleEnded);
-        const coordinatorWindow = window as BrowserWindowWithCoordinatorIntroAudio;
         if (!keepAudioPlaying && coordinatorWindow.__coordinatorOnboardingIntroAudio === audio) {
           coordinatorWindow.__coordinatorOnboardingIntroAudio = undefined;
         }

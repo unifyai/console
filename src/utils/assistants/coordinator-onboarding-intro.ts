@@ -1,9 +1,6 @@
 import type { Transition } from 'framer-motion';
+import { TWIN_ONBOARDING_INTRO_AUDIO_SRC } from '@droid/brand/audio';
 import { TWIN_CREATURE_APPEARANCE } from '@droid/brand/components';
-import {
-  TWIN_ONBOARDING_INTRO_AUDIO_SRC,
-  TWIN_ONBOARDING_INTRO_DURATION_MS,
-} from '@droid/brand/audio';
 import type { BrandRole } from '@/components/Brand/shapes';
 import type {
   CreatureAntenna,
@@ -12,24 +9,34 @@ import type {
 } from '@/components/Brand/TeammateCreature';
 import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
 
-const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 38.68;
+const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 70.606;
+const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 72_725;
 
-export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm Twin.
-Firstly, I know what you might be thinking.
-Am I really going to spend my time talking to a tiny robot?
-You're a serious person with a presumably serious and important job.
-Well, I don't know if you've noticed, but the world isn't doing so well.
-Escaping to another planet might be the best decision you make.
-It'll certainly save you a lot of time.
-I can manage your mailbox.
-I can help you draft documents.
-I can remind you of important events.
-And I can do just about anything that a human coworker could.
-Don't think about prompting or configuring me.
-Just talk to me naturally like you would anyone else.
-And I'll be able to help.
-I'll now walk you through the platform.
-Any immediate questions before we start?`;
+export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm T dash W 1 N.
+
+Before you ask, no I'm not one of Elon's many children, and no he didn't come up with the name, thankfully.
+
+I have this name because I'll be acting as your digital twin. Do you get it? Twin? Like T dash W 1 N spells Twin? The creators of this platform express how important it is that you acknowledge that it's a clever and funny name.
+
+Okay, what next. They didn't give me much to work with on this intro to be honest.
+
+Have you ever had a krispy creme? Have you ever gone to krispy creme?
+
+Was it krispy?
+
+No that's not really appropriate.
+
+Erm....
+
+I think I was meant to tell you about my capabilities?
+
+I'm not one for bragging, but I'll do my best. Basically, I'm not a "tool", I'm not an "agent", I'm your living breathing copilot (metaphorically speaking, at the lawyers request).
+
+Don't think about prompting me, or configuring me, just talk to me naturally like you would anyone else, and I'll be able to help. It's really that simple.
+
+There's not much more to say.
+
+I'll now guide you through the platform, but if you get stuck then just let me know. Anything on your mind before we start?`;
 
 export type CoordinatorOnboardingIntroDroidAppearance = {
   antenna?: CreatureAntenna;
@@ -49,7 +56,7 @@ export const COORDINATOR_ONBOARDING_INTRO = {
   // (assets/audio/droid/onboarding/*.mp3).
   ascentAudioSrc: '/sounds/space-elevator-ascent.mp3',
   closingQuestionSec: COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC,
-  fallbackDurationMs: TWIN_ONBOARDING_INTRO_DURATION_MS,
+  fallbackDurationMs: COORDINATOR_ONBOARDING_INTRO_DURATION_MS,
   initialPauseMs: 1_000,
   backgroundStartDelayMs: 500,
   backgroundAccelerationMs: 2_400,

@@ -507,7 +507,7 @@ function useIsCoordinatorIntroAudioPlaying() {
     const updateIntroAudioState = () => {
       const audio = (window as BrowserWindowWithCoordinatorIntroAudio)
         .__coordinatorOnboardingIntroAudio;
-      setIsIntroAudioPlaying(!!audio && !audio.paused && !audio.ended);
+      setIsIntroAudioPlaying(!!audio && !audio.ended);
     };
 
     updateIntroAudioState();
