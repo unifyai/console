@@ -1,5 +1,4 @@
 import type { Transition } from 'framer-motion';
-import { TWIN_ONBOARDING_INTRO_AUDIO_SRC } from '@droid/brand/audio';
 import { TWIN_CREATURE_APPEARANCE } from '@droid/brand/components';
 import type { BrandRole } from '@/components/Brand/shapes';
 import type {
@@ -11,6 +10,7 @@ import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance'
 
 const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 90.449;
 const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 98_508;
+const COORDINATOR_ONBOARDING_INTRO_AUDIO_SRC = '/sounds/twin-onboarding-intro.mp3';
 
 export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm T dash W 1 N.
 
@@ -57,11 +57,9 @@ export type CoordinatorOnboardingIntroDroidAppearance = {
 };
 
 export const COORDINATOR_ONBOARDING_INTRO = {
-  audioSrc: TWIN_ONBOARDING_INTRO_AUDIO_SRC,
+  audioSrc: COORDINATOR_ONBOARDING_INTRO_AUDIO_SRC,
   backgroundMusicSrc: '/sounds/neo-background-music.mp3',
   backgroundMusicVolume: 0.28,
-  // Served from public/sounds; canonical assets are owned by branding
-  // (assets/audio/droid/onboarding/*.mp3).
   ascentAudioSrc: '/sounds/space-elevator-ascent.mp3',
   closingQuestionSec: COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC,
   fallbackDurationMs: COORDINATOR_ONBOARDING_INTRO_DURATION_MS,
