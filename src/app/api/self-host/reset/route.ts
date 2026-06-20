@@ -1,5 +1,5 @@
 import { execFile } from 'child_process';
-import { mkdir, writeFile } from 'fs/promises';
+import { access, mkdir, writeFile } from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { promisify } from 'util';
@@ -27,6 +27,17 @@ function resolveDroidHome(): string {
 
 function resolveConsoleRepoPath(): string {
   return process.cwd();
+}
+
+async function resolveBashPath(): Promise<string> {
+  if (process.platform !== 'darwin') return 'bash';
+  const homebrewBash = '/opt/homebrew/bin/bash';
+  try {
+    await access(homebrewBash);
+    return homebrewBash;
+  } catch {
+    return 'bash';
+  }
 }
 
 async function writeCoordinatorRuntimeFile(payload: Record<string, unknown>): Promise<void> {
@@ -58,7 +69,7 @@ async function writeCoordinatorRuntimeFile(payload: Record<string, unknown>): Pr
 
 async function restartCoordinatorRuntime(): Promise<void> {
   await execFileAsync(
-    'bash',
+    await resolveBashPath(),
     [
       path.join(resolveConsoleRepoPath(), 'scripts', 'local.sh'),
       'start-runtime-backend',
@@ -88,7 +99,7 @@ export async function POST() {
 
   const script = path.join(resolveDeployRepoPath(), 'selfhost', 'reset_db.sh');
   try {
-    const { stdout } = await execFileAsync('bash', [script, '--yes'], {
+    const { stdout } = await execFileAsync(await resolveBashPath(), [script, '--yes'], {
       env: {
         ...process.env,
         SELF_HOST: '1',
