@@ -9,8 +9,8 @@ import type {
 } from '@/components/Brand/TeammateCreature';
 import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
 
-const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 70.606;
-const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 72_725;
+const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 66.23;
+const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 68_127;
 
 export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm T dash W 1 N.
 
@@ -20,17 +20,15 @@ I have this name because I'll be acting as your digital twin. Do you get it? Twi
 
 Okay, what next. They didn't give me much to work with on this intro to be honest.
 
-Have you ever had a krispy creme? Have you ever gone to krispy creme?
+Have you ever had a Krispy Kreme? Have you ever gone to Krispy Kreme?
 
 Was it krispy?
 
-No that's not really appropriate.
-
-Erm....
+Urmmm....
 
 I think I was meant to tell you about my capabilities?
 
-I'm not one for bragging, but I'll do my best. Basically, I'm not a "tool", I'm not an "agent", I'm your living breathing copilot (metaphorically speaking, at the lawyers request).
+I'm not one for bragging, but I'll do my best. Basically, I'm not a "tool", I'm not an "agent", I'm your living breathing copilot (metaphorically speaking. At the lawyers request).
 
 Don't think about prompting me, or configuring me, just talk to me naturally like you would anyone else, and I'll be able to help. It's really that simple.
 

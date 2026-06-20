@@ -622,61 +622,60 @@ function getSurfaceRevealOffsetMs(durationMs: number) {
 
 const TWIN_DROID_APPEARANCE = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID;
 const TWIN_TEXT_BUBBLE_CUES = [
-  { startMs: 262, text: "Hi, I'm T dash W 1 N." },
+  { startMs: 285, text: "Hi, I'm T dash W 1 N." },
   {
-    startMs: 3_396,
+    startMs: 3_222,
     text: "Before you ask, no I'm not one of Elon's many children,",
   },
-  { startMs: 6_229, text: "and no he didn't come up with the name, thankfully." },
+  { startMs: 5_846, text: "and no he didn't come up with the name, thankfully." },
   {
-    startMs: 9_259,
+    startMs: 8_865,
     text: "I have this name because I'll be acting as your digital twin.",
   },
-  { startMs: 12_348, text: 'Do you get it?' },
-  { startMs: 13_985, text: 'Twin?' },
-  { startMs: 15_192, text: 'Like T dash W 1 N spells Twin?' },
+  { startMs: 12_429, text: 'Do you get it?' },
+  { startMs: 13_810, text: 'Twin?' },
+  { startMs: 14_519, text: 'Like T dash W 1 N spells Twin?' },
   {
-    startMs: 18_965,
+    startMs: 17_979,
     text: "The creators of this platform express how important it is that you acknowledge that it's a clever and funny name.",
   },
-  { startMs: 25_362, text: 'Okay, what next.' },
+  { startMs: 25_038, text: 'Okay, what next.' },
   {
-    startMs: 27_057,
+    startMs: 26_849,
     text: "They didn't give me much to work with on this intro to be honest.",
   },
-  { startMs: 30_587, text: 'Have you ever had a krispy creme?' },
-  { startMs: 32_595, text: 'Have you ever gone to krispy creme?' },
-  { startMs: 34_836, text: 'Was it krispy?' },
-  { startMs: 36_566, text: "No that's not really appropriate." },
-  { startMs: 39_260, text: 'Erm....' },
-  { startMs: 40_804, text: 'I think I was meant to tell you about my capabilities?' },
+  { startMs: 30_332, text: 'Have you ever had a Krispy Kreme?' },
+  { startMs: 32_329, text: 'Have you ever gone to Krispy Kreme?' },
+  { startMs: 34_430, text: 'Was it krispy?' },
+  { startMs: 35_649, text: 'Urmmm....' },
+  { startMs: 37_019, text: 'I think I was meant to tell you about my capabilities?' },
   {
-    startMs: 44_043,
+    startMs: 39_910,
     text: "I'm not one for bragging, but I'll do my best.",
   },
   {
-    startMs: 47_503,
+    startMs: 42_859,
     text: 'Basically, I\'m not a "tool", I\'m not an "agent",',
   },
   {
-    startMs: 50_974,
-    text: "I'm your living breathing copilot (metaphorically speaking, at the lawyers request).",
+    startMs: 46_145,
+    text: "I'm your living breathing copilot (metaphorically speaking. At the lawyers request).",
   },
   {
-    startMs: 56_024,
+    startMs: 50_812,
     text: "Don't think about prompting me, or configuring me,",
   },
   {
-    startMs: 58_857,
+    startMs: 53_506,
     text: "just talk to me naturally like you would anyone else, and I'll be able to help.",
   },
-  { startMs: 62_700, text: "It's really that simple." },
-  { startMs: 64_314, text: "There's not much more to say." },
+  { startMs: 58_069, text: "It's really that simple." },
+  { startMs: 59_833, text: "There's not much more to say." },
   {
-    startMs: 65_986,
+    startMs: 61_865,
     text: "I'll now guide you through the platform, but if you get stuck then just let me know.",
   },
-  { startMs: 70_606, text: 'Anything on your mind before we start?' },
+  { startMs: 66_230, text: 'Anything on your mind before we start?' },
 ] as const satisfies readonly TwinTextBubbleCue[];
 
 function getTwinTextBubbleCueIndex(elapsedMs: number, durationMs: number) {
