@@ -62,6 +62,8 @@ const COORDINATOR_INTRO_RADIO_STATION_CUE_MS = 1_500;
 const COORDINATOR_INTRO_RADIO_TOGGLE_CUE_SRC = '/sounds/radio-station-crackle.wav';
 const COORDINATOR_INTRO_RADIO_TOGGLE_CUE_VOLUME = 0.22;
 const COORDINATOR_INTRO_RADIO_TOGGLE_CUE_MS = 620;
+const COORDINATOR_INTRO_ARRIVAL_DING_SRC = '/sounds/twin-onboarding-arrival-ding.mp3';
+const COORDINATOR_INTRO_ARRIVAL_DING_VOLUME = 0.16;
 const COORDINATOR_INTRO_RADIO_MUSIC_FADE_OUT_MS = 90;
 const COORDINATOR_INTRO_RADIO_MUSIC_FADE_IN_MS = 160;
 let coordinatorCitySoundscapeState: CoordinatorCitySoundscapeState | null = null;
@@ -71,6 +73,7 @@ let coordinatorIntroStationCueAudio: HTMLAudioElement | null = null;
 let coordinatorIntroStationCueStopTimer: number | null = null;
 let coordinatorIntroToggleCueAudio: HTMLAudioElement | null = null;
 let coordinatorIntroToggleCueStopTimer: number | null = null;
+let coordinatorIntroArrivalDingAudio: HTMLAudioElement | null = null;
 let coordinatorIntroStationChangeTimer: number | null = null;
 let coordinatorIntroMusicFadeFrame: number | null = null;
 let coordinatorIntroStationTransitionActive = false;
@@ -213,6 +216,21 @@ function playCoordinatorIntroToggleCue() {
   coordinatorIntroToggleCueStopTimer = window.setTimeout(() => {
     stopCoordinatorIntroToggleCue();
   }, COORDINATOR_INTRO_RADIO_TOGGLE_CUE_MS);
+}
+
+function playCoordinatorIntroArrivalDing() {
+  if (typeof window === 'undefined' || document.hidden) return;
+
+  if (!coordinatorIntroArrivalDingAudio) {
+    coordinatorIntroArrivalDingAudio = new Audio(COORDINATOR_INTRO_ARRIVAL_DING_SRC);
+    coordinatorIntroArrivalDingAudio.preload = 'auto';
+  }
+
+  const audio = coordinatorIntroArrivalDingAudio;
+  audio.pause();
+  audio.currentTime = 0;
+  audio.volume = COORDINATOR_INTRO_ARRIVAL_DING_VOLUME;
+  void audio.play().catch(() => undefined);
 }
 
 function selectCoordinatorIntroRadioStation(direction: -1 | 1) {
@@ -475,6 +493,11 @@ export function primeCoordinatorOnboardingCitySoundscape() {
   const state = ensureCoordinatorCitySoundscape();
   if (!state) return;
 
+  if (!coordinatorIntroArrivalDingAudio) {
+    coordinatorIntroArrivalDingAudio = new Audio(COORDINATOR_INTRO_ARRIVAL_DING_SRC);
+    coordinatorIntroArrivalDingAudio.preload = 'auto';
+  }
+
   void loadCoordinatorAscentSoundBuffer(state, COORDINATOR_ONBOARDING_INTRO.ascentAudioSrc).catch(
     () => {
       state.ascentBufferPromise = null;
@@ -599,11 +622,13 @@ function getAcceleratedScrollProgress(elapsedMs: number, totalMs: number, accele
   return (elapsed - rampMs / 2) / denominator;
 }
 
-function getCityBackdropOpacity(progress: number) {
-  const fadeStart = 0.74;
-  const fadeEnd = 0.96;
-  const fadeProgress = Math.max(0, Math.min(1, (progress - fadeStart) / (fadeEnd - fadeStart)));
-  return 1 - fadeProgress * fadeProgress * (3 - 2 * fadeProgress);
+function easeArrivalProgress(progress: number) {
+  const easeStart = 0.68;
+  if (progress <= easeStart) return progress;
+
+  const tailProgress = (progress - easeStart) / (1 - easeStart);
+  const easedTail = tailProgress + tailProgress * tailProgress - tailProgress ** 3;
+  return easeStart + easedTail * (1 - easeStart);
 }
 
 function getVisualHandoffOffsetMs(durationMs: number) {
@@ -676,6 +701,20 @@ const TWIN_TEXT_BUBBLE_CUES = [
   },
   { startMs: 66_843, text: 'Anything on your mind before we start?' },
 ] as const satisfies readonly TwinTextBubbleCue[];
+
+const TWIN_BACKGROUND_ARRIVAL_LEAD_MS = 250;
+const TWIN_BACKGROUND_ARRIVAL_SOURCE_MS =
+  TWIN_TEXT_BUBBLE_CUES.find((cue) =>
+    cue.text.startsWith("I'll now guide you through the platform")
+  )!.startMs - TWIN_BACKGROUND_ARRIVAL_LEAD_MS;
+
+function getBackgroundArrivalOffsetMs(durationMs: number) {
+  return Math.max(
+    COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs + 500,
+    (TWIN_BACKGROUND_ARRIVAL_SOURCE_MS * durationMs) /
+      COORDINATOR_ONBOARDING_INTRO.fallbackDurationMs
+  );
+}
 
 function getTwinTextBubbleCueIndex(elapsedMs: number, durationMs: number) {
   const sourceElapsedMs =
@@ -1049,10 +1088,13 @@ export function CoordinatorOnboardingCallIntro({
     if (!root || stage !== 'flying') return;
 
     const { durationMs } = getRuntimeTiming();
-    const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs);
+    const backgroundArrivalOffsetMs = getBackgroundArrivalOffsetMs(durationMs);
     const motionDurationMs = skipped
       ? SKIP_FLY_MS
-      : Math.max(1, handoffOffsetMs - COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs);
+      : Math.max(
+          1,
+          backgroundArrivalOffsetMs - COORDINATOR_ONBOARDING_INTRO.backgroundStartDelayMs
+        );
     const currentPosition = Number.parseFloat(
       root.style.getPropertyValue('--coordinator-intro-city-position')
     );
@@ -1063,6 +1105,7 @@ export function CoordinatorOnboardingCallIntro({
       : 100;
     let startTimestamp: number | null = null;
     let animationFrame = 0;
+    let hasArrived = false;
 
     const tick = (timestamp: number) => {
       if (startTimestamp === null) startTimestamp = timestamp;
@@ -1072,15 +1115,20 @@ export function CoordinatorOnboardingCallIntro({
         motionDurationMs,
         COORDINATOR_ONBOARDING_INTRO.backgroundAccelerationMs
       );
-      const position = skipped ? startPosition * (1 - progress) : (1 - progress) * 100;
-      const ascentProgress = 1 - position / 100;
-      const cityOpacity = getCityBackdropOpacity(ascentProgress);
+      const easedProgress = skipped ? progress : easeArrivalProgress(progress);
+      const position = skipped ? startPosition * (1 - easedProgress) : (1 - easedProgress) * 100;
       root.style.setProperty('--coordinator-intro-city-position', `${position}%`);
-      root.style.setProperty('--coordinator-intro-city-opacity', cityOpacity.toString());
-      setCoordinatorOnboardingBackgroundMusicVolume(
-        getCoordinatorIntroRadioStation().volume * cityOpacity
-      );
-      if (progress < 1) {
+      root.style.setProperty('--coordinator-intro-city-opacity', '1');
+
+      if (progress >= 1) {
+        if (!hasArrived) {
+          hasArrived = true;
+          root.style.setProperty('--coordinator-intro-city-position', '0%');
+          playCoordinatorIntroArrivalDing();
+          stopCoordinatorAscentSound();
+          stopCoordinatorOnboardingBackgroundMusic();
+        }
+      } else {
         animationFrame = window.requestAnimationFrame(tick);
       }
     };
