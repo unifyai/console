@@ -30,6 +30,8 @@ type CoordinatorIntroBackgroundMusicState = {
 };
 type CoordinatorIntroBackgroundMusicStartOptions = {
   fadeIn?: boolean;
+  keepClockWhenMuted?: boolean;
+  resetTimelineStop?: boolean;
 };
 type TwinTextBubbleCue = {
   startMs: number;
@@ -56,6 +58,7 @@ let coordinatorIntroToggleCueStopTimer: number | null = null;
 let coordinatorIntroMusicFadeFrame: number | null = null;
 let coordinatorIntroRadioEnabled = true;
 let coordinatorIntroRadioPreferenceLoaded = false;
+let coordinatorIntroRadioStoppedForTimeline = false;
 let coordinatorIntroBackgroundMusicVolume: number =
   COORDINATOR_ONBOARDING_INTRO.backgroundMusicVolume;
 let coordinatorIntroBackgroundMusicVolumeScale = 1;
@@ -199,11 +202,7 @@ export function setCoordinatorOnboardingBackgroundMusicEnabled(enabled: boolean)
   fadeCoordinatorIntroBackgroundMusicVolume(
     state.audio,
     0,
-    COORDINATOR_INTRO_RADIO_MUSIC_FADE_OUT_MS,
-    () => {
-      state.audio.pause();
-      state.audio.currentTime = 0;
-    }
+    COORDINATOR_INTRO_RADIO_MUSIC_FADE_OUT_MS
   );
 }
 
@@ -211,8 +210,12 @@ export function startCoordinatorOnboardingBackgroundMusic(
   options: CoordinatorIntroBackgroundMusicStartOptions = {}
 ) {
   if (typeof window === 'undefined') return;
+  if (options.resetTimelineStop) coordinatorIntroRadioStoppedForTimeline = false;
+  if (coordinatorIntroRadioStoppedForTimeline) return;
+
   loadCoordinatorIntroRadioPreference();
-  if (!coordinatorIntroRadioEnabled) return;
+  const shouldPlayAudibly = coordinatorIntroRadioEnabled;
+  if (!shouldPlayAudibly && !options.keepClockWhenMuted) return;
 
   const src = COORDINATOR_ONBOARDING_INTRO.backgroundMusicSrc;
   if (!src) return;
@@ -231,11 +234,11 @@ export function startCoordinatorOnboardingBackgroundMusic(
     coordinatorIntroBackgroundMusicState = state;
   }
 
-  const targetVolume = getCoordinatorIntroRadioStationTargetVolume();
+  const targetVolume = shouldPlayAudibly ? getCoordinatorIntroRadioStationTargetVolume() : 0;
   coordinatorIntroBackgroundMusicVolume = targetVolume;
   cancelCoordinatorIntroMusicFade();
 
-  if (options.fadeIn) {
+  if (options.fadeIn && shouldPlayAudibly) {
     state.audio.volume = 0;
     void state.audio
       .play()
@@ -265,6 +268,7 @@ function setCoordinatorOnboardingBackgroundMusicVolume(volume: number) {
 }
 
 export function stopCoordinatorOnboardingBackgroundMusic() {
+  coordinatorIntroRadioStoppedForTimeline = false;
   stopCoordinatorIntroToggleCue(true);
   cancelCoordinatorIntroMusicFade();
   const state = coordinatorIntroBackgroundMusicState;
@@ -276,6 +280,7 @@ export function stopCoordinatorOnboardingBackgroundMusic() {
 }
 
 function stopCoordinatorOnboardingBackgroundMusicWithCue() {
+  coordinatorIntroRadioStoppedForTimeline = true;
   playCoordinatorIntroToggleCue();
   cancelCoordinatorIntroMusicFade();
   const state = coordinatorIntroBackgroundMusicState;

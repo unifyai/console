@@ -272,7 +272,10 @@ export function CoordinatorOnboarding({
   const handleStartCall = React.useCallback(
     async (avatarOffset: IntroAvatarOffset) => {
       if (phase !== 'picker') return;
-      startCoordinatorOnboardingBackgroundMusic();
+      startCoordinatorOnboardingBackgroundMusic({
+        keepClockWhenMuted: true,
+        resetTimelineStop: true,
+      });
       primeCoordinatorOnboardingCitySoundscape();
       primeCoordinatorOnboardingIntroVoice();
       setIntroAvatarOffset(avatarOffset);
@@ -285,7 +288,10 @@ export function CoordinatorOnboarding({
   // Return to the lightweight picker so replaying the intro still begins with
   // an explicit call/text choice.
   const handleRestartIntro = React.useCallback(() => {
-    startCoordinatorOnboardingBackgroundMusic();
+    startCoordinatorOnboardingBackgroundMusic({
+      keepClockWhenMuted: true,
+      resetTimelineStop: true,
+    });
     primeCoordinatorOnboardingCitySoundscape();
     isBeginningIntroRef.current = false;
     warmCallCancelledRef.current = true;
@@ -316,7 +322,10 @@ export function CoordinatorOnboarding({
 
   const handlePickChat = React.useCallback(() => {
     if (phase !== 'picker') return;
-    startCoordinatorOnboardingBackgroundMusic();
+    startCoordinatorOnboardingBackgroundMusic({
+      keepClockWhenMuted: true,
+      resetTimelineStop: true,
+    });
     primeCoordinatorOnboardingCitySoundscape();
     setIntroAvatarOffset({ x: 0, y: -72 });
     setIntroSkipSignal(0);
