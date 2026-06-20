@@ -496,7 +496,7 @@ export function CoordinatorTalkNowCue({ show }: { show: boolean }) {
     <AnimatePresence>
       {show && (
         <motion.div
-          className="bg-background/80 pointer-events-none fixed inset-0 z-[100] flex items-center justify-center overflow-hidden p-6 backdrop-blur-md"
+          className="bg-background/55 pointer-events-none fixed inset-0 z-[100] flex items-center justify-center overflow-hidden p-6 backdrop-blur-md"
           data-testid="coordinator-onboarding-talk-now"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -504,59 +504,17 @@ export function CoordinatorTalkNowCue({ show }: { show: boolean }) {
           transition={{ duration: 0.24 }}
         >
           <motion.div
-            aria-hidden="true"
-            className="bg-role-teal/25 absolute -left-16 top-20 h-56 w-56 rounded-full blur-3xl"
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ opacity: 0 }}
-          />
-          <motion.div
-            aria-hidden="true"
-            className="bg-role-orange/25 absolute -right-20 bottom-16 h-64 w-64 rounded-full blur-3xl"
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ opacity: 0 }}
-          />
-          <motion.div
-            className="relative w-full max-w-xl"
+            className="relative w-full max-w-lg overflow-hidden rounded-[18px] border-2 border-foreground bg-[radial-gradient(circle_at_18%_10%,color-mix(in_srgb,var(--droid-glow)_42%,transparent),transparent_31%),radial-gradient(circle_at_94%_22%,color-mix(in_srgb,var(--neo-coral)_25%,transparent),transparent_28%),radial-gradient(circle_at_28%_102%,color-mix(in_srgb,var(--neo-amber)_32%,transparent),transparent_34%),linear-gradient(140deg,color-mix(in_srgb,var(--card)_88%,var(--background)),var(--card)),var(--brand-grain-texture)] bg-[length:auto,auto,auto,auto,128px_128px] p-8 text-center bg-blend-normal shadow-[0_10px_0_color-mix(in_srgb,var(--foreground)_18%,transparent),0_34px_90px_color-mix(in_srgb,var(--foreground)_18%,transparent)]"
             initial={{ opacity: 0, scale: 0.9, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -8 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           >
-            <div
-              aria-hidden="true"
-              className="bg-role-orange/60 absolute inset-0 translate-x-2 translate-y-2 rounded-2xl"
-            />
-            <div className="bg-card/95 relative overflow-hidden rounded-2xl border-2 border-foreground p-8 text-center shadow-2xl">
-              <div
-                aria-hidden="true"
-                className="absolute -left-3 top-1/2 h-6 w-6 -translate-y-1/2 rotate-45 border-b-2 border-l-2 border-foreground bg-card"
-              />
-              <div aria-hidden="true" className="absolute left-7 top-6 grid grid-cols-2 gap-1">
-                <span className="h-3 w-3 rounded-sm bg-role-teal" />
-                <span className="h-3 w-3 rounded-sm bg-role-pink" />
-                <span className="h-3 w-3 rounded-sm bg-role-orange" />
-                <span className="h-3 w-3 rounded-sm bg-role-yellow" />
-              </div>
-              <div aria-hidden="true" className="absolute right-8 top-8 flex gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-role-cyan" />
-                <span className="h-2.5 w-2.5 rounded-full bg-role-purple" />
-                <span className="h-2.5 w-2.5 rounded-full bg-role-green" />
-              </div>
-              <div className="bg-primary/15 relative mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-full border-2 border-foreground text-primary">
-                <motion.span
-                  aria-hidden="true"
-                  className="bg-primary/30 absolute inset-0 rounded-full"
-                  initial={{ scale: 1, opacity: 0.65 }}
-                  animate={{ scale: 1.75, opacity: 0 }}
-                  transition={{ duration: 1.25, ease: 'easeOut', repeat: Infinity }}
-                />
-                <Mic className="relative h-12 w-12" aria-hidden="true" />
-              </div>
-              <p className="text-h1 font-semibold text-foreground">Talk now!</p>
-              <p className="text-body mt-2 text-muted-foreground">Twin is listening.</p>
+            <div className="bg-card/70 relative mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-full border-2 border-foreground text-primary shadow-md">
+              <Mic className="h-12 w-12" aria-hidden="true" />
             </div>
+            <p className="text-h1 relative font-semibold text-foreground">Talk now!</p>
+            <p className="text-body relative mt-2 text-muted-foreground">Twin is listening.</p>
           </motion.div>
         </motion.div>
       )}
