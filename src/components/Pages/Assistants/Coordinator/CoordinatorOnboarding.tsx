@@ -894,7 +894,7 @@ function CoordinatorOnboardingPicker({
         style={{ marginTop: -cardOverlapPx, paddingTop: cardOverlapPx + 24 }}
       >
         <p className="text-h3 font-medium text-card-foreground">
-          {voiceCalls ? 'Twin is calling to onboard you' : 'Start onboarding with Twin'}
+          {voiceCalls ? 'T-W1N is calling to onboard you' : 'Start onboarding with T-W1N'}
         </p>
         <div className="flex flex-col items-center gap-3 sm:flex-row">
           {voiceCalls ? (
