@@ -1,4 +1,6 @@
 import { execFile } from 'child_process';
+import { mkdir, writeFile } from 'fs/promises';
+import os from 'os';
 import path from 'path';
 import { promisify } from 'util';
 import { NextResponse } from 'next/server';
@@ -16,6 +18,61 @@ function resolveDeployRepoPath(): string {
     process.env.DROID_DEPLOY_REPO_PATH ??
     process.env.DEPLOY_REPO_PATH ??
     path.resolve(process.cwd(), '..', 'droid-deploy')
+  );
+}
+
+function resolveDroidHome(): string {
+  return process.env.DROID_HOME ?? path.join(os.homedir(), '.droid');
+}
+
+function resolveConsoleRepoPath(): string {
+  return process.cwd();
+}
+
+async function writeCoordinatorRuntimeFile(payload: Record<string, unknown>): Promise<void> {
+  const apiKey = typeof payload.api_key === 'string' ? payload.api_key : '';
+  const coordinatorAgentId =
+    typeof payload.coordinator_agent_id === 'string' ||
+    typeof payload.coordinator_agent_id === 'number'
+      ? String(payload.coordinator_agent_id)
+      : '';
+
+  if (!apiKey || !coordinatorAgentId) {
+    throw new Error('Reset did not return Coordinator runtime credentials');
+  }
+
+  const droidHome = resolveDroidHome();
+  await mkdir(droidHome, { recursive: true });
+  await writeFile(
+    path.join(droidHome, 'coordinator-runtime.json'),
+    JSON.stringify(
+      {
+        apiKey,
+        coordinatorAgentId,
+      },
+      null,
+      2
+    ) + '\n'
+  );
+}
+
+async function restartCoordinatorRuntime(): Promise<void> {
+  await execFileAsync(
+    'bash',
+    [
+      path.join(resolveConsoleRepoPath(), 'scripts', 'local.sh'),
+      'start-runtime-backend',
+      '--self-host',
+    ],
+    {
+      env: {
+        ...process.env,
+        SELF_HOST: '1',
+        DROID_STACK_ORCHESTRATOR: 'console-local-harness',
+      },
+      timeout: 180_000,
+      maxBuffer: 1024 * 1024,
+    }
   );
 }
 
@@ -42,6 +99,8 @@ export async function POST() {
     });
     const lastLine = stdout.trim().split('\n').filter(Boolean).at(-1);
     const payload = lastLine ? JSON.parse(lastLine) : { ok: true };
+    await writeCoordinatorRuntimeFile(payload);
+    await restartCoordinatorRuntime();
     return NextResponse.json(payload);
   } catch (error: unknown) {
     const message =
