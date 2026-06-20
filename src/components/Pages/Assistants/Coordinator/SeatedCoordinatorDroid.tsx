@@ -105,6 +105,7 @@ export function SeatedCoordinatorDroid({
         antenna={droid.antenna}
         className="block h-auto w-full"
         disableSpeechMotion
+        disableEmotionEyePool
         emotion={droid.mood ?? 'happy'}
         fixed={1}
         form={form}
