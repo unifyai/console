@@ -8,11 +8,11 @@ import type {
 } from '@/components/Brand/TeammateCreature';
 import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
 
-const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 81.925;
-const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 84_402;
+const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 81.774;
+const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 84_297;
 // Regenerate through docs/coordinator-onboarding-audio.md so the walkie
 // treatment stays aligned with the shared branding pipeline.
-const COORDINATOR_ONBOARDING_INTRO_AUDIO_SRC = '/sounds/twin-onboarding-intro.mp3';
+const COORDINATOR_ONBOARDING_INTRO_AUDIO_SRC = '/sounds/twin-onboarding-intro.mp3?v=47c56b28';
 
 export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm T dash W 1 N.
 
@@ -28,9 +28,7 @@ Was it krispy?
 
 I think I was meant to tell you about my capabilities?
 
-I'm not one for bragging, but I'll do my best. What can I say? I'm not a "tool". I'm not an "agent". I'm your living, breathing colleague.
-
-Metaphorically speaking.
+I'm not one for bragging, but I'll do my best. What can I say? I'm not a "tool". I'm not an "agent". I'm your living, breathing colleague, metaphorically speaking.
 
 Don't think about prompting me, or configuring me, just talk to me naturally like you would anyone else, and I'll be able to help. It's really that simple.
 
@@ -40,7 +38,7 @@ I'll now walk you through the platform.
 
 Actually, first lets turn off this really annoying music.
 
-Let me remove this voice static.
+Also, let me remove this voice static.
 
 Much better. There we go, now I'll pull up the platform.
 

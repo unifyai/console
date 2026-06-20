@@ -13,7 +13,8 @@ const TWIN_VOICE_ID = 'iP95p4xoKVk53GoZ742B';
 const EXISTING_SPLICE_SEC = 43.539342;
 const FIRST_SEGMENT_GAIN_DB = 0;
 const PRE_STATIC_REMOVAL_PAUSE_SEC = 1.0;
-const PRE_SWITCHER_PAUSE_SEC = 1.0;
+const PRE_SWITCHER_PAUSE_SEC = 0.5;
+const POST_SWITCHER_PAUSE_SEC = 0.5;
 const SWITCHER_CUE_DURATION_SEC = 1.5;
 const SWITCHER_CUE_VOLUME = 0.06;
 const SWITCHER_CUE_SRC = 'public/sounds/radio-tuning-transition.mp3';
@@ -39,9 +40,7 @@ Was it krispy?
 
 I think I was meant to tell you about my capabilities?
 
-I'm not one for bragging, but I'll do my best. What can I say? I'm not a "tool". I'm not an "agent". I'm your living, breathing colleague.
-
-Metaphorically speaking.
+I'm not one for bragging, but I'll do my best. What can I say? I'm not a "tool". I'm not an "agent". I'm your living, breathing colleague, metaphorically speaking.
 
 Don't think about prompting me, or configuring me, just talk to me naturally like you would anyone else, and I'll be able to help. It's really that simple.
 
@@ -51,7 +50,7 @@ I'll now walk you through the platform.
 
 Actually, first lets turn off this really annoying music.
 
-Let me remove this voice static.
+Also, let me remove this voice static.
 
 Much better. There we go, now I'll pull up the platform.
 
@@ -62,10 +61,9 @@ const CUES = [
   { audioText: 'I\'m not a "tool".', displayText: 'I\'m not a "tool".' },
   { audioText: 'I\'m not an "agent".', displayText: 'I\'m not an "agent".' },
   {
-    audioText: "I'm your living, breathing colleague.",
-    displayText: "I'm your living, breathing colleague.",
+    audioText: "I'm your living, breathing colleague, metaphorically speaking.",
+    displayText: "I'm your living, breathing colleague, metaphorically speaking.",
   },
-  { audioText: 'Metaphorically speaking.', displayText: 'Metaphorically speaking.' },
   {
     audioText: "Don't think about prompting me, or configuring me,",
     displayText: "Don't think about prompting me, or configuring me,",
@@ -85,8 +83,8 @@ const CUES = [
     displayText: 'Actually, first lets turn off this really annoying music.',
   },
   {
-    audioText: 'Let me remove this voice static.',
-    displayText: 'Let me remove this voice static.',
+    audioText: 'Also, let me remove this voice static.',
+    displayText: 'Also, let me remove this voice static.',
   },
   { audioText: 'Much better.', displayText: 'Much better.' },
   {
@@ -98,6 +96,7 @@ const CUES = [
     displayText: 'Any questions before we start with the onboarding?',
   },
 ];
+const RADIO_MUSIC_OFF_TEXT = 'Actually, first lets turn off this really annoying music.';
 
 function repoRoot() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -368,6 +367,7 @@ async function main() {
     const radioWithPause = path.join(tempDir, 'radio-with-pause.wav');
     const switcher = path.join(tempDir, 'switcher.wav');
     const pauseBeforeSwitcher = path.join(tempDir, 'pause-before-switcher.wav');
+    const pauseAfterSwitcher = path.join(tempDir, 'pause-after-switcher.wav');
     const cleanTail = path.join(tempDir, 'clean-tail.wav');
     const combined = path.join(tempDir, 'combined.wav');
     const lipsyncWav = path.join(tempDir, 'lipsync.wav');
@@ -406,9 +406,11 @@ async function main() {
 
     const whatStartWrapped = WRAPPER_VOICE_DELAY_SEC + align(alignment, 'What can I say?') - 0.08;
     const staticStartWrapped =
-      WRAPPER_VOICE_DELAY_SEC + align(alignment, 'Let me remove this voice static.');
+      WRAPPER_VOICE_DELAY_SEC + align(alignment, 'Also, let me remove this voice static.');
     const staticEndWrapped =
-      WRAPPER_VOICE_DELAY_SEC + alignEnd(alignment, 'Let me remove this voice static.') + 0.22;
+      WRAPPER_VOICE_DELAY_SEC +
+      alignEnd(alignment, 'Also, let me remove this voice static.') +
+      0.22;
     const staticStartInRadioTail = staticStartWrapped - whatStartWrapped;
     const cleanStart = align(alignment, 'Much better.');
 
@@ -509,6 +511,15 @@ async function main() {
       pauseBeforeSwitcher,
     ]);
     runFfmpeg([
+      '-f',
+      'lavfi',
+      '-i',
+      `anullsrc=r=48000:cl=mono:d=${POST_SWITCHER_PAUSE_SEC}`,
+      '-c:a',
+      'pcm_s16le',
+      pauseAfterSwitcher,
+    ]);
+    runFfmpeg([
       '-i',
       switcherCuePath(),
       '-filter_complex',
@@ -548,9 +559,11 @@ async function main() {
       '-i',
       switcher,
       '-i',
+      pauseAfterSwitcher,
+      '-i',
       cleanTail,
       '-filter_complex',
-      '[0:a][1:a][2:a][3:a][4:a]concat=n=5:v=0:a=1[out]',
+      '[0:a][1:a][2:a][3:a][4:a][5:a]concat=n=6:v=0:a=1[out]',
       '-map',
       '[out]',
       '-ac',
@@ -589,12 +602,16 @@ async function main() {
     const existingOffset = EXISTING_SPLICE_SEC - whatStartWrapped;
     const radioSectionEnd = EXISTING_SPLICE_SEC + durationSeconds(radioWithPause);
     const cleanOffset =
-      radioSectionEnd + PRE_SWITCHER_PAUSE_SEC + durationSeconds(switcher) - cleanStart;
+      radioSectionEnd +
+      PRE_SWITCHER_PAUSE_SEC +
+      durationSeconds(switcher) +
+      POST_SWITCHER_PAUSE_SEC -
+      cleanStart;
     const cueTimings = CUES.map((cue) => {
       const sourceStart = align(alignment, cue.audioText);
       const isClean = sourceStart >= cleanStart;
       const insertedStaticPause =
-        !isClean && sourceStart >= align(alignment, 'Let me remove this voice static.')
+        !isClean && sourceStart >= align(alignment, 'Also, let me remove this voice static.')
           ? PRE_STATIC_REMOVAL_PAUSE_SEC
           : 0;
       return {
@@ -617,7 +634,10 @@ async function main() {
         cueTimings.find((cue) => cue.text.startsWith('Any questions'))?.startMs ?? durationMs,
       radioGainDb: Number.parseFloat(radioGain.toFixed(3)),
       radioRmsDb: Number.parseFloat(radioRms.toFixed(3)),
-      radioStopMs: cueTimings.find((cue) => cue.text.startsWith('Actually'))?.startMs ?? durationMs,
+      radioStopMs: Math.round(
+        (existingOffset + WRAPPER_VOICE_DELAY_SEC + alignEnd(alignment, RADIO_MUSIC_OFF_TEXT)) *
+          1000
+      ),
       boostedFirstRmsDb: Number.parseFloat(firstRms.toFixed(3)),
       cueTimings,
     };
