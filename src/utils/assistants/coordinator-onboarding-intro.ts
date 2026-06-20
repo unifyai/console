@@ -10,6 +10,8 @@ import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance'
 
 const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 73.751;
 const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 76_016;
+// Regenerate through docs/coordinator-onboarding-audio.md so the walkie
+// treatment stays aligned with the shared branding pipeline.
 const COORDINATOR_ONBOARDING_INTRO_AUDIO_SRC = '/sounds/twin-onboarding-intro.mp3';
 
 export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm T dash W 1 N.

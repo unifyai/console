@@ -1,0 +1,30 @@
+---
+description: Generate Coordinator intro audio through the shared branding walkie pipeline
+alwaysApply: true
+---
+
+# Coordinator Audio
+
+Console owns Coordinator onboarding intro media:
+
+- `public/sounds/twin-onboarding-intro.mp3`
+- `public/sounds/twin-onboarding-intro.lipsync.json`
+- `src/utils/assistants/coordinator-onboarding-intro.ts`
+- `src/components/Pages/Assistants/Coordinator/CoordinatorOnboardingCallIntro.tsx`
+
+Walkie/radio treatment is not Console-owned. Generate Droid/Twin walkie audio
+through branding's `npm run audio:walkie` pipeline only.
+
+Rules:
+
+- Do not hand-code walkie FFmpeg filters, `anoisesrc`, static/hiss beds, or
+  carrier mixes in Console scripts or one-off terminal snippets.
+- For production radio-sounding segments, use the full wrapped treatment, not
+  standalone voice mode plus a local approximation.
+- For partial replacements, preserve the existing audio, generate the
+  replacement with the same treatment as adjacent preserved audio, and measure
+  splice loudness before finalizing.
+- Keep generated Coordinator intro media in Console; do not move it back into
+  `branding`.
+
+Workflow doc: `docs/coordinator-onboarding-audio.md`.
