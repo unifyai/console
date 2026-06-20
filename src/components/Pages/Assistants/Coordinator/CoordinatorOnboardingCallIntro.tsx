@@ -568,9 +568,9 @@ function getSurfaceRevealOffsetMs(durationMs: number) {
 }
 
 const TWIN_DROID_APPEARANCE = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID;
-const TWIN_BACKGROUND_ARRIVAL_SOURCE_MS = 63_961;
-const TWIN_RADIO_STOP_SOURCE_MS = 66_423;
-const TWIN_PLATFORM_REVEAL_SOURCE_MS = 71_971;
+const TWIN_BACKGROUND_ARRIVAL_SOURCE_MS = 63_868;
+const TWIN_RADIO_STOP_SOURCE_MS = 66_643;
+const TWIN_PLATFORM_REVEAL_SOURCE_MS = 71_766;
 const TWIN_TEXT_BUBBLE_CUES = [
   { startMs: 285, text: "Hi, I'm T dash W 1 N." },
   {
@@ -620,18 +620,18 @@ const TWIN_TEXT_BUBBLE_CUES = [
   },
   { startMs: 58_682, text: "It's really that simple." },
   { startMs: 60_446, text: "There's not much more to say." },
-  { startMs: 61_717, text: "I'll now walk you through the platform." },
+  { startMs: 61_636, text: "I'll now walk you through the platform." },
   {
-    startMs: 63_703,
+    startMs: 63_377,
     text: 'Actually, first lets turn off this really annoying music.',
   },
-  { startMs: 66_907, text: 'Much better.' },
+  { startMs: 66_849, text: 'Much better.' },
   {
-    startMs: 68_196,
+    startMs: 68_126,
     text: "Also, let me fix my audio, it's a bit crackly.",
   },
-  { startMs: 71_971, text: "There we go, now I'll pull up the platform." },
-  { startMs: 74_165, text: 'Any questions before we start with the onboarding?' },
+  { startMs: 71_766, text: "There we go, now I'll pull up the platform." },
+  { startMs: 73_751, text: 'Any questions before we start with the onboarding?' },
 ] as const satisfies readonly TwinTextBubbleCue[];
 
 function getBackgroundArrivalOffsetMs(durationMs: number) {
