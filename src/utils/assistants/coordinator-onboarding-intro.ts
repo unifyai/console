@@ -12,7 +12,7 @@ const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 76.4;
 const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 79_700;
 // Regenerate through docs/coordinator-onboarding-audio.md so the walkie
 // treatment stays aligned with the shared branding pipeline.
-const COORDINATOR_ONBOARDING_INTRO_AUDIO_SRC = '/sounds/twin-onboarding-intro.mp3?v=0d7b4154';
+const COORDINATOR_ONBOARDING_INTRO_AUDIO_SRC = '/sounds/twin-onboarding-intro.mp3?v=7c5955d4';
 
 export const COORDINATOR_ONBOARDING_INTRO_TRANSCRIPT = `Hi, I'm T dash W 1 N.
 
