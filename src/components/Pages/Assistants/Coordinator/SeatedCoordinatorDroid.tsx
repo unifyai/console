@@ -25,6 +25,9 @@ const DROID_FRAME_TO_WIDTH_RATIO = 4 / 3;
 // Only shrink below the target on viewports too narrow to fit it, so the droid
 // never overflows a small window.
 const DROID_MAX_VIEWPORT_FRACTION = 0.46;
+const COORDINATOR_INTRO_SPEECH_EYE_CONFIG = {
+  expressionSequence: ['square', 'up'] as const,
+};
 
 function computeDroidWidth(viewportWidth: number) {
   return Math.round(
@@ -112,6 +115,7 @@ export function SeatedCoordinatorDroid({
         isSpeaking={isSpeaking}
         mouthShape={mouthShape}
         restingEyes={droid.baseEyes ?? 'up'}
+        speechEyeConfig={COORDINATOR_INTRO_SPEECH_EYE_CONFIG}
         skin={droid.outfit}
         speechLevel={clampDroidSpeechLevel(speechLevel ?? 0)}
         stableBox

@@ -10,13 +10,21 @@ const ELEVEN_MODEL = 'eleven_multilingual_v2';
 const ELEVEN_OUTPUT_FORMAT = 'mp3_44100_128';
 const TWIN_VOICE_ID = 'iP95p4xoKVk53GoZ742B';
 
-const FIRST_HALF_CUT_SEC = 61.476;
+const FIRST_HALF_CUT_SEC = 61.62;
 const FIRST_HALF_REFERENCE_START_SEC = 58.5;
 const FIRST_HALF_REFERENCE_END_SEC = 61.45;
 const RADIO_PREROLL_SEC = 0.16;
-const CLEAN_FIX_GAP_SEC = 0.75;
+const PRE_PLATFORM_PAUSE_SEC = 2.0;
+const PRE_STATIC_REMOVAL_LINE_PAUSE_SEC = 1.0;
+const PRE_STATIC_REMOVAL_PAUSE_SEC = 1.0;
 const ELEVATOR_DING_AFTER_FIRST_LINE_SEC = 0.7;
 const WRAPPER_VOICE_DELAY_SEC = 0.7 - 0.028 - 0.48;
+const SWITCHER_CUE_DURATION_SEC = 1.5;
+const SWITCHER_CUE_VOLUME = 0.06;
+const SWITCHER_CUE_SRC = 'public/sounds/radio-tuning-transition.mp3';
+const WALK_PLATFORM_GAIN_DB = 4.0;
+const MUSIC_OFF_GAIN_DB = 1.7;
+const STATIC_REMOVAL_GAIN_DB = 0.9;
 
 const LANDING_PAGE_WRAPPER_COMMIT = '388e8cd';
 const WRAPPER_INTRO_RELATIVE_PATH =
@@ -25,9 +33,9 @@ const WRAPPER_OUTRO_RELATIVE_PATH =
   'public/landing/neo/voice-tests/youtube-crackle-source/sampled-ending.wav';
 
 const RADIO_TEXT =
-  "I'll now walk you through the platform. Actually, first lets turn off this really annoying music. Much better. Also, let me fix my audio, it's a bit crackly.";
+  "I'll now walk you through the platform. Actually, first lets turn off this really annoying music. Let me remove this voice static.";
 const CLEAN_TEXT =
-  "There we go, now I'll pull up the platform. Any questions before we start with the onboarding?";
+  "Much better. There we go, now I'll pull up the platform. Any questions before we start with the onboarding?";
 
 const RADIO_CUES = [
   {
@@ -38,13 +46,13 @@ const RADIO_CUES = [
     audioText: 'Actually, first lets turn off this really annoying music.',
     displayText: 'Actually, first lets turn off this really annoying music.',
   },
-  { audioText: 'Much better.', displayText: 'Much better.' },
   {
-    audioText: "Also, let me fix my audio, it's a bit crackly.",
-    displayText: "Also, let me fix my audio, it's a bit crackly.",
+    audioText: 'Let me remove this voice static.',
+    displayText: 'Let me remove this voice static.',
   },
 ];
 const CLEAN_CUES = [
+  { audioText: 'Much better.', displayText: 'Much better.' },
   {
     audioText: "There we go, now I'll pull up the platform.",
     displayText: "There we go, now I'll pull up the platform.",
@@ -120,8 +128,17 @@ function lipsyncGenerator() {
   return path.join(repoRoot(), 'branding/packages/brand/scripts/audio/generate-droid-lipsync.mjs');
 }
 
+function switcherCuePath() {
+  return path.join(repoRoot(), SWITCHER_CUE_SRC);
+}
+
 function assertPrerequisites(options) {
-  const requiredFiles = [brandingWalkieCli(), lipsyncGenerator(), options.sourceExisting];
+  const requiredFiles = [
+    brandingWalkieCli(),
+    lipsyncGenerator(),
+    switcherCuePath(),
+    options.sourceExisting,
+  ];
   for (const filePath of requiredFiles) {
     if (!existsSync(filePath)) {
       throw new Error(`Missing required file: ${filePath}`);
@@ -316,6 +333,7 @@ function printDryRun(options) {
         cleanText: CLEAN_TEXT,
         firstHalfCutSec: FIRST_HALF_CUT_SEC,
         output: options.output,
+        prePlatformPauseSec: PRE_PLATFORM_PAUSE_SEC,
         radioText: RADIO_TEXT,
         sourceExisting: options.sourceExisting,
         timingsOutput: options.timingsOutput,
@@ -350,9 +368,14 @@ async function main() {
     const radioWrappedWav = path.join(tempDir, 'radio-wrapped.wav');
     const radioTrimmedWav = path.join(tempDir, 'radio-trimmed.wav');
     const radioMatchedWav = path.join(tempDir, 'radio-matched.wav');
+    const radioMatchedWithPauseWav = path.join(tempDir, 'radio-matched-with-pause.wav');
+    const radioNormalizedWav = path.join(tempDir, 'radio-normalized.wav');
     const cleanVoiceWav = path.join(tempDir, 'clean-voice.wav');
     const firstHalfWav = path.join(tempDir, 'first-half.wav');
-    const silenceWav = path.join(tempDir, 'silence.wav');
+    const platformPauseWav = path.join(tempDir, 'platform-pause.wav');
+    const staticRemovalLinePauseWav = path.join(tempDir, 'static-removal-line-pause.wav');
+    const staticRemovalPauseWav = path.join(tempDir, 'static-removal-pause.wav');
+    const switcherCueWav = path.join(tempDir, 'switcher-cue.wav');
     const outputWav = path.join(tempDir, 'output.wav');
     const lipsyncWav = path.join(tempDir, 'lipsync.wav');
 
@@ -425,6 +448,55 @@ async function main() {
       'pcm_s16le',
       radioMatchedWav,
     ]);
+    runFfmpeg([
+      '-f',
+      'lavfi',
+      '-i',
+      `anullsrc=r=48000:cl=mono:d=${PRE_STATIC_REMOVAL_LINE_PAUSE_SEC}`,
+      '-c:a',
+      'pcm_s16le',
+      staticRemovalLinePauseWav,
+    ]);
+    const staticRemovalLineStart =
+      RADIO_PREROLL_SEC + alignCue(radioAlignment, RADIO_CUES[2]) - firstCueStart;
+    runFfmpeg([
+      '-i',
+      radioMatchedWav,
+      '-i',
+      staticRemovalLinePauseWav,
+      '-filter_complex',
+      `[0:a]atrim=start=0:end=${staticRemovalLineStart},asetpts=PTS-STARTPTS[before];` +
+        `[0:a]atrim=start=${staticRemovalLineStart},asetpts=PTS-STARTPTS[after];` +
+        '[before][1:a][after]concat=n=3:v=0:a=1[out]',
+      '-map',
+      '[out]',
+      '-ac',
+      '1',
+      '-ar',
+      '48000',
+      '-c:a',
+      'pcm_s16le',
+      radioMatchedWithPauseWav,
+    ]);
+    const musicOffLineStart =
+      RADIO_PREROLL_SEC + alignCue(radioAlignment, RADIO_CUES[1]) - firstCueStart;
+    const staticRemovalSpeechStart = staticRemovalLineStart + PRE_STATIC_REMOVAL_LINE_PAUSE_SEC;
+    runFfmpeg([
+      '-i',
+      radioMatchedWithPauseWav,
+      '-af',
+      `volume=enable='lt(t,${musicOffLineStart.toFixed(3)})':volume=${WALK_PLATFORM_GAIN_DB}dB,` +
+        `volume=enable='between(t,${musicOffLineStart.toFixed(3)},${staticRemovalSpeechStart.toFixed(3)})':volume=${MUSIC_OFF_GAIN_DB}dB,` +
+        `volume=enable='gte(t,${staticRemovalSpeechStart.toFixed(3)})':volume=${STATIC_REMOVAL_GAIN_DB}dB,` +
+        'alimiter=limit=0.95',
+      '-ac',
+      '1',
+      '-ar',
+      '48000',
+      '-c:a',
+      'pcm_s16le',
+      radioNormalizedWav,
+    ]);
 
     runFfmpeg([
       '-i',
@@ -445,22 +517,50 @@ async function main() {
       '-f',
       'lavfi',
       '-i',
-      `anullsrc=r=48000:cl=mono:d=${CLEAN_FIX_GAP_SEC}`,
+      `anullsrc=r=48000:cl=mono:d=${PRE_PLATFORM_PAUSE_SEC}`,
       '-c:a',
       'pcm_s16le',
-      silenceWav,
+      platformPauseWav,
+    ]);
+    runFfmpeg([
+      '-i',
+      switcherCuePath(),
+      '-filter_complex',
+      `[0:a]atrim=start=0:end=${SWITCHER_CUE_DURATION_SEC},asetpts=PTS-STARTPTS,volume=${SWITCHER_CUE_VOLUME},alimiter=limit=0.95[out]`,
+      '-map',
+      '[out]',
+      '-ac',
+      '1',
+      '-ar',
+      '48000',
+      '-c:a',
+      'pcm_s16le',
+      switcherCueWav,
+    ]);
+    runFfmpeg([
+      '-f',
+      'lavfi',
+      '-i',
+      `anullsrc=r=48000:cl=mono:d=${PRE_STATIC_REMOVAL_PAUSE_SEC}`,
+      '-c:a',
+      'pcm_s16le',
+      staticRemovalPauseWav,
     ]);
     runFfmpeg([
       '-i',
       firstHalfWav,
       '-i',
-      radioMatchedWav,
+      platformPauseWav,
       '-i',
-      silenceWav,
+      radioNormalizedWav,
+      '-i',
+      staticRemovalPauseWav,
+      '-i',
+      switcherCueWav,
       '-i',
       cleanVoiceWav,
       '-filter_complex',
-      '[0:a][1:a][2:a][3:a]concat=n=4:v=0:a=1[out]',
+      '[0:a][1:a][2:a][3:a][4:a][5:a]concat=n=6:v=0:a=1[out]',
       '-map',
       '[out]',
       '-ac',
@@ -485,13 +585,18 @@ async function main() {
       options.output,
     ]);
 
-    const radioTrimmedDuration = radioTrimEnd - radioTrimStart;
-    const cleanStartSec = FIRST_HALF_CUT_SEC + radioTrimmedDuration + CLEAN_FIX_GAP_SEC;
+    const radioTrimmedDuration = durationSeconds(radioNormalizedWav);
+    const switcherCueDuration = durationSeconds(switcherCueWav);
+    const radioStartSec = FIRST_HALF_CUT_SEC + PRE_PLATFORM_PAUSE_SEC;
+    const cleanStartSec =
+      radioStartSec + radioTrimmedDuration + PRE_STATIC_REMOVAL_PAUSE_SEC + switcherCueDuration;
     const cueTimings = [
-      ...RADIO_CUES.map((cue) => ({
+      ...RADIO_CUES.map((cue, index) => ({
         startMs: Math.round(
           FIRST_HALF_CUT_SEC * 1000 +
-            (RADIO_PREROLL_SEC + alignCue(radioAlignment, cue) - firstCueStart) * 1000
+            PRE_PLATFORM_PAUSE_SEC * 1000 +
+            (RADIO_PREROLL_SEC + alignCue(radioAlignment, cue) - firstCueStart) * 1000 +
+            (index >= 2 ? PRE_STATIC_REMOVAL_LINE_PAUSE_SEC * 1000 : 0)
         ),
         text: cue.displayText,
       })),
@@ -511,7 +616,7 @@ async function main() {
       ),
       firstHalfCutMs: Math.round(FIRST_HALF_CUT_SEC * 1000),
       platformRevealMs:
-        cueTimings.find((cue) => cue.text.startsWith('There we go'))?.startMs ?? durationMs,
+        cueTimings.find((cue) => cue.text.startsWith('Any questions'))?.startMs ?? durationMs,
       radioStopMs: Math.round(
         cueTimings[1].startMs +
           (alignCueEnd(radioAlignment, RADIO_CUES[1]) -

@@ -8,8 +8,8 @@ import type {
 } from '@/components/Brand/TeammateCreature';
 import type { DroidBody, DroidOutfit } from '@/components/Brand/droidAppearance';
 
-const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 73.751;
-const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 76_016;
+const COORDINATOR_ONBOARDING_INTRO_CLOSING_QUESTION_SEC = 78.334;
+const COORDINATOR_ONBOARDING_INTRO_DURATION_MS = 80_718;
 // Regenerate through docs/coordinator-onboarding-audio.md so the walkie
 // treatment stays aligned with the shared branding pipeline.
 const COORDINATOR_ONBOARDING_INTRO_AUDIO_SRC = '/sounds/twin-onboarding-intro.mp3';
@@ -28,7 +28,9 @@ Was it krispy?
 
 I think I was meant to tell you about my capabilities?
 
-I'm not one for bragging, but I'll do my best. Basically, I'm not a "tool", I'm not an "agent", I'm your living breathing copilot (metaphorically speaking. At the lawyers request).
+I'm not one for bragging, but I'll do my best. What can I say? I'm not a "tool". I'm not an "agent". I'm your living, breathing colleague.
+
+Metaphorically speaking.
 
 Don't think about prompting me, or configuring me, just talk to me naturally like you would anyone else, and I'll be able to help. It's really that simple.
 
@@ -38,9 +40,9 @@ I'll now walk you through the platform.
 
 Actually, first lets turn off this really annoying music.
 
-Much better. Also, let me fix my audio, it's a bit crackly.
+Let me remove this voice static.
 
-There we go, now I'll pull up the platform.
+Much better. There we go, now I'll pull up the platform.
 
 Any questions before we start with the onboarding?`;
 

@@ -46,8 +46,6 @@ const COORDINATOR_INTRO_RADIO_STORAGE_KEY = 'console:coordinator-onboarding-radi
 const COORDINATOR_INTRO_RADIO_TOGGLE_CUE_SRC = '/sounds/radio-station-crackle.wav';
 const COORDINATOR_INTRO_RADIO_TOGGLE_CUE_VOLUME = 0.22;
 const COORDINATOR_INTRO_RADIO_TOGGLE_CUE_MS = 620;
-const COORDINATOR_INTRO_ARRIVAL_DING_SRC = '/sounds/twin-onboarding-arrival-ding.mp3';
-const COORDINATOR_INTRO_ARRIVAL_DING_VOLUME = 0.16;
 const COORDINATOR_INTRO_RADIO_MUSIC_FADE_OUT_MS = 90;
 const COORDINATOR_INTRO_RADIO_MUSIC_FADE_IN_MS = 160;
 let coordinatorCitySoundscapeState: CoordinatorCitySoundscapeState | null = null;
@@ -55,7 +53,6 @@ let coordinatorCitySoundscapeCleanupTimer: number | null = null;
 let coordinatorIntroBackgroundMusicState: CoordinatorIntroBackgroundMusicState | null = null;
 let coordinatorIntroToggleCueAudio: HTMLAudioElement | null = null;
 let coordinatorIntroToggleCueStopTimer: number | null = null;
-let coordinatorIntroArrivalDingAudio: HTMLAudioElement | null = null;
 let coordinatorIntroMusicFadeFrame: number | null = null;
 let coordinatorIntroRadioEnabled = true;
 let coordinatorIntroRadioPreferenceLoaded = false;
@@ -154,21 +151,6 @@ function playCoordinatorIntroToggleCue() {
   coordinatorIntroToggleCueStopTimer = window.setTimeout(() => {
     stopCoordinatorIntroToggleCue();
   }, COORDINATOR_INTRO_RADIO_TOGGLE_CUE_MS);
-}
-
-function playCoordinatorIntroArrivalDing() {
-  if (typeof window === 'undefined' || document.hidden) return;
-
-  if (!coordinatorIntroArrivalDingAudio) {
-    coordinatorIntroArrivalDingAudio = new Audio(COORDINATOR_INTRO_ARRIVAL_DING_SRC);
-    coordinatorIntroArrivalDingAudio.preload = 'auto';
-  }
-
-  const audio = coordinatorIntroArrivalDingAudio;
-  audio.pause();
-  audio.currentTime = 0;
-  audio.volume = COORDINATOR_INTRO_ARRIVAL_DING_VOLUME;
-  void audio.play().catch(() => undefined);
 }
 
 function persistCoordinatorIntroRadioPreference() {
@@ -415,11 +397,6 @@ export function primeCoordinatorOnboardingCitySoundscape() {
   const state = ensureCoordinatorCitySoundscape();
   if (!state) return;
 
-  if (!coordinatorIntroArrivalDingAudio) {
-    coordinatorIntroArrivalDingAudio = new Audio(COORDINATOR_INTRO_ARRIVAL_DING_SRC);
-    coordinatorIntroArrivalDingAudio.preload = 'auto';
-  }
-
   void loadCoordinatorAscentSoundBuffer(state, COORDINATOR_ONBOARDING_INTRO.ascentAudioSrc).catch(
     () => {
       state.ascentBufferPromise = null;
@@ -568,9 +545,9 @@ function getSurfaceRevealOffsetMs(durationMs: number) {
 }
 
 const TWIN_DROID_APPEARANCE = COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID;
-const TWIN_BACKGROUND_ARRIVAL_SOURCE_MS = 63_868;
-const TWIN_RADIO_STOP_SOURCE_MS = 66_643;
-const TWIN_PLATFORM_REVEAL_SOURCE_MS = 71_766;
+const TWIN_BACKGROUND_ARRIVAL_SOURCE_MS = 66_631;
+const TWIN_RADIO_STOP_SOURCE_MS = 69_383;
+const TWIN_PLATFORM_REVEAL_SOURCE_MS = 78_334;
 const TWIN_TEXT_BUBBLE_CUES = [
   { startMs: 285, text: "Hi, I'm T dash W 1 N." },
   {
@@ -602,36 +579,33 @@ const TWIN_TEXT_BUBBLE_CUES = [
     startMs: 40_523,
     text: "I'm not one for bragging, but I'll do my best.",
   },
+  { startMs: 43_690, text: 'What can I say?' },
+  { startMs: 45_300, text: 'I\'m not a "tool".' },
+  { startMs: 46_530, text: 'I\'m not an "agent".' },
   {
-    startMs: 43_472,
-    text: 'Basically, I\'m not a "tool", I\'m not an "agent",',
+    startMs: 47_740,
+    text: "I'm your living, breathing colleague.",
   },
+  { startMs: 48_444, text: 'Metaphorically speaking.' },
   {
-    startMs: 46_758,
-    text: "I'm your living breathing copilot (metaphorically speaking. At the lawyers request).",
-  },
-  {
-    startMs: 51_425,
+    startMs: 50_007,
     text: "Don't think about prompting me, or configuring me,",
   },
   {
-    startMs: 54_119,
+    startMs: 52_701,
     text: "just talk to me naturally like you would anyone else, and I'll be able to help.",
   },
-  { startMs: 58_682, text: "It's really that simple." },
-  { startMs: 60_446, text: "There's not much more to say." },
-  { startMs: 61_636, text: "I'll now walk you through the platform." },
+  { startMs: 57_264, text: "It's really that simple." },
+  { startMs: 59_028, text: "There's not much more to say." },
+  { startMs: 64_119, text: "I'll now walk you through the platform." },
   {
-    startMs: 63_377,
+    startMs: 66_372,
     text: 'Actually, first lets turn off this really annoying music.',
   },
-  { startMs: 66_849, text: 'Much better.' },
-  {
-    startMs: 68_126,
-    text: "Also, let me fix my audio, it's a bit crackly.",
-  },
-  { startMs: 71_766, text: "There we go, now I'll pull up the platform." },
-  { startMs: 73_751, text: 'Any questions before we start with the onboarding?' },
+  { startMs: 70_646, text: 'Let me remove this voice static.' },
+  { startMs: 75_060, text: 'Much better.' },
+  { startMs: 76_175, text: "There we go, now I'll pull up the platform." },
+  { startMs: 78_334, text: 'Any questions before we start with the onboarding?' },
 ] as const satisfies readonly TwinTextBubbleCue[];
 
 function getBackgroundArrivalOffsetMs(durationMs: number) {
@@ -692,6 +666,7 @@ export function CoordinatorOnboardingCallIntro({
   const landingDelayTimerRef = React.useRef<number | null>(null);
   const presentationModeRef = React.useRef(presentationMode);
   const latestSourceElapsedMsRef = React.useRef(0);
+  const hasStoppedRadioMusicRef = React.useRef(false);
   // Set when "Skip" is pressed before the audio element has begun playing; the
   // start handler then seeks immediately.
   const skipRequestedRef = React.useRef(false);
@@ -738,6 +713,12 @@ export function CoordinatorOnboardingCallIntro({
     hasFinishedRef.current = true;
     keepAudioAfterUnmountRef.current = true;
     onFinishedRef.current();
+  }, []);
+
+  const stopRadioMusicOnce = React.useCallback(() => {
+    if (hasStoppedRadioMusicRef.current) return;
+    hasStoppedRadioMusicRef.current = true;
+    stopCoordinatorOnboardingBackgroundMusicWithCue();
   }, []);
 
   const scheduleLanding = React.useCallback(() => {
@@ -799,6 +780,7 @@ export function CoordinatorOnboardingCallIntro({
     const handoffOffsetMs = getVisualHandoffOffsetMs(durationMs);
     const surfaceRevealOffsetMs = getSurfaceRevealOffsetMs(durationMs);
     const radioStopOffsetMs = getRadioStopOffsetMs(durationMs);
+    hasStoppedRadioMusicRef.current = false;
     const speakingStartTimer = window.setTimeout(
       () => setStage('speaking'),
       COORDINATOR_ONBOARDING_INTRO.initialPauseMs
@@ -813,7 +795,7 @@ export function CoordinatorOnboardingCallIntro({
       COORDINATOR_ONBOARDING_INTRO.initialPauseMs + surfaceRevealOffsetMs
     );
     const radioStopTimer = window.setTimeout(
-      () => stopCoordinatorOnboardingBackgroundMusicWithCue(),
+      () => stopRadioMusicOnce(),
       COORDINATOR_ONBOARDING_INTRO.initialPauseMs + radioStopOffsetMs
     );
     const landingTimer = window.setTimeout(
@@ -828,7 +810,7 @@ export function CoordinatorOnboardingCallIntro({
       window.clearTimeout(radioStopTimer);
       window.clearTimeout(landingTimer);
     };
-  }, [scheduleLanding, timelineEnabled]);
+  }, [scheduleLanding, stopRadioMusicOnce, timelineEnabled]);
 
   React.useEffect(() => {
     if (!timelineEnabled || !configuredIntroAudioSrc) return undefined;
@@ -882,6 +864,14 @@ export function CoordinatorOnboardingCallIntro({
     const startAudioAnalysis = (audioElement: HTMLAudioElement) => {
       const tick = () => {
         latestSourceElapsedMsRef.current = audioElement.currentTime * 1_000;
+        const { durationMs } = getRuntimeTiming();
+        const radioStopOffsetMs = getRadioStopOffsetMs(durationMs);
+        if (
+          !hasStoppedRadioMusicRef.current &&
+          latestSourceElapsedMsRef.current >= radioStopOffsetMs
+        ) {
+          stopRadioMusicOnce();
+        }
         const track = lipsyncTrackRef.current;
         const { mouthShape, speechLevel } = track
           ? sampleIntroLipsyncTrack(track, audioElement.currentTime)
@@ -960,7 +950,7 @@ export function CoordinatorOnboardingCallIntro({
         audio = null;
       }
     };
-  }, [configuredIntroAudioSrc, scheduleLanding, timelineEnabled]);
+  }, [configuredIntroAudioSrc, scheduleLanding, stopRadioMusicOnce, timelineEnabled]);
 
   React.useEffect(() => {
     if (!timelineEnabled || presentationMode !== 'text') {
@@ -1063,7 +1053,6 @@ export function CoordinatorOnboardingCallIntro({
         if (!hasArrived) {
           hasArrived = true;
           root.style.setProperty('--coordinator-intro-city-position', '0%');
-          playCoordinatorIntroArrivalDing();
           stopCoordinatorAscentSound();
         }
       } else {
