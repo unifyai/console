@@ -31,10 +31,6 @@ type CoordinatorIntroBackgroundMusicState = {
 type CoordinatorIntroBackgroundMusicStartOptions = {
   fadeIn?: boolean;
 };
-type CoordinatorIntroRadioStation = {
-  src: string;
-  volume: number;
-};
 type TwinTextBubbleCue = {
   startMs: number;
   text: string;
@@ -47,18 +43,6 @@ const ASCENT_SOUND_VOLUME = 0.27;
 const ASCENT_SOUND_SKIP_OFFSET_SEC = 32;
 const COORDINATOR_INTRO_VOICE_VOLUME = 0.8;
 const COORDINATOR_INTRO_RADIO_STORAGE_KEY = 'console:coordinator-onboarding-radio-enabled';
-const COORDINATOR_INTRO_RADIO_STATIONS: readonly CoordinatorIntroRadioStation[] = [
-  {
-    src: COORDINATOR_ONBOARDING_INTRO.backgroundMusicSrc,
-    volume: COORDINATOR_ONBOARDING_INTRO.backgroundMusicVolume,
-  },
-  { src: '/sounds/retro-fun-upbeat-radio.mp3', volume: 0.04228 },
-  { src: '/sounds/holiday-party-radio.mp3', volume: 0.04108 },
-  { src: '/sounds/goodbye-moonmen-radio.mp3', volume: 0.04052 },
-];
-const COORDINATOR_INTRO_RADIO_STATION_CUE_SRC = '/sounds/radio-tuning-transition.mp3';
-const COORDINATOR_INTRO_RADIO_STATION_CUE_VOLUME = 0.06;
-const COORDINATOR_INTRO_RADIO_STATION_CUE_MS = 1_500;
 const COORDINATOR_INTRO_RADIO_TOGGLE_CUE_SRC = '/sounds/radio-station-crackle.wav';
 const COORDINATOR_INTRO_RADIO_TOGGLE_CUE_VOLUME = 0.22;
 const COORDINATOR_INTRO_RADIO_TOGGLE_CUE_MS = 620;
@@ -69,17 +53,12 @@ const COORDINATOR_INTRO_RADIO_MUSIC_FADE_IN_MS = 160;
 let coordinatorCitySoundscapeState: CoordinatorCitySoundscapeState | null = null;
 let coordinatorCitySoundscapeCleanupTimer: number | null = null;
 let coordinatorIntroBackgroundMusicState: CoordinatorIntroBackgroundMusicState | null = null;
-let coordinatorIntroStationCueAudio: HTMLAudioElement | null = null;
-let coordinatorIntroStationCueStopTimer: number | null = null;
 let coordinatorIntroToggleCueAudio: HTMLAudioElement | null = null;
 let coordinatorIntroToggleCueStopTimer: number | null = null;
 let coordinatorIntroArrivalDingAudio: HTMLAudioElement | null = null;
-let coordinatorIntroStationChangeTimer: number | null = null;
 let coordinatorIntroMusicFadeFrame: number | null = null;
-let coordinatorIntroStationTransitionActive = false;
 let coordinatorIntroRadioEnabled = true;
 let coordinatorIntroRadioPreferenceLoaded = false;
-let coordinatorIntroRadioStationIndex = 0;
 let coordinatorIntroBackgroundMusicVolume: number =
   COORDINATOR_ONBOARDING_INTRO.backgroundMusicVolume;
 let coordinatorIntroBackgroundMusicVolumeScale = 1;
@@ -97,15 +76,10 @@ function clampAudioVolume(volume: number) {
   return Math.max(0, Math.min(1, volume));
 }
 
-function getCoordinatorIntroRadioStation() {
-  return (
-    COORDINATOR_INTRO_RADIO_STATIONS[coordinatorIntroRadioStationIndex] ??
-    COORDINATOR_INTRO_RADIO_STATIONS[0]
-  );
-}
-
 function getCoordinatorIntroRadioStationTargetVolume() {
-  return getCoordinatorIntroRadioStation().volume * coordinatorIntroBackgroundMusicVolumeScale;
+  return (
+    COORDINATOR_ONBOARDING_INTRO.backgroundMusicVolume * coordinatorIntroBackgroundMusicVolumeScale
+  );
 }
 
 function resetCoordinatorIntroBackgroundMusicVolumeScale() {
@@ -155,15 +129,6 @@ function stopCoordinatorIntroAudio(audio: HTMLAudioElement | null, releaseSource
   audio.load();
 }
 
-function stopCoordinatorIntroStationCue(releaseSource = false) {
-  if (coordinatorIntroStationCueStopTimer !== null) {
-    window.clearTimeout(coordinatorIntroStationCueStopTimer);
-    coordinatorIntroStationCueStopTimer = null;
-  }
-  stopCoordinatorIntroAudio(coordinatorIntroStationCueAudio, releaseSource);
-  if (releaseSource) coordinatorIntroStationCueAudio = null;
-}
-
 function stopCoordinatorIntroToggleCue(releaseSource = false) {
   if (coordinatorIntroToggleCueStopTimer !== null) {
     window.clearTimeout(coordinatorIntroToggleCueStopTimer);
@@ -171,33 +136,6 @@ function stopCoordinatorIntroToggleCue(releaseSource = false) {
   }
   stopCoordinatorIntroAudio(coordinatorIntroToggleCueAudio, releaseSource);
   if (releaseSource) coordinatorIntroToggleCueAudio = null;
-}
-
-function clearCoordinatorIntroStationTransition() {
-  if (coordinatorIntroStationChangeTimer !== null) {
-    window.clearTimeout(coordinatorIntroStationChangeTimer);
-    coordinatorIntroStationChangeTimer = null;
-  }
-  stopCoordinatorIntroStationCue();
-  coordinatorIntroStationTransitionActive = false;
-}
-
-function playCoordinatorIntroStationCue() {
-  if (typeof window === 'undefined' || document.hidden) return;
-  stopCoordinatorIntroStationCue();
-
-  if (!coordinatorIntroStationCueAudio) {
-    coordinatorIntroStationCueAudio = new Audio(COORDINATOR_INTRO_RADIO_STATION_CUE_SRC);
-    coordinatorIntroStationCueAudio.preload = 'auto';
-  }
-
-  const audio = coordinatorIntroStationCueAudio;
-  audio.volume = COORDINATOR_INTRO_RADIO_STATION_CUE_VOLUME;
-  void audio.play().catch(() => undefined);
-
-  coordinatorIntroStationCueStopTimer = window.setTimeout(() => {
-    stopCoordinatorIntroStationCue();
-  }, COORDINATOR_INTRO_RADIO_STATION_CUE_MS);
 }
 
 function playCoordinatorIntroToggleCue() {
@@ -231,12 +169,6 @@ function playCoordinatorIntroArrivalDing() {
   audio.currentTime = 0;
   audio.volume = COORDINATOR_INTRO_ARRIVAL_DING_VOLUME;
   void audio.play().catch(() => undefined);
-}
-
-function selectCoordinatorIntroRadioStation(direction: -1 | 1) {
-  coordinatorIntroRadioStationIndex =
-    (coordinatorIntroRadioStationIndex + direction + COORDINATOR_INTRO_RADIO_STATIONS.length) %
-    COORDINATOR_INTRO_RADIO_STATIONS.length;
 }
 
 function persistCoordinatorIntroRadioPreference() {
@@ -280,7 +212,6 @@ export function setCoordinatorOnboardingBackgroundMusicEnabled(enabled: boolean)
     return;
   }
 
-  clearCoordinatorIntroStationTransition();
   const state = coordinatorIntroBackgroundMusicState;
   if (!state) return;
   fadeCoordinatorIntroBackgroundMusicVolume(
@@ -294,55 +225,27 @@ export function setCoordinatorOnboardingBackgroundMusicEnabled(enabled: boolean)
   );
 }
 
-export function changeCoordinatorOnboardingBackgroundMusicStation(direction: -1 | 1) {
-  loadCoordinatorIntroRadioPreference();
-  coordinatorIntroRadioEnabled = true;
-  persistCoordinatorIntroRadioPreference();
-  if (typeof window === 'undefined') return;
-
-  clearCoordinatorIntroStationTransition();
-  resetCoordinatorIntroBackgroundMusicVolumeScale();
-  coordinatorIntroStationTransitionActive = true;
-  const state = coordinatorIntroBackgroundMusicState;
-  if (state && !state.audio.paused) {
-    fadeCoordinatorIntroBackgroundMusicVolume(
-      state.audio,
-      0,
-      COORDINATOR_INTRO_RADIO_MUSIC_FADE_OUT_MS,
-      () => state.audio.pause()
-    );
-  }
-  playCoordinatorIntroStationCue();
-
-  coordinatorIntroStationChangeTimer = window.setTimeout(() => {
-    selectCoordinatorIntroRadioStation(direction);
-    coordinatorIntroStationTransitionActive = false;
-    coordinatorIntroStationChangeTimer = null;
-    startCoordinatorOnboardingBackgroundMusic({ fadeIn: true });
-  }, COORDINATOR_INTRO_RADIO_STATION_CUE_MS);
-}
-
 export function startCoordinatorOnboardingBackgroundMusic(
   options: CoordinatorIntroBackgroundMusicStartOptions = {}
 ) {
   if (typeof window === 'undefined') return;
   loadCoordinatorIntroRadioPreference();
-  if (!coordinatorIntroRadioEnabled || coordinatorIntroStationTransitionActive) return;
+  if (!coordinatorIntroRadioEnabled) return;
 
-  const station = getCoordinatorIntroRadioStation();
-  if (!station?.src) return;
+  const src = COORDINATOR_ONBOARDING_INTRO.backgroundMusicSrc;
+  if (!src) return;
 
   let state = coordinatorIntroBackgroundMusicState;
-  if (!state || state.src !== station.src) {
+  if (!state || state.src !== src) {
     if (state) {
       state.audio.pause();
       state.audio.removeAttribute('src');
       state.audio.load();
     }
-    const audio = new Audio(station.src);
+    const audio = new Audio(src);
     audio.loop = true;
     audio.preload = 'auto';
-    state = { audio, src: station.src };
+    state = { audio, src };
     coordinatorIntroBackgroundMusicState = state;
   }
 
@@ -370,7 +273,7 @@ export function startCoordinatorOnboardingBackgroundMusic(
 }
 
 function setCoordinatorOnboardingBackgroundMusicVolume(volume: number) {
-  const stationVolume = getCoordinatorIntroRadioStation().volume;
+  const stationVolume = COORDINATOR_ONBOARDING_INTRO.backgroundMusicVolume;
   coordinatorIntroBackgroundMusicVolumeScale =
     stationVolume > 0 ? clampAudioVolume(volume / stationVolume) : 0;
   coordinatorIntroBackgroundMusicVolume = getCoordinatorIntroRadioStationTargetVolume();
@@ -380,7 +283,6 @@ function setCoordinatorOnboardingBackgroundMusicVolume(volume: number) {
 }
 
 export function stopCoordinatorOnboardingBackgroundMusic() {
-  clearCoordinatorIntroStationTransition();
   stopCoordinatorIntroToggleCue(true);
   cancelCoordinatorIntroMusicFade();
   const state = coordinatorIntroBackgroundMusicState;

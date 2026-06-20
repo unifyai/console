@@ -40,6 +40,7 @@ import { useEnvironment, useFeatures } from '@/components/Pages/Providers/Enviro
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
+import { cn } from '@/lib/utils';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import {
   type CoordinatorWorkspaceScope,
@@ -467,6 +468,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // ``intro_watched`` — driven from the Coordinator's "Assistant info"
   // onboarding tab. It clears itself once the replayed intro finishes.
   const [coordinatorIntroReplay, setCoordinatorIntroReplay] = React.useState(false);
+  const [coordinatorIntroSurfaceRevealed, setCoordinatorIntroSurfaceRevealed] =
+    React.useState(false);
   // "Talk now!" cue lifecycle. The intro overlay tears down when it hands
   // off to the call, so the cue lives here (over the docked call): the
   // intro completing via the call path arms it, and it fires once the
@@ -487,6 +490,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const requestCoordinatorOnboardingFocusLayout = React.useCallback(() => {
     setCoordinatorOnboardingFocusLayoutRequest((current) => current + 1);
   }, []);
+
+  React.useEffect(() => {
+    if (!showCoordinatorOnboardingIntro) {
+      setCoordinatorIntroSurfaceRevealed(false);
+    }
+  }, [showCoordinatorOnboardingIntro]);
 
   // Shared onboarding step progress for the Coordinator onboarding
   // flow. Lifted out of ``CoordinatorOnboarding`` so the same set
@@ -1860,10 +1869,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     isCanonicalCoordinatorOwned &&
     coordinatorOnboardingState?.mode === 'onboarding' &&
     coordinatorOnboardingOutstanding &&
-    !showCoordinatorOnboardingIntro &&
+    (!showCoordinatorOnboardingIntro || coordinatorIntroSurfaceRevealed) &&
     canonicalCoordinatorId !== null &&
     profileAssistantId === canonicalCoordinatorId &&
-    (coordinatorIntroDismissed || coordinatorOnboardingState?.introWatched === true);
+    (coordinatorIntroSurfaceRevealed ||
+      coordinatorIntroDismissed ||
+      coordinatorOnboardingState?.introWatched === true);
   const isCoordinatorOnboardingFocusLayout =
     canApplyCoordinatorOnboardingFocusLayout && coordinatorOnboardingFocusLayoutRequest > 0;
 
@@ -2445,7 +2456,24 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           </div>
         ) : (
           <div className="relative flex min-h-0 flex-1 overflow-hidden">
-            <div className="bg-background/85 flex min-h-0 w-full flex-1 overflow-hidden">
+            {coordinatorIntroSurfaceRevealed && (
+              <div
+                className="brand-page-stencil-bg coordinator-onboarding-city-bg absolute inset-0 bg-background"
+                style={
+                  {
+                    '--coordinator-intro-city-position': '0%',
+                    '--coordinator-intro-city-opacity': '1',
+                  } as React.CSSProperties
+                }
+                aria-hidden="true"
+              />
+            )}
+            <div
+              className={cn(
+                'relative flex min-h-0 w-full flex-1 overflow-hidden',
+                coordinatorIntroSurfaceRevealed ? 'bg-transparent' : 'bg-background/85'
+              )}
+            >
               {/* Assistant List */}
               <div
                 className="relative h-full flex-shrink-0 border-r border-border bg-card"
@@ -2487,7 +2515,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               />
 
               {/* Right Pane: Chat + Actions + Dashboards */}
-              <div className="relative h-full min-w-0 flex-1 overflow-hidden bg-background">
+              <div
+                className={cn(
+                  'relative h-full min-w-0 flex-1 overflow-hidden',
+                  coordinatorIntroSurfaceRevealed ? 'bg-transparent' : 'bg-background'
+                )}
+              >
                 <RightPaneContainer
                   assistant={profileAssistant}
                   actions={assistantActions.actions || null}
@@ -2601,6 +2634,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                               isSpeakerMuted={isSpeakerMuted}
                               onToggleSpeaker={toggleSpeakerMute}
                               avatarMood={avatarMood}
+                              coordinatorAvatarVisible={!showCoordinatorOnboardingIntro}
+                              coordinatorTeleportIn={coordinatorTalkNowPending}
                               chatStreamConnectionStatus={
                                 chatStreamConnectionStatusByAssistant[
                                   activeCallAssistant.agentId
@@ -2624,9 +2659,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   coordinator={canonicalCoordinator}
                   onStartCall={handleStartCoordinatorIntroCall}
                   onDiscardCall={handleHangUp}
+                  onRevealSurface={() => {
+                    setCoordinatorIntroSurfaceRevealed(true);
+                    requestCoordinatorOnboardingFocusLayout();
+                  }}
                   onComplete={(medium) => {
                     setCoordinatorIntroDismissed(true);
                     setCoordinatorIntroReplay(false);
+                    setCoordinatorIntroSurfaceRevealed(false);
                     requestCoordinatorOnboardingFocusLayout();
                     // The intro handed off to a live call — arm the
                     // "Talk now!" cue to fire once that call connects.

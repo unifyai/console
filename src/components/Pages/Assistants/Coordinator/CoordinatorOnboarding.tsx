@@ -40,7 +40,6 @@ import {
 } from '@/components/Pages/Assistants/Coordinator/SeatedCoordinatorDroid';
 import {
   CoordinatorOnboardingCallIntro,
-  changeCoordinatorOnboardingBackgroundMusicStation,
   getCoordinatorOnboardingBackgroundMusicEnabled,
   primeCoordinatorOnboardingCitySoundscape,
   primeCoordinatorOnboardingIntroVoice,
@@ -84,6 +83,8 @@ interface CoordinatorOnboardingProps {
    * taken — e.g. surfacing the "Talk now!" cue over the docked call once
    * the intro hands off to a live call. */
   onComplete: (medium: 'call' | 'chat') => void;
+  /** Reveals the platform beneath the intro while keeping the intro droid visible. */
+  onRevealSurface?: () => void;
 }
 
 export function CoordinatorOnboarding({
@@ -91,6 +92,7 @@ export function CoordinatorOnboarding({
   onStartCall,
   onDiscardCall,
   onComplete,
+  onRevealSurface,
 }: CoordinatorOnboardingProps) {
   const { updateState } = useCoordinatorOnboarding(coordinator.agentId);
   // Voice calls require LiveKit (Console-owned). Without it the picker's
@@ -112,6 +114,7 @@ export function CoordinatorOnboarding({
   const [introStartedAt, setIntroStartedAt] = React.useState<number | null>(null);
   const [introCountdownMs, setIntroCountdownMs] = React.useState(0);
   const [introReady, setIntroReady] = React.useState(false);
+  const [surfaceVisible, setSurfaceVisible] = React.useState(false);
   const [isStartingCall, setIsStartingCall] = React.useState(false);
   const isBeginningIntroRef = React.useRef(false);
   const hasTriggeredCallStartRef = React.useRef(false);
@@ -236,6 +239,7 @@ export function CoordinatorOnboarding({
         setIntroStartedAt(null);
         setIntroCountdownMs(0);
         setIsIntroTimelineReady(false);
+        setSurfaceVisible(false);
 
         if (medium === 'call') {
           setPhase('preparing');
@@ -296,6 +300,7 @@ export function CoordinatorOnboarding({
     setIntroStartedAt(null);
     setIntroCountdownMs(0);
     setIsIntroTimelineReady(false);
+    setSurfaceVisible(false);
     void onDiscardCall();
   }, [onDiscardCall]);
 
@@ -303,6 +308,11 @@ export function CoordinatorOnboarding({
     setIntroReady(true);
     setIntroSkipSignal((current) => current + 1);
   }, []);
+
+  const handleReadyToRevealSurface = React.useCallback(() => {
+    setSurfaceVisible(true);
+    onRevealSurface?.();
+  }, [onRevealSurface]);
 
   const handlePickChat = React.useCallback(() => {
     if (phase !== 'picker') return;
@@ -317,6 +327,7 @@ export function CoordinatorOnboarding({
     setIntroMedium((current) => {
       const next = current === 'call' ? 'chat' : voiceCalls ? 'call' : 'chat';
       introMediumRef.current = next;
+      setCoordinatorOnboardingBackgroundMusicEnabled(next === 'call');
       return next;
     });
   }, [voiceCalls]);
@@ -405,12 +416,14 @@ export function CoordinatorOnboarding({
       onSkip={handleSkipIntro}
     />
   );
-  const radioSwitcher = <CoordinatorOnboardingRadioSwitcher />;
-  const introRadioSwitcher = <CoordinatorOnboardingRadioSwitcher className="bottom-20" />;
+  const backgroundMusicSwitcher = <CoordinatorOnboardingAudioSwitcher />;
   const introSoundSwitcher = (
-    <CoordinatorOnboardingSoundSwitcher
-      audioEnabled={introMedium === 'call'}
+    <CoordinatorOnboardingAudioSwitcher
+      enabled={introMedium === 'call'}
       onToggle={handleIntroAudioToggle}
+      dataTestId="coordinator-onboarding-audio-switcher"
+      label={introMedium === 'call' ? 'Mute intro audio' : 'Unmute intro audio'}
+      title="volume"
     />
   );
 
@@ -426,7 +439,7 @@ export function CoordinatorOnboarding({
           onPickChat={handlePickChat}
           isStartingCall={isStartingCall}
         />
-        {radioSwitcher}
+        {backgroundMusicSwitcher}
       </div>
     );
   }
@@ -438,18 +451,20 @@ export function CoordinatorOnboarding({
         data-testid="coordinator-onboarding"
       >
         <CoordinatorOnboardingCallPreparing />
-        {radioSwitcher}
+        {backgroundMusicSwitcher}
       </div>
     );
   }
 
   return (
     <div
-      className="relative flex h-full w-full items-center justify-center overflow-hidden bg-background"
+      className={cn(
+        'relative flex h-full w-full items-center justify-center overflow-hidden',
+        surfaceVisible ? 'bg-transparent' : 'bg-background'
+      )}
       data-testid="coordinator-onboarding"
     >
       {introCountdownBadge}
-      {introRadioSwitcher}
       {voiceCalls && introSoundSwitcher}
       <AnimatePresence mode="wait">
         <CoordinatorOnboardingCallIntro
@@ -457,9 +472,11 @@ export function CoordinatorOnboarding({
           initialAvatarOffset={introAvatarOffset}
           timelineEnabled={isIntroTimelineReady}
           presentationMode={introMedium === 'call' ? 'voice' : 'text'}
+          onReadyToRevealSurface={handleReadyToRevealSurface}
           onFinished={() => void handleIntroFinished()}
           skipSignal={introSkipSignal}
           onSkipped={() => setIntroReady(true)}
+          surfaceVisible={surfaceVisible}
         />
       </AnimatePresence>
     </div>
@@ -648,129 +665,49 @@ function OnboardingIntroCountdownBadge({
   );
 }
 
-function CoordinatorOnboardingRadioSwitcher({ className }: { className?: string }) {
-  const [radioEnabled, setRadioEnabled] = React.useState(() =>
+function CoordinatorOnboardingAudioSwitcher({
+  enabled,
+  onToggle,
+  dataTestId = 'coordinator-onboarding-background-music-switcher',
+  label,
+  title = 'background music',
+}: {
+  enabled?: boolean;
+  onToggle?: () => void;
+  dataTestId?: string;
+  label?: string;
+  title?: string;
+}) {
+  const [uncontrolledEnabled, setUncontrolledEnabled] = React.useState(() =>
     getCoordinatorOnboardingBackgroundMusicEnabled()
   );
+  const isEnabled = enabled ?? uncontrolledEnabled;
 
-  const toggleRadio = React.useCallback(() => {
-    setRadioEnabled((current) => {
+  const toggleMusic = React.useCallback(() => {
+    if (onToggle) {
+      onToggle();
+      return;
+    }
+    setUncontrolledEnabled((current) => {
       const enabled = !current;
       setCoordinatorOnboardingBackgroundMusicEnabled(enabled);
       return enabled;
     });
-  }, []);
+  }, [onToggle]);
 
-  const changeStation = React.useCallback((direction: -1 | 1) => {
-    changeCoordinatorOnboardingBackgroundMusicStation(direction);
-    setRadioEnabled(true);
-  }, []);
-
-  const stationButtonClass =
-    'pointer-events-auto absolute top-1/2 z-0 flex h-6 w-5 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card/80 text-card-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
-  const radioButtonClass = cn(
-    'pointer-events-auto relative z-10 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card/80 text-card-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-    !radioEnabled && 'text-muted-foreground'
-  );
-
-  return (
-    <div
-      className={cn('absolute bottom-4 right-4 isolate z-50 h-12 w-12', className)}
-      data-testid="coordinator-onboarding-radio-switcher"
-    >
-      <button
-        aria-label="Previous radio station"
-        className={cn(stationButtonClass, '-left-3')}
-        onClick={() => changeStation(-1)}
-        type="button"
-      >
-        <svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" className="h-3 w-3">
-          <path
-            d="M10.5 3.5 6 8l4.5 4.5"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-          />
-        </svg>
-      </button>
-      <button
-        aria-label={radioEnabled ? 'Turn radio off' : 'Turn radio on'}
-        aria-pressed={radioEnabled}
-        className={radioButtonClass}
-        onClick={toggleRadio}
-        title="space radio"
-        type="button"
-      >
-        <svg aria-hidden="true" focusable="false" viewBox="0 0 32 32" className="h-7 w-7">
-          <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M8.6 27.5 16 11.4l7.4 16.1" strokeWidth="2.6" />
-            <path d="M11.9 20.4h8.2M10.4 24.2h11.2" strokeWidth="2.3" />
-            <path d="m12.4 24 7.2-4.7M19.6 24l-7.2-4.7" strokeWidth="2" />
-            <path d="M16 11.4V8" strokeWidth="2.4" />
-            <path
-              d="M10.6 8.5c-1.8 1.5-2.9 3.8-2.9 6.1M21.4 8.5c1.8 1.5 2.9 3.8 2.9 6.1"
-              strokeWidth="2.25"
-            />
-            <path
-              d="M6.4 5.1c-2.5 2.4-4 5.7-4 9.5M25.6 5.1c2.5 2.4 4 5.7 4 9.5"
-              strokeWidth="2.25"
-            />
-          </g>
-          <circle cx="16" cy="8" r="2.5" fill="currentColor" />
-          {!radioEnabled ? (
-            <path
-              d="M25.6 6.4 6.4 25.6"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeWidth="3"
-            />
-          ) : null}
-        </svg>
-      </button>
-      <button
-        aria-label="Next radio station"
-        className={cn(stationButtonClass, '-right-3')}
-        onClick={() => changeStation(1)}
-        type="button"
-      >
-        <svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" className="h-3 w-3">
-          <path
-            d="M5.5 3.5 10 8l-4.5 4.5"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-          />
-        </svg>
-      </button>
-    </div>
-  );
-}
-
-function CoordinatorOnboardingSoundSwitcher({
-  audioEnabled,
-  onToggle,
-}: {
-  audioEnabled: boolean;
-  onToggle: () => void;
-}) {
   const buttonClass = cn(
     'pointer-events-auto absolute bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card/80 text-card-foreground shadow-lg backdrop-blur-md transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-    !audioEnabled && 'text-muted-foreground'
+    !isEnabled && 'text-muted-foreground'
   );
 
   return (
     <button
-      aria-label={audioEnabled ? 'Mute intro audio' : 'Unmute intro audio'}
-      aria-pressed={!audioEnabled}
+      aria-label={label ?? (isEnabled ? 'Turn background music off' : 'Turn background music on')}
+      aria-pressed={!isEnabled}
       className={buttonClass}
-      data-testid="coordinator-onboarding-audio-switcher"
-      onClick={onToggle}
-      title="volume"
+      data-testid={dataTestId}
+      onClick={toggleMusic}
+      title={title}
       type="button"
     >
       <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" className="h-6 w-6">
@@ -778,7 +715,7 @@ function CoordinatorOnboardingSoundSwitcher({
           d="M4.4 9.2h3.1l4.8-4.1c.7-.6 1.7-.1 1.7.8v12.2c0 .9-1 1.4-1.7.8l-4.8-4.1H4.4c-.8 0-1.4-.6-1.4-1.4v-2.8c0-.8.6-1.4 1.4-1.4Z"
           fill="currentColor"
         />
-        {audioEnabled ? (
+        {isEnabled ? (
           <>
             <path
               d="M16.4 8.2c.9.9 1.4 2.2 1.4 3.8s-.5 2.9-1.4 3.8"
