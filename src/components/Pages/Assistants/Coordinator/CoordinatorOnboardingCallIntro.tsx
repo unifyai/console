@@ -82,6 +82,12 @@ function getCoordinatorIntroRadioStationTargetVolume() {
   );
 }
 
+function getCoordinatorAscentSoundTargetVolume() {
+  return coordinatorIntroRadioEnabled
+    ? ASCENT_SOUND_VOLUME * coordinatorIntroBackgroundMusicVolumeScale
+    : 0;
+}
+
 function resetCoordinatorIntroBackgroundMusicVolumeScale() {
   coordinatorIntroBackgroundMusicVolumeScale = 1;
   coordinatorIntroBackgroundMusicVolume = getCoordinatorIntroRadioStationTargetVolume();
@@ -118,6 +124,15 @@ function fadeCoordinatorIntroBackgroundMusicVolume(
   };
 
   coordinatorIntroMusicFadeFrame = window.requestAnimationFrame(step);
+}
+
+function fadeCoordinatorAscentSoundVolume(toVolume: number, timeConstant = 0.08) {
+  const state = coordinatorCitySoundscapeState;
+  if (!state) return;
+
+  const now = state.context.currentTime;
+  state.ascentGain.gain.cancelScheduledValues(now);
+  state.ascentGain.gain.setTargetAtTime(clampAudioVolume(toVolume), now, timeConstant);
 }
 
 function stopCoordinatorIntroAudio(audio: HTMLAudioElement | null, releaseSource = false) {
@@ -193,10 +208,12 @@ export function setCoordinatorOnboardingBackgroundMusicEnabled(enabled: boolean)
 
   if (enabled) {
     resetCoordinatorIntroBackgroundMusicVolumeScale();
+    fadeCoordinatorAscentSoundVolume(getCoordinatorAscentSoundTargetVolume());
     startCoordinatorOnboardingBackgroundMusic({ fadeIn: true });
     return;
   }
 
+  fadeCoordinatorAscentSoundVolume(0);
   const state = coordinatorIntroBackgroundMusicState;
   if (!state) return;
   fadeCoordinatorIntroBackgroundMusicVolume(
@@ -263,8 +280,10 @@ function setCoordinatorOnboardingBackgroundMusicVolume(volume: number) {
     stationVolume > 0 ? clampAudioVolume(volume / stationVolume) : 0;
   coordinatorIntroBackgroundMusicVolume = getCoordinatorIntroRadioStationTargetVolume();
   const state = coordinatorIntroBackgroundMusicState;
-  if (!state) return;
-  state.audio.volume = clampAudioVolume(coordinatorIntroBackgroundMusicVolume);
+  if (state) {
+    state.audio.volume = clampAudioVolume(coordinatorIntroBackgroundMusicVolume);
+  }
+  fadeCoordinatorAscentSoundVolume(getCoordinatorAscentSoundTargetVolume());
 }
 
 export function stopCoordinatorOnboardingBackgroundMusic() {
@@ -366,8 +385,12 @@ function playCoordinatorAscentSound(src: string, skipped: boolean) {
 
       state.ascentGain.gain.cancelScheduledValues(now);
       state.ascentGain.gain.setValueAtTime(0.0001, now);
-      state.ascentGain.gain.exponentialRampToValueAtTime(ASCENT_SOUND_VOLUME, now + 0.75);
-      state.ascentGain.gain.setValueAtTime(ASCENT_SOUND_VOLUME, now + 0.76);
+      const targetVolume = getCoordinatorAscentSoundTargetVolume();
+      state.ascentGain.gain.exponentialRampToValueAtTime(
+        Math.max(0.0001, targetVolume),
+        now + 0.75
+      );
+      state.ascentGain.gain.setValueAtTime(targetVolume, now + 0.76);
       const offset = skipped
         ? Math.min(ASCENT_SOUND_SKIP_OFFSET_SEC, Math.max(0, buffer.duration - 0.5))
         : 0;
