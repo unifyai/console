@@ -63,6 +63,22 @@ export type ChecklistAction =
   | 'act'
   | 'schedule';
 
+/**
+ * How strict a dependency edge is. Authored per entry in an item's
+ * ``dependsOn`` map so a single row can mix strict and loose gates.
+ *  - ``Addressed`` (0): the dependency only needs to be *resolved* —
+ *    completed, skipped, or deferred with "Later". Mirrors the legacy
+ *    single-prerequisite behaviour where skipping a step still
+ *    unlocked everything downstream.
+ *  - ``Completed`` (1): the dependency must be *genuinely completed*.
+ *    Skipping it does NOT unlock the dependent. A ``Completed`` target
+ *    must therefore never be skippable (asserted at module load).
+ */
+const enum DependencyLevel {
+  Addressed = 0,
+  Completed = 1,
+}
+
 interface OnboardingChecklistItem {
   id: string;
   title: string;
@@ -84,9 +100,14 @@ interface OnboardingChecklistItem {
    * surface-supplied handler. Items without an action render as
    * static (informational) rows. */
   action?: ChecklistAction;
-  /** Step that must be completed before this row becomes
-   * actionable. Resolved against ``completedStepIds``. */
-  prerequisiteId?: string;
+  /** Steps that gate this row, keyed by the dependency's ``id``. The
+   * value is how strict each gate is (see ``DependencyLevel``). The
+   * row stays disabled/hidden until *every* dependency is satisfied
+   * at its declared level. Absent or empty means no gate — the row is
+   * available immediately. Keeping ordering rules in data (not in the
+   * render layer) lets the same map drive gating, visibility, and any
+   * future automation from one source of truth. */
+  dependsOn?: Partial<Record<string, DependencyLevel>>;
   /** Sub-items render under the parent and count separately toward the
    * progress bar — same accounting model as the per-assistant setup
    * roadmap. */
@@ -116,7 +137,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Twin sends you a quick email.',
         estimatedTime: '~30s',
         action: 'start-email-reply',
-        prerequisiteId: 'email-reference',
+        dependsOn: { 'email-reference': DependencyLevel.Addressed },
       },
       {
         id: 'whatsapp-number',
@@ -124,7 +145,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Add the WhatsApp number Twin should use.',
         estimatedTime: '~30s',
         action: 'add-whatsapp-number',
-        prerequisiteId: 'email-reply',
+        dependsOn: { 'email-reply': DependencyLevel.Addressed },
       },
       {
         id: 'whatsapp-message-reference',
@@ -132,7 +153,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Twin sends the next reference clue over WhatsApp.',
         estimatedTime: '~10s',
         action: 'trigger-whatsapp-message-reference',
-        prerequisiteId: 'whatsapp-number',
+        dependsOn: { 'whatsapp-number': DependencyLevel.Addressed },
         canSkip: false,
       },
       {
@@ -141,7 +162,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Twin sends you a reference clue over WhatsApp.',
         estimatedTime: '~1 min',
         action: 'start-whatsapp-message',
-        prerequisiteId: 'whatsapp-message-reference',
+        dependsOn: { 'whatsapp-message-reference': DependencyLevel.Addressed },
       },
       {
         id: 'whatsapp-call-reference',
@@ -149,7 +170,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Twin calls with the next reference clue over WhatsApp.',
         estimatedTime: '~10s',
         action: 'trigger-whatsapp-call-reference',
-        prerequisiteId: 'whatsapp-message',
+        dependsOn: { 'whatsapp-message': DependencyLevel.Addressed },
         canSkip: false,
       },
       {
@@ -158,7 +179,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Twin gives you a reference clue over WhatsApp voice.',
         estimatedTime: '~1 min',
         action: 'start-whatsapp-call',
-        prerequisiteId: 'whatsapp-call-reference',
+        dependsOn: { 'whatsapp-call-reference': DependencyLevel.Addressed },
       },
       {
         id: 'phone-number',
@@ -166,7 +187,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Add the phone number Twin should use for calls and SMS.',
         estimatedTime: '~30s',
         action: 'add-phone-number',
-        prerequisiteId: 'whatsapp-call',
+        dependsOn: { 'whatsapp-call': DependencyLevel.Addressed },
       },
       {
         id: 'sms-reference',
@@ -174,7 +195,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Twin sends the next reference clue over SMS.',
         estimatedTime: '~10s',
         action: 'trigger-sms-reference',
-        prerequisiteId: 'phone-number',
+        dependsOn: { 'phone-number': DependencyLevel.Addressed },
         canSkip: false,
       },
       {
@@ -183,7 +204,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Twin sends you a reference clue over SMS.',
         estimatedTime: '~1 min',
         action: 'start-sms-message',
-        prerequisiteId: 'sms-reference',
+        dependsOn: { 'sms-reference': DependencyLevel.Addressed },
       },
       {
         id: 'phone-call-reference',
@@ -191,7 +212,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Twin calls with the next reference clue.',
         estimatedTime: '~10s',
         action: 'trigger-phone-call-reference',
-        prerequisiteId: 'sms-message',
+        dependsOn: { 'sms-message': DependencyLevel.Addressed },
         canSkip: false,
       },
       {
@@ -200,7 +221,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Twin gives you a reference clue over a phone call.',
         estimatedTime: '~1 min',
         action: 'start-phone-call',
-        prerequisiteId: 'phone-call-reference',
+        dependsOn: { 'phone-call-reference': DependencyLevel.Addressed },
       },
       {
         id: 'slack-connect',
@@ -208,7 +229,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Connect Twin through the Unify Slack app.',
         estimatedTime: '~1 min',
         action: 'connect-slack',
-        prerequisiteId: 'phone-call',
+        dependsOn: { 'phone-call': DependencyLevel.Addressed },
       },
       {
         id: 'slack-reference',
@@ -216,7 +237,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Twin sends the next reference clue in Slack.',
         estimatedTime: '~10s',
         action: 'trigger-slack-reference',
-        prerequisiteId: 'slack-connect',
+        dependsOn: { 'slack-connect': DependencyLevel.Addressed },
         canSkip: false,
       },
       {
@@ -225,7 +246,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Twin sends you a reference clue in Slack.',
         estimatedTime: '~1 min',
         action: 'start-slack-message',
-        prerequisiteId: 'slack-reference',
+        dependsOn: { 'slack-reference': DependencyLevel.Addressed },
       },
       {
         id: 'discord-connect',
@@ -233,7 +254,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Connect Twin through the public Discord bot.',
         estimatedTime: '~1 min',
         action: 'connect-discord',
-        prerequisiteId: 'slack-message',
+        dependsOn: { 'slack-message': DependencyLevel.Addressed },
       },
       {
         id: 'discord-reference',
@@ -241,7 +262,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Twin sends the next reference clue in Discord.',
         estimatedTime: '~10s',
         action: 'trigger-discord-reference',
-        prerequisiteId: 'discord-connect',
+        dependsOn: { 'discord-connect': DependencyLevel.Addressed },
         canSkip: false,
       },
       {
@@ -250,7 +271,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Twin sends you a reference clue in Discord.',
         estimatedTime: '~1 min',
         action: 'start-discord-message',
-        prerequisiteId: 'discord-reference',
+        dependsOn: { 'discord-reference': DependencyLevel.Addressed },
       },
     ],
   },
@@ -268,7 +289,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Required for everything else in onboarding.',
         estimatedTime: '~30s',
         action: 'connect-workspace',
-        prerequisiteId: 'discord-message',
+        dependsOn: { 'discord-message': DependencyLevel.Addressed },
       },
       {
         id: 'apps',
@@ -276,7 +297,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Hook up at least one app (Slack, Gmail…).',
         estimatedTime: '~2 min',
         action: 'connect-apps',
-        prerequisiteId: 'workspace',
+        dependsOn: { workspace: DependencyLevel.Addressed },
       },
     ],
   },
@@ -302,7 +323,7 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Give me a one-off job and watch it run live.',
         estimatedTime: '~2 min',
         action: 'act',
-        prerequisiteId: 'apps',
+        dependsOn: { apps: DependencyLevel.Addressed },
       },
       {
         // Time- or event-bound work: this is what the product calls
@@ -314,11 +335,64 @@ const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
         description: 'Set up a recurring or event-triggered task.',
         estimatedTime: '~1 min',
         action: 'schedule',
-        prerequisiteId: 'act',
+        dependsOn: { act: DependencyLevel.Addressed },
       },
     ],
   },
 ];
+
+/**
+ * Dev-time integrity check for the hand-authored dependency graph.
+ * Catches the three ways the ``dependsOn`` map can silently rot:
+ *  1. A dependency id that doesn't exist anywhere in the tree.
+ *  2. A cycle — which would leave the dependent rows permanently
+ *     hidden with no obvious cause.
+ *  3. A ``Completed`` (level-1) edge pointing at a skippable row — the
+ *     user could skip the dependency and strand the dependent forever,
+ *     since a skip never satisfies a ``Completed`` gate.
+ * Runs once at module load in development and throws loudly so the
+ * mistake surfaces immediately rather than as a confusing empty
+ * checklist at runtime. Stripped from production builds.
+ */
+function assertChecklistDependencyGraph(items: OnboardingChecklistItem[]): void {
+  const leaves = flattenChecklistLeaves(items);
+  const byId = new Map(leaves.map((leaf) => [leaf.id, leaf]));
+
+  for (const leaf of leaves) {
+    for (const [depId, level] of Object.entries(leaf.dependsOn ?? {})) {
+      const dep = byId.get(depId);
+      if (!dep) {
+        throw new Error(`Onboarding checklist: "${leaf.id}" depends on unknown step "${depId}".`);
+      }
+      if (level === DependencyLevel.Completed && dep.canSkip !== false) {
+        throw new Error(
+          `Onboarding checklist: "${leaf.id}" requires "${depId}" completed, ` +
+            `but "${depId}" is skippable — set canSkip: false on it.`
+        );
+      }
+    }
+  }
+
+  // Depth-first cycle detection over the dependency edges.
+  const VISITING = 1;
+  const DONE = 2;
+  const state = new Map<string, number>();
+  const visit = (id: string): void => {
+    const current = state.get(id);
+    if (current === DONE) return;
+    if (current === VISITING) {
+      throw new Error(`Onboarding checklist: dependency cycle through "${id}".`);
+    }
+    state.set(id, VISITING);
+    for (const depId of Object.keys(byId.get(id)?.dependsOn ?? {})) visit(depId);
+    state.set(id, DONE);
+  };
+  for (const leaf of leaves) visit(leaf.id);
+}
+
+if (process.env.NODE_ENV !== 'production') {
+  assertChecklistDependencyGraph(ONBOARDING_CHECKLIST);
+}
 
 /**
  * Static, read-only "try one of these" prompts that surface as
@@ -449,6 +523,35 @@ function flattenChecklistLeaves(items: OnboardingChecklistItem[]): OnboardingChe
   return leaves;
 }
 
+/**
+ * Single source of truth for "are this row's gates open?". A row
+ * unlocks only when *every* entry in its ``dependsOn`` map is
+ * satisfied at its declared level:
+ *  - ``Completed`` — the dependency must be in ``completed``.
+ *  - ``Addressed`` — the dependency may be in ``completed`` *or*
+ *    ``skipped`` (deferred with "Later" counts).
+ * A dependency that's *not applicable* on this deployment
+ * (``unavailable``) never blocks — it's treated as satisfied so the
+ * chain doesn't dead-end behind a step the user can't reach here.
+ */
+function dependenciesSatisfied(
+  deps: Partial<Record<string, DependencyLevel>> | undefined,
+  completed: ReadonlySet<string>,
+  skipped: ReadonlySet<string>,
+  unavailable: ReadonlySet<string>
+): boolean {
+  if (!deps) return true;
+  for (const [depId, level] of Object.entries(deps)) {
+    if (unavailable.has(depId)) continue;
+    if (level === DependencyLevel.Completed) {
+      if (!completed.has(depId)) return false;
+    } else if (!completed.has(depId) && !skipped.has(depId)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 interface DisplayStepSets {
   completed: ReadonlySet<string>;
   skipped: ReadonlySet<string>;
@@ -460,28 +563,40 @@ function computeDisplayStepSets(
   skipped: ReadonlySet<string>,
   isActionWired: (action: ChecklistAction | undefined) => boolean
 ): DisplayStepSets {
+  const leaves = flattenChecklistLeaves(items);
+  // A leaf whose action isn't wired on this deployment is not
+  // applicable — it never displays as resolved itself, but counts as
+  // satisfied for anything that depends on it.
+  const unavailable = new Set<string>();
+  for (const item of leaves) {
+    if (item.action && !isActionWired(item.action)) unavailable.add(item.id);
+  }
+
   const displayCompleted = new Set<string>();
   const displaySkipped = new Set<string>();
-  const satisfied = new Set<string>();
 
-  for (const item of flattenChecklistLeaves(items)) {
-    const actionUnavailable = !!item.action && !isActionWired(item.action);
-    if (actionUnavailable) {
-      satisfied.add(item.id);
-      continue;
-    }
-
-    if (item.prerequisiteId && !satisfied.has(item.prerequisiteId)) continue;
-
-    if (completed.has(item.id)) {
-      displayCompleted.add(item.id);
-      satisfied.add(item.id);
-      continue;
-    }
-
-    if (skipped.has(item.id)) {
-      displaySkipped.add(item.id);
-      satisfied.add(item.id);
+  // A leaf's persisted completed/skipped status is only honored once
+  // all of its dependencies are satisfied against the already-honored
+  // sets — guarding against stale, out-of-order persistence. Because
+  // ``dependsOn`` is a map (not a strict linear chain) we iterate to a
+  // fixpoint instead of relying on authoring order: cheap at this node
+  // count and order-independent.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const item of leaves) {
+      if (unavailable.has(item.id)) continue;
+      if (displayCompleted.has(item.id) || displaySkipped.has(item.id)) continue;
+      if (!dependenciesSatisfied(item.dependsOn, displayCompleted, displaySkipped, unavailable)) {
+        continue;
+      }
+      if (completed.has(item.id)) {
+        displayCompleted.add(item.id);
+        changed = true;
+      } else if (skipped.has(item.id)) {
+        displaySkipped.add(item.id);
+        changed = true;
+      }
     }
   }
 
@@ -498,7 +613,7 @@ function filterVisibleChecklist(
   // Steps hidden because they're *not applicable* on this deployment
   // (configured action with no wired handler — e.g. workspace OAuth with
   // no provider). Tracked separately from ``hiddenIds`` so a dependent
-  // step treats a not-applicable prerequisite as satisfied rather than
+  // step treats a not-applicable dependency as satisfied rather than
   // getting hidden alongside it.
   unavailableIds: Set<string> = new Set()
 ): ResolvedChecklistItem[] {
@@ -518,18 +633,13 @@ function filterVisibleChecklist(
       : undefined;
     const hasVisibleChildren = !!filteredChildren?.length;
     const isResolved = item.status !== 'pending';
-    const prereqSatisfied =
-      !item.prerequisiteId ||
-      completed.has(item.prerequisiteId) ||
-      skipped.has(item.prerequisiteId) ||
-      unavailableIds.has(item.prerequisiteId);
-    // A prerequisite hidden because it's *not applicable* doesn't block
-    // its dependents — it counts as satisfied above. Only a prerequisite
+    const depsSatisfied = dependenciesSatisfied(item.dependsOn, completed, skipped, unavailableIds);
+    // A dependency hidden because it's *not applicable* doesn't block
+    // its dependents — it counts as satisfied above. Only a dependency
     // hidden for other reasons keeps the dependent out of view.
-    const prereqHidden =
-      !!item.prerequisiteId &&
-      hiddenIds.has(item.prerequisiteId) &&
-      !unavailableIds.has(item.prerequisiteId);
+    const dependencyHidden = Object.keys(item.dependsOn ?? {}).some(
+      (depId) => hiddenIds.has(depId) && !unavailableIds.has(depId)
+    );
     // A leaf whose action is *configured* but not wired in the current
     // surface is not applicable on this deployment (e.g. the workspace
     // OAuth step when no Google/Microsoft provider is configured). We
@@ -539,8 +649,8 @@ function filterVisibleChecklist(
     const canDeferNow = canMarkLater && !item.children?.length && !actionUnavailable;
     const canActNow =
       item.status === 'pending' &&
-      prereqSatisfied &&
-      !prereqHidden &&
+      depsSatisfied &&
+      !dependencyHidden &&
       !actionUnavailable &&
       (isActionWired(item.action) || canDeferNow);
 
