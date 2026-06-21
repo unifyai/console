@@ -35,6 +35,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ConnectedAccountsSection } from './ConnectedAccountsSection';
 import { ProviderApiKeyForm } from './ProviderApiKeyForm';
 import { IntegrationStatusBadge } from './IntegrationStatusBadge';
+import { integrationAuthLabels } from './integrationType';
 import {
   getProviderIntegrationToolPolicy,
   patchProviderIntegrationToolPolicy,
@@ -840,6 +841,20 @@ export function ProviderIntegrationDetailSheet({
                       {displayItem.category && (
                         <SheetDescription>{displayItem.category}</SheetDescription>
                       )}
+                      <div
+                        className="mt-2 flex flex-wrap gap-1.5"
+                        data-testid="integration-auth-modes"
+                      >
+                        {integrationAuthLabels(displayItem).map((label) => (
+                          <Badge
+                            key={label}
+                            variant="outline"
+                            className="border-primary/20 bg-primary/5 rounded-full text-foreground"
+                          >
+                            {label}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   <IntegrationStatusBadge status={displayItem.status} />
