@@ -43,7 +43,7 @@ import { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import { ContactType, OAuthProvider } from '@/types/assistants/contact';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
 import { useSlackIntegration } from '@/hooks/Slack/useSlackIntegration';
-import { useFeatures, useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { FormProvider, useWatch } from 'react-hook-form';
 import { FALLBACK_DEFAULT_COUNTRY_CODE } from '@/constants/assistants/settings';
 import {
@@ -395,12 +395,6 @@ export function AssistantContactManager({
   // Discord stays visible so users can always install the assistant's bot.
   const { contactPhone, contactWhatsapp } = useFeatures();
 
-  // Coordinator contacts are platform-managed shared pools — a hosted-cloud
-  // concept that doesn't exist in a self-hosted install, so the dialog is
-  // gated to an explanatory message there (mirrors the profile panel).
-  const { isSelfHost } = useEnvironment();
-  const coordinatorSelfHostGated = assistant.isCoordinator && isSelfHost;
-
   const [selectedTab, setSelectedTab] = React.useState<ContactManagerTab>(initialTab ?? activeTab);
   React.useEffect(() => {
     if (isOpen && initialTab) setSelectedTab(initialTab);
@@ -509,10 +503,6 @@ export function AssistantContactManager({
   // -------------------------------------------------------------------------
 
   const renderFooter = () => {
-    // Self-hosted coordinator: the body is a gated explanation, so there are
-    // no create/delete actions to surface.
-    if (coordinatorSelfHostGated) return null;
-
     // Slack is display/routing-only: connect/disconnect live inside the
     // Slack tab itself, so there's no shared dialog footer for it.
     if (selectedTab === 'slack') return null;
@@ -612,13 +602,6 @@ export function AssistantContactManager({
               <p className="text-body-muted mx-auto mt-2 max-w-sm">
                 Deleting the {confirmDelete} contact method is irreversible. You can add a new one
                 again at any time.
-              </p>
-            </div>
-          ) : coordinatorSelfHostGated ? (
-            <div className="py-8 text-center">
-              <p className="text-body-muted mx-auto max-w-sm">
-                Twin contacts are managed by the hosted Unify platform and aren&apos;t available in
-                self-hosted deployments.
               </p>
             </div>
           ) : (
