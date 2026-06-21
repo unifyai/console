@@ -858,6 +858,9 @@ export function CoordinatorOnboardingChecklist({
   const completedStepIds = ctx?.completedStepIds ?? EMPTY_SET;
   const skippedStepIds = ctx?.skippedStepIds ?? EMPTY_SET;
   const resetStepProgress = ctx?.resetStepProgress;
+  const onboardingDeferred = ctx?.onboardingDeferred ?? false;
+  const deferOnboarding = ctx?.deferOnboarding;
+  const resumeOnboarding = ctx?.resumeOnboarding;
   const [areProgressDetailsOpen, setAreProgressDetailsOpen] = React.useState(false);
 
   const handleAction = React.useCallback(
@@ -1001,8 +1004,58 @@ export function CoordinatorOnboardingChecklist({
     () => findNextActionableId(resolved, isActionWired, !!onSkipStep),
     [resolved, isActionWired, onSkipStep]
   );
+
+  // Global "do onboarding later" collapses the whole checklist to a
+  // single resume affordance. The underlying per-step state is
+  // untouched, so resuming brings the user back exactly where they were.
+  if (onboardingDeferred) {
+    return (
+      <div
+        className={cn('flex flex-col gap-2', className)}
+        data-testid="coordinator-onboarding-deferred"
+      >
+        <div className="rounded-control bg-muted/40 flex items-center justify-between gap-2 px-2.5 py-2">
+          <span className="text-body-sm text-muted-foreground">
+            Onboarding paused — you can pick it up anytime.
+          </span>
+          {resumeOnboarding ? (
+            <button
+              type="button"
+              onClick={resumeOnboarding}
+              className={cn(
+                'text-caption rounded-control flex-shrink-0 px-1.5 py-0.5 font-medium text-primary',
+                'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+              )}
+              data-testid="coordinator-onboarding-resume"
+            >
+              Resume onboarding
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  // Offer the global defer only while there's still onboarding left to
+  // do — once everything resolves there's nothing to postpone.
+  const canDeferAll = !!deferOnboarding && nextActionableId !== null;
   return (
     <div className={cn('flex flex-col gap-3', className)}>
+      {canDeferAll ? (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={deferOnboarding}
+            className={cn(
+              'text-caption rounded-control px-1.5 py-0.5 text-muted-foreground',
+              'hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+            )}
+            data-testid="coordinator-onboarding-defer-all"
+          >
+            I&apos;ll do this later
+          </button>
+        </div>
+      ) : null}
       <SectionProgressDisclosure
         phases={phases}
         isOpen={areProgressDetailsOpen}

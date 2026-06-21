@@ -477,10 +477,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // before Twin is listening.
   const [coordinatorTalkNowPending, setCoordinatorTalkNowPending] = React.useState(false);
   const [showCoordinatorTalkNow, setShowCoordinatorTalkNow] = React.useState(false);
+  // Global "do onboarding later" switch. When set, the whole Console
+  // onboarding surface (intro overlay, focus layout, nudge dot) stands
+  // down so the user can use the platform first — mirrored to the
+  // Coordinator's prompts server-side. Per-step state is untouched.
+  const isCoordinatorOnboardingDeferred = coordinatorOnboardingState?.onboardingDeferred === true;
   const showCoordinatorOnboardingFreshIntro =
     ENABLE_COORDINATOR_ONBOARDING &&
     isCanonicalCoordinatorOwned &&
     !coordinatorIntroDismissed &&
+    !isCoordinatorOnboardingDeferred &&
     coordinatorOnboardingState?.mode === 'onboarding' &&
     coordinatorOnboardingState?.introWatched === false;
   const showCoordinatorOnboardingIntro =
@@ -696,6 +702,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     },
     [markStepSkipped, markStepUnskipped, updateCoordinatorOnboardingState]
   );
+  // Global defer toggle. Persists to the Coordinator/State row; the
+  // optimistic React Query update in the hook flips the layout instantly,
+  // and Orchestra suppresses every onboarding event the moment it lands.
+  const deferCoordinatorOnboarding = React.useCallback(() => {
+    void updateCoordinatorOnboardingState({ onboardingDeferred: true });
+  }, [updateCoordinatorOnboardingState]);
+  const resumeCoordinatorOnboarding = React.useCallback(() => {
+    void updateCoordinatorOnboardingState({ onboardingDeferred: false });
+  }, [updateCoordinatorOnboardingState]);
+
   const coordinatorOnboardingCtxValue = React.useMemo<CoordinatorOnboardingContextValue>(
     () => ({
       completedStepIds: visibleCompletedStepIds,
@@ -706,6 +722,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       markStepUnskipped,
       engagedStepIds,
       markStepEngaged,
+      onboardingDeferred: isCoordinatorOnboardingDeferred,
+      deferOnboarding: deferCoordinatorOnboarding,
+      resumeOnboarding: resumeCoordinatorOnboarding,
     }),
     [
       visibleCompletedStepIds,
@@ -716,6 +735,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       markStepUnskipped,
       engagedStepIds,
       markStepEngaged,
+      isCoordinatorOnboardingDeferred,
+      deferCoordinatorOnboarding,
+      resumeCoordinatorOnboarding,
     ]
   );
   // While the state read is still in flight we can't make a confident
@@ -1856,6 +1878,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const coordinatorOnboardingOutstanding = React.useMemo(
     () =>
       isCanonicalCoordinatorOwned &&
+      !isCoordinatorOnboardingDeferred &&
       hasOutstandingCoordinatorOnboarding(
         visibleCompletedStepIds,
         visibleSkippedStepIds,
@@ -1863,6 +1886,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       ),
     [
       isCanonicalCoordinatorOwned,
+      isCoordinatorOnboardingDeferred,
       visibleCompletedStepIds,
       visibleSkippedStepIds,
       isCoordinatorActionWired,

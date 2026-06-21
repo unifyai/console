@@ -45,6 +45,15 @@ export interface CoordinatorStateSnapshot {
    * from the onboarding pane. One-way sticky server-side.
    */
   introWatched: boolean;
+  /**
+   * Global "do onboarding later" switch. When true the user has chosen
+   * to start using the platform before finishing onboarding: the
+   * Coordinator suppresses every onboarding nudge/opener (server-side
+   * too) and the checklist collapses to a resume affordance, all
+   * without touching per-step completed/skipped state. Freely
+   * reversible — flipping it back resumes the flow untouched.
+   */
+  onboardingDeferred: boolean;
 }
 
 export interface CoordinatorStatePatch {
@@ -54,6 +63,7 @@ export interface CoordinatorStatePatch {
   skipOnboardingStep?: string;
   unskipOnboardingStep?: string;
   introWatched?: boolean;
+  onboardingDeferred?: boolean;
 }
 
 function normalizeMode(value: unknown): CoordinatorMode {
@@ -84,6 +94,7 @@ function normalizeSnapshot(coordinatorId: number, raw: unknown): CoordinatorStat
     completedStepIds: normalizeStepIds(record.completedStepIds ?? record.completed_step_ids),
     skippedStepIds: normalizeStepIds(record.skippedStepIds ?? record.skipped_step_ids),
     introWatched: (record.introWatched ?? record.intro_watched) === true,
+    onboardingDeferred: (record.onboardingDeferred ?? record.onboarding_deferred) === true,
   };
 }
 
@@ -130,6 +141,7 @@ export async function updateCoordinatorState(
   if (patch.unskipOnboardingStep !== undefined)
     body.unskipOnboardingStep = patch.unskipOnboardingStep;
   if (patch.introWatched !== undefined) body.introWatched = patch.introWatched;
+  if (patch.onboardingDeferred !== undefined) body.onboardingDeferred = patch.onboardingDeferred;
 
   const client = await getOrchestraUserClient(user.apiKey);
   const response = await client.patch(`/assistant/${numericId}/state`, body);
