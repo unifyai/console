@@ -5,7 +5,7 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { Button } from '@/components/UI/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { Mail, Phone, Copy, Check, Pencil, Lock, RotateCcw } from 'lucide-react';
+import { Mail, Phone, Copy, Check, Pencil, Lock } from 'lucide-react';
 
 // Underlined-tabs styling, mirrored from the right-pane TAB_TRIGGER_CLASS
 // so the side-panel tabs read with the same visual grammar (active tab
@@ -103,9 +103,6 @@ export interface AssistantInfoSidePanelContentProps {
     onScheduleTask?: () => void;
     onSkipStep?: (stepId: string) => void;
     onUnskipStep?: (stepId: string) => void;
-    /** Replays the Twin call intro on demand. Surfaces a "Repeat
-     * intro" affordance at the bottom of the onboarding sub-tab. */
-    onReplayIntro?: () => void;
     /** Whether the Coordinator is currently on a voice call — selects
      * call- vs chat-flavoured "Ask Twin to do something" chips. */
     isOnCall?: boolean;
@@ -279,19 +276,6 @@ function CoordinatorAssistantInfoSidePanelContent({
                   onUnskipStep={coordinatorOnboarding.onUnskipStep}
                   isOnCall={coordinatorOnboarding.isOnCall}
                 />
-                {coordinatorOnboarding.onReplayIntro && (
-                  <div className="mt-4 flex justify-end">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={coordinatorOnboarding.onReplayIntro}
-                      data-testid="coordinator-onboarding-replay-intro"
-                    >
-                      <RotateCcw className="mr-1.5 size-3.5" />
-                      Repeat intro
-                    </Button>
-                  </div>
-                )}
               </TabsContent>
             )}
             <TabsContent value="contact" className="mt-0">

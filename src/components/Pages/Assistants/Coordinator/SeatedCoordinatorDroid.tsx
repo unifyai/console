@@ -67,8 +67,8 @@ export function useCoordinatorDroidLayout() {
  *
  * Horizontally we keep the droid's body centred in its box (a plain
  * ``-50%``) rather than anchoring the ground point: these avatars sit alone in
- * a centred slot (and ride a centred elevator in the call intro), so the body
- * mass — not the projected foot — is what needs to line up with the centre.
+ * a centred slot, so the body mass — not the projected foot — is what needs to
+ * line up with the centre.
  *
  * The parent must be ``position: relative`` and define the baseline via its
  * own height (the droid seats on ``bottom: 0``).

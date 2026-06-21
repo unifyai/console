@@ -459,20 +459,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     enabled: isCanonicalCoordinatorOwned && ENABLE_COORDINATOR_ONBOARDING,
   });
   // Session flag flipped once the overlay is resolved this session, so it
-  // doesn't pop back in after the intro finishes (the ``intro_watched``
+  // doesn't pop back in after the picker is resolved (the ``intro_watched``
   // write is async + optimistic, but this keeps the dismissal instant).
   const [coordinatorIntroDismissed, setCoordinatorIntroDismissed] = React.useState(false);
-  // On-demand "Repeat intro" replays the intro overlay regardless of
-  // ``intro_watched`` — driven from the Coordinator's "Assistant info"
-  // onboarding tab. It clears itself once the replayed intro finishes.
-  const [coordinatorIntroReplay, setCoordinatorIntroReplay] = React.useState(false);
-  const [coordinatorIntroSurfaceRevealed, setCoordinatorIntroSurfaceRevealed] =
-    React.useState(false);
-  // "Talk now!" cue lifecycle. The intro overlay tears down when it hands
-  // off to the call, so the cue lives here (over the docked call): the
-  // intro completing via the call path arms it, and it fires once the
-  // Coordinator's call actually connects so the user isn't told to talk
-  // before Twin is listening.
+  // "Talk now!" cue lifecycle. The picker overlay tears down when it hands
+  // off to the call, so the cue lives here (over the docked call): resolving
+  // the picker via the call path arms it, and it fires once the Coordinator's
+  // call actually connects.
   const [coordinatorTalkNowPending, setCoordinatorTalkNowPending] = React.useState(false);
   const [showCoordinatorTalkNow, setShowCoordinatorTalkNow] = React.useState(false);
   // Global "do onboarding later" switch. When set, the whole Console
@@ -480,26 +473,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // down so the user can use the platform first — mirrored to the
   // Coordinator's prompts server-side. Per-step state is untouched.
   const isCoordinatorOnboardingDeferred = coordinatorOnboardingState?.onboardingDeferred === true;
-  const showCoordinatorOnboardingFreshIntro =
+  const showCoordinatorOnboardingIntro =
     ENABLE_COORDINATOR_ONBOARDING &&
     isCanonicalCoordinatorOwned &&
     !coordinatorIntroDismissed &&
     !isCoordinatorOnboardingDeferred &&
     coordinatorOnboardingState?.mode === 'onboarding' &&
     coordinatorOnboardingState?.introWatched === false;
-  const showCoordinatorOnboardingIntro =
-    showCoordinatorOnboardingFreshIntro || coordinatorIntroReplay;
   const [coordinatorOnboardingFocusLayoutRequest, setCoordinatorOnboardingFocusLayoutRequest] =
     React.useState(0);
   const requestCoordinatorOnboardingFocusLayout = React.useCallback(() => {
     setCoordinatorOnboardingFocusLayoutRequest((current) => current + 1);
   }, []);
-
-  React.useEffect(() => {
-    if (!showCoordinatorOnboardingIntro) {
-      setCoordinatorIntroSurfaceRevealed(false);
-    }
-  }, [showCoordinatorOnboardingIntro]);
 
   // Shared onboarding step progress for the Coordinator onboarding
   // flow. Lifted out of ``CoordinatorOnboarding`` so the same set
@@ -1720,17 +1705,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // the workspace manager but doesn't mark the step done. Real
   // completion is observed by the effect below that watches
   // ``canonicalCoordinator.email`` / ``.emailProvider`` landing.
-  // Replays the Twin call intro on demand from the Coordinator's
-  // "Assistant info" onboarding tab. Mounts the intro overlay straight
-  // into the animation (no picker); it clears itself on finish.
-  const handleReplayCoordinatorIntro = React.useCallback(async () => {
-    if (activeCallAssistant || isCallConnected || isConnectingCall) {
-      await handleHangUp();
-    }
-    setCoordinatorIntroSurfaceRevealed(false);
-    setCoordinatorIntroReplay(true);
-  }, [activeCallAssistant, handleHangUp, isCallConnected, isConnectingCall]);
-
   // Carries the gradual-onboarding "open the next surface" behaviour into
   // the info-panel checklist: a checklist row engages its step and
   // navigates the right pane's main slot to the matching tab
@@ -1833,12 +1807,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     isCanonicalCoordinatorOwned &&
     coordinatorOnboardingState?.mode === 'onboarding' &&
     coordinatorOnboardingOutstanding &&
-    (!showCoordinatorOnboardingIntro || coordinatorIntroSurfaceRevealed) &&
+    !showCoordinatorOnboardingIntro &&
     canonicalCoordinatorId !== null &&
     profileAssistantId === canonicalCoordinatorId &&
-    (coordinatorIntroSurfaceRevealed ||
-      coordinatorIntroDismissed ||
-      coordinatorOnboardingState?.introWatched === true);
+    (coordinatorIntroDismissed || coordinatorOnboardingState?.introWatched === true);
   const isCoordinatorOnboardingFocusLayout =
     canApplyCoordinatorOnboardingFocusLayout && coordinatorOnboardingFocusLayoutRequest > 0;
 
@@ -1932,7 +1904,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onScheduleTask: () => handleCoordinatorOpenPaneTab('tasks', 'schedule'),
       onSkipStep: handleCoordinatorOnboardingStepSkip,
       onUnskipStep: handleCoordinatorOnboardingStepUnskip,
-      onReplayIntro: handleReplayCoordinatorIntro,
       onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
       // Flavours the "Ask Twin to do something" suggestion chips:
       // call-friendly prompts while on a voice call, chat-friendly
@@ -1966,7 +1937,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorOpenPaneTab,
     handleCoordinatorOnboardingStepSkip,
     handleCoordinatorOnboardingStepUnskip,
-    handleReplayCoordinatorIntro,
     workspaceConnectAvailable,
   ]);
 
@@ -2404,24 +2374,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           </div>
         ) : (
           <div className="relative flex min-h-0 flex-1 overflow-hidden">
-            {coordinatorIntroSurfaceRevealed && (
-              <div
-                className="brand-page-stencil-bg coordinator-onboarding-city-bg absolute inset-0 bg-background"
-                style={
-                  {
-                    '--coordinator-intro-city-position': '0%',
-                    '--coordinator-intro-city-opacity': '1',
-                  } as React.CSSProperties
-                }
-                aria-hidden="true"
-              />
-            )}
-            <div
-              className={cn(
-                'relative flex min-h-0 w-full flex-1 overflow-hidden',
-                coordinatorIntroSurfaceRevealed ? 'bg-transparent' : 'bg-background/85'
-              )}
-            >
+            <div className="bg-background/85 relative flex min-h-0 w-full flex-1 overflow-hidden">
               {/* Assistant List */}
               <div
                 className="relative h-full flex-shrink-0 border-r border-border bg-card"
@@ -2463,12 +2416,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               />
 
               {/* Right Pane: Chat + Actions + Dashboards */}
-              <div
-                className={cn(
-                  'relative h-full min-w-0 flex-1 overflow-hidden',
-                  coordinatorIntroSurfaceRevealed ? 'bg-transparent' : 'bg-background'
-                )}
-              >
+              <div className="relative h-full min-w-0 flex-1 overflow-hidden bg-background">
                 <RightPaneContainer
                   assistant={profileAssistant}
                   actions={assistantActions.actions || null}
@@ -2607,16 +2555,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   coordinator={canonicalCoordinator}
                   onStartCall={handleStartCoordinatorIntroCall}
                   onDiscardCall={handleHangUp}
-                  onRevealSurface={() => {
-                    setCoordinatorIntroSurfaceRevealed(true);
-                    requestCoordinatorOnboardingFocusLayout();
-                  }}
                   onComplete={(medium) => {
                     setCoordinatorIntroDismissed(true);
-                    setCoordinatorIntroReplay(false);
-                    setCoordinatorIntroSurfaceRevealed(false);
                     requestCoordinatorOnboardingFocusLayout();
-                    // The intro handed off to a live call — arm the
+                    // The picker handed off to a live call — arm the
                     // "Talk now!" cue to fire once that call connects.
                     if (medium === 'call') setCoordinatorTalkNowPending(true);
                   }}

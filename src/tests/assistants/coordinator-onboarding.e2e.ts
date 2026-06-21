@@ -3,7 +3,7 @@
  *
  * The dedicated onboarding "mode" (an alternate /assistants shell with
  * no assistant list) has been removed. What remains is a transient
- * intro overlay shown on a fresh ``onboarding`` visit:
+ * call-vs-chat picker shown on a fresh ``onboarding`` visit:
  *
  *   - The call-vs-chat picker shows on a fresh visit, with no skip
  *     affordance (the picker is the only gate, and it's lightweight).
@@ -11,12 +11,13 @@
  *     drops the user into the regular platform (assistant list +
  *     right pane) with the Coordinator selected and the onboarding
  *     checklist living in its "Assistant info" panel.
- *   - Choosing "Start Call" plays the Twin intro, then lands in the
+ *   - Choosing "Start Call" connects the call directly (a brief
+ *     "preparing" loader covers the audio handoff), then lands in the
  *     regular platform with the call docked in the Coordinator's
- *     right pane.
+ *     right pane. There is no animated intro.
  *   - Resolving the picker persists ``intro_watched`` on the
- *     Coordinator/State row, so a reload skips the picker / intro and
- *     lands directly on the regular platform.
+ *     Coordinator/State row, so a reload skips the picker and lands
+ *     directly on the regular platform.
  *   - There is no "Skip onboarding" or "Resume onboarding" affordance
  *     anywhere.
  *
@@ -255,26 +256,21 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   await expect(page.getByTestId('coordinator-onboarding-resume')).toHaveCount(0);
 });
 
-test('starting a call plays the intro then docks the call in the platform', async ({
+test('starting a call connects and docks the call in the platform', async ({
   authedPage: page,
 }) => {
-  await page.addInitScript(() => {
-    Object.assign(window, {
-      __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 1_400,
-    });
-  });
   resetCoordinatorIntroWatched();
   await gotoAssistants(page);
   await expectPickerVisible(page);
 
   await page.getByTestId('coordinator-onboarding-start-call').click({ force: true });
 
-  const intro = page.getByTestId('coordinator-onboarding-call-intro');
-  await expect(intro).toBeVisible({ timeout: 10_000 });
+  // No animated intro: the picker hands straight off to the connecting
+  // call (a brief "preparing" loader covers the audio handoff).
   await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
 
-  // Once the intro finishes the overlay clears and the real call is
-  // docked in the Coordinator's regular right pane.
+  // The overlay clears and the real call is docked in the Coordinator's
+  // regular right pane.
   await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 10_000 });
 
@@ -282,46 +278,15 @@ test('starting a call plays the intro then docks the call in the platform', asyn
   await page.getByRole('button', { name: 'End call' }).click();
 });
 
-test('top repeat button returns the intro to the picker controls', async ({ authedPage: page }) => {
-  await page.addInitScript(() => {
-    Object.assign(window, {
-      __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 10_000,
-    });
-  });
-  resetCoordinatorIntroWatched();
-  await gotoAssistants(page);
-  await expectPickerVisible(page);
-
-  await page.getByTestId('coordinator-onboarding-start-call').click({ force: true });
-  await expect(page.getByTestId('coordinator-onboarding-call-intro')).toBeVisible({
-    timeout: 10_000,
-  });
-
-  await page.getByTestId('coordinator-onboarding-intro-restart').click();
-  await expectPickerVisible(page);
-  await expect(page.getByTestId('coordinator-onboarding-call-intro')).toHaveCount(0);
-
-  await page.getByTestId('coordinator-onboarding-pick-chat').click();
-  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
-});
-
 test('mobile onboarding keeps the docked Twin call visible instead of auto-opening Assistant info', async ({
   authedPage: page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(() => {
-    Object.assign(window, {
-      __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 1_400,
-    });
-  });
   resetCoordinatorIntroWatched();
   await gotoAssistants(page);
   await expectPickerVisible(page);
 
   await page.getByTestId('coordinator-onboarding-start-call').click({ force: true });
-  await expect(page.getByTestId('coordinator-onboarding-call-intro')).toBeVisible({
-    timeout: 10_000,
-  });
   await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
 
   await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
@@ -389,34 +354,6 @@ test('switching back to Twin does not reapply the onboarding focus layout', asyn
 
   await expect(page.getByLabel('Collapse assistant list')).toBeVisible();
   await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
-});
-
-test('the "Repeat intro" affordance replays the intro from the Assistant info card', async ({
-  authedPage: page,
-}) => {
-  await page.addInitScript(() => {
-    Object.assign(window, {
-      __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 1_400,
-    });
-  });
-  // Continues from the previous test's state: intro already watched, so we
-  // land directly on the platform with Twin selected (no reset).
-  await gotoAssistants(page);
-  await openOnboardingChecklist(page);
-
-  // Replaying re-runs the intro animation on demand — no picker.
-  const replay = page.getByTestId('coordinator-onboarding-replay-intro');
-  await expect(replay).toBeVisible({ timeout: 15_000 });
-  await replay.click();
-
-  await expect(page.getByTestId('coordinator-onboarding-call-intro')).toBeVisible({
-    timeout: 10_000,
-  });
-  await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
-
-  // The intro hands off into the docked call, then the overlay clears.
-  await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
-  await page.getByRole('button', { name: 'End call' }).click();
 });
 
 test('skipping an inline checklist step can be reversed later', async ({ authedPage: page }) => {
