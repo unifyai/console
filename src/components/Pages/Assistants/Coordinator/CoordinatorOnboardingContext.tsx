@@ -23,6 +23,7 @@
  */
 
 import * as React from 'react';
+import type { OnboardingRender } from '@/lib/assistants/coordinatorState';
 
 export interface CoordinatorOnboardingContextValue {
   /** Per-session record of which onboarding steps the user has
@@ -73,6 +74,11 @@ export interface CoordinatorOnboardingContextValue {
   deferOnboarding: () => void;
   /** Bring the deferred onboarding flow back, exactly where it was. */
   resumeOnboarding: () => void;
+  /** Server-computed onboarding rendering (steps + statuses + valid next
+   * targets). The checklist renders directly from this — availability
+   * and ordering are no longer computed client-side. ``null`` outside
+   * active onboarding. */
+  onboarding: OnboardingRender | null;
 }
 
 const CoordinatorOnboardingContext = React.createContext<CoordinatorOnboardingContextValue | null>(

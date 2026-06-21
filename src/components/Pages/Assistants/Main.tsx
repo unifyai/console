@@ -725,6 +725,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onboardingDeferred: isCoordinatorOnboardingDeferred,
       deferOnboarding: deferCoordinatorOnboarding,
       resumeOnboarding: resumeCoordinatorOnboarding,
+      onboarding: coordinatorOnboardingState?.onboarding ?? null,
     }),
     [
       visibleCompletedStepIds,
@@ -738,6 +739,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       isCoordinatorOnboardingDeferred,
       deferCoordinatorOnboarding,
       resumeCoordinatorOnboarding,
+      coordinatorOnboardingState?.onboarding,
     ]
   );
   // While the state read is still in flight we can't make a confident
@@ -1814,64 +1816,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleOpenContactManager(canonicalCoordinator, 'discord');
   }, [canonicalCoordinator, handleCoordinatorStartOnboardingStep, handleOpenContactManager]);
 
-  // Which checklist actions are available (wired) on this deployment.
-  // Workspace OAuth needs a configured provider, and the reference quiz relies
-  // on hosted communication channels that self-host installs don't expose.
-  // Mirrors the handler wiring below so the outstanding-step signal and the
-  // rendered rows agree.
-  const isCoordinatorActionWired = React.useCallback(
-    (action: ChecklistAction | undefined): boolean => {
-      if (action && COORDINATOR_REFERENCE_QUIZ_ACTIONS.has(action)) {
-        if (!coordinatorReferenceQuizAvailable) return false;
-      }
-      if (action === 'trigger-email-reference' || action === 'start-email-reply') return true;
-      if (action === 'add-whatsapp-number' || action === 'start-whatsapp-message') {
-        return contactWhatsapp;
-      }
-      if (
-        action === 'trigger-whatsapp-message-reference' ||
-        action === 'trigger-whatsapp-call-reference' ||
-        action === 'start-whatsapp-call'
-      ) {
-        return contactWhatsapp;
-      }
-      if (action === 'add-phone-number' || action === 'start-sms-message') return contactPhone;
-      if (
-        action === 'trigger-sms-reference' ||
-        action === 'trigger-phone-call-reference' ||
-        action === 'start-phone-call'
-      ) {
-        return contactPhone;
-      }
-      if (
-        action === 'connect-slack' ||
-        action === 'trigger-slack-reference' ||
-        action === 'start-slack-message'
-      ) {
-        return !!userMeta.slackOwner && !!assistantActions.slack;
-      }
-      if (
-        action === 'connect-discord' ||
-        action === 'trigger-discord-reference' ||
-        action === 'start-discord-message'
-      ) {
-        return contactDiscord;
-      }
-      if (action === 'connect-workspace') return workspaceConnectAvailable;
-      if (action === 'connect-apps' || action === 'act' || action === 'schedule') return true;
-      return false;
-    },
-    [
-      assistantActions.slack,
-      coordinatorReferenceQuizAvailable,
-      contactDiscord,
-      contactPhone,
-      contactWhatsapp,
-      userMeta.slackOwner,
-      workspaceConnectAvailable,
-    ]
-  );
-
   // Whether the Coordinator still has an actionable onboarding step left.
   // Drives the "Assistant info" nudge dot and request-scoped onboarding
   // focus layout from the coordinator checklist (not the per-assistant roadmap).
@@ -1879,17 +1823,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     () =>
       isCanonicalCoordinatorOwned &&
       !isCoordinatorOnboardingDeferred &&
-      hasOutstandingCoordinatorOnboarding(
-        visibleCompletedStepIds,
-        visibleSkippedStepIds,
-        isCoordinatorActionWired
-      ),
+      hasOutstandingCoordinatorOnboarding(coordinatorOnboardingState?.onboarding ?? null),
     [
       isCanonicalCoordinatorOwned,
       isCoordinatorOnboardingDeferred,
-      visibleCompletedStepIds,
-      visibleSkippedStepIds,
-      isCoordinatorActionWired,
+      coordinatorOnboardingState?.onboarding,
     ]
   );
   const canApplyCoordinatorOnboardingFocusLayout =

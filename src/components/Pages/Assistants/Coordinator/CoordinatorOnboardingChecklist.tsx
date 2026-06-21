@@ -1,24 +1,20 @@
 'use client';
 
 /**
- * CoordinatorOnboardingChecklist — the gating-aware checklist body
- * that surfaces the user's progress through Coordinator onboarding.
+ * CoordinatorOnboardingChecklist — renders the user's progress through
+ * Coordinator onboarding.
  *
  * Rendered in the coordinator's assistant info panel "Onboarding"
  * sub-tab on the ``/assistants`` shell, surfaced whenever the
  * coordinator is the selected assistant.
  *
- * Shared state (``completedStepIds``) comes from
- * ``CoordinatorOnboardingContext`` so it survives across surfaces and
- * reloads. Action handlers are passed in as props because they're
- * surface-specific — e.g. connect-apps opens a docked side tab in
- * the gradual view but degrades to a static row in the info panel,
- * where the user already has the base shell's full chrome at hand.
- *
- * Step gating mirrors the per-assistant ``AssistantSetupRoadmap``
- * pattern: each pending row may declare a prerequisite step id, and
- * the row stays disabled (with a tooltip explaining the missing
- * prereq) until that prerequisite is marked done.
+ * The step graph (ordering, dependencies, which steps are valid next
+ * targets) lives entirely in Orchestra now: the server returns a
+ * precomputed ``onboarding`` rendering (steps + statuses + next
+ * targets) on ``Coordinator/State``, and this component renders it
+ * directly. The client no longer computes availability — it only maps
+ * each step id to its surface-specific action handler and to UI-only
+ * copy (description, time estimate, suggestion chips).
  */
 
 import * as React from 'react';
@@ -37,6 +33,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { cn } from '@/lib/utils';
+import type { OnboardingRender } from '@/lib/assistants/coordinatorState';
 import { useCoordinatorOnboardingContext } from './CoordinatorOnboardingContext';
 
 export type ChecklistAction =
@@ -63,22 +60,6 @@ export type ChecklistAction =
   | 'act'
   | 'schedule';
 
-/**
- * How strict a dependency edge is. Authored per entry in an item's
- * ``dependsOn`` map so a single row can mix strict and loose gates.
- *  - ``Addressed`` (0): the dependency only needs to be *resolved* —
- *    completed, skipped, or deferred with "Later". Mirrors the legacy
- *    single-prerequisite behaviour where skipping a step still
- *    unlocked everything downstream.
- *  - ``Completed`` (1): the dependency must be *genuinely completed*.
- *    Skipping it does NOT unlock the dependent. A ``Completed`` target
- *    must therefore never be skippable (asserted at module load).
- */
-const enum DependencyLevel {
-  Addressed = 0,
-  Completed = 1,
-}
-
 interface OnboardingChecklistItem {
   id: string;
   title: string;
@@ -100,14 +81,6 @@ interface OnboardingChecklistItem {
    * surface-supplied handler. Items without an action render as
    * static (informational) rows. */
   action?: ChecklistAction;
-  /** Steps that gate this row, keyed by the dependency's ``id``. The
-   * value is how strict each gate is (see ``DependencyLevel``). The
-   * row stays disabled/hidden until *every* dependency is satisfied
-   * at its declared level. Absent or empty means no gate — the row is
-   * available immediately. Keeping ordering rules in data (not in the
-   * render layer) lets the same map drive gating, visibility, and any
-   * future automation from one source of truth. */
-  dependsOn?: Partial<Record<string, DependencyLevel>>;
   /** Sub-items render under the parent and count separately toward the
    * progress bar — same accounting model as the per-assistant setup
    * roadmap. */
@@ -116,327 +89,173 @@ interface OnboardingChecklistItem {
   canSkip?: boolean;
 }
 
-const ONBOARDING_CHECKLIST: OnboardingChecklistItem[] = [
+/**
+ * Per-step UI-only metadata, keyed by the server step id. The server
+ * owns the structure (which steps exist, ordering, phase, status,
+ * skippability, valid next targets); this map only carries the action
+ * handler to dispatch and the tooltip copy — things that are pure
+ * Console presentation and have no place in the backend graph.
+ */
+interface StepPresentation {
+  action: ChecklistAction;
+  description?: string;
+  estimatedTime?: string;
+}
+
+const STEP_PRESENTATION: Record<string, StepPresentation> = {
+  'email-reference': {
+    action: 'trigger-email-reference',
+    description: 'Twin sends the first reference clue over email.',
+    estimatedTime: '~10s',
+  },
+  'email-reply': {
+    action: 'start-email-reply',
+    description: 'Twin sends you a quick email.',
+    estimatedTime: '~30s',
+  },
+  'whatsapp-number': {
+    action: 'add-whatsapp-number',
+    description: 'Add the WhatsApp number Twin should use.',
+    estimatedTime: '~30s',
+  },
+  'whatsapp-message-reference': {
+    action: 'trigger-whatsapp-message-reference',
+    description: 'Twin sends the next reference clue over WhatsApp.',
+    estimatedTime: '~10s',
+  },
+  'whatsapp-message': {
+    action: 'start-whatsapp-message',
+    description: 'Twin sends you a reference clue over WhatsApp.',
+    estimatedTime: '~1 min',
+  },
+  'whatsapp-call-reference': {
+    action: 'trigger-whatsapp-call-reference',
+    description: 'Twin calls with the next reference clue over WhatsApp.',
+    estimatedTime: '~10s',
+  },
+  'whatsapp-call': {
+    action: 'start-whatsapp-call',
+    description: 'Twin gives you a reference clue over WhatsApp voice.',
+    estimatedTime: '~1 min',
+  },
+  'phone-number': {
+    action: 'add-phone-number',
+    description: 'Add the phone number Twin should use for calls and SMS.',
+    estimatedTime: '~30s',
+  },
+  'sms-reference': {
+    action: 'trigger-sms-reference',
+    description: 'Twin sends the next reference clue over SMS.',
+    estimatedTime: '~10s',
+  },
+  'sms-message': {
+    action: 'start-sms-message',
+    description: 'Twin sends you a reference clue over SMS.',
+    estimatedTime: '~1 min',
+  },
+  'phone-call-reference': {
+    action: 'trigger-phone-call-reference',
+    description: 'Twin calls with the next reference clue.',
+    estimatedTime: '~10s',
+  },
+  'phone-call': {
+    action: 'start-phone-call',
+    description: 'Twin gives you a reference clue over a phone call.',
+    estimatedTime: '~1 min',
+  },
+  'slack-connect': {
+    action: 'connect-slack',
+    description: 'Connect Twin through the Unify Slack app.',
+    estimatedTime: '~1 min',
+  },
+  'slack-reference': {
+    action: 'trigger-slack-reference',
+    description: 'Twin sends the next reference clue in Slack.',
+    estimatedTime: '~10s',
+  },
+  'slack-message': {
+    action: 'start-slack-message',
+    description: 'Twin sends you a reference clue in Slack.',
+    estimatedTime: '~1 min',
+  },
+  'discord-connect': {
+    action: 'connect-discord',
+    description: 'Connect Twin through the public Discord bot.',
+    estimatedTime: '~1 min',
+  },
+  'discord-reference': {
+    action: 'trigger-discord-reference',
+    description: 'Twin sends the next reference clue in Discord.',
+    estimatedTime: '~10s',
+  },
+  'discord-message': {
+    action: 'start-discord-message',
+    description: 'Twin sends you a reference clue in Discord.',
+    estimatedTime: '~1 min',
+  },
+  workspace: {
+    action: 'connect-workspace',
+    description: 'Required for everything else in onboarding.',
+    estimatedTime: '~30s',
+  },
+  apps: {
+    action: 'connect-apps',
+    description: 'Hook up at least one app (Slack, Gmail…).',
+    estimatedTime: '~2 min',
+  },
+  act: {
+    action: 'act',
+    description: 'Give me a one-off job and watch it run live.',
+    estimatedTime: '~2 min',
+  },
+  schedule: {
+    action: 'schedule',
+    description: 'Set up a recurring or event-triggered task.',
+    estimatedTime: '~1 min',
+  },
+};
+
+/**
+ * Phase grouping for the checklist. The server stamps each step with a
+ * ``phase`` label; this maps each phase to its group-header row (id +
+ * title + short legend label + blurb). Order here is the display order.
+ */
+const PHASE_PRESENTATION: ReadonlyArray<{
+  phase: string;
+  id: string;
+  title: string;
+  phaseLabel: string;
+  description?: string;
+}> = [
   {
+    phase: 'Quiz',
     id: 'comms',
     title: 'Guess the reference',
     phaseLabel: 'Quiz',
     description: 'Identify clues sent over email, WhatsApp, phone, Slack, and Discord.',
-    children: [
-      {
-        id: 'email-reference',
-        title: 'Email the first reference',
-        description: 'Twin sends the first reference clue over email.',
-        estimatedTime: '~10s',
-        action: 'trigger-email-reference',
-        canSkip: false,
-      },
-      {
-        id: 'email-reply',
-        title: 'Reply to email',
-        description: 'Twin sends you a quick email.',
-        estimatedTime: '~30s',
-        action: 'start-email-reply',
-        dependsOn: { 'email-reference': DependencyLevel.Addressed },
-      },
-      {
-        id: 'whatsapp-number',
-        title: 'Add your WhatsApp number',
-        description: 'Add the WhatsApp number Twin should use.',
-        estimatedTime: '~30s',
-        action: 'add-whatsapp-number',
-        dependsOn: { 'email-reply': DependencyLevel.Addressed },
-      },
-      {
-        id: 'whatsapp-message-reference',
-        title: 'WhatsApp the next reference',
-        description: 'Twin sends the next reference clue over WhatsApp.',
-        estimatedTime: '~10s',
-        action: 'trigger-whatsapp-message-reference',
-        dependsOn: { 'whatsapp-number': DependencyLevel.Addressed },
-        canSkip: false,
-      },
-      {
-        id: 'whatsapp-message',
-        title: 'Guess a WhatsApp clue',
-        description: 'Twin sends you a reference clue over WhatsApp.',
-        estimatedTime: '~1 min',
-        action: 'start-whatsapp-message',
-        dependsOn: { 'whatsapp-message-reference': DependencyLevel.Addressed },
-      },
-      {
-        id: 'whatsapp-call-reference',
-        title: 'WhatsApp call for the next reference',
-        description: 'Twin calls with the next reference clue over WhatsApp.',
-        estimatedTime: '~10s',
-        action: 'trigger-whatsapp-call-reference',
-        dependsOn: { 'whatsapp-message': DependencyLevel.Addressed },
-        canSkip: false,
-      },
-      {
-        id: 'whatsapp-call',
-        title: 'Guess a WhatsApp call clue',
-        description: 'Twin gives you a reference clue over WhatsApp voice.',
-        estimatedTime: '~1 min',
-        action: 'start-whatsapp-call',
-        dependsOn: { 'whatsapp-call-reference': DependencyLevel.Addressed },
-      },
-      {
-        id: 'phone-number',
-        title: 'Add your phone number',
-        description: 'Add the phone number Twin should use for calls and SMS.',
-        estimatedTime: '~30s',
-        action: 'add-phone-number',
-        dependsOn: { 'whatsapp-call': DependencyLevel.Addressed },
-      },
-      {
-        id: 'sms-reference',
-        title: 'Text the next reference',
-        description: 'Twin sends the next reference clue over SMS.',
-        estimatedTime: '~10s',
-        action: 'trigger-sms-reference',
-        dependsOn: { 'phone-number': DependencyLevel.Addressed },
-        canSkip: false,
-      },
-      {
-        id: 'sms-message',
-        title: 'Guess an SMS clue',
-        description: 'Twin sends you a reference clue over SMS.',
-        estimatedTime: '~1 min',
-        action: 'start-sms-message',
-        dependsOn: { 'sms-reference': DependencyLevel.Addressed },
-      },
-      {
-        id: 'phone-call-reference',
-        title: 'Call for the next reference',
-        description: 'Twin calls with the next reference clue.',
-        estimatedTime: '~10s',
-        action: 'trigger-phone-call-reference',
-        dependsOn: { 'sms-message': DependencyLevel.Addressed },
-        canSkip: false,
-      },
-      {
-        id: 'phone-call',
-        title: 'Guess a phone call clue',
-        description: 'Twin gives you a reference clue over a phone call.',
-        estimatedTime: '~1 min',
-        action: 'start-phone-call',
-        dependsOn: { 'phone-call-reference': DependencyLevel.Addressed },
-      },
-      {
-        id: 'slack-connect',
-        title: 'Connect Slack',
-        description: 'Connect Twin through the Unify Slack app.',
-        estimatedTime: '~1 min',
-        action: 'connect-slack',
-        dependsOn: { 'phone-call': DependencyLevel.Addressed },
-      },
-      {
-        id: 'slack-reference',
-        title: 'Send the next reference via Slack',
-        description: 'Twin sends the next reference clue in Slack.',
-        estimatedTime: '~10s',
-        action: 'trigger-slack-reference',
-        dependsOn: { 'slack-connect': DependencyLevel.Addressed },
-        canSkip: false,
-      },
-      {
-        id: 'slack-message',
-        title: 'Guess a Slack clue',
-        description: 'Twin sends you a reference clue in Slack.',
-        estimatedTime: '~1 min',
-        action: 'start-slack-message',
-        dependsOn: { 'slack-reference': DependencyLevel.Addressed },
-      },
-      {
-        id: 'discord-connect',
-        title: 'Connect Discord',
-        description: 'Connect Twin through the public Discord bot.',
-        estimatedTime: '~1 min',
-        action: 'connect-discord',
-        dependsOn: { 'slack-message': DependencyLevel.Addressed },
-      },
-      {
-        id: 'discord-reference',
-        title: 'Send the next reference via discord',
-        description: 'Twin sends the next reference clue in Discord.',
-        estimatedTime: '~10s',
-        action: 'trigger-discord-reference',
-        dependsOn: { 'discord-connect': DependencyLevel.Addressed },
-        canSkip: false,
-      },
-      {
-        id: 'discord-message',
-        title: 'Guess a Discord clue',
-        description: 'Twin sends you a reference clue in Discord.',
-        estimatedTime: '~1 min',
-        action: 'start-discord-message',
-        dependsOn: { 'discord-reference': DependencyLevel.Addressed },
-      },
-    ],
   },
   {
+    phase: 'Connect',
     id: 'connect',
     title: 'Connect me',
     phaseLabel: 'Connect',
     description: 'Plug me into your workspace and apps.',
-    // No action: the parent row is purely a grouping header; the
-    // workspace OAuth + integrations actions live on its children.
-    children: [
-      {
-        id: 'workspace',
-        title: 'Give me access to your workspace',
-        description: 'Required for everything else in onboarding.',
-        estimatedTime: '~30s',
-        action: 'connect-workspace',
-        dependsOn: { 'discord-message': DependencyLevel.Addressed },
-      },
-      {
-        id: 'apps',
-        title: 'Connect me with your apps',
-        description: 'Hook up at least one app (Slack, Gmail…).',
-        estimatedTime: '~2 min',
-        action: 'connect-apps',
-        dependsOn: { workspace: DependencyLevel.Addressed },
-      },
-    ],
   },
   {
+    phase: 'Delegate',
     id: 'work',
     title: 'Get work done',
     phaseLabel: 'Delegate',
     description: 'Hand off real work and see it run.',
-    // Grouping row. The right-section panels (Actions, then Tasks)
-    // surface alongside the children as each is engaged.
-    children: [
-      {
-        // Point-in-time work: the user asks for something now and
-        // watches it run live in the Actions panel. Completion is
-        // observed off the live-actions feed (an action started),
-        // NOT the scheduled-Tasks list — a "do X now" request never
-        // creates a scheduled task, so gating this on the Tasks
-        // count would strand the user here. The old separate "watch
-        // and guide" row is folded in: asking + watching it run is
-        // a single moment on the Actions panel.
-        id: 'act',
-        title: 'Ask me to do something now',
-        description: 'Give me a one-off job and watch it run live.',
-        estimatedTime: '~2 min',
-        action: 'act',
-        dependsOn: { apps: DependencyLevel.Addressed },
-      },
-      {
-        // Time- or event-bound work: this is what the product calls
-        // a "Task" — it lands in the Coordinator's Tasks context and
-        // shows in the Tasks panel. Completion is the Tasks count
-        // going non-zero.
-        id: 'schedule',
-        title: 'Schedule a task for later',
-        description: 'Set up a recurring or event-triggered task.',
-        estimatedTime: '~1 min',
-        action: 'schedule',
-        dependsOn: { act: DependencyLevel.Addressed },
-      },
-    ],
   },
 ];
 
 /**
- * Dev-time integrity check for the hand-authored dependency graph.
- * Catches the three ways the ``dependsOn`` map can silently rot:
- *  1. A dependency id that doesn't exist anywhere in the tree.
- *  2. A cycle — which would leave the dependent rows permanently
- *     hidden with no obvious cause.
- *  3. A ``Completed`` (level-1) edge pointing at a skippable row — the
- *     user could skip the dependency and strand the dependent forever,
- *     since a skip never satisfies a ``Completed`` gate.
- * Runs once at module load in development and throws loudly so the
- * mistake surfaces immediately rather than as a confusing empty
- * checklist at runtime. Stripped from production builds.
- */
-function assertChecklistDependencyGraph(items: OnboardingChecklistItem[]): void {
-  const leaves = flattenChecklistLeaves(items);
-  const byId = new Map(leaves.map((leaf) => [leaf.id, leaf]));
-
-  for (const leaf of leaves) {
-    for (const [depId, level] of Object.entries(leaf.dependsOn ?? {})) {
-      const dep = byId.get(depId);
-      if (!dep) {
-        throw new Error(`Onboarding checklist: "${leaf.id}" depends on unknown step "${depId}".`);
-      }
-      if (level === DependencyLevel.Completed && dep.canSkip !== false) {
-        throw new Error(
-          `Onboarding checklist: "${leaf.id}" requires "${depId}" completed, ` +
-            `but "${depId}" is skippable — set canSkip: false on it.`
-        );
-      }
-    }
-  }
-
-  // Depth-first cycle detection over the dependency edges.
-  const VISITING = 1;
-  const DONE = 2;
-  const state = new Map<string, number>();
-  const visit = (id: string): void => {
-    const current = state.get(id);
-    if (current === DONE) return;
-    if (current === VISITING) {
-      throw new Error(`Onboarding checklist: dependency cycle through "${id}".`);
-    }
-    state.set(id, VISITING);
-    for (const depId of Object.keys(byId.get(id)?.dependsOn ?? {})) visit(depId);
-    state.set(id, DONE);
-  };
-  for (const leaf of leaves) visit(leaf.id);
-}
-
-if (process.env.NODE_ENV !== 'production') {
-  assertChecklistDependencyGraph(ONBOARDING_CHECKLIST);
-}
-
-/**
- * Static, read-only "try one of these" prompts that surface as
- * chips under the ``act`` and ``schedule`` rows while each is still
- * the current step.
- *
- * Intentionally non-interactive: the chips are inspiration, not a
- * UI to click. They disappear the moment their row lands (it flips
- * to ``done`` and the body becomes a strikethrough label). Keeping
- * them inert means we don't need a transport (chat-send vs call-
- * inject) and the same chip reads the same in chat and call.
- *
- * They're split by row so each chip matches what *completes* that
- * step — the earlier single list mixed point-in-time prompts with a
- * scheduled one under a step that only completed on a scheduled
- * task, which sent users down a dead end.
- *
- * ``ACT`` — point-in-time jobs that run immediately and show in the
- * Actions panel. The set is further split by *medium* so each chip's
- * output is naturally consumable on the channel the user is actually
- * using right now:
- *  - ``ACT…_CHAT``  jobs whose result reads well as text in the
- *    transcript (a summary, a news digest, a drafted reply).
- *  - ``ACT…_CALL``  jobs whose result is naturally delivered out
- *    loud or interactively on a voice call (walking a website via
- *    screen-share + vision, reading the calendar aloud, an inbox
- *    readout). Suggesting "summarize my emails" on a call would dump
- *    a wall of text the caller can't hear; suggesting "walk me
- *    through this website" in chat has nothing to walk through.
- * Both sets span distinct capability dimensions so the strip stays a
- * tiny tour rather than three variations on one trick.
- *
- * ``SCHEDULE`` — time- or event-bound tasks that land in the Tasks
- * context (recurrence, future delivery, event triggers). Medium-
- * agnostic: a scheduled task's output is delivered later, not on the
- * current channel, so the same chips read fine in chat or on a call:
- *  - ``morning-briefing`` future + recurring proactive delivery.
- *  - ``weekly-recap``     recurrence on a weekly cadence.
- *  - ``email-trigger``    event-driven (fires on an inbound email).
- *
- * Gating is intentional too: we *don't* hide chips whose
- * preconditions aren't satisfied. A chip describing email
- * summarization is also a prompt to connect email — gating it
- * defeats that side effect.
+ * Static, read-only "try one of these" prompts that surface as chips
+ * under the ``act`` and ``schedule`` rows while each is still pending.
+ * Intentionally non-interactive: inspiration, not a UI to click. Split
+ * by row (and by medium for ``act``) so each chip matches what
+ * completes that step and reads well on the channel in use.
  */
 const ACT_SUGGESTED_WORKFLOWS_CHAT: ReadonlyArray<{
   id: string;
@@ -473,216 +292,74 @@ interface ResolvedChecklistItem extends OnboardingChecklistItem {
 }
 
 /**
- * Walks ``ONBOARDING_CHECKLIST`` once, attaching the resolved
- * ``done`` flag + disabled-tooltip text per row. Returning a
- * separate ``ResolvedChecklistItem`` keeps the static config and
- * the per-render derived state cleanly separated.
+ * Build the rendered checklist tree from the server's onboarding
+ * rendering. The server is authoritative for each step's status; we
+ * only attach UI copy + the action handler and group by phase.
  *
- * Parent rows auto-resolve to ``done`` once every child is done —
- * the parent itself is rarely in ``completedStepIds`` directly
- * (the workspace OAuth dialog marks ``workspace``, not ``connect``)
- * so we lift that signal up from the children instead. Same
- * accounting model as the per-assistant setup roadmap.
+ * Visibility mirrors the previous behaviour: ``done``/``skipped`` rows
+ * always show; an ``available`` row shows only when its action is wired
+ * on this surface (so we never render a dead button); ``locked`` rows
+ * are hidden until their dependencies open. A phase header renders only
+ * when it has at least one visible child, and resolves to done/skipped
+ * by lifting its children's statuses.
  */
-function resolveChecklist(
-  items: OnboardingChecklistItem[],
-  completed: ReadonlySet<string>,
-  skipped: ReadonlySet<string>
-): ResolvedChecklistItem[] {
-  return items.map((item) => {
-    const resolvedChildren = item.children
-      ? resolveChecklist(item.children, completed, skipped)
-      : undefined;
-    const childrenAllDone =
-      !!resolvedChildren?.length && resolvedChildren.every((child) => child.status === 'done');
-    const childrenAllResolved =
-      !!resolvedChildren?.length && resolvedChildren.every((child) => child.status !== 'pending');
-    const childrenHaveSkipped =
-      !!resolvedChildren?.length && resolvedChildren.some((child) => child.status === 'skipped');
-    const done = completed.has(item.id) || childrenAllDone;
-    const skippedStep = !done && skipped.has(item.id);
-    const skippedByChildren = !done && childrenAllResolved && childrenHaveSkipped;
-    const skippedResolved = skippedStep || skippedByChildren;
-    const status = done ? 'done' : skippedResolved ? 'skipped' : 'pending';
-    return {
-      ...item,
-      done,
-      skipped: skippedResolved,
-      status,
-      children: resolvedChildren,
-    };
-  });
-}
-
-function flattenChecklistLeaves(items: OnboardingChecklistItem[]): OnboardingChecklistItem[] {
-  const leaves: OnboardingChecklistItem[] = [];
-  for (const item of items) {
-    if (item.children?.length) leaves.push(...flattenChecklistLeaves(item.children));
-    else leaves.push(item);
-  }
-  return leaves;
-}
-
-/**
- * Single source of truth for "are this row's gates open?". A row
- * unlocks only when *every* entry in its ``dependsOn`` map is
- * satisfied at its declared level:
- *  - ``Completed`` — the dependency must be in ``completed``.
- *  - ``Addressed`` — the dependency may be in ``completed`` *or*
- *    ``skipped`` (deferred with "Later" counts).
- * A dependency that's *not applicable* on this deployment
- * (``unavailable``) never blocks — it's treated as satisfied so the
- * chain doesn't dead-end behind a step the user can't reach here.
- */
-function dependenciesSatisfied(
-  deps: Partial<Record<string, DependencyLevel>> | undefined,
-  completed: ReadonlySet<string>,
-  skipped: ReadonlySet<string>,
-  unavailable: ReadonlySet<string>
-): boolean {
-  if (!deps) return true;
-  for (const [depId, level] of Object.entries(deps)) {
-    if (unavailable.has(depId)) continue;
-    if (level === DependencyLevel.Completed) {
-      if (!completed.has(depId)) return false;
-    } else if (!completed.has(depId) && !skipped.has(depId)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-interface DisplayStepSets {
-  completed: ReadonlySet<string>;
-  skipped: ReadonlySet<string>;
-}
-
-function computeDisplayStepSets(
-  items: OnboardingChecklistItem[],
-  completed: ReadonlySet<string>,
-  skipped: ReadonlySet<string>,
+function buildVisibleChecklist(
+  render: OnboardingRender | null,
   isActionWired: (action: ChecklistAction | undefined) => boolean
-): DisplayStepSets {
-  const leaves = flattenChecklistLeaves(items);
-  // A leaf whose action isn't wired on this deployment is not
-  // applicable — it never displays as resolved itself, but counts as
-  // satisfied for anything that depends on it.
-  const unavailable = new Set<string>();
-  for (const item of leaves) {
-    if (item.action && !isActionWired(item.action)) unavailable.add(item.id);
-  }
-
-  const displayCompleted = new Set<string>();
-  const displaySkipped = new Set<string>();
-
-  // A leaf's persisted completed/skipped status is only honored once
-  // all of its dependencies are satisfied against the already-honored
-  // sets — guarding against stale, out-of-order persistence. Because
-  // ``dependsOn`` is a map (not a strict linear chain) we iterate to a
-  // fixpoint instead of relying on authoring order: cheap at this node
-  // count and order-independent.
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const item of leaves) {
-      if (unavailable.has(item.id)) continue;
-      if (displayCompleted.has(item.id) || displaySkipped.has(item.id)) continue;
-      if (!dependenciesSatisfied(item.dependsOn, displayCompleted, displaySkipped, unavailable)) {
-        continue;
-      }
-      if (completed.has(item.id)) {
-        displayCompleted.add(item.id);
-        changed = true;
-      } else if (skipped.has(item.id)) {
-        displaySkipped.add(item.id);
-        changed = true;
-      }
-    }
-  }
-
-  return { completed: displayCompleted, skipped: displaySkipped };
-}
-
-function filterVisibleChecklist(
-  items: ResolvedChecklistItem[],
-  completed: ReadonlySet<string>,
-  skipped: ReadonlySet<string>,
-  isActionWired: (action: ChecklistAction | undefined) => boolean,
-  canMarkLater: boolean,
-  hiddenIds: Set<string> = new Set(),
-  // Steps hidden because they're *not applicable* on this deployment
-  // (configured action with no wired handler — e.g. workspace OAuth with
-  // no provider). Tracked separately from ``hiddenIds`` so a dependent
-  // step treats a not-applicable dependency as satisfied rather than
-  // getting hidden alongside it.
-  unavailableIds: Set<string> = new Set()
 ): ResolvedChecklistItem[] {
-  const visibleItems: ResolvedChecklistItem[] = [];
+  if (!render) return [];
 
-  for (const item of items) {
-    const filteredChildren = item.children
-      ? filterVisibleChecklist(
-          item.children,
-          completed,
-          skipped,
-          isActionWired,
-          canMarkLater,
-          hiddenIds,
-          unavailableIds
-        )
-      : undefined;
-    const hasVisibleChildren = !!filteredChildren?.length;
-    const isResolved = item.status !== 'pending';
-    const depsSatisfied = dependenciesSatisfied(item.dependsOn, completed, skipped, unavailableIds);
-    // A dependency hidden because it's *not applicable* doesn't block
-    // its dependents — it counts as satisfied above. Only a dependency
-    // hidden for other reasons keeps the dependent out of view.
-    const dependencyHidden = Object.keys(item.dependsOn ?? {}).some(
-      (depId) => hiddenIds.has(depId) && !unavailableIds.has(depId)
-    );
-    // A leaf whose action is *configured* but not wired in the current
-    // surface is not applicable on this deployment (e.g. the workspace
-    // OAuth step when no Google/Microsoft provider is configured). We
-    // hide it entirely rather than surfacing a dead — or merely
-    // skippable — row that the user can never actually complete here.
-    const actionUnavailable = !!item.action && !isActionWired(item.action);
-    const canDeferNow = canMarkLater && !item.children?.length && !actionUnavailable;
-    const canActNow =
-      item.status === 'pending' &&
-      depsSatisfied &&
-      !dependencyHidden &&
-      !actionUnavailable &&
-      (isActionWired(item.action) || canDeferNow);
+  const leavesByPhase = new Map<string, ResolvedChecklistItem[]>();
+  for (const step of render.steps) {
+    let status: 'pending' | 'done' | 'skipped';
+    if (step.status === 'done') status = 'done';
+    else if (step.status === 'skipped') status = 'skipped';
+    else if (step.status === 'available') status = 'pending';
+    else continue; // locked — not yet reachable, hide it
 
-    if (!isResolved && !hasVisibleChildren && !canActNow) {
-      hiddenIds.add(item.id);
-      if (actionUnavailable) unavailableIds.add(item.id);
-      continue;
-    }
+    const presentation = STEP_PRESENTATION[step.id];
+    const action = presentation?.action;
+    // An available row with an action that isn't wired on this surface
+    // can never be actioned here — hide it rather than show a dead row.
+    if (status === 'pending' && action && !isActionWired(action)) continue;
 
-    if (hasVisibleChildren) {
-      const childrenAllDone = filteredChildren.every((child) => child.status === 'done');
-      const childrenAllResolved = filteredChildren.every((child) => child.status !== 'pending');
-      const childrenHaveSkipped = filteredChildren.some((child) => child.status === 'skipped');
-      const done = item.done || childrenAllDone;
-      const skippedResolved =
-        !done && (item.skipped || (childrenAllResolved && childrenHaveSkipped));
-      visibleItems.push({
-        ...item,
-        done,
-        skipped: skippedResolved,
-        status: done ? 'done' : skippedResolved ? 'skipped' : 'pending',
-        children: filteredChildren,
-      });
-    } else {
-      visibleItems.push({
-        ...item,
-        children: filteredChildren,
-      });
-    }
+    const leaf: ResolvedChecklistItem = {
+      id: step.id,
+      title: step.title,
+      description: presentation?.description,
+      estimatedTime: presentation?.estimatedTime,
+      action,
+      canSkip: step.canSkip,
+      done: status === 'done',
+      skipped: status === 'skipped',
+      status,
+    };
+    const list = leavesByPhase.get(step.phase) ?? [];
+    list.push(leaf);
+    leavesByPhase.set(step.phase, list);
   }
 
-  return visibleItems;
+  const result: ResolvedChecklistItem[] = [];
+  for (const phase of PHASE_PRESENTATION) {
+    const children = leavesByPhase.get(phase.phase);
+    if (!children?.length) continue;
+    const childrenAllDone = children.every((child) => child.status === 'done');
+    const childrenAllResolved = children.every((child) => child.status !== 'pending');
+    const childrenHaveSkipped = children.some((child) => child.status === 'skipped');
+    const done = childrenAllDone;
+    const skipped = !done && childrenAllResolved && childrenHaveSkipped;
+    result.push({
+      id: phase.id,
+      title: phase.title,
+      phaseLabel: phase.phaseLabel,
+      description: phase.description,
+      done,
+      skipped,
+      status: done ? 'done' : skipped ? 'skipped' : 'pending',
+      children,
+    });
+  }
+  return result;
 }
 
 interface PhaseProgress {
@@ -693,42 +370,29 @@ interface PhaseProgress {
 }
 
 /**
- * Collapse the top-level checklist into one phase per row. Each
- * phase counts its own available leaves: parent rows with children
- * contribute their children's totals, leaf-only phases contribute
- * themselves. The label prefers ``phaseLabel`` (a single word) over
- * the full ``title`` so the detail view stays compact.
+ * Per-phase progress for the segmented bar, computed from the full
+ * server step list (not just the visible rows) so the denominator
+ * stays stable as locked steps unlock. A step counts toward the total
+ * unless its action is unwired on this surface; it counts toward
+ * ``completed`` only when its status is ``done``.
  */
 function computePhases(
-  items: ResolvedChecklistItem[],
+  render: OnboardingRender | null,
   isActionWired: (action: ChecklistAction | undefined) => boolean
 ): PhaseProgress[] {
-  return items.flatMap((item) => {
-    const label = item.phaseLabel ?? item.title;
-    const { total, completed } = countAvailableLeaves(item, isActionWired);
-    return total > 0 ? [{ id: item.id, label, total, completed }] : [];
+  if (!render) return [];
+  return PHASE_PRESENTATION.flatMap((phase) => {
+    let total = 0;
+    let completed = 0;
+    for (const step of render.steps) {
+      if (step.phase !== phase.phase) continue;
+      const action = STEP_PRESENTATION[step.id]?.action;
+      if (action && !isActionWired(action)) continue;
+      total += 1;
+      if (step.status === 'done') completed += 1;
+    }
+    return total > 0 ? [{ id: phase.id, label: phase.phaseLabel, total, completed }] : [];
   });
-}
-
-function countAvailableLeaves(
-  item: ResolvedChecklistItem,
-  isActionWired: (action: ChecklistAction | undefined) => boolean
-): { total: number; completed: number } {
-  if (item.children?.length) {
-    return item.children.reduce(
-      (acc, child) => {
-        const childCount = countAvailableLeaves(child, isActionWired);
-        return {
-          total: acc.total + childCount.total,
-          completed: acc.completed + childCount.completed,
-        };
-      },
-      { total: 0, completed: 0 }
-    );
-  }
-
-  if (item.action && !isActionWired(item.action)) return { total: 0, completed: 0 };
-  return { total: 1, completed: item.status === 'done' ? 1 : 0 };
 }
 
 function collectVisibleLeafIds(item: ResolvedChecklistItem): string[] {
@@ -769,37 +433,13 @@ function findNextActionableId(
 
 /**
  * Whether the coordinator still has an actionable onboarding step
- * outstanding, given which actions are wired (available) on the current
- * deployment. Reuses the same resolve → visibility-filter → next-actionable
- * pipeline the rendered checklist uses, so the "incomplete" signal that
- * drives the info-card nudge and onboarding focus default can't drift from
- * what the user actually sees — unavailable steps don't count, fully
- * skipped/complete checklists report ``false``.
+ * outstanding. Now a thin read of the server rendering: any valid next
+ * target means there is work left. Empty (everything done/skipped) or
+ * absent (working / deferred) reports ``false``. Drives the info-card
+ * nudge dot and the onboarding focus-layout default.
  */
-export function hasOutstandingCoordinatorOnboarding(
-  completedStepIds: ReadonlySet<string>,
-  skippedStepIds: ReadonlySet<string>,
-  isActionWired: (action: ChecklistAction | undefined) => boolean
-): boolean {
-  const displayStepSets = computeDisplayStepSets(
-    ONBOARDING_CHECKLIST,
-    completedStepIds,
-    skippedStepIds,
-    isActionWired
-  );
-  const resolved = resolveChecklist(
-    ONBOARDING_CHECKLIST,
-    displayStepSets.completed,
-    displayStepSets.skipped
-  );
-  const visible = filterVisibleChecklist(
-    resolved,
-    displayStepSets.completed,
-    displayStepSets.skipped,
-    isActionWired,
-    true
-  );
-  return findNextActionableId(visible, isActionWired, true) !== null;
+export function hasOutstandingCoordinatorOnboarding(render: OnboardingRender | null): boolean {
+  return (render?.nextTargets.length ?? 0) > 0;
 }
 
 export interface CoordinatorOnboardingChecklistProps {
@@ -836,8 +476,6 @@ export interface CoordinatorOnboardingChecklistProps {
   className?: string;
 }
 
-const EMPTY_SET: ReadonlySet<string> = new Set();
-
 export function CoordinatorOnboardingChecklist({
   onStartOnboardingStep,
   onTriggerReferenceStep,
@@ -855,12 +493,11 @@ export function CoordinatorOnboardingChecklist({
   className,
 }: CoordinatorOnboardingChecklistProps) {
   const ctx = useCoordinatorOnboardingContext();
-  const completedStepIds = ctx?.completedStepIds ?? EMPTY_SET;
-  const skippedStepIds = ctx?.skippedStepIds ?? EMPTY_SET;
   const resetStepProgress = ctx?.resetStepProgress;
   const onboardingDeferred = ctx?.onboardingDeferred ?? false;
   const deferOnboarding = ctx?.deferOnboarding;
   const resumeOnboarding = ctx?.resumeOnboarding;
+  const onboarding = ctx?.onboarding ?? null;
   const [areProgressDetailsOpen, setAreProgressDetailsOpen] = React.useState(false);
 
   const handleAction = React.useCallback(
@@ -970,30 +607,13 @@ export function CoordinatorOnboardingChecklist({
     ]
   );
 
-  const displayStepSets = React.useMemo(
-    () =>
-      computeDisplayStepSets(ONBOARDING_CHECKLIST, completedStepIds, skippedStepIds, isActionWired),
-    [completedStepIds, skippedStepIds, isActionWired]
-  );
-  const displayResolved = React.useMemo(
-    () =>
-      resolveChecklist(ONBOARDING_CHECKLIST, displayStepSets.completed, displayStepSets.skipped),
-    [displayStepSets]
-  );
   const resolved = React.useMemo(
-    () =>
-      filterVisibleChecklist(
-        displayResolved,
-        displayStepSets.completed,
-        displayStepSets.skipped,
-        isActionWired,
-        !!onSkipStep
-      ),
-    [displayResolved, displayStepSets, isActionWired, onSkipStep]
+    () => buildVisibleChecklist(onboarding, isActionWired),
+    [onboarding, isActionWired]
   );
   const phases = React.useMemo(
-    () => computePhases(displayResolved, isActionWired),
-    [displayResolved, isActionWired]
+    () => computePhases(onboarding, isActionWired),
+    [onboarding, isActionWired]
   );
 
   // ID of the leaf row the user should tackle next — drives the
@@ -1035,6 +655,10 @@ export function CoordinatorOnboardingChecklist({
       </div>
     );
   }
+
+  // Nothing to show when the server reports no active onboarding
+  // (complete or working mode) — the panel falls back to its other tabs.
+  if (!resolved.length) return null;
 
   // Offer the global defer only while there's still onboarding left to
   // do — once everything resolves there's nothing to postpone.
