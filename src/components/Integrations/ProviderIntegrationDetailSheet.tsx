@@ -626,13 +626,20 @@ export function ProviderIntegrationDetailSheet({
   const [savingToolIds, setSavingToolIds] = React.useState<Set<string>>(new Set());
   const [policyError, setPolicyError] = React.useState<string | null>(null);
   const policySummary = React.useMemo(() => {
-    const values = Object.values(policyByToolId);
-    return {
-      automatic: values.filter((value) => value === 'auto').length,
-      confirmation: values.filter((value) => value === 'specific_approval').length,
-      off: values.filter((value) => value === 'forbidden').length,
-    };
-  }, [policyByToolId]);
+    // Count the effective level shown per row (explicit override or the tool's
+    // default), so these totals match the Available tools list exactly.
+    const tools = displayItem?.tools ?? [];
+    let automatic = 0;
+    let confirmation = 0;
+    let off = 0;
+    for (const tool of tools) {
+      const level = policyByToolId[tool.id] ?? defaultApprovalLevel(tool);
+      if (level === 'auto') automatic += 1;
+      else if (level === 'specific_approval') confirmation += 1;
+      else off += 1;
+    }
+    return { automatic, confirmation, off, total: tools.length };
+  }, [displayItem?.tools, policyByToolId]);
   React.useEffect(() => {
     const connectionId = policyConnection?.id;
     if (!connectionId) {
@@ -876,11 +883,25 @@ export function ProviderIntegrationDetailSheet({
                     when your assistant invokes an allowed integration tool.
                   </p>
                   {policyConnection && (
-                    <p className="mt-1">
-                      Tool permissions for {policyAppDisplayName} · {policyAccountLabel} ·{' '}
-                      {policySummary.automatic} allow, {policySummary.confirmation} ask every time,{' '}
-                      {policySummary.off} blocked.
-                    </p>
+                    <div className="border-border/60 mt-2 border-t pt-2">
+                      <p className="text-foreground">
+                        Tool permissions for {policyAppDisplayName}
+                        {policyAccountLabel ? (
+                          <span className="text-muted-foreground"> · {policyAccountLabel}</span>
+                        ) : null}
+                      </p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className="rounded-full bg-[var(--status-success-bg)] px-2 py-0.5 text-[11px] font-medium leading-4 text-[color:var(--status-success)]">
+                          {policySummary.automatic} allow
+                        </span>
+                        <span className="rounded-full bg-[var(--status-warning-bg)] px-2 py-0.5 text-[11px] font-medium leading-4 text-[color:var(--status-warning)]">
+                          {policySummary.confirmation} ask every time
+                        </span>
+                        <span className="rounded-full bg-[var(--status-danger-bg)] px-2 py-0.5 text-[11px] font-medium leading-4 text-[color:var(--status-danger)]">
+                          {policySummary.off} blocked
+                        </span>
+                      </div>
+                    </div>
                   )}
                   {policyNotice && <p className="mt-1">{policyNotice}</p>}
                 </div>

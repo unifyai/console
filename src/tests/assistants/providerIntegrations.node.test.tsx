@@ -724,9 +724,13 @@ describe('provider integrations gallery model', () => {
         { ownerScope: 'assistant', assistantId: '123' }
       );
     });
-    expect(screen.getByTestId('integration-secure-connection-summary')).toHaveTextContent(
-      'Tool permissions for HubSpot · Work HubSpot'
-    );
+    const workSummary = screen.getByTestId('integration-secure-connection-summary');
+    expect(workSummary).toHaveTextContent('Tool permissions for HubSpot · Work HubSpot');
+    // Counts reflect the effective level of every tool (search_contacts → auto,
+    // update_contact → specific_approval), matching the Available tools list.
+    expect(workSummary).toHaveTextContent('1 allow');
+    expect(workSummary).toHaveTextContent('1 ask every time');
+    expect(workSummary).toHaveTextContent('0 blocked');
     const searchPolicy = screen.getByTestId('integration-tool-policy-hubspot.search_contacts');
     fireEvent.click(within(searchPolicy).getByRole('button', { name: 'Block for this account' }));
 
@@ -748,9 +752,12 @@ describe('provider integrations gallery model', () => {
         { ownerScope: 'assistant', assistantId: '123' }
       );
     });
-    expect(screen.getByTestId('integration-secure-connection-summary')).toHaveTextContent(
-      'Tool permissions for HubSpot · Personal HubSpot'
-    );
+    const personalSummary = screen.getByTestId('integration-secure-connection-summary');
+    expect(personalSummary).toHaveTextContent('Tool permissions for HubSpot · Personal HubSpot');
+    // Personal account blocks search_contacts, so the counts shift accordingly.
+    expect(personalSummary).toHaveTextContent('0 allow');
+    expect(personalSummary).toHaveTextContent('1 ask every time');
+    expect(personalSummary).toHaveTextContent('1 blocked');
   });
 
   it('derives risk badges from public action and behavior fields only', () => {
