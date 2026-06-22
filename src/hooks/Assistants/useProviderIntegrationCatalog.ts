@@ -4,6 +4,7 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import { openPendingOAuthTab } from '@/utils/assistants/oauth';
 import {
+  getProviderIntegrationCatalogCount,
   getProviderIntegrationDetails,
   listProviderIntegrationConnections,
   listProviderIntegrationDefinitionsPage,
@@ -138,13 +139,14 @@ export function useProviderIntegrationCatalog(
   const [isMock, setIsMock] = React.useState(false);
   const [total, setTotal] = React.useState(0);
   const [nextOffset, setNextOffset] = React.useState(0);
+  const [hasMoreServer, setHasMoreServer] = React.useState(false);
   const [facets, setFacets] = React.useState<ProviderAppCatalogFacets | null>(null);
   const [catalogVersion, setCatalogVersion] = React.useState<string | null>(null);
   const [generatedAt, setGeneratedAt] = React.useState<string | null>(null);
   const providerConnectionsRef = React.useRef<IntegrationConnection[]>([]);
   const isLoadingMoreRef = React.useRef(false);
 
-  const hasMore = !isMock && hasLoaded && nextOffset < total;
+  const hasMore = !isMock && hasLoaded && hasMoreServer;
 
   const fetchCatalog = React.useCallback(async () => {
     if (!assistantId) return;
@@ -158,6 +160,7 @@ export function useProviderIntegrationCatalog(
       setHasLoaded(true);
       setTotal(MOCK_PROVIDER_INTEGRATION_DEFINITIONS.length);
       setNextOffset(MOCK_PROVIDER_INTEGRATION_DEFINITIONS.length);
+      setHasMoreServer(false);
       setFacets(null);
       setCatalogVersion(null);
       setGeneratedAt(null);
@@ -171,7 +174,7 @@ export function useProviderIntegrationCatalog(
     setDefinitions([]);
     isLoadingMoreRef.current = false;
     try {
-      const [page, providerConnections] = await Promise.all([
+      const [page, providerConnections, catalogCount] = await Promise.all([
         listProviderIntegrationDefinitionsPage({
           ownerScope,
           assistantId,
@@ -186,6 +189,16 @@ export function useProviderIntegrationCatalog(
           console.error('Failed to load provider integration connections', error);
           return [];
         }),
+        getProviderIntegrationCatalogCount({
+          ownerScope,
+          assistantId,
+          query,
+          sourceType,
+          statusGroups,
+        }).catch((error) => {
+          console.error('Failed to load provider integration catalog count', error);
+          return null;
+        }),
       ]);
       providerConnectionsRef.current = providerConnections;
       setDefinitions(
@@ -197,11 +210,15 @@ export function useProviderIntegrationCatalog(
           statusGroups
         )
       );
-      setTotal(page.total);
-      setNextOffset(
-        Math.min(page.offset + Math.max(page.definitions.length, page.limit), page.total)
+      const resolvedTotal = typeof catalogCount === 'number' ? catalogCount : page.total;
+      setTotal(Math.max(resolvedTotal, page.definitions.length));
+      setNextOffset(page.offset + page.definitions.length);
+      setHasMoreServer(page.definitions.length >= PROVIDER_CATALOG_PAGE_SIZE);
+      setFacets(
+        page.facets && typeof catalogCount === 'number'
+          ? { ...page.facets, total: catalogCount }
+          : page.facets
       );
-      setFacets(page.facets);
       setCatalogVersion(page.catalogVersion);
       setGeneratedAt(page.generatedAt);
     } catch (error) {
@@ -210,6 +227,7 @@ export function useProviderIntegrationCatalog(
       setDefinitions([]);
       setTotal(0);
       setNextOffset(0);
+      setHasMoreServer(false);
       setFacets(null);
       setCatalogVersion(null);
       setGeneratedAt(null);
@@ -220,7 +238,7 @@ export function useProviderIntegrationCatalog(
   }, [assistantId, ownerScope, query, sourceType, statusGroups]);
 
   const loadMore = React.useCallback(async () => {
-    if (!assistantId || isMock || isLoadingMoreRef.current || isLoading || nextOffset >= total) {
+    if (!assistantId || isMock || isLoadingMoreRef.current || isLoading || !hasMoreServer) {
       return;
     }
     isLoadingMoreRef.current = true;
@@ -247,11 +265,9 @@ export function useProviderIntegrationCatalog(
         }
         return Array.from(bySlug.values());
       });
-      setTotal(page.total);
-      setNextOffset(
-        Math.min(page.offset + Math.max(page.definitions.length, page.limit), page.total)
-      );
-      setFacets(page.facets);
+      setTotal((prev) => Math.max(prev, page.offset + page.definitions.length));
+      setNextOffset(page.offset + page.definitions.length);
+      setHasMoreServer(page.definitions.length >= PROVIDER_CATALOG_PAGE_SIZE);
       setCatalogVersion(page.catalogVersion);
       setGeneratedAt(page.generatedAt);
     } catch (error) {
@@ -263,6 +279,7 @@ export function useProviderIntegrationCatalog(
     }
   }, [
     assistantId,
+    hasMoreServer,
     isLoading,
     isMock,
     nextOffset,
@@ -270,7 +287,6 @@ export function useProviderIntegrationCatalog(
     query,
     sourceType,
     statusGroups,
-    total,
   ]);
 
   React.useEffect(() => {

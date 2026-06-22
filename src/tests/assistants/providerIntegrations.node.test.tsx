@@ -38,6 +38,7 @@ vi.mock('@/lib/client/integrations', async (importOriginal) => {
 });
 
 import { IntegrationGalleryShell, ProviderIntegrationDetailSheet } from '@/components/Integrations';
+import { mapProviderAppToDefinition } from '@/lib/client/integrations';
 import { useIntegrationGalleryModel } from '@/hooks/Integrations/useIntegrationGalleryModel';
 import { INTEGRATION_PROVIDERS } from '@/constants/assistants/integrations';
 import { MOCK_PROVIDER_INTEGRATION_DEFINITIONS } from '@/utils/assistants/provider-integration-mock-data';
@@ -530,6 +531,51 @@ describe('provider integrations gallery model', () => {
     expect(screen.getByText('Lookup record')).toBeInTheDocument();
     fireEvent.click(toolRow.querySelector('button')!);
     expect(screen.getAllByText('Run a company enrichment workflow.')).toHaveLength(1);
+  });
+
+  it('renders an api-key app drawer from a raw JSON-schema without crashing', async () => {
+    const definition = mapProviderAppToDefinition({
+      backendId: 'composio',
+      providerAppId: 'ANTHROPIC_ADMINISTRATOR',
+      canonicalAppSlug: 'anthropic_administrator',
+      displayName: 'Anthropic Administrator',
+      sourceType: 'third_party',
+      authModes: ['api_key'],
+      availableScopes: [],
+      toolCount: 0,
+      apiKeySchema: {
+        type: 'object',
+        required: ['generic_api_key'],
+        properties: {
+          genericApiKey: {
+            type: 'string',
+            title: 'Admin API Key',
+            secret: true,
+            description:
+              "The Admin API key used for authentication, starting with 'sk-ant-admin...'.",
+          },
+        },
+      },
+    });
+    const item = {
+      ...definition,
+      sources: [definition.sourceMetadata],
+      primaryConnection: null,
+    } as IntegrationGalleryItem;
+
+    render(
+      <ProviderIntegrationDetailSheet
+        item={item}
+        open
+        onOpenChange={vi.fn()}
+        onPrimaryAction={vi.fn()}
+        onApiKeySubmit={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('provider-api-key-form')).toBeInTheDocument();
+    expect(screen.getByTestId('provider-api-key-field-genericApiKey')).toBeInTheDocument();
+    expect(screen.getByText('Admin API Key')).toBeInTheDocument();
   });
 
   it('places connected app management controls at the top of the detail sheet', async () => {
