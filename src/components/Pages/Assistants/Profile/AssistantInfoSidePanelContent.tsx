@@ -217,7 +217,7 @@ function CoordinatorAssistantInfoSidePanelContent({
         name="Twin"
         photoSrc={undefined}
         initials="M"
-        summary="Your personal twin"
+        summary="Your digital twin"
         visibilityLabel={
           <span className="inline-flex items-center gap-1">
             Only you
