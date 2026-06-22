@@ -956,11 +956,14 @@ function ChecklistRow({
       </div>
     ) : null;
 
+  const dimClassName = dim ? 'opacity-50 transition-opacity' : undefined;
+
   const renderMarkerAndLabel = (variant: 'done' | 'skipped' | 'actionable' | 'static') => {
     const markerAndLabel = (
       <span
         className={cn(
           'flex min-w-0 flex-1 items-start gap-2',
+          dimClassName,
           hasDependencyInfo &&
             'rounded-control cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         )}
@@ -1129,12 +1132,14 @@ function ChecklistRow({
     <div className={rowClassName(variant)}>
       {renderMarkerAndLabel(variant)}
       <div className="flex h-6 flex-shrink-0 items-center gap-1">
-        {renderResetSectionButton()}
-        {renderSkipButton()}
+        <span className={cn('flex h-6 items-center gap-1', dimClassName)}>
+          {renderResetSectionButton()}
+          {renderSkipButton()}
+          {renderSectionSkipButton()}
+          {renderInfoTooltip()}
+        </span>
         {renderUnskipButton()}
-        {renderSectionSkipButton()}
         {renderSectionUnskipButton()}
-        {renderInfoTooltip()}
       </div>
     </div>
   );
@@ -1199,21 +1204,11 @@ function ChecklistRow({
     !!suggestionsForItem?.length && item.status === 'pending' && !item.locked && !sectionDisabled;
 
   return (
-    <li
-      className={cn(
-        'flex flex-col gap-2',
-        isChild && 'ml-6',
-        // Soft fade applies to the whole row container so the
-        // marker, label, info button, and any suggestion chips all
-        // dim together. The recommended row and its ancestor chain
-        // stay opaque to keep the current focus legible.
-        dim && 'opacity-50 transition-opacity'
-      )}
-    >
+    <li className={cn('flex flex-col gap-2', isChild && 'ml-6')}>
       {row}
       {showSuggestions && suggestionsForItem ? (
         <ul
-          className="ml-6 flex flex-wrap gap-1.5"
+          className={cn('ml-6 flex flex-wrap gap-1.5', dimClassName)}
           aria-label="Suggested workflows to try"
           data-testid="coordinator-onboarding-suggestions"
         >
