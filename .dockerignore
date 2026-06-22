@@ -47,3 +47,7 @@ next-env.d.ts
 # Docker
 Dockerfile
 .dockerignore
+
+# Cloud SQL proxy binary — not part of the app image; exclude to keep Go
+# toolchain binaries out of intermediate build layers scanned by Vanta.
+cloud_sql_proxy

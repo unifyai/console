@@ -69,14 +69,6 @@ steps:
     id: Build
     secretEnv: ['NEXT_SERVER_ACTIONS_ENCRYPTION_KEY']
 
-  - id: Proxy Install
-    name: gcr.io/cloud-builders/npm
-    entrypoint: sh
-    args:
-      - '-c'
-      - 'wget https://storage.googleapis.com/cloudsql-proxy/v1.20.2/cloud_sql_proxy.linux.amd64 -O cloud_sql_proxy && chmod +x cloud_sql_proxy'
-    waitFor: ['-']
-
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
     args:
       - '-c'
