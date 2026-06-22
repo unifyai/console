@@ -12,6 +12,8 @@ import { useEnvironment, useFeatures } from '@/components/Pages/Providers/Enviro
 import VerificationCodeInput from './VerificationCodeInput';
 import ForgotPasswordForm from './ForgotPasswordForm';
 
+const containedFocusRingClass = 'ring-inset focus-visible:ring-offset-0';
+
 /** Possible views within the email login flow */
 type EmailView = 'login' | 'register' | 'verify' | 'forgot-password';
 
@@ -375,6 +377,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
                 onChange={(e) => setFirstName(e.target.value)}
                 required
                 disabled={isLoading}
+                className={containedFocusRingClass}
                 data-testid="email-first-name-input"
               />
             </div>
@@ -390,6 +393,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
                 onChange={(e) => setLastName(e.target.value)}
                 required
                 disabled={isLoading}
+                className={containedFocusRingClass}
                 data-testid="email-last-name-input"
               />
             </div>
@@ -411,6 +415,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
             }}
             required
             disabled={isLoading}
+            className={containedFocusRingClass}
             data-testid="email-input"
           />
         </div>
@@ -431,6 +436,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
               required
               minLength={isRegister ? 8 : undefined}
               disabled={isLoading}
+              className={containedFocusRingClass}
               data-testid="email-password-input"
             />
             {!isRegister && (
