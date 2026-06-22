@@ -1,9 +1,100 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, internalError } from '../../../_utils/auth';
+import { isComposeSelfHostRuntime, isSelfHost } from '@/lib/environment/environment';
 import { snakeToCamelObject } from '@/utils/casing';
 
 const ORCHESTRA_BASE_URL = `${process.env.ORCHESTRA_URL}/v0`;
 const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
+const SELF_HOST_SOURCE_JOB_NAME = 'local-coordinator-runtime';
+const SELF_HOST_COMPOSE_JOB_NAME = 'compose-coordinator-runtime';
+
+type AssistantStatusPayload = {
+  running: boolean;
+  jobName: string | null;
+};
+
+function droidHome(): string {
+  return process.env.DROID_HOME ?? path.join(os.homedir(), '.droid');
+}
+
+function selfHostStateDir(): string {
+  return process.env.SELF_HOST_STATE_DIR ?? droidHome();
+}
+
+function coordinatorRuntimeFile(): string {
+  return (
+    process.env.SELF_HOST_COORDINATOR_RUNTIME_FILE ??
+    path.join(selfHostStateDir(), 'coordinator-runtime.json')
+  );
+}
+
+function runtimeStateFile(): string {
+  return path.join(selfHostStateDir(), 'runtime-state.json');
+}
+
+function readJsonFile(filePath: string): Record<string, unknown> | null {
+  if (!fs.existsSync(filePath)) return null;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function stringValue(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  return '';
+}
+
+function localCoordinatorAssistantId(): string {
+  const configured = process.env.SELF_HOST_COORDINATOR_AGENT_ID;
+  if (configured) return configured;
+
+  const runtime = readJsonFile(coordinatorRuntimeFile());
+  return stringValue(runtime?.coordinatorAgentId ?? runtime?.coordinator_agent_id);
+}
+
+function processIsAlive(pidValue: unknown): boolean {
+  const pid = Number(pidValue);
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function sourceSelfHostStatus(assistantId: string): AssistantStatusPayload {
+  const runtimeState = readJsonFile(runtimeStateFile());
+  const runningAssistantId = stringValue(runtimeState?.assistant_id);
+  const running = runningAssistantId === assistantId && processIsAlive(runtimeState?.pid);
+
+  return {
+    running,
+    jobName: running ? SELF_HOST_SOURCE_JOB_NAME : null,
+  };
+}
+
+function selfHostStatus(assistantId: string): AssistantStatusPayload | null {
+  if (!isSelfHost()) return null;
+
+  const coordinatorId = localCoordinatorAssistantId();
+  if (!coordinatorId || coordinatorId !== assistantId) return null;
+
+  // Compose self-host runs the Coordinator in a sibling container, outside the
+  // process namespace visible to Console.
+  if (isComposeSelfHostRuntime()) {
+    return { running: true, jobName: SELF_HOST_COMPOSE_JOB_NAME };
+  }
+
+  return sourceSelfHostStatus(assistantId);
+}
 
 export async function GET(
   request: NextRequest,
@@ -14,6 +105,11 @@ export async function GET(
   const apiKey = await getApiKeyFromRequest(request);
   if (!apiKey) {
     return unauthorized();
+  }
+
+  const localStatus = selfHostStatus(assistantId);
+  if (localStatus) {
+    return NextResponse.json(localStatus);
   }
 
   // Admin endpoints require ORCHESTRA_ADMIN_KEY
