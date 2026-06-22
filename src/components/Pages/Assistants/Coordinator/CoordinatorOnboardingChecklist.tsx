@@ -30,6 +30,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/UI/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { cn } from '@/lib/utils';
@@ -231,9 +237,77 @@ function buildVisibleChecklist(
 const CHECKLIST_CONTROL_GRID_CLASS =
   '-mx-1.5 grid w-full grid-cols-[minmax(0,1fr)_4.5rem_1.5rem] gap-1 px-1.5';
 
+const COMMUNICATION_SUBGROUPS: ReadonlyArray<{
+  id: string;
+  title: string;
+  stepIds: readonly string[];
+}> = [
+  { id: 'email', title: 'Email', stepIds: ['email-reference', 'email-reply'] },
+  {
+    id: 'whatsapp',
+    title: 'WhatsApp',
+    stepIds: [
+      'whatsapp-number',
+      'whatsapp-message-reference',
+      'whatsapp-message',
+      'whatsapp-call-reference',
+      'whatsapp-call',
+    ],
+  },
+  {
+    id: 'phone',
+    title: 'Phone',
+    stepIds: ['phone-number', 'sms-reference', 'sms-message', 'phone-call-reference', 'phone-call'],
+  },
+  { id: 'slack', title: 'Slack', stepIds: ['slack-connect', 'slack-reference', 'slack-message'] },
+  {
+    id: 'discord',
+    title: 'Discord',
+    stepIds: ['discord-connect', 'discord-reference', 'discord-message'],
+  },
+];
+
 function collectVisibleLeafIds(item: ResolvedChecklistItem): string[] {
   if (!item.children?.length) return [item.id];
   return item.children.flatMap(collectVisibleLeafIds);
+}
+
+function collectVisibleLeaves(items: readonly ResolvedChecklistItem[]): ResolvedChecklistItem[] {
+  return items.flatMap((item) =>
+    item.children?.length ? collectVisibleLeaves(item.children) : [item]
+  );
+}
+
+function progressForItems(items: readonly ResolvedChecklistItem[]): {
+  completed: number;
+  total: number;
+} {
+  const leaves = collectVisibleLeaves(items);
+  return {
+    completed: leaves.filter((item) => item.status !== 'pending').length,
+    total: leaves.length,
+  };
+}
+
+function collectDependentStepIds(
+  stepId: string,
+  items: readonly ResolvedChecklistItem[]
+): string[] {
+  const result: string[] = [stepId];
+  const seen = new Set(result);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const item of items) {
+      if (seen.has(item.id)) continue;
+      if (item.dependencies?.some((dependency) => seen.has(dependency.id))) {
+        seen.add(item.id);
+        result.push(item.id);
+        changed = true;
+      }
+    }
+  }
+  return result;
 }
 
 function hasResolvedLeaf(item: ResolvedChecklistItem): boolean {
@@ -254,18 +328,17 @@ function createComingSoonPlaceholder(section: ResolvedChecklistItem): ResolvedCh
   };
 }
 
-function hasActionableLeaf(
-  item: ResolvedChecklistItem,
-  isActionWired: (action: ChecklistAction | undefined) => boolean,
-  isInSkippedSection = false
-): boolean {
-  const sectionDisabled = isInSkippedSection || item.sectionSkipped === true;
-  if (!item.children?.length) {
-    return (
-      item.status === 'pending' && !item.locked && !sectionDisabled && isActionWired(item.action)
-    );
-  }
-  return item.children.some((child) => hasActionableLeaf(child, isActionWired, sectionDisabled));
+function communicationSubgroups(
+  items: readonly ResolvedChecklistItem[]
+): Array<{ id: string; title: string; items: ResolvedChecklistItem[] }> {
+  const byId = new Map(items.map((item) => [item.id, item]));
+  return COMMUNICATION_SUBGROUPS.map((group) => ({
+    id: group.id,
+    title: group.title,
+    items: group.stepIds
+      .map((stepId) => byId.get(stepId))
+      .filter((item): item is ResolvedChecklistItem => !!item),
+  })).filter((group) => group.items.length > 0);
 }
 
 function containsLeafId(item: ResolvedChecklistItem, leafId: string): boolean {
@@ -370,6 +443,9 @@ export function CoordinatorOnboardingChecklist({
   const resumeOnboarding = ctx?.resumeOnboarding;
   const onboarding = ctx?.onboarding ?? null;
   const [openSectionIds, setOpenSectionIds] = React.useState<ReadonlySet<string>>(() => new Set());
+  const [openSubgroupIds, setOpenSubgroupIds] = React.useState<ReadonlySet<string>>(
+    () => new Set()
+  );
   const didInitializeOpenSectionRef = React.useRef(false);
 
   const handleAction = React.useCallback(
@@ -483,6 +559,7 @@ export function CoordinatorOnboardingChecklist({
     () => buildVisibleChecklist(onboarding, isActionWired),
     [onboarding, isActionWired]
   );
+  const visibleLeaves = React.useMemo(() => collectVisibleLeaves(resolved), [resolved]);
 
   // ID of the leaf row the user should tackle next. The value still
   // drives hidden state markers, but the checklist does not render an
@@ -517,6 +594,14 @@ export function CoordinatorOnboardingChecklist({
       return next;
     });
   }, []);
+  const toggleSubgroup = React.useCallback((subgroupId: string) => {
+    setOpenSubgroupIds((current) => {
+      const next = new Set(current);
+      if (next.has(subgroupId)) next.delete(subgroupId);
+      else next.add(subgroupId);
+      return next;
+    });
+  }, []);
 
   // Global "do onboarding later" collapses the whole checklist to a
   // single resume affordance. The underlying per-step state is
@@ -524,13 +609,15 @@ export function CoordinatorOnboardingChecklist({
   if (onboardingDeferred) {
     return (
       <div
-        className={cn('flex flex-col gap-2', className)}
+        className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}
         data-testid="coordinator-onboarding-deferred"
       >
-        <div className="rounded-control bg-muted/40 flex items-center justify-between gap-2 px-2.5 py-2">
+        <div className="rounded-control bg-muted/40 px-2.5 py-2">
           <span className="text-body-sm text-muted-foreground">
             Onboarding paused — you can pick it up anytime.
           </span>
+        </div>
+        <div className="mt-auto flex flex-shrink-0 justify-end pt-2">
           {resumeOnboarding ? (
             <button
               type="button"
@@ -568,55 +655,61 @@ export function CoordinatorOnboardingChecklist({
           const sectionItems = hasVisibleChildren
             ? section.children!
             : [createComingSoonPlaceholder(section)];
-          const canSkipSection =
-            !!section.phase &&
-            !!onSkipSection &&
-            section.status === 'pending' &&
-            !section.sectionSkipped;
-          const canUnskipSection =
-            !!section.phase && !!onUnskipSection && section.sectionSkipped === true;
           return (
             <li key={section.id} className="space-y-2">
               <SectionHeader
                 section={section}
                 index={index}
+                progress={progressForItems(sectionItems)}
                 isOpen={isOpen}
                 onToggle={() => toggleSection(section.id)}
-                sectionAction={
-                  canUnskipSection
-                    ? {
-                        label: 'Unskip',
-                        testId: `coordinator-onboarding-unskip-section-${section.id}`,
-                        variant: 'primary',
-                        onClick: () => onUnskipSection?.(section.phase!),
-                      }
-                    : canSkipSection
-                      ? {
-                          label: 'Skip',
-                          testId: `coordinator-onboarding-skip-section-${section.id}`,
-                          variant: 'muted',
-                          onClick: () => onSkipSection?.(section.phase!),
-                        }
-                      : null
-                }
               />
               {isOpen ? (
                 <ul className="space-y-2">
-                  {sectionItems.map((item) => (
-                    <ChecklistRow
-                      key={item.id}
-                      item={item}
-                      isChild
-                      isInSkippedSection={section.sectionSkipped === true}
-                      onAction={handleAction}
-                      isActionWired={isActionWired}
-                      nextActionableId={nextActionableId}
-                      isOnCall={isOnCall}
-                      onSkipStep={onSkipStep}
-                      onUnskipStep={onUnskipStep}
-                      onResetStepProgress={resetStepProgress}
-                    />
-                  ))}
+                  {section.id === 'communication'
+                    ? communicationSubgroups(sectionItems).map((group, groupIndex) => (
+                        <CommunicationSubgroup
+                          key={group.id}
+                          id={group.id}
+                          title={`${index + 1}.${groupIndex + 1} ${group.title}`}
+                          progress={progressForItems(group.items)}
+                          isOpen={openSubgroupIds.has(group.id)}
+                          onToggle={() => toggleSubgroup(group.id)}
+                        >
+                          {group.items.map((item) => (
+                            <ChecklistRow
+                              key={item.id}
+                              item={item}
+                              isChild
+                              isInSkippedSection={section.sectionSkipped === true}
+                              onAction={handleAction}
+                              isActionWired={isActionWired}
+                              nextActionableId={nextActionableId}
+                              allVisibleItems={visibleLeaves}
+                              isOnCall={isOnCall}
+                              onSkipStep={onSkipStep}
+                              onUnskipStep={onUnskipStep}
+                              onResetStepProgress={resetStepProgress}
+                            />
+                          ))}
+                        </CommunicationSubgroup>
+                      ))
+                    : sectionItems.map((item) => (
+                        <ChecklistRow
+                          key={item.id}
+                          item={item}
+                          isChild
+                          isInSkippedSection={section.sectionSkipped === true}
+                          onAction={handleAction}
+                          isActionWired={isActionWired}
+                          nextActionableId={nextActionableId}
+                          allVisibleItems={visibleLeaves}
+                          isOnCall={isOnCall}
+                          onSkipStep={onSkipStep}
+                          onUnskipStep={onUnskipStep}
+                          onResetStepProgress={resetStepProgress}
+                        />
+                      ))}
                 </ul>
               ) : null}
             </li>
@@ -644,70 +737,104 @@ export function CoordinatorOnboardingChecklist({
   );
 }
 
-interface SectionAction {
-  label: string;
-  testId: string;
-  variant: 'muted' | 'primary';
-  onClick: () => void;
-}
-
 interface SectionHeaderProps {
   section: ResolvedChecklistItem;
   index: number;
+  progress: { completed: number; total: number };
   isOpen: boolean;
   onToggle: () => void;
-  sectionAction: SectionAction | null;
 }
 
-function SectionHeader({ section, index, isOpen, onToggle, sectionAction }: SectionHeaderProps) {
+function CompactProgress({ completed, total }: { completed: number; total: number }) {
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  return (
+    <span
+      className="flex w-16 flex-col gap-1 justify-self-center"
+      aria-label={`${completed} of ${total}`}
+    >
+      <span className="text-caption text-center tabular-nums text-muted-foreground">
+        {completed}/{total}
+      </span>
+      <span className="h-1 overflow-hidden rounded-full bg-muted">
+        <span className="block h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+      </span>
+    </span>
+  );
+}
+
+function SectionHeader({ section, index, progress, isOpen, onToggle }: SectionHeaderProps) {
   const label = `${index + 1}. ${section.title}`;
   return (
-    <div
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={isOpen}
       className={cn(
         CHECKLIST_CONTROL_GRID_CLASS,
-        'group/onboarding-section rounded-control items-center py-2 text-left',
-        'bg-muted/40 hover:bg-muted/70 transition-colors'
+        'group/onboarding-section rounded-control items-center py-3 text-left',
+        'hover:bg-muted/70 focus-visible:bg-muted/70 bg-transparent transition-colors',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
       )}
       data-testid={`coordinator-onboarding-section-${section.id}`}
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={isOpen}
-        className="text-body-sm rounded-control min-w-0 flex-1 truncate text-left font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      <span
+        className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground"
         data-testid={`coordinator-onboarding-section-${section.id}-toggle`}
       >
         {label}
-      </button>
-      {sectionAction ? (
-        <button
-          type="button"
-          onClick={sectionAction.onClick}
-          className={cn(
-            'text-caption rounded-control justify-self-center whitespace-nowrap px-1.5 py-0.5 opacity-0 transition-opacity group-hover/onboarding-section:opacity-100',
-            sectionAction.variant === 'primary'
-              ? 'hover:bg-primary/10 font-medium text-primary'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-            'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-          )}
-          data-testid={sectionAction.testId}
-        >
-          {sectionAction.label}
-        </button>
-      ) : null}
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${section.title}`}
-        aria-expanded={isOpen}
-        className="rounded-control flex h-6 w-6 items-center justify-center justify-self-center text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-      >
+      </span>
+      <CompactProgress completed={progress.completed} total={progress.total} />
+      <span className="flex h-6 w-6 items-center justify-center justify-self-center text-muted-foreground">
         <ChevronDown
           className={cn('h-3.5 w-3.5 transition-transform', !isOpen && '-rotate-90')}
           aria-hidden="true"
         />
+      </span>
+    </button>
+  );
+}
+
+function CommunicationSubgroup({
+  id,
+  title,
+  progress,
+  isOpen,
+  onToggle,
+  children,
+}: {
+  id: string;
+  title: string;
+  progress: { completed: number; total: number };
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <li className="space-y-2" data-testid={`coordinator-onboarding-communication-${id}`}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        className={cn(
+          CHECKLIST_CONTROL_GRID_CLASS,
+          'rounded-control items-center py-2 pl-5 text-left',
+          'hover:bg-muted/70 focus-visible:bg-muted/70 bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+        )}
+        data-testid={`coordinator-onboarding-communication-${id}-toggle`}
+      >
+        <span className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground">
+          {title}
+        </span>
+        <CompactProgress completed={progress.completed} total={progress.total} />
+        <span className="flex h-6 w-6 items-center justify-center justify-self-center text-muted-foreground">
+          <ChevronDown
+            className={cn('h-3.5 w-3.5 transition-transform', !isOpen && '-rotate-90')}
+            aria-hidden="true"
+          />
+        </span>
       </button>
-    </div>
+      {isOpen ? <ul className="space-y-2">{children}</ul> : null}
+    </li>
   );
 }
 
@@ -722,6 +849,7 @@ interface ChecklistRowProps {
    * than recomputed per-row so the lookup stays O(checklist-size)
    * in total. */
   nextActionableId: string | null;
+  allVisibleItems: readonly ResolvedChecklistItem[];
   /** Whether the user is on a call — selects the call vs. chat
    * "Act now" suggestion chips. */
   isOnCall: boolean;
@@ -739,11 +867,10 @@ function ChecklistRow({
   onAction,
   isActionWired,
   nextActionableId,
+  allVisibleItems,
   isOnCall,
   onSkipStep,
   onUnskipStep,
-  onSkipSection,
-  onUnskipSection,
   onResetStepProgress,
 }: ChecklistRowProps) {
   const hasWiredAction = isActionWired(item.action);
@@ -760,15 +887,6 @@ function ChecklistRow({
     !sectionDisabled;
   const canUnskip =
     !!onUnskipStep && !sectionDisabled && !item.children?.length && item.status === 'skipped';
-  const canSkipSection =
-    !isChild &&
-    !!item.children?.length &&
-    !!item.phase &&
-    !!onSkipSection &&
-    item.status === 'pending' &&
-    !item.sectionSkipped;
-  const canUnskipSection =
-    !isChild && !!item.phase && !!onUnskipSection && item.sectionSkipped === true;
   const canResetSection =
     !isChild &&
     !!item.children?.length &&
@@ -776,29 +894,13 @@ function ChecklistRow({
     !item.sectionSkipped &&
     hasResolvedLeaf(item);
   const resetStepIds = React.useMemo(() => collectVisibleLeafIds(item), [item]);
-  // Whether the next actionable leaf sits somewhere inside this
-  // row's subtree. Parents on that path stay at full opacity so the
-  // section containing the recommended row does not look disabled.
-  const containsNext =
-    !!nextActionableId &&
-    !!item.children?.some(function walk(child: ResolvedChecklistItem): boolean {
-      if (child.id === nextActionableId) return true;
-      return !!child.children?.some(walk);
-    });
-  const containsActionableLeaf = !!item.children?.some((child) =>
-    hasActionableLeaf(child, isActionWired, sectionDisabled)
+  const undoStepIds = React.useMemo(
+    () => collectDependentStepIds(item.id, allVisibleItems),
+    [allVisibleItems, item.id]
   );
-  // Soft-dim every resolved/static row that is neither actionable nor
-  // on the path to the recommended row. Alternative available rows stay
-  // legible because independent sections can be started in any order.
-  const dim =
-    item.locked ||
-    sectionDisabled ||
-    (!isNext &&
-      !containsNext &&
-      !containsActionableLeaf &&
-      item.status !== 'skipped' &&
-      !isActionable);
+  // Only inaccessible/future rows dim. Addressed rows (done or skipped)
+  // should remain readable so their state is clear.
+  const dim = item.locked || sectionDisabled;
   const unresolvedDependencies =
     item.dependencies?.filter((dependency) => !dependency.satisfied) ?? [];
   const hasDependencyInfo = item.locked && unresolvedDependencies.length > 0;
@@ -831,51 +933,6 @@ function ChecklistRow({
     return () => window.removeEventListener('pointermove', handlePointerMove);
   }, [isInfoTooltipPinnedToLabel]);
 
-  const handleClick = React.useCallback(() => {
-    if (item.action) onAction(item.action);
-  }, [item.action, onAction]);
-
-  const handleKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      event.preventDefault();
-      handleClick();
-    },
-    [handleClick]
-  );
-
-  const handleSkipClick = React.useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.stopPropagation();
-      onSkipStep?.(item.id);
-    },
-    [item.id, onSkipStep]
-  );
-
-  const handleUnskipClick = React.useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.stopPropagation();
-      onUnskipStep?.(item.id);
-    },
-    [item.id, onUnskipStep]
-  );
-
-  const handleSkipSectionClick = React.useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.stopPropagation();
-      if (item.phase) onSkipSection?.(item.phase);
-    },
-    [item.phase, onSkipSection]
-  );
-
-  const handleUnskipSectionClick = React.useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.stopPropagation();
-      if (item.phase) onUnskipSection?.(item.phase);
-    },
-    [item.phase, onUnskipSection]
-  );
-
   const rowClassName = (variant: 'done' | 'skipped' | 'actionable' | 'static') =>
     cn(
       CHECKLIST_CONTROL_GRID_CLASS,
@@ -888,7 +945,7 @@ function ChecklistRow({
       className={cn(
         'text-body-sm flex-1 leading-5',
         variant === 'done' && 'text-muted-foreground line-through',
-        variant === 'skipped' && 'text-muted-foreground',
+        variant === 'skipped' && 'text-muted-foreground line-through',
         variant === 'actionable' && 'text-foreground',
         variant === 'static' && 'text-foreground'
       )}
@@ -910,14 +967,18 @@ function ChecklistRow({
     ) : null;
 
   const dimClassName = dim ? 'opacity-50 transition-opacity' : undefined;
+  const canSelect = isActionable && !!item.action;
+  const canUndo = item.status === 'done' && !!onResetStepProgress;
+  const hasRowMenu = canSelect || canSkip || canUnskip || canUndo;
 
   const renderMarkerAndLabel = (variant: 'done' | 'skipped' | 'actionable' | 'static') => {
-    return (
+    const content = (
       <span
         ref={dependencyInfoTriggerRef}
         className={cn(
           'flex min-w-0 flex-1 items-start',
           isChild && 'pl-6',
+          hasRowMenu && 'cursor-pointer',
           dimClassName,
           hasDependencyInfo &&
             'rounded-control cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
@@ -941,67 +1002,40 @@ function ChecklistRow({
         </span>
       </span>
     );
+
+    if (!hasRowMenu) return content;
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>{content}</DropdownMenuTrigger>
+        <DropdownMenuContent
+          side="bottom"
+          align="start"
+          alignOffset={isChild ? 24 : 0}
+          className="min-w-[6rem]"
+        >
+          {canUndo ? (
+            <DropdownMenuItem onSelect={() => onResetStepProgress?.(undoStepIds)}>
+              Undo
+            </DropdownMenuItem>
+          ) : item.status === 'skipped' ? (
+            <DropdownMenuItem onSelect={() => onUnskipStep?.(item.id)}>Unskip</DropdownMenuItem>
+          ) : (
+            <>
+              {canSelect ? (
+                <DropdownMenuItem onSelect={() => item.action && onAction(item.action)}>
+                  Select
+                </DropdownMenuItem>
+              ) : null}
+              {canSkip ? (
+                <DropdownMenuItem onSelect={() => onSkipStep?.(item.id)}>Skip</DropdownMenuItem>
+              ) : null}
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
   };
-
-  const renderSkipButton = () =>
-    canSkip ? (
-      <button
-        type="button"
-        onClick={handleSkipClick}
-        className={cn(
-          'text-caption rounded-control flex h-6 flex-shrink-0 items-center px-1.5 text-muted-foreground opacity-0 transition-opacity group-hover/onboarding-row:opacity-100',
-          'hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-        )}
-        data-testid={`coordinator-onboarding-skip-step-${item.id}`}
-      >
-        Skip
-      </button>
-    ) : null;
-
-  const renderUnskipButton = () =>
-    canUnskip ? (
-      <button
-        type="button"
-        onClick={handleUnskipClick}
-        className={cn(
-          'text-caption rounded-control flex h-6 flex-shrink-0 items-center px-1.5 font-medium text-primary opacity-0 transition-opacity group-hover/onboarding-row:opacity-100',
-          'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-        )}
-        data-testid={`coordinator-onboarding-unskip-step-${item.id}`}
-      >
-        Unskip
-      </button>
-    ) : null;
-
-  const renderSectionSkipButton = () =>
-    canSkipSection ? (
-      <button
-        type="button"
-        onClick={handleSkipSectionClick}
-        className={cn(
-          'text-caption rounded-control flex h-6 flex-shrink-0 items-center px-1.5 text-muted-foreground opacity-0 transition-opacity group-hover/onboarding-row:opacity-100',
-          'hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-        )}
-        data-testid={`coordinator-onboarding-skip-section-${item.id}`}
-      >
-        Skip
-      </button>
-    ) : null;
-
-  const renderSectionUnskipButton = () =>
-    canUnskipSection ? (
-      <button
-        type="button"
-        onClick={handleUnskipSectionClick}
-        className={cn(
-          'text-caption rounded-control flex h-6 flex-shrink-0 items-center px-1.5 font-medium text-primary opacity-0 transition-opacity group-hover/onboarding-row:opacity-100',
-          'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-        )}
-        data-testid={`coordinator-onboarding-unskip-section-${item.id}`}
-      >
-        Unskip
-      </button>
-    ) : null;
 
   const renderResetSectionButton = () =>
     canResetSection ? (
@@ -1109,11 +1143,7 @@ function ChecklistRow({
       <span className="flex h-6 items-center justify-center gap-1">
         <span className={cn('flex h-6 items-center justify-center gap-1', dimClassName)}>
           {renderResetSectionButton()}
-          {renderSkipButton()}
-          {renderSectionSkipButton()}
         </span>
-        {renderUnskipButton()}
-        {renderSectionUnskipButton()}
       </span>
       <span className={cn('flex h-6 items-center justify-center', dimClassName)}>
         {renderInfoTooltip()}
@@ -1137,10 +1167,8 @@ function ChecklistRow({
   } else if (isActionable) {
     row = (
       <div
-        role="button"
-        tabIndex={0}
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
+        role={hasRowMenu ? 'button' : undefined}
+        tabIndex={hasRowMenu ? 0 : undefined}
         className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         data-testid={`coordinator-onboarding-item-${item.id}`}
         data-next={isNext ? 'true' : undefined}
@@ -1215,11 +1243,10 @@ function ChecklistRow({
               onAction={onAction}
               isActionWired={isActionWired}
               nextActionableId={nextActionableId}
+              allVisibleItems={allVisibleItems}
               isOnCall={isOnCall}
               onSkipStep={onSkipStep}
               onUnskipStep={onUnskipStep}
-              onSkipSection={onSkipSection}
-              onUnskipSection={onUnskipSection}
               onResetStepProgress={onResetStepProgress}
             />
           ))}
