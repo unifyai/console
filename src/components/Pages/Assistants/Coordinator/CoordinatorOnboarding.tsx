@@ -254,7 +254,7 @@ function CoordinatorOnboardingCallPreparing() {
         <div>
           <p className="text-h3 font-medium text-card-foreground">Getting your audio ready</p>
           <p className="text-body mt-2 text-muted-foreground">
-            T-W1N will start once the call is connected.
+            Twin will start once the call is connected.
           </p>
         </div>
       </div>
@@ -332,7 +332,7 @@ function CoordinatorOnboardingPicker({
         style={{ marginTop: -cardOverlapPx, paddingTop: cardOverlapPx + 24 }}
       >
         <p className="text-h3 font-medium text-card-foreground">
-          {voiceCalls ? 'T-W1N is calling to onboard you' : 'Start onboarding with T-W1N'}
+          {voiceCalls ? 'Twin is calling to onboard you' : 'Start onboarding with Twin'}
         </p>
         <div className="flex flex-col items-center gap-3 sm:flex-row">
           {voiceCalls ? (
