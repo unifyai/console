@@ -33,7 +33,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { cn } from '@/lib/utils';
-import type { OnboardingRender } from '@/lib/assistants/coordinatorState';
+import type { OnboardingChip, OnboardingRender } from '@/lib/assistants/coordinatorState';
 import { useCoordinatorOnboardingContext } from './CoordinatorOnboardingContext';
 
 export type ChecklistAction =
@@ -82,6 +82,11 @@ interface OnboardingChecklistItem {
    * surface-supplied handler. Items without an action render as
    * static (informational) rows. */
   action?: ChecklistAction;
+  /** Read-only suggestion chips shown under the row while pending. Only
+   * the act/schedule steps carry these; selected by surface (chat vs
+   * call). Sourced from the server render. */
+  chipsChat?: OnboardingChip[];
+  chipsCall?: OnboardingChip[];
   /** Sub-items render under the parent and count separately toward the
    * progress bar — same accounting model as the per-assistant setup
    * roadmap. */
@@ -91,199 +96,37 @@ interface OnboardingChecklistItem {
 }
 
 /**
- * Per-step UI-only metadata, keyed by the server step id. The server
- * owns the structure (which steps exist, ordering, phase, status,
- * skippability, valid next targets); this map only carries the action
- * handler to dispatch and the tooltip copy — things that are pure
- * Console presentation and have no place in the backend graph.
+ * Maps each server step id to the surface-specific action this Console
+ * dispatches when the row is clicked. This is the *only* per-step copy
+ * Console owns — pure client behaviour (which handler to fire) that has no
+ * place in the backend graph. Everything else (titles, descriptions, time
+ * estimates, suggestion chips, phase headers) is sourced from the server's
+ * onboarding render, which reads it from Orchestra's canonical graph.
  */
-interface StepPresentation {
-  action: ChecklistAction;
-  description?: string;
-  estimatedTime?: string;
-}
-
-const STEP_PRESENTATION: Record<string, StepPresentation> = {
-  'email-reference': {
-    action: 'trigger-email-reference',
-    description: 'Twin sends the first reference clue over email.',
-    estimatedTime: '~10s',
-  },
-  'email-reply': {
-    action: 'start-email-reply',
-    description: 'Twin sends you a quick email.',
-    estimatedTime: '~30s',
-  },
-  'whatsapp-number': {
-    action: 'add-whatsapp-number',
-    description: 'Add the WhatsApp number Twin should use.',
-    estimatedTime: '~30s',
-  },
-  'whatsapp-message-reference': {
-    action: 'trigger-whatsapp-message-reference',
-    description: 'Twin sends the next reference clue over WhatsApp.',
-    estimatedTime: '~10s',
-  },
-  'whatsapp-message': {
-    action: 'start-whatsapp-message',
-    description: 'Twin sends you a reference clue over WhatsApp.',
-    estimatedTime: '~1 min',
-  },
-  'whatsapp-call-reference': {
-    action: 'trigger-whatsapp-call-reference',
-    description: 'Twin calls with the next reference clue over WhatsApp.',
-    estimatedTime: '~10s',
-  },
-  'whatsapp-call': {
-    action: 'start-whatsapp-call',
-    description: 'Twin gives you a reference clue over WhatsApp voice.',
-    estimatedTime: '~1 min',
-  },
-  'phone-number': {
-    action: 'add-phone-number',
-    description: 'Add the phone number Twin should use for calls and SMS.',
-    estimatedTime: '~30s',
-  },
-  'sms-reference': {
-    action: 'trigger-sms-reference',
-    description: 'Twin sends the next reference clue over SMS.',
-    estimatedTime: '~10s',
-  },
-  'sms-message': {
-    action: 'start-sms-message',
-    description: 'Twin sends you a reference clue over SMS.',
-    estimatedTime: '~1 min',
-  },
-  'phone-call-reference': {
-    action: 'trigger-phone-call-reference',
-    description: 'Twin calls with the next reference clue.',
-    estimatedTime: '~10s',
-  },
-  'phone-call': {
-    action: 'start-phone-call',
-    description: 'Twin gives you a reference clue over a phone call.',
-    estimatedTime: '~1 min',
-  },
-  'slack-connect': {
-    action: 'connect-slack',
-    description: 'Connect Twin through the Unify Slack app.',
-    estimatedTime: '~1 min',
-  },
-  'slack-reference': {
-    action: 'trigger-slack-reference',
-    description: 'Twin sends the next reference clue in Slack.',
-    estimatedTime: '~10s',
-  },
-  'slack-message': {
-    action: 'start-slack-message',
-    description: 'Twin sends you a reference clue in Slack.',
-    estimatedTime: '~1 min',
-  },
-  'discord-connect': {
-    action: 'connect-discord',
-    description: 'Connect Twin through the public Discord bot.',
-    estimatedTime: '~1 min',
-  },
-  'discord-reference': {
-    action: 'trigger-discord-reference',
-    description: 'Twin sends the next reference clue in Discord.',
-    estimatedTime: '~10s',
-  },
-  'discord-message': {
-    action: 'start-discord-message',
-    description: 'Twin sends you a reference clue in Discord.',
-    estimatedTime: '~1 min',
-  },
-  workspace: {
-    action: 'connect-workspace',
-    description: 'Required for everything else in onboarding.',
-    estimatedTime: '~30s',
-  },
-  apps: {
-    action: 'connect-apps',
-    description: 'Hook up at least one app (Slack, Gmail…).',
-    estimatedTime: '~2 min',
-  },
-  act: {
-    action: 'act',
-    description: 'Give me a one-off job and watch it run live.',
-    estimatedTime: '~2 min',
-  },
-  schedule: {
-    action: 'schedule',
-    description: 'Set up a recurring or event-triggered task.',
-    estimatedTime: '~1 min',
-  },
+const STEP_ACTIONS: Record<string, ChecklistAction> = {
+  'email-reference': 'trigger-email-reference',
+  'email-reply': 'start-email-reply',
+  'whatsapp-number': 'add-whatsapp-number',
+  'whatsapp-message-reference': 'trigger-whatsapp-message-reference',
+  'whatsapp-message': 'start-whatsapp-message',
+  'whatsapp-call-reference': 'trigger-whatsapp-call-reference',
+  'whatsapp-call': 'start-whatsapp-call',
+  'phone-number': 'add-phone-number',
+  'sms-reference': 'trigger-sms-reference',
+  'sms-message': 'start-sms-message',
+  'phone-call-reference': 'trigger-phone-call-reference',
+  'phone-call': 'start-phone-call',
+  'slack-connect': 'connect-slack',
+  'slack-reference': 'trigger-slack-reference',
+  'slack-message': 'start-slack-message',
+  'discord-connect': 'connect-discord',
+  'discord-reference': 'trigger-discord-reference',
+  'discord-message': 'start-discord-message',
+  workspace: 'connect-workspace',
+  apps: 'connect-apps',
+  act: 'act',
+  schedule: 'schedule',
 };
-
-/**
- * Phase grouping for the checklist. The server stamps each step with a
- * ``phase`` label; this maps each phase to its group-header row (id +
- * title + short legend label + blurb). Order here is the display order.
- */
-const PHASE_PRESENTATION: ReadonlyArray<{
-  phase: string;
-  id: string;
-  title: string;
-  phaseLabel: string;
-  description?: string;
-}> = [
-  {
-    phase: 'Quiz',
-    id: 'comms',
-    title: 'Guess the reference',
-    phaseLabel: 'Quiz',
-    description: 'Identify clues sent over email, WhatsApp, phone, Slack, and Discord.',
-  },
-  {
-    phase: 'Connect',
-    id: 'connect',
-    title: 'Connect me',
-    phaseLabel: 'Connect',
-    description: 'Plug me into your workspace and apps.',
-  },
-  {
-    phase: 'Delegate',
-    id: 'work',
-    title: 'Get work done',
-    phaseLabel: 'Delegate',
-    description: 'Hand off real work and see it run.',
-  },
-];
-
-/**
- * Static, read-only "try one of these" prompts that surface as chips
- * under the ``act`` and ``schedule`` rows while each is still pending.
- * Intentionally non-interactive: inspiration, not a UI to click. Split
- * by row (and by medium for ``act``) so each chip matches what
- * completes that step and reads well on the channel in use.
- */
-const ACT_SUGGESTED_WORKFLOWS_CHAT: ReadonlyArray<{
-  id: string;
-  label: string;
-}> = [
-  { id: 'summarize-email', label: 'Summarize my unread emails' },
-  { id: 'catch-up-news', label: "Catch me up on today's news" },
-  { id: 'draft-reply', label: 'Draft a reply to my latest email' },
-];
-
-const ACT_SUGGESTED_WORKFLOWS_CALL: ReadonlyArray<{
-  id: string;
-  label: string;
-}> = [
-  { id: 'screen-share', label: 'Walk me through this website' },
-  { id: 'next-meetings', label: 'Tell me about my next meetings' },
-  { id: 'inbox-readout', label: 'Read me a rundown of my inbox' },
-];
-
-const SCHEDULE_SUGGESTED_WORKFLOWS: ReadonlyArray<{
-  id: string;
-  label: string;
-}> = [
-  { id: 'morning-briefing', label: 'Send me a briefing tomorrow at 8am' },
-  { id: 'weekly-recap', label: 'Every Friday, recap my week' },
-  { id: 'email-trigger', label: 'When I get an email from my boss, alert me' },
-];
 
 interface ResolvedChecklistItem extends OnboardingChecklistItem {
   done: boolean;
@@ -324,8 +167,7 @@ function buildVisibleChecklist(
     else if (phaseSkipped) status = 'pending';
     else continue; // locked — not yet reachable, hide it
 
-    const presentation = STEP_PRESENTATION[step.id];
-    const action = presentation?.action;
+    const action = STEP_ACTIONS[step.id];
     // An available row with an action that isn't wired on this surface
     // can never be actioned here — hide it rather than show a dead row.
     if (status === 'pending' && action && !isActionWired(action) && !phaseSkipped) continue;
@@ -334,8 +176,10 @@ function buildVisibleChecklist(
       id: step.id,
       title: step.title,
       phase: step.phase,
-      description: presentation?.description,
-      estimatedTime: presentation?.estimatedTime,
+      description: step.description || undefined,
+      estimatedTime: step.estimatedTime || undefined,
+      chipsChat: step.chipsChat,
+      chipsCall: step.chipsCall,
       action,
       canSkip: step.canSkip,
       done: status === 'done',
@@ -348,7 +192,7 @@ function buildVisibleChecklist(
   }
 
   const result: ResolvedChecklistItem[] = [];
-  for (const phase of PHASE_PRESENTATION) {
+  for (const phase of render.phases) {
     const children = leavesByPhase.get(phase.phase);
     if (!children?.length) continue;
     const sectionSkipped = skippedPhases.has(phase.phase);
@@ -361,7 +205,7 @@ function buildVisibleChecklist(
       id: phase.id,
       title: phase.title,
       phase: phase.phase,
-      phaseLabel: phase.phaseLabel,
+      phaseLabel: phase.phase,
       description: phase.description,
       done,
       skipped,
@@ -392,17 +236,17 @@ function computePhases(
   isActionWired: (action: ChecklistAction | undefined) => boolean
 ): PhaseProgress[] {
   if (!render) return [];
-  return PHASE_PRESENTATION.flatMap((phase) => {
+  return render.phases.flatMap((phase) => {
     let total = 0;
     let completed = 0;
     for (const step of render.steps) {
       if (step.phase !== phase.phase) continue;
-      const action = STEP_PRESENTATION[step.id]?.action;
+      const action = STEP_ACTIONS[step.id];
       if (action && !isActionWired(action)) continue;
       total += 1;
       if (step.status === 'done') completed += 1;
     }
-    return total > 0 ? [{ id: phase.id, label: phase.phaseLabel, total, completed }] : [];
+    return total > 0 ? [{ id: phase.id, label: phase.phase, total, completed }] : [];
   });
 }
 
@@ -1171,15 +1015,14 @@ function ChecklistRow({
   // (chat could seed an input, call has nothing to seed) and avoids
   // the user accidentally firing a multi-sentence prompt
   // mid-voice-turn.
-  const suggestionsForItem =
-    item.id === 'act'
-      ? isOnCall
-        ? ACT_SUGGESTED_WORKFLOWS_CALL
-        : ACT_SUGGESTED_WORKFLOWS_CHAT
-      : item.id === 'schedule'
-        ? SCHEDULE_SUGGESTED_WORKFLOWS
-        : null;
-  const showSuggestions = !!suggestionsForItem && item.status === 'pending' && !sectionDisabled;
+  // Suggestion chips come from the server render (sourced from the
+  // canonical graph). The chat/call split lives in the data: ``act``
+  // carries distinct sets, ``schedule`` carries the same set for both,
+  // and every other step carries none — so an empty list naturally
+  // means "no chips here".
+  const suggestionsForItem = isOnCall ? item.chipsCall : item.chipsChat;
+  const showSuggestions =
+    !!suggestionsForItem?.length && item.status === 'pending' && !sectionDisabled;
 
   return (
     <li
