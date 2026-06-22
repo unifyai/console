@@ -5,7 +5,7 @@ import { ScrollArea } from '@/components/UI/scroll-area';
 import { Button } from '@/components/UI/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { Mail, Phone, Copy, Check, Pencil, Lock, RotateCcw } from 'lucide-react';
+import { Mail, Phone, Copy, Check, Pencil, Lock } from 'lucide-react';
 
 // Underlined-tabs styling, mirrored from the right-pane TAB_TRIGGER_CLASS
 // so the side-panel tabs read with the same visual grammar (active tab
@@ -35,7 +35,6 @@ import {
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 import { assistantDisplayName, assistantInitials } from '@/lib/assistants/displayName';
 import { CoordinatorOnboardingChecklist } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingChecklist';
-import { useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
 
 export interface AssistantInfoSidePanelContentProps {
   assistant: Assistant;
@@ -104,9 +103,8 @@ export interface AssistantInfoSidePanelContentProps {
     onScheduleTask?: () => void;
     onSkipStep?: (stepId: string) => void;
     onUnskipStep?: (stepId: string) => void;
-    /** Replays the Twin call intro on demand. Surfaces a "Repeat
-     * intro" affordance at the bottom of the onboarding sub-tab. */
-    onReplayIntro?: () => void;
+    onSkipSection?: (phaseId: string) => void;
+    onUnskipSection?: (phaseId: string) => void;
     /** Whether the Coordinator is currently on a voice call — selects
      * call- vs chat-flavoured "Ask Twin to do something" chips. */
     isOnCall?: boolean;
@@ -217,7 +215,7 @@ function CoordinatorAssistantInfoSidePanelContent({
     <ScrollArea className={cn('flex-1', className)}>
       <div className="flex flex-col gap-4 px-4 py-4">
         <IdentityHeader
-          name="T-W1N"
+          name="Twin"
           photoSrc={undefined}
           initials="M"
           summary="Your personal twin"
@@ -278,21 +276,10 @@ function CoordinatorAssistantInfoSidePanelContent({
                   onScheduleTask={coordinatorOnboarding.onScheduleTask}
                   onSkipStep={coordinatorOnboarding.onSkipStep}
                   onUnskipStep={coordinatorOnboarding.onUnskipStep}
+                  onSkipSection={coordinatorOnboarding.onSkipSection}
+                  onUnskipSection={coordinatorOnboarding.onUnskipSection}
                   isOnCall={coordinatorOnboarding.isOnCall}
                 />
-                {coordinatorOnboarding.onReplayIntro && (
-                  <div className="mt-4 flex justify-end">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={coordinatorOnboarding.onReplayIntro}
-                      data-testid="coordinator-onboarding-replay-intro"
-                    >
-                      <RotateCcw className="mr-1.5 size-3.5" />
-                      Repeat intro
-                    </Button>
-                  </div>
-                )}
               </TabsContent>
             )}
             <TabsContent value="contact" className="mt-0">
@@ -614,26 +601,6 @@ interface ContactInfoGridProps {
  * about why the action isn't allowed.
  */
 function ContactInfoGrid({ assistant, onOpenContactManager, canWrite }: ContactInfoGridProps) {
-  const { isSelfHost } = useEnvironment();
-
-  // Coordinator contacts are platform-managed shared pools (universal email /
-  // phone / WhatsApp) — a hosted-cloud concept. In a self-hosted install those
-  // pools don't exist, so gate the section to a short explanation rather than
-  // surfacing empty rows or an Edit affordance that opens an inert dialog.
-  if (assistant.isCoordinator && isSelfHost) {
-    return (
-      <section className="flex flex-col gap-2.5" data-testid="assistant-info-contact-grid">
-        <div className="flex items-center justify-between border-b pb-1.5">
-          <h3 className="text-label text-semibold">Contact info</h3>
-        </div>
-        <p className="text-caption text-muted-foreground">
-          Twin contacts are managed by the hosted platform and aren&apos;t available in self-hosted
-          deployments.
-        </p>
-      </section>
-    );
-  }
-
   // Coordinator contacts are platform-managed, so the per-channel manual "Add"
   // CTAs don't apply — the platform provisions (and the backend rejects manual
   // creation). The "Edit" button stays so the owner can still open the manager

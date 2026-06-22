@@ -35,8 +35,7 @@
     "check:colors": "npx tsx scripts/check-colors.ts",
     "check:colors:all": "npx tsx scripts/check-colors.ts",
     "check:styles": "npm run check:fonts && npm run check:colors",
-    "check:styles:all": "npm run check:fonts:all && npm run check:colors:all",
-    "audio:coordinator-onboarding": "node scripts/audio/generate-coordinator-onboarding-intro.mjs"
+    "check:styles:all": "npm run check:fonts:all && npm run check:colors:all"
   },
   "lint-staged": {
     "package.json": "prettier --write",
@@ -198,5 +197,11 @@
     "tsx": "^4.21.0",
     "typescript": "^5",
     "vitest": "^4.1.8"
+  },
+  "overrides": {
+    "form-data": "^4.0.6",
+    "@types/request": {
+      "form-data": "2.5.6"
+    }
   }
 }

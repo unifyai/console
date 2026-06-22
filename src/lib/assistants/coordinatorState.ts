@@ -21,6 +21,40 @@ import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
 
 export type CoordinatorMode = 'onboarding' | 'working';
 
+export type OnboardingStepStatus = 'done' | 'skipped' | 'available' | 'locked';
+
+/** One onboarding step with its server-resolved status. */
+export interface OnboardingStep {
+  id: string;
+  title: string;
+  phase: string;
+  status: OnboardingStepStatus;
+  canSkip: boolean;
+}
+
+/** A step the Coordinator may nudge toward right now, with ready copy. */
+export interface OnboardingNextTarget {
+  id: string;
+  title: string;
+  nudgeChat: string;
+  nudgeVoice: string;
+  channel: string | null;
+}
+
+/**
+ * Precomputed, depends_on-aware onboarding picture from Orchestra. The
+ * single source of truth for the checklist UI and both Droid brains:
+ * statuses and valid next targets are computed server-side so nothing
+ * downstream re-derives ordering. Present only while actively
+ * onboarding; ``null`` once complete, working, or deferred.
+ */
+export interface OnboardingRender {
+  activeStepId: string | null;
+  steps: OnboardingStep[];
+  nextTargets: OnboardingNextTarget[];
+  skippedPhaseIds: string[];
+}
+
 export interface CoordinatorStateSnapshot {
   coordinatorId: number;
   mode: CoordinatorMode;
@@ -38,6 +72,7 @@ export interface CoordinatorStateSnapshot {
    */
   completedStepIds: string[];
   skippedStepIds: string[];
+  skippedPhaseIds: string[];
   /**
    * Whether the user has resolved the opening picker (started the call
    * or chose chat). Once true the ringing picker and auto-playing intro
@@ -45,6 +80,22 @@ export interface CoordinatorStateSnapshot {
    * from the onboarding pane. One-way sticky server-side.
    */
   introWatched: boolean;
+  /**
+   * Global "do onboarding later" switch. When true the user has chosen
+   * to start using the platform before finishing onboarding: the
+   * Coordinator suppresses every onboarding nudge/opener (server-side
+   * too) and the checklist collapses to a resume affordance, all
+   * without touching per-step completed/skipped state. Freely
+   * reversible — flipping it back resumes the flow untouched.
+   */
+  onboardingDeferred: boolean;
+  /**
+   * Server-computed onboarding rendering (steps + statuses + valid next
+   * targets). ``null`` outside active onboarding (complete, working, or
+   * deferred). Drives the checklist directly — the client no longer
+   * computes step availability.
+   */
+  onboarding: OnboardingRender | null;
 }
 
 export interface CoordinatorStatePatch {
@@ -53,7 +104,10 @@ export interface CoordinatorStatePatch {
   clearOnboardingStep?: boolean;
   skipOnboardingStep?: string;
   unskipOnboardingStep?: string;
+  skipOnboardingPhase?: string;
+  unskipOnboardingPhase?: string;
   introWatched?: boolean;
+  onboardingDeferred?: boolean;
 }
 
 function normalizeMode(value: unknown): CoordinatorMode {
@@ -73,6 +127,68 @@ function normalizeStepIds(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
 }
 
+const ONBOARDING_STEP_STATUSES: ReadonlySet<string> = new Set([
+  'done',
+  'skipped',
+  'available',
+  'locked',
+]);
+
+function normalizeOnboardingStep(value: unknown): OnboardingStep | null {
+  if (!value || typeof value !== 'object') return null;
+  const r = value as Record<string, unknown>;
+  const id = normalizeStep(r.id);
+  if (!id) return null;
+  const status = r.status;
+  return {
+    id,
+    title: typeof r.title === 'string' ? r.title : id,
+    phase: typeof r.phase === 'string' ? r.phase : '',
+    status:
+      typeof status === 'string' && ONBOARDING_STEP_STATUSES.has(status)
+        ? (status as OnboardingStepStatus)
+        : 'locked',
+    canSkip: (r.canSkip ?? r.can_skip) === true,
+  };
+}
+
+function normalizeOnboardingTarget(value: unknown): OnboardingNextTarget | null {
+  if (!value || typeof value !== 'object') return null;
+  const r = value as Record<string, unknown>;
+  const id = normalizeStep(r.id);
+  if (!id) return null;
+  const channel = r.channel;
+  return {
+    id,
+    title: typeof r.title === 'string' ? r.title : id,
+    nudgeChat:
+      typeof (r.nudgeChat ?? r.nudge_chat) === 'string' ? String(r.nudgeChat ?? r.nudge_chat) : '',
+    nudgeVoice:
+      typeof (r.nudgeVoice ?? r.nudge_voice) === 'string'
+        ? String(r.nudgeVoice ?? r.nudge_voice)
+        : '',
+    channel: typeof channel === 'string' ? channel : null,
+  };
+}
+
+function normalizeOnboardingRender(value: unknown): OnboardingRender | null {
+  if (!value || typeof value !== 'object') return null;
+  const r = value as Record<string, unknown>;
+  const stepsRaw = Array.isArray(r.steps) ? r.steps : [];
+  const targetsRaw = Array.isArray(r.nextTargets ?? r.next_targets)
+    ? ((r.nextTargets ?? r.next_targets) as unknown[])
+    : [];
+  const active = r.activeStepId ?? r.active_step_id;
+  return {
+    activeStepId: typeof active === 'string' && active ? active : null,
+    steps: stepsRaw.map(normalizeOnboardingStep).filter((s): s is OnboardingStep => s !== null),
+    nextTargets: targetsRaw
+      .map(normalizeOnboardingTarget)
+      .filter((t): t is OnboardingNextTarget => t !== null),
+    skippedPhaseIds: normalizeStepIds(r.skippedPhaseIds ?? r.skipped_phase_ids),
+  };
+}
+
 function normalizeSnapshot(coordinatorId: number, raw: unknown): CoordinatorStateSnapshot {
   const record = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   return {
@@ -83,7 +199,10 @@ function normalizeSnapshot(coordinatorId: number, raw: unknown): CoordinatorStat
     endedAt: normalizeString(record.endedAt ?? record.ended_at),
     completedStepIds: normalizeStepIds(record.completedStepIds ?? record.completed_step_ids),
     skippedStepIds: normalizeStepIds(record.skippedStepIds ?? record.skipped_step_ids),
+    skippedPhaseIds: normalizeStepIds(record.skippedPhaseIds ?? record.skipped_phase_ids),
     introWatched: (record.introWatched ?? record.intro_watched) === true,
+    onboardingDeferred: (record.onboardingDeferred ?? record.onboarding_deferred) === true,
+    onboarding: normalizeOnboardingRender(record.onboarding),
   };
 }
 
@@ -129,7 +248,11 @@ export async function updateCoordinatorState(
   if (patch.skipOnboardingStep !== undefined) body.skipOnboardingStep = patch.skipOnboardingStep;
   if (patch.unskipOnboardingStep !== undefined)
     body.unskipOnboardingStep = patch.unskipOnboardingStep;
+  if (patch.skipOnboardingPhase !== undefined) body.skipOnboardingPhase = patch.skipOnboardingPhase;
+  if (patch.unskipOnboardingPhase !== undefined)
+    body.unskipOnboardingPhase = patch.unskipOnboardingPhase;
   if (patch.introWatched !== undefined) body.introWatched = patch.introWatched;
+  if (patch.onboardingDeferred !== undefined) body.onboardingDeferred = patch.onboardingDeferred;
 
   const client = await getOrchestraUserClient(user.apiKey);
   const response = await client.patch(`/assistant/${numericId}/state`, body);

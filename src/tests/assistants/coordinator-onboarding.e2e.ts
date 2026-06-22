@@ -3,7 +3,7 @@
  *
  * The dedicated onboarding "mode" (an alternate /assistants shell with
  * no assistant list) has been removed. What remains is a transient
- * intro overlay shown on a fresh ``onboarding`` visit:
+ * call-vs-chat picker shown on a fresh ``onboarding`` visit:
  *
  *   - The call-vs-chat picker shows on a fresh visit, with no skip
  *     affordance (the picker is the only gate, and it's lightweight).
@@ -11,12 +11,13 @@
  *     drops the user into the regular platform (assistant list +
  *     right pane) with the Coordinator selected and the onboarding
  *     checklist living in its "Assistant info" panel.
- *   - Choosing "Start Call" plays the Twin intro, then lands in the
+ *   - Choosing "Start Call" connects the call directly (a brief
+ *     "preparing" loader covers the audio handoff), then lands in the
  *     regular platform with the call docked in the Coordinator's
- *     right pane.
+ *     right pane. There is no animated intro.
  *   - Resolving the picker persists ``intro_watched`` on the
- *     Coordinator/State row, so a reload skips the picker / intro and
- *     lands directly on the regular platform.
+ *     Coordinator/State row, so a reload skips the picker and lands
+ *     directly on the regular platform.
  *   - There is no "Skip onboarding" or "Resume onboarding" affordance
  *     anywhere.
  *
@@ -104,18 +105,11 @@ async function openOnboardingChecklist(page: Page) {
   await onboardingTab.click();
 }
 
-async function expectOnlyNextChecklistItemClickable(page: Page) {
-  const rows = page.locator('[data-testid^="coordinator-onboarding-item-"]');
-  const count = await rows.count();
-  for (let index = 0; index < count; index += 1) {
-    const row = rows.nth(index);
-    const isNext = (await row.getAttribute('data-next')) === 'true';
-    if (isNext) {
-      await expect(row).toHaveAttribute('role', 'button');
-    } else {
-      await expect(row).not.toHaveAttribute('role', 'button');
-    }
-  }
+async function expectChecklistItemClickable(page: Page, stepId: string) {
+  await expect(page.getByTestId(`coordinator-onboarding-item-${stepId}`).first()).toHaveAttribute(
+    'role',
+    'button'
+  );
 }
 
 /**
@@ -159,6 +153,16 @@ function readPersistedOnboardingStep(coordinatorId: string | number): string {
   );
 }
 
+function readPersistedSkippedPhaseIds(coordinatorId: string | number): string {
+  return dbExec(
+    `SELECT le.data->'skipped_phase_ids' FROM log_event le ` +
+      `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
+      `JOIN context c ON c.id = lec.context_id ` +
+      `WHERE c.name = '${user.id}/${coordinatorId}/Coordinator/State' ` +
+      `ORDER BY le.id DESC LIMIT 1;`
+  );
+}
+
 function markCoordinatorStepsSkipped(coordinatorId: string | number, stepIds: readonly string[]) {
   const json = JSON.stringify(stepIds).replace(/'/g, "''");
   dbExec(
@@ -182,6 +186,56 @@ test('picker shows on first visit with no skip or resume affordance', async ({
   // onboarding mode — neither exists anywhere now.
   await expect(page.getByTestId('coordinator-onboarding-skip')).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-resume')).toHaveCount(0);
+});
+
+test('checklist allows independent sections to start out of order', async ({
+  authedPage: page,
+}) => {
+  const coordinator = createPersonalCoordinator(user.id);
+  resetCoordinatorIntroWatched();
+
+  await gotoAssistants(page);
+  await expectPickerVisible(page);
+  await page.getByTestId('coordinator-onboarding-pick-chat').click();
+  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
+
+  await openOnboardingChecklist(page);
+  await expect(
+    page.getByTestId('coordinator-onboarding-item-email-reference').first()
+  ).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
+  await expectChecklistItemClickable(page, 'email-reference');
+  await expectChecklistItemClickable(page, 'workspace');
+  await expectChecklistItemClickable(page, 'act');
+  await expect(page.getByTestId('coordinator-onboarding-item-apps')).toHaveCount(0);
+  await expect(page.getByTestId('coordinator-onboarding-item-schedule')).toHaveCount(0);
+
+  await page.getByTestId('coordinator-onboarding-skip-section-connect').click();
+  await expect(page.getByTestId('coordinator-onboarding-item-connect')).toHaveAttribute(
+    'data-status',
+    'skipped'
+  );
+  await expect(page.getByTestId('coordinator-onboarding-item-workspace')).not.toHaveAttribute(
+    'data-status',
+    'skipped'
+  );
+  await expect(page.getByTestId('coordinator-onboarding-item-apps')).toBeVisible();
+  await expect(page.getByTestId('coordinator-onboarding-item-apps')).not.toHaveAttribute(
+    'data-status',
+    'skipped'
+  );
+  await expect(page.getByTestId('coordinator-onboarding-skip-step-workspace')).toHaveCount(0);
+  await expect
+    .poll(() => readPersistedSkippedPhaseIds(coordinator.agentId), { timeout: 10_000 })
+    .toContain('Connect');
+
+  await page.getByTestId('coordinator-onboarding-unskip-section-connect').click();
+  await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveAttribute(
+    'role',
+    'button'
+  );
+  await expect
+    .poll(() => readPersistedSkippedPhaseIds(coordinator.agentId), { timeout: 10_000 })
+    .not.toContain('Connect');
 });
 
 test('picking chat lands in the full platform with the checklist in Assistant info', async ({
@@ -223,7 +277,9 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   );
   const emailReferenceRow = page.getByTestId('coordinator-onboarding-item-email-reference').first();
   await expect(emailReferenceRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
-  await expectOnlyNextChecklistItemClickable(page);
+  await expectChecklistItemClickable(page, 'email-reference');
+  await expectChecklistItemClickable(page, 'apps');
+  await expectChecklistItemClickable(page, 'act');
   await emailReferenceRow.click();
   await expect(emailReferenceRow).toHaveAttribute('data-status', 'done', { timeout: 10_000 });
   await expect(page.getByTestId('coordinator-onboarding-item-email-reply').first()).toHaveAttribute(
@@ -231,7 +287,9 @@ test('picking chat lands in the full platform with the checklist in Assistant in
     'true',
     { timeout: 10_000 }
   );
-  await expectOnlyNextChecklistItemClickable(page);
+  await expectChecklistItemClickable(page, 'email-reply');
+  await expectChecklistItemClickable(page, 'apps');
+  await expectChecklistItemClickable(page, 'act');
   await expect
     .poll(() => readPersistedOnboardingStep(coordinator.agentId), { timeout: 10_000 })
     .toBe('email-reply');
@@ -248,33 +306,30 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   await page.getByTestId('coordinator-onboarding-reset-confirm-comms').click();
   await expect(emailReferenceRow).toHaveAttribute('data-next', 'true');
   await expect(page.getByTestId('coordinator-onboarding-item-email-reply')).toHaveCount(0);
-  await expectOnlyNextChecklistItemClickable(page);
+  await expectChecklistItemClickable(page, 'email-reference');
+  await expectChecklistItemClickable(page, 'apps');
+  await expectChecklistItemClickable(page, 'act');
 
   // No skip / resume affordances exist on the platform either.
   await expect(page.getByTestId('coordinator-onboarding-skip')).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-resume')).toHaveCount(0);
 });
 
-test('starting a call plays the intro then docks the call in the platform', async ({
+test('starting a call connects and docks the call in the platform', async ({
   authedPage: page,
 }) => {
-  await page.addInitScript(() => {
-    Object.assign(window, {
-      __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 1_400,
-    });
-  });
   resetCoordinatorIntroWatched();
   await gotoAssistants(page);
   await expectPickerVisible(page);
 
   await page.getByTestId('coordinator-onboarding-start-call').click({ force: true });
 
-  const intro = page.getByTestId('coordinator-onboarding-call-intro');
-  await expect(intro).toBeVisible({ timeout: 10_000 });
+  // No animated intro: the picker hands straight off to the connecting
+  // call (a brief "preparing" loader covers the audio handoff).
   await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
 
-  // Once the intro finishes the overlay clears and the real call is
-  // docked in the Coordinator's regular right pane.
+  // The overlay clears and the real call is docked in the Coordinator's
+  // regular right pane.
   await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 10_000 });
 
@@ -282,46 +337,15 @@ test('starting a call plays the intro then docks the call in the platform', asyn
   await page.getByRole('button', { name: 'End call' }).click();
 });
 
-test('top repeat button returns the intro to the picker controls', async ({ authedPage: page }) => {
-  await page.addInitScript(() => {
-    Object.assign(window, {
-      __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 10_000,
-    });
-  });
-  resetCoordinatorIntroWatched();
-  await gotoAssistants(page);
-  await expectPickerVisible(page);
-
-  await page.getByTestId('coordinator-onboarding-start-call').click({ force: true });
-  await expect(page.getByTestId('coordinator-onboarding-call-intro')).toBeVisible({
-    timeout: 10_000,
-  });
-
-  await page.getByTestId('coordinator-onboarding-intro-restart').click();
-  await expectPickerVisible(page);
-  await expect(page.getByTestId('coordinator-onboarding-call-intro')).toHaveCount(0);
-
-  await page.getByTestId('coordinator-onboarding-pick-chat').click();
-  await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
-});
-
 test('mobile onboarding keeps the docked Twin call visible instead of auto-opening Assistant info', async ({
   authedPage: page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(() => {
-    Object.assign(window, {
-      __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 1_400,
-    });
-  });
   resetCoordinatorIntroWatched();
   await gotoAssistants(page);
   await expectPickerVisible(page);
 
   await page.getByTestId('coordinator-onboarding-start-call').click({ force: true });
-  await expect(page.getByTestId('coordinator-onboarding-call-intro')).toBeVisible({
-    timeout: 10_000,
-  });
   await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
 
   await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
@@ -391,34 +415,6 @@ test('switching back to Twin does not reapply the onboarding focus layout', asyn
   await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
 });
 
-test('the "Repeat intro" affordance replays the intro from the Assistant info card', async ({
-  authedPage: page,
-}) => {
-  await page.addInitScript(() => {
-    Object.assign(window, {
-      __COORDINATOR_ONBOARDING_INTRO_DURATION_MS: 1_400,
-    });
-  });
-  // Continues from the previous test's state: intro already watched, so we
-  // land directly on the platform with Twin selected (no reset).
-  await gotoAssistants(page);
-  await openOnboardingChecklist(page);
-
-  // Replaying re-runs the intro animation on demand — no picker.
-  const replay = page.getByTestId('coordinator-onboarding-replay-intro');
-  await expect(replay).toBeVisible({ timeout: 15_000 });
-  await replay.click();
-
-  await expect(page.getByTestId('coordinator-onboarding-call-intro')).toBeVisible({
-    timeout: 10_000,
-  });
-  await expect(page.getByTestId('coordinator-onboarding-picker')).toHaveCount(0);
-
-  // The intro hands off into the docked call, then the overlay clears.
-  await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 40_000 });
-  await page.getByRole('button', { name: 'End call' }).click();
-});
-
 test('skipping an inline checklist step can be reversed later', async ({ authedPage: page }) => {
   const coordinator = createPersonalCoordinator(user.id);
   connectWorkspaceEmail({ assistantId: coordinator.agentId });
@@ -433,7 +429,8 @@ test('skipping an inline checklist step can be reversed later', async ({ authedP
   await openOnboardingChecklist(page);
   const appsRow = page.getByTestId('coordinator-onboarding-item-apps').first();
   await expect(appsRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
-  await expectOnlyNextChecklistItemClickable(page);
+  await expectChecklistItemClickable(page, 'apps');
+  await expectChecklistItemClickable(page, 'act');
 
   await page.getByTestId('coordinator-onboarding-skip-step-apps').click();
   await expect(appsRow).toHaveAttribute('data-status', 'skipped');
@@ -441,7 +438,7 @@ test('skipping an inline checklist step can be reversed later', async ({ authedP
     'data-next',
     'true'
   );
-  await expectOnlyNextChecklistItemClickable(page);
+  await expectChecklistItemClickable(page, 'act');
 
   const skippedState = dbExec(
     `SELECT le.data->'skipped_step_ids' FROM log_event le ` +
@@ -454,7 +451,7 @@ test('skipping an inline checklist step can be reversed later', async ({ authedP
 
   await page.getByTestId('coordinator-onboarding-unskip-step-apps').click();
   await expect(appsRow).toHaveAttribute('data-next', 'true');
-  await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
+  await expectChecklistItemClickable(page, 'act');
 
   const unskippedState = dbExec(
     `SELECT le.data->'skipped_step_ids' FROM log_event le ` +
