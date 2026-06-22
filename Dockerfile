@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 
 FROM node:20-alpine AS base
+RUN apk upgrade --no-cache
 
 # Install dependencies only when needed
 FROM base AS deps
