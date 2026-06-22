@@ -212,93 +212,93 @@ function CoordinatorAssistantInfoSidePanelContent({
   };
 
   return (
-    <ScrollArea className={cn('flex-1', className)}>
-      <div className="flex flex-col gap-4 px-4 py-4">
-        <IdentityHeader
-          name="Twin"
-          photoSrc={undefined}
-          initials="M"
-          summary="Your personal twin"
-          visibilityLabel={
-            <span className="inline-flex items-center gap-1">
-              Only you
-              <Lock className="h-3 w-3" aria-hidden="true" />
-            </span>
-          }
-          isIdCopied={isIdCopied}
-          onCopyId={copyId}
-          onEdit={canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined}
-          onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
-          isStartCallDisabled={isStartCallDisabled}
-          startCallTooltip={startCallTooltip}
-          avatarNode={
-            <CoordinatorLogoAvatar
-              className="h-20 w-20 flex-shrink-0"
-              logoClassName="h-full w-full"
-            />
-          }
-        />
+    <div className={cn('flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-4 py-4', className)}>
+      <IdentityHeader
+        name="Twin"
+        photoSrc={undefined}
+        initials="M"
+        summary="Your personal twin"
+        visibilityLabel={
+          <span className="inline-flex items-center gap-1">
+            Only you
+            <Lock className="h-3 w-3" aria-hidden="true" />
+          </span>
+        }
+        isIdCopied={isIdCopied}
+        onCopyId={copyId}
+        onEdit={canWrite && onEditProfile ? () => onEditProfile(assistant) : undefined}
+        onStartCall={onStartCall ? () => onStartCall(assistant, 'audio') : undefined}
+        isStartCallDisabled={isStartCallDisabled}
+        startCallTooltip={startCallTooltip}
+        avatarNode={
+          <CoordinatorLogoAvatar
+            className="h-20 w-20 flex-shrink-0"
+            logoClassName="h-full w-full"
+          />
+        }
+      />
 
-        {showOnboardingTab ? (
-          <Tabs
-            value={activeTab}
-            onValueChange={(value) => setActiveTab(value as CoordinatorPanelTab)}
-            className="flex min-h-0 flex-1 flex-col gap-3"
-          >
-            <TabsList className="h-8 w-full items-end justify-start gap-6 rounded-none border-b border-border bg-transparent p-0">
-              <TabsTrigger
-                value="onboarding"
-                data-testid="assistant-info-tab-onboarding"
-                className={PANEL_TAB_TRIGGER_CLASS}
-              >
-                Onboarding
-              </TabsTrigger>
-              <TabsTrigger
-                value="contact"
-                data-testid="assistant-info-tab-contact"
-                className={PANEL_TAB_TRIGGER_CLASS}
-              >
-                Contact info
-              </TabsTrigger>
-            </TabsList>
-            {coordinatorOnboarding && (
-              <TabsContent value="onboarding" className="mt-0">
-                <CoordinatorOnboardingChecklist
-                  onStartOnboardingStep={coordinatorOnboarding.onStartOnboardingStep}
-                  onTriggerReferenceStep={coordinatorOnboarding.onTriggerReferenceStep}
-                  onAddWhatsappNumber={coordinatorOnboarding.onAddWhatsappNumber}
-                  onAddPhoneNumber={coordinatorOnboarding.onAddPhoneNumber}
-                  onConnectSlack={coordinatorOnboarding.onConnectSlack}
-                  onConnectDiscord={coordinatorOnboarding.onConnectDiscord}
-                  onConnectWorkspace={coordinatorOnboarding.onConnectWorkspace}
-                  onConnectApps={coordinatorOnboarding.onConnectApps}
-                  onActNow={coordinatorOnboarding.onActNow}
-                  onScheduleTask={coordinatorOnboarding.onScheduleTask}
-                  onSkipStep={coordinatorOnboarding.onSkipStep}
-                  onUnskipStep={coordinatorOnboarding.onUnskipStep}
-                  onSkipSection={coordinatorOnboarding.onSkipSection}
-                  onUnskipSection={coordinatorOnboarding.onUnskipSection}
-                  isOnCall={coordinatorOnboarding.isOnCall}
-                />
-              </TabsContent>
-            )}
-            <TabsContent value="contact" className="mt-0">
-              <ContactInfoGrid
-                assistant={assistant}
-                onOpenContactManager={onOpenContactManager}
-                canWrite={canWrite}
+      {showOnboardingTab ? (
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as CoordinatorPanelTab)}
+          className="flex min-h-0 flex-1 flex-col gap-3"
+        >
+          <TabsList className="h-8 w-full items-end justify-start gap-6 rounded-none border-b border-border bg-transparent p-0">
+            <TabsTrigger
+              value="onboarding"
+              data-testid="assistant-info-tab-onboarding"
+              className={PANEL_TAB_TRIGGER_CLASS}
+            >
+              Onboarding
+            </TabsTrigger>
+            <TabsTrigger
+              value="contact"
+              data-testid="assistant-info-tab-contact"
+              className={PANEL_TAB_TRIGGER_CLASS}
+            >
+              Contact info
+            </TabsTrigger>
+          </TabsList>
+          {coordinatorOnboarding && (
+            <TabsContent value="onboarding" className="mt-0 flex min-h-0 flex-1 flex-col">
+              <CoordinatorOnboardingChecklist
+                onStartOnboardingStep={coordinatorOnboarding.onStartOnboardingStep}
+                onTriggerReferenceStep={coordinatorOnboarding.onTriggerReferenceStep}
+                onAddWhatsappNumber={coordinatorOnboarding.onAddWhatsappNumber}
+                onAddPhoneNumber={coordinatorOnboarding.onAddPhoneNumber}
+                onConnectSlack={coordinatorOnboarding.onConnectSlack}
+                onConnectDiscord={coordinatorOnboarding.onConnectDiscord}
+                onConnectWorkspace={coordinatorOnboarding.onConnectWorkspace}
+                onConnectApps={coordinatorOnboarding.onConnectApps}
+                onActNow={coordinatorOnboarding.onActNow}
+                onScheduleTask={coordinatorOnboarding.onScheduleTask}
+                onSkipStep={coordinatorOnboarding.onSkipStep}
+                onUnskipStep={coordinatorOnboarding.onUnskipStep}
+                onSkipSection={coordinatorOnboarding.onSkipSection}
+                onUnskipSection={coordinatorOnboarding.onUnskipSection}
+                isOnCall={coordinatorOnboarding.isOnCall}
               />
             </TabsContent>
-          </Tabs>
-        ) : (
+          )}
+          <TabsContent value="contact" className="mt-0 min-h-0 flex-1 overflow-y-auto">
+            <ContactInfoGrid
+              assistant={assistant}
+              onOpenContactManager={onOpenContactManager}
+              canWrite={canWrite}
+            />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <div className="min-h-0 flex-1 overflow-y-auto">
           <ContactInfoGrid
             assistant={assistant}
             onOpenContactManager={onOpenContactManager}
             canWrite={canWrite}
           />
-        )}
-      </div>
-    </ScrollArea>
+        </div>
+      )}
+    </div>
   );
 }
 

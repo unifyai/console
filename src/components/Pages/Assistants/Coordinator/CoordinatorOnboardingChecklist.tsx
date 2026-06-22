@@ -18,7 +18,7 @@
  */
 
 import * as React from 'react';
-import { ArrowLeft, Check, ChevronDown, RotateCcw } from 'lucide-react';
+import { Check, ChevronDown, RotateCcw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +33,11 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { cn } from '@/lib/utils';
-import type { OnboardingChip, OnboardingRender } from '@/lib/assistants/coordinatorState';
+import type {
+  OnboardingChip,
+  OnboardingRender,
+  OnboardingStepDependency,
+} from '@/lib/assistants/coordinatorState';
 import { useCoordinatorOnboardingContext } from './CoordinatorOnboardingContext';
 
 export type ChecklistAction =
@@ -87,6 +91,7 @@ interface OnboardingChecklistItem {
    * call). Sourced from the server render. */
   chipsChat?: OnboardingChip[];
   chipsCall?: OnboardingChip[];
+  dependencies?: OnboardingStepDependency[];
   /** Sub-items render under the parent and count separately toward the
    * progress bar — same accounting model as the per-assistant setup
    * roadmap. */
@@ -131,6 +136,7 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
 interface ResolvedChecklistItem extends OnboardingChecklistItem {
   done: boolean;
   skipped: boolean;
+  locked: boolean;
   status: 'pending' | 'done' | 'skipped';
   sectionSkipped?: boolean;
   children?: ResolvedChecklistItem[];
@@ -141,14 +147,12 @@ interface ResolvedChecklistItem extends OnboardingChecklistItem {
  * rendering. The server is authoritative for each step's status; we
  * only attach UI copy + the action handler and group by phase.
  *
- * Visibility mirrors the previous behaviour except for section-level
- * defers: ``done``/``skipped`` rows always show; an ``available`` row
- * shows only when its action is wired on this surface (so we never
- * render a dead button); ``locked`` rows are hidden until their
- * dependencies open unless their whole section is deferred, in which
- * case they render as disabled children. A phase header renders only
- * when it has at least one visible child, and resolves to done/skipped
- * by lifting its children's statuses.
+ * Visibility mirrors the server render: ``done``/``skipped`` rows always
+ * show; an ``available`` row shows only when its action is wired on this
+ * surface; ``locked`` rows render as disabled children with dependency
+ * explanations so the user can see why they are not active yet. A phase
+ * header renders only when it has at least one visible child, and resolves
+ * to done/skipped by lifting its children's statuses.
  */
 function buildVisibleChecklist(
   render: OnboardingRender | null,
@@ -160,17 +164,19 @@ function buildVisibleChecklist(
   const skippedPhases = new Set(render.skippedPhaseIds);
   for (const step of render.steps) {
     const phaseSkipped = skippedPhases.has(step.phase);
+    const locked = step.status === 'locked';
     let status: 'pending' | 'done' | 'skipped';
     if (step.status === 'done') status = 'done';
     else if (step.status === 'skipped') status = 'skipped';
     else if (step.status === 'available') status = 'pending';
-    else if (phaseSkipped) status = 'pending';
-    else continue; // locked — not yet reachable, hide it
+    else status = 'pending';
 
     const action = STEP_ACTIONS[step.id];
     // An available row with an action that isn't wired on this surface
     // can never be actioned here — hide it rather than show a dead row.
-    if (status === 'pending' && action && !isActionWired(action) && !phaseSkipped) continue;
+    if (status === 'pending' && !locked && action && !isActionWired(action) && !phaseSkipped) {
+      continue;
+    }
 
     const leaf: ResolvedChecklistItem = {
       id: step.id,
@@ -180,10 +186,12 @@ function buildVisibleChecklist(
       estimatedTime: step.estimatedTime || undefined,
       chipsChat: step.chipsChat,
       chipsCall: step.chipsCall,
+      dependencies: step.dependencies,
       action,
       canSkip: step.canSkip,
       done: status === 'done',
       skipped: status === 'skipped',
+      locked,
       status,
     };
     const list = leavesByPhase.get(step.phase) ?? [];
@@ -209,6 +217,7 @@ function buildVisibleChecklist(
       description: phase.description,
       done,
       skipped,
+      locked: false,
       status: done ? 'done' : skipped ? 'skipped' : 'pending',
       sectionSkipped,
       children,
@@ -219,7 +228,7 @@ function buildVisibleChecklist(
 
 interface PhaseProgress {
   id: string;
-  label: string;
+  title: string;
   total: number;
   completed: number;
 }
@@ -246,7 +255,7 @@ function computePhases(
       total += 1;
       if (step.status === 'done') completed += 1;
     }
-    return total > 0 ? [{ id: phase.id, label: phase.phase, total, completed }] : [];
+    return total > 0 ? [{ id: phase.id, title: phase.title, total, completed }] : [];
   });
 }
 
@@ -258,6 +267,37 @@ function collectVisibleLeafIds(item: ResolvedChecklistItem): string[] {
 function hasResolvedLeaf(item: ResolvedChecklistItem): boolean {
   if (!item.children?.length) return item.status !== 'pending';
   return item.children.some(hasResolvedLeaf);
+}
+
+function hasActionableLeaf(
+  item: ResolvedChecklistItem,
+  isActionWired: (action: ChecklistAction | undefined) => boolean,
+  isInSkippedSection = false
+): boolean {
+  const sectionDisabled = isInSkippedSection || item.sectionSkipped === true;
+  if (!item.children?.length) {
+    return (
+      item.status === 'pending' && !item.locked && !sectionDisabled && isActionWired(item.action)
+    );
+  }
+  return item.children.some((child) => hasActionableLeaf(child, isActionWired, sectionDisabled));
+}
+
+function containsLeafId(item: ResolvedChecklistItem, leafId: string): boolean {
+  if (!item.children?.length) return item.id === leafId;
+  return item.children.some((child) => containsLeafId(child, leafId));
+}
+
+function findDefaultSectionId(
+  items: ResolvedChecklistItem[],
+  nextActionableId: string | null
+): string | null {
+  if (nextActionableId) {
+    const nextSection = items.find((item) => containsLeafId(item, nextActionableId));
+    if (nextSection) return nextSection.id;
+  }
+  const pendingSection = items.find((item) => item.status === 'pending');
+  return pendingSection?.id ?? items[0]?.id ?? null;
 }
 
 /**
@@ -278,7 +318,7 @@ function findNextActionableId(
       if (inner) return inner;
       continue;
     }
-    if (item.status === 'pending' && (isActionWired(item.action) || canMarkLater)) {
+    if (!item.locked && item.status === 'pending' && (isActionWired(item.action) || canMarkLater)) {
       return item.id;
     }
   }
@@ -357,6 +397,7 @@ export function CoordinatorOnboardingChecklist({
   const resumeOnboarding = ctx?.resumeOnboarding;
   const onboarding = ctx?.onboarding ?? null;
   const [areProgressDetailsOpen, setAreProgressDetailsOpen] = React.useState(false);
+  const [selectedSectionId, setSelectedSectionId] = React.useState<string | null>(null);
 
   const handleAction = React.useCallback(
     (action: ChecklistAction) => {
@@ -474,14 +515,44 @@ export function CoordinatorOnboardingChecklist({
     [onboarding, isActionWired]
   );
 
-  // ID of the leaf row the user should tackle next — drives the
-  // "Next" pill + soft highlight that anchors attention without
-  // hiding the rest of the checklist. Null when every visible row is
-  // already resolved.
+  // ID of the leaf row the user should tackle next. The value still
+  // drives default section selection and internal state, but the
+  // checklist does not render an inline "Next" marker.
   const nextActionableId = React.useMemo(
     () => findNextActionableId(resolved, isActionWired, !!onSkipStep),
     [resolved, isActionWired, onSkipStep]
   );
+  const defaultSelectedSectionId = React.useMemo(
+    () => findDefaultSectionId(resolved, nextActionableId),
+    [resolved, nextActionableId]
+  );
+  const effectiveSelectedSectionId = React.useMemo(() => {
+    if (selectedSectionId && resolved.some((item) => item.id === selectedSectionId)) {
+      return selectedSectionId;
+    }
+    return defaultSelectedSectionId;
+  }, [defaultSelectedSectionId, resolved, selectedSectionId]);
+  const visibleSections = React.useMemo(() => {
+    if (!effectiveSelectedSectionId) return resolved;
+    return resolved.filter((item) => item.id === effectiveSelectedSectionId);
+  }, [effectiveSelectedSectionId, resolved]);
+  const canSelectNextSection = phases.length > 1;
+  const selectNextSection = React.useCallback(() => {
+    if (!phases.length) return;
+    const currentIndex = Math.max(
+      0,
+      phases.findIndex((phase) => phase.id === effectiveSelectedSectionId)
+    );
+    const nextIndex = (currentIndex + 1) % phases.length;
+    setSelectedSectionId(phases[nextIndex].id);
+    setAreProgressDetailsOpen(false);
+  }, [effectiveSelectedSectionId, phases]);
+
+  React.useEffect(() => {
+    if (selectedSectionId && !resolved.some((item) => item.id === selectedSectionId)) {
+      setSelectedSectionId(null);
+    }
+  }, [resolved, selectedSectionId]);
 
   // Global "do onboarding later" collapses the whole checklist to a
   // single resume affordance. The underlying per-step state is
@@ -522,29 +593,22 @@ export function CoordinatorOnboardingChecklist({
   // do — once everything resolves there's nothing to postpone.
   const canDeferAll = !!deferOnboarding && nextActionableId !== null;
   return (
-    <div className={cn('flex flex-col gap-3', className)}>
-      {canDeferAll ? (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={deferOnboarding}
-            className={cn(
-              'text-caption rounded-control px-1.5 py-0.5 text-muted-foreground',
-              'hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-            )}
-            data-testid="coordinator-onboarding-defer-all"
-          >
-            I&apos;ll do this later
-          </button>
-        </div>
-      ) : null}
+    <div className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}>
       <SectionProgressDisclosure
         phases={phases}
+        selectedPhaseId={effectiveSelectedSectionId}
         isOpen={areProgressDetailsOpen}
         onToggle={() => setAreProgressDetailsOpen((open) => !open)}
+        onSelectPhase={(phaseId) => {
+          setSelectedSectionId(phaseId);
+          setAreProgressDetailsOpen(false);
+        }}
       />
-      <ul className="space-y-2.5" data-testid="coordinator-onboarding-checklist">
-        {resolved.map((item) => (
+      <ul
+        className="min-h-0 flex-1 space-y-2.5 overflow-y-auto pr-1"
+        data-testid="coordinator-onboarding-checklist"
+      >
+        {visibleSections.map((item) => (
           <ChecklistRow
             key={item.id}
             item={item}
@@ -560,14 +624,46 @@ export function CoordinatorOnboardingChecklist({
           />
         ))}
       </ul>
+      <div className="mt-auto flex flex-shrink-0 items-center justify-between gap-3 pt-2">
+        {canDeferAll ? (
+          <button
+            type="button"
+            onClick={deferOnboarding}
+            className={cn(
+              'text-caption rounded-control whitespace-nowrap px-1.5 py-0.5 text-muted-foreground',
+              'hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+            )}
+            data-testid="coordinator-onboarding-defer-all"
+          >
+            Skip onboarding for now
+          </button>
+        ) : (
+          <span aria-hidden="true" />
+        )}
+        {canSelectNextSection ? (
+          <button
+            type="button"
+            onClick={selectNextSection}
+            className={cn(
+              'text-caption rounded-control flex-shrink-0 whitespace-nowrap px-1.5 py-0.5 font-medium text-primary',
+              'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+            )}
+            data-testid="coordinator-onboarding-next-section"
+          >
+            Next section
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
 
 interface SectionProgressDisclosureProps {
   phases: PhaseProgress[];
+  selectedPhaseId: string | null;
   isOpen: boolean;
   onToggle: () => void;
+  onSelectPhase: (phaseId: string) => void;
 }
 
 /**
@@ -575,14 +671,22 @@ interface SectionProgressDisclosureProps {
  * default state avoids suggesting progress in future phases that the
  * current checklist path has not reached yet.
  */
-function SectionProgressDisclosure({ phases, isOpen, onToggle }: SectionProgressDisclosureProps) {
+function SectionProgressDisclosure({
+  phases,
+  selectedPhaseId,
+  isOpen,
+  onToggle,
+  onSelectPhase,
+}: SectionProgressDisclosureProps) {
   const detailsId = React.useId();
   if (!phases.length) return null;
-  const completedSections = phases.filter(
-    (phase) => phase.total > 0 && phase.completed === phase.total
-  ).length;
+  const selectedPhase = phases.find((phase) => phase.id === selectedPhaseId) ?? phases[0];
+  const selectedPhaseIndex = phases.findIndex((phase) => phase.id === selectedPhase?.id);
+  const selectedPhaseLabel = selectedPhase
+    ? `${selectedPhaseIndex >= 0 ? selectedPhaseIndex + 1 : 1}. ${selectedPhase.title}`
+    : 'Choose section';
   return (
-    <div className="flex flex-col gap-2" data-testid="coordinator-onboarding-progress">
+    <div className="relative flex flex-col" data-testid="coordinator-onboarding-progress">
       <button
         type="button"
         onClick={onToggle}
@@ -599,52 +703,77 @@ function SectionProgressDisclosure({ phases, isOpen, onToggle }: SectionProgress
           className="text-body-sm font-medium text-foreground"
           data-testid="coordinator-onboarding-progress-summary"
         >
-          {completedSections} of {phases.length} sections completed
+          {selectedPhaseLabel}
         </span>
-        <span className="text-caption flex flex-shrink-0 items-center gap-1 text-muted-foreground">
-          {isOpen ? 'Hide details' : 'Show details'}
-          <ChevronDown
-            className={cn('h-3.5 w-3.5 transition-transform', isOpen && 'rotate-180')}
-            aria-hidden="true"
-          />
-        </span>
+        <ChevronDown
+          className={cn(
+            'h-3.5 w-3.5 flex-shrink-0 text-muted-foreground transition-transform',
+            isOpen && 'rotate-180'
+          )}
+          aria-hidden="true"
+        />
       </button>
       {isOpen ? (
         <ul
           id={detailsId}
-          className="flex flex-col gap-2"
+          aria-label="Choose onboarding section"
+          className={cn(
+            'rounded-control absolute left-0 right-0 top-full z-30 mt-2 flex flex-col gap-1.5',
+            'border border-border bg-background p-1.5 shadow-lg'
+          )}
           data-testid="coordinator-onboarding-progress-details"
         >
-          {phases.map((phase) => {
+          {phases.map((phase, index) => {
             const phasePercent =
               phase.total > 0 ? Math.round((phase.completed / phase.total) * 100) : 0;
+            const isSelected = phase.id === selectedPhase?.id;
+            const phaseLabel = `${index + 1}. ${phase.title}`;
             return (
               <li
                 key={phase.id}
                 data-testid={`coordinator-onboarding-progress-phase-${phase.id}`}
                 data-phase-completed={phase.completed}
                 data-phase-total={phase.total}
-                className="flex flex-col gap-1"
+                className="flex flex-col"
               >
-                <div className="text-caption flex items-center justify-between gap-2 text-muted-foreground">
-                  <span className="truncate">{phase.label}</span>
-                  <span className="flex-shrink-0">
-                    {phase.completed} of {phase.total} items completed
-                  </span>
-                </div>
-                <div
-                  role="progressbar"
-                  aria-label={`${phase.label}: ${phase.completed} of ${phase.total} items completed`}
-                  aria-valuenow={phasePercent}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  className="h-1.5 overflow-hidden rounded-full bg-muted"
+                <button
+                  type="button"
+                  onClick={() => onSelectPhase(phase.id)}
+                  aria-pressed={isSelected}
+                  className={cn(
+                    'rounded-control flex flex-col gap-1 px-2.5 py-2 text-left transition-colors',
+                    'hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                    isSelected && 'bg-primary/10'
+                  )}
+                  data-testid={`coordinator-onboarding-progress-phase-${phase.id}-select`}
                 >
+                  <div className="text-caption flex items-center justify-between gap-2">
+                    <span
+                      className={cn(
+                        'truncate',
+                        isSelected ? 'font-medium text-primary' : 'text-foreground'
+                      )}
+                    >
+                      {phaseLabel}
+                    </span>
+                    <span className="flex-shrink-0 text-muted-foreground">
+                      {phase.completed} of {phase.total}
+                    </span>
+                  </div>
                   <div
-                    className="h-full bg-primary transition-all duration-300"
-                    style={{ width: `${phasePercent}%` }}
-                  />
-                </div>
+                    role="progressbar"
+                    aria-label={`${phase.title}: ${phase.completed} of ${phase.total} items completed`}
+                    aria-valuenow={phasePercent}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    className="h-1.5 overflow-hidden rounded-full bg-muted"
+                  >
+                    <div
+                      className="h-full bg-primary transition-all duration-300"
+                      style={{ width: `${phasePercent}%` }}
+                    />
+                  </div>
+                </button>
               </li>
             );
           })}
@@ -660,10 +789,10 @@ interface ChecklistRowProps {
   isInSkippedSection?: boolean;
   onAction: (action: ChecklistAction) => void;
   isActionWired: (action: ChecklistAction | undefined) => boolean;
-  /** ID of the next leaf the user should tackle. Used to flag the
-   * row as "you are here" with a Next pill + soft highlight; we
-   * thread it down rather than recomputing per-row so the lookup
-   * stays O(checklist-size) in total. */
+  /** ID of the next leaf the user should tackle. Used for default
+   * section selection and hidden state markers; threaded down rather
+   * than recomputed per-row so the lookup stays O(checklist-size)
+   * in total. */
   nextActionableId: string | null;
   /** Whether the user is on a call — selects the call vs. chat
    * "Act now" suggestion chips. */
@@ -693,10 +822,11 @@ function ChecklistRow({
   const isResolved = item.status !== 'pending';
   const isNext = nextActionableId === item.id;
   const sectionDisabled = isInSkippedSection || item.sectionSkipped === true;
-  const isActionable = hasWiredAction && !isResolved && !sectionDisabled;
+  const isActionable = hasWiredAction && !item.locked && !isResolved && !sectionDisabled;
   const canSkip =
     !!onSkipStep &&
     item.canSkip !== false &&
+    !item.locked &&
     !item.children?.length &&
     !isResolved &&
     !sectionDisabled;
@@ -719,23 +849,32 @@ function ChecklistRow({
     hasResolvedLeaf(item);
   const resetStepIds = React.useMemo(() => collectVisibleLeafIds(item), [item]);
   // Whether the next actionable leaf sits somewhere inside this
-  // row's subtree. Parents on the path to "Next" stay at full
-  // opacity so the user's eye flows from the phase header straight
-  // down to the actionable row instead of jumping over a dimmed
-  // group title.
+  // row's subtree. Parents on that path stay at full opacity so the
+  // section containing the recommended row does not look disabled.
   const containsNext =
     !!nextActionableId &&
     !!item.children?.some(function walk(child: ResolvedChecklistItem): boolean {
       if (child.id === nextActionableId) return true;
       return !!child.children?.some(walk);
     });
-  // Soft-dim every resolved/static row that isn't the "Next" anchor
-  // (and isn't on the path leading to it). Alternative available rows
-  // stay legible because independent sections can be started in any
-  // order.
+  const containsActionableLeaf = !!item.children?.some((child) =>
+    hasActionableLeaf(child, isActionWired, sectionDisabled)
+  );
+  // Soft-dim every resolved/static row that is neither actionable nor
+  // on the path to the recommended row. Alternative available rows stay
+  // legible because independent sections can be started in any order.
   const dim =
-    sectionDisabled || (!isNext && !containsNext && item.status !== 'skipped' && !isActionable);
-  const hasInfo = !!item.description || !!item.estimatedTime;
+    item.locked ||
+    sectionDisabled ||
+    (!isNext &&
+      !containsNext &&
+      !containsActionableLeaf &&
+      item.status !== 'skipped' &&
+      !isActionable);
+  const unresolvedDependencies =
+    item.dependencies?.filter((dependency) => !dependency.satisfied) ?? [];
+  const hasDependencyInfo = item.locked && unresolvedDependencies.length > 0;
+  const hasInfo = !!item.description || !!item.estimatedTime || hasDependencyInfo;
 
   const handleClick = React.useCallback(() => {
     if (item.action) onAction(item.action);
@@ -786,10 +925,6 @@ function ChecklistRow({
     cn(
       'flex w-full items-start gap-2 rounded-md px-1.5 py-1 -mx-1.5',
       variant === 'actionable' && 'cursor-pointer hover:bg-muted/50'
-      // "Next" anchor: the Next pill + the row label going
-      // ``font-medium`` carries the affordance — we leave the row
-      // chrome flat so the highlight reads as a guide rather than
-      // a competing call-to-action.
     );
 
   const renderLabel = (variant: 'done' | 'skipped' | 'actionable' | 'static') => (
@@ -798,7 +933,7 @@ function ChecklistRow({
         'text-body-sm flex-1 leading-5',
         variant === 'done' && 'text-muted-foreground line-through',
         variant === 'skipped' && 'text-muted-foreground',
-        variant === 'actionable' && (isNext ? 'font-medium text-foreground' : 'text-foreground'),
+        variant === 'actionable' && 'text-foreground',
         variant === 'static' && 'text-foreground'
       )}
     >
@@ -806,13 +941,57 @@ function ChecklistRow({
     </span>
   );
 
+  const renderDependencyInfo = () =>
+    hasDependencyInfo ? (
+      <div className="text-caption leading-snug text-muted-foreground">
+        <p className="font-medium text-foreground">Depends on:</p>
+        <ul className="mt-1 list-disc space-y-0.5 pl-4">
+          {unresolvedDependencies.map((dependency) => (
+            <li key={dependency.id}>
+              {dependency.resolution === 'completed' ? 'Complete' : 'Complete or skip'} "
+              {dependency.title}" first.
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : null;
+
+  const renderMarkerAndLabel = (variant: 'done' | 'skipped' | 'actionable' | 'static') => {
+    const markerAndLabel = (
+      <span
+        className={cn(
+          'flex min-w-0 flex-1 items-start gap-2',
+          hasDependencyInfo &&
+            'rounded-control cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+        )}
+        tabIndex={hasDependencyInfo ? 0 : undefined}
+        data-testid={hasDependencyInfo ? `coordinator-onboarding-lock-hover-${item.id}` : undefined}
+      >
+        <ChecklistMarker status={item.status} />
+        {renderLabel(variant)}
+      </span>
+    );
+
+    if (!hasDependencyInfo) return markerAndLabel;
+    return (
+      <TooltipProvider delayDuration={150}>
+        <Tooltip>
+          <TooltipTrigger asChild>{markerAndLabel}</TooltipTrigger>
+          <TooltipContent side="left" className="max-w-[240px]">
+            {renderDependencyInfo()}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
+
   const renderSkipButton = () =>
     canSkip ? (
       <button
         type="button"
         onClick={handleSkipClick}
         className={cn(
-          'text-caption rounded-control flex-shrink-0 px-1.5 py-0.5 text-muted-foreground',
+          'text-caption rounded-control flex h-6 flex-shrink-0 items-center px-1.5 text-muted-foreground',
           'hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         )}
         data-testid={`coordinator-onboarding-skip-step-${item.id}`}
@@ -827,7 +1006,7 @@ function ChecklistRow({
         type="button"
         onClick={handleUnskipClick}
         className={cn(
-          'text-caption rounded-control flex-shrink-0 px-1.5 py-0.5 font-medium text-primary',
+          'text-caption rounded-control flex h-6 flex-shrink-0 items-center px-1.5 font-medium text-primary',
           'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         )}
         data-testid={`coordinator-onboarding-unskip-step-${item.id}`}
@@ -842,7 +1021,7 @@ function ChecklistRow({
         type="button"
         onClick={handleSkipSectionClick}
         className={cn(
-          'text-caption rounded-control flex-shrink-0 px-1.5 py-0.5 text-muted-foreground',
+          'text-caption rounded-control flex h-6 flex-shrink-0 items-center px-1.5 text-muted-foreground',
           'hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         )}
         data-testid={`coordinator-onboarding-skip-section-${item.id}`}
@@ -857,26 +1036,13 @@ function ChecklistRow({
         type="button"
         onClick={handleUnskipSectionClick}
         className={cn(
-          'text-caption rounded-control flex-shrink-0 px-1.5 py-0.5 font-medium text-primary',
+          'text-caption rounded-control flex h-6 flex-shrink-0 items-center px-1.5 font-medium text-primary',
           'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         )}
         data-testid={`coordinator-onboarding-unskip-section-${item.id}`}
       >
         Do now
       </button>
-    ) : null;
-
-  const renderNextPill = () =>
-    isNext ? (
-      <span
-        className={cn(
-          'bg-primary/15 text-caption ml-1 inline-flex flex-shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 font-medium text-primary'
-        )}
-        data-testid={`coordinator-onboarding-next-${item.id}`}
-      >
-        <ArrowLeft aria-hidden="true" className="h-3 w-3" />
-        Next
-      </span>
     ) : null;
 
   const renderResetSectionButton = () =>
@@ -933,20 +1099,27 @@ function ChecklistRow({
               // propagation so opening the tooltip never
               // double-fires the row action.
               onClick={(e) => e.stopPropagation()}
-              aria-label={`What is "${item.title}"?`}
+              aria-label={
+                item.locked ? `Why is "${item.title}" locked?` : `What is "${item.title}"?`
+              }
               className="border-muted-foreground/60 text-muted-foreground/60 ml-0.5"
               data-testid={`coordinator-onboarding-info-${item.id}`}
             />
           </TooltipTrigger>
           <TooltipContent side="left" className="max-w-[220px]">
-            <p className="text-caption leading-snug">
-              {item.description}
-              {item.description && item.estimatedTime ? (
-                <span className="text-muted-foreground"> · {item.estimatedTime}</span>
-              ) : item.estimatedTime ? (
-                <span className="text-muted-foreground">{item.estimatedTime}</span>
+            <div className="flex flex-col gap-1.5">
+              {item.description || item.estimatedTime ? (
+                <p className="text-caption leading-snug">
+                  {item.description}
+                  {item.description && item.estimatedTime ? (
+                    <span className="text-muted-foreground"> · {item.estimatedTime}</span>
+                  ) : item.estimatedTime ? (
+                    <span className="text-muted-foreground">{item.estimatedTime}</span>
+                  ) : null}
+                </p>
               ) : null}
-            </p>
+              {hasDependencyInfo ? renderDependencyInfo() : null}
+            </div>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -954,15 +1127,15 @@ function ChecklistRow({
 
   const rowBody = (variant: 'done' | 'skipped' | 'actionable' | 'static') => (
     <div className={rowClassName(variant)}>
-      <ChecklistMarker status={item.status} />
-      {renderLabel(variant)}
-      {renderNextPill()}
-      {renderResetSectionButton()}
-      {renderInfoTooltip()}
-      {renderSkipButton()}
-      {renderUnskipButton()}
-      {renderSectionSkipButton()}
-      {renderSectionUnskipButton()}
+      {renderMarkerAndLabel(variant)}
+      <div className="flex h-6 flex-shrink-0 items-center gap-1">
+        {renderResetSectionButton()}
+        {renderSkipButton()}
+        {renderUnskipButton()}
+        {renderSectionSkipButton()}
+        {renderSectionUnskipButton()}
+        {renderInfoTooltip()}
+      </div>
     </div>
   );
 
@@ -997,6 +1170,7 @@ function ChecklistRow({
     row = (
       <div
         data-testid={`coordinator-onboarding-item-${item.id}`}
+        data-status={item.locked ? 'locked' : undefined}
         data-next={isNext ? 'true' : undefined}
       >
         {rowBody('static')}
@@ -1022,7 +1196,7 @@ function ChecklistRow({
   // means "no chips here".
   const suggestionsForItem = isOnCall ? item.chipsCall : item.chipsChat;
   const showSuggestions =
-    !!suggestionsForItem?.length && item.status === 'pending' && !sectionDisabled;
+    !!suggestionsForItem?.length && item.status === 'pending' && !item.locked && !sectionDisabled;
 
   return (
     <li
@@ -1030,10 +1204,9 @@ function ChecklistRow({
         'flex flex-col gap-2',
         isChild && 'ml-6',
         // Soft fade applies to the whole row container so the
-        // marker, label, Next pill, info button, and any
-        // suggestion chips all dim together. The "Next" row and
-        // its ancestor chain stay opaque to keep the path to the
-        // current focus legible.
+        // marker, label, info button, and any suggestion chips all
+        // dim together. The recommended row and its ancestor chain
+        // stay opaque to keep the current focus legible.
         dim && 'opacity-50 transition-opacity'
       )}
     >
