@@ -23,13 +23,43 @@ export type CoordinatorMode = 'onboarding' | 'working';
 
 export type OnboardingStepStatus = 'done' | 'skipped' | 'available' | 'locked';
 
-/** One onboarding step with its server-resolved status. */
+/** A read-only suggestion chip shown under the act/schedule rows. */
+export interface OnboardingChip {
+  id: string;
+  label: string;
+}
+
+/**
+ * A checklist phase header (grouping row) with its display copy, sourced
+ * from Orchestra's canonical graph. ``id`` is the stable header-row id
+ * (``comms`` / ``connect`` / ``work``); ``phase`` is the label stamped on
+ * each step in the phase (and the short progress-bar legend). Only phases
+ * visible on this deployment arrive — ``local_only`` phases are omitted by
+ * the server on hosted staging/production.
+ */
+export interface OnboardingPhaseInfo {
+  id: string;
+  phase: string;
+  title: string;
+  description: string;
+}
+
+/**
+ * One onboarding step with its server-resolved status and presentation
+ * copy. ``description`` / ``estimatedTime`` / ``chips*`` are sourced from
+ * the canonical graph so the checklist renders straight from this payload
+ * without its own duplicated copy.
+ */
 export interface OnboardingStep {
   id: string;
   title: string;
   phase: string;
   status: OnboardingStepStatus;
   canSkip: boolean;
+  description: string;
+  estimatedTime: string;
+  chipsChat: OnboardingChip[];
+  chipsCall: OnboardingChip[];
 }
 
 /** A step the Coordinator may nudge toward right now, with ready copy. */
@@ -50,6 +80,7 @@ export interface OnboardingNextTarget {
  */
 export interface OnboardingRender {
   activeStepId: string | null;
+  phases: OnboardingPhaseInfo[];
   steps: OnboardingStep[];
   nextTargets: OnboardingNextTarget[];
   skippedPhaseIds: string[];
@@ -134,12 +165,39 @@ const ONBOARDING_STEP_STATUSES: ReadonlySet<string> = new Set([
   'locked',
 ]);
 
+function normalizeChip(value: unknown): OnboardingChip | null {
+  if (!value || typeof value !== 'object') return null;
+  const r = value as Record<string, unknown>;
+  const id = normalizeStep(r.id);
+  if (!id) return null;
+  return { id, label: typeof r.label === 'string' ? r.label : '' };
+}
+
+function normalizeChips(value: unknown): OnboardingChip[] {
+  if (!Array.isArray(value)) return [];
+  return value.map(normalizeChip).filter((c): c is OnboardingChip => c !== null);
+}
+
+function normalizeOnboardingPhase(value: unknown): OnboardingPhaseInfo | null {
+  if (!value || typeof value !== 'object') return null;
+  const r = value as Record<string, unknown>;
+  const id = normalizeStep(r.id);
+  if (!id) return null;
+  return {
+    id,
+    phase: typeof r.phase === 'string' ? r.phase : '',
+    title: typeof r.title === 'string' ? r.title : '',
+    description: typeof r.description === 'string' ? r.description : '',
+  };
+}
+
 function normalizeOnboardingStep(value: unknown): OnboardingStep | null {
   if (!value || typeof value !== 'object') return null;
   const r = value as Record<string, unknown>;
   const id = normalizeStep(r.id);
   if (!id) return null;
   const status = r.status;
+  const estimatedTime = r.estimatedTime ?? r.estimated_time;
   return {
     id,
     title: typeof r.title === 'string' ? r.title : id,
@@ -149,6 +207,10 @@ function normalizeOnboardingStep(value: unknown): OnboardingStep | null {
         ? (status as OnboardingStepStatus)
         : 'locked',
     canSkip: (r.canSkip ?? r.can_skip) === true,
+    description: typeof r.description === 'string' ? r.description : '',
+    estimatedTime: typeof estimatedTime === 'string' ? estimatedTime : '',
+    chipsChat: normalizeChips(r.chipsChat ?? r.chips_chat),
+    chipsCall: normalizeChips(r.chipsCall ?? r.chips_call),
   };
 }
 
@@ -179,8 +241,12 @@ function normalizeOnboardingRender(value: unknown): OnboardingRender | null {
     ? ((r.nextTargets ?? r.next_targets) as unknown[])
     : [];
   const active = r.activeStepId ?? r.active_step_id;
+  const phasesRaw = Array.isArray(r.phases) ? r.phases : [];
   return {
     activeStepId: typeof active === 'string' && active ? active : null,
+    phases: phasesRaw
+      .map(normalizeOnboardingPhase)
+      .filter((p): p is OnboardingPhaseInfo => p !== null),
     steps: stepsRaw.map(normalizeOnboardingStep).filter((s): s is OnboardingStep => s !== null),
     nextTargets: targetsRaw
       .map(normalizeOnboardingTarget)

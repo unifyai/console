@@ -5,7 +5,7 @@ import { Button } from '@/components/UI/button';
 import { Badge } from '@/components/UI/badge';
 import { Card, CardContent } from '@/components/UI/card';
 import { IntegrationStatusBadge } from './IntegrationStatusBadge';
-import { integrationTypeLabel } from './integrationType';
+import { integrationAuthLabels, integrationTypeLabel } from './integrationType';
 import type { IntegrationGalleryItem } from '@/types/integrations';
 
 function primaryCta(item: IntegrationGalleryItem): string {
@@ -25,17 +25,6 @@ function primaryCta(item: IntegrationGalleryItem): string {
   return 'Connect';
 }
 
-function authLabel(item: IntegrationGalleryItem): string | null {
-  if (item.sourceMetadata?.sourceType === 'native' || item.authModes.includes('native')) {
-    return 'Native';
-  }
-  if (item.authModes.includes('oauth') || item.authModes.includes('oauth_authorization_code')) {
-    return 'OAuth';
-  }
-  if (item.authModes.some((mode) => mode.includes('api_key'))) return 'API key';
-  return null;
-}
-
 export function ProviderIntegrationCard({
   item,
   busy,
@@ -48,6 +37,7 @@ export function ProviderIntegrationCard({
   onPrimaryAction: (item: IntegrationGalleryItem) => void;
 }) {
   const toolCount = item.toolCount ?? item.tools.length;
+  const authLabels = integrationAuthLabels(item);
   const isConnected = item.status === 'connected' || item.status === 'configured';
   return (
     <Card
@@ -89,14 +79,15 @@ export function ProviderIntegrationCard({
         </p>
 
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {authLabel(item) && (
+          {authLabels.map((label) => (
             <Badge
+              key={label}
               variant="outline"
               className="border-primary/20 bg-primary/5 rounded-full text-foreground"
             >
-              {authLabel(item)}
+              {label}
             </Badge>
-          )}
+          ))}
           {toolCount > 0 && (
             <Badge variant="outline" className="rounded-full bg-background text-muted-foreground">
               {toolCount} tools
