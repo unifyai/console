@@ -241,6 +241,19 @@ function hasResolvedLeaf(item: ResolvedChecklistItem): boolean {
   return item.children.some(hasResolvedLeaf);
 }
 
+function createComingSoonPlaceholder(section: ResolvedChecklistItem): ResolvedChecklistItem {
+  return {
+    id: `${section.id}-coming-soon-placeholder`,
+    title: '[Coming soon]',
+    phase: section.phase,
+    canSkip: false,
+    done: false,
+    skipped: false,
+    locked: true,
+    status: 'pending',
+  };
+}
+
 function hasActionableLeaf(
   item: ResolvedChecklistItem,
   isActionWired: (action: ChecklistAction | undefined) => boolean,
@@ -551,7 +564,10 @@ export function CoordinatorOnboardingChecklist({
       >
         {resolved.map((section, index) => {
           const isOpen = openSectionIds.has(section.id);
-          const sectionItems = section.children ?? [];
+          const hasVisibleChildren = (section.children?.length ?? 0) > 0;
+          const sectionItems = hasVisibleChildren
+            ? section.children!
+            : [createComingSoonPlaceholder(section)];
           const canSkipSection =
             !!section.phase &&
             !!onSkipSection &&
@@ -590,7 +606,7 @@ export function CoordinatorOnboardingChecklist({
                     <ChecklistRow
                       key={item.id}
                       item={item}
-                      isChild={!!section.children?.length}
+                      isChild
                       isInSkippedSection={section.sectionSkipped === true}
                       onAction={handleAction}
                       isActionWired={isActionWired}
@@ -786,7 +802,34 @@ function ChecklistRow({
   const unresolvedDependencies =
     item.dependencies?.filter((dependency) => !dependency.satisfied) ?? [];
   const hasDependencyInfo = item.locked && unresolvedDependencies.length > 0;
-  const hasInfo = !!item.description || !!item.estimatedTime;
+  const hasInfo = !!item.description || !!item.estimatedTime || hasDependencyInfo;
+  const [isInfoTooltipOpen, setIsInfoTooltipOpen] = React.useState(false);
+  const [isInfoTooltipPinnedToLabel, setIsInfoTooltipPinnedToLabel] = React.useState(false);
+  const dependencyInfoTriggerRef = React.useRef<HTMLSpanElement | null>(null);
+
+  React.useEffect(() => {
+    if (!isInfoTooltipPinnedToLabel) return;
+    const handlePointerMove = (event: PointerEvent) => {
+      const trigger = dependencyInfoTriggerRef.current;
+      if (!trigger) {
+        setIsInfoTooltipOpen(false);
+        setIsInfoTooltipPinnedToLabel(false);
+        return;
+      }
+      const rect = trigger.getBoundingClientRect();
+      const isInside =
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom;
+      if (!isInside) {
+        setIsInfoTooltipOpen(false);
+        setIsInfoTooltipPinnedToLabel(false);
+      }
+    };
+    window.addEventListener('pointermove', handlePointerMove);
+    return () => window.removeEventListener('pointermove', handlePointerMove);
+  }, [isInfoTooltipPinnedToLabel]);
 
   const handleClick = React.useCallback(() => {
     if (item.action) onAction(item.action);
@@ -869,33 +912,34 @@ function ChecklistRow({
   const dimClassName = dim ? 'opacity-50 transition-opacity' : undefined;
 
   const renderMarkerAndLabel = (variant: 'done' | 'skipped' | 'actionable' | 'static') => {
-    const markerAndLabel = (
+    return (
       <span
+        ref={dependencyInfoTriggerRef}
         className={cn(
-          'flex min-w-0 flex-1 items-start gap-2',
+          'flex min-w-0 flex-1 items-start',
           isChild && 'pl-6',
           dimClassName,
           hasDependencyInfo &&
-            'rounded-control cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+            'rounded-control cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         )}
-        tabIndex={hasDependencyInfo ? 0 : undefined}
+        onClick={
+          hasDependencyInfo
+            ? () => {
+                setIsInfoTooltipPinnedToLabel((pinned) => {
+                  const next = !pinned;
+                  setIsInfoTooltipOpen(next);
+                  return next;
+                });
+              }
+            : undefined
+        }
         data-testid={hasDependencyInfo ? `coordinator-onboarding-lock-hover-${item.id}` : undefined}
       >
-        <ChecklistMarker status={item.status} />
-        {renderLabel(variant)}
+        <span className="inline-flex min-w-0 items-start gap-2">
+          <ChecklistMarker status={item.status} />
+          {renderLabel(variant)}
+        </span>
       </span>
-    );
-
-    if (!hasDependencyInfo) return markerAndLabel;
-    return (
-      <TooltipProvider delayDuration={150}>
-        <Tooltip disableHoverableContent>
-          <TooltipTrigger asChild>{markerAndLabel}</TooltipTrigger>
-          <TooltipContent side="left" className="pointer-events-none max-w-[240px]">
-            {renderDependencyInfo()}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
     );
   };
 
@@ -1005,14 +1049,34 @@ function ChecklistRow({
   const renderInfoTooltip = () =>
     hasInfo ? (
       <TooltipProvider delayDuration={150}>
-        <Tooltip disableHoverableContent>
+        <Tooltip disableHoverableContent open={isInfoTooltipOpen}>
           <TooltipTrigger asChild>
             <InfoSquareButton
               // ``span``-like click target nested inside the
               // actionable button isn't valid HTML — stop the
               // propagation so opening the tooltip never
               // double-fires the row action.
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsInfoTooltipPinnedToLabel(false);
+                setIsInfoTooltipOpen(true);
+              }}
+              onMouseEnter={() => {
+                setIsInfoTooltipPinnedToLabel(false);
+                setIsInfoTooltipOpen(true);
+              }}
+              onMouseLeave={() => {
+                setIsInfoTooltipPinnedToLabel(false);
+                setIsInfoTooltipOpen(false);
+              }}
+              onFocus={() => {
+                setIsInfoTooltipPinnedToLabel(false);
+                setIsInfoTooltipOpen(true);
+              }}
+              onBlur={() => {
+                setIsInfoTooltipPinnedToLabel(false);
+                setIsInfoTooltipOpen(false);
+              }}
               aria-label={
                 item.locked ? `Why is "${item.title}" locked?` : `What is "${item.title}"?`
               }
@@ -1032,6 +1096,7 @@ function ChecklistRow({
                   ) : null}
                 </p>
               ) : null}
+              {hasDependencyInfo ? renderDependencyInfo() : null}
             </div>
           </TooltipContent>
         </Tooltip>

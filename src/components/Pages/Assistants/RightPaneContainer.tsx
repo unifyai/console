@@ -18,6 +18,7 @@ import {
   Code,
   Columns2,
   Compass,
+  IdCard,
   ListChecks,
   ListTodo,
   MessageSquare,
@@ -34,6 +35,8 @@ import { MemoryPane } from './Memory';
 import { TasksPane } from './Tasks';
 import { IntegrationsPane } from './Integrations';
 import { ChatWithInfoPanel } from './Chat/ChatWithInfoPanel';
+import { ChatSidePanel } from './Chat/ChatSidePanel';
+import { AssistantInfoSidePanelContent } from './Profile/AssistantInfoSidePanelContent';
 import type { AssistantActionActions } from '@/types/assistants/action';
 import type { Assistant, AssistantActions } from '@/types/assistants/assistant';
 import type { ContactType } from '@/types/assistants/contact';
@@ -46,6 +49,7 @@ import {
 } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { useAssistantPermissions } from '@/hooks/Assistants/useAssistantPermissions';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 const ACTIVE_TAB_TRIGGER_CLASS =
   'border-transparent bg-primary text-primary-foreground !shadow-none hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=active]:shadow-none';
 
@@ -232,6 +236,27 @@ export const DEFAULT_RIGHT_PANE_STATE: RightPaneState = {
 
 const SPLIT_MIN_RATIO = 0.2;
 const SPLIT_MAX_RATIO = 0.8;
+const INFO_PANEL_OPEN_KEY = 'console:assistants:info-panel-open';
+const INFO_PANEL_WIDTH = 380;
+
+function readInfoPanelOpen(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    const raw = window.localStorage.getItem(INFO_PANEL_OPEN_KEY);
+    return raw === null ? true : raw !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+function writeInfoPanelOpen(open: boolean): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(INFO_PANEL_OPEN_KEY, open ? 'true' : 'false');
+  } catch {
+    /* storage persistence is optional */
+  }
+}
 
 /**
  * Picks a sensible default for the secondary slot when the user clicks
@@ -385,7 +410,7 @@ export function RightPaneContainer({
   userPhoneNumber,
   onOpenUserSettings,
   hasIncompleteOnboarding,
-  infoPanelFocusLayoutRequest,
+  infoPanelFocusLayoutRequest = 0,
   coordinatorOnboarding,
   unreadChatCount = 0,
   renderDockedCall,
@@ -399,6 +424,8 @@ export function RightPaneContainer({
     setHasActiveAction(active);
   }, []);
   const { canOpenAssistantChat } = useAssistantPermissions();
+  const { voiceCalls } = useFeatures();
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
 
   // Per-slot sub-tab state for the tabs that have sub-tabs (Memory,
   // Tasks). Kept here so the dropdown in the tab strip can both *drive*
@@ -451,6 +478,25 @@ export function RightPaneContainer({
   // --- Splitter resize ---
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [isResizingSplit, setIsResizingSplit] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsInfoOpen(readInfoPanelOpen());
+  }, [assistant?.agentId]);
+
+  React.useEffect(() => {
+    if (infoPanelFocusLayoutRequest > 0 && assistant?.isCoordinator && hasIncompleteOnboarding) {
+      setIsInfoOpen(true);
+    }
+  }, [assistant?.isCoordinator, hasIncompleteOnboarding, infoPanelFocusLayoutRequest]);
+
+  const setInfoOpenAndPersist = useCallback((open: boolean) => {
+    setIsInfoOpen(open);
+    writeInfoPanelOpen(open);
+  }, []);
+
+  const toggleInfo = useCallback(() => {
+    setInfoOpenAndPersist(!isInfoOpen);
+  }, [isInfoOpen, setInfoOpenAndPersist]);
 
   const handleSplitResizeStart = React.useCallback(
     (e: React.MouseEvent) => {
@@ -850,6 +896,46 @@ export function RightPaneContainer({
                 </Tooltip>
               </TooltipProvider>
             )}
+            {slot === 'primary' && (
+              <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="relative">
+                      <Button
+                        type="button"
+                        variant={isInfoOpen ? 'primary' : 'ghost'}
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={toggleInfo}
+                        data-testid="assistant-info-button"
+                        aria-label={
+                          hasIncompleteOnboarding
+                            ? 'Assistant info — setup incomplete'
+                            : 'Assistant info'
+                        }
+                        aria-pressed={isInfoOpen}
+                      >
+                        <IdCard className="h-3.5 w-3.5" />
+                      </Button>
+                      {hasIncompleteOnboarding && (
+                        <span
+                          data-testid="assistant-info-button-onboarding-dot"
+                          aria-hidden="true"
+                          className="pointer-events-none absolute right-0 top-0 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-card"
+                        />
+                      )}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p>
+                      {hasIncompleteOnboarding
+                        ? 'Assistant info — setup incomplete'
+                        : 'Assistant info'}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             {canClose && (
               <TooltipProvider delayDuration={100}>
                 <Tooltip>
@@ -879,187 +965,221 @@ export function RightPaneContainer({
           </div>
         </div>
 
-        <TabsContent value="chat" className={TAB_CONTENT_CLASS} forceMount>
-          <ChatWithInfoPanel
-            assistant={assistant}
-            assistantActions={assistantActions}
-            chatHistories={chatHistories}
-            setChatHistories={setChatHistories}
-            callPillHistories={callPillHistories}
-            setCallPillHistories={setCallPillHistories}
-            userEmail={userEmail}
-            currentUserId={currentUserId}
-            userTimezone={userTimezone}
-            isFirstView={isFirstView}
-            preHireChat={preHireChat}
-            onFirstViewCompleted={onFirstViewCompleted}
-            spendingGate={spendingGate}
-            chatStreamConnectionStatus={chatStreamConnectionStatus}
-            reconnectChatStream={reconnectChatStream}
-            chatStreamActivitySignal={chatStreamActivitySignal}
-            onStartCall={onStartCall}
-            activeCallAssistantId={activeCallAssistantId}
-            isCallConnected={isCallConnected}
-            isConnectingCall={isConnectingCall}
-            isSpendingBlocked={isSpendingBlocked}
-            spendingBlockedMessage={spendingGate.blockedMessage}
-            onEditProfile={onEditAssistant}
-            onOpenContactManager={onOpenContactManager}
-            canWrite={canWrite}
-            hasUserMessage={hasUserMessage}
-            hasHistoricalCall={hasHistoricalCall}
-            hasUserPhoneNumber={hasUserPhoneNumber}
-            latestUserMessageAt={latestUserMessageAt}
-            userPhoneNumber={userPhoneNumber}
-            onOpenUserSettings={onOpenUserSettings}
-            hasIncompleteOnboarding={hasIncompleteOnboarding}
-            infoPanelFocusLayoutRequest={infoPanelFocusLayoutRequest}
-            coordinatorOnboarding={coordinatorOnboarding}
-            // The docked call lives in a single slot — the primary
-            // one — so split layouts do not mirror the same call UI
-            // into both panes. The secondary slot always renders the
-            // regular chat panel.
-            renderDockedCall={slot === 'primary' ? renderDockedCall : undefined}
-          />
-        </TabsContent>
+        <div className="flex min-h-0 flex-1">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <TabsContent value="chat" className={TAB_CONTENT_CLASS} forceMount>
+              <ChatWithInfoPanel
+                assistant={assistant}
+                assistantActions={assistantActions}
+                chatHistories={chatHistories}
+                setChatHistories={setChatHistories}
+                callPillHistories={callPillHistories}
+                setCallPillHistories={setCallPillHistories}
+                userEmail={userEmail}
+                currentUserId={currentUserId}
+                userTimezone={userTimezone}
+                isFirstView={isFirstView}
+                preHireChat={preHireChat}
+                onFirstViewCompleted={onFirstViewCompleted}
+                spendingGate={spendingGate}
+                chatStreamConnectionStatus={chatStreamConnectionStatus}
+                reconnectChatStream={reconnectChatStream}
+                chatStreamActivitySignal={chatStreamActivitySignal}
+                onStartCall={onStartCall}
+                activeCallAssistantId={activeCallAssistantId}
+                isCallConnected={isCallConnected}
+                isConnectingCall={isConnectingCall}
+                isSpendingBlocked={isSpendingBlocked}
+                spendingBlockedMessage={spendingGate.blockedMessage}
+                onEditProfile={onEditAssistant}
+                onOpenContactManager={onOpenContactManager}
+                canWrite={canWrite}
+                hasUserMessage={hasUserMessage}
+                hasHistoricalCall={hasHistoricalCall}
+                hasUserPhoneNumber={hasUserPhoneNumber}
+                latestUserMessageAt={latestUserMessageAt}
+                userPhoneNumber={userPhoneNumber}
+                onOpenUserSettings={onOpenUserSettings}
+                hasIncompleteOnboarding={hasIncompleteOnboarding}
+                infoPanelFocusLayoutRequest={infoPanelFocusLayoutRequest}
+                coordinatorOnboarding={coordinatorOnboarding}
+                renderDockedCall={slot === 'primary' ? renderDockedCall : undefined}
+                hideAssistantInfoPanel
+              />
+            </TabsContent>
 
-        <TabsContent value="tasks" className={TAB_CONTENT_CLASS} forceMount>
-          <TasksPane
-            assistant={assistant}
-            ownerId={assistant.userId}
-            assistantId={assistant.agentId}
-            subTab={subTabBySlot[slot].tasks}
-            onSubTabChange={slot === 'primary' ? primaryTasksChange : secondaryTasksChange}
-            onTasksCountChange={
-              slot === 'primary' && coordinatorOnboarding?.onStepComplete
-                ? (count) => {
-                    if (count > 0) coordinatorOnboarding.onStepComplete?.('schedule');
-                  }
-                : undefined
-            }
-          />
-        </TabsContent>
+            <TabsContent value="tasks" className={TAB_CONTENT_CLASS} forceMount>
+              <TasksPane
+                assistant={assistant}
+                ownerId={assistant.userId}
+                assistantId={assistant.agentId}
+                subTab={subTabBySlot[slot].tasks}
+                onSubTabChange={slot === 'primary' ? primaryTasksChange : secondaryTasksChange}
+                onTasksCountChange={
+                  slot === 'primary' && coordinatorOnboarding?.onStepComplete
+                    ? (count) => {
+                        if (count > 0) coordinatorOnboarding.onStepComplete?.('schedule');
+                      }
+                    : undefined
+                }
+              />
+            </TabsContent>
 
-        <TabsContent value="dashboards" className={TAB_CONTENT_CLASS} forceMount>
-          {dashboardActions ? (
-            <DashboardsPane
-              assistant={assistant}
-              ownerId={assistant.userId}
-              assistantId={assistant.agentId}
-              getMetadata={dashboardActions.getMetadata}
-              getTileContent={dashboardActions.getTileContent}
-              shouldPoll={hasActiveAction}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-body-muted">Select an assistant to view dashboards.</p>
-            </div>
-          )}
-        </TabsContent>
+            <TabsContent value="dashboards" className={TAB_CONTENT_CLASS} forceMount>
+              {dashboardActions ? (
+                <DashboardsPane
+                  assistant={assistant}
+                  ownerId={assistant.userId}
+                  assistantId={assistant.agentId}
+                  getMetadata={dashboardActions.getMetadata}
+                  getTileContent={dashboardActions.getTileContent}
+                  shouldPoll={hasActiveAction}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center">
+                  <p className="text-body-muted">Select an assistant to view dashboards.</p>
+                </div>
+              )}
+            </TabsContent>
 
-        <TabsContent value="memory" className={TAB_CONTENT_CLASS} forceMount>
-          <MemoryPane
-            assistant={assistant}
-            ownerId={assistant.userId}
-            assistantId={assistant.agentId}
-            isVisible={tab === 'memory'}
-            subTab={subTabBySlot[slot].memory}
-            onSubTabChange={slot === 'primary' ? primaryMemoryChange : secondaryMemoryChange}
-          />
-        </TabsContent>
+            <TabsContent value="memory" className={TAB_CONTENT_CLASS} forceMount>
+              <MemoryPane
+                assistant={assistant}
+                ownerId={assistant.userId}
+                assistantId={assistant.agentId}
+                isVisible={tab === 'memory'}
+                subTab={subTabBySlot[slot].memory}
+                onSubTabChange={slot === 'primary' ? primaryMemoryChange : secondaryMemoryChange}
+              />
+            </TabsContent>
 
-        <TabsContent value="integrations" className={TAB_CONTENT_CLASS} forceMount>
-          <IntegrationsPane
-            ownerId={assistant.userId}
-            assistantId={assistant.agentId}
-            secretActions={assistantActions.secret}
-            canWrite={canWrite}
-            isVisible={tab === 'integrations'}
-            onSecretsCountChange={
-              slot === 'primary' && coordinatorOnboarding?.onStepComplete
-                ? (count) => {
-                    if (count > 0) coordinatorOnboarding.onStepComplete?.('apps');
-                  }
-                : undefined
-            }
-          />
-        </TabsContent>
+            <TabsContent value="integrations" className={TAB_CONTENT_CLASS} forceMount>
+              <IntegrationsPane
+                ownerId={assistant.userId}
+                assistantId={assistant.agentId}
+                secretActions={assistantActions.secret}
+                canWrite={canWrite}
+                isVisible={tab === 'integrations'}
+                onSecretsCountChange={
+                  slot === 'primary' && coordinatorOnboarding?.onStepComplete
+                    ? (count) => {
+                        if (count > 0) coordinatorOnboarding.onStepComplete?.('apps');
+                      }
+                    : undefined
+                }
+              />
+            </TabsContent>
 
-        <TabsContent value="actions" className={TAB_CONTENT_CLASS} forceMount>
-          {/* Only the *primary* actions tab feeds the dashboards-poll
-              signal. Wiring both would double-count benign no-ops, and
-              the two slots' streams are equivalent (same controller
-              shape, same data) so picking one is enough. */}
-          <LiveActionsViewer
-            assistant={assistant}
-            actions={actions}
-            className="h-full"
-            onHasActiveActionChange={
-              slot === 'primary'
-                ? (active) => {
-                    handleActiveActionChange(active);
-                    if (active) coordinatorOnboarding?.onStepComplete?.('act');
-                  }
-                : undefined
-            }
-          />
-        </TabsContent>
+            <TabsContent value="actions" className={TAB_CONTENT_CLASS} forceMount>
+              <LiveActionsViewer
+                assistant={assistant}
+                actions={actions}
+                className="h-full"
+                onHasActiveActionChange={
+                  slot === 'primary'
+                    ? (active) => {
+                        handleActiveActionChange(active);
+                      }
+                    : undefined
+                }
+              />
+            </TabsContent>
+          </div>
+          {slot === 'primary' && isInfoOpen ? renderAssistantInfoPanel() : null}
+        </div>
       </Tabs>
     );
   };
 
   const hasSplit = paneState.secondary !== null;
   const splitRatio = Math.min(SPLIT_MAX_RATIO, Math.max(SPLIT_MIN_RATIO, paneState.splitRatio));
+  const isAnotherCallActive = !!activeCallAssistantId && !isInThisCall;
+  const isInfoCallDisabled =
+    !voiceCalls || isAnotherCallActive || isInThisCall || (isSpendingBlocked && !isInThisCall);
+  const infoCallTooltip = !voiceCalls
+    ? "Voice calls aren't enabled on this deployment"
+    : isInThisCall && isConnectingCall
+      ? 'Connecting call...'
+      : isInThisCall
+        ? 'Call in progress'
+        : isSpendingBlocked
+          ? spendingGate.blockedMessage || 'Spending limit reached'
+          : isAnotherCallActive
+            ? 'Another call is in progress'
+            : 'Call';
+
+  const renderAssistantInfoPanel = () => (
+    <ChatSidePanel
+      ariaLabel="Assistant info"
+      onClose={() => setInfoOpenAndPersist(false)}
+      style={{ ['--chat-side-panel-width']: `${INFO_PANEL_WIDTH}px` } as React.CSSProperties}
+      testId="assistant-info-sheet"
+    >
+      <AssistantInfoSidePanelContent
+        assistant={assistant}
+        currentUserId={currentUserId}
+        onEditProfile={onEditAssistant}
+        onOpenContactManager={onOpenContactManager}
+        canWrite={canWrite}
+        coordinatorOnboarding={coordinatorOnboarding}
+        onStartCall={onStartCall}
+        isStartCallDisabled={isInfoCallDisabled}
+        startCallTooltip={infoCallTooltip}
+      />
+    </ChatSidePanel>
+  );
 
   return (
     <div ref={splitContainerRef} className="brand-chat-stencil-bg flex h-full w-full bg-background">
-      <div
-        className="flex h-full min-w-0 flex-col"
-        style={{ width: hasSplit ? `${splitRatio * 100}%` : '100%' }}
-      >
-        {renderPane('primary', paneState.primary.tab, {
-          // Split button only appears when not already split.
-          canSplit: !hasSplit,
-          // Either pane is closable when split — closing the primary
-          // promotes the secondary into the primary slot (handled in
-          // `handleClose`).
-          canClose: hasSplit,
-        })}
-      </div>
+      <div className="flex h-full min-w-0 flex-1">
+        <div
+          className="flex h-full min-w-0 flex-col"
+          style={{ width: hasSplit ? `${splitRatio * 100}%` : '100%' }}
+        >
+          {renderPane('primary', paneState.primary.tab, {
+            // Split button only appears when not already split.
+            canSplit: !hasSplit,
+            // Either pane is closable when split — closing the primary
+            // promotes the secondary into the primary slot (handled in
+            // `handleClose`).
+            canClose: hasSplit,
+          })}
+        </div>
 
-      {hasSplit && paneState.secondary && (
-        <>
-          {/* Splitter handle — 6px wide hit area with a 1px visible
+        {hasSplit && paneState.secondary && (
+          <>
+            {/* Splitter handle — 6px wide hit area with a 1px visible
               line drawn dead-center via a `before:` pseudo-element.
               This keeps the divider visually balanced between the two
               panes (instead of hugging the left edge as a `border-l`
               would) and decouples the line's color from the wider
               hover/active accent that paints the whole strip. */}
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize split"
-            onMouseDown={handleSplitResizeStart}
-            className={cn(
-              'relative h-full w-1.5 flex-shrink-0 cursor-col-resize bg-transparent transition-colors duration-200',
-              'before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border before:content-[""]',
-              'hover:bg-primary/20 active:bg-primary/40',
-              isResizingSplit && 'bg-primary/40'
-            )}
-            data-testid="right-pane-splitter"
-            style={{ zIndex: 20 }}
-          />
-          <div
-            className="flex h-full min-w-0 flex-col"
-            style={{ width: `${(1 - splitRatio) * 100}%` }}
-          >
-            {renderPane('secondary', paneState.secondary.tab, {
-              canSplit: false,
-              canClose: true,
-            })}
-          </div>
-        </>
-      )}
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize split"
+              onMouseDown={handleSplitResizeStart}
+              className={cn(
+                'relative h-full w-1.5 flex-shrink-0 cursor-col-resize bg-transparent transition-colors duration-200',
+                'before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border before:content-[""]',
+                'hover:bg-primary/20 active:bg-primary/40',
+                isResizingSplit && 'bg-primary/40'
+              )}
+              data-testid="right-pane-splitter"
+              style={{ zIndex: 20 }}
+            />
+            <div
+              className="flex h-full min-w-0 flex-col"
+              style={{ width: `${(1 - splitRatio) * 100}%` }}
+            >
+              {renderPane('secondary', paneState.secondary.tab, {
+                canSplit: false,
+                canClose: true,
+              })}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
