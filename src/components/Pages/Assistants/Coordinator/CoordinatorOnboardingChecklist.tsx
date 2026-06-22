@@ -889,9 +889,9 @@ function ChecklistRow({
     if (!hasDependencyInfo) return markerAndLabel;
     return (
       <TooltipProvider delayDuration={150}>
-        <Tooltip>
+        <Tooltip disableHoverableContent>
           <TooltipTrigger asChild>{markerAndLabel}</TooltipTrigger>
-          <TooltipContent side="left" className="max-w-[240px]">
+          <TooltipContent side="left" className="pointer-events-none max-w-[240px]">
             {renderDependencyInfo()}
           </TooltipContent>
         </Tooltip>
@@ -1005,7 +1005,7 @@ function ChecklistRow({
   const renderInfoTooltip = () =>
     hasInfo ? (
       <TooltipProvider delayDuration={150}>
-        <Tooltip>
+        <Tooltip disableHoverableContent>
           <TooltipTrigger asChild>
             <InfoSquareButton
               // ``span``-like click target nested inside the
@@ -1020,7 +1020,7 @@ function ChecklistRow({
               data-testid={`coordinator-onboarding-info-${item.id}`}
             />
           </TooltipTrigger>
-          <TooltipContent side="left" className="max-w-[220px]">
+          <TooltipContent side="left" className="pointer-events-none max-w-[220px]">
             <div className="flex flex-col gap-1.5">
               {item.description || item.estimatedTime ? (
                 <p className="text-caption leading-snug">
@@ -1180,7 +1180,7 @@ function ChecklistMarker({ status }: { status: 'pending' | 'done' | 'skipped' })
   if (status === 'skipped') {
     return (
       <TooltipProvider delayDuration={150}>
-        <Tooltip>
+        <Tooltip disableHoverableContent>
           <TooltipTrigger asChild>
             <span tabIndex={0} aria-label="Skipped" className={markerClasses}>
               <span aria-hidden="true" className="text-caption font-semibold leading-none">
@@ -1188,7 +1188,7 @@ function ChecklistMarker({ status }: { status: 'pending' | 'done' | 'skipped' })
               </span>
             </span>
           </TooltipTrigger>
-          <TooltipContent side="left">
+          <TooltipContent side="left" className="pointer-events-none">
             <p className="text-caption">Skipped</p>
           </TooltipContent>
         </Tooltip>
