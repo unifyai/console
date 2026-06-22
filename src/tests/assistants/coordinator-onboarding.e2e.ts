@@ -250,10 +250,6 @@ test('checklist allows independent sections to start out of order', async ({
   );
 
   await page.getByTestId('coordinator-onboarding-skip-section-connect').click();
-  await expect(page.getByTestId('coordinator-onboarding-item-connect')).toHaveAttribute(
-    'data-status',
-    'skipped'
-  );
   await expect(page.getByTestId('coordinator-onboarding-item-workspace')).not.toHaveAttribute(
     'data-status',
     'skipped'
@@ -307,7 +303,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   // info" panel, seeded from the server-derived snapshot.
   await openOnboardingChecklist(page);
   await expect(page.getByTestId('coordinator-onboarding-progress-summary')).toHaveText(
-    /\d+ of \d+ sections completed/
+    /1\. Guess the reference/
   );
   await expect(page.getByTestId('coordinator-onboarding-progress-phase-meet')).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-progress-phase-comms')).toHaveCount(0);
@@ -342,22 +338,6 @@ test('picking chat lands in the full platform with the checklist in Assistant in
     .poll(() => readPersistedOnboardingStep(coordinator.agentId), { timeout: 10_000 })
     .toBe('email-reply');
   await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveCount(0);
-
-  const commsReset = page.getByTestId('coordinator-onboarding-reset-section-comms');
-  await expect(commsReset).toBeVisible();
-  await commsReset.click();
-  await expect(page.getByTestId('coordinator-onboarding-reset-dialog-comms')).toBeVisible();
-  await page.getByTestId('coordinator-onboarding-reset-cancel-comms').click();
-  await expect(emailReferenceRow).toHaveAttribute('data-status', 'done');
-
-  await commsReset.click();
-  await page.getByTestId('coordinator-onboarding-reset-confirm-comms').click();
-  await expect(emailReferenceRow).toHaveAttribute('data-next', 'true');
-  await expect(page.getByTestId('coordinator-onboarding-item-email-reply')).toHaveAttribute(
-    'data-status',
-    'locked'
-  );
-  await expectChecklistItemClickable(page, 'email-reference');
   await expect(page.getByTestId('coordinator-onboarding-item-apps')).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 

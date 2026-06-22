@@ -233,6 +233,9 @@ interface PhaseProgress {
   completed: number;
 }
 
+const CHECKLIST_CONTROL_GRID_CLASS =
+  '-mx-1.5 grid w-full grid-cols-[minmax(0,1fr)_4.5rem_1.5rem] gap-1 px-1.5';
+
 /**
  * Per-phase progress for the segmented bar, computed from the full
  * server step list (not just the visible rows) so the denominator
@@ -536,6 +539,13 @@ export function CoordinatorOnboardingChecklist({
     if (!effectiveSelectedSectionId) return resolved;
     return resolved.filter((item) => item.id === effectiveSelectedSectionId);
   }, [effectiveSelectedSectionId, resolved]);
+  const selectedSection = React.useMemo(
+    () => resolved.find((item) => item.id === effectiveSelectedSectionId) ?? null,
+    [effectiveSelectedSectionId, resolved]
+  );
+  const visibleItems = selectedSection?.children?.length
+    ? selectedSection.children
+    : visibleSections;
   const canSelectNextSection = phases.length > 1;
   const selectNextSection = React.useCallback(() => {
     if (!phases.length) return;
@@ -592,6 +602,17 @@ export function CoordinatorOnboardingChecklist({
   // Offer the global defer only while there's still onboarding left to
   // do — once everything resolves there's nothing to postpone.
   const canDeferAll = !!deferOnboarding && nextActionableId !== null;
+  const canSkipSelectedSection =
+    !!selectedSection &&
+    !!selectedSection.phase &&
+    !!onSkipSection &&
+    selectedSection.status === 'pending' &&
+    !selectedSection.sectionSkipped;
+  const canUnskipSelectedSection =
+    !!selectedSection &&
+    !!selectedSection.phase &&
+    !!onUnskipSection &&
+    selectedSection.sectionSkipped === true;
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}>
       <SectionProgressDisclosure
@@ -603,23 +624,40 @@ export function CoordinatorOnboardingChecklist({
           setSelectedSectionId(phaseId);
           setAreProgressDetailsOpen(false);
         }}
+        sectionAction={
+          canUnskipSelectedSection
+            ? {
+                label: 'Do now',
+                testId: `coordinator-onboarding-unskip-section-${selectedSection.id}`,
+                variant: 'primary',
+                onClick: () => onUnskipSection?.(selectedSection.phase!),
+              }
+            : canSkipSelectedSection
+              ? {
+                  label: 'Later',
+                  testId: `coordinator-onboarding-skip-section-${selectedSection.id}`,
+                  variant: 'muted',
+                  onClick: () => onSkipSection?.(selectedSection.phase!),
+                }
+              : null
+        }
       />
       <ul
-        className="min-h-0 flex-1 space-y-2.5 overflow-y-auto pr-1"
+        className="min-h-0 flex-1 space-y-2.5 overflow-y-auto"
         data-testid="coordinator-onboarding-checklist"
       >
-        {visibleSections.map((item) => (
+        {visibleItems.map((item) => (
           <ChecklistRow
             key={item.id}
             item={item}
+            isChild={!!selectedSection?.children?.length}
+            isInSkippedSection={selectedSection?.sectionSkipped === true}
             onAction={handleAction}
             isActionWired={isActionWired}
             nextActionableId={nextActionableId}
             isOnCall={isOnCall}
             onSkipStep={onSkipStep}
             onUnskipStep={onUnskipStep}
-            onSkipSection={onSkipSection}
-            onUnskipSection={onUnskipSection}
             onResetStepProgress={resetStepProgress}
           />
         ))}
@@ -664,6 +702,12 @@ interface SectionProgressDisclosureProps {
   isOpen: boolean;
   onToggle: () => void;
   onSelectPhase: (phaseId: string) => void;
+  sectionAction: {
+    label: string;
+    testId: string;
+    variant: 'muted' | 'primary';
+    onClick: () => void;
+  } | null;
 }
 
 /**
@@ -677,6 +721,7 @@ function SectionProgressDisclosure({
   isOpen,
   onToggle,
   onSelectPhase,
+  sectionAction,
 }: SectionProgressDisclosureProps) {
   const detailsId = React.useId();
   if (!phases.length) return null;
@@ -687,32 +732,54 @@ function SectionProgressDisclosure({
     : 'Choose section';
   return (
     <div className="relative flex flex-col" data-testid="coordinator-onboarding-progress">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={isOpen}
-        aria-controls={detailsId}
+      <div
         className={cn(
-          'rounded-control flex w-full items-center justify-between gap-2 text-left',
-          'bg-muted/40 hover:bg-muted/70 px-2.5 py-2 transition-colors',
-          'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+          CHECKLIST_CONTROL_GRID_CLASS,
+          'rounded-control items-center py-2 text-left',
+          'bg-muted/40 hover:bg-muted/70 transition-colors',
+          'focus-within:ring-2 focus-within:ring-primary'
         )}
-        data-testid="coordinator-onboarding-progress-toggle"
       >
-        <span
-          className="text-body-sm font-medium text-foreground"
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={isOpen}
+          aria-controls={detailsId}
+          className="text-body-sm min-w-0 flex-1 truncate text-left font-medium text-foreground focus:outline-none"
           data-testid="coordinator-onboarding-progress-summary"
         >
           {selectedPhaseLabel}
-        </span>
-        <ChevronDown
-          className={cn(
-            'h-3.5 w-3.5 flex-shrink-0 text-muted-foreground transition-transform',
-            isOpen && 'rotate-180'
-          )}
-          aria-hidden="true"
-        />
-      </button>
+        </button>
+        {sectionAction ? (
+          <button
+            type="button"
+            onClick={sectionAction.onClick}
+            className={cn(
+              'text-caption rounded-control justify-self-center whitespace-nowrap px-1.5 py-0.5',
+              sectionAction.variant === 'primary'
+                ? 'hover:bg-primary/10 font-medium text-primary'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+            )}
+            data-testid={sectionAction.testId}
+          >
+            {sectionAction.label}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label="Choose onboarding section"
+          aria-expanded={isOpen}
+          aria-controls={detailsId}
+          className="rounded-control flex h-6 w-6 items-center justify-center justify-self-center text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <ChevronDown
+            className={cn('h-3.5 w-3.5 transition-transform', isOpen && 'rotate-180')}
+            aria-hidden="true"
+          />
+        </button>
+      </div>
       {isOpen ? (
         <ul
           id={detailsId}
@@ -923,7 +990,8 @@ function ChecklistRow({
 
   const rowClassName = (variant: 'done' | 'skipped' | 'actionable' | 'static') =>
     cn(
-      'flex w-full items-start gap-2 rounded-md px-1.5 py-1 -mx-1.5',
+      CHECKLIST_CONTROL_GRID_CLASS,
+      'items-start rounded-md py-1',
       variant === 'actionable' && 'cursor-pointer hover:bg-muted/50'
     );
 
@@ -963,6 +1031,7 @@ function ChecklistRow({
       <span
         className={cn(
           'flex min-w-0 flex-1 items-start gap-2',
+          isChild && 'pl-6',
           dimClassName,
           hasDependencyInfo &&
             'rounded-control cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
@@ -1105,7 +1174,7 @@ function ChecklistRow({
               aria-label={
                 item.locked ? `Why is "${item.title}" locked?` : `What is "${item.title}"?`
               }
-              className="border-muted-foreground/60 text-muted-foreground/60 ml-0.5"
+              className="border-muted-foreground/60 text-muted-foreground/60"
               data-testid={`coordinator-onboarding-info-${item.id}`}
             />
           </TooltipTrigger>
@@ -1131,16 +1200,18 @@ function ChecklistRow({
   const rowBody = (variant: 'done' | 'skipped' | 'actionable' | 'static') => (
     <div className={rowClassName(variant)}>
       {renderMarkerAndLabel(variant)}
-      <div className="flex h-6 flex-shrink-0 items-center gap-1">
-        <span className={cn('flex h-6 items-center gap-1', dimClassName)}>
+      <span className="flex h-6 items-center justify-center gap-1">
+        <span className={cn('flex h-6 items-center justify-center gap-1', dimClassName)}>
           {renderResetSectionButton()}
           {renderSkipButton()}
           {renderSectionSkipButton()}
-          {renderInfoTooltip()}
         </span>
         {renderUnskipButton()}
         {renderSectionUnskipButton()}
-      </div>
+      </span>
+      <span className={cn('flex h-6 items-center justify-center', dimClassName)}>
+        {renderInfoTooltip()}
+      </span>
     </div>
   );
 
@@ -1204,7 +1275,7 @@ function ChecklistRow({
     !!suggestionsForItem?.length && item.status === 'pending' && !item.locked && !sectionDisabled;
 
   return (
-    <li className={cn('flex flex-col gap-2', isChild && 'ml-6')}>
+    <li className="flex flex-col gap-2">
       {row}
       {showSuggestions && suggestionsForItem ? (
         <ul
