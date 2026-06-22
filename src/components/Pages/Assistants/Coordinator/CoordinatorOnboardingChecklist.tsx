@@ -406,12 +406,10 @@ function hasResolvedLeaf(item: ResolvedChecklistItem): boolean {
 }
 
 /**
- * Identify the next actionable leaf so the UI can call it out with
- * a "Next" affordance. Walks the resolved tree in render order and
- * returns the first pending leaf with a wired
- * action. Returning ``null`` (everything done or everything still
- * hidden) is a non-event — the row variants alone are enough
- * signal at that point.
+ * Identify the recommended next leaf so the UI can call it out with a
+ * "Next" affordance. Walks the resolved tree in render order and
+ * returns the first pending leaf with a wired action. Other pending
+ * leaves remain actionable; this just provides an ordered suggestion.
  */
 function findNextActionableId(
   items: ResolvedChecklistItem[],
@@ -826,9 +824,8 @@ function ChecklistRow({
   const hasWiredAction = isActionWired(item.action);
   const isResolved = item.status !== 'pending';
   const isNext = nextActionableId === item.id;
-  const isActionable = hasWiredAction && !isResolved && isNext;
-  const canSkip =
-    !!onSkipStep && item.canSkip !== false && !item.children?.length && !isResolved && isNext;
+  const isActionable = hasWiredAction && !isResolved;
+  const canSkip = !!onSkipStep && item.canSkip !== false && !item.children?.length && !isResolved;
   const canUnskip = !!onUnskipStep && !item.children?.length && item.status === 'skipped';
   const canResetSection =
     !isChild && !!item.children?.length && !!onResetStepProgress && hasResolvedLeaf(item);
@@ -844,11 +841,11 @@ function ChecklistRow({
       if (child.id === nextActionableId) return true;
       return !!child.children?.some(walk);
     });
-  // Soft-dim every row that isn't the "Next" anchor (and isn't on
-  // the path leading to it). Done rows already carry their own
-  // muted styling but we still apply the wrapper so the entire
-  // list visually settles behind the single actionable focus.
-  const dim = !isNext && !containsNext && item.status !== 'skipped';
+  // Soft-dim every resolved/static row that isn't the "Next" anchor
+  // (and isn't on the path leading to it). Alternative available rows
+  // stay legible because independent sections can be started in any
+  // order.
+  const dim = !isNext && !containsNext && item.status !== 'skipped' && !isActionable;
   const hasInfo = !!item.description || !!item.estimatedTime;
 
   const handleClick = React.useCallback(() => {
