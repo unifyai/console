@@ -270,6 +270,43 @@ describe('useProviderIntegrationCatalog', () => {
     expect(String(countCalls[0][0])).toContain('key=');
   });
 
+  it('filters search via contains and uses the inline list count (no metric call)', async () => {
+    const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/logs?')) {
+        return builtinsLogsResponse([providerApp('gmail', { display_name: 'Gmail' })], 1);
+      }
+      if (url.startsWith('/api/integrations/provider/connections')) {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('{}', { status: 404 });
+    });
+
+    const { result } = renderHook(() => useProviderIntegrationCatalog('123', { query: 'gmail' }));
+
+    await waitFor(() => expect(result.current.definitions).toHaveLength(1));
+    expect(result.current.total).toBe(1);
+    expect(result.current.hasMore).toBe(false);
+
+    const countCalls = fetchSpy.mock.calls.filter(([input]) =>
+      String(input).startsWith('/api/logs/count')
+    );
+    expect(countCalls).toHaveLength(0);
+
+    const listCall = fetchSpy.mock.calls.find(([input]) => String(input).startsWith('/api/logs?'));
+    const filterExpr = new URL(String(listCall?.[0]), window.location.origin).searchParams.get(
+      'filterExpr'
+    );
+    expect(filterExpr).toContain('display_name.lower().contains("gmail")');
+    expect(filterExpr).toContain('canonical_app_slug.lower().contains("gmail")');
+    expect(filterExpr).toContain('description.lower().contains("gmail")');
+    expect(filterExpr).not.toContain('category.lower()');
+    expect(filterExpr).not.toContain('source_label.lower()');
+  });
+
   it('fetches deferred details with tools from Builtins logs', async () => {
     const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
       const url = String(input);

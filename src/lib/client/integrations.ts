@@ -567,14 +567,16 @@ function catalogFilterExpr(args: {
   if (args.sourceType) filters.push(`source_type == ${quoteFilterValue(args.sourceType)}`);
   const query = args.query?.trim().toLowerCase();
   if (query) {
+    // Match against the identity/description fields only. Broader fields like
+    // category/source_label produce noisy, over-broad matches. This is an
+    // indexed `contains` over a small catalogue (~1k rows) and stays sub-second;
+    // the result set is the search result, so its inline count is exact.
     const quoted = quoteFilterValue(query);
     filters.push(
       `(${[
         `display_name.lower().contains(${quoted})`,
         `canonical_app_slug.lower().contains(${quoted})`,
         `description.lower().contains(${quoted})`,
-        `category.lower().contains(${quoted})`,
-        `source_label.lower().contains(${quoted})`,
       ].join(' or ')})`
     );
   }
@@ -787,7 +789,6 @@ function extractMetricCount(value: unknown): number | null {
 export async function getProviderIntegrationCatalogCount(args: {
   ownerScope: IntegrationOwnerScope;
   assistantId?: string | number;
-  query?: string;
   sourceType?: 'native' | 'third_party' | null;
   statuses?: IntegrationConnectionStatus[];
   statusGroups?: ProviderAppStatusGroup[];

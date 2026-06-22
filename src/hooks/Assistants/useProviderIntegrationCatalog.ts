@@ -189,16 +189,21 @@ export function useProviderIntegrationCatalog(
           console.error('Failed to load provider integration connections', error);
           return [];
         }),
-        getProviderIntegrationCatalogCount({
-          ownerScope,
-          assistantId,
-          query,
-          sourceType,
-          statusGroups,
-        }).catch((error) => {
-          console.error('Failed to load provider integration catalog count', error);
-          return null;
-        }),
+        // A search applies a `contains` filter, so the list response's inline
+        // count is already the exact match count (the filtered metric aggregation
+        // is far slower and would time out). Only the unfiltered/faceted browse
+        // needs the metric call for the true catalogue total.
+        query?.trim()
+          ? Promise.resolve<number | null>(null)
+          : getProviderIntegrationCatalogCount({
+              ownerScope,
+              assistantId,
+              sourceType,
+              statusGroups,
+            }).catch((error) => {
+              console.error('Failed to load provider integration catalog count', error);
+              return null;
+            }),
       ]);
       providerConnectionsRef.current = providerConnections;
       setDefinitions(
