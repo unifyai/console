@@ -52,6 +52,7 @@ export interface OnboardingRender {
   activeStepId: string | null;
   steps: OnboardingStep[];
   nextTargets: OnboardingNextTarget[];
+  skippedPhaseIds: string[];
 }
 
 export interface CoordinatorStateSnapshot {
@@ -71,6 +72,7 @@ export interface CoordinatorStateSnapshot {
    */
   completedStepIds: string[];
   skippedStepIds: string[];
+  skippedPhaseIds: string[];
   /**
    * Whether the user has resolved the opening picker (started the call
    * or chose chat). Once true the ringing picker and auto-playing intro
@@ -102,6 +104,8 @@ export interface CoordinatorStatePatch {
   clearOnboardingStep?: boolean;
   skipOnboardingStep?: string;
   unskipOnboardingStep?: string;
+  skipOnboardingPhase?: string;
+  unskipOnboardingPhase?: string;
   introWatched?: boolean;
   onboardingDeferred?: boolean;
 }
@@ -181,6 +185,7 @@ function normalizeOnboardingRender(value: unknown): OnboardingRender | null {
     nextTargets: targetsRaw
       .map(normalizeOnboardingTarget)
       .filter((t): t is OnboardingNextTarget => t !== null),
+    skippedPhaseIds: normalizeStepIds(r.skippedPhaseIds ?? r.skipped_phase_ids),
   };
 }
 
@@ -194,6 +199,7 @@ function normalizeSnapshot(coordinatorId: number, raw: unknown): CoordinatorStat
     endedAt: normalizeString(record.endedAt ?? record.ended_at),
     completedStepIds: normalizeStepIds(record.completedStepIds ?? record.completed_step_ids),
     skippedStepIds: normalizeStepIds(record.skippedStepIds ?? record.skipped_step_ids),
+    skippedPhaseIds: normalizeStepIds(record.skippedPhaseIds ?? record.skipped_phase_ids),
     introWatched: (record.introWatched ?? record.intro_watched) === true,
     onboardingDeferred: (record.onboardingDeferred ?? record.onboarding_deferred) === true,
     onboarding: normalizeOnboardingRender(record.onboarding),
@@ -242,6 +248,9 @@ export async function updateCoordinatorState(
   if (patch.skipOnboardingStep !== undefined) body.skipOnboardingStep = patch.skipOnboardingStep;
   if (patch.unskipOnboardingStep !== undefined)
     body.unskipOnboardingStep = patch.unskipOnboardingStep;
+  if (patch.skipOnboardingPhase !== undefined) body.skipOnboardingPhase = patch.skipOnboardingPhase;
+  if (patch.unskipOnboardingPhase !== undefined)
+    body.unskipOnboardingPhase = patch.unskipOnboardingPhase;
   if (patch.introWatched !== undefined) body.introWatched = patch.introWatched;
   if (patch.onboardingDeferred !== undefined) body.onboardingDeferred = patch.onboardingDeferred;
 

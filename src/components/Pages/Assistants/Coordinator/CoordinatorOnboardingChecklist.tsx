@@ -63,6 +63,7 @@ export type ChecklistAction =
 interface OnboardingChecklistItem {
   id: string;
   title: string;
+  phase?: string;
   /** Short label used in the segmented progress bar legend — kept
    * to a single word so the three phases fit comfortably across
    * the sidebar width. Only meaningful on top-level (phase) items;
@@ -288,6 +289,7 @@ interface ResolvedChecklistItem extends OnboardingChecklistItem {
   done: boolean;
   skipped: boolean;
   status: 'pending' | 'done' | 'skipped';
+  sectionSkipped?: boolean;
   children?: ResolvedChecklistItem[];
 }
 
@@ -296,10 +298,12 @@ interface ResolvedChecklistItem extends OnboardingChecklistItem {
  * rendering. The server is authoritative for each step's status; we
  * only attach UI copy + the action handler and group by phase.
  *
- * Visibility mirrors the previous behaviour: ``done``/``skipped`` rows
- * always show; an ``available`` row shows only when its action is wired
- * on this surface (so we never render a dead button); ``locked`` rows
- * are hidden until their dependencies open. A phase header renders only
+ * Visibility mirrors the previous behaviour except for section-level
+ * defers: ``done``/``skipped`` rows always show; an ``available`` row
+ * shows only when its action is wired on this surface (so we never
+ * render a dead button); ``locked`` rows are hidden until their
+ * dependencies open unless their whole section is deferred, in which
+ * case they render as disabled children. A phase header renders only
  * when it has at least one visible child, and resolves to done/skipped
  * by lifting its children's statuses.
  */
@@ -310,22 +314,26 @@ function buildVisibleChecklist(
   if (!render) return [];
 
   const leavesByPhase = new Map<string, ResolvedChecklistItem[]>();
+  const skippedPhases = new Set(render.skippedPhaseIds);
   for (const step of render.steps) {
+    const phaseSkipped = skippedPhases.has(step.phase);
     let status: 'pending' | 'done' | 'skipped';
     if (step.status === 'done') status = 'done';
     else if (step.status === 'skipped') status = 'skipped';
     else if (step.status === 'available') status = 'pending';
+    else if (phaseSkipped) status = 'pending';
     else continue; // locked — not yet reachable, hide it
 
     const presentation = STEP_PRESENTATION[step.id];
     const action = presentation?.action;
     // An available row with an action that isn't wired on this surface
     // can never be actioned here — hide it rather than show a dead row.
-    if (status === 'pending' && action && !isActionWired(action)) continue;
+    if (status === 'pending' && action && !isActionWired(action) && !phaseSkipped) continue;
 
     const leaf: ResolvedChecklistItem = {
       id: step.id,
       title: step.title,
+      phase: step.phase,
       description: presentation?.description,
       estimatedTime: presentation?.estimatedTime,
       action,
@@ -343,19 +351,22 @@ function buildVisibleChecklist(
   for (const phase of PHASE_PRESENTATION) {
     const children = leavesByPhase.get(phase.phase);
     if (!children?.length) continue;
+    const sectionSkipped = skippedPhases.has(phase.phase);
     const childrenAllDone = children.every((child) => child.status === 'done');
     const childrenAllResolved = children.every((child) => child.status !== 'pending');
     const childrenHaveSkipped = children.some((child) => child.status === 'skipped');
     const done = childrenAllDone;
-    const skipped = !done && childrenAllResolved && childrenHaveSkipped;
+    const skipped = sectionSkipped || (!done && childrenAllResolved && childrenHaveSkipped);
     result.push({
       id: phase.id,
       title: phase.title,
+      phase: phase.phase,
       phaseLabel: phase.phaseLabel,
       description: phase.description,
       done,
       skipped,
       status: done ? 'done' : skipped ? 'skipped' : 'pending',
+      sectionSkipped,
       children,
     });
   }
@@ -417,6 +428,7 @@ function findNextActionableId(
   canMarkLater: boolean
 ): string | null {
   for (const item of items) {
+    if (item.sectionSkipped) continue;
     if (item.children?.length) {
       const inner = findNextActionableId(item.children, isActionWired, canMarkLater);
       if (inner) return inner;
@@ -466,6 +478,8 @@ export interface CoordinatorOnboardingChecklistProps {
   onScheduleTask?: () => void;
   onSkipStep?: (stepId: string) => void;
   onUnskipStep?: (stepId: string) => void;
+  onSkipSection?: (phaseId: string) => void;
+  onUnskipSection?: (phaseId: string) => void;
   /** Whether the user is currently on a voice call (vs. chat).
    * Selects which "Act now" suggestion chips show: call-friendly
    * (spoken / interactive output) vs. chat-friendly (text output).
@@ -487,6 +501,8 @@ export function CoordinatorOnboardingChecklist({
   onScheduleTask,
   onSkipStep,
   onUnskipStep,
+  onSkipSection,
+  onUnskipSection,
   isOnCall = false,
   className,
 }: CoordinatorOnboardingChecklistProps) {
@@ -694,6 +710,8 @@ export function CoordinatorOnboardingChecklist({
             isOnCall={isOnCall}
             onSkipStep={onSkipStep}
             onUnskipStep={onUnskipStep}
+            onSkipSection={onSkipSection}
+            onUnskipSection={onUnskipSection}
             onResetStepProgress={resetStepProgress}
           />
         ))}
@@ -795,6 +813,7 @@ function SectionProgressDisclosure({ phases, isOpen, onToggle }: SectionProgress
 interface ChecklistRowProps {
   item: ResolvedChecklistItem;
   isChild?: boolean;
+  isInSkippedSection?: boolean;
   onAction: (action: ChecklistAction) => void;
   isActionWired: (action: ChecklistAction | undefined) => boolean;
   /** ID of the next leaf the user should tackle. Used to flag the
@@ -807,28 +826,53 @@ interface ChecklistRowProps {
   isOnCall: boolean;
   onSkipStep?: (stepId: string) => void;
   onUnskipStep?: (stepId: string) => void;
+  onSkipSection?: (phaseId: string) => void;
+  onUnskipSection?: (phaseId: string) => void;
   onResetStepProgress?: (stepIds: readonly string[]) => void;
 }
 
 function ChecklistRow({
   item,
   isChild = false,
+  isInSkippedSection = false,
   onAction,
   isActionWired,
   nextActionableId,
   isOnCall,
   onSkipStep,
   onUnskipStep,
+  onSkipSection,
+  onUnskipSection,
   onResetStepProgress,
 }: ChecklistRowProps) {
   const hasWiredAction = isActionWired(item.action);
   const isResolved = item.status !== 'pending';
   const isNext = nextActionableId === item.id;
-  const isActionable = hasWiredAction && !isResolved;
-  const canSkip = !!onSkipStep && item.canSkip !== false && !item.children?.length && !isResolved;
-  const canUnskip = !!onUnskipStep && !item.children?.length && item.status === 'skipped';
+  const sectionDisabled = isInSkippedSection || item.sectionSkipped === true;
+  const isActionable = hasWiredAction && !isResolved && !sectionDisabled;
+  const canSkip =
+    !!onSkipStep &&
+    item.canSkip !== false &&
+    !item.children?.length &&
+    !isResolved &&
+    !sectionDisabled;
+  const canUnskip =
+    !!onUnskipStep && !sectionDisabled && !item.children?.length && item.status === 'skipped';
+  const canSkipSection =
+    !isChild &&
+    !!item.children?.length &&
+    !!item.phase &&
+    !!onSkipSection &&
+    item.status === 'pending' &&
+    !item.sectionSkipped;
+  const canUnskipSection =
+    !isChild && !!item.phase && !!onUnskipSection && item.sectionSkipped === true;
   const canResetSection =
-    !isChild && !!item.children?.length && !!onResetStepProgress && hasResolvedLeaf(item);
+    !isChild &&
+    !!item.children?.length &&
+    !!onResetStepProgress &&
+    !item.sectionSkipped &&
+    hasResolvedLeaf(item);
   const resetStepIds = React.useMemo(() => collectVisibleLeafIds(item), [item]);
   // Whether the next actionable leaf sits somewhere inside this
   // row's subtree. Parents on the path to "Next" stay at full
@@ -845,7 +889,8 @@ function ChecklistRow({
   // (and isn't on the path leading to it). Alternative available rows
   // stay legible because independent sections can be started in any
   // order.
-  const dim = !isNext && !containsNext && item.status !== 'skipped' && !isActionable;
+  const dim =
+    sectionDisabled || (!isNext && !containsNext && item.status !== 'skipped' && !isActionable);
   const hasInfo = !!item.description || !!item.estimatedTime;
 
   const handleClick = React.useCallback(() => {
@@ -875,6 +920,22 @@ function ChecklistRow({
       onUnskipStep?.(item.id);
     },
     [item.id, onUnskipStep]
+  );
+
+  const handleSkipSectionClick = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      if (item.phase) onSkipSection?.(item.phase);
+    },
+    [item.phase, onSkipSection]
+  );
+
+  const handleUnskipSectionClick = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      if (item.phase) onUnskipSection?.(item.phase);
+    },
+    [item.phase, onUnskipSection]
   );
 
   const rowClassName = (variant: 'done' | 'skipped' | 'actionable' | 'static') =>
@@ -926,6 +987,36 @@ function ChecklistRow({
           'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         )}
         data-testid={`coordinator-onboarding-unskip-step-${item.id}`}
+      >
+        Do now
+      </button>
+    ) : null;
+
+  const renderSectionSkipButton = () =>
+    canSkipSection ? (
+      <button
+        type="button"
+        onClick={handleSkipSectionClick}
+        className={cn(
+          'text-caption rounded-control flex-shrink-0 px-1.5 py-0.5 text-muted-foreground',
+          'hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+        )}
+        data-testid={`coordinator-onboarding-skip-section-${item.id}`}
+      >
+        Later
+      </button>
+    ) : null;
+
+  const renderSectionUnskipButton = () =>
+    canUnskipSection ? (
+      <button
+        type="button"
+        onClick={handleUnskipSectionClick}
+        className={cn(
+          'text-caption rounded-control flex-shrink-0 px-1.5 py-0.5 font-medium text-primary',
+          'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+        )}
+        data-testid={`coordinator-onboarding-unskip-section-${item.id}`}
       >
         Do now
       </button>
@@ -1026,6 +1117,8 @@ function ChecklistRow({
       {renderInfoTooltip()}
       {renderSkipButton()}
       {renderUnskipButton()}
+      {renderSectionSkipButton()}
+      {renderSectionUnskipButton()}
     </div>
   );
 
@@ -1086,7 +1179,7 @@ function ChecklistRow({
       : item.id === 'schedule'
         ? SCHEDULE_SUGGESTED_WORKFLOWS
         : null;
-  const showSuggestions = !!suggestionsForItem && item.status === 'pending';
+  const showSuggestions = !!suggestionsForItem && item.status === 'pending' && !sectionDisabled;
 
   return (
     <li
@@ -1130,12 +1223,15 @@ function ChecklistRow({
               key={child.id}
               item={child}
               isChild
+              isInSkippedSection={item.sectionSkipped === true || isInSkippedSection}
               onAction={onAction}
               isActionWired={isActionWired}
               nextActionableId={nextActionableId}
               isOnCall={isOnCall}
               onSkipStep={onSkipStep}
               onUnskipStep={onUnskipStep}
+              onSkipSection={onSkipSection}
+              onUnskipSection={onUnskipSection}
               onResetStepProgress={onResetStepProgress}
             />
           ))}

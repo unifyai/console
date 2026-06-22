@@ -685,6 +685,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     },
     [markStepSkipped, markStepUnskipped, updateCoordinatorOnboardingState]
   );
+  const handleCoordinatorOnboardingSectionSkip = React.useCallback(
+    (phaseId: string) => {
+      void updateCoordinatorOnboardingState({ skipOnboardingPhase: phaseId });
+    },
+    [updateCoordinatorOnboardingState]
+  );
+  const handleCoordinatorOnboardingSectionUnskip = React.useCallback(
+    (phaseId: string) => {
+      void updateCoordinatorOnboardingState({ unskipOnboardingPhase: phaseId });
+    },
+    [updateCoordinatorOnboardingState]
+  );
   // Global defer toggle. Persists to the Coordinator/State row; the
   // optimistic React Query update in the hook flips the layout instantly,
   // and Orchestra suppresses every onboarding event the moment it lands.
@@ -1904,6 +1916,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onScheduleTask: () => handleCoordinatorOpenPaneTab('tasks', 'schedule'),
       onSkipStep: handleCoordinatorOnboardingStepSkip,
       onUnskipStep: handleCoordinatorOnboardingStepUnskip,
+      onSkipSection: handleCoordinatorOnboardingSectionSkip,
+      onUnskipSection: handleCoordinatorOnboardingSectionUnskip,
       onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
       // Flavours the "Ask Twin to do something" suggestion chips:
       // call-friendly prompts while on a voice call, chat-friendly
@@ -1937,6 +1951,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorOpenPaneTab,
     handleCoordinatorOnboardingStepSkip,
     handleCoordinatorOnboardingStepUnskip,
+    handleCoordinatorOnboardingSectionSkip,
+    handleCoordinatorOnboardingSectionUnskip,
     workspaceConnectAvailable,
   ]);
 

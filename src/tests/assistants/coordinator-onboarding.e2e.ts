@@ -153,6 +153,16 @@ function readPersistedOnboardingStep(coordinatorId: string | number): string {
   );
 }
 
+function readPersistedSkippedPhaseIds(coordinatorId: string | number): string {
+  return dbExec(
+    `SELECT le.data->'skipped_phase_ids' FROM log_event le ` +
+      `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
+      `JOIN context c ON c.id = lec.context_id ` +
+      `WHERE c.name = '${user.id}/${coordinatorId}/Coordinator/State' ` +
+      `ORDER BY le.id DESC LIMIT 1;`
+  );
+}
+
 function markCoordinatorStepsSkipped(coordinatorId: string | number, stepIds: readonly string[]) {
   const json = JSON.stringify(stepIds).replace(/'/g, "''");
   dbExec(
@@ -181,7 +191,7 @@ test('picker shows on first visit with no skip or resume affordance', async ({
 test('checklist allows independent sections to start out of order', async ({
   authedPage: page,
 }) => {
-  createPersonalCoordinator(user.id);
+  const coordinator = createPersonalCoordinator(user.id);
   resetCoordinatorIntroWatched();
 
   await gotoAssistants(page);
@@ -198,6 +208,34 @@ test('checklist allows independent sections to start out of order', async ({
   await expectChecklistItemClickable(page, 'act');
   await expect(page.getByTestId('coordinator-onboarding-item-apps')).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-item-schedule')).toHaveCount(0);
+
+  await page.getByTestId('coordinator-onboarding-skip-section-connect').click();
+  await expect(page.getByTestId('coordinator-onboarding-item-connect')).toHaveAttribute(
+    'data-status',
+    'skipped'
+  );
+  await expect(page.getByTestId('coordinator-onboarding-item-workspace')).not.toHaveAttribute(
+    'data-status',
+    'skipped'
+  );
+  await expect(page.getByTestId('coordinator-onboarding-item-apps')).toBeVisible();
+  await expect(page.getByTestId('coordinator-onboarding-item-apps')).not.toHaveAttribute(
+    'data-status',
+    'skipped'
+  );
+  await expect(page.getByTestId('coordinator-onboarding-skip-step-workspace')).toHaveCount(0);
+  await expect
+    .poll(() => readPersistedSkippedPhaseIds(coordinator.agentId), { timeout: 10_000 })
+    .toContain('Connect');
+
+  await page.getByTestId('coordinator-onboarding-unskip-section-connect').click();
+  await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveAttribute(
+    'role',
+    'button'
+  );
+  await expect
+    .poll(() => readPersistedSkippedPhaseIds(coordinator.agentId), { timeout: 10_000 })
+    .not.toContain('Connect');
 });
 
 test('picking chat lands in the full platform with the checklist in Assistant info', async ({

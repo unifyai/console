@@ -103,6 +103,8 @@ export interface AssistantInfoSidePanelContentProps {
     onScheduleTask?: () => void;
     onSkipStep?: (stepId: string) => void;
     onUnskipStep?: (stepId: string) => void;
+    onSkipSection?: (phaseId: string) => void;
+    onUnskipSection?: (phaseId: string) => void;
     /** Whether the Coordinator is currently on a voice call — selects
      * call- vs chat-flavoured "Ask Twin to do something" chips. */
     isOnCall?: boolean;
@@ -274,6 +276,8 @@ function CoordinatorAssistantInfoSidePanelContent({
                   onScheduleTask={coordinatorOnboarding.onScheduleTask}
                   onSkipStep={coordinatorOnboarding.onSkipStep}
                   onUnskipStep={coordinatorOnboarding.onUnskipStep}
+                  onSkipSection={coordinatorOnboarding.onSkipSection}
+                  onUnskipSection={coordinatorOnboarding.onUnskipSection}
                   isOnCall={coordinatorOnboarding.isOnCall}
                 />
               </TabsContent>
