@@ -9,6 +9,7 @@ import TurnstileWidget, { TurnstileWidgetHandle } from '@/components/Common/Auth
 import PasswordStrengthIndicator from '@/components/Common/Auth/PasswordStrengthIndicator';
 import { getPasswordError } from '@/lib/auth/password';
 import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
+import { selfHostSignInByEmail } from '@/lib/self-host/actions';
 import VerificationCodeInput from './VerificationCodeInput';
 import ForgotPasswordForm from './ForgotPasswordForm';
 
@@ -43,6 +44,15 @@ function sameOriginRedirect(callbackUrl: string | undefined): string {
     return `${origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
     return `${origin}/`;
+  }
+}
+
+function clearSelfHostAutoLoginSuppression(selfHost: boolean): void {
+  if (!selfHost) return;
+  try {
+    sessionStorage.removeItem('sh_suppress_autologin');
+  } catch {
+    // sessionStorage may be unavailable in some contexts.
   }
 }
 
@@ -133,7 +143,10 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
       const data = await res.json();
 
       if (!res.ok) {
-        if (data.providers?.length && !data.providers.includes('email')) {
+        if (selfHost && data.error === 'email_exists') {
+          setView('login');
+          setError('This local account already exists. Sign in to continue.');
+        } else if (data.providers?.length && !data.providers.includes('email')) {
           setError(formatProviderError(data.providers));
         } else {
           setError(data.message || data.detail || 'Registration failed');
@@ -174,6 +187,7 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
           return;
         }
 
+        clearSelfHostAutoLoginSuppression(selfHost);
         await triggerSelfHostCoordinatorStart(selfHost);
         window.location.href = sameOriginRedirect(callbackUrl);
         return;
@@ -196,6 +210,24 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
     setIsLoading(true);
 
     try {
+      if (selfHost) {
+        const result = await selfHostSignInByEmail(email);
+        if (!result.ok) {
+          setError(
+            result.reason === 'no_account'
+              ? 'No local account exists for this email. Create one to continue.'
+              : 'Sign-in failed. Please try again.'
+          );
+          setIsLoading(false);
+          return;
+        }
+
+        clearSelfHostAutoLoginSuppression(true);
+        await triggerSelfHostCoordinatorStart(true);
+        window.location.href = sameOriginRedirect(callbackUrl);
+        return;
+      }
+
       // Pre-validate via Orchestra for specific error messages
       const preRes = await fetch('/api/auth/email/authenticate', {
         method: 'POST',
@@ -492,44 +524,39 @@ const EmailLoginForm = ({ callbackUrl, externalError }: EmailLoginFormProps) => 
         </Button>
       </form>
 
-      {/* Self-host is single-owner and signs in automatically after the first
-          account is created, so the sign-in/create toggle is hidden — the user
-          only ever creates their account once. */}
-      {!selfHost && (
-        <div className="text-caption text-center text-muted-foreground">
-          {isRegister ? (
-            <>
-              Already have an account?{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setView('login');
-                  setError(undefined);
-                }}
-                className="font-semibold text-foreground underline underline-offset-2 transition-colors hover:text-primary"
-                data-testid="switch-to-login"
-              >
-                Sign in
-              </button>
-            </>
-          ) : (
-            <>
-              Don&apos;t have an account?{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setView('register');
-                  setError(undefined);
-                }}
-                className="font-semibold text-foreground underline underline-offset-2 transition-colors hover:text-primary"
-                data-testid="switch-to-register"
-              >
-                Create one
-              </button>
-            </>
-          )}
-        </div>
-      )}
+      <div className="text-caption text-center text-muted-foreground">
+        {isRegister ? (
+          <>
+            Already have an account?{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setView('login');
+                setError(undefined);
+              }}
+              className="font-semibold text-foreground underline underline-offset-2 transition-colors hover:text-primary"
+              data-testid="switch-to-login"
+            >
+              Sign in
+            </button>
+          </>
+        ) : (
+          <>
+            Don&apos;t have an account?{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setView('register');
+                setError(undefined);
+              }}
+              className="font-semibold text-foreground underline underline-offset-2 transition-colors hover:text-primary"
+              data-testid="switch-to-register"
+            >
+              Create one
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 };

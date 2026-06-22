@@ -72,7 +72,7 @@ const LoginFragment = ({
             </h1>
             <p className="mx-auto max-w-[34rem] text-[15px] leading-6 text-muted-foreground">
               {env.isSelfHost
-                ? 'No prompting, no setup, no jargon. Create your account and hop on a call with the teammate who takes tedious work off your plate.'
+                ? 'No prompting, no setup, no jargon. Create or sign in to your local account and hop on a call with the teammate who takes tedious work off your plate.'
                 : 'No prompting, no setup, no jargon. Sign in and hop on a call with the teammate who takes tedious work off your plate.'}
             </p>
           </div>

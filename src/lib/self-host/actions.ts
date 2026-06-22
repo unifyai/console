@@ -15,7 +15,7 @@ import { encode } from 'next-auth/jwt';
 import { OrchestraAdminClient } from '@/lib/orchestra/orchestra-client';
 import { snakeToCamelObject } from '@/utils/casing';
 import { isSelfHost } from '@/lib/environment/environment';
-import { readSelfHostOwner, clearSelfHostOwner } from '@/lib/self-host/owner';
+import { readSelfHostOwner, writeSelfHostOwner, clearSelfHostOwner } from '@/lib/self-host/owner';
 
 // Mirrors the cookie naming in app/api/auth/[...nextauth]/options.tsx.
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false;
@@ -30,6 +30,52 @@ export interface SelfHostAutoLoginResult {
   reason?: 'not_self_host' | 'no_secret' | 'no_account' | 'stale' | 'lookup_failed';
 }
 
+export interface SelfHostSignInResult {
+  ok: boolean;
+  reason?: 'not_self_host' | 'no_secret' | 'invalid_email' | 'no_account' | 'lookup_failed';
+}
+
+interface SelfHostUser {
+  id: string;
+  email: string;
+  name: string | null;
+  image: string | null;
+}
+
+async function lookupSelfHostUserByEmail(email: string): Promise<SelfHostUser | null> {
+  const response = await OrchestraAdminClient.get('/user/by-email', {
+    params: { email },
+  });
+
+  if (!response.data) return null;
+
+  return snakeToCamelObject<SelfHostUser>(response.data as Record<string, unknown>);
+}
+
+async function mintSelfHostSession(user: SelfHostUser, secret: string): Promise<void> {
+  const token = await encode({
+    token: {
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+      picture: user.image ?? null,
+      provider: 'credentials',
+      iat: Math.floor(Date.now() / 1000),
+    },
+    secret,
+    maxAge: SELF_HOST_SESSION_MAX_AGE,
+  });
+
+  const cookieStore = await cookies();
+  cookieStore.set(cookieName, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    secure: useSecureCookies,
+    maxAge: SELF_HOST_SESSION_MAX_AGE,
+  });
+}
+
 export async function selfHostAutoLogin(): Promise<SelfHostAutoLoginResult> {
   if (!isSelfHost()) return { ok: false, reason: 'not_self_host' };
 
@@ -40,45 +86,15 @@ export async function selfHostAutoLogin(): Promise<SelfHostAutoLoginResult> {
   if (!owner) return { ok: false, reason: 'no_account' };
 
   try {
-    const response = await OrchestraAdminClient.get('/user/by-email', {
-      params: { email: owner.email },
-    });
-
-    if (!response.data) {
+    const user = await lookupSelfHostUserByEmail(owner.email);
+    if (!user) {
       // Owner pointer is stale (e.g. local DB was reset) — drop it so the user
       // lands on the create-account screen instead of an infinite retry.
       clearSelfHostOwner();
       return { ok: false, reason: 'stale' };
     }
 
-    const user = snakeToCamelObject<{
-      id: string;
-      email: string;
-      name: string;
-      image: string | null;
-    }>(response.data as Record<string, unknown>);
-
-    const token = await encode({
-      token: {
-        sub: user.id,
-        email: user.email,
-        name: user.name,
-        picture: user.image ?? null,
-        provider: 'credentials',
-        iat: Math.floor(Date.now() / 1000),
-      },
-      secret,
-      maxAge: SELF_HOST_SESSION_MAX_AGE,
-    });
-
-    const cookieStore = await cookies();
-    cookieStore.set(cookieName, token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      path: '/',
-      secure: useSecureCookies,
-      maxAge: SELF_HOST_SESSION_MAX_AGE,
-    });
+    await mintSelfHostSession(user, secret);
 
     return { ok: true };
   } catch (err: unknown) {
@@ -88,6 +104,28 @@ export async function selfHostAutoLogin(): Promise<SelfHostAutoLoginResult> {
     if (status === 404) {
       clearSelfHostOwner();
     }
+    return { ok: false, reason: 'lookup_failed' };
+  }
+}
+
+export async function selfHostSignInByEmail(email: string): Promise<SelfHostSignInResult> {
+  if (!isSelfHost()) return { ok: false, reason: 'not_self_host' };
+
+  const secret = process.env.JWT_SECRET;
+  if (!secret) return { ok: false, reason: 'no_secret' };
+
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail) return { ok: false, reason: 'invalid_email' };
+
+  try {
+    const user = await lookupSelfHostUserByEmail(normalizedEmail);
+    if (!user) return { ok: false, reason: 'no_account' };
+
+    writeSelfHostOwner({ userId: user.id, email: user.email, name: user.name ?? null });
+    await mintSelfHostSession(user, secret);
+
+    return { ok: true };
+  } catch {
     return { ok: false, reason: 'lookup_failed' };
   }
 }
