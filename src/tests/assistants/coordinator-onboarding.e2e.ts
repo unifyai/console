@@ -124,8 +124,10 @@ async function expectChecklistItemNotDimmed(page: Page, stepId: string) {
 }
 
 async function selectCoordinatorOnboardingSection(page: Page, sectionId: string) {
-  await page.getByTestId('coordinator-onboarding-progress-toggle').click();
-  await page.getByTestId(`coordinator-onboarding-progress-phase-${sectionId}-select`).click();
+  const toggle = page.getByTestId(`coordinator-onboarding-section-${sectionId}-toggle`);
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+    await toggle.click();
+  }
 }
 
 /**
@@ -216,6 +218,7 @@ test('checklist allows independent sections to start out of order', async ({
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
 
   await openOnboardingChecklist(page);
+  await selectCoordinatorOnboardingSection(page, 'comms');
   await expect(
     page.getByTestId('coordinator-onboarding-item-email-reference').first()
   ).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
@@ -302,20 +305,16 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   // The onboarding checklist now lives in the Coordinator's "Assistant
   // info" panel, seeded from the server-derived snapshot.
   await openOnboardingChecklist(page);
-  await expect(page.getByTestId('coordinator-onboarding-progress-summary')).toHaveText(
+  await expect(page.getByTestId('coordinator-onboarding-section-comms-toggle')).toHaveText(
     /1\. Guess the reference/
   );
-  await expect(page.getByTestId('coordinator-onboarding-progress-phase-meet')).toHaveCount(0);
-  await expect(page.getByTestId('coordinator-onboarding-progress-phase-comms')).toHaveCount(0);
-  await page.getByTestId('coordinator-onboarding-progress-toggle').click();
-  await expect(page.getByTestId('coordinator-onboarding-progress-phase-comms')).toBeVisible();
-  await expect(page.getByTestId('coordinator-onboarding-progress-phase-connect')).toBeVisible();
-  await expect(page.getByTestId('coordinator-onboarding-progress-phase-work')).toBeVisible();
-  await expect(page.getByTestId('coordinator-onboarding-progress-phase-connect')).toHaveAttribute(
-    'data-phase-completed',
-    '0'
+  await expect(page.getByTestId('coordinator-onboarding-section-connect-toggle')).toHaveText(
+    /2\. Connect me/
   );
-  await page.getByTestId('coordinator-onboarding-progress-phase-connect-select').click();
+  await expect(page.getByTestId('coordinator-onboarding-section-work-toggle')).toHaveText(
+    /3\. Get work done/
+  );
+  await selectCoordinatorOnboardingSection(page, 'connect');
   await expectChecklistItemClickable(page, 'apps');
   await expect(page.getByTestId('coordinator-onboarding-item-email-reference')).toHaveCount(0);
   await selectCoordinatorOnboardingSection(page, 'work');
