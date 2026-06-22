@@ -21,7 +21,7 @@ import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
 
 export type CoordinatorMode = 'onboarding' | 'working';
 
-export type OnboardingStepStatus = 'done' | 'skipped' | 'available' | 'locked';
+export type OnboardingStepStatus = 'done' | 'skipped' | 'available' | 'locked' | 'coming_soon';
 
 /** A read-only suggestion chip shown under the act/schedule rows. */
 export interface OnboardingChip {
@@ -173,6 +173,7 @@ const ONBOARDING_STEP_STATUSES: ReadonlySet<string> = new Set([
   'skipped',
   'available',
   'locked',
+  'coming_soon',
 ]);
 
 function normalizeChip(value: unknown): OnboardingChip | null {

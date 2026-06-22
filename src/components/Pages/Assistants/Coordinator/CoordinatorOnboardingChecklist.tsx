@@ -96,7 +96,7 @@ interface OnboardingChecklistItem {
    * progress bar — same accounting model as the per-assistant setup
    * roadmap. */
   children?: OnboardingChecklistItem[];
-  /** Whether the row can be deferred with the inline Later affordance. */
+  /** Whether the row can be skipped with the inline Skip affordance. */
   canSkip?: boolean;
 }
 
@@ -164,7 +164,7 @@ function buildVisibleChecklist(
   const skippedPhases = new Set(render.skippedPhaseIds);
   for (const step of render.steps) {
     const phaseSkipped = skippedPhases.has(step.phase);
-    const locked = step.status === 'locked';
+    const locked = step.status === 'locked' || step.status === 'coming_soon';
     let status: 'pending' | 'done' | 'skipped';
     if (step.status === 'done') status = 'done';
     else if (step.status === 'skipped') status = 'skipped';
@@ -201,14 +201,16 @@ function buildVisibleChecklist(
 
   const result: ResolvedChecklistItem[] = [];
   for (const phase of render.phases) {
-    const children = leavesByPhase.get(phase.phase);
-    if (!children?.length) continue;
+    const children = leavesByPhase.get(phase.phase) ?? [];
     const sectionSkipped = skippedPhases.has(phase.phase);
-    const childrenAllDone = children.every((child) => child.status === 'done');
-    const childrenAllResolved = children.every((child) => child.status !== 'pending');
+    const hasChildren = children.length > 0;
+    const childrenAllDone = hasChildren && children.every((child) => child.status === 'done');
+    const childrenAllResolved =
+      hasChildren && children.every((child) => child.status !== 'pending');
     const childrenHaveSkipped = children.some((child) => child.status === 'skipped');
     const done = childrenAllDone;
-    const skipped = sectionSkipped || (!done && childrenAllResolved && childrenHaveSkipped);
+    const skipped =
+      sectionSkipped || (hasChildren && !done && childrenAllResolved && childrenHaveSkipped);
     result.push({
       id: phase.id,
       title: phase.title,
@@ -251,6 +253,11 @@ function hasActionableLeaf(
     );
   }
   return item.children.some((child) => hasActionableLeaf(child, isActionWired, sectionDisabled));
+}
+
+function containsLeafId(item: ResolvedChecklistItem, leafId: string): boolean {
+  if (!item.children?.length) return item.id === leafId;
+  return item.children.some((child) => containsLeafId(child, leafId));
 }
 
 /**
@@ -350,6 +357,7 @@ export function CoordinatorOnboardingChecklist({
   const resumeOnboarding = ctx?.resumeOnboarding;
   const onboarding = ctx?.onboarding ?? null;
   const [openSectionIds, setOpenSectionIds] = React.useState<ReadonlySet<string>>(() => new Set());
+  const didInitializeOpenSectionRef = React.useRef(false);
 
   const handleAction = React.useCallback(
     (action: ChecklistAction) => {
@@ -479,6 +487,15 @@ export function CoordinatorOnboardingChecklist({
     });
   }, [resolved]);
 
+  React.useEffect(() => {
+    if (didInitializeOpenSectionRef.current || !resolved.length) return;
+    const defaultSection = nextActionableId
+      ? resolved.find((section) => containsLeafId(section, nextActionableId))
+      : null;
+    setOpenSectionIds(new Set([defaultSection?.id ?? resolved[0].id]));
+    didInitializeOpenSectionRef.current = true;
+  }, [nextActionableId, resolved]);
+
   const toggleSection = React.useCallback((sectionId: string) => {
     setOpenSectionIds((current) => {
       const next = new Set(current);
@@ -534,7 +551,7 @@ export function CoordinatorOnboardingChecklist({
       >
         {resolved.map((section, index) => {
           const isOpen = openSectionIds.has(section.id);
-          const sectionItems = section.children?.length ? section.children : [section];
+          const sectionItems = section.children ?? [];
           const canSkipSection =
             !!section.phase &&
             !!onSkipSection &&
@@ -552,14 +569,14 @@ export function CoordinatorOnboardingChecklist({
                 sectionAction={
                   canUnskipSection
                     ? {
-                        label: 'Do now',
+                        label: 'Unskip',
                         testId: `coordinator-onboarding-unskip-section-${section.id}`,
                         variant: 'primary',
                         onClick: () => onUnskipSection?.(section.phase!),
                       }
                     : canSkipSection
                       ? {
-                          label: 'Later',
+                          label: 'Skip',
                           testId: `coordinator-onboarding-skip-section-${section.id}`,
                           variant: 'muted',
                           onClick: () => onSkipSection?.(section.phase!),
@@ -632,7 +649,7 @@ function SectionHeader({ section, index, isOpen, onToggle, sectionAction }: Sect
     <div
       className={cn(
         CHECKLIST_CONTROL_GRID_CLASS,
-        'rounded-control items-center py-2 text-left',
+        'group/onboarding-section rounded-control items-center py-2 text-left',
         'bg-muted/40 hover:bg-muted/70 transition-colors'
       )}
       data-testid={`coordinator-onboarding-section-${section.id}`}
@@ -651,7 +668,7 @@ function SectionHeader({ section, index, isOpen, onToggle, sectionAction }: Sect
           type="button"
           onClick={sectionAction.onClick}
           className={cn(
-            'text-caption rounded-control justify-self-center whitespace-nowrap px-1.5 py-0.5',
+            'text-caption rounded-control justify-self-center whitespace-nowrap px-1.5 py-0.5 opacity-0 transition-opacity group-hover/onboarding-section:opacity-100',
             sectionAction.variant === 'primary'
               ? 'hover:bg-primary/10 font-medium text-primary'
               : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -769,7 +786,7 @@ function ChecklistRow({
   const unresolvedDependencies =
     item.dependencies?.filter((dependency) => !dependency.satisfied) ?? [];
   const hasDependencyInfo = item.locked && unresolvedDependencies.length > 0;
-  const hasInfo = !!item.description || !!item.estimatedTime || hasDependencyInfo;
+  const hasInfo = !!item.description || !!item.estimatedTime;
 
   const handleClick = React.useCallback(() => {
     if (item.action) onAction(item.action);
@@ -819,7 +836,7 @@ function ChecklistRow({
   const rowClassName = (variant: 'done' | 'skipped' | 'actionable' | 'static') =>
     cn(
       CHECKLIST_CONTROL_GRID_CLASS,
-      'items-start rounded-md py-1',
+      'group/onboarding-row items-start rounded-md py-1',
       variant === 'actionable' && 'cursor-pointer hover:bg-muted/50'
     );
 
@@ -843,10 +860,7 @@ function ChecklistRow({
         <p className="font-medium text-foreground">Depends on:</p>
         <ul className="mt-1 list-disc space-y-0.5 pl-4">
           {unresolvedDependencies.map((dependency) => (
-            <li key={dependency.id}>
-              {dependency.resolution === 'completed' ? 'Complete' : 'Complete or skip'} "
-              {dependency.title}" first.
-            </li>
+            <li key={dependency.id}>{dependency.title}</li>
           ))}
         </ul>
       </div>
@@ -891,12 +905,12 @@ function ChecklistRow({
         type="button"
         onClick={handleSkipClick}
         className={cn(
-          'text-caption rounded-control flex h-6 flex-shrink-0 items-center px-1.5 text-muted-foreground',
+          'text-caption rounded-control flex h-6 flex-shrink-0 items-center px-1.5 text-muted-foreground opacity-0 transition-opacity group-hover/onboarding-row:opacity-100',
           'hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         )}
         data-testid={`coordinator-onboarding-skip-step-${item.id}`}
       >
-        Later
+        Skip
       </button>
     ) : null;
 
@@ -906,12 +920,12 @@ function ChecklistRow({
         type="button"
         onClick={handleUnskipClick}
         className={cn(
-          'text-caption rounded-control flex h-6 flex-shrink-0 items-center px-1.5 font-medium text-primary',
+          'text-caption rounded-control flex h-6 flex-shrink-0 items-center px-1.5 font-medium text-primary opacity-0 transition-opacity group-hover/onboarding-row:opacity-100',
           'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         )}
         data-testid={`coordinator-onboarding-unskip-step-${item.id}`}
       >
-        Do now
+        Unskip
       </button>
     ) : null;
 
@@ -921,12 +935,12 @@ function ChecklistRow({
         type="button"
         onClick={handleSkipSectionClick}
         className={cn(
-          'text-caption rounded-control flex h-6 flex-shrink-0 items-center px-1.5 text-muted-foreground',
+          'text-caption rounded-control flex h-6 flex-shrink-0 items-center px-1.5 text-muted-foreground opacity-0 transition-opacity group-hover/onboarding-row:opacity-100',
           'hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         )}
         data-testid={`coordinator-onboarding-skip-section-${item.id}`}
       >
-        Later
+        Skip
       </button>
     ) : null;
 
@@ -936,12 +950,12 @@ function ChecklistRow({
         type="button"
         onClick={handleUnskipSectionClick}
         className={cn(
-          'text-caption rounded-control flex h-6 flex-shrink-0 items-center px-1.5 font-medium text-primary',
+          'text-caption rounded-control flex h-6 flex-shrink-0 items-center px-1.5 font-medium text-primary opacity-0 transition-opacity group-hover/onboarding-row:opacity-100',
           'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         )}
         data-testid={`coordinator-onboarding-unskip-section-${item.id}`}
       >
-        Do now
+        Unskip
       </button>
     ) : null;
 
@@ -1018,7 +1032,6 @@ function ChecklistRow({
                   ) : null}
                 </p>
               ) : null}
-              {hasDependencyInfo ? renderDependencyInfo() : null}
             </div>
           </TooltipContent>
         </Tooltip>
@@ -1161,22 +1174,22 @@ function ChecklistMarker({ status }: { status: 'pending' | 'done' | 'skipped' })
         : 'border-muted-foreground/40 bg-transparent'
   );
 
-  // Skipped rows mark the box with an "L" (for "Later"). The glyph
+  // Skipped rows mark the box with an "S" (for "Skip"). The glyph
   // alone is opaque, so the box doubles as a tooltip trigger that
-  // spells out "Later" on hover/focus.
+  // spells out "Skipped" on hover/focus.
   if (status === 'skipped') {
     return (
       <TooltipProvider delayDuration={150}>
         <Tooltip>
           <TooltipTrigger asChild>
-            <span tabIndex={0} aria-label="Later" className={markerClasses}>
+            <span tabIndex={0} aria-label="Skipped" className={markerClasses}>
               <span aria-hidden="true" className="text-caption font-semibold leading-none">
-                L
+                S
               </span>
             </span>
           </TooltipTrigger>
           <TooltipContent side="left">
-            <p className="text-caption">Later</p>
+            <p className="text-caption">Skipped</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
