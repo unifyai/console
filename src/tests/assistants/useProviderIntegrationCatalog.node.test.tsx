@@ -307,6 +307,54 @@ describe('useProviderIntegrationCatalog', () => {
     expect(filterExpr).not.toContain('source_label.lower()');
   });
 
+  it('pins connected apps under the All filter even when off the browse page', async () => {
+    vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/logs/count')) {
+        return new Response(JSON.stringify({ canonical_app_slug: 250 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.startsWith('/api/logs?')) {
+        const params = new URL(url, window.location.origin).searchParams;
+        // The pinned connected/needs-attention fetch carries a status filter;
+        // the unfiltered browse page does not include the connected app.
+        if (params.get('filterExpr')) {
+          return builtinsLogsResponse([providerApp('gmail', { display_name: 'Gmail' })], 1);
+        }
+        return builtinsLogsResponse(
+          Array.from({ length: 3 }, (_, index) => providerApp(`app_${index}`)),
+          3
+        );
+      }
+      if (url.startsWith('/api/integrations/provider/connections')) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: 'conn-gmail',
+              connection_id: 'conn-gmail',
+              canonical_app_slug: 'gmail',
+              status: 'connected',
+            },
+          ]),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response('{}', { status: 404 });
+    });
+
+    const { result } = renderHook(() => useProviderIntegrationCatalog('123'));
+
+    await waitFor(() =>
+      expect(result.current.definitions.some((d) => d.canonicalSlug === 'gmail')).toBe(true)
+    );
+    expect(result.current.definitions.find((d) => d.canonicalSlug === 'gmail')?.status).toBe(
+      'connected'
+    );
+    expect(result.current.definitions.some((d) => d.canonicalSlug === 'app_0')).toBe(true);
+  });
+
   it('fetches deferred details with tools from Builtins logs', async () => {
     const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
       const url = String(input);

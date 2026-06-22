@@ -159,6 +159,13 @@ export function IntegrationGalleryShell({
     () => filteredItems.filter((item) => !isConnectedItem(item) && !isNeedsAttentionItem(item)),
     [filteredItems]
   );
+  // Under "All", connected and needs-attention apps share a single card pinned
+  // above the browsable catalog. The dedicated status filters keep them split.
+  const showCombinedPinned = filters.status === 'all';
+  const pinnedItems = React.useMemo(
+    () => [...connectedItems, ...needsAttentionItems],
+    [connectedItems, needsAttentionItems]
+  );
   const isInitialLoading = Boolean(isLoading && items.length === 0);
   const hasConnectedSection = connectedItems.length > 0;
   const hasNeedsAttentionSection = needsAttentionItems.length > 0;
@@ -320,59 +327,111 @@ export function IntegrationGalleryShell({
             </div>
           ) : (
             <>
-              {hasConnectedSection && (
-                <section className="space-y-3" data-testid="connected-integrations-section">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-title text-base">Connected apps</h3>
-                      <p className="text-caption">Apps ready for your assistant to use.</p>
+              {showCombinedPinned ? (
+                pinnedItems.length > 0 && (
+                  <section className="space-y-3" data-testid="connected-integrations-section">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-title text-base">Connected apps</h3>
+                        <p className="text-caption">
+                          Apps connected or needing attention, ready for your assistant.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {hasConnectedSection && (
+                          <Badge
+                            variant="outline"
+                            className="text-success rounded-full bg-background"
+                          >
+                            {connectedItems.length} connected
+                          </Badge>
+                        )}
+                        {hasNeedsAttentionSection && (
+                          <Badge
+                            variant="outline"
+                            className="rounded-full bg-background text-[color:var(--status-warning)]"
+                          >
+                            {needsAttentionItems.length} need attention
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                    <Badge variant="outline" className="text-success rounded-full bg-background">
-                      {connectedItems.length} connected
-                    </Badge>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                    {connectedItems.map((item) => (
-                      <ProviderIntegrationCard
-                        key={`${item.source}:${item.id}`}
-                        item={item}
-                        busy={busySlug === item.canonicalSlug}
-                        onOpen={onOpen}
-                        onPrimaryAction={onPrimaryAction}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                      {pinnedItems.map((item) => (
+                        <ProviderIntegrationCard
+                          key={`${item.source}:${item.id}`}
+                          item={item}
+                          busy={busySlug === item.canonicalSlug}
+                          onOpen={onOpen}
+                          onPrimaryAction={onPrimaryAction}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )
+              ) : (
+                <>
+                  {hasConnectedSection && (
+                    <section className="space-y-3" data-testid="connected-integrations-section">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-title text-base">Connected apps</h3>
+                          <p className="text-caption">Apps ready for your assistant to use.</p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="text-success rounded-full bg-background"
+                        >
+                          {connectedItems.length} connected
+                        </Badge>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                        {connectedItems.map((item) => (
+                          <ProviderIntegrationCard
+                            key={`${item.source}:${item.id}`}
+                            item={item}
+                            busy={busySlug === item.canonicalSlug}
+                            onOpen={onOpen}
+                            onPrimaryAction={onPrimaryAction}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
 
-              {hasNeedsAttentionSection && (
-                <section className="space-y-3" data-testid="needs-attention-integrations-section">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-title text-base">Needs attention</h3>
-                      <p className="text-caption">
-                        Apps that need a reconnect or configuration update.
-                      </p>
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className="rounded-full bg-background text-[color:var(--status-warning)]"
+                  {hasNeedsAttentionSection && (
+                    <section
+                      className="space-y-3"
+                      data-testid="needs-attention-integrations-section"
                     >
-                      {needsAttentionItems.length} need attention
-                    </Badge>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                    {needsAttentionItems.map((item) => (
-                      <ProviderIntegrationCard
-                        key={`${item.source}:${item.id}`}
-                        item={item}
-                        busy={busySlug === item.canonicalSlug}
-                        onOpen={onOpen}
-                        onPrimaryAction={onPrimaryAction}
-                      />
-                    ))}
-                  </div>
-                </section>
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-title text-base">Needs attention</h3>
+                          <p className="text-caption">
+                            Apps that need a reconnect or configuration update.
+                          </p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="rounded-full bg-background text-[color:var(--status-warning)]"
+                        >
+                          {needsAttentionItems.length} need attention
+                        </Badge>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                        {needsAttentionItems.map((item) => (
+                          <ProviderIntegrationCard
+                            key={`${item.source}:${item.id}`}
+                            item={item}
+                            busy={busySlug === item.canonicalSlug}
+                            onOpen={onOpen}
+                            onPrimaryAction={onPrimaryAction}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
               )}
 
               {hasBrowsableSection && (

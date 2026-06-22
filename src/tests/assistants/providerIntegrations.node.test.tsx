@@ -314,15 +314,23 @@ describe('provider integrations gallery model', () => {
       />
     );
 
-    const attentionSection = screen.getByTestId('needs-attention-integrations-section');
+    // Under "All", connected and needs-attention apps share one pinned card.
+    const pinnedSection = screen.getByTestId('connected-integrations-section');
     const availableSection = screen.getByTestId('available-integrations-section');
-    expect(attentionSection).toBeInTheDocument();
-    expect(screen.getByTestId('provider-integration-card-attention-app')).toBeInTheDocument();
+    expect(pinnedSection).toBeInTheDocument();
+    expect(screen.queryByTestId('needs-attention-integrations-section')).not.toBeInTheDocument();
+    expect(pinnedSection).toContainElement(
+      screen.getByTestId('provider-integration-card-attention-app')
+    );
+    expect(pinnedSection).toContainElement(
+      screen.getByTestId('provider-integration-card-connected-app')
+    );
+    expect(screen.getByText('1 connected')).toBeInTheDocument();
     expect(screen.getByText('1 need attention')).toBeInTheDocument();
     expect(screen.getByText(/Showing 4 of 7 available apps/)).toBeInTheDocument();
     expect(screen.getByText('7 available')).toBeInTheDocument();
     expect(
-      attentionSection.compareDocumentPosition(availableSection) & Node.DOCUMENT_POSITION_FOLLOWING
+      pinnedSection.compareDocumentPosition(availableSection) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
   });
 
