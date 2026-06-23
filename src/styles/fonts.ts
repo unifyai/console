@@ -1,30 +1,17 @@
-import { Instrument_Serif, Inter, Roboto_Mono, Space_Grotesk } from 'next/font/google';
-
-export const fontSans = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-sans',
-  weight: ['400', '500', '600', '700'],
-});
-
-export const fontSpaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-space-grotesk',
-  weight: ['400', '500', '600', '700'],
-});
-
-export const fontMono = Roboto_Mono({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-mono',
-  weight: ['400', '500', '600', '700'],
-});
-
-export const fontSerif = Instrument_Serif({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-serif',
-  weight: ['400'],
-  style: ['normal', 'italic'],
-});
+/**
+ * Canonical brand fonts, sourced from `@droid/brand/fonts` (local font files).
+ *
+ * The brand package exposes the fonts under their own CSS variable names
+ * (`--font-inter`, `--font-space-grotesk`, `--font-roboto-mono`,
+ * `--font-instrument-serif`). Console references `--font-sans`, `--font-mono`,
+ * and `--font-serif`; those are aliased to the brand variables in
+ * `globals.css`. The names below are kept stable so existing importers
+ * (`layout.tsx`, `Scaffold.tsx`) continue to work unchanged.
+ */
+export {
+  inter as fontSans,
+  spaceGrotesk as fontSpaceGrotesk,
+  robotoMono as fontMono,
+  instrumentSerif as fontSerif,
+  brandFontVariables,
+} from '@droid/brand/fonts';
