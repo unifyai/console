@@ -94,7 +94,6 @@ import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { createRandomDroidProfile } from '@/utils/assistants/droid-profile-randomizer';
 import {
-  coordinatorTriggerStepForReplyStep,
   dispatchCoordinatorOnboardingStepEvent,
   replyStepForCoordinatorTriggerStep,
 } from '@/utils/assistants/coordinator-reference-quiz';
@@ -1751,11 +1750,11 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           if (!event) return;
 
           const replyStepId = replyStepForCoordinatorTriggerStep(step);
-          markStepCompleted(step.id);
           if (replyStepId) {
             markStepEngaged(replyStepId);
             void updateCoordinatorOnboardingState({ onboardingStep: replyStepId });
           }
+          void refetchCoordinatorOnboardingState();
         } catch (error) {
           console.error('[Coordinator onboarding] Failed to dispatch onboarding event:', error);
           toast.error('Could not start this task. Please try again.');
@@ -1765,8 +1764,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     [
       canonicalCoordinator,
       coordinatorOnboardingState?.onboarding?.steps,
-      markStepCompleted,
       markStepEngaged,
+      refetchCoordinatorOnboardingState,
       updateCoordinatorOnboardingState,
     ]
   );
@@ -2009,36 +2008,20 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // freely.
   const serverCompletedStepIds = coordinatorOnboardingState?.completedStepIds;
   const serverSkippedStepIds = coordinatorOnboardingState?.skippedStepIds;
-  const onboardingSteps = React.useMemo(
-    () => coordinatorOnboardingState?.onboarding?.steps ?? [],
-    [coordinatorOnboardingState?.onboarding?.steps]
-  );
   const hasAccessibleCoordinatorOnboardingTargets =
     (coordinatorOnboardingState?.onboarding?.nextTargets.length ?? 0) > 0;
   React.useEffect(() => {
     if (!serverCompletedStepIds) return;
     for (const stepId of serverCompletedStepIds) {
       seedStepCompleted(stepId);
-      const triggerStepId = coordinatorTriggerStepForReplyStep(stepId, onboardingSteps);
-      if (triggerStepId) seedStepCompleted(triggerStepId);
     }
-  }, [onboardingSteps, serverCompletedStepIds, seedStepCompleted]);
+  }, [serverCompletedStepIds, seedStepCompleted]);
   React.useEffect(() => {
     if (!serverSkippedStepIds) return;
     for (const stepId of serverSkippedStepIds) {
       seedStepSkipped(stepId);
-      const triggerStepId = coordinatorTriggerStepForReplyStep(stepId, onboardingSteps);
-      if (triggerStepId) seedStepSkipped(triggerStepId);
     }
-  }, [onboardingSteps, serverSkippedStepIds, seedStepSkipped]);
-  React.useEffect(() => {
-    if (!activeCoordinatorOnboardingStep) return;
-    const triggerStepId = coordinatorTriggerStepForReplyStep(
-      activeCoordinatorOnboardingStep,
-      onboardingSteps
-    );
-    if (triggerStepId) seedStepCompleted(triggerStepId);
-  }, [activeCoordinatorOnboardingStep, onboardingSteps, seedStepCompleted]);
+  }, [serverSkippedStepIds, seedStepSkipped]);
   React.useEffect(() => {
     if (
       coordinatorOnboardingState?.mode !== 'onboarding' ||

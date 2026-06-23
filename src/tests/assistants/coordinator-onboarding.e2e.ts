@@ -39,6 +39,7 @@ import {
   createPersonalCoordinator,
   dbExec,
   deleteAllAssistantsForUser,
+  orchestraFetch,
 } from './helpers';
 
 const user = createTestUser({ name: 'CoordOnboard', lastName: 'E2E', credits: 50_000 });
@@ -132,10 +133,6 @@ async function expectComingSoonVisible(page: Page) {
   await expect(page.getByRole('button', { name: /^\[coming soon\]$/ }).first()).toBeVisible();
 }
 
-async function openChecklistItemMenu(page: Page, stepId: string) {
-  await page.getByTestId(`coordinator-onboarding-item-${stepId}`).click();
-}
-
 /**
  * Restore the fresh picker on the shared workspace coordinator.
  *
@@ -175,6 +172,36 @@ function readPersistedOnboardingStep(coordinatorId: string | number): string {
       `WHERE c.name = '${user.id}/${coordinatorId}/Coordinator/State' ` +
       `ORDER BY le.id DESC LIMIT 1;`
   );
+}
+
+async function seedCoordinatorOutboundTranscript(
+  coordinatorId: string | number,
+  medium: string,
+  content: string
+) {
+  const response = await orchestraFetch(
+    '/v0/logs',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        project_name: 'Assistants',
+        context: `${user.id}/${coordinatorId}/Transcripts`,
+        entries: [
+          {
+            message_id: Date.now(),
+            medium,
+            sender_id: 0,
+            receiver_ids: [1],
+            timestamp: new Date().toISOString(),
+            content,
+            exchange_id: Date.now(),
+          },
+        ],
+      }),
+    },
+    user.apiKey
+  );
+  expect(response.ok).toBeTruthy();
 }
 
 test('picker shows on first visit with no skip or resume affordance', async ({
@@ -306,16 +333,26 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   await expect(emailReferenceRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
   await expectChecklistItemClickable(page, 'email-reference');
   await emailReferenceRow.click();
-  await expect(emailReferenceRow).toHaveAttribute('data-status', 'done', { timeout: 10_000 });
-  await openChecklistItemMenu(page, 'email-reference');
-  await expect(page.getByRole('menuitem', { name: 'Reset' })).toBeVisible();
-  await page.getByRole('menuitem', { name: 'Reset' }).click();
+  await expect(page.getByTestId('coordinator-onboarding-checking-email-reference')).toHaveText(
+    'Checking...'
+  );
+  await expect(page.getByTestId('coordinator-onboarding-checking-email-reference')).toHaveCount(0, {
+    timeout: 6_000,
+  });
   await expect(emailReferenceRow).not.toHaveAttribute('data-status', 'done');
   await expect(page.getByTestId('coordinator-onboarding-item-email-reply').first()).toHaveAttribute(
     'data-status',
     'locked'
   );
-  await emailReferenceRow.click();
+  await expect
+    .poll(() => readPersistedOnboardingStep(coordinator.agentId), { timeout: 10_000 })
+    .toBe('email-reply');
+  await seedCoordinatorOutboundTranscript(
+    coordinator.agentId,
+    'email',
+    'Outbound email clue proof for onboarding.'
+  );
+  await expect(emailReferenceRow).toHaveAttribute('data-status', 'done', { timeout: 12_000 });
   await expect(page.getByTestId('coordinator-onboarding-item-email-reply').first()).toHaveAttribute(
     'data-next',
     'true',

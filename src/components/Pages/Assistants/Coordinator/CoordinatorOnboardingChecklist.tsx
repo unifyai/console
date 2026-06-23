@@ -126,12 +126,19 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
 };
 
 const POLLING_ACTIONS: ReadonlySet<ChecklistAction> = new Set([
+  'trigger-email-reference',
   'start-email-reply',
+  'trigger-whatsapp-message-reference',
   'start-whatsapp-message',
+  'trigger-whatsapp-call-reference',
   'start-whatsapp-call',
+  'trigger-sms-reference',
   'start-sms-message',
+  'trigger-phone-call-reference',
   'start-phone-call',
+  'trigger-slack-reference',
   'start-slack-message',
+  'trigger-discord-reference',
   'start-discord-message',
 ]);
 const CHECKING_FEEDBACK_MS = 4_500;
