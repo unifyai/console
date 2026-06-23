@@ -89,15 +89,26 @@ async function tryDevQuickLogin(page: Page, email: string): Promise<boolean> {
  * leaves `/login`.
  */
 export async function authenticate(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  try {
-    await loginAndWaitForRedirect(page, email, password, 30_000);
-  } catch {
-    /* fall back to the dev quick-login panel below */
+  // The dev server compiles routes on first hit and the seed-user lookup can be
+  // slow under load, so a cold first attempt occasionally times out or bounces
+  // back to /login. Retry the whole goto+login flow a few times with a bounded
+  // navigation timeout so a single cold start doesn't fail the run.
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await page.goto('/login', { timeout: 45_000 });
+      try {
+        await loginAndWaitForRedirect(page, email, password, 30_000);
+      } catch {
+        /* fall back to the dev quick-login panel below */
+      }
+      if (new URL(page.url()).pathname !== '/login') return;
+      if (await tryDevQuickLogin(page, email)) return;
+    } catch {
+      /* navigation or login error — retry below */
+    }
+    if (attempt < maxAttempts) await page.waitForTimeout(1_500);
   }
-  if (new URL(page.url()).pathname !== '/login') return;
-
-  if (await tryDevQuickLogin(page, email)) return;
 
   throw new Error(`Unable to authenticate test user ${email}`);
 }
