@@ -5,11 +5,13 @@ import { usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import TopNav from '@/components/Layout/TopBar/TopNav';
 import LoadingScreen from '@/components/Layout/LoadingScreen';
+import { HomeShell } from '@/components/Layout/Shell/HomeShell';
 
 /**
- * Decides the home chrome per route. `/assistants` runs inside the rail shell,
- * which owns global navigation, so the top nav is suppressed and the main area
- * fills the viewport. Every other home route keeps the legacy top nav until it
+ * Decides the home chrome per route. The rail shell owns global navigation, so
+ * the top nav is suppressed and the main area fills the viewport. `/assistants`
+ * renders its own rail (the route body owns it); `/account` is hosted inside the
+ * shared `HomeShell`. Every other home route keeps the legacy top nav until it
  * is migrated into the rail.
  *
  * `children` arrives already wrapped by the async server-side MFA gate (and the
@@ -18,15 +20,26 @@ import LoadingScreen from '@/components/Layout/LoadingScreen';
  */
 export function HomeChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const railShell = pathname === '/assistants' || pathname?.startsWith('/assistants/');
+  const assistantsShell = pathname === '/assistants' || pathname?.startsWith('/assistants/');
+  const homeShell = pathname === '/account' || pathname?.startsWith('/account/');
 
   const body = children;
 
-  if (railShell) {
+  if (assistantsShell) {
     return (
       <Suspense fallback={<LoadingScreen />}>
         <main className="brand-page-stencil-bg relative h-screen overflow-hidden bg-background">
           {body}
+        </main>
+      </Suspense>
+    );
+  }
+
+  if (homeShell) {
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <main className="brand-page-stencil-bg relative h-screen overflow-hidden bg-background">
+          <HomeShell>{body}</HomeShell>
         </main>
       </Suspense>
     );
