@@ -101,8 +101,6 @@ export interface AssistantInfoSidePanelContentProps {
     onConnectApps?: () => void;
     onActNow?: () => void;
     onScheduleTask?: () => void;
-    onSkipStep?: (stepId: string) => void;
-    onUnskipStep?: (stepId: string) => void;
     onSkipSection?: (phaseId: string) => void;
     onUnskipSection?: (phaseId: string) => void;
     /** Whether the Coordinator is currently on a voice call — selects
@@ -273,8 +271,6 @@ function CoordinatorAssistantInfoSidePanelContent({
                 onConnectApps={coordinatorOnboarding.onConnectApps}
                 onActNow={coordinatorOnboarding.onActNow}
                 onScheduleTask={coordinatorOnboarding.onScheduleTask}
-                onSkipStep={coordinatorOnboarding.onSkipStep}
-                onUnskipStep={coordinatorOnboarding.onUnskipStep}
                 onSkipSection={coordinatorOnboarding.onSkipSection}
                 onUnskipSection={coordinatorOnboarding.onUnskipSection}
                 isOnCall={coordinatorOnboarding.isOnCall}

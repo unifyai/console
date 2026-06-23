@@ -92,8 +92,6 @@ interface OnboardingChecklistItem {
    * progress bar — same accounting model as the per-assistant setup
    * roadmap. */
   children?: OnboardingChecklistItem[];
-  /** Whether the row can be skipped with the inline Skip affordance. */
-  canSkip?: boolean;
 }
 
 /**
@@ -262,7 +260,6 @@ function buildVisibleChecklist(
         };
       }),
       action,
-      canSkip: step.canSkip,
       done: status === 'done',
       skipped: status === 'skipped',
       locked,
@@ -416,7 +413,6 @@ function createComingSoonPlaceholder(section: ResolvedChecklistItem): ResolvedCh
     id: `${section.id}-coming-soon-placeholder`,
     title: '[Coming soon]',
     phase: section.phase,
-    canSkip: false,
     done: false,
     skipped: false,
     locked: true,
@@ -450,17 +446,16 @@ function containsLeafId(item: ResolvedChecklistItem, leafId: string): boolean {
  */
 function findNextActionableId(
   items: ResolvedChecklistItem[],
-  isActionWired: (action: ChecklistAction | undefined) => boolean,
-  canMarkLater: boolean
+  isActionWired: (action: ChecklistAction | undefined) => boolean
 ): string | null {
   for (const item of items) {
     if (item.sectionSkipped) continue;
     if (item.children?.length) {
-      const inner = findNextActionableId(item.children, isActionWired, canMarkLater);
+      const inner = findNextActionableId(item.children, isActionWired);
       if (inner) return inner;
       continue;
     }
-    if (!item.locked && item.status === 'pending' && (isActionWired(item.action) || canMarkLater)) {
+    if (!item.locked && item.status === 'pending' && item.action && isActionWired(item.action)) {
       return item.id;
     }
   }
@@ -502,8 +497,6 @@ export interface CoordinatorOnboardingChecklistProps {
    * "Schedule a task for later". Unset means the row degrades to a
    * static entry. */
   onScheduleTask?: () => void;
-  onSkipStep?: (stepId: string) => void;
-  onUnskipStep?: (stepId: string) => void;
   onSkipSection?: (phaseId: string) => void;
   onUnskipSection?: (phaseId: string) => void;
   /** Whether the user is currently on a voice call (vs. chat).
@@ -525,8 +518,6 @@ export function CoordinatorOnboardingChecklist({
   onConnectApps,
   onActNow,
   onScheduleTask,
-  onSkipStep,
-  onUnskipStep,
   onSkipSection,
   onUnskipSection,
   isOnCall = false,
@@ -705,8 +696,8 @@ export function CoordinatorOnboardingChecklist({
   // drives hidden state markers, but the checklist does not render an
   // inline "Next" marker.
   const nextActionableId = React.useMemo(
-    () => findNextActionableId(resolved, isActionWired, !!onSkipStep),
-    [resolved, isActionWired, onSkipStep]
+    () => findNextActionableId(resolved, isActionWired),
+    [resolved, isActionWired]
   );
   React.useEffect(() => {
     const sectionIds = resolved.map((section) => section.id);
@@ -853,8 +844,6 @@ export function CoordinatorOnboardingChecklist({
                               }
                               onBlockedStepClick={triggerBlockedFeedback}
                               isOnCall={isOnCall}
-                              onSkipStep={onSkipStep}
-                              onUnskipStep={onUnskipStep}
                               onResetStepProgress={resetStepProgress}
                             />
                           ))}
@@ -877,8 +866,6 @@ export function CoordinatorOnboardingChecklist({
                           }
                           onBlockedStepClick={triggerBlockedFeedback}
                           isOnCall={isOnCall}
-                          onSkipStep={onSkipStep}
-                          onUnskipStep={onUnskipStep}
                           onResetStepProgress={resetStepProgress}
                         />
                       ))}
@@ -1029,8 +1016,6 @@ interface ChecklistRowProps {
   /** Whether the user is on a call — selects the call vs. chat
    * "Act now" suggestion chips. */
   isOnCall: boolean;
-  onSkipStep?: (stepId: string) => void;
-  onUnskipStep?: (stepId: string) => void;
   onSkipSection?: (phaseId: string) => void;
   onUnskipSection?: (phaseId: string) => void;
   onResetStepProgress?: (stepIds: readonly string[], resetStepId?: string) => void;
@@ -1049,28 +1034,18 @@ function ChecklistRow({
   highlightedBlockingStepIds,
   onBlockedStepClick,
   isOnCall,
-  onSkipStep,
-  onUnskipStep,
   onResetStepProgress,
 }: ChecklistRowProps) {
   const hasWiredAction = isActionWired(item.action);
   const isResolved = item.status !== 'pending';
   const isNext = nextActionableId === item.id;
   const sectionDisabled = isInSkippedSection || item.sectionSkipped === true;
-  const isActionable = hasWiredAction && !item.locked && !isResolved && !sectionDisabled;
+  const hasDirectAction = hasWiredAction && !!item.action && !INFO_ONLY_ACTIONS.has(item.action);
+  const isActionable = hasDirectAction && !item.locked && !isResolved && !sectionDisabled;
   const canShowBlockedFeedback =
     item.locked && !item.children?.length && item.status === 'pending' && !sectionDisabled;
   const shouldJiggle = blockedFeedbackStepId === item.id;
   const shouldShowBlockingArrow = highlightedBlockingStepIds.has(item.id);
-  const canSkip =
-    !!onSkipStep &&
-    item.canSkip !== false &&
-    !item.locked &&
-    !item.children?.length &&
-    !isResolved &&
-    !sectionDisabled;
-  const canUnskip =
-    !!onUnskipStep && !sectionDisabled && !item.children?.length && item.status === 'skipped';
   const canResetSection =
     !isChild &&
     !!item.children?.length &&
@@ -1108,13 +1083,8 @@ function ChecklistRow({
   );
 
   const dimClassName = dim ? 'opacity-50 transition-opacity' : undefined;
-  const canSelect = isActionable && !!item.action && !INFO_ONLY_ACTIONS.has(item.action);
   const canReset = item.status === 'done' && !!onResetStepProgress;
-  const hasRowMenu = canSelect || canSkip || canUnskip || canReset;
-  const handleActionSelect = () => {
-    if (!item.action) return;
-    onAction(item.action);
-  };
+  const hasRowMenu = canReset;
 
   const renderMarkerAndLabel = (variant: 'done' | 'skipped' | 'actionable' | 'static') => {
     const content = (
@@ -1148,18 +1118,7 @@ function ChecklistRow({
             <DropdownMenuItem onSelect={() => onResetStepProgress?.(rowResetStepIds, item.id)}>
               Reset
             </DropdownMenuItem>
-          ) : item.status === 'skipped' ? (
-            <DropdownMenuItem onSelect={() => onUnskipStep?.(item.id)}>Unskip</DropdownMenuItem>
-          ) : (
-            <>
-              {canSelect ? (
-                <DropdownMenuItem onSelect={handleActionSelect}>Action</DropdownMenuItem>
-              ) : null}
-              {canSkip ? (
-                <DropdownMenuItem onSelect={() => onSkipStep?.(item.id)}>Skip</DropdownMenuItem>
-              ) : null}
-            </>
-          )}
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -1245,8 +1204,15 @@ function ChecklistRow({
   } else if (isActionable) {
     row = (
       <div
-        role={hasRowMenu ? 'button' : undefined}
-        tabIndex={hasRowMenu ? 0 : undefined}
+        role="button"
+        tabIndex={0}
+        onClick={() => item.action && onAction(item.action)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            item.action && onAction(item.action);
+          }
+        }}
         className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         data-testid={`coordinator-onboarding-item-${item.id}`}
         data-next={isNext ? 'true' : undefined}
@@ -1352,8 +1318,6 @@ function ChecklistRow({
               highlightedBlockingStepIds={highlightedBlockingStepIds}
               onBlockedStepClick={onBlockedStepClick}
               isOnCall={isOnCall}
-              onSkipStep={onSkipStep}
-              onUnskipStep={onUnskipStep}
               onResetStepProgress={onResetStepProgress}
             />
           ))}

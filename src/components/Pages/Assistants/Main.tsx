@@ -625,96 +625,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     for (const stepId of resetStepIds) next.delete(stepId);
     return next;
   }, [resetStepIds, skippedStepIds]);
-  const collectCompletionBlockedStepIds = React.useCallback(
-    (stepId: string): string[] => {
-      const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
-      const result = [stepId];
-      const seen = new Set(result);
-      let changed = true;
-      while (changed) {
-        changed = false;
-        for (const step of steps) {
-          if (seen.has(step.id)) continue;
-          if (
-            step.dependencies.some(
-              (dependency) => dependency.resolution === 'completed' && seen.has(dependency.id)
-            )
-          ) {
-            seen.add(step.id);
-            result.push(step.id);
-            changed = true;
-          }
-        }
-      }
-      return result;
-    },
-    [coordinatorOnboardingState?.onboarding?.steps]
-  );
-  const collectCompletionCoupledStepIds = React.useCallback(
-    (stepId: string): string[] => {
-      const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
-      const coupled = new Set<string>([stepId]);
-      let changed = true;
-      while (changed) {
-        changed = false;
-        for (const step of steps) {
-          if (!coupled.has(step.id)) continue;
-          for (const dependency of step.dependencies) {
-            if (dependency.resolution === 'completed' && !coupled.has(dependency.id)) {
-              coupled.add(dependency.id);
-              changed = true;
-            }
-          }
-        }
-      }
-      for (const coupledStepId of Array.from(coupled)) {
-        for (const blockedStepId of collectCompletionBlockedStepIds(coupledStepId)) {
-          coupled.add(blockedStepId);
-        }
-      }
-      return steps.filter((step) => coupled.has(step.id)).map((step) => step.id);
-    },
-    [collectCompletionBlockedStepIds, coordinatorOnboardingState?.onboarding?.steps]
-  );
-  // Optimistic: flip the local checklist state immediately so the
-  // row resolves (and downstream rows unlock) on the same frame as
-  // the click. The orchestra write happens in the background; we roll
-  // the local state back if it fails (the hook surfaces its own error
-  // toast). Awaiting the round-trip before updating made "Later" feel
-  // multi-second-slow because the server action + DB write gated the
-  // re-render.
-  const handleCoordinatorOnboardingStepSkip = React.useCallback(
-    async (stepId: string) => {
-      const cascadeStepIds = collectCompletionBlockedStepIds(stepId);
-      for (const cascadeStepId of cascadeStepIds) markStepSkipped(cascadeStepId);
-      const skipped = await updateCoordinatorOnboardingState({ skipOnboardingStep: stepId });
-      if (!skipped) {
-        for (const cascadeStepId of cascadeStepIds) markStepUnskipped(cascadeStepId);
-      }
-    },
-    [
-      collectCompletionBlockedStepIds,
-      markStepSkipped,
-      markStepUnskipped,
-      updateCoordinatorOnboardingState,
-    ]
-  );
-  const handleCoordinatorOnboardingStepUnskip = React.useCallback(
-    async (stepId: string) => {
-      const cascadeStepIds = collectCompletionCoupledStepIds(stepId);
-      for (const cascadeStepId of cascadeStepIds) markStepUnskipped(cascadeStepId);
-      const unskipped = await updateCoordinatorOnboardingState({ unskipOnboardingStep: stepId });
-      if (!unskipped) {
-        for (const cascadeStepId of cascadeStepIds) markStepSkipped(cascadeStepId);
-      }
-    },
-    [
-      collectCompletionCoupledStepIds,
-      markStepSkipped,
-      markStepUnskipped,
-      updateCoordinatorOnboardingState,
-    ]
-  );
   const handleCoordinatorOnboardingSectionSkip = React.useCallback(
     (phaseId: string) => {
       void updateCoordinatorOnboardingState({ skipOnboardingPhase: phaseId });
@@ -1959,8 +1869,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onConnectApps: () => handleCoordinatorOpenPaneTab('integrations', 'apps'),
       onActNow: () => handleCoordinatorOpenPaneTab('actions', 'act'),
       onScheduleTask: () => handleCoordinatorOpenPaneTab('tasks', 'schedule'),
-      onSkipStep: handleCoordinatorOnboardingStepSkip,
-      onUnskipStep: handleCoordinatorOnboardingStepUnskip,
       onSkipSection: handleCoordinatorOnboardingSectionSkip,
       onUnskipSection: handleCoordinatorOnboardingSectionUnskip,
       onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
@@ -1994,8 +1902,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorConnectSlack,
     handleCoordinatorConnectDiscord,
     handleCoordinatorOpenPaneTab,
-    handleCoordinatorOnboardingStepSkip,
-    handleCoordinatorOnboardingStepUnskip,
     handleCoordinatorOnboardingSectionSkip,
     handleCoordinatorOnboardingSectionUnskip,
     workspaceConnectAvailable,
