@@ -177,7 +177,8 @@ function readPersistedOnboardingStep(coordinatorId: string | number): string {
 async function seedCoordinatorOutboundTranscript(
   coordinatorId: string | number,
   medium: string,
-  content: string
+  content: string,
+  onboardingTriggerStepId?: string
 ) {
   const response = await orchestraFetch(
     '/v0/logs',
@@ -195,6 +196,9 @@ async function seedCoordinatorOutboundTranscript(
             timestamp: new Date().toISOString(),
             content,
             exchange_id: Date.now(),
+            ...(onboardingTriggerStepId
+              ? { metadata: { onboarding_trigger_step_id: onboardingTriggerStepId } }
+              : {}),
           },
         ],
       }),
@@ -332,6 +336,12 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   await selectCoordinatorOnboardingSection(page, 'communication');
   await expect(emailReferenceRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
   await expectChecklistItemClickable(page, 'email-reference');
+  let onboardingStepEventRequests = 0;
+  page.on('request', (request) => {
+    if (request.url().includes('/api/coordinator-onboarding-step-event')) {
+      onboardingStepEventRequests += 1;
+    }
+  });
   await emailReferenceRow.click();
   await expect(page.getByTestId('coordinator-onboarding-checking-email-reference')).toHaveText(
     'Checking...'
@@ -347,10 +357,20 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   await expect
     .poll(() => readPersistedOnboardingStep(coordinator.agentId), { timeout: 10_000 })
     .toBe('email-reply');
+  await expect.poll(() => onboardingStepEventRequests, { timeout: 5_000 }).toBe(1);
+  await emailReferenceRow.click();
+  await expect.poll(() => onboardingStepEventRequests, { timeout: 1_000 }).toBe(1);
   await seedCoordinatorOutboundTranscript(
     coordinator.agentId,
     'email',
-    'Outbound email clue proof for onboarding.'
+    'Untagged outbound email clue proof for onboarding.'
+  );
+  await expect(emailReferenceRow).not.toHaveAttribute('data-status', 'done');
+  await seedCoordinatorOutboundTranscript(
+    coordinator.agentId,
+    'email',
+    'Tagged outbound email clue proof for onboarding.',
+    'email-reference'
   );
   await expect(emailReferenceRow).toHaveAttribute('data-status', 'done', { timeout: 12_000 });
   await expect(page.getByTestId('coordinator-onboarding-item-email-reply').first()).toHaveAttribute(

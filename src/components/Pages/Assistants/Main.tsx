@@ -100,6 +100,7 @@ import {
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
 const COORDINATOR_ONBOARDING_ACCESSIBLE_POLL_MS = 8_000;
+const COORDINATOR_ONBOARDING_STEP_RETRY_MS = 30_000;
 type ContactManagerInitialTab = ContactType | 'slack';
 
 interface MainProps {
@@ -501,6 +502,22 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // lands. Completion always implies engagement, so
   // ``markStepCompleted`` below back-fills the engaged set too.
   const [engagedStepIds, setEngagedStepIds] = React.useState<ReadonlySet<string>>(() => new Set());
+  const requestedStepTimesRef = React.useRef<Map<string, number>>(new Map());
+  React.useEffect(() => {
+    requestedStepTimesRef.current.clear();
+  }, [canonicalCoordinatorId]);
+  const shouldDispatchStepRequest = React.useCallback((stepId: string): boolean => {
+    const requestedAt = requestedStepTimesRef.current.get(stepId);
+    return !requestedAt || Date.now() - requestedAt > COORDINATOR_ONBOARDING_STEP_RETRY_MS;
+  }, []);
+  const markStepRequested = React.useCallback((stepId: string) => {
+    requestedStepTimesRef.current.set(stepId, Date.now());
+  }, []);
+  const clearStepRequests = React.useCallback((stepIds: Iterable<string>) => {
+    const ids = new Set(stepIds);
+    if (ids.size === 0) return;
+    for (const stepId of ids) requestedStepTimesRef.current.delete(stepId);
+  }, []);
   const markStepCompleted = React.useCallback((stepId: string) => {
     setResetStepIds((prev) => {
       if (!prev.has(stepId)) return prev;
@@ -617,13 +634,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         for (const stepId of ids) next.delete(stepId);
         return next.size === prev.size ? prev : next;
       });
+      clearStepRequests(ids);
       if (resetStepId) {
         void updateCoordinatorOnboardingState({ resetOnboardingStep: resetStepId });
       } else if (activeCoordinatorOnboardingStep && ids.has(activeCoordinatorOnboardingStep)) {
         void updateCoordinatorOnboardingState({ clearOnboardingStep: true });
       }
     },
-    [activeCoordinatorOnboardingStep, updateCoordinatorOnboardingState]
+    [activeCoordinatorOnboardingStep, clearStepRequests, updateCoordinatorOnboardingState]
   );
   const visibleCompletedStepIds = React.useMemo<ReadonlySet<string>>(() => {
     if (resetStepIds.size === 0) return completedStepIds;
@@ -1727,10 +1745,21 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   const handleCoordinatorStartOnboardingStep = React.useCallback(
     (stepId: string) => {
+      if (!shouldDispatchStepRequest(stepId)) {
+        void refetchCoordinatorOnboardingState();
+        return;
+      }
       markStepEngaged(stepId);
+      markStepRequested(stepId);
       void updateCoordinatorOnboardingState({ onboardingStep: stepId });
     },
-    [markStepEngaged, updateCoordinatorOnboardingState]
+    [
+      markStepEngaged,
+      markStepRequested,
+      refetchCoordinatorOnboardingState,
+      shouldDispatchStepRequest,
+      updateCoordinatorOnboardingState,
+    ]
   );
 
   const handleCoordinatorTriggerReferenceStep = React.useCallback(
@@ -1740,7 +1769,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         (candidate) => candidate.id === stepId
       );
       if (!step) return;
+      if (!shouldDispatchStepRequest(stepId)) {
+        void refetchCoordinatorOnboardingState();
+        return;
+      }
       markStepEngaged(stepId);
+      markStepRequested(stepId);
       void (async () => {
         try {
           const event = await dispatchCoordinatorOnboardingStepEvent(
@@ -1765,7 +1799,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       canonicalCoordinator,
       coordinatorOnboardingState?.onboarding?.steps,
       markStepEngaged,
+      markStepRequested,
       refetchCoordinatorOnboardingState,
+      shouldDispatchStepRequest,
       updateCoordinatorOnboardingState,
     ]
   );
@@ -2015,13 +2051,15 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     for (const stepId of serverCompletedStepIds) {
       seedStepCompleted(stepId);
     }
-  }, [serverCompletedStepIds, seedStepCompleted]);
+    clearStepRequests(serverCompletedStepIds);
+  }, [clearStepRequests, serverCompletedStepIds, seedStepCompleted]);
   React.useEffect(() => {
     if (!serverSkippedStepIds) return;
     for (const stepId of serverSkippedStepIds) {
       seedStepSkipped(stepId);
     }
-  }, [serverSkippedStepIds, seedStepSkipped]);
+    clearStepRequests(serverSkippedStepIds);
+  }, [clearStepRequests, serverSkippedStepIds, seedStepSkipped]);
   React.useEffect(() => {
     if (
       coordinatorOnboardingState?.mode !== 'onboarding' ||
