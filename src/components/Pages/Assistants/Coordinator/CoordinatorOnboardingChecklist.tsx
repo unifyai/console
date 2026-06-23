@@ -125,7 +125,7 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   schedule: 'schedule',
 };
 
-const INFO_ONLY_ACTIONS = new Set<ChecklistAction>([
+const POLLING_ACTIONS: ReadonlySet<ChecklistAction> = new Set([
   'start-email-reply',
   'start-whatsapp-message',
   'start-whatsapp-call',
@@ -134,6 +134,7 @@ const INFO_ONLY_ACTIONS = new Set<ChecklistAction>([
   'start-slack-message',
   'start-discord-message',
 ]);
+const CHECKING_FEEDBACK_MS = 4_500;
 
 interface ResolvedChecklistItem extends OnboardingChecklistItem {
   done: boolean;
@@ -563,9 +564,15 @@ export function CoordinatorOnboardingChecklist({
     token: number;
     blockingStepHints: ReadonlyMap<string, BlockingFeedbackHint>;
   } | null>(null);
+  const [checkingStepIds, setCheckingStepIds] = React.useState<ReadonlySet<string>>(
+    () => new Set()
+  );
   const didInitializeOpenSectionRef = React.useRef(false);
   const blockedFeedbackTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const blockedFeedbackTokenRef = React.useRef(0);
+  const checkingFeedbackTimeoutsRef = React.useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map()
+  );
 
   const handleAction = React.useCallback(
     (action: ChecklistAction) => {
@@ -608,6 +615,38 @@ export function CoordinatorOnboardingChecklist({
       onActNow,
       onScheduleTask,
     ]
+  );
+
+  const triggerCheckingFeedback = React.useCallback((stepId: string) => {
+    const existingTimeout = checkingFeedbackTimeoutsRef.current.get(stepId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+    setCheckingStepIds((current) => {
+      if (current.has(stepId)) return current;
+      return new Set([...current, stepId]);
+    });
+    const timeout = setTimeout(() => {
+      checkingFeedbackTimeoutsRef.current.delete(stepId);
+      setCheckingStepIds((current) => {
+        if (!current.has(stepId)) return current;
+        const next = new Set(current);
+        next.delete(stepId);
+        return next;
+      });
+    }, CHECKING_FEEDBACK_MS);
+    checkingFeedbackTimeoutsRef.current.set(stepId, timeout);
+  }, []);
+
+  const handleChecklistRowAction = React.useCallback(
+    (item: ResolvedChecklistItem) => {
+      if (!item.action) return;
+      if (POLLING_ACTIONS.has(item.action)) {
+        triggerCheckingFeedback(item.id);
+      }
+      handleAction(item.action);
+    },
+    [handleAction, triggerCheckingFeedback]
   );
 
   // An action is reachable when the parent has wired the
@@ -710,6 +749,10 @@ export function CoordinatorOnboardingChecklist({
       if (blockedFeedbackTimeoutRef.current) {
         clearTimeout(blockedFeedbackTimeoutRef.current);
       }
+      for (const timeout of checkingFeedbackTimeoutsRef.current.values()) {
+        clearTimeout(timeout);
+      }
+      checkingFeedbackTimeoutsRef.current.clear();
     },
     []
   );
@@ -894,10 +937,11 @@ export function CoordinatorOnboardingChecklist({
                               item={item}
                               isChild
                               isInSkippedSection={section.sectionSkipped === true}
-                              onAction={handleAction}
+                              onAction={handleChecklistRowAction}
                               isActionWired={isActionWired}
                               nextActionableId={nextActionableId}
                               allVisibleItems={visibleLeaves}
+                              isChecking={checkingStepIds.has(item.id)}
                               blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
                               blockedFeedbackToken={blockedFeedback?.token ?? 0}
                               blockingStepHints={
@@ -916,10 +960,11 @@ export function CoordinatorOnboardingChecklist({
                           item={item}
                           isChild
                           isInSkippedSection={section.sectionSkipped === true}
-                          onAction={handleAction}
+                          onAction={handleChecklistRowAction}
                           isActionWired={isActionWired}
                           nextActionableId={nextActionableId}
                           allVisibleItems={visibleLeaves}
+                          isChecking={checkingStepIds.has(item.id)}
                           blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
                           blockedFeedbackToken={blockedFeedback?.token ?? 0}
                           blockingStepHints={
@@ -1062,7 +1107,7 @@ interface ChecklistRowProps {
   item: ResolvedChecklistItem;
   isChild?: boolean;
   isInSkippedSection?: boolean;
-  onAction: (action: ChecklistAction) => void;
+  onAction: (item: ResolvedChecklistItem) => void;
   isActionWired: (action: ChecklistAction | undefined) => boolean;
   /** ID of the next leaf the user should tackle. Used for default
    * section selection and hidden state markers; threaded down rather
@@ -1070,6 +1115,7 @@ interface ChecklistRowProps {
    * in total. */
   nextActionableId: string | null;
   allVisibleItems: readonly ResolvedChecklistItem[];
+  isChecking?: boolean;
   blockedFeedbackStepId: string | null;
   blockedFeedbackToken: number;
   blockingStepHints: ReadonlyMap<string, BlockingFeedbackHint>;
@@ -1090,6 +1136,7 @@ function ChecklistRow({
   isActionWired,
   nextActionableId,
   allVisibleItems,
+  isChecking = false,
   blockedFeedbackStepId,
   blockedFeedbackToken,
   blockingStepHints,
@@ -1101,12 +1148,13 @@ function ChecklistRow({
   const isResolved = item.status !== 'pending';
   const isNext = nextActionableId === item.id;
   const sectionDisabled = isInSkippedSection || item.sectionSkipped === true;
-  const hasDirectAction = hasWiredAction && !!item.action && !INFO_ONLY_ACTIONS.has(item.action);
-  const isActionable = hasDirectAction && !item.locked && !isResolved && !sectionDisabled;
+  const isActionable =
+    hasWiredAction && !!item.action && !item.locked && !isResolved && !sectionDisabled;
   const canShowBlockedFeedback =
     item.locked && !item.children?.length && item.status === 'pending' && !sectionDisabled;
   const shouldJiggle = blockedFeedbackStepId === item.id;
   const blockingHint = blockingStepHints.get(item.id);
+  const showChecking = isChecking && item.status === 'pending' && !item.locked && !sectionDisabled;
   const canResetSection =
     !isChild &&
     !!item.children?.length &&
@@ -1232,7 +1280,15 @@ function ChecklistRow({
     <div className={rowClassName(variant)}>
       {renderMarkerAndLabel(variant)}
       <span className="flex h-6 items-center justify-center gap-1">
-        {blockingHint ? (
+        {showChecking ? (
+          <span
+            className="text-caption whitespace-nowrap font-medium text-primary"
+            aria-live="polite"
+            data-testid={`coordinator-onboarding-checking-${item.id}`}
+          >
+            Checking...
+          </span>
+        ) : blockingHint ? (
           <span
             className="text-caption whitespace-nowrap font-medium text-primary"
             data-testid={`coordinator-onboarding-blocking-arrow-${item.id}`}
@@ -1267,11 +1323,11 @@ function ChecklistRow({
       <div
         role="button"
         tabIndex={0}
-        onClick={() => item.action && onAction(item.action)}
+        onClick={() => onAction(item)}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
-            item.action && onAction(item.action);
+            onAction(item);
           }
         }}
         className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
