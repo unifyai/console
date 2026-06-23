@@ -153,6 +153,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
+  const onboardingFocusParam = searchParams.get('onboarding');
   const { activeWorkspace, currentUserId } = useWorkspace();
   // Workspace connect (Gmail/Outlook BYOD) needs an OAuth client configured on
   // the deployment. When neither provider is available, the onboarding
@@ -462,7 +463,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [coordinatorOnboardingFocusLayoutRequest, setCoordinatorOnboardingFocusLayoutRequest] =
     React.useState(0);
   const requestCoordinatorOnboardingFocusLayout = React.useCallback(() => {
-    setCoordinatorOnboardingFocusLayoutRequest((current) => current + 1);
+    setCoordinatorOnboardingFocusLayoutRequest((current) => Math.abs(current) + 1);
+  }, []);
+  const requestCoordinatorOnboardingInfoToggle = React.useCallback(() => {
+    setCoordinatorOnboardingFocusLayoutRequest((current) => -(Math.abs(current) + 1));
   }, []);
 
   // Shared onboarding step progress for the Coordinator onboarding
@@ -748,6 +752,27 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       handleShowProfile(canonicalCoordinatorId);
     }
   }, [canonicalCoordinatorId, handleShowProfile, isLoadingAssistants, profileAssistantId]);
+
+  const consumedOnboardingFocusParamRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!onboardingFocusParam) return;
+    if (!canonicalCoordinatorId || isLoadingAssistants) return;
+    if (consumedOnboardingFocusParamRef.current === onboardingFocusParam) return;
+    consumedOnboardingFocusParamRef.current = onboardingFocusParam;
+    handleShowProfile(canonicalCoordinatorId);
+    if (onboardingFocusParam.startsWith('toggle:')) {
+      requestCoordinatorOnboardingInfoToggle();
+    } else {
+      requestCoordinatorOnboardingFocusLayout();
+    }
+  }, [
+    canonicalCoordinatorId,
+    handleShowProfile,
+    isLoadingAssistants,
+    onboardingFocusParam,
+    requestCoordinatorOnboardingFocusLayout,
+    requestCoordinatorOnboardingInfoToggle,
+  ]);
 
   // --- Assistant Status Polling ---
   const { statuses: assistantStatuses, markOnline: markAssistantOnline } =

@@ -17,7 +17,7 @@
  */
 
 import * as React from 'react';
-import { Check, ChevronDown, RotateCcw } from 'lucide-react';
+import { Check, ChevronDown, Lock, RotateCcw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -139,12 +139,20 @@ interface ResolvedChecklistItem extends OnboardingChecklistItem {
   done: boolean;
   skipped: boolean;
   locked: boolean;
+  comingSoon?: boolean;
   status: 'pending' | 'done' | 'skipped';
   sectionSkipped?: boolean;
   children?: ResolvedChecklistItem[];
 }
 
 const EMPTY_ONBOARDING_STEP_IDS: ReadonlySet<string> = new Set();
+
+function comingSoonTitle(title: string): string {
+  const trimmed = title.trim();
+  if (!trimmed || /^\[coming soon\]$/i.test(trimmed)) return '[coming soon]';
+  if (/\[coming soon\]$/i.test(trimmed)) return trimmed;
+  return `${trimmed} [coming soon]`;
+}
 
 function isOnboardingDependencySatisfied(
   status: OnboardingStepStatus,
@@ -232,22 +240,19 @@ function buildVisibleChecklist(
   for (const step of render.steps) {
     const phaseSkipped = skippedPhases.has(step.phase);
     const localStatus = localStatuses.get(step.id) ?? step.status;
-    const locked = localStatus === 'locked' || localStatus === 'coming_soon';
+    const action = STEP_ACTIONS[step.id];
+    const isUnavailableAction =
+      localStatus === 'available' && !!action && !isActionWired(action) && !phaseSkipped;
+    const comingSoon = localStatus === 'coming_soon' || isUnavailableAction;
+    const locked = localStatus === 'locked' || comingSoon;
     let status: 'pending' | 'done' | 'skipped';
     if (localStatus === 'done') status = 'done';
     else if (localStatus === 'skipped') status = 'skipped';
     else status = 'pending';
 
-    const action = STEP_ACTIONS[step.id];
-    // An available row with an action that isn't wired on this surface
-    // can never be actioned here — hide it rather than show a dead row.
-    if (status === 'pending' && !locked && action && !isActionWired(action) && !phaseSkipped) {
-      continue;
-    }
-
     const leaf: ResolvedChecklistItem = {
       id: step.id,
-      title: step.title,
+      title: comingSoon ? comingSoonTitle(step.title) : step.title,
       phase: step.phase,
       chipsChat: step.chipsChat,
       chipsCall: step.chipsCall,
@@ -263,6 +268,7 @@ function buildVisibleChecklist(
       done: status === 'done',
       skipped: status === 'skipped',
       locked,
+      comingSoon,
       status,
     };
     const list = leavesByPhase.get(step.phase) ?? [];
@@ -411,11 +417,12 @@ function hasResolvedLeaf(item: ResolvedChecklistItem): boolean {
 function createComingSoonPlaceholder(section: ResolvedChecklistItem): ResolvedChecklistItem {
   return {
     id: `${section.id}-coming-soon-placeholder`,
-    title: '[Coming soon]',
+    title: '[coming soon]',
     phase: section.phase,
     done: false,
     skipped: false,
     locked: true,
+    comingSoon: true,
     status: 'pending',
   };
 }
@@ -776,10 +783,7 @@ export function CoordinatorOnboardingChecklist({
   const canDeferAll = !!deferOnboarding && nextActionableId !== null;
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}>
-      <ul
-        className="min-h-0 flex-1 space-y-2.5 overflow-y-auto"
-        data-testid="coordinator-onboarding-checklist"
-      >
+      <ul className="min-h-0 flex-1 overflow-y-auto" data-testid="coordinator-onboarding-checklist">
         <style jsx>{`
           @keyframes coordinator-onboarding-blocked-jiggle {
             0%,
@@ -807,7 +811,7 @@ export function CoordinatorOnboardingChecklist({
             ? section.children!
             : [createComingSoonPlaceholder(section)];
           return (
-            <li key={section.id} className="space-y-2">
+            <li key={section.id}>
               <SectionHeader
                 section={section}
                 index={index}
@@ -816,7 +820,7 @@ export function CoordinatorOnboardingChecklist({
                 onToggle={() => toggleSection(section.id)}
               />
               {isOpen ? (
-                <ul className="space-y-2">
+                <ul>
                   {section.id === 'communication'
                     ? communicationSubgroups(sectionItems).map((group, groupIndex) => (
                         <CommunicationSubgroup
@@ -930,14 +934,14 @@ function SectionHeader({ section, index, progress, isOpen, onToggle }: SectionHe
       aria-expanded={isOpen}
       className={cn(
         CHECKLIST_CONTROL_GRID_CLASS,
-        'group/onboarding-section rounded-control items-center py-3 text-left',
-        'hover:bg-muted/70 focus-visible:bg-muted/70 bg-transparent transition-colors',
+        'group/onboarding-section rounded-control cursor-pointer items-center py-3 text-left',
+        'bg-transparent transition-colors',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
       )}
       data-testid={`coordinator-onboarding-section-${section.id}`}
     >
       <span
-        className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground"
+        className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground transition-colors group-hover/onboarding-section:text-primary group-focus-visible/onboarding-section:text-primary"
         data-testid={`coordinator-onboarding-section-${section.id}-toggle`}
       >
         {label}
@@ -969,19 +973,19 @@ function CommunicationSubgroup({
   children: React.ReactNode;
 }) {
   return (
-    <li className="space-y-2" data-testid={`coordinator-onboarding-communication-${id}`}>
+    <li data-testid={`coordinator-onboarding-communication-${id}`}>
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={isOpen}
         className={cn(
           CHECKLIST_CONTROL_GRID_CLASS,
-          'rounded-control items-center py-2 pl-5 text-left',
-          'hover:bg-muted/70 focus-visible:bg-muted/70 bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+          'group/onboarding-subgroup rounded-control cursor-pointer items-center py-3 pl-5 text-left',
+          'bg-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         )}
         data-testid={`coordinator-onboarding-communication-${id}-toggle`}
       >
-        <span className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground">
+        <span className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground transition-colors group-hover/onboarding-subgroup:text-primary group-focus-visible/onboarding-subgroup:text-primary">
           {title}
         </span>
         <CompactProgress completed={progress.completed} total={progress.total} />
@@ -992,7 +996,7 @@ function CommunicationSubgroup({
           />
         </span>
       </button>
-      {isOpen ? <ul className="space-y-2">{children}</ul> : null}
+      {isOpen ? <ul>{children}</ul> : null}
     </li>
   );
 }
@@ -1075,7 +1079,7 @@ function ChecklistRow({
         variant === 'done' && 'text-muted-foreground line-through',
         variant === 'skipped' && 'text-muted-foreground line-through',
         variant === 'actionable' && 'text-foreground',
-        variant === 'static' && 'text-foreground'
+        variant === 'static' && (item.comingSoon ? 'text-muted-foreground' : 'text-foreground')
       )}
     >
       {item.title}
@@ -1097,7 +1101,7 @@ function ChecklistRow({
         )}
       >
         <span className="inline-flex min-w-0 items-start gap-2">
-          <ChecklistMarker status={item.status} />
+          <ChecklistMarker status={item.status} locked={item.comingSoon === true} />
           {renderLabel(variant)}
         </span>
       </span>
@@ -1327,14 +1331,22 @@ function ChecklistRow({
   );
 }
 
-function ChecklistMarker({ status }: { status: 'pending' | 'done' | 'skipped' }) {
+function ChecklistMarker({
+  status,
+  locked = false,
+}: {
+  status: 'pending' | 'done' | 'skipped';
+  locked?: boolean;
+}) {
   const markerClasses = cn(
     'rounded-control mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center border',
     status === 'done'
       ? 'border-[color:var(--role-green-deep)] bg-[color:var(--status-success-bg)] text-[color:var(--role-green-deep)]'
       : status === 'skipped'
         ? 'border-muted-foreground/60 bg-muted text-muted-foreground'
-        : 'border-muted-foreground/40 bg-transparent'
+        : locked
+          ? 'border-muted-foreground/30 bg-muted/30 text-muted-foreground'
+          : 'border-muted-foreground/40 bg-transparent'
   );
 
   // Skipped rows mark the box with an "S" (for "Skip"). The glyph
@@ -1361,7 +1373,11 @@ function ChecklistMarker({ status }: { status: 'pending' | 'done' | 'skipped' })
 
   return (
     <span aria-hidden="true" className={markerClasses}>
-      {status === 'done' ? <Check className="h-3 w-3 stroke-[4]" /> : null}
+      {status === 'done' ? (
+        <Check className="h-3 w-3 stroke-[4]" />
+      ) : locked ? (
+        <Lock className="h-2.5 w-2.5 stroke-[3]" />
+      ) : null}
     </span>
   );
 }

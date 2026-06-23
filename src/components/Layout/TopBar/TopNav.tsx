@@ -49,6 +49,13 @@ import { UserOrganization } from '@/types/user';
 import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog';
 import ReferralBanner from '@/components/Layout/TopBar/ReferralBanner';
 import { UnifyBlockMark } from '@/components/Brand';
+import { fetchAssistants } from '@/lib/client/assistant';
+import { resolveCanonicalWorkspaceCoordinator } from '@/lib/assistants/coordinatorIdentity';
+import {
+  fetchCoordinatorState,
+  type CoordinatorStateSnapshot,
+} from '@/lib/assistants/coordinatorState';
+import { cn } from '@/lib/utils';
 
 const getInitials = (name: string) =>
   name
@@ -84,6 +91,9 @@ export default function TopNav() {
   const [showSelfHostResetConfirm, setShowSelfHostResetConfirm] = useState(false);
   const [isSelfHostResetting, setIsSelfHostResetting] = useState(false);
   const [workspacePhotos, setWorkspacePhotos] = useState<Record<string, string>>({});
+  const [coordinatorOnboardingState, setCoordinatorOnboardingState] =
+    useState<CoordinatorStateSnapshot | null>(null);
+  const [coordinatorId, setCoordinatorId] = useState<string | null>(null);
 
   const {
     workspaces,
@@ -92,6 +102,7 @@ export default function TopNav() {
     switchWorkspace,
     isWorkspaceSwitchable,
     isSwitchingWorkspace,
+    currentUserId,
   } = useWorkspace();
 
   const [orgLogoUrl, setOrgLogoUrl] = useState<string | null>(null);
@@ -240,6 +251,100 @@ export default function TopNav() {
     (o) => o.name === 'Unify' && ['owner', 'admin'].includes(o.roleName?.toLowerCase() ?? '')
   );
   const showSelfHostReset = isSelfHost && process.env.NODE_ENV === 'development';
+  const selfHostResetControl = showSelfHostReset ? (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            className="text-body-muted h-6 gap-1.5 px-2 hover:text-foreground"
+            onClick={() => setShowSelfHostResetConfirm(true)}
+            disabled={isSelfHostResetting}
+          >
+            {isSelfHostResetting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RotateCcw className="h-3.5 w-3.5" />
+            )}
+            <span>Reset</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p>Clear local self-host onboarding and chat history</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  ) : null;
+  const onboardingProgress = React.useMemo(() => {
+    const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
+    const activeSteps = steps.filter((step) => step.status !== 'coming_soon');
+    const completed = activeSteps.filter(
+      (step) => step.status === 'done' || step.status === 'skipped'
+    ).length;
+    const total = activeSteps.length;
+    return {
+      completed,
+      total,
+      pct: total > 0 ? Math.round((completed / total) * 100) : 0,
+    };
+  }, [coordinatorOnboardingState?.onboarding?.steps]);
+  const showOnboardingShortcut =
+    !!coordinatorId &&
+    coordinatorOnboardingState?.mode === 'onboarding' &&
+    coordinatorOnboardingState.onboardingDeferred !== true &&
+    !!coordinatorOnboardingState.onboarding &&
+    onboardingProgress.total > 0 &&
+    onboardingProgress.completed < onboardingProgress.total;
+
+  useEffect(() => {
+    let cancelled = false;
+    const workspace =
+      activeWorkspace?.type === 'organization'
+        ? {
+            type: 'organization' as const,
+            organizationId: Number.isFinite(Number(activeWorkspace.id))
+              ? Number(activeWorkspace.id)
+              : null,
+          }
+        : { type: 'personal' as const, organizationId: null };
+
+    const loadCoordinatorOnboarding = async () => {
+      if (!currentUserId || !activeWorkspace) {
+        setCoordinatorId(null);
+        setCoordinatorOnboardingState(null);
+        return;
+      }
+      const assistants = await fetchAssistants(workspace, true, { currentUserId });
+      if (cancelled || !Array.isArray(assistants)) return;
+      const coordinator = resolveCanonicalWorkspaceCoordinator(
+        assistants,
+        currentUserId,
+        workspace
+      );
+      if (!coordinator) {
+        setCoordinatorId(null);
+        setCoordinatorOnboardingState(null);
+        return;
+      }
+      setCoordinatorId(coordinator.agentId);
+      const state = await fetchCoordinatorState(coordinator.agentId);
+      if (!cancelled) setCoordinatorOnboardingState(state);
+    };
+
+    void loadCoordinatorOnboarding();
+    const interval = window.setInterval(loadCoordinatorOnboarding, 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [activeWorkspace, currentUserId]);
+
+  const openOnboarding = React.useCallback(() => {
+    if (!coordinatorId) return;
+    router.push(
+      `/assistants?profile=${encodeURIComponent(coordinatorId)}&onboarding=toggle:${Date.now()}`
+    );
+  }, [coordinatorId, router]);
 
   return (
     <div className="fixed left-0 right-0 top-0 z-50 h-10 border-b border-border bg-card">
@@ -254,6 +359,7 @@ export default function TopNav() {
           <Link href="/" className="flex items-center rounded-md px-1" aria-label="Unify Console">
             <UnifyBlockMark />
           </Link>
+          {selfHostResetControl}
 
           {/* Workspace Pill — hidden for personal-only users to avoid duplicating the profile avatar */}
           {activeWorkspace &&
@@ -429,30 +535,31 @@ export default function TopNav() {
           {/* Support Ticket — only when a support delivery channel is configured */}
           {supportEnabled && <SupportTicketDialog />}
 
-          {showSelfHostReset && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="text-body-muted h-6 gap-1.5 px-2 hover:text-foreground"
-                    onClick={() => setShowSelfHostResetConfirm(true)}
-                    disabled={isSelfHostResetting}
-                  >
-                    {isSelfHostResetting ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <RotateCcw className="h-3.5 w-3.5" />
-                    )}
-                    <span>Reset</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p>Clear local self-host onboarding and chat history</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
+          {showOnboardingShortcut ? (
+            <button
+              type="button"
+              onClick={openOnboarding}
+              className={cn(
+                'rounded-control flex h-8 min-w-[7.25rem] flex-col justify-center gap-1 px-2 text-left',
+                'text-body-muted hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+              )}
+              data-testid="top-nav-onboarding-shortcut"
+              aria-label={`Open onboarding, ${onboardingProgress.pct}% complete`}
+            >
+              <span className="flex items-center justify-between gap-2">
+                <span className="text-caption font-medium leading-none">Onboarding</span>
+                <span className="text-caption tabular-nums leading-none">
+                  {onboardingProgress.pct}%
+                </span>
+              </span>
+              <span className="h-1 overflow-hidden rounded-full bg-muted">
+                <span
+                  className="block h-full bg-primary transition-all"
+                  style={{ width: `${onboardingProgress.pct}%` }}
+                />
+              </span>
+            </button>
+          ) : null}
 
           {/* Dark Mode Toggle */}
           <DarkModeToggle />

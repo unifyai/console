@@ -483,16 +483,36 @@ export function RightPaneContainer({
     setIsInfoOpen(readInfoPanelOpen());
   }, [assistant?.agentId]);
 
-  React.useEffect(() => {
-    if (infoPanelFocusLayoutRequest > 0 && assistant?.isCoordinator && hasIncompleteOnboarding) {
-      setIsInfoOpen(true);
-    }
-  }, [assistant?.isCoordinator, hasIncompleteOnboarding, infoPanelFocusLayoutRequest]);
-
   const setInfoOpenAndPersist = useCallback((open: boolean) => {
     setIsInfoOpen(open);
     writeInfoPanelOpen(open);
   }, []);
+
+  const handledInfoPanelFocusRequestRef = React.useRef(0);
+  React.useEffect(() => {
+    if (
+      infoPanelFocusLayoutRequest === 0 ||
+      !assistant?.isCoordinator ||
+      !hasIncompleteOnboarding
+    ) {
+      return;
+    }
+    if (handledInfoPanelFocusRequestRef.current === infoPanelFocusLayoutRequest) {
+      return;
+    }
+    handledInfoPanelFocusRequestRef.current = infoPanelFocusLayoutRequest;
+    if (infoPanelFocusLayoutRequest < 0) {
+      setInfoOpenAndPersist(!isInfoOpen);
+    } else {
+      setIsInfoOpen(true);
+    }
+  }, [
+    assistant?.isCoordinator,
+    hasIncompleteOnboarding,
+    infoPanelFocusLayoutRequest,
+    isInfoOpen,
+    setInfoOpenAndPersist,
+  ]);
 
   const toggleInfo = useCallback(() => {
     setInfoOpenAndPersist(!isInfoOpen);
