@@ -67,6 +67,10 @@ export default defineConfig({
   // Ignore Vitest test files
   testIgnore: ['**/*.test.ts', '**/*.test.tsx', '**/*.node.test.ts', '**/*.browser.test.tsx'],
 
+  // Warm the dev server's lazy route compilation once before any spec, so the
+  // first test of a run doesn't eat the cold-start cost and flake on auth.
+  globalSetup: './src/tests/global-setup.ts',
+
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

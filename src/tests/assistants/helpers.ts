@@ -290,14 +290,36 @@ export async function closeHireDialogIfOpen(page: Page) {
 }
 
 /**
- * Open the hire dialog via the "Onboard" button in the assistant list.
- * If the dialog is already open (e.g. auto-opened on empty state), skip clicking.
+ * Open the rail's droid switcher popover (which hosts the assistant list,
+ * search and the Onboard button). Idempotent — returns early if already open.
+ */
+export async function openDroidSwitcher(page: Page) {
+  const popover = page.getByTestId('rail-droid-switcher-popover');
+  if (await popover.isVisible({ timeout: 500 }).catch(() => false)) return;
+  await page.getByTestId('rail-droid-switcher').click();
+  await expect(popover).toBeVisible({ timeout: 5_000 });
+}
+
+/**
+ * Switch the active section via the rail's Workspace/Brain nav (replaces the
+ * old in-pane `right-pane-tab-*` strip).
+ */
+export async function openRailSection(page: Page, sectionId: string) {
+  await page.getByTestId(`rail-section-${sectionId}`).click();
+  await page.waitForTimeout(300);
+}
+
+/**
+ * Open the hire dialog via the "Onboard" button, which now lives inside the
+ * rail's droid switcher popover. If the dialog is already open (e.g.
+ * auto-opened on empty state), skip.
  */
 export async function openHireDialog(page: Page) {
   const dialog = page.locator('[role="dialog"]');
   if (await dialog.isVisible({ timeout: 2_000 }).catch(() => false)) {
     return;
   }
+  await openDroidSwitcher(page);
   const onboardBtn = page.getByTestId('assistant-onboard-button');
   await expect(onboardBtn).toBeEnabled({ timeout: 15_000 });
   await onboardBtn.click();
@@ -305,10 +327,12 @@ export async function openHireDialog(page: Page) {
 }
 
 /**
- * Click on an assistant in the list to select it and show its details
- * in the right pane (Chat tab by default).
+ * Select an assistant from the rail's droid switcher. Opens the switcher
+ * popover (where the list now lives), clicks the row, and lets the popover
+ * dismiss — leaving the chosen droid active in the section host.
  */
 export async function selectAssistantInList(page: Page, agentId: number) {
+  await openDroidSwitcher(page);
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
   await listItem.click();
   await page.waitForTimeout(500);
