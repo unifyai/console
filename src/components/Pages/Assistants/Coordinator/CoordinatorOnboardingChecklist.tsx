@@ -289,7 +289,7 @@ function buildVisibleChecklist(
   const result: ResolvedChecklistItem[] = [];
   for (const phase of render.phases) {
     const isCommunication = phase.id === COMMUNICATION_SECTION_ID;
-    const children = isCommunication ? (leavesByPhase.get(phase.phase) ?? []) : [];
+    const children = leavesByPhase.get(phase.phase) ?? [];
     const sectionSkipped = isCommunication && skippedPhases.has(phase.phase);
     const hasChildren = children.length > 0;
     const childrenAllDone = hasChildren && children.every((child) => child.status === 'done');

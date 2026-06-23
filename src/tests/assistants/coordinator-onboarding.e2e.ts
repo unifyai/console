@@ -283,7 +283,8 @@ test('checklist allows independent sections to start out of order', async ({
   await expectComingSoonVisible(page);
 
   await selectCoordinatorOnboardingSection(page, 'workspace');
-  await expectComingSoonVisible(page);
+  await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toBeVisible();
+  await expectChecklistItemClickable(page, 'workspace');
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 });
 
@@ -330,7 +331,9 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   const emailReferenceRow = page.getByTestId('coordinator-onboarding-item-email-reference').first();
   await expect(emailReferenceRow).toBeVisible();
   await selectCoordinatorOnboardingSection(page, 'integrations');
-  await expectComingSoonVisible(page);
+  const appsRow = page.getByTestId('coordinator-onboarding-item-apps').first();
+  await expect(appsRow).toBeVisible();
+  await expectChecklistItemClickable(page, 'apps');
   await selectCoordinatorOnboardingSection(page, 'my-computer');
   await expectComingSoonVisible(page);
   await selectCoordinatorOnboardingSection(page, 'communication');
