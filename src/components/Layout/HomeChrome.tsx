@@ -7,12 +7,15 @@ import TopNav from '@/components/Layout/TopBar/TopNav';
 import LoadingScreen from '@/components/Layout/LoadingScreen';
 import { HomeShell } from '@/components/Layout/Shell/HomeShell';
 
+/** Home routes hosted inside the shared rail shell (migrated off `TopNav`). */
+const SHELL_ROUTE_PREFIXES = ['/account', '/billing'];
+
 /**
  * Decides the home chrome per route. The rail shell owns global navigation, so
  * the top nav is suppressed and the main area fills the viewport. `/assistants`
- * renders its own rail (the route body owns it); `/account` is hosted inside the
- * shared `HomeShell`. Every other home route keeps the legacy top nav until it
- * is migrated into the rail.
+ * renders its own rail (the route body owns it); the `SHELL_ROUTE_PREFIXES`
+ * routes are hosted inside the shared `HomeShell`. Every other home route keeps
+ * the legacy top nav until it is migrated into the rail.
  *
  * `children` arrives already wrapped by the async server-side MFA gate (and the
  * nuqs adapter) from the server layout, so this client component only owns the
@@ -21,7 +24,9 @@ import { HomeShell } from '@/components/Layout/Shell/HomeShell';
 export function HomeChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const assistantsShell = pathname === '/assistants' || pathname?.startsWith('/assistants/');
-  const homeShell = pathname === '/account' || pathname?.startsWith('/account/');
+  const homeShell = SHELL_ROUTE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`)
+  );
 
   const body = children;
 
