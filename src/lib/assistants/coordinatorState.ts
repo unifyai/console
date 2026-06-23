@@ -159,6 +159,13 @@ export interface CoordinatorStateSnapshot {
    * computes step availability.
    */
   onboarding: OnboardingRender | null;
+  /**
+   * Self-contained orientation briefing for a fresh onboarding voice call,
+   * composed server-side from the onboarding graph. Passed to the voice agent
+   * as a ``briefed`` opening so the first call speaks the intro immediately.
+   * Empty outside active onboarding.
+   */
+  voiceIntroBriefing: string;
 }
 
 export interface CoordinatorStatePatch {
@@ -345,6 +352,8 @@ function normalizeSnapshot(coordinatorId: number, raw: unknown): CoordinatorStat
     introWatched: (record.introWatched ?? record.intro_watched) === true,
     onboardingDeferred: (record.onboardingDeferred ?? record.onboarding_deferred) === true,
     onboarding: normalizeOnboardingRender(record.onboarding),
+    voiceIntroBriefing:
+      normalizeString(record.voiceIntroBriefing ?? record.voice_intro_briefing) ?? '',
   };
 }
 

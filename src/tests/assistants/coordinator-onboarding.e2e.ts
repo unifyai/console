@@ -429,6 +429,30 @@ test('starting a call connects and docks the call in the platform', async ({
   await page.getByRole('button', { name: 'End call' }).click();
 });
 
+test('coordinator state exposes a voice intro briefing for the first onboarding call', async () => {
+  // The first onboarding call dispatches a ``briefed`` opening whose
+  // ``system_context`` is this server-composed briefing (see
+  // ``handleStartCoordinatorIntroCall``). Assert the contract the dispatch
+  // relies on: a fresh onboarding coordinator's state read carries a
+  // non-empty orientation briefing introducing Twin and the pause escape hatch.
+  const coordinator = createPersonalCoordinator(user.id);
+  resetCoordinatorIntroWatched();
+
+  const res = await orchestraFetch(
+    `/v0/assistant/${coordinator.agentId}/state`,
+    { method: 'GET' },
+    user.apiKey
+  );
+  expect(res.ok).toBeTruthy();
+  const body = (await res.json()) as { info?: Record<string, unknown> } & Record<string, unknown>;
+  const info = body.info ?? body;
+  const briefing = String(info.voice_intro_briefing ?? info.voiceIntroBriefing ?? '');
+
+  expect(briefing.length).toBeGreaterThan(0);
+  expect(briefing).toContain('Twin');
+  expect(briefing.toLowerCase()).toContain('pause onboarding');
+});
+
 test('mobile onboarding keeps the docked Twin call visible instead of auto-opening Assistant info', async ({
   authedPage: page,
 }) => {

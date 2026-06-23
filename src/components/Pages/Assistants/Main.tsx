@@ -15,6 +15,7 @@ import {
   AssistantFormData,
   AssistantPreset,
   AssistantUpdatePayload,
+  CallOpeningConfig,
   VoiceOption,
 } from '@/types/assistants/assistant';
 import { ContactType, type OAuthProvider } from '@/types/assistants/contact';
@@ -1987,9 +1988,21 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleStartCoordinatorIntroCall = React.useCallback(
     (assistant: Assistant, type: 'video' | 'audio', options?: AssistantCallConnectOptions) => {
       handleShowProfile(assistant.agentId);
-      return handleStartCall(assistant, type, options);
+      // First onboarding voice call: speak the server-composed orientation
+      // briefing immediately via a `briefed` opening, instead of waiting for
+      // the slow-brain wakeup to shape a generic holding greeting.
+      const briefing = coordinatorOnboardingState?.voiceIntroBriefing?.trim();
+      const isFreshOnboardingIntro =
+        coordinatorOnboardingState?.mode === 'onboarding' &&
+        coordinatorOnboardingState?.introWatched === false &&
+        coordinatorOnboardingState?.onboardingDeferred !== true;
+      const openingConfig: CallOpeningConfig | undefined =
+        briefing && isFreshOnboardingIntro
+          ? { mode: 'briefed', systemContext: briefing, source: 'coordinator_onboarding_intro' }
+          : options?.openingConfig;
+      return handleStartCall(assistant, type, { ...options, openingConfig });
     },
-    [handleShowProfile, handleStartCall]
+    [handleShowProfile, handleStartCall, coordinatorOnboardingState]
   );
 
   // While the onboarding intro overlay is up, pin the canonical
