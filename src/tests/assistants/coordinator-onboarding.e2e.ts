@@ -228,7 +228,7 @@ test('checklist allows independent sections to start out of order', async ({
   ).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
   await expectChecklistItemClickable(page, 'email-reference');
   await openChecklistItemMenu(page, 'email-reference');
-  await expect(page.getByRole('menuitem', { name: 'Select' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Action' })).toBeVisible();
   await expect(page.getByRole('menuitem', { name: 'Skip' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('coordinator-onboarding-item-email-reply')).toHaveAttribute(
@@ -323,17 +323,28 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   const emailReferenceRow = page.getByTestId('coordinator-onboarding-item-email-reference').first();
   await expect(emailReferenceRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
   await expectChecklistItemClickable(page, 'email-reference');
-  await emailReferenceRow.click();
+  await openChecklistItemMenu(page, 'email-reference');
+  await page.getByRole('menuitem', { name: 'Action' }).click();
   await expect(emailReferenceRow).toHaveAttribute('data-status', 'done', { timeout: 10_000 });
-  await emailReferenceRow.click();
+  await openChecklistItemMenu(page, 'email-reference');
   await expect(page.getByRole('menuitem', { name: 'Undo' })).toBeVisible();
-  await page.keyboard.press('Escape');
+  await page.getByRole('menuitem', { name: 'Undo' }).click();
+  await expect(emailReferenceRow).toHaveAttribute('data-status', 'pending');
+  await expect(page.getByTestId('coordinator-onboarding-item-email-reply').first()).toHaveAttribute(
+    'data-status',
+    'locked'
+  );
+  await openChecklistItemMenu(page, 'email-reference');
+  await page.getByRole('menuitem', { name: 'Action' }).click();
   await expect(page.getByTestId('coordinator-onboarding-item-email-reply').first()).toHaveAttribute(
     'data-next',
     'true',
     { timeout: 10_000 }
   );
   await expectChecklistItemClickable(page, 'email-reply');
+  await openChecklistItemMenu(page, 'email-reply');
+  await page.getByRole('menuitem', { name: 'Action' }).click();
+  await expect(page.getByTestId('coordinator-onboarding-info-content-email-reply')).toBeVisible();
   await expect(page.getByTestId('coordinator-onboarding-item-apps')).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
   await expect

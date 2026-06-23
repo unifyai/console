@@ -43,6 +43,7 @@ import type {
   OnboardingChip,
   OnboardingRender,
   OnboardingStepDependency,
+  OnboardingStepStatus,
 } from '@/lib/assistants/coordinatorState';
 import { useCoordinatorOnboardingContext } from './CoordinatorOnboardingContext';
 
@@ -139,6 +140,16 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   schedule: 'schedule',
 };
 
+const INFO_ONLY_ACTIONS = new Set<ChecklistAction>([
+  'start-email-reply',
+  'start-whatsapp-message',
+  'start-whatsapp-call',
+  'start-sms-message',
+  'start-phone-call',
+  'start-slack-message',
+  'start-discord-message',
+]);
+
 interface ResolvedChecklistItem extends OnboardingChecklistItem {
   done: boolean;
   skipped: boolean;
@@ -148,10 +159,66 @@ interface ResolvedChecklistItem extends OnboardingChecklistItem {
   children?: ResolvedChecklistItem[];
 }
 
+const EMPTY_ONBOARDING_STEP_IDS: ReadonlySet<string> = new Set();
+
+function isOnboardingDependencySatisfied(
+  status: OnboardingStepStatus,
+  resolution: OnboardingStepDependency['resolution']
+): boolean {
+  if (resolution === 'completed') return status === 'done';
+  return status === 'done' || status === 'skipped';
+}
+
+function resolveLocalStepStatuses(
+  render: OnboardingRender,
+  completedStepIds: ReadonlySet<string>,
+  skippedStepIds: ReadonlySet<string>,
+  resetStepIds: ReadonlySet<string>
+): Map<string, OnboardingStepStatus> {
+  const statuses = new Map<string, OnboardingStepStatus>();
+  for (const step of render.steps) {
+    if (resetStepIds.has(step.id)) {
+      statuses.set(step.id, step.status === 'coming_soon' ? 'coming_soon' : 'available');
+    } else if (completedStepIds.has(step.id) || step.status === 'done') {
+      statuses.set(step.id, 'done');
+    } else if (skippedStepIds.has(step.id) || step.status === 'skipped') {
+      statuses.set(step.id, 'skipped');
+    } else if (step.status === 'coming_soon') {
+      statuses.set(step.id, 'coming_soon');
+    } else {
+      statuses.set(step.id, step.status === 'locked' ? 'locked' : 'available');
+    }
+  }
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const step of render.steps) {
+      const current = statuses.get(step.id);
+      if (current === 'done' || current === 'skipped' || current === 'coming_soon') continue;
+      const next = step.dependencies.every((dependency) =>
+        isOnboardingDependencySatisfied(
+          statuses.get(dependency.id) ?? dependency.status,
+          dependency.resolution
+        )
+      )
+        ? 'available'
+        : 'locked';
+      if (current !== next) {
+        statuses.set(step.id, next);
+        changed = true;
+      }
+    }
+  }
+
+  return statuses;
+}
+
 /**
  * Build the rendered checklist tree from the server's onboarding
- * rendering. The server is authoritative for each step's status; we
- * only attach UI copy + the action handler and group by phase.
+ * rendering. The server supplies ordering and base state; local
+ * completion/skip/reset overlays are applied so immediate checklist
+ * actions do not wait on a state refetch.
  *
  * Visibility mirrors the server render: ``done``/``skipped`` rows always
  * show; an ``available`` row shows only when its action is wired on this
@@ -162,19 +229,28 @@ interface ResolvedChecklistItem extends OnboardingChecklistItem {
  */
 function buildVisibleChecklist(
   render: OnboardingRender | null,
-  isActionWired: (action: ChecklistAction | undefined) => boolean
+  isActionWired: (action: ChecklistAction | undefined) => boolean,
+  completedStepIds: ReadonlySet<string>,
+  skippedStepIds: ReadonlySet<string>,
+  resetStepIds: ReadonlySet<string>
 ): ResolvedChecklistItem[] {
   if (!render) return [];
 
   const leavesByPhase = new Map<string, ResolvedChecklistItem[]>();
   const skippedPhases = new Set(render.skippedPhaseIds);
+  const localStatuses = resolveLocalStepStatuses(
+    render,
+    completedStepIds,
+    skippedStepIds,
+    resetStepIds
+  );
   for (const step of render.steps) {
     const phaseSkipped = skippedPhases.has(step.phase);
-    const locked = step.status === 'locked' || step.status === 'coming_soon';
+    const localStatus = localStatuses.get(step.id) ?? step.status;
+    const locked = localStatus === 'locked' || localStatus === 'coming_soon';
     let status: 'pending' | 'done' | 'skipped';
-    if (step.status === 'done') status = 'done';
-    else if (step.status === 'skipped') status = 'skipped';
-    else if (step.status === 'available') status = 'pending';
+    if (localStatus === 'done') status = 'done';
+    else if (localStatus === 'skipped') status = 'skipped';
     else status = 'pending';
 
     const action = STEP_ACTIONS[step.id];
@@ -192,7 +268,14 @@ function buildVisibleChecklist(
       estimatedTime: step.estimatedTime || undefined,
       chipsChat: step.chipsChat,
       chipsCall: step.chipsCall,
-      dependencies: step.dependencies,
+      dependencies: step.dependencies.map((dependency) => {
+        const dependencyStatus = localStatuses.get(dependency.id) ?? dependency.status;
+        return {
+          ...dependency,
+          status: dependencyStatus,
+          satisfied: isOnboardingDependencySatisfied(dependencyStatus, dependency.resolution),
+        };
+      }),
       action,
       canSkip: step.canSkip,
       done: status === 'done',
@@ -442,6 +525,9 @@ export function CoordinatorOnboardingChecklist({
   const deferOnboarding = ctx?.deferOnboarding;
   const resumeOnboarding = ctx?.resumeOnboarding;
   const onboarding = ctx?.onboarding ?? null;
+  const completedStepIds = ctx?.completedStepIds ?? EMPTY_ONBOARDING_STEP_IDS;
+  const skippedStepIds = ctx?.skippedStepIds ?? EMPTY_ONBOARDING_STEP_IDS;
+  const resetStepIds = ctx?.resetStepIds ?? EMPTY_ONBOARDING_STEP_IDS;
   const [openSectionIds, setOpenSectionIds] = React.useState<ReadonlySet<string>>(() => new Set());
   const [openSubgroupIds, setOpenSubgroupIds] = React.useState<ReadonlySet<string>>(
     () => new Set()
@@ -556,8 +642,15 @@ export function CoordinatorOnboardingChecklist({
   );
 
   const resolved = React.useMemo(
-    () => buildVisibleChecklist(onboarding, isActionWired),
-    [onboarding, isActionWired]
+    () =>
+      buildVisibleChecklist(
+        onboarding,
+        isActionWired,
+        completedStepIds,
+        skippedStepIds,
+        resetStepIds
+      ),
+    [onboarding, isActionWired, completedStepIds, skippedStepIds, resetStepIds]
   );
   const visibleLeaves = React.useMemo(() => collectVisibleLeaves(resolved), [resolved]);
 
@@ -970,6 +1063,16 @@ function ChecklistRow({
   const canSelect = isActionable && !!item.action;
   const canUndo = item.status === 'done' && !!onResetStepProgress;
   const hasRowMenu = canSelect || canSkip || canUnskip || canUndo;
+  const opensInfoFromAction = !!item.action && hasInfo && INFO_ONLY_ACTIONS.has(item.action);
+  const handleActionSelect = () => {
+    if (!item.action) return;
+    if (opensInfoFromAction) {
+      setIsInfoTooltipPinnedToLabel(true);
+      setIsInfoTooltipOpen(true);
+      return;
+    }
+    onAction(item.action);
+  };
 
   const renderMarkerAndLabel = (variant: 'done' | 'skipped' | 'actionable' | 'static') => {
     const content = (
@@ -1023,9 +1126,7 @@ function ChecklistRow({
           ) : (
             <>
               {canSelect ? (
-                <DropdownMenuItem onSelect={() => item.action && onAction(item.action)}>
-                  Select
-                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={handleActionSelect}>Action</DropdownMenuItem>
               ) : null}
               {canSkip ? (
                 <DropdownMenuItem onSelect={() => onSkipStep?.(item.id)}>Skip</DropdownMenuItem>
@@ -1118,7 +1219,11 @@ function ChecklistRow({
               data-testid={`coordinator-onboarding-info-${item.id}`}
             />
           </TooltipTrigger>
-          <TooltipContent side="left" className="pointer-events-none max-w-[220px]">
+          <TooltipContent
+            side="left"
+            className="pointer-events-none max-w-[220px]"
+            data-testid={`coordinator-onboarding-info-content-${item.id}`}
+          >
             <div className="flex flex-col gap-1.5">
               {item.description || item.estimatedTime ? (
                 <p className="text-caption leading-snug">
