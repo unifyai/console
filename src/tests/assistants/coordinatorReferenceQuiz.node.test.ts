@@ -25,7 +25,7 @@ describe('dispatchCoordinatorOnboardingStepEvent', () => {
       dependencies: [],
       event: {
         eventType: 'coordinator_onboarding_event',
-        message: 'The user triggered an onboarding communication task.',
+        message: "The user just clicked 'Receive Slack message from Twin'.",
         subtype: 'reference_quiz_clue_requested',
         details: {
           game: 'guess_the_reference',
@@ -33,9 +33,6 @@ describe('dispatchCoordinatorOnboardingStepEvent', () => {
           reply_step_id: 'slack-message',
           channel: 'slack_message',
           tool_name: 'send_slack_message',
-          clue: 'The clue is: "Phone home."',
-          quote: 'Phone home.',
-          answer: 'Battlestar Galactica',
           framing: 'Play the mini-game.',
         },
       },
