@@ -151,7 +151,7 @@ export function AssistantListItem({
         aria-label={displayName}
         className={cn(
           'relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-transparent transition-colors',
-          isSelected && 'border-[color:var(--role-green-deep)] bg-primary text-primary-foreground',
+          isSelected && 'bg-accent-soft',
           !isSelected && 'hover:bg-[var(--surface-hover)]'
         )}
         onClick={handleProfileClick}
@@ -198,8 +198,8 @@ export function AssistantListItem({
       data-testid={isPrimary ? `assistant-list-item-${assistant.agentId}` : undefined}
       className={cn(
         'group flex w-full min-w-0 cursor-pointer items-center justify-between rounded-lg border border-transparent p-2 transition-colors',
-        !isSelected && 'hover:border-border hover:bg-[var(--surface-hover)]',
-        isSelected && 'border-[color:var(--role-green-deep)] bg-primary text-primary-foreground'
+        !isSelected && 'hover:bg-[var(--surface-hover)]',
+        isSelected && 'bg-accent-soft'
       )}
       onClick={handleProfileClick}
       onKeyDown={handleRowKeyDown}
@@ -224,17 +224,17 @@ export function AssistantListItem({
         </div>
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-1.5">
-            <span className="text-body text-strong truncate">{displayName}</span>
-          </div>
-          {subtitle && !isCoordinator ? (
-            <p
+            <span
               className={cn(
-                'text-caption mt-0.5 truncate',
-                isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                'text-body text-strong truncate',
+                isSelected && 'text-accent-soft-foreground'
               )}
             >
-              {subtitle}
-            </p>
+              {displayName}
+            </span>
+          </div>
+          {subtitle && !isCoordinator ? (
+            <p className="text-caption mt-0.5 truncate text-muted-foreground">{subtitle}</p>
           ) : null}
         </div>
       </div>
@@ -246,10 +246,7 @@ export function AssistantListItem({
                 <span>
                   <Badge
                     variant="outline"
-                    className={cn(
-                      'h-5 cursor-default px-1.5 text-[10px] font-medium',
-                      isSelected && 'border-primary-foreground text-primary-foreground'
-                    )}
+                    className="h-5 cursor-default px-1.5 text-[10px] font-medium"
                   >
                     {totalTeamCount} teams
                   </Badge>
@@ -264,23 +261,13 @@ export function AssistantListItem({
         {hasUnread && (
           <span
             data-testid={`assistant-unread-badge-${assistant.agentId}`}
-            className={cn(
-              'flex h-4 min-w-4 flex-shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none',
-              isSelected
-                ? 'bg-primary-foreground text-primary'
-                : 'bg-primary text-primary-foreground'
-            )}
+            className="flex h-4 min-w-4 flex-shrink-0 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground"
           >
             {unreadLabel}
           </span>
         )}
         {assistant.demoId && (
-          <span
-            className={cn(
-              `text-caption`,
-              isSelected ? 'text-primary-foreground' : 'text-muted-foreground'
-            )}
-          >
+          <span className="text-caption text-muted-foreground">
             <Badge variant="outline">Demo</Badge>
           </span>
         )}
@@ -288,12 +275,7 @@ export function AssistantListItem({
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <PhoneCall
-                  className={cn(
-                    'h-4 w-4 flex-shrink-0 animate-pulse',
-                    isSelected ? 'text-primary-foreground' : 'text-primary'
-                  )}
-                />
+                <PhoneCall className="h-4 w-4 flex-shrink-0 animate-pulse text-primary" />
               </TooltipTrigger>
               <TooltipContent>
                 <p>In a call</p>
@@ -314,7 +296,7 @@ export function AssistantListItem({
                 size="icon"
                 className={cn(
                   'h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100',
-                  isSelected && 'text-primary-foreground opacity-100 hover:text-primary-foreground'
+                  isSelected && 'opacity-100'
                 )}
                 onClick={(e) => e.stopPropagation()}
                 data-testid={`assistant-menu-${assistant.agentId}`}

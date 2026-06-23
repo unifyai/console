@@ -463,6 +463,7 @@ export function AssistantList({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
+                        data-testid="assistant-onboard-button"
                         variant={isFolded ? 'ghost' : 'outline'}
                         size="icon"
                         className="h-7 w-7"
@@ -496,6 +497,7 @@ export function AssistantList({
             </div>
             {showHireButton && (
               <Button
+                data-testid="assistant-onboard-button"
                 variant="outline"
                 size="sm"
                 className="hidden h-7 items-center text-xs md:inline-flex"
