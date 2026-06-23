@@ -22,6 +22,8 @@ import { listAssistants } from '@/lib/assistants/assistant';
 import { getMembersAction } from '@/lib/orchestra/api/organization';
 import { resolveWorkspaceContext } from '@/lib/user/workspace';
 import { getServerFeatures } from '@/lib/features/server';
+import { ShellSectionPage } from '@/components/Layout/Shell/ShellSectionPage';
+import { USAGE_SECTION } from '@/components/Layout/Shell/shellSections';
 
 export const metadata: Metadata = {
   title: 'Usage',
@@ -52,11 +54,11 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
   // `features.billing` already accounts for these via the credential authority.
   if (!(await getServerFeatures()).billing) {
     return (
-      <div className="h-full w-full overflow-auto p-1">
+      <ShellSectionPage section={USAGE_SECTION}>
         <Suspense fallback={<SkeletonLoader />}>
           <BillingUnavailable />
         </Suspense>
-      </div>
+      </ShellSectionPage>
     );
   }
 
@@ -73,9 +75,9 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
 
   if (activeOrganization?.freeTrial && !isUnifyMember) {
     return (
-      <div className="h-full w-full overflow-auto p-1">
+      <ShellSectionPage section={USAGE_SECTION}>
         <FreeTrialUsageLock />
-      </div>
+      </ShellSectionPage>
     );
   }
 
@@ -113,7 +115,7 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
   const initialAssistantId = typeof params.assistant === 'string' ? params.assistant : undefined;
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
+    <ShellSectionPage section={USAGE_SECTION} fill>
       <Suspense fallback={<SkeletonLoader />}>
         <UsageMain
           currentUserId={user.id}
@@ -125,7 +127,7 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
           orgId={orgId}
         />
       </Suspense>
-    </div>
+    </ShellSectionPage>
   );
 };
 
