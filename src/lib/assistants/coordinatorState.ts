@@ -38,6 +38,13 @@ export interface OnboardingStepDependency {
   satisfied: boolean;
 }
 
+export interface OnboardingEventSpec {
+  eventType: string;
+  message: string;
+  subtype: string;
+  details: Record<string, unknown>;
+}
+
 /**
  * A checklist phase header (grouping row) with its display copy, sourced
  * from Orchestra's canonical graph. ``id`` is the stable header-row id
@@ -51,6 +58,7 @@ export interface OnboardingPhaseInfo {
   phase: string;
   title: string;
   description: string;
+  framing: string;
 }
 
 /**
@@ -70,6 +78,7 @@ export interface OnboardingStep {
   chipsChat: OnboardingChip[];
   chipsCall: OnboardingChip[];
   dependencies: OnboardingStepDependency[];
+  event: OnboardingEventSpec | null;
 }
 
 /** A step the Coordinator may nudge toward right now, with ready copy. */
@@ -215,6 +224,20 @@ function normalizeOnboardingStepDependencies(value: unknown): OnboardingStepDepe
     .filter((d): d is OnboardingStepDependency => d !== null);
 }
 
+function normalizeOnboardingEvent(value: unknown): OnboardingEventSpec | null {
+  if (!value || typeof value !== 'object') return null;
+  const r = value as Record<string, unknown>;
+  const eventType = r.eventType ?? r.event_type;
+  if (typeof eventType !== 'string' || !eventType.trim()) return null;
+  const details = r.details && typeof r.details === 'object' ? r.details : {};
+  return {
+    eventType,
+    message: typeof r.message === 'string' ? r.message : '',
+    subtype: typeof r.subtype === 'string' ? r.subtype : '',
+    details: details as Record<string, unknown>,
+  };
+}
+
 function normalizeOnboardingPhase(value: unknown): OnboardingPhaseInfo | null {
   if (!value || typeof value !== 'object') return null;
   const r = value as Record<string, unknown>;
@@ -225,6 +248,7 @@ function normalizeOnboardingPhase(value: unknown): OnboardingPhaseInfo | null {
     phase: typeof r.phase === 'string' ? r.phase : '',
     title: typeof r.title === 'string' ? r.title : '',
     description: typeof r.description === 'string' ? r.description : '',
+    framing: typeof r.framing === 'string' ? r.framing : '',
   };
 }
 
@@ -249,6 +273,7 @@ function normalizeOnboardingStep(value: unknown): OnboardingStep | null {
     chipsChat: normalizeChips(r.chipsChat ?? r.chips_chat),
     chipsCall: normalizeChips(r.chipsCall ?? r.chips_call),
     dependencies: normalizeOnboardingStepDependencies(r.dependencies),
+    event: normalizeOnboardingEvent(r.event),
   };
 }
 

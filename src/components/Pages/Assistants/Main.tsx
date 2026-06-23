@@ -94,31 +94,12 @@ import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { createRandomDroidProfile } from '@/utils/assistants/droid-profile-randomizer';
 import {
-  coordinatorReferenceQuizTriggerStepForReplyStep,
-  dispatchCoordinatorReferenceQuizClue,
+  coordinatorTriggerStepForReplyStep,
+  dispatchCoordinatorOnboardingStepEvent,
+  replyStepForCoordinatorTriggerStep,
 } from '@/utils/assistants/coordinator-reference-quiz';
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
-const COORDINATOR_REFERENCE_QUIZ_ACTIONS = new Set<ChecklistAction>([
-  'trigger-email-reference',
-  'start-email-reply',
-  'add-whatsapp-number',
-  'trigger-whatsapp-message-reference',
-  'start-whatsapp-message',
-  'trigger-whatsapp-call-reference',
-  'start-whatsapp-call',
-  'add-phone-number',
-  'trigger-sms-reference',
-  'start-sms-message',
-  'trigger-phone-call-reference',
-  'start-phone-call',
-  'connect-slack',
-  'trigger-slack-reference',
-  'start-slack-message',
-  'connect-discord',
-  'trigger-discord-reference',
-  'start-discord-message',
-]);
 type ContactManagerInitialTab = ContactType | 'slack';
 
 interface MainProps {
@@ -1808,25 +1789,38 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleCoordinatorTriggerReferenceStep = React.useCallback(
     (stepId: string) => {
       if (!canonicalCoordinator) return;
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (!step) return;
       markStepEngaged(stepId);
       void (async () => {
         try {
-          const clue = await dispatchCoordinatorReferenceQuizClue(
+          const event = await dispatchCoordinatorOnboardingStepEvent(
             canonicalCoordinator.agentId,
-            stepId
+            step
           );
-          if (!clue) return;
+          if (!event) return;
 
-          markStepCompleted(clue.triggerStepId);
-          markStepEngaged(clue.replyStepId);
-          void updateCoordinatorOnboardingState({ onboardingStep: clue.replyStepId });
+          const replyStepId = replyStepForCoordinatorTriggerStep(step);
+          markStepCompleted(step.id);
+          if (replyStepId) {
+            markStepEngaged(replyStepId);
+            void updateCoordinatorOnboardingState({ onboardingStep: replyStepId });
+          }
         } catch (error) {
-          console.error('[Coordinator onboarding] Failed to dispatch reference quiz clue:', error);
-          toast.error('Could not send the reference clue. Please try again.');
+          console.error('[Coordinator onboarding] Failed to dispatch onboarding event:', error);
+          toast.error('Could not start this task. Please try again.');
         }
       })();
     },
-    [canonicalCoordinator, markStepCompleted, markStepEngaged, updateCoordinatorOnboardingState]
+    [
+      canonicalCoordinator,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepCompleted,
+      markStepEngaged,
+      updateCoordinatorOnboardingState,
+    ]
   );
 
   const handleCoordinatorAddWhatsappNumber = React.useCallback(() => {
@@ -2071,29 +2065,34 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // freely.
   const serverCompletedStepIds = coordinatorOnboardingState?.completedStepIds;
   const serverSkippedStepIds = coordinatorOnboardingState?.skippedStepIds;
+  const onboardingSteps = React.useMemo(
+    () => coordinatorOnboardingState?.onboarding?.steps ?? [],
+    [coordinatorOnboardingState?.onboarding?.steps]
+  );
   React.useEffect(() => {
     if (!serverCompletedStepIds) return;
     for (const stepId of serverCompletedStepIds) {
       seedStepCompleted(stepId);
-      const triggerStepId = coordinatorReferenceQuizTriggerStepForReplyStep(stepId);
+      const triggerStepId = coordinatorTriggerStepForReplyStep(stepId, onboardingSteps);
       if (triggerStepId) seedStepCompleted(triggerStepId);
     }
-  }, [serverCompletedStepIds, seedStepCompleted]);
+  }, [onboardingSteps, serverCompletedStepIds, seedStepCompleted]);
   React.useEffect(() => {
     if (!serverSkippedStepIds) return;
     for (const stepId of serverSkippedStepIds) {
       seedStepSkipped(stepId);
-      const triggerStepId = coordinatorReferenceQuizTriggerStepForReplyStep(stepId);
+      const triggerStepId = coordinatorTriggerStepForReplyStep(stepId, onboardingSteps);
       if (triggerStepId) seedStepSkipped(triggerStepId);
     }
-  }, [serverSkippedStepIds, seedStepSkipped]);
+  }, [onboardingSteps, serverSkippedStepIds, seedStepSkipped]);
   React.useEffect(() => {
     if (!activeCoordinatorOnboardingStep) return;
-    const triggerStepId = coordinatorReferenceQuizTriggerStepForReplyStep(
-      activeCoordinatorOnboardingStep
+    const triggerStepId = coordinatorTriggerStepForReplyStep(
+      activeCoordinatorOnboardingStep,
+      onboardingSteps
     );
     if (triggerStepId) seedStepCompleted(triggerStepId);
-  }, [activeCoordinatorOnboardingStep, seedStepCompleted]);
+  }, [activeCoordinatorOnboardingStep, onboardingSteps, seedStepCompleted]);
   React.useEffect(() => {
     if (
       !activeCoordinatorOnboardingStep ||

@@ -237,7 +237,7 @@ test('checklist allows independent sections to start out of order', async ({
   );
   await page.getByTestId('coordinator-onboarding-lock-hover-email-reply').click();
   await expect(page.getByText('Depends on:')).toBeVisible();
-  await expect(page.getByText('Email the first reference')).toBeVisible();
+  await expect(page.getByText('Receive email from Twin')).toBeVisible();
   await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 
