@@ -103,7 +103,15 @@ async function expectChecklistItemNotDimmed(page: Page, stepId: string) {
 }
 
 async function selectCoordinatorOnboardingSection(page: Page, sectionId: string) {
-  const toggle = page.getByTestId(`coordinator-onboarding-section-${sectionId}-toggle`);
+  const label = page.getByTestId(`coordinator-onboarding-section-${sectionId}-toggle`);
+  const toggle = label.locator('xpath=ancestor::button[1]');
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+    await label.click();
+  }
+}
+
+async function selectCoordinatorCommunicationSubgroup(page: Page, subgroupId: string) {
+  const toggle = page.getByTestId(`coordinator-onboarding-communication-${subgroupId}-toggle`);
   if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
     await toggle.click();
   }
@@ -180,6 +188,7 @@ test('checklist allows independent sections to start out of order', async ({
 
   await openOnboardingChecklist(page);
   await selectCoordinatorOnboardingSection(page, 'communication');
+  await selectCoordinatorCommunicationSubgroup(page, 'email');
   await expect(
     page.getByTestId('coordinator-onboarding-item-email-reference').first()
   ).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
@@ -195,7 +204,32 @@ test('checklist allows independent sections to start out of order', async ({
   );
   await expect(
     page.getByTestId('coordinator-onboarding-blocking-arrow-email-reference')
-  ).toBeVisible();
+  ).toHaveText('← Next');
+  await selectCoordinatorCommunicationSubgroup(page, 'whatsapp');
+  await page.getByTestId('coordinator-onboarding-item-whatsapp-call').click();
+  await expect(page.getByTestId('coordinator-onboarding-item-whatsapp-call')).toHaveAttribute(
+    'data-blocked-feedback',
+    'true'
+  );
+  await expect(
+    page.getByTestId('coordinator-onboarding-blocking-arrow-whatsapp-number')
+  ).toHaveText('← Next');
+  await expect(
+    page.getByTestId('coordinator-onboarding-blocking-arrow-whatsapp-call-reference')
+  ).toHaveCount(0);
+  await selectCoordinatorCommunicationSubgroup(page, 'slack');
+  await expect(page.getByTestId('coordinator-onboarding-item-slack-connect')).toHaveAttribute(
+    'data-status',
+    'locked'
+  );
+  await page.getByTestId('coordinator-onboarding-item-slack-reference').click();
+  await expect(page.getByTestId('coordinator-onboarding-item-slack-reference')).toHaveAttribute(
+    'data-blocked-feedback',
+    'true'
+  );
+  await expect(page.getByTestId('coordinator-onboarding-blocking-arrow-slack-connect')).toHaveText(
+    '← Locked'
+  );
   await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 

@@ -146,6 +146,8 @@ interface ResolvedChecklistItem extends OnboardingChecklistItem {
 }
 
 const EMPTY_ONBOARDING_STEP_IDS: ReadonlySet<string> = new Set();
+type BlockingFeedbackHint = 'next' | 'locked';
+const EMPTY_BLOCKING_STEP_HINTS: ReadonlyMap<string, BlockingFeedbackHint> = new Map();
 
 function comingSoonTitle(title: string): string {
   const trimmed = title.trim();
@@ -350,9 +352,12 @@ function collectVisibleLeaves(items: readonly ResolvedChecklistItem[]): Resolved
   );
 }
 
-function collectBlockingStepIds(stepId: string, items: readonly ResolvedChecklistItem[]): string[] {
+function collectBlockingStepHints(
+  stepId: string,
+  items: readonly ResolvedChecklistItem[]
+): ReadonlyMap<string, BlockingFeedbackHint> {
   const byId = new Map(items.map((item) => [item.id, item]));
-  const result: string[] = [];
+  const result = new Map<string, BlockingFeedbackHint>();
   const seen = new Set<string>();
 
   const visit = (currentStepId: string) => {
@@ -364,11 +369,16 @@ function collectBlockingStepIds(stepId: string, items: readonly ResolvedChecklis
       const dependencyItem = byId.get(dependency.id);
       if (!dependencyItem) continue;
       const canPointAtDependency =
-        !dependencyItem.locked &&
-        !dependencyItem.sectionSkipped &&
-        dependencyItem.status !== 'done';
-      if (canPointAtDependency) {
-        result.push(dependency.id);
+        !dependencyItem.sectionSkipped && dependencyItem.status !== 'done';
+      const dependencyHasBlockingDependencies = dependencyItem.dependencies?.some(
+        (innerDependency) => !innerDependency.satisfied
+      );
+      if (!dependencyItem.locked && canPointAtDependency) {
+        result.set(dependency.id, 'next');
+      } else if (dependencyHasBlockingDependencies) {
+        visit(dependency.id);
+      } else if (canPointAtDependency) {
+        result.set(dependency.id, dependencyItem.locked ? 'locked' : 'next');
       } else {
         visit(dependency.id);
       }
@@ -548,7 +558,7 @@ export function CoordinatorOnboardingChecklist({
   const [blockedFeedback, setBlockedFeedback] = React.useState<{
     stepId: string;
     token: number;
-    blockingStepIds: ReadonlySet<string>;
+    blockingStepHints: ReadonlyMap<string, BlockingFeedbackHint>;
   } | null>(null);
   const didInitializeOpenSectionRef = React.useRef(false);
   const blockedFeedbackTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -682,7 +692,7 @@ export function CoordinatorOnboardingChecklist({
       setBlockedFeedback({
         stepId,
         token: blockedFeedbackTokenRef.current,
-        blockingStepIds: new Set(collectBlockingStepIds(stepId, visibleLeaves)),
+        blockingStepHints: collectBlockingStepHints(stepId, visibleLeaves),
       });
       blockedFeedbackTimeoutRef.current = setTimeout(() => {
         setBlockedFeedback(null);
@@ -860,8 +870,8 @@ export function CoordinatorOnboardingChecklist({
                               allVisibleItems={visibleLeaves}
                               blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
                               blockedFeedbackToken={blockedFeedback?.token ?? 0}
-                              highlightedBlockingStepIds={
-                                blockedFeedback?.blockingStepIds ?? EMPTY_ONBOARDING_STEP_IDS
+                              blockingStepHints={
+                                blockedFeedback?.blockingStepHints ?? EMPTY_BLOCKING_STEP_HINTS
                               }
                               onBlockedStepClick={triggerBlockedFeedback}
                               isOnCall={isOnCall}
@@ -882,8 +892,8 @@ export function CoordinatorOnboardingChecklist({
                           allVisibleItems={visibleLeaves}
                           blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
                           blockedFeedbackToken={blockedFeedback?.token ?? 0}
-                          highlightedBlockingStepIds={
-                            blockedFeedback?.blockingStepIds ?? EMPTY_ONBOARDING_STEP_IDS
+                          blockingStepHints={
+                            blockedFeedback?.blockingStepHints ?? EMPTY_BLOCKING_STEP_HINTS
                           }
                           onBlockedStepClick={triggerBlockedFeedback}
                           isOnCall={isOnCall}
@@ -1032,7 +1042,7 @@ interface ChecklistRowProps {
   allVisibleItems: readonly ResolvedChecklistItem[];
   blockedFeedbackStepId: string | null;
   blockedFeedbackToken: number;
-  highlightedBlockingStepIds: ReadonlySet<string>;
+  blockingStepHints: ReadonlyMap<string, BlockingFeedbackHint>;
   onBlockedStepClick: (stepId: string) => void;
   /** Whether the user is on a call — selects the call vs. chat
    * "Act now" suggestion chips. */
@@ -1052,7 +1062,7 @@ function ChecklistRow({
   allVisibleItems,
   blockedFeedbackStepId,
   blockedFeedbackToken,
-  highlightedBlockingStepIds,
+  blockingStepHints,
   onBlockedStepClick,
   isOnCall,
   onResetStepProgress,
@@ -1066,7 +1076,7 @@ function ChecklistRow({
   const canShowBlockedFeedback =
     item.locked && !item.children?.length && item.status === 'pending' && !sectionDisabled;
   const shouldJiggle = blockedFeedbackStepId === item.id;
-  const shouldShowBlockingArrow = highlightedBlockingStepIds.has(item.id);
+  const blockingHint = blockingStepHints.get(item.id);
   const canResetSection =
     !isChild &&
     !!item.children?.length &&
@@ -1192,12 +1202,12 @@ function ChecklistRow({
     <div className={rowClassName(variant)}>
       {renderMarkerAndLabel(variant)}
       <span className="flex h-6 items-center justify-center gap-1">
-        {shouldShowBlockingArrow ? (
+        {blockingHint ? (
           <span
             className="text-caption whitespace-nowrap font-medium text-primary"
             data-testid={`coordinator-onboarding-blocking-arrow-${item.id}`}
           >
-            ← Next
+            ← {blockingHint === 'next' ? 'Next' : 'Locked'}
           </span>
         ) : (
           <span className={cn('flex h-6 items-center justify-center gap-1', dimClassName)}>
@@ -1336,7 +1346,7 @@ function ChecklistRow({
               allVisibleItems={allVisibleItems}
               blockedFeedbackStepId={blockedFeedbackStepId}
               blockedFeedbackToken={blockedFeedbackToken}
-              highlightedBlockingStepIds={highlightedBlockingStepIds}
+              blockingStepHints={blockingStepHints}
               onBlockedStepClick={onBlockedStepClick}
               isOnCall={isOnCall}
               onResetStepProgress={onResetStepProgress}
