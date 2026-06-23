@@ -150,6 +150,211 @@ describe('useProviderIntegrationCatalog', () => {
     ).toBe(true);
   });
 
+  it('maps available scope name fields to scope ids instead of scope-N placeholders', async () => {
+    vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/logs?')) {
+        return builtinsLogsResponse([
+          providerApp('apaleo', {
+            display_name: 'Apaleo',
+            auth_modes: ['oauth'],
+            available_scopes: [{ name: 'offline_access' }, { name: 'account.manage' }],
+          }),
+        ]);
+      }
+      if (url.startsWith('/api/integrations/provider/connections')) {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('{}', { status: 404 });
+    });
+
+    const { result } = renderHook(() => useProviderIntegrationCatalog('123'));
+
+    await waitFor(() => expect(result.current.definitions).toHaveLength(1));
+    expect(result.current.definitions[0].scopes.map((scope) => scope.id)).toEqual([
+      'offline_access',
+      'account.manage',
+    ]);
+    expect(result.current.definitions[0].scopes.map((scope) => scope.label)).toEqual([
+      'offline_access',
+      'account.manage',
+    ]);
+  });
+
+  it('normalizes a JSON-schema api key schema into renderable fields', async () => {
+    vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/logs?')) {
+        return builtinsLogsResponse([
+          providerApp('anthropic_administrator', {
+            display_name: 'Anthropic Administrator',
+            auth_modes: ['api_key'],
+            available_scopes: [],
+            api_key_schema: {
+              type: 'object',
+              required: ['generic_api_key'],
+              properties: {
+                generic_api_key: {
+                  type: 'string',
+                  title: 'Admin API Key',
+                  secret: true,
+                  description:
+                    "The Admin API key used for authentication, starting with 'sk-ant-admin...'.",
+                },
+              },
+            },
+          }),
+        ]);
+      }
+      if (url.startsWith('/api/integrations/provider/connections')) {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('{}', { status: 404 });
+    });
+
+    const { result } = renderHook(() => useProviderIntegrationCatalog('123'));
+
+    await waitFor(() => expect(result.current.definitions).toHaveLength(1));
+    const schema = result.current.definitions[0].apiKeySchema;
+    expect(schema).not.toBeNull();
+    expect(schema?.fields).toHaveLength(1);
+    expect(schema?.fields[0]).toMatchObject({
+      id: 'genericApiKey',
+      label: 'Admin API Key',
+      required: true,
+      sensitive: true,
+    });
+    expect(schema?.submitLabel).toBe('Save credentials');
+  });
+
+  it('uses the count metric endpoint for the catalog total', async () => {
+    const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/logs/count')) {
+        return new Response(JSON.stringify({ canonical_app_slug: 247 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.startsWith('/api/logs?')) {
+        return builtinsLogsResponse(
+          Array.from({ length: 100 }, (_, index) => providerApp(`app_${index}`)),
+          100
+        );
+      }
+      if (url.startsWith('/api/integrations/provider/connections')) {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('{}', { status: 404 });
+    });
+
+    const { result } = renderHook(() => useProviderIntegrationCatalog('123'));
+
+    await waitFor(() => expect(result.current.definitions).toHaveLength(100));
+    expect(result.current.total).toBe(247);
+    expect(result.current.hasMore).toBe(true);
+    const countCalls = fetchSpy.mock.calls.filter(([input]) =>
+      String(input).startsWith('/api/logs/count')
+    );
+    expect(countCalls).toHaveLength(1);
+    expect(String(countCalls[0][0])).toContain('context=Integrations%2FApps');
+    expect(String(countCalls[0][0])).toContain('key=');
+  });
+
+  it('filters search via contains and uses the inline list count (no metric call)', async () => {
+    const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/logs?')) {
+        return builtinsLogsResponse([providerApp('gmail', { display_name: 'Gmail' })], 1);
+      }
+      if (url.startsWith('/api/integrations/provider/connections')) {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('{}', { status: 404 });
+    });
+
+    const { result } = renderHook(() => useProviderIntegrationCatalog('123', { query: 'gmail' }));
+
+    await waitFor(() => expect(result.current.definitions).toHaveLength(1));
+    expect(result.current.total).toBe(1);
+    expect(result.current.hasMore).toBe(false);
+
+    const countCalls = fetchSpy.mock.calls.filter(([input]) =>
+      String(input).startsWith('/api/logs/count')
+    );
+    expect(countCalls).toHaveLength(0);
+
+    const listCall = fetchSpy.mock.calls.find(([input]) => String(input).startsWith('/api/logs?'));
+    const filterExpr = new URL(String(listCall?.[0]), window.location.origin).searchParams.get(
+      'filterExpr'
+    );
+    expect(filterExpr).toContain('display_name.lower().contains("gmail")');
+    expect(filterExpr).toContain('canonical_app_slug.lower().contains("gmail")');
+    expect(filterExpr).toContain('description.lower().contains("gmail")');
+    expect(filterExpr).not.toContain('category.lower()');
+    expect(filterExpr).not.toContain('source_label.lower()');
+  });
+
+  it('pins connected apps under the All filter even when off the browse page', async () => {
+    vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.startsWith('/api/logs/count')) {
+        return new Response(JSON.stringify({ canonical_app_slug: 250 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.startsWith('/api/logs?')) {
+        const params = new URL(url, window.location.origin).searchParams;
+        // The pinned connected/needs-attention fetch carries a status filter;
+        // the unfiltered browse page does not include the connected app.
+        if (params.get('filterExpr')) {
+          return builtinsLogsResponse([providerApp('gmail', { display_name: 'Gmail' })], 1);
+        }
+        return builtinsLogsResponse(
+          Array.from({ length: 3 }, (_, index) => providerApp(`app_${index}`)),
+          3
+        );
+      }
+      if (url.startsWith('/api/integrations/provider/connections')) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: 'conn-gmail',
+              connection_id: 'conn-gmail',
+              canonical_app_slug: 'gmail',
+              status: 'connected',
+            },
+          ]),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response('{}', { status: 404 });
+    });
+
+    const { result } = renderHook(() => useProviderIntegrationCatalog('123'));
+
+    await waitFor(() =>
+      expect(result.current.definitions.some((d) => d.canonicalSlug === 'gmail')).toBe(true)
+    );
+    expect(result.current.definitions.find((d) => d.canonicalSlug === 'gmail')?.status).toBe(
+      'connected'
+    );
+    expect(result.current.definitions.some((d) => d.canonicalSlug === 'app_0')).toBe(true);
+  });
+
   it('fetches deferred details with tools from Builtins logs', async () => {
     const fetchSpy = vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
       const url = String(input);

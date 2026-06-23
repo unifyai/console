@@ -197,6 +197,7 @@ export interface ChatWithInfoPanelProps {
    * during the conversation.
    */
   renderDockedCall?: () => React.ReactNode;
+  hideAssistantInfoPanel?: boolean;
 }
 
 export function ChatWithInfoPanel({
@@ -235,6 +236,7 @@ export function ChatWithInfoPanel({
   infoPanelFocusLayoutRequest = 0,
   coordinatorOnboarding,
   renderDockedCall,
+  hideAssistantInfoPanel = false,
 }: ChatWithInfoPanelProps) {
   // The dot is only meaningful when the panel actually exposes the
   // Onboarding tab — for non-owners (who don't get the tab) we
@@ -619,41 +621,45 @@ export function ChatWithInfoPanel({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="relative">
-                  <Button
-                    type="button"
-                    variant={isInfoOpen ? 'primary' : 'ghost'}
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={toggleInfo}
-                    data-testid="assistant-info-button"
-                    aria-label={
-                      showOnboardingDot ? 'Assistant info — setup incomplete' : 'Assistant info'
-                    }
-                    aria-pressed={isInfoOpen}
-                  >
-                    <IdCard className="h-4 w-4" />
-                  </Button>
-                  {showOnboardingDot && (
-                    <span
-                      data-testid="assistant-info-button-onboarding-dot"
-                      aria-hidden="true"
-                      // Pinned to the corner of the trigger; ring uses the
-                      // chat header's bg so the dot reads as a notch on
-                      // the icon rather than floating in space.
-                      className="pointer-events-none absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background"
-                    />
-                  )}
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>{showOnboardingDot ? 'Assistant info — setup incomplete' : 'Assistant info'}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          {!hideAssistantInfoPanel ? (
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="relative">
+                    <Button
+                      type="button"
+                      variant={isInfoOpen ? 'primary' : 'ghost'}
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={toggleInfo}
+                      data-testid="assistant-info-button"
+                      aria-label={
+                        showOnboardingDot ? 'Assistant info — setup incomplete' : 'Assistant info'
+                      }
+                      aria-pressed={isInfoOpen}
+                    >
+                      <IdCard className="h-4 w-4" />
+                    </Button>
+                    {showOnboardingDot && (
+                      <span
+                        data-testid="assistant-info-button-onboarding-dot"
+                        aria-hidden="true"
+                        // Pinned to the corner of the trigger; ring uses the
+                        // chat header's bg so the dot reads as a notch on
+                        // the icon rather than floating in space.
+                        className="pointer-events-none absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background"
+                      />
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>
+                    {showOnboardingDot ? 'Assistant info — setup incomplete' : 'Assistant info'}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : null}
         </div>
       </div>
 
@@ -678,7 +684,7 @@ export function ChatWithInfoPanel({
           )}
         </div>
 
-        {isInfoOpen && (
+        {!hideAssistantInfoPanel && isInfoOpen && (
           <ChatSidePanel
             ariaLabel="Assistant info"
             onClose={closeInfo}

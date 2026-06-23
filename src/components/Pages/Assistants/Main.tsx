@@ -662,6 +662,57 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     for (const stepId of resetStepIds) next.delete(stepId);
     return next;
   }, [resetStepIds, skippedStepIds]);
+  const collectCompletionBlockedStepIds = React.useCallback(
+    (stepId: string): string[] => {
+      const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
+      const result = [stepId];
+      const seen = new Set(result);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const step of steps) {
+          if (seen.has(step.id)) continue;
+          if (
+            step.dependencies.some(
+              (dependency) => dependency.resolution === 'completed' && seen.has(dependency.id)
+            )
+          ) {
+            seen.add(step.id);
+            result.push(step.id);
+            changed = true;
+          }
+        }
+      }
+      return result;
+    },
+    [coordinatorOnboardingState?.onboarding?.steps]
+  );
+  const collectCompletionCoupledStepIds = React.useCallback(
+    (stepId: string): string[] => {
+      const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
+      const coupled = new Set<string>([stepId]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const step of steps) {
+          if (!coupled.has(step.id)) continue;
+          for (const dependency of step.dependencies) {
+            if (dependency.resolution === 'completed' && !coupled.has(dependency.id)) {
+              coupled.add(dependency.id);
+              changed = true;
+            }
+          }
+        }
+      }
+      for (const coupledStepId of Array.from(coupled)) {
+        for (const blockedStepId of collectCompletionBlockedStepIds(coupledStepId)) {
+          coupled.add(blockedStepId);
+        }
+      }
+      return steps.filter((step) => coupled.has(step.id)).map((step) => step.id);
+    },
+    [collectCompletionBlockedStepIds, coordinatorOnboardingState?.onboarding?.steps]
+  );
   // Optimistic: flip the local checklist state immediately so the
   // row resolves (and downstream rows unlock) on the same frame as
   // the click. The orchestra write happens in the background; we roll
@@ -671,19 +722,35 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // re-render.
   const handleCoordinatorOnboardingStepSkip = React.useCallback(
     async (stepId: string) => {
-      markStepSkipped(stepId);
+      const cascadeStepIds = collectCompletionBlockedStepIds(stepId);
+      for (const cascadeStepId of cascadeStepIds) markStepSkipped(cascadeStepId);
       const skipped = await updateCoordinatorOnboardingState({ skipOnboardingStep: stepId });
-      if (!skipped) markStepUnskipped(stepId);
+      if (!skipped) {
+        for (const cascadeStepId of cascadeStepIds) markStepUnskipped(cascadeStepId);
+      }
     },
-    [markStepSkipped, markStepUnskipped, updateCoordinatorOnboardingState]
+    [
+      collectCompletionBlockedStepIds,
+      markStepSkipped,
+      markStepUnskipped,
+      updateCoordinatorOnboardingState,
+    ]
   );
   const handleCoordinatorOnboardingStepUnskip = React.useCallback(
     async (stepId: string) => {
-      markStepUnskipped(stepId);
+      const cascadeStepIds = collectCompletionCoupledStepIds(stepId);
+      for (const cascadeStepId of cascadeStepIds) markStepUnskipped(cascadeStepId);
       const unskipped = await updateCoordinatorOnboardingState({ unskipOnboardingStep: stepId });
-      if (!unskipped) markStepSkipped(stepId);
+      if (!unskipped) {
+        for (const cascadeStepId of cascadeStepIds) markStepSkipped(cascadeStepId);
+      }
     },
-    [markStepSkipped, markStepUnskipped, updateCoordinatorOnboardingState]
+    [
+      collectCompletionCoupledStepIds,
+      markStepSkipped,
+      markStepUnskipped,
+      updateCoordinatorOnboardingState,
+    ]
   );
   const handleCoordinatorOnboardingSectionSkip = React.useCallback(
     (phaseId: string) => {
@@ -712,6 +779,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       completedStepIds: visibleCompletedStepIds,
       markStepCompleted,
       resetStepProgress,
+      resetStepIds,
       skippedStepIds: visibleSkippedStepIds,
       markStepSkipped,
       markStepUnskipped,
@@ -726,6 +794,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       visibleCompletedStepIds,
       markStepCompleted,
       resetStepProgress,
+      resetStepIds,
       visibleSkippedStepIds,
       markStepSkipped,
       markStepUnskipped,

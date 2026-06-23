@@ -163,23 +163,44 @@ test('updating the about field via the edit dialog persists to DB', async ({
   expect(dbAfter.about).toBe(newAbout);
 });
 
-test('Twin voice section is hidden and seeded DB uses fixed voice', async ({
-  authedPage: page,
-}) => {
+test('changing Twin voice via the edit dialog persists to DB', async ({ authedPage: page }) => {
   const coordinator = user.coordinator;
   if (!coordinator) throw new Error('Expected seeded user to have a personal coordinator.');
 
   await openEditDialog(page, coordinator);
 
   const editDialog = page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE });
-  await expect(editDialog.getByTestId('assistant-voice-section')).toHaveCount(0);
-  await expect(editDialog.locator('[data-testid^="voice-option-"]')).toHaveCount(0);
+  await expect(editDialog.getByTestId('assistant-voice-section')).toBeVisible();
+
+  const voiceOptions = editDialog.locator('[data-testid^="voice-option-"]');
+  await expect(voiceOptions.first()).toBeVisible({ timeout: 15_000 });
+
+  let selectedVoiceId: string | null = null;
+  const optionCount = await voiceOptions.count();
+  for (let index = 0; index < optionCount; index += 1) {
+    const option = voiceOptions.nth(index);
+    const testId = await option.getAttribute('data-testid');
+    const voiceId = testId?.replace('voice-option-', '') ?? null;
+    if (voiceId && voiceId !== coordinatorFixedVoiceId) {
+      selectedVoiceId = voiceId;
+      await option.click();
+      await expect(option).toHaveAttribute('aria-selected', 'true');
+      break;
+    }
+  }
+
+  if (!selectedVoiceId) throw new Error('Expected at least one configurable Twin voice option.');
+
+  const updateBtn = page.getByRole('button', { name: /Update Twin/i });
+  await updateBtn.scrollIntoViewIfNeeded();
+  await updateBtn.click();
+
+  await expect(editDialog).not.toBeVisible({ timeout: 30_000 });
+  await page.waitForTimeout(1_000);
 
   const dbAfter = getAssistantFromDb(coordinator.agentId);
-  expect(dbAfter.voiceId).toBe(coordinatorFixedVoiceId);
-  expect(dbAfter.voiceProvider).toBe(
-    approvedCharacterVoiceMetadata[coordinatorFixedVoiceId].provider
-  );
+  expect(dbAfter.voiceId).toBe(selectedVoiceId);
+  expect(dbAfter.voiceProvider).toBe(approvedCharacterVoiceMetadata[selectedVoiceId].provider);
 });
 
 test('setting a job title via the edit dialog persists job_title to DB', async ({

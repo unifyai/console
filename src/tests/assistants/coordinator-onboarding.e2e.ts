@@ -112,6 +112,28 @@ async function expectChecklistItemClickable(page: Page, stepId: string) {
   );
 }
 
+async function expectChecklistItemNotDimmed(page: Page, stepId: string) {
+  await expect(
+    page
+      .getByTestId(`coordinator-onboarding-item-${stepId}`)
+      .first()
+      .locator(
+        'xpath=ancestor::li[contains(concat(" ", normalize-space(@class), " "), " opacity-50 ")]'
+      )
+  ).toHaveCount(0);
+}
+
+async function selectCoordinatorOnboardingSection(page: Page, sectionId: string) {
+  const toggle = page.getByTestId(`coordinator-onboarding-section-${sectionId}-toggle`);
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+    await toggle.click();
+  }
+}
+
+async function openChecklistItemMenu(page: Page, stepId: string) {
+  await page.getByTestId(`coordinator-onboarding-item-${stepId}`).click();
+}
+
 /**
  * Restore the fresh picker on the shared workspace coordinator.
  *
@@ -200,42 +222,61 @@ test('checklist allows independent sections to start out of order', async ({
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
 
   await openOnboardingChecklist(page);
+  await selectCoordinatorOnboardingSection(page, 'communication');
   await expect(
     page.getByTestId('coordinator-onboarding-item-email-reference').first()
   ).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
   await expectChecklistItemClickable(page, 'email-reference');
-  await expectChecklistItemClickable(page, 'workspace');
-  await expectChecklistItemClickable(page, 'act');
-  await expect(page.getByTestId('coordinator-onboarding-item-apps')).toHaveCount(0);
-  await expect(page.getByTestId('coordinator-onboarding-item-schedule')).toHaveCount(0);
+  await openChecklistItemMenu(page, 'email-reference');
+  await expect(page.getByRole('menuitem', { name: 'Action' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Skip' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('coordinator-onboarding-item-email-reply')).toHaveAttribute(
+    'data-status',
+    'locked'
+  );
+  await page.getByTestId('coordinator-onboarding-lock-hover-email-reply').click();
+  await expect(page.getByText('Depends on:')).toBeVisible();
+  await expect(page.getByText('Email the first reference')).toBeVisible();
+  await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveCount(0);
+  await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 
-  await page.getByTestId('coordinator-onboarding-skip-section-connect').click();
-  await expect(page.getByTestId('coordinator-onboarding-item-connect')).toHaveAttribute(
+  await selectCoordinatorOnboardingSection(page, 'my-computer');
+  await expect(page.getByTestId('coordinator-onboarding-item-email-reference')).toHaveCount(0);
+  await expect(
+    page.getByTestId('coordinator-onboarding-item-my-computer-coming-soon')
+  ).toHaveAttribute('data-status', 'locked');
+
+  await selectCoordinatorOnboardingSection(page, 'workspace');
+  await expectChecklistItemClickable(page, 'workspace');
+  await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
+  await expect(page.getByTestId('coordinator-onboarding-item-apps')).toHaveAttribute(
+    'data-status',
+    'locked'
+  );
+
+  await openChecklistItemMenu(page, 'workspace');
+  await page.getByRole('menuitem', { name: 'Skip' }).click();
+  await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveAttribute(
     'data-status',
     'skipped'
   );
   await expect(page.getByTestId('coordinator-onboarding-item-workspace')).not.toHaveAttribute(
-    'data-status',
-    'skipped'
+    'role',
+    'button'
   );
   await expect(page.getByTestId('coordinator-onboarding-item-apps')).toBeVisible();
   await expect(page.getByTestId('coordinator-onboarding-item-apps')).not.toHaveAttribute(
     'data-status',
     'skipped'
   );
-  await expect(page.getByTestId('coordinator-onboarding-skip-step-workspace')).toHaveCount(0);
-  await expect
-    .poll(() => readPersistedSkippedPhaseIds(coordinator.agentId), { timeout: 10_000 })
-    .toContain('Connect');
 
-  await page.getByTestId('coordinator-onboarding-unskip-section-connect').click();
+  await openChecklistItemMenu(page, 'workspace');
+  await page.getByRole('menuitem', { name: 'Unskip' }).click();
   await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveAttribute(
     'role',
     'button'
   );
-  await expect
-    .poll(() => readPersistedSkippedPhaseIds(coordinator.agentId), { timeout: 10_000 })
-    .not.toContain('Connect');
 });
 
 test('picking chat lands in the full platform with the checklist in Assistant info', async ({
@@ -262,53 +303,56 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   // The onboarding checklist now lives in the Coordinator's "Assistant
   // info" panel, seeded from the server-derived snapshot.
   await openOnboardingChecklist(page);
-  await expect(page.getByTestId('coordinator-onboarding-progress-summary')).toHaveText(
-    /\d+ of \d+ sections completed/
+  await expect(page.getByTestId('coordinator-onboarding-section-communication-toggle')).toHaveText(
+    /1\. Communication/
   );
-  await expect(page.getByTestId('coordinator-onboarding-progress-phase-meet')).toHaveCount(0);
-  await expect(page.getByTestId('coordinator-onboarding-progress-phase-comms')).toHaveCount(0);
-  await page.getByTestId('coordinator-onboarding-progress-toggle').click();
-  await expect(page.getByTestId('coordinator-onboarding-progress-phase-comms')).toBeVisible();
-  await expect(page.getByTestId('coordinator-onboarding-progress-phase-connect')).toBeVisible();
-  await expect(page.getByTestId('coordinator-onboarding-progress-phase-work')).toBeVisible();
-  await expect(page.getByTestId('coordinator-onboarding-progress-phase-connect')).toHaveAttribute(
-    'data-phase-completed',
-    '0'
+  await expect(page.getByTestId('coordinator-onboarding-section-workspace-toggle')).toHaveText(
+    /2\. Workspace/
   );
+  await expect(page.getByTestId('coordinator-onboarding-section-integrations-toggle')).toHaveText(
+    /3\. Integrations/
+  );
+  await selectCoordinatorOnboardingSection(page, 'integrations');
+  await expectChecklistItemClickable(page, 'apps');
+  await expect(page.getByTestId('coordinator-onboarding-item-email-reference')).toHaveCount(0);
+  await selectCoordinatorOnboardingSection(page, 'my-computer');
+  await expect(
+    page.getByTestId('coordinator-onboarding-item-my-computer-coming-soon')
+  ).toHaveAttribute('data-status', 'locked');
+  await selectCoordinatorOnboardingSection(page, 'communication');
   const emailReferenceRow = page.getByTestId('coordinator-onboarding-item-email-reference').first();
   await expect(emailReferenceRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
   await expectChecklistItemClickable(page, 'email-reference');
-  await expectChecklistItemClickable(page, 'apps');
-  await expectChecklistItemClickable(page, 'act');
-  await emailReferenceRow.click();
+  await openChecklistItemMenu(page, 'email-reference');
+  await page.getByRole('menuitem', { name: 'Action' }).click();
   await expect(emailReferenceRow).toHaveAttribute('data-status', 'done', { timeout: 10_000 });
+  await openChecklistItemMenu(page, 'email-reference');
+  await expect(page.getByRole('menuitem', { name: 'Undo' })).toBeVisible();
+  await page.getByRole('menuitem', { name: 'Undo' }).click();
+  await expect(emailReferenceRow).toHaveAttribute('data-status', 'pending');
+  await expect(page.getByTestId('coordinator-onboarding-item-email-reply').first()).toHaveAttribute(
+    'data-status',
+    'locked'
+  );
+  await openChecklistItemMenu(page, 'email-reference');
+  await page.getByRole('menuitem', { name: 'Action' }).click();
   await expect(page.getByTestId('coordinator-onboarding-item-email-reply').first()).toHaveAttribute(
     'data-next',
     'true',
     { timeout: 10_000 }
   );
   await expectChecklistItemClickable(page, 'email-reply');
-  await expectChecklistItemClickable(page, 'apps');
-  await expectChecklistItemClickable(page, 'act');
+  await openChecklistItemMenu(page, 'email-reply');
+  await page.getByRole('menuitem', { name: 'Action' }).click();
+  await expect(page.getByTestId('coordinator-onboarding-info-content-email-reply')).toBeVisible();
+  await expect(page.getByTestId('coordinator-onboarding-item-apps')).toHaveCount(0);
+  await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
   await expect
     .poll(() => readPersistedOnboardingStep(coordinator.agentId), { timeout: 10_000 })
     .toBe('email-reply');
   await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveCount(0);
-
-  const commsReset = page.getByTestId('coordinator-onboarding-reset-section-comms');
-  await expect(commsReset).toBeVisible();
-  await commsReset.click();
-  await expect(page.getByTestId('coordinator-onboarding-reset-dialog-comms')).toBeVisible();
-  await page.getByTestId('coordinator-onboarding-reset-cancel-comms').click();
-  await expect(emailReferenceRow).toHaveAttribute('data-status', 'done');
-
-  await commsReset.click();
-  await page.getByTestId('coordinator-onboarding-reset-confirm-comms').click();
-  await expect(emailReferenceRow).toHaveAttribute('data-next', 'true');
-  await expect(page.getByTestId('coordinator-onboarding-item-email-reply')).toHaveCount(0);
-  await expectChecklistItemClickable(page, 'email-reference');
-  await expectChecklistItemClickable(page, 'apps');
-  await expectChecklistItemClickable(page, 'act');
+  await expect(page.getByTestId('coordinator-onboarding-item-apps')).toHaveCount(0);
+  await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 
   // No skip / resume affordances exist on the platform either.
   await expect(page.getByTestId('coordinator-onboarding-skip')).toHaveCount(0);
@@ -430,15 +474,12 @@ test('skipping an inline checklist step can be reversed later', async ({ authedP
   const appsRow = page.getByTestId('coordinator-onboarding-item-apps').first();
   await expect(appsRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
   await expectChecklistItemClickable(page, 'apps');
-  await expectChecklistItemClickable(page, 'act');
+  await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 
-  await page.getByTestId('coordinator-onboarding-skip-step-apps').click();
+  await openChecklistItemMenu(page, 'apps');
+  await page.getByRole('menuitem', { name: 'Skip' }).click();
   await expect(appsRow).toHaveAttribute('data-status', 'skipped');
-  await expect(page.getByTestId('coordinator-onboarding-item-act').first()).toHaveAttribute(
-    'data-next',
-    'true'
-  );
-  await expectChecklistItemClickable(page, 'act');
+  await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 
   const skippedState = dbExec(
     `SELECT le.data->'skipped_step_ids' FROM log_event le ` +
@@ -449,9 +490,11 @@ test('skipping an inline checklist step can be reversed later', async ({ authedP
   );
   expect(skippedState).toContain('apps');
 
-  await page.getByTestId('coordinator-onboarding-unskip-step-apps').click();
+  await selectCoordinatorOnboardingSection(page, 'integrations');
+  await openChecklistItemMenu(page, 'apps');
+  await page.getByRole('menuitem', { name: 'Unskip' }).click();
   await expect(appsRow).toHaveAttribute('data-next', 'true');
-  await expectChecklistItemClickable(page, 'act');
+  await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 
   const unskippedState = dbExec(
     `SELECT le.data->'skipped_step_ids' FROM log_event le ` +

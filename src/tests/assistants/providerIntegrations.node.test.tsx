@@ -38,6 +38,7 @@ vi.mock('@/lib/client/integrations', async (importOriginal) => {
 });
 
 import { IntegrationGalleryShell, ProviderIntegrationDetailSheet } from '@/components/Integrations';
+import { mapProviderAppToDefinition } from '@/lib/client/integrations';
 import { useIntegrationGalleryModel } from '@/hooks/Integrations/useIntegrationGalleryModel';
 import { INTEGRATION_PROVIDERS } from '@/constants/assistants/integrations';
 import { MOCK_PROVIDER_INTEGRATION_DEFINITIONS } from '@/utils/assistants/provider-integration-mock-data';
@@ -313,15 +314,23 @@ describe('provider integrations gallery model', () => {
       />
     );
 
-    const attentionSection = screen.getByTestId('needs-attention-integrations-section');
+    // Under "All", connected and needs-attention apps share one pinned card.
+    const pinnedSection = screen.getByTestId('connected-integrations-section');
     const availableSection = screen.getByTestId('available-integrations-section');
-    expect(attentionSection).toBeInTheDocument();
-    expect(screen.getByTestId('provider-integration-card-attention-app')).toBeInTheDocument();
+    expect(pinnedSection).toBeInTheDocument();
+    expect(screen.queryByTestId('needs-attention-integrations-section')).not.toBeInTheDocument();
+    expect(pinnedSection).toContainElement(
+      screen.getByTestId('provider-integration-card-attention-app')
+    );
+    expect(pinnedSection).toContainElement(
+      screen.getByTestId('provider-integration-card-connected-app')
+    );
+    expect(screen.getByText('1 connected')).toBeInTheDocument();
     expect(screen.getByText('1 need attention')).toBeInTheDocument();
     expect(screen.getByText(/Showing 4 of 7 available apps/)).toBeInTheDocument();
     expect(screen.getByText('7 available')).toBeInTheDocument();
     expect(
-      attentionSection.compareDocumentPosition(availableSection) & Node.DOCUMENT_POSITION_FOLLOWING
+      pinnedSection.compareDocumentPosition(availableSection) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
   });
 
@@ -532,6 +541,51 @@ describe('provider integrations gallery model', () => {
     expect(screen.getAllByText('Run a company enrichment workflow.')).toHaveLength(1);
   });
 
+  it('renders an api-key app drawer from a raw JSON-schema without crashing', async () => {
+    const definition = mapProviderAppToDefinition({
+      backendId: 'composio',
+      providerAppId: 'ANTHROPIC_ADMINISTRATOR',
+      canonicalAppSlug: 'anthropic_administrator',
+      displayName: 'Anthropic Administrator',
+      sourceType: 'third_party',
+      authModes: ['api_key'],
+      availableScopes: [],
+      toolCount: 0,
+      apiKeySchema: {
+        type: 'object',
+        required: ['generic_api_key'],
+        properties: {
+          genericApiKey: {
+            type: 'string',
+            title: 'Admin API Key',
+            secret: true,
+            description:
+              "The Admin API key used for authentication, starting with 'sk-ant-admin...'.",
+          },
+        },
+      },
+    });
+    const item = {
+      ...definition,
+      sources: [definition.sourceMetadata],
+      primaryConnection: null,
+    } as IntegrationGalleryItem;
+
+    render(
+      <ProviderIntegrationDetailSheet
+        item={item}
+        open
+        onOpenChange={vi.fn()}
+        onPrimaryAction={vi.fn()}
+        onApiKeySubmit={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('provider-api-key-form')).toBeInTheDocument();
+    expect(screen.getByTestId('provider-api-key-field-genericApiKey')).toBeInTheDocument();
+    expect(screen.getByText('Admin API Key')).toBeInTheDocument();
+  });
+
   it('places connected app management controls at the top of the detail sheet', async () => {
     const { result } = renderHook(() => useMockGalleryItems());
     const hubspot = result.current.find((item) => item.canonicalSlug === 'hubspot');
@@ -670,9 +724,13 @@ describe('provider integrations gallery model', () => {
         { ownerScope: 'assistant', assistantId: '123' }
       );
     });
-    expect(screen.getByTestId('integration-secure-connection-summary')).toHaveTextContent(
-      'Tool permissions for HubSpot · Work HubSpot'
-    );
+    const workSummary = screen.getByTestId('integration-secure-connection-summary');
+    expect(workSummary).toHaveTextContent('Tool permissions for HubSpot · Work HubSpot');
+    // Counts reflect the effective level of every tool (search_contacts → auto,
+    // update_contact → specific_approval), matching the Available tools list.
+    expect(workSummary).toHaveTextContent('1 allow');
+    expect(workSummary).toHaveTextContent('1 ask every time');
+    expect(workSummary).toHaveTextContent('0 blocked');
     const searchPolicy = screen.getByTestId('integration-tool-policy-hubspot.search_contacts');
     fireEvent.click(within(searchPolicy).getByRole('button', { name: 'Block for this account' }));
 
@@ -694,9 +752,12 @@ describe('provider integrations gallery model', () => {
         { ownerScope: 'assistant', assistantId: '123' }
       );
     });
-    expect(screen.getByTestId('integration-secure-connection-summary')).toHaveTextContent(
-      'Tool permissions for HubSpot · Personal HubSpot'
-    );
+    const personalSummary = screen.getByTestId('integration-secure-connection-summary');
+    expect(personalSummary).toHaveTextContent('Tool permissions for HubSpot · Personal HubSpot');
+    // Personal account blocks search_contacts, so the counts shift accordingly.
+    expect(personalSummary).toHaveTextContent('0 allow');
+    expect(personalSummary).toHaveTextContent('1 ask every time');
+    expect(personalSummary).toHaveTextContent('1 blocked');
   });
 
   it('derives risk badges from public action and behavior fields only', () => {

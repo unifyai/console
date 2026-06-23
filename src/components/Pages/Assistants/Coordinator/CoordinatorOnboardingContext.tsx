@@ -44,6 +44,9 @@ export interface CoordinatorOnboardingContextValue {
   /** Clears local completion, skip, and engagement state for a group of
    * checklist leaves so the user can walk that section again. */
   resetStepProgress: (stepIds: readonly string[]) => void;
+  /** Steps the user has locally rewound even if Orchestra can still
+   * derive them from durable domain state. */
+  resetStepIds: ReadonlySet<string>;
   /** Per-session record of steps the user explicitly chose not to do.
    * Skipped steps satisfy downstream prerequisites, but remain
    * visually distinct from genuinely completed steps. */

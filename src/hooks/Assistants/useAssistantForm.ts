@@ -430,8 +430,7 @@ export function useAssistantForm(
         photoFile: null,
         videoFile: null,
 
-        // Voice — the Coordinator's fixed voice is enforced server-side, so
-        // every assistant simply reflects its DB row here.
+        // Voice
         voiceId: assistant.voiceId || undefined,
         voiceName: assistantVoiceDetails?.name,
         voiceDescription: assistantVoiceDetails?.description,
@@ -544,10 +543,8 @@ export function useAssistantForm(
       if (data.nationality !== editingAssistant.nationality) payload.nationality = data.nationality;
       if (data.about !== editingAssistant.about) payload.about = data.about;
       if (data.timezone !== editingAssistant.timezone) payload.timezone = data.timezone;
-      // Orchestra requires both voice_id and voice_provider together — always
-      // send them as a pair when either one has changed. The Coordinator's
-      // fixed voice is enforced server-side and its picker is hidden, so
-      // this never fires for Twin.
+      // Orchestra requires both voice_id and voice_provider together, so send
+      // them as a pair when either one has changed.
       const nextVoiceProvider = data.voiceProvider ?? PRIMARY_VOICE_PROVIDER;
       const voiceIdChanged = data.voiceId !== editingAssistant.voiceId;
       const voiceProviderChanged = nextVoiceProvider !== editingAssistant.voiceProvider;

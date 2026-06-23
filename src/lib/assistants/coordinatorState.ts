@@ -21,12 +21,21 @@ import { getOrchestraUserClient } from '@/lib/orchestra/orchestra-client';
 
 export type CoordinatorMode = 'onboarding' | 'working';
 
-export type OnboardingStepStatus = 'done' | 'skipped' | 'available' | 'locked';
+export type OnboardingStepStatus = 'done' | 'skipped' | 'available' | 'locked' | 'coming_soon';
 
 /** A read-only suggestion chip shown under the act/schedule rows. */
 export interface OnboardingChip {
   id: string;
   label: string;
+}
+
+/** Direct dependency used to explain why a step is still locked. */
+export interface OnboardingStepDependency {
+  id: string;
+  title: string;
+  status: OnboardingStepStatus;
+  resolution: 'addressed' | 'completed';
+  satisfied: boolean;
 }
 
 /**
@@ -60,6 +69,7 @@ export interface OnboardingStep {
   estimatedTime: string;
   chipsChat: OnboardingChip[];
   chipsCall: OnboardingChip[];
+  dependencies: OnboardingStepDependency[];
 }
 
 /** A step the Coordinator may nudge toward right now, with ready copy. */
@@ -163,6 +173,7 @@ const ONBOARDING_STEP_STATUSES: ReadonlySet<string> = new Set([
   'skipped',
   'available',
   'locked',
+  'coming_soon',
 ]);
 
 function normalizeChip(value: unknown): OnboardingChip | null {
@@ -176,6 +187,31 @@ function normalizeChip(value: unknown): OnboardingChip | null {
 function normalizeChips(value: unknown): OnboardingChip[] {
   if (!Array.isArray(value)) return [];
   return value.map(normalizeChip).filter((c): c is OnboardingChip => c !== null);
+}
+
+function normalizeOnboardingStepDependency(value: unknown): OnboardingStepDependency | null {
+  if (!value || typeof value !== 'object') return null;
+  const r = value as Record<string, unknown>;
+  const id = normalizeStep(r.id);
+  if (!id) return null;
+  const status = r.status;
+  return {
+    id,
+    title: typeof r.title === 'string' ? r.title : id,
+    status:
+      typeof status === 'string' && ONBOARDING_STEP_STATUSES.has(status)
+        ? (status as OnboardingStepStatus)
+        : 'locked',
+    resolution: r.resolution === 'completed' ? 'completed' : 'addressed',
+    satisfied: r.satisfied === true,
+  };
+}
+
+function normalizeOnboardingStepDependencies(value: unknown): OnboardingStepDependency[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(normalizeOnboardingStepDependency)
+    .filter((d): d is OnboardingStepDependency => d !== null);
 }
 
 function normalizeOnboardingPhase(value: unknown): OnboardingPhaseInfo | null {
@@ -211,6 +247,7 @@ function normalizeOnboardingStep(value: unknown): OnboardingStep | null {
     estimatedTime: typeof estimatedTime === 'string' ? estimatedTime : '',
     chipsChat: normalizeChips(r.chipsChat ?? r.chips_chat),
     chipsCall: normalizeChips(r.chipsCall ?? r.chips_call),
+    dependencies: normalizeOnboardingStepDependencies(r.dependencies),
   };
 }
 

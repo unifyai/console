@@ -1,5 +1,6 @@
-import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
+import { camelToSnake, camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 import type {
+  IntegrationApiKeyField,
   IntegrationApiKeySchema,
   IntegrationCapabilityGroup,
   IntegrationConnection,
@@ -19,6 +20,7 @@ import type {
 type UnknownRecord = Record<string, unknown>;
 
 const BUILTINS_APP_DISPLAY_NAME_FIELD = 'display_name';
+const BUILTINS_APP_CANONICAL_SLUG_FIELD = 'canonical_app_slug';
 const BUILTINS_APP_PUBLIC_FIELDS = [
   'backend_id',
   'provider_app_id',
@@ -63,6 +65,7 @@ const BUILTINS_TOOL_PUBLIC_FIELDS = [
 
 interface ProviderScopePayload {
   id?: string;
+  name?: string;
   label?: string;
   description?: string | null;
   required?: boolean;
@@ -88,7 +91,7 @@ interface ProviderAppPayload {
   connectionId?: string | null;
   externalAccountLabel?: string | null;
   overlay?: UnknownRecord | null;
-  apiKeySchema?: IntegrationApiKeySchema | null;
+  apiKeySchema?: UnknownRecord | IntegrationApiKeySchema | null;
   nativeMetadata?: UnknownRecord | null;
 }
 
@@ -246,12 +249,46 @@ function normalizeScope(scope: ProviderScopePayload | string, index: number): In
   if (typeof scope === 'string') {
     return { id: scope, label: scope };
   }
-  const id = scope.id || scope.label || `scope-${index}`;
+  const id = scope.id || scope.name || scope.label || `scope-${index}`;
   return {
     id,
-    label: scope.label || id,
+    label: scope.label || scope.name || id,
     description: scope.description ?? null,
     required: scope.required,
+  };
+}
+
+function normalizeApiKeySchema(
+  raw: UnknownRecord | IntegrationApiKeySchema | null | undefined
+): IntegrationApiKeySchema | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const record = raw as UnknownRecord;
+  if (Array.isArray(record.fields)) {
+    return record as unknown as IntegrationApiKeySchema;
+  }
+  const properties =
+    record.properties && typeof record.properties === 'object'
+      ? (record.properties as UnknownRecord)
+      : null;
+  if (!properties) return null;
+  const requiredKeys = new Set(
+    Array.isArray(record.required) ? (record.required as unknown[]).map((key) => String(key)) : []
+  );
+  const fields: IntegrationApiKeyField[] = Object.entries(properties).map(([key, value]) => {
+    const prop = (value && typeof value === 'object' ? value : {}) as UnknownRecord;
+    return {
+      id: key,
+      label: typeof prop.title === 'string' ? prop.title : key,
+      description: typeof prop.description === 'string' ? prop.description : null,
+      placeholder: typeof prop.placeholder === 'string' ? prop.placeholder : undefined,
+      required: requiredKeys.has(key) || requiredKeys.has(camelToSnake(key)),
+      sensitive: prop.secret !== false,
+    };
+  });
+  if (fields.length === 0) return null;
+  return {
+    fields,
+    submitLabel: typeof record.submitLabel === 'string' ? record.submitLabel : 'Save credentials',
   };
 }
 
@@ -444,7 +481,7 @@ export function mapProviderAppToDefinition(app: ProviderAppPayload): Integration
     capabilityGroups: overlayCapabilityGroups(app.overlay),
     tools,
     toolCount: app.toolCount ?? tools.length,
-    apiKeySchema: app.apiKeySchema ?? null,
+    apiKeySchema: normalizeApiKeySchema(app.apiKeySchema),
     docsUrl: typeof app.overlay?.docsUrl === 'string' ? app.overlay.docsUrl : null,
     connections: connection ? [connection] : [],
   };
@@ -530,14 +567,16 @@ function catalogFilterExpr(args: {
   if (args.sourceType) filters.push(`source_type == ${quoteFilterValue(args.sourceType)}`);
   const query = args.query?.trim().toLowerCase();
   if (query) {
+    // Match against the identity/description fields only. Broader fields like
+    // category/source_label produce noisy, over-broad matches. This is an
+    // indexed `contains` over a small catalogue (~1k rows) and stays sub-second;
+    // the result set is the search result, so its inline count is exact.
     const quoted = quoteFilterValue(query);
     filters.push(
       `(${[
         `display_name.lower().contains(${quoted})`,
         `canonical_app_slug.lower().contains(${quoted})`,
         `description.lower().contains(${quoted})`,
-        `category.lower().contains(${quoted})`,
-        `source_label.lower().contains(${quoted})`,
       ].join(' or ')})`
     );
   }
@@ -735,6 +774,46 @@ export async function listProviderIntegrationDefinitionsPage(args: {
     catalogVersion: null,
     generatedAt: null,
   };
+}
+
+function extractMetricCount(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (!value || typeof value !== 'object') return null;
+  for (const nested of Object.values(value as UnknownRecord)) {
+    const found = extractMetricCount(nested);
+    if (found !== null) return found;
+  }
+  return null;
+}
+
+export async function getProviderIntegrationCatalogCount(args: {
+  ownerScope: IntegrationOwnerScope;
+  assistantId?: string | number;
+  sourceType?: 'native' | 'third_party' | null;
+  statuses?: IntegrationConnectionStatus[];
+  statusGroups?: ProviderAppStatusGroup[];
+}): Promise<number | null> {
+  const needsConnectionFilter =
+    (args.statuses?.length ?? 0) > 0 || (args.statusGroups?.length ?? 0) > 0;
+  const connections = needsConnectionFilter
+    ? await listProviderIntegrationConnections({
+        ownerScope: args.ownerScope,
+        assistantId: args.assistantId,
+      }).catch(() => [])
+    : [];
+  const filterExpr = catalogFilterExpr({ ...args, connections });
+  const params = new URLSearchParams();
+  params.set('projectName', process.env.NEXT_PUBLIC_DROID_BUILTINS_PROJECT || 'Builtins');
+  params.set('context', 'Integrations/Apps');
+  // Count over a field present on every catalog row; the log's own `id` is not an
+  // entry field and would always yield 0.
+  params.set('key', JSON.stringify([BUILTINS_APP_CANONICAL_SLUG_FIELD]));
+  if (filterExpr) params.set('filterExpr', filterExpr);
+  const response = await fetch(`/api/logs/count?${params.toString()}`, { cache: 'no-store' });
+  if (!response.ok) return null;
+  const text = await response.text();
+  const parsed = text ? JSON.parse(text) : null;
+  return extractMetricCount(parsed);
 }
 
 export async function getProviderIntegrationDetails(args: {
