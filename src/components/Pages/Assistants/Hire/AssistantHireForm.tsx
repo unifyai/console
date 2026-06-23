@@ -1272,7 +1272,7 @@ export function HireForm({
                             className={cn(
                               'relative flex h-28 w-full flex-col items-center justify-center rounded-md border bg-card px-3 text-center transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
                               workspaceProvider === 'google'
-                                ? 'border-primary ring-1 ring-primary'
+                                ? 'border-primary bg-accent-soft ring-1 ring-primary'
                                 : 'border-border'
                             )}
                             aria-label={
@@ -1318,7 +1318,7 @@ export function HireForm({
                             className={cn(
                               'relative flex h-28 w-full flex-col items-center justify-center rounded-md border bg-card px-3 text-center transition-colors hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
                               workspaceProvider === 'microsoft'
-                                ? 'border-primary ring-1 ring-primary'
+                                ? 'border-primary bg-accent-soft ring-1 ring-primary'
                                 : 'border-border'
                             )}
                             aria-label={
