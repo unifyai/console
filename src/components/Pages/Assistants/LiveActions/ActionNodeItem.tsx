@@ -1700,7 +1700,7 @@ function ToolLoopMessage({
         >
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="shrink-0 text-indigo-500/70 dark:text-indigo-400/60">
+              <span className="text-primary/70 shrink-0">
                 <ArrowRight className="h-2.5 w-2.5" />
               </span>
             </TooltipTrigger>
