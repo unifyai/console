@@ -235,6 +235,14 @@ test('checklist allows independent sections to start out of order', async ({
     'data-status',
     'locked'
   );
+  await page.getByTestId('coordinator-onboarding-item-email-reply').click();
+  await expect(page.getByTestId('coordinator-onboarding-item-email-reply')).toHaveAttribute(
+    'data-blocked-feedback',
+    'true'
+  );
+  await expect(
+    page.getByTestId('coordinator-onboarding-blocking-arrow-email-reference')
+  ).toBeVisible();
   await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 
