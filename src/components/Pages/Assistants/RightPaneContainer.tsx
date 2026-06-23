@@ -373,6 +373,13 @@ interface RightPaneContainerProps {
    * *this* assistant and hasn't been popped out.
    */
   renderDockedCall?: () => React.ReactNode;
+  /**
+   * When the rail shell owns primary navigation (the rail's Workspace/Brain
+   * sections), the in-pane primary tab strip is redundant. With this set the
+   * strip header collapses to a slim utility bar that keeps only the active
+   * tab's sub-tab dropdown (Tasks/Memory) plus the split/close controls.
+   */
+  hideTabStrip?: boolean;
 }
 
 export function RightPaneContainer({
@@ -414,6 +421,7 @@ export function RightPaneContainer({
   coordinatorOnboarding,
   unreadChatCount = 0,
   renderDockedCall,
+  hideTabStrip = false,
 }: RightPaneContainerProps) {
   // Tracks whether the live-actions stream is currently working, so the
   // dashboards pane can poll its tiles. Hoisted here because either pane
@@ -625,13 +633,26 @@ export function RightPaneContainer({
         className="flex h-full min-w-0 flex-1 flex-col"
         data-slot={slot}
       >
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-3 py-1.5">
+        <div
+          className={cn(
+            'flex shrink-0 items-center justify-between gap-2 px-3',
+            hideTabStrip
+              ? 'border-b-0 bg-transparent py-1'
+              : 'border-b border-border bg-card py-1.5'
+          )}
+        >
           <div className="right-pane-tabs-container flex min-w-0 flex-1 items-center overflow-hidden">
             <TabsList
               // Labels are visually hidden; tooltips carry the short titles.
               className="right-pane-tabs-list h-8 flex-nowrap gap-2 rounded-none bg-transparent p-0"
             >
-              {RIGHT_PANE_TABS.map(({ id, label, Icon, subTabs, dividerBefore }) => {
+              {/* When the rail owns primary nav we keep only the active tab's
+                  sub-tab dropdown (Tasks/Memory); other tabs are reached via the
+                  rail, so their triggers would be redundant. */}
+              {RIGHT_PANE_TABS.filter(
+                ({ id, subTabs }) =>
+                  !hideTabStrip || (id === tab && !!subTabs && subTabs.length > 0)
+              ).map(({ id, label, Icon, subTabs, dividerBefore }) => {
                 // "Active in this slot" — i.e. the tab the user is
                 // currently looking at. Used to suppress the unread
                 // chip while chat is visible (defensive: `Main` also
@@ -665,17 +686,18 @@ export function RightPaneContainer({
                 // suggest the grouping without breaking the flow.
                 // `self-center` keeps the 16px-tall line vertically
                 // centred in the tab row.
-                const dividerNode = dividerBefore ? (
-                  <span
-                    aria-hidden="true"
-                    className="right-pane-tab-divider -mx-2 h-4 w-px self-center bg-border"
-                    data-testid={
-                      slot === 'primary'
-                        ? `right-pane-tab-divider-${id}`
-                        : `right-pane-secondary-tab-divider-${id}`
-                    }
-                  />
-                ) : null;
+                const dividerNode =
+                  dividerBefore && !hideTabStrip ? (
+                    <span
+                      aria-hidden="true"
+                      className="right-pane-tab-divider -mx-2 h-4 w-px self-center bg-border"
+                      data-testid={
+                        slot === 'primary'
+                          ? `right-pane-tab-divider-${id}`
+                          : `right-pane-secondary-tab-divider-${id}`
+                      }
+                    />
+                  ) : null;
 
                 // Tabs with `subTabs` configured replace the direct
                 // tab-switch click with a dropdown of sub-tab options.
