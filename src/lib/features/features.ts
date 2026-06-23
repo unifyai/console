@@ -135,6 +135,7 @@ export function resolveFeatures(
   authority: FeatureAuthority = {}
 ): Features {
   const stripeConfigured = has(env, 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY');
+  const devCallsEnabled = has(env, 'CONSOLE_DEV_CALLS');
   const livekitConfigured =
     has(env, 'LIVEKIT_URL') && has(env, 'LIVEKIT_API_KEY') && has(env, 'LIVEKIT_API_SECRET');
   // TTS: the runtime accepts Cartesia or ElevenLabs (env name varies by repo).
@@ -150,7 +151,7 @@ export function resolveFeatures(
     // (login pages, transient unreachability) we fall back to local resolution
     // so behaviour degrades gracefully.
     billing: stripeConfigured && !environment.isSelfHost && (authority.billing ?? true),
-    voiceCalls: livekitConfigured && ttsConfigured && sttConfigured,
+    voiceCalls: devCallsEnabled || (livekitConfigured && ttsConfigured && sttConfigured),
     voiceSynthesis: ttsConfigured,
     transcription: sttConfigured,
     support: has(env, 'DISCORD_SUPPORT_WEBHOOK_URL'),

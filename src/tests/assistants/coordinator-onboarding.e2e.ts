@@ -66,6 +66,17 @@ async function gotoAssistants(page: Page) {
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
 }
 
+async function enableDevCalls(page: Page) {
+  await page.context().addCookies([
+    {
+      name: 'console_dev_calls',
+      value: '1',
+      url: 'http://localhost:3000',
+      sameSite: 'Lax',
+    },
+  ]);
+}
+
 async function expectPickerVisible(page: Page) {
   await expect(page.getByTestId('coordinator-onboarding-picker')).toBeVisible({
     timeout: 15_000,
@@ -338,6 +349,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
 test('starting a call connects and docks the call in the platform', async ({
   authedPage: page,
 }) => {
+  await enableDevCalls(page);
   resetCoordinatorIntroWatched();
   await gotoAssistants(page);
   await expectPickerVisible(page);
@@ -360,6 +372,7 @@ test('starting a call connects and docks the call in the platform', async ({
 test('mobile onboarding keeps the docked Twin call visible instead of auto-opening Assistant info', async ({
   authedPage: page,
 }) => {
+  await enableDevCalls(page);
   await page.setViewportSize({ width: 390, height: 844 });
   resetCoordinatorIntroWatched();
   await gotoAssistants(page);
