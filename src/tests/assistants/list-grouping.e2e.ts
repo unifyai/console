@@ -230,6 +230,9 @@ test('kebab menu stays visible while Teams section is expanded', async ({ authed
     await menuTrigger.click();
     await expect(page.getByTestId('menu-edit-profile')).toBeVisible({ timeout: 5_000 });
     await page.keyboard.press('Escape');
+    // The dropdown is a Radix portal that unmounts asynchronously; wait for it
+    // to detach before opening the next row's menu so the testid stays unique.
+    await expect(page.getByTestId('menu-edit-profile')).toHaveCount(0, { timeout: 5_000 });
   };
 
   await assertMenuInSidebar(patchAssistant.agentId);
