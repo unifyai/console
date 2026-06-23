@@ -551,6 +551,9 @@ export function CoordinatorOnboardingChecklist({
   const completedStepIds = ctx?.completedStepIds ?? EMPTY_ONBOARDING_STEP_IDS;
   const skippedStepIds = ctx?.skippedStepIds ?? EMPTY_ONBOARDING_STEP_IDS;
   const resetStepIds = ctx?.resetStepIds ?? EMPTY_ONBOARDING_STEP_IDS;
+  const firstLoginCommunicationEmailOpenRequest = ctx?.firstLoginCommunicationEmailOpenRequest ?? 0;
+  const acknowledgeFirstLoginCommunicationEmailOpen =
+    ctx?.acknowledgeFirstLoginCommunicationEmailOpen;
   const [openSectionIds, setOpenSectionIds] = React.useState<ReadonlySet<string>>(() => new Set());
   const [openSubgroupIds, setOpenSubgroupIds] = React.useState<ReadonlySet<string>>(
     () => new Set()
@@ -735,6 +738,33 @@ export function CoordinatorOnboardingChecklist({
     setOpenSectionIds(new Set([defaultSection?.id ?? resolved[0].id]));
     didInitializeOpenSectionRef.current = true;
   }, [nextActionableId, resolved]);
+
+  const hasVisibleEmailSubgroup = React.useMemo(() => {
+    const communicationSection = resolved.find(
+      (section) => section.id === COMMUNICATION_SECTION_ID
+    );
+    if (!communicationSection?.children?.length) return false;
+    return communicationSubgroups(communicationSection.children).some(
+      (group) => group.id === 'email'
+    );
+  }, [resolved]);
+
+  React.useEffect(() => {
+    if (firstLoginCommunicationEmailOpenRequest <= 0 || !hasVisibleEmailSubgroup) return;
+    setOpenSectionIds((current) => {
+      if (current.has(COMMUNICATION_SECTION_ID)) return current;
+      return new Set([...current, COMMUNICATION_SECTION_ID]);
+    });
+    setOpenSubgroupIds((current) => {
+      if (current.has('email')) return current;
+      return new Set([...current, 'email']);
+    });
+    acknowledgeFirstLoginCommunicationEmailOpen?.();
+  }, [
+    acknowledgeFirstLoginCommunicationEmailOpen,
+    firstLoginCommunicationEmailOpenRequest,
+    hasVisibleEmailSubgroup,
+  ]);
 
   const toggleSection = React.useCallback((sectionId: string) => {
     setOpenSectionIds((current) => {

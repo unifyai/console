@@ -121,8 +121,7 @@ export function CoordinatorOnboarding({
     }
 
     try {
-      // Plain call connect — Twin greets naturally on answer.
-      await onStartCall(coordinator, 'audio');
+      await onStartCall(coordinator, 'audio', { suppressRinging: true });
     } catch (error) {
       console.error('[CoordinatorOnboarding] Failed to start the call:', error);
       toast.error('Could not start the call. Please try again.');

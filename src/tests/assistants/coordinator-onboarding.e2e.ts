@@ -281,6 +281,15 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   await expect(page.getByTestId('coordinator-onboarding-section-integrations-toggle')).toHaveText(
     /3\. Integrations/
   );
+  await expect(page.getByTestId('coordinator-onboarding-section-communication')).toHaveAttribute(
+    'aria-expanded',
+    'true'
+  );
+  await expect(
+    page.getByTestId('coordinator-onboarding-communication-email-toggle')
+  ).toHaveAttribute('aria-expanded', 'true');
+  const emailReferenceRow = page.getByTestId('coordinator-onboarding-item-email-reference').first();
+  await expect(emailReferenceRow).toBeVisible();
   await selectCoordinatorOnboardingSection(page, 'integrations');
   await expectChecklistItemClickable(page, 'apps');
   await expect(page.getByTestId('coordinator-onboarding-item-email-reference')).toHaveCount(0);
@@ -289,7 +298,6 @@ test('picking chat lands in the full platform with the checklist in Assistant in
     page.getByTestId('coordinator-onboarding-item-my-computer-coming-soon')
   ).toHaveAttribute('data-status', 'locked');
   await selectCoordinatorOnboardingSection(page, 'communication');
-  const emailReferenceRow = page.getByTestId('coordinator-onboarding-item-email-reference').first();
   await expect(emailReferenceRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
   await expectChecklistItemClickable(page, 'email-reference');
   await emailReferenceRow.click();

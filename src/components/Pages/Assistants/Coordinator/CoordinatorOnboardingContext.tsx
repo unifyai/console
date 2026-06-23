@@ -82,6 +82,11 @@ export interface CoordinatorOnboardingContextValue {
    * and ordering are no longer computed client-side. ``null`` outside
    * active onboarding. */
   onboarding: OnboardingRender | null;
+  /** One-shot request issued when the first-login intro hands off to
+   * the platform. The checklist consumes it by opening Communication /
+   * Email, then acknowledges it so later mounts use normal defaults. */
+  firstLoginCommunicationEmailOpenRequest: number;
+  acknowledgeFirstLoginCommunicationEmailOpen: () => void;
 }
 
 const CoordinatorOnboardingContext = React.createContext<CoordinatorOnboardingContextValue | null>(

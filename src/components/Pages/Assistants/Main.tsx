@@ -462,8 +462,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     coordinatorOnboardingState?.introWatched === false;
   const [coordinatorOnboardingFocusLayoutRequest, setCoordinatorOnboardingFocusLayoutRequest] =
     React.useState(0);
+  const [firstLoginCommunicationEmailOpenRequest, setFirstLoginCommunicationEmailOpenRequest] =
+    React.useState(0);
   const requestCoordinatorOnboardingFocusLayout = React.useCallback(() => {
     setCoordinatorOnboardingFocusLayoutRequest((current) => Math.abs(current) + 1);
+  }, []);
+  const requestFirstLoginCommunicationEmailOpen = React.useCallback(() => {
+    setFirstLoginCommunicationEmailOpenRequest((current) => current + 1);
+  }, []);
+  const acknowledgeFirstLoginCommunicationEmailOpen = React.useCallback(() => {
+    setFirstLoginCommunicationEmailOpenRequest(0);
   }, []);
   const requestCoordinatorOnboardingInfoToggle = React.useCallback(() => {
     setCoordinatorOnboardingFocusLayoutRequest((current) => -(Math.abs(current) + 1));
@@ -666,6 +674,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       deferOnboarding: deferCoordinatorOnboarding,
       resumeOnboarding: resumeCoordinatorOnboarding,
       onboarding: coordinatorOnboardingState?.onboarding ?? null,
+      firstLoginCommunicationEmailOpenRequest,
+      acknowledgeFirstLoginCommunicationEmailOpen,
     }),
     [
       visibleCompletedStepIds,
@@ -681,6 +691,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       deferCoordinatorOnboarding,
       resumeCoordinatorOnboarding,
       coordinatorOnboardingState?.onboarding,
+      firstLoginCommunicationEmailOpenRequest,
+      acknowledgeFirstLoginCommunicationEmailOpen,
     ]
   );
   // While the state read is still in flight we can't make a confident
@@ -2555,6 +2567,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   onComplete={(medium) => {
                     setCoordinatorIntroDismissed(true);
                     requestCoordinatorOnboardingFocusLayout();
+                    requestFirstLoginCommunicationEmailOpen();
                     // The picker handed off to a live call — arm the
                     // "Talk now!" cue to fire once that call connects.
                     if (medium === 'call') setCoordinatorTalkNowPending(true);
