@@ -278,8 +278,9 @@ function buildVisibleChecklist(
 
   const result: ResolvedChecklistItem[] = [];
   for (const phase of render.phases) {
-    const children = leavesByPhase.get(phase.phase) ?? [];
-    const sectionSkipped = skippedPhases.has(phase.phase);
+    const isCommunication = phase.id === COMMUNICATION_SECTION_ID;
+    const children = isCommunication ? (leavesByPhase.get(phase.phase) ?? []) : [];
+    const sectionSkipped = isCommunication && skippedPhases.has(phase.phase);
     const hasChildren = children.length > 0;
     const childrenAllDone = hasChildren && children.every((child) => child.status === 'done');
     const childrenAllResolved =
@@ -306,6 +307,7 @@ function buildVisibleChecklist(
 
 const CHECKLIST_CONTROL_GRID_CLASS =
   '-mx-1.5 grid w-full grid-cols-[minmax(0,1fr)_4.5rem_1.5rem] gap-1 px-1.5';
+const COMMUNICATION_SECTION_ID = 'communication';
 
 const COMMUNICATION_SUBGROUPS: ReadonlyArray<{
   id: string;
@@ -751,9 +753,24 @@ export function CoordinatorOnboardingChecklist({
         data-testid="coordinator-onboarding-deferred"
       >
         <div className="rounded-control bg-muted/40 px-2.5 py-2">
-          <span className="text-body-sm text-muted-foreground">
-            Onboarding paused — you can pick it up anytime.
-          </span>
+          <p className="text-body-sm text-muted-foreground">
+            Onboarding paused — you can{' '}
+            {resumeOnboarding ? (
+              <button
+                type="button"
+                onClick={resumeOnboarding}
+                className={cn(
+                  'rounded-control font-medium text-primary',
+                  'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+                )}
+              >
+                resume
+              </button>
+            ) : (
+              <span className="font-medium text-primary">resume</span>
+            )}{' '}
+            anytime.
+          </p>
         </div>
         <div className="mt-auto flex flex-shrink-0 justify-end pt-2">
           {resumeOnboarding ? (
@@ -821,7 +838,7 @@ export function CoordinatorOnboardingChecklist({
               />
               {isOpen ? (
                 <ul>
-                  {section.id === 'communication'
+                  {section.id === COMMUNICATION_SECTION_ID
                     ? communicationSubgroups(sectionItems).map((group, groupIndex) => (
                         <CommunicationSubgroup
                           key={group.id}
@@ -941,7 +958,7 @@ function SectionHeader({ section, index, progress, isOpen, onToggle }: SectionHe
       data-testid={`coordinator-onboarding-section-${section.id}`}
     >
       <span
-        className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground transition-colors group-hover/onboarding-section:text-primary group-focus-visible/onboarding-section:text-primary"
+        className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground transition-colors group-hover/onboarding-section:text-muted-foreground group-focus-visible/onboarding-section:text-muted-foreground"
         data-testid={`coordinator-onboarding-section-${section.id}-toggle`}
       >
         {label}
@@ -985,7 +1002,7 @@ function CommunicationSubgroup({
         )}
         data-testid={`coordinator-onboarding-communication-${id}-toggle`}
       >
-        <span className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground transition-colors group-hover/onboarding-subgroup:text-primary group-focus-visible/onboarding-subgroup:text-primary">
+        <span className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground transition-colors group-hover/onboarding-subgroup:text-muted-foreground group-focus-visible/onboarding-subgroup:text-muted-foreground">
           {title}
         </span>
         <CompactProgress completed={progress.completed} total={progress.total} />

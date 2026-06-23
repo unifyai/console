@@ -54,6 +54,7 @@ import { resolveCanonicalWorkspaceCoordinator } from '@/lib/assistants/coordinat
 import {
   fetchCoordinatorState,
   type CoordinatorStateSnapshot,
+  type OnboardingRender,
 } from '@/lib/assistants/coordinatorState';
 import { cn } from '@/lib/utils';
 
@@ -65,6 +66,34 @@ const getInitials = (name: string) =>
     .join('')
     .toUpperCase()
     .slice(0, 2);
+
+const COORDINATOR_COMMUNICATION_SECTION_ID = 'communication';
+
+function coordinatorOnboardingProgress(render: OnboardingRender | null): {
+  completed: number;
+  total: number;
+  pct: number;
+} {
+  if (!render) return { completed: 0, total: 0, pct: 0 };
+  const communicationPhase = render.phases.find(
+    (phase) => phase.id === COORDINATOR_COMMUNICATION_SECTION_ID
+  );
+  const communicationSteps = communicationPhase
+    ? render.steps.filter((step) => step.phase === communicationPhase.phase)
+    : [];
+  const completed = communicationSteps.filter(
+    (step) => step.status === 'done' || step.status === 'skipped'
+  ).length;
+  const placeholderSections = render.phases.filter(
+    (phase) => phase.id !== COORDINATOR_COMMUNICATION_SECTION_ID
+  ).length;
+  const total = communicationSteps.length + placeholderSections;
+  return {
+    completed,
+    total,
+    pct: total > 0 ? Math.round((completed / total) * 100) : 0,
+  };
+}
 
 function WorkspaceInitialBadge({ name, size }: { name: string; size: 'sm' | 'md' }) {
   const sizeClass = size === 'md' ? 'h-5 w-5 text-[11px]' : 'h-4 w-4 text-[9px]';
@@ -276,17 +305,8 @@ export default function TopNav() {
     </TooltipProvider>
   ) : null;
   const onboardingProgress = React.useMemo(() => {
-    const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
-    const completed = steps.filter(
-      (step) => step.status === 'done' || step.status === 'skipped'
-    ).length;
-    const total = steps.length;
-    return {
-      completed,
-      total,
-      pct: total > 0 ? Math.round((completed / total) * 100) : 0,
-    };
-  }, [coordinatorOnboardingState?.onboarding?.steps]);
+    return coordinatorOnboardingProgress(coordinatorOnboardingState?.onboarding ?? null);
+  }, [coordinatorOnboardingState?.onboarding]);
   const showOnboardingShortcut =
     !!coordinatorId &&
     coordinatorOnboardingState?.mode === 'onboarding' &&
