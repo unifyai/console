@@ -15,6 +15,8 @@ import {
   navigateToAssistants,
   closeHireDialogIfOpen,
   openHireDialog,
+  openDroidSwitcher,
+  selectAssistantInList,
   fillProfileFields,
   selectVoice,
   clickHireButton,
@@ -72,6 +74,9 @@ test('seeded assistants appear in the list with correct names', async ({ authedP
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
+  // The list now lives inside the rail's droid switcher popover.
+  await openDroidSwitcher(page);
+
   const item1 = page.getByTestId(`assistant-list-item-${a1.agentId}`);
   const item2 = page.getByTestId(`assistant-list-item-${a2.agentId}`);
 
@@ -96,23 +101,17 @@ test('clicking an assistant in the list selects it and shows the Chat tab', asyn
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
-  await page.waitForTimeout(1_000);
+  // Selecting from the switcher opens the droid in the section host with the
+  // Chat section active by default (the rail owns section nav now).
+  await selectAssistantInList(page, agentId);
 
-  // Chat tab should be active and show the assistant's name
-  await expect(page.getByTestId('right-pane-tab-chat')).toHaveAttribute('data-state', 'active');
+  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page', {
+    timeout: 10_000,
+  });
   await expect(page.locator(`text=${dbAssistant.firstName}`).first()).toBeVisible({
     timeout: 5_000,
   });
   await expect(page.locator(`text=${dbAssistant.surname}`).first()).toBeVisible({ timeout: 5_000 });
-
-  await listItem.click();
-  await expect(page.getByTestId('right-pane-tab-chat')).not.toBeVisible({ timeout: 3_000 });
-  await expect(page.locator('text=Select a droid to watch live actions.')).toBeVisible({
-    timeout: 5_000,
-  });
 });
 
 // DEFERRED (Phase 2h — Coordinator): the workspace now auto-selects the
@@ -181,9 +180,7 @@ test('the chat info side panel can be resized down to its minimum width', async 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${titled.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
+  await selectAssistantInList(page, titled.agentId);
 
   // Open the inline info side panel from the chat sub-header. We can't
   // rely on the post-hire auto-open path here because this assistant

@@ -16,6 +16,7 @@ import {
   deleteAllAssistantsForUser,
   ensureProjectSync,
   dbExec,
+  openRailSection,
 } from './helpers';
 
 const user = createTestUser({ name: 'SecretE2E', lastName: 'Tester', credits: 50_000 });
@@ -108,9 +109,7 @@ async function openSecretsTab(page: Page) {
   await closeHireDialogIfOpen(page);
   await page.waitForTimeout(1_500);
 
-  const tab = page.getByTestId('right-pane-tab-integrations');
-  await expect(tab).toBeVisible({ timeout: 10_000 });
-  await tab.click();
+  await openRailSection(page, 'integrations');
 
   const pane = page.getByTestId('integrations-pane');
   await expect(pane).toBeVisible({ timeout: 5_000 });
@@ -155,9 +154,9 @@ async function fillAndSaveNewSecret(
 test('Integrations tab is available on the right pane', async ({ authedPage: page }) => {
   await openSecretsTab(page);
 
-  await expect(page.getByTestId('right-pane-tab-integrations')).toHaveAttribute(
-    'data-state',
-    'active'
+  await expect(page.getByTestId('rail-section-integrations')).toHaveAttribute(
+    'aria-current',
+    'page'
   );
   await expect(page.getByTestId('integrations-search')).toBeVisible({ timeout: 5_000 });
   await expect(page.getByTestId('integrations-add-new-trigger')).toBeVisible({ timeout: 5_000 });

@@ -20,6 +20,7 @@ import {
   getAssistantFromDb,
   deleteAllAssistantsForUser,
   ensureProjectSync,
+  openDroidSwitcher,
 } from './helpers';
 
 const user = createTestUser({ name: 'PresetE2E', lastName: 'Tester', credits: 50_000 });
@@ -108,6 +109,7 @@ test('hiring from a preset saves the preset data to the database', async ({ auth
 
   await clickHireButton(page);
 
+  await openDroidSwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: presetFirst });
   await expect(listItem).toBeVisible({ timeout: 60_000 });
 
@@ -150,6 +152,7 @@ test('customizing preset fields before hiring uses the customized values', async
 
   await clickHireButton(page);
 
+  await openDroidSwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: customFirst });
   await expect(listItem).toBeVisible({ timeout: 60_000 });
 

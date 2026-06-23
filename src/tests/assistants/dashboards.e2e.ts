@@ -21,6 +21,8 @@ import {
   ensureProjectSync,
   orchestraFetch,
   setUserCredits,
+  selectAssistantInList,
+  openRailSection,
 } from './helpers';
 
 const user = createTestUser({ name: 'DashPaneE2E', lastName: 'Tester', credits: 50_000 });
@@ -187,14 +189,10 @@ async function selectAssistantAndOpenDashboards(
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
+  await selectAssistantInList(page, agentId);
   await page.waitForTimeout(1_500);
 
-  const dashTab = page.getByTestId('right-pane-tab-dashboards');
-  await expect(dashTab).toBeVisible({ timeout: 5_000 });
-  await dashTab.click();
+  await openRailSection(page, 'dashboards');
   await page.waitForTimeout(1_000);
 }
 
@@ -206,14 +204,10 @@ test('defaults to the Chat tab when an assistant is selected', async ({ authedPa
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${emptyAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
+  await selectAssistantInList(page, emptyAssistant.agentId);
   await page.waitForTimeout(1_500);
 
-  const chatTab = page.getByTestId('right-pane-tab-chat');
-  await expect(chatTab).toBeVisible({ timeout: 5_000 });
-  await expect(chatTab).toHaveAttribute('data-state', 'active');
+  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
 });
 
 test('switches between Chat, Actions drawer, Dashboards, and Memory', async ({
@@ -222,43 +216,35 @@ test('switches between Chat, Actions drawer, Dashboards, and Memory', async ({
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${emptyAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
+  await selectAssistantInList(page, emptyAssistant.agentId);
   await page.waitForTimeout(1_500);
 
-  const chatTab = page.getByTestId('right-pane-tab-chat');
-  await expect(chatTab).toHaveAttribute('data-state', 'active');
+  // Top-level navigation flows through the rail's sections.
+  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
 
-  // Actions are reachable via their own right-pane tab.
-  const actionsTab = page.getByTestId('right-pane-tab-actions');
-  await expect(actionsTab).toBeVisible({ timeout: 5_000 });
-  await actionsTab.click();
-  await expect(actionsTab).toHaveAttribute('data-state', 'active');
-  await page.waitForTimeout(300);
+  await openRailSection(page, 'actions');
+  await expect(page.getByTestId('rail-section-actions')).toHaveAttribute('aria-current', 'page');
 
-  const dashTab = page.getByTestId('right-pane-tab-dashboards');
-  await dashTab.click();
-  await page.waitForTimeout(500);
-  await expect(dashTab).toHaveAttribute('data-state', 'active');
+  await openRailSection(page, 'dashboards');
+  await expect(page.getByTestId('rail-section-dashboards')).toHaveAttribute('aria-current', 'page');
 
-  // Memory is a dropdown trigger — click + pick a sub-tab to switch.
-  const memoryTab = page.getByTestId('right-pane-tab-memory');
-  await memoryTab.click();
-  await page.getByTestId('right-pane-tab-memory-menu-contacts').click();
-  await page.waitForTimeout(500);
-  await expect(memoryTab).toHaveAttribute('data-state', 'active');
+  await openRailSection(page, 'memory');
+  await expect(page.getByTestId('rail-section-memory')).toHaveAttribute('aria-current', 'page');
 
-  await chatTab.click();
-  await page.waitForTimeout(500);
-  await expect(chatTab).toHaveAttribute('data-state', 'active');
+  await openRailSection(page, 'chat');
+  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
 });
 
 // ===========================================================================
 // Split-pane layout
 // ===========================================================================
 
-test('split tabs lets the user view two right-pane tabs side by side and close either side', async ({
+// Deferred (Phase 5 split-pane rework): under the rail shell the in-pane tab
+// strip is suppressed (`hideTabStrip`), so the secondary slot only exposes the
+// active tab's sub-tab dropdown and can no longer switch its top-level view
+// from the strip. Driving a secondary pane to an arbitrary view now needs a
+// rail-aware affordance that doesn't exist yet; re-enable once that lands.
+test.fixme('split tabs lets the user view two right-pane tabs side by side and close either side', async ({
   authedPage: page,
 }) => {
   // The split affordance turns the right pane into two independent

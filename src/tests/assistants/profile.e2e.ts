@@ -15,6 +15,8 @@ import {
   createAssistant,
   navigateToAssistants,
   closeHireDialogIfOpen,
+  openDroidSwitcher,
+  selectAssistantInList,
   getAssistantFromDb,
   deleteAllAssistantsForUser,
   ensureProjectSync,
@@ -44,14 +46,12 @@ test('clicking an assistant shows the Chat tab with assistant name in header', a
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
-  await page.waitForTimeout(1_500);
+  await selectAssistantInList(page, assistant.agentId);
 
-  // The Chat tab should be active by default
-  const chatTab = page.getByTestId('right-pane-tab-chat');
-  await expect(chatTab).toHaveAttribute('data-state', 'active');
+  // The Chat section is active by default in the rail.
+  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page', {
+    timeout: 10_000,
+  });
 
   // The chat header shows the assistant's full name
   await expect(page.locator(`text=${db.firstName}`).first()).toBeVisible({ timeout: 5_000 });
@@ -86,6 +86,8 @@ test('assistant list item dropdown menu has edit and contacts options', async ({
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
+  // The list (and its per-row kebab menu) lives in the switcher popover now.
+  await openDroidSwitcher(page);
   const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
 

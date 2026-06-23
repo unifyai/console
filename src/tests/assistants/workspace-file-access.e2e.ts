@@ -19,6 +19,7 @@ import {
   createAssistantTest,
   navigateToAssistants,
   closeHireDialogIfOpen,
+  openDroidSwitcher,
   ensureProjectSync,
   cleanupUser,
   dbExec,
@@ -56,6 +57,7 @@ test.afterAll(() => {
 async function openWorkspaceManager(page: import('@playwright/test').Page) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openDroidSwitcher(page);
 
   const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });

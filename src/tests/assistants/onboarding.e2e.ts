@@ -36,6 +36,7 @@ import {
   deleteAllAssistantsForUser,
   ensureProjectSync,
   setUserCredits,
+  openDroidSwitcher,
 } from './helpers';
 
 const user = createTestUser({ name: 'Roadmap', lastName: 'Tester', credits: 50_000 });
@@ -88,7 +89,8 @@ async function hireBareAssistant(page: Page, firstName: string, lastName = 'Bot'
   await selectVoice(page);
   await clickHireButton(page);
 
-  // Confirm hire success: assistant lands in the list.
+  // Confirm hire success: assistant lands in the list (inside the switcher).
+  await openDroidSwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', {
     hasText: firstName,
   });

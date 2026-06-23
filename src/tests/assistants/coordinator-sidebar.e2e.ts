@@ -20,6 +20,7 @@ import {
   deleteOrg,
   ensureProjectSync,
   navigateToAssistants,
+  openDroidSwitcher,
 } from './helpers';
 import { loginAndWaitForRedirect } from '../auth/helpers';
 
@@ -114,6 +115,7 @@ async function loginAndSaveWorkspaceState(
 }
 
 async function openAssistantMenu(page: Page, agentId: number) {
+  await openDroidSwitcher(page);
   const row = page.getByTestId(`assistant-list-item-${agentId}`);
   await expect(row).toBeVisible({ timeout: 15_000 });
   await row.hover();
@@ -121,12 +123,14 @@ async function openAssistantMenu(page: Page, agentId: number) {
 }
 
 async function expectCoordinatorChatOpen(page: Page, agentId: number) {
+  await openDroidSwitcher(page);
   await page.getByTestId(`assistant-list-item-${agentId}`).click();
   await expect(page.getByTestId('coordinator-private')).toHaveCount(0);
-  await expect(page.getByTestId('right-pane-tab-chat')).toHaveAttribute('data-state', 'active');
+  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
 }
 
 async function expectPinnedBeforeSolo(page: Page) {
+  await openDroidSwitcher(page);
   await expect(page.getByTestId('assistant-list-group-pinned')).toBeVisible({
     timeout: 15_000,
   });
@@ -345,6 +349,7 @@ test('organization admin cannot access another user coordinator in org workspace
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openDroidSwitcher(page);
   await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toHaveCount(0);
   await expect(page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`)).toBeVisible({
     timeout: 15_000,
@@ -358,12 +363,15 @@ test('organization member cannot access another user coordinator in org workspac
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openDroidSwitcher(page);
   await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toHaveCount(0);
   await expect(page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`)).toBeVisible({
     timeout: 15_000,
   });
   await page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`).click();
   await expect(page.getByTestId('coordinator-private')).toHaveCount(0);
+  await openDroidSwitcher(page);
+  await page.getByTestId(`assistant-list-item-${regularAssistant.agentId}`).hover();
   const memberMenuTrigger = page.getByTestId(`assistant-menu-${regularAssistant.agentId}`);
   const hasMenuTrigger = (await memberMenuTrigger.count()) > 0;
   if (hasMenuTrigger) {
@@ -380,6 +388,7 @@ test('personal workspace shows the personal Coordinator surface', async ({
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openDroidSwitcher(page);
 
   await expect(page.getByTestId(`assistant-list-item-${personalCoordinator.agentId}`)).toBeVisible({
     timeout: 15_000,

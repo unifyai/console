@@ -26,6 +26,7 @@ import {
   setUserCredits,
   dbExec,
   dbExecBlock,
+  openRailSection,
   type SeededAssistant,
   type SeededOrg,
 } from './helpers';
@@ -339,17 +340,14 @@ async function selectAssistantAndOpenMemory(
   await closeHireDialogIfOpen(page);
   await dismissCoordinatorOnboardingIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
   await selectAssistantInList(page, agentId);
   await page.waitForTimeout(1_500);
 
-  // Memory is now a dropdown trigger: click opens the sub-tab menu,
-  // picking a sub-tab switches the slot to Memory + that sub-tab.
-  const memoryTab = page.getByTestId('right-pane-tab-memory');
-  await expect(memoryTab).toBeVisible({ timeout: 5_000 });
-  await memoryTab.click();
-  await page.getByTestId('right-pane-tab-memory-menu-contacts').click();
+  // Memory is a rail section now; selecting it activates the Memory view in
+  // the section host (defaulting to the Contacts sub-tab). The in-pane
+  // sub-tab dropdown (`right-pane-tab-memory`) only renders once Memory is
+  // active.
+  await openRailSection(page, 'memory');
   await page.waitForTimeout(1_500);
 }
 
@@ -373,13 +371,7 @@ async function switchMemorySubTab(
 // ===========================================================================
 
 test('Memory tab is visible when an assistant is selected', async ({ authedPage: page }) => {
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-
-  const listItem = page.getByTestId(`assistant-list-item-${emptyAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
-  await page.waitForTimeout(1_500);
+  await selectAssistantAndOpenMemory(page, emptyAssistant.agentId);
 
   const memoryTab = page.getByTestId('right-pane-tab-memory');
   await expect(memoryTab).toBeVisible({ timeout: 5_000 });
@@ -411,42 +403,27 @@ test('can switch between all main tabs', async ({ authedPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  const listItem = page.getByTestId(`assistant-list-item-${emptyAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
+  await selectAssistantInList(page, emptyAssistant.agentId);
   await page.waitForTimeout(1_500);
 
-  const chatTab = page.getByTestId('right-pane-tab-chat');
-  const tasksTab = page.getByTestId('right-pane-tab-tasks');
-  const dashTab = page.getByTestId('right-pane-tab-dashboards');
-  const memoryTab = page.getByTestId('right-pane-tab-memory');
+  // Top-level navigation now flows through the rail's Workspace/Brain
+  // sections; each becomes `aria-current="page"` when active.
+  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
 
-  await expect(chatTab).toHaveAttribute('data-state', 'active');
+  await openRailSection(page, 'tasks');
+  await expect(page.getByTestId('rail-section-tasks')).toHaveAttribute('aria-current', 'page');
 
-  // Tasks and Memory are dropdown triggers — pick a sub-tab to switch.
-  await tasksTab.click();
-  await page.getByTestId('right-pane-tab-tasks-menu-tasks').click();
-  await page.waitForTimeout(500);
-  await expect(tasksTab).toHaveAttribute('data-state', 'active');
+  await openRailSection(page, 'memory');
+  await expect(page.getByTestId('rail-section-memory')).toHaveAttribute('aria-current', 'page');
 
-  await memoryTab.click();
-  await page.getByTestId('right-pane-tab-memory-menu-contacts').click();
-  await page.waitForTimeout(500);
-  await expect(memoryTab).toHaveAttribute('data-state', 'active');
+  await openRailSection(page, 'dashboards');
+  await expect(page.getByTestId('rail-section-dashboards')).toHaveAttribute('aria-current', 'page');
 
-  await dashTab.click();
-  await page.waitForTimeout(500);
-  await expect(dashTab).toHaveAttribute('data-state', 'active');
+  await openRailSection(page, 'chat');
+  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
 
-  await chatTab.click();
-  await page.waitForTimeout(500);
-  await expect(chatTab).toHaveAttribute('data-state', 'active');
-
-  // Actions live in their own right-pane tab.
-  const actionsTab = page.getByTestId('right-pane-tab-actions');
-  await expect(actionsTab).toBeVisible({ timeout: 5_000 });
-  await actionsTab.click();
-  await expect(actionsTab).toHaveAttribute('data-state', 'active');
+  await openRailSection(page, 'actions');
+  await expect(page.getByTestId('rail-section-actions')).toHaveAttribute('aria-current', 'page');
 });
 
 // ===========================================================================

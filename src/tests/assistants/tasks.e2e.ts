@@ -14,12 +14,12 @@ import {
   cleanupUser,
   createAssistantTest,
   createAssistant,
-  navigateToAssistants,
   closeHireDialogIfOpen,
   deleteAllAssistantsForUser,
   ensureProjectSync,
   orchestraFetch,
   setUserCredits,
+  openRailSection,
 } from './helpers';
 
 const user = createTestUser({ name: 'TasksE2E', lastName: 'Tester', credits: 50_000 });
@@ -231,12 +231,10 @@ async function selectAssistantAndOpenTasks(page: import('@playwright/test').Page
   await closeHireDialogIfOpen(page);
   await page.waitForTimeout(1_500);
 
-  // Tasks is now a dropdown trigger: click opens the sub-tab menu,
-  // picking a sub-tab switches the slot to Tasks + that sub-tab.
-  const tasksTab = page.getByTestId('right-pane-tab-tasks');
-  await expect(tasksTab).toBeVisible({ timeout: 5_000 });
-  await tasksTab.click();
-  await page.getByTestId('right-pane-tab-tasks-menu-tasks').click();
+  // Tasks is a rail section now; selecting it activates the Tasks view in
+  // the section host (defaulting to the Tasks sub-tab). The in-pane sub-tab
+  // dropdown (`right-pane-tab-tasks`) only renders once Tasks is active.
+  await openRailSection(page, 'tasks');
   await page.waitForTimeout(1_500);
 }
 
@@ -257,13 +255,7 @@ async function switchTasksView(page: import('@playwright/test').Page, view: 'tas
 // ===========================================================================
 
 test('Tasks tab is visible when an assistant is selected', async ({ authedPage: page }) => {
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-
-  const listItem = page.getByTestId(`assistant-list-item-${emptyAssistant.agentId}`);
-  await expect(listItem).toBeVisible({ timeout: 15_000 });
-  await listItem.click();
-  await page.waitForTimeout(1_500);
+  await selectAssistantAndOpenTasks(page, emptyAssistant.agentId);
 
   const tasksTab = page.getByTestId('right-pane-tab-tasks');
   await expect(tasksTab).toBeVisible({ timeout: 5_000 });

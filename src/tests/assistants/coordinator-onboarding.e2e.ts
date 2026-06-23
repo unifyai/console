@@ -42,6 +42,8 @@ import {
   dbExec,
   deleteAllAssistantsForUser,
   orchestraFetch,
+  openDroidSwitcher,
+  selectAssistantInList,
 } from './helpers';
 
 const user = createTestUser({ name: 'CoordOnboard', lastName: 'E2E', credits: 50_000 });
@@ -318,9 +320,13 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   // The intro overlay tears down, revealing the regular platform: the
   // assistant list is present (the dedicated onboarding shell hid it).
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
+  await openDroidSwitcher(page);
   await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toBeVisible({
     timeout: 15_000,
   });
+  // Dismiss the switcher popover so it doesn't overlay the chat header
+  // controls used below.
+  await page.keyboard.press('Escape');
 
   // The onboarding checklist now lives in the Coordinator's "Assistant
   // info" panel, seeded from the server-derived snapshot.
@@ -580,14 +586,15 @@ test('switching back to T-W1N does not reapply the onboarding focus layout', asy
   await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('assistant-info-tab-onboarding')).toBeVisible();
 
-  await page.getByTestId('assistant-list-toggle-fold').click();
-  await expect(page.getByLabel('Collapse assistant list')).toBeVisible();
+  // Close the Coordinator's info sheet, then bounce to another droid and
+  // back via the rail's droid switcher.
   await page.getByTestId('assistant-info-button').click();
   await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
 
-  await page.getByTestId(`assistant-list-item-${otherAssistant.agentId}`).click();
-  await page.getByTestId(`assistant-list-item-${coordinator.agentId}`).click();
+  await selectAssistantInList(page, otherAssistant.agentId);
+  await selectAssistantInList(page, coordinator.agentId);
 
-  await expect(page.getByLabel('Collapse assistant list')).toBeVisible();
+  // Returning to Twin must not reapply the onboarding focus layout — the
+  // info sheet stays closed.
   await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
 });

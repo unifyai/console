@@ -32,6 +32,7 @@ import {
 } from '../helpers/seeds/client';
 import { createTestUser, cleanupUser } from '../helpers/e2e-helpers';
 import { loginAndWaitForRedirect } from '../auth/helpers';
+import { openDroidSwitcher, openRailSection } from './helpers';
 
 // =============================================================================
 // Test Users & Org Setup
@@ -192,6 +193,7 @@ async function closeHireDialogIfOpen(page: Page) {
  * Open the dropdown menu on a list item and click "Profile".
  */
 async function openEditViaDropdown(page: Page, agentId: number) {
+  await openDroidSwitcher(page);
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
 
@@ -216,9 +218,7 @@ async function openSecretsTab(page: Page, agentId: number) {
   await closeHireDialogIfOpen(page);
   await page.waitForTimeout(1_500);
 
-  const tab = page.getByTestId('right-pane-tab-integrations');
-  await expect(tab).toBeVisible({ timeout: 10_000 });
-  await tab.click();
+  await openRailSection(page, 'integrations');
   await page.waitForTimeout(1_000);
 
   await expect(page.getByTestId('integrations-pane')).toBeVisible({ timeout: 5_000 });
@@ -231,8 +231,9 @@ async function openSecretsTab(page: Page, agentId: number) {
 test('owner can see the "New" hire button in the assistant list', async ({ ownerPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openDroidSwitcher(page);
 
-  const newBtn = page.locator('button:has-text("New")');
+  const newBtn = page.getByTestId('assistant-onboard-button');
   await expect(newBtn).toBeVisible({ timeout: 15_000 });
   await expect(newBtn).toBeEnabled();
 });
@@ -273,19 +274,14 @@ test('member cannot see the "New" hire button in the assistant list', async ({
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openDroidSwitcher(page);
 
   // Wait for the page to render (assistant list should load)
   await page.waitForTimeout(3_000);
 
-  // The "New" button should NOT be visible
-  const newBtn = page.locator('button:has-text("New")');
-  const isNewVisible = await newBtn.isVisible({ timeout: 5_000 }).catch(() => false);
-  expect(isNewVisible).toBe(false);
-
-  // The UserPlus icon button (folded view) should also NOT be visible
-  const userPlusBtn = page.locator('button:has(.lucide-user-plus)');
-  const isUserPlusVisible = await userPlusBtn.isVisible({ timeout: 3_000 }).catch(() => false);
-  expect(isUserPlusVisible).toBe(false);
+  // The hire ("Onboard") affordance is permission-gated and must NOT render
+  // for members — neither the labelled button nor its folded icon variant.
+  await expect(page.getByTestId('assistant-onboard-button')).toHaveCount(0);
 });
 
 test("member can open edit dialog on owner's assistant but cannot see delete button", async ({

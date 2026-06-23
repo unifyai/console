@@ -16,6 +16,8 @@ import {
   addAssistantToTeam,
   navigateToAssistants,
   closeHireDialogIfOpen,
+  openDroidSwitcher,
+  openRailSection,
   deleteAllAssistantsForUser,
   ensureProjectSync,
   loginAndSaveOrgState,
@@ -100,6 +102,7 @@ test('groups colleagues by team and keeps row selection assistant-scoped', async
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openDroidSwitcher(page);
 
   const teamsSection = page.getByTestId('assistant-list-section-teams');
   const soloSection = page.getByTestId('assistant-list-section-solo');
@@ -138,10 +141,17 @@ test('groups colleagues by team and keeps row selection assistant-scoped', async
   await multiTeamCue.hover();
   await expect(page.getByRole('tooltip', { name: 'Also in Patch Alpha' })).toBeVisible();
 
+  // Selecting a colleague row dismisses the switcher popover and drives the
+  // section host to that droid's Chat view (the rail now owns primary nav).
   await secondaryListing.click();
-  await expect(page.getByTestId('right-pane-tab-chat')).toHaveAttribute('data-state', 'active');
+  await expect(page.getByTestId('rail-droid-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
+  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('text=Mina').first()).toBeVisible({ timeout: 10_000 });
 
+  // Memory destinations stay scoped to the selected assistant's teams. With the
+  // rail owning primary nav, Memory is reached via its rail section; its sub-tab
+  // dropdown then exposes the Contacts view.
+  await openRailSection(page, 'memory');
   await page.getByTestId('right-pane-tab-memory').click();
   await page.getByTestId('right-pane-tab-memory-menu-contacts').click();
   await expect(page.getByTestId('memory-destination-dropdown')).toBeVisible({ timeout: 10_000 });
@@ -154,7 +164,10 @@ test('groups colleagues by team and keeps row selection assistant-scoped', async
   });
   await page.keyboard.press('Escape');
 
-  await patchAlphaHeader.click();
+  // Folding a team group persists. Re-open the switcher (selection dismissed it)
+  // to interact with the grouped list again.
+  await openDroidSwitcher(page);
+  await page.getByRole('button', { name: /Patch Alpha/ }).click();
   await expect(page.getByTestId(`assistant-list-item-${multiAssistant.agentId}`)).toHaveCount(0);
   await expect
     .poll(() =>
@@ -167,6 +180,7 @@ test('groups colleagues by team and keeps row selection assistant-scoped', async
 
   await page.reload();
   await closeHireDialogIfOpen(page);
+  await openDroidSwitcher(page);
   await expect(page.getByRole('button', { name: /Patch Alpha/ })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId(`assistant-list-item-${multiAssistant.agentId}`)).toHaveCount(0);
   await expect(
@@ -179,6 +193,7 @@ test('typing in the sidebar search filters assistants and hides groups with no m
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openDroidSwitcher(page);
 
   await expect(page.getByRole('button', { name: /Patch Alpha/ })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole('button', { name: /Patch Beta/ })).toBeVisible({ timeout: 10_000 });
@@ -199,6 +214,7 @@ test('typing in the sidebar search filters assistants and hides groups with no m
 test('kebab menu stays visible while Teams section is expanded', async ({ authedPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openDroidSwitcher(page);
 
   const teamsSection = page.getByTestId('assistant-list-section-teams');
   await expect(teamsSection).toBeVisible({ timeout: 15_000 });
@@ -242,6 +258,7 @@ test('kebab menu stays visible while Teams section is expanded', async ({ authed
 test('kebab menu stays visible for multi-team assistant rows', async ({ authedPage: page }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openDroidSwitcher(page);
 
   const groupedRow = page.getByTestId(`assistant-list-item-${multiAssistant.agentId}`);
   await expect(groupedRow).toBeVisible({ timeout: 15_000 });

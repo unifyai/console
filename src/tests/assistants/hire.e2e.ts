@@ -31,6 +31,7 @@ import {
   deleteAllAssistantsForUser,
   ensureProjectSync,
   setUserCredits,
+  openDroidSwitcher,
 } from './helpers';
 
 const user = createTestUser({ name: 'HireFlow', lastName: 'Tester', credits: 50_000 });
@@ -72,7 +73,9 @@ test('hiring an assistant persists it to the database and shows it in the list',
   await selectVoice(page);
   await clickHireButton(page);
 
-  // Wait for the hire to complete — the assistant name should appear in the list sidebar
+  // Wait for the hire to complete — the assistant name should appear in the
+  // list (now hosted inside the rail's droid switcher).
+  await openDroidSwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', {
     hasText: firstName,
   });
@@ -105,6 +108,7 @@ test('the hired assistant is visible in the DB with correct fields', async ({
   // Verify the assistant appears in the list UI
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openDroidSwitcher(page);
 
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
@@ -137,6 +141,7 @@ test('hiring with all profile fields persists nationality, age and about to DB',
   await selectVoice(page);
   await clickHireButton(page);
 
+  await openDroidSwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(listItem).toBeVisible({ timeout: 60_000 });
 
@@ -174,6 +179,7 @@ test('hiring with a job title persists job_title to DB and shows it in the hover
   await selectVoice(page);
   await clickHireButton(page);
 
+  await openDroidSwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(listItem).toBeVisible({ timeout: 60_000 });
 
@@ -211,6 +217,7 @@ test('hiring without filling Job Title leaves job_title NULL in DB', async ({
   await selectVoice(page);
   await clickHireButton(page);
 
+  await openDroidSwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(listItem).toBeVisible({ timeout: 60_000 });
 
@@ -260,6 +267,7 @@ test('hiring a second assistant shows both in the list', async ({ authedPage: pa
   await selectVoice(page);
   await clickHireButton(page);
 
+  await openDroidSwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', {
     hasText: firstName,
   });

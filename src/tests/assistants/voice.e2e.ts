@@ -20,6 +20,7 @@ import {
   getAssistantFromDb,
   deleteAssistantFromDb,
   ensureProjectSync,
+  openDroidSwitcher,
 } from './helpers';
 
 const user = createTestUser({ name: 'VoiceE2E', lastName: 'Tester', credits: 50_000 });
@@ -80,6 +81,7 @@ test('hiring with a selected voice assigns that voice_id in the database', async
   await expect(firstVoice).toHaveAttribute('aria-selected', 'true');
 
   await clickHireButton(page);
+  await openDroidSwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(listItem).toBeVisible({ timeout: 60_000 });
 
@@ -123,6 +125,7 @@ test('hiring with a different voice assigns the correct voice_id', async ({ auth
   await page.waitForTimeout(500);
 
   await clickHireButton(page);
+  await openDroidSwitcher(page);
   const listItem2 = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(listItem2).toBeVisible({ timeout: 60_000 });
 

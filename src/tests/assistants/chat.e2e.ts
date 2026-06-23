@@ -39,6 +39,7 @@ import {
   ensureProjectSync,
   orchestraFetch,
   setUserCredits,
+  openDroidSwitcher,
 } from './helpers';
 import path from 'path';
 import fs from 'fs';
@@ -239,6 +240,7 @@ async function openAssistantChat(
 ) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openDroidSwitcher(page);
 
   const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
@@ -610,6 +612,7 @@ test('chat shows empty area for a new assistant with no history', async ({ authe
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openDroidSwitcher(page);
 
   const listItem = page.getByTestId(`assistant-list-item-${freshAssistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
@@ -1582,6 +1585,7 @@ test('switching to another assistant and back keeps each chat working independen
   // ---- Open assistant A ---------------------------------------------------
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openDroidSwitcher(page);
 
   const itemA = page.getByTestId(`assistant-list-item-${assistantA.agentId}`);
   await expect(itemA).toBeVisible({ timeout: 15_000 });
@@ -1601,6 +1605,7 @@ test('switching to another assistant and back keeps each chat working independen
   });
 
   // ---- Switch to assistant B (tears down A's inbox stream) ----------------
+  await openDroidSwitcher(page);
   const itemB = page.getByTestId(`assistant-list-item-${assistantB.agentId}`);
   await itemB.click();
   await page.waitForTimeout(1_000);
@@ -1620,6 +1625,7 @@ test('switching to another assistant and back keeps each chat working independen
   });
 
   // ---- Switch back to A (rebuilds A's inbox stream from scratch) ----------
+  await openDroidSwitcher(page);
   await itemA.click();
   await page.waitForTimeout(1_000);
 
