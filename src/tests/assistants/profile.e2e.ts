@@ -61,9 +61,8 @@ test('clicking an assistant shows the Chat tab with assistant name in header', a
   const chatArea = page.getByTestId('chat-scroll-area');
   await expect(chatArea).toBeVisible({ timeout: 5_000 });
 
-  // Call buttons should be visible in the chat header
+  // The audio call button is visible in the chat header (calls are audio-only).
   await expect(page.getByTestId('call-audio-button')).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('call-video-button')).toBeVisible({ timeout: 5_000 });
 });
 
 test('deep link ?profile=agentId opens the correct assistant profile', async ({
