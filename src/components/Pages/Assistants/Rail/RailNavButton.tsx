@@ -1,0 +1,70 @@
+import * as React from 'react';
+import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import type { LucideIcon } from 'lucide-react';
+
+interface RailNavButtonProps {
+  Icon: LucideIcon;
+  label: string;
+  active?: boolean;
+  collapsed?: boolean;
+  onClick?: () => void;
+  testId?: string;
+}
+
+/**
+ * A single rail navigation entry. Mirrors the prototype's `.nav-item`: an
+ * accent-soft active fill, a primary dot trailing the label when active, and an
+ * icon-only compact form (with a tooltip) when the rail is collapsed to a dock.
+ */
+export function RailNavButton({
+  Icon,
+  label,
+  active = false,
+  collapsed = false,
+  onClick,
+  testId,
+}: RailNavButtonProps) {
+  const button = (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      aria-label={collapsed ? label : undefined}
+      data-testid={testId}
+      className={cn(
+        'group/nav relative flex w-full items-center gap-3 rounded-[10px] font-medium transition-colors',
+        collapsed ? 'justify-center px-0 py-2.5' : 'px-2.5 py-2',
+        active ? 'bg-accent-soft text-accent-soft-foreground' : 'text-foreground hover:bg-muted'
+      )}
+    >
+      <span
+        className={cn(
+          'grid shrink-0 place-items-center transition-colors',
+          active
+            ? 'text-accent-soft-foreground'
+            : 'text-muted-foreground group-hover/nav:text-foreground'
+        )}
+      >
+        <Icon className="h-5 w-5" aria-hidden="true" />
+      </span>
+      {!collapsed && <span className="text-sm">{label}</span>}
+      {!collapsed && active && (
+        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
+      )}
+    </button>
+  );
+
+  if (!collapsed) return button;
+
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipContent side="right">
+          <p>{label}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
