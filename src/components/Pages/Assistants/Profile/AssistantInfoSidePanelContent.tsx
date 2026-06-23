@@ -259,7 +259,10 @@ function CoordinatorAssistantInfoSidePanelContent({
             </TabsTrigger>
           </TabsList>
           {coordinatorOnboarding && (
-            <TabsContent value="onboarding" className="mt-0 flex min-h-0 flex-1 flex-col">
+            <TabsContent
+              value="onboarding"
+              className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
+            >
               <CoordinatorOnboardingChecklist
                 onStartOnboardingStep={coordinatorOnboarding.onStartOnboardingStep}
                 onTriggerReferenceStep={coordinatorOnboarding.onTriggerReferenceStep}
@@ -277,11 +280,12 @@ function CoordinatorAssistantInfoSidePanelContent({
               />
             </TabsContent>
           )}
-          <TabsContent value="contact" className="mt-0 min-h-0 flex-1 overflow-y-auto">
+          <TabsContent value="contact" className="mt-0">
             <ContactInfoGrid
               assistant={assistant}
               onOpenContactManager={onOpenContactManager}
               canWrite={canWrite}
+              showTitle={false}
             />
           </TabsContent>
         </Tabs>
@@ -360,11 +364,12 @@ function RegularAssistantInfoSidePanelContent({
     setTimeout(() => setIsIdCopied(false), 2000);
   };
 
-  const contactInfoBody = (
+  const contactInfoBody = (showTitle = true) => (
     <ContactInfoGrid
       assistant={assistant}
       onOpenContactManager={onOpenContactManager}
       canWrite={canWrite}
+      showTitle={showTitle}
     />
   );
 
@@ -430,11 +435,11 @@ function RegularAssistantInfoSidePanelContent({
               />
             </TabsContent>
             <TabsContent value="contact" className="mt-0">
-              {contactInfoBody}
+              {contactInfoBody(false)}
             </TabsContent>
           </Tabs>
         ) : (
-          contactInfoBody
+          contactInfoBody()
         )}
       </div>
     </ScrollArea>
@@ -581,6 +586,8 @@ interface ContactInfoGridProps {
   onOpenContactManager: (assistant: Assistant, tab?: ContactType) => void;
   /** When false, the grid renders read-only — no Edit button, no per-channel Add CTAs. */
   canWrite: boolean;
+  /** Tab labels already provide the section title. */
+  showTitle?: boolean;
 }
 
 /**
@@ -596,31 +603,43 @@ interface ContactInfoGridProps {
  * disabling them — a disabled Add link would just invite confusion
  * about why the action isn't allowed.
  */
-function ContactInfoGrid({ assistant, onOpenContactManager, canWrite }: ContactInfoGridProps) {
+function ContactInfoGrid({
+  assistant,
+  onOpenContactManager,
+  canWrite,
+  showTitle = true,
+}: ContactInfoGridProps) {
   // Coordinator contacts are platform-managed, so the per-channel manual "Add"
   // CTAs don't apply — the platform provisions (and the backend rejects manual
-  // creation). The "Edit" button stays so the owner can still open the manager
-  // to view the managed contacts and what platform-managed means.
+  // creation).
   const canManuallyManage = !assistant.isCoordinator;
+  const canOpenContactManager = canWrite && canManuallyManage;
   return (
     <section className="flex flex-col gap-2.5" data-testid="assistant-info-contact-grid">
-      <div className="flex items-center justify-between border-b pb-1.5">
-        <h3 className="text-label text-semibold">Contact info</h3>
-        {canWrite && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-caption -mr-2 h-7 gap-1 px-2 text-muted-foreground hover:text-foreground"
-            onClick={() => onOpenContactManager(assistant)}
-            data-testid="assistant-info-manage-contacts"
-            aria-label="Manage contact details"
-          >
-            <Pencil className="h-3 w-3" />
-            <span>Edit</span>
-          </Button>
-        )}
-      </div>
+      {(showTitle || canOpenContactManager) && (
+        <div
+          className={cn(
+            'flex items-center pb-1.5',
+            showTitle ? 'justify-between border-b' : 'justify-end'
+          )}
+        >
+          {showTitle && <h3 className="text-label text-semibold">Contact info</h3>}
+          {canOpenContactManager && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-caption -mr-2 h-7 gap-1 px-2 text-muted-foreground hover:text-foreground"
+              onClick={() => onOpenContactManager(assistant)}
+              data-testid="assistant-info-manage-contacts"
+              aria-label="Manage contact details"
+            >
+              <Pencil className="h-3 w-3" />
+              <span>Edit</span>
+            </Button>
+          )}
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
         <ContactRow
           icon={<Phone className="h-3.5 w-3.5" aria-hidden="true" />}
