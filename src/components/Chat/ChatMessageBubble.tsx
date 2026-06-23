@@ -254,17 +254,12 @@ function ChatMessageBubbleImpl({
           <div
             className={cn(
               'break-words rounded-lg p-2.5 font-sans text-sm leading-snug',
-              isProfile ? 'bg-primary text-primary-foreground' : 'bg-accent'
+              isProfile ? 'border-primary/30 border bg-accent-soft text-foreground' : 'bg-accent'
             )}
           >
             {bubbleContent()}
             {timeString && (
-              <time
-                className={cn(
-                  'mt-1 block text-right text-[10px] leading-none',
-                  isProfile ? 'opacity-60' : 'text-muted-foreground'
-                )}
-              >
+              <time className="mt-1 block text-right text-[10px] leading-none text-muted-foreground">
                 {timeString}
               </time>
             )}
