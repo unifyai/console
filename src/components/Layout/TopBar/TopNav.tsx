@@ -277,11 +277,10 @@ export default function TopNav() {
   ) : null;
   const onboardingProgress = React.useMemo(() => {
     const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
-    const activeSteps = steps.filter((step) => step.status !== 'coming_soon');
-    const completed = activeSteps.filter(
+    const completed = steps.filter(
       (step) => step.status === 'done' || step.status === 'skipped'
     ).length;
-    const total = activeSteps.length;
+    const total = steps.length;
     return {
       completed,
       total,
