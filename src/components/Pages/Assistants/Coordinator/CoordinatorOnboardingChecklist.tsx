@@ -950,7 +950,7 @@ interface ChecklistRowProps {
   onUnskipStep?: (stepId: string) => void;
   onSkipSection?: (phaseId: string) => void;
   onUnskipSection?: (phaseId: string) => void;
-  onResetStepProgress?: (stepIds: readonly string[]) => void;
+  onResetStepProgress?: (stepIds: readonly string[], resetStepId?: string) => void;
 }
 
 function ChecklistRow({
@@ -987,7 +987,7 @@ function ChecklistRow({
     !item.sectionSkipped &&
     hasResolvedLeaf(item);
   const resetStepIds = React.useMemo(() => collectVisibleLeafIds(item), [item]);
-  const undoStepIds = React.useMemo(
+  const rowResetStepIds = React.useMemo(
     () => collectDependentStepIds(item.id, allVisibleItems),
     [allVisibleItems, item.id]
   );
@@ -1061,8 +1061,8 @@ function ChecklistRow({
 
   const dimClassName = dim ? 'opacity-50 transition-opacity' : undefined;
   const canSelect = isActionable && !!item.action;
-  const canUndo = item.status === 'done' && !!onResetStepProgress;
-  const hasRowMenu = canSelect || canSkip || canUnskip || canUndo;
+  const canReset = item.status === 'done' && !!onResetStepProgress;
+  const hasRowMenu = canSelect || canSkip || canUnskip || canReset;
   const opensInfoFromAction = !!item.action && hasInfo && INFO_ONLY_ACTIONS.has(item.action);
   const handleActionSelect = () => {
     if (!item.action) return;
@@ -1117,9 +1117,9 @@ function ChecklistRow({
           alignOffset={isChild ? 24 : 0}
           className="min-w-[6rem]"
         >
-          {canUndo ? (
-            <DropdownMenuItem onSelect={() => onResetStepProgress?.(undoStepIds)}>
-              Undo
+          {canReset ? (
+            <DropdownMenuItem onSelect={() => onResetStepProgress?.(rowResetStepIds, item.id)}>
+              Reset
             </DropdownMenuItem>
           ) : item.status === 'skipped' ? (
             <DropdownMenuItem onSelect={() => onUnskipStep?.(item.id)}>Unskip</DropdownMenuItem>

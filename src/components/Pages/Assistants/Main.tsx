@@ -99,8 +99,6 @@ import {
 } from '@/utils/assistants/coordinator-reference-quiz';
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
-const COORDINATOR_ONBOARDING_RESET_STORAGE_PREFIX =
-  'console:coordinator-onboarding:reset-step-ids:';
 const COORDINATOR_REFERENCE_QUIZ_ACTIONS = new Set<ChecklistAction>([
   'trigger-email-reference',
   'start-email-reply',
@@ -502,38 +500,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [resetStepIds, setResetStepIds] = React.useState<ReadonlySet<string>>(() => new Set());
   const activeCoordinatorOnboardingStep = coordinatorOnboardingState?.onboardingStep;
   React.useEffect(() => {
-    if (canonicalCoordinatorId === null) {
-      setResetStepIds(new Set());
-      return;
-    }
-    const storageKey = `${COORDINATOR_ONBOARDING_RESET_STORAGE_PREFIX}${canonicalCoordinatorId}`;
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      const parsed = raw ? JSON.parse(raw) : [];
-      setResetStepIds(
-        new Set(
-          Array.isArray(parsed)
-            ? parsed.filter((stepId): stepId is string => typeof stepId === 'string')
-            : []
-        )
-      );
-    } catch {
-      setResetStepIds(new Set());
-    }
+    setResetStepIds(new Set());
   }, [canonicalCoordinatorId]);
-  React.useEffect(() => {
-    if (canonicalCoordinatorId === null) return;
-    const storageKey = `${COORDINATOR_ONBOARDING_RESET_STORAGE_PREFIX}${canonicalCoordinatorId}`;
-    try {
-      if (resetStepIds.size === 0) {
-        window.localStorage.removeItem(storageKey);
-      } else {
-        window.localStorage.setItem(storageKey, JSON.stringify([...resetStepIds]));
-      }
-    } catch {
-      /* private mode / quota: reset state remains in memory for this page. */
-    }
-  }, [canonicalCoordinatorId, resetStepIds]);
   // Engagement is a strict superset of completion — engaging
   // ``apps`` (clicking "Connect apps") unlocks the integrations
   // tab even though the row stays pending until a secret actually
@@ -561,6 +529,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     });
   }, []);
   const seedStepCompleted = React.useCallback((stepId: string) => {
+    setResetStepIds((prev) => {
+      if (!prev.has(stepId)) return prev;
+      const next = new Set(prev);
+      next.delete(stepId);
+      return next;
+    });
     setCompletedStepIds((prev) => {
       if (prev.has(stepId)) return prev;
       const next = new Set(prev);
@@ -617,6 +591,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     });
   }, []);
   const markStepEngaged = React.useCallback((stepId: string) => {
+    setResetStepIds((prev) => {
+      if (!prev.has(stepId)) return prev;
+      const next = new Set(prev);
+      next.delete(stepId);
+      return next;
+    });
     setEngagedStepIds((prev) => {
       if (prev.has(stepId)) return prev;
       const next = new Set(prev);
@@ -625,7 +605,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     });
   }, []);
   const resetStepProgress = React.useCallback(
-    (stepIds: readonly string[]) => {
+    (stepIds: readonly string[], resetStepId?: string) => {
       const ids = new Set(stepIds);
       if (ids.size === 0) return;
       setResetStepIds((prev) => new Set([...prev, ...ids]));
@@ -644,7 +624,9 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         for (const stepId of ids) next.delete(stepId);
         return next.size === prev.size ? prev : next;
       });
-      if (activeCoordinatorOnboardingStep && ids.has(activeCoordinatorOnboardingStep)) {
+      if (resetStepId) {
+        void updateCoordinatorOnboardingState({ resetOnboardingStep: resetStepId });
+      } else if (activeCoordinatorOnboardingStep && ids.has(activeCoordinatorOnboardingStep)) {
         void updateCoordinatorOnboardingState({ clearOnboardingStep: true });
       }
     },

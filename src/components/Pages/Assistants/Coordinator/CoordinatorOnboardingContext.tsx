@@ -43,7 +43,7 @@ export interface CoordinatorOnboardingContextValue {
   markStepCompleted: (stepId: string) => void;
   /** Clears local completion, skip, and engagement state for a group of
    * checklist leaves so the user can walk that section again. */
-  resetStepProgress: (stepIds: readonly string[]) => void;
+  resetStepProgress: (stepIds: readonly string[], resetStepId?: string) => void;
   /** Steps the user has locally rewound even if Orchestra can still
    * derive them from durable domain state. */
   resetStepIds: ReadonlySet<string>;

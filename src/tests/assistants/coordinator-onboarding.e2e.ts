@@ -327,8 +327,8 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   await page.getByRole('menuitem', { name: 'Action' }).click();
   await expect(emailReferenceRow).toHaveAttribute('data-status', 'done', { timeout: 10_000 });
   await openChecklistItemMenu(page, 'email-reference');
-  await expect(page.getByRole('menuitem', { name: 'Undo' })).toBeVisible();
-  await page.getByRole('menuitem', { name: 'Undo' }).click();
+  await expect(page.getByRole('menuitem', { name: 'Reset' })).toBeVisible();
+  await page.getByRole('menuitem', { name: 'Reset' }).click();
   await expect(emailReferenceRow).toHaveAttribute('data-status', 'pending');
   await expect(page.getByTestId('coordinator-onboarding-item-email-reply').first()).toHaveAttribute(
     'data-status',
