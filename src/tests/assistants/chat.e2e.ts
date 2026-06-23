@@ -668,8 +668,9 @@ test('assistant message exposes a copy button that confirms on click', async ({
 }) => {
   // The copy affordance only appears on assistant bubbles (the user
   // already authored their own messages). On click it briefly flips
-  // its `data-copied` attribute and updates the aria-label. Those
-  // UI signals are more deterministic than asserting clipboard reads.
+  // its `data-copied` attribute and updates the aria-label without
+  // creating a global toast. Those UI signals are more deterministic
+  // than asserting clipboard reads.
   await seedContact(user.apiKey, user.id, assistant.agentId, user.email);
 
   const ts = Date.now();
@@ -705,6 +706,9 @@ test('assistant message exposes a copy button that confirms on click', async ({
 
   await expect(copyButton).toHaveAttribute('data-copied', 'true', { timeout: 3_000 });
   await expect(copyButton).toHaveAttribute('aria-label', 'Message copied');
+  await expect(
+    page.locator('[data-sonner-toast]').filter({ hasText: 'Message copied' })
+  ).toHaveCount(0);
 });
 
 test('re-enabling credits after exhaustion restores chat input', async ({ authedPage: page }) => {

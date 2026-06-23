@@ -140,6 +140,7 @@ function ChatMessageBubbleImpl({
   const { isCopied, handleCopy } = useCopyToClipboard({
     text: message,
     copyMessage: 'Message copied',
+    showSuccessNotification: false,
   });
   const canCopy = !isUser && !!message && !isTypingIndicator;
 
