@@ -13,8 +13,7 @@
  * precomputed ``onboarding`` rendering (steps + statuses + next
  * targets) on ``Coordinator/State``, and this component renders it
  * directly. The client no longer computes availability — it only maps
- * each step id to its surface-specific action handler and to UI-only
- * copy (description, time estimate, suggestion chips).
+ * each step id to its surface-specific action handler.
  */
 
 import * as React from 'react';
@@ -37,7 +36,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { cn } from '@/lib/utils';
 import type {
   OnboardingChip,
@@ -80,15 +78,6 @@ interface OnboardingChecklistItem {
    * the sidebar width. Only meaningful on top-level (phase) items;
    * unused on children. Falls back to ``title`` when unset. */
   phaseLabel?: string;
-  /** Short one-line description shown on the info tooltip — answers
-   * "why does this step matter?" so the user can decide whether to
-   * engage before clicking through. Keep terse; the tooltip is a
-   * hint, not a doc. */
-  description?: string;
-  /** Rough time estimate ("~30s", "~2min") surfaced in the info
-   * tooltip. Optional because some steps (e.g. group headers) are
-   * compounded and don't have a single-number estimate. */
-  estimatedTime?: string;
   /** When set, clicking the row dispatches this action via the
    * surface-supplied handler. Items without an action render as
    * static (informational) rows. */
@@ -109,11 +98,9 @@ interface OnboardingChecklistItem {
 
 /**
  * Maps each server step id to the surface-specific action this Console
- * dispatches when the row is clicked. This is the *only* per-step copy
- * Console owns — pure client behaviour (which handler to fire) that has no
- * place in the backend graph. Everything else (titles, descriptions, time
- * estimates, suggestion chips, phase headers) is sourced from the server's
- * onboarding render, which reads it from Orchestra's canonical graph.
+ * dispatches when the row is clicked. This is the *only* per-step mapping
+ * Console owns — pure client behaviour that has no place in the backend
+ * graph. Everything else is sourced from Orchestra's canonical graph.
  */
 const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'email-reference': 'trigger-email-reference',
@@ -264,8 +251,6 @@ function buildVisibleChecklist(
       id: step.id,
       title: step.title,
       phase: step.phase,
-      description: step.description || undefined,
-      estimatedTime: step.estimatedTime || undefined,
       chipsChat: step.chipsChat,
       chipsCall: step.chipsCall,
       dependencies: step.dependencies.map((dependency) => {
@@ -305,7 +290,6 @@ function buildVisibleChecklist(
       title: phase.title,
       phase: phase.phase,
       phaseLabel: phase.phase,
-      description: phase.description,
       done,
       skipped,
       locked: false,
@@ -994,38 +978,6 @@ function ChecklistRow({
   // Only inaccessible/future rows dim. Addressed rows (done or skipped)
   // should remain readable so their state is clear.
   const dim = item.locked || sectionDisabled;
-  const unresolvedDependencies =
-    item.dependencies?.filter((dependency) => !dependency.satisfied) ?? [];
-  const hasDependencyInfo = item.locked && unresolvedDependencies.length > 0;
-  const hasInfo = !!item.description || !!item.estimatedTime || hasDependencyInfo;
-  const [isInfoTooltipOpen, setIsInfoTooltipOpen] = React.useState(false);
-  const [isInfoTooltipPinnedToLabel, setIsInfoTooltipPinnedToLabel] = React.useState(false);
-  const dependencyInfoTriggerRef = React.useRef<HTMLSpanElement | null>(null);
-
-  React.useEffect(() => {
-    if (!isInfoTooltipPinnedToLabel) return;
-    const handlePointerMove = (event: PointerEvent) => {
-      const trigger = dependencyInfoTriggerRef.current;
-      if (!trigger) {
-        setIsInfoTooltipOpen(false);
-        setIsInfoTooltipPinnedToLabel(false);
-        return;
-      }
-      const rect = trigger.getBoundingClientRect();
-      const isInside =
-        event.clientX >= rect.left &&
-        event.clientX <= rect.right &&
-        event.clientY >= rect.top &&
-        event.clientY <= rect.bottom;
-      if (!isInside) {
-        setIsInfoTooltipOpen(false);
-        setIsInfoTooltipPinnedToLabel(false);
-      }
-    };
-    window.addEventListener('pointermove', handlePointerMove);
-    return () => window.removeEventListener('pointermove', handlePointerMove);
-  }, [isInfoTooltipPinnedToLabel]);
-
   const rowClassName = (variant: 'done' | 'skipped' | 'actionable' | 'static') =>
     cn(
       CHECKLIST_CONTROL_GRID_CLASS,
@@ -1047,57 +999,24 @@ function ChecklistRow({
     </span>
   );
 
-  const renderDependencyInfo = () =>
-    hasDependencyInfo ? (
-      <div className="text-caption leading-snug text-muted-foreground">
-        <p className="font-medium text-foreground">Depends on:</p>
-        <ul className="mt-1 list-disc space-y-0.5 pl-4">
-          {unresolvedDependencies.map((dependency) => (
-            <li key={dependency.id}>{dependency.title}</li>
-          ))}
-        </ul>
-      </div>
-    ) : null;
-
   const dimClassName = dim ? 'opacity-50 transition-opacity' : undefined;
-  const canSelect = isActionable && !!item.action;
+  const canSelect = isActionable && !!item.action && !INFO_ONLY_ACTIONS.has(item.action);
   const canReset = item.status === 'done' && !!onResetStepProgress;
   const hasRowMenu = canSelect || canSkip || canUnskip || canReset;
-  const opensInfoFromAction = !!item.action && hasInfo && INFO_ONLY_ACTIONS.has(item.action);
   const handleActionSelect = () => {
     if (!item.action) return;
-    if (opensInfoFromAction) {
-      setIsInfoTooltipPinnedToLabel(true);
-      setIsInfoTooltipOpen(true);
-      return;
-    }
     onAction(item.action);
   };
 
   const renderMarkerAndLabel = (variant: 'done' | 'skipped' | 'actionable' | 'static') => {
     const content = (
       <span
-        ref={dependencyInfoTriggerRef}
         className={cn(
           'flex min-w-0 flex-1 items-start',
           isChild && 'pl-6',
           hasRowMenu && 'cursor-pointer',
-          dimClassName,
-          hasDependencyInfo &&
-            'rounded-control cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+          dimClassName
         )}
-        onClick={
-          hasDependencyInfo
-            ? () => {
-                setIsInfoTooltipPinnedToLabel((pinned) => {
-                  const next = !pinned;
-                  setIsInfoTooltipOpen(next);
-                  return next;
-                });
-              }
-            : undefined
-        }
-        data-testid={hasDependencyInfo ? `coordinator-onboarding-lock-hover-${item.id}` : undefined}
       >
         <span className="inline-flex min-w-0 items-start gap-2">
           <ChecklistMarker status={item.status} />
@@ -1181,67 +1100,6 @@ function ChecklistRow({
       </AlertDialog>
     ) : null;
 
-  const renderInfoTooltip = () =>
-    hasInfo ? (
-      <TooltipProvider delayDuration={150}>
-        <Tooltip disableHoverableContent open={isInfoTooltipOpen}>
-          <TooltipTrigger asChild>
-            <InfoSquareButton
-              // ``span``-like click target nested inside the
-              // actionable button isn't valid HTML — stop the
-              // propagation so opening the tooltip never
-              // double-fires the row action.
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsInfoTooltipPinnedToLabel(false);
-                setIsInfoTooltipOpen(true);
-              }}
-              onMouseEnter={() => {
-                setIsInfoTooltipPinnedToLabel(false);
-                setIsInfoTooltipOpen(true);
-              }}
-              onMouseLeave={() => {
-                setIsInfoTooltipPinnedToLabel(false);
-                setIsInfoTooltipOpen(false);
-              }}
-              onFocus={() => {
-                setIsInfoTooltipPinnedToLabel(false);
-                setIsInfoTooltipOpen(true);
-              }}
-              onBlur={() => {
-                setIsInfoTooltipPinnedToLabel(false);
-                setIsInfoTooltipOpen(false);
-              }}
-              aria-label={
-                item.locked ? `Why is "${item.title}" locked?` : `What is "${item.title}"?`
-              }
-              className="border-muted-foreground/60 text-muted-foreground/60"
-              data-testid={`coordinator-onboarding-info-${item.id}`}
-            />
-          </TooltipTrigger>
-          <TooltipContent
-            side="left"
-            className="pointer-events-none max-w-[220px]"
-            data-testid={`coordinator-onboarding-info-content-${item.id}`}
-          >
-            <div className="flex flex-col gap-1.5">
-              {item.description || item.estimatedTime ? (
-                <p className="text-caption leading-snug">
-                  {item.description}
-                  {item.description && item.estimatedTime ? (
-                    <span className="text-muted-foreground"> · {item.estimatedTime}</span>
-                  ) : item.estimatedTime ? (
-                    <span className="text-muted-foreground">{item.estimatedTime}</span>
-                  ) : null}
-                </p>
-              ) : null}
-              {hasDependencyInfo ? renderDependencyInfo() : null}
-            </div>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    ) : null;
-
   const rowBody = (variant: 'done' | 'skipped' | 'actionable' | 'static') => (
     <div className={rowClassName(variant)}>
       {renderMarkerAndLabel(variant)}
@@ -1250,9 +1108,7 @@ function ChecklistRow({
           {renderResetSectionButton()}
         </span>
       </span>
-      <span className={cn('flex h-6 items-center justify-center', dimClassName)}>
-        {renderInfoTooltip()}
-      </span>
+      <span aria-hidden="true" className="flex h-6 items-center justify-center" />
     </div>
   );
 

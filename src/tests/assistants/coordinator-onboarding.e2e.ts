@@ -235,9 +235,6 @@ test('checklist allows independent sections to start out of order', async ({
     'data-status',
     'locked'
   );
-  await page.getByTestId('coordinator-onboarding-lock-hover-email-reply').click();
-  await expect(page.getByText('Depends on:')).toBeVisible();
-  await expect(page.getByText('Receive email from Twin')).toBeVisible();
   await expect(page.getByTestId('coordinator-onboarding-item-workspace')).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 
@@ -343,8 +340,9 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   );
   await expectChecklistItemClickable(page, 'email-reply');
   await openChecklistItemMenu(page, 'email-reply');
-  await page.getByRole('menuitem', { name: 'Action' }).click();
-  await expect(page.getByTestId('coordinator-onboarding-info-content-email-reply')).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Action' })).toHaveCount(0);
+  await expect(page.getByRole('menuitem', { name: 'Skip' })).toBeVisible();
+  await page.keyboard.press('Escape');
   await expect(page.getByTestId('coordinator-onboarding-item-apps')).toHaveCount(0);
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
   await expect
