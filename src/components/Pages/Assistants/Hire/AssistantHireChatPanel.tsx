@@ -52,6 +52,7 @@ export function AssistantHireChatPanel({
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea (ChatGPT-style: grows with content, scrollbar after max)
+  const TEXTAREA_MIN_HEIGHT = 48;
   const TEXTAREA_MAX_HEIGHT = 200;
 
   React.useEffect(() => {
@@ -59,19 +60,18 @@ export function AssistantHireChatPanel({
     if (!textarea) return;
 
     textarea.style.height = 'auto';
+    textarea.style.minHeight = `${TEXTAREA_MIN_HEIGHT}px`;
     textarea.style.overflowY = 'hidden';
     textarea.style.scrollbarWidth = 'none';
 
-    if (inputValue) {
-      const scrollHeight = textarea.scrollHeight;
+    const scrollHeight = Math.max(textarea.scrollHeight, TEXTAREA_MIN_HEIGHT);
 
-      if (scrollHeight > TEXTAREA_MAX_HEIGHT) {
-        textarea.style.height = `${TEXTAREA_MAX_HEIGHT}px`;
-        textarea.style.overflowY = 'auto';
-        textarea.style.scrollbarWidth = 'thin';
-      } else {
-        textarea.style.height = `${scrollHeight}px`;
-      }
+    if (scrollHeight > TEXTAREA_MAX_HEIGHT) {
+      textarea.style.height = `${TEXTAREA_MAX_HEIGHT}px`;
+      textarea.style.overflowY = 'auto';
+      textarea.style.scrollbarWidth = 'thin';
+    } else {
+      textarea.style.height = `${scrollHeight}px`;
     }
   }, [inputValue]);
 
@@ -208,7 +208,7 @@ export function AssistantHireChatPanel({
             value={inputValue}
             onChange={handleInputChange}
             disabled={isChatDisabled}
-            className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pr-10"
+            className="styled-scrollbar text-body min-h-12 resize-none overflow-y-hidden rounded-xl py-3.5 pr-14 leading-5"
             autoComplete="off"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -222,7 +222,7 @@ export function AssistantHireChatPanel({
           <Button
             type="submit"
             size="icon"
-            className="absolute bottom-1.5 right-1.5 h-7 w-7"
+            className="absolute bottom-2 right-2 h-8 w-8 rounded-full"
             disabled={isChatDisabled || !inputValue.trim()}
           >
             {isLoading ? (
