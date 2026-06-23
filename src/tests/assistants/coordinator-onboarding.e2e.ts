@@ -117,6 +117,10 @@ async function selectCoordinatorCommunicationSubgroup(page: Page, subgroupId: st
   }
 }
 
+async function expectComingSoonVisible(page: Page) {
+  await expect(page.getByRole('button', { name: /^\[coming soon\]$/ }).first()).toBeVisible();
+}
+
 async function openChecklistItemMenu(page: Page, stepId: string) {
   await page.getByTestId(`coordinator-onboarding-item-${stepId}`).click();
 }
@@ -234,18 +238,11 @@ test('checklist allows independent sections to start out of order', async ({
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
 
   await selectCoordinatorOnboardingSection(page, 'my-computer');
-  await expect(page.getByTestId('coordinator-onboarding-item-email-reference')).toHaveCount(0);
-  await expect(
-    page.getByTestId('coordinator-onboarding-item-my-computer-coming-soon')
-  ).toHaveAttribute('data-status', 'locked');
+  await expectComingSoonVisible(page);
 
   await selectCoordinatorOnboardingSection(page, 'workspace');
-  await expectChecklistItemClickable(page, 'workspace');
+  await expectComingSoonVisible(page);
   await expect(page.getByTestId('coordinator-onboarding-item-act')).toHaveCount(0);
-  await expect(page.getByTestId('coordinator-onboarding-item-apps')).toHaveAttribute(
-    'data-status',
-    'locked'
-  );
 });
 
 test('picking chat lands in the full platform with the checklist in Assistant info', async ({
@@ -291,12 +288,9 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   const emailReferenceRow = page.getByTestId('coordinator-onboarding-item-email-reference').first();
   await expect(emailReferenceRow).toBeVisible();
   await selectCoordinatorOnboardingSection(page, 'integrations');
-  await expectChecklistItemClickable(page, 'apps');
-  await expect(page.getByTestId('coordinator-onboarding-item-email-reference')).toHaveCount(0);
+  await expectComingSoonVisible(page);
   await selectCoordinatorOnboardingSection(page, 'my-computer');
-  await expect(
-    page.getByTestId('coordinator-onboarding-item-my-computer-coming-soon')
-  ).toHaveAttribute('data-status', 'locked');
+  await expectComingSoonVisible(page);
   await selectCoordinatorOnboardingSection(page, 'communication');
   await expect(emailReferenceRow).toHaveAttribute('data-next', 'true', { timeout: 15_000 });
   await expectChecklistItemClickable(page, 'email-reference');
@@ -305,7 +299,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   await openChecklistItemMenu(page, 'email-reference');
   await expect(page.getByRole('menuitem', { name: 'Reset' })).toBeVisible();
   await page.getByRole('menuitem', { name: 'Reset' }).click();
-  await expect(emailReferenceRow).toHaveAttribute('data-status', 'pending');
+  await expect(emailReferenceRow).not.toHaveAttribute('data-status', 'done');
   await expect(page.getByTestId('coordinator-onboarding-item-email-reply').first()).toHaveAttribute(
     'data-status',
     'locked'

@@ -72,12 +72,20 @@ export interface OnboardingStep {
   title: string;
   phase: string;
   status: OnboardingStepStatus;
+  kind?: string;
+  channel?: string | null;
+  pairedReply?: string | null;
+  nudgeChat?: string;
+  nudgeVoice?: string;
+  phaseId?: string | null;
   canSkip: boolean;
   description: string;
   estimatedTime: string;
+  flowNote?: string;
   chipsChat: OnboardingChip[];
   chipsCall: OnboardingChip[];
   dependencies: OnboardingStepDependency[];
+  interaction?: Record<string, unknown> | null;
   event: OnboardingEventSpec | null;
 }
 
@@ -88,6 +96,11 @@ export interface OnboardingNextTarget {
   nudgeChat: string;
   nudgeVoice: string;
   channel: string | null;
+  kind?: string;
+  pairedReply?: string | null;
+  phase?: string;
+  flowNote?: string;
+  interaction?: Record<string, unknown> | null;
 }
 
 /**

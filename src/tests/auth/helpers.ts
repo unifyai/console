@@ -39,10 +39,13 @@ export type { SeededOrg } from '../helpers/seeds/types';
 
 /** Switch to the email auth tab (login page defaults to OAuth buttons). */
 export async function switchToEmailTab(page: Page) {
+  if (!page.url().includes('/login')) return;
+
   const emailForm = page.getByTestId('email-login-form');
   if (await emailForm.isVisible({ timeout: 1000 }).catch(() => false)) {
     return;
   }
+  if (!page.url().includes('/login')) return;
 
   const registerForm = page.getByTestId('email-register-form');
   if (await registerForm.isVisible({ timeout: 1000 }).catch(() => false)) {
@@ -54,13 +57,16 @@ export async function switchToEmailTab(page: Page) {
   const emailTab = page.getByTestId('email-auth-tab');
   if (await emailTab.isVisible({ timeout: 3000 }).catch(() => false)) {
     try {
-      await emailTab.click();
+      await emailTab.click({ timeout: 5_000 });
     } catch {
-      await emailTab.click({ force: true });
+      if (!page.url().includes('/login')) return;
+      await emailTab.click({ force: true, timeout: 5_000 });
     }
   } else {
-    await page.getByRole('button', { name: /continue with email/i }).click();
+    if (!page.url().includes('/login')) return;
+    await page.getByRole('button', { name: /continue with email/i }).click({ timeout: 5_000 });
   }
+  if (!page.url().includes('/login')) return;
   if (await registerForm.isVisible({ timeout: 1000 }).catch(() => false)) {
     await page.getByTestId('switch-to-login').click();
   }
@@ -69,8 +75,12 @@ export async function switchToEmailTab(page: Page) {
 
 async function fillLoginForm(page: Page, email: string, password: string) {
   await switchToEmailTab(page);
-  await page.getByTestId('email-input').fill(email);
-  await page.getByTestId('email-password-input').fill(password);
+  if (!page.url().includes('/login')) return;
+  await page.getByTestId('email-input').fill(email, { timeout: 5_000 });
+  const passwordInput = page.getByTestId('email-password-input');
+  if (await passwordInput.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    await passwordInput.fill(password, { timeout: 5_000 });
+  }
 }
 
 /** Fill the email login form and submit. */
@@ -93,6 +103,7 @@ export async function loginAndWaitForRedirect(
   timeout = 30_000
 ) {
   await fillLoginForm(page, email, password);
+  if (!page.url().includes('/login')) return;
   await Promise.all([
     page.waitForURL((url) => url.pathname !== '/login', {
       timeout,

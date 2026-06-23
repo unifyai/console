@@ -31,16 +31,12 @@ export async function dispatchCoordinatorOnboardingStepEvent(
 ): Promise<OnboardingEventSpec | null> {
   if (!step.event) return null;
 
-  const response = await fetch(`/api/assistant/${assistantId}/system-event`, {
+  const response = await fetch('/api/coordinator-onboarding-step-event', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      eventType: step.event.eventType,
-      message: step.event.message,
-      extraEventFields: {
-        subtype: step.event.subtype,
-        details: step.event.details,
-      },
+      coordinatorId: String(assistantId),
+      stepId: step.id,
     }),
   });
 
