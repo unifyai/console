@@ -11,6 +11,8 @@ import * as MfaSettingsActions from '@/lib/orchestra/api/organization';
 import { Organization, isOrgSpendingLimitData } from '@/types/organization';
 import { redirect } from 'next/navigation';
 import { isSelfHost } from '@/lib/environment/environment';
+import { ShellSectionPage } from '@/components/Layout/Shell/ShellSectionPage';
+import { ORGANIZATIONS_SECTION } from '@/components/Layout/Shell/shellSections';
 
 const OrganizationPage = async () => {
   const user = await getCurrentUser();
@@ -107,7 +109,7 @@ const OrganizationPage = async () => {
   }
 
   return (
-    <div className="h-full w-full overflow-auto p-1">
+    <ShellSectionPage section={ORGANIZATIONS_SECTION} fill>
       <Suspense fallback={<SkeletonLoader />}>
         <Main
           initialOrganizations={organizations}
@@ -122,7 +124,7 @@ const OrganizationPage = async () => {
           isUnifyMember={isUnifyMember}
         />
       </Suspense>
-    </div>
+    </ShellSectionPage>
   );
 };
 

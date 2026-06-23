@@ -1,4 +1,4 @@
-import { Settings, CreditCard, BarChart3 } from 'lucide-react';
+import { Settings, CreditCard, BarChart3, Building } from 'lucide-react';
 import type { SectionDef } from '@/components/Pages/Assistants/Rail/sectionConfig';
 
 /** The Settings surface descriptor, used for the `/account` section header. */
@@ -40,5 +40,19 @@ export const USAGE_SECTION: SectionDef = {
     ['Choose a range', 'Scope the chart by date and granularity.'],
     ['Filter by droid', 'See usage for all droids or just one.'],
     ['Drill into a day', 'Expand a day to see the work that spent the credits.'],
+  ],
+};
+
+/** The Organizations surface descriptor, used for the `/organizations` header. */
+export const ORGANIZATIONS_SECTION: SectionDef = {
+  id: 'organizations',
+  label: 'Organizations',
+  Icon: Building,
+  kind: 'view',
+  desc: 'The teams you belong to — members, roles, teams and sharing.',
+  steps: [
+    ['Pick an organization', 'Switch between the organizations you belong to.'],
+    ['Manage members', 'Invite people, set roles and review pending invites.'],
+    ['Organize teams', 'Group members into teams and control resource sharing.'],
   ],
 };
