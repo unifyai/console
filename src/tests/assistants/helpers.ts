@@ -47,20 +47,59 @@ export { login, switchToEmailTab };
 // Shared Auth — storageState
 // =============================================================================
 
-async function loginViaDevQuickLogin(page: Page, email: string, timeout: number): Promise<void> {
-  const quickLoginPanel = page.getByTestId('dev-quick-login');
-  await expect(quickLoginPanel).toBeVisible({ timeout: 15_000 });
+/**
+ * Authenticate a seeded user via the dev quick-login panel.
+ *
+ * The local dev login page defaults to the OAuth tab (Google is configured),
+ * so the password form is one tab-switch away and racier than the dev panel.
+ * The dev panel mints a session with a single click, so it is the primary path;
+ * we avoid `waitForURL` (which hangs the full timeout on any redirect race) and
+ * force-navigate to `/assistants` instead, then confirm we left `/login`.
+ */
+async function tryDevQuickLogin(page: Page, email: string): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      await page.goto('/login');
+      await page.waitForLoadState('domcontentloaded');
+    }
+    const quickLoginButton = page
+      .getByTestId('dev-quick-login')
+      .locator('button', { hasText: email })
+      .first();
+    if (!(await quickLoginButton.isVisible({ timeout: 10_000 }).catch(() => false))) continue;
 
-  const quickLoginButton = quickLoginPanel.locator('button', { hasText: email }).first();
-  await expect(quickLoginButton).toBeVisible({ timeout: 15_000 });
+    await quickLoginButton.click();
+    await page.waitForTimeout(800);
+    if (new URL(page.url()).pathname === '/login') {
+      await page.goto('/assistants');
+      await page.waitForLoadState('domcontentloaded');
+    }
+    if (new URL(page.url()).pathname !== '/login') return true;
+  }
+  return false;
+}
 
-  await Promise.all([
-    page.waitForURL((url) => url.pathname !== '/login', {
-      timeout,
-      waitUntil: 'domcontentloaded',
-    }),
-    quickLoginButton.click(),
-  ]);
+/**
+ * Authenticate a seeded user.
+ *
+ * Email+password is the primary path: it is deterministic and does not depend
+ * on the dev quick-login panel (which queries Postgres for every `seed-%` user
+ * and can be slow). The credentials submit occasionally bounces back to
+ * `/login` locally, so we fall back to the dev panel. Throws if neither path
+ * leaves `/login`.
+ */
+export async function authenticate(page: Page, email: string, password: string): Promise<void> {
+  await page.goto('/login');
+  try {
+    await loginAndWaitForRedirect(page, email, password, 30_000);
+  } catch {
+    /* fall back to the dev quick-login panel below */
+  }
+  if (new URL(page.url()).pathname !== '/login') return;
+
+  if (await tryDevQuickLogin(page, email)) return;
+
+  throw new Error(`Unable to authenticate test user ${email}`);
 }
 
 export async function loginAndSaveState(
@@ -78,35 +117,7 @@ export async function loginAndSaveState(
   });
   const page = await ctx.newPage();
 
-  await page.goto('/login?signout=true');
-  await page
-    .waitForURL((url) => url.pathname === '/login' && !url.searchParams.has('signout'), {
-      timeout: 15_000,
-      waitUntil: 'domcontentloaded',
-    })
-    .catch(() => {});
-
-  try {
-    await loginAndWaitForRedirect(page, email, password, 45_000);
-  } catch (error) {
-    if (!page.url().includes('/login')) {
-      // A pre-existing local auth session can redirect /login straight into
-      // the app before the email-login controls render. That is already the
-      // desired authenticated state for these fixtures.
-    } else {
-      const hasQuickLoginPanel = await page
-        .getByTestId('dev-quick-login')
-        .isVisible({ timeout: 3_000 })
-        .catch(() => false);
-      if (!hasQuickLoginPanel) {
-        throw error;
-      }
-      // Local dev login occasionally lands back on /login after credentials submit.
-      // Retry once via the dev quick-login panel to keep assistant e2e fixtures stable.
-      await page.goto('/login');
-      await loginViaDevQuickLogin(page, email, 45_000);
-    }
-  }
+  await authenticate(page, email, password);
 
   if (page.url().includes('/login/onboarding')) {
     const personalBtn = page.getByTestId('workspace-personal');
@@ -144,8 +155,7 @@ export async function loginAndSaveOrgState(
   });
   const page = await ctx.newPage();
 
-  await page.goto('/login');
-  await loginAndWaitForRedirect(page, email, password, 45_000);
+  await authenticate(page, email, password);
 
   if (page.url().includes('/login/onboarding')) {
     await page
@@ -255,7 +265,7 @@ export async function closeHireDialogIfOpen(page: Page) {
 }
 
 /**
- * Open the hire dialog via the "New" button in the assistant list.
+ * Open the hire dialog via the "Onboard" button in the assistant list.
  * If the dialog is already open (e.g. auto-opened on empty state), skip clicking.
  */
 export async function openHireDialog(page: Page) {
@@ -263,9 +273,9 @@ export async function openHireDialog(page: Page) {
   if (await dialog.isVisible({ timeout: 2_000 }).catch(() => false)) {
     return;
   }
-  const newBtn = page.locator('button:has-text("New")');
-  await expect(newBtn).toBeEnabled({ timeout: 15_000 });
-  await newBtn.click();
+  const onboardBtn = page.getByTestId('assistant-onboard-button');
+  await expect(onboardBtn).toBeEnabled({ timeout: 15_000 });
+  await onboardBtn.click();
   await page.waitForTimeout(1_000);
 }
 
@@ -316,6 +326,21 @@ export async function openAccordionSection(
 }
 
 /**
+ * Fill a controlled input and confirm the value held.
+ *
+ * The hire form can re-apply a randomized profile asynchronously, so a single
+ * fill may be overwritten. Re-fill until the value sticks (or attempts run out).
+ */
+async function fillStable(locator: ReturnType<Page['locator']>, value: string, attempts = 4) {
+  for (let i = 0; i < attempts; i++) {
+    await locator.fill(value);
+    await locator.page().waitForTimeout(400);
+    if ((await locator.inputValue().catch(() => '')) === value) return;
+  }
+  await locator.fill(value);
+}
+
+/**
  * Fill the basic profile fields in the hire form.
  */
 export async function fillProfileFields(
@@ -332,26 +357,42 @@ export async function fillProfileFields(
 ) {
   await openAccordionSection(page, 'profile');
 
+  // The hire form auto-applies a randomized droid profile once presets load
+  // (name/role/about), and that effect can land — sometimes more than once —
+  // *after* the dialog first renders. A programmatic fill doesn't set the
+  // "user changed preset" flag, so an early fill gets clobbered by the late
+  // randomize. Wait for the auto-randomized name to settle, then fill with a
+  // short retry so the value sticks once the randomize effect quiesces.
   const firstNameInput = page.locator('#firstName');
-  await firstNameInput.fill(opts.firstName);
+  await expect(firstNameInput)
+    .not.toHaveValue('', { timeout: 15_000 })
+    .catch(() => {});
+  await fillStable(firstNameInput, opts.firstName);
 
   const surnameInput = page.locator('#surname');
-  await surnameInput.fill(opts.lastName);
+  await fillStable(surnameInput, opts.lastName);
 
   if (opts.jobTitle !== undefined) {
     const jobTitleInput = page.locator('#jobTitle');
     await jobTitleInput.fill(opts.jobTitle);
   }
 
+  // Age and nationality were dropped from the redesigned hire form. They
+  // remain in the underlying schema (and other surfaces may still expose
+  // them), so fill them only when the input is actually present.
   if (opts.age) {
     const ageInput = page.locator('#age');
-    await ageInput.fill(String(opts.age));
+    if (await ageInput.isVisible({ timeout: 500 }).catch(() => false)) {
+      await ageInput.fill(String(opts.age));
+    }
   }
 
   if (opts.nationality) {
     const nationalityTrigger = page.locator('#nationality');
-    await nationalityTrigger.click();
-    await page.locator(`[role="option"]:has-text("${opts.nationality}")`).click();
+    if (await nationalityTrigger.isVisible({ timeout: 500 }).catch(() => false)) {
+      await nationalityTrigger.click();
+      await page.locator(`[role="option"]:has-text("${opts.nationality}")`).click();
+    }
   }
 
   if (opts.about) {
@@ -387,7 +428,7 @@ export async function selectVoice(page: Page, voiceNameSubstring?: string) {
  * Scrolls the button into view first since the dialog content may be tall.
  */
 export async function clickHireButton(page: Page) {
-  const hireBtn = page.getByRole('button', { name: 'Hire Assistant' });
+  const hireBtn = page.getByRole('button', { name: 'Onboard Droid', exact: true });
   await hireBtn.scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
   await hireBtn.click();
@@ -466,12 +507,60 @@ export function getAssistantCount(userId: string): number {
   return parseInt(dbExec(`SELECT count(*) FROM assistants WHERE user_id = '${userId}'`), 10);
 }
 
+/**
+ * Agent IDs of a user's regular (non-coordinator) assistants.
+ *
+ * Every user has an always-present personal Coordinator that the app
+ * auto-provisions; it carries the lowest `agent_id` and is not a hireable
+ * assistant. Excluding it keeps `agentIds[0]` pointed at the assistants a test
+ * actually created/hired and keeps {@link deleteAllAssistantsForUser} from
+ * deleting the Coordinator (which the app would just recreate).
+ */
 export function getAssistantAgentIds(userId: string): number[] {
   const result = dbExec(
-    `SELECT agent_id FROM assistants WHERE user_id = '${userId}' ORDER BY agent_id`
+    `SELECT agent_id FROM assistants WHERE user_id = '${userId}' AND is_coordinator IS NOT TRUE ORDER BY agent_id`
   );
   if (!result) return [];
   return result.split('\n').map((id) => parseInt(id, 10));
+}
+
+/** Agent ID of a user's personal (non-org) Coordinator, or null if none. */
+export function getCoordinatorAgentId(userId: string): number | null {
+  const result = dbExec(
+    `SELECT agent_id FROM assistants WHERE user_id = '${userId}' AND is_coordinator = TRUE AND organization_id IS NULL ORDER BY agent_id LIMIT 1`
+  );
+  const parsed = parseInt(result, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Dismiss the Coordinator onboarding gate for a workspace.
+ *
+ * A freshly provisioned Coordinator resolves to ``mode: onboarding`` with
+ * ``intro_watched: false``, so the assistants page renders the full-screen
+ * onboarding intro overlay (``data-testid="coordinator-onboarding"``,
+ * ``absolute inset-0 z-50``) that intercepts every pointer event. Legacy
+ * assistant flows (list, chat, profile, hire, …) assume the standard shell,
+ * so they defer onboarding up front. Setting ``onboarding_deferred`` clears
+ * both the intro overlay and the coordinator focus layout in one shot,
+ * leaving the regular two-pane list. Idempotent and one-way sticky for
+ * ``intro_watched`` server-side.
+ */
+export async function deferCoordinatorOnboarding(
+  apiKey: string,
+  coordinatorId: number
+): Promise<void> {
+  const res = await _orchestraFetch(
+    `/v0/assistant/${coordinatorId}/state`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ intro_watched: true, onboarding_deferred: true }),
+    },
+    apiKey
+  );
+  if (!res.ok) {
+    throw new Error(`Failed to defer coordinator onboarding: ${res.status}`);
+  }
 }
 
 export function deleteAssistantFromDb(agentId: number): void {

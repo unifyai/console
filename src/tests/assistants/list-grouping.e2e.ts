@@ -106,7 +106,9 @@ test('groups colleagues by team and keeps row selection assistant-scoped', async
   await expect(teamsSection.getByRole('button', { name: /Teams/ })).toBeVisible({
     timeout: 15_000,
   });
-  await expect(soloSection.getByRole('button', { name: /Team.*1/ })).toBeVisible({
+  // Section headers no longer render a count badge, so match the solo
+  // section's "Team" header by its exact label instead of a "Team 1" count.
+  await expect(soloSection.getByRole('button', { name: 'Team', exact: true })).toBeVisible({
     timeout: 10_000,
   });
 
@@ -242,7 +244,10 @@ test('kebab menu stays visible for multi-team assistant rows', async ({ authedPa
   await expect(groupedRow).toBeVisible({ timeout: 15_000 });
   await groupedRow.hover();
 
-  const menuTrigger = page.getByTestId(`assistant-menu-${multiAssistant.agentId}`);
+  // A multi-team assistant lists once per team, so its kebab testid is no
+  // longer page-unique; scope to the primary group row (which carries the
+  // unique list-item testid) to target a single trigger.
+  const menuTrigger = groupedRow.getByTestId(`assistant-menu-${multiAssistant.agentId}`);
   await expect(menuTrigger).toBeVisible({ timeout: 5_000 });
   await expect(groupedRow.getByText('2 teams')).toBeVisible();
 
