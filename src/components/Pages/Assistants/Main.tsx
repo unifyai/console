@@ -100,6 +100,7 @@ import {
 } from '@/utils/assistants/coordinator-reference-quiz';
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
+const COORDINATOR_ONBOARDING_ACCESSIBLE_POLL_MS = 8_000;
 type ContactManagerInitialTab = ContactType | 'slack';
 
 interface MainProps {
@@ -2012,6 +2013,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     () => coordinatorOnboardingState?.onboarding?.steps ?? [],
     [coordinatorOnboardingState?.onboarding?.steps]
   );
+  const hasAccessibleCoordinatorOnboardingTargets =
+    (coordinatorOnboardingState?.onboarding?.nextTargets.length ?? 0) > 0;
   React.useEffect(() => {
     if (!serverCompletedStepIds) return;
     for (const stepId of serverCompletedStepIds) {
@@ -2038,23 +2041,21 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, [activeCoordinatorOnboardingStep, onboardingSteps, seedStepCompleted]);
   React.useEffect(() => {
     if (
-      !activeCoordinatorOnboardingStep ||
       coordinatorOnboardingState?.mode !== 'onboarding' ||
-      serverCompletedStepIds?.includes(activeCoordinatorOnboardingStep) ||
-      serverSkippedStepIds?.includes(activeCoordinatorOnboardingStep)
+      isCoordinatorOnboardingDeferred ||
+      !hasAccessibleCoordinatorOnboardingTargets
     ) {
       return;
     }
     const handle = window.setInterval(() => {
       void refetchCoordinatorOnboardingState();
-    }, 4_000);
+    }, COORDINATOR_ONBOARDING_ACCESSIBLE_POLL_MS);
     return () => window.clearInterval(handle);
   }, [
-    activeCoordinatorOnboardingStep,
     coordinatorOnboardingState?.mode,
+    hasAccessibleCoordinatorOnboardingTargets,
+    isCoordinatorOnboardingDeferred,
     refetchCoordinatorOnboardingState,
-    serverCompletedStepIds,
-    serverSkippedStepIds,
   ]);
   React.useEffect(() => {
     if (!activeCoordinatorOnboardingStep) return;
