@@ -7,6 +7,7 @@ module.exports = {
     './src/**/*.{js,ts,jsx,tsx,mdx}',
     './node_modules/@nextui-org/theme/dist/**/*.{js,ts,jsx,tsx}',
   ],
+  presets: [require('@droid/brand/tailwind-preset')],
   theme: {
     container: {
       center: true,
@@ -19,7 +20,6 @@ module.exports = {
     },
     extend: {
       backgroundImage: {
-        checkerboard: 'var(--checkerboard)',
         searchbar:
           'linear-gradient(90deg, var(--searchbar-gradient-start) -0.53%, var(--searchbar-gradient-end) 100%)',
         'searchbar-light':
@@ -39,60 +39,12 @@ module.exports = {
         'fade-accent': 'fadeAccent 3s ease-out',
       },
       colors: {
-        background: 'var(--background)',
-        foreground: 'var(--foreground)',
-        card: {
-          DEFAULT: 'var(--card)',
-          foreground: 'var(--card-foreground)',
-        },
-        popover: {
-          DEFAULT: 'var(--popover)',
-          foreground: 'var(--popover-foreground)',
-        },
-        primary: {
-          DEFAULT: 'var(--primary)',
-          foreground: 'var(--primary-foreground)',
-        },
-        secondary: {
-          DEFAULT: 'var(--secondary)',
-          foreground: 'var(--secondary-foreground)',
-        },
-        muted: {
-          DEFAULT: 'var(--muted)',
-          foreground: 'var(--muted-foreground)',
-        },
-        accent: {
-          DEFAULT: 'var(--accent)',
-          foreground: 'var(--accent-foreground)',
-        },
-        destructive: {
-          DEFAULT: 'var(--destructive)',
-          foreground: 'var(--destructive-foreground)',
-        },
-        warning: {
-          DEFAULT: 'var(--warning)',
-          foreground: 'var(--warning-foreground)',
-        },
-        border: 'var(--border)',
-        input: 'var(--input)',
-        ring: 'var(--ring)',
-        chart: {
-          1: 'var(--chart-1)',
-          2: 'var(--chart-2)',
-          3: 'var(--chart-3)',
-          4: 'var(--chart-4)',
-          5: 'var(--chart-5)',
-        },
-        role: {
-          green: 'var(--role-green)',
-          'green-deep': 'var(--role-green-deep)',
-          blue: 'var(--role-blue)',
-          orange: 'var(--role-orange)',
-          purple: 'var(--role-purple)',
-          yellow: 'var(--role-yellow)',
-          teal: 'var(--role-teal)',
-          pink: 'var(--role-pink)',
-          cyan: 'var(--role-cyan)',
+        // Standard semantic, role, and chart colors are provided by
+        // @droid/brand/tailwind-preset. Console-specific colors live below.
+        'card-2': 'var(--card-2)',
+        'accent-soft': {
+          DEFAULT: 'var(--accent-soft)',
+          foreground: 'var(--accent-soft-ink)',
         },
         sidebar: {
           DEFAULT: 'var(--sidebar-background)',
@@ -106,34 +58,25 @@ module.exports = {
         },
       },
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        // lg/md/sm are provided by @droid/brand/tailwind-preset.
+        xl: 'var(--radius-lg)',
+        pill: 'var(--radius-pill)',
+      },
+      boxShadow: {
+        pop: '0 18px 44px -18px var(--shadow-pop)',
+        'pop-lg': '0 24px 60px -20px var(--shadow-pop)',
+        'primary-press': '0 2px 0 var(--primary-shadow)',
       },
       fontFamily: {
-        sans: [
+        // sans/mono/serif are provided by @droid/brand/tailwind-preset.
+        display: [
+          'var(--font-display)',
           'var(--font-space-grotesk)',
           'var(--font-sans)',
           'ui-sans-serif',
           'system-ui',
-          '-apple-system',
-          'Segoe UI',
-          'Roboto',
-          'Noto Sans',
-          'Helvetica Neue',
-          'Arial',
           'sans-serif',
         ],
-        mono: [
-          'var(--font-mono)',
-          'ui-monospace',
-          'SFMono-Regular',
-          'Menlo',
-          'Consolas',
-          'DejaVu Sans Mono',
-          'monospace',
-        ],
-        serif: ['var(--font-serif)', 'Georgia', 'Cambria', 'Times New Roman', 'Times', 'serif'],
       },
     },
     data: {

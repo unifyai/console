@@ -5,38 +5,30 @@
 
 @layer base {
   :root {
-    --ink: #0a1410;
-    --ink-2: #1a2a23;
-    --paper: #f5f1ea;
-    --paper-2: #ebe6dc;
-    --rule: #d9d2c4;
-    --muted-ink: #6b6a64;
+    /*
+     * Brand primitives (ink/paper neutrals, role + neo palettes, unity tokens,
+     * alert/soft/cream, grain, checkerboard) are the single source of truth in
+     * `@unity/brand/tokens.css`, imported before this file in `app/layout.tsx`.
+     * Console keeps only its semantic theme layer plus the extensions below.
+     */
 
-    --role-green: #2f9d97;
-    --role-green-deep: #1c6460;
-    --role-blue: #c95f5a;
-    --role-orange: #cf9a3e;
-    --role-purple: #6e4a86;
-    --role-yellow: #ffb24a;
-    --role-teal: #3c8f86;
-    --role-pink: #e85a8e;
-    --role-cyan: #4f7fa8;
-    --unity-screen: #0e2027;
-    --unity-glow: #79efdd;
-    --unity-outline: #173534;
-    --unity-shadow: #cdb89b;
+    /* Brand-spec extensions not present in @unity/brand/tokens.css */
+    --paper-3: #e2dccf;
+    --rule-2: #cdc5b4;
+    --card-2: var(--cream-white);
+    --primary-shadow: var(--role-green-deep);
+    --accent-soft: #e7efe9;
+    --accent-soft-ink: var(--role-green-deep);
+    --shadow-pop: rgba(10, 20, 16, 0.3);
+    --radius-lg: 16px;
+    --radius-pill: 999px;
+
+    /* Font family aliases → brand font variables (set on <html> by @unity/brand/fonts) */
+    --font-sans: var(--font-inter);
+    --font-mono: var(--font-roboto-mono);
+    --font-serif: var(--font-instrument-serif);
+    --font-display: var(--font-space-grotesk);
     --brand-grain-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23grain)' opacity='0.26'/%3E%3C/svg%3E");
-    --neo-teal: #2f9d97;
-    --neo-teal-dark: #1c6460;
-    --neo-coral: #c95f5a;
-    --neo-coral-dark: #8f3b39;
-    --neo-amber: #cf9a3e;
-    --neo-amber-dark: #8f6824;
-
-    --alert-red: #d94a3d;
-    --soft-amber: #c47a00;
-    --cream-white: #fffaf1;
-
     --surface: rgba(10, 20, 16, 0.04);
     --surface-hover: rgba(10, 20, 16, 0.08);
     --frosted-bg: rgba(245, 241, 234, 0.78);
@@ -146,18 +138,19 @@
     /* Dark theme variables */
     --background: #0d0f12;
     --foreground: #eef0ea;
-    --role-pink: #e85a8e;
-    --role-cyan: #4f7fa8;
-    --unity-screen: #0e2027;
-    --unity-glow: #79efdd;
+
+    /* Genuine dark overrides of brand primitives (others inherit tokens.css) */
     --unity-outline: #79c9bf;
     --unity-shadow: rgba(0, 0, 0, 0.42);
-    --neo-teal: #2f9d97;
-    --neo-teal-dark: #1c6460;
-    --neo-coral: #c95f5a;
-    --neo-coral-dark: #8f3b39;
-    --neo-amber: #cf9a3e;
-    --neo-amber-dark: #8f6824;
+
+    /* Brand-spec extensions (dark) */
+    --paper-3: #1b2024;
+    --rule-2: rgba(238, 240, 234, 0.18);
+    --card-2: #151b18;
+    --primary-shadow: #14403d;
+    --accent-soft: rgba(47, 157, 151, 0.16);
+    --accent-soft-ink: #7fd0c8;
+    --shadow-pop: rgba(0, 0, 0, 0.55);
 
     --primary: var(--role-green);
     --primary-foreground: #fffaf1;
