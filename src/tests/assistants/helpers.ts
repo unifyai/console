@@ -195,13 +195,27 @@ export async function loginAndSaveOrgState(
 // Fixture: createAssistantTest
 // =============================================================================
 
-export function createAssistantTest(user: { email: string; password: string }) {
+export function createAssistantTest(user: {
+  id: string;
+  email: string;
+  password: string;
+  apiKey: string;
+}) {
   let authFile: string | undefined;
 
   return base.extend<{ authedPage: Page }>({
     authedPage: async ({ browser }, use, testInfo) => {
       if (!authFile) {
         testInfo.setTimeout(testInfo.timeout + 30_000);
+        // A freshly provisioned Coordinator resolves to onboarding mode and
+        // renders the full-screen intro overlay (``coordinator-onboarding``,
+        // ``absolute inset-0 z-50``) that intercepts every pointer event. The
+        // legacy two-pane assistant flows assume the standard shell, so defer
+        // onboarding once up front before the first authenticated page loads.
+        const coordinatorId = getCoordinatorAgentId(user.id);
+        if (coordinatorId) {
+          await deferCoordinatorOnboarding(user.apiKey, coordinatorId);
+        }
         authFile = await loginAndSaveState(browser, user.email, user.password);
       }
       const ctx = await browser.newContext({
