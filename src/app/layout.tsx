@@ -2,10 +2,11 @@ import React from 'react';
 import type { Metadata } from 'next';
 import { ThemeProvider } from 'next-themes';
 
+import '@droid/brand/tokens.css';
 import '@/styles/globals.css';
 import '@fortawesome/fontawesome-svg-core/styles.css';
 import 'yet-another-react-lightbox/styles.css';
-import { fontSans, fontSpaceGrotesk, fontMono, fontSerif } from '@/styles/fonts';
+import { brandFontVariables } from '@/styles/fonts';
 import { LandingEventBeacon } from '@/components/Integrations/LandingEventBeacon';
 
 export const metadata: Metadata = {
@@ -24,11 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     process.env.SELF_HOST_DEPLOY_EPOCH || process.env.NEXT_PUBLIC_SELF_HOST_DEPLOY_EPOCH || '';
 
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${fontSans.variable} ${fontSpaceGrotesk.variable} ${fontMono.variable} ${fontSerif.variable}`}
-    >
+    <html lang="en" suppressHydrationWarning className={brandFontVariables}>
       <body>
         {selfHostDeployEpoch ? (
           <script
