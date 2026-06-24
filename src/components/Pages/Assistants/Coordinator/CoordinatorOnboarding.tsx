@@ -14,8 +14,7 @@
  *     the Coordinator selected. Picking call advances to audio setup.
  *
  *   - **Preparing** (``phase === 'preparing'``): the live call is connected
- *     over a brief loading state, then the overlay clears straight into the
- *     docked call where T-W1N greets naturally.
+ *     and held until T-W1N signals that the opening turn is ready to play.
  *
  * There is no post-picker shell — the onboarding checklist lives in the
  * Coordinator's "Assistant info" panel on the regular platform once the
@@ -23,8 +22,8 @@
  */
 
 import * as React from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Loader2, Mic, Phone } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Loader2, Phone } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
@@ -53,9 +52,7 @@ interface CoordinatorOnboardingProps {
   /** Cancels a partially-started call when the call setup fails. */
   onDiscardCall: () => Promise<void> | void;
   /** Invoked once the picker is resolved. The parent tears down the overlay
-   * and reveals the regular platform underneath. ``medium`` lets the parent
-   * react to the path taken — e.g. surfacing the "Talk now!" cue over the
-   * docked call once the call connects. */
+   * and reveals the regular platform underneath. */
   onComplete: (medium: 'call' | 'chat') => void;
 }
 
@@ -121,7 +118,10 @@ export function CoordinatorOnboarding({
     }
 
     try {
-      await onStartCall(coordinator, 'audio', { suppressRinging: true });
+      await onStartCall(coordinator, 'audio', {
+        suppressRinging: true,
+        waitForAssistantReady: true,
+      });
     } catch (error) {
       console.error('[CoordinatorOnboarding] Failed to start the call:', error);
       toast.error('Could not start the call. Please try again.');
@@ -175,53 +175,6 @@ export function CoordinatorOnboarding({
   );
 }
 
-/* ─── "Talk now!" cue ─────────────────────────────────────────────────── */
-
-/**
- * Full-screen cue shown briefly once the onboarding picker hands off to a
- * live call, confirming the call is connected and T-W1N is listening.
- * Rendered at the platform level (over the docked call) since the picker
- * overlay has already torn down by this point.
- */
-export function CoordinatorTalkNowCue({
-  show,
-  onDismiss,
-}: {
-  show: boolean;
-  onDismiss?: () => void;
-}) {
-  return (
-    <AnimatePresence>
-      {show && (
-        <motion.div
-          className="bg-background/55 fixed inset-0 z-[100] flex items-center justify-center overflow-hidden p-6 backdrop-blur-md"
-          data-testid="coordinator-onboarding-talk-now"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.24 }}
-          onClick={onDismiss}
-        >
-          <motion.div
-            className="relative w-full max-w-lg overflow-hidden rounded-[18px] border-2 border-foreground bg-[radial-gradient(circle_at_18%_10%,color-mix(in_srgb,var(--droid-glow)_42%,transparent),transparent_31%),radial-gradient(circle_at_94%_22%,color-mix(in_srgb,var(--neo-coral)_25%,transparent),transparent_28%),radial-gradient(circle_at_28%_102%,color-mix(in_srgb,var(--neo-amber)_32%,transparent),transparent_34%),linear-gradient(140deg,color-mix(in_srgb,var(--card)_88%,var(--background)),var(--card)),var(--brand-grain-texture)] bg-[length:auto,auto,auto,auto,128px_128px] p-8 text-center bg-blend-normal shadow-[0_10px_0_color-mix(in_srgb,var(--foreground)_18%,transparent),0_34px_90px_color-mix(in_srgb,var(--foreground)_18%,transparent)]"
-            initial={{ opacity: 0, scale: 0.9, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: -8 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="bg-card/70 relative mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-full border-2 border-foreground text-primary shadow-md">
-              <Mic className="h-12 w-12" aria-hidden="true" />
-            </div>
-            <p className="text-h1 relative font-semibold text-foreground">Talk now!</p>
-            <p className="text-body relative mt-2 text-muted-foreground">T-W1N is listening.</p>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
 /* ─── Call preparing ──────────────────────────────────────────────────── */
 
 function CoordinatorOnboardingCallPreparing() {
@@ -253,7 +206,7 @@ function CoordinatorOnboardingCallPreparing() {
         <div>
           <p className="text-h3 font-medium text-card-foreground">Getting your audio ready</p>
           <p className="text-body mt-2 text-muted-foreground">
-            T-W1N will start once the call is connected.
+            T-W1N will start speaking as soon as he is ready.
           </p>
         </div>
       </div>

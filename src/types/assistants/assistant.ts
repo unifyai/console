@@ -33,6 +33,7 @@ export interface CallOpeningConfig {
 export interface AssistantCallConnectOptions {
   suppressRinging?: boolean;
   openingConfig?: CallOpeningConfig;
+  waitForAssistantReady?: boolean;
 }
 
 export type UserLocalDesktop = 'ubuntu' | 'windows' | 'macos';

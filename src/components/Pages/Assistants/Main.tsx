@@ -52,10 +52,7 @@ import {
   CoordinatorOnboardingProvider,
   type CoordinatorOnboardingContextValue,
 } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboardingContext';
-import {
-  CoordinatorOnboarding,
-  CoordinatorTalkNowCue,
-} from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboarding';
+import { CoordinatorOnboarding } from '@/components/Pages/Assistants/Coordinator/CoordinatorOnboarding';
 import {
   hasOutstandingCoordinatorOnboarding,
   type ChecklistAction,
@@ -444,12 +441,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // doesn't pop back in after the picker is resolved (the ``intro_watched``
   // write is async + optimistic, but this keeps the dismissal instant).
   const [coordinatorIntroDismissed, setCoordinatorIntroDismissed] = React.useState(false);
-  // "Talk now!" cue lifecycle. The picker overlay tears down when it hands
-  // off to the call, so the cue lives here (over the docked call): resolving
-  // the picker via the call path arms it, and it fires once the Coordinator's
-  // call actually connects.
-  const [coordinatorTalkNowPending, setCoordinatorTalkNowPending] = React.useState(false);
-  const [showCoordinatorTalkNow, setShowCoordinatorTalkNow] = React.useState(false);
   // Global "do onboarding later" switch. When set, the whole Console
   // onboarding surface (intro overlay, focus layout, nudge dot) stands
   // down so the user can use the platform first — mirrored to the
@@ -1996,10 +1987,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         coordinatorOnboardingState?.mode === 'onboarding' &&
         coordinatorOnboardingState?.introWatched === false &&
         coordinatorOnboardingState?.onboardingDeferred !== true;
-      const openingConfig: CallOpeningConfig | undefined =
+      const openingConfig: CallOpeningConfig =
         briefing && isFreshOnboardingIntro
           ? { mode: 'briefed', systemContext: briefing, source: 'coordinator_onboarding_intro' }
-          : options?.openingConfig;
+          : {
+              mode: 'speak',
+              source: options?.openingConfig?.source ?? 'coordinator_onboarding_intro',
+            };
       return handleStartCall(assistant, type, { ...options, openingConfig });
     },
     [handleShowProfile, handleStartCall, coordinatorOnboardingState]
@@ -2020,28 +2014,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     profileAssistantId,
     handleShowProfile,
   ]);
-
-  // Fire the armed "Talk now!" cue once the onboarding intro's call
-  // actually connects (a short beat after, so it lands as the droid
-  // settles into the docked call rather than mid-connect).
-  React.useEffect(() => {
-    if (!coordinatorTalkNowPending) return;
-    const coordinatorCallConnected =
-      isCallConnected && activeCallAssistant?.agentId === canonicalCoordinatorId;
-    if (!coordinatorCallConnected) return;
-    const showHandle = window.setTimeout(() => {
-      setShowCoordinatorTalkNow(true);
-      setCoordinatorTalkNowPending(false);
-    }, 850);
-    return () => window.clearTimeout(showHandle);
-  }, [coordinatorTalkNowPending, isCallConnected, activeCallAssistant, canonicalCoordinatorId]);
-
-  // Auto-dismiss the cue after a short, readable window.
-  React.useEffect(() => {
-    if (!showCoordinatorTalkNow) return;
-    const hideHandle = window.setTimeout(() => setShowCoordinatorTalkNow(false), 3_000);
-    return () => window.clearTimeout(hideHandle);
-  }, [showCoordinatorTalkNow]);
 
   // Seed durable step completion from the server-derived
   // ``completedStepIds`` on the Coordinator/State read. Orchestra
@@ -2575,7 +2547,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                               onToggleSpeaker={toggleSpeakerMute}
                               avatarMood={avatarMood}
                               coordinatorAvatarVisible={!showCoordinatorOnboardingIntro}
-                              coordinatorTeleportIn={coordinatorTalkNowPending}
                               chatStreamConnectionStatus={
                                 chatStreamConnectionStatusByAssistant[
                                   activeCallAssistant.agentId
@@ -2599,21 +2570,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   coordinator={canonicalCoordinator}
                   onStartCall={handleStartCoordinatorIntroCall}
                   onDiscardCall={handleHangUp}
-                  onComplete={(medium) => {
+                  onComplete={() => {
                     setCoordinatorIntroDismissed(true);
                     requestCoordinatorOnboardingFocusLayout();
                     requestFirstLoginCommunicationEmailOpen();
-                    // The picker handed off to a live call — arm the
-                    // "Talk now!" cue to fire once that call connects.
-                    if (medium === 'call') setCoordinatorTalkNowPending(true);
                   }}
                 />
               </div>
             )}
-            <CoordinatorTalkNowCue
-              show={showCoordinatorTalkNow}
-              onDismiss={() => setShowCoordinatorTalkNow(false)}
-            />
           </div>
         )}
 

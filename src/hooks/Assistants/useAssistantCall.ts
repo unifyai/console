@@ -19,6 +19,12 @@ const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
 
+type AssistantReadyWaiter = {
+  attemptId: number;
+  resolve: () => void;
+  reject: (error: Error) => void;
+};
+
 export function useAssistantCall(room: Room, assistantActions: AssistantActions) {
   const [connectionDetails, setConnectionDetails] = React.useState<ConnectionDetails | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -38,6 +44,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   const isRedispatchingRef = React.useRef(false);
   const moodTurnIndexRef = React.useRef(-1);
   const expectsReadyToSpeakRef = React.useRef(false);
+  const assistantReadyWaiterRef = React.useRef<AssistantReadyWaiter | null>(null);
   // Unique ID for each connection attempt - used to detect stale operations
   const connectionAttemptIdRef = React.useRef(0);
 
@@ -79,7 +86,24 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     setIsRemoteControlInteractive(false);
   }, []);
 
+  const resolveAssistantReadyWaiter = React.useCallback((attemptId?: number) => {
+    const waiter = assistantReadyWaiterRef.current;
+    if (!waiter) return;
+    if (attemptId !== undefined && waiter.attemptId !== attemptId) return;
+    assistantReadyWaiterRef.current = null;
+    waiter.resolve();
+  }, []);
+
+  const rejectAssistantReadyWaiter = React.useCallback((message: string, attemptId?: number) => {
+    const waiter = assistantReadyWaiterRef.current;
+    if (!waiter) return;
+    if (attemptId !== undefined && waiter.attemptId !== attemptId) return;
+    assistantReadyWaiterRef.current = null;
+    waiter.reject(new Error(message));
+  }, []);
+
   const onDisconnected = React.useCallback(() => {
+    rejectAssistantReadyWaiter('Call disconnected before the assistant was ready.');
     stopRinging();
     if (wasConnectedRef.current) {
       playHangup();
@@ -110,7 +134,13 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     isRedispatchingRef.current = false;
     stopRemoteControl();
     clearAssistantJoinTimeout();
-  }, [clearAssistantJoinTimeout, stopRemoteControl, stopRinging, playHangup]);
+  }, [
+    clearAssistantJoinTimeout,
+    rejectAssistantReadyWaiter,
+    stopRemoteControl,
+    stopRinging,
+    playHangup,
+  ]);
 
   const connect = React.useCallback(
     async (
@@ -118,6 +148,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       type: 'video' | 'audio',
       options?: AssistantCallConnectOptions
     ) => {
+      resolveAssistantReadyWaiter();
       connectionAttemptIdRef.current += 1;
       const thisAttemptId = connectionAttemptIdRef.current;
       isCancelledRef.current = false;
@@ -125,6 +156,9 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         !options?.openingConfig ||
         options.openingConfig.mode === 'speak' ||
         options.openingConfig.mode === 'briefed';
+      const shouldWaitForAssistantReady =
+        options?.waitForAssistantReady === true && expectsReadyToSpeakRef.current;
+      let readyToSpeakPromise: Promise<void> | null = null;
 
       const isStaleAttempt = () =>
         isCancelledRef.current || connectionAttemptIdRef.current !== thisAttemptId;
@@ -202,8 +236,15 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
           setIsWaitingForAssistant(false);
           setIsAssistantPreparing(false);
         } else {
+          if (shouldWaitForAssistantReady) {
+            readyToSpeakPromise = new Promise((resolve, reject) => {
+              assistantReadyWaiterRef.current = { attemptId: thisAttemptId, resolve, reject };
+            });
+          }
+
           await room.connect(connDetails.serverUrl, connDetails.token);
           if (isStaleAttempt()) {
+            resolveAssistantReadyWaiter(thisAttemptId);
             await room.disconnect();
             return;
           }
@@ -230,14 +271,19 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
             }, timeoutDuration);
           } else {
             setIsWaitingForAssistant(false);
-            setIsAssistantPreparing(false);
+            setIsAssistantPreparing(expectsReadyToSpeakRef.current);
             stopRinging();
+          }
+
+          if (readyToSpeakPromise) {
+            await readyToSpeakPromise;
           }
         }
       } catch (e: any) {
         // Only handle error if this attempt is still the current one
         if (isStaleAttempt()) return;
 
+        resolveAssistantReadyWaiter(thisAttemptId);
         stopRinging();
         setIsConnecting(false);
         toast.error(`Failed to start call. Please try again.`);
@@ -251,7 +297,14 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         onDisconnected();
       }
     },
-    [room, assistantActions.call, onDisconnected, startRinging, stopRinging]
+    [
+      room,
+      assistantActions.call,
+      onDisconnected,
+      startRinging,
+      stopRinging,
+      resolveAssistantReadyWaiter,
+    ]
   );
 
   const disconnect = React.useCallback(async () => {
@@ -532,6 +585,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         if (data.type === 'ready_to_speak') {
           clearJoinState();
           clearPreparingState();
+          resolveAssistantReadyWaiter();
           return;
         }
         const moodMessage = parseMoodClassificationMessage(data, moodTurnIndexRef.current);
@@ -612,6 +666,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     redispatchAssistant,
     assistantActions.call,
     stopRinging,
+    resolveAssistantReadyWaiter,
   ]);
 
   // Ensure proper cleanup on component unmount
