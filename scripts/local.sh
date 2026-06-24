@@ -1952,10 +1952,14 @@ start_console() {
   if [[ "$with_self_host" == "true" ]]; then
     export SELF_HOST=1
     export NEXT_PUBLIC_SELF_HOST=1
+    export SELF_HOST_DEPLOY_EPOCH="${SELF_HOST_DEPLOY_EPOCH:-$(date +%s)}"
+    export NEXT_PUBLIC_SELF_HOST_DEPLOY_EPOCH="$SELF_HOST_DEPLOY_EPOCH"
     # Persist the topology flags durably so a later bare `npm run dev` (which
     # does not pass --self-host) still resolves as a self-host deployment.
     upsert_env_local_var "$ENV_LOCAL" SELF_HOST 1
     upsert_env_local_var "$ENV_LOCAL" NEXT_PUBLIC_SELF_HOST 1
+    upsert_env_local_var "$ENV_LOCAL" SELF_HOST_DEPLOY_EPOCH "$SELF_HOST_DEPLOY_EPOCH"
+    upsert_env_local_var "$ENV_LOCAL" NEXT_PUBLIC_SELF_HOST_DEPLOY_EPOCH "$SELF_HOST_DEPLOY_EPOCH"
     export SELF_HOST_DESKTOP_URL="${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}"
     # When phone/WhatsApp calls are enabled, keep the inherited LiveKit Cloud
     # creds (cloud provides SIP and serves browser meet too); otherwise pin the
