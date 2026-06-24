@@ -16,6 +16,14 @@ const test = createAccountTest(user);
 
 test.afterAll(() => cleanupUser(user.id));
 
+function deferredVoid(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 /**
  * Stub the send-verification endpoint and return the phoneNumber the client
  * submitted (i.e. the fully-constructed E.164 string).
@@ -114,9 +122,13 @@ test('verifying a number eagerly persists it with no Save button', async ({ auth
     })
   );
 
+  const saveCanFinish = deferredVoid();
+  const saveStarted = deferredVoid();
   let savedPayload: { phoneNumber?: string } | null = null;
   await page.route('**/api/user/update-profile', async (route) => {
     savedPayload = route.request().postDataJSON() as { phoneNumber?: string };
+    saveStarted.resolve();
+    await saveCanFinish.promise;
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -135,9 +147,13 @@ test('verifying a number eagerly persists it with no Save button', async ({ auth
   await codeInput.fill('123456');
   await codeInput.press('Enter');
 
-  // Verification alone triggered the persistence call with the full E.164 number.
+  // Verification triggers persistence with the full E.164 number, but the UI must
+  // wait for that write to complete before presenting the number as verified.
+  await saveStarted.promise;
   await expect.poll(() => savedPayload?.phoneNumber, { timeout: 10_000 }).toBe('+15551234567');
+  await expect(page.getByRole('button', { name: 'Verified' })).toHaveCount(0);
 
+  saveCanFinish.resolve();
   await expect(page.getByRole('button', { name: 'Save' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Verified' })).toBeVisible();
 });

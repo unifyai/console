@@ -20,7 +20,9 @@ interface VerificationState {
   value: string;
   isVerified: boolean;
   isVerifying: boolean;
+  isSaving: boolean;
   codeSent: boolean;
+  verificationConfirmed: boolean;
   verificationError: string | null;
   verificationInput: string;
   cooldown: number;
@@ -31,7 +33,9 @@ function createVerificationState(initialValue: string | null): VerificationState
     value: initialValue || '',
     isVerified: !!initialValue,
     isVerifying: false,
+    isSaving: false,
     codeSent: false,
+    verificationConfirmed: false,
     verificationError: null,
     verificationInput: '',
     cooldown: 0,
@@ -127,29 +131,50 @@ const VerificationField = ({
       {isFlowActive && (
         <div className="flex items-start gap-3 border-l-2 border-muted pl-4">
           <div className="flex-1 space-y-1">
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Enter verification code..."
-                value={state.verificationInput}
-                onChange={(e) => onCodeChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    onSubmitCode();
-                  }
-                }}
-                className={cn('h-9', state.verificationError && 'border-destructive')}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-9 w-9 flex-shrink-0"
-                onClick={onSubmitCode}
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
+            {state.verificationConfirmed ? (
+              <div className="flex items-center gap-2">
+                <p className="text-body-muted">
+                  {state.isSaving
+                    ? 'Code accepted. Saving this number...'
+                    : 'Code accepted. Save to finish.'}
+                </p>
+                {!state.isSaving && (
+                  <Button type="button" variant="outline" size="sm" onClick={onSubmitCode}>
+                    Retry save
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Enter verification code..."
+                  value={state.verificationInput}
+                  onChange={(e) => onCodeChange(e.target.value)}
+                  disabled={state.isSaving}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      onSubmitCode();
+                    }
+                  }}
+                  className={cn('h-9', state.verificationError && 'border-destructive')}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 flex-shrink-0"
+                  onClick={onSubmitCode}
+                  disabled={state.isSaving}
+                >
+                  {state.isSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            )}
             {state.verificationError && (
               <p className="text-body text-strong mt-1 flex items-center gap-1.5 text-destructive">
                 <AlertCircle className="h-3.5 w-3.5" />
@@ -164,11 +189,18 @@ const VerificationField = ({
               size="sm"
               className="h-9"
               onClick={() => onVerify(true)}
-              disabled={state.cooldown > 0}
+              disabled={state.cooldown > 0 || state.isSaving || state.verificationConfirmed}
             >
               {state.cooldown > 0 ? `Resend (${state.cooldown}s)` : 'Resend'}
             </Button>
-            <Button type="button" variant="secondary" size="sm" className="h-9" onClick={onCancel}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-9"
+              onClick={onCancel}
+              disabled={state.isSaving || state.verificationConfirmed}
+            >
               Cancel
             </Button>
           </div>
@@ -204,6 +236,17 @@ const ContactInfoTab = ({ user }: { user: User }) => {
     discordId: user.discordId || '',
   });
 
+  useEffect(() => {
+    setPhoneState(createVerificationState(user.phoneNumber));
+    setWhatsappState(createVerificationState(user.whatsappNumber));
+    setDiscordId(user.discordId || '');
+    savedRef.current = {
+      phoneNumber: user.phoneNumber || '',
+      whatsappNumber: user.whatsappNumber || '',
+      discordId: user.discordId || '',
+    };
+  }, [user.id, user.phoneNumber, user.whatsappNumber, user.discordId]);
+
   const persistField = useCallback(
     async (partial: Partial<Record<ContactField, string>>): Promise<boolean> => {
       const response = await fetch('/api/user/update-profile', {
@@ -222,10 +265,11 @@ const ContactInfoTab = ({ user }: { user: User }) => {
   );
 
   const saveField = useCallback(
-    (field: ContactField, value: string) => {
-      if (value === savedRef.current[field]) return;
-      savedRef.current[field] = value;
-      void save({ [field]: value });
+    async (field: ContactField, value: string, force = false): Promise<boolean> => {
+      if (!force && value === savedRef.current[field]) return true;
+      const ok = await save({ [field]: value });
+      if (ok) savedRef.current[field] = value;
+      return ok;
     },
     [save]
   );
@@ -263,7 +307,9 @@ const ContactInfoTab = ({ user }: { user: User }) => {
       setter((prev) => ({
         ...prev,
         isVerifying: true,
+        isSaving: false,
         verificationError: null,
+        verificationConfirmed: false,
         ...(isRetry ? { verificationInput: '' } : {}),
         cooldown: 60,
       }));
@@ -286,12 +332,14 @@ const ContactInfoTab = ({ user }: { user: User }) => {
             ...prev,
             verificationError: data.detail || 'Failed to send verification code.',
             isVerifying: false,
+            isSaving: false,
           }));
         } else {
           toast.success(`Verification code sent to ${state.value}`);
           setter((prev) => ({
             ...prev,
             codeSent: true,
+            verificationConfirmed: false,
           }));
         }
       } catch {
@@ -300,6 +348,7 @@ const ContactInfoTab = ({ user }: { user: User }) => {
           ...prev,
           verificationError: 'Network error. Please try again.',
           isVerifying: false,
+          isSaving: false,
         }));
       }
     },
@@ -312,43 +361,72 @@ const ContactInfoTab = ({ user }: { user: User }) => {
       state: VerificationState,
       platform: 'phone' | 'whatsapp'
     ) => {
-      if (!state.codeSent || !state.verificationInput.trim()) return;
+      if (!state.codeSent || state.isSaving) return;
+      if (!state.verificationConfirmed && !state.verificationInput.trim()) return;
 
       try {
-        const response = await fetch('/api/profile/phone/confirm-verification', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phoneNumber: state.value,
-            phoneType: platform,
-            code: state.verificationInput,
-          }),
-        });
+        setter((prev) => ({
+          ...prev,
+          isSaving: true,
+          verificationError: null,
+        }));
 
-        const data = await response.json();
+        if (!state.verificationConfirmed) {
+          const response = await fetch('/api/profile/phone/confirm-verification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phoneNumber: state.value,
+              phoneType: platform,
+              code: state.verificationInput,
+            }),
+          });
 
-        if (data.success) {
-          toast.success('Number verified successfully!');
+          const data = await response.json();
+
+          if (!data.success) {
+            setter((prev) => ({
+              ...prev,
+              isSaving: false,
+              verificationError: data.detail || 'Incorrect code. Please try again.',
+            }));
+            return;
+          }
+
+          setter((prev) => ({
+            ...prev,
+            verificationConfirmed: true,
+            verificationError: null,
+          }));
+        }
+
+        const field = platform === 'phone' ? 'phoneNumber' : 'whatsappNumber';
+        const saved = await saveField(field, state.value.trim(), true);
+
+        if (saved) {
+          toast.success('Number verified and saved.');
           setter((prev) => ({
             ...prev,
             isVerified: true,
             isVerifying: false,
+            isSaving: false,
             codeSent: false,
+            verificationConfirmed: false,
             verificationError: null,
             verificationInput: '',
           }));
-          // Persist immediately — verification is the user's confirmation that
-          // the number is theirs; there is no separate "Save" step.
-          saveField(platform === 'phone' ? 'phoneNumber' : 'whatsappNumber', state.value.trim());
         } else {
           setter((prev) => ({
             ...prev,
-            verificationError: data.detail || 'Incorrect code. Please try again.',
+            isSaving: false,
+            verificationConfirmed: true,
+            verificationError: 'Number verified, but saving failed. Try again.',
           }));
         }
       } catch {
         setter((prev) => ({
           ...prev,
+          isSaving: false,
           verificationError: 'Network error. Please try again.',
         }));
       }
@@ -362,8 +440,10 @@ const ContactInfoTab = ({ user }: { user: User }) => {
         ...prev,
         isVerifying: false,
         codeSent: false,
+        verificationConfirmed: false,
         verificationError: null,
         verificationInput: '',
+        isSaving: false,
       }));
     },
     []
@@ -382,13 +462,19 @@ const ContactInfoTab = ({ user }: { user: User }) => {
       setter((prev) => ({
         ...prev,
         value,
-        isVerified: matchesSaved || matchesOtherVerified,
+        isVerified: matchesSaved,
         verificationError: null,
+        verificationConfirmed: false,
       }));
       // Reusing a number already verified on the other channel skips the
       // verification round-trip, so persist it eagerly here.
       if (matchesOtherVerified) {
-        saveField(field, value.trim());
+        void (async () => {
+          const saved = await saveField(field, value.trim(), true);
+          if (saved) {
+            setter((prev) => (prev.value === value ? { ...prev, isVerified: true } : prev));
+          }
+        })();
       }
     },
     [saveField]
@@ -400,7 +486,9 @@ const ContactInfoTab = ({ user }: { user: User }) => {
         ...prev,
         isVerified: false,
         isVerifying: false,
+        isSaving: false,
         codeSent: false,
+        verificationConfirmed: false,
         verificationError: null,
         verificationInput: '',
       }));
@@ -414,13 +502,13 @@ const ContactInfoTab = ({ user }: { user: User }) => {
       field: 'phoneNumber' | 'whatsappNumber'
     ) => {
       setter(createVerificationState(null));
-      saveField(field, '');
+      void saveField(field, '');
     },
     [saveField]
   );
 
   const handleDiscordBlur = useCallback(() => {
-    saveField('discordId', discordId.trim());
+    void saveField('discordId', discordId.trim());
   }, [discordId, saveField]);
 
   return (
