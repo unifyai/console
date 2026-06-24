@@ -237,6 +237,9 @@ load_self_host_runtime_env() {
   source "$SELF_HOST_ENV_SCRIPT"
   export_self_host_coordinator_runtime_file
   load_self_host_env_file "$DROID_REPO_PATH/.env"
+  if declare -F self_host_export_livekit_backend &>/dev/null; then
+    self_host_export_livekit_backend
+  fi
 }
 
 write_console_env_fingerprint() {
@@ -1279,21 +1282,6 @@ start_droid_coordinator() {
     append_self_host_droid_runtime_env droid_env
   fi
 
-  # Browser meet uses the local dev LiveKit. When phone/WhatsApp calls are
-  # enabled the CM must instead use the LiveKit Cloud creds already added by
-  # append_self_host_droid_runtime_env (cloud has the SIP service); don't clobber
-  # them with the dev pair.
-  case "${SELF_HOST_CALLS_ENABLED:-0}" in
-    1 | true | TRUE | yes | YES | on | ON) : ;;
-    *)
-      droid_env+=(
-        LIVEKIT_URL="ws://localhost:7880"
-        LIVEKIT_API_KEY="devkey"
-        LIVEKIT_API_SECRET="secret"
-      )
-      ;;
-  esac
-
   local _a_first _a_surname _a_about _a_age _a_nat _a_tz _u_first _u_last _u_email _u_id _u_phone _u_whatsapp
   _u_first=""
   _u_last=""
@@ -1961,18 +1949,8 @@ start_console() {
     upsert_env_local_var "$ENV_LOCAL" SELF_HOST_DEPLOY_EPOCH "$SELF_HOST_DEPLOY_EPOCH"
     upsert_env_local_var "$ENV_LOCAL" NEXT_PUBLIC_SELF_HOST_DEPLOY_EPOCH "$SELF_HOST_DEPLOY_EPOCH"
     export SELF_HOST_DESKTOP_URL="${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}"
-    # When phone/WhatsApp calls are enabled, keep the inherited LiveKit Cloud
-    # creds (cloud provides SIP and serves browser meet too); otherwise pin the
-    # local dev LiveKit so Console mints meet tokens against it.
-    case "${SELF_HOST_CALLS_ENABLED:-0}" in
-      1 | true | TRUE | yes | YES | on | ON) : ;;
-      *)
-        export LIVEKIT_URL="ws://localhost:7880"
-        export LIVEKIT_API_KEY="devkey"
-        export LIVEKIT_API_SECRET="secret"
-        ;;
-    esac
-    # Never inherit stale cloud keys from droid/.env — session or runtime file only.
+    # The browser session should resume with the self-host owner key, not any
+    # unrelated shell value.
     unset SHARED_UNIFY_KEY
     load_self_host_runtime_env
     local _runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${DROID_HOME:-$HOME/.droid}/coordinator-runtime.json}"
