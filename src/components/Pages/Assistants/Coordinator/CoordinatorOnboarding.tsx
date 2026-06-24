@@ -91,36 +91,16 @@ export function CoordinatorOnboarding({
     [onComplete, updateState]
   );
 
-  const requestMicrophoneAccess = React.useCallback(async () => {
-    if (typeof window === 'undefined') return;
-    const mediaDevices = navigator.mediaDevices;
-    if (!mediaDevices?.getUserMedia) return;
-
-    const stream = await mediaDevices.getUserMedia({ audio: true });
-    for (const track of stream.getTracks()) {
-      track.stop();
-    }
-  }, []);
-
   const handleStartCall = React.useCallback(async () => {
     if (phase !== 'picker') return;
     setPhase('preparing');
     setIsStartingCall(true);
 
     try {
-      await requestMicrophoneAccess();
-    } catch (error) {
-      console.error('[CoordinatorOnboarding] Failed to access microphone:', error);
-      toast.error('Microphone access is required to start the call.');
-      setIsStartingCall(false);
-      setPhase('picker');
-      return;
-    }
-
-    try {
       await onStartCall(coordinator, 'audio', {
         suppressRinging: true,
         waitForAssistantReady: true,
+        startMuted: true,
       });
     } catch (error) {
       console.error('[CoordinatorOnboarding] Failed to start the call:', error);
@@ -133,15 +113,7 @@ export function CoordinatorOnboarding({
 
     notifySessionStarted('call');
     complete('call');
-  }, [
-    complete,
-    coordinator,
-    notifySessionStarted,
-    onDiscardCall,
-    onStartCall,
-    phase,
-    requestMicrophoneAccess,
-  ]);
+  }, [complete, coordinator, notifySessionStarted, onDiscardCall, onStartCall, phase]);
 
   const handlePickChat = React.useCallback(() => {
     if (phase !== 'picker') return;

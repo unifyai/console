@@ -38,6 +38,7 @@ export interface AssistantCallConnectOptions {
   suppressRinging?: boolean;
   openingConfig?: CallOpeningConfig;
   waitForAssistantReady?: boolean;
+  startMuted?: boolean;
 }
 
 export type UserLocalDesktop = 'ubuntu' | 'windows' | 'macos';

@@ -51,6 +51,7 @@ export function useAssistantCall(
   const moodTurnIndexRef = React.useRef(-1);
   const expectsReadyToSpeakRef = React.useRef(false);
   const assistantReadyWaiterRef = React.useRef<AssistantReadyWaiter | null>(null);
+  const activeConnectOptionsRef = React.useRef<AssistantCallConnectOptions | undefined>(undefined);
   // Unique ID for each connection attempt - used to detect stale operations
   const connectionAttemptIdRef = React.useRef(0);
 
@@ -134,6 +135,7 @@ export function useAssistantCall(
     setConnectionDetails(null);
     setActiveCallAssistant(null);
     setCallType(null);
+    activeConnectOptionsRef.current = undefined;
     setIsSpeakerMuted(false);
     setAvatarMood(DEFAULT_AVATAR_MOOD);
     moodTurnIndexRef.current = -1;
@@ -157,6 +159,7 @@ export function useAssistantCall(
       resolveAssistantReadyWaiter();
       connectionAttemptIdRef.current += 1;
       const thisAttemptId = connectionAttemptIdRef.current;
+      activeConnectOptionsRef.current = options;
       isCancelledRef.current = false;
       expectsReadyToSpeakRef.current =
         !options?.openingConfig ||
@@ -257,7 +260,7 @@ export function useAssistantCall(
           }
 
           await Promise.all([
-            room.localParticipant.setMicrophoneEnabled(true),
+            room.localParticipant.setMicrophoneEnabled(options?.startMuted !== true),
             room.localParticipant.setCameraEnabled(type === 'video'),
           ]);
           setIsConnected(true);
@@ -359,7 +362,7 @@ export function useAssistantCall(
     room.on(RoomEvent.Disconnected, onDisconnected);
 
     // Start the connection process again with the same assistant
-    connect(assistantToRetry, callTypeToRetry);
+    connect(assistantToRetry, callTypeToRetry, activeConnectOptionsRef.current);
   }, [
     activeCallAssistant,
     callType,
