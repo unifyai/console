@@ -1,9 +1,12 @@
+'use client';
+
 import * as React from 'react';
 import { TabHeader } from '@/components/Pages/Assistants/Rail/TabHeader';
-import type { SectionDef } from '@/components/Pages/Assistants/Rail/sectionConfig';
+import { SHELL_SECTIONS, type ShellSectionId } from './shellSections';
 
 interface ShellSectionPageProps {
-  section: SectionDef;
+  /** Section identifier; the descriptor (incl. its icon) is resolved client-side. */
+  sectionId: ShellSectionId;
   children: React.ReactNode;
   /** Optional per-section controls rendered before the global actions. */
   headerRight?: React.ReactNode;
@@ -16,13 +19,18 @@ interface ShellSectionPageProps {
  * A home-route page hosted in the rail shell: the brand section header (icon,
  * title, guided steps, global actions) above the route body. Lets each migrated
  * route render its existing content beneath a consistent header.
+ *
+ * Server pages pass a serializable `sectionId`; the section descriptor (which
+ * carries a non-serializable icon component) is resolved here on the client so
+ * the icon never crosses the RSC boundary.
  */
 export function ShellSectionPage({
-  section,
+  sectionId,
   children,
   headerRight,
   fill = false,
 }: ShellSectionPageProps) {
+  const section = SHELL_SECTIONS[sectionId];
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-background">
       <TabHeader section={section} right={headerRight} />

@@ -23,7 +23,6 @@ import { getMembersAction } from '@/lib/orchestra/api/organization';
 import { resolveWorkspaceContext } from '@/lib/user/workspace';
 import { getServerFeatures } from '@/lib/features/server';
 import { ShellSectionPage } from '@/components/Layout/Shell/ShellSectionPage';
-import { USAGE_SECTION } from '@/components/Layout/Shell/shellSections';
 
 export const metadata: Metadata = {
   title: 'Usage',
@@ -54,7 +53,7 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
   // `features.billing` already accounts for these via the credential authority.
   if (!(await getServerFeatures()).billing) {
     return (
-      <ShellSectionPage section={USAGE_SECTION}>
+      <ShellSectionPage sectionId="usage">
         <Suspense fallback={<SkeletonLoader />}>
           <BillingUnavailable />
         </Suspense>
@@ -75,7 +74,7 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
 
   if (activeOrganization?.freeTrial && !isUnifyMember) {
     return (
-      <ShellSectionPage section={USAGE_SECTION}>
+      <ShellSectionPage sectionId="usage">
         <FreeTrialUsageLock />
       </ShellSectionPage>
     );
@@ -115,7 +114,7 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
   const initialAssistantId = typeof params.assistant === 'string' ? params.assistant : undefined;
 
   return (
-    <ShellSectionPage section={USAGE_SECTION} fill>
+    <ShellSectionPage sectionId="usage" fill>
       <Suspense fallback={<SkeletonLoader />}>
         <UsageMain
           currentUserId={user.id}

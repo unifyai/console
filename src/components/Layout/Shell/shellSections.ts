@@ -56,3 +56,18 @@ export const ORGANIZATIONS_SECTION: SectionDef = {
     ['Organize teams', 'Group members into teams and control resource sharing.'],
   ],
 };
+
+/**
+ * Registry keyed by section id. Section descriptors carry an `Icon` component,
+ * which cannot cross the server→client boundary as a prop. Server pages name a
+ * section by its (serializable) id; the client shell resolves the descriptor
+ * here so the icon component stays entirely within the client bundle.
+ */
+export const SHELL_SECTIONS = {
+  settings: SETTINGS_SECTION,
+  billing: BILLING_SECTION,
+  usage: USAGE_SECTION,
+  organizations: ORGANIZATIONS_SECTION,
+} as const;
+
+export type ShellSectionId = keyof typeof SHELL_SECTIONS;

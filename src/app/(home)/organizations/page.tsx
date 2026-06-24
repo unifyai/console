@@ -12,7 +12,6 @@ import { Organization, isOrgSpendingLimitData } from '@/types/organization';
 import { redirect } from 'next/navigation';
 import { isSelfHost } from '@/lib/environment/environment';
 import { ShellSectionPage } from '@/components/Layout/Shell/ShellSectionPage';
-import { ORGANIZATIONS_SECTION } from '@/components/Layout/Shell/shellSections';
 
 const OrganizationPage = async () => {
   const user = await getCurrentUser();
@@ -109,7 +108,7 @@ const OrganizationPage = async () => {
   }
 
   return (
-    <ShellSectionPage section={ORGANIZATIONS_SECTION} fill>
+    <ShellSectionPage sectionId="organizations" fill>
       <Suspense fallback={<SkeletonLoader />}>
         <Main
           initialOrganizations={organizations}
