@@ -506,24 +506,6 @@ export function useAssistantForm(
         });
         throw new Error('Missing assistant first name.');
       }
-      const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
-      if (
-        data.age != null &&
-        (isNaN(ageNumber as number) || (ageNumber as number) < 18 || (ageNumber as number) > 70)
-      ) {
-        setError('age', {
-          type: 'manual',
-          message: 'Age must be between 18 and 70.',
-        });
-        throw new Error('Invalid age provided.');
-      }
-      if (!data.nationality) {
-        setError('nationality', {
-          type: 'manual',
-          message: 'Missing assistant nationality.',
-        });
-        throw new Error('Missing assistant nationality.');
-      }
 
       // Construct payload with only changed fields
       // Note: Contact details (email, phone, whatsapp) are managed via AssistantContactManager
@@ -539,8 +521,6 @@ export function useAssistantForm(
       if (normalizedJobTitle !== (editingAssistant.jobTitle ?? null)) {
         payload.jobTitle = normalizedJobTitle;
       }
-      if (data.age !== editingAssistant.age) payload.age = data.age ?? undefined;
-      if (data.nationality !== editingAssistant.nationality) payload.nationality = data.nationality;
       if (data.about !== editingAssistant.about) payload.about = data.about;
       if (data.timezone !== editingAssistant.timezone) payload.timezone = data.timezone;
       // Orchestra requires both voice_id and voice_provider together, so send
@@ -651,24 +631,6 @@ export function useAssistantForm(
         });
         throw new Error('Missing assistant first name.');
       }
-      const ageNumber = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
-      if (
-        data.age != null &&
-        (isNaN(ageNumber as number) || (ageNumber as number) < 18 || (ageNumber as number) > 70)
-      ) {
-        setError('age', {
-          type: 'manual',
-          message: 'Age must be between 18 and 70.',
-        });
-        throw new Error('Invalid age provided.');
-      }
-      if (!data.nationality) {
-        setError('nationality', {
-          type: 'manual',
-          message: 'Missing assistant nationality.',
-        });
-        throw new Error('Missing assistant nationality.');
-      }
 
       if (!data.voiceId || !data.voiceName || !data.voiceGender || !data.voiceLanguage) {
         setError('voiceId', {
@@ -686,9 +648,9 @@ export function useAssistantForm(
         try {
           const greetingResult = await generatePostHireGreeting(
             assistantDisplayName,
-            data.age,
+            null,
             data.about,
-            data.nationality
+            null
           );
           if (greetingResult.error) {
             throw new Error(greetingResult.error);
@@ -759,8 +721,8 @@ export function useAssistantForm(
         data.firstName,
         data.surname,
         normalizedJobTitle,
-        ageNumber,
-        data.nationality,
+        null,
+        null,
         data.timezone,
         finalImageUrlToSend,
         finalVideoUrlToSend,
@@ -829,12 +791,10 @@ export function useAssistantForm(
       resetFormAndHints();
       if (onHireSuccess) onHireSuccess(assistantForSuccess, data, finalChatHistory);
     } catch (error: any) {
+      // Only the fields we surface inline (firstName, voiceId) should suppress the
+      // generic toast — every other failure must stay visible to the user.
       const isRHFError = !!(
-        formMethods.formState.errors.age ||
-        formMethods.formState.errors.voiceId ||
-        formMethods.formState.errors.firstName ||
-        formMethods.formState.errors.surname ||
-        formMethods.formState.errors.about
+        formMethods.formState.errors.firstName || formMethods.formState.errors.voiceId
       );
 
       if (!isRHFError) {
