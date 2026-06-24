@@ -71,6 +71,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/orchestra
+          # Mirror droid: console `main` tests against Orchestra `main`; every
+          # other branch (staging + feature branches) tests against the live
+          # Orchestra `staging` integration branch.
+          ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
           path: orchestra
           token: ${{ secrets.CLONE_TOKEN }}
 
@@ -159,6 +163,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/orchestra
+          # Mirror droid: console `main` tests against Orchestra `main`; every
+          # other branch (staging + feature branches) tests against the live
+          # Orchestra `staging` integration branch.
+          ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
           path: orchestra
           token: ${{ secrets.CLONE_TOKEN }}
 
@@ -247,6 +255,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/orchestra
+          # Mirror droid: console `main` tests against Orchestra `main`; every
+          # other branch (staging + feature branches) tests against the live
+          # Orchestra `staging` integration branch.
+          ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
           path: orchestra
           token: ${{ secrets.CLONE_TOKEN }}
 
@@ -335,6 +347,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/orchestra
+          # Mirror droid: console `main` tests against Orchestra `main`; every
+          # other branch (staging + feature branches) tests against the live
+          # Orchestra `staging` integration branch.
+          ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
           path: orchestra
           token: ${{ secrets.CLONE_TOKEN }}
 
@@ -423,6 +439,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/orchestra
+          # Mirror droid: console `main` tests against Orchestra `main`; every
+          # other branch (staging + feature branches) tests against the live
+          # Orchestra `staging` integration branch.
+          ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
           path: orchestra
           token: ${{ secrets.CLONE_TOKEN }}
 
