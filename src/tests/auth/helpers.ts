@@ -37,39 +37,41 @@ export type { SeededOrg } from '../helpers/seeds/types';
 // UI Helpers
 // =============================================================================
 
-/** Switch to the email auth tab (login page defaults to OAuth buttons). */
+/** Switch to the email sign-in form (the surface may open on OAuth or register). */
 export async function switchToEmailTab(page: Page) {
   if (!page.url().includes('/login')) return;
 
   const emailForm = page.getByTestId('email-login-form');
-  if (await emailForm.isVisible({ timeout: 1000 }).catch(() => false)) {
-    return;
-  }
-  if (!page.url().includes('/login')) return;
-
   const registerForm = page.getByTestId('email-register-form');
-  if (await registerForm.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await page.getByTestId('switch-to-login').click();
-    await expect(emailForm).toBeVisible({ timeout: 10_000 });
-    return;
-  }
-
   const emailTab = page.getByTestId('email-auth-tab');
-  if (await emailTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+
+  // The login fragment is client-rendered; on a cold or loaded dev server it can
+  // take several seconds to hydrate. Wait for any auth control to appear before
+  // probing individual states so we don't race hydration and mis-route.
+  await page
+    .locator(
+      '[data-testid="email-login-form"], [data-testid="email-register-form"], [data-testid="email-auth-tab"]'
+    )
+    .first()
+    .waitFor({ state: 'visible', timeout: 30_000 });
+
+  if (await emailForm.isVisible().catch(() => false)) return;
+
+  // Surfaces that show OAuth buttons gate the email form behind an "email" tab.
+  if (await emailTab.isVisible().catch(() => false)) {
     try {
       await emailTab.click({ timeout: 5_000 });
     } catch {
       if (!page.url().includes('/login')) return;
       await emailTab.click({ force: true, timeout: 5_000 });
     }
-  } else {
-    if (!page.url().includes('/login')) return;
-    await page.getByRole('button', { name: /continue with email/i }).click({ timeout: 5_000 });
   }
-  if (!page.url().includes('/login')) return;
-  if (await registerForm.isVisible({ timeout: 1000 }).catch(() => false)) {
+
+  // The managed / self-host surface opens in register mode — flip to sign-in.
+  if (await registerForm.isVisible({ timeout: 5_000 }).catch(() => false)) {
     await page.getByTestId('switch-to-login').click();
   }
+
   await expect(emailForm).toBeVisible({ timeout: 10_000 });
 }
 
