@@ -55,15 +55,20 @@ export function AssistantHireChatPanel({
   const TEXTAREA_MIN_HEIGHT = 48;
   const TEXTAREA_MAX_HEIGHT = 200;
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    textarea.style.height = 'auto';
     textarea.style.minHeight = `${TEXTAREA_MIN_HEIGHT}px`;
     textarea.style.overflowY = 'hidden';
     textarea.style.scrollbarWidth = 'none';
 
+    if (!inputValue) {
+      textarea.style.height = `${TEXTAREA_MIN_HEIGHT}px`;
+      return;
+    }
+
+    textarea.style.height = 'auto';
     const scrollHeight = Math.max(textarea.scrollHeight, TEXTAREA_MIN_HEIGHT);
 
     if (scrollHeight > TEXTAREA_MAX_HEIGHT) {
@@ -208,7 +213,7 @@ export function AssistantHireChatPanel({
             value={inputValue}
             onChange={handleInputChange}
             disabled={isChatDisabled}
-            className="styled-scrollbar text-body min-h-12 resize-none overflow-y-hidden rounded-xl py-3.5 pr-14 leading-5"
+            className="styled-scrollbar text-body h-12 min-h-12 resize-none overflow-y-hidden rounded-xl py-3.5 pr-14 leading-5"
             autoComplete="off"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {

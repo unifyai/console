@@ -423,20 +423,20 @@ export function AssistantProfileChatPanel({
   const TEXTAREA_MIN_HEIGHT = 48;
   const TEXTAREA_MAX_HEIGHT = 200;
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    textarea.style.height = 'auto';
     textarea.style.minHeight = `${TEXTAREA_MIN_HEIGHT}px`;
     textarea.style.overflowY = 'hidden';
     textarea.style.scrollbarWidth = 'none';
 
-    // Always size to scrollHeight (not just when inputValue is non-empty) so
-    // the empty/placeholder state and the typed state render at the exact
-    // same height. Otherwise the empty state falls back to rows={1}
-    // intrinsic sizing which can differ from scrollHeight by a pixel or two
-    // and causes a visible height jump the moment the user starts typing.
+    if (!inputValue) {
+      textarea.style.height = `${TEXTAREA_MIN_HEIGHT}px`;
+      return;
+    }
+
+    textarea.style.height = 'auto';
     const scrollHeight = Math.max(textarea.scrollHeight, TEXTAREA_MIN_HEIGHT);
 
     if (scrollHeight > TEXTAREA_MAX_HEIGHT) {
@@ -995,7 +995,7 @@ export function AssistantProfileChatPanel({
               disabled={
                 !canChat || isUploading || initialLoadError || sseBlocked || isSpendingBlocked
               }
-              className="styled-scrollbar text-body min-h-12 resize-none overflow-y-hidden rounded-xl py-3.5 pl-20 pr-14 leading-5"
+              className="styled-scrollbar text-body h-12 min-h-12 resize-none overflow-y-hidden rounded-xl py-3.5 pl-20 pr-14 leading-5"
               autoComplete="off"
               onKeyDown={sendMessageOnEnter}
             />
