@@ -1,10 +1,20 @@
-import { Loader } from '@/components/Common/Loader';
+import { ShellSectionPage } from '@/components/Layout/Shell/ShellSectionPage';
+import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 
+/**
+ * Route-level loading UI for /favourites. Renders the section header
+ * immediately (inside the persistent rail) with skeletons for the two
+ * project-selection cards while projects and favourites resolve.
+ */
 export default function FavouritesLoading() {
   return (
-    <div className="flex h-full w-full items-center justify-center p-10">
-      <Loader size={32} />
-      <span className="text-body-muted ml-3">Loading favourites…</span>
-    </div>
+    <ShellSectionPage sectionId="favourites">
+      <div className="mx-auto w-full max-w-6xl space-y-6 p-8">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <SkeletonCard lines={6} />
+          <SkeletonCard lines={6} />
+        </div>
+      </div>
+    </ShellSectionPage>
   );
 }
