@@ -19,6 +19,13 @@ const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
 
+async function publishMicrophoneForCallStartup(room: Room, options?: AssistantCallConnectOptions) {
+  const publication = await room.localParticipant.setMicrophoneEnabled(true);
+  if (options?.startMuted === true) {
+    await publication?.mute();
+  }
+}
+
 type AssistantReadyWaiter = {
   attemptId: number;
   resolve: () => void;
@@ -260,7 +267,7 @@ export function useAssistantCall(
           }
 
           await Promise.all([
-            room.localParticipant.setMicrophoneEnabled(options?.startMuted !== true),
+            publishMicrophoneForCallStartup(room, options),
             room.localParticipant.setCameraEnabled(type === 'video'),
           ]);
           setIsConnected(true);
