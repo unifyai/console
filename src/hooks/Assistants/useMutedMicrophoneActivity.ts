@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-const SPEECH_RMS_THRESHOLD = 0.035;
+const SPEECH_RMS_THRESHOLD = 0.15;
 const SPEECH_FRAME_THRESHOLD = 5;
 const SILENCE_FRAME_THRESHOLD = 12;
 const CUE_HOLD_MS = 1800;
