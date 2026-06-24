@@ -122,7 +122,9 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       const thisAttemptId = connectionAttemptIdRef.current;
       isCancelledRef.current = false;
       expectsReadyToSpeakRef.current =
-        !options?.openingConfig || options.openingConfig.mode === 'speak';
+        !options?.openingConfig ||
+        options.openingConfig.mode === 'speak' ||
+        options.openingConfig.mode === 'briefed';
 
       const isStaleAttempt = () =>
         isCancelledRef.current || connectionAttemptIdRef.current !== thisAttemptId;

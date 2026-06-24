@@ -556,6 +556,17 @@ start_orchestra() {
   # Pass the admin key so Orchestra authenticates Console's admin calls.
   export ORCHESTRA_ADMIN_KEY="$ADMIN_KEY"
   export ORCHESTRA_PORT="$ORCHESTRA_PORT"
+
+  # Local deployment mirrors the test logging convention (see the CM runtime env
+  # in droid-deploy/selfhost/self_host_env.sh): Orchestra writes OTel spans to
+  # the shared cross-repo logs/all/ and per-request JSON traces to logs/orchestra/
+  # in the droid repo, so a run's Orchestra spans correlate with droid/unify/
+  # unillm. Opt-out by exporting these beforehand.
+  if [[ -n "${DROID_REPO_PATH:-}" ]]; then
+    export ORCHESTRA_OTEL_LOG_DIR="${ORCHESTRA_OTEL_LOG_DIR:-$DROID_REPO_PATH/logs/all}"
+    export ORCHESTRA_LOG_DIR="${ORCHESTRA_LOG_DIR:-$DROID_REPO_PATH/logs/orchestra}"
+    mkdir -p "$ORCHESTRA_OTEL_LOG_DIR" "$ORCHESTRA_LOG_DIR" 2>/dev/null || true
+  fi
   local composio_key="${COMPOSIO_API_KEY:-$(read_env_value COMPOSIO_API_KEY "$ENV_LOCAL" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
   if [[ -n "$composio_key" ]]; then
     export COMPOSIO_API_KEY="$composio_key"
@@ -874,7 +885,7 @@ start_droid() {
   # knows who the assistant is and who the owner is (replicating what the
   # startup message provides in production).
   local _a_first="" _a_surname="" _a_about="" _a_age="" _a_nat="" _a_tz=""
-  local _u_first="" _u_last="" _u_email="" _u_id=""
+  local _u_first="" _u_last="" _u_email="" _u_id="" _u_phone="" _u_whatsapp=""
   _a_first=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
     -c "SELECT first_name FROM assistants WHERE agent_id = $resolved_assistant_id;" 2>/dev/null || echo "")
   _a_surname=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
@@ -896,6 +907,10 @@ start_droid() {
       -c "SELECT last_name FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
     _u_email=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
       -c "SELECT email FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
+    _u_phone=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+      -c "SELECT phone_number FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
+    _u_whatsapp=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+      -c "SELECT whatsapp_number FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
   fi
 
   [[ -n "$_a_first" ]]   && droid_env+=("ASSISTANT_FIRST_NAME=$_a_first")
@@ -908,6 +923,8 @@ start_droid() {
   [[ -n "$_u_last" ]]    && droid_env+=("USER_SURNAME=$_u_last")
   [[ -n "$_u_email" ]]   && droid_env+=("USER_EMAIL=$_u_email")
   [[ -n "$_u_id" ]]      && droid_env+=("USER_ID=$_u_id")
+  [[ -n "$_u_phone" ]]    && droid_env+=("USER_NUMBER=$_u_phone")
+  [[ -n "$_u_whatsapp" ]] && droid_env+=("USER_WHATSAPP_NUMBER=$_u_whatsapp")
 
   local droid_args=(start)
   if [[ "$force_echo" == "true" ]]; then
@@ -1268,10 +1285,12 @@ start_droid_coordinator() {
     LIVEKIT_API_SECRET="secret"
   )
 
-  local _a_first _a_surname _a_about _a_age _a_nat _a_tz _u_first _u_last _u_email _u_id
+  local _a_first _a_surname _a_about _a_age _a_nat _a_tz _u_first _u_last _u_email _u_id _u_phone _u_whatsapp
   _u_first=""
   _u_last=""
   _u_email=""
+  _u_phone=""
+  _u_whatsapp=""
   _a_first=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
     -c "SELECT first_name FROM assistants WHERE agent_id = $coordinator_agent_id;" 2>/dev/null || echo "")
   _a_surname=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
@@ -1293,6 +1312,10 @@ start_droid_coordinator() {
       -c "SELECT last_name FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
     _u_email=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
       -c "SELECT email FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
+    _u_phone=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+      -c "SELECT phone_number FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
+    _u_whatsapp=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
+      -c "SELECT whatsapp_number FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
   fi
 
   [[ -n "$_a_first" ]]   && droid_env+=("ASSISTANT_FIRST_NAME=$_a_first")
@@ -1305,6 +1328,8 @@ start_droid_coordinator() {
   [[ -n "$_u_last" ]]    && droid_env+=("USER_SURNAME=$_u_last")
   [[ -n "$_u_email" ]]   && droid_env+=("USER_EMAIL=$_u_email")
   [[ -n "$_u_id" ]]      && droid_env+=("USER_ID=$_u_id")
+  [[ -n "$_u_phone" ]]    && droid_env+=("USER_NUMBER=$_u_phone")
+  [[ -n "$_u_whatsapp" ]] && droid_env+=("USER_WHATSAPP_NUMBER=$_u_whatsapp")
 
   if self_host_desktop_enabled; then
     droid_env+=("ASSISTANT_DESKTOP_URL=${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}")
@@ -1587,7 +1612,7 @@ ensure_npm_deps() {
 # =============================================================================
 
 # Valid seed scenario names — must match SCENARIOS in src/tests/helpers/seeds/run.ts.
-VALID_SEED_SCENARIOS=(personal-workspace personal-workspace-multi sidebar-team-grouping org-basic org-multi-role org-unify credit-grant-links referrals billing-banner-states managed-billing usage-ledger chat-search memory-rich tasks-rich secrets-rich re-appraisal all)
+VALID_SEED_SCENARIOS=(personal-workspace personal-workspace-multi sidebar-team-grouping org-basic org-multi-role org-unify credit-grant-links referrals billing-banner-states manual-topup managed-billing usage-ledger chat-search memory-rich tasks-rich secrets-rich re-appraisal all)
 
 validate_seed_scenario() {
   local scenario="$1"

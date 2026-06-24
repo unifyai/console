@@ -170,7 +170,7 @@ export function AssistantListItem({
           <span
             role="status"
             className={cn(
-              'absolute bottom-0.5 right-0.5 block h-2 w-2 rounded-full ring-2 ring-background',
+              'absolute bottom-1 right-1 block h-2 w-2 rounded-full ring-2 ring-background',
               isOnline ? 'bg-[var(--role-green)]' : 'bg-muted-foreground'
             )}
           />
@@ -220,7 +220,7 @@ export function AssistantListItem({
               role="status"
               data-testid={`status-indicator-${assistant.agentId}`}
               className={cn(
-                'absolute bottom-0.5 right-0.5 block h-2 w-2 rounded-full ring-2 ring-background',
+                'absolute bottom-1 right-1 block h-2 w-2 rounded-full ring-2 ring-background',
                 isOnline ? 'bg-[var(--role-green)]' : 'bg-muted-foreground'
               )}
             />

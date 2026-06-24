@@ -4,11 +4,13 @@ import { showSuccessToast, showErrorToast } from '@/components/Common/Toasts/not
 type UseCopyToClipboardProps = {
   text: string;
   copyMessage?: string;
+  showSuccessNotification?: boolean;
 };
 
 export function useCopyToClipboard({
   text,
   copyMessage = 'Copied to clipboard!',
+  showSuccessNotification = true,
 }: UseCopyToClipboardProps) {
   const [isCopied, setIsCopied] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -17,7 +19,9 @@ export function useCopyToClipboard({
     navigator.clipboard
       .writeText(text)
       .then(() => {
-        showSuccessToast(copyMessage);
+        if (showSuccessNotification) {
+          showSuccessToast(copyMessage);
+        }
         setIsCopied(true);
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
@@ -30,7 +34,7 @@ export function useCopyToClipboard({
       .catch(() => {
         showErrorToast('Failed to copy to clipboard.');
       });
-  }, [text, copyMessage]);
+  }, [text, copyMessage, showSuccessNotification]);
 
   return { isCopied, handleCopy };
 }

@@ -15,6 +15,7 @@ import {
   AssistantFormData,
   AssistantPreset,
   AssistantUpdatePayload,
+  CallOpeningConfig,
   VoiceOption,
 } from '@/types/assistants/assistant';
 import { ContactType, type OAuthProvider } from '@/types/assistants/contact';
@@ -94,33 +95,13 @@ import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { createRandomDroidProfile } from '@/utils/assistants/droid-profile-randomizer';
 import {
-  coordinatorReferenceQuizTriggerStepForReplyStep,
-  dispatchCoordinatorReferenceQuizClue,
+  dispatchCoordinatorOnboardingStepEvent,
+  replyStepForCoordinatorTriggerStep,
 } from '@/utils/assistants/coordinator-reference-quiz';
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
-const COORDINATOR_ONBOARDING_RESET_STORAGE_PREFIX =
-  'console:coordinator-onboarding:reset-step-ids:';
-const COORDINATOR_REFERENCE_QUIZ_ACTIONS = new Set<ChecklistAction>([
-  'trigger-email-reference',
-  'start-email-reply',
-  'add-whatsapp-number',
-  'trigger-whatsapp-message-reference',
-  'start-whatsapp-message',
-  'trigger-whatsapp-call-reference',
-  'start-whatsapp-call',
-  'add-phone-number',
-  'trigger-sms-reference',
-  'start-sms-message',
-  'trigger-phone-call-reference',
-  'start-phone-call',
-  'connect-slack',
-  'trigger-slack-reference',
-  'start-slack-message',
-  'connect-discord',
-  'trigger-discord-reference',
-  'start-discord-message',
-]);
+const COORDINATOR_ONBOARDING_ACCESSIBLE_POLL_MS = 8_000;
+const COORDINATOR_ONBOARDING_STEP_RETRY_MS = 30_000;
 type ContactManagerInitialTab = ContactType | 'slack';
 
 interface MainProps {
@@ -174,6 +155,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const profileParam = searchParams.get('profile');
+  const onboardingFocusParam = searchParams.get('onboarding');
   const { activeWorkspace, currentUserId } = useWorkspace();
   // Workspace connect (Gmail/Outlook BYOD) needs an OAuth client configured on
   // the deployment. When neither provider is available, the onboarding
@@ -482,8 +464,19 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     coordinatorOnboardingState?.introWatched === false;
   const [coordinatorOnboardingFocusLayoutRequest, setCoordinatorOnboardingFocusLayoutRequest] =
     React.useState(0);
+  const [firstLoginCommunicationEmailOpenRequest, setFirstLoginCommunicationEmailOpenRequest] =
+    React.useState(0);
   const requestCoordinatorOnboardingFocusLayout = React.useCallback(() => {
-    setCoordinatorOnboardingFocusLayoutRequest((current) => current + 1);
+    setCoordinatorOnboardingFocusLayoutRequest((current) => Math.abs(current) + 1);
+  }, []);
+  const requestFirstLoginCommunicationEmailOpen = React.useCallback(() => {
+    setFirstLoginCommunicationEmailOpenRequest((current) => current + 1);
+  }, []);
+  const acknowledgeFirstLoginCommunicationEmailOpen = React.useCallback(() => {
+    setFirstLoginCommunicationEmailOpenRequest(0);
+  }, []);
+  const requestCoordinatorOnboardingInfoToggle = React.useCallback(() => {
+    setCoordinatorOnboardingFocusLayoutRequest((current) => -(Math.abs(current) + 1));
   }, []);
 
   // Shared onboarding step progress for the Coordinator onboarding
@@ -502,44 +495,30 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [resetStepIds, setResetStepIds] = React.useState<ReadonlySet<string>>(() => new Set());
   const activeCoordinatorOnboardingStep = coordinatorOnboardingState?.onboardingStep;
   React.useEffect(() => {
-    if (canonicalCoordinatorId === null) {
-      setResetStepIds(new Set());
-      return;
-    }
-    const storageKey = `${COORDINATOR_ONBOARDING_RESET_STORAGE_PREFIX}${canonicalCoordinatorId}`;
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      const parsed = raw ? JSON.parse(raw) : [];
-      setResetStepIds(
-        new Set(
-          Array.isArray(parsed)
-            ? parsed.filter((stepId): stepId is string => typeof stepId === 'string')
-            : []
-        )
-      );
-    } catch {
-      setResetStepIds(new Set());
-    }
+    setResetStepIds(new Set());
   }, [canonicalCoordinatorId]);
-  React.useEffect(() => {
-    if (canonicalCoordinatorId === null) return;
-    const storageKey = `${COORDINATOR_ONBOARDING_RESET_STORAGE_PREFIX}${canonicalCoordinatorId}`;
-    try {
-      if (resetStepIds.size === 0) {
-        window.localStorage.removeItem(storageKey);
-      } else {
-        window.localStorage.setItem(storageKey, JSON.stringify([...resetStepIds]));
-      }
-    } catch {
-      /* private mode / quota: reset state remains in memory for this page. */
-    }
-  }, [canonicalCoordinatorId, resetStepIds]);
   // Engagement is a strict superset of completion — engaging
   // ``apps`` (clicking "Connect apps") unlocks the integrations
   // tab even though the row stays pending until a secret actually
   // lands. Completion always implies engagement, so
   // ``markStepCompleted`` below back-fills the engaged set too.
   const [engagedStepIds, setEngagedStepIds] = React.useState<ReadonlySet<string>>(() => new Set());
+  const requestedStepTimesRef = React.useRef<Map<string, number>>(new Map());
+  React.useEffect(() => {
+    requestedStepTimesRef.current.clear();
+  }, [canonicalCoordinatorId]);
+  const shouldDispatchStepRequest = React.useCallback((stepId: string): boolean => {
+    const requestedAt = requestedStepTimesRef.current.get(stepId);
+    return !requestedAt || Date.now() - requestedAt > COORDINATOR_ONBOARDING_STEP_RETRY_MS;
+  }, []);
+  const markStepRequested = React.useCallback((stepId: string) => {
+    requestedStepTimesRef.current.set(stepId, Date.now());
+  }, []);
+  const clearStepRequests = React.useCallback((stepIds: Iterable<string>) => {
+    const ids = new Set(stepIds);
+    if (ids.size === 0) return;
+    for (const stepId of ids) requestedStepTimesRef.current.delete(stepId);
+  }, []);
   const markStepCompleted = React.useCallback((stepId: string) => {
     setResetStepIds((prev) => {
       if (!prev.has(stepId)) return prev;
@@ -561,6 +540,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     });
   }, []);
   const seedStepCompleted = React.useCallback((stepId: string) => {
+    setResetStepIds((prev) => {
+      if (!prev.has(stepId)) return prev;
+      const next = new Set(prev);
+      next.delete(stepId);
+      return next;
+    });
     setCompletedStepIds((prev) => {
       if (prev.has(stepId)) return prev;
       const next = new Set(prev);
@@ -617,6 +602,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     });
   }, []);
   const markStepEngaged = React.useCallback((stepId: string) => {
+    setResetStepIds((prev) => {
+      if (!prev.has(stepId)) return prev;
+      const next = new Set(prev);
+      next.delete(stepId);
+      return next;
+    });
     setEngagedStepIds((prev) => {
       if (prev.has(stepId)) return prev;
       const next = new Set(prev);
@@ -625,7 +616,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     });
   }, []);
   const resetStepProgress = React.useCallback(
-    (stepIds: readonly string[]) => {
+    (stepIds: readonly string[], resetStepId?: string) => {
       const ids = new Set(stepIds);
       if (ids.size === 0) return;
       setResetStepIds((prev) => new Set([...prev, ...ids]));
@@ -644,11 +635,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         for (const stepId of ids) next.delete(stepId);
         return next.size === prev.size ? prev : next;
       });
-      if (activeCoordinatorOnboardingStep && ids.has(activeCoordinatorOnboardingStep)) {
+      clearStepRequests(ids);
+      if (resetStepId) {
+        void updateCoordinatorOnboardingState({ resetOnboardingStep: resetStepId });
+      } else if (activeCoordinatorOnboardingStep && ids.has(activeCoordinatorOnboardingStep)) {
         void updateCoordinatorOnboardingState({ clearOnboardingStep: true });
       }
     },
-    [activeCoordinatorOnboardingStep, updateCoordinatorOnboardingState]
+    [activeCoordinatorOnboardingStep, clearStepRequests, updateCoordinatorOnboardingState]
   );
   const visibleCompletedStepIds = React.useMemo<ReadonlySet<string>>(() => {
     if (resetStepIds.size === 0) return completedStepIds;
@@ -662,96 +656,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     for (const stepId of resetStepIds) next.delete(stepId);
     return next;
   }, [resetStepIds, skippedStepIds]);
-  const collectCompletionBlockedStepIds = React.useCallback(
-    (stepId: string): string[] => {
-      const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
-      const result = [stepId];
-      const seen = new Set(result);
-      let changed = true;
-      while (changed) {
-        changed = false;
-        for (const step of steps) {
-          if (seen.has(step.id)) continue;
-          if (
-            step.dependencies.some(
-              (dependency) => dependency.resolution === 'completed' && seen.has(dependency.id)
-            )
-          ) {
-            seen.add(step.id);
-            result.push(step.id);
-            changed = true;
-          }
-        }
-      }
-      return result;
-    },
-    [coordinatorOnboardingState?.onboarding?.steps]
-  );
-  const collectCompletionCoupledStepIds = React.useCallback(
-    (stepId: string): string[] => {
-      const steps = coordinatorOnboardingState?.onboarding?.steps ?? [];
-      const coupled = new Set<string>([stepId]);
-      let changed = true;
-      while (changed) {
-        changed = false;
-        for (const step of steps) {
-          if (!coupled.has(step.id)) continue;
-          for (const dependency of step.dependencies) {
-            if (dependency.resolution === 'completed' && !coupled.has(dependency.id)) {
-              coupled.add(dependency.id);
-              changed = true;
-            }
-          }
-        }
-      }
-      for (const coupledStepId of Array.from(coupled)) {
-        for (const blockedStepId of collectCompletionBlockedStepIds(coupledStepId)) {
-          coupled.add(blockedStepId);
-        }
-      }
-      return steps.filter((step) => coupled.has(step.id)).map((step) => step.id);
-    },
-    [collectCompletionBlockedStepIds, coordinatorOnboardingState?.onboarding?.steps]
-  );
-  // Optimistic: flip the local checklist state immediately so the
-  // row resolves (and downstream rows unlock) on the same frame as
-  // the click. The orchestra write happens in the background; we roll
-  // the local state back if it fails (the hook surfaces its own error
-  // toast). Awaiting the round-trip before updating made "Later" feel
-  // multi-second-slow because the server action + DB write gated the
-  // re-render.
-  const handleCoordinatorOnboardingStepSkip = React.useCallback(
-    async (stepId: string) => {
-      const cascadeStepIds = collectCompletionBlockedStepIds(stepId);
-      for (const cascadeStepId of cascadeStepIds) markStepSkipped(cascadeStepId);
-      const skipped = await updateCoordinatorOnboardingState({ skipOnboardingStep: stepId });
-      if (!skipped) {
-        for (const cascadeStepId of cascadeStepIds) markStepUnskipped(cascadeStepId);
-      }
-    },
-    [
-      collectCompletionBlockedStepIds,
-      markStepSkipped,
-      markStepUnskipped,
-      updateCoordinatorOnboardingState,
-    ]
-  );
-  const handleCoordinatorOnboardingStepUnskip = React.useCallback(
-    async (stepId: string) => {
-      const cascadeStepIds = collectCompletionCoupledStepIds(stepId);
-      for (const cascadeStepId of cascadeStepIds) markStepUnskipped(cascadeStepId);
-      const unskipped = await updateCoordinatorOnboardingState({ unskipOnboardingStep: stepId });
-      if (!unskipped) {
-        for (const cascadeStepId of cascadeStepIds) markStepSkipped(cascadeStepId);
-      }
-    },
-    [
-      collectCompletionCoupledStepIds,
-      markStepSkipped,
-      markStepUnskipped,
-      updateCoordinatorOnboardingState,
-    ]
-  );
   const handleCoordinatorOnboardingSectionSkip = React.useCallback(
     (phaseId: string) => {
       void updateCoordinatorOnboardingState({ skipOnboardingPhase: phaseId });
@@ -789,6 +693,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       deferOnboarding: deferCoordinatorOnboarding,
       resumeOnboarding: resumeCoordinatorOnboarding,
       onboarding: coordinatorOnboardingState?.onboarding ?? null,
+      firstLoginCommunicationEmailOpenRequest,
+      acknowledgeFirstLoginCommunicationEmailOpen,
     }),
     [
       visibleCompletedStepIds,
@@ -804,6 +710,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       deferCoordinatorOnboarding,
       resumeCoordinatorOnboarding,
       coordinatorOnboardingState?.onboarding,
+      firstLoginCommunicationEmailOpenRequest,
+      acknowledgeFirstLoginCommunicationEmailOpen,
     ]
   );
   // While the state read is still in flight we can't make a confident
@@ -875,6 +783,27 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       handleShowProfile(canonicalCoordinatorId);
     }
   }, [canonicalCoordinatorId, handleShowProfile, isLoadingAssistants, profileAssistantId]);
+
+  const consumedOnboardingFocusParamRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!onboardingFocusParam) return;
+    if (!canonicalCoordinatorId || isLoadingAssistants) return;
+    if (consumedOnboardingFocusParamRef.current === onboardingFocusParam) return;
+    consumedOnboardingFocusParamRef.current = onboardingFocusParam;
+    handleShowProfile(canonicalCoordinatorId);
+    if (onboardingFocusParam.startsWith('toggle:')) {
+      requestCoordinatorOnboardingInfoToggle();
+    } else {
+      requestCoordinatorOnboardingFocusLayout();
+    }
+  }, [
+    canonicalCoordinatorId,
+    handleShowProfile,
+    isLoadingAssistants,
+    onboardingFocusParam,
+    requestCoordinatorOnboardingFocusLayout,
+    requestCoordinatorOnboardingInfoToggle,
+  ]);
 
   // --- Assistant Status Polling ---
   const { statuses: assistantStatuses, markOnline: markAssistantOnline } =
@@ -1817,34 +1746,65 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   const handleCoordinatorStartOnboardingStep = React.useCallback(
     (stepId: string) => {
+      if (!shouldDispatchStepRequest(stepId)) {
+        void refetchCoordinatorOnboardingState();
+        return;
+      }
       markStepEngaged(stepId);
+      markStepRequested(stepId);
       void updateCoordinatorOnboardingState({ onboardingStep: stepId });
     },
-    [markStepEngaged, updateCoordinatorOnboardingState]
+    [
+      markStepEngaged,
+      markStepRequested,
+      refetchCoordinatorOnboardingState,
+      shouldDispatchStepRequest,
+      updateCoordinatorOnboardingState,
+    ]
   );
 
   const handleCoordinatorTriggerReferenceStep = React.useCallback(
     (stepId: string) => {
       if (!canonicalCoordinator) return;
+      const step = coordinatorOnboardingState?.onboarding?.steps.find(
+        (candidate) => candidate.id === stepId
+      );
+      if (!step) return;
+      if (!shouldDispatchStepRequest(stepId)) {
+        void refetchCoordinatorOnboardingState();
+        return;
+      }
       markStepEngaged(stepId);
+      markStepRequested(stepId);
       void (async () => {
         try {
-          const clue = await dispatchCoordinatorReferenceQuizClue(
+          const event = await dispatchCoordinatorOnboardingStepEvent(
             canonicalCoordinator.agentId,
-            stepId
+            step
           );
-          if (!clue) return;
+          if (!event) return;
 
-          markStepCompleted(clue.triggerStepId);
-          markStepEngaged(clue.replyStepId);
-          void updateCoordinatorOnboardingState({ onboardingStep: clue.replyStepId });
+          const replyStepId = replyStepForCoordinatorTriggerStep(step);
+          if (replyStepId) {
+            markStepEngaged(replyStepId);
+            void updateCoordinatorOnboardingState({ onboardingStep: replyStepId });
+          }
+          void refetchCoordinatorOnboardingState();
         } catch (error) {
-          console.error('[Coordinator onboarding] Failed to dispatch reference quiz clue:', error);
-          toast.error('Could not send the reference clue. Please try again.');
+          console.error('[Coordinator onboarding] Failed to dispatch onboarding event:', error);
+          toast.error('Could not start this task. Please try again.');
         }
       })();
     },
-    [canonicalCoordinator, markStepCompleted, markStepEngaged, updateCoordinatorOnboardingState]
+    [
+      canonicalCoordinator,
+      coordinatorOnboardingState?.onboarding?.steps,
+      markStepEngaged,
+      markStepRequested,
+      refetchCoordinatorOnboardingState,
+      shouldDispatchStepRequest,
+      updateCoordinatorOnboardingState,
+    ]
   );
 
   const handleCoordinatorAddWhatsappNumber = React.useCallback(() => {
@@ -1983,12 +1943,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onConnectApps: () => handleCoordinatorOpenPaneTab('integrations', 'apps'),
       onActNow: () => handleCoordinatorOpenPaneTab('actions', 'act'),
       onScheduleTask: () => handleCoordinatorOpenPaneTab('tasks', 'schedule'),
-      onSkipStep: handleCoordinatorOnboardingStepSkip,
-      onUnskipStep: handleCoordinatorOnboardingStepUnskip,
       onSkipSection: handleCoordinatorOnboardingSectionSkip,
       onUnskipSection: handleCoordinatorOnboardingSectionUnskip,
       onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
-      // Flavours the "Ask Twin to do something" suggestion chips:
+      // Flavours the "Ask T-W1N to do something" suggestion chips:
       // call-friendly prompts while on a voice call, chat-friendly
       // otherwise.
       isOnCall:
@@ -2018,8 +1976,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     handleCoordinatorConnectSlack,
     handleCoordinatorConnectDiscord,
     handleCoordinatorOpenPaneTab,
-    handleCoordinatorOnboardingStepSkip,
-    handleCoordinatorOnboardingStepUnskip,
     handleCoordinatorOnboardingSectionSkip,
     handleCoordinatorOnboardingSectionUnskip,
     workspaceConnectAvailable,
@@ -2032,9 +1988,21 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleStartCoordinatorIntroCall = React.useCallback(
     (assistant: Assistant, type: 'video' | 'audio', options?: AssistantCallConnectOptions) => {
       handleShowProfile(assistant.agentId);
-      return handleStartCall(assistant, type, options);
+      // First onboarding voice call: speak the server-composed orientation
+      // briefing immediately via a `briefed` opening, instead of waiting for
+      // the slow-brain wakeup to shape a generic holding greeting.
+      const briefing = coordinatorOnboardingState?.voiceIntroBriefing?.trim();
+      const isFreshOnboardingIntro =
+        coordinatorOnboardingState?.mode === 'onboarding' &&
+        coordinatorOnboardingState?.introWatched === false &&
+        coordinatorOnboardingState?.onboardingDeferred !== true;
+      const openingConfig: CallOpeningConfig | undefined =
+        briefing && isFreshOnboardingIntro
+          ? { mode: 'briefed', systemContext: briefing, source: 'coordinator_onboarding_intro' }
+          : options?.openingConfig;
+      return handleStartCall(assistant, type, { ...options, openingConfig });
     },
-    [handleShowProfile, handleStartCall]
+    [handleShowProfile, handleStartCall, coordinatorOnboardingState]
   );
 
   // While the onboarding intro overlay is up, pin the canonical
@@ -2089,48 +2057,39 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   // freely.
   const serverCompletedStepIds = coordinatorOnboardingState?.completedStepIds;
   const serverSkippedStepIds = coordinatorOnboardingState?.skippedStepIds;
+  const hasAccessibleCoordinatorOnboardingTargets =
+    (coordinatorOnboardingState?.onboarding?.nextTargets.length ?? 0) > 0;
   React.useEffect(() => {
     if (!serverCompletedStepIds) return;
     for (const stepId of serverCompletedStepIds) {
       seedStepCompleted(stepId);
-      const triggerStepId = coordinatorReferenceQuizTriggerStepForReplyStep(stepId);
-      if (triggerStepId) seedStepCompleted(triggerStepId);
     }
-  }, [serverCompletedStepIds, seedStepCompleted]);
+    clearStepRequests(serverCompletedStepIds);
+  }, [clearStepRequests, serverCompletedStepIds, seedStepCompleted]);
   React.useEffect(() => {
     if (!serverSkippedStepIds) return;
     for (const stepId of serverSkippedStepIds) {
       seedStepSkipped(stepId);
-      const triggerStepId = coordinatorReferenceQuizTriggerStepForReplyStep(stepId);
-      if (triggerStepId) seedStepSkipped(triggerStepId);
     }
-  }, [serverSkippedStepIds, seedStepSkipped]);
-  React.useEffect(() => {
-    if (!activeCoordinatorOnboardingStep) return;
-    const triggerStepId = coordinatorReferenceQuizTriggerStepForReplyStep(
-      activeCoordinatorOnboardingStep
-    );
-    if (triggerStepId) seedStepCompleted(triggerStepId);
-  }, [activeCoordinatorOnboardingStep, seedStepCompleted]);
+    clearStepRequests(serverSkippedStepIds);
+  }, [clearStepRequests, serverSkippedStepIds, seedStepSkipped]);
   React.useEffect(() => {
     if (
-      !activeCoordinatorOnboardingStep ||
       coordinatorOnboardingState?.mode !== 'onboarding' ||
-      serverCompletedStepIds?.includes(activeCoordinatorOnboardingStep) ||
-      serverSkippedStepIds?.includes(activeCoordinatorOnboardingStep)
+      isCoordinatorOnboardingDeferred ||
+      !hasAccessibleCoordinatorOnboardingTargets
     ) {
       return;
     }
     const handle = window.setInterval(() => {
       void refetchCoordinatorOnboardingState();
-    }, 4_000);
+    }, COORDINATOR_ONBOARDING_ACCESSIBLE_POLL_MS);
     return () => window.clearInterval(handle);
   }, [
-    activeCoordinatorOnboardingStep,
     coordinatorOnboardingState?.mode,
+    hasAccessibleCoordinatorOnboardingTargets,
+    isCoordinatorOnboardingDeferred,
     refetchCoordinatorOnboardingState,
-    serverCompletedStepIds,
-    serverSkippedStepIds,
   ]);
   React.useEffect(() => {
     if (!activeCoordinatorOnboardingStep) return;
@@ -2643,6 +2602,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   onComplete={(medium) => {
                     setCoordinatorIntroDismissed(true);
                     requestCoordinatorOnboardingFocusLayout();
+                    requestFirstLoginCommunicationEmailOpen();
                     // The picker handed off to a live call — arm the
                     // "Talk now!" cue to fire once that call connects.
                     if (medium === 'call') setCoordinatorTalkNowPending(true);

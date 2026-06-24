@@ -314,14 +314,14 @@ test('email tab hides platform provider cards (no @unify.ai / @unifyailtd123 pro
   await expect(page.locator('text=@tenant.onmicrosoft.com')).toHaveCount(0);
 });
 
-test('Twin email tab shows shared Twin address as managed routing', async ({
+test('T-W1N email tab shows shared T-W1N address as managed routing', async ({
   authedPage: page,
 }) => {
   await openContactManager(page, coordinator);
 
   await selectContactType(page, 'email');
 
-  await expect(page.getByText('Twin email is configured.')).toBeVisible({
+  await expect(page.getByText('T-W1N email is configured.')).toBeVisible({
     timeout: 5_000,
   });
   await expect(page.locator('input[value="twin@unify.ai"]')).toHaveCount(0);
@@ -332,7 +332,7 @@ test('Twin email tab shows shared Twin address as managed routing', async ({
   await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0);
 });
 
-test('Twin workspace modal shows BYOD providers despite shared routing email', async ({
+test('T-W1N workspace modal shows BYOD providers despite shared routing email', async ({
   authedPage: page,
 }) => {
   await openWorkspaceManager(page, coordinator);
@@ -347,19 +347,21 @@ test('Twin workspace modal shows BYOD providers despite shared routing email', a
   await expect(page.locator('text=Platform-managed email')).toHaveCount(0);
 });
 
-test('Twin phone tab shows shared Twin number as managed routing', async ({ authedPage: page }) => {
+test('T-W1N phone tab shows shared T-W1N number as managed routing', async ({
+  authedPage: page,
+}) => {
   await openContactManager(page, coordinator);
 
   await selectContactType(page, 'phone');
 
-  await expect(page.getByText('Twin phone is configured.', { exact: true })).toBeVisible({
+  await expect(page.getByText('T-W1N phone is configured.', { exact: true })).toBeVisible({
     timeout: 5_000,
   });
   await expect(page.locator('input[value="+14155552671"]')).toHaveCount(0);
   await expect(
     page
       .getByText(
-        'Twin phone is managed automatically. SMS messages and calls to this shared number are routed by verified sender identity.',
+        'T-W1N phone is managed automatically. SMS messages and calls to this shared number are routed by verified sender identity.',
         { exact: true }
       )
       .first()

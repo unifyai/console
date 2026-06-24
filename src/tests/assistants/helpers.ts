@@ -78,24 +78,34 @@ export async function loginAndSaveState(
   });
   const page = await ctx.newPage();
 
-  await page.goto('/login');
+  await page.goto('/login?signout=true');
+  await page
+    .waitForURL((url) => url.pathname === '/login' && !url.searchParams.has('signout'), {
+      timeout: 15_000,
+      waitUntil: 'domcontentloaded',
+    })
+    .catch(() => {});
+
   try {
     await loginAndWaitForRedirect(page, email, password, 45_000);
   } catch (error) {
     if (!page.url().includes('/login')) {
-      throw error;
+      // A pre-existing local auth session can redirect /login straight into
+      // the app before the email-login controls render. That is already the
+      // desired authenticated state for these fixtures.
+    } else {
+      const hasQuickLoginPanel = await page
+        .getByTestId('dev-quick-login')
+        .isVisible({ timeout: 3_000 })
+        .catch(() => false);
+      if (!hasQuickLoginPanel) {
+        throw error;
+      }
+      // Local dev login occasionally lands back on /login after credentials submit.
+      // Retry once via the dev quick-login panel to keep assistant e2e fixtures stable.
+      await page.goto('/login');
+      await loginViaDevQuickLogin(page, email, 45_000);
     }
-    const hasQuickLoginPanel = await page
-      .getByTestId('dev-quick-login')
-      .isVisible({ timeout: 3_000 })
-      .catch(() => false);
-    if (!hasQuickLoginPanel) {
-      throw error;
-    }
-    // Local dev login occasionally lands back on /login after credentials submit.
-    // Retry once via the dev quick-login panel to keep assistant e2e fixtures stable.
-    await page.goto('/login');
-    await loginViaDevQuickLogin(page, email, 45_000);
   }
 
   if (page.url().includes('/login/onboarding')) {

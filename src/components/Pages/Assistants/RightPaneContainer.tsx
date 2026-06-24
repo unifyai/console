@@ -483,16 +483,36 @@ export function RightPaneContainer({
     setIsInfoOpen(readInfoPanelOpen());
   }, [assistant?.agentId]);
 
-  React.useEffect(() => {
-    if (infoPanelFocusLayoutRequest > 0 && assistant?.isCoordinator && hasIncompleteOnboarding) {
-      setIsInfoOpen(true);
-    }
-  }, [assistant?.isCoordinator, hasIncompleteOnboarding, infoPanelFocusLayoutRequest]);
-
   const setInfoOpenAndPersist = useCallback((open: boolean) => {
     setIsInfoOpen(open);
     writeInfoPanelOpen(open);
   }, []);
+
+  const handledInfoPanelFocusRequestRef = React.useRef(0);
+  React.useEffect(() => {
+    if (
+      infoPanelFocusLayoutRequest === 0 ||
+      !assistant?.isCoordinator ||
+      !hasIncompleteOnboarding
+    ) {
+      return;
+    }
+    if (handledInfoPanelFocusRequestRef.current === infoPanelFocusLayoutRequest) {
+      return;
+    }
+    handledInfoPanelFocusRequestRef.current = infoPanelFocusLayoutRequest;
+    if (infoPanelFocusLayoutRequest < 0) {
+      setInfoOpenAndPersist(!isInfoOpen);
+    } else {
+      setIsInfoOpen(true);
+    }
+  }, [
+    assistant?.isCoordinator,
+    hasIncompleteOnboarding,
+    infoPanelFocusLayoutRequest,
+    isInfoOpen,
+    setInfoOpenAndPersist,
+  ]);
 
   const toggleInfo = useCallback(() => {
     setInfoOpenAndPersist(!isInfoOpen);
@@ -546,9 +566,9 @@ export function RightPaneContainer({
         data-testid="coordinator-private"
         className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center"
       >
-        <p className="text-body-muted">Twin chat is private.</p>
+        <p className="text-body-muted">T-W1N chat is private.</p>
         <p className="text-caption text-muted-foreground">
-          Open Twin from this workspace to continue.
+          Open T-W1N from this workspace to continue.
         </p>
       </div>
     );

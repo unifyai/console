@@ -38,6 +38,7 @@ import type {
   InvoiceListResponse,
   InvoiceUrls,
   CurrentPeriodUsage,
+  TopUpResponse,
 } from '@/types/billing';
 
 // =============================================================================
@@ -108,6 +109,31 @@ export async function getBalance(): Promise<BalanceData | BillingErrorResponse> 
     return errorResponse(error, 'Failed to fetch balance');
   }
 }
+
+// =============================================================================
+// Manual top-up (staging manual-top-up mode)
+// =============================================================================
+
+/**
+ * Wraps `POST /v0/credits/topup`. Grants free credits with no Stripe charge.
+ * Only succeeds on manual-top-up deployments (staging); production returns 403.
+ */
+export async function topUp(amount: number): Promise<TopUpResponse | BillingErrorResponse> {
+  const apiKey = await requireUserApiKey();
+  try {
+    const client = await getOrchestraUserClient(apiKey);
+    const response = await client.post('/credits/topup', { amount });
+    const data = response.data;
+    return {
+      previousCredits: typeof data.previousCredits === 'number' ? data.previousCredits : 0,
+      added: typeof data.added === 'number' ? data.added : 0,
+      currentCredits: typeof data.currentCredits === 'number' ? data.currentCredits : 0,
+    };
+  } catch (error) {
+    return errorResponse(error, 'Failed to top up credits');
+  }
+}
+
 // =============================================================================
 // Subscribe (self-serve first subscription)
 // =============================================================================

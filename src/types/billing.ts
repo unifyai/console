@@ -439,9 +439,21 @@ export interface CurrentPeriodUsage {
  *
  * Follows the same pattern as OrganizationActions and AssistantActions.
  */
+export interface TopUpResponse {
+  previousCredits: number;
+  added: number;
+  currentCredits: number;
+}
+
 export interface BillingActions {
   /** Fetch current balance */
   getBalance: () => Promise<BalanceData | BillingErrorResponse>;
+
+  /**
+   * Manual-top-up mode (staging): grant free credits with no Stripe charge.
+   * Hard-gated to manual-top-up deployments server-side.
+   */
+  topUp: (amount: number) => Promise<TopUpResponse | BillingErrorResponse>;
 
   /**
    * Subscribe the self-serve account to a monthly credit tier. When the

@@ -20,11 +20,13 @@ import type {
 
 export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
 
-export type CallOpeningMode = 'speak' | 'simulated' | 'silent';
+export type CallOpeningMode = 'speak' | 'simulated' | 'silent' | 'briefed';
 
 export interface CallOpeningConfig {
   mode: CallOpeningMode;
   simulatedUtterance?: string;
+  /** Durable system briefing spoken as the opening turn in `briefed` mode. */
+  systemContext?: string;
   source?: string;
 }
 

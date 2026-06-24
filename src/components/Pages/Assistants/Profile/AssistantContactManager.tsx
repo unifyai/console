@@ -445,7 +445,7 @@ export function AssistantContactManager({
       if (!assistant.email) {
         return (
           <p className="text-body text-muted-foreground">
-            Twin email is managed automatically and will appear here once configured.
+            T-W1N email is managed automatically and will appear here once configured.
           </p>
         );
       }
@@ -453,10 +453,10 @@ export function AssistantContactManager({
       return (
         <div className="space-y-2">
           <ContactReadyMessage badge={<ProviderBadge provider="Platform-managed" />}>
-            Twin email is configured.
+            T-W1N email is configured.
           </ContactReadyMessage>
           <p className="text-caption text-muted-foreground">
-            Twin email is managed automatically. Messages to this shared address are routed by
+            T-W1N email is managed automatically. Messages to this shared address are routed by
             verified sender identity.
           </p>
         </div>
@@ -590,7 +590,7 @@ export function AssistantContactManager({
             <DialogTitle className="text-title">Update Contact</DialogTitle>
             <DialogDescription className="text-subtitle">
               {assistant.isCoordinator
-                ? 'Twin contacts are platform-managed: Contact details are automatically provisioned and incoming messages are routed to Twin using your verified sender identity — there is nothing to create or configure.'
+                ? 'T-W1N contacts are platform-managed: Contact details are automatically provisioned and incoming messages are routed to T-W1N using your verified sender identity — there is nothing to create or configure.'
                 : `Manage contact details for ${assistant.firstName}.`}
             </DialogDescription>
           </DialogHeader>
@@ -765,7 +765,7 @@ const PhoneTabContent: React.FC<{
     if (!assistant.phone) {
       return (
         <p className="text-body text-muted-foreground">
-          Twin phone is managed automatically and will appear here once configured.
+          T-W1N phone is managed automatically and will appear here once configured.
         </p>
       );
     }
@@ -773,10 +773,10 @@ const PhoneTabContent: React.FC<{
     return (
       <div className="space-y-2">
         <ContactReadyMessage badge={<ProviderBadge provider="Platform-managed" />}>
-          Twin phone is configured.
+          T-W1N phone is configured.
         </ContactReadyMessage>
         <p className="text-caption text-muted-foreground">
-          Twin phone is managed automatically. SMS messages and calls to this shared number are
+          T-W1N phone is managed automatically. SMS messages and calls to this shared number are
           routed by verified sender identity.
         </p>
       </div>
@@ -862,12 +862,12 @@ const WhatsAppTabContent: React.FC<{
       <div className="space-y-2">
         <ContactReadyMessage>
           {assistant.isCoordinator
-            ? 'Twin WhatsApp is configured.'
+            ? 'T-W1N WhatsApp is configured.'
             : 'Assistant WhatsApp contact is active.'}
         </ContactReadyMessage>
         <p className="text-caption text-muted-foreground">
           {assistant.isCoordinator
-            ? 'Twin WhatsApp is managed automatically. Messages to this shared number are routed by verified sender identity.'
+            ? 'T-W1N WhatsApp is managed automatically. Messages to this shared number are routed by verified sender identity.'
             : 'Send a message first — your assistant can only call you on WhatsApp after you start a conversation.'}
         </p>
       </div>
@@ -876,7 +876,7 @@ const WhatsAppTabContent: React.FC<{
   if (assistant.isCoordinator) {
     return (
       <p className="text-body text-muted-foreground">
-        Twin WhatsApp is managed automatically and will appear here once configured.
+        T-W1N WhatsApp is managed automatically and will appear here once configured.
       </p>
     );
   }

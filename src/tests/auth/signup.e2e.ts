@@ -253,7 +253,7 @@ test.describe('Onboarding', () => {
 
     const coordinatorRow = page.getByTestId(`assistant-list-item-${coordinatorId}`);
     await expect(coordinatorRow).toBeVisible({ timeout: 15000 });
-    await expect(coordinatorRow).toContainText('Twin');
+    await expect(coordinatorRow).toContainText('T-W1N');
   });
 
   test('creates shared organization workspace with managed Org team', async ({ page }) => {

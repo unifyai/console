@@ -7,7 +7,9 @@ import { useBilling } from '@/hooks/Billing/useBilling';
 import type { BillingActions, BillingOrgContext } from '@/types/billing';
 import { BillingProfileSection } from './BillingProfileSection';
 import { CreditsBillingSection } from './CreditsBillingSection';
+import { TopUpSection } from './TopUpSection';
 import { ReferralsSection } from './ReferralsSection';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { PlansBillingSection } from './PlansBillingSection';
 import { PaymentMethodsSection } from './PaymentMethodsManager';
 import { InvoicesSection } from './InvoicesSection';
@@ -35,6 +37,7 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
     fullBalance,
     loadingBalance,
     isRefreshingBalance,
+    handleRefreshBalance,
     billingMode,
     plan,
     isSubscribed,
@@ -69,7 +72,9 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
     handleToggleAutoIncrement,
   } = useBilling(actions, orgContext);
 
+  const { manualTopup } = useFeatures();
   const isMetered = billingMode === 'METERED';
+  const canEdit = orgContext ? orgContext.canEdit : true;
 
   // The payment-methods panel is normally self-managed, but the subscribe
   // prerequisites checklist needs to pop it open, so its open state is lifted
@@ -83,6 +88,23 @@ const Main = ({ actions, orgContext }: BillingMainProps) => {
           <Loader size={32} className="mb-2" />
           <p className="text-body-muted">Loading...</p>
         </div>
+      ) : manualTopup ? (
+        <>
+          <CreditsBillingSection
+            orgContext={orgContext}
+            fullBalance={fullBalance}
+            loadingBalance={loadingBalance}
+            isRefreshingBalance={isRefreshingBalance}
+            isSubscribed={isSubscribed}
+            monthlyCreditAllowance={monthlyCreditAllowance}
+            trialExpiresAt={trialExpiresAt}
+            plan={plan}
+          />
+
+          <Separator />
+
+          <TopUpSection topUp={actions.topUp} onToppedUp={handleRefreshBalance} canEdit={canEdit} />
+        </>
       ) : isMetered ? (
         <>
           <MeteredBillingSection

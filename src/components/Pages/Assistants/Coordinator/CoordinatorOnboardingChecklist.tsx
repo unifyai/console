@@ -13,12 +13,11 @@
  * precomputed ``onboarding`` rendering (steps + statuses + next
  * targets) on ``Coordinator/State``, and this component renders it
  * directly. The client no longer computes availability — it only maps
- * each step id to its surface-specific action handler and to UI-only
- * copy (description, time estimate, suggestion chips).
+ * each step id to its surface-specific action handler.
  */
 
 import * as React from 'react';
-import { Check, ChevronDown, RotateCcw } from 'lucide-react';
+import { Check, ChevronDown, Lock, RotateCcw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,7 +36,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { InfoSquareButton } from '@/components/UI/info-square-button';
 import { cn } from '@/lib/utils';
 import type {
   OnboardingChip,
@@ -80,15 +78,6 @@ interface OnboardingChecklistItem {
    * the sidebar width. Only meaningful on top-level (phase) items;
    * unused on children. Falls back to ``title`` when unset. */
   phaseLabel?: string;
-  /** Short one-line description shown on the info tooltip — answers
-   * "why does this step matter?" so the user can decide whether to
-   * engage before clicking through. Keep terse; the tooltip is a
-   * hint, not a doc. */
-  description?: string;
-  /** Rough time estimate ("~30s", "~2min") surfaced in the info
-   * tooltip. Optional because some steps (e.g. group headers) are
-   * compounded and don't have a single-number estimate. */
-  estimatedTime?: string;
   /** When set, clicking the row dispatches this action via the
    * surface-supplied handler. Items without an action render as
    * static (informational) rows. */
@@ -103,17 +92,13 @@ interface OnboardingChecklistItem {
    * progress bar — same accounting model as the per-assistant setup
    * roadmap. */
   children?: OnboardingChecklistItem[];
-  /** Whether the row can be skipped with the inline Skip affordance. */
-  canSkip?: boolean;
 }
 
 /**
  * Maps each server step id to the surface-specific action this Console
- * dispatches when the row is clicked. This is the *only* per-step copy
- * Console owns — pure client behaviour (which handler to fire) that has no
- * place in the backend graph. Everything else (titles, descriptions, time
- * estimates, suggestion chips, phase headers) is sourced from the server's
- * onboarding render, which reads it from Orchestra's canonical graph.
+ * dispatches when the row is clicked. This is the *only* per-step mapping
+ * Console owns — pure client behaviour that has no place in the backend
+ * graph. Everything else is sourced from Orchestra's canonical graph.
  */
 const STEP_ACTIONS: Record<string, ChecklistAction> = {
   'email-reference': 'trigger-email-reference',
@@ -140,26 +125,44 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   schedule: 'schedule',
 };
 
-const INFO_ONLY_ACTIONS = new Set<ChecklistAction>([
-  'start-email-reply',
-  'start-whatsapp-message',
-  'start-whatsapp-call',
-  'start-sms-message',
-  'start-phone-call',
-  'start-slack-message',
-  'start-discord-message',
-]);
+const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
+  'trigger-email-reference': 'Sending...',
+  'start-email-reply': 'Checking...',
+  'trigger-whatsapp-message-reference': 'Sending...',
+  'start-whatsapp-message': 'Checking...',
+  'trigger-whatsapp-call-reference': 'Sending...',
+  'start-whatsapp-call': 'Checking...',
+  'trigger-sms-reference': 'Sending...',
+  'start-sms-message': 'Checking...',
+  'trigger-phone-call-reference': 'Sending...',
+  'start-phone-call': 'Checking...',
+  'trigger-slack-reference': 'Sending...',
+  'start-slack-message': 'Checking...',
+  'trigger-discord-reference': 'Sending...',
+  'start-discord-message': 'Checking...',
+};
+const ACTION_FEEDBACK_MS = 4_500;
 
 interface ResolvedChecklistItem extends OnboardingChecklistItem {
   done: boolean;
   skipped: boolean;
   locked: boolean;
+  comingSoon?: boolean;
   status: 'pending' | 'done' | 'skipped';
   sectionSkipped?: boolean;
   children?: ResolvedChecklistItem[];
 }
 
 const EMPTY_ONBOARDING_STEP_IDS: ReadonlySet<string> = new Set();
+type BlockingFeedbackHint = 'next' | 'locked';
+const EMPTY_BLOCKING_STEP_HINTS: ReadonlyMap<string, BlockingFeedbackHint> = new Map();
+
+function comingSoonTitle(title: string): string {
+  const trimmed = title.trim();
+  if (!trimmed || /^\[coming soon\]$/i.test(trimmed)) return '[coming soon]';
+  if (/\[coming soon\]$/i.test(trimmed)) return trimmed;
+  return `${trimmed} [coming soon]`;
+}
 
 function isOnboardingDependencySatisfied(
   status: OnboardingStepStatus,
@@ -247,25 +250,20 @@ function buildVisibleChecklist(
   for (const step of render.steps) {
     const phaseSkipped = skippedPhases.has(step.phase);
     const localStatus = localStatuses.get(step.id) ?? step.status;
-    const locked = localStatus === 'locked' || localStatus === 'coming_soon';
+    const action = STEP_ACTIONS[step.id];
+    const isUnavailableAction =
+      localStatus === 'available' && !!action && !isActionWired(action) && !phaseSkipped;
+    const comingSoon = localStatus === 'coming_soon' || isUnavailableAction;
+    const locked = localStatus === 'locked' || comingSoon;
     let status: 'pending' | 'done' | 'skipped';
     if (localStatus === 'done') status = 'done';
     else if (localStatus === 'skipped') status = 'skipped';
     else status = 'pending';
 
-    const action = STEP_ACTIONS[step.id];
-    // An available row with an action that isn't wired on this surface
-    // can never be actioned here — hide it rather than show a dead row.
-    if (status === 'pending' && !locked && action && !isActionWired(action) && !phaseSkipped) {
-      continue;
-    }
-
     const leaf: ResolvedChecklistItem = {
       id: step.id,
-      title: step.title,
+      title: comingSoon ? comingSoonTitle(step.title) : step.title,
       phase: step.phase,
-      description: step.description || undefined,
-      estimatedTime: step.estimatedTime || undefined,
       chipsChat: step.chipsChat,
       chipsCall: step.chipsCall,
       dependencies: step.dependencies.map((dependency) => {
@@ -277,10 +275,10 @@ function buildVisibleChecklist(
         };
       }),
       action,
-      canSkip: step.canSkip,
       done: status === 'done',
       skipped: status === 'skipped',
       locked,
+      comingSoon,
       status,
     };
     const list = leavesByPhase.get(step.phase) ?? [];
@@ -290,8 +288,9 @@ function buildVisibleChecklist(
 
   const result: ResolvedChecklistItem[] = [];
   for (const phase of render.phases) {
+    const isCommunication = phase.id === COMMUNICATION_SECTION_ID;
     const children = leavesByPhase.get(phase.phase) ?? [];
-    const sectionSkipped = skippedPhases.has(phase.phase);
+    const sectionSkipped = isCommunication && skippedPhases.has(phase.phase);
     const hasChildren = children.length > 0;
     const childrenAllDone = hasChildren && children.every((child) => child.status === 'done');
     const childrenAllResolved =
@@ -305,7 +304,6 @@ function buildVisibleChecklist(
       title: phase.title,
       phase: phase.phase,
       phaseLabel: phase.phase,
-      description: phase.description,
       done,
       skipped,
       locked: false,
@@ -319,6 +317,7 @@ function buildVisibleChecklist(
 
 const CHECKLIST_CONTROL_GRID_CLASS =
   '-mx-1.5 grid w-full grid-cols-[minmax(0,1fr)_4.5rem_1.5rem] gap-1 px-1.5';
+const COMMUNICATION_SECTION_ID = 'communication';
 
 const COMMUNICATION_SUBGROUPS: ReadonlyArray<{
   id: string;
@@ -361,6 +360,43 @@ function collectVisibleLeaves(items: readonly ResolvedChecklistItem[]): Resolved
   );
 }
 
+function collectBlockingStepHints(
+  stepId: string,
+  items: readonly ResolvedChecklistItem[]
+): ReadonlyMap<string, BlockingFeedbackHint> {
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const result = new Map<string, BlockingFeedbackHint>();
+  const seen = new Set<string>();
+
+  const visit = (currentStepId: string) => {
+    const current = byId.get(currentStepId);
+    if (!current) return;
+    for (const dependency of current.dependencies ?? []) {
+      if (dependency.satisfied || seen.has(dependency.id)) continue;
+      seen.add(dependency.id);
+      const dependencyItem = byId.get(dependency.id);
+      if (!dependencyItem) continue;
+      const canPointAtDependency =
+        !dependencyItem.sectionSkipped && dependencyItem.status !== 'done';
+      const dependencyHasBlockingDependencies = dependencyItem.dependencies?.some(
+        (innerDependency) => !innerDependency.satisfied
+      );
+      if (!dependencyItem.locked && canPointAtDependency) {
+        result.set(dependency.id, 'next');
+      } else if (dependencyHasBlockingDependencies) {
+        visit(dependency.id);
+      } else if (canPointAtDependency) {
+        result.set(dependency.id, dependencyItem.locked ? 'locked' : 'next');
+      } else {
+        visit(dependency.id);
+      }
+    }
+  };
+
+  visit(stepId);
+  return result;
+}
+
 function progressForItems(items: readonly ResolvedChecklistItem[]): {
   completed: number;
   total: number;
@@ -401,12 +437,12 @@ function hasResolvedLeaf(item: ResolvedChecklistItem): boolean {
 function createComingSoonPlaceholder(section: ResolvedChecklistItem): ResolvedChecklistItem {
   return {
     id: `${section.id}-coming-soon-placeholder`,
-    title: '[Coming soon]',
+    title: '[coming soon]',
     phase: section.phase,
-    canSkip: false,
     done: false,
     skipped: false,
     locked: true,
+    comingSoon: true,
     status: 'pending',
   };
 }
@@ -437,17 +473,16 @@ function containsLeafId(item: ResolvedChecklistItem, leafId: string): boolean {
  */
 function findNextActionableId(
   items: ResolvedChecklistItem[],
-  isActionWired: (action: ChecklistAction | undefined) => boolean,
-  canMarkLater: boolean
+  isActionWired: (action: ChecklistAction | undefined) => boolean
 ): string | null {
   for (const item of items) {
     if (item.sectionSkipped) continue;
     if (item.children?.length) {
-      const inner = findNextActionableId(item.children, isActionWired, canMarkLater);
+      const inner = findNextActionableId(item.children, isActionWired);
       if (inner) return inner;
       continue;
     }
-    if (!item.locked && item.status === 'pending' && (isActionWired(item.action) || canMarkLater)) {
+    if (!item.locked && item.status === 'pending' && item.action && isActionWired(item.action)) {
       return item.id;
     }
   }
@@ -489,8 +524,6 @@ export interface CoordinatorOnboardingChecklistProps {
    * "Schedule a task for later". Unset means the row degrades to a
    * static entry. */
   onScheduleTask?: () => void;
-  onSkipStep?: (stepId: string) => void;
-  onUnskipStep?: (stepId: string) => void;
   onSkipSection?: (phaseId: string) => void;
   onUnskipSection?: (phaseId: string) => void;
   /** Whether the user is currently on a voice call (vs. chat).
@@ -512,8 +545,6 @@ export function CoordinatorOnboardingChecklist({
   onConnectApps,
   onActNow,
   onScheduleTask,
-  onSkipStep,
-  onUnskipStep,
   onSkipSection,
   onUnskipSection,
   isOnCall = false,
@@ -528,11 +559,27 @@ export function CoordinatorOnboardingChecklist({
   const completedStepIds = ctx?.completedStepIds ?? EMPTY_ONBOARDING_STEP_IDS;
   const skippedStepIds = ctx?.skippedStepIds ?? EMPTY_ONBOARDING_STEP_IDS;
   const resetStepIds = ctx?.resetStepIds ?? EMPTY_ONBOARDING_STEP_IDS;
+  const firstLoginCommunicationEmailOpenRequest = ctx?.firstLoginCommunicationEmailOpenRequest ?? 0;
+  const acknowledgeFirstLoginCommunicationEmailOpen =
+    ctx?.acknowledgeFirstLoginCommunicationEmailOpen;
   const [openSectionIds, setOpenSectionIds] = React.useState<ReadonlySet<string>>(() => new Set());
   const [openSubgroupIds, setOpenSubgroupIds] = React.useState<ReadonlySet<string>>(
     () => new Set()
   );
+  const [blockedFeedback, setBlockedFeedback] = React.useState<{
+    stepId: string;
+    token: number;
+    blockingStepHints: ReadonlyMap<string, BlockingFeedbackHint>;
+  } | null>(null);
+  const [actionFeedbackByStepId, setActionFeedbackByStepId] = React.useState<
+    ReadonlyMap<string, string>
+  >(() => new Map());
+  const actionFeedbackTimeoutsRef = React.useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map()
+  );
   const didInitializeOpenSectionRef = React.useRef(false);
+  const blockedFeedbackTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const blockedFeedbackTokenRef = React.useRef(0);
 
   const handleAction = React.useCallback(
     (action: ChecklistAction) => {
@@ -575,6 +622,41 @@ export function CoordinatorOnboardingChecklist({
       onActNow,
       onScheduleTask,
     ]
+  );
+
+  const triggerActionFeedback = React.useCallback((stepId: string, label: string) => {
+    const existingTimeout = actionFeedbackTimeoutsRef.current.get(stepId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+    setActionFeedbackByStepId((current) => {
+      if (current.get(stepId) === label) return current;
+      const next = new Map(current);
+      next.set(stepId, label);
+      return next;
+    });
+    const timeout = setTimeout(() => {
+      actionFeedbackTimeoutsRef.current.delete(stepId);
+      setActionFeedbackByStepId((current) => {
+        if (!current.has(stepId)) return current;
+        const next = new Map(current);
+        next.delete(stepId);
+        return next;
+      });
+    }, ACTION_FEEDBACK_MS);
+    actionFeedbackTimeoutsRef.current.set(stepId, timeout);
+  }, []);
+
+  const handleChecklistRowAction = React.useCallback(
+    (item: ResolvedChecklistItem) => {
+      if (!item.action) return;
+      const actionFeedbackLabel = ACTION_FEEDBACK_LABELS[item.action];
+      if (actionFeedbackLabel) {
+        triggerActionFeedback(item.id, actionFeedbackLabel);
+      }
+      handleAction(item.action);
+    },
+    [handleAction, triggerActionFeedback]
   );
 
   // An action is reachable when the parent has wired the
@@ -653,13 +735,44 @@ export function CoordinatorOnboardingChecklist({
     [onboarding, isActionWired, completedStepIds, skippedStepIds, resetStepIds]
   );
   const visibleLeaves = React.useMemo(() => collectVisibleLeaves(resolved), [resolved]);
+  const triggerBlockedFeedback = React.useCallback(
+    (stepId: string) => {
+      if (blockedFeedbackTimeoutRef.current) {
+        clearTimeout(blockedFeedbackTimeoutRef.current);
+      }
+      blockedFeedbackTokenRef.current += 1;
+      setBlockedFeedback({
+        stepId,
+        token: blockedFeedbackTokenRef.current,
+        blockingStepHints: collectBlockingStepHints(stepId, visibleLeaves),
+      });
+      blockedFeedbackTimeoutRef.current = setTimeout(() => {
+        setBlockedFeedback(null);
+        blockedFeedbackTimeoutRef.current = null;
+      }, 1_000);
+    },
+    [visibleLeaves]
+  );
+
+  React.useEffect(
+    () => () => {
+      if (blockedFeedbackTimeoutRef.current) {
+        clearTimeout(blockedFeedbackTimeoutRef.current);
+      }
+      for (const timeout of actionFeedbackTimeoutsRef.current.values()) {
+        clearTimeout(timeout);
+      }
+      actionFeedbackTimeoutsRef.current.clear();
+    },
+    []
+  );
 
   // ID of the leaf row the user should tackle next. The value still
   // drives hidden state markers, but the checklist does not render an
   // inline "Next" marker.
   const nextActionableId = React.useMemo(
-    () => findNextActionableId(resolved, isActionWired, !!onSkipStep),
-    [resolved, isActionWired, onSkipStep]
+    () => findNextActionableId(resolved, isActionWired),
+    [resolved, isActionWired]
   );
   React.useEffect(() => {
     const sectionIds = resolved.map((section) => section.id);
@@ -678,6 +791,33 @@ export function CoordinatorOnboardingChecklist({
     setOpenSectionIds(new Set([defaultSection?.id ?? resolved[0].id]));
     didInitializeOpenSectionRef.current = true;
   }, [nextActionableId, resolved]);
+
+  const hasVisibleEmailSubgroup = React.useMemo(() => {
+    const communicationSection = resolved.find(
+      (section) => section.id === COMMUNICATION_SECTION_ID
+    );
+    if (!communicationSection?.children?.length) return false;
+    return communicationSubgroups(communicationSection.children).some(
+      (group) => group.id === 'email'
+    );
+  }, [resolved]);
+
+  React.useEffect(() => {
+    if (firstLoginCommunicationEmailOpenRequest <= 0 || !hasVisibleEmailSubgroup) return;
+    setOpenSectionIds((current) => {
+      if (current.has(COMMUNICATION_SECTION_ID)) return current;
+      return new Set([...current, COMMUNICATION_SECTION_ID]);
+    });
+    setOpenSubgroupIds((current) => {
+      if (current.has('email')) return current;
+      return new Set([...current, 'email']);
+    });
+    acknowledgeFirstLoginCommunicationEmailOpen?.();
+  }, [
+    acknowledgeFirstLoginCommunicationEmailOpen,
+    firstLoginCommunicationEmailOpenRequest,
+    hasVisibleEmailSubgroup,
+  ]);
 
   const toggleSection = React.useCallback((sectionId: string) => {
     setOpenSectionIds((current) => {
@@ -706,9 +846,24 @@ export function CoordinatorOnboardingChecklist({
         data-testid="coordinator-onboarding-deferred"
       >
         <div className="rounded-control bg-muted/40 px-2.5 py-2">
-          <span className="text-body-sm text-muted-foreground">
-            Onboarding paused — you can pick it up anytime.
-          </span>
+          <p className="text-body-sm text-muted-foreground">
+            Onboarding paused — you can{' '}
+            {resumeOnboarding ? (
+              <button
+                type="button"
+                onClick={resumeOnboarding}
+                className={cn(
+                  'rounded-control font-medium text-primary',
+                  'hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+                )}
+              >
+                resume
+              </button>
+            ) : (
+              <span className="font-medium text-primary">resume</span>
+            )}{' '}
+            anytime.
+          </p>
         </div>
         <div className="mt-auto flex flex-shrink-0 justify-end pt-2">
           {resumeOnboarding ? (
@@ -738,10 +893,27 @@ export function CoordinatorOnboardingChecklist({
   const canDeferAll = !!deferOnboarding && nextActionableId !== null;
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col gap-3', className)}>
-      <ul
-        className="min-h-0 flex-1 space-y-2.5 overflow-y-auto"
-        data-testid="coordinator-onboarding-checklist"
-      >
+      <ul className="min-h-0 flex-1 overflow-y-auto" data-testid="coordinator-onboarding-checklist">
+        <style jsx>{`
+          @keyframes coordinator-onboarding-blocked-jiggle {
+            0%,
+            100% {
+              transform: translateX(0);
+            }
+            20% {
+              transform: translateX(-1.5px);
+            }
+            40% {
+              transform: translateX(1.5px);
+            }
+            60% {
+              transform: translateX(-1px);
+            }
+            80% {
+              transform: translateX(1px);
+            }
+          }
+        `}</style>
         {resolved.map((section, index) => {
           const isOpen = openSectionIds.has(section.id);
           const hasVisibleChildren = (section.children?.length ?? 0) > 0;
@@ -749,7 +921,7 @@ export function CoordinatorOnboardingChecklist({
             ? section.children!
             : [createComingSoonPlaceholder(section)];
           return (
-            <li key={section.id} className="space-y-2">
+            <li key={section.id}>
               <SectionHeader
                 section={section}
                 index={index}
@@ -758,8 +930,8 @@ export function CoordinatorOnboardingChecklist({
                 onToggle={() => toggleSection(section.id)}
               />
               {isOpen ? (
-                <ul className="space-y-2">
-                  {section.id === 'communication'
+                <ul>
+                  {section.id === COMMUNICATION_SECTION_ID
                     ? communicationSubgroups(sectionItems).map((group, groupIndex) => (
                         <CommunicationSubgroup
                           key={group.id}
@@ -775,13 +947,18 @@ export function CoordinatorOnboardingChecklist({
                               item={item}
                               isChild
                               isInSkippedSection={section.sectionSkipped === true}
-                              onAction={handleAction}
+                              onAction={handleChecklistRowAction}
                               isActionWired={isActionWired}
                               nextActionableId={nextActionableId}
                               allVisibleItems={visibleLeaves}
+                              actionFeedback={actionFeedbackByStepId.get(item.id)}
+                              blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
+                              blockedFeedbackToken={blockedFeedback?.token ?? 0}
+                              blockingStepHints={
+                                blockedFeedback?.blockingStepHints ?? EMPTY_BLOCKING_STEP_HINTS
+                              }
+                              onBlockedStepClick={triggerBlockedFeedback}
                               isOnCall={isOnCall}
-                              onSkipStep={onSkipStep}
-                              onUnskipStep={onUnskipStep}
                               onResetStepProgress={resetStepProgress}
                             />
                           ))}
@@ -793,13 +970,18 @@ export function CoordinatorOnboardingChecklist({
                           item={item}
                           isChild
                           isInSkippedSection={section.sectionSkipped === true}
-                          onAction={handleAction}
+                          onAction={handleChecklistRowAction}
                           isActionWired={isActionWired}
                           nextActionableId={nextActionableId}
                           allVisibleItems={visibleLeaves}
+                          actionFeedback={actionFeedbackByStepId.get(item.id)}
+                          blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
+                          blockedFeedbackToken={blockedFeedback?.token ?? 0}
+                          blockingStepHints={
+                            blockedFeedback?.blockingStepHints ?? EMPTY_BLOCKING_STEP_HINTS
+                          }
+                          onBlockedStepClick={triggerBlockedFeedback}
                           isOnCall={isOnCall}
-                          onSkipStep={onSkipStep}
-                          onUnskipStep={onUnskipStep}
                           onResetStepProgress={resetStepProgress}
                         />
                       ))}
@@ -820,7 +1002,7 @@ export function CoordinatorOnboardingChecklist({
             )}
             data-testid="coordinator-onboarding-defer-all"
           >
-            Skip onboarding for now
+            Pause onboarding for now
           </button>
         ) : (
           <span aria-hidden="true" />
@@ -864,14 +1046,14 @@ function SectionHeader({ section, index, progress, isOpen, onToggle }: SectionHe
       aria-expanded={isOpen}
       className={cn(
         CHECKLIST_CONTROL_GRID_CLASS,
-        'group/onboarding-section rounded-control items-center py-3 text-left',
-        'hover:bg-muted/70 focus-visible:bg-muted/70 bg-transparent transition-colors',
+        'group/onboarding-section rounded-control cursor-pointer items-center py-3 text-left',
+        'bg-transparent transition-colors',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
       )}
       data-testid={`coordinator-onboarding-section-${section.id}`}
     >
       <span
-        className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground"
+        className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground transition-colors group-hover/onboarding-section:text-muted-foreground group-focus-visible/onboarding-section:text-muted-foreground"
         data-testid={`coordinator-onboarding-section-${section.id}-toggle`}
       >
         {label}
@@ -903,19 +1085,19 @@ function CommunicationSubgroup({
   children: React.ReactNode;
 }) {
   return (
-    <li className="space-y-2" data-testid={`coordinator-onboarding-communication-${id}`}>
+    <li data-testid={`coordinator-onboarding-communication-${id}`}>
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={isOpen}
         className={cn(
           CHECKLIST_CONTROL_GRID_CLASS,
-          'rounded-control items-center py-2 pl-5 text-left',
-          'hover:bg-muted/70 focus-visible:bg-muted/70 bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+          'group/onboarding-subgroup rounded-control cursor-pointer items-center py-3 pl-5 text-left',
+          'bg-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         )}
         data-testid={`coordinator-onboarding-communication-${id}-toggle`}
       >
-        <span className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground">
+        <span className="text-body-sm min-w-0 flex-1 truncate font-medium text-foreground transition-colors group-hover/onboarding-subgroup:text-muted-foreground group-focus-visible/onboarding-subgroup:text-muted-foreground">
           {title}
         </span>
         <CompactProgress completed={progress.completed} total={progress.total} />
@@ -926,7 +1108,7 @@ function CommunicationSubgroup({
           />
         </span>
       </button>
-      {isOpen ? <ul className="space-y-2">{children}</ul> : null}
+      {isOpen ? <ul>{children}</ul> : null}
     </li>
   );
 }
@@ -935,7 +1117,7 @@ interface ChecklistRowProps {
   item: ResolvedChecklistItem;
   isChild?: boolean;
   isInSkippedSection?: boolean;
-  onAction: (action: ChecklistAction) => void;
+  onAction: (item: ResolvedChecklistItem) => void;
   isActionWired: (action: ChecklistAction | undefined) => boolean;
   /** ID of the next leaf the user should tackle. Used for default
    * section selection and hidden state markers; threaded down rather
@@ -943,14 +1125,17 @@ interface ChecklistRowProps {
    * in total. */
   nextActionableId: string | null;
   allVisibleItems: readonly ResolvedChecklistItem[];
+  actionFeedback?: string;
+  blockedFeedbackStepId: string | null;
+  blockedFeedbackToken: number;
+  blockingStepHints: ReadonlyMap<string, BlockingFeedbackHint>;
+  onBlockedStepClick: (stepId: string) => void;
   /** Whether the user is on a call — selects the call vs. chat
    * "Act now" suggestion chips. */
   isOnCall: boolean;
-  onSkipStep?: (stepId: string) => void;
-  onUnskipStep?: (stepId: string) => void;
   onSkipSection?: (phaseId: string) => void;
   onUnskipSection?: (phaseId: string) => void;
-  onResetStepProgress?: (stepIds: readonly string[]) => void;
+  onResetStepProgress?: (stepIds: readonly string[], resetStepId?: string) => void;
 }
 
 function ChecklistRow({
@@ -961,25 +1146,26 @@ function ChecklistRow({
   isActionWired,
   nextActionableId,
   allVisibleItems,
+  actionFeedback,
+  blockedFeedbackStepId,
+  blockedFeedbackToken,
+  blockingStepHints,
+  onBlockedStepClick,
   isOnCall,
-  onSkipStep,
-  onUnskipStep,
   onResetStepProgress,
 }: ChecklistRowProps) {
   const hasWiredAction = isActionWired(item.action);
   const isResolved = item.status !== 'pending';
   const isNext = nextActionableId === item.id;
   const sectionDisabled = isInSkippedSection || item.sectionSkipped === true;
-  const isActionable = hasWiredAction && !item.locked && !isResolved && !sectionDisabled;
-  const canSkip =
-    !!onSkipStep &&
-    item.canSkip !== false &&
-    !item.locked &&
-    !item.children?.length &&
-    !isResolved &&
-    !sectionDisabled;
-  const canUnskip =
-    !!onUnskipStep && !sectionDisabled && !item.children?.length && item.status === 'skipped';
+  const isActionable =
+    hasWiredAction && !!item.action && !item.locked && !isResolved && !sectionDisabled;
+  const canShowBlockedFeedback =
+    item.locked && !item.children?.length && item.status === 'pending' && !sectionDisabled;
+  const shouldJiggle = blockedFeedbackStepId === item.id;
+  const blockingHint = blockingStepHints.get(item.id);
+  const showActionFeedback =
+    !!actionFeedback && item.status === 'pending' && !item.locked && !sectionDisabled;
   const canResetSection =
     !isChild &&
     !!item.children?.length &&
@@ -987,50 +1173,19 @@ function ChecklistRow({
     !item.sectionSkipped &&
     hasResolvedLeaf(item);
   const resetStepIds = React.useMemo(() => collectVisibleLeafIds(item), [item]);
-  const undoStepIds = React.useMemo(
+  const rowResetStepIds = React.useMemo(
     () => collectDependentStepIds(item.id, allVisibleItems),
     [allVisibleItems, item.id]
   );
   // Only inaccessible/future rows dim. Addressed rows (done or skipped)
   // should remain readable so their state is clear.
   const dim = item.locked || sectionDisabled;
-  const unresolvedDependencies =
-    item.dependencies?.filter((dependency) => !dependency.satisfied) ?? [];
-  const hasDependencyInfo = item.locked && unresolvedDependencies.length > 0;
-  const hasInfo = !!item.description || !!item.estimatedTime || hasDependencyInfo;
-  const [isInfoTooltipOpen, setIsInfoTooltipOpen] = React.useState(false);
-  const [isInfoTooltipPinnedToLabel, setIsInfoTooltipPinnedToLabel] = React.useState(false);
-  const dependencyInfoTriggerRef = React.useRef<HTMLSpanElement | null>(null);
-
-  React.useEffect(() => {
-    if (!isInfoTooltipPinnedToLabel) return;
-    const handlePointerMove = (event: PointerEvent) => {
-      const trigger = dependencyInfoTriggerRef.current;
-      if (!trigger) {
-        setIsInfoTooltipOpen(false);
-        setIsInfoTooltipPinnedToLabel(false);
-        return;
-      }
-      const rect = trigger.getBoundingClientRect();
-      const isInside =
-        event.clientX >= rect.left &&
-        event.clientX <= rect.right &&
-        event.clientY >= rect.top &&
-        event.clientY <= rect.bottom;
-      if (!isInside) {
-        setIsInfoTooltipOpen(false);
-        setIsInfoTooltipPinnedToLabel(false);
-      }
-    };
-    window.addEventListener('pointermove', handlePointerMove);
-    return () => window.removeEventListener('pointermove', handlePointerMove);
-  }, [isInfoTooltipPinnedToLabel]);
-
   const rowClassName = (variant: 'done' | 'skipped' | 'actionable' | 'static') =>
     cn(
       CHECKLIST_CONTROL_GRID_CLASS,
       'group/onboarding-row items-start rounded-md py-1',
-      variant === 'actionable' && 'cursor-pointer hover:bg-muted/50'
+      variant === 'actionable' && 'cursor-pointer hover:bg-muted/50',
+      canShowBlockedFeedback && 'cursor-pointer hover:bg-muted/40'
     );
 
   const renderLabel = (variant: 'done' | 'skipped' | 'actionable' | 'static') => (
@@ -1040,67 +1195,29 @@ function ChecklistRow({
         variant === 'done' && 'text-muted-foreground line-through',
         variant === 'skipped' && 'text-muted-foreground line-through',
         variant === 'actionable' && 'text-foreground',
-        variant === 'static' && 'text-foreground'
+        variant === 'static' && (item.comingSoon ? 'text-muted-foreground' : 'text-foreground')
       )}
     >
       {item.title}
     </span>
   );
 
-  const renderDependencyInfo = () =>
-    hasDependencyInfo ? (
-      <div className="text-caption leading-snug text-muted-foreground">
-        <p className="font-medium text-foreground">Depends on:</p>
-        <ul className="mt-1 list-disc space-y-0.5 pl-4">
-          {unresolvedDependencies.map((dependency) => (
-            <li key={dependency.id}>{dependency.title}</li>
-          ))}
-        </ul>
-      </div>
-    ) : null;
-
   const dimClassName = dim ? 'opacity-50 transition-opacity' : undefined;
-  const canSelect = isActionable && !!item.action;
-  const canUndo = item.status === 'done' && !!onResetStepProgress;
-  const hasRowMenu = canSelect || canSkip || canUnskip || canUndo;
-  const opensInfoFromAction = !!item.action && hasInfo && INFO_ONLY_ACTIONS.has(item.action);
-  const handleActionSelect = () => {
-    if (!item.action) return;
-    if (opensInfoFromAction) {
-      setIsInfoTooltipPinnedToLabel(true);
-      setIsInfoTooltipOpen(true);
-      return;
-    }
-    onAction(item.action);
-  };
+  const canReset = item.status === 'done' && !!onResetStepProgress;
+  const hasRowMenu = canReset;
 
   const renderMarkerAndLabel = (variant: 'done' | 'skipped' | 'actionable' | 'static') => {
     const content = (
       <span
-        ref={dependencyInfoTriggerRef}
         className={cn(
           'flex min-w-0 flex-1 items-start',
           isChild && 'pl-6',
           hasRowMenu && 'cursor-pointer',
-          dimClassName,
-          hasDependencyInfo &&
-            'rounded-control cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+          dimClassName
         )}
-        onClick={
-          hasDependencyInfo
-            ? () => {
-                setIsInfoTooltipPinnedToLabel((pinned) => {
-                  const next = !pinned;
-                  setIsInfoTooltipOpen(next);
-                  return next;
-                });
-              }
-            : undefined
-        }
-        data-testid={hasDependencyInfo ? `coordinator-onboarding-lock-hover-${item.id}` : undefined}
       >
         <span className="inline-flex min-w-0 items-start gap-2">
-          <ChecklistMarker status={item.status} />
+          <ChecklistMarker status={item.status} locked={item.comingSoon === true} />
           {renderLabel(variant)}
         </span>
       </span>
@@ -1117,22 +1234,11 @@ function ChecklistRow({
           alignOffset={isChild ? 24 : 0}
           className="min-w-[6rem]"
         >
-          {canUndo ? (
-            <DropdownMenuItem onSelect={() => onResetStepProgress?.(undoStepIds)}>
-              Undo
+          {canReset ? (
+            <DropdownMenuItem onSelect={() => onResetStepProgress?.(rowResetStepIds, item.id)}>
+              Reset
             </DropdownMenuItem>
-          ) : item.status === 'skipped' ? (
-            <DropdownMenuItem onSelect={() => onUnskipStep?.(item.id)}>Unskip</DropdownMenuItem>
-          ) : (
-            <>
-              {canSelect ? (
-                <DropdownMenuItem onSelect={handleActionSelect}>Action</DropdownMenuItem>
-              ) : null}
-              {canSkip ? (
-                <DropdownMenuItem onSelect={() => onSkipStep?.(item.id)}>Skip</DropdownMenuItem>
-              ) : null}
-            </>
-          )}
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -1181,78 +1287,32 @@ function ChecklistRow({
       </AlertDialog>
     ) : null;
 
-  const renderInfoTooltip = () =>
-    hasInfo ? (
-      <TooltipProvider delayDuration={150}>
-        <Tooltip disableHoverableContent open={isInfoTooltipOpen}>
-          <TooltipTrigger asChild>
-            <InfoSquareButton
-              // ``span``-like click target nested inside the
-              // actionable button isn't valid HTML — stop the
-              // propagation so opening the tooltip never
-              // double-fires the row action.
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsInfoTooltipPinnedToLabel(false);
-                setIsInfoTooltipOpen(true);
-              }}
-              onMouseEnter={() => {
-                setIsInfoTooltipPinnedToLabel(false);
-                setIsInfoTooltipOpen(true);
-              }}
-              onMouseLeave={() => {
-                setIsInfoTooltipPinnedToLabel(false);
-                setIsInfoTooltipOpen(false);
-              }}
-              onFocus={() => {
-                setIsInfoTooltipPinnedToLabel(false);
-                setIsInfoTooltipOpen(true);
-              }}
-              onBlur={() => {
-                setIsInfoTooltipPinnedToLabel(false);
-                setIsInfoTooltipOpen(false);
-              }}
-              aria-label={
-                item.locked ? `Why is "${item.title}" locked?` : `What is "${item.title}"?`
-              }
-              className="border-muted-foreground/60 text-muted-foreground/60"
-              data-testid={`coordinator-onboarding-info-${item.id}`}
-            />
-          </TooltipTrigger>
-          <TooltipContent
-            side="left"
-            className="pointer-events-none max-w-[220px]"
-            data-testid={`coordinator-onboarding-info-content-${item.id}`}
-          >
-            <div className="flex flex-col gap-1.5">
-              {item.description || item.estimatedTime ? (
-                <p className="text-caption leading-snug">
-                  {item.description}
-                  {item.description && item.estimatedTime ? (
-                    <span className="text-muted-foreground"> · {item.estimatedTime}</span>
-                  ) : item.estimatedTime ? (
-                    <span className="text-muted-foreground">{item.estimatedTime}</span>
-                  ) : null}
-                </p>
-              ) : null}
-              {hasDependencyInfo ? renderDependencyInfo() : null}
-            </div>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    ) : null;
-
   const rowBody = (variant: 'done' | 'skipped' | 'actionable' | 'static') => (
     <div className={rowClassName(variant)}>
       {renderMarkerAndLabel(variant)}
       <span className="flex h-6 items-center justify-center gap-1">
-        <span className={cn('flex h-6 items-center justify-center gap-1', dimClassName)}>
-          {renderResetSectionButton()}
-        </span>
+        {showActionFeedback ? (
+          <span
+            className="text-caption whitespace-nowrap font-medium text-primary"
+            aria-live="polite"
+            data-testid={`coordinator-onboarding-action-feedback-${item.id}`}
+          >
+            {actionFeedback}
+          </span>
+        ) : blockingHint ? (
+          <span
+            className="text-caption whitespace-nowrap font-medium text-primary"
+            data-testid={`coordinator-onboarding-blocking-arrow-${item.id}`}
+          >
+            ← {blockingHint === 'next' ? 'Next' : 'Locked'}
+          </span>
+        ) : (
+          <span className={cn('flex h-6 items-center justify-center gap-1', dimClassName)}>
+            {renderResetSectionButton()}
+          </span>
+        )}
       </span>
-      <span className={cn('flex h-6 items-center justify-center', dimClassName)}>
-        {renderInfoTooltip()}
-      </span>
+      <span aria-hidden="true" className="flex h-6 items-center justify-center" />
     </div>
   );
 
@@ -1272,8 +1332,15 @@ function ChecklistRow({
   } else if (isActionable) {
     row = (
       <div
-        role={hasRowMenu ? 'button' : undefined}
-        tabIndex={hasRowMenu ? 0 : undefined}
+        role="button"
+        tabIndex={0}
+        onClick={() => onAction(item)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onAction(item);
+          }
+        }}
         className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         data-testid={`coordinator-onboarding-item-${item.id}`}
         data-next={isNext ? 'true' : undefined}
@@ -1284,9 +1351,34 @@ function ChecklistRow({
   } else {
     row = (
       <div
+        key={shouldJiggle ? `${item.id}-${blockedFeedbackToken}` : item.id}
+        role={canShowBlockedFeedback ? 'button' : undefined}
+        tabIndex={canShowBlockedFeedback ? 0 : undefined}
+        onClick={canShowBlockedFeedback ? () => onBlockedStepClick(item.id) : undefined}
+        onKeyDown={
+          canShowBlockedFeedback
+            ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onBlockedStepClick(item.id);
+                }
+              }
+            : undefined
+        }
+        className={
+          canShowBlockedFeedback
+            ? 'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+            : undefined
+        }
+        style={
+          shouldJiggle
+            ? { animation: 'coordinator-onboarding-blocked-jiggle 280ms ease-out 0s 1' }
+            : undefined
+        }
         data-testid={`coordinator-onboarding-item-${item.id}`}
         data-status={item.locked ? 'locked' : undefined}
         data-next={isNext ? 'true' : undefined}
+        data-blocked-feedback={shouldJiggle ? 'true' : undefined}
       >
         {rowBody('static')}
       </div>
@@ -1349,9 +1441,11 @@ function ChecklistRow({
               isActionWired={isActionWired}
               nextActionableId={nextActionableId}
               allVisibleItems={allVisibleItems}
+              blockedFeedbackStepId={blockedFeedbackStepId}
+              blockedFeedbackToken={blockedFeedbackToken}
+              blockingStepHints={blockingStepHints}
+              onBlockedStepClick={onBlockedStepClick}
               isOnCall={isOnCall}
-              onSkipStep={onSkipStep}
-              onUnskipStep={onUnskipStep}
               onResetStepProgress={onResetStepProgress}
             />
           ))}
@@ -1361,14 +1455,22 @@ function ChecklistRow({
   );
 }
 
-function ChecklistMarker({ status }: { status: 'pending' | 'done' | 'skipped' }) {
+function ChecklistMarker({
+  status,
+  locked = false,
+}: {
+  status: 'pending' | 'done' | 'skipped';
+  locked?: boolean;
+}) {
   const markerClasses = cn(
     'rounded-control mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center border',
     status === 'done'
       ? 'border-[color:var(--role-green-deep)] bg-[color:var(--status-success-bg)] text-[color:var(--role-green-deep)]'
       : status === 'skipped'
         ? 'border-muted-foreground/60 bg-muted text-muted-foreground'
-        : 'border-muted-foreground/40 bg-transparent'
+        : locked
+          ? 'border-muted-foreground/30 bg-muted/30 text-muted-foreground'
+          : 'border-muted-foreground/40 bg-transparent'
   );
 
   // Skipped rows mark the box with an "S" (for "Skip"). The glyph
@@ -1395,7 +1497,11 @@ function ChecklistMarker({ status }: { status: 'pending' | 'done' | 'skipped' })
 
   return (
     <span aria-hidden="true" className={markerClasses}>
-      {status === 'done' ? <Check className="h-3 w-3 stroke-[4]" /> : null}
+      {status === 'done' ? (
+        <Check className="h-3 w-3 stroke-[4]" />
+      ) : locked ? (
+        <Lock className="h-2.5 w-2.5 stroke-[3]" />
+      ) : null}
     </span>
   );
 }

@@ -38,6 +38,13 @@ export interface OnboardingStepDependency {
   satisfied: boolean;
 }
 
+export interface OnboardingEventSpec {
+  eventType: string;
+  message: string;
+  subtype: string;
+  details: Record<string, unknown>;
+}
+
 /**
  * A checklist phase header (grouping row) with its display copy, sourced
  * from Orchestra's canonical graph. ``id`` is the stable header-row id
@@ -51,6 +58,7 @@ export interface OnboardingPhaseInfo {
   phase: string;
   title: string;
   description: string;
+  framing: string;
 }
 
 /**
@@ -64,12 +72,21 @@ export interface OnboardingStep {
   title: string;
   phase: string;
   status: OnboardingStepStatus;
+  kind?: string;
+  channel?: string | null;
+  pairedReply?: string | null;
+  nudgeChat?: string;
+  nudgeVoice?: string;
+  phaseId?: string | null;
   canSkip: boolean;
   description: string;
   estimatedTime: string;
+  flowNote?: string;
   chipsChat: OnboardingChip[];
   chipsCall: OnboardingChip[];
   dependencies: OnboardingStepDependency[];
+  interaction?: Record<string, unknown> | null;
+  event: OnboardingEventSpec | null;
 }
 
 /** A step the Coordinator may nudge toward right now, with ready copy. */
@@ -79,6 +96,11 @@ export interface OnboardingNextTarget {
   nudgeChat: string;
   nudgeVoice: string;
   channel: string | null;
+  kind?: string;
+  pairedReply?: string | null;
+  phase?: string;
+  flowNote?: string;
+  interaction?: Record<string, unknown> | null;
 }
 
 /**
@@ -137,6 +159,13 @@ export interface CoordinatorStateSnapshot {
    * computes step availability.
    */
   onboarding: OnboardingRender | null;
+  /**
+   * Self-contained orientation briefing for a fresh onboarding voice call,
+   * composed server-side from the onboarding graph. Passed to the voice agent
+   * as a ``briefed`` opening so the first call speaks the intro immediately.
+   * Empty outside active onboarding.
+   */
+  voiceIntroBriefing: string;
 }
 
 export interface CoordinatorStatePatch {
@@ -145,6 +174,7 @@ export interface CoordinatorStatePatch {
   clearOnboardingStep?: boolean;
   skipOnboardingStep?: string;
   unskipOnboardingStep?: string;
+  resetOnboardingStep?: string;
   skipOnboardingPhase?: string;
   unskipOnboardingPhase?: string;
   introWatched?: boolean;
@@ -214,6 +244,20 @@ function normalizeOnboardingStepDependencies(value: unknown): OnboardingStepDepe
     .filter((d): d is OnboardingStepDependency => d !== null);
 }
 
+function normalizeOnboardingEvent(value: unknown): OnboardingEventSpec | null {
+  if (!value || typeof value !== 'object') return null;
+  const r = value as Record<string, unknown>;
+  const eventType = r.eventType ?? r.event_type;
+  if (typeof eventType !== 'string' || !eventType.trim()) return null;
+  const details = r.details && typeof r.details === 'object' ? r.details : {};
+  return {
+    eventType,
+    message: typeof r.message === 'string' ? r.message : '',
+    subtype: typeof r.subtype === 'string' ? r.subtype : '',
+    details: details as Record<string, unknown>,
+  };
+}
+
 function normalizeOnboardingPhase(value: unknown): OnboardingPhaseInfo | null {
   if (!value || typeof value !== 'object') return null;
   const r = value as Record<string, unknown>;
@@ -224,6 +268,7 @@ function normalizeOnboardingPhase(value: unknown): OnboardingPhaseInfo | null {
     phase: typeof r.phase === 'string' ? r.phase : '',
     title: typeof r.title === 'string' ? r.title : '',
     description: typeof r.description === 'string' ? r.description : '',
+    framing: typeof r.framing === 'string' ? r.framing : '',
   };
 }
 
@@ -248,6 +293,7 @@ function normalizeOnboardingStep(value: unknown): OnboardingStep | null {
     chipsChat: normalizeChips(r.chipsChat ?? r.chips_chat),
     chipsCall: normalizeChips(r.chipsCall ?? r.chips_call),
     dependencies: normalizeOnboardingStepDependencies(r.dependencies),
+    event: normalizeOnboardingEvent(r.event),
   };
 }
 
@@ -306,6 +352,8 @@ function normalizeSnapshot(coordinatorId: number, raw: unknown): CoordinatorStat
     introWatched: (record.introWatched ?? record.intro_watched) === true,
     onboardingDeferred: (record.onboardingDeferred ?? record.onboarding_deferred) === true,
     onboarding: normalizeOnboardingRender(record.onboarding),
+    voiceIntroBriefing:
+      normalizeString(record.voiceIntroBriefing ?? record.voice_intro_briefing) ?? '',
   };
 }
 
@@ -351,6 +399,7 @@ export async function updateCoordinatorState(
   if (patch.skipOnboardingStep !== undefined) body.skipOnboardingStep = patch.skipOnboardingStep;
   if (patch.unskipOnboardingStep !== undefined)
     body.unskipOnboardingStep = patch.unskipOnboardingStep;
+  if (patch.resetOnboardingStep !== undefined) body.resetOnboardingStep = patch.resetOnboardingStep;
   if (patch.skipOnboardingPhase !== undefined) body.skipOnboardingPhase = patch.skipOnboardingPhase;
   if (patch.unskipOnboardingPhase !== undefined)
     body.unskipOnboardingPhase = patch.unskipOnboardingPhase;

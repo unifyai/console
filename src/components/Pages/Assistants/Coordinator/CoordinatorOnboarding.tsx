@@ -15,7 +15,7 @@
  *
  *   - **Preparing** (``phase === 'preparing'``): the live call is connected
  *     over a brief loading state, then the overlay clears straight into the
- *     docked call where Twin greets naturally.
+ *     docked call where T-W1N greets naturally.
  *
  * There is no post-picker shell — the onboarding checklist lives in the
  * Coordinator's "Assistant info" panel on the regular platform once the
@@ -121,8 +121,7 @@ export function CoordinatorOnboarding({
     }
 
     try {
-      // Plain call connect — Twin greets naturally on answer.
-      await onStartCall(coordinator, 'audio');
+      await onStartCall(coordinator, 'audio', { suppressRinging: true });
     } catch (error) {
       console.error('[CoordinatorOnboarding] Failed to start the call:', error);
       toast.error('Could not start the call. Please try again.');
@@ -180,7 +179,7 @@ export function CoordinatorOnboarding({
 
 /**
  * Full-screen cue shown briefly once the onboarding picker hands off to a
- * live call, confirming the call is connected and Twin is listening.
+ * live call, confirming the call is connected and T-W1N is listening.
  * Rendered at the platform level (over the docked call) since the picker
  * overlay has already torn down by this point.
  */
@@ -215,7 +214,7 @@ export function CoordinatorTalkNowCue({
               <Mic className="h-12 w-12" aria-hidden="true" />
             </div>
             <p className="text-h1 relative font-semibold text-foreground">Talk now!</p>
-            <p className="text-body relative mt-2 text-muted-foreground">Twin is listening.</p>
+            <p className="text-body relative mt-2 text-muted-foreground">T-W1N is listening.</p>
           </motion.div>
         </motion.div>
       )}
@@ -254,7 +253,7 @@ function CoordinatorOnboardingCallPreparing() {
         <div>
           <p className="text-h3 font-medium text-card-foreground">Getting your audio ready</p>
           <p className="text-body mt-2 text-muted-foreground">
-            Twin will start once the call is connected.
+            T-W1N will start once the call is connected.
           </p>
         </div>
       </div>
@@ -332,7 +331,7 @@ function CoordinatorOnboardingPicker({
         style={{ marginTop: -cardOverlapPx, paddingTop: cardOverlapPx + 24 }}
       >
         <p className="text-h3 font-medium text-card-foreground">
-          {voiceCalls ? 'Twin is calling to onboard you' : 'Start onboarding with Twin'}
+          {voiceCalls ? 'T-W1N is calling to onboard you' : 'Start onboarding with T-W1N'}
         </p>
         <div className="flex flex-col items-center gap-3 sm:flex-row">
           {voiceCalls ? (

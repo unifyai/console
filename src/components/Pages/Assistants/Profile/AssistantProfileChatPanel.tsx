@@ -420,6 +420,7 @@ export function AssistantProfileChatPanel({
   });
 
   /* Auto-resize textarea (ChatGPT-style: grows with content, scrollbar after max) */
+  const TEXTAREA_MIN_HEIGHT = 48;
   const TEXTAREA_MAX_HEIGHT = 200;
 
   React.useEffect(() => {
@@ -427,6 +428,7 @@ export function AssistantProfileChatPanel({
     if (!textarea) return;
 
     textarea.style.height = 'auto';
+    textarea.style.minHeight = `${TEXTAREA_MIN_HEIGHT}px`;
     textarea.style.overflowY = 'hidden';
     textarea.style.scrollbarWidth = 'none';
 
@@ -435,7 +437,7 @@ export function AssistantProfileChatPanel({
     // same height. Otherwise the empty state falls back to rows={1}
     // intrinsic sizing which can differ from scrollHeight by a pixel or two
     // and causes a visible height jump the moment the user starts typing.
-    const scrollHeight = textarea.scrollHeight;
+    const scrollHeight = Math.max(textarea.scrollHeight, TEXTAREA_MIN_HEIGHT);
 
     if (scrollHeight > TEXTAREA_MAX_HEIGHT) {
       textarea.style.height = `${TEXTAREA_MAX_HEIGHT}px`;
@@ -904,7 +906,7 @@ export function AssistantProfileChatPanel({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute bottom-1 left-1 h-7 w-7"
+                  className="absolute bottom-2 left-2 h-8 w-8 rounded-full"
                   disabled={
                     !canChat ||
                     isLoading ||
@@ -942,7 +944,7 @@ export function AssistantProfileChatPanel({
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  'absolute bottom-1 left-8 h-7 w-7',
+                  'absolute bottom-2 left-10 h-8 w-8 rounded-full',
                   isRecording && 'animate-pulse text-[color:var(--status-danger)]'
                 )}
                 onClick={toggleRecording}
@@ -993,7 +995,7 @@ export function AssistantProfileChatPanel({
               disabled={
                 !canChat || isUploading || initialLoadError || sseBlocked || isSpendingBlocked
               }
-              className="styled-scrollbar text-body min-h-[36px] resize-none overflow-y-hidden pl-16 pr-10"
+              className="styled-scrollbar text-body min-h-12 resize-none overflow-y-hidden rounded-xl py-3.5 pl-20 pr-14 leading-5"
               autoComplete="off"
               onKeyDown={sendMessageOnEnter}
             />
@@ -1008,7 +1010,7 @@ export function AssistantProfileChatPanel({
                       aria-label="Cancel send"
                       size="icon"
                       variant="outline"
-                      className="group/cancel absolute bottom-1 right-1 h-7 w-7 hover:bg-muted"
+                      className="group/cancel absolute bottom-2 right-2 h-8 w-8 rounded-full hover:bg-muted"
                       onClick={handleCancelSend}
                     >
                       <Loader2 className="h-4 w-4 animate-spin group-hover/cancel:hidden" />
@@ -1025,7 +1027,7 @@ export function AssistantProfileChatPanel({
                 type="submit"
                 aria-label="Send message"
                 size="icon"
-                className="absolute bottom-1 right-1 h-7 w-7"
+                className="absolute bottom-2 right-2 h-8 w-8 rounded-full"
                 disabled={
                   !canChat ||
                   isLoading ||

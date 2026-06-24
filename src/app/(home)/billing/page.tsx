@@ -62,6 +62,7 @@ const BillingPage: React.FC = async () => {
 
   const billingActions: BillingActions = {
     getBalance: BillingLib.getBalance,
+    topUp: BillingLib.topUp,
     subscribe: BillingLib.subscribe,
     cancelSubscription: BillingLib.cancelSubscription,
     reactivateSubscription: BillingLib.reactivateSubscription,

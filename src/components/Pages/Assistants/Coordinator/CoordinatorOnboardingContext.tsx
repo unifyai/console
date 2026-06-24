@@ -43,7 +43,7 @@ export interface CoordinatorOnboardingContextValue {
   markStepCompleted: (stepId: string) => void;
   /** Clears local completion, skip, and engagement state for a group of
    * checklist leaves so the user can walk that section again. */
-  resetStepProgress: (stepIds: readonly string[]) => void;
+  resetStepProgress: (stepIds: readonly string[], resetStepId?: string) => void;
   /** Steps the user has locally rewound even if Orchestra can still
    * derive them from durable domain state. */
   resetStepIds: ReadonlySet<string>;
@@ -82,6 +82,11 @@ export interface CoordinatorOnboardingContextValue {
    * and ordering are no longer computed client-side. ``null`` outside
    * active onboarding. */
   onboarding: OnboardingRender | null;
+  /** One-shot request issued when the first-login intro hands off to
+   * the platform. The checklist consumes it by opening Communication /
+   * Email, then acknowledges it so later mounts use normal defaults. */
+  firstLoginCommunicationEmailOpenRequest: number;
+  acknowledgeFirstLoginCommunicationEmailOpen: () => void;
 }
 
 const CoordinatorOnboardingContext = React.createContext<CoordinatorOnboardingContextValue | null>(

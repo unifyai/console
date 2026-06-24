@@ -9,10 +9,20 @@ import { getCurrentUser } from '@/lib/user/user';
 import { makeRoomName } from '@/utils/assistants/call-utils';
 import { camelToSnakeObject } from '@/utils/casing';
 import { getAdaptersBaseUrl } from '@/utils/assistants/api-utils';
+import { cookies } from 'next/headers';
 
 const API_KEY = process.env.LIVEKIT_API_KEY;
 const API_SECRET = process.env.LIVEKIT_API_SECRET;
 const LIVEKIT_URL = process.env.LIVEKIT_URL;
+const DEV_CALLS = (process.env.CONSOLE_DEV_CALLS ?? '').trim() !== '';
+const DEV_CALLS_COOKIE = 'console_dev_calls';
+
+async function devCallsEnabled(): Promise<boolean> {
+  if (DEV_CALLS) return true;
+  if (process.env.NODE_ENV === 'production') return false;
+  const cookieStore = await cookies();
+  return cookieStore.get(DEV_CALLS_COOKIE)?.value === '1';
+}
 
 /** Browser-facing WS URL is returned to clients; server-side Room APIs use HTTP on the Docker network. */
 function resolveLiveKitApiUrl(): string | undefined {
@@ -29,7 +39,7 @@ export async function getCallConnectionDetails(
 ): Promise<ConnectionDetails | ResponseProps> {
   const apiKey = await requireUserApiKey();
   try {
-    if (!LIVEKIT_URL || !API_KEY || !API_SECRET) {
+    if ((await devCallsEnabled()) || !LIVEKIT_URL || !API_KEY || !API_SECRET) {
       const roomName = makeRoomName(assistantId, 'meet');
       return { serverUrl: '', roomName, token: '', mode: 'dev' };
     }
@@ -110,7 +120,7 @@ export async function dispatchAssistantToCall(
   const apiKey = await requireUserApiKey();
   try {
     const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
-    if (!adminKey || !LIVEKIT_URL) {
+    if ((await devCallsEnabled()) || !adminKey || !LIVEKIT_URL) {
       return { info: 'Dispatch skipped (no LiveKit or backend configured)' };
     }
 
