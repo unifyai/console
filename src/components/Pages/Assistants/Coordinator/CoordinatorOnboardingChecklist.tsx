@@ -125,23 +125,23 @@ const STEP_ACTIONS: Record<string, ChecklistAction> = {
   schedule: 'schedule',
 };
 
-const POLLING_ACTIONS: ReadonlySet<ChecklistAction> = new Set([
-  'trigger-email-reference',
-  'start-email-reply',
-  'trigger-whatsapp-message-reference',
-  'start-whatsapp-message',
-  'trigger-whatsapp-call-reference',
-  'start-whatsapp-call',
-  'trigger-sms-reference',
-  'start-sms-message',
-  'trigger-phone-call-reference',
-  'start-phone-call',
-  'trigger-slack-reference',
-  'start-slack-message',
-  'trigger-discord-reference',
-  'start-discord-message',
-]);
-const CHECKING_FEEDBACK_MS = 4_500;
+const ACTION_FEEDBACK_LABELS: Partial<Record<ChecklistAction, string>> = {
+  'trigger-email-reference': 'Sending...',
+  'start-email-reply': 'Checking...',
+  'trigger-whatsapp-message-reference': 'Sending...',
+  'start-whatsapp-message': 'Checking...',
+  'trigger-whatsapp-call-reference': 'Sending...',
+  'start-whatsapp-call': 'Checking...',
+  'trigger-sms-reference': 'Sending...',
+  'start-sms-message': 'Checking...',
+  'trigger-phone-call-reference': 'Sending...',
+  'start-phone-call': 'Checking...',
+  'trigger-slack-reference': 'Sending...',
+  'start-slack-message': 'Checking...',
+  'trigger-discord-reference': 'Sending...',
+  'start-discord-message': 'Checking...',
+};
+const ACTION_FEEDBACK_MS = 4_500;
 
 interface ResolvedChecklistItem extends OnboardingChecklistItem {
   done: boolean;
@@ -571,15 +571,15 @@ export function CoordinatorOnboardingChecklist({
     token: number;
     blockingStepHints: ReadonlyMap<string, BlockingFeedbackHint>;
   } | null>(null);
-  const [checkingStepIds, setCheckingStepIds] = React.useState<ReadonlySet<string>>(
-    () => new Set()
+  const [actionFeedbackByStepId, setActionFeedbackByStepId] = React.useState<
+    ReadonlyMap<string, string>
+  >(() => new Map());
+  const actionFeedbackTimeoutsRef = React.useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map()
   );
   const didInitializeOpenSectionRef = React.useRef(false);
   const blockedFeedbackTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const blockedFeedbackTokenRef = React.useRef(0);
-  const checkingFeedbackTimeoutsRef = React.useRef<Map<string, ReturnType<typeof setTimeout>>>(
-    new Map()
-  );
 
   const handleAction = React.useCallback(
     (action: ChecklistAction) => {
@@ -624,36 +624,39 @@ export function CoordinatorOnboardingChecklist({
     ]
   );
 
-  const triggerCheckingFeedback = React.useCallback((stepId: string) => {
-    const existingTimeout = checkingFeedbackTimeoutsRef.current.get(stepId);
+  const triggerActionFeedback = React.useCallback((stepId: string, label: string) => {
+    const existingTimeout = actionFeedbackTimeoutsRef.current.get(stepId);
     if (existingTimeout) {
       clearTimeout(existingTimeout);
     }
-    setCheckingStepIds((current) => {
-      if (current.has(stepId)) return current;
-      return new Set([...current, stepId]);
+    setActionFeedbackByStepId((current) => {
+      if (current.get(stepId) === label) return current;
+      const next = new Map(current);
+      next.set(stepId, label);
+      return next;
     });
     const timeout = setTimeout(() => {
-      checkingFeedbackTimeoutsRef.current.delete(stepId);
-      setCheckingStepIds((current) => {
+      actionFeedbackTimeoutsRef.current.delete(stepId);
+      setActionFeedbackByStepId((current) => {
         if (!current.has(stepId)) return current;
-        const next = new Set(current);
+        const next = new Map(current);
         next.delete(stepId);
         return next;
       });
-    }, CHECKING_FEEDBACK_MS);
-    checkingFeedbackTimeoutsRef.current.set(stepId, timeout);
+    }, ACTION_FEEDBACK_MS);
+    actionFeedbackTimeoutsRef.current.set(stepId, timeout);
   }, []);
 
   const handleChecklistRowAction = React.useCallback(
     (item: ResolvedChecklistItem) => {
       if (!item.action) return;
-      if (POLLING_ACTIONS.has(item.action)) {
-        triggerCheckingFeedback(item.id);
+      const actionFeedbackLabel = ACTION_FEEDBACK_LABELS[item.action];
+      if (actionFeedbackLabel) {
+        triggerActionFeedback(item.id, actionFeedbackLabel);
       }
       handleAction(item.action);
     },
-    [handleAction, triggerCheckingFeedback]
+    [handleAction, triggerActionFeedback]
   );
 
   // An action is reachable when the parent has wired the
@@ -756,10 +759,10 @@ export function CoordinatorOnboardingChecklist({
       if (blockedFeedbackTimeoutRef.current) {
         clearTimeout(blockedFeedbackTimeoutRef.current);
       }
-      for (const timeout of checkingFeedbackTimeoutsRef.current.values()) {
+      for (const timeout of actionFeedbackTimeoutsRef.current.values()) {
         clearTimeout(timeout);
       }
-      checkingFeedbackTimeoutsRef.current.clear();
+      actionFeedbackTimeoutsRef.current.clear();
     },
     []
   );
@@ -948,7 +951,7 @@ export function CoordinatorOnboardingChecklist({
                               isActionWired={isActionWired}
                               nextActionableId={nextActionableId}
                               allVisibleItems={visibleLeaves}
-                              isChecking={checkingStepIds.has(item.id)}
+                              actionFeedback={actionFeedbackByStepId.get(item.id)}
                               blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
                               blockedFeedbackToken={blockedFeedback?.token ?? 0}
                               blockingStepHints={
@@ -971,7 +974,7 @@ export function CoordinatorOnboardingChecklist({
                           isActionWired={isActionWired}
                           nextActionableId={nextActionableId}
                           allVisibleItems={visibleLeaves}
-                          isChecking={checkingStepIds.has(item.id)}
+                          actionFeedback={actionFeedbackByStepId.get(item.id)}
                           blockedFeedbackStepId={blockedFeedback?.stepId ?? null}
                           blockedFeedbackToken={blockedFeedback?.token ?? 0}
                           blockingStepHints={
@@ -1122,7 +1125,7 @@ interface ChecklistRowProps {
    * in total. */
   nextActionableId: string | null;
   allVisibleItems: readonly ResolvedChecklistItem[];
-  isChecking?: boolean;
+  actionFeedback?: string;
   blockedFeedbackStepId: string | null;
   blockedFeedbackToken: number;
   blockingStepHints: ReadonlyMap<string, BlockingFeedbackHint>;
@@ -1143,7 +1146,7 @@ function ChecklistRow({
   isActionWired,
   nextActionableId,
   allVisibleItems,
-  isChecking = false,
+  actionFeedback,
   blockedFeedbackStepId,
   blockedFeedbackToken,
   blockingStepHints,
@@ -1161,7 +1164,8 @@ function ChecklistRow({
     item.locked && !item.children?.length && item.status === 'pending' && !sectionDisabled;
   const shouldJiggle = blockedFeedbackStepId === item.id;
   const blockingHint = blockingStepHints.get(item.id);
-  const showChecking = isChecking && item.status === 'pending' && !item.locked && !sectionDisabled;
+  const showActionFeedback =
+    !!actionFeedback && item.status === 'pending' && !item.locked && !sectionDisabled;
   const canResetSection =
     !isChild &&
     !!item.children?.length &&
@@ -1287,13 +1291,13 @@ function ChecklistRow({
     <div className={rowClassName(variant)}>
       {renderMarkerAndLabel(variant)}
       <span className="flex h-6 items-center justify-center gap-1">
-        {showChecking ? (
+        {showActionFeedback ? (
           <span
             className="text-caption whitespace-nowrap font-medium text-primary"
             aria-live="polite"
-            data-testid={`coordinator-onboarding-checking-${item.id}`}
+            data-testid={`coordinator-onboarding-action-feedback-${item.id}`}
           >
-            Checking...
+            {actionFeedback}
           </span>
         ) : blockingHint ? (
           <span

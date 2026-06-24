@@ -346,10 +346,12 @@ test('picking chat lands in the full platform with the checklist in Assistant in
     }
   });
   await emailReferenceRow.click();
-  await expect(page.getByTestId('coordinator-onboarding-checking-email-reference')).toHaveText(
-    'Checking...'
-  );
-  await expect(page.getByTestId('coordinator-onboarding-checking-email-reference')).toHaveCount(0, {
+  await expect(
+    page.getByTestId('coordinator-onboarding-action-feedback-email-reference')
+  ).toHaveText('Sending...');
+  await expect(
+    page.getByTestId('coordinator-onboarding-action-feedback-email-reference')
+  ).toHaveCount(0, {
     timeout: 6_000,
   });
   await expect(emailReferenceRow).not.toHaveAttribute('data-status', 'done');
@@ -384,12 +386,15 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   const emailReplyRow = page.getByTestId('coordinator-onboarding-item-email-reply').first();
   await expectChecklistItemClickable(page, 'email-reply');
   await emailReplyRow.click();
-  await expect(page.getByTestId('coordinator-onboarding-checking-email-reply')).toHaveText(
+  await expect(page.getByTestId('coordinator-onboarding-action-feedback-email-reply')).toHaveText(
     'Checking...'
   );
-  await expect(page.getByTestId('coordinator-onboarding-checking-email-reply')).toHaveCount(0, {
-    timeout: 6_000,
-  });
+  await expect(page.getByTestId('coordinator-onboarding-action-feedback-email-reply')).toHaveCount(
+    0,
+    {
+      timeout: 6_000,
+    }
+  );
   await expect(emailReplyRow).toHaveAttribute('role', 'button');
   await expect(emailReplyRow).not.toHaveAttribute('data-status', 'done');
   await expect(page.getByTestId('coordinator-onboarding-item-apps')).toHaveCount(0);
