@@ -69,6 +69,23 @@ if [[ -z "$ORCHESTRA_REPO_PATH" || ! -f "$ORCHESTRA_REPO_PATH/scripts/local.sh" 
 fi
 log_success "Orchestra repo: $ORCHESTRA_REPO_PATH"
 
+# Propagate the resolved paths to later workflow steps. GitHub Actions runs each
+# step in a fresh shell, so a value computed here is invisible to the test-run
+# step unless written to $GITHUB_ENV. Without this the test process re-derives
+# ORCHESTRA_REPO_PATH from a relative default that is wrong under the CI checkout
+# layout (orchestra lives one level deeper), so argon2 password-hash generation
+# for seeded email logins fails and every UI login in the suite fails fast.
+if [[ -n "${GITHUB_ENV:-}" ]]; then
+  echo "ORCHESTRA_REPO_PATH=$ORCHESTRA_REPO_PATH" >> "$GITHUB_ENV"
+  if command -v poetry &>/dev/null; then
+    poetry_venv="$(cd "$ORCHESTRA_REPO_PATH" && poetry env info -p 2>/dev/null || true)"
+    if [[ -n "$poetry_venv" && -x "$poetry_venv/bin/python" ]]; then
+      echo "ORCHESTRA_PYTHON=$poetry_venv/bin/python" >> "$GITHUB_ENV"
+      log_success "Resolved Orchestra Python: $poetry_venv/bin/python"
+    fi
+  fi
+fi
+
 if ! command -v docker &>/dev/null; then
   log_error "Docker is not installed (required for PostgreSQL)"
   exit 1

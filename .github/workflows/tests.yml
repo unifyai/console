@@ -62,7 +62,7 @@ jobs:
     if: needs.should-run.outputs.run_tests == 'true'
     name: Assistants
     runs-on: ubuntu-latest-4-cores
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -113,7 +113,7 @@ jobs:
       - name: Run Assistants E2E tests
         run: |
           npx playwright test src/tests/assistants/ \
-            --reporter=list 2>&1 | tee test-output.log
+            --reporter=list --max-failures="$MAX_FAILURES" 2>&1 | tee test-output.log
 
           EXIT_CODE=${PIPESTATUS[0]}
           if [ $EXIT_CODE -ne 0 ]; then
@@ -123,6 +123,8 @@ jobs:
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
+          PLAYWRIGHT_WORKERS: 3
+          MAX_FAILURES: 20
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -148,7 +150,7 @@ jobs:
     if: needs.should-run.outputs.run_tests == 'true'
     name: Account
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -199,7 +201,7 @@ jobs:
       - name: Run Account E2E tests
         run: |
           npx playwright test src/tests/account/ \
-            --reporter=list 2>&1 | tee test-output.log
+            --reporter=list --max-failures="$MAX_FAILURES" 2>&1 | tee test-output.log
 
           EXIT_CODE=${PIPESTATUS[0]}
           if [ $EXIT_CODE -ne 0 ]; then
@@ -209,6 +211,8 @@ jobs:
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
+          PLAYWRIGHT_WORKERS: 2
+          MAX_FAILURES: 20
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -234,7 +238,7 @@ jobs:
     if: needs.should-run.outputs.run_tests == 'true'
     name: Billing
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -285,7 +289,7 @@ jobs:
       - name: Run Billing E2E tests
         run: |
           npx playwright test src/tests/billing/ \
-            --reporter=list 2>&1 | tee test-output.log
+            --reporter=list --max-failures="$MAX_FAILURES" 2>&1 | tee test-output.log
 
           EXIT_CODE=${PIPESTATUS[0]}
           if [ $EXIT_CODE -ne 0 ]; then
@@ -295,6 +299,8 @@ jobs:
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
+          PLAYWRIGHT_WORKERS: 2
+          MAX_FAILURES: 20
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -320,7 +326,7 @@ jobs:
     if: needs.should-run.outputs.run_tests == 'true'
     name: Shell
     runs-on: ubuntu-latest-4-cores
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -371,7 +377,7 @@ jobs:
       - name: Run Shell E2E tests
         run: |
           npx playwright test src/tests/shell/ \
-            --reporter=list 2>&1 | tee test-output.log
+            --reporter=list --max-failures="$MAX_FAILURES" 2>&1 | tee test-output.log
 
           EXIT_CODE=${PIPESTATUS[0]}
           if [ $EXIT_CODE -ne 0 ]; then
@@ -381,6 +387,8 @@ jobs:
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
+          PLAYWRIGHT_WORKERS: 3
+          MAX_FAILURES: 20
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -406,7 +414,7 @@ jobs:
     if: needs.should-run.outputs.run_tests == 'true'
     name: Auth
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -457,7 +465,7 @@ jobs:
       - name: Run Auth E2E tests
         run: |
           npx playwright test src/tests/auth/ \
-            --reporter=list 2>&1 | tee test-output.log
+            --reporter=list --max-failures="$MAX_FAILURES" 2>&1 | tee test-output.log
 
           EXIT_CODE=${PIPESTATUS[0]}
           if [ $EXIT_CODE -ne 0 ]; then
@@ -467,6 +475,8 @@ jobs:
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
+          PLAYWRIGHT_WORKERS: 2
+          MAX_FAILURES: 20
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

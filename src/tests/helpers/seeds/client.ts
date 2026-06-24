@@ -1620,8 +1620,23 @@ export interface CreateEmailLoginOpts {
  * argon2 hashes contain `$` characters that bash would interpret as
  * variable expansions in double-quoted `-c` arguments.
  */
+const passwordHashCache = new Map<string, string>();
+
 export function createEmailLogin(opts: CreateEmailLoginOpts): void {
   const password = opts.password ?? 'testpass123';
+
+  // argon2 hashes are salted, so a single hash per password verifies for every
+  // user that shares it. Generating one is a Python subprocess spawn; caching by
+  // password collapses hundreds of spawns across a suite into one.
+  const cachedHash = passwordHashCache.get(password);
+  if (cachedHash) {
+    dbExecStdin(
+      `INSERT INTO email_account (user_id, password_hash, email_verified)
+       VALUES ('${opts.userId}', '${cachedHash}', true)
+       ON CONFLICT (user_id) DO NOTHING;`
+    );
+    return;
+  }
 
   const orchestraPath =
     process.env.ORCHESTRA_REPO_PATH || path.resolve(__dirname, '../../../../..', 'orchestra');
@@ -1681,6 +1696,8 @@ export function createEmailLogin(opts: CreateEmailLoginOpts): void {
     );
     return;
   }
+
+  passwordHashCache.set(password, pwHash);
 
   // Use stdin piping to avoid bash $-expansion mangling the argon2 hash
   dbExecStdin(
