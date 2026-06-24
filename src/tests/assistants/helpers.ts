@@ -578,6 +578,26 @@ export function getDesktopLinkCount(desktopId: number): number {
   );
 }
 
+/**
+ * The filesystem-access state of a single (assistant, desktop) link row.
+ *
+ * `filesysSync` is the user's standing consent flag; `hasKey` reflects whether
+ * Orchestra has minted the per-link SFTP private key. The two move together —
+ * enabling consent mints the key, disabling clears it — so the e2e asserts both
+ * to prove the toggle drove the full server-side reconciliation, not just the
+ * boolean.
+ */
+export function getLinkFilesysState(
+  agentId: number,
+  desktopId: number
+): { filesysSync: boolean; hasKey: boolean } {
+  const result = dbExec(
+    `SELECT filesys_sync, (filesync_sshkey IS NOT NULL) FROM assistant_user_desktops WHERE assistant_id = ${agentId} AND user_desktop_id = ${desktopId}`
+  );
+  const [sync, key] = result.split('|');
+  return { filesysSync: sync === 't', hasKey: key === 't' };
+}
+
 export function deleteUserDesktopsForUser(userId: string): void {
   try {
     dbExec(`DELETE FROM user_desktops WHERE user_id = '${userId}'`);
