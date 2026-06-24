@@ -270,6 +270,25 @@ export async function navigateToAssistants(page: Page) {
 }
 
 /**
+ * Switch the active workspace via the session API.
+ *
+ * Uses `page.request` (context-scoped cookies + the configured baseURL) rather
+ * than `page.evaluate(fetch(...))`: a relative fetch evaluated on an
+ * `about:blank` page (e.g. a freshly opened authed context that hasn't
+ * navigated yet) throws "Failed to parse URL". `page.request` resolves against
+ * baseURL and shares the context cookie jar, so it works from any page state.
+ * Navigate (or reload) afterwards to load the app in the selected workspace.
+ */
+export async function switchWorkspace(page: Page, workspaceId: string | number): Promise<void> {
+  const res = await page.request.post('/api/session/workspace', {
+    data: { workspaceId: String(workspaceId) },
+  });
+  if (!res.ok()) {
+    throw new Error(`Failed to switch workspace to ${workspaceId}: ${res.status()}`);
+  }
+}
+
+/**
  * Close the auto-opened hire dialog if it's visible.
  * Uses Escape key as primary close mechanism (works with Radix Dialog).
  */

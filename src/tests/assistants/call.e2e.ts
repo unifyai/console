@@ -35,6 +35,7 @@ import {
   createTeamForAssistant,
   navigateToAssistants,
   closeHireDialogIfOpen,
+  switchWorkspace,
   selectAssistantInList,
   deleteAllAssistantsForUser,
   ensureProjectSync,
@@ -283,24 +284,7 @@ test('hanging up closes the dialog and returns to the chat view', async ({ authe
   await expect(listItem).toBeVisible();
 });
 
-test('video call button opens dialog', async ({ authedPage: page }) => {
-  await openAssistantProfile(page, assistant.agentId);
-
-  const videoBtn = page.getByTestId('call-video-button');
-  await expect(videoBtn).toBeVisible({ timeout: 10_000 });
-  await expect(videoBtn).toBeEnabled();
-  await videoBtn.click();
-
-  const header = page.locator('text=Talk to Caller TestBot');
-  await expect(header).toBeVisible({ timeout: 30_000 });
-
-  // Cleanup
-  const endCallBtn = page.getByRole('button', { name: 'End call' });
-  await endCallBtn.click();
-  await expect(header).not.toBeVisible({ timeout: 10_000 });
-});
-
-test('call buttons are disabled when credits are exhausted', async ({ authedPage: page }) => {
+test('call button is disabled when credits are exhausted', async ({ authedPage: page }) => {
   // Set credits negative BEFORE navigating so the spending gate blocks
   setUserCredits(user.id, -1);
 
@@ -315,9 +299,6 @@ test('call buttons are disabled when credits are exhausted', async ({ authedPage
   const audioBtn = page.getByTestId('call-audio-button');
   await expect(audioBtn).toBeVisible({ timeout: 10_000 });
   await expect(audioBtn).toBeDisabled({ timeout: 20_000 });
-
-  const videoBtn = page.getByTestId('call-video-button');
-  await expect(videoBtn).toBeDisabled({ timeout: 10_000 });
 
   // Restore credits
   setUserCredits(user.id, 50_000);
@@ -424,14 +405,8 @@ test('historical call pill renders in shared roots only for own or null authorin
   authedPage: page,
 }) => {
   const callOrg = createOrg({ name: `CallSharedOrg_${Date.now()}`, ownerId: user.id });
-  await page.evaluate(async (orgId) => {
-    await fetch('/api/session/workspace', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspaceId: String(orgId) }),
-    });
-  }, callOrg.id);
-  await page.reload();
+  await switchWorkspace(page, callOrg.id);
+  await page.goto('/assistants');
   await closeHireDialogIfOpen(page);
 
   const sharedAssistant = createAssistant({

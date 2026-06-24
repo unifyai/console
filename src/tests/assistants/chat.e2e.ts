@@ -33,6 +33,7 @@ import {
   createAssistant,
   navigateToAssistants,
   closeHireDialogIfOpen,
+  switchWorkspace,
   deleteAllAssistantsForUser,
   createOrg,
   createTeamForAssistant,
@@ -338,14 +339,8 @@ test('shared-root chat history merges root-local identities and paginates', asyn
   authedPage: page,
 }) => {
   const chatOrg = createOrg({ name: `ChatSharedOrg_${Date.now()}`, ownerId: user.id });
-  await page.evaluate(async (orgId) => {
-    await fetch('/api/session/workspace', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspaceId: String(orgId) }),
-    });
-  }, chatOrg.id);
-  await page.reload();
+  await switchWorkspace(page, chatOrg.id);
+  await page.goto('/assistants');
   await closeHireDialogIfOpen(page);
 
   const sharedAssistant = createAssistant({
@@ -1005,14 +1000,8 @@ test('shared-root search hides foreign-authored rows while keeping null-authored
   authedPage: page,
 }) => {
   const chatOrg = createOrg({ name: `ChatSearchOrg_${Date.now()}`, ownerId: user.id });
-  await page.evaluate(async (orgId) => {
-    await fetch('/api/session/workspace', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspaceId: String(orgId) }),
-    });
-  }, chatOrg.id);
-  await page.reload();
+  await switchWorkspace(page, chatOrg.id);
+  await page.goto('/assistants');
   await closeHireDialogIfOpen(page);
 
   const sharedAssistant = createAssistant({
@@ -1368,14 +1357,8 @@ test('historical shared-root call pills hide foreign-authored exchanges', async 
   authedPage: page,
 }) => {
   const chatOrg = createOrg({ name: `ChatHistOrg_${Date.now()}`, ownerId: user.id });
-  await page.evaluate(async (orgId) => {
-    await fetch('/api/session/workspace', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ workspaceId: String(orgId) }),
-    });
-  }, chatOrg.id);
-  await page.reload();
+  await switchWorkspace(page, chatOrg.id);
+  await page.goto('/assistants');
   await closeHireDialogIfOpen(page);
 
   const sharedAssistant = createAssistant({
