@@ -27,9 +27,9 @@ export interface CallOpeningConfig {
   simulatedUtterance?: string;
   /** Durable system briefing spoken as the opening turn in `briefed` mode. */
   systemContext?: string;
-  /** Name of a Droid-bundled audio asset spoken as a recorded opening turn. */
+  /** Name of a Unity-bundled audio asset spoken as a recorded opening turn. */
   recordingAsset?: string;
-  /** Transcript paired with a recorded opening; Droid may provide it for bundled assets. */
+  /** Transcript paired with a recorded opening; Unity may provide it for bundled assets. */
   transcript?: string;
   source?: string;
 }

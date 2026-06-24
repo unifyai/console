@@ -68,7 +68,7 @@ const LoginFragment = ({
           </div>
           <div className="grid gap-4">
             <h1 className="text-brand-display text-foreground">
-              Meet your first <span className="text-brand-serif-accent">droid.</span>
+              Meet your first <span className="text-brand-serif-accent">unity.</span>
             </h1>
             <p className="mx-auto max-w-[34rem] text-[15px] leading-6 text-muted-foreground">
               {env.isSelfHost

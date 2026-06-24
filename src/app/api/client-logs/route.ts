@@ -8,9 +8,9 @@ const CONTEXT_NAME = 'ChatClient';
 // In-process cache of projects we've already verified.  Cloud Run
 // instances are stateless across restarts, so each instance will
 // attempt creation once on its first POST and then short-circuit for
-// the rest of its lifetime.  Mirrors the pattern Droid uses for the
+// the rest of its lifetime.  Mirrors the pattern Unity uses for the
 // `AssistantJobs` project — see
-// `droid/conversation_manager/assistant_jobs_api.py::ensure_project_exists`.
+// `unity/conversation_manager/assistant_jobs_api.py::ensure_project_exists`.
 const ensuredProjects = new Set<string>();
 
 /**

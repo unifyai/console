@@ -435,7 +435,7 @@ test('starting a call connects and docks the call in the platform', async ({
 });
 
 test('coordinator state exposes a voice intro briefing for onboarding narration', async () => {
-  // The first call now uses Droid's bundled recorded opener. The state
+  // The first call now uses Unity's bundled recorded opener. The state
   // endpoint still exposes the server-composed orientation briefing for
   // dynamic onboarding narration and non-recorded fallback paths.
   const coordinator = createPersonalCoordinator(user.id);
@@ -511,7 +511,7 @@ test('switching back to T-W1N does not reapply the onboarding focus layout', asy
   const otherAssistant = createAssistant({
     userId: user.id,
     firstName: 'Switch',
-    surname: 'Droid',
+    surname: 'Unity',
   });
   resetCoordinatorIntroWatched();
 

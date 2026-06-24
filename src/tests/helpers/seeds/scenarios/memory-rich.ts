@@ -144,7 +144,7 @@ const CONTACTS: Record<string, unknown>[] = [
     email_address: 'david.kim@example.com',
     whatsapp_number: '+821012345678',
     timezone: 'Asia/Seoul',
-    bio: 'Mobile engineer (iOS/Android), React Native specialist.',
+    bio: 'Mobile engineer (iOS/Anunity), React Native specialist.',
   },
   {
     contact_id: 8,

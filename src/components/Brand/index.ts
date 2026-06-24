@@ -3,7 +3,7 @@ export { TeammateCreature } from './TeammateCreature';
 export type { CreatureEyes, CreatureMood, CreatureMouthShape } from './TeammateCreature';
 export { UnifyBlockMark } from './UnifyBlockMark';
 export type { BrandRole } from './shapes';
-export type { DroidAntenna, DroidBody, DroidColor, DroidOutfit } from './droidAppearance';
+export type { UnityAntenna, UnityBody, UnityColor, UnityOutfit } from './unityAppearance';
 export { CreatureAvatar } from './CreatureAvatar';
 export {
   APPEARANCE_SENTINEL_PREFIX,

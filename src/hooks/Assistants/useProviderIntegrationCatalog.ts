@@ -453,7 +453,7 @@ export function useProviderIntegrationCatalog(
             assistantId,
             connection: data.connection,
           }).catch((error) => {
-            console.warn('Failed to request Droid integration tool sync', error);
+            console.warn('Failed to request Unity integration tool sync', error);
           });
         }
         await fetchCatalog();

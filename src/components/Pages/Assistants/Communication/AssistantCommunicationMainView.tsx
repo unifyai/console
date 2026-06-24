@@ -7,16 +7,16 @@ import { cn } from '@/lib/utils';
 import { AlertTriangle, Volume2, VolumeX } from 'lucide-react';
 import { Loader } from '@/components/Common/Loader';
 import { Button } from '@/components/UI/button';
-import { DroidCallAvatar } from '@/components/Pages/Assistants/Communication/DroidCallAvatar';
+import { UnityCallAvatar } from '@/components/Pages/Assistants/Communication/UnityCallAvatar';
 import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
-import { useDroidEyeExpression } from '@/hooks/Assistants/useDroidEyeExpression';
-import { useDroidAudioLipsync } from '@/hooks/Assistants/useDroidAudioLipsync';
+import { useUnityEyeExpression } from '@/hooks/Assistants/useUnityEyeExpression';
+import { useUnityAudioLipsync } from '@/hooks/Assistants/useUnityAudioLipsync';
 import type {
   CreatureEyes,
   CreatureMood,
   CreatureMouthShape,
 } from '@/components/Brand/TeammateCreature';
-import { getDroidSpeechTransform } from '@/utils/assistants/droid-animation';
+import { getUnitySpeechTransform } from '@/utils/assistants/unity-animation';
 
 type BrowserWindowWithCoordinatorIntroAudio = Window & {
   __coordinatorOnboardingIntroAudio?: HTMLAudioElement;
@@ -134,7 +134,7 @@ interface AssistantCommunicationMainViewProps {
   isCallActive?: boolean;
   isUserSpeaking?: boolean;
   mood?: CreatureMood;
-  /** Fade the coordinator droid in when it first mounts in the docked call. */
+  /** Fade the coordinator unity in when it first mounts in the docked call. */
   coordinatorTeleportIn?: boolean;
   /** Keeps the coordinator's slot empty until the onboarding layout has landed. */
   coordinatorAvatarVisible?: boolean;
@@ -167,17 +167,17 @@ export function AssistantCommunicationMainView({
   const fallback = assistantName
     ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
     : 'A';
-  // A `appearance://` photo means this assistant is a droid — render the
+  // A `appearance://` photo means this assistant is a unity — render the
   // animated SVG instead of a (broken) <img> + overlaid eyes/mouth.
   const creatureAppearance = parseCreatureSentinel(imageUrl);
   const [isIntroAudioPlaying, setIsIntroAudioPlaying] = React.useState(false);
   const [introAudioSpeechLevel, setIntroAudioSpeechLevel] = React.useState(0);
   const [introAudioMouthShape, setIntroAudioMouthShape] =
     React.useState<CreatureMouthShape>('closed');
-  const liveLipsyncFrame = useDroidAudioLipsync(audioTrack, !isLoading && !connectionError);
+  const liveLipsyncFrame = useUnityAudioLipsync(audioTrack, !isLoading && !connectionError);
   const isImageAvatarSpeaking =
     liveLipsyncFrame.isActive || (isSpeaking && !isLoading && !connectionError);
-  const imageAvatarEyes = useDroidEyeExpression({
+  const imageAvatarEyes = useUnityEyeExpression({
     isCallActive,
     isSpeaking: isImageAvatarSpeaking,
     isUserSpeaking,
@@ -323,8 +323,8 @@ export function AssistantCommunicationMainView({
   const imageAvatarSpeechLevel = liveLipsyncFrame.speechLevel;
   const imageAvatarMouthShape = liveLipsyncFrame.mouthShape;
   const imageAvatarVisualStyle = {
-    '--droid-speech-level': imageAvatarSpeechLevel.toFixed(3),
-    transform: getDroidSpeechTransform(imageAvatarSpeechLevel * 0.45),
+    '--unity-speech-level': imageAvatarSpeechLevel.toFixed(3),
+    transform: getUnitySpeechTransform(imageAvatarSpeechLevel * 0.45),
   } as React.CSSProperties;
 
   return (
@@ -366,7 +366,7 @@ export function AssistantCommunicationMainView({
               {isCoordinator && !coordinatorAvatarVisible ? (
                 <div className="h-full w-full" aria-hidden="true" />
               ) : isCoordinator ? (
-                <DroidCallAvatar
+                <UnityCallAvatar
                   isSpeaking={isCoordinatorSpeaking}
                   isCallActive={isCallActive}
                   isUserSpeaking={isUserSpeaking}
@@ -376,7 +376,7 @@ export function AssistantCommunicationMainView({
                   speechLevel={coordinatorSpeechLevel}
                 />
               ) : creatureAppearance ? (
-                <DroidCallAvatar
+                <UnityCallAvatar
                   isSpeaking={isImageAvatarSpeaking}
                   isCallActive={isCallActive}
                   isUserSpeaking={isUserSpeaking}

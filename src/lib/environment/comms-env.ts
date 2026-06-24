@@ -29,7 +29,7 @@ export function isStagingEnvironment(
 
 /**
  * Suffix appended to environment-partitioned Pub/Sub topic names
- * (e.g. `droid-{assistantId}` and `billing-account-{id}`).
+ * (e.g. `unity-{assistantId}` and `billing-account-{id}`).
  *
  * PUBSUB_TOPIC_SUFFIX is an explicit override (set it to '' to force
  * production names, '-staging' for staging names); otherwise the suffix

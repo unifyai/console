@@ -46,43 +46,43 @@ import { buildCreatureSentinel, parseCreatureSentinel } from '@/components/Brand
 import { type CreatureAntenna, type CreatureEyes } from '@/components/Brand/TeammateCreature';
 import { isGcsPhoto } from '@/utils/assistants/gcs-utils';
 import {
-  droidAntennaOptions,
-  droidBodyOptions,
-  droidColorOptions,
-  droidOutfitOptions,
-  type DroidBody,
-  type DroidOutfit,
-} from '@/components/Brand/droidAppearance';
+  unityAntennaOptions,
+  unityBodyOptions,
+  unityColorOptions,
+  unityOutfitOptions,
+  type UnityBody,
+  type UnityOutfit,
+} from '@/components/Brand/unityAppearance';
 import { roleColorVars, type BrandRole } from '@/components/Brand/shapes';
 import GoogleIcon from '@/public/icons/google-icon.png';
 import MicrosoftIcon from '@/public/icons/microsoft-icon.png';
 import type { OAuthProvider } from '@/types/assistants/contact';
-import { DroidCallAvatar } from '@/components/Pages/Assistants/Communication/DroidCallAvatar';
-import { useDroidAudioElementLipsync } from '@/utils/assistants/droid-lipsync';
+import { UnityCallAvatar } from '@/components/Pages/Assistants/Communication/UnityCallAvatar';
+import { useUnityAudioElementLipsync } from '@/utils/assistants/unity-lipsync';
 import {
   TWIN_CREATURE_APPEARANCE,
-  getDroidBodyForm,
+  getUnityBodyForm,
   getRotatingBotViewBox,
-} from '@droid/brand/components';
+} from '@unity/brand/components';
 
-const staticSkillsText = `The bio doesn't influence the droid's abilities. All droids come with the same foundational skills and can specialize in whichever area you want them to.`;
-const DROID_PREVIEW_SIZE = 120;
-const DROID_PREVIEW_REST_SIZE = 152;
-const DROID_PREVIEW_REST_SCALE = DROID_PREVIEW_REST_SIZE / DROID_PREVIEW_SIZE;
-const DROID_PREVIEW_STAGE_HEIGHT = 192;
-const DROID_PREVIEW_SCALE_BODY = 'standard' satisfies DroidBody;
-const DROID_PREVIEW_LAYOUT_ANTENNA = 'bigball' satisfies CreatureAntenna;
-const DROID_PREVIEW_ANTENNA_CONTROL_REFERENCE = 'ball' satisfies CreatureAntenna;
-const DROID_PREVIEW_OUTFIT_REGION_RATIO = 0.66;
-const DROID_PREVIEW_BODY_CONTROL_TOP = 72;
+const staticSkillsText = `The bio doesn't influence the unity's abilities. All unitys come with the same foundational skills and can specialize in whichever area you want them to.`;
+const UNITY_PREVIEW_SIZE = 120;
+const UNITY_PREVIEW_REST_SIZE = 152;
+const UNITY_PREVIEW_REST_SCALE = UNITY_PREVIEW_REST_SIZE / UNITY_PREVIEW_SIZE;
+const UNITY_PREVIEW_STAGE_HEIGHT = 192;
+const UNITY_PREVIEW_SCALE_BODY = 'standard' satisfies UnityBody;
+const UNITY_PREVIEW_LAYOUT_ANTENNA = 'bigball' satisfies CreatureAntenna;
+const UNITY_PREVIEW_ANTENNA_CONTROL_REFERENCE = 'ball' satisfies CreatureAntenna;
+const UNITY_PREVIEW_OUTFIT_REGION_RATIO = 0.66;
+const UNITY_PREVIEW_BODY_CONTROL_TOP = 72;
 const APPEARANCE_HOVER_CONTROL_CLASS = 'transition-opacity duration-150';
-const DROID_PREVIEW_LAYOUT_TRANSITION_CLASS = 'transition-all duration-300 ease-out';
+const UNITY_PREVIEW_LAYOUT_TRANSITION_CLASS = 'transition-all duration-300 ease-out';
 const COLOR_SWATCH_TRANSITION = { type: 'spring', stiffness: 720, damping: 42, mass: 0.65 };
 
-const appearanceAntennaOptions = droidAntennaOptions;
-const appearanceBodyOptions = droidBodyOptions;
-const appearanceColorOptions = droidColorOptions;
-const appearanceOutfitOptions = droidOutfitOptions;
+const appearanceAntennaOptions = unityAntennaOptions;
+const appearanceBodyOptions = unityBodyOptions;
+const appearanceColorOptions = unityColorOptions;
+const appearanceOutfitOptions = unityOutfitOptions;
 const DEFAULT_COORDINATOR_APPEARANCE = {
   eyes: 'up',
   antenna: TWIN_CREATURE_APPEARANCE.antenna,
@@ -92,9 +92,9 @@ const DEFAULT_COORDINATOR_APPEARANCE = {
 } as const satisfies {
   eyes: CreatureEyes;
   antenna: CreatureAntenna;
-  body: DroidBody;
+  body: UnityBody;
   color: BrandRole;
-  outfit: DroidOutfit;
+  outfit: UnityOutfit;
 };
 
 function cycleOption<T>(items: readonly T[], current: T, direction: -1 | 1): T {
@@ -114,18 +114,18 @@ function pickOption<T>(items: readonly T[], current: T): T {
 }
 
 function clampPreviewControlTop(top: number): number {
-  return Math.max(0, Math.min(DROID_PREVIEW_STAGE_HEIGHT - 32, top));
+  return Math.max(0, Math.min(UNITY_PREVIEW_STAGE_HEIGHT - 32, top));
 }
 
-function getDroidPreviewScale(): number {
+function getUnityPreviewScale(): number {
   const referenceViewBox = getRotatingBotViewBox(
-    getDroidBodyForm(DROID_PREVIEW_SCALE_BODY),
+    getUnityBodyForm(UNITY_PREVIEW_SCALE_BODY),
     undefined,
     undefined,
     undefined,
-    DROID_PREVIEW_LAYOUT_ANTENNA
+    UNITY_PREVIEW_LAYOUT_ANTENNA
   );
-  return DROID_PREVIEW_SIZE / referenceViewBox.w;
+  return UNITY_PREVIEW_SIZE / referenceViewBox.w;
 }
 
 function SectionIconSlot({ children }: { children: React.ReactNode }) {
@@ -168,7 +168,7 @@ function AppearanceControlTooltip({
   );
 }
 
-function HireDroidAvatar({
+function HireUnityAvatar({
   isVoicePreviewPlaying,
   previewAudioElement,
   antenna,
@@ -181,26 +181,26 @@ function HireDroidAvatar({
   isVoicePreviewPlaying: boolean;
   previewAudioElement: HTMLAudioElement | null;
   antenna: CreatureAntenna;
-  body: DroidBody;
+  body: UnityBody;
   color: BrandRole;
   baseEyes: CreatureEyes;
-  outfit: DroidOutfit;
+  outfit: UnityOutfit;
   label: string;
 }) {
-  const voicePreviewLipsyncFrame = useDroidAudioElementLipsync(previewAudioElement, {
+  const voicePreviewLipsyncFrame = useUnityAudioElementLipsync(previewAudioElement, {
     enabled: isVoicePreviewPlaying && !!previewAudioElement,
   });
 
-  const form = getDroidBodyForm(body);
+  const form = getUnityBodyForm(body);
   const layoutViewBox = getRotatingBotViewBox(
     form,
     undefined,
     undefined,
     undefined,
-    DROID_PREVIEW_LAYOUT_ANTENNA
+    UNITY_PREVIEW_LAYOUT_ANTENNA
   );
   const selectedViewBox = getRotatingBotViewBox(form, undefined, undefined, undefined, antenna);
-  const scale = getDroidPreviewScale();
+  const scale = getUnityPreviewScale();
 
   return (
     <span className="relative block h-full w-full overflow-visible">
@@ -220,7 +220,7 @@ function HireDroidAvatar({
             width: `${selectedViewBox.w * scale}px`,
           }}
         >
-          <DroidCallAvatar
+          <UnityCallAvatar
             isSpeaking={voicePreviewLipsyncFrame.isActive}
             mouthShape={voicePreviewLipsyncFrame.mouthShape}
             speechLevel={voicePreviewLipsyncFrame.speechLevel}
@@ -307,10 +307,10 @@ export function HireForm({
   const [voiceCustomizationTab, setVoiceCustomizationTab] = React.useState<
     'select' | 'clone' | 'design'
   >('select');
-  const [droidAntenna, setDroidAntenna] = React.useState<CreatureAntenna>('ball');
-  const [droidBody, setDroidBody] = React.useState<DroidBody>('standard');
-  const [droidColor, setDroidColor] = React.useState<BrandRole>('green');
-  const [droidOutfit, setDroidOutfit] = React.useState<DroidOutfit>('none');
+  const [unityAntenna, setUnityAntenna] = React.useState<CreatureAntenna>('ball');
+  const [unityBody, setUnityBody] = React.useState<UnityBody>('standard');
+  const [unityColor, setUnityColor] = React.useState<BrandRole>('green');
+  const [unityOutfit, setUnityOutfit] = React.useState<UnityOutfit>('none');
 
   // The avatar shown in this form is the live creature. We persist it by keeping
   // `profilePhotoUrl` in sync with an `appearance://` sentinel, since hiring/edit
@@ -331,10 +331,10 @@ export function HireForm({
     if (appearanceSeeded) return;
     const parsed = parseCreatureSentinel(watchedProfilePhotoUrl);
     if (parsed) {
-      setDroidBody(parsed.body);
-      setDroidColor(parsed.color);
-      setDroidAntenna(parsed.antenna);
-      setDroidOutfit(parsed.outfit);
+      setUnityBody(parsed.body);
+      setUnityColor(parsed.color);
+      setUnityAntenna(parsed.antenna);
+      setUnityOutfit(parsed.outfit);
     }
     setAppearanceSeeded(true);
   }, [appearanceSeeded, watchedProfilePhotoUrl]);
@@ -350,35 +350,35 @@ export function HireForm({
   const timezoneOptions = React.useMemo(() => generateTimezoneOptions(), []);
   const defaultVoice = React.useMemo(() => getDefaultVoiceForProvider(), []);
   const isEditMode = mode === 'edit';
-  const selectedDroidEyes = DEFAULT_COORDINATOR_APPEARANCE.eyes;
-  const selectedDroidAntenna = lockAppearanceControls
+  const selectedUnityEyes = DEFAULT_COORDINATOR_APPEARANCE.eyes;
+  const selectedUnityAntenna = lockAppearanceControls
     ? DEFAULT_COORDINATOR_APPEARANCE.antenna
-    : droidAntenna;
-  const selectedDroidBody = lockAppearanceControls
+    : unityAntenna;
+  const selectedUnityBody = lockAppearanceControls
     ? DEFAULT_COORDINATOR_APPEARANCE.body
-    : droidBody;
-  const selectedDroidColor = lockAppearanceControls
+    : unityBody;
+  const selectedUnityColor = lockAppearanceControls
     ? DEFAULT_COORDINATOR_APPEARANCE.color
-    : droidColor;
-  const selectedDroidOutfit = lockAppearanceControls
+    : unityColor;
+  const selectedUnityOutfit = lockAppearanceControls
     ? DEFAULT_COORDINATOR_APPEARANCE.outfit
-    : droidOutfit;
+    : unityOutfit;
   const appearanceControlVisibilityClass = isAppearanceControlsVisible
     ? 'pointer-events-auto opacity-100'
     : 'pointer-events-none opacity-0';
   const isAppearanceEditing = !lockAppearanceControls && isAppearanceControlsVisible;
-  const droidPreviewScale = isAppearanceEditing ? 1 : DROID_PREVIEW_REST_SCALE;
+  const unityPreviewScale = isAppearanceEditing ? 1 : UNITY_PREVIEW_REST_SCALE;
 
   // Persist the live creature as the avatar by syncing it into `profilePhotoUrl`
   // as an `appearance://` sentinel. We defer to a real image only when the user
   // uploaded one or explicitly picked a preset persona's photo. This keeps the
   // saved value current regardless of how the dialog triggers submission.
   const creatureSentinel = buildCreatureSentinel({
-    body: selectedDroidBody,
-    color: selectedDroidColor,
-    eyes: selectedDroidEyes,
-    antenna: selectedDroidAntenna,
-    outfit: selectedDroidOutfit,
+    body: selectedUnityBody,
+    color: selectedUnityColor,
+    eyes: selectedUnityEyes,
+    antenna: selectedUnityAntenna,
+    outfit: selectedUnityOutfit,
   });
 
   // Detect when the user actively changes the appearance controls (vs. the value
@@ -424,65 +424,65 @@ export function HireForm({
     setValue,
   ]);
 
-  const colorIndex = appearanceColorOptions.indexOf(selectedDroidColor);
+  const colorIndex = appearanceColorOptions.indexOf(selectedUnityColor);
   const previousColor =
     appearanceColorOptions[
       (colorIndex - 1 + appearanceColorOptions.length) % appearanceColorOptions.length
     ];
   const nextColor = appearanceColorOptions[(colorIndex + 1) % appearanceColorOptions.length];
-  const outfitIndex = appearanceOutfitOptions.indexOf(selectedDroidOutfit);
+  const outfitIndex = appearanceOutfitOptions.indexOf(selectedUnityOutfit);
   const previousOutfit =
     appearanceOutfitOptions[
       (outfitIndex - 1 + appearanceOutfitOptions.length) % appearanceOutfitOptions.length
     ];
   const nextOutfit = appearanceOutfitOptions[(outfitIndex + 1) % appearanceOutfitOptions.length];
   const workspaceAssistantName =
-    typeof firstName === 'string' && firstName.trim().length > 0 ? firstName.trim() : 'this droid';
+    typeof firstName === 'string' && firstName.trim().length > 0 ? firstName.trim() : 'this unity';
   const isWorkspaceWarning = mode === 'hire' && showWorkspaceWarning;
-  const droidControlTop = React.useMemo(() => {
-    const form = getDroidBodyForm(selectedDroidBody);
+  const unityControlTop = React.useMemo(() => {
+    const form = getUnityBodyForm(selectedUnityBody);
     const layoutViewBox = getRotatingBotViewBox(
       form,
       undefined,
       undefined,
       undefined,
-      DROID_PREVIEW_LAYOUT_ANTENNA
+      UNITY_PREVIEW_LAYOUT_ANTENNA
     );
     const antennaControlViewBox = getRotatingBotViewBox(
       form,
       undefined,
       undefined,
       undefined,
-      DROID_PREVIEW_ANTENNA_CONTROL_REFERENCE
+      UNITY_PREVIEW_ANTENNA_CONTROL_REFERENCE
     );
     const bodyViewBox = getRotatingBotViewBox(form, undefined, undefined, undefined, 'none');
-    const scale = getDroidPreviewScale();
-    const layoutTop = (DROID_PREVIEW_STAGE_HEIGHT - layoutViewBox.h * scale) / 2;
+    const scale = getUnityPreviewScale();
+    const layoutTop = (UNITY_PREVIEW_STAGE_HEIGHT - layoutViewBox.h * scale) / 2;
     const bodyTop = layoutTop + (bodyViewBox.minY - layoutViewBox.minY) * scale;
     const antennaControlTop = layoutTop + (antennaControlViewBox.minY - layoutViewBox.minY) * scale;
 
     return {
       antenna: clampPreviewControlTop(antennaControlTop + 18),
-      body: DROID_PREVIEW_BODY_CONTROL_TOP,
+      body: UNITY_PREVIEW_BODY_CONTROL_TOP,
       outfit: clampPreviewControlTop(
-        bodyTop + bodyViewBox.h * scale * DROID_PREVIEW_OUTFIT_REGION_RATIO - 16
+        bodyTop + bodyViewBox.h * scale * UNITY_PREVIEW_OUTFIT_REGION_RATIO - 16
       ),
     };
-  }, [selectedDroidBody]);
+  }, [selectedUnityBody]);
 
-  const randomizeDroidAppearance = React.useCallback(() => {
+  const randomizeUnityAppearance = React.useCallback(() => {
     if (lockAppearanceControls) return;
 
-    setDroidAntenna((current) => pickOption(appearanceAntennaOptions, current));
-    setDroidBody((current) => pickOption(appearanceBodyOptions, current));
-    setDroidColor((current) => pickOption(appearanceColorOptions, current));
-    setDroidOutfit((current) => pickOption(appearanceOutfitOptions, current));
+    setUnityAntenna((current) => pickOption(appearanceAntennaOptions, current));
+    setUnityBody((current) => pickOption(appearanceBodyOptions, current));
+    setUnityColor((current) => pickOption(appearanceColorOptions, current));
+    setUnityOutfit((current) => pickOption(appearanceOutfitOptions, current));
   }, [lockAppearanceControls]);
 
   const randomizeProfileAndAppearance = React.useCallback(() => {
     onRandomizeProfile?.();
-    randomizeDroidAppearance();
-  }, [onRandomizeProfile, randomizeDroidAppearance]);
+    randomizeUnityAppearance();
+  }, [onRandomizeProfile, randomizeUnityAppearance]);
 
   const handlePlaySelectedVoicePreviewChange = React.useCallback(
     (playPreviewForSelectedVoice: (() => void) | null) => {
@@ -541,7 +541,7 @@ export function HireForm({
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
-                              aria-label="Randomize droid profile"
+                              aria-label="Randomize unity profile"
                               type="button"
                               variant="outline"
                               size="sm"
@@ -626,9 +626,9 @@ export function HireForm({
                                   className="text-caption max-w-xs"
                                 >
                                   <p>
-                                    Optional short label to remember what this droid is for (e.g.
+                                    Optional short label to remember what this unity is for (e.g.
                                     &quot;Growth marketing&quot;, &quot;QA engineer&quot;). Shown in
-                                    the droids list hover card.
+                                    the unitys list hover card.
                                   </p>
                                 </TooltipContent>
                               </Tooltip>
@@ -700,14 +700,14 @@ export function HireForm({
                         <div
                           className={cn(
                             'flex h-full w-full flex-col items-center justify-center',
-                            DROID_PREVIEW_LAYOUT_TRANSITION_CLASS,
+                            UNITY_PREVIEW_LAYOUT_TRANSITION_CLASS,
                             isAppearanceEditing ? 'gap-3' : 'gap-0'
                           )}
                         >
                           <div
                             className={cn(
                               'relative flex max-w-full items-center justify-center overflow-visible',
-                              DROID_PREVIEW_LAYOUT_TRANSITION_CLASS,
+                              UNITY_PREVIEW_LAYOUT_TRANSITION_CLASS,
                               isAppearanceEditing ? 'h-48 w-64' : 'h-60 w-full'
                             )}
                           >
@@ -726,11 +726,11 @@ export function HireForm({
                                     )}
                                     disabled={isSubmitting}
                                     onClick={() =>
-                                      setDroidAntenna((current) =>
+                                      setUnityAntenna((current) =>
                                         cycleOption(appearanceAntennaOptions, current, -1)
                                       )
                                     }
-                                    style={{ top: droidControlTop.antenna }}
+                                    style={{ top: unityControlTop.antenna }}
                                   >
                                     <ChevronLeft className="!h-6 !w-6" />
                                   </Button>
@@ -748,11 +748,11 @@ export function HireForm({
                                     )}
                                     disabled={isSubmitting}
                                     onClick={() =>
-                                      setDroidAntenna((current) =>
+                                      setUnityAntenna((current) =>
                                         cycleOption(appearanceAntennaOptions, current, 1)
                                       )
                                     }
-                                    style={{ top: droidControlTop.antenna }}
+                                    style={{ top: unityControlTop.antenna }}
                                   >
                                     <ChevronRight className="!h-6 !w-6" />
                                   </Button>
@@ -760,7 +760,7 @@ export function HireForm({
 
                                 <AppearanceControlTooltip label="Outfit" side="left">
                                   <Button
-                                    aria-label="Previous droid outfit"
+                                    aria-label="Previous unity outfit"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -771,18 +771,18 @@ export function HireForm({
                                     )}
                                     disabled={isSubmitting}
                                     onClick={() =>
-                                      setDroidOutfit((current) =>
+                                      setUnityOutfit((current) =>
                                         cycleOption(appearanceOutfitOptions, current, -1)
                                       )
                                     }
-                                    style={{ top: droidControlTop.outfit }}
+                                    style={{ top: unityControlTop.outfit }}
                                   >
                                     <ChevronLeft className="!h-6 !w-6" />
                                   </Button>
                                 </AppearanceControlTooltip>
                                 <AppearanceControlTooltip label="Outfit" side="right">
                                   <Button
-                                    aria-label="Next droid outfit"
+                                    aria-label="Next unity outfit"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -793,11 +793,11 @@ export function HireForm({
                                     )}
                                     disabled={isSubmitting}
                                     onClick={() =>
-                                      setDroidOutfit((current) =>
+                                      setUnityOutfit((current) =>
                                         cycleOption(appearanceOutfitOptions, current, 1)
                                       )
                                     }
-                                    style={{ top: droidControlTop.outfit }}
+                                    style={{ top: unityControlTop.outfit }}
                                   >
                                     <ChevronRight className="!h-6 !w-6" />
                                   </Button>
@@ -816,11 +816,11 @@ export function HireForm({
                                     )}
                                     disabled={isSubmitting}
                                     onClick={() =>
-                                      setDroidBody((current) =>
+                                      setUnityBody((current) =>
                                         cycleOption(appearanceBodyOptions, current, -1)
                                       )
                                     }
-                                    style={{ top: droidControlTop.body }}
+                                    style={{ top: unityControlTop.body }}
                                   >
                                     <ChevronLeft className="!h-6 !w-6" />
                                   </Button>
@@ -838,11 +838,11 @@ export function HireForm({
                                     )}
                                     disabled={isSubmitting}
                                     onClick={() =>
-                                      setDroidBody((current) =>
+                                      setUnityBody((current) =>
                                         cycleOption(appearanceBodyOptions, current, 1)
                                       )
                                     }
-                                    style={{ top: droidControlTop.body }}
+                                    style={{ top: unityControlTop.body }}
                                   >
                                     <ChevronRight className="!h-6 !w-6" />
                                   </Button>
@@ -854,16 +854,16 @@ export function HireForm({
                               <span className="flex h-full w-40 items-center justify-center sm:w-52 md:w-40">
                                 <span
                                   className="block h-full w-full transition-transform duration-300 ease-out"
-                                  style={{ transform: `scale(${DROID_PREVIEW_REST_SCALE})` }}
+                                  style={{ transform: `scale(${UNITY_PREVIEW_REST_SCALE})` }}
                                 >
-                                  <HireDroidAvatar
+                                  <HireUnityAvatar
                                     isVoicePreviewPlaying={isVoicePreviewPlaying}
                                     previewAudioElement={previewAudioElement}
-                                    antenna={selectedDroidAntenna}
-                                    body={selectedDroidBody}
-                                    color={selectedDroidColor}
-                                    baseEyes={selectedDroidEyes}
-                                    outfit={selectedDroidOutfit}
+                                    antenna={selectedUnityAntenna}
+                                    body={selectedUnityBody}
+                                    color={selectedUnityColor}
+                                    baseEyes={selectedUnityEyes}
+                                    outfit={selectedUnityOutfit}
                                     label="T-W1N avatar"
                                   />
                                 </span>
@@ -873,7 +873,7 @@ export function HireForm({
                                 aria-label="Preview selected voice"
                                 className={cn(
                                   'relative z-0 flex h-full items-center justify-center bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                                  DROID_PREVIEW_LAYOUT_TRANSITION_CLASS,
+                                  UNITY_PREVIEW_LAYOUT_TRANSITION_CLASS,
                                   isAppearanceEditing ? 'w-40 sm:w-52 md:w-40' : 'w-56 sm:w-64'
                                 )}
                                 disabled={isSubmitting}
@@ -882,17 +882,17 @@ export function HireForm({
                               >
                                 <span
                                   className="block h-full w-full transition-transform duration-300 ease-out"
-                                  style={{ transform: `scale(${droidPreviewScale})` }}
+                                  style={{ transform: `scale(${unityPreviewScale})` }}
                                 >
-                                  <HireDroidAvatar
+                                  <HireUnityAvatar
                                     isVoicePreviewPlaying={isVoicePreviewPlaying}
                                     previewAudioElement={previewAudioElement}
-                                    antenna={selectedDroidAntenna}
-                                    body={selectedDroidBody}
-                                    color={selectedDroidColor}
-                                    baseEyes={selectedDroidEyes}
-                                    outfit={selectedDroidOutfit}
-                                    label="Droid avatar"
+                                    antenna={selectedUnityAntenna}
+                                    body={selectedUnityBody}
+                                    color={selectedUnityColor}
+                                    baseEyes={selectedUnityEyes}
+                                    outfit={selectedUnityOutfit}
+                                    label="Unity avatar"
                                   />
                                 </span>
                               </button>
@@ -911,14 +911,14 @@ export function HireForm({
                               <div className="flex items-center gap-2">
                                 <AppearanceControlTooltip label="Color" side="left">
                                   <Button
-                                    aria-label="Previous droid color"
+                                    aria-label="Previous unity color"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 bg-transparent hover:bg-transparent"
                                     disabled={isSubmitting}
                                     onClick={() =>
-                                      setDroidColor((current) =>
+                                      setUnityColor((current) =>
                                         cycleOption(appearanceColorOptions, current, -1)
                                       )
                                     }
@@ -927,24 +927,24 @@ export function HireForm({
                                   </Button>
                                 </AppearanceControlTooltip>
                                 <div
-                                  aria-label={`Current droid color: ${selectedDroidColor}`}
+                                  aria-label={`Current unity color: ${selectedUnityColor}`}
                                   className="flex items-center gap-1.5 px-1 py-1"
                                   role="img"
                                 >
                                   <AnimatePresence initial={false} mode="popLayout">
-                                    {[previousColor, selectedDroidColor, nextColor].map((color) => (
+                                    {[previousColor, selectedUnityColor, nextColor].map((color) => (
                                       <motion.span
                                         aria-hidden="true"
                                         className={cn(
                                           'rounded-control block border border-border',
-                                          color === selectedDroidColor
+                                          color === selectedUnityColor
                                             ? 'h-5 w-5'
                                             : 'h-3.5 w-3.5 opacity-65'
                                         )}
                                         exit={{ opacity: 0, scale: 0.8 }}
                                         initial={{ opacity: 0, scale: 0.8 }}
                                         animate={{
-                                          opacity: color === selectedDroidColor ? 1 : 0.65,
+                                          opacity: color === selectedUnityColor ? 1 : 0.65,
                                           scale: 1,
                                         }}
                                         key={color}
@@ -957,14 +957,14 @@ export function HireForm({
                                 </div>
                                 <AppearanceControlTooltip label="Color" side="right">
                                   <Button
-                                    aria-label="Next droid color"
+                                    aria-label="Next unity color"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 bg-transparent hover:bg-transparent"
                                     disabled={isSubmitting}
                                     onClick={() =>
-                                      setDroidColor((current) =>
+                                      setUnityColor((current) =>
                                         cycleOption(appearanceColorOptions, current, 1)
                                       )
                                     }
@@ -976,13 +976,13 @@ export function HireForm({
 
                               <div className="flex items-center justify-center">
                                 <Button
-                                  aria-label="Randomize droid appearance"
+                                  aria-label="Randomize unity appearance"
                                   type="button"
                                   variant="outline"
                                   size="sm"
                                   className="h-8 gap-1.5"
                                   disabled={isSubmitting}
-                                  onClick={randomizeDroidAppearance}
+                                  onClick={randomizeUnityAppearance}
                                 >
                                   <Shuffle className="h-3.5 w-3.5" />
                                   Randomize
@@ -1143,7 +1143,7 @@ export function HireForm({
                               {isWorkspaceWarning && (
                                 <>
                                   <span className="block">
-                                    It&apos;s advised to create a workspace for your new droid{' '}
+                                    It&apos;s advised to create a workspace for your new unity{' '}
                                     <strong className="font-bold">now</strong>, so they can get
                                     started right away. If you don&apos;t want to create one yet,
                                     click skip.

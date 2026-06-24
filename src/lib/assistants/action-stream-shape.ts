@@ -1,5 +1,5 @@
 /**
- * Convert Droid's flat action-event payloads into the log-shaped frames that
+ * Convert Unity's flat action-event payloads into the log-shaped frames that
  * Console's live consumers already understand.
  */
 

@@ -89,7 +89,7 @@ import { useAssistantSystemErrors } from '@/hooks/Assistants/useAssistantSystemE
 import { useAssistantPresenceWake } from '@/hooks/Assistants/useAssistantPresenceWake';
 import { seedMediaSignedUrls } from '@/lib/client/assistant';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
-import { createRandomDroidProfile } from '@/utils/assistants/droid-profile-randomizer';
+import { createRandomUnityProfile } from '@/utils/assistants/unity-profile-randomizer';
 import {
   dispatchCoordinatorOnboardingStepEvent,
   replyStepForCoordinatorTriggerStep,
@@ -1561,8 +1561,8 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     workspaceConnectAvailable,
   ]);
 
-  const applyRandomDroidProfile = React.useCallback(() => {
-    const profile = createRandomDroidProfile();
+  const applyRandomUnityProfile = React.useCallback(() => {
+    const profile = createRandomUnityProfile();
     formMethods.setValue('firstName', profile.firstName, { shouldValidate: true });
     formMethods.setValue('surname', profile.surname, { shouldValidate: true });
     formMethods.setValue('jobTitle', profile.jobTitle, { shouldValidate: true });
@@ -1571,7 +1571,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, [formMethods]);
 
   // Auto-select the first filtered preset for hidden defaults like voice, then
-  // Replace the visible profile fields with a branded droid profile.
+  // Replace the visible profile fields with a branded unity profile.
   React.useEffect(() => {
     if (needsPresetSelection && currentFilteredPresets.length > 0 && !userHasChangedPreset) {
       const current = formMethods.getValues('currentPreset');
@@ -1584,7 +1584,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         return; // already selected and still valid — nothing to do
       }
       selectPresetForHireForm(currentFilteredPresets[0]);
-      applyRandomDroidProfile();
+      applyRandomUnityProfile();
     }
   }, [
     needsPresetSelection,
@@ -1592,7 +1592,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     userHasChangedPreset,
     selectPresetForHireForm,
     formMethods,
-    applyRandomDroidProfile,
+    applyRandomUnityProfile,
   ]);
 
   const handleOpenEditDialog = React.useCallback(
@@ -2001,7 +2001,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   const handleRandomizeProfile = () => {
     setUserHasChangedPreset(true);
-    applyRandomDroidProfile();
+    applyRandomUnityProfile();
   };
 
   const handleUserPresetSelect = React.useCallback(

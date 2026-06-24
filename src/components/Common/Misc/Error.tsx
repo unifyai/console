@@ -29,10 +29,10 @@ export default function Error({
     <BrandFallback
       actionLabel="Try again"
       apology="Sorry about that. We're working on a fix now."
-      description="The console hit a snag while loading this view. Try again, or head back to the console while the droid resets."
+      description="The console hit a snag while loading this view. Try again, or head back to the console while the unity resets."
       eyebrow="System hiccup"
       onAction={reset}
-      title="A droid tripped over a loose cable"
+      title="A unity tripped over a loose cable"
     />
   );
 }

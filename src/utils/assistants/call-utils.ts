@@ -8,8 +8,8 @@
  *
  * @param assistantId - The agent/assistant ID.
  * @param medium - The communication medium (e.g. "meet").
- * @returns A room name string in the format `droid_{assistantId}_{medium}`.
+ * @returns A room name string in the format `unity_{assistantId}_{medium}`.
  */
 export function makeRoomName(assistantId: string, medium: string): string {
-  return `droid_${assistantId}_${medium}`;
+  return `unity_${assistantId}_${medium}`;
 }

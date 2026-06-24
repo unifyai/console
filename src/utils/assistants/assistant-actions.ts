@@ -107,7 +107,7 @@ export function parseManagerMethodLog(log: ManagerMethodLog): ParsedManagerMetho
 
 /**
  * Creates an ActionNode from a parsed incoming event.
- * Uses the Droid-provided displayLabel (human-readable) when available,
+ * Uses the Unity-provided displayLabel (human-readable) when available,
  * falling back to the raw hierarchy segment (e.g., "ContactManager.ask").
  *
  * Type is always 'manager' — the 'boundary' type is exclusively assigned
@@ -197,7 +197,7 @@ function isTrivialLoopSignal(content: string | undefined): boolean {
 /**
  * Applies an outgoing event to a node, updating its status and content.
  *
- * Droid emits many outgoing events per calling_id via the _LoggedHandle proxy.
+ * Unity emits many outgoing events per calling_id via the _LoggedHandle proxy.
  * Most are polling noise: handle.done() returning False → answer="false".
  * Only three patterns signal completion:
  *
@@ -541,7 +541,7 @@ export function mergeNewEvents(
       const node = createActionNode(event);
       insertNodeAtHierarchy(roots, nodeMap, node);
     } else {
-      // outgoing — Droid sends multiple outgoings per calling_id;
+      // outgoing — Unity sends multiple outgoings per calling_id;
       // applyOutgoingEvent is safe to call repeatedly (content is only
       // overwritten when the new value is meaningful).
       const existingNode = nodeMap.get(event.callingId);

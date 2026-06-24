@@ -28,10 +28,10 @@ import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
 import {
-  SeatedCoordinatorDroid,
-  useCoordinatorDroidLayout,
-} from '@/components/Pages/Assistants/Coordinator/SeatedCoordinatorDroid';
-import { COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID } from '@/utils/assistants/coordinator-onboarding-intro';
+  SeatedCoordinatorUnity,
+  useCoordinatorUnityLayout,
+} from '@/components/Pages/Assistants/Coordinator/SeatedCoordinatorUnity';
+import { COORDINATOR_ONBOARDING_DEFAULT_INITIAL_UNITY } from '@/utils/assistants/coordinator-onboarding-intro';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { notifyOnboardingSessionStarted } from '@/lib/client/coordinator';
@@ -71,7 +71,7 @@ export function CoordinatorOnboarding({
   const [isStartingCall, setIsStartingCall] = React.useState(false);
   const hasCompletedRef = React.useRef(false);
 
-  // Fire the picker-resolution event so Droid opens the session with the
+  // Fire the picker-resolution event so Unity opens the session with the
   // right kind of message. Best-effort: completion never blocks on it.
   const notifySessionStarted = React.useCallback(
     (medium: 'chat' | 'call') => {
@@ -150,8 +150,8 @@ export function CoordinatorOnboarding({
 /* ─── Call preparing ──────────────────────────────────────────────────── */
 
 function CoordinatorOnboardingCallPreparing() {
-  const { droidWidth, framePx } = useCoordinatorDroidLayout();
-  const cardOverlapPx = Math.round(droidWidth * 0.22);
+  const { unityWidth, framePx } = useCoordinatorUnityLayout();
+  const cardOverlapPx = Math.round(unityWidth * 0.22);
 
   return (
     <motion.div
@@ -162,9 +162,9 @@ function CoordinatorOnboardingCallPreparing() {
       data-testid="coordinator-onboarding-call-preparing"
     >
       <div className="relative z-10" style={{ width: framePx, height: framePx }}>
-        <SeatedCoordinatorDroid
-          droid={COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID}
-          width={droidWidth}
+        <SeatedCoordinatorUnity
+          unity={COORDINATOR_ONBOARDING_DEFAULT_INITIAL_UNITY}
+          width={unityWidth}
           isSpeaking={false}
         />
       </div>
@@ -202,10 +202,10 @@ function CoordinatorOnboardingPicker({
   onPickChat,
   isStartingCall,
 }: CoordinatorOnboardingPickerProps) {
-  const { droidWidth, framePx } = useCoordinatorDroidLayout();
-  // How far the card slides up under the droid so the two read as one
-  // unit. Scaled to the droid so the overlap holds across viewport sizes.
-  const cardOverlapPx = Math.round(droidWidth * 0.22);
+  const { unityWidth, framePx } = useCoordinatorUnityLayout();
+  // How far the card slides up under the unity so the two read as one
+  // unit. Scaled to the unity so the overlap holds across viewport sizes.
+  const cardOverlapPx = Math.round(unityWidth * 0.22);
 
   const startCallButton = (
     <Button
@@ -241,15 +241,15 @@ function CoordinatorOnboardingPicker({
       data-testid="coordinator-onboarding-picker"
     >
       <div className="relative z-10" style={{ width: framePx, height: framePx }}>
-        <SeatedCoordinatorDroid
-          droid={COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID}
-          width={droidWidth}
+        <SeatedCoordinatorUnity
+          unity={COORDINATOR_ONBOARDING_DEFAULT_INITIAL_UNITY}
+          width={unityWidth}
           isSpeaking={false}
         />
       </div>
       {/* The prompt + actions live in a frosted card so the copy stays
        * legible in both light and dark themes. The card tucks up under the
-       * droid (which sits on top via ``z-10``) so the avatar and panel read
+       * unity (which sits on top via ``z-10``) so the avatar and panel read
        * as a single unit. */}
       <div
         className="coordinator-onboarding-card relative flex w-full flex-col items-center gap-6 rounded-2xl border border-border px-8 pb-7 shadow-xl"

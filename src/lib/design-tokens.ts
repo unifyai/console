@@ -1,4 +1,4 @@
-// Canonical implementation lives in the shared brand submodule (@droid/brand).
+// Canonical implementation lives in the shared brand submodule (@unity/brand).
 export {
   baseColors,
   darkTheme,
@@ -11,4 +11,4 @@ export {
   type ChartColors,
   type OGColors,
   type DiffColors,
-} from '@droid/brand/tokens';
+} from '@unity/brand/tokens';

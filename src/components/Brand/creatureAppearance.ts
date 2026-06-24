@@ -1,4 +1,4 @@
-// Canonical implementation lives in the shared brand submodule (@droid/brand).
+// Canonical implementation lives in the shared brand submodule (@unity/brand).
 export {
   APPEARANCE_SENTINEL_PREFIX,
   DEFAULT_CREATURE_APPEARANCE,
@@ -6,4 +6,4 @@ export {
   isCreatureSentinel,
   parseCreatureSentinel,
   type CreatureAppearance,
-} from '@droid/brand/components';
+} from '@unity/brand/components';

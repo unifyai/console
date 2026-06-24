@@ -41,7 +41,7 @@ export type OnboardingSessionMedium = 'chat' | 'call';
 export interface OnboardingSessionStartedResult {
   coordinatorId: string;
   /**
-   * Whether Orchestra actually forwarded the event to Droid.
+   * Whether Orchestra actually forwarded the event to Unity.
    *
    * ``false`` when the Coordinator is no longer in onboarding mode
    * (e.g. the user already skipped onboarding in another tab) — the
@@ -58,7 +58,7 @@ export interface OnboardingSessionStartedResult {
  * fresh transcript, recap on a resumed one). Orchestra derives the
  * completed-step snapshot server-side at emission time, so only the
  * medium travels. Best-effort: callers should NOT block UI on the
- * response — the event drives a background LLM run on the Droid
+ * response — the event drives a background LLM run on the Unity
  * side whose output arrives via the normal chat-streaming channel.
  */
 export async function notifyOnboardingSessionStarted(

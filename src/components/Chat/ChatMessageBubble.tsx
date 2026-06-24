@@ -12,8 +12,8 @@ import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { TooltipContent, Tooltip, TooltipTrigger, TooltipProvider } from '@/components/UI/tooltip';
 import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/CoordinatorLogoAvatar';
 import { AssistantStartCallButton } from '@/components/Pages/Assistants/Communication/AssistantStartCallButton';
-import { DroidCallAvatar } from '@/components/Pages/Assistants/Communication/DroidCallAvatar';
-import { useDroidAudioElementLipsync } from '@/utils/assistants/droid-lipsync';
+import { UnityCallAvatar } from '@/components/Pages/Assistants/Communication/UnityCallAvatar';
+import { useUnityAudioElementLipsync } from '@/utils/assistants/unity-lipsync';
 
 type ChatBubbleVariant = 'profile' | 'hire';
 
@@ -126,11 +126,11 @@ function ChatMessageBubbleImpl({
   const isTypingIndicator = !isUser && isLoading && !message;
   const assistantAvatarClassName = 'h-7 w-7 flex-shrink-0';
   const creatureAppearance = assistantPhoto ? parseCreatureSentinel(assistantPhoto) : null;
-  const isDroidAudioPlaying = Boolean(
+  const isUnityAudioPlaying = Boolean(
     creatureAppearance && audioState === 'playing' && audioElement
   );
-  const droidLipsyncFrame = useDroidAudioElementLipsync(audioElement ?? null, {
-    enabled: isDroidAudioPlaying,
+  const unityLipsyncFrame = useUnityAudioElementLipsync(audioElement ?? null, {
+    enabled: isUnityAudioPlaying,
   });
 
   // Copy lives on the message header row so it sits next to the audio
@@ -149,7 +149,7 @@ function ChatMessageBubbleImpl({
   ) : creatureAppearance ? (
     <span
       className={cn(assistantAvatarClassName, 'relative flex items-center justify-center')}
-      data-speaking={isDroidAudioPlaying || undefined}
+      data-speaking={isUnityAudioPlaying || undefined}
     >
       <CreatureAvatar
         appearance={assistantPhoto as string}
@@ -157,7 +157,7 @@ function ChatMessageBubbleImpl({
         label={assistantName}
       />
       <AnimatePresence>
-        {isDroidAudioPlaying && (
+        {isUnityAudioPlaying && (
           <motion.span
             aria-hidden="true"
             className="pointer-events-none absolute left-1/2 top-1/2 z-20 flex h-28 w-28 items-center justify-center overflow-visible drop-shadow-lg"
@@ -166,10 +166,10 @@ function ChatMessageBubbleImpl({
             exit={{ opacity: 0, scale: 0.25, x: '-50%', y: '-50%' }}
             transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.75 }}
           >
-            <DroidCallAvatar
-              isSpeaking={droidLipsyncFrame.isActive}
-              mouthShape={droidLipsyncFrame.mouthShape}
-              speechLevel={droidLipsyncFrame.speechLevel}
+            <UnityCallAvatar
+              isSpeaking={unityLipsyncFrame.isActive}
+              mouthShape={unityLipsyncFrame.mouthShape}
+              speechLevel={unityLipsyncFrame.speechLevel}
               antenna={creatureAppearance.antenna}
               body={creatureAppearance.body}
               color={creatureAppearance.color}

@@ -1,4 +1,4 @@
-// Canonical implementation lives in the shared brand submodule (@droid/brand).
+// Canonical implementation lives in the shared brand submodule (@unity/brand).
 // This re-export keeps existing `@/components/Brand/RotatingBot` imports working.
 export {
   RotatingBot,
@@ -13,4 +13,4 @@ export {
   type BotSkin,
   type BotView,
   type RotatingBotAccessory,
-} from '@droid/brand/components';
+} from '@unity/brand/components';

@@ -256,5 +256,5 @@ export async function getOrCreateSubscription(
 
 /** Derives the Pub/Sub topic name for an assistant. */
 export function getTopicName(assistantId: string): string {
-  return `droid-${assistantId}${topicSuffix()}`;
+  return `unity-${assistantId}${topicSuffix()}`;
 }

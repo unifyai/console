@@ -1,2 +1,2 @@
-// Canonical implementation lives in the shared brand submodule (@droid/brand).
-export { UnifyBlockMark } from '@droid/brand/components';
+// Canonical implementation lives in the shared brand submodule (@unity/brand).
+export { UnifyBlockMark } from '@unity/brand/components';

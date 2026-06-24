@@ -14,9 +14,9 @@ function resetEnabled(): boolean {
 
 function resolveDeployRepoPath(): string {
   return (
-    process.env.DROID_DEPLOY_REPO_PATH ??
+    process.env.UNITY_DEPLOY_REPO_PATH ??
     process.env.DEPLOY_REPO_PATH ??
-    path.resolve(process.cwd(), '..', 'droid-deploy')
+    path.resolve(process.cwd(), '..', 'unity-deploy')
   );
 }
 
@@ -47,7 +47,7 @@ async function restartCoordinatorRuntime(): Promise<void> {
       env: {
         ...process.env,
         SELF_HOST: '1',
-        DROID_STACK_ORCHESTRATOR: 'console-local-harness',
+        UNITY_STACK_ORCHESTRATOR: 'console-local-harness',
       },
       timeout: 180_000,
       maxBuffer: 1024 * 1024,

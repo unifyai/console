@@ -12,7 +12,7 @@ import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
 import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
-import { DEFAULT_AVATAR_MOOD, parseMoodClassificationMessage } from '@/utils/assistants/droid-mood';
+import { DEFAULT_AVATAR_MOOD, parseMoodClassificationMessage } from '@/utils/assistants/unity-mood';
 
 const ASSISTANT_JOIN_SLOW_THRESHOLD = 90000; // 90 seconds — soft warning, not an error
 const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
@@ -267,7 +267,7 @@ export function useAssistantCall(
 
           try {
             // Run getConnectionDetails and dispatchToCall in parallel.
-            // The room name is deterministic (droid_{id}_meet), so dispatch
+            // The room name is deterministic (unity_{id}_meet), so dispatch
             // doesn't need to wait for connection details.
             const [details, dispatchResult] = await Promise.all([
               assistantActions.call.getConnectionDetails(assistant.agentId, assistantName),

@@ -636,7 +636,7 @@ interface AssistantCommunicationDialogProps {
    * only gates the modal/floating shell.
    */
   docked?: boolean;
-  /** Fade the coordinator droid in when it first mounts in the docked call. */
+  /** Fade the coordinator unity in when it first mounts in the docked call. */
   coordinatorTeleportIn?: boolean;
   /** Controls when the docked coordinator avatar mounts during onboarding. */
   coordinatorAvatarVisible?: boolean;

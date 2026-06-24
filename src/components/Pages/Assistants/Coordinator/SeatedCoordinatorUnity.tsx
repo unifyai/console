@@ -2,91 +2,91 @@
 
 import * as React from 'react';
 import {
-  AnimatedDroid,
+  AnimatedUnity,
   getCreatureAccent,
-  getDroidBodyForm,
+  getUnityBodyForm,
   getRotatingBotAnchorRatios,
-} from '@droid/brand/components';
+} from '@unity/brand/components';
 import type { CreatureMouthShape } from '@/components/Brand/TeammateCreature';
-import { clampDroidSpeechLevel } from '@/utils/assistants/droid-animation';
-import type { CoordinatorOnboardingIntroDroidAppearance } from '@/utils/assistants/coordinator-onboarding-intro';
+import { clampUnitySpeechLevel } from '@/utils/assistants/unity-animation';
+import type { CoordinatorOnboardingIntroUnityAppearance } from '@/utils/assistants/coordinator-onboarding-intro';
 
 /**
- * Target render width (px) of an onboarding-intro droid. Held constant across
- * shapes — like the landing-page hero conveyor — so droids vary only in height
+ * Target render width (px) of an onboarding-intro unity. Held constant across
+ * shapes — like the landing-page hero conveyor — so unitys vary only in height
  * as they slide past, and constant across aspect ratios so T-W1N reads at the
  * same (larger) size whether the window is full or half width.
  */
-export const COORDINATOR_ONBOARDING_DROID_WIDTH_PX = 176;
+export const COORDINATOR_ONBOARDING_UNITY_WIDTH_PX = 176;
 
-// Each droid sits in a square frame a bit wider than the droid itself; the gap
-// is the spacing seen between droids as the wardrobe selector slides.
-const DROID_FRAME_TO_WIDTH_RATIO = 4 / 3;
-// Only shrink below the target on viewports too narrow to fit it, so the droid
+// Each unity sits in a square frame a bit wider than the unity itself; the gap
+// is the spacing seen between unitys as the wardrobe selector slides.
+const UNITY_FRAME_TO_WIDTH_RATIO = 4 / 3;
+// Only shrink below the target on viewports too narrow to fit it, so the unity
 // never overflows a small window.
-const DROID_MAX_VIEWPORT_FRACTION = 0.46;
+const UNITY_MAX_VIEWPORT_FRACTION = 0.46;
 const COORDINATOR_INTRO_SPEECH_EYE_CONFIG = {
   expressionSequence: ['square', 'up'] as const,
 };
 
-function computeDroidWidth(viewportWidth: number) {
+function computeUnityWidth(viewportWidth: number) {
   return Math.round(
-    Math.min(COORDINATOR_ONBOARDING_DROID_WIDTH_PX, viewportWidth * DROID_MAX_VIEWPORT_FRACTION)
+    Math.min(COORDINATOR_ONBOARDING_UNITY_WIDTH_PX, viewportWidth * UNITY_MAX_VIEWPORT_FRACTION)
   );
 }
 
 /**
- * Viewport-responsive sizing for the onboarding droids. Returns the droid
+ * Viewport-responsive sizing for the onboarding unitys. Returns the unity
  * render ``width`` plus the square ``frame`` size used for the selector cells,
  * slide pitch, and avatar boxes — keep them in lockstep so the slide math and
- * the per-droid baseline stay correct as the size changes.
+ * the per-unity baseline stay correct as the size changes.
  */
-export function useCoordinatorDroidLayout() {
-  const [droidWidth, setDroidWidth] = React.useState(COORDINATOR_ONBOARDING_DROID_WIDTH_PX);
+export function useCoordinatorUnityLayout() {
+  const [unityWidth, setUnityWidth] = React.useState(COORDINATOR_ONBOARDING_UNITY_WIDTH_PX);
 
   React.useEffect(() => {
-    const update = () => setDroidWidth(computeDroidWidth(window.innerWidth || 1024));
+    const update = () => setUnityWidth(computeUnityWidth(window.innerWidth || 1024));
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
 
-  return { droidWidth, framePx: Math.round(droidWidth * DROID_FRAME_TO_WIDTH_RATIO) };
+  return { unityWidth, framePx: Math.round(unityWidth * UNITY_FRAME_TO_WIDTH_RATIO) };
 }
 
 /**
- * A droid seated on the bottom edge of its (relatively-positioned) parent.
+ * A unity seated on the bottom edge of its (relatively-positioned) parent.
  *
  * Different brand forms have different viewBoxes, and the SVG centres itself
  * with the default ``xMidYMid meet``, so neither centring nor bottom-aligning
  * the box lands the *feet* on a common line. We use the brand's
  * ``getRotatingBotAnchorRatios`` (the same data the hero conveyor uses) for the
- * *vertical* seat: the droid is sized by width and translated down so its
+ * *vertical* seat: the unity is sized by width and translated down so its
  * ground point sits exactly on the parent's bottom edge. Drop several of these
  * into equal-height parents and they all read as standing on one surface.
  *
- * Horizontally we keep the droid's body centred in its box (a plain
+ * Horizontally we keep the unity's body centred in its box (a plain
  * ``-50%``) rather than anchoring the ground point: these avatars sit alone in
  * a centred slot, so the body mass — not the projected foot — is what needs to
  * line up with the centre.
  *
  * The parent must be ``position: relative`` and define the baseline via its
- * own height (the droid seats on ``bottom: 0``).
+ * own height (the unity seats on ``bottom: 0``).
  */
-export function SeatedCoordinatorDroid({
-  droid,
-  width = COORDINATOR_ONBOARDING_DROID_WIDTH_PX,
+export function SeatedCoordinatorUnity({
+  unity,
+  width = COORDINATOR_ONBOARDING_UNITY_WIDTH_PX,
   isSpeaking,
   mouthShape = 'closed',
   speechLevel,
 }: {
-  droid: CoordinatorOnboardingIntroDroidAppearance;
+  unity: CoordinatorOnboardingIntroUnityAppearance;
   width?: number;
   isSpeaking: boolean;
   mouthShape?: CreatureMouthShape;
   speechLevel?: number;
 }) {
-  const form = getDroidBodyForm(droid.body);
+  const form = getUnityBodyForm(unity.body);
   const anchor = getRotatingBotAnchorRatios(form);
 
   return (
@@ -98,26 +98,26 @@ export function SeatedCoordinatorDroid({
         transform: `translate(-50%, ${(anchor.y * width).toFixed(2)}px)`,
       }}
     >
-      <AnimatedDroid
-        accent={getCreatureAccent(droid.color)}
-        // ``active`` gates all face animation in the brand droid (the mouth
+      <AnimatedUnity
+        accent={getCreatureAccent(unity.color)}
+        // ``active`` gates all face animation in the brand unity (the mouth
         // only lipsyncs when ``active && isSpeaking``). It must stay true —
-        // ``DroidCallAvatar`` hardcodes it the same way — or the voice would
+        // ``UnityCallAvatar`` hardcodes it the same way — or the voice would
         // never drive the mouth.
         active
-        antenna={droid.antenna}
+        antenna={unity.antenna}
         className="block h-auto w-full"
         disableSpeechMotion
         disableEmotionEyePool
-        emotion={droid.mood ?? 'happy'}
+        emotion={unity.mood ?? 'happy'}
         fixed={1}
         form={form}
         isSpeaking={isSpeaking}
         mouthShape={mouthShape}
-        restingEyes={droid.baseEyes ?? 'up'}
+        restingEyes={unity.baseEyes ?? 'up'}
         speechEyeConfig={COORDINATOR_INTRO_SPEECH_EYE_CONFIG}
-        skin={droid.outfit}
-        speechLevel={clampDroidSpeechLevel(speechLevel ?? 0)}
+        skin={unity.outfit}
+        speechLevel={clampUnitySpeechLevel(speechLevel ?? 0)}
         stableBox
       />
     </span>

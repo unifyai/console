@@ -16,12 +16,12 @@ type AssistantStatusPayload = {
   jobName: string | null;
 };
 
-function droidHome(): string {
-  return process.env.DROID_HOME ?? path.join(os.homedir(), '.droid');
+function unityHome(): string {
+  return process.env.UNITY_HOME ?? path.join(os.homedir(), '.unity');
 }
 
 function selfHostStateDir(): string {
-  return process.env.SELF_HOST_STATE_DIR ?? droidHome();
+  return process.env.SELF_HOST_STATE_DIR ?? unityHome();
 }
 
 function coordinatorRuntimeFile(): string {

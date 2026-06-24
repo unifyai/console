@@ -21,10 +21,10 @@
     --role-teal: #3c8f86;
     --role-pink: #e85a8e;
     --role-cyan: #4f7fa8;
-    --droid-screen: #0e2027;
-    --droid-glow: #79efdd;
-    --droid-outline: #173534;
-    --droid-shadow: #cdb89b;
+    --unity-screen: #0e2027;
+    --unity-glow: #79efdd;
+    --unity-outline: #173534;
+    --unity-shadow: #cdb89b;
     --brand-grain-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23grain)' opacity='0.26'/%3E%3C/svg%3E");
     --neo-teal: #2f9d97;
     --neo-teal-dark: #1c6460;
@@ -148,10 +148,10 @@
     --foreground: #eef0ea;
     --role-pink: #e85a8e;
     --role-cyan: #4f7fa8;
-    --droid-screen: #0e2027;
-    --droid-glow: #79efdd;
-    --droid-outline: #79c9bf;
-    --droid-shadow: rgba(0, 0, 0, 0.42);
+    --unity-screen: #0e2027;
+    --unity-glow: #79efdd;
+    --unity-outline: #79c9bf;
+    --unity-shadow: rgba(0, 0, 0, 0.42);
     --neo-teal: #2f9d97;
     --neo-teal-dark: #1c6460;
     --neo-coral: #c95f5a;
@@ -627,7 +627,7 @@
       ),
       radial-gradient(
         circle at 18% 22%,
-        color-mix(in srgb, var(--droid-glow) 28%, transparent),
+        color-mix(in srgb, var(--unity-glow) 28%, transparent),
         transparent 30%
       ),
       radial-gradient(
@@ -676,7 +676,7 @@
     background-image:
       radial-gradient(
         circle at 18% 10%,
-        color-mix(in srgb, var(--droid-glow) 40%, transparent),
+        color-mix(in srgb, var(--unity-glow) 40%, transparent),
         transparent 31%
       ),
       radial-gradient(
@@ -738,7 +738,7 @@
     justify-content: center;
     gap: 1rem;
   }
-  .brand-fallback-droid {
+  .brand-fallback-unity {
     display: grid;
     flex: none;
     width: 7rem;
@@ -758,7 +758,7 @@
       linear-gradient(
         135deg,
         color-mix(in srgb, var(--neo-amber) 62%, var(--card)),
-        color-mix(in srgb, var(--droid-glow) 46%, var(--card))
+        color-mix(in srgb, var(--unity-glow) 46%, var(--card))
       );
     background-size:
       auto,

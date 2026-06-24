@@ -105,7 +105,7 @@ export interface OnboardingNextTarget {
 
 /**
  * Precomputed, depends_on-aware onboarding picture from Orchestra. The
- * single source of truth for the checklist UI and both Droid brains:
+ * single source of truth for the checklist UI and both Unity brains:
  * statuses and valid next targets are computed server-side so nothing
  * downstream re-derives ordering. Present only while actively
  * onboarding; ``null`` once complete, working, or deferred.
