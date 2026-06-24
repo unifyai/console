@@ -40,12 +40,7 @@ try {
   if (window.localStorage.getItem(epochKey) !== nextEpoch) {
     for (var i = window.localStorage.length - 1; i >= 0; i -= 1) {
       var key = window.localStorage.key(i);
-      if (
-        key &&
-        (key.indexOf('console:assistants:') === 0 ||
-          key.indexOf('activePopOutCall') === 0 ||
-          key.indexOf('popOutCall') === 0)
-      ) {
+      if (key && key.indexOf('console:assistants:') === 0) {
         window.localStorage.removeItem(key);
       }
     }

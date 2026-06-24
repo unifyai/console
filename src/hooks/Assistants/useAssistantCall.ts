@@ -25,7 +25,13 @@ type AssistantReadyWaiter = {
   reject: (error: Error) => void;
 };
 
-export function useAssistantCall(room: Room, assistantActions: AssistantActions) {
+// The call hook only touches the call + desktop action groups, so it accepts
+// the narrow subset rather than the full AssistantActions bag. This lets the
+// layout-level CallProvider feed it without assembling every action factory.
+export function useAssistantCall(
+  room: Room,
+  assistantActions: Pick<AssistantActions, 'call' | 'desktop'>
+) {
   const [connectionDetails, setConnectionDetails] = React.useState<ConnectionDetails | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [isConnected, setIsConnected] = React.useState(false);

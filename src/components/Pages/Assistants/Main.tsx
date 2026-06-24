@@ -63,7 +63,7 @@ import { ChatMessage, CallPill } from '@/types/assistants/chat';
 import { AssistantDesktopLinker } from './Profile/AssistantDesktopLinker';
 import { AssistantContactManager } from './Profile/AssistantContactManager';
 import { AssistantWorkspaceManager } from './Profile/AssistantWorkspaceManager';
-import { useAssistantCall } from '@/hooks/Assistants/useAssistantCall';
+import { useCallContext } from './Communication/CallProvider';
 import { useContactIdPrefetch } from '@/hooks/Assistants/useContactIdPrefetch';
 import {
   useAssistantChatStream,
@@ -78,7 +78,6 @@ import { useUnreadDocumentTitle } from '@/hooks/Assistants/useUnreadDocumentTitl
 import type { ParsedInboundChatMessage } from '@/utils/assistants/chat-sse-frame';
 import type { BroadcastMessagePayload } from '@/types/assistants/chat';
 import type { SlackInstall, SlackInstallOwner } from '@/types/slack/install';
-import { LogLevel, Room, setLogLevel } from 'livekit-client';
 import { RoomContext } from '@livekit/components-react';
 import { AssistantCommunicationDialog } from './Communication/AssistantCommunicationDialog';
 import { useUserSpending } from '@/hooks/User/useUserSpending';
@@ -729,6 +728,42 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         coordinatorOnboardingState === null &&
         isCoordinatorOnboardingStateLoading));
 
+  // --- Call Management ---
+  // The call engine (LiveKit Room + lifecycle) is owned by the layout-level
+  // CallProvider so a call survives navigation away from /assistants. This
+  // page consumes that shared state and renders the docked / popped-out
+  // surface; the provider renders the floating window on other pages. Read
+  // here (above the profile-selection and chat-stream effects) so they can use
+  // the active-call assistant as a fallback / redock target.
+  const {
+    room,
+    isConnecting: isConnectingCall,
+    isConnected: isCallConnected,
+    activeCallAssistant,
+    callType,
+    connect: startCall,
+    disconnect: hangUpCall,
+    isSpeakerMuted,
+    toggleSpeakerMute,
+    isWaitingForAssistant,
+    isAssistantPreparing,
+    waitingMessage,
+    connectionError,
+    retryConnection,
+    isDesktopReady,
+    isRemoteControlActive,
+    liveviewUrl,
+    isRemoteControlLoading,
+    toggleRemoteControl,
+    isRemoteControlInteractive,
+    isRemoteControlInteractiveLoading,
+    toggleRemoteControlInteractive,
+    avatarMood,
+    isDocked,
+    popOut,
+    redock,
+  } = useCallContext();
+
   React.useEffect(() => {
     if (!profileAssistantId || isLoadingAssistants) return;
     const selectedAssistantStillVisible = assistants.some(
@@ -771,9 +806,18 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     defaultCoordinatorSelectionRef.current = true;
     if (landedWithProfileDeepLinkRef.current) return;
     if (!profileAssistantId) {
-      handleShowProfile(canonicalCoordinatorId);
+      // When landing here mid-call (e.g. returning from another page, which
+      // drops the ``?profile=`` param), select the assistant on the call so a
+      // docked call redocks into its chat slot instead of being orphaned.
+      handleShowProfile(activeCallAssistant?.agentId ?? canonicalCoordinatorId);
     }
-  }, [canonicalCoordinatorId, handleShowProfile, isLoadingAssistants, profileAssistantId]);
+  }, [
+    activeCallAssistant,
+    canonicalCoordinatorId,
+    handleShowProfile,
+    isLoadingAssistants,
+    profileAssistantId,
+  ]);
 
   const consumedOnboardingFocusParamRef = React.useRef<string | null>(null);
   React.useEffect(() => {
@@ -881,41 +925,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setProfileChatHistories,
     setCallPillHistories
   );
-
-  // --- Call Management ---
-  // Lifted above the chat-stream hook so the stream can use the active-call
-  // assistant as a fallback for `activeAssistantId` (prevents the in-call
-  // side-panel chat from flashing an unread badge for the very assistant
-  // the user is talking to).
-  const room = React.useMemo(() => {
-    setLogLevel(LogLevel.warn);
-    return new Room();
-  }, []);
-  const {
-    isConnecting: isConnectingCall,
-    isConnected: isCallConnected,
-    activeCallAssistant,
-    callType,
-    connectionDetails,
-    connect: startCall,
-    disconnect: hangUpCall,
-    isSpeakerMuted,
-    toggleSpeakerMute,
-    isWaitingForAssistant,
-    isAssistantPreparing,
-    waitingMessage,
-    connectionError,
-    retryConnection,
-    isDesktopReady,
-    isRemoteControlActive,
-    liveviewUrl,
-    isRemoteControlLoading,
-    toggleRemoteControl,
-    isRemoteControlInteractive,
-    isRemoteControlInteractiveLoading,
-    toggleRemoteControlInteractive,
-    avatarMood,
-  } = useAssistantCall(room, assistantActions);
 
   // --- Page-level chat SSE stream ---
   // Single SSE connection that demultiplexes Pub/Sub chat topics for every
@@ -1227,66 +1236,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [desktopLinkerAssistant, setDesktopLinkerAssistant] = React.useState<Assistant | null>(
     null
   );
-  const [popOutCallAssistantId, setPopOutCallAssistantId] = React.useState<string | null>(null);
-
-  const pongTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-  const pongListenerRef = React.useRef<(event: StorageEvent) => void>();
-
-  const verifyAndSetPopOutState = React.useCallback(() => {
-    if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-    if (pongListenerRef.current) window.removeEventListener('storage', pongListenerRef.current);
-    setPopOutCallAssistantId(null);
-
-    try {
-      const data = localStorage.getItem('activePopOutCall');
-      if (!data) return;
-
-      const popOutData = JSON.parse(data);
-      const pingId = `ping-${Date.now()}`;
-
-      pongListenerRef.current = (event: StorageEvent) => {
-        if (event.key === 'popOutCallPong' && event.newValue === pingId) {
-          if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-          window.removeEventListener('storage', pongListenerRef.current!);
-          setPopOutCallAssistantId(popOutData?.assistantId || null);
-        }
-      };
-
-      window.addEventListener('storage', pongListenerRef.current);
-      localStorage.setItem('popOutCallPing', pingId);
-      setTimeout(() => localStorage.removeItem('popOutCallPing'), 2000);
-
-      pongTimeoutRef.current = setTimeout(() => {
-        window.removeEventListener('storage', pongListenerRef.current!);
-        console.warn(
-          "No response from pop-out call window. Clearing stale 'activePopOutCall' localStorage entry."
-        );
-        localStorage.removeItem('activePopOutCall');
-        setPopOutCallAssistantId(null);
-      }, 1500);
-    } catch (e) {
-      console.error('Error during pop-out verification, clearing state:', e);
-      localStorage.removeItem('activePopOutCall');
-      setPopOutCallAssistantId(null);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    verifyAndSetPopOutState();
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'activePopOutCall') {
-        verifyAndSetPopOutState();
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
-      if (pongListenerRef.current) window.removeEventListener('storage', pongListenerRef.current);
-    };
-  }, [verifyAndSetPopOutState]);
-
-  const [isCommunicationDialogOpen, setIsCommunicationDialogOpen] = React.useState(false);
 
   // --- User/Org Spending for Spending Gate ---
   // Stable disabled action functions (defined once, never changes)
@@ -1353,63 +1302,35 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     setProfileAssistantSpending(null);
   }, [profileAssistantId]);
 
-  // ``isCommunicationDialogOpen`` doubles as the call-popped-out
-  // flag now: ``false`` (the default) renders the call docked above
-  // the chat panel, ``true`` lifts it back into the
-  // floating/modal dialog overlay. The flag is reset to ``false`` on
-  // hangup and on disconnect so the next call starts docked again.
+  // Dock state lives in the layout-level CallProvider (so it persists across
+  // navigation): ``isDocked`` true renders the call docked above the chat
+  // panel, false lifts it into the floating/modal overlay. The provider snaps
+  // back to docked once a call ends so the next one starts docked again.
   const handleStartCall = React.useCallback(
     async (
       assistant: Assistant,
       callType: 'video' | 'audio',
       options?: AssistantCallConnectOptions
     ) => {
-      const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
-      if (activeCallId) {
-        if (activeCallId === assistant.agentId) {
-          if (popOutCallAssistantId) {
-            toast.info(
-              'Call is active in a separate tab. Close that tab to start a new call here.'
-            );
-          }
-          // Same-assistant re-click while a call is already running:
-          // no-op — the docked surface is already on screen, and
-          // popping it out shouldn't happen by accident.
-        } else {
+      if (activeCallAssistant) {
+        if (activeCallAssistant.agentId !== assistant.agentId) {
           toast.info('A call is already in progress with another assistant.');
         }
+        // Same-assistant re-click while a call is already running is a no-op —
+        // the call surface is already on screen.
         return;
       }
 
       // Fresh call: stay docked by default.
-      setIsCommunicationDialogOpen(false);
+      redock();
       await startCall(assistant, callType, options);
     },
-    [startCall, activeCallAssistant, popOutCallAssistantId]
+    [startCall, redock, activeCallAssistant]
   );
-
-  const handlePopOutCall = React.useCallback(() => {
-    setIsCommunicationDialogOpen(true);
-  }, []);
-  const handleRedockCall = React.useCallback(() => {
-    setIsCommunicationDialogOpen(false);
-  }, []);
 
   const handleHangUp = React.useCallback(async () => {
     await hangUpCall();
-    setIsCommunicationDialogOpen(false);
   }, [hangUpCall]);
-
-  // Reset the popped-out flag if the call drops while popped out,
-  // so the next call starts docked rather than surprise-popping the
-  // user with a leftover overlay.
-  React.useEffect(() => {
-    if (connectionError) return; // Don't close if there's an error the user needs to see
-
-    if (!isConnectingCall && !isCallConnected && isCommunicationDialogOpen) {
-      setIsCommunicationDialogOpen(false);
-    }
-  }, [isConnectingCall, isCallConnected, isCommunicationDialogOpen, connectionError]);
 
   const {
     displayedPresets,
@@ -2360,7 +2281,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     }
   }, [assistants, workspaceManagerAssistant]);
 
-  const activeCallId = activeCallAssistant?.agentId || popOutCallAssistantId;
+  const activeCallId = activeCallAssistant?.agentId ?? null;
 
   // --- System error listener (assistant-level, above all interaction surfaces) ---
   useAssistantSystemErrors(profileAssistant);
@@ -2509,14 +2430,14 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     activeCallAssistant &&
                     profileAssistant &&
                     activeCallAssistant.agentId === profileAssistant.agentId &&
-                    !isCommunicationDialogOpen
+                    isDocked
                       ? () => (
                           <RoomContext.Provider value={room}>
                             <AssistantCommunicationDialog
                               docked
                               isOpen
                               onClose={handleHangUp}
-                              onPopOut={handlePopOutCall}
+                              onPopOut={popOut}
                               assistant={activeCallAssistant}
                               assistantActions={assistantActions}
                               room={room}
@@ -2730,12 +2651,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
          *  closer to the call's content (the chat panel in the base
          *  /assistants view, or the Coordinator-onboarding shell)
          *  so we don't need a guard for those shells here. */}
-        {activeCallAssistant && isCommunicationDialogOpen && (
+        {activeCallAssistant && !isDocked && (
           <RoomContext.Provider value={room}>
             <AssistantCommunicationDialog
-              isOpen={isCommunicationDialogOpen}
+              isOpen={!isDocked}
               onClose={handleHangUp}
-              onRedock={handleRedockCall}
+              onRedock={redock}
               assistant={activeCallAssistant}
               assistantActions={assistantActions}
               room={room}

@@ -14,8 +14,72 @@ import { NetworkStatusToast } from '@/components/Layout/NetworkStatusToast';
 import { SelfHostRuntimeBootstrap } from '@/components/SelfHost/SelfHostRuntimeBootstrap';
 import { Toaster } from '@/components/UI/Chat/sonner';
 import { Loader2 } from 'lucide-react';
+import {
+  CallProvider,
+  type CallProviderActions,
+} from '@/components/Pages/Assistants/Communication/CallProvider';
+import { getCurrentUser } from '@/lib/user/user';
+import { updateAssistant } from '@/lib/assistants/assistant';
+import {
+  getTranscripts,
+  messageAssistant,
+  getContactIdByEmail,
+  getAssistantOwnerById,
+  uploadAttachment,
+} from '@/lib/assistants/chat';
+import {
+  getCallConnectionDetails,
+  dispatchAssistantToCall,
+  deleteCallRoom,
+} from '@/lib/assistants/call';
+import {
+  getLiveviewUrl,
+  buildLiveviewUrl,
+  checkLiveviewHealth,
+  sendSystemEvent,
+  getDesktopApiKey,
+  listUserDesktops,
+  linkDesktop,
+  unlinkDesktop,
+  renameUserDesktop,
+  deleteUserDesktop,
+} from '@/lib/assistants/desktop';
 
-export default function HomeLayout({ children }: { children: React.ReactNode }) {
+export default async function HomeLayout({ children }: { children: React.ReactNode }) {
+  // The call engine lives at the layout level so a call survives client-side
+  // navigation between (home) pages. The layout (server component) assembles
+  // the secret-bearing action factories and hands them to the client
+  // CallProvider — the same pattern the standalone fullscreen call page uses.
+  const user = await getCurrentUser();
+  const callActions: CallProviderActions = {
+    assistant: { update: updateAssistant },
+    chat: {
+      getContactId: getContactIdByEmail,
+      getTranscripts,
+      message: messageAssistant,
+      getAssistantOwnerById,
+      uploadAttachment,
+    },
+    call: {
+      getConnectionDetails: getCallConnectionDetails,
+      dispatchToCall: dispatchAssistantToCall,
+      deleteRoom: deleteCallRoom,
+    },
+    desktop: {
+      getLiveviewUrl,
+      buildLiveviewUrl,
+      checkLiveviewHealth,
+      sendSystemEvent,
+      getApiKey: getDesktopApiKey,
+      listUserDesktops,
+      linkDesktop,
+      unlinkDesktop,
+      renameUserDesktop,
+      deleteUserDesktop,
+    },
+  };
+  const callUserMeta = { email: user?.email ?? null, image: user?.image ?? null };
+
   return (
     <div className="h-screen w-full overflow-hidden">
       <Providers>
@@ -35,13 +99,15 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
           >
             <TopNav />
           </Suspense>
-          <Suspense fallback={<LoadingScreen />}>
-            <main className="brand-page-stencil-bg relative top-10 h-[calc(100vh-2.5rem)] overflow-hidden bg-background">
-              <MfaEnforcementGate>
-                <NuqsAdapter>{children}</NuqsAdapter>
-              </MfaEnforcementGate>
-            </main>
-          </Suspense>
+          <CallProvider callActions={callActions} userMeta={callUserMeta}>
+            <Suspense fallback={<LoadingScreen />}>
+              <main className="brand-page-stencil-bg relative top-10 h-[calc(100vh-2.5rem)] overflow-hidden bg-background">
+                <MfaEnforcementGate>
+                  <NuqsAdapter>{children}</NuqsAdapter>
+                </MfaEnforcementGate>
+              </main>
+            </Suspense>
+          </CallProvider>
           <Toaster richColors position="bottom-right" closeButton />
           <SelfHostRuntimeBootstrap />
           <TimezoneSync />

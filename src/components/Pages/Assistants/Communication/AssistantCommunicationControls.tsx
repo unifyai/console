@@ -45,6 +45,9 @@ interface AssistantCommunicationControlsProps {
    *  (compact pill-sized buttons, no in-call chat toggle since the
    *  user can pop the call out to get the regular chat back). */
   compact?: boolean;
+  /** Hides the chat toggle entirely (cross-page floating call, where the
+   *  page-level chat stream isn't wired up). */
+  chatDisabled?: boolean;
 }
 
 const ControlButton: React.FC<{
@@ -103,6 +106,7 @@ export function AssistantCommunicationControls({
   isDesktopReady = true, // Default to true for backwards compatibility
   callType,
   compact = false,
+  chatDisabled = false,
 }: AssistantCommunicationControlsProps) {
   // Remote control requires assistant to have joined AND desktop VM to be ready
   const canUseRemoteControl = isConnectionEstablished && isAssistantJoined && isDesktopReady;
@@ -287,7 +291,7 @@ export function AssistantCommunicationControls({
        *  the in-call chat side panel competes with the adjacent
        *  assistant-info panel for the same screen real estate. */}
       <div className={cn('flex w-1/3 items-center justify-end', compact ? 'gap-1' : 'gap-3')}>
-        {!compact && (
+        {!compact && !chatDisabled && (
           <ControlButton tooltip="Toggle chat" onClick={onToggleChat} compact={compact}>
             <MessageSquare className={iconClass} />
           </ControlButton>
