@@ -14,7 +14,7 @@ describe('dispatchCoordinatorOnboardingStepEvent', () => {
 
     const event = await dispatchCoordinatorOnboardingStepEvent('123', {
       id: 'slack-reference',
-      title: 'Receive Slack message from Twin',
+      title: 'Receive Slack message from T-W1N',
       phase: 'Communication',
       status: 'available',
       canSkip: true,
@@ -25,7 +25,7 @@ describe('dispatchCoordinatorOnboardingStepEvent', () => {
       dependencies: [],
       event: {
         eventType: 'coordinator_onboarding_event',
-        message: "The user just clicked 'Receive Slack message from Twin'.",
+        message: "The user just clicked 'Receive Slack message from T-W1N'.",
         subtype: 'reference_quiz_clue_requested',
         details: {
           game: 'guess_the_reference',

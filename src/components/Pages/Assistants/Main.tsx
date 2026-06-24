@@ -1946,7 +1946,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       onSkipSection: handleCoordinatorOnboardingSectionSkip,
       onUnskipSection: handleCoordinatorOnboardingSectionUnskip,
       onStepComplete: isProfileCoordinator ? markStepCompleted : undefined,
-      // Flavours the "Ask Twin to do something" suggestion chips:
+      // Flavours the "Ask T-W1N to do something" suggestion chips:
       // call-friendly prompts while on a voice call, chat-friendly
       // otherwise.
       isOnCall:

@@ -14,7 +14,7 @@ import type { CoordinatorOnboardingIntroDroidAppearance } from '@/utils/assistan
 /**
  * Target render width (px) of an onboarding-intro droid. Held constant across
  * shapes — like the landing-page hero conveyor — so droids vary only in height
- * as they slide past, and constant across aspect ratios so Twin reads at the
+ * as they slide past, and constant across aspect ratios so T-W1N reads at the
  * same (larger) size whether the window is full or half width.
  */
 export const COORDINATOR_ONBOARDING_DROID_WIDTH_PX = 176;

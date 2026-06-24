@@ -566,9 +566,9 @@ export function RightPaneContainer({
         data-testid="coordinator-private"
         className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center"
       >
-        <p className="text-body-muted">Twin chat is private.</p>
+        <p className="text-body-muted">T-W1N chat is private.</p>
         <p className="text-caption text-muted-foreground">
-          Open Twin from this workspace to continue.
+          Open T-W1N from this workspace to continue.
         </p>
       </div>
     );

@@ -32,7 +32,7 @@ export function CoordinatorLogoAvatar({
         antenna={TWIN_CREATURE_APPEARANCE.antenna}
         className={cn('h-full w-full', logoClassName)}
         eyes={isHovered ? getHoverEyes(eyes) : eyes}
-        label="Twin"
+        label="T-W1N"
       />
     </span>
   );

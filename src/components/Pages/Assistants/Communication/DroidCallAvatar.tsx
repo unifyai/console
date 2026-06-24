@@ -63,7 +63,7 @@ export function DroidCallAvatar({
   color = 'green',
   baseEyes = 'up',
   outfit = 'none',
-  label = 'Twin',
+  label = 'T-W1N',
   isometricRest = false,
   teleportInOnMount = false,
 }: DroidCallAvatarProps) {

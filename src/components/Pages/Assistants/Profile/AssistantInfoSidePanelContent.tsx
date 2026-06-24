@@ -104,7 +104,7 @@ export interface AssistantInfoSidePanelContentProps {
     onSkipSection?: (phaseId: string) => void;
     onUnskipSection?: (phaseId: string) => void;
     /** Whether the Coordinator is currently on a voice call — selects
-     * call- vs chat-flavoured "Ask Twin to do something" chips. */
+     * call- vs chat-flavoured "Ask T-W1N to do something" chips. */
     isOnCall?: boolean;
   };
   onStartCall?: (assistant: Assistant, type: 'audio' | 'video') => void;
@@ -212,7 +212,7 @@ function CoordinatorAssistantInfoSidePanelContent({
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-4 py-4', className)}>
       <IdentityHeader
-        name="Twin"
+        name="T-W1N"
         photoSrc={undefined}
         initials="M"
         summary="Your digital twin"

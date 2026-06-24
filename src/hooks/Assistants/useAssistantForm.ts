@@ -410,7 +410,7 @@ export function useAssistantForm(
         ...getValues(),
 
         // Profile
-        firstName: assistant.isCoordinator ? 'Twin' : assistant.firstName,
+        firstName: assistant.isCoordinator ? 'T-W1N' : assistant.firstName,
         surname: assistant.isCoordinator ? '' : assistant.surname,
         jobTitle: assistant.isCoordinator
           ? resolveCoordinatorJobTitle(assistant.jobTitle)

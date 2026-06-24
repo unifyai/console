@@ -710,7 +710,7 @@ export default function TopNav() {
             <AlertDialogDescription className="space-y-3 text-left">
               <span className="block">
                 This clears local chat, onboarding, organization, and assistant history while
-                keeping the self-host owner account and Twin Coordinator.
+                keeping the self-host owner account and T-W1N Coordinator.
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>

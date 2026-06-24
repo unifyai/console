@@ -163,7 +163,7 @@ test('updating the about field via the edit dialog persists to DB', async ({
   expect(dbAfter.about).toBe(newAbout);
 });
 
-test('changing Twin voice via the edit dialog persists to DB', async ({ authedPage: page }) => {
+test('changing T-W1N voice via the edit dialog persists to DB', async ({ authedPage: page }) => {
   const coordinator = user.coordinator;
   if (!coordinator) throw new Error('Expected seeded user to have a personal coordinator.');
 
@@ -189,9 +189,9 @@ test('changing Twin voice via the edit dialog persists to DB', async ({ authedPa
     }
   }
 
-  if (!selectedVoiceId) throw new Error('Expected at least one configurable Twin voice option.');
+  if (!selectedVoiceId) throw new Error('Expected at least one configurable T-W1N voice option.');
 
-  const updateBtn = page.getByRole('button', { name: /Update Twin/i });
+  const updateBtn = page.getByRole('button', { name: /Update T-W1N/i });
   await updateBtn.scrollIntoViewIfNeeded();
   await updateBtn.click();
 

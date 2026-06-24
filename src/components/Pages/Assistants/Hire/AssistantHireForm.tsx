@@ -572,7 +572,7 @@ export function HireForm({
                             readOnly={lockIdentityFields}
                             aria-readonly={lockIdentityFields}
                             tabIndex={lockIdentityFields ? -1 : undefined}
-                            title={lockIdentityFields ? "Twin's name is fixed" : undefined}
+                            title={lockIdentityFields ? "T-W1N's name is fixed" : undefined}
                             className={cn(
                               lockIdentityFields &&
                                 'cursor-not-allowed border-muted bg-muted text-muted-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0'
@@ -596,7 +596,7 @@ export function HireForm({
                             readOnly={lockIdentityFields}
                             aria-readonly={lockIdentityFields}
                             tabIndex={lockIdentityFields ? -1 : undefined}
-                            title={lockIdentityFields ? "Twin's name is fixed" : undefined}
+                            title={lockIdentityFields ? "T-W1N's name is fixed" : undefined}
                             className={cn(
                               lockIdentityFields &&
                                 'cursor-not-allowed border-muted bg-muted text-muted-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0'
@@ -864,7 +864,7 @@ export function HireForm({
                                     color={selectedDroidColor}
                                     baseEyes={selectedDroidEyes}
                                     outfit={selectedDroidOutfit}
-                                    label="Twin avatar"
+                                    label="T-W1N avatar"
                                   />
                                 </span>
                               </span>
@@ -1185,7 +1185,7 @@ export function HireForm({
                                   not
                                 </strong>{' '}
                                 connect {workspaceAssistantName} to your own Google/Microsoft
-                                account. Only Twin should have access to your personal account.
+                                account. Only T-W1N should have access to your personal account.
                               </span>
                               <span
                                 className={cn(

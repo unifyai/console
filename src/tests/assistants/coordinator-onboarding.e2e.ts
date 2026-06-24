@@ -439,7 +439,7 @@ test('coordinator state exposes a voice intro briefing for the first onboarding 
   // ``system_context`` is this server-composed briefing (see
   // ``handleStartCoordinatorIntroCall``). Assert the contract the dispatch
   // relies on: a fresh onboarding coordinator's state read carries a
-  // non-empty orientation briefing introducing Twin and the pause escape hatch.
+  // non-empty orientation briefing introducing T-W1N and the pause escape hatch.
   const coordinator = createPersonalCoordinator(user.id);
   resetCoordinatorIntroWatched();
 
@@ -454,11 +454,11 @@ test('coordinator state exposes a voice intro briefing for the first onboarding 
   const briefing = String(info.voice_intro_briefing ?? info.voiceIntroBriefing ?? '');
 
   expect(briefing.length).toBeGreaterThan(0);
-  expect(briefing).toContain('Twin');
+  expect(briefing).toContain('T dash W 1 N');
   expect(briefing.toLowerCase()).toContain('pause onboarding');
 });
 
-test('mobile onboarding keeps the docked Twin call visible instead of auto-opening Assistant info', async ({
+test('mobile onboarding keeps the docked T-W1N call visible instead of auto-opening Assistant info', async ({
   authedPage: page,
 }) => {
   await enableDevCalls(page);
@@ -477,7 +477,7 @@ test('mobile onboarding keeps the docked Twin call visible instead of auto-openi
   await page.getByRole('button', { name: 'End call' }).click();
 });
 
-test('resolving the picker persists intro_watched and reload defaults to Twin + Assistant info', async ({
+test('resolving the picker persists intro_watched and reload defaults to T-W1N + Assistant info', async ({
   authedPage: page,
 }) => {
   resetCoordinatorIntroWatched();
@@ -506,7 +506,7 @@ test('resolving the picker persists intro_watched and reload defaults to Twin + 
   });
 });
 
-test('switching back to Twin does not reapply the onboarding focus layout', async ({
+test('switching back to T-W1N does not reapply the onboarding focus layout', async ({
   authedPage: page,
 }) => {
   const coordinator = createPersonalCoordinator(user.id);
