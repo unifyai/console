@@ -253,6 +253,8 @@ export type AssistantFormData = Omit<
   | 'userId'
   | 'organizationId'
   | 'isCoordinator'
+  | 'age'
+  | 'nationality'
   | 'createdAt'
   | 'updatedAt'
   | 'signedProfilePhotoUrl'
@@ -300,7 +302,7 @@ export type AssistantFormData = Omit<
   isPresetPristine?: boolean;
   presetOriginalValues?: Pick<
     AssistantFormData,
-    'firstName' | 'surname' | 'age' | 'nationality' | 'voiceId' | 'profilePhotoUrl'
+    'firstName' | 'surname' | 'voiceId' | 'profilePhotoUrl'
   > | null;
   currentPreset?: AssistantPreset | null;
 

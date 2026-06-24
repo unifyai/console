@@ -56,8 +56,6 @@ export function useAssistantForm(
       firstName: '',
       surname: '',
       jobTitle: null,
-      age: null,
-      nationality: 'United States',
       about: '',
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 
@@ -119,8 +117,6 @@ export function useAssistantForm(
   const watchedFields = watch([
     'firstName',
     'surname',
-    'age',
-    'nationality',
     'about',
     'voiceId',
     'photoFile',
@@ -128,17 +124,8 @@ export function useAssistantForm(
     'presetOriginalValues',
   ]);
   React.useEffect(() => {
-    const [
-      firstName,
-      surname,
-      age,
-      nationality,
-      about,
-      voiceId,
-      photoFile,
-      profilePhotoUrl,
-      originalValues,
-    ] = watchedFields;
+    const [firstName, surname, about, voiceId, photoFile, profilePhotoUrl, originalValues] =
+      watchedFields;
 
     if (photoFile) {
       if (getValues('isPresetPristine')) {
@@ -159,11 +146,9 @@ export function useAssistantForm(
       ? voiceId === currentPreset.voiceIds[PRIMARY_VOICE_PROVIDER]
       : voiceId === originalValues.voiceId;
 
-    let isPristine =
+    const isPristine =
       firstName === originalValues.firstName &&
       surname === originalValues.surname &&
-      age === originalValues.age &&
-      (nationality ?? '') === (originalValues.nationality ?? '') &&
       isVoicePristine &&
       (profilePhotoUrl === originalValues.profilePhotoUrl ||
         (!profilePhotoUrl && !originalValues.profilePhotoUrl));
@@ -229,10 +214,6 @@ export function useAssistantForm(
       setValue('firstName', preset.firstName, { shouldValidate: true });
       setValue('surname', preset.surname, { shouldValidate: true });
       setValue('jobTitle', preset.jobTitle ?? null, { shouldValidate: true });
-      setValue('age', preset.age, { shouldValidate: true });
-      setValue('nationality', preset.nationality ?? 'United States', {
-        shouldValidate: true,
-      });
       setValue('about', preset.about ?? '', { shouldValidate: true });
       setValue('profilePhotoUrl', null);
       setValue('photoPreviewUrl', null);
@@ -288,8 +269,6 @@ export function useAssistantForm(
       const originalValues = {
         firstName: preset.firstName,
         surname: preset.surname,
-        age: preset.age,
-        nationality: preset.nationality ?? '',
         voiceId: selectedPresetVoiceDetails.voiceId,
         profilePhotoUrl: preset.profilePhoto,
       };
@@ -342,8 +321,6 @@ export function useAssistantForm(
         firstName: values?.firstName || '',
         surname: values?.surname || '',
         jobTitle: values?.jobTitle ?? null,
-        age: values?.age || null,
-        nationality: values?.nationality || 'United States',
         about: values?.about || '',
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 
@@ -415,8 +392,6 @@ export function useAssistantForm(
         jobTitle: assistant.isCoordinator
           ? resolveCoordinatorJobTitle(assistant.jobTitle)
           : (assistant.jobTitle ?? null),
-        age: assistant.age,
-        nationality: assistant.nationality,
         about: assistant.isCoordinator
           ? resolveCoordinatorAbout(assistant.about)
           : assistant.about || '',

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { motion } from 'framer-motion';
-import { AssistantFormData, AssistantPreset } from '@/types/assistants/assistant';
+import { AssistantFormData } from '@/types/assistants/assistant';
 import {
   Dialog,
   DialogContent,
@@ -10,19 +10,15 @@ import {
 } from '@/components/UI/dialog';
 import { Button } from '@/components/UI/button';
 import { Loader2, X, Shuffle } from 'lucide-react';
-import { PresetsPanelProps } from '@/components/Pages/Assistants/Hire/Presets/AssistantHirePresetsList';
 import { HireFormProps } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { UseFormReturn } from 'react-hook-form';
 import { ChatMessage } from '@/types/assistants/chat';
 
-interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFormProps> {
+interface AssistantHireProps extends Partial<HireFormProps> {
   isHireDialogOpen: boolean;
   isHireSubmitting: boolean;
   setIsHireDialogOpen: (value: React.SetStateAction<boolean>) => void;
-  isAssistantPresetsOpen: boolean;
-  setIsAssistantPresetsOpen: (value: React.SetStateAction<boolean>) => void;
-  currentFilteredPresets: AssistantPreset[];
   onHireAttempt: (chatHistory?: ChatMessage[]) => Promise<void>;
   children: React.ReactNode;
   isProcessingVoice?: boolean;

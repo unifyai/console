@@ -16,7 +16,6 @@ import {
   AssistantActions,
   AssistantCallConnectOptions,
   AssistantFormData,
-  AssistantPreset,
   AssistantUpdatePayload,
   CallOpeningConfig,
   VoiceOption,
@@ -26,7 +25,6 @@ import { toast } from 'sonner';
 import { AssistantHire } from './Hire/AssistantHire';
 import { AssistantEdit } from './Edit/AssistantEdit';
 import { HireForm } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
-import { PresetsPanel } from './Hire/Presets/AssistantHirePresetsList';
 import { IncomingMeetCallCard } from '@/components/Pages/Assistants/Communication/IncomingMeetCallCard';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import { useAssistants } from '@/hooks/Assistants/useAssistants';
@@ -894,7 +892,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const [skipHireWorkspaceSetup, setSkipHireWorkspaceSetup] =
     React.useState(!workspaceConnectAvailable);
   const [showHireWorkspaceWarning, setShowHireWorkspaceWarning] = React.useState(false);
-  const [isAssistantPresetsOpen, setIsAssistantPresetsOpen] = React.useState(true);
   const [isDialogBusyProcessingPhoto, setIsDialogBusyProcessingPhoto] = React.useState(false);
   const [isDialogBusyProcessingVoice, setIsDialogBusyProcessingVoice] = React.useState(false);
   const [newlyHiredInfo, setNewlyHiredInfo] = React.useState<{
@@ -1387,19 +1384,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, [incomingMeetCall, activeCallAssistant]);
 
   const {
-    displayedPresets,
-    loadMorePresets,
-    canLoadMorePresets,
-    isLoadingMorePresets,
     setPresetAgeFilter,
     setPresetNationalityFilter,
-    presetGenderFilter,
     setPresetGenderFilter,
     setPresetLanguageFilter,
-    availableGenders,
     currentFilteredPresets,
     allAssistantPresets,
-    presetPhotoUrls,
   } = useAssistantPresets({ enabled: isHireDialogOpen });
 
   // --- Voice Management Options ---
@@ -1589,7 +1579,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   const handleOpenHireDialog = React.useCallback(() => {
     resetHireFormInternal();
-    setIsAssistantPresetsOpen(true);
     setPresetAgeFilter('all');
     setPresetNationalityFilter('all');
     setPresetGenderFilter('all');
@@ -2045,14 +2034,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleHeaderRandomize = React.useCallback(() => {
     hireRandomizeRef.current?.();
   }, []);
-
-  const handleUserPresetSelect = React.useCallback(
-    (preset: AssistantPreset) => {
-      setUserHasChangedPreset(true);
-      selectPresetForHireForm(preset);
-    },
-    [selectPresetForHireForm]
-  );
 
   const handleDeleteVoice = async (voice: VoiceOption) => {
     const deletedId = await deleteUserVoice(voice);
@@ -2578,9 +2559,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             isHireDialogOpen={isHireDialogOpen}
             isHireSubmitting={isFormSubmitting}
             setIsHireDialogOpen={setIsHireDialogOpen}
-            isAssistantPresetsOpen={isAssistantPresetsOpen}
-            setIsAssistantPresetsOpen={setIsAssistantPresetsOpen}
-            currentFilteredPresets={currentFilteredPresets}
             onHireAttempt={handleHireAttempt}
             isProcessingPhoto={isDialogBusyProcessingPhoto}
             isProcessingVoice={isDialogBusyProcessingVoice}
@@ -2611,20 +2589,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               skipWorkspaceSetup={skipHireWorkspaceSetup}
               onSkipWorkspaceSetupChange={handleSkipHireWorkspaceSetupChange}
               showWorkspaceWarning={showHireWorkspaceWarning}
-            />
-            <PresetsPanel
-              displayedPresets={displayedPresets}
-              onPresetSelect={handleUserPresetSelect}
-              onClose={() => setIsAssistantPresetsOpen(false)}
-              onLoadMore={loadMorePresets}
-              canLoadMore={canLoadMorePresets}
-              isLoadingMore={isLoadingMorePresets}
-              genderFilter={presetGenderFilter}
-              onGenderFilterChange={setPresetGenderFilter}
-              availableGenders={availableGenders}
-              layoutMode="split" // Dummy prop
-              setLayoutMode={() => {}} // Dummy prop
-              presetPhotoUrls={presetPhotoUrls}
             />
           </AssistantHire>
 
