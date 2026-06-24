@@ -20,13 +20,17 @@ import type {
 
 export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
 
-export type CallOpeningMode = 'speak' | 'simulated' | 'silent' | 'briefed';
+export type CallOpeningMode = 'speak' | 'simulated' | 'silent' | 'briefed' | 'recorded';
 
 export interface CallOpeningConfig {
   mode: CallOpeningMode;
   simulatedUtterance?: string;
   /** Durable system briefing spoken as the opening turn in `briefed` mode. */
   systemContext?: string;
+  /** Name of a Droid-bundled audio asset spoken as a recorded opening turn. */
+  recordingAsset?: string;
+  /** Transcript paired with a recorded opening; Droid may provide it for bundled assets. */
+  transcript?: string;
   source?: string;
 }
 

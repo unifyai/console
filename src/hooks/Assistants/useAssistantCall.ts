@@ -155,7 +155,8 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       expectsReadyToSpeakRef.current =
         !options?.openingConfig ||
         options.openingConfig.mode === 'speak' ||
-        options.openingConfig.mode === 'briefed';
+        options.openingConfig.mode === 'briefed' ||
+        options.openingConfig.mode === 'recorded';
       const shouldWaitForAssistantReady =
         options?.waitForAssistantReady === true && expectsReadyToSpeakRef.current;
       let readyToSpeakPromise: Promise<void> | null = null;

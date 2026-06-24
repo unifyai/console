@@ -1979,21 +1979,20 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleStartCoordinatorIntroCall = React.useCallback(
     (assistant: Assistant, type: 'video' | 'audio', options?: AssistantCallConnectOptions) => {
       handleShowProfile(assistant.agentId);
-      // First onboarding voice call: speak the server-composed orientation
-      // briefing immediately via a `briefed` opening, instead of waiting for
-      // the slow-brain wakeup to shape a generic holding greeting.
-      const briefing = coordinatorOnboardingState?.voiceIntroBriefing?.trim();
       const isFreshOnboardingIntro =
         coordinatorOnboardingState?.mode === 'onboarding' &&
         coordinatorOnboardingState?.introWatched === false &&
         coordinatorOnboardingState?.onboardingDeferred !== true;
-      const openingConfig: CallOpeningConfig =
-        briefing && isFreshOnboardingIntro
-          ? { mode: 'briefed', systemContext: briefing, source: 'coordinator_onboarding_intro' }
-          : {
-              mode: 'speak',
-              source: options?.openingConfig?.source ?? 'coordinator_onboarding_intro',
-            };
+      const openingConfig: CallOpeningConfig = isFreshOnboardingIntro
+        ? {
+            mode: 'recorded',
+            recordingAsset: 'coordinator_onboarding_intro',
+            source: 'coordinator_onboarding_intro',
+          }
+        : {
+            mode: 'speak',
+            source: options?.openingConfig?.source ?? 'coordinator_onboarding_intro',
+          };
       return handleStartCall(assistant, type, { ...options, openingConfig });
     },
     [handleShowProfile, handleStartCall, coordinatorOnboardingState]

@@ -160,10 +160,8 @@ export interface CoordinatorStateSnapshot {
    */
   onboarding: OnboardingRender | null;
   /**
-   * Self-contained orientation briefing for a fresh onboarding voice call,
-   * composed server-side from the onboarding graph. Passed to the voice agent
-   * as a ``briefed`` opening so the first call speaks the intro immediately.
-   * Empty outside active onboarding.
+   * Self-contained orientation briefing composed server-side from the
+   * onboarding graph. Empty outside active onboarding.
    */
   voiceIntroBriefing: string;
 }

@@ -434,12 +434,10 @@ test('starting a call connects and docks the call in the platform', async ({
   await page.getByRole('button', { name: 'End call' }).click();
 });
 
-test('coordinator state exposes a voice intro briefing for the first onboarding call', async () => {
-  // The first onboarding call dispatches a ``briefed`` opening whose
-  // ``system_context`` is this server-composed briefing (see
-  // ``handleStartCoordinatorIntroCall``). Assert the contract the dispatch
-  // relies on: a fresh onboarding coordinator's state read carries a
-  // non-empty orientation briefing introducing T-W1N and the pause escape hatch.
+test('coordinator state exposes a voice intro briefing for onboarding narration', async () => {
+  // The first call now uses Droid's bundled recorded opener. The state
+  // endpoint still exposes the server-composed orientation briefing for
+  // dynamic onboarding narration and non-recorded fallback paths.
   const coordinator = createPersonalCoordinator(user.id);
   resetCoordinatorIntroWatched();
 
