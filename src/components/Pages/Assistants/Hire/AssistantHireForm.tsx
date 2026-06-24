@@ -257,6 +257,8 @@ export interface HireFormProps {
   /** Whether the user has explicitly selected/changed a preset (not the initial auto-select) */
   userHasChangedPreset?: boolean;
   onRandomizeProfile?: () => void;
+  /** Hands the combined profile+appearance randomizer up to the dialog header. */
+  onRegisterRandomize?: (randomize: () => void) => void;
   workspaceProvider?: OAuthProvider | null;
   onWorkspaceProviderSelect?: (provider: OAuthProvider) => void;
   skipWorkspaceSetup?: boolean;
@@ -279,6 +281,7 @@ export function HireForm({
   mode = 'hire',
   onAddPaymentMethod,
   onRandomizeProfile,
+  onRegisterRandomize,
   workspaceProvider,
   onWorkspaceProviderSelect,
   skipWorkspaceSetup = false,
@@ -484,6 +487,12 @@ export function HireForm({
     randomizeUnityAppearance();
   }, [onRandomizeProfile, randomizeUnityAppearance]);
 
+  // Surface the combined randomizer so the dialog header's Randomize control can
+  // drive both the profile fields and the live appearance from outside the form.
+  React.useEffect(() => {
+    onRegisterRandomize?.(randomizeProfileAndAppearance);
+  }, [onRegisterRandomize, randomizeProfileAndAppearance]);
+
   const handlePlaySelectedVoicePreviewChange = React.useCallback(
     (playPreviewForSelectedVoice: (() => void) | null) => {
       playSelectedVoicePreviewRef.current = playPreviewForSelectedVoice;
@@ -535,32 +544,6 @@ export function HireForm({
             <div>
               <section className="min-w-0">
                 <div className="space-y-3">
-                  {onRandomizeProfile && (
-                    <div className="flex justify-start">
-                      <TooltipProvider delayDuration={100}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              aria-label="Randomize droid profile"
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-8 gap-1.5"
-                              disabled={isSubmitting}
-                              onClick={randomizeProfileAndAppearance}
-                            >
-                              <Shuffle className="h-3.5 w-3.5" />
-                              Randomize
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Randomize name, role, and bio</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  )}
-
                   <div className="space-y-1.5">
                     <Label htmlFor="firstName">First Name</Label>
 

@@ -2036,6 +2036,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     applyRandomUnityProfile();
   };
 
+  // The hire form registers its combined profile+appearance randomizer here so
+  // the dialog header's Randomize button can drive it from outside the form.
+  const hireRandomizeRef = React.useRef<(() => void) | null>(null);
+  const registerHireRandomize = React.useCallback((randomize: () => void) => {
+    hireRandomizeRef.current = randomize;
+  }, []);
+  const handleHeaderRandomize = React.useCallback(() => {
+    hireRandomizeRef.current?.();
+  }, []);
+
   const handleUserPresetSelect = React.useCallback(
     (preset: AssistantPreset) => {
       setUserHasChangedPreset(true);
@@ -2578,6 +2588,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
             showInsufficientFundsHint={showInsufficientFundsHint}
             setShowInsufficientFundsHint={setShowInsufficientFundsHint}
             onAddPaymentMethod={goToBilling}
+            onRandomize={handleHeaderRandomize}
           >
             <HireForm
               formMethods={formMethods}
@@ -2594,6 +2605,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               onAddPaymentMethod={goToBilling}
               userHasChangedPreset={userHasChangedPreset}
               onRandomizeProfile={handleRandomizeProfile}
+              onRegisterRandomize={registerHireRandomize}
               workspaceProvider={hireWorkspaceProvider}
               onWorkspaceProviderSelect={handleHireWorkspaceProviderSelect}
               skipWorkspaceSetup={skipHireWorkspaceSetup}

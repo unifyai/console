@@ -9,7 +9,7 @@ import {
   DialogFooter,
 } from '@/components/UI/dialog';
 import { Button } from '@/components/UI/button';
-import { Loader2, X } from 'lucide-react';
+import { Loader2, X, Shuffle } from 'lucide-react';
 import { PresetsPanelProps } from '@/components/Pages/Assistants/Hire/Presets/AssistantHirePresetsList';
 import { HireFormProps } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
@@ -31,6 +31,8 @@ interface AssistantHireProps extends Partial<PresetsPanelProps>, Partial<HireFor
   showInsufficientFundsHint: boolean;
   setShowInsufficientFundsHint: React.Dispatch<React.SetStateAction<boolean>>;
   onAddPaymentMethod?: () => void;
+  /** Randomizes the droid's name, role, bio and appearance from the header. */
+  onRandomize?: () => void;
   formMethods: UseFormReturn<AssistantFormData>;
   /** When true the Stripe side-panel is open — focus-trap bypass and
    *  outside-interaction handling are adjusted so the user can interact
@@ -46,6 +48,7 @@ export function AssistantHire({
   children,
   isProcessingVoice,
   isProcessingPhoto,
+  onRandomize,
   isStripePanelOpen = false,
 }: AssistantHireProps) {
   const [hireForm] = React.Children.toArray(children);
@@ -151,29 +154,48 @@ export function AssistantHire({
         hideClose
       >
         <DialogHeader className="flex-shrink-0 border-b px-6 py-4">
-          <div className="flex items-start justify-between">
-            <div className="flex flex-col gap-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-caption uppercase tracking-[0.08em] text-muted-foreground">
+                Onboard a droid
+              </span>
               <DialogTitle className="text-h3">Onboard Droid</DialogTitle>
             </div>
-            <TooltipProvider delayDuration={100}>
-              <Tooltip open={isCloseTooltipOpen} onOpenChange={setIsCloseTooltipOpen}>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="warning"
-                    size="icon"
-                    className="h-7 w-7 flex-shrink-0"
-                    onClick={() => handleDialogClose(false)}
-                    disabled={isOverallDialogBusy}
-                  >
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Close onboard dialog</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" align="start">
-                  <p>Click here to close and reset your changes</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <div className="flex flex-shrink-0 items-center gap-2">
+              {onRandomize && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={onRandomize}
+                  disabled={isOverallDialogBusy}
+                  aria-label="Randomize droid profile"
+                >
+                  <Shuffle className="h-3.5 w-3.5" />
+                  Randomize
+                </Button>
+              )}
+              <TooltipProvider delayDuration={100}>
+                <Tooltip open={isCloseTooltipOpen} onOpenChange={setIsCloseTooltipOpen}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="warning"
+                      size="icon"
+                      className="h-7 w-7 flex-shrink-0"
+                      onClick={() => handleDialogClose(false)}
+                      disabled={isOverallDialogBusy}
+                    >
+                      <X className="h-4 w-4" />
+                      <span className="sr-only">Close onboard dialog</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="start">
+                    <p>Click here to close and reset your changes</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
         </DialogHeader>
 
