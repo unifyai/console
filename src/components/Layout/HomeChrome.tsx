@@ -8,7 +8,7 @@ import LoadingScreen from '@/components/Layout/LoadingScreen';
 import { HomeShell } from '@/components/Layout/Shell/HomeShell';
 
 /** Home routes hosted inside the shared rail shell (migrated off `TopNav`). */
-const SHELL_ROUTE_PREFIXES = ['/account', '/billing', '/usage', '/organizations'];
+const SHELL_ROUTE_PREFIXES = ['/account', '/billing', '/usage', '/organizations', '/admin'];
 
 /**
  * Decides the home chrome per route. The rail shell owns global navigation, so
