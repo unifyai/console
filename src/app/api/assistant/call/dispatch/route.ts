@@ -9,7 +9,7 @@ import { getAdaptersBaseUrl } from '@/utils/assistants/api-utils';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { assistantId, roomName, openingConfig } = body;
+    const { assistantId, roomName, openingConfig, callSessionId } = body;
 
     if (!assistantId || !roomName) {
       return badRequest('assistantId and roomName are required');
@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
       livekitAgentName: roomName,
       roomName,
       ...(openingConfig ? { openingConfig } : {}),
+      ...(callSessionId ? { callSessionId } : {}),
     });
 
     const resp = await fetch(dispatchUrl, {

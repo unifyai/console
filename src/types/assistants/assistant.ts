@@ -37,6 +37,8 @@ export interface CallOpeningConfig {
 export interface AssistantCallConnectOptions {
   suppressRinging?: boolean;
   openingConfig?: CallOpeningConfig;
+  /** Stable browser-call attempt id used to ignore stale Droid/LiveKit lifecycle events. */
+  callSessionId?: string;
   waitForAssistantReady?: boolean;
   startMuted?: boolean;
 }
@@ -592,7 +594,8 @@ export interface AssistantActions {
     dispatchToCall: (
       assistantId: string,
       roomName: string,
-      openingConfig?: CallOpeningConfig
+      openingConfig?: CallOpeningConfig,
+      callSessionId?: string
     ) => Promise<ResponseProps>;
     deleteRoom: (roomName: string) => Promise<ResponseProps>;
   };

@@ -115,7 +115,8 @@ export async function deleteCallRoom(roomName: string): Promise<ResponseProps> {
 export async function dispatchAssistantToCall(
   assistantId: string,
   roomName: string,
-  openingConfig?: CallOpeningConfig
+  openingConfig?: CallOpeningConfig,
+  callSessionId?: string
 ): Promise<ResponseProps> {
   const apiKey = await requireUserApiKey();
   try {
@@ -132,6 +133,7 @@ export async function dispatchAssistantToCall(
       livekitAgentName: roomName,
       roomName,
       ...(openingConfig ? { openingConfig } : {}),
+      ...(callSessionId ? { callSessionId } : {}),
     });
 
     const resp = await fetch(dispatchUrl, {
