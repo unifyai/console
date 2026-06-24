@@ -1,4 +1,4 @@
-import { Settings, CreditCard, BarChart3, Building } from 'lucide-react';
+import { Settings, CreditCard, BarChart3, Building, Star } from 'lucide-react';
 import type { SectionDef } from '@/components/Pages/Assistants/Rail/sectionConfig';
 
 /** The Settings surface descriptor, used for the `/account` section header. */
@@ -57,6 +57,20 @@ export const ORGANIZATIONS_SECTION: SectionDef = {
   ],
 };
 
+/** The Favourites surface descriptor, used for the `/favourites` header. */
+export const FAVOURITES_SECTION: SectionDef = {
+  id: 'favourites',
+  label: 'Favourites',
+  Icon: Star,
+  kind: 'view',
+  desc: 'Pin up to 10 projects to your dashboard for quick access.',
+  steps: [
+    ['Browse projects', 'Search the list and tick the projects you use most.'],
+    ['Pick an icon', 'Give each favourite a recognisable icon.'],
+    ['Reorder & save', 'Drag to set the order, then save to update your dashboard.'],
+  ],
+};
+
 /**
  * Registry keyed by section id. Section descriptors carry an `Icon` component,
  * which cannot cross the server→client boundary as a prop. Server pages name a
@@ -68,6 +82,7 @@ export const SHELL_SECTIONS = {
   billing: BILLING_SECTION,
   usage: USAGE_SECTION,
   organizations: ORGANIZATIONS_SECTION,
+  favourites: FAVOURITES_SECTION,
 } as const;
 
 export type ShellSectionId = keyof typeof SHELL_SECTIONS;

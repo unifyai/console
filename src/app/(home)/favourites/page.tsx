@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/user/user';
 import { getProjects } from '@/lib/interfaces/projects';
 import { getFavourites } from '@/lib/interfaces/favourites';
 import FavouritesClient from '@/components/Pages/Favourites/FavouritesClient';
+import { ShellSectionPage } from '@/components/Layout/Shell/ShellSectionPage';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -15,17 +16,12 @@ export default async function FavouritesPage() {
     redirect('/login?signout=true');
   }
 
-  try {
-    const projects = await getProjects();
-    const favourites = await getFavourites();
+  const projects = await getProjects();
+  const favourites = await getFavourites();
 
-    return (
-      <div className="h-full w-full overflow-auto pb-6">
-        <FavouritesClient initialProjects={projects} initialFavourites={favourites} />
-      </div>
-    );
-  } catch (error) {
-    // Propagate to Next.js error boundary
-    throw error;
-  }
+  return (
+    <ShellSectionPage sectionId="favourites">
+      <FavouritesClient initialProjects={projects} initialFavourites={favourites} />
+    </ShellSectionPage>
+  );
 }

@@ -3,8 +3,8 @@ import { Loader } from '@/components/Common/Loader';
 
 /**
  * Route-level loading UI for /interfaces.
- * Renders inside the main content area (below the navbar) while the
- * server component builds and before the client Interface mounts.
+ * Renders inside the shell content area while the server component builds
+ * and before the client Interface mounts.
  */
 export default function Loading() {
   return (

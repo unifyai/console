@@ -453,15 +453,11 @@ export default function FavouritesClient({
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 p-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-bold text-foreground">Favourites</h1>
+      <div className="flex items-center justify-end">
         <Button variant="outline" size="sm" onClick={refreshData} disabled={isRefreshing}>
           <RefreshCcw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh
         </Button>
       </div>
-      <p className="text-muted-foreground">
-        Select up to 10 projects to display on your dashboard.
-      </p>
 
       {maxLimitReached && (
         <Alert
