@@ -399,8 +399,6 @@ export async function fillProfileFields(
     lastName: string;
     /** Optional free-text job title / specialization. Pass `''` to explicitly clear. */
     jobTitle?: string;
-    age?: number;
-    nationality?: string;
     about?: string;
   }
 ) {
@@ -424,24 +422,6 @@ export async function fillProfileFields(
   if (opts.jobTitle !== undefined) {
     const jobTitleInput = page.locator('#jobTitle');
     await jobTitleInput.fill(opts.jobTitle);
-  }
-
-  // Age and nationality were dropped from the redesigned hire form. They
-  // remain in the underlying schema (and other surfaces may still expose
-  // them), so fill them only when the input is actually present.
-  if (opts.age) {
-    const ageInput = page.locator('#age');
-    if (await ageInput.isVisible({ timeout: 500 }).catch(() => false)) {
-      await ageInput.fill(String(opts.age));
-    }
-  }
-
-  if (opts.nationality) {
-    const nationalityTrigger = page.locator('#nationality');
-    if (await nationalityTrigger.isVisible({ timeout: 500 }).catch(() => false)) {
-      await nationalityTrigger.click();
-      await page.locator(`[role="option"]:has-text("${opts.nationality}")`).click();
-    }
   }
 
   if (opts.about) {
@@ -473,10 +453,30 @@ export async function selectVoice(page: Page, voiceNameSubstring?: string) {
 }
 
 /**
- * Click the "Hire Assistant" button in the hire dialog.
- * Scrolls the button into view first since the dialog content may be tall.
+ * Ensure the workspace step won't block submit.
+ *
+ * When a workspace OAuth client is configured on the deployment, the hire flow
+ * requires either selecting a provider or ticking "Skip" before it will submit
+ * (otherwise it surfaces a warning and returns). Connecting a provider triggers
+ * real OAuth, so tests tick Skip. When no provider is configured the checkbox is
+ * disabled and pre-checked, so this is a no-op.
+ */
+export async function skipWorkspaceSetupIfPrompted(page: Page) {
+  const skip = page.locator('label:has-text("Skip") [role="checkbox"]').first();
+  if (!(await skip.isVisible({ timeout: 1_000 }).catch(() => false))) return;
+  if (await skip.isDisabled().catch(() => true)) return;
+  if ((await skip.getAttribute('data-state').catch(() => null)) === 'checked') return;
+  await skip.click();
+  await page.waitForTimeout(200);
+}
+
+/**
+ * Click the "Onboard Droid" button in the hire dialog.
+ * Scrolls the button into view first since the dialog content may be tall, and
+ * ticks the workspace "Skip" first so the flow isn't blocked on workspace setup.
  */
 export async function clickHireButton(page: Page) {
+  await skipWorkspaceSetupIfPrompted(page);
   const hireBtn = page.getByRole('button', { name: 'Onboard Droid', exact: true });
   await hireBtn.scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);

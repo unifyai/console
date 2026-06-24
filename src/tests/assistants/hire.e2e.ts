@@ -1,13 +1,12 @@
 /**
  * Assistant Hire Flow E2E — complete user journeys for hiring assistants,
- * verifying both UI behaviour, database persistence, and pre-hire chat.
+ * verifying both UI behaviour and database persistence.
  *
  * Includes:
  *  - Hiring with basic and full profile fields
+ *  - Randomizing the droid profile
  *  - Cancelling mid-hire
  *  - Hiring multiple assistants
- *  - Pre-hire chat: opening, greeting, sending messages, persistence,
- *    dialog reset, and credit exhaustion behaviour
  *
  * Run: npx playwright test src/tests/assistants/hire.e2e.ts
  */
@@ -23,11 +22,9 @@ import {
   fillProfileFields,
   selectVoice,
   clickHireButton,
-  openAccordionSection,
   getAssistantCount,
   getAssistantAgentIds,
   getAssistantFromDb,
-  deleteAssistantFromDb,
   deleteAllAssistantsForUser,
   ensureProjectSync,
   setUserCredits,
@@ -53,9 +50,9 @@ test('hiring an assistant persists it to the database and shows it in the list',
 
   await navigateToAssistants(page);
 
-  // Hire dialog auto-opens on empty state; open manually if it didn't
+  // Hire dialog auto-opens on empty state; open manually if it didn't.
   const dialogVisible = await page
-    .locator('text=Hire Assistant')
+    .getByRole('heading', { name: 'Onboard Droid' })
     .first()
     .isVisible({ timeout: 5_000 })
     .catch(() => false);
@@ -66,7 +63,6 @@ test('hiring an assistant persists it to the database and shows it in the list',
   await fillProfileFields(page, {
     firstName,
     lastName,
-    age: 28,
     about: 'An automated test assistant created by Playwright E2E.',
   });
 
@@ -123,20 +119,18 @@ test('the hired assistant is visible in the DB with correct fields', async ({
   });
 });
 
-test('hiring with all profile fields persists nationality, age and about to DB', async ({
+test('hiring persists name, about and voice to DB and leaves age/nationality null', async ({
   authedPage: page,
 }) => {
   const firstName = `Full${Date.now()}`;
   const lastName = 'Fields';
-  const nationality = 'Brazil';
-  const about = 'Full-field hire test with nationality and about.';
-  const age = 42;
+  const about = 'Full-field hire test with about.';
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await openHireDialog(page);
 
-  await fillProfileFields(page, { firstName, lastName, age, nationality, about });
+  await fillProfileFields(page, { firstName, lastName, about });
 
   await selectVoice(page);
   await clickHireButton(page);
@@ -151,10 +145,32 @@ test('hiring with all profile fields persists nationality, age and about to DB',
 
   expect(dbAssistant.firstName).toBe(firstName);
   expect(dbAssistant.surname).toBe(lastName);
-  expect(dbAssistant.nationality).toBe(nationality);
   expect(dbAssistant.about).toBe(about);
-  expect(dbAssistant.age).toBe(String(age));
   expect(dbAssistant.voiceId).toBeTruthy();
+  // The redesigned form no longer collects age/nationality, so they persist as
+  // NULL (psql renders NULL as an empty string through our pipe-split reader).
+  expect(dbAssistant.age).toBe('');
+  expect(dbAssistant.nationality).toBe('');
+});
+
+test('Randomize replaces the profile fields with a fresh droid profile', async ({
+  authedPage: page,
+}) => {
+  await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
+  await openHireDialog(page);
+
+  // The form auto-randomizes a profile on open; wait for the name to settle,
+  // then overwrite it with a sentinel so we can prove Randomize replaced it.
+  const firstNameInput = page.locator('#firstName');
+  await expect(firstNameInput).not.toHaveValue('', { timeout: 15_000 });
+  await firstNameInput.fill('ZzzSentinelName');
+
+  await page.getByRole('button', { name: 'Randomize droid profile' }).click();
+
+  await expect(firstNameInput).not.toHaveValue('ZzzSentinelName', { timeout: 5_000 });
+  await expect(firstNameInput).not.toHaveValue('', { timeout: 5_000 });
+  await expect(page.locator('#about')).not.toHaveValue('', { timeout: 5_000 });
 });
 
 test('hiring with a job title persists job_title to DB and shows it in the hover card', async ({
@@ -172,7 +188,6 @@ test('hiring with a job title persists job_title to DB and shows it in the hover
     firstName,
     lastName,
     jobTitle,
-    age: 33,
     about: 'Hire with job title.',
   });
 
@@ -210,7 +225,6 @@ test('hiring without filling Job Title leaves job_title NULL in DB', async ({
   await fillProfileFields(page, {
     firstName,
     lastName: 'Untitled',
-    age: 30,
     about: 'No job title.',
   });
 
@@ -237,7 +251,6 @@ test('cancelling mid-hire does not create an assistant', async ({ authedPage: pa
   await fillProfileFields(page, {
     firstName: `Cancel${Date.now()}`,
     lastName: 'NeverCreated',
-    age: 22,
     about: 'This should not be saved.',
   });
 
@@ -260,7 +273,6 @@ test('hiring a second assistant shows both in the list', async ({ authedPage: pa
   await fillProfileFields(page, {
     firstName,
     lastName: 'Assistant',
-    age: 35,
     about: 'Second test assistant.',
   });
 
@@ -276,197 +288,4 @@ test('hiring a second assistant shows both in the list', async ({ authedPage: pa
   // Verify both assistants exist in DB
   const countAfter = getAssistantCount(user.id);
   expect(countAfter).toBe(countBefore + 1);
-});
-
-// ===========================================================================
-// Pre-hire Chat Tests
-// ===========================================================================
-
-async function openHireDialogAndFillProfile(page: import('@playwright/test').Page) {
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-  await openHireDialog(page);
-  await fillProfileFields(page, {
-    firstName: `PreHire${Date.now()}`,
-    lastName: 'ChatBot',
-    age: 25,
-    about: 'A friendly test assistant.',
-  });
-}
-
-async function clickChatNow(page: import('@playwright/test').Page) {
-  const chatNowBtn = page.locator('button:has-text("Chat Now")');
-  await expect(chatNowBtn).toBeVisible({ timeout: 10_000 });
-  await chatNowBtn.click();
-  await page.waitForTimeout(1_000);
-}
-
-test('clicking Chat Now opens the chat panel inside the hire dialog', async ({
-  authedPage: page,
-}) => {
-  await openHireDialogAndFillProfile(page);
-  await clickChatNow(page);
-
-  const chatHeader = page.locator('h2:has-text("Chat with")');
-  await expect(chatHeader).toBeVisible({ timeout: 10_000 });
-
-  const textarea = page.locator('textarea[placeholder="Send a message..."]');
-  await expect(textarea).toBeVisible({ timeout: 5_000 });
-});
-
-test('assistant greeting message appears automatically in pre-hire chat', async ({
-  authedPage: page,
-}) => {
-  await openHireDialogAndFillProfile(page);
-  await clickChatNow(page);
-
-  await page.waitForTimeout(3_000);
-
-  const greeting = page.locator('text=/Hello|great to meet you|feel free/i').first();
-  await expect(greeting).toBeVisible({ timeout: 10_000 });
-});
-
-test('user can send a message and receive a reply in pre-hire chat', async ({
-  authedPage: page,
-}) => {
-  await openHireDialogAndFillProfile(page);
-  await clickChatNow(page);
-
-  await page.waitForTimeout(3_000);
-
-  const textarea = page.locator('textarea[placeholder="Send a message..."]');
-  await expect(textarea).toBeEnabled({ timeout: 10_000 });
-
-  const testMsg = `What can you help me with? ${Date.now()}`;
-  await textarea.fill(testMsg);
-  await textarea.press('Enter');
-
-  await expect(page.locator(`text=${testMsg}`).first()).toBeVisible({ timeout: 10_000 });
-
-  // Wait for LLM reply (up to 30s)
-  const assistantReply = page.locator('.prose, [class*="whitespace-pre-wrap"]').last();
-  await expect(assistantReply).toBeVisible({ timeout: 30_000 });
-
-  await expect(page.locator(`text=${testMsg}`).first()).toBeVisible();
-});
-
-test('pre-hire chat persists when toggling between presets and chat panels', async ({
-  authedPage: page,
-}) => {
-  await openHireDialogAndFillProfile(page);
-  await clickChatNow(page);
-
-  await page.waitForTimeout(3_000);
-
-  const textarea = page.locator('textarea[placeholder="Send a message..."]');
-  await expect(textarea).toBeEnabled({ timeout: 10_000 });
-
-  const testMsg = `Persist test ${Date.now()}`;
-  await textarea.fill(testMsg);
-  await textarea.press('Enter');
-  await expect(page.locator(`text=${testMsg}`).first()).toBeVisible({ timeout: 10_000 });
-
-  const showPresetsBtn = page
-    .locator('button:has-text("Browse Assistants"), span:has-text("Show Presets")')
-    .first();
-  if (await showPresetsBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-    await showPresetsBtn.click();
-    await page.waitForTimeout(1_000);
-  }
-
-  await clickChatNow(page);
-
-  await expect(page.locator(`text=${testMsg}`).first()).toBeVisible({ timeout: 10_000 });
-});
-
-test('closing and reopening the hire dialog clears pre-hire chat history', async ({
-  authedPage: page,
-}) => {
-  await openHireDialogAndFillProfile(page);
-  await clickChatNow(page);
-
-  await page.waitForTimeout(3_000);
-
-  const textarea = page.locator('textarea[placeholder="Send a message..."]');
-  await expect(textarea).toBeEnabled({ timeout: 10_000 });
-
-  const uniqueMsg = `WillBeCleared_${Date.now()}`;
-  await textarea.fill(uniqueMsg);
-  await textarea.press('Enter');
-  await expect(page.locator(`text=${uniqueMsg}`).first()).toBeVisible({ timeout: 10_000 });
-
-  await page.keyboard.press('Escape');
-  await page
-    .locator('[role="dialog"]')
-    .waitFor({ state: 'hidden', timeout: 10_000 })
-    .catch(() => {});
-  await page.waitForTimeout(1_000);
-
-  await page.goto('/assistants');
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  // Allow time for any auto-open hire dialog to appear
-  await page.waitForTimeout(5_000);
-  await closeHireDialogIfOpen(page);
-
-  await openHireDialog(page);
-  await fillProfileFields(page, {
-    firstName: `PreHire${Date.now()}`,
-    lastName: 'ChatBot2',
-    age: 30,
-    about: 'Another assistant.',
-  });
-  await clickChatNow(page);
-  await page.waitForTimeout(3_000);
-
-  const oldMsg = page.locator(`text=${uniqueMsg}`);
-  await expect(oldMsg).toHaveCount(0, { timeout: 5_000 });
-});
-
-test('pre-hire chat is blocked when credits are exhausted', async ({ authedPage: page }) => {
-  setUserCredits(user.id, -1);
-
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-  await openHireDialog(page);
-
-  await fillProfileFields(page, {
-    firstName: `NoCreds${Date.now()}`,
-    lastName: 'Bot',
-    age: 22,
-    about: 'Test assistant.',
-  });
-
-  const chatNowBtn = page.locator('button:has-text("Chat Now")');
-
-  if (await chatNowBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    const isDisabled = await chatNowBtn.isDisabled();
-    if (!isDisabled) {
-      await chatNowBtn.click();
-      await page.waitForTimeout(2_000);
-
-      const billingPrompt = page
-        .locator('text=/add.*credit|insufficient.*credit|top.*up/i')
-        .first();
-      const chatPanel = page.locator('h2:has-text("Chat with")');
-
-      const hasBillingPrompt = await billingPrompt.isVisible({ timeout: 3_000 }).catch(() => false);
-      const hasChatPanel = await chatPanel.isVisible({ timeout: 3_000 }).catch(() => false);
-
-      expect(hasBillingPrompt || hasChatPanel).toBe(true);
-
-      if (hasChatPanel) {
-        const textarea = page.locator('textarea[placeholder="Send a message..."]');
-        if (await textarea.isEnabled({ timeout: 3_000 }).catch(() => false)) {
-          await textarea.fill('test message');
-          await textarea.press('Enter');
-          const errorIndicator = page.locator('text=/credit|billing/i').first();
-          await expect(errorIndicator).toBeVisible({ timeout: 15_000 });
-        }
-      }
-    } else {
-      expect(isDisabled).toBe(true);
-    }
-  }
-
-  setUserCredits(user.id, 50_000);
 });

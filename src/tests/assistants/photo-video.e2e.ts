@@ -64,7 +64,6 @@ test('generating a photo and hiring saves the photo URL to the database', async 
   await fillProfileFields(page, {
     firstName,
     lastName: 'WithPhoto',
-    age: 25,
     about: 'Testing AI photo generation during hire.',
   });
 
@@ -112,7 +111,6 @@ test('editing a generated photo updates the photo URL in the database', async ({
   await fillProfileFields(page, {
     firstName,
     lastName: 'EditTest',
-    age: 30,
     about: 'Testing photo edit flow.',
   });
 
@@ -162,7 +160,6 @@ test('animating a photo with TTS completes without error', async ({ authedPage: 
   await fillProfileFields(page, {
     firstName,
     lastName: 'AnimTest',
-    age: 27,
     about: 'Testing photo animation flow.',
   });
 

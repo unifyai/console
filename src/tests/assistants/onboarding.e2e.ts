@@ -72,7 +72,7 @@ async function hireBareAssistant(page: Page, firstName: string, lastName = 'Bot'
   await navigateForRoadmapTests(page);
 
   const dialogVisible = await page
-    .locator('text=Hire Assistant')
+    .getByRole('heading', { name: 'Onboard Droid' })
     .first()
     .isVisible({ timeout: 5_000 })
     .catch(() => false);
@@ -83,7 +83,6 @@ async function hireBareAssistant(page: Page, firstName: string, lastName = 'Bot'
   await fillProfileFields(page, {
     firstName,
     lastName,
-    age: 30,
     about: 'Setup roadmap test assistant.',
   });
   await selectVoice(page);

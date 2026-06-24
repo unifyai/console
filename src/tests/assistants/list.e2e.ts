@@ -114,12 +114,14 @@ test('clicking an assistant in the list selects it and shows the Chat tab', asyn
   await expect(page.locator(`text=${dbAssistant.surname}`).first()).toBeVisible({ timeout: 5_000 });
 });
 
-// DEFERRED (Phase 2h — Coordinator): the workspace now auto-selects the
-// personal Coordinator on a bare ``/assistants`` landing, so the "click a
-// selected row to deselect it" normalization this test relies on no longer
-// holds (clicking the seeded row switches selection instead of clearing it).
-// This is the Coordinator default-selection feature, unrelated to the list
-// re-skin; reconcile alongside the Coordinator onboarding work.
+// RETIRED (Phase 5 — Hire/onboarding): this journey asserts the legacy
+// two-pane model — clicking a selected row to *deselect* it back to a
+// ``right-pane-tab-chat`` / "Select a droid…" empty state. Both are gone: the
+// rail owns section nav (``rail-section-*``) and the workspace auto-selects the
+// personal Coordinator, so a bare list never sits in an empty/deselected state
+// and clicking a row only switches selection. The deselect-to-empty behaviour
+// no longer exists, so the test stays disabled until/unless that interaction is
+// reintroduced under the Coordinator default-selection model.
 test.fixme('rapid select/deselect settles on the final click and does not snap back', async ({
   authedPage: page,
 }) => {
@@ -213,14 +215,7 @@ test('the chat info side panel can be resized down to its minimum width', async 
   expect(afterBox.width).toBeLessThanOrEqual(324);
 });
 
-// DEFERRED (Phase 2e — Hire/Edit): the redesigned hire form (flat layout +
-// auto-randomized droid profile + renamed "Onboard Droid" submit) silently
-// blocks submit here even with all visible fields filled, so the new row never
-// lands. This is the hire-flow redesign, unrelated to the list re-skin;
-// reconcile the full hire journey in the Hire phase. The shared helpers
-// (``fillProfileFields`` randomize-wait, ``clickHireButton`` rename) are
-// already updated for that work.
-test.fixme('list updates after hiring a new assistant without page reload', async ({
+test('list updates after hiring a new assistant without page reload', async ({
   authedPage: page,
 }) => {
   deleteAllAssistantsForUser(user.id);
@@ -239,7 +234,6 @@ test.fixme('list updates after hiring a new assistant without page reload', asyn
   await fillProfileFields(page, {
     firstName,
     lastName: 'ListNew',
-    age: 29,
     about: 'Testing list update after hire.',
   });
   await selectVoice(page);

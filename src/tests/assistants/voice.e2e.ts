@@ -12,7 +12,6 @@ import {
   createAssistantTest,
   navigateToAssistants,
   openHireDialog,
-  openAccordionSection,
   fillProfileFields,
   clickHireButton,
   closeHireDialogIfOpen,
@@ -49,7 +48,7 @@ test('hiring with a selected voice assigns that voice_id in the database', async
   await page.waitForTimeout(2_000);
 
   const dialogVisible = await page
-    .locator('text=Hire Assistant')
+    .getByRole('heading', { name: 'Onboard Droid' })
     .first()
     .isVisible({ timeout: 5_000 })
     .catch(() => false);
@@ -60,12 +59,11 @@ test('hiring with a selected voice assigns that voice_id in the database', async
   await fillProfileFields(page, {
     firstName,
     lastName: 'WithVoice',
-    age: 30,
     about: 'Testing voice assignment during hire.',
   });
 
-  // Open voice section and select the first voice
-  await openAccordionSection(page, 'voice');
+  // The voice section is always visible in the flat hire form; select the first
+  // voice option directly.
   await page.waitForTimeout(2_000);
 
   const firstVoice = page.locator('[role="option"]').first();
@@ -106,11 +104,9 @@ test('hiring with a different voice assigns the correct voice_id', async ({ auth
   await fillProfileFields(page, {
     firstName,
     lastName: 'DiffVoice',
-    age: 25,
     about: 'Testing different voice selection.',
   });
 
-  await openAccordionSection(page, 'voice');
   await page.waitForTimeout(2_000);
 
   const voiceOptions = page.locator('[role="option"]');
