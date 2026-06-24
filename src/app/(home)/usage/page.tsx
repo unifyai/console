@@ -3,7 +3,7 @@ import { Metadata } from 'next';
 import BillingUnavailable from '@/components/Shared/BillingUnavailable';
 import UsageMain from '@/components/Pages/Usage/Main';
 import FreeTrialUsageLock from '@/components/Pages/Usage/FreeTrialUsageLock';
-import SkeletonLoader from '@/components/Common/Loaders/SkeletonLoader';
+import { SectionBodySkeleton } from '@/components/Common/Loaders/Skeletons';
 import { Suspense } from 'react';
 import { getCurrentUser } from '@/lib/user/user';
 import { redirect } from 'next/navigation';
@@ -54,15 +54,11 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
   if (!(await getServerFeatures()).billing) {
     return (
       <ShellSectionPage sectionId="usage">
-        <Suspense fallback={<SkeletonLoader />}>
-          <BillingUnavailable />
-        </Suspense>
+        <BillingUnavailable />
       </ShellSectionPage>
     );
   }
 
-  // Get API key
-  const apiKey = user.apiKey || '';
   const { activeOrganization, isUnifyMember } = resolveWorkspaceContext(user);
   const isOrgContext = activeOrganization !== null;
   const roleName = activeOrganization?.roleName?.toLowerCase();
@@ -80,6 +76,41 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
     );
   }
 
+  // Extract initial assistant filter from URL query params
+  const initialAssistantId = typeof params.assistant === 'string' ? params.assistant : undefined;
+
+  return (
+    <ShellSectionPage sectionId="usage" fill>
+      <Suspense fallback={<SectionBodySkeleton />}>
+        <UsageData
+          userId={user.id}
+          isOrgContext={isOrgContext}
+          isAdmin={isAdmin}
+          orgId={orgId}
+          initialAssistantId={initialAssistantId}
+        />
+      </Suspense>
+    </ShellSectionPage>
+  );
+};
+
+/**
+ * Streams the assistants list + org members so the section header paints
+ * immediately while these reads resolve.
+ */
+async function UsageData({
+  userId,
+  isOrgContext,
+  isAdmin,
+  orgId,
+  initialAssistantId,
+}: {
+  userId: string;
+  isOrgContext: boolean;
+  isAdmin: boolean;
+  orgId: number | null;
+  initialAssistantId: string | undefined;
+}) {
   // Create bound server actions (API key never exposed to client)
   const usageActions: UsageActions = {
     getUserSpendingLimit: getUserSpendingLimitAction,
@@ -110,24 +141,17 @@ const UsagePage: React.FC<UsagePageProps> = async ({ searchParams }) => {
     }
   }
 
-  // Extract initial assistant filter from URL query params
-  const initialAssistantId = typeof params.assistant === 'string' ? params.assistant : undefined;
-
   return (
-    <ShellSectionPage sectionId="usage" fill>
-      <Suspense fallback={<SkeletonLoader />}>
-        <UsageMain
-          currentUserId={user.id}
-          usageActions={usageActions}
-          assistants={assistants}
-          orgMembers={orgMembers}
-          isAdmin={isAdmin}
-          initialAssistantId={initialAssistantId}
-          orgId={orgId}
-        />
-      </Suspense>
-    </ShellSectionPage>
+    <UsageMain
+      currentUserId={userId}
+      usageActions={usageActions}
+      assistants={assistants}
+      orgMembers={orgMembers}
+      isAdmin={isAdmin}
+      initialAssistantId={initialAssistantId}
+      orgId={orgId}
+    />
   );
-};
+}
 
 export default UsagePage;

@@ -1,8 +1,10 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/user/user';
 import { getProjects } from '@/lib/interfaces/projects';
 import { getFavourites } from '@/lib/interfaces/favourites';
 import FavouritesClient from '@/components/Pages/Favourites/FavouritesClient';
+import { FavouritesBodySkeleton } from '@/components/Pages/Favourites/FavouritesBodySkeleton';
 import { ShellSectionPage } from '@/components/Layout/Shell/ShellSectionPage';
 import { Metadata } from 'next';
 
@@ -16,12 +18,17 @@ export default async function FavouritesPage() {
     redirect('/login?signout=true');
   }
 
-  const projects = await getProjects();
-  const favourites = await getFavourites();
-
   return (
     <ShellSectionPage sectionId="favourites">
-      <FavouritesClient initialProjects={projects} initialFavourites={favourites} />
+      <Suspense fallback={<FavouritesBodySkeleton />}>
+        <FavouritesData />
+      </Suspense>
     </ShellSectionPage>
   );
+}
+
+/** Streams the projects + favourites so the section header paints immediately. */
+async function FavouritesData() {
+  const [projects, favourites] = await Promise.all([getProjects(), getFavourites()]);
+  return <FavouritesClient initialProjects={projects} initialFavourites={favourites} />;
 }
