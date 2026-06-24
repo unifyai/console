@@ -135,9 +135,9 @@ E2E tests run in GitHub Actions via `.github/workflows/tests.yml`. The pipeline 
 
 ### How CI works
 
-Each test job (Assistants, Account, Billing, Auth) independently:
+Each test job (Assistants, Account, Billing, Shell, Auth) independently:
 
-1. **Checks out both repos** — Console + Orchestra (via `ORCHESTRA_PAT` secret)
+1. **Checks out both repos** — Console + Orchestra (via the shared `CLONE_TOKEN` secret, matching the `droid`/`unify`/`unillm` workflows)
 2. **Generates a minimal `.env.local`** — intentionally omits all cloud credentials so the credential-absence stubs activate. Only essential vars are set: `NEXTAUTH_SECRET`, `JWT_SECRET`, `ORCHESTRA_URL`, `ORCHESTRA_ADMIN_KEY`.
 3. **Starts the full stack** via `scripts/ci-test-setup.sh`:
    - PostgreSQL (Docker container `orchestra-local-db`)
@@ -148,9 +148,9 @@ Each test job (Assistants, Account, Billing, Auth) independently:
 
 ### Required GitHub secrets
 
-| Secret          | Purpose                                           |
-| --------------- | ------------------------------------------------- |
-| `ORCHESTRA_PAT` | GitHub PAT with read access to the Orchestra repo |
+| Secret        | Purpose                                                                         |
+| ------------- | ------------------------------------------------------------------------------- |
+| `CLONE_TOKEN` | Org-shared token with read access to the Orchestra repo (same as sibling repos) |
 
 ### What gets stubbed in CI
 

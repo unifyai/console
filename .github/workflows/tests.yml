@@ -72,7 +72,7 @@ jobs:
         with:
           repository: ${{ github.repository_owner }}/orchestra
           path: orchestra
-          token: ${{ secrets.ORCHESTRA_PAT }}
+          token: ${{ secrets.CLONE_TOKEN }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -153,7 +153,7 @@ jobs:
         with:
           repository: ${{ github.repository_owner }}/orchestra
           path: orchestra
-          token: ${{ secrets.ORCHESTRA_PAT }}
+          token: ${{ secrets.CLONE_TOKEN }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -234,7 +234,7 @@ jobs:
         with:
           repository: ${{ github.repository_owner }}/orchestra
           path: orchestra
-          token: ${{ secrets.ORCHESTRA_PAT }}
+          token: ${{ secrets.CLONE_TOKEN }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -315,7 +315,7 @@ jobs:
         with:
           repository: ${{ github.repository_owner }}/orchestra
           path: orchestra
-          token: ${{ secrets.ORCHESTRA_PAT }}
+          token: ${{ secrets.CLONE_TOKEN }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -396,7 +396,7 @@ jobs:
         with:
           repository: ${{ github.repository_owner }}/orchestra
           path: orchestra
-          token: ${{ secrets.ORCHESTRA_PAT }}
+          token: ${{ secrets.CLONE_TOKEN }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
