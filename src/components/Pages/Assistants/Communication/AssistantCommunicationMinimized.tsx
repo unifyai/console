@@ -189,6 +189,15 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
         isUserSpeaking={isUserSpeaking}
         mood={avatarMood}
       />
+      {showMutedSpeechCue && (
+        <div
+          className="text-caption pointer-events-none absolute bottom-14 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-border bg-background px-2 py-1 text-foreground shadow-sm"
+          data-testid="assistant-call-muted-speech-cue"
+          role="status"
+        >
+          Unmute if you&apos;d like to speak
+        </div>
+      )}
 
       {/* Controls */}
       <div className="flex flex-shrink-0 items-center gap-2">
@@ -199,16 +208,7 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
         >
           <PhoneOff className="h-4 w-4" />
         </ControlButton>
-        <div className="relative">
-          {showMutedSpeechCue && (
-            <div
-              className="text-caption pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-border bg-background px-2 py-1 text-foreground shadow-sm"
-              data-testid="assistant-call-muted-speech-cue"
-              role="status"
-            >
-              Unmute if you&apos;d like to speak
-            </div>
-          )}
+        <div>
           <ControlButton
             tooltip={
               !isCallConnected

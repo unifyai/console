@@ -113,7 +113,7 @@ export function AssistantCommunicationControls({
   // Remote control requires assistant to have joined AND desktop VM to be ready
   const canUseRemoteControl = isConnectionEstablished && isAssistantJoined && isDesktopReady;
   const iconClass = compact ? 'h-4 w-4' : 'h-5 w-5';
-  const showMutedSpeechCue = isConnectionEstablished && !isMicOn && isMutedSpeechDetected;
+  const highlightMutedMic = isConnectionEstablished && !isMicOn && isMutedSpeechDetected;
   // ``h-10`` is the same footer height the assistant-list collapse
   // bar and the memory/tasks/actions/dashboards tab footers use, so
   // the compact docked toolbar's icons line up horizontally with
@@ -136,19 +136,7 @@ export function AssistantCommunicationControls({
         >
           <PhoneOff className={iconClass} />
         </ControlButton>
-        <div className="relative">
-          {showMutedSpeechCue && (
-            <div
-              className={cn(
-                'text-caption pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-border bg-background px-2 py-1 text-foreground shadow-sm',
-                compact ? 'bottom-8' : 'bottom-12'
-              )}
-              data-testid="assistant-call-muted-speech-cue"
-              role="status"
-            >
-              Unmute if you&apos;d like to speak
-            </div>
-          )}
+        <div>
           <ControlButton
             tooltip={
               !isConnectionEstablished
@@ -160,7 +148,7 @@ export function AssistantCommunicationControls({
             {...micButtonProps}
             className={cn(
               micButtonProps.className,
-              showMutedSpeechCue &&
+              highlightMutedMic &&
                 'bg-primary/10 ring-primary/40 hover:bg-primary/20 text-primary ring-1 hover:text-primary'
             )}
             disabled={!isConnectionEstablished || micButtonProps.disabled}

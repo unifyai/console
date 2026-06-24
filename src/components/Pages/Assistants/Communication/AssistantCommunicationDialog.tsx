@@ -312,6 +312,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     : isWaitingForAssistant
       ? waitingMessage || `Waiting for ${displayName} to join...`
       : `${displayName} is getting ready...`;
+  const showMutedSpeechCue =
+    isCallConnected && !micToggle.enabled && (isMutedSpeechDetected || isUserSpeaking);
 
   return (
     <>
@@ -426,6 +428,15 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
               </TooltipProvider>
             </motion.div>
           )}
+          {showMutedSpeechCue && (
+            <div
+              className="text-caption pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-border bg-background px-2 py-1 text-foreground shadow-sm"
+              data-testid="assistant-call-muted-speech-cue"
+              role="status"
+            >
+              Unmute if you&apos;d like to speak
+            </div>
+          )}
         </div>
 
         <AnimatePresence>
@@ -484,7 +495,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
       <AssistantCommunicationControls
         isMicOn={micToggle.enabled}
         micButtonProps={micToggle.buttonProps}
-        isMutedSpeechDetected={isMutedSpeechDetected || (!micToggle.enabled && isUserSpeaking)}
+        isMutedSpeechDetected={showMutedSpeechCue}
         isCameraOn={camToggle.enabled}
         cameraButtonProps={camToggle.buttonProps}
         isScreenShareOn={screenShareToggle.enabled}
