@@ -1612,7 +1612,7 @@ ensure_npm_deps() {
 # =============================================================================
 
 # Valid seed scenario names — must match SCENARIOS in src/tests/helpers/seeds/run.ts.
-VALID_SEED_SCENARIOS=(personal-workspace personal-workspace-multi sidebar-team-grouping org-basic org-multi-role org-unify credit-grant-links referrals billing-banner-states managed-billing usage-ledger chat-search memory-rich tasks-rich secrets-rich re-appraisal all)
+VALID_SEED_SCENARIOS=(personal-workspace personal-workspace-multi sidebar-team-grouping org-basic org-multi-role org-unify credit-grant-links referrals billing-banner-states manual-topup managed-billing usage-ledger chat-search memory-rich tasks-rich secrets-rich re-appraisal all)
 
 validate_seed_scenario() {
   local scenario="$1"

@@ -51,7 +51,7 @@ export function AssistantsBanners({
   accountStatus,
   billingMode = 'CREDITS',
 }: AssistantsBannersProps) {
-  const { billing: billingEnabled } = useFeatures();
+  const { billing: billingEnabled, manualTopup } = useFeatures();
   if (!billingEnabled) {
     return null;
   }
@@ -156,9 +156,13 @@ export function AssistantsBanners({
             </>
           ) : (
             <>
-              {isOrgWorkspace
-                ? 'An organization owner or admin can upgrade your plan on the '
-                : 'You can upgrade your plan on the '}
+              {manualTopup
+                ? isOrgWorkspace
+                  ? 'An organization owner or admin can top up your credits on the '
+                  : 'You can top up your credits on the '
+                : isOrgWorkspace
+                  ? 'An organization owner or admin can upgrade your plan on the '
+                  : 'You can upgrade your plan on the '}
               <a href="/billing" className="font-medium underline underline-offset-2">
                 Billing page
               </a>

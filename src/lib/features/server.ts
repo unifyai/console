@@ -44,6 +44,7 @@ async function fetchOrchestraAuthority(): Promise<FeatureAuthority> {
       typeof data[key] === 'boolean' ? (data[key] as boolean) : undefined;
     return {
       billing: bool('billing'),
+      manualTopup: bool('manual_topup'),
       workspaceGoogle: bool('workspace_google'),
       workspaceMicrosoft: bool('workspace_microsoft'),
       contactPhone: bool('contact_phone'),

@@ -117,7 +117,7 @@ export function BillableActionGuard({
   tooltipMessage,
   tooltipSide = 'top',
 }: BillableActionGuardProps) {
-  const { billing: billingEnabled } = useFeatures();
+  const { billing: billingEnabled, manualTopup } = useFeatures();
   const billingStatus = useBillingStatus();
   const { activeOrganization } = useWorkspace();
 
@@ -220,7 +220,7 @@ export function BillableActionGuard({
                   className="hover:text-primary/80 inline cursor-pointer font-medium text-primary underline underline-offset-2"
                   data-testid="upgrade-plan-link"
                 >
-                  upgrade your plan
+                  {manualTopup ? 'top up your credits' : 'upgrade your plan'}
                 </button>{' '}
                 to use this feature.
               </>

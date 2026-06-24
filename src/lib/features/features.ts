@@ -32,6 +32,11 @@ export type FeatureEnv = Record<string, string | undefined>;
 export interface FeatureAuthority {
   /** Billing operability reported by Orchestra (Stripe + plans configured). */
   billing?: boolean;
+  /**
+   * Manual-top-up mode reported by Orchestra (staging): credits are metered
+   * and gate work, but replenished for free with no Stripe / card.
+   */
+  manualTopup?: boolean;
   /** Google workspace BYOD connect, reported by Orchestra (OAuth client ID). */
   workspaceGoogle?: boolean;
   /** Microsoft workspace BYOD connect, reported by Orchestra (OAuth client ID). */
@@ -47,6 +52,15 @@ export interface FeatureAuthority {
 export interface Features {
   /** Billing/credits enforcement + UI (Stripe-backed). */
   billing: boolean;
+
+  /**
+   * Manual-top-up mode (staging): billing is enforced (credits meter and gate
+   * work) but replenished via a free self-serve top-up — no Stripe key, no
+   * card, no charge. When true, `billing` is also true so the billing surfaces
+   * render; the billing page swaps its Stripe tiers/card UI for a top-up
+   * control. Sourced from Orchestra's authority (it owns the deployment mode).
+   */
+  manualTopup: boolean;
 
   /**
    * Voice calls. Requires the full duplex chain: LiveKit (transport) **and** a
@@ -143,14 +157,22 @@ export function resolveFeatures(
   // STT: Deepgram (same key that powers the `transcription` feature).
   const sttConfigured = has(env, 'DEEPGRAM_API_KEY');
 
+  // Manual-top-up mode is a deployment policy owned by Orchestra (staging).
+  // In this mode billing is enforced without Stripe, so the billing UI must
+  // render even when no publishable key is configured.
+  const manualTopup = authority.manualTopup ?? false;
+
   return {
     // Billing requires the consumer-side Stripe publishable key *and* Orchestra
     // (the credential authority) confirming checkout is operational. Self-host
     // is a deliberate policy exception (no payment processor) — Orchestra also
     // bypasses credit enforcement there. When Orchestra's signal is absent
     // (login pages, transient unreachability) we fall back to local resolution
-    // so behaviour degrades gracefully.
-    billing: stripeConfigured && !environment.isSelfHost && (authority.billing ?? true),
+    // so behaviour degrades gracefully. Manual-top-up deployments (staging)
+    // enforce billing without Stripe, so the key requirement is waived there.
+    billing:
+      (stripeConfigured || manualTopup) && !environment.isSelfHost && (authority.billing ?? true),
+    manualTopup,
     voiceCalls: devCallsEnabled || (livekitConfigured && ttsConfigured && sttConfigured),
     voiceSynthesis: ttsConfigured,
     transcription: sttConfigured,
