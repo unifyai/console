@@ -14,7 +14,7 @@ COPY package.json .npmrc yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 # The brand system is consumed as a local file: dependency from the in-repo
 # `branding` submodule, so its source must be present before installing.
 COPY branding ./branding
-RUN npm i -g npm@10.5.1
+RUN npm i -g npm@11.17.0
 RUN --mount=type=cache,id=console-npm,target=/root/.npm,sharing=locked \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
   elif [ -f package-lock.json ]; then npm ci --legacy-peer-deps; \
