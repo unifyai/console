@@ -27,6 +27,7 @@ import { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
+import { useMutedMicrophoneActivity } from '@/hooks/Assistants/useMutedMicrophoneActivity';
 
 /**
  * The call surface only touches the chat + desktop action groups (and,
@@ -245,6 +246,10 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   } = useMediaDeviceSelect({
     kind: 'audiooutput',
     room: room,
+  });
+  const isMutedSpeechDetected = useMutedMicrophoneActivity({
+    enabled: isCallConnected && !micToggle.enabled,
+    deviceId: activeAudioInputDeviceId,
   });
 
   React.useEffect(() => {
@@ -479,6 +484,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
       <AssistantCommunicationControls
         isMicOn={micToggle.enabled}
         micButtonProps={micToggle.buttonProps}
+        isMutedSpeechDetected={isMutedSpeechDetected || (!micToggle.enabled && isUserSpeaking)}
         isCameraOn={camToggle.enabled}
         cameraButtonProps={camToggle.buttonProps}
         isScreenShareOn={screenShareToggle.enabled}

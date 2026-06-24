@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import { motion, PanInfo, useMotionValue } from 'framer-motion';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
+import { useMutedMicrophoneActivity } from '@/hooks/Assistants/useMutedMicrophoneActivity';
 
 const MIN_WIDTH = 200;
 const MIN_HEIGHT = 160;
@@ -112,6 +113,9 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
   const isUserSpeaking = useIsSpeaking(localParticipant);
   const micToggle = useTrackToggle({ source: Track.Source.Microphone });
   const camToggle = useTrackToggle({ source: Track.Source.Camera });
+  const isMutedSpeechDetected = useMutedMicrophoneActivity({
+    enabled: isCallConnected && !micToggle.enabled,
+  });
 
   const isCoordinator = assistant.isCoordinator === true;
   const displayName = assistantDisplayName(assistant);
@@ -122,6 +126,8 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
     : isWaitingForAssistant
       ? waitingMessage || `Waiting for ${displayName}...`
       : `${displayName} is getting ready...`;
+  const showMutedSpeechCue =
+    isCallConnected && !micToggle.enabled && (isMutedSpeechDetected || isUserSpeaking);
 
   if (connectionError) {
     return (
@@ -193,19 +199,35 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
         >
           <PhoneOff className="h-4 w-4" />
         </ControlButton>
-        <ControlButton
-          tooltip={
-            !isCallConnected
-              ? 'Available after connecting'
-              : micToggle.enabled
-                ? 'Mute Mic'
-                : 'Unmute Mic'
-          }
-          {...micToggle.buttonProps}
-          disabled={!isCallConnected || micToggle.buttonProps.disabled}
-        >
-          {micToggle.enabled ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
-        </ControlButton>
+        <div className="relative">
+          {showMutedSpeechCue && (
+            <div
+              className="text-caption pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-border bg-background px-2 py-1 text-foreground shadow-sm"
+              data-testid="assistant-call-muted-speech-cue"
+              role="status"
+            >
+              Unmute if you&apos;d like to speak
+            </div>
+          )}
+          <ControlButton
+            tooltip={
+              !isCallConnected
+                ? 'Available after connecting'
+                : micToggle.enabled
+                  ? 'Mute Mic'
+                  : 'Unmute Mic'
+            }
+            {...micToggle.buttonProps}
+            className={cn(
+              micToggle.buttonProps.className,
+              showMutedSpeechCue &&
+                'bg-primary/20 ring-primary/50 hover:bg-primary/30 text-primary ring-1 hover:text-primary'
+            )}
+            disabled={!isCallConnected || micToggle.buttonProps.disabled}
+          >
+            {micToggle.enabled ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+          </ControlButton>
+        </div>
         <ControlButton
           tooltip={
             !isCallConnected
