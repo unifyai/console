@@ -17,7 +17,6 @@ import type {
   CreatureMouthShape,
 } from '@/components/Brand/TeammateCreature';
 import { getDroidSpeechTransform } from '@/utils/assistants/droid-animation';
-import { COORDINATOR_ONBOARDING_DROID_LAYOUT_TRANSITION } from '@/utils/assistants/coordinator-onboarding-intro';
 
 type BrowserWindowWithCoordinatorIntroAudio = Window & {
   __coordinatorOnboardingIntroAudio?: HTMLAudioElement;
@@ -371,14 +370,6 @@ export function AssistantCommunicationMainView({
                   isSpeaking={isCoordinatorSpeaking}
                   isCallActive={isCallActive}
                   isUserSpeaking={isUserSpeaking}
-                  layoutTransition={
-                    coordinatorTeleportIn
-                      ? undefined
-                      : COORDINATOR_ONBOARDING_DROID_LAYOUT_TRANSITION
-                  }
-                  layoutId={
-                    coordinatorTeleportIn ? undefined : 'coordinator-onboarding-call-avatar'
-                  }
                   teleportInOnMount={coordinatorTeleportIn}
                   mood={mood}
                   mouthShape={coordinatorMouthShape}

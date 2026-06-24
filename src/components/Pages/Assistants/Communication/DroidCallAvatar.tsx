@@ -1,8 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { motion } from 'framer-motion';
-import type { Transition } from 'framer-motion';
 import {
   AnimatedDroid,
   TWIN_CREATURE_APPEARANCE,
@@ -31,8 +29,6 @@ interface DroidCallAvatarProps {
   speechLevel?: number;
   className?: string;
   creatureClassName?: string;
-  layoutId?: string;
-  layoutTransition?: Transition;
   antenna?: CreatureAntenna;
   body?: DroidBody;
   color?: BrandRole;
@@ -56,8 +52,6 @@ export function DroidCallAvatar({
   speechLevel,
   className,
   creatureClassName,
-  layoutId,
-  layoutTransition,
   antenna = TWIN_CREATURE_APPEARANCE.antenna,
   body = 'standard',
   color = 'green',
@@ -98,15 +92,13 @@ export function DroidCallAvatar({
   );
 
   return (
-    <motion.span
+    <span
       className={cn('flex h-full w-full items-center justify-center overflow-visible', className)}
-      layoutId={layoutId}
       aria-label={label}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       role="img"
       style={animatedVisualStyle}
-      transition={layoutTransition}
     >
       {teleportInOnMount ? (
         <DroidTeleportFizzle mode="in" className="flex h-full w-full items-center justify-center">
@@ -115,6 +107,6 @@ export function DroidCallAvatar({
       ) : (
         droid
       )}
-    </motion.span>
+    </span>
   );
 }

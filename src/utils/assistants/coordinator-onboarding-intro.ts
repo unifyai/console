@@ -1,4 +1,3 @@
-import type { Transition } from 'framer-motion';
 import { TWIN_CREATURE_APPEARANCE } from '@droid/brand/components';
 import type { BrandRole } from '@/components/Brand/shapes';
 import type {
@@ -25,10 +24,3 @@ export const COORDINATOR_ONBOARDING_DEFAULT_INITIAL_DROID = {
   color: 'teal',
   mood: 'happy',
 } satisfies CoordinatorOnboardingIntroDroidAppearance;
-
-export const COORDINATOR_ONBOARDING_DROID_LAYOUT_TRANSITION = {
-  layout: {
-    duration: 2.9,
-    ease: [0.16, 1, 0.3, 1],
-  },
-} satisfies Transition;

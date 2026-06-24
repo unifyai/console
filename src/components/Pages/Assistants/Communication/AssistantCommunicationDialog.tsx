@@ -508,6 +508,38 @@ const MIN_FLOATING_WIDTH = 200;
 const MIN_FLOATING_HEIGHT = 160;
 const COMPACT_WIDTH_THRESHOLD = 480;
 const COMPACT_HEIGHT_THRESHOLD = 380;
+const DEFAULT_FLOATING_WIDTH = 240;
+const DEFAULT_FLOATING_HEIGHT = 280;
+
+type FloatingGeometry = {
+  pos: { x: number; y: number };
+  size: { width: number; height: number };
+};
+
+const EMPTY_FLOATING_GEOMETRY: FloatingGeometry = {
+  pos: { x: 0, y: 0 },
+  size: { width: 0, height: 0 },
+};
+
+function getDefaultFloatingGeometry(): FloatingGeometry {
+  if (typeof window === 'undefined') return EMPTY_FLOATING_GEOMETRY;
+
+  const width = Math.min(
+    DEFAULT_FLOATING_WIDTH,
+    Math.max(MIN_FLOATING_WIDTH, window.innerWidth - 32)
+  );
+  const height = Math.min(
+    DEFAULT_FLOATING_HEIGHT,
+    Math.max(MIN_FLOATING_HEIGHT, window.innerHeight - 32)
+  );
+  return {
+    pos: {
+      x: Math.max(16, window.innerWidth - width - 16),
+      y: Math.max(16, window.innerHeight - height - 16),
+    },
+    size: { width, height },
+  };
+}
 
 type BrowserWindowWithCoordinatorIntroAudio = Window & {
   __coordinatorOnboardingIntroAudio?: HTMLAudioElement;
@@ -648,11 +680,17 @@ export function AssistantCommunicationDialog({
     defaultFloating ? 'floating' : 'modal'
   );
   const contentRef = React.useRef<HTMLDivElement>(null);
+  const initialFloatingGeometryRef = React.useRef<FloatingGeometry | null>(null);
+  if (initialFloatingGeometryRef.current === null) {
+    initialFloatingGeometryRef.current = defaultFloating
+      ? getDefaultFloatingGeometry()
+      : EMPTY_FLOATING_GEOMETRY;
+  }
 
-  const [floatingPos, setFloatingPos] = React.useState({ x: 0, y: 0 });
-  const [floatingSize, setFloatingSize] = React.useState({ width: 0, height: 0 });
-  const floatingPosRef = React.useRef({ x: 0, y: 0 });
-  const floatingSizeRef = React.useRef({ width: 0, height: 0 });
+  const [floatingPos, setFloatingPos] = React.useState(initialFloatingGeometryRef.current.pos);
+  const [floatingSize, setFloatingSize] = React.useState(initialFloatingGeometryRef.current.size);
+  const floatingPosRef = React.useRef(initialFloatingGeometryRef.current.pos);
+  const floatingSizeRef = React.useRef(initialFloatingGeometryRef.current.size);
   const [isResizing, setIsResizing] = React.useState(false);
 
   const isModal = mode === 'modal';
@@ -668,17 +706,11 @@ export function AssistantCommunicationDialog({
   React.useEffect(() => {
     if (!defaultFloating || !isOpen) return;
     if (floatingSizeRef.current.width > 0) return;
-    const width = Math.min(480, window.innerWidth - 32);
-    const height = Math.min(560, window.innerHeight - 32);
-    const pos = {
-      x: Math.max(16, window.innerWidth - width - 16),
-      y: Math.max(16, window.innerHeight - height - 16),
-    };
-    const size = { width, height };
-    floatingPosRef.current = pos;
-    floatingSizeRef.current = size;
-    setFloatingPos(pos);
-    setFloatingSize(size);
+    const geometry = getDefaultFloatingGeometry();
+    floatingPosRef.current = geometry.pos;
+    floatingSizeRef.current = geometry.size;
+    setFloatingPos(geometry.pos);
+    setFloatingSize(geometry.size);
   }, [defaultFloating, isOpen]);
 
   // --- Transition helpers ---
