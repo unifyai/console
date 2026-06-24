@@ -57,12 +57,113 @@ jobs:
           echo "run_tests=false" >> "$GITHUB_OUTPUT"
           echo "Skipping tests - unknown event type"
 
+  # Fast feedback lane: runs on every push/PR that does NOT trigger the full
+  # matrix (i.e. no [run-tests] marker). Exercises the critical path only —
+  # "can a user log in" + "do shell routes render" — so catastrophic breakage
+  # (e.g. a missing dependency 500ing every page) surfaces in minutes.
+  smoke:
+    needs: should-run
+    if: needs.should-run.outputs.run_tests != 'true'
+    name: Smoke
+    runs-on: ubuntu-latest-4-cores
+    timeout-minutes: 25
+    steps:
+      - name: Checkout Console
+        uses: actions/checkout@v4
+        with:
+          # The `branding` submodule provides @droid/brand (tailwind-preset,
+          # tokens, fonts). Without it every page 500s at compile time. Use
+          # CLONE_TOKEN so the private submodule repos are fetchable.
+          submodules: recursive
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Checkout Orchestra
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/orchestra
+          ref: ${{ github.ref_name == 'main' && 'main' || 'staging' }}
+          path: orchestra
+          token: ${{ secrets.CLONE_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: pip install "poetry>=2.1.0"
+
+      - name: Cache Orchestra Poetry deps
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: orchestra-poetry-${{ runner.os }}-${{ hashFiles('orchestra/poetry.lock') }}
+          restore-keys: |
+            orchestra-poetry-${{ runner.os }}-
+
+      - name: Install Orchestra dependencies
+        run: cd "${{ github.workspace }}/orchestra" && poetry install --no-interaction
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Start test environment
+        run: bash scripts/ci-test-setup.sh --no-seed
+        env:
+          ORCHESTRA_REPO_PATH: ${{ github.workspace }}/orchestra
+
+      - name: Run smoke E2E tests
+        run: |
+          npx playwright test \
+            src/tests/auth/login.e2e.ts \
+            src/tests/shell/route-shell-smoke.e2e.ts \
+            --reporter=list --max-failures="$MAX_FAILURES" 2>&1 | tee test-output.log
+
+          EXIT_CODE=${PIPESTATUS[0]}
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::Smoke E2E tests failed"
+          fi
+          exit $EXIT_CODE
+        env:
+          CI: true
+          NODE_OPTIONS: --max-old-space-size=4096
+          PLAYWRIGHT_WORKERS: 3
+          MAX_FAILURES: 1
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-logs-smoke
+          path: |
+            test-output.log
+            /tmp/console-build.log
+            /tmp/console-ci.log
+            /tmp/orchestra-local-server.log
+          retention-days: 7
+
   assistants:
     needs: should-run
     if: needs.should-run.outputs.run_tests == 'true'
     name: Assistants
     runs-on: ubuntu-latest-4-cores
     timeout-minutes: 45
+    # The Assistants suite (~250 tests) is split across parallel shards so no
+    # single job approaches the timeout. Each shard re-runs the full env setup;
+    # fail-fast off so one failing shard doesn't cancel the others' signal.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
@@ -123,11 +224,12 @@ jobs:
       - name: Run Assistants E2E tests
         run: |
           npx playwright test src/tests/assistants/ \
+            --shard="${SHARD}/3" \
             --reporter=list --max-failures="$MAX_FAILURES" 2>&1 | tee test-output.log
 
           EXIT_CODE=${PIPESTATUS[0]}
           if [ $EXIT_CODE -ne 0 ]; then
-            echo "::error::Assistants E2E tests failed"
+            echo "::error::Assistants E2E tests failed (shard ${SHARD}/3)"
           fi
           exit $EXIT_CODE
         env:
@@ -135,12 +237,13 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
           PLAYWRIGHT_WORKERS: 3
           MAX_FAILURES: 20
+          SHARD: ${{ matrix.shard }}
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report-assistants
+          name: playwright-report-assistants-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 7
 
@@ -148,9 +251,10 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: test-logs-assistants
+          name: test-logs-assistants-${{ matrix.shard }}
           path: |
             test-output.log
+            /tmp/console-build.log
             /tmp/console-ci.log
             /tmp/orchestra-local-server.log
           retention-days: 7
@@ -249,6 +353,7 @@ jobs:
           name: test-logs-account
           path: |
             test-output.log
+            /tmp/console-build.log
             /tmp/console-ci.log
             /tmp/orchestra-local-server.log
           retention-days: 7
@@ -347,6 +452,7 @@ jobs:
           name: test-logs-billing
           path: |
             test-output.log
+            /tmp/console-build.log
             /tmp/console-ci.log
             /tmp/orchestra-local-server.log
           retention-days: 7
@@ -445,6 +551,7 @@ jobs:
           name: test-logs-shell
           path: |
             test-output.log
+            /tmp/console-build.log
             /tmp/console-ci.log
             /tmp/orchestra-local-server.log
           retention-days: 7
@@ -543,6 +650,7 @@ jobs:
           name: test-logs-auth
           path: |
             test-output.log
+            /tmp/console-build.log
             /tmp/console-ci.log
             /tmp/orchestra-local-server.log
           retention-days: 7

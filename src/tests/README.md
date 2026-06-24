@@ -142,7 +142,7 @@ Each test job (Assistants, Account, Billing, Shell, Auth) independently:
 3. **Starts the full stack** via `scripts/ci-test-setup.sh`:
    - PostgreSQL (Docker container `orchestra-local-db`)
    - Orchestra FastAPI server (`ORCHESTRA_ENVIRONMENT=dev` → all backend stubs active)
-   - Console dev server (no LiveKit/GCS/Pub/Sub/Replicate creds → all frontend stubs active)
+   - Console production build (`next build` + `next start`) so routes are precompiled — E2E runs against a prod build, not `next dev`, to avoid per-route compile-on-demand latency (no LiveKit/GCS/Pub/Sub/Replicate creds → all frontend stubs active)
 4. **Runs Playwright tests** against the live local stack
 5. **Uploads artifacts** on failure (Playwright report + server logs)
 

@@ -158,17 +158,32 @@ if [[ -n "$stale_pids" ]]; then
   sleep 1
 fi
 
-log_info "Starting Console on port ${CONSOLE_PORT}..."
-
 export NEXTAUTH_URL="http://localhost:${CONSOLE_PORT}"
 export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
+export NEXT_TELEMETRY_DISABLED=1
 
-nohup npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > /tmp/console-ci.log 2>&1 &
+# Build once, then serve with `next start`. Running E2E against a production
+# build instead of `next dev` removes per-route compile-on-demand, which was
+# the dominant cost: under `next dev` a cold route hit took 1-2 min (and often
+# blew the per-test timeout, surfacing as "flaky" retries). A prod build
+# compiles everything up front so every navigation is served in milliseconds.
+# Call `next` directly to skip the npm `prebuild` live-stack guard and the
+# style check (already enforced by the lint gate).
+log_info "Building Console (production)..."
+if ! NODE_OPTIONS="--max-old-space-size=6144" npx next build --no-lint > /tmp/console-build.log 2>&1; then
+  log_error "Console build failed"
+  tail -80 /tmp/console-build.log 2>/dev/null || true
+  exit 1
+fi
+log_success "Console build complete"
+
+log_info "Starting Console on port ${CONSOLE_PORT}..."
+nohup npx next start -p "$CONSOLE_PORT" -H 0.0.0.0 > /tmp/console-ci.log 2>&1 &
 CONSOLE_PID=$!
 echo "$CONSOLE_PID" > /tmp/console-ci.pid
 
-# Wait for Console — first compile can be slow in CI
-max_attempts=180
+# `next start` serves as soon as it binds the port; no compile wait needed.
+max_attempts=90
 attempt=0
 while (( attempt < max_attempts )); do
   if curl -s --connect-timeout 2 --max-time 5 "http://localhost:${CONSOLE_PORT}" &>/dev/null; then
