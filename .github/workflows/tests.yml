@@ -66,6 +66,12 @@ jobs:
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
+        with:
+          # The `branding` submodule provides @droid/brand (tailwind-preset,
+          # tokens, fonts). Without it every page 500s at compile time. Use
+          # CLONE_TOKEN so the private submodule repos are fetchable.
+          submodules: recursive
+          token: ${{ secrets.CLONE_TOKEN }}
 
       - name: Checkout Orchestra
         uses: actions/checkout@v4
@@ -158,6 +164,12 @@ jobs:
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
+        with:
+          # The `branding` submodule provides @droid/brand (tailwind-preset,
+          # tokens, fonts). Without it every page 500s at compile time. Use
+          # CLONE_TOKEN so the private submodule repos are fetchable.
+          submodules: recursive
+          token: ${{ secrets.CLONE_TOKEN }}
 
       - name: Checkout Orchestra
         uses: actions/checkout@v4
@@ -250,6 +262,12 @@ jobs:
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
+        with:
+          # The `branding` submodule provides @droid/brand (tailwind-preset,
+          # tokens, fonts). Without it every page 500s at compile time. Use
+          # CLONE_TOKEN so the private submodule repos are fetchable.
+          submodules: recursive
+          token: ${{ secrets.CLONE_TOKEN }}
 
       - name: Checkout Orchestra
         uses: actions/checkout@v4
@@ -342,6 +360,12 @@ jobs:
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
+        with:
+          # The `branding` submodule provides @droid/brand (tailwind-preset,
+          # tokens, fonts). Without it every page 500s at compile time. Use
+          # CLONE_TOKEN so the private submodule repos are fetchable.
+          submodules: recursive
+          token: ${{ secrets.CLONE_TOKEN }}
 
       - name: Checkout Orchestra
         uses: actions/checkout@v4
@@ -434,6 +458,12 @@ jobs:
     steps:
       - name: Checkout Console
         uses: actions/checkout@v4
+        with:
+          # The `branding` submodule provides @droid/brand (tailwind-preset,
+          # tokens, fonts). Without it every page 500s at compile time. Use
+          # CLONE_TOKEN so the private submodule repos are fetchable.
+          submodules: recursive
+          token: ${{ secrets.CLONE_TOKEN }}
 
       - name: Checkout Orchestra
         uses: actions/checkout@v4
