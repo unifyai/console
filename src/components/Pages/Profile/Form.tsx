@@ -1,17 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { User } from '@/types/user';
 import UserInfo from '@/components/Pages/Profile/Info';
-import SecondaryButton from '../../Common/Buttons/Secondary';
-import PrimaryButton from '../../Common/Buttons/Primary';
-import { toast } from 'sonner';
 import { Input } from '@/components/UI/input';
 import { Label } from '@/components/UI/label';
 import { Combobox } from '@/components/UI/Combobox';
 import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 import ProfilePhoto from './ProfilePhoto';
+import { useAutoSave } from '@/hooks/Account/useAutoSave';
+import { SaveStatus } from './SaveStatus';
 
 const MemoizedProfilePhoto = memo(ProfilePhoto);
 
@@ -67,49 +65,32 @@ function buildFormState(user: User): FormState {
 }
 
 const ProfileForm = ({ user, externalIdentity }: { user: User; externalIdentity: boolean }) => {
-  const router = useRouter();
   const [formState, setFormState] = useState<FormState>(() => buildFormState(user));
-  const [initialFormState, setInitialFormState] = useState<FormState>(() => buildFormState(user));
 
-  // Pending photo (preview only until save)
-  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
-  const [pendingPhotoPreview, setPendingPhotoPreview] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  // Last value successfully persisted per field. A blur (or timezone change)
+  // only triggers a write when the field actually differs from this, so we
+  // never fire redundant saves for fields the user merely focused.
+  const savedRef = useRef<FormState>(buildFormState(user));
 
-  // Derive changeMade from state comparison instead of tracking manually
-  const changeMade = useMemo(() => {
-    if (pendingPhoto) return true;
-    return (Object.keys(formState) as (keyof FormState)[]).some(
-      (key) => formState[key] !== initialFormState[key]
-    );
-  }, [formState, initialFormState, pendingPhoto]);
-
-  const handlePhotoSelect = useCallback((file: File) => {
-    setPendingPhoto(file);
-    setPendingPhotoPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
-    });
+  const saveFields = useCallback(async (partial: Partial<FormState>): Promise<boolean> => {
+    const response = await fetch('/api/user/update-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(partial),
+    }).catch(() => null);
+    return !!response?.ok;
   }, []);
 
-  const clearPendingPreview = useCallback(() => {
-    setPendingPhotoPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-  }, []);
+  const { status, save } = useAutoSave(
+    saveFields,
+    'Could not save your profile. Please try again.'
+  );
 
-  const handlePhotoRemoved = useCallback(() => {
-    setPendingPhoto(null);
-    clearPendingPreview();
-    router.refresh();
-  }, [clearPendingPreview, router]);
-
-  // Sync form state when user prop changes (e.g. after server-side refresh)
+  // Sync local state when the user prop changes (e.g. after a server refresh).
   useEffect(() => {
     const next = buildFormState(user);
-    setInitialFormState(next);
     setFormState(next);
+    savedRef.current = next;
   }, [user]);
 
   const handleInputChange = useCallback(
@@ -120,136 +101,87 @@ const ProfileForm = ({ user, externalIdentity }: { user: User; externalIdentity:
     []
   );
 
-  const handleTimezoneChange = useCallback((value: string) => {
-    setFormState((prev) => ({ ...prev, timezone: value }));
-  }, []);
+  const handleBlur = useCallback(
+    (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const key = e.target.name as keyof FormState;
+      const value = e.target.value;
+      if (value === savedRef.current[key]) return;
+      savedRef.current = { ...savedRef.current, [key]: value };
+      void save({ [key]: value });
+    },
+    [save]
+  );
 
-  const handleCancel = useCallback(() => {
-    setFormState(initialFormState);
-    setPendingPhoto(null);
-    clearPendingPreview();
-  }, [initialFormState, clearPendingPreview]);
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const formEl = e.currentTarget as HTMLFormElement;
-    setIsSaving(true);
-    const minDelay = new Promise((r) => setTimeout(r, 800));
-
-    if (pendingPhoto) {
-      const photoFormData = new FormData();
-      photoFormData.append('file', pendingPhoto);
-      const photoRes = await fetch('/api/user/photo/upload', {
-        method: 'POST',
-        body: photoFormData,
-      });
-      if (!photoRes.ok) {
-        toast.error('Error uploading photo.');
-        setIsSaving(false);
-        return;
-      }
-      setPendingPhoto(null);
-      // Drop the local preview so the avatar switches over to the
-      // freshly-uploaded asset (resolved via `user.image` after
-      // `router.refresh()`). Keeping the preview around would mask
-      // any server-side reprocessing — we want any framing change
-      // to be visible to the user immediately.
-      clearPendingPreview();
-    }
-
-    const formData = new FormData(formEl);
-    formData.append('timezone', formState.timezone);
-
-    const profileResponse = await fetch('/api/profile/updateUser', {
-      method: 'POST',
-      body: formData,
-    });
-
-    await minDelay;
-
-    if (profileResponse.ok) {
-      toast.success('Profile updated successfully!');
-      setInitialFormState({ ...formState });
-      router.refresh();
-    } else {
-      const data = await profileResponse.json().catch(() => null);
-      toast.error(data?.error || 'Error updating profile.');
-    }
-    setIsSaving(false);
-  };
+  const handleTimezoneChange = useCallback(
+    (value: string) => {
+      setFormState((prev) => ({ ...prev, timezone: value }));
+      if (value === savedRef.current.timezone) return;
+      savedRef.current = { ...savedRef.current, timezone: value };
+      void save({ timezone: value });
+    },
+    [save]
+  );
 
   return (
     <div className="mt-10 w-full sm:mt-0">
-      <form onSubmit={handleSave}>
-        <div className="mb-6 flex items-center gap-5">
-          <MemoizedProfilePhoto
-            user={user}
-            onFileSelect={handlePhotoSelect}
-            onPhotoRemoved={handlePhotoRemoved}
-            previewUrl={pendingPhotoPreview}
-          />
-          <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-4 gap-y-3">
-            <div>
-              <Label>First Name</Label>
-              <Input
-                type="text"
-                name="name"
-                value={formState.name}
-                className="w-full"
-                onChange={handleInputChange}
-                readOnly={externalIdentity}
-              />
-            </div>
-            <div>
-              <Label>Last Name</Label>
-              <Input
-                type="text"
-                name="lastName"
-                value={formState.lastName}
-                className="w-full"
-                onChange={handleInputChange}
-                readOnly={externalIdentity}
-              />
-            </div>
-            <div>
-              <Label>Timezone</Label>
-              <TimezoneSelect
-                value={formState.timezone}
-                onValueChange={handleTimezoneChange}
-                disabled={externalIdentity}
-              />
-            </div>
-            <div>
-              <Label>Job Title</Label>
-              <Input
-                type="text"
-                name="jobTitle"
-                value={formState.jobTitle}
-                className="w-full"
-                onChange={handleInputChange}
-                readOnly={externalIdentity}
-              />
-            </div>
-          </div>
-        </div>
-        <UserInfo
-          bio={formState.bio}
-          handleInputChange={handleInputChange}
-          externalIdentity={externalIdentity}
-        />
-        {changeMade && (
-          <div className="mt-5 flex w-fit gap-2">
-            <SecondaryButton onClick={handleCancel} disabled={!changeMade} label="Cancel" />
-            <PrimaryButton
-              type="submit"
-              disabled={!changeMade || isSaving}
-              isLoading={isSaving}
-              label={changeMade ? 'Save' : 'Saved'}
+      <div className="mb-4 flex justify-end">
+        <SaveStatus status={status} />
+      </div>
+      <div className="mb-6 flex items-center gap-5">
+        <MemoizedProfilePhoto user={user} />
+        <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-4 gap-y-3">
+          <div>
+            <Label>First Name</Label>
+            <Input
+              type="text"
+              name="name"
+              value={formState.name}
+              className="w-full"
+              onChange={handleInputChange}
+              onBlur={handleBlur}
+              readOnly={externalIdentity}
             />
           </div>
-        )}
-      </form>
+          <div>
+            <Label>Last Name</Label>
+            <Input
+              type="text"
+              name="lastName"
+              value={formState.lastName}
+              className="w-full"
+              onChange={handleInputChange}
+              onBlur={handleBlur}
+              readOnly={externalIdentity}
+            />
+          </div>
+          <div>
+            <Label>Timezone</Label>
+            <TimezoneSelect
+              value={formState.timezone}
+              onValueChange={handleTimezoneChange}
+              disabled={externalIdentity}
+            />
+          </div>
+          <div>
+            <Label>Job Title</Label>
+            <Input
+              type="text"
+              name="jobTitle"
+              value={formState.jobTitle}
+              className="w-full"
+              onChange={handleInputChange}
+              onBlur={handleBlur}
+              readOnly={externalIdentity}
+            />
+          </div>
+        </div>
+      </div>
+      <UserInfo
+        bio={formState.bio}
+        handleInputChange={handleInputChange}
+        handleBlur={handleBlur}
+        externalIdentity={externalIdentity}
+      />
     </div>
   );
 };

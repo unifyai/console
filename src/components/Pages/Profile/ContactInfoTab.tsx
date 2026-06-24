@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@/types/user';
 import { Input } from '@/components/UI/input';
 import PhoneInput from '@/components/UI/phone-input';
@@ -13,9 +12,9 @@ import { FaDiscord } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 // Verification is handled server-side via orchestra endpoints
 import { toast } from 'sonner';
-import SecondaryButton from '@/components/Common/Buttons/Secondary';
-import PrimaryButton from '@/components/Common/Buttons/Primary';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
+import { useAutoSave } from '@/hooks/Account/useAutoSave';
+import { SaveStatus } from './SaveStatus';
 
 interface VerificationState {
   value: string;
@@ -51,6 +50,7 @@ interface VerificationFieldProps {
   onSubmitCode: () => void;
   onCodeChange: (value: string) => void;
   onEdit: () => void;
+  onRemove: () => void;
   placeholder?: string;
   inputId?: string;
   countryTestId?: string;
@@ -66,6 +66,7 @@ const VerificationField = ({
   onSubmitCode,
   onCodeChange,
   onEdit,
+  onRemove,
   placeholder = '5551234567',
   inputId,
   countryTestId,
@@ -99,6 +100,9 @@ const VerificationField = ({
             </Button>
             <Button type="button" variant="outline" className="h-9" onClick={onEdit}>
               Change
+            </Button>
+            <Button type="button" variant="ghost" className="h-9" onClick={onRemove}>
+              Remove
             </Button>
           </>
         ) : (
@@ -171,14 +175,15 @@ const VerificationField = ({
         </div>
       )}
       {hasValue && isValidFormat && !state.isVerified && !state.isVerifying && (
-        <p className="text-body-muted">Number must be verified before saving.</p>
+        <p className="text-body-muted">Verify this number to save it.</p>
       )}
     </div>
   );
 };
 
+type ContactField = 'phoneNumber' | 'whatsappNumber' | 'discordId';
+
 const ContactInfoTab = ({ user }: { user: User }) => {
-  const router = useRouter();
   // Phone/WhatsApp verification sends codes over Twilio (reported by Orchestra
   // via the comms-layer probe). Without those credentials the verification
   // request 503s, so hide the fields rather than offer a flow that can't work.
@@ -190,12 +195,40 @@ const ContactInfoTab = ({ user }: { user: User }) => {
     createVerificationState(user.whatsappNumber)
   );
   const [discordId, setDiscordId] = useState(user.discordId || '');
-  const [initialDiscordId] = useState(user.discordId || '');
-  const [isSaving, setIsSaving] = useState(false);
-  const [changeMade, setChangeMade] = useState(false);
 
-  const [initialPhone] = useState(user.phoneNumber || '');
-  const [initialWhatsapp] = useState(user.whatsappNumber || '');
+  // Last value successfully persisted per field. Eager writes only fire when a
+  // value differs from this, so re-verifying an unchanged number is a no-op.
+  const savedRef = useRef<Record<ContactField, string>>({
+    phoneNumber: user.phoneNumber || '',
+    whatsappNumber: user.whatsappNumber || '',
+    discordId: user.discordId || '',
+  });
+
+  const persistField = useCallback(
+    async (partial: Partial<Record<ContactField, string>>): Promise<boolean> => {
+      const response = await fetch('/api/user/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(partial),
+      }).catch(() => null);
+      return !!response?.ok;
+    },
+    []
+  );
+
+  const { status, save } = useAutoSave(
+    persistField,
+    'Could not save your contact info. Please try again.'
+  );
+
+  const saveField = useCallback(
+    (field: ContactField, value: string) => {
+      if (value === savedRef.current[field]) return;
+      savedRef.current[field] = value;
+      void save({ [field]: value });
+    },
+    [save]
+  );
 
   // Cooldown timers
   useEffect(() => {
@@ -304,7 +337,9 @@ const ContactInfoTab = ({ user }: { user: User }) => {
             verificationError: null,
             verificationInput: '',
           }));
-          setChangeMade(true);
+          // Persist immediately — verification is the user's confirmation that
+          // the number is theirs; there is no separate "Save" step.
+          saveField(platform === 'phone' ? 'phoneNumber' : 'whatsappNumber', state.value.trim());
         } else {
           setter((prev) => ({
             ...prev,
@@ -318,7 +353,7 @@ const ContactInfoTab = ({ user }: { user: User }) => {
         }));
       }
     },
-    []
+    [saveField]
   );
 
   const handleCancel = useCallback(
@@ -337,21 +372,26 @@ const ContactInfoTab = ({ user }: { user: User }) => {
   const handleValueChange = useCallback(
     (
       setter: React.Dispatch<React.SetStateAction<VerificationState>>,
-      initialValue: string,
+      field: 'phoneNumber' | 'whatsappNumber',
       otherState: VerificationState,
       value: string
     ) => {
-      const matchesInitial = value === initialValue && !!initialValue;
+      const savedValue = savedRef.current[field];
+      const matchesSaved = value === savedValue && !!savedValue;
       const matchesOtherVerified = otherState.isVerified && value === otherState.value && !!value;
       setter((prev) => ({
         ...prev,
         value,
-        isVerified: matchesInitial || matchesOtherVerified,
+        isVerified: matchesSaved || matchesOtherVerified,
         verificationError: null,
       }));
-      setChangeMade(true);
+      // Reusing a number already verified on the other channel skips the
+      // verification round-trip, so persist it eagerly here.
+      if (matchesOtherVerified) {
+        saveField(field, value.trim());
+      }
     },
-    []
+    [saveField]
   );
 
   const handleEdit = useCallback(
@@ -368,66 +408,26 @@ const ContactInfoTab = ({ user }: { user: User }) => {
     []
   );
 
-  const phoneNeedsVerification = phoneState.value.trim() !== '' && !phoneState.isVerified;
-  const whatsappNeedsVerification = whatsappState.value.trim() !== '' && !whatsappState.isVerified;
-  const canSave = changeMade && !phoneNeedsVerification && !whatsappNeedsVerification;
+  const handleRemove = useCallback(
+    (
+      setter: React.Dispatch<React.SetStateAction<VerificationState>>,
+      field: 'phoneNumber' | 'whatsappNumber'
+    ) => {
+      setter(createVerificationState(null));
+      saveField(field, '');
+    },
+    [saveField]
+  );
 
-  const handleReset = () => {
-    setPhoneState(createVerificationState(initialPhone || null));
-    setWhatsappState(createVerificationState(initialWhatsapp || null));
-    setDiscordId(initialDiscordId);
-    setChangeMade(false);
-  };
-
-  const handleSave = async () => {
-    if (!canSave) {
-      if (phoneNeedsVerification || whatsappNeedsVerification) {
-        toast.error('Please verify all numbers before saving.');
-      }
-      return;
-    }
-
-    setIsSaving(true);
-    const minDelay = new Promise((r) => setTimeout(r, 800));
-
-    try {
-      const formData = new FormData();
-      formData.append('name', user.name || '');
-      formData.append('lastName', user.lastName || '');
-      formData.append('jobTitle', user.jobTitle || '');
-      formData.append('bio', user.bio || '');
-      formData.append('email', user.email || '');
-      formData.append('timezone', user.timezone || '');
-      formData.append('phoneNumber', phoneState.value.trim() || '');
-      formData.append('whatsappNumber', whatsappState.value.trim() || '');
-      formData.append('discordId', discordId.trim() || '');
-
-      const response = await fetch('/api/profile/updateUser', {
-        method: 'POST',
-        body: formData,
-      });
-
-      await minDelay;
-
-      if (response.ok) {
-        toast.success('Contact info updated successfully!');
-        setChangeMade(false);
-        router.refresh();
-      } else {
-        const data = await response.json().catch(() => null);
-        const errMsg =
-          typeof data?.error === 'string' ? data.error : 'Error updating contact info.';
-        toast.error(errMsg);
-      }
-    } catch {
-      toast.error('Error updating contact info.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const handleDiscordBlur = useCallback(() => {
+    saveField('discordId', discordId.trim());
+  }, [discordId, saveField]);
 
   return (
     <div className="mt-4 space-y-6">
+      <div className="flex justify-end">
+        <SaveStatus status={status} />
+      </div>
       <div>
         <div className="flex items-center gap-2">
           <Mail className="h-4 w-4 text-muted-foreground" />
@@ -443,7 +443,7 @@ const ContactInfoTab = ({ user }: { user: User }) => {
           inputId="phone-number-input"
           countryTestId="phone-country-select"
           state={phoneState}
-          onValueChange={(v) => handleValueChange(setPhoneState, initialPhone, whatsappState, v)}
+          onValueChange={(v) => handleValueChange(setPhoneState, 'phoneNumber', whatsappState, v)}
           onVerify={(isRetry) => handleVerify(setPhoneState, 'phone', phoneState, isRetry)}
           onCancel={() => handleCancel(setPhoneState)}
           onSubmitCode={() => handleSubmitCode(setPhoneState, phoneState, 'phone')}
@@ -451,6 +451,7 @@ const ContactInfoTab = ({ user }: { user: User }) => {
             setPhoneState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
           }
           onEdit={() => handleEdit(setPhoneState)}
+          onRemove={() => handleRemove(setPhoneState, 'phoneNumber')}
         />
       )}
 
@@ -461,7 +462,9 @@ const ContactInfoTab = ({ user }: { user: User }) => {
           inputId="whatsapp-number-input"
           countryTestId="whatsapp-country-select"
           state={whatsappState}
-          onValueChange={(v) => handleValueChange(setWhatsappState, initialWhatsapp, phoneState, v)}
+          onValueChange={(v) =>
+            handleValueChange(setWhatsappState, 'whatsappNumber', phoneState, v)
+          }
           onVerify={(isRetry) => handleVerify(setWhatsappState, 'whatsapp', whatsappState, isRetry)}
           onCancel={() => handleCancel(setWhatsappState)}
           onSubmitCode={() => handleSubmitCode(setWhatsappState, whatsappState, 'whatsapp')}
@@ -469,6 +472,7 @@ const ContactInfoTab = ({ user }: { user: User }) => {
             setWhatsappState((prev) => ({ ...prev, verificationInput: v, verificationError: null }))
           }
           onEdit={() => handleEdit(setWhatsappState)}
+          onRemove={() => handleRemove(setWhatsappState, 'whatsappNumber')}
         />
       )}
 
@@ -481,30 +485,14 @@ const ContactInfoTab = ({ user }: { user: User }) => {
           type="text"
           placeholder="e.g., 123456789012345678"
           value={discordId}
-          onChange={(e) => {
-            setDiscordId(e.target.value);
-            setChangeMade(true);
-          }}
+          onChange={(e) => setDiscordId(e.target.value)}
+          onBlur={handleDiscordBlur}
         />
         <p className="text-body-muted">
           Your Discord user ID (numeric snowflake). Enable Developer Mode in Discord settings, then
           right-click your profile to copy it.
         </p>
       </div>
-
-      {changeMade && (
-        <div className="flex w-fit gap-2">
-          <SecondaryButton onClick={handleReset} label="Cancel" />
-          <PrimaryButton
-            onClick={handleSave}
-            disabled={!canSave || isSaving}
-            isLoading={isSaving}
-            label={
-              phoneNeedsVerification || whatsappNeedsVerification ? 'Verify Numbers First' : 'Save'
-            }
-          />
-        </div>
-      )}
     </div>
   );
 };

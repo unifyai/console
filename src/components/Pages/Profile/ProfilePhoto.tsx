@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { Camera, Loader2, Pencil, Trash2 } from 'lucide-react';
@@ -36,14 +37,14 @@ async function resolvePhotoUrl(image: string): Promise<string> {
 
 interface ProfilePhotoProps {
   user: User;
-  onFileSelect: (file: File) => void;
-  onPhotoRemoved: () => void;
-  previewUrl: string | null;
 }
 
-const ProfilePhoto = ({ user, onFileSelect, onPhotoRemoved, previewUrl }: ProfilePhotoProps) => {
+const ProfilePhoto = ({ user }: ProfilePhotoProps) => {
+  const router = useRouter();
   const [savedPhotoUrl, setSavedPhotoUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Crop dialog state
@@ -59,6 +60,12 @@ const ProfilePhoto = ({ user, onFileSelect, onPhotoRemoved, previewUrl }: Profil
     } else {
       setSavedPhotoUrl(null);
     }
+    // The server-resolved image is now authoritative; drop any local preview
+    // left over from an eager upload so we don't mask server-side reprocessing.
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
   }, [user.image]);
 
   const displayUrl = previewUrl ?? savedPhotoUrl;
@@ -88,14 +95,48 @@ const ProfilePhoto = ({ user, onFileSelect, onPhotoRemoved, previewUrl }: Profil
   }, []);
 
   const handleCropConfirm = useCallback(
-    (croppedFile: File) => {
+    async (croppedFile: File) => {
       setIsCropOpen(false);
       if (cropSrc) URL.revokeObjectURL(cropSrc);
       setCropSrc(null);
       setCropSourceType(undefined);
-      onFileSelect(croppedFile);
+
+      // Show the cropped result immediately, then persist. `router.refresh()`
+      // swaps in the server asset and the `user.image` effect clears the preview.
+      const preview = URL.createObjectURL(croppedFile);
+      setPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return preview;
+      });
+      setIsUploading(true);
+      try {
+        const formData = new FormData();
+        formData.append('file', croppedFile);
+        const response = await fetch('/api/user/photo/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        if (!response.ok) {
+          toast.error('Could not update profile photo. Please try again.');
+          setPreviewUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return null;
+          });
+          return;
+        }
+        router.refresh();
+      } catch (error) {
+        console.error('Failed to upload profile photo', error);
+        toast.error('Could not update profile photo. Please try again.');
+        setPreviewUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return null;
+        });
+      } finally {
+        setIsUploading(false);
+      }
     },
-    [cropSrc, onFileSelect]
+    [cropSrc, router]
   );
 
   const handleCropCancel = useCallback(() => {
@@ -117,7 +158,11 @@ const ProfilePhoto = ({ user, onFileSelect, onPhotoRemoved, previewUrl }: Profil
       }
 
       setSavedPhotoUrl(null);
-      onPhotoRemoved();
+      setPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      router.refresh();
       toast.success('Profile photo removed.');
     } catch (error) {
       console.error('Failed to remove profile photo', error);
@@ -125,7 +170,9 @@ const ProfilePhoto = ({ user, onFileSelect, onPhotoRemoved, previewUrl }: Profil
     } finally {
       setIsRemoving(false);
     }
-  }, [displayUrl, isRemoving, onPhotoRemoved]);
+  }, [displayUrl, isRemoving, router]);
+
+  const isBusy = isRemoving || isUploading;
 
   return (
     <>
@@ -149,18 +196,24 @@ const ProfilePhoto = ({ user, onFileSelect, onPhotoRemoved, previewUrl }: Profil
               </span>
             )}
 
-            <div className="absolute inset-0 flex items-center justify-center bg-transparent opacity-0 transition-all group-hover:bg-[color:var(--overlay)] group-hover:opacity-100">
-              <Camera className="h-7 w-7 text-[color:var(--cream-white)]" />
-            </div>
+            {isUploading ? (
+              <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-[color:var(--overlay)]">
+                <Loader2 className="h-7 w-7 animate-spin text-[color:var(--cream-white)]" />
+              </div>
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center bg-transparent opacity-0 transition-all group-hover:bg-[color:var(--overlay)] group-hover:opacity-100">
+                <Camera className="h-7 w-7 text-[color:var(--cream-white)]" />
+              </div>
+            )}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" side="right" className="w-36">
-          <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}>
+          <DropdownMenuItem disabled={isBusy} onSelect={() => fileInputRef.current?.click()}>
             <Pencil className="h-4 w-4" />
             Edit
           </DropdownMenuItem>
           <DropdownMenuItem
-            disabled={!displayUrl || isRemoving}
+            disabled={!displayUrl || isBusy}
             onSelect={() => {
               void handleRemovePhoto();
             }}
