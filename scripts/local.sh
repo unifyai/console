@@ -556,6 +556,17 @@ start_orchestra() {
   # Pass the admin key so Orchestra authenticates Console's admin calls.
   export ORCHESTRA_ADMIN_KEY="$ADMIN_KEY"
   export ORCHESTRA_PORT="$ORCHESTRA_PORT"
+
+  # Local deployment mirrors the test logging convention (see the CM runtime env
+  # in droid-deploy/selfhost/self_host_env.sh): Orchestra writes OTel spans to
+  # the shared cross-repo logs/all/ and per-request JSON traces to logs/orchestra/
+  # in the droid repo, so a run's Orchestra spans correlate with droid/unify/
+  # unillm. Opt-out by exporting these beforehand.
+  if [[ -n "${DROID_REPO_PATH:-}" ]]; then
+    export ORCHESTRA_OTEL_LOG_DIR="${ORCHESTRA_OTEL_LOG_DIR:-$DROID_REPO_PATH/logs/all}"
+    export ORCHESTRA_LOG_DIR="${ORCHESTRA_LOG_DIR:-$DROID_REPO_PATH/logs/orchestra}"
+    mkdir -p "$ORCHESTRA_OTEL_LOG_DIR" "$ORCHESTRA_LOG_DIR" 2>/dev/null || true
+  fi
   local composio_key="${COMPOSIO_API_KEY:-$(read_env_value COMPOSIO_API_KEY "$ENV_LOCAL" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
   if [[ -n "$composio_key" ]]; then
     export COMPOSIO_API_KEY="$composio_key"
