@@ -1,5 +1,5 @@
-const ENV_ENABLED = process.env.NEXT_PUBLIC_DEBUG_COORDINATOR_ONBOARDING === 'true';
-const LOCAL_STORAGE_KEY = 'console:debug:coordinator-onboarding';
+const ENV_ENABLED = process.env.NEXT_PUBLIC_CONSOLE_DEBUG === 'true';
+const LOCAL_STORAGE_KEY = 'console:debug';
 
 function isEnabled(): boolean {
   if (ENV_ENABLED) return true;
@@ -7,12 +7,13 @@ function isEnabled(): boolean {
   return window.localStorage.getItem(LOCAL_STORAGE_KEY) === '1';
 }
 
-export function debugCoordinatorOnboarding(
+export function debugConsole(
+  category: string,
   event: string,
   details: Record<string, unknown> = {}
-): void {
+) {
   if (!isEnabled()) return;
-  console.log('[CoordinatorOnboarding]', {
+  console.log(`[ConsoleDebug:${category}]`, {
     event,
     ...details,
     at: new Date().toISOString(),

@@ -35,7 +35,7 @@ import { COORDINATOR_ONBOARDING_DEFAULT_INITIAL_UNITY } from '@/utils/assistants
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { notifyOnboardingSessionStarted } from '@/lib/client/coordinator';
-import { debugCoordinatorOnboarding } from '@/lib/assistants/coordinatorOnboardingDebug';
+import { debugConsole } from '@/lib/consoleDebug';
 import type { Assistant, AssistantCallConnectOptions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 
@@ -73,19 +73,19 @@ export function CoordinatorOnboarding({
   const hasCompletedRef = React.useRef(false);
 
   React.useEffect(() => {
-    debugCoordinatorOnboarding('overlay.mount', {
+    debugConsole('coordinator-onboarding', 'overlay.mount', {
       coordinatorId: coordinator.agentId,
       voiceCalls,
     });
     return () => {
-      debugCoordinatorOnboarding('overlay.unmount', {
+      debugConsole('coordinator-onboarding', 'overlay.unmount', {
         coordinatorId: coordinator.agentId,
       });
     };
   }, [coordinator.agentId, voiceCalls]);
 
   React.useEffect(() => {
-    debugCoordinatorOnboarding('overlay.phase', {
+    debugConsole('coordinator-onboarding', 'overlay.phase', {
       coordinatorId: coordinator.agentId,
       phase,
       isStartingCall,
@@ -96,7 +96,7 @@ export function CoordinatorOnboarding({
   // right kind of message. Best-effort: completion never blocks on it.
   const notifySessionStarted = React.useCallback(
     (medium: 'chat' | 'call') => {
-      debugCoordinatorOnboarding('session-started.notify', {
+      debugConsole('coordinator-onboarding', 'session-started.notify', {
         coordinatorId: coordinator.agentId,
         medium,
       });
@@ -109,7 +109,7 @@ export function CoordinatorOnboarding({
     (medium: 'call' | 'chat') => {
       if (hasCompletedRef.current) return;
       hasCompletedRef.current = true;
-      debugCoordinatorOnboarding('overlay.complete', {
+      debugConsole('coordinator-onboarding', 'overlay.complete', {
         coordinatorId: coordinator.agentId,
         medium,
       });
@@ -122,7 +122,7 @@ export function CoordinatorOnboarding({
 
   const handleStartCall = React.useCallback(async () => {
     if (phase !== 'picker') return;
-    debugCoordinatorOnboarding('start-call.click', {
+    debugConsole('coordinator-onboarding', 'start-call.click', {
       coordinatorId: coordinator.agentId,
     });
     setPhase('preparing');
@@ -135,7 +135,7 @@ export function CoordinatorOnboarding({
         startMuted: true,
       });
     } catch (error) {
-      debugCoordinatorOnboarding('start-call.failure', {
+      debugConsole('coordinator-onboarding', 'start-call.failure', {
         coordinatorId: coordinator.agentId,
         message: error instanceof Error ? error.message : String(error),
       });
@@ -147,7 +147,7 @@ export function CoordinatorOnboarding({
       return;
     }
 
-    debugCoordinatorOnboarding('start-call.ready', {
+    debugConsole('coordinator-onboarding', 'start-call.ready', {
       coordinatorId: coordinator.agentId,
     });
     notifySessionStarted('call');
@@ -156,7 +156,7 @@ export function CoordinatorOnboarding({
 
   const handlePickChat = React.useCallback(() => {
     if (phase !== 'picker') return;
-    debugCoordinatorOnboarding('pick-chat.click', {
+    debugConsole('coordinator-onboarding', 'pick-chat.click', {
       coordinatorId: coordinator.agentId,
     });
     notifySessionStarted('chat');

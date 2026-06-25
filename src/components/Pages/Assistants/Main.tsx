@@ -47,7 +47,7 @@ import {
   type CoordinatorWorkspaceScope,
   resolveCanonicalWorkspaceCoordinator,
 } from '@/lib/assistants/coordinatorIdentity';
-import { debugCoordinatorOnboarding } from '@/lib/assistants/coordinatorOnboardingDebug';
+import { debugConsole } from '@/lib/consoleDebug';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import {
   CoordinatorOnboardingProvider,
@@ -730,7 +730,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         isCoordinatorOnboardingStateLoading));
 
   React.useEffect(() => {
-    debugCoordinatorOnboarding('gate.evaluate', {
+    debugConsole('coordinator-onboarding', 'gate.evaluate', {
       canonicalCoordinatorId,
       hasCanonicalCoordinator: !!canonicalCoordinator,
       isLoadingAssistants,

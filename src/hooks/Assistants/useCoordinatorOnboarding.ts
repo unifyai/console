@@ -7,7 +7,7 @@ import {
   type CoordinatorStateSnapshot,
   type CoordinatorStatePatch,
 } from '@/lib/assistants/coordinatorState';
-import { debugCoordinatorOnboarding } from '@/lib/assistants/coordinatorOnboardingDebug';
+import { debugConsole } from '@/lib/consoleDebug';
 
 /**
  * Reads + writes the Coordinator's onboarding state row.
@@ -47,11 +47,11 @@ export function useCoordinatorOnboarding(
       if (coordinatorId == null) {
         throw new Error('Coordinator id is required to read Coordinator/State');
       }
-      debugCoordinatorOnboarding('state.fetch.start', {
+      debugConsole('coordinator-onboarding', 'state.fetch.start', {
         coordinatorId: String(coordinatorId),
       });
       const state = await fetchCoordinatorState(coordinatorId);
-      debugCoordinatorOnboarding('state.fetch.success', {
+      debugConsole('coordinator-onboarding', 'state.fetch.success', {
         coordinatorId: String(coordinatorId),
         mode: state.mode,
         introWatched: state.introWatched,
@@ -72,13 +72,13 @@ export function useCoordinatorOnboarding(
     async (patch: CoordinatorStatePatch): Promise<CoordinatorStateSnapshot | null> => {
       if (coordinatorId == null) return null;
       try {
-        debugCoordinatorOnboarding('state.update.start', {
+        debugConsole('coordinator-onboarding', 'state.update.start', {
           coordinatorId: String(coordinatorId),
           patch,
         });
         const next = await updateCoordinatorState(coordinatorId, patch);
         queryClient.setQueryData(buildQueryKey(coordinatorId), next);
-        debugCoordinatorOnboarding('state.update.success', {
+        debugConsole('coordinator-onboarding', 'state.update.success', {
           coordinatorId: String(coordinatorId),
           mode: next.mode,
           introWatched: next.introWatched,
@@ -87,7 +87,7 @@ export function useCoordinatorOnboarding(
         });
         return next;
       } catch (err) {
-        debugCoordinatorOnboarding('state.update.failure', {
+        debugConsole('coordinator-onboarding', 'state.update.failure', {
           coordinatorId: String(coordinatorId),
           message: err instanceof Error ? err.message : String(err),
         });
