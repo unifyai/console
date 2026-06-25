@@ -84,7 +84,7 @@ function makeActions() {
       getConnectionDetails: vi.fn(async () => ({
         serverUrl: 'wss://livekit.example',
         token: 'token',
-        roomName: 'droid_1_meet',
+        roomName: 'unity_1_meet',
       })),
       dispatchToCall: vi.fn(async () => ({})),
       deleteRoom: vi.fn(async () => ({})),
@@ -120,7 +120,7 @@ describe('useAssistantCall', () => {
     expect(actions.call.deleteRoom).not.toHaveBeenCalled();
     expect(actions.call.dispatchToCall).toHaveBeenCalledWith(
       '1',
-      'droid_1_meet',
+      'unity_1_meet',
       undefined,
       expect.stringMatching(/^meet-1-/)
     );
@@ -193,6 +193,6 @@ describe('useAssistantCall', () => {
     });
 
     expect(room.disconnectCalls).toBe(1);
-    expect(actions.call.deleteRoom).toHaveBeenCalledWith('droid_1_meet');
+    expect(actions.call.deleteRoom).toHaveBeenCalledWith('unity_1_meet');
   });
 });

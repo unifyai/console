@@ -37,7 +37,7 @@ export interface CallOpeningConfig {
 export interface AssistantCallConnectOptions {
   suppressRinging?: boolean;
   openingConfig?: CallOpeningConfig;
-  /** Stable browser-call attempt id used to ignore stale Droid/LiveKit lifecycle events. */
+  /** Stable browser-call attempt id used to ignore stale Unity/LiveKit lifecycle events. */
   callSessionId?: string;
   waitForAssistantReady?: boolean;
   startMuted?: boolean;
