@@ -55,17 +55,18 @@ const WORKING_VIEW = { yaw: 45, tilt: 30 } as const;
 
 // Match the landing hub exactly: lid hinge over 520ms (easeInOutQuad) and a
 // 0.5s ease opacity fade as the laptop appears/disappears during the turn.
-const FOLD_DURATION_MS = 520;
+const LID_DURATION_MS = 520;
 const LAPTOP_FADE = 'opacity 0.5s ease';
 
-// Placement of the open laptop relative to the droid box, tuned to WORKING_VIEW
-// (the landing isometric pose). Mirrors the landing hub's hand-tuned overlay:
-// the laptop sits in front of the droid's lower body, slightly to the right.
+// Placement of the open laptop relative to the droid box, tuned against the
+// droid at WORKING_VIEW (the landing isometric pose) via an offline render:
+// the laptop sits in front of the droid's lower body, slightly right, low
+// enough that the eyes + mouth stay visible above the raised lid.
 const LAPTOP_STYLE: React.CSSProperties = {
   position: 'absolute',
-  left: '60%',
-  top: '73%',
-  width: '84%',
+  left: '56%',
+  top: '74%',
+  width: '62%',
   transform: 'translate(-50%, -50%)',
   pointerEvents: 'none',
 };
@@ -74,39 +75,43 @@ function easeInOutQuad(t: number): number {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 }
 
-/** Animates the laptop lid open (1) / closed (0) over FOLD_DURATION_MS. */
-function useLaptopFold(open: boolean): number {
-  const [fold, setFold] = React.useState(0);
-  const foldRef = React.useRef(0);
+/**
+ * Animates lid openness 0 (closed) → 1 (fully open) over LID_DURATION_MS.
+ * NOTE: the `Laptop` SVG's own `fold` prop is inverted (0 = open, 1 = closed),
+ * so callers pass `fold={1 - openness}`.
+ */
+function useLidOpen(open: boolean): number {
+  const [openness, setOpenness] = React.useState(0);
+  const ref = React.useRef(0);
 
   React.useEffect(() => {
     const to = open ? 1 : 0;
-    const from = foldRef.current;
+    const from = ref.current;
     if (from === to) return;
 
     const reduced =
       typeof window !== 'undefined' &&
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (reduced) {
-      foldRef.current = to;
-      setFold(to);
+      ref.current = to;
+      setOpenness(to);
       return;
     }
 
     const start = performance.now();
     let raf = 0;
     const step = (now: number) => {
-      const t = Math.min(1, (now - start) / FOLD_DURATION_MS);
+      const t = Math.min(1, (now - start) / LID_DURATION_MS);
       const value = from + (to - from) * easeInOutQuad(t);
-      foldRef.current = value;
-      setFold(value);
+      ref.current = value;
+      setOpenness(value);
       if (t < 1) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
   }, [open]);
 
-  return fold;
+  return openness;
 }
 
 export function UnityCallAvatar({
@@ -128,11 +133,11 @@ export function UnityCallAvatar({
   teleportInOnMount = false,
 }: UnityCallAvatarProps) {
   const [isHovered, setIsHovered] = React.useState(false);
-  const fold = useLaptopFold(isActing);
+  const lidOpen = useLidOpen(isActing);
   // Keep the rotation/laptop machinery engaged through the close animation so
   // the body can turn all the way back to camera before reverting to the
   // static pose; idle callers (hire form, chat bubble) never reach this.
-  const working = isActing || fold > 0.001;
+  const working = isActing || lidOpen > 0.001;
 
   // Opacity fade is driven by an effect (not `fold`) so the laptop mounts at
   // opacity 0 and transitions to 1 — matching the landing hub's CSS fade. On
@@ -197,7 +202,7 @@ export function UnityCallAvatar({
             transition: LAPTOP_FADE,
           }}
         >
-          <Laptop fold={fold} />
+          <Laptop fold={1 - lidOpen} />
         </span>
       )}
     </span>
