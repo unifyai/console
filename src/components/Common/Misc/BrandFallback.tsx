@@ -29,12 +29,12 @@ export function BrandFallback({
         <div className="brand-fallback-city-window" aria-hidden />
         <div className="relative grid gap-8 px-6 py-8 sm:px-10 sm:py-10">
           <div className="brand-fallback-hero">
-            <span className="brand-fallback-droid">
+            <span className="brand-fallback-unity">
               <TeammateCreature
                 className="h-28 w-28"
                 color="green"
                 eyes="down"
-                label="Sad droid fallback illustration"
+                label="Sad unity fallback illustration"
                 mood="sad"
                 mouthShape="unsure"
                 body="short"

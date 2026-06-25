@@ -8,11 +8,11 @@ type TeleportMode = 'in' | 'out';
 const DEFAULT_DURATION_MS = 225;
 
 /**
- * Simple paired fade used for the coordinator handoff. ``out`` fades the droid
- * away in its intro position; ``in`` fades the docked droid in once the intro
- * droid has fully disappeared.
+ * Simple paired fade used for the coordinator handoff. ``out`` fades the unity
+ * away in its intro position; ``in`` fades the docked unity in once the intro
+ * unity has fully disappeared.
  */
-export function DroidTeleportFizzle({
+export function UnityTeleportFizzle({
   mode,
   active = true,
   durationMs = DEFAULT_DURATION_MS,

@@ -37,6 +37,11 @@ export async function POST(request: NextRequest) {
     if ('bio' in body) userUpdateRequest.bio = body.bio;
     if ('timezone' in body) userUpdateRequest.timezone = body.timezone || null;
     if ('image' in body) userUpdateRequest.image = body.image;
+    // Contact fields persist eagerly (phone/WhatsApp only after the number has
+    // been verified server-side). Empty string clears the value.
+    if ('phoneNumber' in body) userUpdateRequest.phoneNumber = body.phoneNumber || null;
+    if ('whatsappNumber' in body) userUpdateRequest.whatsappNumber = body.whatsappNumber || null;
+    if ('discordId' in body) userUpdateRequest.discordId = body.discordId || null;
 
     const response = await updateUser(userUpdateRequest as UserUpdateRequest);
 

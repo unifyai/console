@@ -2,7 +2,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { TeammateCreature } from '@/components/Brand';
 import type { CreatureEyes } from '@/components/Brand/TeammateCreature';
-import { TWIN_CREATURE_APPEARANCE } from '@droid/brand/components';
+import { TWIN_CREATURE_APPEARANCE } from '@unity/brand/components';
 
 interface CoordinatorLogoAvatarProps {
   className?: string;

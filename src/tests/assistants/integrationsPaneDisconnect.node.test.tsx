@@ -257,7 +257,7 @@ describe('IntegrationsPane provider disconnect sync', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Disconnect' }));
   }
 
-  it('requests Droid cleanup sync after provider disconnect succeeds', async () => {
+  it('requests Unity cleanup sync after provider disconnect succeeds', async () => {
     renderPane('needs_reconnect');
     await disconnectAndConfirm();
 
@@ -324,7 +324,7 @@ describe('IntegrationsPane provider disconnect sync', () => {
     });
   });
 
-  it('refreshes disconnect UI state when Droid cleanup sync fails', async () => {
+  it('refreshes disconnect UI state when Unity cleanup sync fails', async () => {
     systemEventStatus = 500;
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
@@ -334,7 +334,7 @@ describe('IntegrationsPane provider disconnect sync', () => {
     await waitFor(() => expect(refreshProviderCatalog).toHaveBeenCalledTimes(1));
     expect(fetchDetails).toHaveBeenCalledTimes(1);
     expect(warnSpy).toHaveBeenCalledWith(
-      'Failed to request Droid integration tool sync after disconnect',
+      'Failed to request Unity integration tool sync after disconnect',
       expect.any(Error)
     );
   });

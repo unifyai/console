@@ -16,8 +16,8 @@ const selfHostLiveKitConnectSrc = isSelfHost
   : '';
 
 const serverActionAllowedOrigins = [
-  'usedroids.ai',
-  'www.usedroids.ai',
+  'useunitys.ai',
+  'www.useunitys.ai',
   'unify.ai',
   'www.unify.ai',
   'staging.unify.ai',
@@ -32,7 +32,7 @@ const serverActionAllowedOrigins = [
 ];
 
 const nextConfig = {
-  transpilePackages: ['@droid/brand', '@droid/iso'],
+  transpilePackages: ['@unity/brand', '@unity/iso'],
   images: {
     remotePatterns: [
       {
@@ -84,7 +84,7 @@ const nextConfig = {
     config.resolve.symlinks = false;
     config.resolve.alias = {
       ...(config.resolve.alias ?? {}),
-      '@droid/iso$': CENTRAL_ISO_ENTRY,
+      '@unity/iso$': CENTRAL_ISO_ENTRY,
     };
 
     // Grab the existing rule that handles SVG imports

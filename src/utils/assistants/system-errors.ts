@@ -1,11 +1,11 @@
 /**
  * System Error Classification
  *
- * Maps raw error messages from Droid's `publish_system_error()` to structured
+ * Maps raw error messages from Unity's `publish_system_error()` to structured
  * error types with user-friendly copy. Falls back gracefully for unrecognized
- * messages so new Droid error strings don't require a console update.
+ * messages so new Unity error strings don't require a console update.
  *
- * Droid publishes system errors as:
+ * Unity publishes system errors as:
  *   { thread: "system_error", event: { content: "<error message>" } }
  *
  * The content is a free-form string. Classification uses substring matching
@@ -22,7 +22,7 @@ export type SystemErrorType =
 
 export interface SystemError {
   type: SystemErrorType;
-  /** Raw error message from Droid */
+  /** Raw error message from Unity */
   rawMessage: string;
   timestamp: Date;
 }
@@ -57,7 +57,7 @@ export function classifySystemError(content: string): SystemErrorType {
  * User-friendly error copy keyed by error type.
  * The `{name}` placeholder is replaced with the assistant's display name.
  */
-/* eslint-disable @typescript-eslint/naming-convention -- keys match Droid's wire format */
+/* eslint-disable @typescript-eslint/naming-convention -- keys match Unity's wire format */
 const FRIENDLY_COPY: Record<SystemErrorType, { title: string; detail: string }> = {
   message_failed: {
     title: '{name} may not have received your last message',
@@ -105,7 +105,7 @@ export function getFriendlyErrorCopy(
  */
 export const DEDUP_WINDOW_MS = 15_000;
 
-/** Valid error_type values from Droid's structured field. */
+/** Valid error_type values from Unity's structured field. */
 const VALID_ERROR_TYPES = new Set<SystemErrorType>([
   'message_failed',
   'recovering',
@@ -118,9 +118,9 @@ const VALID_ERROR_TYPES = new Set<SystemErrorType>([
 /**
  * Parse a raw Pub/Sub system error payload into a SystemError.
  *
- * Prefers the structured `error_type` field from Droid when available.
+ * Prefers the structured `error_type` field from Unity when available.
  * Falls back to substring-based classification for payloads from older
- * Droid deployments that don't include `error_type`.
+ * Unity deployments that don't include `error_type`.
  *
  * Returns null if the payload shape is unexpected.
  */

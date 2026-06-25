@@ -51,12 +51,9 @@ import ReferralBanner from '@/components/Layout/TopBar/ReferralBanner';
 import { UnifyBlockMark } from '@/components/Brand';
 import { fetchAssistants } from '@/lib/client/assistant';
 import { resolveCanonicalWorkspaceCoordinator } from '@/lib/assistants/coordinatorIdentity';
-import {
-  fetchCoordinatorState,
-  type CoordinatorStateSnapshot,
-  type OnboardingRender,
-} from '@/lib/assistants/coordinatorState';
+import { type OnboardingRender } from '@/lib/assistants/coordinatorState';
 import { cn } from '@/lib/utils';
+import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 
 const getInitials = (name: string) =>
   name
@@ -120,8 +117,6 @@ export default function TopNav() {
   const [showSelfHostResetConfirm, setShowSelfHostResetConfirm] = useState(false);
   const [isSelfHostResetting, setIsSelfHostResetting] = useState(false);
   const [workspacePhotos, setWorkspacePhotos] = useState<Record<string, string>>({});
-  const [coordinatorOnboardingState, setCoordinatorOnboardingState] =
-    useState<CoordinatorStateSnapshot | null>(null);
   const [coordinatorId, setCoordinatorId] = useState<string | null>(null);
 
   const {
@@ -133,6 +128,7 @@ export default function TopNav() {
     isSwitchingWorkspace,
     currentUserId,
   } = useWorkspace();
+  const { state: coordinatorOnboardingState } = useCoordinatorOnboarding(coordinatorId);
 
   const [orgLogoUrl, setOrgLogoUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -330,7 +326,6 @@ export default function TopNav() {
     const loadCoordinatorOnboarding = async () => {
       if (!currentUserId || !activeWorkspace) {
         setCoordinatorId(null);
-        setCoordinatorOnboardingState(null);
         return;
       }
       const assistants = await fetchAssistants(workspace, true, { currentUserId });
@@ -342,12 +337,9 @@ export default function TopNav() {
       );
       if (!coordinator) {
         setCoordinatorId(null);
-        setCoordinatorOnboardingState(null);
         return;
       }
       setCoordinatorId(coordinator.agentId);
-      const state = await fetchCoordinatorState(coordinator.agentId);
-      if (!cancelled) setCoordinatorOnboardingState(state);
     };
 
     void loadCoordinatorOnboarding();

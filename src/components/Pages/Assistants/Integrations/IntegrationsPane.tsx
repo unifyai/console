@@ -512,7 +512,7 @@ export function IntegrationsPane({
           assistantId,
           connection: updatedConnection,
         }).catch((error) => {
-          console.warn('Failed to request Droid integration tool sync after reconnect', error);
+          console.warn('Failed to request Unity integration tool sync after reconnect', error);
         });
         toast.success('Reconnect started.');
       }
@@ -549,7 +549,7 @@ export function IntegrationsPane({
         connection,
         reason: 'disconnected',
       }).catch((error) => {
-        console.warn('Failed to request Droid integration tool sync after disconnect', error);
+        console.warn('Failed to request Unity integration tool sync after disconnect', error);
       });
       toast.success('Disconnected.');
       await refreshProviderCatalog();
@@ -587,7 +587,7 @@ export function IntegrationsPane({
         assistantId,
         connection: updatedConnection,
       }).catch((error) => {
-        console.warn('Failed to request Droid integration tool sync after connection test', error);
+        console.warn('Failed to request Unity integration tool sync after connection test', error);
       });
       toast.success('Connection is healthy.');
       await refreshProviderCatalog();

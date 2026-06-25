@@ -178,7 +178,7 @@ const DAILY_CHATS: { q: string; a: string }[] = [
   },
   {
     q: "What's the status of the mobile app?",
-    a: 'Mobile app status:\n- iOS: React Native build compiling, basic navigation done\n- Android: Same codebase, tested on Pixel 7\n- Auth flow: integrated with our JWT system\n- Remaining: push notifications, offline mode, camera integration\n- ETA for beta: 3 weeks',
+    a: 'Mobile app status:\n- iOS: React Native build compiling, basic navigation done\n- Anunity: Same codebase, tested on Pixel 7\n- Auth flow: integrated with our JWT system\n- Remaining: push notifications, offline mode, camera integration\n- ETA for beta: 3 weeks',
   },
 ];
 

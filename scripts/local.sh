@@ -4,7 +4,7 @@
 # =============================================================================
 #
 # This is NOT how you run the product locally. The single canonical end-to-end
-# local command is `droid stack up` (source self-host across all repos), which
+# local command is `unity stack up` (source self-host across all repos), which
 # calls this script with `--self-host`. Use the seeded modes below only for
 # Console development, QA, and E2E tests.
 #
@@ -18,7 +18,7 @@
 #   npx tsx src/tests/helpers/seeds/run.ts <scenario|all|--list>
 #
 # Usage:
-#   ./scripts/local.sh start --self-host              # Self-host (what `droid stack up` runs)
+#   ./scripts/local.sh start --self-host              # Self-host (what `unity stack up` runs)
 #   ./scripts/local.sh                                # personal-workspace seed (default)
 #   ./scripts/local.sh start                          # Same as above
 #   ./scripts/local.sh start --org                    # Shorthand for --seed org-basic
@@ -27,11 +27,11 @@
 #   ./scripts/local.sh start --stripe                 # + Stripe webhook forwarding
 #   ./scripts/local.sh start --credits 0              # seed users with a 0 credit balance
 #   ./scripts/local.sh start --pubsub                 # + Pub/Sub emulator (billing events)
-#   ./scripts/local.sh start --chat                   # + Pub/Sub + chat (Droid gateway)
+#   ./scripts/local.sh start --chat                   # + Pub/Sub + chat (Unity gateway)
 #   ./scripts/local.sh start --integrations           # + Composio provider catalog sync
 #   ./scripts/local.sh start --integrations --integrations-functions
 #                                                     # + local-only curated Function rows
-#   ./scripts/local.sh gateway-setup                  # Droid gateway setup wizard
+#   ./scripts/local.sh gateway-setup                  # Unity gateway setup wizard
 #   ./scripts/local.sh gateway-doctor --check-credentials
 #   ./scripts/local.sh gateway-urls --public-url https://callbacks.example.com
 #   ./scripts/local.sh stop                           # Stop all services
@@ -45,11 +45,11 @@
 #   - Orchestra repo cloned as a sibling: ../orchestra
 #   - (--stripe) Stripe CLI installed and authenticated (`stripe login`)
 #   - (--pubsub) gcloud CLI with Pub/Sub emulator component
-#   - (--chat)   Everything for --pubsub, plus Droid repo: ../droid
+#   - (--chat)   Everything for --pubsub, plus Unity repo: ../unity
 #
 # Environment:
 #   ORCHESTRA_REPO_PATH       Path to orchestra repo (default: ../orchestra)
-#   DROID_REPO_PATH           Path to droid repo (default: ../droid)
+#   UNITY_REPO_PATH           Path to unity repo (default: ../unity)
 #   CONSOLE_PORT              Next.js port (default: 3000)
 #   ORCHESTRA_PORT            Orchestra port (default: 8000)
 #
@@ -65,21 +65,21 @@ CONSOLE_REPO_PATH="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 ORCHESTRA_REPO_PATH="${ORCHESTRA_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../orchestra" 2>/dev/null && pwd -P || echo "")}"
 ORCHESTRA_LOCAL_SCRIPT="$ORCHESTRA_REPO_PATH/scripts/local.sh"
 
-DROID_REPO_PATH="${DROID_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../droid" 2>/dev/null && pwd -P || echo "")}"
-DROID_LOCAL_SCRIPT="${DROID_REPO_PATH:+$DROID_REPO_PATH/scripts/local.sh}"
-DROID_GATEWAY_CONFIG_FILE="/tmp/droid-local.config"
-ENSURE_PREREQS_SCRIPT="${DROID_REPO_PATH:+$DROID_REPO_PATH/scripts/ensure_prereqs.sh}"
-DROID_DEPLOY_REPO_PATH="${DROID_DEPLOY_REPO_PATH:-${DEPLOY_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../droid-deploy" 2>/dev/null && pwd -P || echo "")}}"
-DROID_DEPLOY_SELF_HOST_ENV_SCRIPT="${DROID_DEPLOY_REPO_PATH:+$DROID_DEPLOY_REPO_PATH/selfhost/self_host_env.sh}"
-DROID_LEGACY_SELF_HOST_ENV_SCRIPT="${DROID_REPO_PATH:+$DROID_REPO_PATH/scripts/self_host_env.sh}"
+UNITY_REPO_PATH="${UNITY_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../unity" 2>/dev/null && pwd -P || echo "")}"
+UNITY_LOCAL_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/local.sh}"
+UNITY_GATEWAY_CONFIG_FILE="/tmp/unity-local.config"
+ENSURE_PREREQS_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/ensure_prereqs.sh}"
+UNITY_DEPLOY_REPO_PATH="${UNITY_DEPLOY_REPO_PATH:-${DEPLOY_REPO_PATH:-$(cd "$CONSOLE_REPO_PATH/../unity-deploy" 2>/dev/null && pwd -P || echo "")}}"
+UNITY_DEPLOY_SELF_HOST_ENV_SCRIPT="${UNITY_DEPLOY_REPO_PATH:+$UNITY_DEPLOY_REPO_PATH/selfhost/self_host_env.sh}"
+UNITY_LEGACY_SELF_HOST_ENV_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/self_host_env.sh}"
 if [[ -z "${SELF_HOST_ENV_SCRIPT:-}" ]]; then
-  if [[ -n "$DROID_DEPLOY_SELF_HOST_ENV_SCRIPT" && -f "$DROID_DEPLOY_SELF_HOST_ENV_SCRIPT" ]]; then
-    SELF_HOST_ENV_SCRIPT="$DROID_DEPLOY_SELF_HOST_ENV_SCRIPT"
+  if [[ -n "$UNITY_DEPLOY_SELF_HOST_ENV_SCRIPT" && -f "$UNITY_DEPLOY_SELF_HOST_ENV_SCRIPT" ]]; then
+    SELF_HOST_ENV_SCRIPT="$UNITY_DEPLOY_SELF_HOST_ENV_SCRIPT"
   else
-    SELF_HOST_ENV_SCRIPT="$DROID_LEGACY_SELF_HOST_ENV_SCRIPT"
+    SELF_HOST_ENV_SCRIPT="$UNITY_LEGACY_SELF_HOST_ENV_SCRIPT"
   fi
 fi
-SELF_HOST_DESKTOP_SCRIPT="${DROID_REPO_PATH:+$DROID_REPO_PATH/scripts/self_host_desktop.sh}"
+SELF_HOST_DESKTOP_SCRIPT="${UNITY_REPO_PATH:+$UNITY_REPO_PATH/scripts/self_host_desktop.sh}"
 
 CONSOLE_PORT="${CONSOLE_PORT:-3000}"
 ORCHESTRA_PORT="${ORCHESTRA_PORT:-8000}"
@@ -228,15 +228,18 @@ check_gcloud() {
 }
 
 load_self_host_runtime_env() {
-  if [[ -z "${DROID_REPO_PATH:-}" || ! -f "$SELF_HOST_ENV_SCRIPT" ]]; then
+  if [[ -z "${UNITY_REPO_PATH:-}" || ! -f "$SELF_HOST_ENV_SCRIPT" ]]; then
     return 0
   fi
-  export DROID_HOME="${DROID_HOME:-$HOME/.droid}"
-  export SELF_HOST_STATE_DIR="${SELF_HOST_STATE_DIR:-$DROID_HOME}"
+  export UNITY_HOME="${UNITY_HOME:-$HOME/.unity}"
+  export SELF_HOST_STATE_DIR="${SELF_HOST_STATE_DIR:-$UNITY_HOME}"
   # shellcheck disable=SC1090
   source "$SELF_HOST_ENV_SCRIPT"
   export_self_host_coordinator_runtime_file
-  load_self_host_env_file "$DROID_REPO_PATH/.env"
+  load_self_host_env_file "$UNITY_REPO_PATH/.env"
+  if declare -F self_host_export_livekit_backend &>/dev/null; then
+    self_host_export_livekit_backend
+  fi
 }
 
 write_console_env_fingerprint() {
@@ -252,9 +255,9 @@ keys = [
     "NEXTAUTH_URL",
     "ORCHESTRA_URL",
     "LOCAL_ADAPTERS_URL",
-    "DROID_ADAPTERS_URL",
+    "UNITY_ADAPTERS_URL",
     "COMMUNICATION_URL",
-    "DROID_COMMS_URL",
+    "UNITY_COMMS_URL",
     "PUBSUB_EMULATOR_HOST",
     "GCP_PROJECT_ID",
     "PUBSUB_TOPIC_SUFFIX",
@@ -285,7 +288,7 @@ required = [
     "NEXT_PUBLIC_SELF_HOST",
     "ORCHESTRA_URL",
     "LOCAL_ADAPTERS_URL",
-    "DROID_ADAPTERS_URL",
+    "UNITY_ADAPTERS_URL",
     "PUBSUB_EMULATOR_HOST",
     "LIVEKIT_URL",
 ]
@@ -298,8 +301,8 @@ PY
 }
 
 ensure_service_gateway() {
-  if ! is_droid_available; then
-    log_error "Droid repo not found — cannot start gateway"
+  if ! is_unity_available; then
+    log_error "Unity repo not found — cannot start gateway"
     return 1
   fi
 
@@ -307,10 +310,10 @@ ensure_service_gateway() {
   if declare -F self_host_gateway_base_url &>/dev/null; then
     gateway_url="$(self_host_gateway_base_url)"
   else
-    gateway_url="http://${DROID_GATEWAY_HOST:-127.0.0.1}:${DROID_GATEWAY_PORT:-8001}"
+    gateway_url="http://${UNITY_GATEWAY_HOST:-127.0.0.1}:${UNITY_GATEWAY_PORT:-8001}"
   fi
 
-  export DROID_RUNTIME_GATEWAY_OWNER="${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}"
+  export UNITY_RUNTIME_GATEWAY_OWNER="${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}"
   if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
     export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0"
   fi
@@ -327,27 +330,27 @@ ensure_service_gateway() {
           "$gateway_pid"
       fi
     fi
-    log_success "Droid gateway already running ($gateway_url)"
+    log_success "Unity gateway already running ($gateway_url)"
     return 0
   fi
 
-  log_info "Starting Droid gateway for service runtime ($gateway_url) ..."
-  if ! DROID_STACK_ORCHESTRATOR=console-local-harness bash "$DROID_LOCAL_SCRIPT" start-gateway; then
-    log_error "Failed to start Droid gateway"
+  log_info "Starting Unity gateway for service runtime ($gateway_url) ..."
+  if ! UNITY_STACK_ORCHESTRATOR=console-local-harness bash "$UNITY_LOCAL_SCRIPT" start-gateway; then
+    log_error "Failed to start Unity gateway"
     return 1
   fi
-  log_success "Droid gateway ready ($gateway_url)"
+  log_success "Unity gateway ready ($gateway_url)"
 }
 
 start_self_host_stack_gateway() {
-  if ! check_droid_gateway_prerequisites; then
+  if ! check_unity_gateway_prerequisites; then
     return 1
   fi
 
   local gateway_url
-  gateway_url="$(droid_gateway_base_url)"
+  gateway_url="$(unity_gateway_base_url)"
 
-  export DROID_RUNTIME_GATEWAY_OWNER="${SELF_HOST_RUNTIME_OWNER_STACK:-stack}"
+  export UNITY_RUNTIME_GATEWAY_OWNER="${SELF_HOST_RUNTIME_OWNER_STACK:-stack}"
   if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
     export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0"
   fi
@@ -355,13 +358,13 @@ start_self_host_stack_gateway() {
 
   if declare -F self_host_gateway_is_healthy &>/dev/null \
     && self_host_gateway_is_healthy; then
-    configure_droid_gateway_urls || return 1
+    configure_unity_gateway_urls || return 1
     CHAT_COMMS_URL="$CHAT_ADAPTERS_URL"
-    log_success "Droid gateway already running ($gateway_url)"
+    log_success "Unity gateway already running ($gateway_url)"
     return 0
   fi
 
-  log_info "Starting Droid gateway for self-host ($gateway_url) ..."
+  log_info "Starting Unity gateway for self-host ($gateway_url) ..."
   local gateway_env=(
     PUBSUB_EMULATOR_HOST="$LOCAL_PUBSUB_HOST"
     GCP_PROJECT_ID="$PUBSUB_GCP_PROJECT_ID"
@@ -375,14 +378,14 @@ start_self_host_stack_gateway() {
     append_workspace_oauth_env gateway_env
   fi
 
-  if ! env DROID_STACK_ORCHESTRATOR=console-local-harness "${gateway_env[@]}" bash "$DROID_LOCAL_SCRIPT" start-gateway; then
-    log_error "Failed to start Droid gateway"
+  if ! env UNITY_STACK_ORCHESTRATOR=console-local-harness "${gateway_env[@]}" bash "$UNITY_LOCAL_SCRIPT" start-gateway; then
+    log_error "Failed to start Unity gateway"
     return 1
   fi
 
-  configure_droid_gateway_urls || return 1
+  configure_unity_gateway_urls || return 1
   CHAT_COMMS_URL="$CHAT_ADAPTERS_URL"
-  log_success "Droid gateway ready ($gateway_url)"
+  log_success "Unity gateway ready ($gateway_url)"
 }
 
 append_workspace_oauth_env() {
@@ -543,7 +546,7 @@ start_orchestra() {
       && self_host_desktop_enabled \
       && ! orchestra_listens_on_lan; then
       log_info "Restarting Orchestra so desktop containers can reach it on 0.0.0.0 ..."
-      DROID_STACK_ORCHESTRATOR=console-local-harness bash "$ORCHESTRA_LOCAL_SCRIPT" stop 2>/dev/null || true
+      UNITY_STACK_ORCHESTRATOR=console-local-harness bash "$ORCHESTRA_LOCAL_SCRIPT" stop 2>/dev/null || true
       sleep 1
     else
       log_success "Orchestra already running on port $ORCHESTRA_PORT"
@@ -558,13 +561,13 @@ start_orchestra() {
   export ORCHESTRA_PORT="$ORCHESTRA_PORT"
 
   # Local deployment mirrors the test logging convention (see the CM runtime env
-  # in droid-deploy/selfhost/self_host_env.sh): Orchestra writes OTel spans to
+  # in unity-deploy/selfhost/self_host_env.sh): Orchestra writes OTel spans to
   # the shared cross-repo logs/all/ and per-request JSON traces to logs/orchestra/
-  # in the droid repo, so a run's Orchestra spans correlate with droid/unify/
+  # in the unity repo, so a run's Orchestra spans correlate with unity/unify/
   # unillm. Opt-out by exporting these beforehand.
-  if [[ -n "${DROID_REPO_PATH:-}" ]]; then
-    export ORCHESTRA_OTEL_LOG_DIR="${ORCHESTRA_OTEL_LOG_DIR:-$DROID_REPO_PATH/logs/all}"
-    export ORCHESTRA_LOG_DIR="${ORCHESTRA_LOG_DIR:-$DROID_REPO_PATH/logs/orchestra}"
+  if [[ -n "${UNITY_REPO_PATH:-}" ]]; then
+    export ORCHESTRA_OTEL_LOG_DIR="${ORCHESTRA_OTEL_LOG_DIR:-$UNITY_REPO_PATH/logs/all}"
+    export ORCHESTRA_LOG_DIR="${ORCHESTRA_LOG_DIR:-$UNITY_REPO_PATH/logs/orchestra}"
     mkdir -p "$ORCHESTRA_OTEL_LOG_DIR" "$ORCHESTRA_LOG_DIR" 2>/dev/null || true
   fi
   local composio_key="${COMPOSIO_API_KEY:-$(read_env_value COMPOSIO_API_KEY "$ENV_LOCAL" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
@@ -582,20 +585,20 @@ start_orchestra() {
   # (success_url / cancel_url) point to localhost instead of console.unify.ai
   export UNIFY_CONSOLE_FRONTEND_URL="http://localhost:${CONSOLE_PORT}"
 
-  # Wire Orchestra to the Droid gateway so the droid_system_event
+  # Wire Orchestra to the Unity gateway so the unity_system_event
   # webhook is reachable in local dev. ``CHAT_ADAPTERS_URL`` is
-  # populated by ``configure_droid_gateway_urls`` when --chat
+  # populated by ``configure_unity_gateway_urls`` when --chat
   # is on; without this export Orchestra would read the variable as
-  # ``None`` at import time and every subsequent ``_post_droid_system_event``
+  # ``None`` at import time and every subsequent ``_post_unity_system_event``
   # (secret-landed narration, onboarding-session-started, ...) would
   # fail with "Request URL is missing an 'http://' or 'https://' protocol."
   if [[ -n "$CHAT_ADAPTERS_URL" ]]; then
-    export DROID_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
-    log_info "  DROID_ADAPTERS_URL=$DROID_ADAPTERS_URL"
+    export UNITY_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
+    log_info "  UNITY_ADAPTERS_URL=$UNITY_ADAPTERS_URL"
   fi
   if [[ -n "$CHAT_COMMS_URL" ]]; then
-    export DROID_COMMS_URL="$CHAT_COMMS_URL"
-    log_info "  DROID_COMMS_URL=$DROID_COMMS_URL"
+    export UNITY_COMMS_URL="$CHAT_COMMS_URL"
+    log_info "  UNITY_COMMS_URL=$UNITY_COMMS_URL"
   fi
   if [[ "${SELF_HOST:-0}" == "1" ]]; then
     export SELF_HOST=1
@@ -663,7 +666,7 @@ start_orchestra() {
     fi
   fi
 
-  if ! DROID_STACK_ORCHESTRATOR=console-local-harness ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" start; then
+  if ! UNITY_STACK_ORCHESTRATOR=console-local-harness ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" start; then
     log_error "Failed to start Orchestra"
     return 1
   fi
@@ -673,7 +676,7 @@ start_orchestra() {
 
 stop_orchestra() {
   log_info "Stopping Orchestra..."
-  DROID_STACK_ORCHESTRATOR=console-local-harness ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" stop 2>/dev/null || true
+  UNITY_STACK_ORCHESTRATOR=console-local-harness ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" stop 2>/dev/null || true
   log_success "Orchestra stopped"
 }
 
@@ -684,39 +687,39 @@ stop_orchestra() {
 # stale logins (and stale credit balances) in the Quick Sign-In panel.
 purge_orchestra_db() {
   log_info "Wiping Orchestra database (fresh schema + single seed on start)..."
-  DROID_STACK_ORCHESTRATOR=console-local-harness ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" purge 2>/dev/null || true
+  UNITY_STACK_ORCHESTRATOR=console-local-harness ORCHESTRA_REPO_PATH="$ORCHESTRA_REPO_PATH" bash "$ORCHESTRA_LOCAL_SCRIPT" purge 2>/dev/null || true
   log_success "Orchestra database wiped"
 }
 
 # =============================================================================
-# Droid Gateway Management (--chat mode)
+# Unity Gateway Management (--chat mode)
 # =============================================================================
 
-check_droid_gateway_prerequisites() {
-  if ! is_droid_available; then
-    log_error "Droid repo not found. Expected at: $CONSOLE_REPO_PATH/../droid"
-    log_info "Set DROID_REPO_PATH to override."
+check_unity_gateway_prerequisites() {
+  if ! is_unity_available; then
+    log_error "Unity repo not found. Expected at: $CONSOLE_REPO_PATH/../unity"
+    log_info "Set UNITY_REPO_PATH to override."
     log_info "(Only required for --chat; --pubsub works without it.)"
     return 1
   fi
-  log_success "Droid repo found at: $DROID_REPO_PATH"
+  log_success "Unity repo found at: $UNITY_REPO_PATH"
 }
 
-droid_gateway_python() {
-  if [[ -x "$DROID_REPO_PATH/.venv/bin/python" ]]; then
-    echo "$DROID_REPO_PATH/.venv/bin/python"
+unity_gateway_python() {
+  if [[ -x "$UNITY_REPO_PATH/.venv/bin/python" ]]; then
+    echo "$UNITY_REPO_PATH/.venv/bin/python"
   else
     echo "python3"
   fi
 }
 
 cmd_gateway_setup() {
-  if ! check_droid_gateway_prerequisites; then
+  if ! check_unity_gateway_prerequisites; then
     return 1
   fi
   local python_bin
-  python_bin="$(droid_gateway_python)"
-  local env_file="${DROID_GATEWAY_ENV_FILE:-$ENV_LOCAL}"
+  python_bin="$(unity_gateway_python)"
+  local env_file="${UNITY_GATEWAY_ENV_FILE:-$ENV_LOCAL}"
   local interactive_default="true"
   local arg
   for arg in "$@"; do
@@ -733,66 +736,66 @@ cmd_gateway_setup() {
   if (( "$#" )); then
     args+=("$@")
   fi
-  log_info "Delegating to Droid gateway setup..."
+  log_info "Delegating to Unity gateway setup..."
   (
-    cd "$DROID_REPO_PATH"
-    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" "$python_bin" -m droid.gateway "${args[@]}"
+    cd "$UNITY_REPO_PATH"
+    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" "$python_bin" -m unity.gateway "${args[@]}"
   )
 }
 
 cmd_gateway_doctor() {
-  if ! check_droid_gateway_prerequisites; then
+  if ! check_unity_gateway_prerequisites; then
     return 1
   fi
   local python_bin
-  python_bin="$(droid_gateway_python)"
-  local env_file="${DROID_GATEWAY_ENV_FILE:-$ENV_LOCAL}"
-  log_info "Delegating to Droid gateway doctor..."
+  python_bin="$(unity_gateway_python)"
+  local env_file="${UNITY_GATEWAY_ENV_FILE:-$ENV_LOCAL}"
+  log_info "Delegating to Unity gateway doctor..."
   (
-    cd "$DROID_REPO_PATH"
-    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" "$python_bin" -m droid.gateway doctor --env-file "$env_file" "$@"
+    cd "$UNITY_REPO_PATH"
+    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" "$python_bin" -m unity.gateway doctor --env-file "$env_file" "$@"
   )
 }
 
 cmd_gateway_urls() {
-  if ! check_droid_gateway_prerequisites; then
+  if ! check_unity_gateway_prerequisites; then
     return 1
   fi
   local python_bin
-  python_bin="$(droid_gateway_python)"
-  local env_file="${DROID_GATEWAY_ENV_FILE:-$ENV_LOCAL}"
+  python_bin="$(unity_gateway_python)"
+  local env_file="${UNITY_GATEWAY_ENV_FILE:-$ENV_LOCAL}"
   local public_url
-  public_url="${DROID_GATEWAY_PUBLIC_URL:-$(read_env_value DROID_GATEWAY_PUBLIC_URL "$env_file" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
-  log_info "Delegating to Droid gateway URL printer..."
+  public_url="${UNITY_GATEWAY_PUBLIC_URL:-$(read_env_value UNITY_GATEWAY_PUBLIC_URL "$env_file" "$ENV_DEVELOPMENT" "$ENV_DEFAULT")}"
+  log_info "Delegating to Unity gateway URL printer..."
   (
-    cd "$DROID_REPO_PATH"
-    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" DROID_GATEWAY_PUBLIC_URL="$public_url" "$python_bin" -m droid.gateway urls "$@"
+    cd "$UNITY_REPO_PATH"
+    ORCHESTRA_ADMIN_KEY="$ADMIN_KEY" UNITY_GATEWAY_PUBLIC_URL="$public_url" "$python_bin" -m unity.gateway urls "$@"
   )
 }
 
-droid_gateway_base_url() {
-  if [[ -n "${DROID_GATEWAY_PUBLIC_URL:-}" ]]; then
-    echo "$DROID_GATEWAY_PUBLIC_URL"
+unity_gateway_base_url() {
+  if [[ -n "${UNITY_GATEWAY_PUBLIC_URL:-}" ]]; then
+    echo "$UNITY_GATEWAY_PUBLIC_URL"
   else
-    echo "http://${DROID_GATEWAY_HOST:-127.0.0.1}:${DROID_GATEWAY_PORT:-8001}"
+    echo "http://${UNITY_GATEWAY_HOST:-127.0.0.1}:${UNITY_GATEWAY_PORT:-8001}"
   fi
 }
 
-configure_droid_gateway_urls() {
-  CHAT_ADAPTERS_URL="$(droid_gateway_base_url)"
+configure_unity_gateway_urls() {
+  CHAT_ADAPTERS_URL="$(unity_gateway_base_url)"
   CHAT_TEST_ASSISTANT_ID="${CHAT_TEST_ASSISTANT_ID:-default-test-assistant}"
 
-  if [[ -f "$DROID_GATEWAY_CONFIG_FILE" ]]; then
+  if [[ -f "$UNITY_GATEWAY_CONFIG_FILE" ]]; then
     while IFS='=' read -r key value; do
       case "$key" in
-        DROID_COMMS_URL)     CHAT_ADAPTERS_URL="$value" ;;
-        DROID_ADAPTERS_URL)  CHAT_ADAPTERS_URL="$value" ;;
+        UNITY_COMMS_URL)     CHAT_ADAPTERS_URL="$value" ;;
+        UNITY_ADAPTERS_URL)  CHAT_ADAPTERS_URL="$value" ;;
         TEST_ASSISTANT_ID)   CHAT_TEST_ASSISTANT_ID="$value" ;;
       esac
-    done < "$DROID_GATEWAY_CONFIG_FILE"
+    done < "$UNITY_GATEWAY_CONFIG_FILE"
   fi
 
-  log_info "Configured Droid gateway:"
+  log_info "Configured Unity gateway:"
   log_info "  Gateway URL:       ${CHAT_ADAPTERS_URL:-<not set>}"
   log_info "  Test Assistant ID: ${CHAT_TEST_ASSISTANT_ID:-<not set>}"
 }
@@ -802,28 +805,28 @@ CHAT_COMMS_URL=""
 CHAT_TEST_ASSISTANT_ID=""
 
 # =============================================================================
-# Droid Management (--chat mode)
+# Unity Management (--chat mode)
 # =============================================================================
 
-is_droid_available() {
-  [[ -n "$DROID_REPO_PATH" && -f "$DROID_LOCAL_SCRIPT" ]]
+is_unity_available() {
+  [[ -n "$UNITY_REPO_PATH" && -f "$UNITY_LOCAL_SCRIPT" ]]
 }
 
-is_droid_running() {
-  is_droid_available && bash "$DROID_LOCAL_SCRIPT" check &>/dev/null
+is_unity_running() {
+  is_unity_available && bash "$UNITY_LOCAL_SCRIPT" check &>/dev/null
 }
 
-start_droid() {
+start_unity() {
   local force_echo="${1:-false}"
 
-  if ! is_droid_available; then
-    log_warn "Droid repo not found at $CONSOLE_REPO_PATH/../droid — skipping."
-    log_info "Set DROID_REPO_PATH to override. Chat will work but no responses will come back."
+  if ! is_unity_available; then
+    log_warn "Unity repo not found at $CONSOLE_REPO_PATH/../unity — skipping."
+    log_info "Set UNITY_REPO_PATH to override. Chat will work but no responses will come back."
     return 0
   fi
 
-  if is_droid_running; then
-    log_success "Droid already running"
+  if is_unity_running; then
+    log_success "Unity already running"
     return 0
   fi
 
@@ -839,12 +842,12 @@ start_droid() {
   CHAT_TEST_ASSISTANT_ID="$resolved_assistant_id"
 
   if [[ "$force_echo" == "true" ]]; then
-    log_info "Starting Droid in echo mode (forced) — auto-discovers all droid-* topics ..."
+    log_info "Starting Unity in echo mode (forced) — auto-discovers all unity-* topics ..."
   else
-    log_info "Starting Droid gateway + ConversationManager for assistant=$resolved_assistant_id ..."
+    log_info "Starting Unity gateway + ConversationManager for assistant=$resolved_assistant_id ..."
   fi
 
-  local droid_env=(
+  local unity_env=(
     PUBSUB_EMULATOR_HOST="$LOCAL_PUBSUB_HOST"
     GCP_PROJECT_ID="$PUBSUB_GCP_PROJECT_ID"
     ASSISTANT_ID="$resolved_assistant_id"
@@ -853,7 +856,7 @@ start_droid() {
 
   # Forward Orchestra connection.
   if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
-    droid_env+=(ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0")
+    unity_env+=(ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0")
   fi
 
   # Forward LLM API keys from .env.local if present (for full CM mode).
@@ -861,7 +864,7 @@ start_droid() {
     local val
     val=$(grep -E "^${key}=" "$ENV_LOCAL" 2>/dev/null | sed 's/^[^=]*=//' | tr -d '"' || true)
     if [[ -n "$val" ]]; then
-      droid_env+=("$key=$val")
+      unity_env+=("$key=$val")
     fi
   done
 
@@ -872,13 +875,13 @@ start_droid() {
     psql -U orchestra -d orchestra -t -A \
     -c "SELECT k.key FROM api_key k JOIN \"user\" u ON k.user_id = u.id ORDER BY k.id LIMIT 1;" 2>/dev/null | head -1 || echo "")
   local_unify_key="${local_unify_key:-local-test-api-key}"
-  droid_env+=("UNIFY_KEY=$local_unify_key")
+  unity_env+=("UNIFY_KEY=$local_unify_key")
 
   # Forward admin key from .env.local if available.
   local admin_val
   admin_val=$(grep -E "^ORCHESTRA_ADMIN_KEY=" "$ENV_LOCAL" 2>/dev/null | sed 's/^[^=]*=//' | tr -d '"' || true)
   if [[ -n "$admin_val" ]]; then
-    droid_env+=("ORCHESTRA_ADMIN_KEY=$admin_val")
+    unity_env+=("ORCHESTRA_ADMIN_KEY=$admin_val")
   fi
 
   # Populate full session details from the seeded assistant/user so the CM
@@ -913,36 +916,36 @@ start_droid() {
       -c "SELECT whatsapp_number FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
   fi
 
-  [[ -n "$_a_first" ]]   && droid_env+=("ASSISTANT_FIRST_NAME=$_a_first")
-  [[ -n "$_a_surname" ]] && droid_env+=("ASSISTANT_SURNAME=$_a_surname")
-  [[ -n "$_a_about" ]]   && droid_env+=("ASSISTANT_ABOUT=$_a_about")
-  [[ -n "$_a_age" ]]     && droid_env+=("ASSISTANT_AGE=$_a_age")
-  [[ -n "$_a_nat" ]]     && droid_env+=("ASSISTANT_NATIONALITY=$_a_nat")
-  [[ -n "$_a_tz" ]]      && droid_env+=("ASSISTANT_TIMEZONE=$_a_tz")
-  [[ -n "$_u_first" ]]   && droid_env+=("USER_FIRST_NAME=$_u_first")
-  [[ -n "$_u_last" ]]    && droid_env+=("USER_SURNAME=$_u_last")
-  [[ -n "$_u_email" ]]   && droid_env+=("USER_EMAIL=$_u_email")
-  [[ -n "$_u_id" ]]      && droid_env+=("USER_ID=$_u_id")
-  [[ -n "$_u_phone" ]]    && droid_env+=("USER_NUMBER=$_u_phone")
-  [[ -n "$_u_whatsapp" ]] && droid_env+=("USER_WHATSAPP_NUMBER=$_u_whatsapp")
+  [[ -n "$_a_first" ]]   && unity_env+=("ASSISTANT_FIRST_NAME=$_a_first")
+  [[ -n "$_a_surname" ]] && unity_env+=("ASSISTANT_SURNAME=$_a_surname")
+  [[ -n "$_a_about" ]]   && unity_env+=("ASSISTANT_ABOUT=$_a_about")
+  [[ -n "$_a_age" ]]     && unity_env+=("ASSISTANT_AGE=$_a_age")
+  [[ -n "$_a_nat" ]]     && unity_env+=("ASSISTANT_NATIONALITY=$_a_nat")
+  [[ -n "$_a_tz" ]]      && unity_env+=("ASSISTANT_TIMEZONE=$_a_tz")
+  [[ -n "$_u_first" ]]   && unity_env+=("USER_FIRST_NAME=$_u_first")
+  [[ -n "$_u_last" ]]    && unity_env+=("USER_SURNAME=$_u_last")
+  [[ -n "$_u_email" ]]   && unity_env+=("USER_EMAIL=$_u_email")
+  [[ -n "$_u_id" ]]      && unity_env+=("USER_ID=$_u_id")
+  [[ -n "$_u_phone" ]]    && unity_env+=("USER_NUMBER=$_u_phone")
+  [[ -n "$_u_whatsapp" ]] && unity_env+=("USER_WHATSAPP_NUMBER=$_u_whatsapp")
 
-  local droid_args=(start)
+  local unity_args=(start)
   if [[ "$force_echo" == "true" ]]; then
-    droid_args+=(--echo)
+    unity_args+=(--echo)
   else
-    droid_args+=(--full)
+    unity_args+=(--full)
   fi
 
-  if ! env DROID_STACK_ORCHESTRATOR=console-local-harness "${droid_env[@]}" bash "$DROID_LOCAL_SCRIPT" "${droid_args[@]}"; then
-    log_warn "Droid failed to start — chat will work but no responses will come back."
+  if ! env UNITY_STACK_ORCHESTRATOR=console-local-harness "${unity_env[@]}" bash "$UNITY_LOCAL_SCRIPT" "${unity_args[@]}"; then
+    log_warn "Unity failed to start — chat will work but no responses will come back."
     return 0
   fi
 
-  log_success "Droid is running"
+  log_success "Unity is running"
 }
 
-stop_droid() {
-  if [[ "${DROID_ALLOW_RUNTIME_STOP:-0}" != "1" ]] \
+stop_unity() {
+  if [[ "${UNITY_ALLOW_RUNTIME_STOP:-0}" != "1" ]] \
     && declare -F self_host_should_preserve_runtime_on_interactive_stop &>/dev/null \
     && self_host_should_preserve_runtime_on_interactive_stop; then
     if declare -F self_host_adopt_coordinator_for_service &>/dev/null; then
@@ -954,16 +957,16 @@ stop_droid() {
     return 0
   fi
 
-  if is_droid_available; then
-    log_info "Stopping Droid..."
-    DROID_STACK_ORCHESTRATOR=console-local-harness DROID_ALLOW_RUNTIME_STOP=1 bash "$DROID_LOCAL_SCRIPT" stop 2>/dev/null || true
+  if is_unity_available; then
+    log_info "Stopping Unity..."
+    UNITY_STACK_ORCHESTRATOR=console-local-harness UNITY_ALLOW_RUNTIME_STOP=1 bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
     if [[ -n "${SELF_HOST_DESKTOP_SCRIPT:-}" && -f "$SELF_HOST_DESKTOP_SCRIPT" ]]; then
       bash "$SELF_HOST_DESKTOP_SCRIPT" stop 2>/dev/null || true
     fi
     if declare -F self_host_clear_runtime_state &>/dev/null; then
       self_host_clear_runtime_state
     fi
-    log_success "Droid stopped"
+    log_success "Unity stopped"
   fi
 }
 
@@ -1017,8 +1020,8 @@ ensure_assistant_pubsub_topics() {
   local suffix="$PUBSUB_TOPIC_SUFFIX_VAL"
   local emulator_url
 
-  DROID_INBOUND_SUB_RECREATED=0
-  export DROID_INBOUND_SUB_RECREATED
+  UNITY_INBOUND_SUB_RECREATED=0
+  export UNITY_INBOUND_SUB_RECREATED
 
   if [[ -z "$agent_id" ]]; then
     return 0
@@ -1027,7 +1030,7 @@ ensure_assistant_pubsub_topics() {
     return 0
   fi
 
-  local topic_name="droid-${agent_id}${suffix}"
+  local topic_name="unity-${agent_id}${suffix}"
   log_info "Ensuring Pub/Sub topic for assistant $agent_id ..."
 
   local status
@@ -1071,7 +1074,7 @@ ensure_assistant_pubsub_topics() {
     return 0
   fi
 
-  if is_droid_running; then
+  if is_unity_running; then
     local running_id=""
     running_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
     if [[ -n "$running_id" && "$running_id" == "$agent_id" ]]; then
@@ -1088,8 +1091,8 @@ ensure_assistant_pubsub_topics() {
     -d "{\"topic\":\"projects/${project_id}/topics/${topic_name}\",\"filter\":\"attributes.thread = \\\"inbound\\\"\"}" \
     2>/dev/null || true
 
-  DROID_INBOUND_SUB_RECREATED=1
-  export DROID_INBOUND_SUB_RECREATED
+  UNITY_INBOUND_SUB_RECREATED=1
+  export UNITY_INBOUND_SUB_RECREATED
   log_success "Inbound subscription ready: $inbound_sub"
 }
 
@@ -1098,7 +1101,7 @@ create_assistant_pubsub_topics() {
 }
 
 _running_coordinator_agent_id() {
-  local pidfile="/tmp/droid-local.pid"
+  local pidfile="/tmp/unity-local.pid"
   [[ -f "$pidfile" ]] || return 1
   local pid
   pid="$(cat "$pidfile" 2>/dev/null)" || return 1
@@ -1112,22 +1115,22 @@ refresh_coordinator_ingress_if_running() {
 
   [[ -n "$unify_key" && -n "$coordinator_agent_id" ]] || return 0
   is_emulator_running || return 0
-  is_droid_running || return 0
+  is_unity_running || return 0
 
   local running_id=""
   running_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
   [[ "$running_id" == "$coordinator_agent_id" ]] || return 0
 
   log_info "Refreshing Coordinator Pub/Sub ingress..."
-  export DROID_REFRESH_INBOUND_SUBSCRIPTION=1
-  export DROID_ALLOW_RUNTIME_STOP=1
-  start_droid_coordinator "$unify_key" "$coordinator_agent_id"
+  export UNITY_REFRESH_INBOUND_SUBSCRIPTION=1
+  export UNITY_ALLOW_RUNTIME_STOP=1
+  start_unity_coordinator "$unify_key" "$coordinator_agent_id"
 }
 
 _load_self_host_coordinator_credentials() {
   local unify_key="${SELF_HOST_UNIFY_KEY:-}"
   local coordinator_id="${SELF_HOST_COORDINATOR_AGENT_ID:-}"
-  local runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${DROID_HOME:-$HOME/.droid}/coordinator-runtime.json}"
+  local runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${UNITY_HOME:-$HOME/.unity}/coordinator-runtime.json}"
 
   if [[ (-z "$unify_key" || -z "$coordinator_id") && -f "$runtime_file" ]]; then
     local parsed
@@ -1154,22 +1157,22 @@ PY
   export SELF_HOST_UNIFY_KEY SELF_HOST_COORDINATOR_AGENT_ID
 }
 
-start_droid_coordinator() {
+start_unity_coordinator() {
   local unify_key="${1:-${SELF_HOST_UNIFY_KEY:-}}"
   local coordinator_agent_id="${2:-${SELF_HOST_COORDINATOR_AGENT_ID:-}}"
-  local runtime_owner="${DROID_RUNTIME_OWNER:-${SELF_HOST_RUNTIME_OWNER_STACK:-stack}}"
+  local runtime_owner="${UNITY_RUNTIME_OWNER:-${SELF_HOST_RUNTIME_OWNER_STACK:-stack}}"
 
   if [[ -z "$unify_key" || -z "$coordinator_agent_id" ]]; then
     log_error "UNIFY_KEY and Coordinator agent_id are required"
     return 1
   fi
 
-  if ! is_droid_available; then
-    log_warn "Droid repo not found — skipping Coordinator runtime"
+  if ! is_unity_available; then
+    log_warn "Unity repo not found — skipping Coordinator runtime"
     return 0
   fi
 
-  if is_droid_running; then
+  if is_unity_running; then
     local running_id=""
     running_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
     if [[ "$running_id" == "$coordinator_agent_id" ]]; then
@@ -1180,32 +1183,32 @@ start_droid_coordinator() {
         && self_host_service_supervisor_is_running; then
         self_host_adopt_coordinator_for_service "$coordinator_agent_id" || true
       fi
-      if [[ "${DROID_REFRESH_INBOUND_SUBSCRIPTION:-0}" == "1" ]]; then
+      if [[ "${UNITY_REFRESH_INBOUND_SUBSCRIPTION:-0}" == "1" ]]; then
         log_info "Restarting Coordinator to refresh Pub/Sub subscription..."
-        DROID_STACK_ORCHESTRATOR=console-local-harness DROID_ALLOW_RUNTIME_STOP=1 bash "$DROID_LOCAL_SCRIPT" stop 2>/dev/null || true
+        UNITY_STACK_ORCHESTRATOR=console-local-harness UNITY_ALLOW_RUNTIME_STOP=1 bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
         sleep 1
       else
-        log_success "Droid Coordinator runtime already running (assistant=$coordinator_agent_id)"
+        log_success "Unity Coordinator runtime already running (assistant=$coordinator_agent_id)"
         return 0
       fi
     fi
     if declare -F self_host_runtime_owner_for_pid &>/dev/null; then
       local running_pid
-      running_pid="$(cat /tmp/droid-local.pid 2>/dev/null || true)"
+      running_pid="$(cat /tmp/unity-local.pid 2>/dev/null || true)"
       if [[ "$(self_host_runtime_owner_for_pid "$running_pid")" == "${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}" \
         && "$runtime_owner" != "${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}" \
-        && "${DROID_ALLOW_RUNTIME_STOP:-0}" != "1" ]]; then
+        && "${UNITY_ALLOW_RUNTIME_STOP:-0}" != "1" ]]; then
         log_error "Coordinator CM is owned by the runtime service (assistant=$running_id)"
-        log_info "Stop it with: droid service stop"
+        log_info "Stop it with: unity service stop"
         return 1
       fi
     fi
-    log_info "Restarting Droid for Coordinator assistant=$coordinator_agent_id ..."
-    DROID_STACK_ORCHESTRATOR=console-local-harness DROID_ALLOW_RUNTIME_STOP=1 bash "$DROID_LOCAL_SCRIPT" stop 2>/dev/null || true
+    log_info "Restarting Unity for Coordinator assistant=$coordinator_agent_id ..."
+    UNITY_STACK_ORCHESTRATOR=console-local-harness UNITY_ALLOW_RUNTIME_STOP=1 bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
     sleep 1
   fi
 
-  log_info "Starting Droid for Coordinator assistant=$coordinator_agent_id ..."
+  log_info "Starting Unity for Coordinator assistant=$coordinator_agent_id ..."
 
   load_self_host_runtime_env
 
@@ -1218,16 +1221,16 @@ start_droid_coordinator() {
   fi
 
   local service_gateway_url=""
-  if [[ "${DROID_SERVICE_RUNTIME:-0}" == "1" ]]; then
+  if [[ "${UNITY_SERVICE_RUNTIME:-0}" == "1" ]]; then
     ensure_service_gateway || return 1
     if declare -F self_host_gateway_base_url &>/dev/null; then
       service_gateway_url="$(self_host_gateway_base_url)"
     else
-      service_gateway_url="http://${DROID_GATEWAY_HOST:-127.0.0.1}:${DROID_GATEWAY_PORT:-8001}"
+      service_gateway_url="http://${UNITY_GATEWAY_HOST:-127.0.0.1}:${UNITY_GATEWAY_PORT:-8001}"
     fi
   fi
 
-  local droid_env=(
+  local unity_env=(
     PUBSUB_EMULATOR_HOST="$LOCAL_PUBSUB_HOST"
     GCP_PROJECT_ID="$PUBSUB_GCP_PROJECT_ID"
     ASSISTANT_ID="$coordinator_agent_id"
@@ -1238,21 +1241,21 @@ start_droid_coordinator() {
     ASSISTANT_IS_COORDINATOR=True
     EVENTBUS_PUBLISHING_ENABLED="${EVENTBUS_PUBLISHING_ENABLED:-true}"
     EVENTBUS_PUBSUB_STREAMING="${EVENTBUS_PUBSUB_STREAMING:-true}"
-    DROID_LOCAL_SCHEDULER="${DROID_LOCAL_SCHEDULER:-true}"
-    DROID_RUNTIME_OWNER="$runtime_owner"
+    UNITY_LOCAL_SCHEDULER="${UNITY_LOCAL_SCHEDULER:-true}"
+    UNITY_RUNTIME_OWNER="$runtime_owner"
     # The CM spawns subprocesses (rclone, agent tooling) while gRPC channels
     # are live; gRPC's fork handlers log a warning on every spawn, flooding
-    # /tmp/droid-local.log. Only errors are actionable here.
+    # /tmp/unity-local.log. Only errors are actionable here.
     GRPC_VERBOSITY="${GRPC_VERBOSITY:-ERROR}"
   )
 
   if [[ -n "${ORCHESTRA_PORT:-}" ]]; then
-    droid_env+=(ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0")
+    unity_env+=(ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}/v0")
   fi
 
-  droid_env+=(
-    "DROID_COMMS_URL=${service_gateway_url:-${CHAT_COMMS_URL:-${CHAT_ADAPTERS_URL:-http://127.0.0.1:8001}}}"
-    "DROID_ADAPTERS_URL=${service_gateway_url:-${CHAT_ADAPTERS_URL:-http://127.0.0.1:8001}}"
+  unity_env+=(
+    "UNITY_COMMS_URL=${service_gateway_url:-${CHAT_COMMS_URL:-${CHAT_ADAPTERS_URL:-http://127.0.0.1:8001}}}"
+    "UNITY_ADAPTERS_URL=${service_gateway_url:-${CHAT_ADAPTERS_URL:-http://127.0.0.1:8001}}"
   )
 
   local _voice_provider _voice_id
@@ -1260,8 +1263,8 @@ start_droid_coordinator() {
     -c "SELECT COALESCE(voice_provider, '') FROM assistants WHERE agent_id = $coordinator_agent_id;" 2>/dev/null || echo "")
   _voice_id=$(docker exec orchestra-local-db psql -U orchestra -d orchestra -t -A \
     -c "SELECT COALESCE(voice_id, '') FROM assistants WHERE agent_id = $coordinator_agent_id;" 2>/dev/null || echo "")
-  [[ -n "$_voice_provider" ]] && droid_env+=("VOICE_PROVIDER=$_voice_provider")
-  [[ -n "$_voice_id" ]] && droid_env+=("VOICE_ID=$_voice_id")
+  [[ -n "$_voice_provider" ]] && unity_env+=("VOICE_PROVIDER=$_voice_provider")
+  [[ -n "$_voice_id" ]] && unity_env+=("VOICE_ID=$_voice_id")
 
   for key in OPENAI_API_KEY ANTHROPIC_API_KEY DEEPSEEK_API_KEY ORCHESTRA_ADMIN_KEY DEEPGRAM_API_KEY CARTESIA_API_KEY; do
     local val="${!key:-}"
@@ -1269,21 +1272,15 @@ start_droid_coordinator() {
       val=$(grep -E "^${key}=" "$ENV_LOCAL" 2>/dev/null | sed 's/^[^=]*=//' | tr -d '"' || true)
     fi
     if [[ -n "$val" ]]; then
-      droid_env+=("$key=$val")
+      unity_env+=("$key=$val")
     fi
   done
 
   if [[ -f "$SELF_HOST_ENV_SCRIPT" ]]; then
     # shellcheck disable=SC1090
     source "$SELF_HOST_ENV_SCRIPT"
-    append_self_host_droid_runtime_env droid_env
+    append_self_host_unity_runtime_env unity_env
   fi
-
-  droid_env+=(
-    LIVEKIT_URL="ws://localhost:7880"
-    LIVEKIT_API_KEY="devkey"
-    LIVEKIT_API_SECRET="secret"
-  )
 
   local _a_first _a_surname _a_about _a_age _a_nat _a_tz _u_first _u_last _u_email _u_id _u_phone _u_whatsapp
   _u_first=""
@@ -1318,21 +1315,21 @@ start_droid_coordinator() {
       -c "SELECT whatsapp_number FROM \"user\" WHERE id = '$_u_id';" 2>/dev/null || echo "")
   fi
 
-  [[ -n "$_a_first" ]]   && droid_env+=("ASSISTANT_FIRST_NAME=$_a_first")
-  [[ -n "$_a_surname" ]] && droid_env+=("ASSISTANT_SURNAME=$_a_surname")
-  [[ -n "$_a_about" ]]   && droid_env+=("ASSISTANT_ABOUT=$_a_about")
-  [[ -n "$_a_age" ]]     && droid_env+=("ASSISTANT_AGE=$_a_age")
-  [[ -n "$_a_nat" ]]     && droid_env+=("ASSISTANT_NATIONALITY=$_a_nat")
-  [[ -n "$_a_tz" ]]      && droid_env+=("ASSISTANT_TIMEZONE=$_a_tz")
-  [[ -n "$_u_first" ]]   && droid_env+=("USER_FIRST_NAME=$_u_first")
-  [[ -n "$_u_last" ]]    && droid_env+=("USER_SURNAME=$_u_last")
-  [[ -n "$_u_email" ]]   && droid_env+=("USER_EMAIL=$_u_email")
-  [[ -n "$_u_id" ]]      && droid_env+=("USER_ID=$_u_id")
-  [[ -n "$_u_phone" ]]    && droid_env+=("USER_NUMBER=$_u_phone")
-  [[ -n "$_u_whatsapp" ]] && droid_env+=("USER_WHATSAPP_NUMBER=$_u_whatsapp")
+  [[ -n "$_a_first" ]]   && unity_env+=("ASSISTANT_FIRST_NAME=$_a_first")
+  [[ -n "$_a_surname" ]] && unity_env+=("ASSISTANT_SURNAME=$_a_surname")
+  [[ -n "$_a_about" ]]   && unity_env+=("ASSISTANT_ABOUT=$_a_about")
+  [[ -n "$_a_age" ]]     && unity_env+=("ASSISTANT_AGE=$_a_age")
+  [[ -n "$_a_nat" ]]     && unity_env+=("ASSISTANT_NATIONALITY=$_a_nat")
+  [[ -n "$_a_tz" ]]      && unity_env+=("ASSISTANT_TIMEZONE=$_a_tz")
+  [[ -n "$_u_first" ]]   && unity_env+=("USER_FIRST_NAME=$_u_first")
+  [[ -n "$_u_last" ]]    && unity_env+=("USER_SURNAME=$_u_last")
+  [[ -n "$_u_email" ]]   && unity_env+=("USER_EMAIL=$_u_email")
+  [[ -n "$_u_id" ]]      && unity_env+=("USER_ID=$_u_id")
+  [[ -n "$_u_phone" ]]    && unity_env+=("USER_NUMBER=$_u_phone")
+  [[ -n "$_u_whatsapp" ]] && unity_env+=("USER_WHATSAPP_NUMBER=$_u_whatsapp")
 
   if self_host_desktop_enabled; then
-    droid_env+=("ASSISTANT_DESKTOP_URL=${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}")
+    unity_env+=("ASSISTANT_DESKTOP_URL=${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}")
   fi
 
   export ORCHESTRA_URL="${ORCHESTRA_URL:-http://127.0.0.1:${ORCHESTRA_PORT:-8000}/v0}"
@@ -1342,21 +1339,21 @@ start_droid_coordinator() {
   elif [[ -f "${SELF_HOST_ENV_SCRIPT:-}" ]]; then
     # shellcheck source=/dev/null
     source "$SELF_HOST_ENV_SCRIPT"
-    DROID_REPO="$DROID_REPO_PATH" self_host_apply_user_desktops_export "$coordinator_agent_id"
+    UNITY_REPO="$UNITY_REPO_PATH" self_host_apply_user_desktops_export "$coordinator_agent_id"
   fi
 
-  if ! env DROID_STACK_ORCHESTRATOR=console-local-harness "${droid_env[@]}" bash "$DROID_LOCAL_SCRIPT" start --full; then
-    log_warn "Droid failed to start — chat will not get Coordinator replies"
+  if ! env UNITY_STACK_ORCHESTRATOR=console-local-harness "${unity_env[@]}" bash "$UNITY_LOCAL_SCRIPT" start --full; then
+    log_warn "Unity failed to start — chat will not get Coordinator replies"
     return 1
   fi
 
   local cm_pid
-  cm_pid="$(cat /tmp/droid-local.pid 2>/dev/null || true)"
+  cm_pid="$(cat /tmp/unity-local.pid 2>/dev/null || true)"
   if [[ -n "$cm_pid" ]]; then
     self_host_write_runtime_state "$runtime_owner" "$cm_pid" "$coordinator_agent_id"
   fi
 
-  log_success "Droid Coordinator runtime is running (assistant=$coordinator_agent_id)"
+  log_success "Unity Coordinator runtime is running (assistant=$coordinator_agent_id)"
 
   if self_host_desktop_enabled && [[ -n "${SELF_HOST_DESKTOP_SCRIPT:-}" && -f "$SELF_HOST_DESKTOP_SCRIPT" ]]; then
     sleep 8
@@ -1383,7 +1380,7 @@ cmd_ensure_coordinator_topics() {
   fi
 
   if ! is_emulator_running; then
-    log_error "Pub/Sub emulator is not running — start the stack first (droid stack up)"
+    log_error "Pub/Sub emulator is not running — start the stack first (unity stack up)"
     return 1
   fi
 
@@ -1391,7 +1388,7 @@ cmd_ensure_coordinator_topics() {
     return 1
   fi
 
-  if [[ "${DROID_INBOUND_SUB_RECREATED:-0}" == "1" ]]; then
+  if [[ "${UNITY_INBOUND_SUB_RECREATED:-0}" == "1" ]]; then
     if [[ -z "$unify_key" ]]; then
       log_warn "Inbound subscription recreated — sign in and run start-coordinator to refresh CM ingress"
     else
@@ -1415,12 +1412,12 @@ cmd_start_coordinator() {
   fi
 
   if ! is_orchestra_running; then
-    log_error "Orchestra is not running — start the stack first (droid stack up)"
+    log_error "Orchestra is not running — start the stack first (unity stack up)"
     return 1
   fi
 
   if ! is_emulator_running; then
-    log_error "Pub/Sub emulator is not running — start the stack first (droid stack up)"
+    log_error "Pub/Sub emulator is not running — start the stack first (unity stack up)"
     return 1
   fi
 
@@ -1428,7 +1425,7 @@ cmd_start_coordinator() {
     self_host_apply_service_coordinator_context
   fi
 
-  if is_droid_running; then
+  if is_unity_running; then
     local running_id=""
     running_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
     if [[ "$running_id" == "$coordinator_id" ]]; then
@@ -1448,18 +1445,18 @@ cmd_start_coordinator() {
     return 1
   fi
 
-  start_droid_coordinator "$unify_key" "$coordinator_id"
+  start_unity_coordinator "$unify_key" "$coordinator_id"
 }
 
 cmd_start_runtime_backend() {
   export SELF_HOST=1
-  export DROID_SERVICE_RUNTIME=1
-  export DROID_RUNTIME_OWNER="${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}"
+  export UNITY_SERVICE_RUNTIME=1
+  export UNITY_RUNTIME_OWNER="${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}"
   load_self_host_runtime_env
 
   local unify_key=""
   local coordinator_id=""
-  local runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${DROID_HOME:-$HOME/.droid}/coordinator-runtime.json}"
+  local runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${UNITY_HOME:-$HOME/.unity}/coordinator-runtime.json}"
 
   if [[ -f "$runtime_file" ]]; then
     unify_key="$(self_host_load_coordinator_credentials "$runtime_file" | sed -n '1p')"
@@ -1478,16 +1475,16 @@ cmd_start_runtime_backend() {
   ensure_service_gateway || return 1
 
   if ! is_emulator_running; then
-    log_info "Pub/Sub emulator not running — Coordinator CM deferred until droid stack up"
+    log_info "Pub/Sub emulator not running — Coordinator CM deferred until unity stack up"
     return 0
   fi
 
-  if is_droid_running; then
+  if is_unity_running; then
     local running_id=""
     running_id="$(_running_coordinator_agent_id 2>/dev/null || true)"
     if [[ "$running_id" == "$coordinator_id" ]]; then
       local cm_pid=""
-      cm_pid="$(cat /tmp/droid-local.pid 2>/dev/null || true)"
+      cm_pid="$(cat /tmp/unity-local.pid 2>/dev/null || true)"
       if [[ -n "$cm_pid" ]]; then
         self_host_write_runtime_state \
           "${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}" \
@@ -1497,8 +1494,8 @@ cmd_start_runtime_backend() {
       if declare -F self_host_gateway_is_healthy &>/dev/null \
         && ! self_host_gateway_is_healthy; then
         log_warn "Service gateway unhealthy — restarting gateway"
-        export DROID_RUNTIME_GATEWAY_OWNER="${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}"
-        DROID_STACK_ORCHESTRATOR=console-local-harness bash "$DROID_LOCAL_SCRIPT" start-gateway || return 1
+        export UNITY_RUNTIME_GATEWAY_OWNER="${SELF_HOST_RUNTIME_OWNER_SERVICE:-service}"
+        UNITY_STACK_ORCHESTRATOR=console-local-harness bash "$UNITY_LOCAL_SCRIPT" start-gateway || return 1
       fi
       return 0
     fi
@@ -1507,17 +1504,17 @@ cmd_start_runtime_backend() {
   if is_emulator_running; then
     ensure_assistant_pubsub_topics "$coordinator_id" || true
   fi
-  start_droid_coordinator "$unify_key" "$coordinator_id"
+  start_unity_coordinator "$unify_key" "$coordinator_id"
 }
 
 cmd_stop_runtime_backend() {
   export SELF_HOST=1
   load_self_host_runtime_env
-  export DROID_ALLOW_RUNTIME_STOP=1
+  export UNITY_ALLOW_RUNTIME_STOP=1
 
-  if is_droid_available && is_droid_running; then
+  if is_unity_available && is_unity_running; then
     log_info "Stopping service-managed Coordinator runtime..."
-    DROID_STACK_ORCHESTRATOR=console-local-harness bash "$DROID_LOCAL_SCRIPT" stop 2>/dev/null || true
+    UNITY_STACK_ORCHESTRATOR=console-local-harness bash "$UNITY_LOCAL_SCRIPT" stop 2>/dev/null || true
   fi
   self_host_clear_runtime_state
 
@@ -1933,28 +1930,30 @@ start_console() {
     if [[ "$with_chat" == "true" && -n "$CHAT_ADAPTERS_URL" ]]; then
       export COMMUNICATION_URL="$CHAT_ADAPTERS_URL"
       export LOCAL_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
-      export DROID_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
+      export UNITY_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
       log_info "  COMMUNICATION_URL=$COMMUNICATION_URL"
       log_info "  LOCAL_ADAPTERS_URL=$LOCAL_ADAPTERS_URL"
-      log_info "  DROID_ADAPTERS_URL=$DROID_ADAPTERS_URL"
+      log_info "  UNITY_ADAPTERS_URL=$UNITY_ADAPTERS_URL"
     fi
   fi
 
   if [[ "$with_self_host" == "true" ]]; then
     export SELF_HOST=1
     export NEXT_PUBLIC_SELF_HOST=1
+    export SELF_HOST_DEPLOY_EPOCH="${SELF_HOST_DEPLOY_EPOCH:-$(date +%s)}"
+    export NEXT_PUBLIC_SELF_HOST_DEPLOY_EPOCH="$SELF_HOST_DEPLOY_EPOCH"
     # Persist the topology flags durably so a later bare `npm run dev` (which
     # does not pass --self-host) still resolves as a self-host deployment.
     upsert_env_local_var "$ENV_LOCAL" SELF_HOST 1
     upsert_env_local_var "$ENV_LOCAL" NEXT_PUBLIC_SELF_HOST 1
+    upsert_env_local_var "$ENV_LOCAL" SELF_HOST_DEPLOY_EPOCH "$SELF_HOST_DEPLOY_EPOCH"
+    upsert_env_local_var "$ENV_LOCAL" NEXT_PUBLIC_SELF_HOST_DEPLOY_EPOCH "$SELF_HOST_DEPLOY_EPOCH"
     export SELF_HOST_DESKTOP_URL="${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}"
-    export LIVEKIT_URL="ws://localhost:7880"
-    export LIVEKIT_API_KEY="devkey"
-    export LIVEKIT_API_SECRET="secret"
-    # Never inherit stale cloud keys from droid/.env — session or runtime file only.
+    # The browser session should resume with the self-host owner key, not any
+    # unrelated shell value.
     unset SHARED_UNIFY_KEY
     load_self_host_runtime_env
-    local _runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${DROID_HOME:-$HOME/.droid}/coordinator-runtime.json}"
+    local _runtime_file="${SELF_HOST_COORDINATOR_RUNTIME_FILE:-${UNITY_HOME:-$HOME/.unity}/coordinator-runtime.json}"
     # Console expects ORCHESTRA_URL without a /v0 suffix; self-host env must not override.
     export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
     if [[ -f "$_runtime_file" ]]; then
@@ -1979,18 +1978,18 @@ PY
     if [[ -n "$CHAT_ADAPTERS_URL" ]]; then
       export COMMUNICATION_URL="$CHAT_ADAPTERS_URL"
       export LOCAL_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
-      export DROID_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
-      export DROID_COMMS_URL="${CHAT_COMMS_URL:-$CHAT_ADAPTERS_URL}"
-      log_info "  DROID_GATEWAY_URL=$CHAT_ADAPTERS_URL"
+      export UNITY_ADAPTERS_URL="$CHAT_ADAPTERS_URL"
+      export UNITY_COMMS_URL="${CHAT_COMMS_URL:-$CHAT_ADAPTERS_URL}"
+      log_info "  UNITY_GATEWAY_URL=$CHAT_ADAPTERS_URL"
     fi
   fi
 
   write_console_env_fingerprint
 
   if command -v setsid &>/dev/null; then
-    setsid env DROID_STACK_ORCHESTRATOR=console-local-harness npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 < /dev/null &
+    setsid env UNITY_STACK_ORCHESTRATOR=console-local-harness npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 < /dev/null &
   else
-    nohup env DROID_STACK_ORCHESTRATOR=console-local-harness npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 < /dev/null &
+    nohup env UNITY_STACK_ORCHESTRATOR=console-local-harness npm run dev -- -p "$CONSOLE_PORT" -H 0.0.0.0 > "$CONSOLE_LOGFILE" 2>&1 < /dev/null &
   fi
   local pid=$!
   echo "$pid" > "$CONSOLE_PIDFILE"
@@ -2093,12 +2092,12 @@ cmd_repair_console() {
     export LIVEKIT_API_KEY="${LIVEKIT_API_KEY:-devkey}"
     export LIVEKIT_API_SECRET="${LIVEKIT_API_SECRET:-secret}"
     export SELF_HOST_DESKTOP_URL="${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}"
-    CHAT_ADAPTERS_URL="${CHAT_ADAPTERS_URL:-${LOCAL_ADAPTERS_URL:-${DROID_ADAPTERS_URL:-http://127.0.0.1:${DROID_GATEWAY_PORT:-8001}}}}"
+    CHAT_ADAPTERS_URL="${CHAT_ADAPTERS_URL:-${LOCAL_ADAPTERS_URL:-${UNITY_ADAPTERS_URL:-http://127.0.0.1:${UNITY_GATEWAY_PORT:-8001}}}}"
     export CHAT_ADAPTERS_URL
     export COMMUNICATION_URL="${COMMUNICATION_URL:-$CHAT_ADAPTERS_URL}"
     export LOCAL_ADAPTERS_URL="${LOCAL_ADAPTERS_URL:-$CHAT_ADAPTERS_URL}"
-    export DROID_ADAPTERS_URL="${DROID_ADAPTERS_URL:-$CHAT_ADAPTERS_URL}"
-    export DROID_COMMS_URL="${DROID_COMMS_URL:-${CHAT_COMMS_URL:-$CHAT_ADAPTERS_URL}}"
+    export UNITY_ADAPTERS_URL="${UNITY_ADAPTERS_URL:-$CHAT_ADAPTERS_URL}"
+    export UNITY_COMMS_URL="${UNITY_COMMS_URL:-${CHAT_COMMS_URL:-$CHAT_ADAPTERS_URL}}"
     load_self_host_runtime_env
   fi
 
@@ -2205,7 +2204,7 @@ cmd_start() {
   local with_pubsub="$5"
   local with_integrations="${6:-false}"
   local integrations_provider="${7:-composio}"
-  local droid_echo="${8:-false}"
+  local unity_echo="${8:-false}"
   local with_integration_functions="${9:-false}"
   local with_self_host="${10:-false}"
 
@@ -2284,15 +2283,15 @@ cmd_start() {
     start_pubsub_emulator || return 1
   fi
 
-  # Self-host and --chat both route Console through droid.gateway.
+  # Self-host and --chat both route Console through unity.gateway.
   if [[ "$with_self_host" == "true" || "$with_chat" == "true" ]]; then
     echo ""
     if [[ "$with_self_host" == "true" ]]; then
       start_self_host_stack_gateway || return 1
-    elif ! check_droid_gateway_prerequisites; then
+    elif ! check_unity_gateway_prerequisites; then
       return 1
     else
-      configure_droid_gateway_urls || return 1
+      configure_unity_gateway_urls || return 1
     fi
   fi
 
@@ -2348,7 +2347,7 @@ cmd_start() {
     if [[ "$with_chat" == "true" && "$with_self_host" != "true" ]]; then
       create_seeded_assistant_topics
       echo ""
-      start_droid "$droid_echo"
+      start_unity "$unity_echo"
     fi
   fi
 
@@ -2384,10 +2383,10 @@ cmd_start() {
   fi
   if [[ "$with_chat" == "true" ]]; then
     if [[ "$with_self_host" == "true" ]]; then
-      echo "  Gateway:   ${CHAT_ADAPTERS_URL:-$(droid_gateway_base_url)}"
-      echo "  Droid CM:  starts after register/login (or on next Console visit when signed in)"
+      echo "  Gateway:   ${CHAT_ADAPTERS_URL:-$(unity_gateway_base_url)}"
+      echo "  Unity CM:  starts after register/login (or on next Console visit when signed in)"
     else
-      echo "  Gateway:   ${CHAT_ADAPTERS_URL:-$(droid_gateway_base_url)}"
+      echo "  Gateway:   ${CHAT_ADAPTERS_URL:-$(unity_gateway_base_url)}"
       echo "  Test asst: ${CHAT_TEST_ASSISTANT_ID:-default-test-assistant}"
     fi
   fi
@@ -2400,7 +2399,7 @@ cmd_start() {
   echo ""
   if [[ "$with_self_host" == "true" ]]; then
     echo "  Mode:      self-host (register on /login — no pre-seeded owner)"
-    echo "  Droid CM:  starts automatically after register/login"
+    echo "  Unity CM:  starts automatically after register/login"
   else
     echo "  Seed:      $seed_scenario"
     echo "  Login:     Use the Quick Sign-In panel on the login page"
@@ -2427,13 +2426,13 @@ cmd_start() {
   fi
   if [[ "$with_chat" == "true" && "$with_self_host" != "true" ]]; then
     echo ""
-    local droid_mode
-    droid_mode=$(cat /tmp/droid-local.mode 2>/dev/null || echo "not running")
-    echo "  Chat:      Console dispatches through the local Droid gateway."
-    echo "             Droid mode: $droid_mode"
-    if [[ "$droid_mode" == "echo" ]]; then
+    local unity_mode
+    unity_mode=$(cat /tmp/unity-local.mode 2>/dev/null || echo "not running")
+    echo "  Chat:      Console dispatches through the local Unity gateway."
+    echo "             Unity mode: $unity_mode"
+    if [[ "$unity_mode" == "echo" ]]; then
       echo "             Messages are echoed back (no LLM). Set API keys for real responses."
-    elif [[ "$droid_mode" == "full-cm" ]]; then
+    elif [[ "$unity_mode" == "full-cm" ]]; then
       echo "             Full ConversationManager active — LLM-powered responses."
     fi
     echo "             To test, send a message to an assistant whose agentId"
@@ -2482,7 +2481,7 @@ cmd_stop() {
   else
     log_info "Keeping Orchestra running (runtime service)"
   fi
-  if is_droid_available && is_droid_running; then
+  if is_unity_available && is_unity_running; then
     if [[ "$preserve_cm" == "true" ]]; then
       if declare -F self_host_adopt_coordinator_for_service &>/dev/null; then
         local preserved_assistant_id=""
@@ -2491,11 +2490,11 @@ cmd_stop() {
       fi
       log_info "Keeping service-managed Coordinator runtime running"
     else
-      stop_droid || failed=true
+      stop_unity || failed=true
     fi
   fi
-  if [[ "$preserve_background" != "true" ]] && is_droid_available; then
-    DROID_STACK_ORCHESTRATOR=console-local-harness bash "$DROID_LOCAL_SCRIPT" stop-gateway 2>/dev/null || true
+  if [[ "$preserve_background" != "true" ]] && is_unity_available; then
+    UNITY_STACK_ORCHESTRATOR=console-local-harness bash "$UNITY_LOCAL_SCRIPT" stop-gateway 2>/dev/null || true
   fi
   if is_emulator_running && [[ "$preserve_background" != "true" ]]; then
     stop_pubsub_emulator || failed=true
@@ -2508,7 +2507,7 @@ cmd_stop() {
   if [[ "$interactive_only" == "true" ]] && [[ "$preserve_background" == "true" ]]; then
     log_success "Interactive stack stopped (runtime service still running)"
     if [[ "$preserve_cm" == "true" ]]; then
-      log_info "Scheduled tasks and outbound comms continue until: droid service stop"
+      log_info "Scheduled tasks and outbound comms continue until: unity service stop"
     else
       log_info "Runtime supervisor will restart Coordinator CM while the UI is down"
     fi
@@ -2525,7 +2524,7 @@ cmd_restart() {
   local with_pubsub="$5"
   local with_integrations="${6:-false}"
   local integrations_provider="${7:-composio}"
-  local droid_echo="${8:-false}"
+  local unity_echo="${8:-false}"
   local with_integration_functions="${9:-false}"
   local with_self_host="${10:-false}"
 
@@ -2550,7 +2549,7 @@ cmd_restart() {
   # seed logins / balances). Use `start` to keep existing data.
   purge_orchestra_db
   echo ""
-  cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$with_integrations" "$integrations_provider" "$droid_echo" "$with_integration_functions" "$with_self_host"
+  cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$with_integrations" "$integrations_provider" "$unity_echo" "$with_integration_functions" "$with_self_host"
 }
 
 cmd_status() {
@@ -2573,7 +2572,7 @@ cmd_status() {
     missing_env="$(console_env_missing_self_host_keys 2>/dev/null || true)"
     if [[ -n "$missing_env" ]]; then
       echo -e "             ${YELLOW}missing self-host env:${NC} $missing_env"
-      echo "             repair with: droid-deploy/selfhost/stack.sh repair-console"
+      echo "             repair with: unity-deploy/selfhost/stack.sh repair-console"
     fi
   else
     echo -e "${RED}not running${NC}"
@@ -2599,22 +2598,22 @@ cmd_status() {
   echo -n "  Chat:      "
   if declare -F self_host_gateway_is_healthy &>/dev/null \
     && self_host_gateway_is_healthy; then
-    echo -e "${GREEN}running${NC} (Droid gateway: $(droid_gateway_base_url))"
-  elif is_droid_available && is_droid_running; then
-    echo -e "${GREEN}running${NC} (Droid gateway: $(droid_gateway_base_url))"
+    echo -e "${GREEN}running${NC} (Unity gateway: $(unity_gateway_base_url))"
+  elif is_unity_available && is_unity_running; then
+    echo -e "${GREEN}running${NC} (Unity gateway: $(unity_gateway_base_url))"
   else
     echo -e "${YELLOW}not running${NC} (start with --chat)"
   fi
 
-  echo -n "  Droid:     "
-  if is_droid_available && is_droid_running; then
-    local droid_mode
-    droid_mode=$(cat /tmp/droid-local.mode 2>/dev/null || echo "unknown")
-    echo -e "${GREEN}running${NC} ($droid_mode mode)"
-  elif is_droid_available; then
+  echo -n "  Unity:     "
+  if is_unity_available && is_unity_running; then
+    local unity_mode
+    unity_mode=$(cat /tmp/unity-local.mode 2>/dev/null || echo "unknown")
+    echo -e "${GREEN}running${NC} ($unity_mode mode)"
+  elif is_unity_available; then
     echo -e "${YELLOW}not running${NC} (started by --chat)"
   else
-    echo -e "${YELLOW}not found${NC} (set DROID_REPO_PATH)"
+    echo -e "${YELLOW}not found${NC} (set UNITY_REPO_PATH)"
   fi
 
   if declare -F self_host_runtime_doctor_line &>/dev/null; then
@@ -2690,7 +2689,7 @@ main() {
   local with_pubsub="false"
   local with_integrations="false"
   local integrations_provider="composio"
-  local droid_echo="false"
+  local unity_echo="false"
   local with_self_host="false"
   local with_integration_functions="false"
   local seed_scenario=""
@@ -2707,7 +2706,7 @@ main() {
       --integrations) with_integrations="true"; shift ;;
       --integrations-functions) with_integration_functions="true"; shift ;;
       --provider) shift; integrations_provider="${1:-composio}"; shift ;;
-      --echo|--droid-echo) droid_echo="true"; shift ;;
+      --echo|--unity-echo) unity_echo="true"; shift ;;
       --interactive-only) interactive_stop="true"; shift ;;
       --seed)   shift; seed_scenario="${1:-}"; shift ;;
       --credits)
@@ -2736,7 +2735,7 @@ main() {
     start-runtime-backend) cmd_start_runtime_backend ;;
     stop-runtime-backend) cmd_stop_runtime_backend ;;
     repair-console|console) cmd_repair_console "$with_self_host" ;;
-    start)   cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$with_integrations" "$integrations_provider" "$droid_echo" "$with_integration_functions" "$with_self_host" ;;
+    start)   cmd_start "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$with_integrations" "$integrations_provider" "$unity_echo" "$with_integration_functions" "$with_self_host" ;;
     stop)
       if [[ "$interactive_stop" == "true" ]]; then
         cmd_stop --interactive-only
@@ -2744,7 +2743,7 @@ main() {
         cmd_stop
       fi
       ;;
-    restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$with_integrations" "$integrations_provider" "$droid_echo" "$with_integration_functions" "$with_self_host" ;;
+    restart) cmd_restart "$with_org" "$with_stripe" "$seed_scenario" "$with_chat" "$with_pubsub" "$with_integrations" "$integrations_provider" "$unity_echo" "$with_integration_functions" "$with_self_host" ;;
     status)  cmd_status ;;
     logs)    cmd_logs "$logs_service" ;;
     help)
@@ -2752,15 +2751,15 @@ main() {
       echo ""
       echo "Commands:"
       echo "  ensure-coordinator-topics  Ensure Pub/Sub topics/subscriptions for the Coordinator"
-      echo "  start-coordinator          Start Droid CM only (self-host; requires env vars)"
+      echo "  start-coordinator          Start Unity CM only (self-host; requires env vars)"
       echo "  start    Start Console + Orchestra + seed data (default)"
-      echo "  stop     Stop Console, Orchestra, Pub/Sub emulator, Droid, and Stripe listener"
+      echo "  stop     Stop Console, Orchestra, Pub/Sub emulator, Unity, and Stripe listener"
       echo "  restart  Stop then start (wipes database)"
       echo "  repair-console  Restart only Console with the current local-stack env"
       echo "  status   Show service status"
-      echo "  gateway-setup   Run Droid gateway local setup wizard"
-      echo "  gateway-doctor  Run Droid gateway doctor using Console's local env"
-      echo "  gateway-urls    Print Droid gateway provider callback URLs"
+      echo "  gateway-setup   Run Unity gateway local setup wizard"
+      echo "  gateway-doctor  Run Unity gateway doctor using Console's local env"
+      echo "  gateway-urls    Print Unity gateway provider callback URLs"
       echo "  logs     Follow logs. Usage: $0 logs [console|orchestra|pubsub|stripe]"
       echo ""
       echo "Flags:"
@@ -2785,9 +2784,9 @@ main() {
       echo "  --pubsub           Start Pub/Sub emulator for real-time billing events."
       echo "                     Creates billing topics for all seeded accounts."
       echo "                     Requires: gcloud CLI with pubsub-emulator component"
-      echo "  --chat             Start Pub/Sub emulator + Droid gateway + Droid."
+      echo "  --chat             Start Pub/Sub emulator + Unity gateway + Unity."
       echo "                     Includes everything --pubsub does, plus chat functionality."
-      echo "                     Requires: droid repo as sibling (../droid)"
+      echo "                     Requires: unity repo as sibling (../unity)"
       echo "                               + gcloud CLI with pubsub-emulator component"
       echo "  --integrations     Configure local Orchestra with provider-backed integrations"
       echo "                     and sync a partial provider catalog."
@@ -2796,17 +2795,17 @@ main() {
       echo "                     rows into Functions/Primitives after provider catalog sync."
       echo "                     Override apps with LOCAL_INTEGRATION_FUNCTION_SYNC_APPS."
       echo "  --provider <name>  Provider to bootstrap with --integrations: composio or pipedream. Default: composio"
-      echo "  --echo             Force Droid to start in echo-responder mode even when LLM"
+      echo "  --echo             Force Unity to start in echo-responder mode even when LLM"
       echo "                     keys are present in .env.local. The echo responder auto-"
-      echo "                     discovers all droid-* topics, making it suitable for multi-"
+      echo "                     discovers all unity-* topics, making it suitable for multi-"
       echo "                     assistant scenarios (e.g. personal-workspace-multi). Only"
-      echo "                     meaningful with --chat. Alias: --droid-echo."
+      echo "                     meaningful with --chat. Alias: --unity-echo."
       echo ""
       echo "Environment:"
       echo "  ORCHESTRA_REPO_PATH       Path to orchestra repo (default: ../orchestra)"
-      echo "  DROID_REPO_PATH           Path to droid repo (default: ../droid)"
-      echo "  DROID_GATEWAY_PORT        Droid gateway port (default: 8001)"
-      echo "  DROID_GATEWAY_PUBLIC_URL  Public callback URL for provider webhooks"
+      echo "  UNITY_REPO_PATH           Path to unity repo (default: ../unity)"
+      echo "  UNITY_GATEWAY_PORT        Unity gateway port (default: 8001)"
+      echo "  UNITY_GATEWAY_PUBLIC_URL  Public callback URL for provider webhooks"
       echo "  CONSOLE_PORT              Console port (default: 3000)"
       echo "  ORCHESTRA_PORT            Orchestra port (default: 8000)"
       echo "  PUBSUB_EMULATOR_PORT      Pub/Sub emulator port (default: 8085)"
@@ -2825,7 +2824,7 @@ main() {
       echo "  $0 start --stripe --credits 0         # subscribe flow from a 0-credit balance"
       echo "  $0 start --org --stripe               # org-basic + Stripe"
       echo "  $0 start --pubsub                     # + Pub/Sub emulator (billing events)"
-      echo "  $0 start --chat                       # + Pub/Sub + chat (Droid gateway)"
+      echo "  $0 start --chat                       # + Pub/Sub + chat (Unity gateway)"
       echo "  $0 start --integrations --provider composio # + Composio partial catalog sync"
       echo "  $0 start --integrations --provider pipedream # + Pipedream partial catalog sync"
       echo "  $0 start --integrations --integrations-functions # + curated local Function rows"

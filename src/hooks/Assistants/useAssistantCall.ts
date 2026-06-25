@@ -12,14 +12,56 @@ import { useDesktopReady } from '@/hooks/Assistants/useDesktopReady';
 import { useCallSounds } from '@/hooks/Assistants/useCallSounds';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
-import { DEFAULT_AVATAR_MOOD, parseMoodClassificationMessage } from '@/utils/assistants/droid-mood';
+import { DEFAULT_AVATAR_MOOD, parseMoodClassificationMessage } from '@/utils/assistants/unity-mood';
 
 const ASSISTANT_JOIN_SLOW_THRESHOLD = 90000; // 90 seconds — soft warning, not an error
 const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
 
-export function useAssistantCall(room: Room, assistantActions: AssistantActions) {
+type CallPhase =
+  | 'idle'
+  | 'connecting'
+  | 'awaiting_assistant'
+  | 'preparing_assistant'
+  | 'active'
+  | 'recovering_assistant'
+  | 'ending'
+  | 'failed';
+
+type PendingRoomDelete = {
+  generation: number;
+  roomName: string;
+};
+
+function createCallSessionId(assistantId: string) {
+  const random =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2);
+  return `meet-${assistantId}-${Date.now()}-${random}`;
+}
+
+async function publishMicrophoneForCallStartup(room: Room, options?: AssistantCallConnectOptions) {
+  const publication = await room.localParticipant.setMicrophoneEnabled(true);
+  if (options?.startMuted === true) {
+    await publication?.mute();
+  }
+}
+
+type AssistantReadyWaiter = {
+  attemptId: number;
+  resolve: () => void;
+  reject: (error: Error) => void;
+};
+
+// The call hook only touches the call + desktop action groups, so it accepts
+// the narrow subset rather than the full AssistantActions bag. This lets the
+// layout-level CallProvider feed it without assembling every action factory.
+export function useAssistantCall(
+  room: Room,
+  assistantActions: Pick<AssistantActions, 'call' | 'desktop'>
+) {
   const [connectionDetails, setConnectionDetails] = React.useState<ConnectionDetails | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [isConnected, setIsConnected] = React.useState(false);
@@ -32,12 +74,21 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   const [waitingMessage, setWaitingMessage] = React.useState<string | null>(null);
   const [connectionError, setConnectionError] = React.useState<string | null>(null);
   const [avatarMood, setAvatarMood] = React.useState<CreatureMood>(DEFAULT_AVATAR_MOOD);
+  const [callPhase, setCallPhaseState] = React.useState<CallPhase>('idle');
   const assistantJoinTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const assistantRejoinTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const isCancelledRef = React.useRef(false);
   const isRedispatchingRef = React.useRef(false);
+  const redispatchPromiseRef = React.useRef<Promise<void> | null>(null);
+  const pendingRoomDeleteRef = React.useRef<PendingRoomDelete | null>(null);
+  const sdkReconnectingRef = React.useRef(false);
   const moodTurnIndexRef = React.useRef(-1);
   const expectsReadyToSpeakRef = React.useRef(false);
+  const assistantReadyWaiterRef = React.useRef<AssistantReadyWaiter | null>(null);
+  const activeConnectOptionsRef = React.useRef<AssistantCallConnectOptions | undefined>(undefined);
+  const activeCallSessionIdRef = React.useRef<string | null>(null);
+  const connectionDetailsRef = React.useRef<ConnectionDetails | null>(null);
+  const callPhaseRef = React.useRef<CallPhase>('idle');
   // Unique ID for each connection attempt - used to detect stale operations
   const connectionAttemptIdRef = React.useRef(0);
 
@@ -62,6 +113,15 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     setRingingMuted(isSpeakerMuted);
   }, [isSpeakerMuted, setRingingMuted]);
 
+  const setCallPhase = React.useCallback((phase: CallPhase) => {
+    callPhaseRef.current = phase;
+    setCallPhaseState(phase);
+  }, []);
+
+  const isCurrentGeneration = React.useCallback((generation: number) => {
+    return !isCancelledRef.current && connectionAttemptIdRef.current === generation;
+  }, []);
+
   const clearAssistantJoinTimeout = React.useCallback(() => {
     if (assistantJoinTimeoutRef.current) {
       clearTimeout(assistantJoinTimeoutRef.current);
@@ -79,8 +139,30 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     setIsRemoteControlInteractive(false);
   }, []);
 
+  const resolveAssistantReadyWaiter = React.useCallback((attemptId?: number) => {
+    const waiter = assistantReadyWaiterRef.current;
+    if (!waiter) return;
+    if (attemptId !== undefined && waiter.attemptId !== attemptId) return;
+    assistantReadyWaiterRef.current = null;
+    waiter.resolve();
+  }, []);
+
+  const rejectAssistantReadyWaiter = React.useCallback((message: string, attemptId?: number) => {
+    const waiter = assistantReadyWaiterRef.current;
+    if (!waiter) return;
+    if (attemptId !== undefined && waiter.attemptId !== attemptId) return;
+    assistantReadyWaiterRef.current = null;
+    waiter.reject(new Error(message));
+  }, []);
+
   const onDisconnected = React.useCallback(() => {
+    rejectAssistantReadyWaiter('Call disconnected before the assistant was ready.');
     stopRinging();
+    const pendingDelete = pendingRoomDeleteRef.current;
+    pendingRoomDeleteRef.current = null;
+    if (pendingDelete && connectionAttemptIdRef.current === pendingDelete.generation) {
+      assistantActions.call.deleteRoom(pendingDelete.roomName).catch(() => {});
+    }
     if (wasConnectedRef.current) {
       playHangup();
     }
@@ -99,18 +181,32 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     setIsConnecting(false);
     setIsWaitingForAssistant(false);
     setIsAssistantPreparing(false);
+    setCallPhase('idle');
     setWaitingMessage(null);
     setConnectionError(null);
     setConnectionDetails(null);
+    connectionDetailsRef.current = null;
     setActiveCallAssistant(null);
     setCallType(null);
+    activeConnectOptionsRef.current = undefined;
+    activeCallSessionIdRef.current = null;
     setIsSpeakerMuted(false);
     setAvatarMood(DEFAULT_AVATAR_MOOD);
     moodTurnIndexRef.current = -1;
     isRedispatchingRef.current = false;
+    redispatchPromiseRef.current = null;
+    sdkReconnectingRef.current = false;
     stopRemoteControl();
     clearAssistantJoinTimeout();
-  }, [clearAssistantJoinTimeout, stopRemoteControl, stopRinging, playHangup]);
+  }, [
+    assistantActions.call,
+    clearAssistantJoinTimeout,
+    rejectAssistantReadyWaiter,
+    setCallPhase,
+    stopRemoteControl,
+    stopRinging,
+    playHangup,
+  ]);
 
   const connect = React.useCallback(
     async (
@@ -118,37 +214,50 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       type: 'video' | 'audio',
       options?: AssistantCallConnectOptions
     ) => {
+      resolveAssistantReadyWaiter();
       connectionAttemptIdRef.current += 1;
       const thisAttemptId = connectionAttemptIdRef.current;
+      const callSessionId = options?.callSessionId ?? createCallSessionId(assistant.agentId);
+      const optionsWithSession = { ...options, callSessionId };
+      activeConnectOptionsRef.current = optionsWithSession;
+      activeCallSessionIdRef.current = callSessionId;
       isCancelledRef.current = false;
+      pendingRoomDeleteRef.current = null;
+      redispatchPromiseRef.current = null;
+      isRedispatchingRef.current = false;
+      sdkReconnectingRef.current = false;
       expectsReadyToSpeakRef.current =
-        !options?.openingConfig ||
-        options.openingConfig.mode === 'speak' ||
-        options.openingConfig.mode === 'briefed';
+        !optionsWithSession.openingConfig ||
+        optionsWithSession.openingConfig.mode === 'speak' ||
+        optionsWithSession.openingConfig.mode === 'briefed' ||
+        optionsWithSession.openingConfig.mode === 'recorded';
+      const shouldWaitForAssistantReady =
+        optionsWithSession.waitForAssistantReady === true && expectsReadyToSpeakRef.current;
+      let readyToSpeakPromise: Promise<void> | null = null;
 
       const isStaleAttempt = () =>
         isCancelledRef.current || connectionAttemptIdRef.current !== thisAttemptId;
 
       if (room.state !== 'disconnected') {
+        setConnectionError('A call is already connecting or ending. Please try again in a moment.');
+        setCallPhase('failed');
         return;
       }
       if (!assistant) return;
 
       setIsConnecting(true);
+      setCallPhase('connecting');
       setCallType(type);
       setActiveCallAssistant(assistant);
       setError(null);
       setConnectionError(null);
       setAvatarMood(DEFAULT_AVATAR_MOOD);
       moodTurnIndexRef.current = -1;
-      if (!options?.suppressRinging) {
+      if (!optionsWithSession.suppressRinging) {
         startRinging();
       }
       try {
         const expectedRoomName = makeRoomName(assistant.agentId, 'meet');
-
-        // Fire-and-forget: clean up any stale room without blocking the connection flow
-        assistantActions.call.deleteRoom(expectedRoomName).catch(() => {});
 
         const assistantName = assistantDisplayName(assistant);
         let connDetails: ConnectionDetails | null = null;
@@ -158,14 +267,15 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
 
           try {
             // Run getConnectionDetails and dispatchToCall in parallel.
-            // The room name is deterministic (droid_{id}_meet), so dispatch
+            // The room name is deterministic (unity_{id}_meet), so dispatch
             // doesn't need to wait for connection details.
             const [details, dispatchResult] = await Promise.all([
               assistantActions.call.getConnectionDetails(assistant.agentId, assistantName),
               assistantActions.call.dispatchToCall(
                 assistant.agentId,
                 expectedRoomName,
-                options?.openingConfig
+                optionsWithSession.openingConfig,
+                callSessionId
               ),
             ]);
             if (isStaleAttempt()) return;
@@ -175,6 +285,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
             }
             connDetails = details as ConnectionDetails;
             setConnectionDetails(connDetails);
+            connectionDetailsRef.current = connDetails;
 
             if (dispatchResult.detail) {
               throw new Error(`Failed to dispatch assistant: ${dispatchResult.detail}`);
@@ -195,21 +306,30 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
 
         if (connDetails.mode === 'dev') {
           setConnectionDetails(connDetails);
+          connectionDetailsRef.current = connDetails;
           stopRinging();
           setIsConnected(true);
           setIsConnecting(false);
+          setCallPhase('active');
           wasConnectedRef.current = true;
           setIsWaitingForAssistant(false);
           setIsAssistantPreparing(false);
         } else {
+          if (shouldWaitForAssistantReady) {
+            readyToSpeakPromise = new Promise((resolve, reject) => {
+              assistantReadyWaiterRef.current = { attemptId: thisAttemptId, resolve, reject };
+            });
+          }
+
           await room.connect(connDetails.serverUrl, connDetails.token);
           if (isStaleAttempt()) {
+            resolveAssistantReadyWaiter(thisAttemptId);
             await room.disconnect();
             return;
           }
 
           await Promise.all([
-            room.localParticipant.setMicrophoneEnabled(true),
+            publishMicrophoneForCallStartup(room, optionsWithSession),
             room.localParticipant.setCameraEnabled(type === 'video'),
           ]);
           setIsConnected(true);
@@ -219,6 +339,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
           if (room.remoteParticipants.size < 1) {
             setIsWaitingForAssistant(true);
             setIsAssistantPreparing(false);
+            setCallPhase('awaiting_assistant');
             const timeoutDuration =
               (typeof window !== 'undefined' && (window as any)._TEST_ASSISTANT_JOIN_TIMEOUT) ||
               ASSISTANT_JOIN_SLOW_THRESHOLD;
@@ -230,20 +351,25 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
             }, timeoutDuration);
           } else {
             setIsWaitingForAssistant(false);
-            setIsAssistantPreparing(false);
+            setIsAssistantPreparing(expectsReadyToSpeakRef.current);
+            setCallPhase(expectsReadyToSpeakRef.current ? 'preparing_assistant' : 'active');
             stopRinging();
+          }
+
+          if (readyToSpeakPromise) {
+            await readyToSpeakPromise;
           }
         }
       } catch (e: any) {
         // Only handle error if this attempt is still the current one
         if (isStaleAttempt()) return;
 
+        resolveAssistantReadyWaiter(thisAttemptId);
         stopRinging();
         setIsConnecting(false);
+        setCallPhase('failed');
         toast.error(`Failed to start call. Please try again.`);
         setError(`Failed to start call: ${e.message}`);
-        // Clean up the server-side room so it doesn't interfere with subsequent attempts
-        assistantActions.call.deleteRoom(makeRoomName(assistant.agentId, 'meet')).catch(() => {});
         // Ensure we disconnect if we were partially connected (e.g. mic permission failed)
         if (room.state !== 'disconnected') {
           room.disconnect().catch(console.error);
@@ -251,13 +377,33 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         onDisconnected();
       }
     },
-    [room, assistantActions.call, onDisconnected, startRinging, stopRinging]
+    [
+      room,
+      assistantActions.call,
+      onDisconnected,
+      startRinging,
+      stopRinging,
+      resolveAssistantReadyWaiter,
+      setCallPhase,
+    ]
   );
 
   const disconnect = React.useCallback(async () => {
+    const generation = connectionAttemptIdRef.current;
+    const assistant = activeCallAssistantRef.current;
+    const roomName =
+      connectionDetailsRef.current?.roomName ??
+      (assistant ? makeRoomName(assistant.agentId, 'meet') : null);
     isCancelledRef.current = true;
     clearAssistantJoinTimeout();
     stopRemoteControl();
+    setCallPhase('ending');
+    setConnectionError(null);
+    isRedispatchingRef.current = false;
+    redispatchPromiseRef.current = null;
+    if (roomName) {
+      pendingRoomDeleteRef.current = { generation, roomName };
+    }
 
     if (isConnecting) {
       setIsConnecting(false);
@@ -266,48 +412,67 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     if (room.state !== 'disconnected') {
       await room.disconnect();
     } else {
+      if (pendingRoomDeleteRef.current && roomName) {
+        pendingRoomDeleteRef.current = null;
+        await assistantActions.call.deleteRoom(roomName).catch(() => {});
+      }
       // If room wasn't even connecting, we still need to trigger cleanup.
       onDisconnected();
     }
-  }, [room, clearAssistantJoinTimeout, stopRemoteControl, isConnecting, onDisconnected]);
+  }, [
+    room,
+    assistantActions.call,
+    clearAssistantJoinTimeout,
+    stopRemoteControl,
+    isConnecting,
+    onDisconnected,
+    setCallPhase,
+  ]);
 
   const retryConnection = React.useCallback(async () => {
     const assistantToRetry = activeCallAssistant;
     const callTypeToRetry = callType;
     if (!assistantToRetry || !callTypeToRetry) return;
 
-    // Temporarily detach the main disconnect handler to prevent full UI teardown
-    room.off(RoomEvent.Disconnected, onDisconnected);
-
-    // Delete the stale room before disconnecting so the retry starts fresh
-    await assistantActions.call
-      .deleteRoom(makeRoomName(assistantToRetry.agentId, 'meet'))
-      .catch(() => {});
-
-    await room.disconnect();
-
-    // Manually reset only the states needed for a fresh connection attempt
-    setIsConnected(false);
-    setIsConnecting(false);
-    setIsWaitingForAssistant(false);
-    setIsAssistantPreparing(false);
-    setConnectionError(null);
-    stopRemoteControl();
-    clearAssistantJoinTimeout();
-
-    // Re-attach the handler for subsequent, normal disconnects
-    room.on(RoomEvent.Disconnected, onDisconnected);
+    if (room.state !== 'disconnected' && connectionDetailsRef.current) {
+      const generation = connectionAttemptIdRef.current;
+      setConnectionError(null);
+      setWaitingMessage(`Trying to reconnect ${assistantDisplayName(assistantToRetry)}...`);
+      setIsWaitingForAssistant(true);
+      setIsAssistantPreparing(false);
+      setCallPhase('recovering_assistant');
+      try {
+        const result = await assistantActions.call.dispatchToCall(
+          assistantToRetry.agentId,
+          connectionDetailsRef.current.roomName,
+          undefined,
+          activeCallSessionIdRef.current ?? undefined
+        );
+        if (!isCurrentGeneration(generation)) return;
+        if (result.detail) {
+          throw new Error(result.detail);
+        }
+      } catch (error) {
+        if (!isCurrentGeneration(generation)) return;
+        const message = error instanceof Error ? error.message : 'Unknown reconnect error.';
+        setConnectionError(
+          `${assistantDisplayName(assistantToRetry)} could not rejoin: ${message}`
+        );
+        setIsWaitingForAssistant(false);
+        setCallPhase('failed');
+      }
+      return;
+    }
 
     // Start the connection process again with the same assistant
-    connect(assistantToRetry, callTypeToRetry);
+    connect(assistantToRetry, callTypeToRetry, activeConnectOptionsRef.current);
   }, [
     activeCallAssistant,
     callType,
     room,
     connect,
-    onDisconnected,
-    clearAssistantJoinTimeout,
-    stopRemoteControl,
+    isCurrentGeneration,
+    setCallPhase,
     assistantActions.call,
   ]);
 
@@ -448,40 +613,59 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
 
   // Helper function to redispatch assistant to the room
   const redispatchAssistant = React.useCallback(async () => {
-    if (!activeCallAssistant || !connectionDetails || isRedispatchingRef.current) return;
+    const assistant = activeCallAssistantRef.current;
+    const details = connectionDetailsRef.current;
+    if (!assistant || !details) return;
+    if (redispatchPromiseRef.current) return redispatchPromiseRef.current;
 
     isRedispatchingRef.current = true;
-    const displayName = assistantDisplayName(activeCallAssistant);
+    const generation = connectionAttemptIdRef.current;
+    const displayName = assistantDisplayName(assistant);
 
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      if (isCancelledRef.current || !isRedispatchingRef.current) return;
+    const redispatch = (async () => {
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        if (!isCurrentGeneration(generation)) return;
 
-      try {
-        const dispatchResult = await assistantActions.call.dispatchToCall(
-          activeCallAssistant.agentId,
-          connectionDetails.roomName
-        );
+        try {
+          const dispatchResult = await assistantActions.call.dispatchToCall(
+            assistant.agentId,
+            details.roomName,
+            undefined,
+            activeCallSessionIdRef.current ?? undefined
+          );
 
-        if (dispatchResult.detail) {
-          throw new Error(dispatchResult.detail);
-        }
+          if (dispatchResult.detail) {
+            throw new Error(dispatchResult.detail);
+          }
 
-        // Dispatch succeeded, now wait for assistant to rejoin
-        return;
-      } catch (err) {
-        if (attempt === MAX_RETRIES) {
-          // All retries failed
-          isRedispatchingRef.current = false;
-          toast.error(`${displayName} had trouble rejoining. Please try calling again.`);
-          room.disconnect();
           return;
-        }
+        } catch (err) {
+          if (attempt === MAX_RETRIES) {
+            if (!isCurrentGeneration(generation)) return;
+            const message = err instanceof Error ? err.message : 'Unknown reconnect error.';
+            setConnectionError(`${displayName} had trouble rejoining: ${message}`);
+            setIsWaitingForAssistant(false);
+            setCallPhase('failed');
+            toast.error(`${displayName} had trouble rejoining. Please retry the call.`);
+            return;
+          }
 
-        const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
-        await new Promise((resolve) => setTimeout(resolve, delay));
+          const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+    })();
+
+    redispatchPromiseRef.current = redispatch;
+    try {
+      await redispatch;
+    } finally {
+      if (redispatchPromiseRef.current === redispatch) {
+        redispatchPromiseRef.current = null;
+        isRedispatchingRef.current = false;
       }
     }
-  }, [activeCallAssistant, connectionDetails, assistantActions.call, room]);
+  }, [assistantActions.call, isCurrentGeneration, setCallPhase]);
 
   // Store refs to current state for event handlers to avoid stale closures
   const isConnectedRef = React.useRef(isConnected);
@@ -494,6 +678,10 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
   React.useEffect(() => {
     activeCallAssistantRef.current = activeCallAssistant;
   }, [activeCallAssistant]);
+
+  React.useEffect(() => {
+    connectionDetailsRef.current = connectionDetails;
+  }, [connectionDetails]);
 
   React.useEffect(() => {
     const READY_FALLBACK_TIMEOUT = 10_000;
@@ -511,6 +699,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       setWaitingMessage(null);
       setConnectionError(null);
       isRedispatchingRef.current = false;
+      redispatchPromiseRef.current = null;
       clearAssistantJoinTimeout();
       stopRinging();
     };
@@ -532,6 +721,8 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
         if (data.type === 'ready_to_speak') {
           clearJoinState();
           clearPreparingState();
+          setCallPhase('active');
+          resolveAssistantReadyWaiter();
           return;
         }
         const moodMessage = parseMoodClassificationMessage(data, moodTurnIndexRef.current);
@@ -548,9 +739,11 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       clearJoinState();
       if (!expectsReadyToSpeakRef.current) {
         clearPreparingState();
+        setCallPhase('active');
         return;
       }
       setIsAssistantPreparing(true);
+      setCallPhase('preparing_assistant');
       clearReadyFallbackTimer();
       readyFallbackTimer = setTimeout(clearPreparingState, READY_FALLBACK_TIMEOUT);
     };
@@ -559,48 +752,82 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
       if (!isConnectedRef.current || !activeCallAssistantRef.current) return;
 
       if (room.remoteParticipants.size < 1) {
+        clearAssistantJoinTimeout();
+        if (sdkReconnectingRef.current) {
+          setWaitingMessage('Reconnecting call audio...');
+          setIsWaitingForAssistant(true);
+          setIsAssistantPreparing(false);
+          setCallPhase('recovering_assistant');
+          return;
+        }
         const displayName = assistantDisplayName(activeCallAssistantRef.current);
         setWaitingMessage(`${displayName} disconnected, waiting for them to rejoin...`);
         setIsWaitingForAssistant(true);
         setIsAssistantPreparing(false);
+        setConnectionError(null);
+        setCallPhase('recovering_assistant');
         clearReadyFallbackTimer();
 
         // Try to redispatch the assistant
         redispatchAssistant();
 
         // Set a timeout for the assistant to rejoin
+        const generation = connectionAttemptIdRef.current;
         const timeoutDuration =
           (typeof window !== 'undefined' && (window as any)._TEST_ASSISTANT_REJOIN_TIMEOUT) ||
           ASSISTANT_REJOIN_TIMEOUT;
 
         assistantRejoinTimeoutRef.current = setTimeout(() => {
-          if (isCancelledRef.current) return;
-          if (isRedispatchingRef.current || room.remoteParticipants.size < 1) {
-            // Assistant still hasn't rejoined — clean up server-side room before disconnecting
+          if (!isCurrentGeneration(generation)) return;
+          if (room.remoteParticipants.size < 1) {
             isRedispatchingRef.current = false;
-            const assistant = activeCallAssistantRef.current;
-            if (assistant) {
-              assistantActions.call
-                .deleteRoom(makeRoomName(assistant.agentId, 'meet'))
-                .catch(() => {});
-            }
+            redispatchPromiseRef.current = null;
             toast.error(
               `${displayName} couldn't rejoin the call. Please try calling again if needed.`
             );
-            room.disconnect();
+            setConnectionError(
+              `${displayName} couldn't rejoin. You can retry without leaving the call.`
+            );
+            setIsWaitingForAssistant(false);
+            setCallPhase('failed');
           }
         }, timeoutDuration);
       }
     };
 
+    const onReconnecting = () => {
+      if (!isConnectedRef.current) return;
+      sdkReconnectingRef.current = true;
+      setWaitingMessage('Reconnecting call audio...');
+      setIsWaitingForAssistant(true);
+      setIsAssistantPreparing(false);
+      setCallPhase('recovering_assistant');
+    };
+
+    const onReconnected = () => {
+      if (!isConnectedRef.current) return;
+      sdkReconnectingRef.current = false;
+      if (room.remoteParticipants.size < 1) {
+        redispatchAssistant();
+        return;
+      }
+      clearJoinState();
+      clearPreparingState();
+      setCallPhase('active');
+    };
+
     room.on(RoomEvent.DataReceived, onDataReceived);
     room.on(RoomEvent.ParticipantConnected, onParticipantConnected);
     room.on(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
+    room.on(RoomEvent.Reconnecting, onReconnecting);
+    room.on(RoomEvent.Reconnected, onReconnected);
     room.on(RoomEvent.Disconnected, onDisconnected);
     return () => {
       room.off(RoomEvent.DataReceived, onDataReceived);
       room.off(RoomEvent.ParticipantConnected, onParticipantConnected);
       room.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected);
+      room.off(RoomEvent.Reconnecting, onReconnecting);
+      room.off(RoomEvent.Reconnected, onReconnected);
       room.off(RoomEvent.Disconnected, onDisconnected);
       clearReadyFallbackTimer();
       clearAssistantJoinTimeout();
@@ -611,7 +838,10 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     clearAssistantJoinTimeout,
     redispatchAssistant,
     assistantActions.call,
+    isCurrentGeneration,
+    setCallPhase,
     stopRinging,
+    resolveAssistantReadyWaiter,
   ]);
 
   // Ensure proper cleanup on component unmount
@@ -629,6 +859,7 @@ export function useAssistantCall(room: Room, assistantActions: AssistantActions)
     error,
     isConnected,
     isConnecting,
+    callPhase,
     activeCallAssistant,
     callType,
     isSpeakerMuted,

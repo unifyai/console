@@ -5,8 +5,8 @@ export const AUTH_POPUP_PROVIDER_IDS = ['google', 'azure-ad'] as const;
 export type AuthPopupProvider = (typeof AUTH_POPUP_PROVIDER_IDS)[number];
 
 const STATIC_ALLOWED_OPENER_ORIGINS = [
-  'https://usedroids.ai',
-  'https://www.usedroids.ai',
+  'https://useunitys.ai',
+  'https://www.useunitys.ai',
   'https://unify.ai',
   'https://www.unify.ai',
   'https://staging.unify.ai',

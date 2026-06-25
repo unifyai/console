@@ -371,6 +371,48 @@ test('hanging up and re-calling the same assistant works', async ({ authedPage: 
   await expect(headerAgain).not.toBeVisible({ timeout: 10_000 });
 });
 
+test('call persists as a floating window across page navigation and redocks on return', async ({
+  authedPage: page,
+}) => {
+  await openAssistantProfile(page, assistant.agentId);
+
+  // Start a call — it docks into the chat slot on /assistants.
+  const audioBtn = page.getByTestId('call-audio-button');
+  await expect(audioBtn).toBeEnabled({ timeout: 15_000 });
+  await audioBtn.click();
+
+  const header = page.locator('text=Talk to Caller TestBot');
+  await expect(header).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 10_000 });
+
+  // Navigate to /account via client-side nav (the profile dropdown link). A
+  // full page load would tear down the (home) layout and kill the call, so the
+  // test must exercise real SPA navigation.
+  await page.getByTestId('profile-dropdown-trigger').click();
+  await page.getByRole('menuitem', { name: 'Account' }).click();
+  await expect(page).toHaveURL(/\/account/, { timeout: 15_000 });
+
+  // The call survives the page change as a floating window: the call header and
+  // hang-up control are still on screen, the docked surface is gone, and the
+  // in-call chat toggle is suppressed off /assistants.
+  await expect(header).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('button', { name: 'Hang up' })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('assistant-call-docked')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Toggle chat' })).toHaveCount(0);
+
+  // Returning to /assistants (via the logo, which client-redirects through "/")
+  // automatically redocks the call into its chat slot.
+  await page.getByRole('link', { name: 'Unify Console' }).click();
+  await expect(page).toHaveURL(/\/assistants/, { timeout: 15_000 });
+  await expect(page.getByTestId('assistant-call-docked')).toBeVisible({ timeout: 20_000 });
+  await expect(header).toBeVisible({ timeout: 10_000 });
+
+  // Cleanup.
+  const endCallBtn = page.getByRole('button', { name: 'End call' });
+  await endCallBtn.click();
+  await expect(header).not.toBeVisible({ timeout: 10_000 });
+});
+
 // ---------------------------------------------------------------------------
 // Call pill tests
 // ---------------------------------------------------------------------------

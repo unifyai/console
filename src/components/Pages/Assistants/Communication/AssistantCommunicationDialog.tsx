@@ -23,11 +23,20 @@ import {
   useMediaDeviceSelect,
 } from '@livekit/components-react';
 import { Room, Track } from 'livekit-client';
-import { AssistantLiveKitAudioRenderer } from './AssistantLiveKitAudioRenderer';
 import { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
+import { useMutedMicrophoneActivity } from '@/hooks/Assistants/useMutedMicrophoneActivity';
+
+/**
+ * The call surface only touches the chat + desktop action groups (and,
+ * optionally, voice for the in-call chat side panel). Accepting this narrow
+ * subset lets the layout-level CallProvider drive the floating window without
+ * assembling the full AssistantActions bag.
+ */
+export type CallDialogActions = Pick<AssistantActions, 'chat' | 'desktop'> &
+  Partial<Pick<AssistantActions, 'voice'>>;
 
 interface AssistantCommunicationDialogContentProps {
   assistant: Assistant;
@@ -51,7 +60,7 @@ interface AssistantCommunicationDialogContentProps {
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories?: Record<string, CallPill[]>;
   setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
-  assistantActions: AssistantActions;
+  assistantActions: CallDialogActions;
   isConnecting: boolean;
   userEmail: string | null | undefined;
   userImage: string | null | undefined;
@@ -78,6 +87,9 @@ interface AssistantCommunicationDialogContentProps {
   chatStreamActivitySignal: number;
   coordinatorAvatarVisible?: boolean;
   coordinatorTeleportIn?: boolean;
+  /** Hides the in-call chat toggle + side panel. Used by the cross-page
+   *  floating window, where the page-level chat stream isn't available. */
+  chatDisabled?: boolean;
 }
 
 const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialogContentProps> = ({
@@ -120,6 +132,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   chatStreamActivitySignal,
   coordinatorAvatarVisible = true,
   coordinatorTeleportIn = false,
+  chatDisabled = false,
 }) => {
   const room = React.useContext(RoomContext);
   if (!room)
@@ -234,6 +247,10 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     kind: 'audiooutput',
     room: room,
   });
+  const isMutedSpeechDetected = useMutedMicrophoneActivity({
+    enabled: isCallConnected && !micToggle.enabled,
+    deviceId: activeAudioInputDeviceId,
+  });
 
   React.useEffect(() => {
     if (!isCallConnected) return;
@@ -295,6 +312,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     : isWaitingForAssistant
       ? waitingMessage || `Waiting for ${displayName} to join...`
       : `${displayName} is getting ready...`;
+  const showMutedSpeechCue =
+    isCallConnected && !micToggle.enabled && (isMutedSpeechDetected || isUserSpeaking);
 
   return (
     <>
@@ -409,6 +428,15 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
               </TooltipProvider>
             </motion.div>
           )}
+          {showMutedSpeechCue && (
+            <div
+              className="text-caption pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-border bg-background px-2 py-1 text-foreground shadow-sm"
+              data-testid="assistant-call-muted-speech-cue"
+              role="status"
+            >
+              Unmute if you&apos;d like to speak
+            </div>
+          )}
         </div>
 
         <AnimatePresence>
@@ -467,6 +495,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
       <AssistantCommunicationControls
         isMicOn={micToggle.enabled}
         micButtonProps={micToggle.buttonProps}
+        isMutedSpeechDetected={showMutedSpeechCue}
         isCameraOn={camToggle.enabled}
         cameraButtonProps={camToggle.buttonProps}
         isScreenShareOn={screenShareToggle.enabled}
@@ -486,6 +515,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
         isDesktopReady={isDesktopReady}
         callType={callType}
         compact={compact}
+        chatDisabled={chatDisabled}
       />
     </>
   );
@@ -495,12 +525,44 @@ const MIN_FLOATING_WIDTH = 200;
 const MIN_FLOATING_HEIGHT = 160;
 const COMPACT_WIDTH_THRESHOLD = 480;
 const COMPACT_HEIGHT_THRESHOLD = 380;
+const DEFAULT_FLOATING_WIDTH = 240;
+const DEFAULT_FLOATING_HEIGHT = 280;
+
+type FloatingGeometry = {
+  pos: { x: number; y: number };
+  size: { width: number; height: number };
+};
+
+const EMPTY_FLOATING_GEOMETRY: FloatingGeometry = {
+  pos: { x: 0, y: 0 },
+  size: { width: 0, height: 0 },
+};
+
+function getDefaultFloatingGeometry(): FloatingGeometry {
+  if (typeof window === 'undefined') return EMPTY_FLOATING_GEOMETRY;
+
+  const width = Math.min(
+    DEFAULT_FLOATING_WIDTH,
+    Math.max(MIN_FLOATING_WIDTH, window.innerWidth - 32)
+  );
+  const height = Math.min(
+    DEFAULT_FLOATING_HEIGHT,
+    Math.max(MIN_FLOATING_HEIGHT, window.innerHeight - 32)
+  );
+  return {
+    pos: {
+      x: Math.max(16, window.innerWidth - width - 16),
+      y: Math.max(16, window.innerHeight - height - 16),
+    },
+    size: { width, height },
+  };
+}
 
 type BrowserWindowWithCoordinatorIntroAudio = Window & {
   __coordinatorOnboardingIntroAudio?: HTMLAudioElement;
 };
 
-function useIsCoordinatorIntroAudioPlaying() {
+export function useIsCoordinatorIntroAudioPlaying() {
   const [isIntroAudioPlaying, setIsIntroAudioPlaying] = React.useState(false);
 
   React.useEffect(() => {
@@ -522,12 +584,12 @@ interface AssistantCommunicationDialogProps {
   isOpen: boolean;
   onClose: () => void;
   assistant: Assistant;
-  assistantActions: AssistantActions;
   room: Room;
   chatHistories: Record<string, ChatMessage[]>;
   setChatHistories: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   callPillHistories?: Record<string, CallPill[]>;
   setCallPillHistories?: React.Dispatch<React.SetStateAction<Record<string, CallPill[]>>>;
+  assistantActions: CallDialogActions;
   isConnecting: boolean;
   userEmail: string | null | undefined;
   userImage: string | null | undefined;
@@ -552,6 +614,12 @@ interface AssistantCommunicationDialogProps {
   chatStreamConnectionStatus: ChatStreamConnectionStatus;
   reconnectChatStream: () => void;
   chatStreamActivitySignal: number;
+  /** Hides the in-call chat toggle + side panel. Used by the cross-page
+   *  floating window, where the page-level chat stream isn't available. */
+  chatDisabled?: boolean;
+  /** Opens the dialog directly in a small floating window (bottom-right)
+   *  instead of the centered modal. Used by the cross-page floating call. */
+  defaultFloating?: boolean;
   /**
    * Docked mode replaces the modal/floating shell with an inline
    * container that fills its parent (``h-full w-full``, no fixed
@@ -568,7 +636,7 @@ interface AssistantCommunicationDialogProps {
    * only gates the modal/floating shell.
    */
   docked?: boolean;
-  /** Fade the coordinator droid in when it first mounts in the docked call. */
+  /** Fade the coordinator unity in when it first mounts in the docked call. */
   coordinatorTeleportIn?: boolean;
   /** Controls when the docked coordinator avatar mounts during onboarding. */
   coordinatorAvatarVisible?: boolean;
@@ -621,24 +689,46 @@ export function AssistantCommunicationDialog({
   coordinatorTeleportIn = false,
   onPopOut,
   onRedock,
+  chatDisabled = false,
+  defaultFloating = false,
 }: AssistantCommunicationDialogProps) {
   // --- Modal / Floating mode ---
-  const [mode, setMode] = React.useState<'modal' | 'floating'>('modal');
+  const [mode, setMode] = React.useState<'modal' | 'floating'>(
+    defaultFloating ? 'floating' : 'modal'
+  );
   const contentRef = React.useRef<HTMLDivElement>(null);
+  const initialFloatingGeometryRef = React.useRef<FloatingGeometry | null>(null);
+  if (initialFloatingGeometryRef.current === null) {
+    initialFloatingGeometryRef.current = defaultFloating
+      ? getDefaultFloatingGeometry()
+      : EMPTY_FLOATING_GEOMETRY;
+  }
 
-  const [floatingPos, setFloatingPos] = React.useState({ x: 0, y: 0 });
-  const [floatingSize, setFloatingSize] = React.useState({ width: 0, height: 0 });
-  const floatingPosRef = React.useRef({ x: 0, y: 0 });
-  const floatingSizeRef = React.useRef({ width: 0, height: 0 });
+  const [floatingPos, setFloatingPos] = React.useState(initialFloatingGeometryRef.current.pos);
+  const [floatingSize, setFloatingSize] = React.useState(initialFloatingGeometryRef.current.size);
+  const floatingPosRef = React.useRef(initialFloatingGeometryRef.current.pos);
+  const floatingSizeRef = React.useRef(initialFloatingGeometryRef.current.size);
   const [isResizing, setIsResizing] = React.useState(false);
 
   const isModal = mode === 'modal';
-  const isCoordinatorIntroAudioPlaying = useIsCoordinatorIntroAudioPlaying();
 
-  // Reset to modal every time the dialog opens.
+  // Reset to modal every time the dialog opens — unless the caller wants the
+  // dialog to live as a persistent floating window (the cross-page call).
   React.useEffect(() => {
-    if (isOpen) setMode('modal');
-  }, [isOpen]);
+    if (isOpen && !defaultFloating) setMode('modal');
+  }, [isOpen, defaultFloating]);
+
+  // Seed a sensible bottom-right size/position the first time a default-floating
+  // dialog opens (it never transitions from a modal, so it has no rect to copy).
+  React.useEffect(() => {
+    if (!defaultFloating || !isOpen) return;
+    if (floatingSizeRef.current.width > 0) return;
+    const geometry = getDefaultFloatingGeometry();
+    floatingPosRef.current = geometry.pos;
+    floatingSizeRef.current = geometry.size;
+    setFloatingPos(geometry.pos);
+    setFloatingSize(geometry.size);
+  }, [defaultFloating, isOpen]);
 
   // --- Transition helpers ---
   const transitionToFloating = React.useCallback(() => {
@@ -800,7 +890,6 @@ export function AssistantCommunicationDialog({
         className="relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground"
         data-testid="assistant-call-docked"
       >
-        {!isCoordinatorIntroAudioPlaying && <AssistantLiveKitAudioRenderer />}
         <AssistantCommunicationDialogContent
           assistant={assistant}
           onHangUp={onClose}
@@ -837,6 +926,7 @@ export function AssistantCommunicationDialog({
           chatStreamActivitySignal={chatStreamActivitySignal}
           coordinatorAvatarVisible={coordinatorAvatarVisible}
           coordinatorTeleportIn={coordinatorTeleportIn}
+          chatDisabled={chatDisabled}
         />
       </div>
     );
@@ -892,8 +982,6 @@ export function AssistantCommunicationDialog({
         }
         onPointerDown={isCompact ? handleHeaderPointerDown : undefined}
       >
-        {!isCoordinatorIntroAudioPlaying && <AssistantLiveKitAudioRenderer />}
-
         {isCompact ? (
           /* Compact / simplified view */
           <div className="relative flex h-full w-full flex-col items-center justify-center p-4">
@@ -954,6 +1042,7 @@ export function AssistantCommunicationDialog({
             chatStreamActivitySignal={chatStreamActivitySignal}
             coordinatorAvatarVisible={coordinatorAvatarVisible}
             coordinatorTeleportIn={coordinatorTeleportIn}
+            chatDisabled={chatDisabled}
           />
         )}
 

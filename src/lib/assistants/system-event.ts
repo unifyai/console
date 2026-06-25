@@ -34,7 +34,7 @@ export async function dispatchUnitySystemEvent(
 
   const webhookUrl = `${getAdaptersBaseUrl({
     localAdaptersUrl: process.env.LOCAL_ADAPTERS_URL,
-  })}/droid/system-event`;
+  })}/unity/system-event`;
 
   try {
     const response = await fetch(webhookUrl, {

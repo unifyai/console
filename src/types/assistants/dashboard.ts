@@ -2,7 +2,7 @@
  * Dashboard and Tile types for the Dashboards pane.
  *
  * CamelCase mirrors of the Python Pydantic models in
- * droid/dashboard_manager/types/{dashboard,tile}.py.
+ * unity/dashboard_manager/types/{dashboard,tile}.py.
  *
  * Orchestra stores these in:
  *   {userId}/{assistantId}/Dashboards/Layouts

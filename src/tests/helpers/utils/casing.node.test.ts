@@ -36,7 +36,7 @@ describe('casing utilities', () => {
     });
 
     it('preserves leading underscores for private fields', () => {
-      // Single leading underscore (Droid/Orchestra private fields)
+      // Single leading underscore (Unity/Orchestra private fields)
       expect(snakeToCamel('_user')).toBe('_user');
       expect(snakeToCamel('_user_id')).toBe('_userId');
       expect(snakeToCamel('_assistant_id')).toBe('_assistantId');
@@ -76,7 +76,7 @@ describe('casing utilities', () => {
     });
 
     it('preserves leading underscores for private fields', () => {
-      // Single leading underscore (Droid/Orchestra private fields)
+      // Single leading underscore (Unity/Orchestra private fields)
       expect(camelToSnake('_user')).toBe('_user');
       expect(camelToSnake('_userId')).toBe('_user_id');
       expect(camelToSnake('_assistantId')).toBe('_assistant_id');
@@ -157,7 +157,7 @@ describe('casing utilities', () => {
     });
 
     it('preserves leading underscores in private fields', () => {
-      // Droid/Orchestra private fields start with underscore
+      // Unity/Orchestra private fields start with underscore
       /* eslint-disable @typescript-eslint/naming-convention */
       const input = {
         _user: 'user-123',

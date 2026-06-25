@@ -1,4 +1,4 @@
-import { BrandLoader } from '@droid/brand/components';
+import { BrandLoader } from '@unity/brand/components';
 
 type LoaderProps = {
   /** Slot size in px. The brand mark is rendered compactly within that old spinner footprint. */

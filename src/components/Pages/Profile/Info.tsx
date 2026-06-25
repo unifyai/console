@@ -7,6 +7,7 @@ import * as React from 'react';
 interface UserInfoProps {
   bio: string;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  handleBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   externalIdentity: boolean;
 }
 
@@ -18,6 +19,7 @@ const BIO_MAX_HEIGHT = BIO_MAX_ROWS * BIO_LINE_HEIGHT + BIO_PADDING;
 const UserInfo = React.memo(function UserInfo({
   bio,
   handleInputChange,
+  handleBlur,
   externalIdentity,
 }: UserInfoProps) {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -65,6 +67,7 @@ const UserInfo = React.memo(function UserInfo({
             value={bio}
             className="styled-scrollbar min-h-0 w-full resize-none"
             onChange={handleInputChange}
+            onBlur={handleBlur}
             readOnly={externalIdentity}
           />
         </div>

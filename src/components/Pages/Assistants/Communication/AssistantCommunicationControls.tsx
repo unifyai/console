@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 interface AssistantCommunicationControlsProps {
   isMicOn: boolean;
   micButtonProps: React.ButtonHTMLAttributes<HTMLButtonElement>;
+  isMutedSpeechDetected?: boolean;
   isCameraOn: boolean;
   cameraButtonProps: React.ButtonHTMLAttributes<HTMLButtonElement>;
   isScreenShareOn: boolean;
@@ -45,6 +46,9 @@ interface AssistantCommunicationControlsProps {
    *  (compact pill-sized buttons, no in-call chat toggle since the
    *  user can pop the call out to get the regular chat back). */
   compact?: boolean;
+  /** Hides the chat toggle entirely (cross-page floating call, where the
+   *  page-level chat stream isn't wired up). */
+  chatDisabled?: boolean;
 }
 
 const ControlButton: React.FC<{
@@ -84,6 +88,7 @@ const ControlButton: React.FC<{
 export function AssistantCommunicationControls({
   isMicOn,
   micButtonProps,
+  isMutedSpeechDetected = false,
   isCameraOn,
   cameraButtonProps,
   isScreenShareOn,
@@ -103,10 +108,12 @@ export function AssistantCommunicationControls({
   isDesktopReady = true, // Default to true for backwards compatibility
   callType,
   compact = false,
+  chatDisabled = false,
 }: AssistantCommunicationControlsProps) {
   // Remote control requires assistant to have joined AND desktop VM to be ready
   const canUseRemoteControl = isConnectionEstablished && isAssistantJoined && isDesktopReady;
   const iconClass = compact ? 'h-4 w-4' : 'h-5 w-5';
+  const highlightMutedMic = isConnectionEstablished && !isMicOn && isMutedSpeechDetected;
   // ``h-10`` is the same footer height the assistant-list collapse
   // bar and the memory/tasks/actions/dashboards tab footers use, so
   // the compact docked toolbar's icons line up horizontally with
@@ -129,20 +136,27 @@ export function AssistantCommunicationControls({
         >
           <PhoneOff className={iconClass} />
         </ControlButton>
-        <ControlButton
-          tooltip={
-            !isConnectionEstablished
-              ? 'Available after connecting'
-              : isMicOn
-                ? 'Mute microphone'
-                : 'Unmute microphone'
-          }
-          {...micButtonProps}
-          disabled={!isConnectionEstablished || micButtonProps.disabled}
-          compact={compact}
-        >
-          {isMicOn ? <Mic className={iconClass} /> : <MicOff className={iconClass} />}
-        </ControlButton>
+        <div>
+          <ControlButton
+            tooltip={
+              !isConnectionEstablished
+                ? 'Available after connecting'
+                : isMicOn
+                  ? 'Mute microphone'
+                  : 'Unmute microphone'
+            }
+            {...micButtonProps}
+            className={cn(
+              micButtonProps.className,
+              highlightMutedMic &&
+                'bg-primary/10 ring-primary/40 hover:bg-primary/20 text-primary ring-1 hover:text-primary'
+            )}
+            disabled={!isConnectionEstablished || micButtonProps.disabled}
+            compact={compact}
+          >
+            {isMicOn ? <Mic className={iconClass} /> : <MicOff className={iconClass} />}
+          </ControlButton>
+        </div>
         <ControlButton
           tooltip={
             !isConnectionEstablished
@@ -287,7 +301,7 @@ export function AssistantCommunicationControls({
        *  the in-call chat side panel competes with the adjacent
        *  assistant-info panel for the same screen real estate. */}
       <div className={cn('flex w-1/3 items-center justify-end', compact ? 'gap-1' : 'gap-3')}>
-        {!compact && (
+        {!compact && !chatDisabled && (
           <ControlButton tooltip="Toggle chat" onClick={onToggleChat} compact={compact}>
             <MessageSquare className={iconClass} />
           </ControlButton>

@@ -65,7 +65,7 @@ VALUES (
   'google_workspace',
   'platform',
   'active',
-  '{"universal_droid": true}'::jsonb
+  '{"universal_unity": true}'::jsonb
 ),
 (
   ${coordinator.agentId},
@@ -74,7 +74,7 @@ VALUES (
   'twilio',
   'platform',
   'active',
-  '{"universal_droid": true, "country": "US"}'::jsonb
+  '{"universal_unity": true, "country": "US"}'::jsonb
 );
 `);
 

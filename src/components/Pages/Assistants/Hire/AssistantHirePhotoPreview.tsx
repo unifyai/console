@@ -65,8 +65,8 @@ export function AssistantPhotoViewer({
     }
   };
 
-  // A `appearance://` photo encodes the droid appearance rather than a real
-  // image — reconstruct and render the SVG droid instead of an <img>.
+  // A `appearance://` photo encodes the unity appearance rather than a real
+  // image — reconstruct and render the SVG unity instead of an <img>.
   const creatureAppearance = parseCreatureSentinel(photoUrl);
   const shouldRenderVideo = videoUrl && !videoError && !creatureAppearance;
   const showDownloadButton = photoFile || videoFile;
@@ -167,7 +167,7 @@ export function AssistantPhotoViewer({
                   <CreatureAvatar
                     appearance={creatureAppearance}
                     className="rounded-lg"
-                    label="Droid avatar"
+                    label="Unity avatar"
                   />
                 ) : shouldRenderVideo ? (
                   <video

@@ -37,7 +37,7 @@ const sharingAssistant = createAssistant({
   userId: sharingOwner.id,
   orgId: sharingOrg.id,
   firstName: 'Sharing',
-  surname: 'Droid',
+  surname: 'Unity',
 });
 
 const sharingTest = createAccountTest(sharingOwner);

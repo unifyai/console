@@ -1,4 +1,4 @@
-// Canonical implementation lives in the shared brand submodule (@droid/brand).
+// Canonical implementation lives in the shared brand submodule (@unity/brand).
 export {
   TeammateCreature,
   getCreatureMetrics,
@@ -6,4 +6,4 @@ export {
   type CreatureAntenna,
   type CreatureMood,
   type CreatureMouthShape,
-} from '@droid/brand/components';
+} from '@unity/brand/components';

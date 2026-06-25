@@ -3,7 +3,7 @@
  *
  * Console owns row clicks; Orchestra owns the event contract attached to
  * those rows. This route keeps the user's API key server-side while asking
- * Orchestra to emit the canonical onboarding event to Droid.
+ * Orchestra to emit the canonical onboarding event to Unity.
  */
 
 import { NextRequest, NextResponse } from 'next/server';

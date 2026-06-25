@@ -16,6 +16,14 @@ const test = createAccountTest(user);
 
 test.afterAll(() => cleanupUser(user.id));
 
+function deferredVoid(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 /**
  * Stub the send-verification endpoint and return the phoneNumber the client
  * submitted (i.e. the fully-constructed E.164 string).
@@ -88,6 +96,119 @@ test('selecting a country changes the dial code in the constructed number', asyn
   });
 
   expect(sent).toBe('+447911123456');
+});
+
+test('verifying a number eagerly persists it with no Save button', async ({ authedPage: page }) => {
+  // The full verify flow can't run end-to-end locally (no Twilio creds), so we
+  // stub the verification round-trip and capture the eager profile write that
+  // the client fires the moment verification succeeds. This is the exact bug
+  // the eager-save redesign fixes: a verified number must persist immediately,
+  // not wait for a separate Save click.
+  await page.goto('/account?tab=contact-info');
+  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+
+  await page.route('**/api/profile/phone/send-verification', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ expiresInSeconds: 300 }),
+    })
+  );
+  await page.route('**/api/profile/phone/confirm-verification', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ detail: 'ok', success: true }),
+    })
+  );
+
+  const saveCanFinish = deferredVoid();
+  const saveStarted = deferredVoid();
+  let savedPayload: { phoneNumber?: string } | null = null;
+  await page.route('**/api/user/update-profile', async (route) => {
+    savedPayload = route.request().postDataJSON() as { phoneNumber?: string };
+    saveStarted.resolve();
+    await saveCanFinish.promise;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true }),
+    });
+  });
+
+  const phoneInput = page.locator('#phone-number-input');
+  await expect(phoneInput).toBeVisible({ timeout: 15_000 });
+  await phoneInput.fill('5551234567');
+
+  await page.getByRole('button', { name: 'Verify' }).first().click();
+
+  const codeInput = page.getByPlaceholder('Enter verification code...');
+  await expect(codeInput).toBeVisible({ timeout: 10_000 });
+  await codeInput.fill('123456');
+  await codeInput.press('Enter');
+
+  // Verification triggers persistence with the full E.164 number, but the UI must
+  // wait for that write to complete before presenting the number as verified.
+  await saveStarted.promise;
+  await expect.poll(() => savedPayload?.phoneNumber, { timeout: 10_000 }).toBe('+15551234567');
+  await expect(page.getByRole('button', { name: 'Verified' })).toHaveCount(0);
+
+  saveCanFinish.resolve();
+  await expect(page.getByRole('button', { name: 'Save' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Verified' })).toBeVisible();
+});
+
+test('Discord ID auto-saves to the database on blur', async ({ authedPage: page }) => {
+  const discord = `9${`${Date.now()}`.slice(-17)}`;
+
+  await page.goto('/account?tab=contact-info');
+  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+
+  const discordInput = page.getByPlaceholder('e.g., 123456789012345678');
+  await expect(discordInput).toBeVisible({ timeout: 15_000 });
+
+  await discordInput.fill(discord);
+  await Promise.all([
+    page.waitForResponse(
+      (resp) => resp.url().includes('/api/user/update-profile') && resp.status() === 200,
+      { timeout: 15_000 }
+    ),
+    discordInput.blur(),
+  ]);
+  await page.waitForTimeout(500);
+
+  try {
+    expect(dbExec(`SELECT discord_id FROM "user" WHERE id = '${user.id}'`)).toBe(discord);
+  } finally {
+    dbExec(`UPDATE "user" SET discord_id = NULL WHERE id = '${user.id}'`);
+  }
+});
+
+test('removing a saved number clears it from the database eagerly', async ({
+  authedPage: page,
+}) => {
+  dbExec(`UPDATE "user" SET phone_number = '+15125551234' WHERE id = '${user.id}'`);
+
+  try {
+    await page.goto('/account?tab=contact-info');
+    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+
+    const removeBtn = page.getByRole('button', { name: 'Remove' }).first();
+    await expect(removeBtn).toBeVisible({ timeout: 15_000 });
+
+    await Promise.all([
+      page.waitForResponse(
+        (resp) => resp.url().includes('/api/user/update-profile') && resp.status() === 200,
+        { timeout: 15_000 }
+      ),
+      removeBtn.click(),
+    ]);
+    await page.waitForTimeout(500);
+
+    expect(dbExec(`SELECT phone_number FROM "user" WHERE id = '${user.id}'`)).toBe('');
+  } finally {
+    dbExec(`UPDATE "user" SET phone_number = NULL WHERE id = '${user.id}'`);
+  }
 });
 
 test('a saved E.164 number is split back into country + national parts', async ({

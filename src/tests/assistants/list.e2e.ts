@@ -94,7 +94,7 @@ test('clicking an assistant in the list selects it and shows the Chat tab', asyn
 
   await listItem.click();
   await expect(page.getByTestId('right-pane-tab-chat')).not.toBeVisible({ timeout: 3_000 });
-  await expect(page.locator('text=Select a droid to watch live actions.')).toBeVisible({
+  await expect(page.locator('text=Select a unity to watch live actions.')).toBeVisible({
     timeout: 5_000,
   });
 });
@@ -113,7 +113,7 @@ test('rapid select/deselect settles on the final click and does not snap back', 
   await expect(listItem).toBeVisible({ timeout: 15_000 });
 
   const chatTab = page.getByTestId('right-pane-tab-chat');
-  const emptyState = page.locator('text=Select a droid to watch live actions.');
+  const emptyState = page.locator('text=Select a unity to watch live actions.');
 
   // Normalise to a known deselected starting point.
   if (await chatTab.isVisible({ timeout: 1_000 }).catch(() => false)) {

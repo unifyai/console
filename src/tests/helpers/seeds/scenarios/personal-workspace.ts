@@ -35,7 +35,7 @@ export async function seedPersonalWorkspace(): Promise<SeededState> {
   // A returning user mid-onboarding: their Coordinator already holds a
   // user-provisioned workspace mailbox (the row the workspace OAuth
   // callback writes), so Orchestra derives the ``workspace`` step as
-  // complete and both the checklist and the droid's opener must pick
+  // complete and both the checklist and the unity's opener must pick
   // up from "connect your apps" instead of re-pitching the workspace.
   const returningOwner = createUser({ name: 'Returning', lastName: 'Owner' });
   createEmailLogin({ userId: returningOwner.id });

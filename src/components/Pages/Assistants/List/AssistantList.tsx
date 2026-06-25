@@ -49,7 +49,7 @@ function OnboardPlusIcon({ className }: { className?: string }) {
   );
 }
 
-function DroidOnboardIcon({ className }: { className?: string }) {
+function UnityOnboardIcon({ className }: { className?: string }) {
   return (
     <svg
       aria-hidden="true"
@@ -474,7 +474,7 @@ export function AssistantList({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="right">
-                      <p>Onboard new droid</p>
+                      <p>Onboard new unity</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -503,7 +503,7 @@ export function AssistantList({
                 disabled={isHireButtonDisabled}
                 aria-disabled={isHireButtonDisabled}
               >
-                <DroidOnboardIcon className="h-5 w-5" />
+                <UnityOnboardIcon className="h-5 w-5" />
                 Onboard
               </Button>
             )}

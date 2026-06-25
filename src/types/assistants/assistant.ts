@@ -20,19 +20,27 @@ import type {
 
 export type VoiceProvider = 'elevenlabs' | 'cartesia' | 'openai';
 
-export type CallOpeningMode = 'speak' | 'simulated' | 'silent' | 'briefed';
+export type CallOpeningMode = 'speak' | 'simulated' | 'silent' | 'briefed' | 'recorded';
 
 export interface CallOpeningConfig {
   mode: CallOpeningMode;
   simulatedUtterance?: string;
   /** Durable system briefing spoken as the opening turn in `briefed` mode. */
   systemContext?: string;
+  /** Name of a Unity-bundled audio asset spoken as a recorded opening turn. */
+  recordingAsset?: string;
+  /** Transcript paired with a recorded opening; Unity may provide it for bundled assets. */
+  transcript?: string;
   source?: string;
 }
 
 export interface AssistantCallConnectOptions {
   suppressRinging?: boolean;
   openingConfig?: CallOpeningConfig;
+  /** Stable browser-call attempt id used to ignore stale Unity/LiveKit lifecycle events. */
+  callSessionId?: string;
+  waitForAssistantReady?: boolean;
+  startMuted?: boolean;
 }
 
 export type UserLocalDesktop = 'ubuntu' | 'windows' | 'macos';
@@ -586,7 +594,8 @@ export interface AssistantActions {
     dispatchToCall: (
       assistantId: string,
       roomName: string,
-      openingConfig?: CallOpeningConfig
+      openingConfig?: CallOpeningConfig,
+      callSessionId?: string
     ) => Promise<ResponseProps>;
     deleteRoom: (roomName: string) => Promise<ResponseProps>;
   };

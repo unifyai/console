@@ -15,11 +15,11 @@ describe('auth popup helpers', () => {
   });
 
   it('accepts configured and static landing opener origins', () => {
-    expect(allowedAuthPopupOpenerOrigin('https://usedroids.ai/some/path')).toBe(
-      'https://usedroids.ai'
+    expect(allowedAuthPopupOpenerOrigin('https://useunitys.ai/some/path')).toBe(
+      'https://useunitys.ai'
     );
-    expect(allowedAuthPopupOpenerOrigin('https://www.usedroids.ai/some/path')).toBe(
-      'https://www.usedroids.ai'
+    expect(allowedAuthPopupOpenerOrigin('https://www.useunitys.ai/some/path')).toBe(
+      'https://www.useunitys.ai'
     );
     expect(allowedAuthPopupOpenerOrigin('https://unify.ai/some/path')).toBe('https://unify.ai');
     expect(
