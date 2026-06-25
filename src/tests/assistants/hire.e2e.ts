@@ -204,13 +204,8 @@ test('hiring with a job title persists job_title to DB and shows it in the hover
   expect(dbAssistant.firstName).toBe(firstName);
   expect(dbAssistant.jobTitle).toBe(jobTitle);
 
-  // The hover card should include a "Job Title: <value>" row in its top
-  // section. Trigger the hover card by hovering the avatar.
-  await listItem.hover();
-  const subtitle = page.getByTestId(`assistant-job-title-${latestId}`);
-  await expect(subtitle).toBeVisible({ timeout: 5_000 });
-  await expect(subtitle).toContainText('Job Title:');
-  await expect(subtitle).toContainText(jobTitle);
+  // The list row renders the job title as a subtitle beneath the droid name.
+  await expect(listItem).toContainText(jobTitle);
 });
 
 test('hiring without filling Job Title leaves job_title NULL in DB', async ({
@@ -222,9 +217,12 @@ test('hiring without filling Job Title leaves job_title NULL in DB', async ({
   await closeHireDialogIfOpen(page);
   await openHireDialog(page);
 
+  // The form auto-applies a randomized profile (including a Role), so to
+  // exercise the empty → NULL path we must explicitly clear the field.
   await fillProfileFields(page, {
     firstName,
     lastName: 'Untitled',
+    jobTitle: '',
     about: 'No job title.',
   });
 

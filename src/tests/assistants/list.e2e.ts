@@ -227,8 +227,14 @@ test('list updates after hiring a new assistant without page reload', async ({
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  // Count visible list items before hire
+  // The list lives inside the rail's droid switcher popover — open it to
+  // count visible list items before the hire, then close it (the popover is
+  // itself a [role="dialog"], so leaving it open would make openHireDialog
+  // think the hire dialog is already up).
+  await openDroidSwitcher(page);
   const itemsBefore = await page.locator('[data-testid^="assistant-list-item-"]').count();
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(500);
 
   await openHireDialog(page);
   await fillProfileFields(page, {
@@ -239,6 +245,9 @@ test('list updates after hiring a new assistant without page reload', async ({
   await selectVoice(page);
   await clickHireButton(page);
 
+  // The hire dialog (and the switcher popover) dismiss on submit; reopen the
+  // switcher to confirm the freshly hired droid shows without a page reload.
+  await openDroidSwitcher(page);
   const newItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(newItem).toBeVisible({ timeout: 60_000 });
 
