@@ -87,6 +87,7 @@ test('creating a team via UI adds it to the database', async ({ authedPage: page
   await expect(dialog).not.toBeVisible({ timeout: 10_000 });
 
   // Verify team exists in DB
+  await expect.poll(() => getTeamByName(org.id, teamName) ?? '', { timeout: 15_000 }).not.toBe('');
   const teamId = getTeamByName(org.id, teamName);
   expect(teamId).toBeTruthy();
 
@@ -132,7 +133,9 @@ test('adding a member to a team via UI creates a team_member record', async ({
   await expect(dialog).not.toBeVisible({ timeout: 10_000 });
 
   // Verify DB
-  expect(getTeamMemberCount(teamId)).toBeGreaterThanOrEqual(1);
+  await expect
+    .poll(() => getTeamMemberCount(teamId), { timeout: 15_000 })
+    .toBeGreaterThanOrEqual(1);
 });
 
 test('removing a member from a team via UI removes the team_member record', async ({
@@ -266,19 +269,34 @@ creationTest(
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: 5_000 });
-    await dialog.getByPlaceholder('Acme Corp').fill(orgName);
+    await dialog.getByTestId('create-org-name-input').fill(orgName);
+    await expect(dialog.getByTestId('create-org-name-input')).toHaveValue(orgName);
     await dialog.getByTestId('create-org-sharing-shared').click();
+    await expect(dialog.getByRole('radio', { name: /Shared/ })).toBeChecked();
     await dialog.getByRole('button', { name: 'Create' }).click();
 
+    await expect
+      .poll(() => dbExec(`SELECT id FROM organization WHERE name = '${orgName}'`), {
+        timeout: 15_000,
+      })
+      .not.toBe('');
     const orgId = dbExec(`SELECT id FROM organization WHERE name = '${orgName}'`);
     expect(orgId).toBeTruthy();
     createdDialogOrgId = parseInt(orgId, 10);
 
-    const sharingEnabled = dbExec(
-      `SELECT org_wide_sharing_enabled FROM organization WHERE id = ${createdDialogOrgId}`
-    );
-    expect(sharingEnabled).toBe('t');
+    await expect
+      .poll(
+        () =>
+          dbExec(
+            `SELECT org_wide_sharing_enabled FROM organization WHERE id = ${createdDialogOrgId}`
+          ),
+        { timeout: 15_000 }
+      )
+      .toBe('t');
 
+    await expect
+      .poll(() => getTeamByName(createdDialogOrgId!, 'Org') ?? '', { timeout: 15_000 })
+      .not.toBe('');
     const orgTeamId = getTeamByName(createdDialogOrgId, 'Org');
     expect(orgTeamId).toBeTruthy();
     expect(getTeamMemberCount(orgTeamId!)).toBe(1);

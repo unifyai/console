@@ -251,9 +251,12 @@ test.describe('Onboarding', () => {
     );
     expect(managedOrgTeamCount).toBe('0');
 
-    const coordinatorRow = page.getByTestId(`assistant-list-item-${coordinatorId}`);
-    await expect(coordinatorRow).toBeVisible({ timeout: 15000 });
-    await expect(coordinatorRow).toContainText('T-W1N');
+    await expect(page.getByRole('button', { name: /T-W1N.*Coordinator/ })).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page.getByRole('textbox', { name: 'Search conversation' })).toBeVisible({
+      timeout: 15000,
+    });
   });
 
   test('creates shared organization workspace with managed Org team', async ({ page }) => {
@@ -272,7 +275,7 @@ test.describe('Onboarding', () => {
     const orgName = `E2E Shared Org ${Date.now()}`;
     await page.getByTestId('org-name-input').fill(orgName);
     await page.getByTestId('onboarding-org-sharing-info').click();
-    await expect(page.getByText('Each user')).toBeVisible();
+    await expect(page.getByText(/all skills acquired and knowledge retained/)).toBeVisible();
     await page.keyboard.press('Escape');
     await page.getByTestId('onboarding-org-sharing-shared').click();
 

@@ -64,6 +64,7 @@ const OrganizationDataSharingChoice = ({
       </div>
 
       <RadioGroup
+        name="dataSharingMode"
         value={value}
         onValueChange={(next) => onChange(next as DataSharingMode)}
         className="grid gap-2 sm:grid-cols-2"
@@ -76,12 +77,26 @@ const OrganizationDataSharingChoice = ({
             <label
               key={option.value}
               htmlFor={id}
+              onPointerDownCapture={() => {
+                if (!disabled) onChange(option.value);
+              }}
+              onClick={() => {
+                if (!disabled) onChange(option.value);
+              }}
               className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-all ${
                 checked ? 'bg-primary/5 border-primary ring-1 ring-primary' : 'border-border'
               } ${disabled ? 'cursor-not-allowed opacity-60' : 'hover:border-primary/50 hover:bg-muted/50'}`}
               data-testid={id}
             >
-              <RadioGroupItem id={id} value={option.value} disabled={disabled} className="mt-0.5" />
+              <RadioGroupItem
+                id={id}
+                value={option.value}
+                disabled={disabled}
+                className="mt-0.5"
+                onClick={() => {
+                  if (!disabled) onChange(option.value);
+                }}
+              />
               <span className="flex flex-col gap-1">
                 <span className="text-body font-medium text-foreground">{option.title}</span>
                 <span className="text-caption text-muted-foreground">{option.description}</span>

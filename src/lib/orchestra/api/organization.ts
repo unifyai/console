@@ -78,20 +78,19 @@ export async function createOrganizationAction(
   dataSharingMode: DataSharingMode = 'private'
 ): Promise<Organization | ResponseProps> {
   const apiKey = await requireUserApiKey();
-  const client = createOrchestraClient(apiKey);
-  const { data, error, response } = await client.POST('/v0/organizations', {
-    body: { name, data_sharing_mode: dataSharingMode } as never,
-  });
-
-  if (error) {
-    return {
-      detail:
-        ((error as Record<string, unknown>)?.detail as string) || 'Failed to create organization',
-      status: response?.status || 500,
-    };
-  }
-
-  return data as unknown as Organization;
+  return safeFetch(
+    `${backendUrl}/organizations`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ name, data_sharing_mode: dataSharingMode }),
+    },
+    'createOrganization'
+  ) as Promise<Organization | ResponseProps>;
 }
 
 export async function createOrgAction(
