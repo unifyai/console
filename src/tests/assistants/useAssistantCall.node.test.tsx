@@ -127,6 +127,22 @@ describe('useAssistantCall', () => {
     expect(result.current.isWaitingForAssistant).toBe(true);
   });
 
+  it('enables browser audio cleanup when publishing the microphone', async () => {
+    const room = new FakeRoom();
+    const actions = makeActions();
+    const { result } = renderHook(() => useAssistantCall(room as any, actions));
+
+    await act(async () => {
+      await result.current.connect(assistant, 'audio');
+    });
+
+    expect(room.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true, {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    });
+  });
+
   it('redispatches in-room on assistant disconnect without deleting or disconnecting the user', async () => {
     const room = new FakeRoom();
     const actions = makeActions();

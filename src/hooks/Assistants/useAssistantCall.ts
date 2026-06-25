@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Room, RoomEvent } from 'livekit-client';
+import { Room, RoomEvent, type AudioCaptureOptions } from 'livekit-client';
 import { toast } from 'sonner';
 import {
   Assistant,
@@ -18,6 +18,11 @@ const ASSISTANT_JOIN_SLOW_THRESHOLD = 90000; // 90 seconds — soft warning, not
 const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
+const CALL_AUDIO_CAPTURE_OPTIONS: AudioCaptureOptions = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+};
 
 type CallPhase =
   | 'idle'
@@ -43,7 +48,10 @@ function createCallSessionId(assistantId: string) {
 }
 
 async function publishMicrophoneForCallStartup(room: Room, options?: AssistantCallConnectOptions) {
-  const publication = await room.localParticipant.setMicrophoneEnabled(true);
+  const publication = await room.localParticipant.setMicrophoneEnabled(
+    true,
+    CALL_AUDIO_CAPTURE_OPTIONS
+  );
   if (options?.startMuted === true) {
     await publication?.mute();
   }
