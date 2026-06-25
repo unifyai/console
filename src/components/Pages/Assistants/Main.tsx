@@ -47,6 +47,7 @@ import {
   type CoordinatorWorkspaceScope,
   resolveCanonicalWorkspaceCoordinator,
 } from '@/lib/assistants/coordinatorIdentity';
+import { debugCoordinatorOnboarding } from '@/lib/assistants/coordinatorOnboardingDebug';
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import {
   CoordinatorOnboardingProvider,
@@ -727,6 +728,33 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       (isCanonicalCoordinatorOwned &&
         coordinatorOnboardingState === null &&
         isCoordinatorOnboardingStateLoading));
+
+  React.useEffect(() => {
+    debugCoordinatorOnboarding('gate.evaluate', {
+      canonicalCoordinatorId,
+      hasCanonicalCoordinator: !!canonicalCoordinator,
+      isLoadingAssistants,
+      isCanonicalCoordinatorOwned,
+      isCoordinatorOnboardingStateLoading,
+      hasCoordinatorOnboardingState: coordinatorOnboardingState !== null,
+      mode: coordinatorOnboardingState?.mode ?? null,
+      introWatched: coordinatorOnboardingState?.introWatched ?? null,
+      onboardingDeferred: coordinatorOnboardingState?.onboardingDeferred ?? null,
+      coordinatorIntroDismissed,
+      isCoordinatorOnboardingResolvePending,
+      showCoordinatorOnboardingIntro,
+    });
+  }, [
+    canonicalCoordinator,
+    canonicalCoordinatorId,
+    coordinatorIntroDismissed,
+    coordinatorOnboardingState,
+    isCanonicalCoordinatorOwned,
+    isCoordinatorOnboardingResolvePending,
+    isCoordinatorOnboardingStateLoading,
+    isLoadingAssistants,
+    showCoordinatorOnboardingIntro,
+  ]);
 
   // --- Call Management ---
   // The call engine (LiveKit Room + lifecycle) is owned by the layout-level

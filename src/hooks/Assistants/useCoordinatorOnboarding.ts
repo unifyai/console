@@ -7,6 +7,7 @@ import {
   type CoordinatorStateSnapshot,
   type CoordinatorStatePatch,
 } from '@/lib/assistants/coordinatorState';
+import { debugCoordinatorOnboarding } from '@/lib/assistants/coordinatorOnboardingDebug';
 
 /**
  * Reads + writes the Coordinator's onboarding state row.
@@ -42,11 +43,24 @@ export function useCoordinatorOnboarding(
 
   const query = useQuery<CoordinatorStateSnapshot, Error>({
     queryKey: buildQueryKey(coordinatorId),
-    queryFn: () => {
+    queryFn: async () => {
       if (coordinatorId == null) {
         throw new Error('Coordinator id is required to read Coordinator/State');
       }
-      return fetchCoordinatorState(coordinatorId);
+      debugCoordinatorOnboarding('state.fetch.start', {
+        coordinatorId: String(coordinatorId),
+      });
+      const state = await fetchCoordinatorState(coordinatorId);
+      debugCoordinatorOnboarding('state.fetch.success', {
+        coordinatorId: String(coordinatorId),
+        mode: state.mode,
+        introWatched: state.introWatched,
+        onboardingDeferred: state.onboardingDeferred,
+        onboardingStep: state.onboardingStep,
+        completedStepCount: state.completedStepIds.length,
+        skippedStepCount: state.skippedStepIds.length,
+      });
+      return state;
     },
     enabled,
     staleTime: 30 * 1000,
@@ -58,10 +72,25 @@ export function useCoordinatorOnboarding(
     async (patch: CoordinatorStatePatch): Promise<CoordinatorStateSnapshot | null> => {
       if (coordinatorId == null) return null;
       try {
+        debugCoordinatorOnboarding('state.update.start', {
+          coordinatorId: String(coordinatorId),
+          patch,
+        });
         const next = await updateCoordinatorState(coordinatorId, patch);
         queryClient.setQueryData(buildQueryKey(coordinatorId), next);
+        debugCoordinatorOnboarding('state.update.success', {
+          coordinatorId: String(coordinatorId),
+          mode: next.mode,
+          introWatched: next.introWatched,
+          onboardingDeferred: next.onboardingDeferred,
+          onboardingStep: next.onboardingStep,
+        });
         return next;
       } catch (err) {
+        debugCoordinatorOnboarding('state.update.failure', {
+          coordinatorId: String(coordinatorId),
+          message: err instanceof Error ? err.message : String(err),
+        });
         console.error('[useCoordinatorOnboarding] update failed:', err);
         toast.error('Failed to update onboarding state. Please try again.');
         return null;

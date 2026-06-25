@@ -35,6 +35,7 @@ import { COORDINATOR_ONBOARDING_DEFAULT_INITIAL_UNITY } from '@/utils/assistants
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { notifyOnboardingSessionStarted } from '@/lib/client/coordinator';
+import { debugCoordinatorOnboarding } from '@/lib/assistants/coordinatorOnboardingDebug';
 import type { Assistant, AssistantCallConnectOptions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 
@@ -71,10 +72,34 @@ export function CoordinatorOnboarding({
   const [isStartingCall, setIsStartingCall] = React.useState(false);
   const hasCompletedRef = React.useRef(false);
 
+  React.useEffect(() => {
+    debugCoordinatorOnboarding('overlay.mount', {
+      coordinatorId: coordinator.agentId,
+      voiceCalls,
+    });
+    return () => {
+      debugCoordinatorOnboarding('overlay.unmount', {
+        coordinatorId: coordinator.agentId,
+      });
+    };
+  }, [coordinator.agentId, voiceCalls]);
+
+  React.useEffect(() => {
+    debugCoordinatorOnboarding('overlay.phase', {
+      coordinatorId: coordinator.agentId,
+      phase,
+      isStartingCall,
+    });
+  }, [coordinator.agentId, isStartingCall, phase]);
+
   // Fire the picker-resolution event so Unity opens the session with the
   // right kind of message. Best-effort: completion never blocks on it.
   const notifySessionStarted = React.useCallback(
     (medium: 'chat' | 'call') => {
+      debugCoordinatorOnboarding('session-started.notify', {
+        coordinatorId: coordinator.agentId,
+        medium,
+      });
       void notifyOnboardingSessionStarted(coordinator.agentId, medium);
     },
     [coordinator.agentId]
@@ -84,15 +109,22 @@ export function CoordinatorOnboarding({
     (medium: 'call' | 'chat') => {
       if (hasCompletedRef.current) return;
       hasCompletedRef.current = true;
+      debugCoordinatorOnboarding('overlay.complete', {
+        coordinatorId: coordinator.agentId,
+        medium,
+      });
       // Latch ``intro_watched`` so reloads never re-show the picker.
       void updateState({ introWatched: true });
       onComplete(medium);
     },
-    [onComplete, updateState]
+    [coordinator.agentId, onComplete, updateState]
   );
 
   const handleStartCall = React.useCallback(async () => {
     if (phase !== 'picker') return;
+    debugCoordinatorOnboarding('start-call.click', {
+      coordinatorId: coordinator.agentId,
+    });
     setPhase('preparing');
     setIsStartingCall(true);
 
@@ -103,6 +135,10 @@ export function CoordinatorOnboarding({
         startMuted: true,
       });
     } catch (error) {
+      debugCoordinatorOnboarding('start-call.failure', {
+        coordinatorId: coordinator.agentId,
+        message: error instanceof Error ? error.message : String(error),
+      });
       console.error('[CoordinatorOnboarding] Failed to start the call:', error);
       toast.error('Could not start the call. Please try again.');
       await onDiscardCall();
@@ -111,15 +147,21 @@ export function CoordinatorOnboarding({
       return;
     }
 
+    debugCoordinatorOnboarding('start-call.ready', {
+      coordinatorId: coordinator.agentId,
+    });
     notifySessionStarted('call');
     complete('call');
   }, [complete, coordinator, notifySessionStarted, onDiscardCall, onStartCall, phase]);
 
   const handlePickChat = React.useCallback(() => {
     if (phase !== 'picker') return;
+    debugCoordinatorOnboarding('pick-chat.click', {
+      coordinatorId: coordinator.agentId,
+    });
     notifySessionStarted('chat');
     complete('chat');
-  }, [complete, notifySessionStarted, phase]);
+  }, [complete, coordinator.agentId, notifySessionStarted, phase]);
 
   if (phase === 'preparing') {
     return (
