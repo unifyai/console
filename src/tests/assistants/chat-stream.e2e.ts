@@ -85,8 +85,8 @@ test('switching to another assistant and back keeps each chat working independen
     surname: 'BravoB',
   });
 
-  await seedContact(user.apiKey, user.id, assistantA.agentId, user.email);
-  await seedContact(user.apiKey, user.id, assistantB.agentId, user.email);
+  await seedContact(user.apiKey, user.id, assistantA.agentId, user.email, assistantA.bossContactId);
+  await seedContact(user.apiKey, user.id, assistantB.agentId, user.email, assistantB.bossContactId);
 
   const ts = Date.now();
   const histA = `Alpha history msg ${ts}`;
@@ -216,6 +216,7 @@ test('unread message badge appears for an inactive assistant and clears when its
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   const itemA = page.getByTestId(`assistant-list-item-${assistantA.agentId}`);
   const itemB = page.getByTestId(`assistant-list-item-${assistantB.agentId}`);
@@ -239,8 +240,9 @@ test('unread message badge appears for an inactive assistant and clears when its
   const unreadMsg1 = `Unread B msg #1 ${Date.now()}`;
   await publishUnifyMessageOutbound(assistantB.agentId, {
     content: unreadMsg1,
-    contactId: CONTACT_ID,
+    contactId: assistantB.bossContactId,
   });
+  await openUnitySwitcher(page);
 
   // Badge on B's list item appears.
   const badgeB = page.getByTestId(`assistant-unread-badge-${assistantB.agentId}`);
@@ -255,7 +257,7 @@ test('unread message badge appears for an inactive assistant and clears when its
   const unreadMsg2 = `Unread B msg #2 ${Date.now()}`;
   await publishUnifyMessageOutbound(assistantB.agentId, {
     content: unreadMsg2,
-    contactId: CONTACT_ID,
+    contactId: assistantB.bossContactId,
   });
   await expect(badgeB).toHaveText('2', { timeout: 10_000 });
 

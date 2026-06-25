@@ -316,23 +316,20 @@ test('shows empty state when assistant has no dashboards or tiles', async ({
 }) => {
   await selectAssistantAndOpenDashboards(page, emptyAssistant.agentId);
 
-  await expect(page.locator('text=No dashboards found')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('No dashboards yet')).toBeVisible({ timeout: 10_000 });
 });
 
-test('no tabs visible and shows placeholder when no assistant is selected', async ({
+test('defaults to the Coordinator chat when no assistant is selected', async ({
   authedPage: page,
 }) => {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
-  await page.waitForTimeout(1_000);
 
-  await expect(page.getByTestId('right-pane-tab-chat')).not.toBeVisible({ timeout: 3_000 });
-  await expect(page.getByTestId('right-pane-tab-dashboards')).not.toBeVisible({ timeout: 3_000 });
-  await expect(page.getByTestId('right-pane-tab-memory')).not.toBeVisible({ timeout: 3_000 });
-  await expect(page.getByTestId('right-pane-tab-actions')).not.toBeVisible({ timeout: 3_000 });
-  await expect(page.locator('text=Select a droid to watch live actions.')).toBeVisible({
-    timeout: 5_000,
+  await expect(page.getByRole('button', { name: 'Chat' })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('textbox', { name: 'Search conversation' })).toBeVisible({
+    timeout: 10_000,
   });
+  await expect(page.getByText('T-W1N').first()).toBeVisible({ timeout: 10_000 });
 });
 
 // ===========================================================================
@@ -370,7 +367,7 @@ test('renders dashboard summary card with metadata and action buttons', async ({
   await expect(summaryCard.locator('text=2 tiles')).toBeVisible({ timeout: 5_000 });
 
   await expect(page.getByTestId('dashboard-open-tab')).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByTestId('dashboard-download-zip')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('dashboard-download')).toBeVisible({ timeout: 5_000 });
 });
 
 test('shows refresh button in header that triggers refetch', async ({ authedPage: page }) => {
