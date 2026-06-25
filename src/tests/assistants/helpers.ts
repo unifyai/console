@@ -309,13 +309,13 @@ export async function closeHireDialogIfOpen(page: Page) {
 }
 
 /**
- * Open the rail's droid switcher popover (which hosts the assistant list,
+ * Open the rail's unity switcher popover (which hosts the assistant list,
  * search and the Onboard button). Idempotent — returns early if already open.
  */
-export async function openDroidSwitcher(page: Page) {
-  const popover = page.getByTestId('rail-droid-switcher-popover');
+export async function openUnitySwitcher(page: Page) {
+  const popover = page.getByTestId('rail-unity-switcher-popover');
   if (await popover.isVisible({ timeout: 500 }).catch(() => false)) return;
-  await page.getByTestId('rail-droid-switcher').click();
+  await page.getByTestId('rail-unity-switcher').click();
   await expect(popover).toBeVisible({ timeout: 5_000 });
 }
 
@@ -330,7 +330,7 @@ export async function openRailSection(page: Page, sectionId: string) {
 
 /**
  * Open the hire dialog via the "Onboard" button, which now lives inside the
- * rail's droid switcher popover. If the dialog is already open (e.g.
+ * rail's unity switcher popover. If the dialog is already open (e.g.
  * auto-opened on empty state), skip.
  */
 export async function openHireDialog(page: Page) {
@@ -338,7 +338,7 @@ export async function openHireDialog(page: Page) {
   if (await dialog.isVisible({ timeout: 2_000 }).catch(() => false)) {
     return;
   }
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   const onboardBtn = page.getByTestId('assistant-onboard-button');
   await expect(onboardBtn).toBeEnabled({ timeout: 15_000 });
   await onboardBtn.click();
@@ -346,12 +346,12 @@ export async function openHireDialog(page: Page) {
 }
 
 /**
- * Select an assistant from the rail's droid switcher. Opens the switcher
+ * Select an assistant from the rail's unity switcher. Opens the switcher
  * popover (where the list now lives), clicks the row, and lets the popover
- * dismiss — leaving the chosen droid active in the section host.
+ * dismiss — leaving the chosen unity active in the section host.
  */
 export async function selectAssistantInList(page: Page, agentId: number) {
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
   await listItem.click();
   await page.waitForTimeout(500);
@@ -423,7 +423,7 @@ export async function fillProfileFields(
 ) {
   await openAccordionSection(page, 'profile');
 
-  // The hire form auto-applies a randomized droid profile once presets load
+  // The hire form auto-applies a randomized unity profile once presets load
   // (name/role/about), and that effect can land — sometimes more than once —
   // *after* the dialog first renders. A programmatic fill doesn't set the
   // "user changed preset" flag, so an early fill gets clobbered by the late
@@ -490,13 +490,13 @@ export async function skipWorkspaceSetupIfPrompted(page: Page) {
 }
 
 /**
- * Click the "Onboard Droid" button in the hire dialog.
+ * Click the "Onboard Unity" button in the hire dialog.
  * Scrolls the button into view first since the dialog content may be tall, and
  * ticks the workspace "Skip" first so the flow isn't blocked on workspace setup.
  */
 export async function clickHireButton(page: Page) {
   await skipWorkspaceSetupIfPrompted(page);
-  const hireBtn = page.getByRole('button', { name: 'Onboard Droid', exact: true });
+  const hireBtn = page.getByRole('button', { name: 'Onboard Unity', exact: true });
   await hireBtn.scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
   await hireBtn.click();

@@ -21,7 +21,7 @@ import {
   createPersonalCoordinator,
   navigateToAssistants,
   closeHireDialogIfOpen,
-  openDroidSwitcher,
+  openUnitySwitcher,
   deleteAssistantFromDb,
   getAssistantContact,
   setUserPhoneNumber,
@@ -113,7 +113,7 @@ async function openContactManager(
 ) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
 
   const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
@@ -140,7 +140,7 @@ async function openWorkspaceManager(
 ) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
 
   const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });

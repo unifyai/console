@@ -4,7 +4,7 @@
  *
  * Includes:
  *  - Hiring with basic and full profile fields
- *  - Randomizing the droid profile
+ *  - Randomizing the unity profile
  *  - Cancelling mid-hire
  *  - Hiring multiple assistants
  *
@@ -28,7 +28,7 @@ import {
   deleteAllAssistantsForUser,
   ensureProjectSync,
   setUserCredits,
-  openDroidSwitcher,
+  openUnitySwitcher,
 } from './helpers';
 
 const user = createTestUser({ name: 'HireFlow', lastName: 'Tester', credits: 50_000 });
@@ -52,7 +52,7 @@ test('hiring an assistant persists it to the database and shows it in the list',
 
   // Hire dialog auto-opens on empty state; open manually if it didn't.
   const dialogVisible = await page
-    .getByRole('heading', { name: 'Onboard Droid' })
+    .getByRole('heading', { name: 'Onboard Unity' })
     .first()
     .isVisible({ timeout: 5_000 })
     .catch(() => false);
@@ -70,8 +70,8 @@ test('hiring an assistant persists it to the database and shows it in the list',
   await clickHireButton(page);
 
   // Wait for the hire to complete — the assistant name should appear in the
-  // list (now hosted inside the rail's droid switcher).
-  await openDroidSwitcher(page);
+  // list (now hosted inside the rail's unity switcher).
+  await openUnitySwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', {
     hasText: firstName,
   });
@@ -104,7 +104,7 @@ test('the hired assistant is visible in the DB with correct fields', async ({
   // Verify the assistant appears in the list UI
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
 
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
@@ -135,7 +135,7 @@ test('hiring persists name, about and voice to DB and leaves age/nationality nul
   await selectVoice(page);
   await clickHireButton(page);
 
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(listItem).toBeVisible({ timeout: 60_000 });
 
@@ -153,7 +153,7 @@ test('hiring persists name, about and voice to DB and leaves age/nationality nul
   expect(dbAssistant.nationality).toBe('');
 });
 
-test('Randomize replaces the profile fields with a fresh droid profile', async ({
+test('Randomize replaces the profile fields with a fresh unity profile', async ({
   authedPage: page,
 }) => {
   await navigateToAssistants(page);
@@ -166,7 +166,7 @@ test('Randomize replaces the profile fields with a fresh droid profile', async (
   await expect(firstNameInput).not.toHaveValue('', { timeout: 15_000 });
   await firstNameInput.fill('ZzzSentinelName');
 
-  await page.getByRole('button', { name: 'Randomize droid profile' }).click();
+  await page.getByRole('button', { name: 'Randomize unity profile' }).click();
 
   await expect(firstNameInput).not.toHaveValue('ZzzSentinelName', { timeout: 5_000 });
   await expect(firstNameInput).not.toHaveValue('', { timeout: 5_000 });
@@ -194,7 +194,7 @@ test('hiring with a job title persists job_title to DB and shows it in the hover
   await selectVoice(page);
   await clickHireButton(page);
 
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(listItem).toBeVisible({ timeout: 60_000 });
 
@@ -204,7 +204,7 @@ test('hiring with a job title persists job_title to DB and shows it in the hover
   expect(dbAssistant.firstName).toBe(firstName);
   expect(dbAssistant.jobTitle).toBe(jobTitle);
 
-  // The list row renders the job title as a subtitle beneath the droid name.
+  // The list row renders the job title as a subtitle beneath the unity name.
   await expect(listItem).toContainText(jobTitle);
 });
 
@@ -229,7 +229,7 @@ test('hiring without filling Job Title leaves job_title NULL in DB', async ({
   await selectVoice(page);
   await clickHireButton(page);
 
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(listItem).toBeVisible({ timeout: 60_000 });
 
@@ -277,7 +277,7 @@ test('hiring a second assistant shows both in the list', async ({ authedPage: pa
   await selectVoice(page);
   await clickHireButton(page);
 
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', {
     hasText: firstName,
   });

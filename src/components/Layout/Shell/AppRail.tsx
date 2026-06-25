@@ -14,7 +14,7 @@ import {
 export const RAIL_COLLAPSED_STORAGE_KEY = 'console:assistants:railCollapsed';
 
 interface AppRailProps {
-  /** The droid switcher block (brand-area). Differs per surface. */
+  /** The unity switcher block (brand-area). Differs per surface. */
   switcher: React.ReactNode;
   /** The active Workspace/Brain section id, or `null` when none applies (e.g.
    *  the Settings surface, whose active nav lives in the rail foot). */
@@ -25,9 +25,9 @@ interface AppRailProps {
 }
 
 /**
- * The shared left rail: brand mark, a pluggable droid switcher, the
+ * The shared left rail: brand mark, a pluggable unity switcher, the
  * Workspace/Brain section nav, and the account/settings foot. Used by both the
- * assistants surface (with the full droid switcher + in-page section state) and
+ * assistants surface (with the full unity switcher + in-page section state) and
  * the global home shell (with a lightweight switcher + route-based nav).
  */
 export function AppRail({
@@ -66,7 +66,7 @@ export function AppRail({
       >
         <UnifyBlockMark />
         {!collapsed && (
-          <span className="font-display text-[18px] font-semibold tracking-tight">Droid</span>
+          <span className="font-display text-[18px] font-semibold tracking-tight">Unity</span>
         )}
       </div>
 

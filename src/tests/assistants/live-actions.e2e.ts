@@ -23,7 +23,7 @@ import {
   deleteAllAssistantsForUser,
   ensureProjectSync,
   orchestraFetch,
-  openDroidSwitcher,
+  openUnitySwitcher,
   openRailSection,
 } from './helpers';
 
@@ -154,7 +154,7 @@ async function selectAssistant(page: import('@playwright/test').Page) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
   await listItem.click();

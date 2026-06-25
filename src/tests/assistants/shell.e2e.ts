@@ -1,5 +1,5 @@
 /**
- * Rail shell E2E — verifies the /assistants rail shell: the droid switcher
+ * Rail shell E2E — verifies the /assistants rail shell: the unity switcher
  * popover, Workspace/Brain section navigation, the net-new Brain placeholders,
  * the account menu, and collapse-to-dock persistence.
  *
@@ -14,7 +14,7 @@ import {
   createAssistant,
   navigateToAssistants,
   closeHireDialogIfOpen,
-  openDroidSwitcher,
+  openUnitySwitcher,
   openRailSection,
   getCoordinatorAgentId,
   deferCoordinatorOnboarding,
@@ -39,7 +39,7 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
-test('the rail renders with the brand and droid switcher', async ({ authedPage: page }) => {
+test('the rail renders with the brand and unity switcher', async ({ authedPage: page }) => {
   deleteAllAssistantsForUser(user.id);
   createAssistant({ userId: user.id, firstName: 'Rail', surname: 'Resident' });
 
@@ -48,41 +48,41 @@ test('the rail renders with the brand and droid switcher', async ({ authedPage: 
 
   const rail = page.getByTestId('assistant-rail');
   await expect(rail).toBeVisible({ timeout: 15_000 });
-  await expect(rail.getByText('Droid', { exact: true })).toBeVisible();
-  await expect(page.getByTestId('rail-droid-switcher')).toBeVisible();
+  await expect(rail.getByText('Unity', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('rail-unity-switcher')).toBeVisible();
 });
 
-test('the droid switcher opens and selecting a droid drives the section host', async ({
+test('the unity switcher opens and selecting a unity drives the section host', async ({
   authedPage: page,
 }) => {
   deleteAllAssistantsForUser(user.id);
-  const droid = createAssistant({ userId: user.id, firstName: 'Switchy', surname: 'Pick' });
+  const unity = createAssistant({ userId: user.id, firstName: 'Switchy', surname: 'Pick' });
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  await openDroidSwitcher(page);
-  const row = page.getByTestId(`assistant-list-item-${droid.agentId}`);
+  await openUnitySwitcher(page);
+  const row = page.getByTestId(`assistant-list-item-${unity.agentId}`);
   await expect(row).toBeVisible({ timeout: 10_000 });
   await expect(row).toContainText('Switchy');
   await row.click();
 
-  // Popover dismisses on selection; the switcher card now faces the picked droid.
-  await expect(page.getByTestId('rail-droid-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
-  await expect(page.getByTestId('rail-droid-switcher')).toContainText('Switchy');
+  // Popover dismisses on selection; the switcher card now faces the picked unity.
+  await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
+  await expect(page.getByTestId('rail-unity-switcher')).toContainText('Switchy');
   // Default section is Chat.
   await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
 });
 
 test('Workspace and Brain section nav switches the active view', async ({ authedPage: page }) => {
   deleteAllAssistantsForUser(user.id);
-  const droid = createAssistant({ userId: user.id, firstName: 'Navvy', surname: 'Sections' });
+  const unity = createAssistant({ userId: user.id, firstName: 'Navvy', surname: 'Sections' });
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
-  await openDroidSwitcher(page);
-  await page.getByTestId(`assistant-list-item-${droid.agentId}`).click();
-  await expect(page.getByTestId('rail-droid-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
+  await openUnitySwitcher(page);
+  await page.getByTestId(`assistant-list-item-${unity.agentId}`).click();
+  await expect(page.getByTestId('rail-unity-switcher-popover')).toHaveCount(0, { timeout: 5_000 });
 
   await openRailSection(page, 'tasks');
   await expect(page.getByTestId('rail-section-tasks')).toHaveAttribute('aria-current', 'page');

@@ -15,7 +15,7 @@ import {
   createAssistant,
   navigateToAssistants,
   closeHireDialogIfOpen,
-  openDroidSwitcher,
+  openUnitySwitcher,
   selectAssistantInList,
   getAssistantFromDb,
   deleteAllAssistantsForUser,
@@ -87,7 +87,7 @@ test('assistant list item dropdown menu has edit and contacts options', async ({
   await closeHireDialogIfOpen(page);
 
   // The list (and its per-row kebab menu) lives in the switcher popover now.
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
 

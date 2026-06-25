@@ -137,7 +137,7 @@ E2E tests run in GitHub Actions via `.github/workflows/tests.yml`. The pipeline 
 
 Each test job (Assistants, Account, Billing, Shell, Auth) independently:
 
-1. **Checks out both repos** — Console + Orchestra (via the shared `CLONE_TOKEN` secret, matching the `droid`/`unify`/`unillm` workflows)
+1. **Checks out both repos** — Console + Orchestra (via the shared `CLONE_TOKEN` secret, matching the `unity`/`unify`/`unillm` workflows)
 2. **Generates a minimal `.env.local`** — intentionally omits all cloud credentials so the credential-absence stubs activate. Only essential vars are set: `NEXTAUTH_SECRET`, `JWT_SECRET`, `ORCHESTRA_URL`, `ORCHESTRA_ADMIN_KEY`.
 3. **Starts the full stack** via `scripts/ci-test-setup.sh`:
    - PostgreSQL (Docker container `orchestra-local-db`)

@@ -13,7 +13,7 @@ import { expect, type Page } from '@playwright/test';
 import {
   navigateToAssistants,
   closeHireDialogIfOpen,
-  openDroidSwitcher,
+  openUnitySwitcher,
   orchestraFetch,
   type SeededAssistant,
 } from './helpers';
@@ -126,8 +126,8 @@ export function createTranscriptSeeder(defaults: { selfContactId: number; bossCo
 //
 // The local `./scripts/local.sh --chat` harness runs a Pub/Sub emulator on
 // `localhost:8085` under project `local-test-project`, and Console's SSE
-// routes derive topic names as `droid-{agentId}-staging` (see `getTopicName`).
-// These helpers mirror what the Communication adapters and Droid's
+// routes derive topic names as `unity-{agentId}-staging` (see `getTopicName`).
+// These helpers mirror what the Communication adapters and Unity's
 // `echo_responder.py` publish, so tests can inject a live assistant reply
 // without standing up the full adapter pipeline.
 //
@@ -148,7 +148,7 @@ function pubsubEmulatorUrl(path: string): string {
 }
 
 export async function ensurePubSubTopic(assistantId: number): Promise<void> {
-  const topicName = `droid-${assistantId}-staging`;
+  const topicName = `unity-${assistantId}-staging`;
   const url = pubsubEmulatorUrl(`/projects/${PUBSUB_PROJECT_ID}/topics/${topicName}`);
   const res = await fetch(url, { method: 'PUT' });
   // 200 = created, 409 = already exists — both fine.
@@ -161,7 +161,7 @@ export async function publishUnifyMessageOutbound(
   assistantId: number,
   opts: { content: string; contactId: number }
 ): Promise<void> {
-  const topicName = `droid-${assistantId}-staging`;
+  const topicName = `unity-${assistantId}-staging`;
   const payload = {
     thread: 'unify_message_outbound',
     event: {
@@ -197,14 +197,14 @@ export async function publishUnifyMessageOutbound(
 // ---------------------------------------------------------------------------
 
 /**
- * Open an assistant's chat from the rail's droid switcher and wait for the
+ * Open an assistant's chat from the rail's unity switcher and wait for the
  * chat scroll area. Bound to a default assistant so call sites stay terse.
  */
 export function createOpenAssistantChat(defaultAssistant: SeededAssistant) {
   return async function openAssistantChat(page: Page, targetAssistant = defaultAssistant) {
     await navigateToAssistants(page);
     await closeHireDialogIfOpen(page);
-    await openDroidSwitcher(page);
+    await openUnitySwitcher(page);
 
     const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
     await expect(listItem).toBeVisible({ timeout: 15_000 });

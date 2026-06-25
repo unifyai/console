@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { AppRail, RAIL_COLLAPSED_STORAGE_KEY } from './AppRail';
-import { GlobalDroidSwitcher } from './GlobalDroidSwitcher';
+import { GlobalUnitySwitcher } from './GlobalUnitySwitcher';
 
 interface HomeShellProps {
   children: React.ReactNode;
@@ -11,7 +11,7 @@ interface HomeShellProps {
 
 /**
  * The global home shell for non-assistant routes: renders the shared `AppRail`
- * (with a read-only droid switcher) beside the route body, so the rail persists
+ * (with a read-only unity switcher) beside the route body, so the rail persists
  * across the app. Workspace/Brain sections route to `/assistants`; the rail foot
  * owns Settings/Admin/account navigation.
  */
@@ -32,7 +32,7 @@ export function HomeShell({ children }: HomeShellProps) {
   return (
     <div className="relative flex h-full min-h-0 w-full flex-1 overflow-hidden">
       <AppRail
-        switcher={<GlobalDroidSwitcher collapsed={collapsed} />}
+        switcher={<GlobalUnitySwitcher collapsed={collapsed} />}
         activeSection={null}
         onSelectSection={() => router.push('/assistants')}
         collapsed={collapsed}

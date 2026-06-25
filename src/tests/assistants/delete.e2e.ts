@@ -14,7 +14,7 @@ import {
   createAssistant,
   navigateToAssistants,
   closeHireDialogIfOpen,
-  openDroidSwitcher,
+  openUnitySwitcher,
   getAssistantCount,
   assistantExistsInDb,
   deleteAllAssistantsForUser,
@@ -41,7 +41,7 @@ async function openEditDialogForAssistant(
 ) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
 
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });

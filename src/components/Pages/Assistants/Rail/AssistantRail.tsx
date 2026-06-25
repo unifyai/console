@@ -8,8 +8,8 @@ import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList'
 import type { SectionDef } from './sectionConfig';
 
 interface AssistantRailProps {
-  /** Currently-open droid; drives the switcher card face. */
-  activeDroid: Assistant | null;
+  /** Currently-open unity; drives the switcher card face. */
+  activeUnity: Assistant | null;
   /** Full prop bag forwarded to the embedded `AssistantList` (the switcher). */
   listProps: React.ComponentProps<typeof AssistantList>;
   /** The active rail section id (a `SectionDef.id`). */
@@ -20,11 +20,11 @@ interface AssistantRailProps {
 }
 
 /**
- * The assistants-surface rail: the shared `AppRail` driven by the full droid
+ * The assistants-surface rail: the shared `AppRail` driven by the full unity
  * switcher (popover + `AssistantList`) and the page's in-page section state.
  */
 export function AssistantRail({
-  activeDroid,
+  activeUnity,
   listProps,
   activeSection,
   onSelectSection,
@@ -38,7 +38,7 @@ export function AssistantRail({
       collapsed={collapsed}
       onCollapsedChange={onCollapsedChange}
       switcher={
-        <AssistantSwitcher activeDroid={activeDroid} listProps={listProps} collapsed={collapsed} />
+        <AssistantSwitcher activeUnity={activeUnity} listProps={listProps} collapsed={collapsed} />
       }
     />
   );

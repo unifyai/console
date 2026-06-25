@@ -9,8 +9,8 @@ export const SETTINGS_SECTION: SectionDef = {
   kind: 'view',
   desc: 'Your account, contact info, security, organizations, usage and billing.',
   steps: [
-    ['Edit your profile', 'Update your name, timezone and the bio your droids reference.'],
-    ['Check usage', 'See your credit consumption broken down by day and droid.'],
+    ['Edit your profile', 'Update your name, timezone and the bio your Unitys reference.'],
+    ['Check usage', 'See your credit consumption broken down by day and unity.'],
     ['Manage billing', 'Review your plan, payment method and invoices.'],
   ],
 };
@@ -35,10 +35,10 @@ export const USAGE_SECTION: SectionDef = {
   label: 'Usage',
   Icon: BarChart3,
   kind: 'view',
-  desc: 'Your credit consumption over time, broken down by day and by droid.',
+  desc: 'Your credit consumption over time, broken down by day and by unity.',
   steps: [
     ['Choose a range', 'Scope the chart by date and granularity.'],
-    ['Filter by droid', 'See usage for all droids or just one.'],
+    ['Filter by unity', 'See usage for all Unitys or just one.'],
     ['Drill into a day', 'Expand a day to see the work that spent the credits.'],
   ],
 };

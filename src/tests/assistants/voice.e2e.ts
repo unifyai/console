@@ -19,7 +19,7 @@ import {
   getAssistantFromDb,
   deleteAssistantFromDb,
   ensureProjectSync,
-  openDroidSwitcher,
+  openUnitySwitcher,
 } from './helpers';
 
 const user = createTestUser({ name: 'VoiceE2E', lastName: 'Tester', credits: 50_000 });
@@ -48,7 +48,7 @@ test('hiring with a selected voice assigns that voice_id in the database', async
   await page.waitForTimeout(2_000);
 
   const dialogVisible = await page
-    .getByRole('heading', { name: 'Onboard Droid' })
+    .getByRole('heading', { name: 'Onboard Unity' })
     .first()
     .isVisible({ timeout: 5_000 })
     .catch(() => false);
@@ -79,7 +79,7 @@ test('hiring with a selected voice assigns that voice_id in the database', async
   await expect(firstVoice).toHaveAttribute('aria-selected', 'true');
 
   await clickHireButton(page);
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(listItem).toBeVisible({ timeout: 60_000 });
 
@@ -121,7 +121,7 @@ test('hiring with a different voice assigns the correct voice_id', async ({ auth
   await page.waitForTimeout(500);
 
   await clickHireButton(page);
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   const listItem2 = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(listItem2).toBeVisible({ timeout: 60_000 });
 

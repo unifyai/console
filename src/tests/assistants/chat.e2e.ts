@@ -36,7 +36,7 @@ import {
   createTeamForAssistant,
   ensureProjectSync,
   setUserCredits,
-  openDroidSwitcher,
+  openUnitySwitcher,
 } from './helpers';
 import {
   createContactSeeder,
@@ -422,7 +422,7 @@ test('chat shows empty area for a new assistant with no history', async ({ authe
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
 
   const listItem = page.getByTestId(`assistant-list-item-${freshAssistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });

@@ -41,7 +41,7 @@ import {
   ensureProjectSync,
   orchestraFetch,
   setUserCredits,
-  openDroidSwitcher,
+  openUnitySwitcher,
 } from './helpers';
 
 const user = createTestUser({ name: 'CallE2E', lastName: 'Tester', credits: 50_000 });
@@ -181,7 +181,7 @@ async function openAssistantChat(
 ) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
 
   const listItem = page.getByTestId(`assistant-list-item-${targetAssistant.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
@@ -279,7 +279,7 @@ test('hanging up closes the dialog and returns to the chat view', async ({ authe
   await expect(header).not.toBeVisible({ timeout: 10_000 });
 
   // The assistant should still be selected in the list (inside the switcher)
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   const listItem = page.getByTestId(`assistant-list-item-${assistant.agentId}`);
   await expect(listItem).toBeVisible();
 });

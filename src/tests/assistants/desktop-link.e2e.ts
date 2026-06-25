@@ -37,7 +37,7 @@ import {
   setDesktopSftpTunnelId,
   getDesktopSftpTunnelId,
   ensureProjectSync,
-  openDroidSwitcher,
+  openUnitySwitcher,
 } from './helpers';
 
 const user = createTestUser({ name: 'Desktop', lastName: 'Linker', credits: 50_000 });
@@ -69,7 +69,7 @@ async function navigateForLinker(page: Page) {
  * row hover.
  */
 async function openDesktopLinker(page: Page, agentId: number) {
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   const listItem = page.getByTestId(`assistant-list-item-${agentId}`);
   await expect(listItem).toBeVisible({ timeout: 20_000 });
   await listItem.hover();

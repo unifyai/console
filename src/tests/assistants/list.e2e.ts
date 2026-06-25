@@ -15,7 +15,7 @@ import {
   navigateToAssistants,
   closeHireDialogIfOpen,
   openHireDialog,
-  openDroidSwitcher,
+  openUnitySwitcher,
   selectAssistantInList,
   fillProfileFields,
   selectVoice,
@@ -51,7 +51,7 @@ test('the Onboard button opens the hire dialog', async ({ authedPage: page }) =>
   // fires. A coordinator-only workspace stays on the onboarding intro, so seed
   // one regular assistant to land on the standard list, then drive the hire
   // dialog from the Onboard button (the surviving user-initiated entry point).
-  createAssistant({ userId: user.id, firstName: 'Existing', surname: 'Droid' });
+  createAssistant({ userId: user.id, firstName: 'Existing', surname: 'Unity' });
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
@@ -60,7 +60,7 @@ test('the Onboard button opens the hire dialog', async ({ authedPage: page }) =>
 
   const dialog = page.locator('[role="dialog"]');
   await expect(dialog).toBeVisible({ timeout: 10_000 });
-  await expect(dialog.getByRole('heading', { name: 'Onboard Droid' })).toBeVisible({
+  await expect(dialog.getByRole('heading', { name: 'Onboard Unity' })).toBeVisible({
     timeout: 5_000,
   });
 });
@@ -74,8 +74,8 @@ test('seeded assistants appear in the list with correct names', async ({ authedP
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  // The list now lives inside the rail's droid switcher popover.
-  await openDroidSwitcher(page);
+  // The list now lives inside the rail's unity switcher popover.
+  await openUnitySwitcher(page);
 
   const item1 = page.getByTestId(`assistant-list-item-${a1.agentId}`);
   const item2 = page.getByTestId(`assistant-list-item-${a2.agentId}`);
@@ -101,7 +101,7 @@ test('clicking an assistant in the list selects it and shows the Chat tab', asyn
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  // Selecting from the switcher opens the droid in the section host with the
+  // Selecting from the switcher opens the unity in the section host with the
   // Chat section active by default (the rail owns section nav now).
   await selectAssistantInList(page, agentId);
 
@@ -116,7 +116,7 @@ test('clicking an assistant in the list selects it and shows the Chat tab', asyn
 
 // RETIRED (Phase 5 — Hire/onboarding): this journey asserts the legacy
 // two-pane model — clicking a selected row to *deselect* it back to a
-// ``right-pane-tab-chat`` / "Select a droid…" empty state. Both are gone: the
+// ``right-pane-tab-chat`` / "Select a unity…" empty state. Both are gone: the
 // rail owns section nav (``rail-section-*``) and the workspace auto-selects the
 // personal Coordinator, so a bare list never sits in an empty/deselected state
 // and clicking a row only switches selection. The deselect-to-empty behaviour
@@ -221,17 +221,17 @@ test('list updates after hiring a new assistant without page reload', async ({
   deleteAllAssistantsForUser(user.id);
   // A regular assistant must exist so the page renders the standard list view
   // (a coordinator-only workspace stays on the onboarding intro).
-  createAssistant({ userId: user.id, firstName: 'Baseline', surname: 'Droid' });
+  createAssistant({ userId: user.id, firstName: 'Baseline', surname: 'Unity' });
   const firstName = `Fresh${Date.now()}`;
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
 
-  // The list lives inside the rail's droid switcher popover — open it to
+  // The list lives inside the rail's unity switcher popover — open it to
   // count visible list items before the hire, then close it (the popover is
   // itself a [role="dialog"], so leaving it open would make openHireDialog
   // think the hire dialog is already up).
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   const itemsBefore = await page.locator('[data-testid^="assistant-list-item-"]').count();
   await page.keyboard.press('Escape');
   await page.waitForTimeout(500);
@@ -246,8 +246,8 @@ test('list updates after hiring a new assistant without page reload', async ({
   await clickHireButton(page);
 
   // The hire dialog (and the switcher popover) dismiss on submit; reopen the
-  // switcher to confirm the freshly hired droid shows without a page reload.
-  await openDroidSwitcher(page);
+  // switcher to confirm the freshly hired unity shows without a page reload.
+  await openUnitySwitcher(page);
   const newItem = page.locator('[data-testid^="assistant-list-item-"]', { hasText: firstName });
   await expect(newItem).toBeVisible({ timeout: 60_000 });
 

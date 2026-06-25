@@ -2334,7 +2334,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   );
 
   // The full prop bag the rail forwards to the embedded `AssistantList` (the
-  // droid switcher). `isFolded`/`onToggleFold` are owned by the rail, so the
+  // unity switcher). `isFolded`/`onToggleFold` are owned by the rail, so the
   // popover list always renders expanded.
   const railListProps: React.ComponentProps<typeof AssistantList> = {
     assistants: sidebarAssistants,
@@ -2382,7 +2382,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
           <div className="relative flex min-h-0 flex-1 overflow-hidden">
             <div className="relative flex min-h-0 w-full flex-1 overflow-hidden">
               <AssistantRail
-                activeDroid={profileAssistant}
+                activeUnity={profileAssistant}
                 listProps={railListProps}
                 activeSection={activeSectionId}
                 onSelectSection={handleSelectSection}

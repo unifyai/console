@@ -42,7 +42,7 @@ import {
   dbExec,
   deleteAllAssistantsForUser,
   orchestraFetch,
-  openDroidSwitcher,
+  openUnitySwitcher,
   selectAssistantInList,
 } from './helpers';
 
@@ -320,7 +320,7 @@ test('picking chat lands in the full platform with the checklist in Assistant in
   // The intro overlay tears down, revealing the regular platform: the
   // assistant list is present (the dedicated onboarding shell hid it).
   await expect(page.getByTestId('coordinator-onboarding')).toBeHidden({ timeout: 15_000 });
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   await expect(page.getByTestId(`assistant-list-item-${coordinator.agentId}`)).toBeVisible({
     timeout: 15_000,
   });
@@ -586,8 +586,8 @@ test('switching back to T-W1N does not reapply the onboarding focus layout', asy
   await expect(page.getByTestId('assistant-info-sheet')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('assistant-info-tab-onboarding')).toBeVisible();
 
-  // Close the Coordinator's info sheet, then bounce to another droid and
-  // back via the rail's droid switcher.
+  // Close the Coordinator's info sheet, then bounce to another unity and
+  // back via the rail's unity switcher.
   await page.getByTestId('assistant-info-button').click();
   await expect(page.getByTestId('assistant-info-sheet')).toHaveCount(0);
 

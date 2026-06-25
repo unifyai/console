@@ -27,7 +27,7 @@ interface AssistantHireProps extends Partial<HireFormProps> {
   showInsufficientFundsHint: boolean;
   setShowInsufficientFundsHint: React.Dispatch<React.SetStateAction<boolean>>;
   onAddPaymentMethod?: () => void;
-  /** Randomizes the droid's name, role, bio and appearance from the header. */
+  /** Randomizes the unity's name, role, bio and appearance from the header. */
   onRandomize?: () => void;
   formMethods: UseFormReturn<AssistantFormData>;
   /** When true the Stripe side-panel is open — focus-trap bypass and
@@ -166,7 +166,7 @@ export function AssistantHire({
                   className="h-8 gap-1.5"
                   onClick={onRandomize}
                   disabled={isOverallDialogBusy}
-                  aria-label="Randomize droid profile"
+                  aria-label="Randomize unity profile"
                 >
                   <Shuffle className="h-3.5 w-3.5" />
                   Randomize

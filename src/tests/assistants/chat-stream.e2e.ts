@@ -23,7 +23,7 @@ import {
   createAssistant,
   navigateToAssistants,
   closeHireDialogIfOpen,
-  openDroidSwitcher,
+  openUnitySwitcher,
   deleteAllAssistantsForUser,
   ensureProjectSync,
 } from './helpers';
@@ -105,7 +105,7 @@ test('switching to another assistant and back keeps each chat working independen
   // ---- Open assistant A ---------------------------------------------------
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
 
   const itemA = page.getByTestId(`assistant-list-item-${assistantA.agentId}`);
   await expect(itemA).toBeVisible({ timeout: 15_000 });
@@ -125,7 +125,7 @@ test('switching to another assistant and back keeps each chat working independen
   });
 
   // ---- Switch to assistant B (tears down A's inbox stream) ----------------
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   const itemB = page.getByTestId(`assistant-list-item-${assistantB.agentId}`);
   await itemB.click();
   await page.waitForTimeout(1_000);
@@ -145,7 +145,7 @@ test('switching to another assistant and back keeps each chat working independen
   });
 
   // ---- Switch back to A (rebuilds A's inbox stream from scratch) ----------
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   await itemA.click();
   await page.waitForTimeout(1_000);
 
@@ -189,7 +189,7 @@ test('switching to another assistant and back keeps each chat working independen
 // Requires the local `--chat` harness: the Pub/Sub emulator (localhost:8085)
 // has to be up so the test can publish `unify_message_outbound` frames
 // directly to the assistant's topic, bypassing the full Communication +
-// Droid adapter pipeline.
+// Unity adapter pipeline.
 
 test('unread message badge appears for an inactive assistant and clears when its chat is opened', async ({
   authedPage: page,

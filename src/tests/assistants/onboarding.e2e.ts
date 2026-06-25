@@ -36,7 +36,7 @@ import {
   deleteAllAssistantsForUser,
   ensureProjectSync,
   setUserCredits,
-  openDroidSwitcher,
+  openUnitySwitcher,
 } from './helpers';
 
 const user = createTestUser({ name: 'Roadmap', lastName: 'Tester', credits: 50_000 });
@@ -72,7 +72,7 @@ async function hireBareAssistant(page: Page, firstName: string, lastName = 'Bot'
   await navigateForRoadmapTests(page);
 
   const dialogVisible = await page
-    .getByRole('heading', { name: 'Onboard Droid' })
+    .getByRole('heading', { name: 'Onboard Unity' })
     .first()
     .isVisible({ timeout: 5_000 })
     .catch(() => false);
@@ -89,7 +89,7 @@ async function hireBareAssistant(page: Page, firstName: string, lastName = 'Bot'
   await clickHireButton(page);
 
   // Confirm hire success: assistant lands in the list (inside the switcher).
-  await openDroidSwitcher(page);
+  await openUnitySwitcher(page);
   const listItem = page.locator('[data-testid^="assistant-list-item-"]', {
     hasText: firstName,
   });

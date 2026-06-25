@@ -1,5 +1,5 @@
 /**
- * Canonical brand fonts, sourced from `@droid/brand/fonts` (local font files).
+ * Canonical brand fonts, sourced from `@unity/brand/fonts` (local font files).
  *
  * The brand package exposes the fonts under their own CSS variable names
  * (`--font-inter`, `--font-space-grotesk`, `--font-roboto-mono`,
@@ -14,4 +14,4 @@ export {
   robotoMono as fontMono,
   instrumentSerif as fontSerif,
   brandFontVariables,
-} from '@droid/brand/fonts';
+} from '@unity/brand/fonts';

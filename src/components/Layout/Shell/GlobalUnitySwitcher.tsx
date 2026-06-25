@@ -12,17 +12,17 @@ import { getCurrentUser } from '@/lib/user/user';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import type { Assistant } from '@/types/assistants/assistant';
 
-interface GlobalDroidSwitcherProps {
+interface GlobalUnitySwitcherProps {
   collapsed: boolean;
 }
 
 /**
- * A read-only droid switcher for non-assistant home routes: it surfaces the
+ * A read-only unity switcher for non-assistant home routes: it surfaces the
  * workspace coordinator and routes to `/assistants` (where the full switcher
  * lives) on click, so the rail reads consistently everywhere without pulling
  * the heavy assistants data layer into every route.
  */
-export function GlobalDroidSwitcher({ collapsed }: GlobalDroidSwitcherProps) {
+export function GlobalUnitySwitcher({ collapsed }: GlobalUnitySwitcherProps) {
   const router = useRouter();
   const { activeWorkspace } = useWorkspace();
   const [coordinator, setCoordinator] = React.useState<Assistant | null>(null);
@@ -48,12 +48,12 @@ export function GlobalDroidSwitcher({ collapsed }: GlobalDroidSwitcherProps) {
     };
   }, [activeWorkspace?.id, activeWorkspace?.type]);
 
-  const name = coordinator ? assistantDisplayName(coordinator) : 'Your droids';
+  const name = coordinator ? assistantDisplayName(coordinator) : 'Your Unitys';
 
   return (
     <button
       type="button"
-      data-testid="rail-droid-switcher"
+      data-testid="rail-unity-switcher"
       title={collapsed ? name : undefined}
       onClick={() => router.push('/assistants')}
       className={cn(

@@ -7,7 +7,7 @@ module.exports = {
     './src/**/*.{js,ts,jsx,tsx,mdx}',
     './node_modules/@nextui-org/theme/dist/**/*.{js,ts,jsx,tsx}',
   ],
-  presets: [require('@droid/brand/tailwind-preset')],
+  presets: [require('@unity/brand/tailwind-preset')],
   theme: {
     container: {
       center: true,
@@ -40,7 +40,7 @@ module.exports = {
       },
       colors: {
         // Standard semantic, role, and chart colors are provided by
-        // @droid/brand/tailwind-preset. Console-specific colors live below.
+        // @unity/brand/tailwind-preset. Console-specific colors live below.
         'card-2': 'var(--card-2)',
         'accent-soft': {
           DEFAULT: 'var(--accent-soft)',
@@ -58,7 +58,7 @@ module.exports = {
         },
       },
       borderRadius: {
-        // lg/md/sm are provided by @droid/brand/tailwind-preset.
+        // lg/md/sm are provided by @unity/brand/tailwind-preset.
         xl: 'var(--radius-lg)',
         pill: 'var(--radius-pill)',
       },
@@ -68,7 +68,7 @@ module.exports = {
         'primary-press': '0 2px 0 var(--primary-shadow)',
       },
       fontFamily: {
-        // sans/mono/serif are provided by @droid/brand/tailwind-preset.
+        // sans/mono/serif are provided by @unity/brand/tailwind-preset.
         display: [
           'var(--font-display)',
           'var(--font-space-grotesk)',

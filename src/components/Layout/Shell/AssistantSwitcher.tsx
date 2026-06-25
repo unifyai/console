@@ -11,7 +11,7 @@ import { CoordinatorLogoAvatar } from '@/components/Pages/Assistants/Coordinator
 import type { Assistant } from '@/types/assistants/assistant';
 import { AssistantList } from '@/components/Pages/Assistants/List/AssistantList';
 
-function DroidAvatar({ assistant, sizeClass }: { assistant: Assistant; sizeClass: string }) {
+function UnityAvatar({ assistant, sizeClass }: { assistant: Assistant; sizeClass: string }) {
   if (assistant.isCoordinator) {
     return <CoordinatorLogoAvatar className={cn('shrink-0', sizeClass)} />;
   }
@@ -35,27 +35,27 @@ function DroidAvatar({ assistant, sizeClass }: { assistant: Assistant; sizeClass
 }
 
 interface AssistantSwitcherProps {
-  /** Currently-open droid; drives the switcher card face. */
-  activeDroid: Assistant | null;
+  /** Currently-open unity; drives the switcher card face. */
+  activeUnity: Assistant | null;
   /** Full prop bag forwarded to the embedded `AssistantList` (the switcher). */
   listProps: React.ComponentProps<typeof AssistantList>;
   collapsed: boolean;
 }
 
 /**
- * The rail's droid switcher: a card showing the active droid that opens a
- * popover hosting the full `AssistantList` for picking/hiring droids. Selecting
- * a droid switches to it and dismisses the popover.
+ * The rail's unity switcher: a card showing the active unity that opens a
+ * popover hosting the full `AssistantList` for picking/hiring Unitys. Selecting
+ * a unity switches to it and dismisses the popover.
  */
-export function AssistantSwitcher({ activeDroid, listProps, collapsed }: AssistantSwitcherProps) {
+export function AssistantSwitcher({ activeUnity, listProps, collapsed }: AssistantSwitcherProps) {
   const [switcherOpen, setSwitcherOpen] = React.useState(false);
 
-  const droidName = activeDroid ? assistantDisplayName(activeDroid) : 'Select a droid';
-  const droidSub = activeDroid
-    ? activeDroid.isCoordinator
+  const unityName = activeUnity ? assistantDisplayName(activeUnity) : 'Select a unity';
+  const unitySub = activeUnity
+    ? activeUnity.isCoordinator
       ? 'Coordinator'
-      : activeDroid.jobTitle?.trim() || 'Droid'
-    : 'No droid selected';
+      : activeUnity.jobTitle?.trim() || 'Unity'
+    : 'No unity selected';
 
   const handleShowProfile = React.useCallback(
     (id: string) => {
@@ -70,8 +70,8 @@ export function AssistantSwitcher({ activeDroid, listProps, collapsed }: Assista
       <PopoverTrigger asChild>
         <button
           type="button"
-          data-testid="rail-droid-switcher"
-          title={collapsed ? droidName : undefined}
+          data-testid="rail-unity-switcher"
+          title={collapsed ? unityName : undefined}
           className={cn(
             'flex items-center gap-3 transition-colors',
             collapsed
@@ -79,9 +79,9 @@ export function AssistantSwitcher({ activeDroid, listProps, collapsed }: Assista
               : 'mx-3.5 mb-2 rounded-xl border border-border bg-muted px-3 py-2 hover:bg-accent'
           )}
         >
-          {activeDroid ? (
-            <DroidAvatar
-              assistant={activeDroid}
+          {activeUnity ? (
+            <UnityAvatar
+              assistant={activeUnity}
               sizeClass={collapsed ? 'h-10 w-10' : 'h-[38px] w-[38px]'}
             />
           ) : (
@@ -92,9 +92,9 @@ export function AssistantSwitcher({ activeDroid, listProps, collapsed }: Assista
           {!collapsed && (
             <>
               <div className="min-w-0 text-left">
-                <div className="truncate font-display text-[14.5px] font-semibold">{droidName}</div>
+                <div className="truncate font-display text-[14.5px] font-semibold">{unityName}</div>
                 <div className="truncate text-[11.5px] capitalize text-muted-foreground">
-                  {droidSub}
+                  {unitySub}
                 </div>
               </div>
               <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
@@ -106,7 +106,7 @@ export function AssistantSwitcher({ activeDroid, listProps, collapsed }: Assista
         align="start"
         side="bottom"
         sideOffset={6}
-        data-testid="rail-droid-switcher-popover"
+        data-testid="rail-unity-switcher-popover"
         className="flex h-[70vh] max-h-[560px] w-[320px] flex-col overflow-hidden p-0"
       >
         <AssistantList
