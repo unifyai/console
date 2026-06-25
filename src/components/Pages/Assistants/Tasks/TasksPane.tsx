@@ -7,9 +7,9 @@ import { cn } from '@/lib/utils';
 import { useTasksData } from '@/hooks/Assistants/useTasksData';
 import type { ColumnDef } from '@tanstack/react-table';
 import { getColumnsForTaskView, TASK_LIVE_DOT_CLASS } from '@/utils/assistants/tasks';
-import { MemoryTable } from '../Memory/MemoryTable';
-import { MemoryRowDetail } from '../Memory/MemoryRowDetail';
-import type { MemoryRow, TaskMemoryView, TaskRunRow } from '@/types/assistants/memory';
+import { BrainTable } from '../Brain/BrainTable';
+import { BrainRowDetail } from '../Brain/BrainRowDetail';
+import type { BrainRow, TaskBrainView, TaskRunRow } from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
 
 interface TasksPaneProps {
@@ -24,14 +24,14 @@ interface TasksPaneProps {
    * a *second* input that lets the parent (e.g. the right-pane tab
    * strip's dropdown) drive sub-tab selection too.
    */
-  subTab?: TaskMemoryView;
+  subTab?: TaskBrainView;
   /**
    * Fires whenever the active sub-tab changes — from footer clicks,
    * external `subTab` updates, or assistant-change resets. Lets the
    * parent's dropdown stay in sync with whichever sub-tab is actually
    * showing in the pane.
    */
-  onSubTabChange?: (next: TaskMemoryView) => void;
+  onSubTabChange?: (next: TaskBrainView) => void;
   /**
    * Notifies the parent whenever the pane's tasks list count
    * changes. Used by the Coordinator onboarding flow to auto-mark
@@ -41,7 +41,7 @@ interface TasksPaneProps {
   onTasksCountChange?: (count: number) => void;
 }
 
-function getTaskEmptyState(taskView: TaskMemoryView, isFiltered: boolean): { title: string } {
+function getTaskEmptyState(taskView: TaskBrainView, isFiltered: boolean): { title: string } {
   if (isFiltered) {
     return { title: 'No results match your search' };
   }
@@ -211,7 +211,7 @@ export function TasksPane({
   const detailTitle = taskView === 'Tasks' ? 'Task Detail' : 'Activity Detail';
   const emptyState = getTaskEmptyState(taskView, isFiltered);
   const getRowEmphasis = useCallback(
-    (row: MemoryRow) => {
+    (row: BrainRow) => {
       if (taskView !== 'Activity') return undefined;
       return 'state' in row && row.state === 'running' ? 'running' : undefined;
     },
@@ -288,9 +288,9 @@ export function TasksPane({
 
       {/* Body — table */}
       <div className="min-h-0 flex-1" data-testid="tasks-body">
-        <MemoryTable<MemoryRow>
+        <BrainTable<BrainRow>
           data={activeState.rows}
-          columns={columns as ColumnDef<MemoryRow, any>[]}
+          columns={columns as ColumnDef<BrainRow, any>[]}
           isLoading={isLoading}
           isLoadingMore={isLoadingMore}
           hasMore={activeState.hasMore}
@@ -325,7 +325,7 @@ export function TasksPane({
         </div>
       )}
 
-      <MemoryRowDetail
+      <BrainRowDetail
         row={selectedRow}
         context="Tasks"
         taskView={taskView}

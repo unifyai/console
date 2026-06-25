@@ -1,7 +1,7 @@
 /**
  * Column definitions and formatting utilities for the Tasks tab.
  *
- * Extracted from memory.ts to give Tasks its own dedicated tab
+ * Extracted from brain.ts to give Tasks its own dedicated tab
  * with task-specific rendering, status badges, and detail sections.
  */
 
@@ -9,16 +9,16 @@ import React from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { cn } from '@/lib/utils';
-import { truncate, isPresent, formatTimestamp } from '@/utils/assistants/memory';
+import { truncate, isPresent, formatTimestamp } from '@/utils/assistants/brain';
 import type {
-  TaskMemoryView,
+  TaskBrainView,
   TaskRow,
   TaskScheduleRow,
   TaskTriggerRow,
   TaskRepeatPatternRow,
   TaskRunRow,
-} from '@/types/assistants/memory';
-import type { DetailSection, DetailSectionItem } from '@/utils/assistants/memory';
+} from '@/types/assistants/brain';
+import type { DetailSection, DetailSectionItem } from '@/utils/assistants/brain';
 
 const BADGE_BASE_CLASS =
   'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tracking-[0.01em]';
@@ -589,7 +589,7 @@ export const TASK_RUN_COLUMNS: ColumnDef<TaskRunRow>[] = [
     (_row, value) =>
       taskStatusBadge(value, {
         showRunningDot: true,
-        dotTestId: 'memory-running-state-indicator',
+        dotTestId: 'brain-running-state-indicator',
       }),
     120
   ),
@@ -597,7 +597,7 @@ export const TASK_RUN_COLUMNS: ColumnDef<TaskRunRow>[] = [
   accessorCell<TaskRunRow>('startedAt', 'Timing', (row) => formatRunTimingCell(row), 260),
 ];
 
-export function getColumnsForTaskView(view: TaskMemoryView, _fields?: string[]) {
+export function getColumnsForTaskView(view: TaskBrainView, _fields?: string[]) {
   switch (view) {
     case 'Tasks':
       return TASK_COLUMNS;

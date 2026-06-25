@@ -140,7 +140,7 @@ export interface Assistant {
    * An empty array means the assistant is currently personal-only.
    */
   teamIds: number[];
-  /** Human-readable metadata for each shared-memory team membership. */
+  /** Human-readable metadata for each shared-brain team membership. */
   teamSummaries: SharedTeamSummary[];
   /**
    * Contact id representing the assistant in its own conversation data.

@@ -1,4 +1,4 @@
-/** Organization team metadata for shared-memory routing in Console. */
+/** Organization team metadata for shared-brain routing in Console. */
 
 export type TeamStatus = 'active' | 'deleting';
 

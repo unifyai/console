@@ -1,5 +1,5 @@
 /**
- * Client-side API functions for the Memory tab.
+ * Client-side API functions for the Brain tab.
  *
  * Fetches Contacts, Transcripts, Knowledge, and Tasks from /api/logs
  * using session cookie auth. These are GET-only functions meant to be
@@ -8,12 +8,12 @@
  */
 
 import type {
-  MemoryContext,
-  MemoryContextData,
-  MemoryRow,
+  BrainContext,
+  BrainContextData,
+  BrainRow,
   KnowledgeRow,
   FunctionRow,
-} from '@/types/assistants/memory';
+} from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
 import { camelToSnake, snakeToCamel } from '@/utils/casing';
 import { mergeRootRows } from '@/lib/client/read_across_roots';
@@ -22,7 +22,7 @@ import { transcriptMergeDedupeKey } from '@/lib/assistants/transcriptDedupe';
 
 const PAGE_SIZE = 50;
 
-function parseLogsResponse<T extends MemoryRow>(data: any): MemoryContextData<T> {
+function parseLogsResponse<T extends BrainRow>(data: any): BrainContextData<T> {
   const logs: any[] = data?.logs ?? [];
   const count: number = data?.count ?? logs.length;
 
@@ -51,7 +51,7 @@ function parseSortingParam(
   }
 }
 
-function sortValueForField(row: MemoryRow, field: string): string | number | Date | null {
+function sortValueForField(row: BrainRow, field: string): string | number | Date | null {
   const value = (row as Record<string, unknown>)[field];
   if (typeof value === 'string' || typeof value === 'number') return value;
   if (value instanceof Date) return value;
@@ -96,9 +96,9 @@ function readableRootsFor(
   return roots(assistant);
 }
 
-export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
+export async function fetchBrainContext<T extends BrainRow = BrainRow>(
   assistant: Assistant,
-  context: MemoryContext | string,
+  context: BrainContext | string,
   options?: {
     limit?: number;
     offset?: number;
@@ -107,8 +107,8 @@ export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
     readAcrossRoots?: boolean;
     root?: ContextRoot | null;
   }
-): Promise<MemoryContextData<T>> {
-  const empty: MemoryContextData<T> = { rows: [], count: 0, fields: [] };
+): Promise<BrainContextData<T>> {
+  const empty: BrainContextData<T> = { rows: [], count: 0, fields: [] };
 
   try {
     const readableRoots = readableRootsFor(assistant, options);
@@ -144,7 +144,7 @@ export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
     const requestedOffset = options?.offset ?? 0;
     const rootLimit = requestedLimit + requestedOffset + 1;
     const rootResults = await Promise.all(
-      readableRoots.map(async (root): Promise<MemoryContextData<T>> => {
+      readableRoots.map(async (root): Promise<BrainContextData<T>> => {
         const params = new URLSearchParams({
           projectName: 'Assistants',
           context: rootContext(root, assistant.userId, assistant.agentId, context),
@@ -208,12 +208,12 @@ export async function fetchMemoryContext<T extends MemoryRow = MemoryRow>(
  * Functions/Compositional). Discovers sub-contexts via the contexts API and
  * merges rows from all tables, tagging each row with a `_table` field.
  */
-async function fetchSubContextTables<T extends MemoryRow>(
+async function fetchSubContextTables<T extends BrainRow>(
   assistant: Assistant,
   parentContext: string,
   root?: ContextRoot | null
-): Promise<MemoryContextData<T>> {
-  const empty: MemoryContextData<T> = { rows: [], count: 0, fields: [] };
+): Promise<BrainContextData<T>> {
+  const empty: BrainContextData<T> = { rows: [], count: 0, fields: [] };
 
   try {
     const ctxRes = await fetch(`/api/context/Assistants`, { cache: 'no-store' });
@@ -287,13 +287,13 @@ async function fetchSubContextTables<T extends MemoryRow>(
 export function fetchKnowledgeTables(
   assistant: Assistant,
   root?: ContextRoot | null
-): Promise<MemoryContextData<KnowledgeRow>> {
+): Promise<BrainContextData<KnowledgeRow>> {
   return fetchSubContextTables<KnowledgeRow>(assistant, 'Knowledge', root);
 }
 
 export function fetchFunctionsTables(
   assistant: Assistant,
   root?: ContextRoot | null
-): Promise<MemoryContextData<FunctionRow>> {
+): Promise<BrainContextData<FunctionRow>> {
   return fetchSubContextTables<FunctionRow>(assistant, 'Functions', root);
 }

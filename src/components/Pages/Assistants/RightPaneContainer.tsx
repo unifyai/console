@@ -27,11 +27,11 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import type { MemoryContext, TaskMemoryView } from '@/types/assistants/memory';
+import type { BrainContext, TaskBrainView } from '@/types/assistants/brain';
 import { cn } from '@/lib/utils';
 import { LiveActionsViewer } from './LiveActions';
 import { DashboardsPane } from './Dashboards';
-import { MemoryPane } from './Memory';
+import { BrainPane } from './Brain';
 import { TasksPane } from './Tasks';
 import { IntegrationsPane } from './Integrations';
 import { ChatWithInfoPanel } from './Chat/ChatWithInfoPanel';
@@ -68,9 +68,9 @@ const TAB_CONTENT_CLASS =
  * Right-pane tab identifiers. Kept as a string-literal union so the split
  * state and persistence layer can stay typed end-to-end.
  */
-export type RightPaneTab = 'chat' | 'tasks' | 'dashboards' | 'memory' | 'integrations' | 'actions';
+export type RightPaneTab = 'chat' | 'tasks' | 'dashboards' | 'brain' | 'integrations' | 'actions';
 
-type MemoryTabContext = Exclude<MemoryContext, 'Tasks'>;
+type BrainTabContext = Exclude<BrainContext, 'Tasks'>;
 
 /**
  * Discriminated union of sub-tab IDs valid for each parent tab that has
@@ -136,7 +136,7 @@ function JoystickIcon({ className }: { className?: string }) {
   );
 }
 
-const MEMORY_SUB_TABS: ReadonlyArray<RightPaneSubTab> = [
+const BRAIN_SUB_TABS: ReadonlyArray<RightPaneSubTab> = [
   { id: 'Contacts', label: 'Contacts', Icon: Users },
   { id: 'Transcripts', label: 'Transcripts', Icon: MessageSquare },
   { id: 'Knowledge', label: 'Knowledge', Icon: BookOpen },
@@ -149,8 +149,8 @@ const TASKS_SUB_TABS: ReadonlyArray<RightPaneSubTab> = [
   { id: 'Activity', label: 'Activity', Icon: Activity },
 ];
 
-const DEFAULT_MEMORY_SUB_TAB: MemoryTabContext = 'Contacts';
-const DEFAULT_TASKS_SUB_TAB: TaskMemoryView = 'Tasks';
+const DEFAULT_BRAIN_SUB_TAB: BrainTabContext = 'Contacts';
+const DEFAULT_TASKS_SUB_TAB: TaskBrainView = 'Tasks';
 
 /**
  * Visual order — left to right. Grouped into three clusters of
@@ -168,7 +168,7 @@ const DEFAULT_TASKS_SUB_TAB: TaskMemoryView = 'Tasks';
  *
  *   Group 3 — persistent context that drives the assistant:
  *     5. Tasks          — work in progress and completed tasks.
- *     6. Memory         — persistent context and notes.
+ *     6. Brain         — persistent context and notes.
  *
  * Reorder here is the single source of truth — slot rendering, the
  * tab strip, and (eventually) keyboard shortcuts all iterate this
@@ -209,11 +209,11 @@ export const RIGHT_PANE_TABS: ReadonlyArray<RightPaneTabConfig> = [
     dividerBefore: true,
   },
   {
-    id: 'memory',
-    label: 'Memory',
+    id: 'brain',
+    label: 'Brain',
     Icon: Brain,
     describe: (name) => `Persistent context and notes for ${name}`,
-    subTabs: MEMORY_SUB_TABS,
+    subTabs: BRAIN_SUB_TABS,
   },
 ];
 
@@ -377,7 +377,7 @@ interface RightPaneContainerProps {
    * When the rail shell owns primary navigation (the rail's Workspace/Brain
    * sections), the in-pane primary tab strip is redundant. With this set the
    * strip header collapses to a slim utility bar that keeps only the active
-   * tab's sub-tab dropdown (Tasks/Memory) plus the split/close controls.
+   * tab's sub-tab dropdown (Tasks/Brain) plus the split/close controls.
    */
   hideTabStrip?: boolean;
 }
@@ -435,7 +435,7 @@ export function RightPaneContainer({
   const { voiceCalls } = useFeatures();
   const [isInfoOpen, setIsInfoOpen] = useState(false);
 
-  // Per-slot sub-tab state for the tabs that have sub-tabs (Memory,
+  // Per-slot sub-tab state for the tabs that have sub-tabs (Brain,
   // Tasks). Kept here so the dropdown in the tab strip can both *drive*
   // the pane's sub-tab (dropdown click → pane switches) and *reflect*
   // the pane's current sub-tab (footer-tab click inside the pane →
@@ -443,18 +443,18 @@ export function RightPaneContainer({
   // pair of sub-tab choices so a split view with the same tab in both
   // slots can show different sub-tabs.
   const [subTabBySlot, setSubTabBySlot] = useState<{
-    primary: { memory: MemoryTabContext; tasks: TaskMemoryView };
-    secondary: { memory: MemoryTabContext; tasks: TaskMemoryView };
+    primary: { brain: BrainTabContext; tasks: TaskBrainView };
+    secondary: { brain: BrainTabContext; tasks: TaskBrainView };
   }>({
-    primary: { memory: DEFAULT_MEMORY_SUB_TAB, tasks: DEFAULT_TASKS_SUB_TAB },
-    secondary: { memory: DEFAULT_MEMORY_SUB_TAB, tasks: DEFAULT_TASKS_SUB_TAB },
+    primary: { brain: DEFAULT_BRAIN_SUB_TAB, tasks: DEFAULT_TASKS_SUB_TAB },
+    secondary: { brain: DEFAULT_BRAIN_SUB_TAB, tasks: DEFAULT_TASKS_SUB_TAB },
   });
 
   const setSlotSubTab = useCallback(
-    <K extends 'memory' | 'tasks'>(
+    <K extends 'brain' | 'tasks'>(
       slot: 'primary' | 'secondary',
       key: K,
-      value: K extends 'memory' ? MemoryTabContext : TaskMemoryView
+      value: K extends 'brain' ? BrainTabContext : TaskBrainView
     ) => {
       setSubTabBySlot((prev) =>
         prev[slot][key] === value ? prev : { ...prev, [slot]: { ...prev[slot], [key]: value } }
@@ -463,23 +463,23 @@ export function RightPaneContainer({
     []
   );
 
-  // Stable per-slot callback factories so MemoryPane / TasksPane don't
+  // Stable per-slot callback factories so BrainPane / TasksPane don't
   // re-fire their `onSubTabChange` effect on every render of this
   // container.
-  const primaryMemoryChange = useCallback(
-    (next: MemoryTabContext) => setSlotSubTab('primary', 'memory', next),
+  const primaryBrainChange = useCallback(
+    (next: BrainTabContext) => setSlotSubTab('primary', 'brain', next),
     [setSlotSubTab]
   );
   const primaryTasksChange = useCallback(
-    (next: TaskMemoryView) => setSlotSubTab('primary', 'tasks', next),
+    (next: TaskBrainView) => setSlotSubTab('primary', 'tasks', next),
     [setSlotSubTab]
   );
-  const secondaryMemoryChange = useCallback(
-    (next: MemoryTabContext) => setSlotSubTab('secondary', 'memory', next),
+  const secondaryBrainChange = useCallback(
+    (next: BrainTabContext) => setSlotSubTab('secondary', 'brain', next),
     [setSlotSubTab]
   );
   const secondaryTasksChange = useCallback(
-    (next: TaskMemoryView) => setSlotSubTab('secondary', 'tasks', next),
+    (next: TaskBrainView) => setSlotSubTab('secondary', 'tasks', next),
     [setSlotSubTab]
   );
 
@@ -647,7 +647,7 @@ export function RightPaneContainer({
               className="right-pane-tabs-list h-8 flex-nowrap gap-2 rounded-none bg-transparent p-0"
             >
               {/* When the rail owns primary nav we keep only the active tab's
-                  sub-tab dropdown (Tasks/Memory); other tabs are reached via the
+                  sub-tab dropdown (Tasks/Brain); other tabs are reached via the
                   rail, so their triggers would be redundant. */}
               {RIGHT_PANE_TABS.filter(
                 ({ id, subTabs }) =>
@@ -711,7 +711,7 @@ export function RightPaneContainer({
                 if (subTabs && subTabs.length > 0) {
                   const slotSubTabs = subTabBySlot[slot];
                   const currentSubTabValue: string =
-                    id === 'memory' ? slotSubTabs.memory : id === 'tasks' ? slotSubTabs.tasks : '';
+                    id === 'brain' ? slotSubTabs.brain : id === 'tasks' ? slotSubTabs.tasks : '';
                   // The tab chip *displays* the currently-selected
                   // sub-tab (label + icon) rather than the parent tab's
                   // own name, so the user can read which sub-tab they
@@ -726,10 +726,10 @@ export function RightPaneContainer({
                   const displayLabel = currentSubTab?.label ?? label;
                   const dropdownTitle = displayLabel;
                   const handleSubTabSelect = (next: string) => {
-                    if (id === 'memory') {
-                      setSlotSubTab(slot, 'memory', next as MemoryTabContext);
+                    if (id === 'brain') {
+                      setSlotSubTab(slot, 'brain', next as BrainTabContext);
                     } else if (id === 'tasks') {
-                      setSlotSubTab(slot, 'tasks', next as TaskMemoryView);
+                      setSlotSubTab(slot, 'tasks', next as TaskBrainView);
                     }
                     // Switch the slot to this parent tab on selection;
                     // a no-op when we're already on it.
@@ -1084,14 +1084,14 @@ export function RightPaneContainer({
               )}
             </TabsContent>
 
-            <TabsContent value="memory" className={TAB_CONTENT_CLASS} forceMount>
-              <MemoryPane
+            <TabsContent value="brain" className={TAB_CONTENT_CLASS} forceMount>
+              <BrainPane
                 assistant={assistant}
                 ownerId={assistant.userId}
                 assistantId={assistant.agentId}
-                isVisible={tab === 'memory'}
-                subTab={subTabBySlot[slot].memory}
-                onSubTabChange={slot === 'primary' ? primaryMemoryChange : secondaryMemoryChange}
+                isVisible={tab === 'brain'}
+                subTab={subTabBySlot[slot].brain}
+                onSubTabChange={slot === 'primary' ? primaryBrainChange : secondaryBrainChange}
               />
             </TabsContent>
 

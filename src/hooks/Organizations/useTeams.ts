@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 
 export const useTeams = (orgId: number | undefined, actions: TeamActions) => {
   const [teams, setTeams] = useState<Team[]>([]);
-  // Mirrors the proven pattern in `useMemoryData`: initialize to
+  // Mirrors the proven pattern in `useBrainData`: initialize to
   // `true` so the first paint of the consumer renders skeleton rows
   // immediately, then flip to `false` in the fetch's `finally`.
   const [isLoading, setIsLoading] = useState<boolean>(true);

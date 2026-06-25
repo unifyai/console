@@ -8,7 +8,7 @@ import {
   SecretActions,
 } from '@/types/assistants/secret';
 import { ResponseProps } from '@/types/common';
-import { buildSortingParam, buildSearchFilterExpr } from '@/lib/client/memory';
+import { buildSortingParam, buildSearchFilterExpr } from '@/lib/client/brain';
 
 export type SecretsSortField = 'name' | 'description';
 export type SecretsSortDirection = 'asc' | 'desc';
@@ -62,12 +62,12 @@ export function useAssistantSecrets(
   // Start as loading unconditionally so the skeleton is visible for the full
   // duration of the first fetch. Consumers that never have an assistantId
   // won't call the fetcher, but the skeleton stays up in that edge case which
-  // is fine — it's consistent with Memory/Tasks.
+  // is fine — it's consistent with Brain/Tasks.
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pendingUpload, setPendingUpload] = React.useState<PendingUpload | null>(null);
-  // Sort and search are driven by the server just like Memory/Tasks: changing
+  // Sort and search are driven by the server just like Brain/Tasks: changing
   // either triggers a re-fetch. Sort defaults to name-asc so the initial view
   // is alphabetic. Search defaults to empty (no filter).
   const [sorting, setSorting] = React.useState<SecretsSortState>(DEFAULT_SORT);
@@ -132,7 +132,7 @@ export function useAssistantSecrets(
 
   // Tri-state cycle: asc → desc → null (default server order). Clicking a new
   // column resets to asc on that column. The skeleton re-appears while the
-  // new ordering is fetched — mirrors Memory.
+  // new ordering is fetched — mirrors Brain.
   const handleSort = React.useCallback(
     (field: SecretsSortField) => {
       beginRefetch();
@@ -146,7 +146,7 @@ export function useAssistantSecrets(
   );
 
   // Search is triggered by the consumer (e.g. on Enter), not on every
-  // keystroke — matches the Memory/Tasks pattern. Empty/whitespace queries
+  // keystroke — matches the Brain/Tasks pattern. Empty/whitespace queries
   // are treated as "clear".
   const handleSearch = React.useCallback(
     (query: string) => {

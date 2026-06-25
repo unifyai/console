@@ -13,18 +13,18 @@ import type { Assistant } from '@/types/assistants/assistant';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { currentTeamIds, type ContextRoot } from '@/lib/assistants/scope';
 
-export const MEMORY_DESTINATION_ALL = 'all';
-export const MEMORY_DESTINATION_PERSONAL = 'personal';
+export const BRAIN_DESTINATION_ALL = 'all';
+export const BRAIN_DESTINATION_PERSONAL = 'personal';
 
-export type MemoryDestinationValue =
-  | typeof MEMORY_DESTINATION_ALL
-  | typeof MEMORY_DESTINATION_PERSONAL
+export type BrainDestinationValue =
+  | typeof BRAIN_DESTINATION_ALL
+  | typeof BRAIN_DESTINATION_PERSONAL
   | `team:${number}`;
 
 interface DestinationDropdownProps {
   assistant: Assistant;
-  value: MemoryDestinationValue;
-  onValueChange: (value: MemoryDestinationValue) => void;
+  value: BrainDestinationValue;
+  onValueChange: (value: BrainDestinationValue) => void;
 }
 
 async function fetchAssistantTeams(assistantId: string): Promise<SharedTeamSummary[]> {
@@ -40,9 +40,9 @@ async function fetchAssistantTeams(assistantId: string): Promise<SharedTeamSumma
   return data as SharedTeamSummary[];
 }
 
-export function memoryDestinationRoot(value: MemoryDestinationValue): ContextRoot | null {
-  if (value === MEMORY_DESTINATION_ALL) return null;
-  if (value === MEMORY_DESTINATION_PERSONAL) return { kind: 'personal' };
+export function brainDestinationRoot(value: BrainDestinationValue): ContextRoot | null {
+  if (value === BRAIN_DESTINATION_ALL) return null;
+  if (value === BRAIN_DESTINATION_PERSONAL) return { kind: 'personal' };
 
   const teamId = Number(value.slice('team:'.length));
   return { kind: 'team', teamId };
@@ -74,26 +74,26 @@ export function DestinationDropdown({ assistant, value, onValueChange }: Destina
   }
 
   return (
-    <Select value={value} onValueChange={(next) => onValueChange(next as MemoryDestinationValue)}>
+    <Select value={value} onValueChange={(next) => onValueChange(next as BrainDestinationValue)}>
       <SelectTrigger
         className="h-7 w-[8.5rem] shrink-0 px-2 text-xs"
-        aria-label="Memory destination"
-        data-testid="memory-destination-dropdown"
+        aria-label="Brain destination"
+        data-testid="brain-destination-dropdown"
       >
         <SelectValue />
       </SelectTrigger>
       <SelectContent align="end">
-        <SelectItem value={MEMORY_DESTINATION_ALL} data-testid="memory-destination-all">
+        <SelectItem value={BRAIN_DESTINATION_ALL} data-testid="brain-destination-all">
           All
         </SelectItem>
-        <SelectItem value={MEMORY_DESTINATION_PERSONAL} data-testid="memory-destination-personal">
+        <SelectItem value={BRAIN_DESTINATION_PERSONAL} data-testid="brain-destination-personal">
           Personal
         </SelectItem>
         {teamIds.map((teamId) => (
           <SelectItem
             key={teamId}
             value={`team:${teamId}`}
-            data-testid={`memory-destination-team-${teamId}`}
+            data-testid={`brain-destination-team-${teamId}`}
           >
             {teamNames.get(teamId) ?? `Team ${teamId}`}
           </SelectItem>

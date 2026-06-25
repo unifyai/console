@@ -1,5 +1,5 @@
 /**
- * Column definitions and formatting utilities for the Memory tab tables.
+ * Column definitions and formatting utilities for the Brain tab tables.
  *
  * Each non-Tasks context (Contacts, Transcripts, Knowledge, Guidance,
  * Functions) defines a set of visible columns with display labels and
@@ -10,13 +10,13 @@
 
 import type { ColumnDef } from '@tanstack/react-table';
 import type {
-  MemoryContext,
+  BrainContext,
   ContactRow,
   TranscriptRow,
   KnowledgeRow,
   GuidanceRow,
   FunctionRow,
-} from '@/types/assistants/memory';
+} from '@/types/assistants/brain';
 
 // ── Shared primitives (also consumed by tasks.ts) ────────────────────
 
@@ -174,7 +174,7 @@ export function buildKnowledgeColumns(fields: string[]): ColumnDef<KnowledgeRow>
     .map((field) => col<KnowledgeRow>(field as string & keyof KnowledgeRow, field));
 }
 
-export function getColumnsForContext(context: MemoryContext, fields?: string[]) {
+export function getColumnsForContext(context: BrainContext, fields?: string[]) {
   switch (context) {
     case 'Contacts':
       return CONTACT_COLUMNS;
@@ -192,10 +192,10 @@ export function getColumnsForContext(context: MemoryContext, fields?: string[]) 
 }
 
 /**
- * Labels for the Memory tab's sub-context footer tabs.
+ * Labels for the Brain tab's sub-context footer tabs.
  * Tasks is intentionally excluded — it has its own dedicated tab.
  */
-export const MEMORY_CONTEXT_LABELS: Partial<Record<MemoryContext, string>> = {
+export const BRAIN_CONTEXT_LABELS: Partial<Record<BrainContext, string>> = {
   Contacts: 'Contacts',
   Transcripts: 'Transcripts',
   Knowledge: 'Knowledge',

@@ -8,14 +8,14 @@
 
 import * as React from 'react';
 import type {
-  MemoryContextData,
+  BrainContextData,
   TaskRow,
   TaskRunRow,
-  TaskMemoryView,
-  MemoryRow,
-} from '@/types/assistants/memory';
+  TaskBrainView,
+  BrainRow,
+} from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
-import { fetchMemoryContext, buildSortingParam, buildSearchFilterExpr } from '@/lib/client/memory';
+import { fetchBrainContext, buildSortingParam, buildSearchFilterExpr } from '@/lib/client/brain';
 
 const PAGE_SIZE = 50;
 const RUNNING_TASK_RUN_FILTER_EXPR = 'state == "running"';
@@ -31,7 +31,7 @@ interface SortState {
   direction: 'asc' | 'desc';
 }
 
-interface ContextState<T extends MemoryRow = MemoryRow> {
+interface ContextState<T extends BrainRow = BrainRow> {
   rows: T[];
   count: number;
   fields: string[];
@@ -48,8 +48,8 @@ export interface UseTasksDataResult {
   hasRunningTaskRun: boolean;
   isLoading: boolean;
   error: string | null;
-  taskView: TaskMemoryView;
-  setTaskView: (view: TaskMemoryView) => void;
+  taskView: TaskBrainView;
+  setTaskView: (view: TaskBrainView) => void;
   sort: (field: string, direction: 'asc' | 'desc' | null) => void;
   search: (query: string) => void;
   clearSearch: () => void;
@@ -58,7 +58,7 @@ export interface UseTasksDataResult {
   refetch: () => void;
 }
 
-function emptyState<T extends MemoryRow>(): ContextState<T> {
+function emptyState<T extends BrainRow>(): ContextState<T> {
   return {
     rows: [],
     count: 0,
@@ -71,8 +71,8 @@ function emptyState<T extends MemoryRow>(): ContextState<T> {
   };
 }
 
-function contextStateFromData<T extends MemoryRow>(
-  data: MemoryContextData<T>,
+function contextStateFromData<T extends BrainRow>(
+  data: BrainContextData<T>,
   sorting: SortState | null,
   filterExpr: string | null,
   searchQuery: string,
@@ -91,7 +91,7 @@ function contextStateFromData<T extends MemoryRow>(
 type ApiContext = 'Tasks' | 'Tasks/Runs';
 type StateKey = 'tasks' | 'taskRuns';
 
-const VIEW_TO_STATE_KEY: Record<TaskMemoryView, StateKey> = {
+const VIEW_TO_STATE_KEY: Record<TaskBrainView, StateKey> = {
   Tasks: 'tasks',
   Activity: 'taskRuns',
 };
@@ -115,7 +115,7 @@ function fetchForKey(
 ) {
   const apiContext = STATE_KEY_TO_API[stateKey];
   const sortingParam = sorting ? buildSortingParam(sorting.field, sorting.direction) : undefined;
-  return fetchMemoryContext(assistant, apiContext, {
+  return fetchBrainContext(assistant, apiContext, {
     limit: PAGE_SIZE,
     offset,
     sorting: sortingParam,
@@ -131,7 +131,7 @@ async function fetchHasRunningSnapshot(assistant: Assistant): Promise<boolean> {
     null,
     0,
     RUNNING_TASK_RUN_FILTER_EXPR
-  )) as MemoryContextData<TaskRunRow>;
+  )) as BrainContextData<TaskRunRow>;
   return data.count > 0 || data.rows.some((row) => row.state === 'running');
 }
 
@@ -147,7 +147,7 @@ export function useTasksData({
   const [isLoading, setIsLoading] = React.useState(true);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [taskView, setTaskView] = React.useState<TaskMemoryView>('Tasks');
+  const [taskView, setTaskView] = React.useState<TaskBrainView>('Tasks');
   const [hasRunningTaskRun, setHasRunningTaskRun] = React.useState(false);
 
   const activeKey = VIEW_TO_STATE_KEY[taskView];
@@ -167,9 +167,9 @@ export function useTasksData({
       const loadedAt = Date.now();
 
       setStates({
-        tasks: contextStateFromData(td as MemoryContextData<TaskRow>, null, null, '', loadedAt),
+        tasks: contextStateFromData(td as BrainContextData<TaskRow>, null, null, '', loadedAt),
         taskRuns: contextStateFromData(
-          tr as MemoryContextData<TaskRunRow>,
+          tr as BrainContextData<TaskRunRow>,
           null,
           null,
           '',
@@ -340,14 +340,14 @@ export function useTasksData({
       const loadedAt = Date.now();
       setStates({
         tasks: contextStateFromData(
-          tasksData as MemoryContextData<TaskRow>,
+          tasksData as BrainContextData<TaskRow>,
           taskState.sorting,
           taskState.filterExpr,
           taskState.searchQuery,
           loadedAt
         ),
         taskRuns: contextStateFromData(
-          taskRunsData as MemoryContextData<TaskRunRow>,
+          taskRunsData as BrainContextData<TaskRunRow>,
           taskRunsState.sorting,
           taskRunsState.filterExpr,
           taskRunsState.searchQuery,

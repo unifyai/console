@@ -60,7 +60,7 @@ export function SecretsPane({
 
   // Local controlled value for the input; we only commit the query to the
   // hook (and thus trigger a re-fetch) when the user hits Enter, matching the
-  // Memory/Tasks search UX.
+  // Brain/Tasks search UX.
   const [searchValue, setSearchValue] = React.useState(searchQuery);
   React.useEffect(() => {
     setSearchValue(searchQuery);

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import type { Assistant } from '@/types/assistants/assistant';
-import { buildSortingParam, fetchMemoryContext } from '@/lib/client/memory';
+import { buildSortingParam, fetchBrainContext } from '@/lib/client/brain';
 import {
   type CoordinatorActivityRow,
   mergeCoordinatorActivities,
@@ -118,7 +118,7 @@ export function useCoordinatorActivity({
     setError(null);
 
     try {
-      const activityData = await fetchMemoryContext<CoordinatorRawRow>(
+      const activityData = await fetchBrainContext<CoordinatorRawRow>(
         assistantForRequest,
         COORDINATOR_ACTIVITY_CONTEXT,
         {

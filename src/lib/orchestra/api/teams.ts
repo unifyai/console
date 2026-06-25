@@ -1,5 +1,5 @@
 /**
- * Read-only Orchestra API calls for organization team shared memory.
+ * Read-only Orchestra API calls for organization team shared brain.
  */
 
 import { createOrchestraClient } from '@/lib/orchestra/client';

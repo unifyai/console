@@ -814,7 +814,7 @@ export default OrganizationWorkspaceView;
 /**
  * Skeleton row that mirrors the column layout of `MemberRow`. Uses
  * raw `<div>`s with `bg-muted` (matching the proven pattern used by
- * `MemoryTable`) instead of the global `<Skeleton>` component — the
+ * `BrainTable`) instead of the global `<Skeleton>` component — the
  * latter applies `bg-primary/10`, an opacity-modified CSS variable
  * that silently no-ops in our theme (the variables are defined as
  * raw hex, not HSL channels), making the placeholders invisible.

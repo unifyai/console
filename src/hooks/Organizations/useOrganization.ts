@@ -93,7 +93,7 @@ export const useOrganization = (
 
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [invites, setInvites] = useState<OrganizationInvite[]>([]);
-  // Initialize to `true` (proven pattern, see `useMemoryData`) so the
+  // Initialize to `true` (proven pattern, see `useBrainData`) so the
   // Members table paints skeleton rows immediately on first render
   // instead of briefly flashing an empty body while the fetch effect
   // runs.

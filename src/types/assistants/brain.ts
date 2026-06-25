@@ -1,5 +1,5 @@
 /**
- * Memory tab types for the assistant right pane.
+ * Brain tab types for the assistant right pane.
  *
  * CamelCase mirrors of the Python Pydantic models in Unity's
  * contact_manager, transcript_manager, knowledge_manager,
@@ -15,7 +15,7 @@
  *   {userId}/{assistantId}/Functions  (sub-contexts: Compositional, Primitives, VirtualEnvs, Meta)
  */
 
-export type MemoryContext =
+export type BrainContext =
   | 'Contacts'
   | 'Transcripts'
   | 'Knowledge'
@@ -23,7 +23,7 @@ export type MemoryContext =
   | 'Guidance'
   | 'Functions';
 
-export type TaskMemoryView = 'Tasks' | 'Activity';
+export type TaskBrainView = 'Tasks' | 'Activity';
 
 export interface ContactRow {
   contactId: number;
@@ -125,7 +125,7 @@ export interface FunctionRow {
   [key: string]: unknown;
 }
 
-export type MemoryRow =
+export type BrainRow =
   | ContactRow
   | TranscriptRow
   | KnowledgeRow
@@ -134,14 +134,14 @@ export type MemoryRow =
   | GuidanceRow
   | FunctionRow;
 
-export interface MemoryContextData<T extends MemoryRow = MemoryRow> {
+export interface BrainContextData<T extends BrainRow = BrainRow> {
   rows: T[];
   count: number;
   fields: string[];
   hasMore?: boolean;
 }
 
-export const MEMORY_CONTEXTS: MemoryContext[] = [
+export const BRAIN_CONTEXTS: BrainContext[] = [
   'Contacts',
   'Transcripts',
   'Knowledge',

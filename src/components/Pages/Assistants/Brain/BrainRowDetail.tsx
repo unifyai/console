@@ -16,11 +16,11 @@ import { useTheme } from 'next-themes';
 import oneLight from '@/components/Pages/Interfaces/Blocks/Selection/Views/Markdown/Themes/one-light';
 import oneDark from '@/components/Pages/Interfaces/Blocks/Selection/Views/Markdown/Themes/one-dark';
 import { CopyButton } from '@/components/Common/Buttons/Copy';
-import { formatDetailValue, MEMORY_CONTEXT_LABELS } from '@/utils/assistants/memory';
+import { formatDetailValue, BRAIN_CONTEXT_LABELS } from '@/utils/assistants/brain';
 import { buildTaskDetailSections } from '@/utils/assistants/tasks';
-import type { MemoryContext, TaskMemoryView } from '@/types/assistants/memory';
+import type { BrainContext, TaskBrainView } from '@/types/assistants/brain';
 
-function MemoryCodeBlock({ className, children, inline: providedInline, ...props }: any) {
+function BrainCodeBlock({ className, children, inline: providedInline, ...props }: any) {
   const codeString = String(children).replace(/\n$/, '');
   const isInline =
     providedInline !== undefined ? providedInline : !codeString.includes('\n') && !className;
@@ -80,7 +80,7 @@ const FUNCTION_CODE_KEYS = new Set(['implementation', 'argspec']);
 function prepareMarkdownValue(
   key: string,
   formatted: string,
-  context: MemoryContext,
+  context: BrainContext,
   row: Record<string, unknown> | null
 ): string {
   if (!formatted || formatted === '—') return formatted;
@@ -91,15 +91,15 @@ function prepareMarkdownValue(
   return formatted;
 }
 
-const TASK_DETAIL_DESCRIPTIONS: Record<TaskMemoryView, string> = {
+const TASK_DETAIL_DESCRIPTIONS: Record<TaskBrainView, string> = {
   Tasks: 'What this task does, how it starts, and when it is due.',
   Activity: 'What happened, why it started, and when it ran.',
 };
 
-interface MemoryRowDetailProps {
+interface BrainRowDetailProps {
   row: Record<string, unknown> | null;
-  context: MemoryContext;
-  taskView?: TaskMemoryView;
+  context: BrainContext;
+  taskView?: TaskBrainView;
   title?: string;
   onClose: () => void;
 }
@@ -121,7 +121,7 @@ function useIsDesktop() {
   return isDesktop;
 }
 
-export function MemoryRowDetail({ row, context, taskView, title, onClose }: MemoryRowDetailProps) {
+export function BrainRowDetail({ row, context, taskView, title, onClose }: BrainRowDetailProps) {
   const [snapshot, setSnapshot] = React.useState<Record<string, unknown> | null>(null);
   const [width, setWidth] = React.useState(DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = React.useState(false);
@@ -201,7 +201,7 @@ export function MemoryRowDetail({ row, context, taskView, title, onClose }: Memo
             ? { width, minWidth: MIN_WIDTH, ...(isResizing ? { transition: 'none' } : {}) }
             : undefined
         }
-        data-testid="memory-row-detail"
+        data-testid="brain-row-detail"
         onAnimationEnd={() => {
           if (!row) setSnapshot(null);
         }}
@@ -215,12 +215,12 @@ export function MemoryRowDetail({ row, context, taskView, title, onClose }: Memo
         )}
 
         <SheetHeader className="shrink-0">
-          <SheetTitle>{title ?? `${MEMORY_CONTEXT_LABELS[context] ?? context} Detail`}</SheetTitle>
+          <SheetTitle>{title ?? `${BRAIN_CONTEXT_LABELS[context] ?? context} Detail`}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
 
         <ScrollArea className="mt-4 min-h-0 flex-1">
-          <div className="space-y-5 pr-4" data-testid="memory-row-detail-fields">
+          <div className="space-y-5 pr-4" data-testid="brain-row-detail-fields">
             {sections.map((section) => (
               <section key={section.title} className="space-y-3">
                 <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -245,7 +245,7 @@ export function MemoryRowDetail({ row, context, taskView, title, onClose }: Memo
                         <dd className="text-caption mt-0.5 break-words">
                           <Markdown
                             remarkPlugins={[remarkGfm]}
-                            components={{ code: MemoryCodeBlock }}
+                            components={{ code: BrainCodeBlock }}
                             className="prose-xs prose max-w-none dark:prose-invert prose-headings:text-sm prose-p:my-1 prose-p:text-xs prose-a:text-primary prose-code:text-xs prose-pre:my-1 prose-pre:bg-transparent prose-pre:p-0 prose-pre:text-xs"
                           >
                             {markdown}
