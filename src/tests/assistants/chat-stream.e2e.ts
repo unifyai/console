@@ -296,6 +296,7 @@ test('messages arriving while a chat is open do not leak an unread badge for tha
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   const listItem = page.getByTestId(`assistant-list-item-${target.agentId}`);
   await expect(listItem).toBeVisible({ timeout: 15_000 });
@@ -317,7 +318,9 @@ test('messages arriving while a chat is open do not leak an unread badge for tha
   await expect(bubble).toBeVisible({ timeout: 20_000 });
   await expect(bubble).toHaveCount(1);
 
-  // No unread badge for the active assistant.
+  // No unread badge for the active assistant (open the switcher to inspect
+  // the list — rows/badges only mount inside the popover).
+  await openUnitySwitcher(page);
   await expect(page.getByTestId(`assistant-unread-badge-${target.agentId}`)).toHaveCount(0);
 });
 
@@ -357,6 +360,7 @@ test('unread badge stays cleared after the chat is opened, even after a reload',
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   const itemActive = page.getByTestId(`assistant-list-item-${active.agentId}`);
   const itemIncoming = page.getByTestId(`assistant-list-item-${incoming.agentId}`);
@@ -374,14 +378,19 @@ test('unread badge stays cleared after the chat is opened, even after a reload',
     contactId: CONTACT_ID,
   });
 
+  // Rows/badges only mount inside the switcher popover — open it to inspect.
+  await openUnitySwitcher(page);
   const incomingBadge = page.getByTestId(`assistant-unread-badge-${incoming.agentId}`);
   await expect(incomingBadge).toBeVisible({ timeout: 20_000 });
   await expect(incomingBadge).toHaveText('1');
 
   // Open the incoming assistant's chat — badge clears.
   await itemIncoming.click();
-  await expect(incomingBadge).toHaveCount(0, { timeout: 10_000 });
   await expect(page.locator(`[data-role="assistant"]:has-text("${unreadMsg}")`)).toBeVisible({
+    timeout: 10_000,
+  });
+  await openUnitySwitcher(page);
+  await expect(page.getByTestId(`assistant-unread-badge-${incoming.agentId}`)).toHaveCount(0, {
     timeout: 10_000,
   });
 
@@ -391,6 +400,7 @@ test('unread badge stays cleared after the chat is opened, even after a reload',
   await page.waitForTimeout(500);
   await page.reload();
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
   await expect(page.getByTestId(`assistant-list-item-${incoming.agentId}`)).toBeVisible({
     timeout: 15_000,
   });
@@ -430,6 +440,7 @@ test('an unread badge accumulated during the session survives a reload', async (
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   await page.getByTestId(`assistant-list-item-${active.agentId}`).click();
   await expect(page.getByTestId('chat-scroll-area')).toBeVisible({ timeout: 10_000 });
@@ -442,6 +453,8 @@ test('an unread badge accumulated during the session survives a reload', async (
     contactId: CONTACT_ID,
   });
 
+  // Rows/badges only mount inside the switcher popover — open it to inspect.
+  await openUnitySwitcher(page);
   const incomingBadge = page.getByTestId(`assistant-unread-badge-${incoming.agentId}`);
   await expect(incomingBadge).toBeVisible({ timeout: 20_000 });
   await expect(incomingBadge).toHaveText('1');
@@ -452,6 +465,7 @@ test('an unread badge accumulated during the session survives a reload', async (
   // localStorage on mount.
   await page.reload();
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   await expect(page.getByTestId(`assistant-list-item-${incoming.agentId}`)).toBeVisible({
     timeout: 15_000,
@@ -462,6 +476,7 @@ test('an unread badge accumulated during the session survives a reload', async (
 
   // Opening `incoming` clears the badge and persists the cleared state.
   await page.getByTestId(`assistant-list-item-${incoming.agentId}`).click();
+  await openUnitySwitcher(page);
   await expect(page.getByTestId(`assistant-unread-badge-${incoming.agentId}`)).toHaveCount(0, {
     timeout: 10_000,
   });
@@ -495,6 +510,7 @@ test('messages received while the user is on a different page surface as unread 
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   // Mount the chat-stream once so the persistent server-side subscription
   // for `incoming` actually exists before we publish to it (Pub/Sub only
@@ -522,6 +538,7 @@ test('messages received while the user is on a different page surface as unread 
   await page.waitForTimeout(2_000);
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   // The redelivered backlog message should bump the badge — proves the
   // mount-time floor is no longer suppressing it.
@@ -564,6 +581,7 @@ test('browser tab title reflects total unread messages across assistants', async
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   // Open the active assistant so any messages on B and C bump the unread
   // counter and, in turn, the document title.
@@ -596,10 +614,12 @@ test('browser tab title reflects total unread messages across assistants', async
   await expect.poll(() => page.title(), { timeout: 15_000 }).toBe(`(3) ${baseTitle}`);
 
   // Opening B clears B's count → total drops to 2.
+  await openUnitySwitcher(page);
   await page.getByTestId(`assistant-list-item-${incomingB.agentId}`).click();
   await expect.poll(() => page.title(), { timeout: 10_000 }).toBe(`(2) ${baseTitle}`);
 
   // Opening C clears the rest → prefix disappears entirely.
+  await openUnitySwitcher(page);
   await page.getByTestId(`assistant-list-item-${incomingC.agentId}`).click();
   await expect.poll(() => page.title(), { timeout: 10_000 }).toBe(baseTitle);
 });
@@ -627,6 +647,7 @@ test('multiple unread messages all appear in chronological order when the chat i
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   const itemActive = page.getByTestId(`assistant-list-item-${active.agentId}`);
   const itemTarget = page.getByTestId(`assistant-list-item-${target.agentId}`);
@@ -649,6 +670,8 @@ test('multiple unread messages all appear in chronological order when the chat i
     await page.waitForTimeout(150);
   }
 
+  // Rows/badges only mount inside the switcher popover — open it to inspect.
+  await openUnitySwitcher(page);
   const targetBadge = page.getByTestId(`assistant-unread-badge-${target.agentId}`);
   await expect(targetBadge).toBeVisible({ timeout: 20_000 });
   await expect(targetBadge).toHaveText('3', { timeout: 10_000 });
@@ -697,6 +720,7 @@ test('typing indicator from a recent send only shows in the chat where the messa
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   const itemSender = page.getByTestId(`assistant-list-item-${sender.agentId}`);
   const itemOther = page.getByTestId(`assistant-list-item-${other.agentId}`);
@@ -723,6 +747,7 @@ test('typing indicator from a recent send only shows in the chat where the messa
   await expect(typingInSender).toBeVisible({ timeout: 15_000 });
 
   // Switch to the other assistant — its chat must not show "Typing".
+  await openUnitySwitcher(page);
   await itemOther.click();
   await expect(page.getByTestId('chat-scroll-area')).toBeVisible({ timeout: 10_000 });
   await expect(page.locator('textarea')).toBeEnabled({ timeout: 20_000 });
@@ -755,6 +780,7 @@ test('unread badges fire correctly when there are many assistants in the workspa
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   // Wait for the full list to populate.
   for (const a of [many[0], many[Math.floor(many.length / 2)], many[many.length - 1]]) {
@@ -787,6 +813,8 @@ test('unread badges fire correctly when there are many assistants in the workspa
     });
   }
 
+  // Rows/badges only mount inside the switcher popover — open it to inspect.
+  await openUnitySwitcher(page);
   for (const t of targets) {
     const badge = page.getByTestId(`assistant-unread-badge-${t.agentId}`);
     await expect(badge).toBeVisible({ timeout: 30_000 });
@@ -813,6 +841,7 @@ test('a rapid burst of inbound messages renders in chronological order in the op
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   const item = page.getByTestId(`assistant-list-item-${target.agentId}`);
   await expect(item).toBeVisible({ timeout: 15_000 });
@@ -849,6 +878,7 @@ test('a rapid burst of inbound messages renders in chronological order in the op
   }
 
   // The active assistant has no unread badge while its chat is open.
+  await openUnitySwitcher(page);
   await expect(page.getByTestId(`assistant-unread-badge-${target.agentId}`)).toHaveCount(0);
 });
 
@@ -869,6 +899,7 @@ test('a user message sent in one tab appears in a second tab viewing the same ch
   // Open the assistant's chat in the original tab.
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
   const item = page.getByTestId(`assistant-list-item-${target.agentId}`);
   await expect(item).toBeVisible({ timeout: 15_000 });
   await item.click();
@@ -881,6 +912,7 @@ test('a user message sent in one tab appears in a second tab viewing the same ch
   try {
     await page2.goto('/assistants');
     await closeHireDialogIfOpen(page2);
+    await openUnitySwitcher(page2);
     const item2 = page2.getByTestId(`assistant-list-item-${target.agentId}`);
     await expect(item2).toBeVisible({ timeout: 15_000 });
     await item2.click();
@@ -935,6 +967,7 @@ test('messages eventually arrive when the assistant topic comes online after pag
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   const itemActive = page.getByTestId(`assistant-list-item-${active.agentId}`);
   const itemLate = page.getByTestId(`assistant-list-item-${late.agentId}`);
@@ -946,7 +979,9 @@ test('messages eventually arrive when the assistant topic comes online after pag
   await expect(page.locator('textarea')).toBeEnabled({ timeout: 20_000 });
 
   // No badge yet on the late assistant — it has no topic to publish to.
+  // Rows/badges only mount inside the switcher popover — open it to inspect.
   await page.waitForTimeout(3_500);
+  await openUnitySwitcher(page);
   await expect(page.getByTestId(`assistant-unread-badge-${late.agentId}`)).toHaveCount(0);
 
   // Now provision the topic and keep publishing periodically. The page
@@ -987,6 +1022,7 @@ test('messages received during an active call appear in the call dialog chat pan
 
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
+  await openUnitySwitcher(page);
 
   const item = page.getByTestId(`assistant-list-item-${callee.agentId}`);
   await expect(item).toBeVisible({ timeout: 15_000 });

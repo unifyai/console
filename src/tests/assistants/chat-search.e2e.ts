@@ -124,6 +124,7 @@ test('shared-root search hides foreign-authored rows while keeping null-authored
   authedPage: page,
 }) => {
   const chatOrg = createOrg({ name: `ChatSearchOrg_${Date.now()}`, ownerId: user.id });
+  ensureProjectSync(chatOrg.ownerOrgApiKey);
   await switchWorkspace(page, chatOrg.id);
   await page.goto('/assistants');
   await closeHireDialogIfOpen(page);
@@ -135,7 +136,7 @@ test('shared-root search hides foreign-authored rows while keeping null-authored
     surname: `E2E${Date.now()}`,
   });
   await seedContact(
-    user.apiKey,
+    chatOrg.ownerOrgApiKey,
     user.id,
     sharedAssistant.agentId,
     user.email,
@@ -159,7 +160,7 @@ test('shared-root search hides foreign-authored rows while keeping null-authored
   const visibleNull = `${marker} null-authored`;
   const hiddenForeign = `${marker} foreign-authored`;
 
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedBossContactId,
     content: visibleOwn,
     timestamp: new Date(stamp - 4000).toISOString(),
@@ -167,7 +168,7 @@ test('shared-root search hides foreign-authored rows while keeping null-authored
     context: sharedContext,
     authoringAssistantId: sharedAssistantId,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedBossContactId,
     content: visibleNull,
     timestamp: new Date(stamp - 3000).toISOString(),
@@ -175,7 +176,7 @@ test('shared-root search hides foreign-authored rows while keeping null-authored
     context: sharedContext,
     authoringAssistantId: null,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedBossContactId,
     content: hiddenForeign,
     timestamp: new Date(stamp - 2000).toISOString(),
@@ -481,6 +482,7 @@ test('historical shared-root call pills hide foreign-authored exchanges', async 
   authedPage: page,
 }) => {
   const chatOrg = createOrg({ name: `ChatHistOrg_${Date.now()}`, ownerId: user.id });
+  ensureProjectSync(chatOrg.ownerOrgApiKey);
   await switchWorkspace(page, chatOrg.id);
   await page.goto('/assistants');
   await closeHireDialogIfOpen(page);
@@ -492,7 +494,7 @@ test('historical shared-root call pills hide foreign-authored exchanges', async 
     surname: `E2E${Date.now()}`,
   });
   await seedContact(
-    user.apiKey,
+    chatOrg.ownerOrgApiKey,
     user.id,
     sharedAssistant.agentId,
     user.email,
@@ -517,7 +519,7 @@ test('historical shared-root call pills hide foreign-authored exchanges', async 
   const foreignExchangeId = ownExchangeId + 2;
   const foreignTranscript = `${marker} foreign transcript hidden`;
 
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedBossContactId,
     content: `${marker} anchor`,
     timestamp: new Date(ts - 60_000).toISOString(),
@@ -525,7 +527,7 @@ test('historical shared-root call pills hide foreign-authored exchanges', async 
     context: sharedContext,
     authoringAssistantId: sharedAssistantId,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedBossContactId,
     content: foreignTranscript,
     timestamp: new Date(ts - 59_000).toISOString(),
@@ -533,7 +535,7 @@ test('historical shared-root call pills hide foreign-authored exchanges', async 
     context: sharedContext,
     authoringAssistantId: sharedAssistantId + 1,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedBossContactId,
     content: `${marker} own call`,
     timestamp: new Date(ts - 55_000).toISOString(),
@@ -543,7 +545,7 @@ test('historical shared-root call pills hide foreign-authored exchanges', async 
     context: sharedContext,
     authoringAssistantId: sharedAssistantId,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedSelfContactId,
     content: `${marker} own reply`,
     timestamp: new Date(ts - 54_000).toISOString(),
@@ -553,7 +555,7 @@ test('historical shared-root call pills hide foreign-authored exchanges', async 
     context: sharedContext,
     authoringAssistantId: sharedAssistantId,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedBossContactId,
     content: `${marker} null call`,
     timestamp: new Date(ts - 53_000).toISOString(),
@@ -563,7 +565,7 @@ test('historical shared-root call pills hide foreign-authored exchanges', async 
     context: sharedContext,
     authoringAssistantId: null,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedSelfContactId,
     content: `${marker} null reply`,
     timestamp: new Date(ts - 52_000).toISOString(),
@@ -573,7 +575,7 @@ test('historical shared-root call pills hide foreign-authored exchanges', async 
     context: sharedContext,
     authoringAssistantId: null,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedBossContactId,
     content: `${marker} foreign call`,
     timestamp: new Date(ts - 51_000).toISOString(),
@@ -583,7 +585,7 @@ test('historical shared-root call pills hide foreign-authored exchanges', async 
     context: sharedContext,
     authoringAssistantId: sharedAssistantId + 1,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedSelfContactId,
     content: `${marker} foreign reply`,
     timestamp: new Date(ts - 50_000).toISOString(),

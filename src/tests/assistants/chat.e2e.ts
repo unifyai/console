@@ -154,6 +154,7 @@ test('shared-root chat history merges root-local identities and paginates', asyn
   authedPage: page,
 }) => {
   const chatOrg = createOrg({ name: `ChatSharedOrg_${Date.now()}`, ownerId: user.id });
+  ensureProjectSync(chatOrg.ownerOrgApiKey);
   await switchWorkspace(page, chatOrg.id);
   await page.goto('/assistants');
   await closeHireDialogIfOpen(page);
@@ -165,7 +166,7 @@ test('shared-root chat history merges root-local identities and paginates', asyn
     surname: `E2E${Date.now()}`,
   });
   await seedContact(
-    user.apiKey,
+    chatOrg.ownerOrgApiKey,
     user.id,
     sharedAssistant.agentId,
     user.email,
@@ -195,20 +196,20 @@ test('shared-root chat history merges root-local identities and paginates', asyn
   const decoy = `Shared decoy personal contact ${stamp}`;
 
   for (let i = 0; i < 48; i++) {
-    await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+    await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
       senderId: sharedAssistant.bossContactId,
       content: `Merged filler ${stamp}-${i}`,
       timestamp: new Date(stamp - i * 1000).toISOString(),
       receiverIds: [sharedAssistant.selfContactId],
     });
   }
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedAssistant.bossContactId,
     content: personalLatest,
     timestamp: new Date(stamp + 1000).toISOString(),
     receiverIds: [sharedAssistant.selfContactId],
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedBossContactId,
     content: sharedLatest,
     timestamp: new Date(stamp + 2000).toISOString(),
@@ -216,7 +217,7 @@ test('shared-root chat history merges root-local identities and paginates', asyn
     context: sharedContext,
     authoringAssistantId: sharedAssistantId,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedBossContactId,
     content: sharedAuthored,
     timestamp: new Date(stamp + 2500).toISOString(),
@@ -224,7 +225,7 @@ test('shared-root chat history merges root-local identities and paginates', asyn
     context: sharedContext,
     authoringAssistantId: sharedAssistantId,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedBossContactId,
     content: sharedLegacyNull,
     timestamp: new Date(stamp + 2600).toISOString(),
@@ -232,7 +233,7 @@ test('shared-root chat history merges root-local identities and paginates', asyn
     context: sharedContext,
     authoringAssistantId: null,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedBossContactId,
     content: sharedForeign,
     timestamp: new Date(stamp + 2700).toISOString(),
@@ -240,20 +241,20 @@ test('shared-root chat history merges root-local identities and paginates', asyn
     context: sharedContext,
     authoringAssistantId: sharedAssistantId + 1,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedAssistant.bossContactId,
     content: decoy,
     timestamp: new Date(stamp + 3000).toISOString(),
     receiverIds: [sharedSelfContactId],
     context: sharedContext,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedAssistant.bossContactId,
     content: personalBoundary,
     timestamp: boundaryTimestamp,
     receiverIds: [sharedAssistant.selfContactId],
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(chatOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedBossContactId,
     content: sharedBoundary,
     timestamp: boundaryTimestamp,

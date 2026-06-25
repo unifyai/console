@@ -422,6 +422,7 @@ test('historical call pill renders in shared roots only for own or null authorin
   authedPage: page,
 }) => {
   const callOrg = createOrg({ name: `CallSharedOrg_${Date.now()}`, ownerId: user.id });
+  ensureProjectSync(callOrg.ownerOrgApiKey);
   await switchWorkspace(page, callOrg.id);
   await page.goto('/assistants');
   await closeHireDialogIfOpen(page);
@@ -433,7 +434,7 @@ test('historical call pill renders in shared roots only for own or null authorin
     surname: `E2E${Date.now()}`,
   });
   await seedContact(
-    user.apiKey,
+    callOrg.ownerOrgApiKey,
     user.id,
     sharedAssistant.agentId,
     user.email,
@@ -456,7 +457,7 @@ test('historical call pill renders in shared roots only for own or null authorin
   const nullExchangeId = ownExchangeId + 1;
   const foreignExchangeId = ownExchangeId + 2;
 
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(callOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedBossContactId,
     content: 'Visible own-authoring call message',
     timestamp: new Date(ts - 30_000).toISOString(),
@@ -467,7 +468,7 @@ test('historical call pill renders in shared roots only for own or null authorin
     metadata: { call_utterance_timestamp: '00.00' },
     authoringAssistantId: sharedAssistantId,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(callOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedSelfContactId,
     content: 'Visible own-authoring call reply',
     timestamp: new Date(ts - 29_000).toISOString(),
@@ -479,7 +480,7 @@ test('historical call pill renders in shared roots only for own or null authorin
     authoringAssistantId: sharedAssistantId,
   });
 
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(callOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedBossContactId,
     content: 'Visible null-authoring call message',
     timestamp: new Date(ts - 28_000).toISOString(),
@@ -489,7 +490,7 @@ test('historical call pill renders in shared roots only for own or null authorin
     context: sharedContext,
     authoringAssistantId: null,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(callOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedSelfContactId,
     content: 'Visible null-authoring call reply',
     timestamp: new Date(ts - 27_000).toISOString(),
@@ -500,7 +501,7 @@ test('historical call pill renders in shared roots only for own or null authorin
     authoringAssistantId: null,
   });
 
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(callOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedBossContactId,
     content: 'Hidden foreign-authoring call message',
     timestamp: new Date(ts - 26_000).toISOString(),
@@ -510,7 +511,7 @@ test('historical call pill renders in shared roots only for own or null authorin
     context: sharedContext,
     authoringAssistantId: sharedAssistantId + 1,
   });
-  await seedTranscript(user.apiKey, user.id, sharedAssistant.agentId, {
+  await seedTranscript(callOrg.ownerOrgApiKey, user.id, sharedAssistant.agentId, {
     senderId: sharedSelfContactId,
     content: 'Hidden foreign-authoring call reply',
     timestamp: new Date(ts - 25_000).toISOString(),
