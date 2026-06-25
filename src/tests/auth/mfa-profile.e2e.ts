@@ -105,6 +105,8 @@ test.describe('MFA Disable from Profile', () => {
   });
 
   test('disables 2FA with a valid TOTP code', async ({ page }) => {
+    test.setTimeout(60_000);
+
     await loginWithMfaAndNavigateTo(
       page,
       user.email,

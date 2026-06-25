@@ -148,6 +148,7 @@ test('locked org users still see org assistants even with a personal workspace c
   const wsCookie = cookies.find((c) => c.name === 'unify_workspace_id');
   expect(wsCookie?.value).toBe('personal');
 
+  await page.getByRole('button', { name: /Select a unity/ }).click();
   await expect(
     page.getByText(`${lockedOrgAssistant.firstName} ${lockedOrgAssistant.surname}`)
   ).toBeVisible({ timeout: 10_000 });
