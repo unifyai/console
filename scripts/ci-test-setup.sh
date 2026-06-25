@@ -246,11 +246,23 @@ log_info "Starting Console on port ${CONSOLE_PORT}..."
 mkdir -p "$CONSOLE_DIR/.next/standalone/.next"
 cp -r "$CONSOLE_DIR/.next/static" "$CONSOLE_DIR/.next/standalone/.next/static" 2>/dev/null || true
 cp -r "$CONSOLE_DIR/public" "$CONSOLE_DIR/.next/standalone/public" 2>/dev/null || true
+
+# The Next.js standalone server (`node server.js`) does NOT read `.env.local` at
+# runtime — only `next dev` / `next start` load env files. Running the standalone
+# build without exporting the generated secrets leaves NextAuth with no
+# `NEXTAUTH_SECRET`, so it throws `MissingSecretError` in production mode and
+# every credentials sign-in fails (all authenticated tests then bounce back to
+# `/login`). Export the whole generated env into the server process so the
+# secrets (NEXTAUTH_SECRET, JWT_SECRET, ORCHESTRA_ADMIN_KEY, OAuth ids, …) and
+# any future additions flow through automatically.
+set -a
+# shellcheck disable=SC1091
+. "$CONSOLE_DIR/.env.local"
+set +a
+
 setsid env \
   PORT="$CONSOLE_PORT" \
   HOSTNAME=0.0.0.0 \
-  PUBSUB_EMULATOR_HOST="$PUBSUB_EMULATOR_HOST" \
-  PUBSUB_PROJECT_ID="$PUBSUB_PROJECT_ID" \
   node "$CONSOLE_DIR/.next/standalone/server.js" > /tmp/console-ci.log 2>&1 </dev/null &
 CONSOLE_PID=$!
 echo "$CONSOLE_PID" > /tmp/console-ci.pid
