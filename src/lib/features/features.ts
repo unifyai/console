@@ -79,10 +79,9 @@ export interface Features {
   transcription: boolean;
 
   /**
-   * In-app support tickets. Delivery is a Discord webhook that points at our
-   * internal support channel, so the capability only exists where that webhook
-   * is configured. Without it, submissions would silently go nowhere (the sender
-   * no-ops and reports success), so the entry point is hidden instead.
+   * In-app support tickets. Hosted deployments deliver through a Discord webhook.
+   * Local development keeps the entry point visible because the sender logs the
+   * ticket locally when no webhook is configured.
    */
   support: boolean;
 
@@ -148,6 +147,8 @@ export function resolveFeatures(
   environment: Environment = resolveEnvironment(env),
   authority: FeatureAuthority = {}
 ): Features {
+  const orchestraUrl = (env.ORCHESTRA_URL ?? '').toLowerCase();
+  const localOrchestra = orchestraUrl.includes('localhost') || orchestraUrl.includes('127.0.0.1');
   const stripeConfigured = has(env, 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY');
   const devCallsEnabled = has(env, 'CONSOLE_DEV_CALLS');
   const livekitConfigured =
@@ -160,7 +161,7 @@ export function resolveFeatures(
   // Manual-top-up mode is a deployment policy owned by Orchestra (staging).
   // In this mode billing is enforced without Stripe, so the billing UI must
   // render even when no publishable key is configured.
-  const manualTopup = authority.manualTopup ?? false;
+  const manualTopup = localOrchestra || (authority.manualTopup ?? false);
 
   return {
     // Billing requires the consumer-side Stripe publishable key *and* Orchestra
@@ -173,10 +174,11 @@ export function resolveFeatures(
     billing:
       (stripeConfigured || manualTopup) && !environment.isSelfHost && (authority.billing ?? true),
     manualTopup,
-    voiceCalls: devCallsEnabled || (livekitConfigured && ttsConfigured && sttConfigured),
+    voiceCalls:
+      localOrchestra || devCallsEnabled || (livekitConfigured && ttsConfigured && sttConfigured),
     voiceSynthesis: ttsConfigured,
     transcription: sttConfigured,
-    support: has(env, 'DISCORD_SUPPORT_WEBHOOK_URL'),
+    support: localOrchestra || has(env, 'DISCORD_SUPPORT_WEBHOOK_URL'),
     // Workspace BYOD connect: Orchestra owns the OAuth client IDs, so its
     // authority signal is the source of truth. The local env read is only a
     // fallback for when Orchestra hasn't been consulted (e.g. login pages,

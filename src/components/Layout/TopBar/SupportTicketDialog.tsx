@@ -101,8 +101,8 @@ export default function SupportTicketDialog() {
           <DialogHeader>
             <DialogTitle>Report an Issue</DialogTitle>
             <DialogDescription>
-              Describe the problem you&apos;re experiencing. A screenshot of your current view is
-              attached automatically.
+              Describe the problem you&apos;re experiencing. When available, a screenshot of your
+              current view is attached automatically.
             </DialogDescription>
           </DialogHeader>
 

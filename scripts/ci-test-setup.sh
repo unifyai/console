@@ -32,6 +32,8 @@ CONSOLE_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 ORCHESTRA_REPO_PATH="${ORCHESTRA_REPO_PATH:-$(cd "$CONSOLE_DIR/../orchestra" 2>/dev/null && pwd -P || echo "")}"
 ORCHESTRA_PORT="${ORCHESTRA_PORT:-8000}"
 CONSOLE_PORT="${CONSOLE_PORT:-3000}"
+PUBSUB_EMULATOR_HOST="${PUBSUB_EMULATOR_HOST:-127.0.0.1:8085}"
+PUBSUB_PROJECT_ID="${PUBSUB_PROJECT_ID:-local-test-project}"
 ADMIN_KEY="${ORCHESTRA_ADMIN_KEY:-ci-test-admin-key-e2e}"
 
 RED='\033[0;31m'
@@ -77,6 +79,8 @@ log_success "Orchestra repo: $ORCHESTRA_REPO_PATH"
 # for seeded email logins fails and every UI login in the suite fails fast.
 if [[ -n "${GITHUB_ENV:-}" ]]; then
   echo "ORCHESTRA_REPO_PATH=$ORCHESTRA_REPO_PATH" >> "$GITHUB_ENV"
+  echo "PUBSUB_EMULATOR_HOST=$PUBSUB_EMULATOR_HOST" >> "$GITHUB_ENV"
+  echo "PUBSUB_PROJECT_ID=$PUBSUB_PROJECT_ID" >> "$GITHUB_ENV"
   if command -v poetry &>/dev/null; then
     poetry_venv="$(cd "$ORCHESTRA_REPO_PATH" && poetry env info -p 2>/dev/null || true)"
     if [[ -n "$poetry_venv" && -x "$poetry_venv/bin/python" ]]; then
@@ -120,6 +124,8 @@ JWT_SECRET=ci-e2e-test-jwt-secret-must-be-at-least-32-characters
 NEXTAUTH_URL=http://localhost:${CONSOLE_PORT}
 ORCHESTRA_URL=http://127.0.0.1:${ORCHESTRA_PORT}
 ORCHESTRA_ADMIN_KEY=${ADMIN_KEY}
+PUBSUB_EMULATOR_HOST=${PUBSUB_EMULATOR_HOST}
+PUBSUB_PROJECT_ID=${PUBSUB_PROJECT_ID}
 CLOUD_RUN_ORCHESTRA_DB_USER=orchestra
 CLOUD_RUN_ORCHESTRA_DB_PASS=orchestra
 CLOUD_RUN_ORCHESTRA_HOST=localhost
@@ -147,11 +153,60 @@ fi
 
 log_success "Orchestra ready at http://127.0.0.1:${ORCHESTRA_PORT}"
 
-# ── 4. Start Console ──────────────────────────────────────────────────
+# ── 4. Start Pub/Sub emulator ─────────────────────────────────────────
+
+log_info "Starting Pub/Sub emulator on ${PUBSUB_EMULATOR_HOST}..."
+if [[ -f /tmp/pubsub-ci.pid ]]; then
+  stale_pubsub_pid="$(tr -d '\n' < /tmp/pubsub-ci.pid || true)"
+  if [[ -n "$stale_pubsub_pid" ]]; then
+    kill "$stale_pubsub_pid" 2>/dev/null || true
+  fi
+fi
+pubsub_port="${PUBSUB_EMULATOR_HOST##*:}"
+pubsub_pids=$(lsof -t -i ":${pubsub_port}" 2>/dev/null || true)
+if [[ -n "$pubsub_pids" ]]; then
+  echo "$pubsub_pids" | xargs kill -9 2>/dev/null || true
+  sleep 1
+fi
+if ! command -v gcloud &>/dev/null; then
+  log_error "gcloud is required for the Pub/Sub emulator"
+  exit 1
+fi
+setsid gcloud beta emulators pubsub start \
+  --project="$PUBSUB_PROJECT_ID" \
+  --host-port="$PUBSUB_EMULATOR_HOST" \
+  > /tmp/pubsub-ci.log 2>&1 </dev/null &
+PUBSUB_PID=$!
+echo "$PUBSUB_PID" > /tmp/pubsub-ci.pid
+for _ in {1..60}; do
+  if ! kill -0 "$PUBSUB_PID" 2>/dev/null; then
+    log_error "Pub/Sub emulator exited before readiness"
+    tail -50 /tmp/pubsub-ci.log 2>/dev/null || true
+    exit 1
+  fi
+  if curl -s --connect-timeout 1 --max-time 2 "http://${PUBSUB_EMULATOR_HOST}/" &>/dev/null; then
+    log_success "Pub/Sub emulator ready at ${PUBSUB_EMULATOR_HOST}"
+    break
+  fi
+  sleep 1
+done
+if ! kill -0 "$PUBSUB_PID" 2>/dev/null; then
+  log_error "Pub/Sub emulator failed to start"
+  tail -50 /tmp/pubsub-ci.log 2>/dev/null || true
+  exit 1
+fi
+
+# ── 5. Start Console ──────────────────────────────────────────────────
 
 cd "$CONSOLE_DIR"
 
 # Kill any stale processes on the Console port
+if [[ -f /tmp/console-ci.pid ]]; then
+  stale_pid="$(tr -d '\n' < /tmp/console-ci.pid || true)"
+  if [[ -n "$stale_pid" ]]; then
+    kill "$stale_pid" 2>/dev/null || true
+  fi
+fi
 stale_pids=$(lsof -t -i ":${CONSOLE_PORT}" 2>/dev/null || true)
 if [[ -n "$stale_pids" ]]; then
   echo "$stale_pids" | xargs kill -9 2>/dev/null || true
@@ -160,6 +215,8 @@ fi
 
 export NEXTAUTH_URL="http://localhost:${CONSOLE_PORT}"
 export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
+export PUBSUB_EMULATOR_HOST
+export PUBSUB_PROJECT_ID
 export NEXT_TELEMETRY_DISABLED=1
 
 # Build once, then serve with `next start`. Running E2E against a production
@@ -178,7 +235,15 @@ fi
 log_success "Console build complete"
 
 log_info "Starting Console on port ${CONSOLE_PORT}..."
-nohup npx next start -p "$CONSOLE_PORT" -H 0.0.0.0 > /tmp/console-ci.log 2>&1 &
+mkdir -p "$CONSOLE_DIR/.next/standalone/.next"
+cp -r "$CONSOLE_DIR/.next/static" "$CONSOLE_DIR/.next/standalone/.next/static" 2>/dev/null || true
+cp -r "$CONSOLE_DIR/public" "$CONSOLE_DIR/.next/standalone/public" 2>/dev/null || true
+setsid env \
+  PORT="$CONSOLE_PORT" \
+  HOSTNAME=0.0.0.0 \
+  PUBSUB_EMULATOR_HOST="$PUBSUB_EMULATOR_HOST" \
+  PUBSUB_PROJECT_ID="$PUBSUB_PROJECT_ID" \
+  node "$CONSOLE_DIR/.next/standalone/server.js" > /tmp/console-ci.log 2>&1 </dev/null &
 CONSOLE_PID=$!
 echo "$CONSOLE_PID" > /tmp/console-ci.pid
 
@@ -186,6 +251,12 @@ echo "$CONSOLE_PID" > /tmp/console-ci.pid
 max_attempts=90
 attempt=0
 while (( attempt < max_attempts )); do
+  if ! kill -0 "$CONSOLE_PID" 2>/dev/null; then
+    log_error "Console server process exited before readiness"
+    log_info "Last 50 lines of Console log:"
+    tail -50 /tmp/console-ci.log 2>/dev/null || true
+    exit 1
+  fi
   if curl -s --connect-timeout 2 --max-time 5 "http://localhost:${CONSOLE_PORT}" &>/dev/null; then
     log_success "Console ready at http://localhost:${CONSOLE_PORT} (${attempt}s)"
     break
@@ -201,7 +272,7 @@ if (( attempt >= max_attempts )); then
   exit 1
 fi
 
-# ── 5. Seed test data (optional) ──────────────────────────────────────
+# ── 6. Seed test data (optional) ──────────────────────────────────────
 #
 # E2E tests create their own users/assistants in beforeAll, so seeding
 # is optional. It can help pre-warm the database schema validation and

@@ -6,10 +6,13 @@ import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
+import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog';
+import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import type { SectionDef } from './sectionConfig';
 
 /** Workspace-level quick actions shared across section headers. */
 function GlobalActions() {
+  const { support: supportEnabled } = useFeatures();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
@@ -18,6 +21,7 @@ function GlobalActions() {
   return (
     <TooltipProvider delayDuration={150}>
       <div className="flex items-center gap-0.5">
+        {supportEnabled && <SupportTicketDialog />}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
