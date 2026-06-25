@@ -61,7 +61,7 @@ import { UnityCallAvatar } from '@/components/Pages/Assistants/Communication/Uni
 import { useUnityAudioElementLipsync } from '@/utils/assistants/unity-lipsync';
 import {
   TWIN_CREATURE_APPEARANCE,
-  getUnityBodyForm,
+  getDroidBodyForm as getUnityBodyForm,
   getRotatingBotViewBox,
 } from '@unity/brand/components';
 

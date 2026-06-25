@@ -2,10 +2,10 @@
 
 import * as React from 'react';
 import {
-  AnimatedUnity,
+  AnimatedDroid as AnimatedUnity,
   TWIN_CREATURE_APPEARANCE,
   getCreatureAccent,
-  getUnityBodyForm,
+  getDroidBodyForm as getUnityBodyForm,
 } from '@unity/brand/components';
 import type { BrandRole } from '@/components/Brand/shapes';
 import type { UnityBody, UnityOutfit } from '@/components/Brand/unityAppearance';

@@ -2,9 +2,9 @@
 
 import * as React from 'react';
 import {
-  AnimatedUnity,
+  AnimatedDroid as AnimatedUnity,
   getCreatureAccent,
-  getUnityBodyForm,
+  getDroidBodyForm as getUnityBodyForm,
   getRotatingBotAnchorRatios,
 } from '@unity/brand/components';
 import type { CreatureMouthShape } from '@/components/Brand/TeammateCreature';

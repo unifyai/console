@@ -1,2 +1,4 @@
 // Canonical implementation lives in the shared brand submodule (@unity/brand).
-export { useUnityEyeExpression } from '@unity/brand/unity';
+// The eye-expression hook belongs to the droid character, so it keeps its
+// Droid-prefixed name in the brand package and is re-exported here.
+export { useDroidEyeExpression as useUnityEyeExpression } from '@unity/brand/droid';
