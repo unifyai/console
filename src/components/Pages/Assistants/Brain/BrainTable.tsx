@@ -53,7 +53,7 @@ function SkeletonRows({ columns }: { columns: number }) {
   );
 }
 
-interface MemoryTableProps<TData> {
+interface BrainTableProps<TData> {
   data: TData[];
   columns: ColumnDef<TData, any>[];
   isLoading?: boolean;
@@ -74,7 +74,7 @@ function SortIcon({ direction }: { direction: false | SortDirection }) {
   return <ArrowUpDown className="h-3 w-3 text-muted-foreground" />;
 }
 
-export function MemoryTable<TData>({
+export function BrainTable<TData>({
   data,
   columns,
   isLoading,
@@ -87,7 +87,7 @@ export function MemoryTable<TData>({
   serverSorting,
   testId,
   getRowEmphasis,
-}: MemoryTableProps<TData>) {
+}: BrainTableProps<TData>) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const sentinelRef = React.useRef<HTMLDivElement>(null);
 
@@ -150,7 +150,7 @@ export function MemoryTable<TData>({
         className="flex h-full items-center justify-center text-muted-foreground"
         data-testid={testId}
       >
-        <p className="text-sm" data-testid="memory-table-empty">
+        <p className="text-sm" data-testid="brain-table-empty">
           {emptyMessage}
         </p>
       </div>
@@ -164,7 +164,7 @@ export function MemoryTable<TData>({
   // which paints nothing and makes those sub-tabs look like they're
   // showing an empty pane instead of loading. Bypass the Table chrome
   // entirely in that case and render a generic columns-agnostic
-  // shimmer (4 placeholder bars per row) so every memory sub-tab gets
+  // shimmer (4 placeholder bars per row) so every brain sub-tab gets
   // a consistent loading affordance. The 4-column choice tracks the
   // typical Knowledge/Functions schema width; fewer rows than the
   // static skeleton above would feel emptier than the static-column
@@ -173,7 +173,7 @@ export function MemoryTable<TData>({
     return (
       <div className="flex h-full flex-col gap-3 p-3" data-testid={testId}>
         {SKELETON_ROW_WIDTHS.map((widths, i) => (
-          <div key={i} className="flex items-center gap-3" data-testid="memory-table-skeleton-row">
+          <div key={i} className="flex items-center gap-3" data-testid="brain-table-skeleton-row">
             {Array.from({ length: 4 }, (_, j) => (
               <SkeletonBar
                 key={j}
@@ -233,7 +233,7 @@ export function MemoryTable<TData>({
                         : onRowClick && 'hover:bg-muted'
                     )}
                     onClick={() => onRowClick?.(row.original)}
-                    data-testid="memory-table-row"
+                    data-testid="brain-table-row"
                     data-row-emphasis={rowEmphasis}
                   >
                     {row.getVisibleCells().map((cell, cellIdx) => {
@@ -250,7 +250,7 @@ export function MemoryTable<TData>({
                             <span
                               aria-hidden="true"
                               className="pointer-events-none absolute bottom-2 left-0 top-2 w-1 animate-pulse rounded-r-full bg-[color:var(--status-success)] motion-reduce:animate-none"
-                              data-testid="memory-running-row-accent"
+                              data-testid="brain-running-row-accent"
                             />
                           ) : null}
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -268,7 +268,7 @@ export function MemoryTable<TData>({
         <div ref={sentinelRef} className="h-1" />
 
         {isLoadingMore && (
-          <div className="flex items-center justify-center py-3" data-testid="memory-loading-more">
+          <div className="flex items-center justify-center py-3" data-testid="brain-loading-more">
             <Loader2 className="mr-2 h-4 w-4 animate-spin text-muted-foreground" />
             <span className="text-caption">Loading more…</span>
           </div>

@@ -1,5 +1,5 @@
 /**
- * React hook for the Memory tab — fetches Contacts, Transcripts,
+ * React hook for the Brain tab — fetches Contacts, Transcripts,
  * Knowledge, Guidance, and Functions data from the logging API.
  *
  * Tasks data is managed by the dedicated useTasksData hook.
@@ -12,34 +12,50 @@
 
 import * as React from 'react';
 import type {
-  MemoryContext,
-  MemoryContextData,
+  BrainContext,
+  BrainContextData,
   ContactRow,
   TranscriptRow,
   KnowledgeRow,
   GuidanceRow,
   FunctionRow,
-  MemoryRow,
-} from '@/types/assistants/memory';
+  BrainRow,
+} from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
 import {
-  fetchMemoryContext,
+  fetchBrainContext,
   fetchKnowledgeTables,
   fetchFunctionsTables,
   buildSortingParam,
   buildSearchFilterExpr,
-} from '@/lib/client/memory';
+} from '@/lib/client/brain';
 import type { ContextRoot } from '@/lib/assistants/scope';
 
 const PAGE_SIZE = 50;
 
-type MemoryTabContext = Exclude<MemoryContext, 'Tasks'>;
+type BrainTabContext = Exclude<BrainContext, 'Tasks'>;
 
-interface UseMemoryDataOptions {
+const ALL_CONTEXTS: readonly BrainTabContext[] = [
+  'Contacts',
+  'Transcripts',
+  'Knowledge',
+  'Guidance',
+  'Functions',
+];
+
+interface UseBrainDataOptions {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
   root?: ContextRoot | null;
+  /**
+   * Which contexts to fetch. Defaults to all five (the legacy aggregate Brain
+   * pane). Dedicated Brain views pass a single context so a tab only loads its
+   * own data and never blocks the others on the all-context waterfall.
+   */
+  contexts?: readonly BrainTabContext[];
+  /** Initial active context (defaults to the first requested context). */
+  initialContext?: BrainTabContext;
 }
 
 interface SortState {
@@ -47,7 +63,7 @@ interface SortState {
   direction: 'asc' | 'desc';
 }
 
-interface ContextState<T extends MemoryRow = MemoryRow> {
+interface ContextState<T extends BrainRow = BrainRow> {
   rows: T[];
   count: number;
   fields: string[];
@@ -58,7 +74,7 @@ interface ContextState<T extends MemoryRow = MemoryRow> {
   lastLoadedAt: number | null;
 }
 
-export interface UseMemoryDataResult {
+export interface UseBrainDataResult {
   contacts: ContextState<ContactRow>;
   transcripts: ContextState<TranscriptRow>;
   knowledge: ContextState<KnowledgeRow>;
@@ -66,8 +82,8 @@ export interface UseMemoryDataResult {
   functions: ContextState<FunctionRow>;
   isLoading: boolean;
   error: string | null;
-  activeContext: MemoryTabContext;
-  setActiveContext: (ctx: MemoryTabContext) => void;
+  activeContext: BrainTabContext;
+  setActiveContext: (ctx: BrainTabContext) => void;
   sort: (field: string, direction: 'asc' | 'desc' | null) => void;
   search: (query: string) => void;
   clearSearch: () => void;
@@ -76,7 +92,7 @@ export interface UseMemoryDataResult {
   refetch: () => void;
 }
 
-function emptyState<T extends MemoryRow>(): ContextState<T> {
+function emptyState<T extends BrainRow>(): ContextState<T> {
   return {
     rows: [],
     count: 0,
@@ -89,8 +105,8 @@ function emptyState<T extends MemoryRow>(): ContextState<T> {
   };
 }
 
-function contextStateFromData<T extends MemoryRow>(
-  data: MemoryContextData<T>,
+function contextStateFromData<T extends BrainRow>(
+  data: BrainContextData<T>,
   sorting: SortState | null,
   filterExpr: string | null,
   searchQuery: string,
@@ -124,7 +140,7 @@ interface FetchForKeyOptions {
 
 function fetchForKey(
   assistant: Assistant,
-  context: MemoryTabContext,
+  context: BrainTabContext,
   {
     sorting = null,
     offset = 0,
@@ -145,7 +161,7 @@ function fetchForKey(
     return fetchFunctionsTables(assistant, root);
   }
 
-  return fetchMemoryContext(assistant, context, {
+  return fetchBrainContext(assistant, context, {
     limit: PAGE_SIZE,
     offset,
     sorting: sortingParam,
@@ -154,12 +170,22 @@ function fetchForKey(
   });
 }
 
-export function useMemoryData({
+export function useBrainData({
   assistant,
   ownerId,
   assistantId,
   root = null,
-}: UseMemoryDataOptions): UseMemoryDataResult {
+  contexts,
+  initialContext,
+}: UseBrainDataOptions): UseBrainDataResult {
+  // Stable signature so inline-array `contexts` props don't retrigger fetches.
+  const contextsKey = (contexts ?? ALL_CONTEXTS).join(',');
+  const requestedContexts = React.useMemo(
+    () => contextsKey.split(',') as BrainTabContext[],
+    [contextsKey]
+  );
+  const defaultContext = initialContext ?? requestedContexts[0];
+
   const [states, setStates] = React.useState<ContextStates>({
     Contacts: emptyState(),
     Transcripts: emptyState(),
@@ -170,7 +196,7 @@ export function useMemoryData({
   const [isLoading, setIsLoading] = React.useState(true);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [activeContext, setActiveContext] = React.useState<MemoryTabContext>('Contacts');
+  const [activeContext, setActiveContext] = React.useState<BrainTabContext>(defaultContext);
   const identityKey = `${ownerId}:${assistantId}`;
   const previousIdentityKey = React.useRef(identityKey);
   const requestSequence = React.useRef(0);
@@ -206,64 +232,38 @@ export function useMemoryData({
     setError(null);
 
     try {
-      const [c, t, k, g, f] = await Promise.all([
-        fetchForKey(assistant, 'Contacts', { root }),
-        fetchForKey(assistant, 'Transcripts', { root }),
-        fetchForKey(assistant, 'Knowledge', { root }),
-        fetchForKey(assistant, 'Guidance', { root }),
-        fetchForKey(assistant, 'Functions', { root }),
-      ]);
+      // Fetch only the requested contexts in parallel; a single-context Brain
+      // view therefore issues exactly one read and never waits on the others.
+      const results = await Promise.all(
+        requestedContexts.map((ctx) => fetchForKey(assistant, ctx, { root }))
+      );
       if (!isLatestRequest(requestId)) return;
 
       const loadedAt = Date.now();
 
-      setStates({
-        Contacts: contextStateFromData(
-          c as MemoryContextData<ContactRow>,
-          null,
-          null,
-          '',
-          loadedAt
-        ),
-        Transcripts: contextStateFromData(
-          t as MemoryContextData<TranscriptRow>,
-          null,
-          null,
-          '',
-          loadedAt
-        ),
-        Knowledge: contextStateFromData(
-          k as MemoryContextData<KnowledgeRow>,
-          null,
-          null,
-          '',
-          loadedAt
-        ),
-        Guidance: contextStateFromData(
-          g as MemoryContextData<GuidanceRow>,
-          null,
-          null,
-          '',
-          loadedAt
-        ),
-        Functions: contextStateFromData(
-          f as MemoryContextData<FunctionRow>,
-          null,
-          null,
-          '',
-          loadedAt
-        ),
+      setStates(() => {
+        const next: ContextStates = {
+          Contacts: emptyState(),
+          Transcripts: emptyState(),
+          Knowledge: emptyState(),
+          Guidance: emptyState(),
+          Functions: emptyState(),
+        };
+        requestedContexts.forEach((ctx, i) => {
+          next[ctx] = contextStateFromData(results[i] as any, null, null, '', loadedAt) as any;
+        });
+        return next;
       });
     } catch (err) {
       if (isLatestRequest(requestId)) {
-        setError(err instanceof Error ? err.message : 'Failed to load memory data');
+        setError(err instanceof Error ? err.message : 'Failed to load brain data');
       }
     } finally {
       if (isLatestRequest(requestId)) {
         setIsLoading(false);
       }
     }
-  }, [ownerId, assistantId, assistant, root, nextRequestId, isLatestRequest]);
+  }, [ownerId, assistantId, assistant, root, requestedContexts, nextRequestId, isLatestRequest]);
 
   React.useEffect(() => {
     setStates({
@@ -274,13 +274,13 @@ export function useMemoryData({
       Functions: emptyState(),
     });
     if (previousIdentityKey.current !== identityKey) {
-      setActiveContext('Contacts');
+      setActiveContext(defaultContext);
       previousIdentityKey.current = identityKey;
     }
     invalidatePageRequests();
     setIsLoadingMore(false);
     fetchAll();
-  }, [fetchAll, identityKey, invalidatePageRequests]);
+  }, [fetchAll, identityKey, defaultContext, invalidatePageRequests]);
 
   const sort = React.useCallback(
     async (field: string, direction: 'asc' | 'desc' | null) => {

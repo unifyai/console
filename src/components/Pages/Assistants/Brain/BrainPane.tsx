@@ -4,28 +4,28 @@ import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react'
 import { RefreshCw, Users, MessageSquare, BookOpen, Compass, Code, Search, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
-import { useMemoryData } from '@/hooks/Assistants/useMemoryData';
+import { useBrainData } from '@/hooks/Assistants/useBrainData';
 import type { ColumnDef } from '@tanstack/react-table';
 import {
   getColumnsForContext,
   buildTranscriptColumns,
-  MEMORY_CONTEXT_LABELS,
-} from '@/utils/assistants/memory';
-import { MemoryTable } from './MemoryTable';
-import { MemoryRowDetail } from './MemoryRowDetail';
-import type { MemoryContext, MemoryRow } from '@/types/assistants/memory';
+  BRAIN_CONTEXT_LABELS,
+} from '@/utils/assistants/brain';
+import { BrainTable } from './BrainTable';
+import { BrainRowDetail } from './BrainRowDetail';
+import type { BrainContext, BrainRow } from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
 import { fetchAssistants } from '@/lib/client/assistant';
 import {
   DestinationDropdown,
-  MEMORY_DESTINATION_ALL,
-  memoryDestinationRoot,
-  type MemoryDestinationValue,
+  BRAIN_DESTINATION_ALL,
+  brainDestinationRoot,
+  type BrainDestinationValue,
 } from './DestinationDropdown';
 import type { CoordinatorWorkspaceScope } from '@/lib/assistants/coordinatorIdentity';
 import { currentTeamIds } from '@/lib/assistants/scope';
 
-interface MemoryPaneProps {
+interface BrainPaneProps {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
@@ -38,19 +38,26 @@ interface MemoryPaneProps {
    * a *second* input that lets the parent (e.g. the right-pane tab
    * strip's dropdown) drive sub-tab selection too.
    */
-  subTab?: MemoryTabContext;
+  subTab?: BrainTabContext;
   /**
    * Fires whenever the active sub-tab changes — from footer clicks,
    * external `subTab` updates, or assistant-change resets. Lets the
    * parent's dropdown stay in sync with whichever sub-tab is actually
    * showing in the pane.
    */
-  onSubTabChange?: (next: MemoryTabContext) => void;
+  onSubTabChange?: (next: BrainTabContext) => void;
+  /**
+   * Hides the footer context switcher. Used when the pane is embedded as a
+   * pinned single-context Brain view (e.g. the Brain → Transcripts section),
+   * where switching to other Brain contexts from inside the view would be
+   * confusing. Defaults to `false` (the full Brain pane behavior).
+   */
+  hideSubTabs?: boolean;
 }
 
-type MemoryTabContext = Exclude<MemoryContext, 'Tasks'>;
+type BrainTabContext = Exclude<BrainContext, 'Tasks'>;
 
-const CONTEXT_ICONS: Record<MemoryTabContext, React.ElementType> = {
+const CONTEXT_ICONS: Record<BrainTabContext, React.ElementType> = {
   Contacts: Users,
   Transcripts: MessageSquare,
   Knowledge: BookOpen,
@@ -143,29 +150,38 @@ async function fetchAssistantNameLookup(
   return request;
 }
 
-export function MemoryPane({
+export function BrainPane({
   assistant,
   ownerId,
   assistantId,
   subTab,
   onSubTabChange,
   isVisible = true,
-}: MemoryPaneProps) {
+  hideSubTabs = false,
+}: BrainPaneProps) {
   const [destinationValue, setDestinationValue] =
-    useState<MemoryDestinationValue>(MEMORY_DESTINATION_ALL);
+    useState<BrainDestinationValue>(BRAIN_DESTINATION_ALL);
   const identityKey = `${ownerId}:${assistantId}`;
   const availableTeamIds = useMemo(() => currentTeamIds(assistant), [assistant]);
-  const effectiveDestinationValue = useMemo((): MemoryDestinationValue => {
-    const root = memoryDestinationRoot(destinationValue);
+  const effectiveDestinationValue = useMemo((): BrainDestinationValue => {
+    const root = brainDestinationRoot(destinationValue);
     if (root?.kind === 'team' && !availableTeamIds.includes(root.teamId)) {
-      return MEMORY_DESTINATION_ALL;
+      return BRAIN_DESTINATION_ALL;
     }
     return destinationValue;
   }, [availableTeamIds, destinationValue]);
   const selectedRoot = useMemo(
-    () => memoryDestinationRoot(effectiveDestinationValue),
+    () => brainDestinationRoot(effectiveDestinationValue),
     [effectiveDestinationValue]
   );
+  // When embedded as a pinned single-context Brain view, only fetch that
+  // context (not the all-five waterfall). Transcripts additionally needs
+  // Contacts loaded to resolve sender/receiver names in `contactMap`.
+  const pinnedContexts = useMemo((): readonly BrainTabContext[] | undefined => {
+    if (!hideSubTabs || !subTab) return undefined;
+    if (subTab === 'Transcripts') return ['Transcripts', 'Contacts'];
+    return [subTab];
+  }, [hideSubTabs, subTab]);
   const {
     contacts,
     transcripts,
@@ -182,7 +198,14 @@ export function MemoryPane({
     clearSearch,
     loadMore,
     refetch,
-  } = useMemoryData({ assistant, ownerId, assistantId, root: selectedRoot });
+  } = useBrainData({
+    assistant,
+    ownerId,
+    assistantId,
+    root: selectedRoot,
+    contexts: pinnedContexts,
+    initialContext: hideSubTabs ? subTab : undefined,
+  });
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedRow, setSelectedRow] = useState<Record<string, unknown> | null>(null);
@@ -191,7 +214,7 @@ export function MemoryPane({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setDestinationValue(MEMORY_DESTINATION_ALL);
+    setDestinationValue(BRAIN_DESTINATION_ALL);
   }, [identityKey]);
 
   useEffect(() => {
@@ -391,7 +414,7 @@ export function MemoryPane({
     });
   }, [allColumns, activeState.rows]);
 
-  const counts: Record<MemoryTabContext, number> = {
+  const counts: Record<BrainTabContext, number> = {
     Contacts: contacts.count,
     Transcripts: transcripts.count,
     Knowledge: knowledge.count,
@@ -400,10 +423,10 @@ export function MemoryPane({
   };
 
   const isFiltered = !!activeState.filterExpr;
-  const detailTitle = `${MEMORY_CONTEXT_LABELS[activeContext]} Detail`;
+  const detailTitle = `${BRAIN_CONTEXT_LABELS[activeContext]} Detail`;
   const emptyMessage = isFiltered
     ? 'No results match your search.'
-    : `No ${(MEMORY_CONTEXT_LABELS[activeContext] ?? activeContext).toLowerCase()} found.`;
+    : `No ${(BRAIN_CONTEXT_LABELS[activeContext] ?? activeContext).toLowerCase()} found.`;
 
   if (error) {
     return (
@@ -417,11 +440,11 @@ export function MemoryPane({
   }
 
   return (
-    <div className="flex h-full flex-col" data-testid="memory-pane">
+    <div className="flex h-full flex-col" data-testid="brain-pane">
       {/* Header — search, destination drill-in, refresh */}
       <div
         className="flex shrink-0 items-center gap-2 border-b px-3 py-2"
-        data-testid="memory-header"
+        data-testid="brain-header"
       >
         <div className="relative max-w-xs flex-1">
           <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -433,13 +456,13 @@ export function MemoryPane({
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             onKeyDown={handleSearchSubmit}
-            data-testid="memory-search"
+            data-testid="brain-search"
           />
           {isFiltered && (
             <button
               className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
               onClick={handleClearSearch}
-              data-testid="memory-search-clear"
+              data-testid="brain-search-clear"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -460,17 +483,17 @@ export function MemoryPane({
           className="h-7 w-7 shrink-0"
           onClick={handleRefresh}
           disabled={isRefreshing}
-          data-testid="memory-refresh"
+          data-testid="brain-refresh"
         >
           <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
         </Button>
       </div>
 
       {/* Body — table */}
-      <div className="min-h-0 flex-1" data-testid="memory-body">
-        <MemoryTable<MemoryRow>
+      <div className="min-h-0 flex-1" data-testid="brain-body">
+        <BrainTable<BrainRow>
           data={activeState.rows}
-          columns={columns as ColumnDef<MemoryRow, any>[]}
+          columns={columns as ColumnDef<BrainRow, any>[]}
           isLoading={isLoading}
           isLoadingMore={isLoadingMore}
           hasMore={activeState.hasMore}
@@ -479,7 +502,7 @@ export function MemoryPane({
           onSort={sort}
           onLoadMore={loadMore}
           serverSorting={activeState.sorting}
-          testId={`memory-table-${activeContext.toLowerCase()}`}
+          testId={`brain-table-${activeContext.toLowerCase()}`}
         />
       </div>
 
@@ -487,33 +510,37 @@ export function MemoryPane({
           with the assistant-list toggle and the chat input / other tab footers. */}
       <div
         className="flex h-10 shrink-0 items-center justify-between border-t px-2"
-        data-testid="memory-footer"
+        data-testid="brain-footer"
       >
-        <div className="flex items-center gap-1 overflow-x-auto" data-testid="memory-sub-tabs">
-          {(Object.keys(MEMORY_CONTEXT_LABELS) as MemoryTabContext[]).map((ctx) => {
-            const Icon = CONTEXT_ICONS[ctx];
-            return (
-              <button
-                key={ctx}
-                className={TAB_CLASS}
-                data-active={activeContext === ctx}
-                data-testid={`memory-tab-${ctx.toLowerCase()}`}
-                onClick={() => setActiveContext(ctx)}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{MEMORY_CONTEXT_LABELS[ctx]}</span>
-                <span className="tabular-nums opacity-60 sm:hidden">
-                  {counts[ctx] > 0 ? counts[ctx] : ''}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        {hideSubTabs ? (
+          <div />
+        ) : (
+          <div className="flex items-center gap-1 overflow-x-auto" data-testid="brain-sub-tabs">
+            {(Object.keys(BRAIN_CONTEXT_LABELS) as BrainTabContext[]).map((ctx) => {
+              const Icon = CONTEXT_ICONS[ctx];
+              return (
+                <button
+                  key={ctx}
+                  className={TAB_CLASS}
+                  data-active={activeContext === ctx}
+                  data-testid={`brain-tab-${ctx.toLowerCase()}`}
+                  onClick={() => setActiveContext(ctx)}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{BRAIN_CONTEXT_LABELS[ctx]}</span>
+                  <span className="tabular-nums opacity-60 sm:hidden">
+                    {counts[ctx] > 0 ? counts[ctx] : ''}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {activeState.rows.length > 0 && (
           <span
             className="text-caption hidden shrink-0 px-3 py-1.5 sm:inline"
-            data-testid="memory-table-footer"
+            data-testid="brain-table-footer"
           >
             {activeState.rows.length} of {activeState.count}{' '}
             {activeState.count === 1 ? 'row' : 'rows'}
@@ -522,7 +549,7 @@ export function MemoryPane({
         )}
       </div>
 
-      <MemoryRowDetail
+      <BrainRowDetail
         row={selectedRow}
         context={activeContext}
         title={detailTitle}

@@ -10,6 +10,8 @@ import {
 } from '@/components/Pages/Assistants/RightPaneContainer';
 import { AssistantRail, RAIL_COLLAPSED_STORAGE_KEY } from './Rail/AssistantRail';
 import { SectionHost } from './Rail/SectionHost';
+import { BrainPane } from './Brain';
+import { SectionBodySkeleton } from '@/components/Common/Loaders/Skeletons';
 import { SECTION_BY_ID, DEFAULT_SECTION_ID, type SectionDef } from './Rail/sectionConfig';
 import {
   Assistant,
@@ -98,6 +100,20 @@ import {
   dispatchCoordinatorOnboardingStepEvent,
   replyStepForCoordinatorTriggerStep,
 } from '@/utils/assistants/coordinator-reference-quiz';
+
+// Net-new Brain panes are code-split: their JS loads only when the tab is
+// opened, so the assistants shell paints without their weight in the main
+// bundle. (BrainPane stays static — it's already in the bundle via
+// RightPaneContainer.)
+const FunctionsPane = React.lazy(() =>
+  import('./Functions/FunctionsPane').then((m) => ({ default: m.FunctionsPane }))
+);
+const DocLibraryPane = React.lazy(() =>
+  import('./DocLibrary/DocLibraryPane').then((m) => ({ default: m.DocLibraryPane }))
+);
+const ContactsPane = React.lazy(() =>
+  import('./Contacts/ContactsPane').then((m) => ({ default: m.ContactsPane }))
+);
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
 const COORDINATOR_ONBOARDING_ACCESSIBLE_POLL_MS = 8_000;
@@ -296,7 +312,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   }, []);
 
   React.useEffect(() => {
-    setActivePlaceholderId(null);
+    setActiveBrainSectionId(null);
     setPaneState((prev) => ({
       ...prev,
       primary: { tab: 'chat' },
@@ -306,11 +322,12 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   // --- Rail shell state ---
   // The active rail section is derived: for `view` sections the id equals the
-  // right-pane tab, so we read it straight off `paneState`. A net-new Brain
-  // `placeholder` section is the only thing that can't map to a view, so it is
-  // tracked separately and takes precedence while open.
-  const [activePlaceholderId, setActivePlaceholderId] = React.useState<string | null>(null);
-  const activeSectionId = activePlaceholderId ?? paneState.primary.tab;
+  // right-pane tab, so we read it straight off `paneState`. Brain sections that
+  // don't map to a right-pane tab — `brain-view` (dedicated component) and
+  // `placeholder` ("coming soon") — can't be derived from `paneState`, so they
+  // are tracked separately and take precedence while open.
+  const [activeBrainSectionId, setActiveBrainSectionId] = React.useState<string | null>(null);
+  const activeSectionId = activeBrainSectionId ?? paneState.primary.tab;
   const activeSectionDef = SECTION_BY_ID[activeSectionId] ?? SECTION_BY_ID[DEFAULT_SECTION_ID];
 
   const [railCollapsed, setRailCollapsed] = React.useState(false);
@@ -1180,7 +1197,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       // Suppress unread bumps for whichever assistant chat the user is
       // currently looking at — either the profile chat panel (only when
       // the right-pane Chat tab is visible in *either* the primary or
-      // secondary split slot; on Actions/Memory/etc.-only we still want
+      // secondary split slot; on Actions/Brain/etc.-only we still want
       // the badge to climb so the user notices), or, if no panel is
       // open, the call dialog's embedded side panel.
       activeAssistantId:
@@ -1679,7 +1696,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleCoordinatorOpenPaneTab = React.useCallback(
     (tab: RightPaneTab, stepId: string) => {
       markStepEngaged(stepId);
-      setActivePlaceholderId(null);
+      setActiveBrainSectionId(null);
       setPaneState((prev) => ({ ...prev, primary: { tab } }));
     },
     [markStepEngaged]
@@ -2311,20 +2328,23 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
   const isFirstViewAfterHire = newlyHiredInfo?.assistant.agentId === profileAssistantId;
 
-  // Rail section selection: `view` sections drive the right-pane tab, `action`
-  // sections (Contacts) open their dialog without changing the view, and
-  // `placeholder` sections swap the section host to a "coming soon" panel.
+  // Rail section selection: `view` sections drive the right-pane tab, the
+  // non-tab Brain sections — `brain-view` (dedicated component, e.g. Contacts /
+  // Transcripts / Functions / Guidance / Knowledge) and `placeholder`
+  // ("coming soon") — take over the section host via `activeBrainSectionId`.
+  // `action` sections (none today; channel-identity provisioning now lives
+  // behind the Contacts directory's "Add contact" affordance) open a dialog.
   const handleSelectSection = React.useCallback(
     (section: SectionDef) => {
       if (section.kind === 'action') {
         if (profileAssistant) handleOpenContactManager(profileAssistant);
         return;
       }
-      if (section.kind === 'placeholder') {
-        setActivePlaceholderId(section.id);
+      if (section.kind === 'brain-view' || section.kind === 'placeholder') {
+        setActiveBrainSectionId(section.id);
         return;
       }
-      setActivePlaceholderId(null);
+      setActiveBrainSectionId(null);
       if (section.tab) {
         const tab = section.tab;
         setPaneState((prev) => ({ ...prev, primary: { tab } }));
@@ -2392,140 +2412,187 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
               <SectionHost
                 section={activeSectionDef}
-                renderView={() => (
-                  <RightPaneContainer
-                    hideTabStrip
-                    assistant={profileAssistant}
-                    actions={assistantActions.actions || null}
-                    dashboardActions={assistantActions.dashboards || null}
-                    assistantActions={assistantActions}
-                    chatHistories={profileChatHistories}
-                    setChatHistories={setProfileChatHistories}
-                    callPillHistories={callPillHistories}
-                    setCallPillHistories={setCallPillHistories}
-                    userEmail={userMeta.email}
-                    currentUserId={currentUserId}
-                    isFirstView={isFirstViewAfterHire}
-                    preHireChat={isFirstViewAfterHire ? newlyHiredInfo?.preHireChat : undefined}
-                    onFirstViewCompleted={handleFirstViewCompleted}
-                    onStartCall={handleStartCall}
-                    activeCallAssistantId={activeCallId}
-                    isCallConnected={isCallConnected}
-                    isConnectingCall={isConnectingCall}
-                    userTimezone={userMeta.timezone}
-                    canWrite={profileAssistant ? canWrite(profileAssistant) : undefined}
-                    spendingGate={spendingGateStatus}
-                    chatStreamConnectionStatus={
-                      profileAssistant
-                        ? (chatStreamConnectionStatusByAssistant[profileAssistant.agentId] ??
-                          'connecting')
-                        : 'connecting'
+                renderView={() => {
+                  // Brain sections with a dedicated component render it directly;
+                  // everything else flows through the right-pane container.
+                  // Transcripts/Knowledge reuse the Brain pane pinned to a single
+                  // context (Knowledge has a dynamic per-assistant schema, so a
+                  // table is its honest representation); Contacts/Guidance/Functions
+                  // have their own design views over the pydantic-shaped data.
+                  if (activeSectionDef.kind === 'brain-view' && profileAssistant) {
+                    const brainProps = {
+                      assistant: profileAssistant,
+                      ownerId: profileAssistant.userId,
+                      assistantId: profileAssistant.agentId,
+                    };
+                    let brainPane: React.ReactNode;
+                    if (activeSectionDef.id === 'contacts') {
+                      brainPane = (
+                        <ContactsPane
+                          {...brainProps}
+                          onManageContacts={() => handleOpenContactManager(profileAssistant)}
+                        />
+                      );
+                    } else if (activeSectionDef.id === 'functions') {
+                      brainPane = <FunctionsPane {...brainProps} />;
+                    } else if (activeSectionDef.id === 'guidance') {
+                      brainPane = <DocLibraryPane {...brainProps} />;
+                    } else {
+                      // Transcripts/Knowledge reuse the (statically bundled)
+                      // BrainPane pinned to a single context.
+                      brainPane = (
+                        <BrainPane
+                          {...brainProps}
+                          subTab={activeSectionDef.id === 'knowledge' ? 'Knowledge' : 'Transcripts'}
+                          hideSubTabs
+                        />
+                      );
                     }
-                    reconnectChatStream={reconnectChatStream}
-                    chatStreamActivitySignal={profileChatActivitySignal}
-                    paneState={paneState}
-                    onPaneStateChange={setPaneState}
-                    onEditAssistant={handleOpenEditDialog}
-                    onOpenContactManager={handleOpenContactManager}
-                    hasUserMessage={profiledHasUserMessage}
-                    hasHistoricalCall={profiledHasHistoricalCall}
-                    hasUserPhoneNumber={hasUserPhoneNumber}
-                    latestUserMessageAt={profiledLatestUserMessageAt}
-                    userPhoneNumber={userMeta.phoneNumber}
-                    // The roadmap activates downstream only when the
-                    // owner-only settings handler is provided (see
-                    // ChatWithInfoPanel — it gates the `roadmap` prop bag on
-                    // its presence). Withholding it for non-owners cleanly
-                    // hides the Onboarding tab without bespoke prop drilling.
-                    onOpenUserSettings={isAssistantOwner ? handleOpenUserSettings : undefined}
-                    // Drives the dot on the chat header's "Assistant info"
-                    // button. Pulled from the same cross-assistant summary
-                    // map we used for the (now-removed) list-item dot, so
-                    // the source of truth doesn't fork.
-                    unreadChatCount={
-                      profileAssistant ? (chatStreamUnreadCounts[profileAssistant.agentId] ?? 0) : 0
-                    }
-                    hasIncompleteOnboarding={
-                      isAssistantOwner && profileAssistant
-                        ? profileAssistant.agentId === canonicalCoordinatorId
-                          ? // The Coordinator's onboarding lives in its own
-                            // checklist, not the per-assistant setup roadmap, so
-                            // its nudge tracks the checklist's outstanding steps.
-                            coordinatorOnboardingOutstanding
-                          : !!onboardingIncompleteByAgentId[profileAssistant.agentId]
-                        : false
-                    }
-                    infoPanelFocusLayoutRequest={
-                      canApplyCoordinatorOnboardingFocusLayout
-                        ? coordinatorOnboardingFocusLayoutRequest
-                        : 0
-                    }
-                    coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
-                    // Dock the call into the chat slot whenever an active
-                    // call's assistant matches the chat's assistant and the
-                    // user hasn't explicitly popped the call out. The
-                    // Coordinator-onboarding shell hosts its own docked
-                    // render (and unmounts this tree), so no extra guard
-                    // is needed here.
-                    renderDockedCall={
-                      activeCallAssistant &&
-                      profileAssistant &&
-                      activeCallAssistant.agentId === profileAssistant.agentId &&
-                      isDocked
-                        ? () => (
-                            <RoomContext.Provider value={room}>
-                              <AssistantCommunicationDialog
-                                docked
-                                isOpen
-                                onClose={handleHangUp}
-                                onPopOut={popOut}
-                                assistant={activeCallAssistant}
-                                assistantActions={assistantActions}
-                                room={room}
-                                chatHistories={profileChatHistories}
-                                setChatHistories={setProfileChatHistories}
-                                callPillHistories={callPillHistories}
-                                setCallPillHistories={setCallPillHistories}
-                                isConnecting={isConnectingCall}
-                                userEmail={userMeta.email}
-                                userImage={userMeta.image}
-                                isWaitingForAssistant={isWaitingForAssistant}
-                                isAssistantPreparing={isAssistantPreparing}
-                                waitingMessage={waitingMessage}
-                                isCallConnected={isCallConnected}
-                                connectionError={connectionError}
-                                onRetry={retryConnection}
-                                isRemoteControlActive={isRemoteControlActive}
-                                liveviewUrl={liveviewUrl}
-                                isRemoteControlLoading={isRemoteControlLoading}
-                                toggleRemoteControl={toggleRemoteControl}
-                                isRemoteControlInteractive={isRemoteControlInteractive}
-                                isRemoteControlInteractiveLoading={
-                                  isRemoteControlInteractiveLoading
-                                }
-                                toggleRemoteControlInteractive={toggleRemoteControlInteractive}
-                                isDesktopReady={isDesktopReady}
-                                callType={callType}
-                                isSpeakerMuted={isSpeakerMuted}
-                                onToggleSpeaker={toggleSpeakerMute}
-                                avatarMood={avatarMood}
-                                coordinatorAvatarVisible={!showCoordinatorOnboardingIntro}
-                                chatStreamConnectionStatus={
-                                  chatStreamConnectionStatusByAssistant[
-                                    activeCallAssistant.agentId
-                                  ] ?? 'connecting'
-                                }
-                                reconnectChatStream={reconnectChatStream}
-                                chatStreamActivitySignal={
-                                  chatActivityCounters[activeCallAssistant.agentId] ?? 0
-                                }
-                              />
-                            </RoomContext.Provider>
-                          )
-                        : undefined
-                    }
-                  />
-                )}
+                    // Suspense covers the code-split chunk load for the net-new
+                    // panes; each pane then shows its own data skeleton.
+                    return (
+                      <React.Suspense fallback={<SectionBodySkeleton className="h-full" />}>
+                        {brainPane}
+                      </React.Suspense>
+                    );
+                  }
+                  return (
+                    <RightPaneContainer
+                      hideTabStrip
+                      assistant={profileAssistant}
+                      actions={assistantActions.actions || null}
+                      dashboardActions={assistantActions.dashboards || null}
+                      assistantActions={assistantActions}
+                      chatHistories={profileChatHistories}
+                      setChatHistories={setProfileChatHistories}
+                      callPillHistories={callPillHistories}
+                      setCallPillHistories={setCallPillHistories}
+                      userEmail={userMeta.email}
+                      currentUserId={currentUserId}
+                      isFirstView={isFirstViewAfterHire}
+                      preHireChat={isFirstViewAfterHire ? newlyHiredInfo?.preHireChat : undefined}
+                      onFirstViewCompleted={handleFirstViewCompleted}
+                      onStartCall={handleStartCall}
+                      activeCallAssistantId={activeCallId}
+                      isCallConnected={isCallConnected}
+                      isConnectingCall={isConnectingCall}
+                      userTimezone={userMeta.timezone}
+                      canWrite={profileAssistant ? canWrite(profileAssistant) : undefined}
+                      spendingGate={spendingGateStatus}
+                      chatStreamConnectionStatus={
+                        profileAssistant
+                          ? (chatStreamConnectionStatusByAssistant[profileAssistant.agentId] ??
+                            'connecting')
+                          : 'connecting'
+                      }
+                      reconnectChatStream={reconnectChatStream}
+                      chatStreamActivitySignal={profileChatActivitySignal}
+                      paneState={paneState}
+                      onPaneStateChange={setPaneState}
+                      onEditAssistant={handleOpenEditDialog}
+                      onOpenContactManager={handleOpenContactManager}
+                      hasUserMessage={profiledHasUserMessage}
+                      hasHistoricalCall={profiledHasHistoricalCall}
+                      hasUserPhoneNumber={hasUserPhoneNumber}
+                      latestUserMessageAt={profiledLatestUserMessageAt}
+                      userPhoneNumber={userMeta.phoneNumber}
+                      // The roadmap activates downstream only when the
+                      // owner-only settings handler is provided (see
+                      // ChatWithInfoPanel — it gates the `roadmap` prop bag on
+                      // its presence). Withholding it for non-owners cleanly
+                      // hides the Onboarding tab without bespoke prop drilling.
+                      onOpenUserSettings={isAssistantOwner ? handleOpenUserSettings : undefined}
+                      // Drives the dot on the chat header's "Assistant info"
+                      // button. Pulled from the same cross-assistant summary
+                      // map we used for the (now-removed) list-item dot, so
+                      // the source of truth doesn't fork.
+                      unreadChatCount={
+                        profileAssistant
+                          ? (chatStreamUnreadCounts[profileAssistant.agentId] ?? 0)
+                          : 0
+                      }
+                      hasIncompleteOnboarding={
+                        isAssistantOwner && profileAssistant
+                          ? profileAssistant.agentId === canonicalCoordinatorId
+                            ? // The Coordinator's onboarding lives in its own
+                              // checklist, not the per-assistant setup roadmap, so
+                              // its nudge tracks the checklist's outstanding steps.
+                              coordinatorOnboardingOutstanding
+                            : !!onboardingIncompleteByAgentId[profileAssistant.agentId]
+                          : false
+                      }
+                      infoPanelFocusLayoutRequest={
+                        canApplyCoordinatorOnboardingFocusLayout
+                          ? coordinatorOnboardingFocusLayoutRequest
+                          : 0
+                      }
+                      coordinatorOnboarding={coordinatorOnboardingPanelHandlers}
+                      // Dock the call into the chat slot whenever an active
+                      // call's assistant matches the chat's assistant and the
+                      // user hasn't explicitly popped the call out. The
+                      // Coordinator-onboarding shell hosts its own docked
+                      // render (and unmounts this tree), so no extra guard
+                      // is needed here.
+                      renderDockedCall={
+                        activeCallAssistant &&
+                        profileAssistant &&
+                        activeCallAssistant.agentId === profileAssistant.agentId &&
+                        isDocked
+                          ? () => (
+                              <RoomContext.Provider value={room}>
+                                <AssistantCommunicationDialog
+                                  docked
+                                  isOpen
+                                  onClose={handleHangUp}
+                                  onPopOut={popOut}
+                                  assistant={activeCallAssistant}
+                                  assistantActions={assistantActions}
+                                  room={room}
+                                  chatHistories={profileChatHistories}
+                                  setChatHistories={setProfileChatHistories}
+                                  callPillHistories={callPillHistories}
+                                  setCallPillHistories={setCallPillHistories}
+                                  isConnecting={isConnectingCall}
+                                  userEmail={userMeta.email}
+                                  userImage={userMeta.image}
+                                  isWaitingForAssistant={isWaitingForAssistant}
+                                  isAssistantPreparing={isAssistantPreparing}
+                                  waitingMessage={waitingMessage}
+                                  isCallConnected={isCallConnected}
+                                  connectionError={connectionError}
+                                  onRetry={retryConnection}
+                                  isRemoteControlActive={isRemoteControlActive}
+                                  liveviewUrl={liveviewUrl}
+                                  isRemoteControlLoading={isRemoteControlLoading}
+                                  toggleRemoteControl={toggleRemoteControl}
+                                  isRemoteControlInteractive={isRemoteControlInteractive}
+                                  isRemoteControlInteractiveLoading={
+                                    isRemoteControlInteractiveLoading
+                                  }
+                                  toggleRemoteControlInteractive={toggleRemoteControlInteractive}
+                                  isDesktopReady={isDesktopReady}
+                                  callType={callType}
+                                  isSpeakerMuted={isSpeakerMuted}
+                                  onToggleSpeaker={toggleSpeakerMute}
+                                  avatarMood={avatarMood}
+                                  coordinatorAvatarVisible={!showCoordinatorOnboardingIntro}
+                                  chatStreamConnectionStatus={
+                                    chatStreamConnectionStatusByAssistant[
+                                      activeCallAssistant.agentId
+                                    ] ?? 'connecting'
+                                  }
+                                  reconnectChatStream={reconnectChatStream}
+                                  chatStreamActivitySignal={
+                                    chatActivityCounters[activeCallAssistant.agentId] ?? 0
+                                  }
+                                />
+                              </RoomContext.Provider>
+                            )
+                          : undefined
+                      }
+                    />
+                  );
+                }}
               />
             </div>
             {showCoordinatorOnboardingIntro && canonicalCoordinator && (

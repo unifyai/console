@@ -16,15 +16,17 @@ import {
 import type { RightPaneTab } from '@/components/Pages/Assistants/RightPaneContainer';
 
 /**
- * A rail section is one of three kinds:
+ * A rail section is one of four kinds:
  * - `view`: maps to an existing right-pane view (`RightPaneTab`) rendered by
  *   `RightPaneContainer`.
+ * - `brain-view`: a Brain area with its own dedicated component (not a
+ *   `RightPaneTab`), rendered directly under the section header.
  * - `action`: triggers a side effect (e.g. opening the Contacts dialog) without
  *   changing the active view.
  * - `placeholder`: a net-new Brain area shown as a brand "coming soon" panel
  *   until its real view is built.
  */
-export type SectionKind = 'view' | 'action' | 'placeholder';
+export type SectionKind = 'view' | 'brain-view' | 'action' | 'placeholder';
 
 export interface SectionDef {
   id: string;
@@ -109,14 +111,14 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
 
 export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
   {
-    id: 'memory',
-    label: 'Memory',
+    id: 'brain',
+    label: 'Brain',
     Icon: Brain,
     kind: 'view',
-    tab: 'memory',
+    tab: 'brain',
     desc: 'Durable facts, notes and context your unity relies on across conversations.',
     steps: [
-      ['Browse memory', 'Switch contexts to see the notes your unity keeps.'],
+      ['Browse the brain', 'Switch contexts to see the notes your unity keeps.'],
       ['Open an entry', 'Read the full note and where it came from.'],
       ['Add context', 'Capture something new for your unity to remember.'],
     ],
@@ -125,7 +127,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     id: 'contacts',
     label: 'Contacts',
     Icon: Contact,
-    kind: 'action',
+    kind: 'brain-view',
     desc: 'People your unity remembers, with the context it keeps on each.',
     steps: [
       ['Open a contact', 'Click any card to see full details in a drawer.'],
@@ -137,7 +139,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     id: 'transcripts',
     label: 'Transcripts',
     Icon: MessagesSquare,
-    kind: 'placeholder',
+    kind: 'brain-view',
     desc: 'Every conversation across chat, email, call, SMS and WhatsApp, in one consolidated thread.',
     steps: [
       ['Pick a channel', 'The channel rail re-themes the thread per medium.'],
@@ -149,7 +151,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     id: 'knowledge',
     label: 'Knowledge',
     Icon: BookOpen,
-    kind: 'placeholder',
+    kind: 'brain-view',
     desc: 'Durable facts and rules your unity relies on — rich documents, rendered on the right.',
     steps: [
       ['Open a rule', 'Select from the list to read the rendered document.'],
@@ -161,7 +163,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     id: 'functions',
     label: 'Functions',
     Icon: Braces,
-    kind: 'placeholder',
+    kind: 'brain-view',
     desc: 'Learned Python skills, with signatures, source and a way to run them.',
     steps: [
       ['Open a function', 'Inspect its signature, docstring and source.'],
@@ -173,7 +175,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     id: 'guidance',
     label: 'Guidance',
     Icon: Compass,
-    kind: 'placeholder',
+    kind: 'brain-view',
     desc: 'Playbooks that shape how your unity behaves — rich documents, rendered on the right.',
     steps: [
       ['Open a playbook', 'Select from the list to read the rendered document.'],
