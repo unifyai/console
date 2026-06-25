@@ -78,7 +78,11 @@ function makeActEvent(callingId: string, phase: 'incoming' | 'outgoing') {
   };
 }
 
-async function pushEvent(assistantId: number, event: ReturnType<typeof makeActEvent>) {
+function makeCommsEvent(medium: string, direction: 'inbound' | 'outbound') {
+  return { type: 'CommsActivity', data: { medium, direction } };
+}
+
+async function pushEvent(assistantId: number, event: Record<string, unknown>) {
   const res = await fetch(`${CONSOLE_BASE}/api/assistant/${assistantId}/actions/push`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -123,6 +127,41 @@ test('droid adopts the working pose while an act is in flight and reverts when i
   // is removed once the close animation settles.
   await pushEvent(assistant.agentId, makeActEvent(callingId, 'outgoing'));
 
+  await expect(page.getByTestId('unity-call-avatar')).toHaveAttribute('data-acting', 'false', {
+    timeout: 15_000,
+  });
+  await expect(page.getByTestId('unity-call-laptop')).toHaveCount(0, { timeout: 15_000 });
+
+  const endCallBtn = page.getByRole('button', { name: 'End call' });
+  await endCallBtn.click();
+  await expect(page.locator('text=Talk to Worker TestBot')).not.toBeVisible({ timeout: 10_000 });
+});
+
+test('a non-unify comms event rotates the droid, resets on cascade, and reverts after the cooloff', async ({
+  authedPage: page,
+}) => {
+  await startCall(page);
+  await expect(page.getByTestId('unity-call-laptop')).toHaveCount(0);
+
+  // An outbound email lands → working pose.
+  await pushEvent(assistant.agentId, makeCommsEvent('email', 'outbound'));
+  await expect(page.getByTestId('unity-call-avatar')).toHaveAttribute('data-acting', 'true', {
+    timeout: 15_000,
+  });
+  await expect(page.getByTestId('unity-call-laptop')).toBeVisible({ timeout: 15_000 });
+
+  // Cascade: a second event ~7s later (within the 10s cooloff) resets the timer.
+  await page.waitForTimeout(7_000);
+  await pushEvent(assistant.agentId, makeCommsEvent('whatsapp_message', 'inbound'));
+
+  // ~7s after the second event (14s after the first) it is still rotated —
+  // proving the cooloff tracks the latest event, not the first.
+  await page.waitForTimeout(7_000);
+  await expect(page.getByTestId('unity-call-laptop')).toBeVisible();
+  await expect(page.getByTestId('unity-call-avatar')).toHaveAttribute('data-acting', 'true');
+
+  // No further events: ~12s after the last one, it turns back to the screen.
+  await page.waitForTimeout(12_000);
   await expect(page.getByTestId('unity-call-avatar')).toHaveAttribute('data-acting', 'false', {
     timeout: 15_000,
   });

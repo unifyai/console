@@ -39,6 +39,34 @@ import { useAssistantActions } from '@/hooks/Assistants/useAssistantActions';
 export type CallDialogActions = Pick<AssistantActions, 'chat' | 'desktop' | 'actions'> &
   Partial<Pick<AssistantActions, 'voice'>>;
 
+// Keep the call-window droid in its "working on a laptop" pose for this long
+// after the latest non-unify comms event; cascading events keep resetting it.
+const COMMS_ACTIVITY_COOLOFF_MS = 10_000;
+
+/**
+ * True for `windowMs` after `lastActivityAt`, then flips back to false. Each new
+ * `lastActivityAt` resets the timer, so a burst of comms events holds the pose
+ * until 10s after the last one.
+ */
+function useCommsCooloff(lastActivityAt: number | null, windowMs: number): boolean {
+  const [active, setActive] = React.useState(false);
+  React.useEffect(() => {
+    if (lastActivityAt == null) {
+      setActive(false);
+      return;
+    }
+    const remaining = windowMs - (Date.now() - lastActivityAt);
+    if (remaining <= 0) {
+      setActive(false);
+      return;
+    }
+    setActive(true);
+    const timer = window.setTimeout(() => setActive(false), remaining);
+    return () => window.clearTimeout(timer);
+  }, [lastActivityAt, windowMs]);
+  return active;
+}
+
 interface AssistantCommunicationDialogContentProps {
   assistant: Assistant;
   onHangUp: () => void;
@@ -254,14 +282,17 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
   });
 
   // Mirror the Actions pane's in-flight detection so the call avatar can adopt
-  // its "working on a laptop" pose while the assistant has a running `act`.
-  // Same SSE stream; only `hasActiveAction` is consumed here.
-  const { hasActiveAction: isActing } = useAssistantActions(
+  // its "working on a laptop" pose while the assistant has a running `act`, and
+  // also while a non-unify comms event (email/SMS/WhatsApp/…) is fresh. Same
+  // SSE stream; only `hasActiveAction` + `lastCommsActivityAt` are consumed.
+  const { hasActiveAction, lastCommsActivityAt } = useAssistantActions(
     assistant.userId,
     assistant.agentId,
     assistantActions.actions ?? { getManagerMethodEvents: async () => ({ logs: [], count: 0 }) },
     { enabled: isCallConnected }
   );
+  const isCommsActive = useCommsCooloff(lastCommsActivityAt, COMMS_ACTIVITY_COOLOFF_MS);
+  const isActing = hasActiveAction || isCommsActive;
 
   React.useEffect(() => {
     if (!isCallConnected) return;

@@ -51,6 +51,11 @@ export interface UseAssistantActionsResult {
   /** Whether there's an active (running) root action */
   hasActiveAction: boolean;
 
+  /** Client-clock ms of the most recent non-unify comms event (email / SMS /
+   *  WhatsApp / …), or null if none seen this session. Drives the call-window
+   *  avatar's transient "working" pose; consumers apply their own cooloff. */
+  lastCommsActivityAt: number | null;
+
   /** Whether the initial load is in progress */
   isLoading: boolean;
 
@@ -138,6 +143,7 @@ export function useAssistantActions(
   }, [nodeMap]);
 
   const hasActiveAction = React.useMemo(() => hasActiveRootAction(roots), [roots]);
+  const [lastCommsActivityAt, setLastCommsActivityAt] = React.useState<number | null>(null);
 
   // ===========================================================================
   // Core: Merge logs into tree
@@ -476,6 +482,13 @@ export function useAssistantActions(
           );
 
         if (!parsed?.data) return;
+
+        // Comms-activity ping: a non-unify inbound/outbound message just landed.
+        // Record the arrival time so consumers can run a cooloff-based pose.
+        if (parsed.type === 'CommsActivity') {
+          setLastCommsActivityAt(Date.now());
+          return;
+        }
 
         if (parsed.type === 'ManagerMethod') {
           if (entries?.phase !== 'incoming' && entries?.phase !== 'outgoing') {
@@ -836,6 +849,7 @@ export function useAssistantActions(
   return {
     roots,
     hasActiveAction,
+    lastCommsActivityAt,
     isLoading,
     error,
     refresh,

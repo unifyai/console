@@ -154,6 +154,28 @@ function createPubSubStream(
             return;
           }
 
+          // Comms-activity presence pings (non-unify inbound/outbound comms)
+          // drive the call-window avatar's "working" pose. They aren't action
+          // events, so forward them as a distinct frame and skip the reshape.
+          if (payload.thread === 'comms_activity') {
+            const ev = snakeToCamelObject<Record<string, unknown>>(payload.event ?? {});
+            const frame = {
+              type: 'CommsActivity',
+              data: {
+                ...ev,
+                ts: message.publishTime?.toISOString() ?? new Date().toISOString(),
+              },
+            };
+            try {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(frame)}\n\n`));
+            } catch {
+              message.nack();
+              return;
+            }
+            message.ack();
+            return;
+          }
+
           const eventPayload = payload.event || payload;
           const camelEvent = snakeToCamelObject<Record<string, unknown>>(eventPayload);
           const shaped = reshapeActionEventToLogEntry(camelEvent);
