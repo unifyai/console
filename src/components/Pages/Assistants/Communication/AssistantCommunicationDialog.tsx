@@ -28,6 +28,7 @@ import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistant
 import { assistantDisplayName } from '@/lib/assistants/displayName';
 import type { CreatureMood } from '@/components/Brand/TeammateCreature';
 import { useMutedMicrophoneActivity } from '@/hooks/Assistants/useMutedMicrophoneActivity';
+import { useAssistantActions } from '@/hooks/Assistants/useAssistantActions';
 
 /**
  * The call surface only touches the chat + desktop action groups (and,
@@ -35,7 +36,7 @@ import { useMutedMicrophoneActivity } from '@/hooks/Assistants/useMutedMicrophon
  * subset lets the layout-level CallProvider drive the floating window without
  * assembling the full AssistantActions bag.
  */
-export type CallDialogActions = Pick<AssistantActions, 'chat' | 'desktop'> &
+export type CallDialogActions = Pick<AssistantActions, 'chat' | 'desktop' | 'actions'> &
   Partial<Pick<AssistantActions, 'voice'>>;
 
 interface AssistantCommunicationDialogContentProps {
@@ -252,6 +253,16 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     deviceId: activeAudioInputDeviceId,
   });
 
+  // Mirror the Actions pane's in-flight detection so the call avatar can adopt
+  // its "working on a laptop" pose while the assistant has a running `act`.
+  // Same SSE stream; only `hasActiveAction` is consumed here.
+  const { hasActiveAction: isActing } = useAssistantActions(
+    assistant.userId,
+    assistant.agentId,
+    assistantActions.actions ?? { getManagerMethodEvents: async () => ({ logs: [], count: 0 }) },
+    { enabled: isCallConnected }
+  );
+
   React.useEffect(() => {
     if (!isCallConnected) return;
     const getDevices = async () => {
@@ -361,6 +372,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 isRingMuted={isSpeakerMuted}
                 onToggleRingMute={onToggleSpeaker}
                 isCallActive={isCallConnected}
+                isActing={isActing}
                 coordinatorAvatarVisible={coordinatorAvatarVisible}
                 coordinatorTeleportIn={coordinatorTeleportIn}
                 isUserSpeaking={isUserSpeaking}

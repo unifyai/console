@@ -132,6 +132,9 @@ interface AssistantCommunicationMainViewProps {
   isRingMuted?: boolean;
   onToggleRingMute?: () => void;
   isCallActive?: boolean;
+  /** Whether the assistant has an in-flight `act`; drives the droid's
+   *  "working on a laptop" pose. */
+  isActing?: boolean;
   isUserSpeaking?: boolean;
   mood?: CreatureMood;
   /** Fade the coordinator unity in when it first mounts in the docked call. */
@@ -159,6 +162,7 @@ export function AssistantCommunicationMainView({
   isRingMuted = false,
   onToggleRingMute,
   isCallActive = false,
+  isActing = false,
   isUserSpeaking = false,
   mood = 'happy',
   coordinatorAvatarVisible = true,
@@ -368,7 +372,7 @@ export function AssistantCommunicationMainView({
               ) : isCoordinator ? (
                 <UnityCallAvatar
                   isSpeaking={isCoordinatorSpeaking}
-                  isCallActive={isCallActive}
+                  isActing={isActing}
                   isUserSpeaking={isUserSpeaking}
                   teleportInOnMount={coordinatorTeleportIn}
                   mood={mood}
@@ -378,7 +382,7 @@ export function AssistantCommunicationMainView({
               ) : creatureAppearance ? (
                 <UnityCallAvatar
                   isSpeaking={isImageAvatarSpeaking}
-                  isCallActive={isCallActive}
+                  isActing={isActing}
                   isUserSpeaking={isUserSpeaking}
                   mouthShape={imageAvatarMouthShape}
                   speechLevel={imageAvatarSpeechLevel}
