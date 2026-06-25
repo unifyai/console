@@ -45,13 +45,30 @@ interface UnityCallAvatarProps {
   teleportInOnMount?: boolean;
 }
 
-// Resting pose: faces the screen (matches the default front-on framing). The
-// "working" pose turns the body to the right toward the held laptop. Both are
-// tunable; the laptop placement below is matched to WORKING_VIEW.
+// Resting pose: faces the screen head-on (eye contact on a call). The "working"
+// pose turns the body into the landing page's isometric hero angle, which is the
+// exact projection the `Laptop` SVG is designed against — so the held laptop
+// lines up the same way it does on the landing hub. Both views share the {0,7}
+// endpoint (idle == working p=0) so entering/leaving the pose is seamless.
 const CAMERA_VIEW = { yaw: 0, tilt: 7 } as const;
-const WORKING_VIEW = { yaw: 42, tilt: 18 } as const;
+const WORKING_VIEW = { yaw: 45, tilt: 30 } as const;
 
+// Match the landing hub exactly: lid hinge over 520ms (easeInOutQuad) and a
+// 0.5s ease opacity fade as the laptop appears/disappears during the turn.
 const FOLD_DURATION_MS = 520;
+const LAPTOP_FADE = 'opacity 0.5s ease';
+
+// Placement of the open laptop relative to the droid box, tuned to WORKING_VIEW
+// (the landing isometric pose). Mirrors the landing hub's hand-tuned overlay:
+// the laptop sits in front of the droid's lower body, slightly to the right.
+const LAPTOP_STYLE: React.CSSProperties = {
+  position: 'absolute',
+  left: '60%',
+  top: '73%',
+  width: '84%',
+  transform: 'translate(-50%, -50%)',
+  pointerEvents: 'none',
+};
 
 function easeInOutQuad(t: number): number {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
@@ -112,11 +129,19 @@ export function UnityCallAvatar({
 }: UnityCallAvatarProps) {
   const [isHovered, setIsHovered] = React.useState(false);
   const fold = useLaptopFold(isActing);
-  const showLaptop = fold > 0.001;
   // Keep the rotation/laptop machinery engaged through the close animation so
   // the body can turn all the way back to camera before reverting to the
   // static pose; idle callers (hire form, chat bubble) never reach this.
-  const working = isActing || showLaptop;
+  const working = isActing || fold > 0.001;
+
+  // Opacity fade is driven by an effect (not `fold`) so the laptop mounts at
+  // opacity 0 and transitions to 1 — matching the landing hub's CSS fade. On
+  // mount `working` is already true but this stays false until after paint, so
+  // the 0→1 edge actually animates; flips back to false to fade out on the turn.
+  const [laptopVisible, setLaptopVisible] = React.useState(false);
+  React.useEffect(() => {
+    setLaptopVisible(isActing);
+  }, [isActing]);
 
   const displayedSpeechLevel = clampUnitySpeechLevel(speechLevel ?? 0);
   const displayedMouthShape =
@@ -162,18 +187,14 @@ export function UnityCallAvatar({
       }
     >
       {unity}
-      {showLaptop && (
+      {working && (
         <span
           aria-hidden="true"
           data-testid="unity-call-laptop"
           style={{
-            position: 'absolute',
-            left: '54%',
-            top: '70%',
-            width: '70%',
-            transform: 'translate(-50%, -50%)',
-            opacity: fold,
-            pointerEvents: 'none',
+            ...LAPTOP_STYLE,
+            opacity: laptopVisible ? 1 : 0,
+            transition: LAPTOP_FADE,
           }}
         >
           <Laptop fold={fold} />
