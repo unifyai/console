@@ -172,10 +172,11 @@ if ! command -v gcloud &>/dev/null; then
   log_error "gcloud is required for the Pub/Sub emulator"
   exit 1
 fi
-if [[ "${CI:-}" == "true" ]] && ! dpkg-query -W google-cloud-cli-pubsub-emulator &>/dev/null; then
-  log_info "Installing Google Cloud Pub/Sub emulator package..."
-  sudo apt-get update >/tmp/pubsub-emulator-apt.log 2>&1
-  sudo apt-get install -y google-cloud-cli-pubsub-emulator >>/tmp/pubsub-emulator-apt.log 2>&1
+# Guarantee the emulator component is functionally present. On CI the helper
+# re-adds the Google Cloud apt repo and installs the package; locally it no-ops
+# when the emulator is already available.
+if [[ "${CI:-}" == "true" ]]; then
+  bash "$SCRIPT_DIR/ci-install-pubsub-emulator.sh"
 fi
 setsid gcloud beta emulators pubsub start \
   --project="$PUBSUB_PROJECT_ID" \
@@ -187,6 +188,7 @@ for _ in {1..60}; do
   if ! kill -0 "$PUBSUB_PID" 2>/dev/null; then
     log_error "Pub/Sub emulator exited before readiness"
     tail -50 /tmp/pubsub-ci.log 2>/dev/null || true
+    tail -50 /tmp/pubsub-emulator-apt.log 2>/dev/null || true
     exit 1
   fi
   if curl -s --connect-timeout 1 --max-time 2 "http://${PUBSUB_EMULATOR_HOST}/" &>/dev/null; then
@@ -198,6 +200,7 @@ done
 if ! kill -0 "$PUBSUB_PID" 2>/dev/null; then
   log_error "Pub/Sub emulator failed to start"
   tail -50 /tmp/pubsub-ci.log 2>/dev/null || true
+  tail -50 /tmp/pubsub-emulator-apt.log 2>/dev/null || true
   exit 1
 fi
 

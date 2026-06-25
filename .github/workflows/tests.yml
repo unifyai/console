@@ -114,7 +114,10 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Install Playwright
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
+
+      - name: Install Pub/Sub emulator
+        run: bash scripts/ci-install-pubsub-emulator.sh
 
       - name: Start test environment
         run: bash scripts/ci-test-setup.sh --no-seed
@@ -149,6 +152,8 @@ jobs:
             /tmp/console-build.log
             /tmp/console-ci.log
             /tmp/orchestra-local-server.log
+            /tmp/pubsub-ci.log
+            /tmp/pubsub-emulator-apt.log
           retention-days: 7
 
   assistants:
@@ -214,7 +219,10 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Install Playwright
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
+
+      - name: Install Pub/Sub emulator
+        run: bash scripts/ci-install-pubsub-emulator.sh
 
       - name: Start test environment
         run: bash scripts/ci-test-setup.sh --no-seed
@@ -257,6 +265,8 @@ jobs:
             /tmp/console-build.log
             /tmp/console-ci.log
             /tmp/orchestra-local-server.log
+            /tmp/pubsub-ci.log
+            /tmp/pubsub-emulator-apt.log
           retention-days: 7
 
   account:
@@ -315,7 +325,10 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Install Playwright
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
+
+      - name: Install Pub/Sub emulator
+        run: bash scripts/ci-install-pubsub-emulator.sh
 
       - name: Start test environment
         run: bash scripts/ci-test-setup.sh --no-seed
@@ -356,6 +369,8 @@ jobs:
             /tmp/console-build.log
             /tmp/console-ci.log
             /tmp/orchestra-local-server.log
+            /tmp/pubsub-ci.log
+            /tmp/pubsub-emulator-apt.log
           retention-days: 7
 
   billing:
@@ -414,7 +429,10 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Install Playwright
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
+
+      - name: Install Pub/Sub emulator
+        run: bash scripts/ci-install-pubsub-emulator.sh
 
       - name: Start test environment
         run: bash scripts/ci-test-setup.sh --no-seed
@@ -455,6 +473,8 @@ jobs:
             /tmp/console-build.log
             /tmp/console-ci.log
             /tmp/orchestra-local-server.log
+            /tmp/pubsub-ci.log
+            /tmp/pubsub-emulator-apt.log
           retention-days: 7
 
   shell:
@@ -513,7 +533,10 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Install Playwright
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
+
+      - name: Install Pub/Sub emulator
+        run: bash scripts/ci-install-pubsub-emulator.sh
 
       - name: Start test environment
         run: bash scripts/ci-test-setup.sh --no-seed
@@ -554,6 +577,8 @@ jobs:
             /tmp/console-build.log
             /tmp/console-ci.log
             /tmp/orchestra-local-server.log
+            /tmp/pubsub-ci.log
+            /tmp/pubsub-emulator-apt.log
           retention-days: 7
 
   auth:
@@ -612,7 +637,10 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Install Playwright
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
+
+      - name: Install Pub/Sub emulator
+        run: bash scripts/ci-install-pubsub-emulator.sh
 
       - name: Start test environment
         run: bash scripts/ci-test-setup.sh --no-seed
@@ -653,4 +681,6 @@ jobs:
             /tmp/console-build.log
             /tmp/console-ci.log
             /tmp/orchestra-local-server.log
+            /tmp/pubsub-ci.log
+            /tmp/pubsub-emulator-apt.log
           retention-days: 7
