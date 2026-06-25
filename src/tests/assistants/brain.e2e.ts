@@ -1,12 +1,12 @@
 /**
- * Memory Tab E2E Tests — browser-based user flows verifying the Memory
+ * Brain Tab E2E Tests — browser-based user flows verifying the Brain
  * tab on the assistant right pane, including tab switching, sub-tab
  * navigation, empty states, seeded data rendering, pagination,
  * and refresh, all driven by real data seeded via the Orchestra API.
  *
  * Task-specific tests live in tasks.e2e.ts.
  *
- * Run: npx playwright test src/tests/assistants/memory.e2e.ts
+ * Run: npx playwright test src/tests/assistants/brain.e2e.ts
  */
 
 import { expect } from '@playwright/test';
@@ -31,13 +31,13 @@ import {
   type SeededOrg,
 } from './helpers';
 
-function uniqueMemoryEmail(): string {
-  return `memory-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@unify.ai`;
+function uniqueBrainEmail(): string {
+  return `brain-e2e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@unify.ai`;
 }
 
 const user = createTestUser({
-  email: uniqueMemoryEmail(),
-  name: 'MemoryE2E',
+  email: uniqueBrainEmail(),
+  name: 'BrainE2E',
   lastName: 'Tester',
   credits: 50_000,
 });
@@ -52,7 +52,7 @@ const OWNER_CONTACT_ID = 1;
 const emptyAssistant = createAssistant({
   userId: user.id,
   firstName: 'EmptyBot',
-  surname: 'NoMemory',
+  surname: 'NoBrain',
 });
 
 const dataAssistant = createAssistant({
@@ -61,28 +61,28 @@ const dataAssistant = createAssistant({
   surname: 'WithData',
 });
 
-let memoryOrg: SeededOrg | undefined;
+let brainOrg: SeededOrg | undefined;
 let destinationAssistant: SeededAssistant | undefined;
 
 function ensureDestinationAssistant(): { org: SeededOrg; assistant: SeededAssistant } {
-  if (!memoryOrg || !destinationAssistant) {
-    memoryOrg = createOrg({ name: `MemoryOrg_${Date.now()}`, ownerId: user.id });
-    ensureProjectSync(memoryOrg.ownerOrgApiKey);
+  if (!brainOrg || !destinationAssistant) {
+    brainOrg = createOrg({ name: `BrainOrg_${Date.now()}`, ownerId: user.id });
+    ensureProjectSync(brainOrg.ownerOrgApiKey);
     destinationAssistant = createAssistant({
       userId: user.id,
-      orgId: memoryOrg.id,
+      orgId: brainOrg.id,
       firstName: 'ScopeBot',
       surname: 'Drilldown',
     });
   }
-  return { org: memoryOrg, assistant: destinationAssistant };
+  return { org: brainOrg, assistant: destinationAssistant };
 }
 
 test.afterAll(() => {
   setUserCredits(user.id, 50_000);
   deleteAllAssistantsForUser(user.id);
-  if (memoryOrg) {
-    deleteOrg(memoryOrg.id);
+  if (brainOrg) {
+    deleteOrg(brainOrg.id);
   }
   cleanupUser(user.id);
 });
@@ -123,7 +123,7 @@ async function seedContacts(
   }
 }
 
-function createMemoryTeamForAssistant(
+function createBrainTeamForAssistant(
   targetAssistant: SeededAssistant,
   opts: {
     selfContactId: number;
@@ -131,15 +131,15 @@ function createMemoryTeamForAssistant(
   }
 ): number {
   if (targetAssistant.organizationId === null) {
-    throw new Error('createMemoryTeamForAssistant requires an org-scoped assistant');
+    throw new Error('createBrainTeamForAssistant requires an org-scoped assistant');
   }
 
   const suffix = Date.now();
   const rawTeamId = dbExec(`
 INSERT INTO team (name, description, organization_id, status)
 VALUES (
-  'Memory Drill Team ${suffix}',
-  'Shared memory drill-down e2e team for destination dropdown coverage',
+  'Brain Drill Team ${suffix}',
+  'Shared brain drill-down e2e team for destination dropdown coverage',
   ${targetAssistant.organizationId},
   'active'
 )
@@ -291,7 +291,7 @@ async function ensureDestinationSeeded() {
     },
   ]);
 
-  const teamId = createMemoryTeamForAssistant(destination, {
+  const teamId = createBrainTeamForAssistant(destination, {
     selfContactId: 901,
     bossContactId: 902,
   });
@@ -332,10 +332,7 @@ async function dismissCoordinatorOnboardingIfOpen(page: import('@playwright/test
     .catch(() => {});
 }
 
-async function selectAssistantAndOpenMemory(
-  page: import('@playwright/test').Page,
-  agentId: number
-) {
+async function selectAssistantAndOpenBrain(page: import('@playwright/test').Page, agentId: number) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await dismissCoordinatorOnboardingIfOpen(page);
@@ -343,58 +340,56 @@ async function selectAssistantAndOpenMemory(
   await selectAssistantInList(page, agentId);
   await page.waitForTimeout(1_500);
 
-  // Memory is a rail section now; selecting it activates the Memory view in
+  // Brain is a rail section now; selecting it activates the Brain view in
   // the section host (defaulting to the Contacts sub-tab). The in-pane
-  // sub-tab dropdown (`right-pane-tab-memory`) only renders once Memory is
+  // sub-tab dropdown (`right-pane-tab-brain`) only renders once Brain is
   // active.
-  await openRailSection(page, 'memory');
+  await openRailSection(page, 'brain');
   await page.waitForTimeout(1_500);
 }
 
 /**
- * Switch the active Memory sub-tab via the right-pane tab strip
+ * Switch the active Brain sub-tab via the right-pane tab strip
  * dropdown. The in-pane footer sub-tab row was removed once the
  * dropdown became the single source of truth for sub-tab navigation,
- * so existing test logic that used to click `memory-tab-{ctx}` directly
+ * so existing test logic that used to click `brain-tab-{ctx}` directly
  * routes through this helper instead.
  */
-async function switchMemorySubTab(
+async function switchBrainSubTab(
   page: import('@playwright/test').Page,
   ctx: 'contacts' | 'transcripts' | 'knowledge' | 'guidance' | 'functions'
 ) {
-  await page.getByTestId('right-pane-tab-memory').click();
-  await page.getByTestId(`right-pane-tab-memory-menu-${ctx}`).click();
+  await page.getByTestId('right-pane-tab-brain').click();
+  await page.getByTestId(`right-pane-tab-brain-menu-${ctx}`).click();
 }
 
 // ===========================================================================
 // Tab Switching
 // ===========================================================================
 
-test('Memory tab is visible when an assistant is selected', async ({ authedPage: page }) => {
-  await selectAssistantAndOpenMemory(page, emptyAssistant.agentId);
+test('Brain tab is visible when an assistant is selected', async ({ authedPage: page }) => {
+  await selectAssistantAndOpenBrain(page, emptyAssistant.agentId);
 
-  const memoryTab = page.getByTestId('right-pane-tab-memory');
-  await expect(memoryTab).toBeVisible({ timeout: 5_000 });
+  const brainTab = page.getByTestId('right-pane-tab-brain');
+  await expect(brainTab).toBeVisible({ timeout: 5_000 });
 });
 
-test('switches to Memory tab and exposes sub-tabs in the dropdown', async ({
-  authedPage: page,
-}) => {
-  await selectAssistantAndOpenMemory(page, emptyAssistant.agentId);
+test('switches to Brain tab and exposes sub-tabs in the dropdown', async ({ authedPage: page }) => {
+  await selectAssistantAndOpenBrain(page, emptyAssistant.agentId);
 
-  const memoryTab = page.getByTestId('right-pane-tab-memory');
-  await expect(memoryTab).toHaveAttribute('data-state', 'active');
+  const brainTab = page.getByTestId('right-pane-tab-brain');
+  await expect(brainTab).toHaveAttribute('data-state', 'active');
 
   // Sub-tab navigation lives in the tab strip dropdown now; open it
   // and assert the expected sub-tabs are present.
-  await memoryTab.click();
-  await expect(page.getByTestId('right-pane-tab-memory-menu-contacts')).toBeVisible({
+  await brainTab.click();
+  await expect(page.getByTestId('right-pane-tab-brain-menu-contacts')).toBeVisible({
     timeout: 3_000,
   });
-  await expect(page.getByTestId('right-pane-tab-memory-menu-transcripts')).toBeVisible({
+  await expect(page.getByTestId('right-pane-tab-brain-menu-transcripts')).toBeVisible({
     timeout: 3_000,
   });
-  await expect(page.getByTestId('right-pane-tab-memory-menu-knowledge')).toBeVisible({
+  await expect(page.getByTestId('right-pane-tab-brain-menu-knowledge')).toBeVisible({
     timeout: 3_000,
   });
 });
@@ -413,8 +408,8 @@ test('can switch between all main tabs', async ({ authedPage: page }) => {
   await openRailSection(page, 'tasks');
   await expect(page.getByTestId('rail-section-tasks')).toHaveAttribute('aria-current', 'page');
 
-  await openRailSection(page, 'memory');
-  await expect(page.getByTestId('rail-section-memory')).toHaveAttribute('aria-current', 'page');
+  await openRailSection(page, 'brain');
+  await expect(page.getByTestId('rail-section-brain')).toHaveAttribute('aria-current', 'page');
 
   await openRailSection(page, 'dashboards');
   await expect(page.getByTestId('rail-section-dashboards')).toHaveAttribute('aria-current', 'page');
@@ -431,10 +426,10 @@ test('can switch between all main tabs', async ({ authedPage: page }) => {
 // ===========================================================================
 
 test('shows empty state when assistant has no data', async ({ authedPage: page }) => {
-  await selectAssistantAndOpenMemory(page, emptyAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, emptyAssistant.agentId);
 
-  const memoryPane = page.getByTestId('memory-pane');
-  await expect(memoryPane).toBeVisible({ timeout: 10_000 });
+  const brainPane = page.getByTestId('brain-pane');
+  await expect(brainPane).toBeVisible({ timeout: 10_000 });
 
   await expect(page.locator('text=No contacts found')).toBeVisible({ timeout: 10_000 });
 });
@@ -445,13 +440,13 @@ test('shows empty state when assistant has no data', async ({ authedPage: page }
 
 test('displays seeded contacts in the Contacts sub-tab', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  // The Memory tab chip now in-place displays the active sub-tab name,
+  // The Brain tab chip now in-place displays the active sub-tab name,
   // so the previous `data-active` assertion on the footer button is
   // expressed here as a label check on the main tab.
-  await expect(page.getByTestId('right-pane-tab-memory')).toContainText('Contacts');
-  const table = page.getByTestId('memory-table-contacts');
+  await expect(page.getByTestId('right-pane-tab-brain')).toContainText('Contacts');
+  const table = page.getByTestId('brain-table-contacts');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
   await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
@@ -467,22 +462,22 @@ test('displays seeded contacts in the Contacts sub-tab', async ({ authedPage: pa
 
 test('contacts sub-tab shows correct row count', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  const footer = page.getByTestId('memory-table-footer');
+  const footer = page.getByTestId('brain-table-footer');
   await expect(footer).toBeVisible({ timeout: 10_000 });
   await expect(footer.locator('text=/3 of 3/')).toBeVisible({ timeout: 5_000 });
 });
 
-test('memory destination dropdown is hidden for solo assistants', async ({ authedPage: page }) => {
-  await selectAssistantAndOpenMemory(page, emptyAssistant.agentId);
+test('brain destination dropdown is hidden for solo assistants', async ({ authedPage: page }) => {
+  await selectAssistantAndOpenBrain(page, emptyAssistant.agentId);
 
-  const memoryPane = page.getByTestId('memory-pane');
-  await expect(memoryPane).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByTestId('memory-destination-dropdown')).toHaveCount(0);
+  const brainPane = page.getByTestId('brain-pane');
+  await expect(brainPane).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('brain-destination-dropdown')).toHaveCount(0);
 });
 
-test('memory dropdown drills into personal and shared roots', async ({ authedPage: page }) => {
+test('brain dropdown drills into personal and shared roots', async ({ authedPage: page }) => {
   const { org, assistant: destination } = ensureDestinationAssistant();
 
   await page.goto('/assistants');
@@ -498,9 +493,9 @@ test('memory dropdown drills into personal and shared roots', async ({ authedPag
   await closeHireDialogIfOpen(page);
 
   await ensureDestinationSeeded();
-  await selectAssistantAndOpenMemory(page, destination.agentId);
+  await selectAssistantAndOpenBrain(page, destination.agentId);
 
-  const table = page.getByTestId('memory-table-contacts');
+  const table = page.getByTestId('brain-table-contacts');
   await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
     timeout: 10_000,
   });
@@ -508,8 +503,8 @@ test('memory dropdown drills into personal and shared roots', async ({ authedPag
     timeout: 10_000,
   });
 
-  await page.getByTestId('memory-destination-dropdown').click();
-  await page.getByRole('option', { name: /Memory Drill Team/ }).click();
+  await page.getByTestId('brain-destination-dropdown').click();
+  await page.getByRole('option', { name: /Brain Drill Team/ }).click();
 
   await expect(table.getByRole('cell', { name: 'SharedOnly', exact: true })).toBeVisible({
     timeout: 20_000,
@@ -518,7 +513,7 @@ test('memory dropdown drills into personal and shared roots', async ({ authedPag
     timeout: 10_000,
   });
 
-  await page.getByTestId('memory-destination-dropdown').click();
+  await page.getByTestId('brain-destination-dropdown').click();
   await page.getByRole('option', { name: 'Personal' }).click();
 
   await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
@@ -535,13 +530,13 @@ test('memory dropdown drills into personal and shared roots', async ({ authedPag
 
 test('displays seeded transcripts in the Transcripts sub-tab', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  await switchMemorySubTab(page, 'transcripts');
+  await switchBrainSubTab(page, 'transcripts');
   await page.waitForTimeout(1_000);
 
-  await expect(page.getByTestId('right-pane-tab-memory')).toContainText('Transcripts');
-  const table = page.getByTestId('memory-table-transcripts');
+  await expect(page.getByTestId('right-pane-tab-brain')).toContainText('Transcripts');
+  const table = page.getByTestId('brain-table-transcripts');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
   await expect(table.locator('text=Hello, can you help me with my schedule?')).toBeVisible({
@@ -555,6 +550,35 @@ test('displays seeded transcripts in the Transcripts sub-tab', async ({ authedPa
   });
 });
 
+test('Brain → Transcripts rail section renders a dedicated Transcripts view', async ({
+  authedPage: page,
+}) => {
+  await ensureSeeded();
+  await navigateToAssistants(page);
+  await closeHireDialogIfOpen(page);
+  await dismissCoordinatorOnboardingIfOpen(page);
+  await selectAssistantInList(page, dataAssistant.agentId);
+  await page.waitForTimeout(1_000);
+
+  // Transcripts is a first-class Brain rail section (no longer a "coming soon"
+  // placeholder), rendering a Transcripts-pinned Brain pane.
+  await openRailSection(page, 'transcripts');
+  await expect(page.getByTestId('rail-section-transcripts')).toHaveAttribute(
+    'aria-current',
+    'page'
+  );
+
+  const table = page.getByTestId('brain-table-transcripts');
+  await expect(table).toBeVisible({ timeout: 10_000 });
+  await expect(table.locator('text=Hello, can you help me with my schedule?')).toBeVisible({
+    timeout: 5_000,
+  });
+
+  // The pinned view hides the Brain context switcher — Transcripts is the only
+  // context shown here.
+  await expect(page.getByTestId('brain-sub-tabs')).toHaveCount(0);
+});
+
 // ===========================================================================
 // Sub-tab Navigation
 // ===========================================================================
@@ -563,21 +587,21 @@ test('switching between sub-tabs preserves data and shows correct tables', async
   authedPage: page,
 }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  await expect(page.getByTestId('memory-table-contacts')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('brain-table-contacts')).toBeVisible({ timeout: 10_000 });
 
-  await switchMemorySubTab(page, 'transcripts');
+  await switchBrainSubTab(page, 'transcripts');
   await page.waitForTimeout(500);
-  await expect(page.getByTestId('memory-table-transcripts')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('brain-table-transcripts')).toBeVisible({ timeout: 5_000 });
 
-  await switchMemorySubTab(page, 'knowledge');
+  await switchBrainSubTab(page, 'knowledge');
   await page.waitForTimeout(500);
-  await expect(page.getByTestId('memory-table-knowledge')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('brain-table-knowledge')).toBeVisible({ timeout: 5_000 });
 
-  await switchMemorySubTab(page, 'contacts');
+  await switchBrainSubTab(page, 'contacts');
   await page.waitForTimeout(500);
-  const table = page.getByTestId('memory-table-contacts');
+  const table = page.getByTestId('brain-table-contacts');
   await expect(table).toBeVisible({ timeout: 5_000 });
   await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
     timeout: 3_000,
@@ -590,9 +614,9 @@ test('switching between sub-tabs preserves data and shows correct tables', async
 
 test('refresh button triggers data refetch without errors', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  const refreshBtn = page.getByTestId('memory-refresh');
+  const refreshBtn = page.getByTestId('brain-refresh');
   await expect(refreshBtn).toBeVisible({ timeout: 10_000 });
 
   await refreshBtn.click();
@@ -600,7 +624,7 @@ test('refresh button triggers data refetch without errors', async ({ authedPage:
 
   await expect(refreshBtn).toBeVisible({ timeout: 5_000 });
   await expect(refreshBtn).toBeEnabled();
-  const table = page.getByTestId('memory-table-contacts');
+  const table = page.getByTestId('brain-table-contacts');
   await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
     timeout: 5_000,
   });
@@ -610,11 +634,11 @@ test('refresh button triggers data refetch without errors', async ({ authedPage:
 // Data is read-only (no edit controls)
 // ===========================================================================
 
-test('memory tables are read-only with no edit controls', async ({ authedPage: page }) => {
+test('brain tables are read-only with no edit controls', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  const table = page.getByTestId('memory-table-contacts');
+  const table = page.getByTestId('brain-table-contacts');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
   await expect(table.locator('button:has-text("Edit")')).not.toBeVisible({ timeout: 2_000 });
@@ -632,20 +656,20 @@ test('clicking a row opens the detail panel with full field values', async ({
   authedPage: page,
 }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  const table = page.getByTestId('memory-table-contacts');
+  const table = page.getByTestId('brain-table-contacts');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
-  const aliceRow = table.locator('[data-testid="memory-table-row"]', { hasText: 'Alice' });
+  const aliceRow = table.locator('[data-testid="brain-table-row"]', { hasText: 'Alice' });
   await expect(aliceRow).toBeVisible({ timeout: 5_000 });
   await aliceRow.click();
   await page.waitForTimeout(500);
 
-  const detail = page.getByTestId('memory-row-detail');
+  const detail = page.getByTestId('brain-row-detail');
   await expect(detail).toBeVisible({ timeout: 5_000 });
 
-  const fields = page.getByTestId('memory-row-detail-fields');
+  const fields = page.getByTestId('brain-row-detail-fields');
   await expect(fields.getByText(/^Alice$/)).toBeVisible({ timeout: 3_000 });
   await expect(fields.getByText(/^alice@example\.com$/)).toBeVisible({ timeout: 3_000 });
   await expect(fields.locator('text=America/New_York')).toBeVisible({ timeout: 3_000 });
@@ -655,20 +679,20 @@ test('detail panel shows full untruncated content for transcripts', async ({
   authedPage: page,
 }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  await switchMemorySubTab(page, 'transcripts');
+  await switchBrainSubTab(page, 'transcripts');
   await page.waitForTimeout(1_000);
 
-  const table = page.getByTestId('memory-table-transcripts');
+  const table = page.getByTestId('brain-table-transcripts');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
-  const msgRow = table.locator('[data-testid="memory-table-row"]', { hasText: 'schedule' });
+  const msgRow = table.locator('[data-testid="brain-table-row"]', { hasText: 'schedule' });
   await expect(msgRow).toBeVisible({ timeout: 5_000 });
   await msgRow.click();
   await page.waitForTimeout(500);
 
-  const detail = page.getByTestId('memory-row-detail');
+  const detail = page.getByTestId('brain-row-detail');
   await expect(detail).toBeVisible({ timeout: 5_000 });
 
   await expect(detail.locator('text=Hello, can you help me with my schedule?')).toBeVisible({
@@ -678,16 +702,16 @@ test('detail panel shows full untruncated content for transcripts', async ({
 
 test('detail panel closes when clicking the close button', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  const table = page.getByTestId('memory-table-contacts');
+  const table = page.getByTestId('brain-table-contacts');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
-  const row = table.locator('[data-testid="memory-table-row"]').first();
+  const row = table.locator('[data-testid="brain-table-row"]').first();
   await row.click();
   await page.waitForTimeout(500);
 
-  const detail = page.getByTestId('memory-row-detail');
+  const detail = page.getByTestId('brain-row-detail');
   await expect(detail).toBeVisible({ timeout: 5_000 });
 
   const closeBtn = detail.locator('button:has(svg)').first();
@@ -703,9 +727,9 @@ test('detail panel closes when clicking the close button', async ({ authedPage: 
 
 test('clicking a column header sorts data server-side', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  const table = page.getByTestId('memory-table-contacts');
+  const table = page.getByTestId('brain-table-contacts');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
   const firstNameHeader = table.locator('th', { hasText: 'First Name' });
@@ -713,7 +737,7 @@ test('clicking a column header sorts data server-side', async ({ authedPage: pag
   await firstNameHeader.click();
   await page.waitForTimeout(2_000);
 
-  const rows = table.locator('[data-testid="memory-table-row"]');
+  const rows = table.locator('[data-testid="brain-table-row"]');
   await expect(rows.first()).toBeVisible({ timeout: 5_000 });
 
   await firstNameHeader.click();
@@ -723,9 +747,9 @@ test('clicking a column header sorts data server-side', async ({ authedPage: pag
 
 test('sorting indicator shows on sorted column header', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  const table = page.getByTestId('memory-table-contacts');
+  const table = page.getByTestId('brain-table-contacts');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
   const idHeader = table.locator('th', { hasText: 'ID' });
@@ -743,9 +767,9 @@ test('sorting indicator shows on sorted column header', async ({ authedPage: pag
 
 test('footer shows loaded count vs total count', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  const footer = page.getByTestId('memory-table-footer');
+  const footer = page.getByTestId('brain-table-footer');
   await expect(footer).toBeVisible({ timeout: 10_000 });
   await expect(footer.locator('text=/3 of 3/')).toBeVisible({ timeout: 5_000 });
 });
@@ -756,12 +780,12 @@ test('footer shows loaded count vs total count', async ({ authedPage: page }) =>
 
 test('searching contacts filters results server-side', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  const searchInput = page.getByTestId('memory-search');
+  const searchInput = page.getByTestId('brain-search');
   await expect(searchInput).toBeVisible({ timeout: 5_000 });
 
-  const footer = page.getByTestId('memory-table-footer');
+  const footer = page.getByTestId('brain-table-footer');
   await expect(footer).toBeVisible({ timeout: 10_000 });
   await expect(footer).toContainText('3 of 3');
 
@@ -770,24 +794,24 @@ test('searching contacts filters results server-side', async ({ authedPage: page
 
   await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
 
-  const rows = page.getByTestId('memory-table-row');
+  const rows = page.getByTestId('brain-table-row');
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toContainText('Alice');
 });
 
 test('clear button removes search filter', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  const searchInput = page.getByTestId('memory-search');
-  const footer = page.getByTestId('memory-table-footer');
+  const searchInput = page.getByTestId('brain-search');
+  const footer = page.getByTestId('brain-table-footer');
   await expect(footer).toBeVisible({ timeout: 10_000 });
 
   await searchInput.fill('Alice');
   await searchInput.press('Enter');
   await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
 
-  const clearBtn = page.getByTestId('memory-search-clear');
+  const clearBtn = page.getByTestId('brain-search-clear');
   await expect(clearBtn).toBeVisible({ timeout: 3_000 });
 
   await clearBtn.click();
@@ -797,10 +821,10 @@ test('clear button removes search filter', async ({ authedPage: page }) => {
 
 test('search is case-insensitive', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  const searchInput = page.getByTestId('memory-search');
-  const footer = page.getByTestId('memory-table-footer');
+  const searchInput = page.getByTestId('brain-search');
+  const footer = page.getByTestId('brain-table-footer');
   await expect(footer).toBeVisible({ timeout: 10_000 });
 
   await searchInput.fill('alice');
@@ -810,10 +834,10 @@ test('search is case-insensitive', async ({ authedPage: page }) => {
 
 test('search with no results shows empty message', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  const searchInput = page.getByTestId('memory-search');
-  const footer = page.getByTestId('memory-table-footer');
+  const searchInput = page.getByTestId('brain-search');
+  const footer = page.getByTestId('brain-table-footer');
   await expect(footer).toBeVisible({ timeout: 10_000 });
 
   await searchInput.fill('xyznonexistent');
@@ -825,22 +849,22 @@ test('search with no results shows empty message', async ({ authedPage: page }) 
 
 test('search query persists when switching tabs and back', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
-  const searchInput = page.getByTestId('memory-search');
-  const footer = page.getByTestId('memory-table-footer');
+  const searchInput = page.getByTestId('brain-search');
+  const footer = page.getByTestId('brain-table-footer');
   await expect(footer).toBeVisible({ timeout: 10_000 });
 
   await searchInput.fill('Alice');
   await searchInput.press('Enter');
   await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
 
-  await switchMemorySubTab(page, 'transcripts');
+  await switchBrainSubTab(page, 'transcripts');
   await page.waitForTimeout(1_000);
 
   await expect(searchInput).toHaveValue('');
 
-  await switchMemorySubTab(page, 'contacts');
+  await switchBrainSubTab(page, 'contacts');
   await expect(searchInput).toHaveValue('Alice', { timeout: 3_000 });
 
   await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
@@ -850,7 +874,7 @@ test('search query persists when switching tabs and back', async ({ authedPage: 
 // Backend Data Verification
 // ===========================================================================
 
-test('memory tab data matches what was seeded via Orchestra API', async ({ authedPage: page }) => {
+test('brain tab data matches what was seeded via Orchestra API', async ({ authedPage: page }) => {
   await ensureSeeded();
 
   const contactsRes = await orchestraFetch(
@@ -871,14 +895,14 @@ test('memory tab data matches what was seeded via Orchestra API', async ({ authe
   const transcriptsData = await transcriptsRes.json();
   expect(transcriptsData.logs.length).toBe(3);
 
-  await selectAssistantAndOpenMemory(page, dataAssistant.agentId);
+  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
 
   // The sub-tab count badges were removed when the dropdown took over
   // sub-tab navigation, so we verify the seeded counts via each
   // sub-tab's table footer row-count chip instead.
-  const footer = page.getByTestId('memory-table-footer');
+  const footer = page.getByTestId('brain-table-footer');
   await expect(footer).toContainText('3 of 3', { timeout: 10_000 });
 
-  await switchMemorySubTab(page, 'transcripts');
+  await switchBrainSubTab(page, 'transcripts');
   await expect(footer).toContainText('3 of 3', { timeout: 5_000 });
 });

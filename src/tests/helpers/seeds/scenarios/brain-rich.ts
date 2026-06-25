@@ -1,8 +1,8 @@
 /**
- * Seed Scenario: Memory Rich
+ * Seed Scenario: Brain Rich
  *
- * Creates a user + assistant with rich data across all 6 memory contexts
- * for visually testing the Memory tab: Contacts, Transcripts, Knowledge,
+ * Creates a user + assistant with rich data across all 6 brain contexts
+ * for visually testing the Brain tab: Contacts, Transcripts, Knowledge,
  * Tasks, Guidance, and Functions.
  *
  * **What it creates:**
@@ -20,7 +20,7 @@
  *   - `owner` — full access
  *
  * **Usage:**
- *   ./scripts/local.sh start --seed memory-rich
+ *   ./scripts/local.sh start --seed brain-rich
  */
 
 import type { SeededState } from '../types';
@@ -1583,8 +1583,8 @@ const FUNCTIONS_META: Record<string, unknown>[] = [
 // Scenario
 // ---------------------------------------------------------------------------
 
-export async function seedMemoryRich(): Promise<SeededState> {
-  const owner = createUser({ name: 'Memory', lastName: 'Explorer', credits: 50_000 });
+export async function seedBrainRich(): Promise<SeededState> {
+  const owner = createUser({ name: 'Brain', lastName: 'Explorer', credits: 50_000 });
   createEmailLogin({ userId: owner.id });
 
   const assistant = createAssistant({
@@ -1609,7 +1609,7 @@ export async function seedMemoryRich(): Promise<SeededState> {
   // sits next to Aria in the workspace and exercises the panel UI.
   await seedCoordinatorChatForUsers([owner]);
 
-  // Seed all memory contexts in parallel where possible
+  // Seed all brain contexts in parallel where possible
   await Promise.all([
     seedLogs(apiKey, owner.id, agentId, 'Contacts', CONTACTS),
     seedLogs(apiKey, owner.id, agentId, 'Tasks', TASKS),

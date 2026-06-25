@@ -238,7 +238,7 @@ test('searching filters secrets and auto-expands matching folders', async ({
 
   // Search for "HIT_KEY" — the folder chain should auto-expand and the leaf
   // row should become visible, while the unrelated orphan should disappear.
-  // Search is server-driven and triggered on Enter (mirrors Memory/Tasks).
+  // Search is server-driven and triggered on Enter (mirrors Brain/Tasks).
   const search = page.getByTestId('integrations-search');
   await search.fill('HIT_KEY');
   await search.press('Enter');

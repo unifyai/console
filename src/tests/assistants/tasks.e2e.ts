@@ -314,13 +314,13 @@ test('displays seeded tasks with correct status badges and descriptions', async 
   const table = page.getByTestId('tasks-table-tasks');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
-  const scheduledRow = table.locator('[data-testid="memory-table-row"]', {
+  const scheduledRow = table.locator('[data-testid="brain-table-row"]', {
     hasText: 'Send report',
   });
-  const triggeredRow = table.locator('[data-testid="memory-table-row"]', {
+  const triggeredRow = table.locator('[data-testid="brain-table-row"]', {
     hasText: 'Escalate security emails',
   });
-  const offlineRow = table.locator('[data-testid="memory-table-row"]', {
+  const offlineRow = table.locator('[data-testid="brain-table-row"]', {
     hasText: 'Follow up with Alice',
   });
 
@@ -429,13 +429,13 @@ test('running activity rows have visual emphasis', async ({ authedPage: page }) 
   const activityTable = page.getByTestId('tasks-table-activity');
   await expect(activityTable).toBeVisible({ timeout: 10_000 });
 
-  await expect(activityTable.getByTestId('memory-running-state-indicator')).toBeVisible({
+  await expect(activityTable.getByTestId('brain-running-state-indicator')).toBeVisible({
     timeout: 5_000,
   });
   await expect(
-    activityTable.locator('[data-testid="memory-table-row"][data-row-emphasis="running"]')
+    activityTable.locator('[data-testid="brain-table-row"][data-row-emphasis="running"]')
   ).toBeVisible({ timeout: 5_000 });
-  await expect(activityTable.getByTestId('memory-running-row-accent')).toBeVisible({
+  await expect(activityTable.getByTestId('brain-running-row-accent')).toBeVisible({
     timeout: 5_000,
   });
 });
@@ -547,20 +547,20 @@ test('task detail panel groups human-first task information', async ({ authedPag
   const table = page.getByTestId('tasks-table-activity');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
-  const runRow = table.locator('[data-testid="memory-table-row"]', {
+  const runRow = table.locator('[data-testid="brain-table-row"]', {
     hasText: 'Follow up with Alice',
   });
   await expect(runRow).toBeVisible({ timeout: 5_000 });
   await runRow.click();
   await page.waitForTimeout(500);
 
-  const detail = page.getByTestId('memory-row-detail');
+  const detail = page.getByTestId('brain-row-detail');
   await expect(detail).toBeVisible({ timeout: 5_000 });
   await expect(detail.getByText('What happened, why it started, and when it ran.')).toBeVisible({
     timeout: 3_000,
   });
 
-  const fields = page.getByTestId('memory-row-detail-fields');
+  const fields = page.getByTestId('brain-row-detail-fields');
   await expect(fields.getByRole('heading', { name: 'Started by' })).toBeVisible({
     timeout: 3_000,
   });
@@ -580,17 +580,17 @@ test('task detail panel shows recurrence for recurring tasks', async ({ authedPa
   const table = page.getByTestId('tasks-table-tasks');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
-  const scheduledRow = table.locator('[data-testid="memory-table-row"]', {
+  const scheduledRow = table.locator('[data-testid="brain-table-row"]', {
     hasText: 'Send report',
   });
   await expect(scheduledRow).toBeVisible({ timeout: 5_000 });
   await scheduledRow.click();
   await page.waitForTimeout(500);
 
-  const detail = page.getByTestId('memory-row-detail');
+  const detail = page.getByTestId('brain-row-detail');
   await expect(detail).toBeVisible({ timeout: 5_000 });
 
-  const fields = page.getByTestId('memory-row-detail-fields');
+  const fields = page.getByTestId('brain-row-detail-fields');
   await expect(fields.getByText('Recurring')).toBeVisible({ timeout: 3_000 });
   await expect(fields.getByText('Every week on Mon')).toBeVisible({ timeout: 3_000 });
 });
@@ -602,11 +602,11 @@ test('detail panel closes when clicking the close button', async ({ authedPage: 
   const table = page.getByTestId('tasks-table-tasks');
   await expect(table).toBeVisible({ timeout: 10_000 });
 
-  const row = table.locator('[data-testid="memory-table-row"]').first();
+  const row = table.locator('[data-testid="brain-table-row"]').first();
   await row.click();
   await page.waitForTimeout(500);
 
-  const detail = page.getByTestId('memory-row-detail');
+  const detail = page.getByTestId('brain-row-detail');
   await expect(detail).toBeVisible({ timeout: 5_000 });
 
   const closeBtn = detail.locator('button:has(svg)').first();
@@ -634,7 +634,7 @@ test('searching tasks filters results server-side', async ({ authedPage: page })
   await searchInput.press('Enter');
 
   await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
-  const rows = page.getByTestId('memory-table-row');
+  const rows = page.getByTestId('brain-table-row');
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toContainText('Escalate');
 });
@@ -686,7 +686,7 @@ test('clicking a column header sorts data server-side', async ({ authedPage: pag
 
   await statusHeader.click();
   await page.waitForTimeout(2_000);
-  const rows = table.locator('[data-testid="memory-table-row"]');
+  const rows = table.locator('[data-testid="brain-table-row"]');
   await expect(rows.first()).toBeVisible({ timeout: 5_000 });
 
   await statusHeader.click();

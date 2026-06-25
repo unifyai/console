@@ -84,6 +84,6 @@ export { seedBillingBannerStates } from './scenarios/billing-banner-states';
 export { seedManualTopup } from './scenarios/manual-topup';
 export { seedUsageLedger } from './scenarios/usage-ledger';
 export { seedChatSearch } from './scenarios/chat-search';
-export { seedMemoryRich } from './scenarios/memory-rich';
+export { seedBrainRich } from './scenarios/brain-rich';
 export { seedTasksRich } from './scenarios/tasks-rich';
 export { seedReAppraisal } from './scenarios/re-appraisal';

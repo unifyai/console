@@ -148,14 +148,14 @@ test('groups colleagues by team and keeps row selection assistant-scoped', async
   await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('text=Mina').first()).toBeVisible({ timeout: 10_000 });
 
-  // Memory destinations stay scoped to the selected assistant's teams. With the
-  // rail owning primary nav, Memory is reached via its rail section; its sub-tab
+  // Brain destinations stay scoped to the selected assistant's teams. With the
+  // rail owning primary nav, Brain is reached via its rail section; its sub-tab
   // dropdown then exposes the Contacts view.
-  await openRailSection(page, 'memory');
-  await page.getByTestId('right-pane-tab-memory').click();
-  await page.getByTestId('right-pane-tab-memory-menu-contacts').click();
-  await expect(page.getByTestId('memory-destination-dropdown')).toBeVisible({ timeout: 10_000 });
-  await page.getByTestId('memory-destination-dropdown').click();
+  await openRailSection(page, 'brain');
+  await page.getByTestId('right-pane-tab-brain').click();
+  await page.getByTestId('right-pane-tab-brain-menu-contacts').click();
+  await expect(page.getByTestId('brain-destination-dropdown')).toBeVisible({ timeout: 10_000 });
+  await page.getByTestId('brain-destination-dropdown').click();
   await expect(page.getByRole('option', { name: 'Patch Alpha' })).toBeVisible({
     timeout: 20_000,
   });
