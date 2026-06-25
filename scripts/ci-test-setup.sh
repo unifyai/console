@@ -172,6 +172,11 @@ if ! command -v gcloud &>/dev/null; then
   log_error "gcloud is required for the Pub/Sub emulator"
   exit 1
 fi
+if [[ "${CI:-}" == "true" ]] && ! dpkg-query -W google-cloud-cli-pubsub-emulator &>/dev/null; then
+  log_info "Installing Google Cloud Pub/Sub emulator package..."
+  sudo apt-get update >/tmp/pubsub-emulator-apt.log 2>&1
+  sudo apt-get install -y google-cloud-cli-pubsub-emulator >>/tmp/pubsub-emulator-apt.log 2>&1
+fi
 setsid gcloud beta emulators pubsub start \
   --project="$PUBSUB_PROJECT_ID" \
   --host-port="$PUBSUB_EMULATOR_HOST" \
