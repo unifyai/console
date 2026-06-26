@@ -371,22 +371,11 @@ export async function renameUserDesktop(
 }
 
 /**
- * Best-effort teardown of the managed tunnel backing a desktop. Removes the
- * tunnel from the relay registry so the public URL stops resolving. Never
- * throws: an orphaned tunnel idles and expires on its own, so teardown failure
- * must not block desktop deletion.
+ * Best-effort delete of a single tunnel from the relay registry. Never throws:
+ * an orphaned tunnel idles and expires on its own, so teardown failure must not
+ * block desktop deletion.
  */
-async function teardownDesktopTunnel(apiKey: string, url?: string): Promise<void> {
-  const tunnelId = extractTunnelId(url);
-  if (!tunnelId) return;
-
-  const hasCommsUrl =
-    !!process.env.COMMUNICATION_URL ||
-    !!process.env.UNITY_COMMS_URL ||
-    !!process.env.LOCAL_ADAPTERS_URL ||
-    !!process.env.UNITY_ADAPTERS_URL;
-  if (!hasCommsUrl) return;
-
+async function deleteTunnelById(apiKey: string, tunnelId: string): Promise<void> {
   try {
     const { createCommunicationClient } = await import('@/lib/communication/client');
     const client = createCommunicationClient(apiKey);
@@ -399,10 +388,36 @@ async function teardownDesktopTunnel(apiKey: string, url?: string): Promise<void
   }
 }
 
+/**
+ * Best-effort teardown of the managed tunnels backing a desktop. A device has
+ * two independent relay tunnels: the HTTP tunnel encoded in its registered
+ * `url`, and a separate raw-TCP SFTP tunnel identified by `sftpTunnelId`. Both
+ * are removed so neither lingers in the relay registry after deletion.
+ */
+async function teardownDesktopTunnel(
+  apiKey: string,
+  url?: string,
+  sftpTunnelId?: string | null
+): Promise<void> {
+  const httpTunnelId = extractTunnelId(url);
+  if (!httpTunnelId && !sftpTunnelId) return;
+
+  const hasCommsUrl =
+    !!process.env.COMMUNICATION_URL ||
+    !!process.env.UNITY_COMMS_URL ||
+    !!process.env.LOCAL_ADAPTERS_URL ||
+    !!process.env.UNITY_ADAPTERS_URL;
+  if (!hasCommsUrl) return;
+
+  if (httpTunnelId) await deleteTunnelById(apiKey, httpTunnelId);
+  if (sftpTunnelId) await deleteTunnelById(apiKey, sftpTunnelId);
+}
+
 export async function deleteUserDesktop(
   desktopId: number,
   url?: string,
-  linkedAssistantIds: number[] = []
+  linkedAssistantIds: number[] = [],
+  sftpTunnelId?: string | null
 ): Promise<ResponseProps> {
   const apiKey = await requireUserApiKey();
   const orchestraUrl = process.env.ORCHESTRA_URL;
@@ -410,10 +425,10 @@ export async function deleteUserDesktop(
     return { detail: 'Server configuration error: ORCHESTRA_URL is not set.' };
   }
 
-  // Tear down the managed tunnel first (best-effort) so the user's desktop list
-  // never lingers pointing at a dead tunnel. The Orchestra delete below is the
+  // Tear down the managed tunnels first (best-effort) so the user's desktop list
+  // never lingers pointing at dead tunnels. The Orchestra delete below is the
   // authoritative step whose result drives success/failure.
-  await teardownDesktopTunnel(apiKey, url);
+  await teardownDesktopTunnel(apiKey, url, sftpTunnelId);
 
   try {
     const response = await fetch(`${orchestraUrl}/v0/desktop/${desktopId}`, {

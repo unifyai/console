@@ -215,7 +215,8 @@ export function AssistantDesktopLinker({
     const result = await assistantActions.desktop.deleteUserDesktop(
       target.id,
       target.url,
-      target.assignedToAssistantIds ?? []
+      target.assignedToAssistantIds ?? [],
+      target.sftpTunnelId
     );
     setMutatingId(null);
 

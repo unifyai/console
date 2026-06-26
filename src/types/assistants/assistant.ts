@@ -68,6 +68,13 @@ export interface UserDesktop {
   url: string;
   /** Agent IDs of every assistant this desktop is currently linked to. */
   assignedToAssistantIds: number[];
+  /**
+   * Relay id of this device's raw-TCP SFTP tunnel, reported by the desktop app.
+   * The SFTP tunnel is separate from the HTTP tunnel encoded in `url`, so its id
+   * is tracked explicitly to deregister it on desktop deletion. Null when the
+   * device never registered an SFTP tunnel.
+   */
+  sftpTunnelId?: string | null;
 }
 
 // Type for the pre_hire_chat payload
@@ -628,7 +635,8 @@ export interface AssistantActions {
     deleteUserDesktop: (
       desktopId: number,
       url?: string,
-      linkedAssistantIds?: number[]
+      linkedAssistantIds?: number[],
+      sftpTunnelId?: string | null
     ) => Promise<ResponseProps>;
   };
   spending: {
