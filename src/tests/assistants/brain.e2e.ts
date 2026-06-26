@@ -1,8 +1,10 @@
 /**
- * Brain Tab E2E Tests — browser-based user flows verifying the Brain
- * tab on the assistant right pane, including tab switching, sub-tab
- * navigation, empty states, seeded data rendering, pagination,
- * and refresh, all driven by real data seeded via the Orchestra API.
+ * Brain E2E Tests — browser-based user flows verifying each dedicated Brain
+ * rail section on the assistant shell: Contacts (directory cards),
+ * Transcripts (consolidated table), Knowledge (dynamic table), Functions
+ * (skill cards) and Guidance (doc library). Every section is reached through
+ * its own rail entry — the legacy aggregate "Brain" tab has been retired — and
+ * is driven by real data seeded via the Orchestra API.
  *
  * Task-specific tests live in tasks.e2e.ts.
  *
@@ -186,7 +188,8 @@ async function seedTranscripts(
     timestamp: string;
     content: string;
     exchange_id: number;
-  }[]
+  }[],
+  context = `${userId}/${assistantId}/Transcripts`
 ) {
   for (const msg of messages) {
     const res = await orchestraFetch(
@@ -195,7 +198,7 @@ async function seedTranscripts(
         method: 'POST',
         body: JSON.stringify({
           project_name: 'Assistants',
-          context: `${userId}/${assistantId}/Transcripts`,
+          context,
           entries: [msg],
         }),
       },
@@ -274,6 +277,8 @@ async function ensureDestinationSeeded() {
 
   const { org, assistant: destination } = ensureDestinationAssistant();
 
+  // Personal-root contacts (resolve transcript sender labels) + a personal
+  // transcript that should only appear under the Personal / All destinations.
   await seedContacts(org.ownerOrgApiKey, user.id, destination.agentId, [
     {
       contact_id: ASSISTANT_CONTACT_ID,
@@ -290,7 +295,20 @@ async function ensureDestinationSeeded() {
       timezone: 'America/New_York',
     },
   ]);
+  await seedTranscripts(org.ownerOrgApiKey, user.id, destination.agentId, [
+    {
+      message_id: 11,
+      medium: 'unify_message',
+      sender_id: OWNER_CONTACT_ID,
+      receiver_ids: [ASSISTANT_CONTACT_ID],
+      timestamp: '2025-06-03T09:00:00Z',
+      content: 'Personal scope ping',
+      exchange_id: 11,
+    },
+  ]);
 
+  // Team-root data: a shared contact and a shared transcript that should only
+  // appear under the team destination.
   const teamId = createBrainTeamForAssistant(destination, {
     selfContactId: 901,
     bossContactId: 902,
@@ -310,6 +328,23 @@ async function ensureDestinationSeeded() {
     ],
     `Teams/${teamId}/Contacts`
   );
+  await seedTranscripts(
+    org.ownerOrgApiKey,
+    user.id,
+    destination.agentId,
+    [
+      {
+        message_id: 12,
+        medium: 'unify_message',
+        sender_id: 901,
+        receiver_ids: [ASSISTANT_CONTACT_ID],
+        timestamp: '2025-06-03T10:00:00Z',
+        content: 'Shared scope ping',
+        exchange_id: 12,
+      },
+    ],
+    `Teams/${teamId}/Transcripts`
+  );
 
   destinationSeeded = true;
 }
@@ -317,6 +352,8 @@ async function ensureDestinationSeeded() {
 // ---------------------------------------------------------------------------
 // Navigation helpers
 // ---------------------------------------------------------------------------
+
+type BrainSection = 'contacts' | 'transcripts' | 'knowledge' | 'functions' | 'guidance' | 'data';
 
 async function dismissCoordinatorOnboardingIfOpen(page: import('@playwright/test').Page) {
   const pickChat = page.getByTestId('coordinator-onboarding-pick-chat');
@@ -332,152 +369,245 @@ async function dismissCoordinatorOnboardingIfOpen(page: import('@playwright/test
     .catch(() => {});
 }
 
-async function selectAssistantAndOpenBrain(page: import('@playwright/test').Page, agentId: number) {
+async function selectAssistant(page: import('@playwright/test').Page, agentId: number) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
   await dismissCoordinatorOnboardingIfOpen(page);
-
   await selectAssistantInList(page, agentId);
   await page.waitForTimeout(1_500);
-
-  // Brain is a rail section now; selecting it activates the Brain view in
-  // the section host (defaulting to the Contacts sub-tab). The in-pane
-  // sub-tab dropdown (`right-pane-tab-brain`) only renders once Brain is
-  // active.
-  await openRailSection(page, 'brain');
-  await page.waitForTimeout(1_500);
 }
 
-/**
- * Switch the active Brain sub-tab via the right-pane tab strip
- * dropdown. The in-pane footer sub-tab row was removed once the
- * dropdown became the single source of truth for sub-tab navigation,
- * so existing test logic that used to click `brain-tab-{ctx}` directly
- * routes through this helper instead.
- */
-async function switchBrainSubTab(
+/** Selects an assistant then opens one of its dedicated Brain rail sections. */
+async function openBrainSection(
   page: import('@playwright/test').Page,
-  ctx: 'contacts' | 'transcripts' | 'knowledge' | 'guidance' | 'functions'
+  agentId: number,
+  section: BrainSection
 ) {
-  await page.getByTestId('right-pane-tab-brain').click();
-  await page.getByTestId(`right-pane-tab-brain-menu-${ctx}`).click();
+  await selectAssistant(page, agentId);
+  await openRailSection(page, section);
+  await page.waitForTimeout(1_000);
 }
 
 // ===========================================================================
-// Tab Switching
+// Rail navigation
 // ===========================================================================
 
-test('Brain tab is visible when an assistant is selected', async ({ authedPage: page }) => {
-  await selectAssistantAndOpenBrain(page, emptyAssistant.agentId);
+test('rail Brain sections switch the active view', async ({ authedPage: page }) => {
+  await selectAssistant(page, emptyAssistant.agentId);
 
-  const brainTab = page.getByTestId('right-pane-tab-brain');
-  await expect(brainTab).toBeVisible({ timeout: 5_000 });
-});
-
-test('switches to Brain tab and exposes sub-tabs in the dropdown', async ({ authedPage: page }) => {
-  await selectAssistantAndOpenBrain(page, emptyAssistant.agentId);
-
-  const brainTab = page.getByTestId('right-pane-tab-brain');
-  await expect(brainTab).toHaveAttribute('data-state', 'active');
-
-  // Sub-tab navigation lives in the tab strip dropdown now; open it
-  // and assert the expected sub-tabs are present.
-  await brainTab.click();
-  await expect(page.getByTestId('right-pane-tab-brain-menu-contacts')).toBeVisible({
-    timeout: 3_000,
-  });
-  await expect(page.getByTestId('right-pane-tab-brain-menu-transcripts')).toBeVisible({
-    timeout: 3_000,
-  });
-  await expect(page.getByTestId('right-pane-tab-brain-menu-knowledge')).toBeVisible({
-    timeout: 3_000,
-  });
-});
-
-test('can switch between all main tabs', async ({ authedPage: page }) => {
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-
-  await selectAssistantInList(page, emptyAssistant.agentId);
-  await page.waitForTimeout(1_500);
-
-  // Top-level navigation now flows through the rail's Workspace/Brain
-  // sections; each becomes `aria-current="page"` when active.
+  // Default landing is Chat; each Brain rail section takes over the section
+  // host and becomes `aria-current="page"` when selected.
   await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
 
-  await openRailSection(page, 'tasks');
-  await expect(page.getByTestId('rail-section-tasks')).toHaveAttribute('aria-current', 'page');
+  for (const section of [
+    'contacts',
+    'transcripts',
+    'knowledge',
+    'functions',
+    'guidance',
+  ] as const) {
+    await openRailSection(page, section);
+    await expect(page.getByTestId(`rail-section-${section}`)).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+  }
 
-  await openRailSection(page, 'brain');
-  await expect(page.getByTestId('rail-section-brain')).toHaveAttribute('aria-current', 'page');
-
-  await openRailSection(page, 'dashboards');
-  await expect(page.getByTestId('rail-section-dashboards')).toHaveAttribute('aria-current', 'page');
-
-  await openRailSection(page, 'chat');
-  await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
-
-  await openRailSection(page, 'actions');
-  await expect(page.getByTestId('rail-section-actions')).toHaveAttribute('aria-current', 'page');
+  // The legacy aggregate "Brain" rail entry is gone.
+  await expect(page.getByTestId('rail-section-brain')).toHaveCount(0);
 });
 
 // ===========================================================================
-// Empty State
+// Contacts — directory cards
 // ===========================================================================
 
-test('shows empty state when assistant has no data', async ({ authedPage: page }) => {
-  await selectAssistantAndOpenBrain(page, emptyAssistant.agentId);
+test('Contacts: empty state when the assistant has no contacts', async ({ authedPage: page }) => {
+  await openBrainSection(page, emptyAssistant.agentId, 'contacts');
 
-  const brainPane = page.getByTestId('brain-pane');
-  await expect(brainPane).toBeVisible({ timeout: 10_000 });
-
-  await expect(page.locator('text=No contacts found')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('contacts-pane')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('No contacts found.')).toBeVisible({ timeout: 10_000 });
 });
 
-// ===========================================================================
-// Seeded Data — Contacts
-// ===========================================================================
-
-test('displays seeded contacts in the Contacts sub-tab', async ({ authedPage: page }) => {
+test('Contacts: displays seeded contact cards', async ({ authedPage: page }) => {
   await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
+  await openBrainSection(page, dataAssistant.agentId, 'contacts');
 
-  // The Brain tab chip now in-place displays the active sub-tab name,
-  // so the previous `data-active` assertion on the footer button is
-  // expressed here as a label check on the main tab.
-  await expect(page.getByTestId('right-pane-tab-brain')).toContainText('Contacts');
-  const table = page.getByTestId('brain-table-contacts');
+  const body = page.getByTestId('contacts-body');
+  await expect(body).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId(`contact-card-${OWNER_CONTACT_ID}`)).toContainText('Alice', {
+    timeout: 10_000,
+  });
+  await expect(page.getByTestId('contact-card-2')).toContainText('Bob');
+  await expect(body.getByText('alice@example.com')).toBeVisible();
+
+  await expect(page.getByTestId('contacts-footer')).toContainText('3 of 3');
+});
+
+test('Contacts: search filters the directory and clears', async ({ authedPage: page }) => {
+  await ensureSeeded();
+  await openBrainSection(page, dataAssistant.agentId, 'contacts');
+
+  const footer = page.getByTestId('contacts-footer');
+  await expect(footer).toContainText('3 of 3', { timeout: 10_000 });
+
+  const search = page.getByTestId('contacts-search');
+  await search.fill('Alice');
+  await expect(footer).toContainText('1 of 3', { timeout: 5_000 });
+  await expect(page.getByTestId(`contact-card-${OWNER_CONTACT_ID}`)).toBeVisible();
+  await expect(page.getByTestId('contact-card-2')).toHaveCount(0);
+
+  await page.getByTestId('contacts-search-clear').click();
+  await expect(footer).toContainText('3 of 3', { timeout: 5_000 });
+});
+
+test('Contacts: clicking a card opens the detail drawer', async ({ authedPage: page }) => {
+  await ensureSeeded();
+  await openBrainSection(page, dataAssistant.agentId, 'contacts');
+
+  await page.getByTestId(`contact-card-${OWNER_CONTACT_ID}`).click();
+
+  const detail = page.getByTestId('contact-detail');
+  await expect(detail).toBeVisible({ timeout: 5_000 });
+  const detailBody = page.getByTestId('contact-detail-body');
+  await expect(detailBody.getByText('alice@example.com')).toBeVisible({ timeout: 3_000 });
+  await expect(detailBody.getByText('America/New_York')).toBeVisible({ timeout: 3_000 });
+});
+
+// ===========================================================================
+// Transcripts — consolidated table (BrainPane pinned to a single context)
+// ===========================================================================
+
+test('Transcripts: displays seeded messages and hides the context switcher', async ({
+  authedPage: page,
+}) => {
+  await ensureSeeded();
+  await openBrainSection(page, dataAssistant.agentId, 'transcripts');
+
+  const table = page.getByTestId('brain-table-transcripts');
   await expect(table).toBeVisible({ timeout: 10_000 });
+  await expect(table.locator('text=Hello, can you help me with my schedule?')).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(table.locator('text=Of course! Let me check your calendar.')).toBeVisible({
+    timeout: 5_000,
+  });
+  await expect(table.locator('text=What is the status of the project?')).toBeVisible({
+    timeout: 5_000,
+  });
 
-  await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
+  // Pinned single-context view hides the in-pane Brain context switcher.
+  await expect(page.getByTestId('brain-sub-tabs')).toHaveCount(0);
+});
+
+test('Transcripts: clicking a row opens the detail with full content', async ({
+  authedPage: page,
+}) => {
+  await ensureSeeded();
+  await openBrainSection(page, dataAssistant.agentId, 'transcripts');
+
+  const table = page.getByTestId('brain-table-transcripts');
+  const row = table.locator('[data-testid="brain-table-row"]', { hasText: 'schedule' });
+  await expect(row).toBeVisible({ timeout: 10_000 });
+  await row.click();
+
+  const detail = page.getByTestId('brain-row-detail');
+  await expect(detail).toBeVisible({ timeout: 5_000 });
+  await expect(detail.locator('text=Hello, can you help me with my schedule?')).toBeVisible({
+    timeout: 3_000,
+  });
+
+  const closeBtn = detail.locator('button:has(svg)').first();
+  await closeBtn.click();
+  await expect(detail).not.toBeVisible({ timeout: 3_000 });
+});
+
+test('Transcripts: search filters server-side', async ({ authedPage: page }) => {
+  await ensureSeeded();
+  await openBrainSection(page, dataAssistant.agentId, 'transcripts');
+
+  const table = page.getByTestId('brain-table-transcripts');
+  await expect(table.locator('text=What is the status of the project?')).toBeVisible({
+    timeout: 10_000,
+  });
+
+  const search = page.getByTestId('brain-search');
+  await search.fill('schedule');
+  await search.press('Enter');
+
+  await expect(table.locator('text=Hello, can you help me with my schedule?')).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(table.locator('text=What is the status of the project?')).not.toBeVisible({
     timeout: 5_000,
   });
-  await expect(table.getByRole('cell', { name: 'Bob', exact: true })).toBeVisible({
+
+  await page.getByTestId('brain-search-clear').click();
+  await expect(table.locator('text=What is the status of the project?')).toBeVisible({
+    timeout: 10_000,
+  });
+});
+
+test('Transcripts: clicking a column header sorts server-side', async ({ authedPage: page }) => {
+  await ensureSeeded();
+  await openBrainSection(page, dataAssistant.agentId, 'transcripts');
+
+  const table = page.getByTestId('brain-table-transcripts');
+  const timeHeader = table.locator('th', { hasText: 'Time' });
+  await expect(timeHeader).toBeVisible({ timeout: 10_000 });
+
+  await timeHeader.click();
+  await page.waitForTimeout(1_500);
+  await expect(table.locator('[data-testid="brain-table-row"]').first()).toBeVisible({
     timeout: 5_000,
   });
-  await expect(table.getByRole('cell', { name: 'alice@example.com', exact: true })).toBeVisible({
+
+  await timeHeader.click();
+  await page.waitForTimeout(1_500);
+  await expect(table.locator('[data-testid="brain-table-row"]').first()).toBeVisible({
     timeout: 5_000,
   });
 });
 
-test('contacts sub-tab shows correct row count', async ({ authedPage: page }) => {
+test('Transcripts: footer shows loaded-of-total and refresh refetches', async ({
+  authedPage: page,
+}) => {
   await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
+  await openBrainSection(page, dataAssistant.agentId, 'transcripts');
 
   const footer = page.getByTestId('brain-table-footer');
   await expect(footer).toBeVisible({ timeout: 10_000 });
-  await expect(footer.locator('text=/3 of 3/')).toBeVisible({ timeout: 5_000 });
+  await expect(footer).toContainText('of');
+
+  const refresh = page.getByTestId('brain-refresh');
+  await refresh.click();
+  await page.waitForTimeout(1_500);
+  await expect(refresh).toBeEnabled();
+  await expect(page.getByTestId('brain-table-transcripts')).toBeVisible({ timeout: 5_000 });
 });
 
-test('brain destination dropdown is hidden for solo assistants', async ({ authedPage: page }) => {
-  await selectAssistantAndOpenBrain(page, emptyAssistant.agentId);
+test('Transcripts: the table is read-only', async ({ authedPage: page }) => {
+  await ensureSeeded();
+  await openBrainSection(page, dataAssistant.agentId, 'transcripts');
 
-  const brainPane = page.getByTestId('brain-pane');
-  await expect(brainPane).toBeVisible({ timeout: 10_000 });
+  const body = page.getByTestId('brain-body');
+  await expect(body).toBeVisible({ timeout: 10_000 });
+  await expect(body.locator('button:has-text("Edit")')).toHaveCount(0);
+  await expect(body.locator('button:has-text("Delete")')).toHaveCount(0);
+  await expect(body.locator('input')).toHaveCount(0);
+});
+
+test('Transcripts: destination dropdown is hidden for solo assistants', async ({
+  authedPage: page,
+}) => {
+  await openBrainSection(page, emptyAssistant.agentId, 'transcripts');
+
+  await expect(page.getByTestId('brain-pane')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId('brain-destination-dropdown')).toHaveCount(0);
 });
 
-test('brain dropdown drills into personal and shared roots', async ({ authedPage: page }) => {
+test('Transcripts: destination dropdown drills into personal and shared roots', async ({
+  authedPage: page,
+}) => {
   const { org, assistant: destination } = ensureDestinationAssistant();
 
   await page.goto('/assistants');
@@ -493,388 +623,56 @@ test('brain dropdown drills into personal and shared roots', async ({ authedPage
   await closeHireDialogIfOpen(page);
 
   await ensureDestinationSeeded();
-  await selectAssistantAndOpenBrain(page, destination.agentId);
+  await openBrainSection(page, destination.agentId, 'transcripts');
 
-  const table = page.getByTestId('brain-table-contacts');
-  await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
-    timeout: 10_000,
-  });
-  await expect(table.getByRole('cell', { name: 'SharedOnly', exact: true })).toBeVisible({
-    timeout: 10_000,
-  });
+  const table = page.getByTestId('brain-table-transcripts');
+  await expect(table.locator('text=Personal scope ping')).toBeVisible({ timeout: 10_000 });
+  await expect(table.locator('text=Shared scope ping')).toBeVisible({ timeout: 10_000 });
 
   await page.getByTestId('brain-destination-dropdown').click();
   await page.getByRole('option', { name: /Brain Drill Team/ }).click();
-
-  await expect(table.getByRole('cell', { name: 'SharedOnly', exact: true })).toBeVisible({
-    timeout: 20_000,
-  });
-  await expect(table.getByRole('cell', { name: 'Alice', exact: true })).not.toBeVisible({
-    timeout: 10_000,
-  });
+  await expect(table.locator('text=Shared scope ping')).toBeVisible({ timeout: 20_000 });
+  await expect(table.locator('text=Personal scope ping')).not.toBeVisible({ timeout: 10_000 });
 
   await page.getByTestId('brain-destination-dropdown').click();
   await page.getByRole('option', { name: 'Personal' }).click();
-
-  await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
-    timeout: 20_000,
-  });
-  await expect(table.getByRole('cell', { name: 'SharedOnly', exact: true })).not.toBeVisible({
-    timeout: 10_000,
-  });
+  await expect(table.locator('text=Personal scope ping')).toBeVisible({ timeout: 20_000 });
+  await expect(table.locator('text=Shared scope ping')).not.toBeVisible({ timeout: 10_000 });
 });
 
 // ===========================================================================
-// Seeded Data — Transcripts
+// Knowledge / Functions / Guidance — empty-state rendering
 // ===========================================================================
 
-test('displays seeded transcripts in the Transcripts sub-tab', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
+test('Knowledge: renders the table view with an empty state', async ({ authedPage: page }) => {
+  await openBrainSection(page, emptyAssistant.agentId, 'knowledge');
 
-  await switchBrainSubTab(page, 'transcripts');
-  await page.waitForTimeout(1_000);
-
-  await expect(page.getByTestId('right-pane-tab-brain')).toContainText('Transcripts');
-  const table = page.getByTestId('brain-table-transcripts');
-  await expect(table).toBeVisible({ timeout: 10_000 });
-
-  await expect(table.locator('text=Hello, can you help me with my schedule?')).toBeVisible({
-    timeout: 5_000,
-  });
-  await expect(table.locator('text=Of course! Let me check your calendar.')).toBeVisible({
-    timeout: 5_000,
-  });
-  await expect(table.locator('text=What is the status of the project?')).toBeVisible({
-    timeout: 5_000,
-  });
-});
-
-test('Brain → Transcripts rail section renders a dedicated Transcripts view', async ({
-  authedPage: page,
-}) => {
-  await ensureSeeded();
-  await navigateToAssistants(page);
-  await closeHireDialogIfOpen(page);
-  await dismissCoordinatorOnboardingIfOpen(page);
-  await selectAssistantInList(page, dataAssistant.agentId);
-  await page.waitForTimeout(1_000);
-
-  // Transcripts is a first-class Brain rail section (no longer a "coming soon"
-  // placeholder), rendering a Transcripts-pinned Brain pane.
-  await openRailSection(page, 'transcripts');
-  await expect(page.getByTestId('rail-section-transcripts')).toHaveAttribute(
-    'aria-current',
-    'page'
-  );
-
-  const table = page.getByTestId('brain-table-transcripts');
-  await expect(table).toBeVisible({ timeout: 10_000 });
-  await expect(table.locator('text=Hello, can you help me with my schedule?')).toBeVisible({
-    timeout: 5_000,
-  });
-
-  // The pinned view hides the Brain context switcher — Transcripts is the only
-  // context shown here.
+  await expect(page.getByTestId('brain-pane')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('No knowledge found.')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId('brain-sub-tabs')).toHaveCount(0);
 });
 
-// ===========================================================================
-// Sub-tab Navigation
-// ===========================================================================
+test('Functions: renders the skills view with an empty state', async ({ authedPage: page }) => {
+  await openBrainSection(page, emptyAssistant.agentId, 'functions');
 
-test('switching between sub-tabs preserves data and shows correct tables', async ({
-  authedPage: page,
-}) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
-
-  await expect(page.getByTestId('brain-table-contacts')).toBeVisible({ timeout: 10_000 });
-
-  await switchBrainSubTab(page, 'transcripts');
-  await page.waitForTimeout(500);
-  await expect(page.getByTestId('brain-table-transcripts')).toBeVisible({ timeout: 5_000 });
-
-  await switchBrainSubTab(page, 'knowledge');
-  await page.waitForTimeout(500);
-  await expect(page.getByTestId('brain-table-knowledge')).toBeVisible({ timeout: 5_000 });
-
-  await switchBrainSubTab(page, 'contacts');
-  await page.waitForTimeout(500);
-  const table = page.getByTestId('brain-table-contacts');
-  await expect(table).toBeVisible({ timeout: 5_000 });
-  await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
-    timeout: 3_000,
-  });
+  await expect(page.getByTestId('functions-pane')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('No functions found.')).toBeVisible({ timeout: 10_000 });
 });
 
-// ===========================================================================
-// Refresh
-// ===========================================================================
-
-test('refresh button triggers data refetch without errors', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
-
-  const refreshBtn = page.getByTestId('brain-refresh');
-  await expect(refreshBtn).toBeVisible({ timeout: 10_000 });
-
-  await refreshBtn.click();
-  await page.waitForTimeout(2_000);
-
-  await expect(refreshBtn).toBeVisible({ timeout: 5_000 });
-  await expect(refreshBtn).toBeEnabled();
-  const table = page.getByTestId('brain-table-contacts');
-  await expect(table.getByRole('cell', { name: 'Alice', exact: true })).toBeVisible({
-    timeout: 5_000,
-  });
-});
-
-// ===========================================================================
-// Data is read-only (no edit controls)
-// ===========================================================================
-
-test('brain tables are read-only with no edit controls', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
-
-  const table = page.getByTestId('brain-table-contacts');
-  await expect(table).toBeVisible({ timeout: 10_000 });
-
-  await expect(table.locator('button:has-text("Edit")')).not.toBeVisible({ timeout: 2_000 });
-  await expect(table.locator('button:has-text("Delete")')).not.toBeVisible({ timeout: 2_000 });
-  await expect(table.locator('button:has-text("Add")')).not.toBeVisible({ timeout: 2_000 });
-
-  await expect(table.locator('input')).not.toBeVisible({ timeout: 1_000 });
-});
-
-// ===========================================================================
-// Row Detail Panel
-// ===========================================================================
-
-test('clicking a row opens the detail panel with full field values', async ({
-  authedPage: page,
-}) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
-
-  const table = page.getByTestId('brain-table-contacts');
-  await expect(table).toBeVisible({ timeout: 10_000 });
-
-  const aliceRow = table.locator('[data-testid="brain-table-row"]', { hasText: 'Alice' });
-  await expect(aliceRow).toBeVisible({ timeout: 5_000 });
-  await aliceRow.click();
-  await page.waitForTimeout(500);
-
-  const detail = page.getByTestId('brain-row-detail');
-  await expect(detail).toBeVisible({ timeout: 5_000 });
-
-  const fields = page.getByTestId('brain-row-detail-fields');
-  await expect(fields.getByText(/^Alice$/)).toBeVisible({ timeout: 3_000 });
-  await expect(fields.getByText(/^alice@example\.com$/)).toBeVisible({ timeout: 3_000 });
-  await expect(fields.locator('text=America/New_York')).toBeVisible({ timeout: 3_000 });
-});
-
-test('detail panel shows full untruncated content for transcripts', async ({
-  authedPage: page,
-}) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
-
-  await switchBrainSubTab(page, 'transcripts');
-  await page.waitForTimeout(1_000);
-
-  const table = page.getByTestId('brain-table-transcripts');
-  await expect(table).toBeVisible({ timeout: 10_000 });
-
-  const msgRow = table.locator('[data-testid="brain-table-row"]', { hasText: 'schedule' });
-  await expect(msgRow).toBeVisible({ timeout: 5_000 });
-  await msgRow.click();
-  await page.waitForTimeout(500);
-
-  const detail = page.getByTestId('brain-row-detail');
-  await expect(detail).toBeVisible({ timeout: 5_000 });
-
-  await expect(detail.locator('text=Hello, can you help me with my schedule?')).toBeVisible({
-    timeout: 3_000,
-  });
-});
-
-test('detail panel closes when clicking the close button', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
-
-  const table = page.getByTestId('brain-table-contacts');
-  await expect(table).toBeVisible({ timeout: 10_000 });
-
-  const row = table.locator('[data-testid="brain-table-row"]').first();
-  await row.click();
-  await page.waitForTimeout(500);
-
-  const detail = page.getByTestId('brain-row-detail');
-  await expect(detail).toBeVisible({ timeout: 5_000 });
-
-  const closeBtn = detail.locator('button:has(svg)').first();
-  await closeBtn.click();
-  await page.waitForTimeout(500);
-
-  await expect(detail).not.toBeVisible({ timeout: 3_000 });
-});
-
-// ===========================================================================
-// Server-side Sorting
-// ===========================================================================
-
-test('clicking a column header sorts data server-side', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
-
-  const table = page.getByTestId('brain-table-contacts');
-  await expect(table).toBeVisible({ timeout: 10_000 });
-
-  const firstNameHeader = table.locator('th', { hasText: 'First Name' });
-  await expect(firstNameHeader).toBeVisible({ timeout: 5_000 });
-  await firstNameHeader.click();
-  await page.waitForTimeout(2_000);
-
-  const rows = table.locator('[data-testid="brain-table-row"]');
-  await expect(rows.first()).toBeVisible({ timeout: 5_000 });
-
-  await firstNameHeader.click();
-  await page.waitForTimeout(2_000);
-  await expect(rows.first()).toBeVisible({ timeout: 5_000 });
-});
-
-test('sorting indicator shows on sorted column header', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
-
-  const table = page.getByTestId('brain-table-contacts');
-  await expect(table).toBeVisible({ timeout: 10_000 });
-
-  const idHeader = table.locator('th', { hasText: 'ID' });
-  await expect(idHeader).toBeVisible({ timeout: 5_000 });
-
-  await idHeader.click();
-  await page.waitForTimeout(2_000);
-
-  await expect(idHeader).toBeVisible({ timeout: 5_000 });
-});
-
-// ===========================================================================
-// Footer shows loaded-of-total count
-// ===========================================================================
-
-test('footer shows loaded count vs total count', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
-
-  const footer = page.getByTestId('brain-table-footer');
-  await expect(footer).toBeVisible({ timeout: 10_000 });
-  await expect(footer.locator('text=/3 of 3/')).toBeVisible({ timeout: 5_000 });
-});
-
-// ===========================================================================
-// Search / Filtering
-// ===========================================================================
-
-test('searching contacts filters results server-side', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
-
-  const searchInput = page.getByTestId('brain-search');
-  await expect(searchInput).toBeVisible({ timeout: 5_000 });
-
-  const footer = page.getByTestId('brain-table-footer');
-  await expect(footer).toBeVisible({ timeout: 10_000 });
-  await expect(footer).toContainText('3 of 3');
-
-  await searchInput.fill('Alice');
-  await searchInput.press('Enter');
-
-  await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
-
-  const rows = page.getByTestId('brain-table-row');
-  await expect(rows).toHaveCount(1);
-  await expect(rows.first()).toContainText('Alice');
-});
-
-test('clear button removes search filter', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
-
-  const searchInput = page.getByTestId('brain-search');
-  const footer = page.getByTestId('brain-table-footer');
-  await expect(footer).toBeVisible({ timeout: 10_000 });
-
-  await searchInput.fill('Alice');
-  await searchInput.press('Enter');
-  await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
-
-  const clearBtn = page.getByTestId('brain-search-clear');
-  await expect(clearBtn).toBeVisible({ timeout: 3_000 });
-
-  await clearBtn.click();
-  await expect(footer).toContainText('3 of 3', { timeout: 10_000 });
-  await expect(clearBtn).not.toBeVisible();
-});
-
-test('search is case-insensitive', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
-
-  const searchInput = page.getByTestId('brain-search');
-  const footer = page.getByTestId('brain-table-footer');
-  await expect(footer).toBeVisible({ timeout: 10_000 });
-
-  await searchInput.fill('alice');
-  await searchInput.press('Enter');
-  await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
-});
-
-test('search with no results shows empty message', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
-
-  const searchInput = page.getByTestId('brain-search');
-  const footer = page.getByTestId('brain-table-footer');
-  await expect(footer).toBeVisible({ timeout: 10_000 });
-
-  await searchInput.fill('xyznonexistent');
-  await searchInput.press('Enter');
-
-  await expect(footer).not.toBeVisible({ timeout: 10_000 });
-  await expect(page.locator('text=No results match your search')).toBeVisible({ timeout: 5_000 });
-});
-
-test('search query persists when switching tabs and back', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
-
-  const searchInput = page.getByTestId('brain-search');
-  const footer = page.getByTestId('brain-table-footer');
-  await expect(footer).toBeVisible({ timeout: 10_000 });
-
-  await searchInput.fill('Alice');
-  await searchInput.press('Enter');
-  await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
-
-  await switchBrainSubTab(page, 'transcripts');
-  await page.waitForTimeout(1_000);
-
-  await expect(searchInput).toHaveValue('');
-
-  await switchBrainSubTab(page, 'contacts');
-  await expect(searchInput).toHaveValue('Alice', { timeout: 3_000 });
-
-  await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
+test('Guidance: renders the doc library with an empty state', async ({ authedPage: page }) => {
+  await openBrainSection(page, emptyAssistant.agentId, 'guidance');
+
+  await expect(page.getByTestId('doc-library-pane')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('No guidance matches.')).toBeVisible({ timeout: 10_000 });
 });
 
 // ===========================================================================
 // Backend Data Verification
 // ===========================================================================
 
-test('brain tab data matches what was seeded via Orchestra API', async ({ authedPage: page }) => {
+test('seeded Brain data matches what was stored via the Orchestra API', async ({
+  authedPage: page,
+}) => {
   await ensureSeeded();
 
   const contactsRes = await orchestraFetch(
@@ -895,14 +693,7 @@ test('brain tab data matches what was seeded via Orchestra API', async ({ authed
   const transcriptsData = await transcriptsRes.json();
   expect(transcriptsData.logs.length).toBe(3);
 
-  await selectAssistantAndOpenBrain(page, dataAssistant.agentId);
-
-  // The sub-tab count badges were removed when the dropdown took over
-  // sub-tab navigation, so we verify the seeded counts via each
-  // sub-tab's table footer row-count chip instead.
-  const footer = page.getByTestId('brain-table-footer');
-  await expect(footer).toContainText('3 of 3', { timeout: 10_000 });
-
-  await switchBrainSubTab(page, 'transcripts');
-  await expect(footer).toContainText('3 of 3', { timeout: 5_000 });
+  // The directory footer reflects the same three seeded contacts in the UI.
+  await openBrainSection(page, dataAssistant.agentId, 'contacts');
+  await expect(page.getByTestId('contacts-footer')).toContainText('3 of 3', { timeout: 10_000 });
 });

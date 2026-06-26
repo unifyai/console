@@ -149,11 +149,9 @@ test('groups colleagues by team and keeps row selection assistant-scoped', async
   await expect(page.locator('text=Mina').first()).toBeVisible({ timeout: 10_000 });
 
   // Brain destinations stay scoped to the selected assistant's teams. With the
-  // rail owning primary nav, Brain is reached via its rail section; its sub-tab
-  // dropdown then exposes the Contacts view.
-  await openRailSection(page, 'brain');
-  await page.getByTestId('right-pane-tab-brain').click();
-  await page.getByTestId('right-pane-tab-brain-menu-contacts').click();
+  // rail owning primary nav, the Transcripts Brain section renders the Brain
+  // pane whose header carries the destination dropdown.
+  await openRailSection(page, 'transcripts');
   await expect(page.getByTestId('brain-destination-dropdown')).toBeVisible({ timeout: 10_000 });
   await page.getByTestId('brain-destination-dropdown').click();
   await expect(page.getByRole('option', { name: 'Patch Alpha' })).toBeVisible({

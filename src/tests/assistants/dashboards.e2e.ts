@@ -228,8 +228,11 @@ test('switches between Chat, Actions drawer, Dashboards, and Brain', async ({
   await openRailSection(page, 'dashboards');
   await expect(page.getByTestId('rail-section-dashboards')).toHaveAttribute('aria-current', 'page');
 
-  await openRailSection(page, 'brain');
-  await expect(page.getByTestId('rail-section-brain')).toHaveAttribute('aria-current', 'page');
+  await openRailSection(page, 'transcripts');
+  await expect(page.getByTestId('rail-section-transcripts')).toHaveAttribute(
+    'aria-current',
+    'page'
+  );
 
   await openRailSection(page, 'chat');
   await expect(page.getByTestId('rail-section-chat')).toHaveAttribute('aria-current', 'page');
@@ -281,30 +284,30 @@ test.fixme('split tabs lets the user view two right-pane tabs side by side and c
   await expect(page.getByTestId('right-pane-close-secondary')).toBeVisible();
 
   // Confirm both panes can be driven independently — switch the
-  // secondary to Brain while leaving the primary on Chat. Brain is
+  // secondary to Tasks while leaving the primary on Chat. Tasks is
   // a dropdown trigger, so opening it and picking a sub-tab is what
   // actually performs the switch.
-  await page.getByTestId('right-pane-secondary-tab-brain').click();
-  await page.getByTestId('right-pane-secondary-tab-brain-menu-contacts').click();
-  await expect(page.getByTestId('right-pane-secondary-tab-brain')).toHaveAttribute(
+  await page.getByTestId('right-pane-secondary-tab-tasks').click();
+  await page.getByTestId('right-pane-secondary-tab-tasks-menu-activity').click();
+  await expect(page.getByTestId('right-pane-secondary-tab-tasks')).toHaveAttribute(
     'data-state',
     'active'
   );
   await expect(primaryChatTab).toHaveAttribute('data-state', 'active');
 
   // Closing the *primary* should promote whatever was in the secondary
-  // (Brain) into the primary slot, then collapse out of split mode.
+  // (Tasks) into the primary slot, then collapse out of split mode.
   await page.getByTestId('right-pane-close-primary').click();
   await expect(page.getByTestId('right-pane-splitter')).toHaveCount(0, { timeout: 5_000 });
-  await expect(page.getByTestId('right-pane-tab-brain')).toHaveAttribute('data-state', 'active');
+  await expect(page.getByTestId('right-pane-tab-tasks')).toHaveAttribute('data-state', 'active');
 
   // Re-split, then close the secondary side. Should also collapse,
-  // and the primary tab (Brain) should remain active.
+  // and the primary tab (Tasks) should remain active.
   await page.getByTestId('right-pane-split-button').click();
   await expect(page.getByTestId('right-pane-splitter')).toBeVisible({ timeout: 5_000 });
   await page.getByTestId('right-pane-close-secondary').click();
   await expect(page.getByTestId('right-pane-splitter')).toHaveCount(0, { timeout: 5_000 });
-  await expect(page.getByTestId('right-pane-tab-brain')).toHaveAttribute('data-state', 'active');
+  await expect(page.getByTestId('right-pane-tab-tasks')).toHaveAttribute('data-state', 'active');
 });
 
 // ===========================================================================
