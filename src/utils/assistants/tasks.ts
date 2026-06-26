@@ -388,7 +388,7 @@ function describeTaskStatus(value: string): string | undefined {
   return TASK_STATUS_DESCRIPTIONS.get(value.toLowerCase());
 }
 
-function taskStatusBadge(
+export function taskStatusBadge(
   value: unknown,
   opts?: {
     showRunningDot?: boolean;
@@ -685,4 +685,109 @@ export function buildTaskDetailSections(row: Record<string, unknown>): DetailSec
   }
 
   return sections;
+}
+
+// ── Task card / run-history formatting (expandable Tasks view) ────────
+
+export interface TaskCardField {
+  label: string;
+  value: string;
+  mono?: boolean;
+}
+
+/** The human-facing "Type" label for a task (Scheduled / Triggered / …). */
+export function getTaskTypeLabel(row: TaskRow): string {
+  return formatTaskStartLabel(row);
+}
+
+/** Statuses that read as paused/stopped for the All/Active/Paused filter. */
+const PAUSED_TASK_STATUSES = new Set(['paused', 'cancelled', 'disabled', 'inactive', 'stopped']);
+
+export function isPausedTaskStatus(status: unknown): boolean {
+  if (!isPresent(status)) return false;
+  return PAUSED_TASK_STATUSES.has(String(status).trim().toLowerCase());
+}
+
+/** Six labelled fields shown in the open task card's left column. */
+export function getTaskCardFields(row: TaskRow): TaskCardField[] {
+  const record = asRecord(row);
+  const triggerMedium = readTaskTriggerMedium(row);
+  const trigger = triggerMedium
+    ? humanizeTaskLabel(triggerMedium)
+    : resolveTaskStartMode(row) === 'triggered'
+      ? 'On event'
+      : '—';
+
+  const cadenceRaw = readFirstPresentValue(record, ['cadence']);
+  const cadence =
+    typeof cadenceRaw === 'string' && cadenceRaw.trim().length > 0
+      ? cadenceRaw
+      : (formatTaskRecurrenceCadence(row) ?? '—');
+
+  const startCandidate =
+    readFirstPresentValue(record, ['startAt', 'start_at']) ??
+    readFirstPresentValue(readTaskSchedule(row), ['startAt', 'start_at']) ??
+    row.createdAt;
+  const nextDue = readTaskDueAt(row);
+  const ownerValue = readFirstPresentValue(record, ['owner']);
+
+  return [
+    { label: 'Type', value: getTaskTypeLabel(row) },
+    { label: 'Trigger', value: trigger },
+    { label: 'Cadence', value: cadence },
+    {
+      label: 'Start',
+      value: isPresent(startCandidate) ? formatTimestamp(String(startCandidate)) : '—',
+      mono: true,
+    },
+    { label: 'Next run', value: nextDue ? formatTimestamp(nextDue) : '—', mono: true },
+    {
+      label: 'Owner',
+      value: isPresent(ownerValue) ? String(ownerValue) : '—',
+    },
+  ];
+}
+
+/** Plain-language reason a run started ("On schedule", "Triggered by …"). */
+export function getRunWhyLabel(row: TaskRunRow): string {
+  return formatRunSourcePrimary(row);
+}
+
+/** Wall-clock duration between a run's start and finish, e.g. "2m 3s". */
+export function formatRunDuration(
+  startedAt: string | null | undefined,
+  completedAt: string | null | undefined
+): string {
+  if (!isPresent(startedAt) || !isPresent(completedAt)) return '—';
+  const start = new Date(String(startedAt)).getTime();
+  const end = new Date(String(completedAt)).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return '—';
+
+  const totalSeconds = Math.round((end - start) / 1000);
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes < 60) return seconds ? `${minutes}m ${seconds}s` : `${minutes}m`;
+
+  const hours = Math.floor(minutes / 60);
+  const remMinutes = minutes % 60;
+  return remMinutes ? `${hours}h ${remMinutes}m` : `${hours}h`;
+}
+
+export interface RunHistoryCells {
+  whyLabel: string;
+  startedLabel: string;
+  finishedLabel: string;
+  durationLabel: string;
+}
+
+/** Pre-formatted cell text for one row of the run-history table. */
+export function getRunHistoryCells(row: TaskRunRow): RunHistoryCells {
+  return {
+    whyLabel: getRunWhyLabel(row),
+    startedLabel: isPresent(row.startedAt) ? formatTimestamp(String(row.startedAt)) : '—',
+    finishedLabel: isPresent(row.completedAt) ? formatTimestamp(String(row.completedAt)) : '—',
+    durationLabel: formatRunDuration(row.startedAt, row.completedAt),
+  };
 }
