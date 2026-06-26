@@ -267,13 +267,16 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
       const parsed = JSON.parse(stored) as Partial<RightPaneState> | null;
       if (!parsed || typeof parsed !== 'object') return;
       const isMobile = window.matchMedia('(max-width: 767px)').matches;
-      // Migrate legacy 'secrets' tab id (renamed to 'integrations' when
-      // the per-assistant Integrations tab landed). Drops cleanly once
-      // every persisted state has been visited at least once after the
-      // rename.
+      // Migrate legacy tab ids that no longer map to a right-pane tab:
+      //  - 'secrets' was renamed to 'integrations' when the per-assistant
+      //    Integrations tab landed.
+      //  - 'brain' was the aggregate Brain pane, now retired in favour of
+      //    the rail's dedicated Brain sections — fall back to chat.
+      // Both drop cleanly once every persisted state has been visited once.
       const migrateTabId = (tab: unknown): RightPaneTab | null => {
         if (typeof tab !== 'string') return null;
         if (tab === 'secrets') return 'integrations';
+        if (tab === 'brain') return 'chat';
         return tab as RightPaneTab;
       };
       const primaryTab = migrateTabId(parsed.primary?.tab) ?? 'chat';

@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   ListTodo,
   Plug2,
-  Brain,
   Contact,
   MessagesSquare,
   BookOpen,
@@ -110,19 +109,6 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
 ];
 
 export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
-  {
-    id: 'brain',
-    label: 'Brain',
-    Icon: Brain,
-    kind: 'view',
-    tab: 'brain',
-    desc: 'Durable facts, notes and context your unity relies on across conversations.',
-    steps: [
-      ['Browse the brain', 'Switch contexts to see the notes your unity keeps.'],
-      ['Open an entry', 'Read the full note and where it came from.'],
-      ['Add context', 'Capture something new for your unity to remember.'],
-    ],
-  },
   {
     id: 'contacts',
     label: 'Contacts',
