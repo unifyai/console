@@ -65,9 +65,9 @@ const LAPTOP_FADE = 'opacity 0.5s ease';
 // is meant to be prominent (overflow is visible on the avatar).
 const LAPTOP_STYLE: React.CSSProperties = {
   position: 'absolute',
-  left: '60%',
-  top: '82%',
-  width: '70%',
+  left: '80%',
+  top: '88%',
+  width: '90%',
   transform: 'translate(-50%, -50%)',
   pointerEvents: 'none',
 };
