@@ -12,7 +12,16 @@ import { cn } from '@/lib/utils';
 import { Input } from '@/components/UI/input';
 import { Button } from '@/components/UI/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
-import { Search, X, ChevronsUpDown, ChevronsDownUp, Clock, Check, RefreshCw } from 'lucide-react';
+import {
+  Search,
+  X,
+  ChevronsUpDown,
+  ChevronsDownUp,
+  Clock,
+  Check,
+  RefreshCw,
+  ArrowDown,
+} from 'lucide-react';
 
 // ─── Time Window Presets ─────────────────────────────────────────────────────
 
@@ -223,6 +232,16 @@ export function LiveActionsHeader({
           </span>
         )}
       </div>
+
+      {/* Order hint: actions run oldest -> newest (newest at the bottom) */}
+      <span
+        className="hidden h-7 items-center gap-1.5 whitespace-nowrap rounded-full border bg-card px-2.5 text-[11.5px] font-medium text-muted-foreground lg:inline-flex"
+        title="Actions are ordered oldest at the top, newest at the bottom"
+        data-testid="live-actions-order-hint"
+      >
+        <ArrowDown className="h-3 w-3 text-accent-soft-foreground" />
+        Oldest → Newest
+      </span>
 
       {/* Expand/Collapse All Button */}
       <Button
