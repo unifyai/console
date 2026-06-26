@@ -272,9 +272,10 @@ export function AssistantDesktopLinker({
     toast.success('Desktop deleted');
   };
 
-  // A linked Mac needs the login password to grant control; when nothing is
-  // linked yet the action follows the OS the user is setting up.
-  const showSavePassword = currentDesktopId ? currentDesktopOs === 'macos' : selectedOs === 'macos';
+  // A linked Mac needs the login password to grant control, and so does a Mac
+  // the user is actively setting up in the guide — surface the action whenever
+  // macOS is relevant on either path.
+  const showSavePassword = currentDesktopOs === 'macos' || selectedOs === 'macos';
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
