@@ -21,6 +21,16 @@ import type { paths } from './schema';
 import { snakeToCamelObject, camelToSnakeObject } from '@/utils/casing';
 import { createOpenapiLoggingMiddleware } from '@/lib/logging/fetch';
 import { formatValidationDetail } from '@/utils/orchestra-error';
+import { mockSimulationEnabled } from '@/lib/simulation/config';
+import { simulationFetch } from '@/lib/simulation/dispatch';
+
+/**
+ * When mock simulation mode is on, every Orchestra request is served from the
+ * in-memory fixtures through the single `simulationFetch` seam instead of the
+ * network. Off (the default) this is `undefined`, so openapi-fetch uses the
+ * platform `fetch` and the real backend — no mock code path is reachable.
+ */
+const simulationFetchOption = mockSimulationEnabled() ? { fetch: simulationFetch } : {};
 
 /**
  * Custom body serializer that transforms camelCase to snake_case
@@ -114,6 +124,7 @@ export function createOrchestraClient(apiKey: string) {
       'Content-Type': 'application/json',
     },
     bodySerializer: casingBodySerializer,
+    ...simulationFetchOption,
   });
 
   client.use(createOpenapiLoggingMiddleware('ORCHESTRA'));
@@ -130,17 +141,18 @@ export function createOrchestraClient(apiKey: string) {
  */
 export function createOrchestraAdminClient() {
   const adminKey = process.env.ORCHESTRA_ADMIN_KEY;
-  if (!adminKey) {
+  if (!adminKey && !mockSimulationEnabled()) {
     throw new Error('ORCHESTRA_ADMIN_KEY environment variable is not set');
   }
 
   const client = createClient<paths>({
     baseUrl: process.env.ORCHESTRA_URL || 'https://api.unify.ai',
     headers: {
-      Authorization: `Bearer ${adminKey}`,
+      Authorization: `Bearer ${adminKey ?? ''}`,
       'Content-Type': 'application/json',
     },
     bodySerializer: casingBodySerializer,
+    ...simulationFetchOption,
   });
 
   client.use(createOpenapiLoggingMiddleware('ORCHESTRA'));

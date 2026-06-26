@@ -14,6 +14,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { getCurrentUser } from '@/lib/user/user';
 import { resolveApiKeyFromCache, resolvePersonalApiKeyFromCache } from './api-key-cache';
+import {
+  mockApiKey,
+  mockSimulationEnabled,
+  MOCK_PERSONA_COOKIE,
+  MOCK_SCENARIO_COOKIE,
+} from '@/lib/simulation/config';
+import { getPersona, getScenarioById } from '@/lib/simulation/scenario';
+
+/**
+ * Resolves the scenario-encoded mock API key from the request cookies. Used by
+ * both request-scoped key resolvers when simulation mode is on.
+ */
+function mockApiKeyFromRequest(request: NextRequest, forcePersonal = false): string {
+  const scenario = getScenarioById(request.cookies.get(MOCK_SCENARIO_COOKIE)?.value);
+  const persona = getPersona(scenario, request.cookies.get(MOCK_PERSONA_COOKIE)?.value);
+  const workspaceId = forcePersonal ? 'personal' : persona.workspaceId;
+  return mockApiKey(scenario.id, workspaceId);
+}
 
 /**
  * Get API key from request.
@@ -28,6 +46,10 @@ import { resolveApiKeyFromCache, resolvePersonalApiKeyFromCache } from './api-ke
  * @returns API key string or null if not authenticated
  */
 export async function getApiKeyFromRequest(request: NextRequest): Promise<string | null> {
+  if (mockSimulationEnabled()) {
+    return mockApiKeyFromRequest(request);
+  }
+
   // Block access when MFA verification is still pending.
   // The middleware matcher excludes /api/* routes, so this is the enforcement
   // point for API-level MFA gating. MFA-specific routes are exempt because
@@ -82,6 +104,10 @@ export async function getApiKeyFromRequest(request: NextRequest): Promise<string
  * currently selected workspace.
  */
 export async function getPersonalApiKeyFromRequest(request: NextRequest): Promise<string | null> {
+  if (mockSimulationEnabled()) {
+    return mockApiKeyFromRequest(request, true);
+  }
+
   const pathname = request.nextUrl.pathname;
   const isMfaRoute = pathname.startsWith('/api/auth/mfa');
   const jwtToken = await getToken({ req: request, secret: process.env.JWT_SECRET });

@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 import TopNav from '@/components/Layout/TopBar/TopNav';
 import LoadingScreen from '@/components/Layout/LoadingScreen';
 import { HomeShell } from '@/components/Layout/Shell/HomeShell';
+import { MockModeIndicator } from '@/components/Simulation/MockModeIndicator';
 
 /** Home routes hosted inside the shared rail shell (migrated off `TopNav`). */
 const SHELL_ROUTE_PREFIXES = [
@@ -44,6 +45,7 @@ export function HomeChrome({ children }: { children: React.ReactNode }) {
         <main className="brand-page-stencil-bg relative h-screen overflow-hidden bg-background">
           {body}
         </main>
+        <MockModeIndicator />
       </Suspense>
     );
   }
@@ -54,12 +56,14 @@ export function HomeChrome({ children }: { children: React.ReactNode }) {
         <main className="brand-page-stencil-bg relative h-screen overflow-hidden bg-background">
           <HomeShell>{body}</HomeShell>
         </main>
+        <MockModeIndicator />
       </Suspense>
     );
   }
 
   return (
     <>
+      <MockModeIndicator />
       {/* Static skeleton bar to avoid brief blank before navbar hydration */}
       <div
         className="fixed left-0 right-0 top-0 z-40 h-10 border-b border-border bg-card"
