@@ -789,6 +789,44 @@ function buildManagerMethodEvents(): Record<string, unknown>[] {
     event_id: `mm-${rootId}-out`,
   });
 
+  // The just-received Enfield industrial instruction is still in flight: an
+  // open (incoming-only) act, timestamped now so it loads within the action
+  // lookback window. This is what drives the live-call "working" pose and the
+  // Actions pane "working" indicator for the seeded assistant.
+  const enfieldRootId = callingId();
+  const enfieldActId = callingId();
+  const now = new Date().toISOString();
+
+  events.push({
+    manager: 'ConversationManager',
+    method: 'process_message',
+    phase: 'incoming',
+    calling_id: enfieldRootId,
+    hierarchy: ['ConversationManager.process_message'],
+    hierarchy_label: 'ConversationManager.process_message',
+    status: 'ok',
+    display_label: 'Processing Enfield industrial instruction',
+    question:
+      'Secured lending valuation for NatWest: portfolio of 8 industrial units in Enfield. Begin comparable research.',
+    event_timestamp: now,
+    event_id: `mm-${enfieldRootId}-in`,
+  });
+
+  events.push({
+    manager: 'CodeActActor',
+    method: 'act',
+    phase: 'incoming',
+    calling_id: enfieldActId,
+    hierarchy: ['ConversationManager.process_message', 'CodeActActor.act'],
+    hierarchy_label: 'ConversationManager.process_message->CodeActActor.act',
+    status: 'ok',
+    display_label: 'Researching Enfield industrial comparables',
+    instructions:
+      'Search for comparable industrial transactions near Enfield for 8 units, last 12 months; retrieve relevant market indices.',
+    event_timestamp: now,
+    event_id: `mm-${enfieldActId}-in`,
+  });
+
   return events;
 }
 
@@ -1051,6 +1089,9 @@ export async function seedReAppraisal(): Promise<SeededState> {
     userId: valuer.id,
     firstName: 'Aria',
     surname: 'Sterling',
+    // Droid appearance so the live-call surface renders the animated avatar,
+    // which turns into its "working" pose while the in-flight act below runs.
+    profilePhoto: 'appearance://standard/green/up/ball/none',
   });
 
   const { apiKey } = valuer;

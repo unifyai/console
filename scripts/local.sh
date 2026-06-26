@@ -252,6 +252,7 @@ from datetime import datetime, timezone
 keys = [
     "SELF_HOST",
     "NEXT_PUBLIC_SELF_HOST",
+    "NEXT_PUBLIC_CONSOLE_DEBUG",
     "NEXTAUTH_URL",
     "ORCHESTRA_URL",
     "LOCAL_ADAPTERS_URL",
@@ -286,6 +287,7 @@ import sys
 required = [
     "SELF_HOST",
     "NEXT_PUBLIC_SELF_HOST",
+    "NEXT_PUBLIC_CONSOLE_DEBUG",
     "ORCHESTRA_URL",
     "LOCAL_ADAPTERS_URL",
     "UNITY_ADAPTERS_URL",
@@ -1940,12 +1942,14 @@ start_console() {
   if [[ "$with_self_host" == "true" ]]; then
     export SELF_HOST=1
     export NEXT_PUBLIC_SELF_HOST=1
+    export NEXT_PUBLIC_CONSOLE_DEBUG=true
     export SELF_HOST_DEPLOY_EPOCH="${SELF_HOST_DEPLOY_EPOCH:-$(date +%s)}"
     export NEXT_PUBLIC_SELF_HOST_DEPLOY_EPOCH="$SELF_HOST_DEPLOY_EPOCH"
     # Persist the topology flags durably so a later bare `npm run dev` (which
     # does not pass --self-host) still resolves as a self-host deployment.
     upsert_env_local_var "$ENV_LOCAL" SELF_HOST 1
     upsert_env_local_var "$ENV_LOCAL" NEXT_PUBLIC_SELF_HOST 1
+    upsert_env_local_var "$ENV_LOCAL" NEXT_PUBLIC_CONSOLE_DEBUG true
     upsert_env_local_var "$ENV_LOCAL" SELF_HOST_DEPLOY_EPOCH "$SELF_HOST_DEPLOY_EPOCH"
     upsert_env_local_var "$ENV_LOCAL" NEXT_PUBLIC_SELF_HOST_DEPLOY_EPOCH "$SELF_HOST_DEPLOY_EPOCH"
     export SELF_HOST_DESKTOP_URL="${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}"
@@ -1973,6 +1977,7 @@ PY
     fi
     log_info "Console self-host env:"
     log_info "  SELF_HOST=1"
+    log_info "  NEXT_PUBLIC_CONSOLE_DEBUG=true"
     log_info "  SELF_HOST_DESKTOP_URL=$SELF_HOST_DESKTOP_URL"
     log_info "  LIVEKIT_URL=$LIVEKIT_URL"
     if [[ -n "$CHAT_ADAPTERS_URL" ]]; then
@@ -2083,6 +2088,7 @@ cmd_repair_console() {
   if [[ "$with_self_host" == "true" ]]; then
     export SELF_HOST=1
     export NEXT_PUBLIC_SELF_HOST=1
+    export NEXT_PUBLIC_CONSOLE_DEBUG=true
     export NEXTAUTH_URL="http://localhost:${CONSOLE_PORT}"
     export ORCHESTRA_URL="http://127.0.0.1:${ORCHESTRA_PORT}"
     export PUBSUB_EMULATOR_HOST="${PUBSUB_EMULATOR_HOST:-$LOCAL_PUBSUB_HOST}"

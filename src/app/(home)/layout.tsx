@@ -44,6 +44,11 @@ import {
   renameUserDesktop,
   deleteUserDesktop,
 } from '@/lib/assistants/desktop';
+import {
+  getManagerMethodEvents,
+  getToolLoopEvents,
+  backfillByCallingIds,
+} from '@/lib/assistants/action';
 
 export default async function HomeLayout({ children }: { children: React.ReactNode }) {
   // The call engine lives at the layout level so a call survives client-side
@@ -76,6 +81,11 @@ export default async function HomeLayout({ children }: { children: React.ReactNo
       unlinkDesktop,
       renameUserDesktop,
       deleteUserDesktop,
+    },
+    actions: {
+      getManagerMethodEvents,
+      getToolLoopEvents,
+      backfillByCallingIds,
     },
   };
   const callUserMeta = { email: user?.email ?? null, image: user?.image ?? null };

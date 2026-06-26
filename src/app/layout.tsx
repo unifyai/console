@@ -36,8 +36,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               __html: `
 try {
   var epochKey = 'console:self-host:deploy-epoch';
+  var reloadKey = 'console:self-host:deploy-epoch-reloaded';
   var nextEpoch = ${JSON.stringify(selfHostDeployEpoch)};
   if (window.localStorage.getItem(epochKey) !== nextEpoch) {
+    var alreadyReloaded = window.sessionStorage.getItem(reloadKey) === nextEpoch;
     for (var i = window.localStorage.length - 1; i >= 0; i -= 1) {
       var key = window.localStorage.key(i);
       if (key && key.indexOf('console:assistants:') === 0) {
@@ -46,6 +48,40 @@ try {
     }
     window.sessionStorage.clear();
     window.localStorage.setItem(epochKey, nextEpoch);
+    if (!alreadyReloaded) {
+      window.sessionStorage.setItem(reloadKey, nextEpoch);
+      var reload = function () {
+        window.location.reload();
+      };
+      var cleanupTasks = [];
+      if ('caches' in window) {
+        cleanupTasks.push(
+          window.caches.keys().then(function (keys) {
+            return Promise.all(
+              keys.map(function (key) {
+                return window.caches.delete(key);
+              })
+            );
+          })
+        );
+      }
+      if (navigator.serviceWorker) {
+        cleanupTasks.push(
+          navigator.serviceWorker.getRegistrations().then(function (registrations) {
+            return Promise.all(
+              registrations.map(function (registration) {
+                return registration.unregister();
+              })
+            );
+          })
+        );
+      }
+      if (cleanupTasks.length > 0) {
+        Promise.allSettled(cleanupTasks).then(reload);
+      } else {
+        reload();
+      }
+    }
   }
 } catch (_) {}
 `,

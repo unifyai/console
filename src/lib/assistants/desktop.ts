@@ -10,6 +10,7 @@ import { resolveOwnerApiKeyForAssistant } from '@/lib/assistants/owner';
 import { isSelfHost } from '@/lib/environment/environment';
 import { dispatchUnitySystemEvent } from '@/lib/assistants/system-event';
 import { extractTunnelId } from '@/utils/assistants/tunnel';
+import { getCurrentUser } from '@/lib/user/user';
 
 const LIVEVIEW_HEALTH_CHECK_TIMEOUT_MS = 5000;
 const DEFAULT_SELF_HOST_DESKTOP_URL = 'http://127.0.0.1:8090';
@@ -190,7 +191,36 @@ export type SystemEventType =
   | 'user_remote_control_started'
   | 'user_remote_control_stopped'
   | 'user_webcam_started'
-  | 'user_webcam_stopped';
+  | 'user_webcam_stopped'
+  | 'user_filesys_access_started'
+  | 'user_filesys_access_stopped';
+
+/**
+ * Best-effort: tell a running assistant session that the user just changed
+ * filesystem-access consent for their linked desktop, so in-flight reads/
+ * writebacks stop (or resume) immediately rather than on the next session
+ * load. The Orchestra mutation is authoritative; this never blocks it, so a
+ * dispatch failure is logged and swallowed. The event targets the desktop
+ * owner's link via the current user's id (== Orchestra's owner_user_id).
+ */
+async function dispatchFilesysAccessEvent(assistantId: string, enabled: boolean): Promise<void> {
+  try {
+    const user = await getCurrentUser();
+    const userId = user?.id;
+    if (!userId) return;
+    await dispatchUnitySystemEvent({
+      assistantId: parseInt(assistantId, 10),
+      eventType: enabled ? 'user_filesys_access_started' : 'user_filesys_access_stopped',
+      message: enabled ? 'User enabled filesystem access.' : 'User disabled filesystem access.',
+      extraEventFields: { userId },
+    });
+  } catch (e: unknown) {
+    console.warn(
+      '[desktop] filesystem-access event dispatch failed (continuing):',
+      e instanceof Error ? e.message : e
+    );
+  }
+}
 
 export async function sendSystemEvent(
   assistantId: string,
@@ -273,6 +303,7 @@ export async function linkDesktop(
     if (!response.ok) {
       return (data as ResponseProps) || { detail: 'Failed to link desktop' };
     }
+    await dispatchFilesysAccessEvent(assistantId, filesysSync);
     return { info: 'Desktop linked successfully' };
   } catch (e: unknown) {
     console.error('[linkDesktop] Error:', e instanceof Error ? e.message : e);
@@ -299,6 +330,7 @@ export async function unlinkDesktop(assistantId: string): Promise<ResponseProps>
       const data = await response.json().catch(() => null);
       return (data as ResponseProps) || { detail: 'Failed to unlink desktop' };
     }
+    await dispatchFilesysAccessEvent(assistantId, false);
     return { info: 'Desktop unlinked' };
   } catch (e: unknown) {
     console.error('[unlinkDesktop] Error:', e instanceof Error ? e.message : e);
@@ -339,22 +371,11 @@ export async function renameUserDesktop(
 }
 
 /**
- * Best-effort teardown of the managed tunnel backing a desktop. Removes the
- * tunnel from the relay registry so the public URL stops resolving. Never
- * throws: an orphaned tunnel idles and expires on its own, so teardown failure
- * must not block desktop deletion.
+ * Best-effort delete of a single tunnel from the relay registry. Never throws:
+ * an orphaned tunnel idles and expires on its own, so teardown failure must not
+ * block desktop deletion.
  */
-async function teardownDesktopTunnel(apiKey: string, url?: string): Promise<void> {
-  const tunnelId = extractTunnelId(url);
-  if (!tunnelId) return;
-
-  const hasCommsUrl =
-    !!process.env.COMMUNICATION_URL ||
-    !!process.env.UNITY_COMMS_URL ||
-    !!process.env.LOCAL_ADAPTERS_URL ||
-    !!process.env.UNITY_ADAPTERS_URL;
-  if (!hasCommsUrl) return;
-
+async function deleteTunnelById(apiKey: string, tunnelId: string): Promise<void> {
   try {
     const { createCommunicationClient } = await import('@/lib/communication/client');
     const client = createCommunicationClient(apiKey);
@@ -367,17 +388,47 @@ async function teardownDesktopTunnel(apiKey: string, url?: string): Promise<void
   }
 }
 
-export async function deleteUserDesktop(desktopId: number, url?: string): Promise<ResponseProps> {
+/**
+ * Best-effort teardown of the managed tunnels backing a desktop. A device has
+ * two independent relay tunnels: the HTTP tunnel encoded in its registered
+ * `url`, and a separate raw-TCP SFTP tunnel identified by `sftpTunnelId`. Both
+ * are removed so neither lingers in the relay registry after deletion.
+ */
+async function teardownDesktopTunnel(
+  apiKey: string,
+  url?: string,
+  sftpTunnelId?: string | null
+): Promise<void> {
+  const httpTunnelId = extractTunnelId(url);
+  if (!httpTunnelId && !sftpTunnelId) return;
+
+  const hasCommsUrl =
+    !!process.env.COMMUNICATION_URL ||
+    !!process.env.UNITY_COMMS_URL ||
+    !!process.env.LOCAL_ADAPTERS_URL ||
+    !!process.env.UNITY_ADAPTERS_URL;
+  if (!hasCommsUrl) return;
+
+  if (httpTunnelId) await deleteTunnelById(apiKey, httpTunnelId);
+  if (sftpTunnelId) await deleteTunnelById(apiKey, sftpTunnelId);
+}
+
+export async function deleteUserDesktop(
+  desktopId: number,
+  url?: string,
+  linkedAssistantIds: number[] = [],
+  sftpTunnelId?: string | null
+): Promise<ResponseProps> {
   const apiKey = await requireUserApiKey();
   const orchestraUrl = process.env.ORCHESTRA_URL;
   if (!orchestraUrl) {
     return { detail: 'Server configuration error: ORCHESTRA_URL is not set.' };
   }
 
-  // Tear down the managed tunnel first (best-effort) so the user's desktop list
-  // never lingers pointing at a dead tunnel. The Orchestra delete below is the
+  // Tear down the managed tunnels first (best-effort) so the user's desktop list
+  // never lingers pointing at dead tunnels. The Orchestra delete below is the
   // authoritative step whose result drives success/failure.
-  await teardownDesktopTunnel(apiKey, url);
+  await teardownDesktopTunnel(apiKey, url, sftpTunnelId);
 
   try {
     const response = await fetch(`${orchestraUrl}/v0/desktop/${desktopId}`, {
@@ -391,6 +442,12 @@ export async function deleteUserDesktop(desktopId: number, url?: string): Promis
     if (!response.ok) {
       const data = await response.json().catch(() => null);
       return (data as ResponseProps) || { detail: 'Failed to delete desktop' };
+    }
+    // Deleting the desktop tears down every assistant's link + key server-side;
+    // tell each linked assistant's running session so in-flight filesystem
+    // access stops immediately rather than on the next session load.
+    for (const aid of linkedAssistantIds) {
+      await dispatchFilesysAccessEvent(String(aid), false);
     }
     return { info: 'Desktop deleted' };
   } catch (e: unknown) {

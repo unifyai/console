@@ -19,6 +19,9 @@ import type { AssistantActions } from '@/types/assistants/assistant';
  */
 export type CallProviderActions = Pick<AssistantActions, 'call' | 'desktop' | 'chat'> & {
   assistant: Pick<AssistantActions['assistant'], 'update'>;
+  /** Live action events, so the call avatar can adopt its "working" pose while
+   *  an `act` is in flight (the same stream the Actions pane consumes). */
+  actions: NonNullable<AssistantActions['actions']>;
 };
 
 interface CallUserMeta {

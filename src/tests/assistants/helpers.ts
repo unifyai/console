@@ -578,6 +578,26 @@ export function getDesktopLinkCount(desktopId: number): number {
   );
 }
 
+/**
+ * The filesystem-access state of a single (assistant, desktop) link row.
+ *
+ * `filesysSync` is the user's standing consent flag; `hasKey` reflects whether
+ * Orchestra has minted the per-link SFTP private key. The two move together —
+ * enabling consent mints the key, disabling clears it — so the e2e asserts both
+ * to prove the toggle drove the full server-side reconciliation, not just the
+ * boolean.
+ */
+export function getLinkFilesysState(
+  agentId: number,
+  desktopId: number
+): { filesysSync: boolean; hasKey: boolean } {
+  const result = dbExec(
+    `SELECT filesys_sync, (filesync_sshkey IS NOT NULL) FROM assistant_user_desktops WHERE assistant_id = ${agentId} AND user_desktop_id = ${desktopId}`
+  );
+  const [sync, key] = result.split('|');
+  return { filesysSync: sync === 't', hasKey: key === 't' };
+}
+
 export function deleteUserDesktopsForUser(userId: string): void {
   try {
     dbExec(`DELETE FROM user_desktops WHERE user_id = '${userId}'`);
@@ -589,6 +609,21 @@ export function deleteUserDesktopsForUser(userId: string): void {
 /** Whether a registered desktop row still exists. */
 export function userDesktopExists(desktopId: number): boolean {
   return parseInt(dbExec(`SELECT count(*) FROM user_desktops WHERE id = ${desktopId}`), 10) > 0;
+}
+
+/**
+ * Record the relay id of a desktop's raw-TCP SFTP tunnel, mirroring the device
+ * agent's `POST /v0/desktop/{id}/sftp-tunnel`. Lets a delete test assert that a
+ * desktop carrying an SFTP tunnel id tears down cleanly through the UI.
+ */
+export function setDesktopSftpTunnelId(desktopId: number, tunnelId: string): void {
+  dbExec(`UPDATE user_desktops SET sftp_tunnel_id = '${tunnelId}' WHERE id = ${desktopId}`);
+}
+
+/** The relay id of a desktop's SFTP tunnel, or null if unset / gone. */
+export function getDesktopSftpTunnelId(desktopId: number): string | null {
+  const result = dbExec(`SELECT sftp_tunnel_id FROM user_desktops WHERE id = ${desktopId}`);
+  return result ? result.trim() : null;
 }
 
 /** The friendly name of a registered desktop, or null if it no longer exists. */

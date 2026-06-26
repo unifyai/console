@@ -35,6 +35,7 @@ import { COORDINATOR_ONBOARDING_DEFAULT_INITIAL_UNITY } from '@/utils/assistants
 import { useCoordinatorOnboarding } from '@/hooks/Assistants/useCoordinatorOnboarding';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { notifyOnboardingSessionStarted } from '@/lib/client/coordinator';
+import { debugConsole } from '@/lib/consoleDebug';
 import type { Assistant, AssistantCallConnectOptions } from '@/types/assistants/assistant';
 import { toast } from 'sonner';
 
@@ -71,10 +72,34 @@ export function CoordinatorOnboarding({
   const [isStartingCall, setIsStartingCall] = React.useState(false);
   const hasCompletedRef = React.useRef(false);
 
+  React.useEffect(() => {
+    debugConsole('coordinator-onboarding', 'overlay.mount', {
+      coordinatorId: coordinator.agentId,
+      voiceCalls,
+    });
+    return () => {
+      debugConsole('coordinator-onboarding', 'overlay.unmount', {
+        coordinatorId: coordinator.agentId,
+      });
+    };
+  }, [coordinator.agentId, voiceCalls]);
+
+  React.useEffect(() => {
+    debugConsole('coordinator-onboarding', 'overlay.phase', {
+      coordinatorId: coordinator.agentId,
+      phase,
+      isStartingCall,
+    });
+  }, [coordinator.agentId, isStartingCall, phase]);
+
   // Fire the picker-resolution event so Unity opens the session with the
   // right kind of message. Best-effort: completion never blocks on it.
   const notifySessionStarted = React.useCallback(
     (medium: 'chat' | 'call') => {
+      debugConsole('coordinator-onboarding', 'session-started.notify', {
+        coordinatorId: coordinator.agentId,
+        medium,
+      });
       void notifyOnboardingSessionStarted(coordinator.agentId, medium);
     },
     [coordinator.agentId]
@@ -84,15 +109,22 @@ export function CoordinatorOnboarding({
     (medium: 'call' | 'chat') => {
       if (hasCompletedRef.current) return;
       hasCompletedRef.current = true;
+      debugConsole('coordinator-onboarding', 'overlay.complete', {
+        coordinatorId: coordinator.agentId,
+        medium,
+      });
       // Latch ``intro_watched`` so reloads never re-show the picker.
       void updateState({ introWatched: true });
       onComplete(medium);
     },
-    [onComplete, updateState]
+    [coordinator.agentId, onComplete, updateState]
   );
 
   const handleStartCall = React.useCallback(async () => {
     if (phase !== 'picker') return;
+    debugConsole('coordinator-onboarding', 'start-call.click', {
+      coordinatorId: coordinator.agentId,
+    });
     setPhase('preparing');
     setIsStartingCall(true);
 
@@ -103,6 +135,10 @@ export function CoordinatorOnboarding({
         startMuted: true,
       });
     } catch (error) {
+      debugConsole('coordinator-onboarding', 'start-call.failure', {
+        coordinatorId: coordinator.agentId,
+        message: error instanceof Error ? error.message : String(error),
+      });
       console.error('[CoordinatorOnboarding] Failed to start the call:', error);
       toast.error('Could not start the call. Please try again.');
       await onDiscardCall();
@@ -111,20 +147,26 @@ export function CoordinatorOnboarding({
       return;
     }
 
+    debugConsole('coordinator-onboarding', 'start-call.ready', {
+      coordinatorId: coordinator.agentId,
+    });
     notifySessionStarted('call');
     complete('call');
   }, [complete, coordinator, notifySessionStarted, onDiscardCall, onStartCall, phase]);
 
   const handlePickChat = React.useCallback(() => {
     if (phase !== 'picker') return;
+    debugConsole('coordinator-onboarding', 'pick-chat.click', {
+      coordinatorId: coordinator.agentId,
+    });
     notifySessionStarted('chat');
     complete('chat');
-  }, [complete, notifySessionStarted, phase]);
+  }, [complete, coordinator.agentId, notifySessionStarted, phase]);
 
   if (phase === 'preparing') {
     return (
       <div
-        className="relative flex h-full w-full items-center justify-center overflow-hidden bg-background"
+        className="brand-page-stencil-bg coordinator-onboarding-city-bg relative flex h-full w-full items-center justify-center overflow-hidden bg-background"
         data-testid="coordinator-onboarding"
       >
         <CoordinatorOnboardingCallPreparing />
@@ -134,7 +176,7 @@ export function CoordinatorOnboarding({
 
   return (
     <div
-      className="relative flex h-full w-full items-center justify-center overflow-hidden bg-background"
+      className="brand-page-stencil-bg coordinator-onboarding-city-bg relative flex h-full w-full items-center justify-center overflow-hidden bg-background"
       data-testid="coordinator-onboarding"
     >
       <CoordinatorOnboardingPicker
@@ -176,9 +218,9 @@ function CoordinatorOnboardingCallPreparing() {
           <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
         </div>
         <div>
-          <p className="text-h3 font-medium text-card-foreground">Getting your audio ready</p>
+          <p className="text-h3 font-medium text-card-foreground">Setting up the call</p>
           <p className="text-body mt-2 text-muted-foreground">
-            T-W1N will start speaking as soon as he is ready.
+            T-W1N will introduce himself shortly.
           </p>
         </div>
       </div>
