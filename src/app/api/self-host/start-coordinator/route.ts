@@ -57,7 +57,7 @@ async function seedBuiltinsForSelfHost(): Promise<void> {
       SELF_HOST_COORDINATOR_RUNTIME_FILE: RUNTIME_FILE,
     },
     timeout: 180_000,
-    maxBuffer: 1024 * 1024,
+    maxBuffer: 16 * 1024 * 1024,
   });
 }
 
