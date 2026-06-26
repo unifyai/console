@@ -1,42 +1,119 @@
 /**
- * Brain handler backing the Contacts/Transcripts/Knowledge/Guidance/Functions
- * panes via `/v0/logs`. The `context` query param ends with the section name;
- * rows are returned in the `{ logs: [{ entries }], count }` envelope the brain
- * client parses.
+ * Context-aware `/v0/logs` handler — the single seam nearly every read surface
+ * funnels through (Contacts, Transcripts, Knowledge/Functions sub-contexts,
+ * Guidance, Tasks + Runs, Actions events, Dashboards, Secrets, and the Data
+ * browser). The `context` query param is the full Orchestra path
+ * (`{userId}/{agentId}/{Table}` or `Teams/{teamId}/{Table}`); we strip the
+ * prefix to the table path the store is keyed by, apply the handful of filter
+ * cases that gate UX, then return the `{ logs: [{ id, ts, entries }], count }`
+ * envelope the clients parse. Entries are camelCase (eslint forbids snake_case
+ * keys; the response pipeline is idempotent for camelCase; the UI reads
+ * camelCase).
  */
 
 import type { SimContext, SimHandler } from '../dispatch';
-import { getSession } from '../store';
+import { getTable, rowLogId } from '../store';
+import type { MockRow } from '../types';
+import { firstQuotedLiteral, parseSorting, tablePathFromContext } from './context-util';
 
-const KNOWN_SECTIONS = ['Contacts', 'Transcripts', 'Knowledge', 'Guidance', 'Functions', 'Tasks'];
+interface IdRow {
+  id: number;
+  entries: MockRow;
+}
 
-function sectionFromContext(context: string | null): string | null {
-  if (!context) return null;
-  const segments = context.split('/').filter(Boolean);
-  for (let i = segments.length - 1; i >= 0; i--) {
-    if (KNOWN_SECTIONS.includes(segments[i])) return segments[i];
+/** Resolves the store table path for a request, honouring the project prefix. */
+function resolveTablePath(ctx: SimContext): string | null {
+  const context = ctx.searchParams.get('context');
+  const projectName = ctx.searchParams.get('projectName');
+  return projectName && projectName !== 'Assistants' ? context : tablePathFromContext(context);
+}
+
+function applyFilter(rows: IdRow[], tablePath: string, filterExpr: string | null): IdRow[] {
+  if (!filterExpr) return rows;
+
+  // Tasks "running" gate — there are never live runs in mock mode.
+  if (/state\s*==\s*["']running["']/.test(filterExpr)) return [];
+
+  // Chat contact resolution by email → return the matching contact (or the
+  // first non-system contact) so the optimistic chat flow has a contactId.
+  if (tablePath.endsWith('Contacts') && /email_address\s*==/.test(filterExpr)) {
+    const email = firstQuotedLiteral(filterExpr);
+    const match = rows.find((r) => r.entries.emailAddress === email);
+    if (match) return [match];
+    const firstHuman = rows.find((r) => r.entries.isSystem !== true);
+    return firstHuman ? [firstHuman] : rows.slice(0, 1);
   }
-  return segments[segments.length - 1] ?? null;
+
+  // Transcript medium gating (chat history vs call pills).
+  if (tablePath.endsWith('Transcripts')) {
+    const mediumMatch = filterExpr.match(/medium\s*==\s*["']([^"']+)["']/);
+    if (mediumMatch) {
+      const medium = mediumMatch[1];
+      return rows.filter((r) => r.entries.medium === medium);
+    }
+  }
+
+  // Actions: roots only (`len(hierarchy) == 1`).
+  if (tablePath.endsWith('ManagerMethod') && /len\(hierarchy\)\s*==\s*1/.test(filterExpr)) {
+    return rows.filter((r) => (r.entries.hierarchy as unknown[])?.length === 1);
+  }
+
+  return rows;
+}
+
+function sortValue(row: MockRow, field: string): number | string {
+  const value = row[field];
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return value;
+  return '';
 }
 
 const logs: SimHandler = {
   match: (method, pathname) => method === 'GET' && pathname === '/v0/logs',
   handle: (ctx: SimContext) => {
-    const section = sectionFromContext(ctx.searchParams.get('context'));
+    const tablePath = resolveTablePath(ctx);
+    if (!tablePath) return { json: { logs: [], count: 0 } };
+
     const limit = Number(ctx.searchParams.get('limit') ?? '50');
     const offset = Number(ctx.searchParams.get('offset') ?? '0');
+    const filterExpr = ctx.searchParams.get('filterExpr');
+    const sorting = parseSorting(ctx.searchParams.get('sorting'));
 
-    const { brain } = getSession(ctx.scenario.id);
-    const matching = brain.filter((e) => e.section === section);
-    const page = matching.slice(offset, offset + limit);
+    const table = getTable(ctx.scenario.id, tablePath);
+    let rows: IdRow[] = table.map((entries, index) => ({
+      id: rowLogId(tablePath, index, entries),
+      entries,
+    }));
+
+    rows = applyFilter(rows, tablePath, filterExpr);
+
+    if (sorting) {
+      const dir = sorting.direction === 'ascending' ? 1 : -1;
+      rows = [...rows].sort((a, b) => {
+        const av = sortValue(a.entries, sorting.field);
+        const bv = sortValue(b.entries, sorting.field);
+        if (av < bv) return -1 * dir;
+        if (av > bv) return 1 * dir;
+        return 0;
+      });
+    }
+
+    const count = rows.length;
+    const page = rows.slice(offset, offset + limit);
 
     return {
       json: {
-        logs: page.map((entry) => ({
-          id: entry.id,
-          entries: { ...entry.fields, timestamp: entry.createdAt },
+        logs: page.map(({ id, entries }) => ({
+          id,
+          ts:
+            (entries.timestamp as string) ??
+            (entries.updatedAt as string) ??
+            (entries.createdAt as string) ??
+            (entries.eventTimestamp as string) ??
+            null,
+          entries,
         })),
-        count: matching.length,
+        count,
       },
     };
   },
@@ -44,7 +121,14 @@ const logs: SimHandler = {
 
 const logsFields: SimHandler = {
   match: (method, pathname) => method === 'GET' && pathname === '/v0/logs/fields',
-  handle: () => ({ json: [] }),
+  handle: (ctx: SimContext) => {
+    const tablePath = resolveTablePath(ctx);
+    if (!tablePath) return { json: [] };
+    const table = getTable(ctx.scenario.id, tablePath);
+    const fields = new Set<string>();
+    table.forEach((row) => Object.keys(row).forEach((k) => fields.add(k)));
+    return { json: Array.from(fields) };
+  },
 };
 
 const logsLatestTimestamp: SimHandler = {
@@ -52,4 +136,15 @@ const logsLatestTimestamp: SimHandler = {
   handle: () => ({ json: { latestTimestamp: null } }),
 };
 
-export const brainHandlers: SimHandler[] = [logs, logsFields, logsLatestTimestamp];
+// Metric aggregations (e.g. integrations catalog count). Returns a row count so
+// faceted totals render a sensible number instead of erroring.
+const logsMetric: SimHandler = {
+  match: (method, pathname) => method === 'GET' && /^\/v0\/logs\/metric\/[^/]+$/.test(pathname),
+  handle: (ctx: SimContext) => {
+    const tablePath = resolveTablePath(ctx);
+    const count = tablePath ? getTable(ctx.scenario.id, tablePath).length : 0;
+    return { json: count };
+  },
+};
+
+export const brainHandlers: SimHandler[] = [logs, logsFields, logsLatestTimestamp, logsMetric];

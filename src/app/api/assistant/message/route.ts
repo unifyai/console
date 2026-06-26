@@ -2,9 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '../../_utils/auth';
 import { camelToSnakeObject, snakeToCamelObject } from '@/utils/casing';
 import { getAdaptersBaseUrl } from '@/utils/assistants/api-utils';
+import { mockSimulationEnabled } from '@/lib/simulation/config';
 import type { Attachment } from '@/types/assistants/chat';
 
 export async function POST(request: NextRequest) {
+  // Mock simulation has no adapters/admin key; accept optimistically so the chat
+  // composer's optimistic echo shows without a backend dispatch.
+  if (mockSimulationEnabled()) {
+    return NextResponse.json({ info: 'Message accepted (mock simulation).' }, { status: 202 });
+  }
+
   const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
   if (!ADMIN_KEY) {
     console.error('[API /api/assistant/message] ORCHESTRA_ADMIN_KEY is not set.');

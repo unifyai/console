@@ -3,9 +3,10 @@ import { Sparkles } from 'lucide-react';
 import type { SectionDef } from './sectionConfig';
 
 /**
- * Brand "coming soon" panel for net-new Brain sections whose real views are not
- * built yet (Transcripts, Knowledge, Functions, Guidance, Data). Keeps the rail
- * IA complete while signalling the work is on the way.
+ * Brand "coming soon" panel for any Brain section whose real view is not built
+ * yet. Every shipped section renders its own dedicated component; this remains as
+ * the fallback for `placeholder`-kind sections added to the rail ahead of their
+ * view.
  */
 export function SectionPlaceholder({ section }: { section: SectionDef }) {
   const { Icon } = section;

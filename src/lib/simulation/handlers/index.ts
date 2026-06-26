@@ -8,6 +8,7 @@ import type { SimHandler } from '../dispatch';
 import { assistantsHandler } from './assistants';
 import { projectHandlers } from './projects';
 import { brainHandlers } from './brain';
+import { mutationHandlers } from './mutations';
 import { billingHandlers } from './billing';
 import { interfaceHandlers } from './interfaces';
 import { identityHandlers } from './identity';
@@ -16,6 +17,7 @@ export const handlers: SimHandler[] = [
   assistantsHandler,
   ...projectHandlers,
   ...brainHandlers,
+  ...mutationHandlers,
   ...billingHandlers,
   ...interfaceHandlers,
   ...identityHandlers,

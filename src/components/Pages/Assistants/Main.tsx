@@ -114,6 +114,10 @@ const DocLibraryPane = React.lazy(() =>
 const ContactsPane = React.lazy(() =>
   import('./Contacts/ContactsPane').then((m) => ({ default: m.ContactsPane }))
 );
+const DataPane = React.lazy(() => import('./Data/DataPane').then((m) => ({ default: m.DataPane })));
+const TranscriptsPane = React.lazy(() =>
+  import('./Transcripts/TranscriptsPane').then((m) => ({ default: m.TranscriptsPane }))
+);
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
 const COORDINATOR_ONBOARDING_ACCESSIBLE_POLL_MS = 8_000;
@@ -2440,16 +2444,15 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                       brainPane = <FunctionsPane {...brainProps} />;
                     } else if (activeSectionDef.id === 'guidance') {
                       brainPane = <DocLibraryPane {...brainProps} />;
+                    } else if (activeSectionDef.id === 'data') {
+                      brainPane = <DataPane {...brainProps} />;
+                    } else if (activeSectionDef.id === 'transcripts') {
+                      brainPane = <TranscriptsPane {...brainProps} />;
                     } else {
-                      // Transcripts/Knowledge reuse the (statically bundled)
-                      // BrainPane pinned to a single context.
-                      brainPane = (
-                        <BrainPane
-                          {...brainProps}
-                          subTab={activeSectionDef.id === 'knowledge' ? 'Knowledge' : 'Transcripts'}
-                          hideSubTabs
-                        />
-                      );
+                      // Knowledge reuses the (statically bundled) BrainPane pinned
+                      // to a single context (its per-assistant schema is dynamic, so
+                      // a table is its honest representation).
+                      brainPane = <BrainPane {...brainProps} subTab="Knowledge" hideSubTabs />;
                     }
                     // Suspense covers the code-split chunk load for the net-new
                     // panes; each pane then shows its own data skeleton.

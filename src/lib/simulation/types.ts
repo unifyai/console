@@ -58,15 +58,21 @@ export interface MockProject {
   createdAt: string;
 }
 
-/** A single Orchestra-style log row backing the Brain panes (snake_case-free, app-shaped). */
-export interface MockBrainEntry {
-  id: number;
-  /** Brain section the entry belongs to (Contacts/Transcripts/Knowledge/…). */
-  section: string;
-  /** Arbitrary, surface-specific fields rendered by the table view. */
-  fields: Record<string, unknown>;
-  createdAt: string;
-}
+/**
+ * A single log row's `entries` payload. Keys are camelCase (the UI consumes
+ * camelCase and the response pipeline is idempotent for already-camelCase keys).
+ */
+export type MockRow = Record<string, unknown>;
+
+/**
+ * All brain/data tables for a scenario, keyed by the context table path relative
+ * to the assistant/team prefix, e.g. `Contacts`, `Tasks/Runs`,
+ * `Knowledge/Products`, `Events/ManagerMethod`, `Data/CRM/contacts`.
+ */
+export type MockTables = Record<string, MockRow[]>;
+
+/** Which fixture dataset a scenario draws on. */
+export type MockDataset = 'rich' | 'empty';
 
 export interface MockBillingState {
   balance: number | null;
@@ -104,7 +110,8 @@ export interface MockScenario {
   user: MockUser;
   assistants: MockAssistant[];
   projects: MockProject[];
-  brain: MockBrainEntry[];
+  /** Which brain/data fixture dataset to materialise into the per-session store. */
+  dataset: MockDataset;
   billing: MockBillingState;
   transactions: MockTransaction[];
   personas: MockPersona[];

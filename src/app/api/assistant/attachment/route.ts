@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiKeyFromRequest, unauthorized, badRequest, internalError } from '../../_utils/auth';
 import { getAdaptersBaseUrl } from '@/utils/assistants/api-utils';
+import { mockSimulationEnabled } from '@/lib/simulation/config';
 
 /**
  * POST /api/assistant/attachment
@@ -25,6 +26,26 @@ import { getAdaptersBaseUrl } from '@/utils/assistants/api-utils';
  * }
  */
 export async function POST(request: NextRequest) {
+  // Mock simulation: there is no storage backend; return a benign metadata blob
+  // so the composer's attachment flow completes without a real upload.
+  if (mockSimulationEnabled()) {
+    return NextResponse.json(
+      {
+        id: `mock-attachment-${Date.now()}`,
+        filename: 'mock-attachment',
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        gs_url: 'gs://bucket/attachment',
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        signed_url: '',
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        content_type: 'application/octet-stream',
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        size_bytes: 0,
+      },
+      { status: 200 }
+    );
+  }
+
   const ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
   if (!ADMIN_KEY) {
     console.error('[API /api/assistant/attachment] ORCHESTRA_ADMIN_KEY is not set.');

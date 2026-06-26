@@ -14,7 +14,6 @@
 import type { MockScenario } from './types';
 import { orgOwnerUser, personalUser, orgPersonas, soloPersonas } from './fixtures/users';
 import { orgAssistants, personalAssistants } from './fixtures/assistants';
-import { brainEntries, emptyBrainEntries } from './fixtures/brain';
 import {
   freeTrialBilling,
   healthyBilling,
@@ -30,7 +29,7 @@ const personalWorkspace: MockScenario = {
   user: personalUser,
   assistants: personalAssistants,
   projects,
-  brain: brainEntries,
+  dataset: 'rich',
   billing: healthyBilling,
   transactions,
   personas: soloPersonas,
@@ -43,7 +42,7 @@ const orgMultiRole: MockScenario = {
   user: orgOwnerUser,
   assistants: orgAssistants,
   projects,
-  brain: brainEntries,
+  dataset: 'rich',
   billing: healthyBilling,
   transactions,
   personas: orgPersonas,
@@ -56,7 +55,7 @@ const emptyState: MockScenario = {
   user: { ...personalUser, jobTitle: '' },
   assistants: personalAssistants.filter((a) => a.isCoordinator),
   projects: projects.slice(0, 1),
-  brain: emptyBrainEntries,
+  dataset: 'empty',
   billing: freeTrialBilling,
   transactions: [],
   personas: soloPersonas,
@@ -69,7 +68,7 @@ const billingBanner: MockScenario = {
   user: personalUser,
   assistants: personalAssistants,
   projects,
-  brain: brainEntries,
+  dataset: 'rich',
   billing: lowBalanceBilling,
   transactions,
   personas: soloPersonas,
