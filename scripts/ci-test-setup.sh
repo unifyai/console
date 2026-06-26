@@ -260,9 +260,16 @@ set -a
 . "$CONSOLE_DIR/.env.local"
 set +a
 
+# Give the long-lived server process a generous, explicit heap. The standalone
+# `node server.js` otherwise inherits the V8 default old-space cap (~2 GB), and
+# under a full sharded E2E run (hundreds of SSR renders + API/SSE requests) GC
+# pressure near that ceiling makes late-running tests slow down and time out
+# even though early tests in the same shard passed. The runner has 16 GB and the
+# build has already finished by this point, so 4 GB is comfortably safe.
 setsid env \
   PORT="$CONSOLE_PORT" \
   HOSTNAME=0.0.0.0 \
+  NODE_OPTIONS="--max-old-space-size=4096" \
   node "$CONSOLE_DIR/.next/standalone/server.js" > /tmp/console-ci.log 2>&1 </dev/null &
 CONSOLE_PID=$!
 echo "$CONSOLE_PID" > /tmp/console-ci.pid

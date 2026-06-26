@@ -243,7 +243,13 @@ jobs:
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
-          PLAYWRIGHT_WORKERS: 3
+          # 2 workers (not 3) on the 4-core runner: 3 Chromium instances plus the
+          # Node server, Orchestra/uvicorn, Postgres and the JVM Pub/Sub emulator
+          # oversubscribe the box, which slows timing-sensitive tests into their
+          # per-test timeouts and accelerates server degradation across the shard.
+          # Leaving 2 cores for the backend trades a little wall time for stability
+          # (still well inside the 45-min budget, esp. with fewer flaky retries).
+          PLAYWRIGHT_WORKERS: 2
           MAX_FAILURES: 20
           SHARD: ${{ matrix.shard }}
 
@@ -556,7 +562,10 @@ jobs:
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096
-          PLAYWRIGHT_WORKERS: 3
+          # 2 workers (not 3): leave headroom on the 4-core runner for the Node
+          # server + Orchestra + Postgres + Pub/Sub emulator so timing-sensitive
+          # tests don't tip into their per-test timeouts under contention.
+          PLAYWRIGHT_WORKERS: 2
           MAX_FAILURES: 20
 
       - name: Upload Playwright report
