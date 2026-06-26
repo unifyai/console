@@ -4,7 +4,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import { Phone, Search, Loader2, IdCard } from 'lucide-react';
+import { Phone, Search, Loader2, PanelRight } from 'lucide-react';
 import { AssistantProfileChatPanel } from '@/components/Pages/Assistants/Profile/AssistantProfileChatPanel';
 import { AssistantInfoSidePanelContent } from '@/components/Pages/Assistants/Profile/AssistantInfoSidePanelContent';
 import { ChatSidePanel } from './ChatSidePanel';
@@ -93,15 +93,13 @@ function writeInfoPanelWidth(width: number): void {
 }
 
 /**
- * Chat tab body: hosts the conversation panel plus an inline assistant-info
- * side panel.
+ * Chat tab body: hosts the conversation panel plus an inline profile
+ * side panel, with a toolbar (search + call + profile toggle) directly
+ * beneath the section header.
  *
- * The info panel is the *only* side surface here — actions live in their
- * own (split-able) right-pane tab now, and the page-level chat sub-header
- * keeps its call / info buttons regardless of split state. The
- * panel sits in the same flex row as the chat (not a modal sheet), so on
- * desktop the chat stays interactive beside it and on mobile the panel
- * claims the full row width.
+ * The profile panel sits in the same flex row as the chat (not a modal
+ * sheet), so on desktop the chat stays interactive beside it and on
+ * mobile the panel claims the full row width.
  */
 export interface ChatWithInfoPanelProps {
   assistant: Assistant;
@@ -197,7 +195,6 @@ export interface ChatWithInfoPanelProps {
    * during the conversation.
    */
   renderDockedCall?: () => React.ReactNode;
-  hideAssistantInfoPanel?: boolean;
 }
 
 export function ChatWithInfoPanel({
@@ -236,7 +233,6 @@ export function ChatWithInfoPanel({
   infoPanelFocusLayoutRequest = 0,
   coordinatorOnboarding,
   renderDockedCall,
-  hideAssistantInfoPanel = false,
 }: ChatWithInfoPanelProps) {
   // The dot is only meaningful when the panel actually exposes the
   // Onboarding tab — for non-owners (who don't get the tab) we
@@ -567,11 +563,8 @@ export function ChatWithInfoPanel({
 
   return (
     <div className="flex h-full w-full flex-col">
-      {/* Sub-header: chat search + call button + info toggle.
-          `py-2` (rather than `py-1.5`) is load-bearing in split mode —
-          it matches the LiveActionsHeader's vertical padding so that
-          when Chat is in one slot and Actions in the other, the bottom
-          border of each pane's sub-header lands on the same Y. */}
+      {/* Toolbar: chat search + voice call + profile toggle, attached
+          directly under the section header. */}
       <div className="flex items-center justify-between gap-2 border-b bg-card px-3 py-2">
         <div className="relative max-w-xs flex-1">
           <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -621,45 +614,39 @@ export function ChatWithInfoPanel({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          {!hideAssistantInfoPanel ? (
-            <TooltipProvider delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="relative">
-                    <Button
-                      type="button"
-                      variant={isInfoOpen ? 'primary' : 'ghost'}
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={toggleInfo}
-                      data-testid="assistant-info-button"
-                      aria-label={
-                        showOnboardingDot ? 'Assistant info — setup incomplete' : 'Assistant info'
-                      }
-                      aria-pressed={isInfoOpen}
-                    >
-                      <IdCard className="h-4 w-4" />
-                    </Button>
-                    {showOnboardingDot && (
-                      <span
-                        data-testid="assistant-info-button-onboarding-dot"
-                        aria-hidden="true"
-                        // Pinned to the corner of the trigger; ring uses the
-                        // chat header's bg so the dot reads as a notch on
-                        // the icon rather than floating in space.
-                        className="pointer-events-none absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background"
-                      />
-                    )}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p>
-                    {showOnboardingDot ? 'Assistant info — setup incomplete' : 'Assistant info'}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : null}
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="relative">
+                  <Button
+                    type="button"
+                    variant={isInfoOpen ? 'primary' : 'ghost'}
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={toggleInfo}
+                    data-testid="assistant-info-button"
+                    aria-label={isInfoOpen ? 'Hide profile' : 'Show profile'}
+                    aria-pressed={isInfoOpen}
+                  >
+                    <PanelRight className="h-4 w-4" />
+                  </Button>
+                  {showOnboardingDot && (
+                    <span
+                      data-testid="assistant-info-button-onboarding-dot"
+                      aria-hidden="true"
+                      // Pinned to the corner of the trigger; ring uses the
+                      // chat header's bg so the dot reads as a notch on
+                      // the icon rather than floating in space.
+                      className="pointer-events-none absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background"
+                    />
+                  )}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>{isInfoOpen ? 'Hide profile' : 'Show profile'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
@@ -684,7 +671,7 @@ export function ChatWithInfoPanel({
           )}
         </div>
 
-        {!hideAssistantInfoPanel && isInfoOpen && (
+        {isInfoOpen && (
           <ChatSidePanel
             ariaLabel="Assistant info"
             onClose={closeInfo}

@@ -11,7 +11,7 @@ import type { SectionDef } from './sectionConfig';
 export function SectionPlaceholder({ section }: { section: SectionDef }) {
   const { Icon } = section;
   return (
-    <div className="brand-chat-stencil-bg flex h-full w-full items-center justify-center bg-background p-8">
+    <div className="flex h-full w-full items-center justify-center bg-background p-8">
       <div className="max-w-md text-center">
         <span className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-2xl border border-border bg-card text-foreground">
           <Icon className="h-7 w-7" aria-hidden="true" />
