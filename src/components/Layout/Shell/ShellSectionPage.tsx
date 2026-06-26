@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { TabHeader } from '@/components/Pages/Assistants/Rail/TabHeader';
 import { SHELL_SECTIONS, type ShellSectionId } from './shellSections';
+import { SettingsShell } from './SettingsShell';
 
 interface ShellSectionPageProps {
   /** Section identifier; the descriptor (incl. its icon) is resolved client-side. */
@@ -14,6 +15,18 @@ interface ShellSectionPageProps {
    *  (for height-filling surfaces); otherwise the wrapper scrolls. */
   fill?: boolean;
 }
+
+/**
+ * Settings-family sections render inside the shared SettingsShell so the
+ * Account + Workspace sub-rail persists across these routes. Other sections
+ * (e.g. favourites) keep the plain header-over-body layout.
+ */
+const SETTINGS_FAMILY_SECTIONS: ReadonlySet<ShellSectionId> = new Set([
+  'settings',
+  'organizations',
+  'usage',
+  'billing',
+]);
 
 /**
  * A home-route page hosted in the rail shell: the brand section header (icon,
@@ -30,6 +43,14 @@ export function ShellSectionPage({
   headerRight,
   fill = false,
 }: ShellSectionPageProps) {
+  if (SETTINGS_FAMILY_SECTIONS.has(sectionId)) {
+    return (
+      <SettingsShell sectionId={sectionId} headerRight={headerRight} fill={fill}>
+        {children}
+      </SettingsShell>
+    );
+  }
+
   const section = SHELL_SECTIONS[sectionId];
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-background">
