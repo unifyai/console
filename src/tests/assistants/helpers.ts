@@ -611,6 +611,21 @@ export function userDesktopExists(desktopId: number): boolean {
   return parseInt(dbExec(`SELECT count(*) FROM user_desktops WHERE id = ${desktopId}`), 10) > 0;
 }
 
+/**
+ * Record the relay id of a desktop's raw-TCP SFTP tunnel, mirroring the device
+ * agent's `POST /v0/desktop/{id}/sftp-tunnel`. Lets a delete test assert that a
+ * desktop carrying an SFTP tunnel id tears down cleanly through the UI.
+ */
+export function setDesktopSftpTunnelId(desktopId: number, tunnelId: string): void {
+  dbExec(`UPDATE user_desktops SET sftp_tunnel_id = '${tunnelId}' WHERE id = ${desktopId}`);
+}
+
+/** The relay id of a desktop's SFTP tunnel, or null if unset / gone. */
+export function getDesktopSftpTunnelId(desktopId: number): string | null {
+  const result = dbExec(`SELECT sftp_tunnel_id FROM user_desktops WHERE id = ${desktopId}`);
+  return result ? result.trim() : null;
+}
+
 /** The friendly name of a registered desktop, or null if it no longer exists. */
 export function getUserDesktopName(desktopId: number): string | null {
   const result = dbExec(`SELECT name FROM user_desktops WHERE id = ${desktopId}`);

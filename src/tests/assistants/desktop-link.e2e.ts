@@ -34,6 +34,8 @@ import {
   getAssistantSecretNames,
   userDesktopExists,
   getUserDesktopName,
+  setDesktopSftpTunnelId,
+  getDesktopSftpTunnelId,
   ensureProjectSync,
 } from './helpers';
 
@@ -182,9 +184,15 @@ test('saves the macOS user password as a per-assistant secret', async ({ authedP
 });
 
 test('deletes a registered desktop and clears its links', async ({ authedPage: page }) => {
-  // Precondition: the machine still exists and is linked to Alan.
+  // Precondition: the machine still exists and is linked to Alan. Give it an
+  // SFTP tunnel id so deletion exercises the dual-tunnel teardown path (the
+  // desktop carries both an HTTP tunnel in `url` and a raw-TCP SFTP tunnel).
+  // The relay-side deregistration is best-effort and not observable from the
+  // DB, so we assert the desktop tears down cleanly while carrying the id.
   expect(userDesktopExists(macbook.id)).toBe(true);
   expect(getLinkedDesktopIds(alan.agentId, user.id)).toEqual([macbook.id]);
+  setDesktopSftpTunnelId(macbook.id, 'sftptun1');
+  expect(getDesktopSftpTunnelId(macbook.id)).toBe('sftptun1');
 
   await navigateForLinker(page);
   await openDesktopLinker(page, alan.agentId);
