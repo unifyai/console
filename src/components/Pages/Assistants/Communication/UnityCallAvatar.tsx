@@ -59,14 +59,15 @@ const LID_DURATION_MS = 520;
 const LAPTOP_FADE = 'opacity 0.5s ease';
 
 // Placement of the open laptop relative to the droid box, tuned against the
-// droid at WORKING_VIEW (the landing isometric pose) via an offline render:
-// the laptop sits in front of the droid's lower body, slightly right, low
-// enough that the eyes + mouth stay visible above the raised lid.
+// droid at WORKING_VIEW (the landing isometric pose) via an offline render: a
+// large laptop sitting in front of the droid's lower body, with the eyes still
+// reading above the raised lid. Width > 100% intentionally — the open laptop
+// is meant to be prominent (overflow is visible on the avatar).
 const LAPTOP_STYLE: React.CSSProperties = {
   position: 'absolute',
-  left: '56%',
-  top: '74%',
-  width: '62%',
+  left: '52%',
+  top: '80%',
+  width: '110%',
   transform: 'translate(-50%, -50%)',
   pointerEvents: 'none',
 };
@@ -156,8 +157,10 @@ export function UnityCallAvatar({
   } as React.CSSProperties;
 
   // Speech + eyes stay live for the whole call (`active`); the body rotation is
-  // driven separately by `poseActive` so the mouth keeps animating while the
-  // droid is turned to its laptop. Idle callers keep the static front pose.
+  // driven separately by `poseActive` and is ALWAYS controlled (never `fixed`),
+  // exactly like the landing droids — so the droid smoothly turns to the laptop
+  // when acting and smoothly turns back to face the screen when it ends (no
+  // snap). Idle == `poseActive` false == restView (head-on, eye contact).
   const unity = (
     <AnimatedUnity
       antenna={antenna}
@@ -174,9 +177,9 @@ export function UnityCallAvatar({
       speechLevel={displayedSpeechLevel}
       mouthShape={displayedMouthShape}
       skin={outfit}
-      {...(working
-        ? { poseActive: isActing, restView: CAMERA_VIEW, activeView: WORKING_VIEW }
-        : { fixed: 1 })}
+      poseActive={isActing}
+      restView={CAMERA_VIEW}
+      activeView={WORKING_VIEW}
     />
   );
 
