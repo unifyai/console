@@ -564,6 +564,24 @@ const tasks: MockRow[] = [
     updatedAt: isoDaysAgo(2),
     trigger: { medium: 'webhook', recurring: true },
   },
+  {
+    taskId: 2004,
+    name: 'Weekly competitor digest',
+    description:
+      'Compile competitor product and pricing changes into a weekly brief. Paused while the source list is being revised.',
+    status: 'paused',
+    triggerType: 'scheduled',
+    cadence: 'Every Monday at 09:00',
+    startAt: isoDaysAgo(60),
+    nextDueAt: null,
+    owner: 'Haris Mahmood',
+    offline: false,
+    entrypoint: 9101,
+    createdAt: isoDaysAgo(60),
+    updatedAt: isoDaysAgo(7),
+    schedule: { startAt: isoDaysAgo(60) },
+    repeat: [{ frequency: 'weekly', interval: 1, weekdays: ['MO'], timeOfDay: '09:00' }],
+  },
 ];
 
 const taskRuns: MockRow[] = [
@@ -626,6 +644,30 @@ const taskRuns: MockRow[] = [
     sourceContactDisplayName: 'Haris Mahmood',
     startedAt: isoMinutesAgo(150),
     completedAt: isoMinutesAgo(150),
+  },
+  {
+    taskId: 2002,
+    taskName: 'Morning inbox digest',
+    taskDescription: 'Daily unread-email summary.',
+    sourceType: 'schedule',
+    state: 'completed',
+    scheduledFor: isoDaysAgo(1),
+    sourceMedium: 'On schedule',
+    sourceContactDisplayName: null,
+    startedAt: isoDaysAgo(1),
+    completedAt: isoDaysAgo(1),
+  },
+  {
+    taskId: 2003,
+    taskName: 'Stripe payout watcher',
+    taskDescription: 'Reconcile Stripe payouts against invoices.',
+    sourceType: 'triggered',
+    state: 'completed',
+    scheduledFor: isoMinutesAgo(220),
+    sourceMedium: 'webhook',
+    sourceContactDisplayName: null,
+    startedAt: isoMinutesAgo(220),
+    completedAt: isoMinutesAgo(219),
   },
 ];
 
