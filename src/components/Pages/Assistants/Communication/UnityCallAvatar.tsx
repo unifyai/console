@@ -77,16 +77,23 @@ function easeInOutQuad(t: number): number {
 }
 
 /**
- * Animates lid openness 0 (closed) → 1 (fully open) over LID_DURATION_MS.
- * NOTE: the `Laptop` SVG's own `fold` prop is inverted (0 = open, 1 = closed),
- * so callers pass `fold={1 - openness}`.
+ * Animates the working-pose transition 0 (idle) → 1 (working) over
+ * LID_DURATION_MS with an eased ramp. This single value drives BOTH:
+ *   - the body turn, fed to RotatingBot as a self-animated `fixed` pose
+ *     (0 = restView / head-on, 1 = activeView / isometric). Using `fixed`
+ *     (a long-standing, always-present prop) rather than a controlled
+ *     `active`/`poseActive` boolean makes the turn smooth in both directions
+ *     AND independent of the brand package's own animation timing — so it
+ *     can't regress if `@unity/brand` is served from a stale transpile.
+ *   - the laptop lid (`fold={1 - progress}`, since `Laptop.fold` is inverted:
+ *     0 = open, 1 = closed), so the lid unfolds exactly as the body turns.
  */
-function useLidOpen(open: boolean): number {
-  const [openness, setOpenness] = React.useState(0);
+function useWorkingProgress(active: boolean): number {
+  const [progress, setProgress] = React.useState(0);
   const ref = React.useRef(0);
 
   React.useEffect(() => {
-    const to = open ? 1 : 0;
+    const to = active ? 1 : 0;
     const from = ref.current;
     if (from === to) return;
 
@@ -95,7 +102,7 @@ function useLidOpen(open: boolean): number {
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (reduced) {
       ref.current = to;
-      setOpenness(to);
+      setProgress(to);
       return;
     }
 
@@ -105,14 +112,14 @@ function useLidOpen(open: boolean): number {
       const t = Math.min(1, (now - start) / LID_DURATION_MS);
       const value = from + (to - from) * easeInOutQuad(t);
       ref.current = value;
-      setOpenness(value);
+      setProgress(value);
       if (t < 1) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [open]);
+  }, [active]);
 
-  return openness;
+  return progress;
 }
 
 export function UnityCallAvatar({
@@ -134,11 +141,12 @@ export function UnityCallAvatar({
   teleportInOnMount = false,
 }: UnityCallAvatarProps) {
   const [isHovered, setIsHovered] = React.useState(false);
-  const lidOpen = useLidOpen(isActing);
-  // Keep the rotation/laptop machinery engaged through the close animation so
-  // the body can turn all the way back to camera before reverting to the
-  // static pose; idle callers (hire form, chat bubble) never reach this.
-  const working = isActing || lidOpen > 0.001;
+  // 0 = idle (head-on, facing camera) … 1 = working (turned to the laptop).
+  const progress = useWorkingProgress(isActing);
+  // Keep the laptop mounted through the close animation so the lid can fold and
+  // fade while the body turns back; idle callers (hire form, chat bubble) sit at
+  // progress 0 and never mount it.
+  const working = isActing || progress > 0.001;
 
   // Opacity fade is driven by an effect (not `fold`) so the laptop mounts at
   // opacity 0 and transitions to 1 — matching the landing hub's CSS fade. On
@@ -156,11 +164,12 @@ export function UnityCallAvatar({
     '--unity-speech-level': displayedSpeechLevel.toFixed(3),
   } as React.CSSProperties;
 
-  // Speech + eyes stay live for the whole call (`active`); the body rotation is
-  // driven separately by `poseActive` and is ALWAYS controlled (never `fixed`),
-  // exactly like the landing droids — so the droid smoothly turns to the laptop
-  // when acting and smoothly turns back to face the screen when it ends (no
-  // snap). Idle == `poseActive` false == restView (head-on, eye contact).
+  // Speech + eyes stay live for the whole call via the bare `active` prop; the
+  // body pose is driven by our own animated `progress` through `fixed` (0 =
+  // restView/head-on, 1 = activeView/isometric). `fixed` only affects the pose,
+  // so speech stays decoupled (mouth lipsyncs whether idle on the call or turned
+  // to the laptop), and because we animate `progress` ourselves the turn is
+  // smooth in both directions and immune to brand-package transpile staleness.
   const unity = (
     <AnimatedUnity
       antenna={antenna}
@@ -177,7 +186,7 @@ export function UnityCallAvatar({
       speechLevel={displayedSpeechLevel}
       mouthShape={displayedMouthShape}
       skin={outfit}
-      poseActive={isActing}
+      fixed={progress}
       restView={CAMERA_VIEW}
       activeView={WORKING_VIEW}
     />
@@ -205,7 +214,7 @@ export function UnityCallAvatar({
             transition: LAPTOP_FADE,
           }}
         >
-          <Laptop fold={1 - lidOpen} />
+          <Laptop fold={1 - progress} />
         </span>
       )}
     </span>
