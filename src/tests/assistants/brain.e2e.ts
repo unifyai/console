@@ -46,7 +46,9 @@ const user = createTestUser({
 ensureProjectSync(user.apiKey);
 const test = createAssistantTest(user);
 test.setTimeout(120_000);
-test.describe.configure({ mode: 'serial' });
+// Not serial: each test selects its own assistant + section and seeds via the
+// idempotent `ensure*` helpers, so they're order-independent. Keeping them
+// independent means a single flaky/slow test can't skip the rest of the file.
 
 const ASSISTANT_CONTACT_ID = 0;
 const OWNER_CONTACT_ID = 1;
@@ -644,24 +646,22 @@ test('Transcripts: destination dropdown drills into personal and shared roots', 
 // Knowledge / Functions / Guidance — empty-state rendering
 // ===========================================================================
 
-test('Knowledge: renders the table view with an empty state', async ({ authedPage: page }) => {
+// Knowledge, Functions and Guidance share the same empty-state shape, so a
+// single selection that walks the three rail sections covers all of them
+// while paying the (heavy) navigation + assistant-selection cost only once.
+test('Knowledge / Functions / Guidance render dedicated empty states', async ({
+  authedPage: page,
+}) => {
   await openBrainSection(page, emptyAssistant.agentId, 'knowledge');
-
   await expect(page.getByTestId('brain-pane')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText('No knowledge found.')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId('brain-sub-tabs')).toHaveCount(0);
-});
 
-test('Functions: renders the skills view with an empty state', async ({ authedPage: page }) => {
-  await openBrainSection(page, emptyAssistant.agentId, 'functions');
-
+  await openRailSection(page, 'functions');
   await expect(page.getByTestId('functions-pane')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText('No functions found.')).toBeVisible({ timeout: 10_000 });
-});
 
-test('Guidance: renders the doc library with an empty state', async ({ authedPage: page }) => {
-  await openBrainSection(page, emptyAssistant.agentId, 'guidance');
-
+  await openRailSection(page, 'guidance');
   await expect(page.getByTestId('doc-library-pane')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText('No guidance matches.')).toBeVisible({ timeout: 10_000 });
 });
