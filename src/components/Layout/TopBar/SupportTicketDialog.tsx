@@ -60,7 +60,8 @@ export default function SupportTicketDialog() {
       toast.success("Support ticket submitted — we'll take a look shortly.");
       setDescription('');
     } else {
-      toast.error(result.error || 'Failed to submit ticket.');
+      console.error('Failed to submit support ticket', result.error);
+      toast.error('Could not submit the ticket. Please try again.');
     }
   };
 
@@ -97,63 +98,77 @@ export default function SupportTicketDialog() {
       </TooltipProvider>
 
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-2xl" data-testid="support-ticket-dialog">
-          <DialogHeader>
-            <DialogTitle>Report an Issue</DialogTitle>
-            <DialogDescription>
-              Describe the problem you&apos;re experiencing. When available, a screenshot of your
-              current view is attached automatically.
-            </DialogDescription>
-          </DialogHeader>
-
-          {screenshotDataUrl && (
-            <div className="overflow-hidden rounded-md border border-[color:var(--border)]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={screenshotDataUrl}
-                alt="Screenshot preview"
-                className="max-h-80 w-full object-contain"
-                data-testid="support-ticket-screenshot"
-              />
+        <DialogContent
+          className="bg-card/95 max-w-2xl overflow-hidden p-0 shadow-pop-lg backdrop-blur-sm"
+          data-testid="support-ticket-dialog"
+        >
+          <div className="brand-chat-bg border-b border-border px-6 py-5">
+            <div className="flex items-start gap-3">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-border bg-card text-primary">
+                <HelpSquareIcon className="h-5 w-5" />
+              </div>
+              <DialogHeader className="text-left">
+                <p className="text-label uppercase tracking-[0.16em] text-muted-foreground">
+                  Support
+                </p>
+                <DialogTitle>Report an Issue</DialogTitle>
+                <DialogDescription>
+                  Describe the problem you&apos;re experiencing. When available, a screenshot of
+                  your current view is attached automatically.
+                </DialogDescription>
+              </DialogHeader>
             </div>
-          )}
+          </div>
+          <div className="space-y-4 p-6">
+            {screenshotDataUrl && (
+              <div className="bg-background/60 overflow-hidden rounded-lg border border-border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={screenshotDataUrl}
+                  alt="Screenshot preview"
+                  className="max-h-80 w-full object-contain"
+                  data-testid="support-ticket-screenshot"
+                />
+              </div>
+            )}
 
-          <Textarea
-            placeholder="What went wrong? Please describe the issue in detail…"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            maxLength={MAX_DESCRIPTION_LENGTH}
-            className="min-h-[120px] resize-none"
-            data-testid="support-ticket-description"
-          />
+            <Textarea
+              placeholder="What went wrong? Please describe the issue in detail…"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              maxLength={MAX_DESCRIPTION_LENGTH}
+              className="bg-background/60 min-h-[120px] resize-none"
+              data-testid="support-ticket-description"
+            />
 
-          <p className="text-caption text-right text-muted-foreground">
-            {description.length}/{MAX_DESCRIPTION_LENGTH}
-          </p>
+            <p className="text-caption text-right text-muted-foreground">
+              {description.length}/{MAX_DESCRIPTION_LENGTH}
+            </p>
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => handleOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={isSubmitting || !description.trim()}
-              data-testid="support-ticket-submit"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting…
-                </>
-              ) : (
-                'Submit'
-              )}
-            </Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => handleOpenChange(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={isSubmitting || !description.trim()}
+                data-testid="support-ticket-submit"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting…
+                  </>
+                ) : (
+                  'Submit'
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>

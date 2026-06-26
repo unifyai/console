@@ -36,7 +36,7 @@ export function AssistantCommunicationUserView({
     return (
       <div
         data-testid="assistant-call-self-view"
-        className="group relative h-full w-full rounded-lg bg-black"
+        className="group relative h-full w-full rounded-lg bg-background"
       >
         {isCameraOn && trackRef ? (
           <VideoTrack trackRef={trackRef} className="h-full w-full object-contain" />
@@ -52,7 +52,7 @@ export function AssistantCommunicationUserView({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 bg-black/30 text-white hover:bg-black/60"
+                  className="bg-card/85 h-7 w-7 border border-border text-foreground hover:bg-[var(--surface-hover)]"
                   onClick={onMinimize}
                 >
                   <Minimize className="h-4 w-4" />
@@ -68,7 +68,7 @@ export function AssistantCommunicationUserView({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="hover:bg-destructive/10 h-7 w-7 bg-black/30 text-destructive hover:text-destructive"
+                    className="bg-card/85 h-7 w-7 border border-border text-destructive hover:bg-[color:var(--status-danger-bg)] hover:text-destructive"
                     onClick={onTurnOffCamera}
                     aria-label="Turn off camera"
                   >

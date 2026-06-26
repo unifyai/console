@@ -33,7 +33,7 @@ export function CallPillBubble({ pill, timezone, onClick }: CallPillProps) {
       <button
         type="button"
         onClick={() => onClick(pill)}
-        className="bg-muted/50 text-caption flex items-center gap-2 rounded-full border px-4 py-1.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="text-caption hover:border-primary/50 flex items-center gap-2 rounded-full border border-border bg-accent-soft px-4 py-1.5 font-medium text-accent-soft-foreground shadow-sm transition-colors hover:bg-card hover:text-foreground"
         data-testid="call-pill-button"
         data-exchange-key={`${pill.sourceContext ?? ''}:${pill.exchangeId ?? ''}`}
         data-exchange-id={pill.exchangeId}

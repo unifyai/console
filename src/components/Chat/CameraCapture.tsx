@@ -143,7 +143,7 @@ export function CameraCapture({ open, onOpenChange, onCapture }: CameraCapturePr
               autoPlay
               playsInline
               muted
-              className="h-auto w-full rounded-md bg-black"
+              className="h-auto w-full rounded-md bg-background"
             />
           )}
           <canvas ref={canvasRef} className="hidden" />
@@ -152,7 +152,7 @@ export function CameraCapture({ open, onOpenChange, onCapture }: CameraCapturePr
               type="button"
               variant="secondary"
               size="icon"
-              className="absolute right-2 top-2 h-8 w-8 rounded-full bg-black/50 text-white hover:bg-black/70"
+              className="bg-card/85 absolute right-2 top-2 h-8 w-8 rounded-full border border-border text-foreground shadow-sm hover:bg-[var(--surface-hover)]"
               onClick={handleSwitchCamera}
               disabled={isStarting}
             >

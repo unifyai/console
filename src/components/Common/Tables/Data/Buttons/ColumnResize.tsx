@@ -17,7 +17,7 @@ const ColumnResizer = ({
     right: 0,
     width: column.getIsResizing() ? 4 : 5,
     zIndex: 10,
-    background: column.getIsResizing() ? 'var(--primary)' : 'rgba(0, 0, 0, 0.5)',
+    background: column.getIsResizing() ? 'var(--primary)' : 'var(--border)',
     cursor: 'col-resize',
     userSelect: 'none',
     touchAction: 'none',
