@@ -38,10 +38,10 @@
     --shadow-soft: rgba(10, 20, 16, 0.1);
     --status-success: var(--role-green-deep);
     --status-success-bg: color-mix(in srgb, var(--role-green) 14%, transparent);
-    --status-info: var(--role-blue);
-    --status-info-bg: color-mix(in srgb, var(--role-blue) 12%, transparent);
-    --status-warning: var(--role-orange);
-    --status-warning-bg: color-mix(in srgb, var(--role-orange) 12%, transparent);
+    --status-info: var(--role-cyan);
+    --status-info-bg: color-mix(in srgb, var(--role-cyan) 14%, transparent);
+    --status-warning: var(--soft-amber);
+    --status-warning-bg: color-mix(in srgb, var(--role-orange) 16%, transparent);
     --status-danger: var(--destructive);
     --status-danger-bg: color-mix(in srgb, var(--destructive) 12%, transparent);
     --status-neutral: var(--muted-ink);
