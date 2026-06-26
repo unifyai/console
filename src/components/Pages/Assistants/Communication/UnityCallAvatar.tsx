@@ -66,7 +66,7 @@ const LAPTOP_FADE = 'opacity 0.5s ease';
 const LAPTOP_STYLE: React.CSSProperties = {
   position: 'absolute',
   left: '85%',
-  top: '93%',
+  top: '91%',
   width: '90%',
   transform: 'translate(-50%, -50%)',
   pointerEvents: 'none',
