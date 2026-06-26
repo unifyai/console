@@ -604,6 +604,24 @@
   .brand-chat-stencil-bg .brand-chat-stencil-bg::after {
     display: none;
   }
+  .coordinator-onboarding-city-bg {
+    --coordinator-onboarding-city-position: 100%;
+    --coordinator-onboarding-bg-fit-width: 1728px;
+  }
+  .coordinator-onboarding-city-bg::before {
+    background-color: transparent;
+    background-image:
+      linear-gradient(
+        color-mix(in srgb, var(--card) 70%, transparent),
+        color-mix(in srgb, var(--card) 70%, transparent)
+      ),
+      url('/brand/onboarding-city.webp');
+    background-position: center var(--coordinator-onboarding-city-position, 100%);
+    background-repeat: no-repeat;
+    background-size: max(100%, var(--coordinator-onboarding-bg-fit-width)) auto;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
   /* Frosted panel for the onboarding picker: a translucent wash of the
    * card colour over a heavy blur, so the prompt copy reads as frosted
    * glass against the platform underneath rather than a solid cut-out. */

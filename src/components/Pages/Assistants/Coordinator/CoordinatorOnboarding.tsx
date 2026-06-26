@@ -166,7 +166,7 @@ export function CoordinatorOnboarding({
   if (phase === 'preparing') {
     return (
       <div
-        className="relative flex h-full w-full items-center justify-center overflow-hidden bg-background"
+        className="brand-page-stencil-bg coordinator-onboarding-city-bg relative flex h-full w-full items-center justify-center overflow-hidden bg-background"
         data-testid="coordinator-onboarding"
       >
         <CoordinatorOnboardingCallPreparing />
@@ -176,7 +176,7 @@ export function CoordinatorOnboarding({
 
   return (
     <div
-      className="relative flex h-full w-full items-center justify-center overflow-hidden bg-background"
+      className="brand-page-stencil-bg coordinator-onboarding-city-bg relative flex h-full w-full items-center justify-center overflow-hidden bg-background"
       data-testid="coordinator-onboarding"
     >
       <CoordinatorOnboardingPicker
@@ -218,9 +218,9 @@ function CoordinatorOnboardingCallPreparing() {
           <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
         </div>
         <div>
-          <p className="text-h3 font-medium text-card-foreground">Getting your audio ready</p>
+          <p className="text-h3 font-medium text-card-foreground">Setting up the call</p>
           <p className="text-body mt-2 text-muted-foreground">
-            T-W1N will start speaking as soon as he is ready.
+            T-W1N will introduce himself shortly.
           </p>
         </div>
       </div>
