@@ -6,6 +6,7 @@
  */
 
 import { Metadata } from 'next';
+import { BrandStatusCard } from '@/components/Brand';
 import { TableViewer } from '@/components/Pages/Table/TableViewer';
 import type { TableDataResponse, TableDataError } from '@/types/tableView';
 
@@ -126,13 +127,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 function TableNotFoundMessage() {
   return (
     <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <div className="mb-4 text-6xl">📊</div>
-        <h1 className="text-display text-semibold mb-2 text-foreground">Table Not Found</h1>
-        <p className="text-muted-foreground">
-          This table view may have been deleted or the link is invalid.
-        </p>
-      </div>
+      <BrandStatusCard
+        className="mx-6 max-w-md p-8"
+        eyebrow="Shared table"
+        title="Table Not Found"
+        description="This table view may have been deleted or the link is invalid."
+        tone="neutral"
+        icon={
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 10h18M3 14h18M7 6v12m10-12v12M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z"
+            />
+          </svg>
+        }
+      />
     </main>
   );
 }
@@ -143,11 +154,23 @@ function TableNotFoundMessage() {
 function ErrorMessage({ message }: { message: string }) {
   return (
     <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <div className="mb-4 text-6xl">⚠️</div>
-        <h1 className="text-display text-semibold mb-2 text-foreground">Error Loading Table</h1>
-        <p className="text-muted-foreground">{message}</p>
-      </div>
+      <BrandStatusCard
+        className="mx-6 max-w-md p-8"
+        eyebrow="Shared table"
+        title="Error Loading Table"
+        description={message}
+        tone="danger"
+        icon={
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+        }
+      />
     </main>
   );
 }
@@ -158,14 +181,23 @@ function ErrorMessage({ message }: { message: string }) {
 function EmptyDataMessage() {
   return (
     <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <div className="mb-4 text-6xl">📭</div>
-        <h1 className="text-display text-semibold mb-2 text-foreground">No Data</h1>
-        <p className="text-muted-foreground">
-          No data available for this table view. The project may be empty or the filters returned no
-          results.
-        </p>
-      </div>
+      <BrandStatusCard
+        className="mx-6 max-w-md p-8"
+        eyebrow="Shared table"
+        title="No Data"
+        description="No data available for this table view. The project may be empty or the filters returned no results."
+        tone="neutral"
+        icon={
+          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M20 13V7a2 2 0 00-2-2H6a2 2 0 00-2 2v6m16 0v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4m16 0H4"
+            />
+          </svg>
+        }
+      />
     </main>
   );
 }

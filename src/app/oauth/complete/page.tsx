@@ -22,6 +22,7 @@
 
 import * as React from 'react';
 
+import { BrandStatusCard } from '@/components/Brand';
 import { Loader } from '@/components/Common/Loader';
 import { broadcastOAuthComplete } from '@/utils/assistants/oauth';
 
@@ -72,11 +73,12 @@ export default function OAuthCompletePage() {
   if (!showFallback) return null;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-6">
-      <div className="flex flex-col items-center gap-3 text-center text-muted-foreground">
-        <Loader size={24} />
-        <p className="text-sm">Returning to Console...</p>
-      </div>
+    <div className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background p-6">
+      <BrandStatusCard
+        eyebrow="OAuth"
+        description="Returning to Console..."
+        icon={<Loader size={24} />}
+      />
     </div>
   );
 }

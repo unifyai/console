@@ -1,4 +1,5 @@
 export { BrandPattern } from './BrandPattern';
+export { BrandStatusCard } from './BrandStatusCard';
 export { TeammateCreature } from './TeammateCreature';
 export type { CreatureEyes, CreatureMood, CreatureMouthShape } from './TeammateCreature';
 export { UnifyBlockMark } from './UnifyBlockMark';

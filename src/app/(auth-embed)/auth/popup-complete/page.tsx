@@ -2,6 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
+import { BrandStatusCard } from '@/components/Brand';
 import LoadingElement from '@/components/Common/Loaders/LoadingElement';
 import {
   AUTH_POPUP_ERROR_MESSAGE,
@@ -46,16 +47,13 @@ function PopupComplete() {
   }, [searchParams]);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-8 text-center text-foreground">
-      <div className="flex max-w-sm flex-col items-center gap-4">
-        <LoadingElement />
-        <h1 className="text-h1 text-semibold">
-          {canClose ? 'Sign in complete' : 'Taking you to Unify...'}
-        </h1>
-        <p className="text-body-muted">
-          {canClose ? 'You can close this window.' : 'Please wait a moment.'}
-        </p>
-      </div>
+    <main className="brand-page-stencil-bg flex min-h-screen items-center justify-center bg-background p-8 text-center text-foreground">
+      <BrandStatusCard
+        eyebrow="Auth"
+        title={canClose ? 'Sign in complete' : 'Taking you to Unify...'}
+        description={canClose ? 'You can close this window.' : 'Please wait a moment.'}
+        icon={<LoadingElement />}
+      />
     </main>
   );
 }
