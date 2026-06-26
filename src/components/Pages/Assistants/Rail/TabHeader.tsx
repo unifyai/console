@@ -133,7 +133,7 @@ export function TabHeader({ section, right }: TabHeaderProps) {
           <div
             role="dialog"
             aria-label={`${section.label} guidance`}
-            className="absolute right-4 top-[calc(100%-4px)] z-50 w-[320px] rounded-xl border border-border bg-popover p-4 shadow-pop-lg"
+            className="absolute left-4 top-[calc(100%-4px)] z-50 w-[320px] rounded-xl border border-border bg-popover p-4 shadow-pop-lg"
           >
             <div className="flex items-center gap-2">
               <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-muted text-foreground">
