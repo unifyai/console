@@ -48,7 +48,7 @@ export function GlobalUnitySwitcher({ collapsed }: GlobalUnitySwitcherProps) {
     };
   }, [activeWorkspace?.id, activeWorkspace?.type]);
 
-  const name = coordinator ? assistantDisplayName(coordinator) : 'Your Unitys';
+  const name = coordinator ? assistantDisplayName(coordinator) : 'Your digital twins';
 
   return (
     <button

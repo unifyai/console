@@ -47,10 +47,10 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: MessageSquare,
     kind: 'view',
     tab: 'chat',
-    desc: 'Talk to your droid — voice notes, files and screen share, all in one thread.',
+    desc: 'Talk to your digital twin — voice notes, files and screen share, all in one thread.',
     steps: [
       ['Send a message or voice note', 'Type below, or hold the mic to record and send audio.'],
-      ['Share your screen', 'Your droid can watch live and guide you step by step.'],
+      ['Share your screen', 'Your digital twin can watch live and guide you step by step.'],
       ['Attach files', 'Drop in docs, images or screenshots to give context.'],
     ],
   },
@@ -60,7 +60,7 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: Activity,
     kind: 'view',
     tab: 'actions',
-    desc: 'Every request your droid worked on in a time window — expand any one to see how it thought.',
+    desc: 'Every request your digital twin worked on in a time window — expand any one to see how it thought.',
     steps: [
       ['Pick a time window', 'Use the dropdown to scope to the last 3h, 6h, 24h…'],
       ['Expand a request', 'See the final response plus the full step timeline.'],
@@ -73,7 +73,7 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: LayoutDashboard,
     kind: 'view',
     tab: 'dashboards',
-    desc: 'Live tiles and reports your droid builds for you, on request.',
+    desc: 'Live tiles and reports your digital twin builds for you, on request.',
     steps: [
       ['Switch dashboard', 'Use the picker to jump between dashboards and search tiles.'],
       ['Open a tile', 'View it inline, or pop it out into its own tab.'],
@@ -99,10 +99,10 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: Plug2,
     kind: 'view',
     tab: 'integrations',
-    desc: 'Connect the apps and tools your droid can act through — mail, calendar, CRM and more.',
+    desc: 'Connect the apps and tools your digital twin can act through — mail, calendar, CRM and more.',
     steps: [
       ['Find an app', 'Search the catalog or filter by category.'],
-      ['Review access', 'Open details to see exactly what the droid can do.'],
+      ['Review access', 'Open details to see exactly what the digital twin can do.'],
       ['Connect securely', 'Authorize via OAuth or paste an API key.'],
     ],
   },
@@ -114,11 +114,11 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Contacts',
     Icon: Contact,
     kind: 'brain-view',
-    desc: 'People your droid remembers, with the context it keeps on each.',
+    desc: 'People your digital twin remembers, with the context it keeps on each.',
     steps: [
       ['Open a contact', 'Click any card to see full details in a drawer.'],
       ['Filter by tag', 'Use the tag chips to narrow the directory.'],
-      ['Add a contact', 'Capture someone new for your droid to remember.'],
+      ['Add a contact', 'Capture someone new for your digital twin to remember.'],
     ],
   },
   {
@@ -138,11 +138,11 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Knowledge',
     Icon: BookOpen,
     kind: 'brain-view',
-    desc: 'Durable facts and rules your droid relies on — rich documents, rendered on the right.',
+    desc: 'Durable facts and rules your digital twin relies on — rich documents, rendered on the right.',
     steps: [
       ['Open a rule', 'Select from the list to read the rendered document.'],
       ['Filter by scope', 'Group knowledge by the area it governs.'],
-      ['Add knowledge', 'Write a new rule in Markdown for your droid.'],
+      ['Add knowledge', 'Write a new rule in Markdown for your digital twin.'],
     ],
   },
   {
@@ -162,7 +162,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Guidance',
     Icon: Compass,
     kind: 'brain-view',
-    desc: 'Playbooks that shape how your droid behaves — rich documents, rendered on the right.',
+    desc: 'Playbooks that shape how your digital twin behaves — rich documents, rendered on the right.',
     steps: [
       ['Open a playbook', 'Select from the list to read the rendered document.'],
       ['Filter by scope', 'Group guidance by the area it applies to.'],
@@ -174,7 +174,7 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Data',
     Icon: Database,
     kind: 'brain-view',
-    desc: 'Everything your droid has ingested — browse nested tables like a directory, open any to view rows.',
+    desc: 'Everything your digital twin has ingested — browse nested tables like a directory, open any to view rows.',
     steps: [
       ['Open a folder', 'Drill into nested tables like a file directory.'],
       ['Open a table', 'View its dynamic schema and rows at the leaf.'],
@@ -189,5 +189,5 @@ export const SECTION_BY_ID: Record<string, SectionDef> = Object.fromEntries(
   ALL_SECTIONS.map((s) => [s.id, s])
 );
 
-/** The section shown on first load and after picking a fresh droid. */
+/** The section shown on first load and after picking a fresh digital twin. */
 export const DEFAULT_SECTION_ID = 'chat';

@@ -65,7 +65,7 @@ import {
   getRotatingBotViewBox,
 } from '@unity/brand/components';
 
-const staticSkillsText = `The bio doesn't influence the droid's abilities. All droids come with the same foundational skills and can specialize in whichever area you want them to.`;
+const staticSkillsText = `The bio doesn't influence the digital twin's abilities. All digital twins come with the same foundational skills and can specialize in whichever area you want them to.`;
 const UNITY_PREVIEW_SIZE = 120;
 const UNITY_PREVIEW_REST_SIZE = 152;
 const UNITY_PREVIEW_REST_SCALE = UNITY_PREVIEW_REST_SIZE / UNITY_PREVIEW_SIZE;
@@ -440,7 +440,9 @@ export function HireForm({
     ];
   const nextOutfit = appearanceOutfitOptions[(outfitIndex + 1) % appearanceOutfitOptions.length];
   const workspaceAssistantName =
-    typeof firstName === 'string' && firstName.trim().length > 0 ? firstName.trim() : 'this droid';
+    typeof firstName === 'string' && firstName.trim().length > 0
+      ? firstName.trim()
+      : 'this digital twin';
   const isWorkspaceWarning = mode === 'hire' && showWorkspaceWarning;
   const unityControlTop = React.useMemo(() => {
     const form = getUnityBodyForm(selectedUnityBody);
@@ -609,9 +611,9 @@ export function HireForm({
                                   className="text-caption max-w-xs"
                                 >
                                   <p>
-                                    Optional short label to remember what this droid is for (e.g.
-                                    &quot;Growth marketing&quot;, &quot;QA engineer&quot;). Shown in
-                                    the droids list hover card.
+                                    Optional short label to remember what this digital twin is for
+                                    (e.g. &quot;Growth marketing&quot;, &quot;QA engineer&quot;).
+                                    Shown in the digital twins list hover card.
                                   </p>
                                 </TooltipContent>
                               </Tooltip>
@@ -875,7 +877,7 @@ export function HireForm({
                                     color={selectedUnityColor}
                                     baseEyes={selectedUnityEyes}
                                     outfit={selectedUnityOutfit}
-                                    label="Droid avatar"
+                                    label="Digital twin avatar"
                                   />
                                 </span>
                               </button>
@@ -1153,8 +1155,8 @@ export function HireForm({
                               {isWorkspaceWarning && (
                                 <>
                                   <span className="block">
-                                    It&apos;s advised to create a workspace for your new unity{' '}
-                                    <strong className="font-bold">now</strong>, so they can get
+                                    It&apos;s advised to create a workspace for your new digital
+                                    twin <strong className="font-bold">now</strong>, so they can get
                                     started right away. If you don&apos;t want to create one yet,
                                     click skip.
                                   </span>

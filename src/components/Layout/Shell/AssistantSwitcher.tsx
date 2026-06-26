@@ -50,12 +50,12 @@ interface AssistantSwitcherProps {
 export function AssistantSwitcher({ activeUnity, listProps, collapsed }: AssistantSwitcherProps) {
   const [switcherOpen, setSwitcherOpen] = React.useState(false);
 
-  const unityName = activeUnity ? assistantDisplayName(activeUnity) : 'Select a unity';
+  const unityName = activeUnity ? assistantDisplayName(activeUnity) : 'Select a digital twin';
   const unitySub = activeUnity
     ? activeUnity.isCoordinator
       ? 'Coordinator'
-      : activeUnity.jobTitle?.trim() || 'Unity'
-    : 'No unity selected';
+      : activeUnity.jobTitle?.trim() || 'Digital twin'
+    : 'No digital twin selected';
 
   const handleShowProfile = React.useCallback(
     (id: string) => {

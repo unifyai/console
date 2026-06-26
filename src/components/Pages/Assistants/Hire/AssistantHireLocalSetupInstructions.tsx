@@ -123,8 +123,8 @@ export function AssistantHireLocalSetupInstructionsDialog({
             Local Desktop Setup Instructions
           </DialogTitle>
           <DialogDescription>
-            Follow these steps to complete your unity&apos;s local setup for {os}. Installing the
-            desktop app lets your assistant see and control this machine — its apps, files, and
+            Follow these steps to complete your digital twin&apos;s local setup for {os}. Installing
+            the desktop app lets your assistant see and control this machine — its apps, files, and
             logged-in sessions — during local desktop sessions.
           </DialogDescription>
         </DialogHeader>
