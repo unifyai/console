@@ -236,7 +236,7 @@ load_self_host_runtime_env() {
   # shellcheck disable=SC1090
   source "$SELF_HOST_ENV_SCRIPT"
   export_self_host_coordinator_runtime_file
-  load_self_host_env_file "$UNITY_REPO_PATH/.env"
+  load_self_host_repo_env_file "$UNITY_REPO_PATH/.env"
   if declare -F self_host_export_livekit_backend &>/dev/null; then
     self_host_export_livekit_backend
   fi
@@ -244,6 +244,7 @@ load_self_host_runtime_env() {
 
 write_console_env_fingerprint() {
   python3 - "$CONSOLE_ENVFILE" <<'PY'
+import hashlib
 import json
 import os
 import sys
@@ -263,14 +264,24 @@ keys = [
     "GCP_PROJECT_ID",
     "PUBSUB_TOPIC_SUFFIX",
     "LIVEKIT_URL",
+    "LIVEKIT_API_URL",
+    "LIVEKIT_SIP_URI",
     "SELF_HOST_DESKTOP_URL",
     "CONSOLE_PORT",
     "ORCHESTRA_PORT",
 ]
+secret_keys = [
+    "LIVEKIT_API_KEY",
+    "LIVEKIT_API_SECRET",
+]
+env = {key: os.environ.get(key, "") for key in keys}
+for key in secret_keys:
+    value = os.environ.get(key, "")
+    env[f"{key}_SHA256"] = hashlib.sha256(value.encode("utf-8")).hexdigest() if value else ""
 data = {
     "updated_at": datetime.now(timezone.utc).isoformat(),
     "cwd": os.getcwd(),
-    "env": {key: os.environ.get(key, "") for key in keys},
+    "env": env,
 }
 with open(sys.argv[1], "w", encoding="utf-8") as fh:
     json.dump(data, fh, indent=2, sort_keys=True)
@@ -293,6 +304,8 @@ required = [
     "UNITY_ADAPTERS_URL",
     "PUBSUB_EMULATOR_HOST",
     "LIVEKIT_URL",
+    "LIVEKIT_API_KEY_SHA256",
+    "LIVEKIT_API_SECRET_SHA256",
 ]
 with open(sys.argv[1], encoding="utf-8") as fh:
     env = json.load(fh).get("env", {})
@@ -2094,9 +2107,6 @@ cmd_repair_console() {
     export PUBSUB_EMULATOR_HOST="${PUBSUB_EMULATOR_HOST:-$LOCAL_PUBSUB_HOST}"
     export GCP_PROJECT_ID="${GCP_PROJECT_ID:-$PUBSUB_GCP_PROJECT_ID}"
     export PUBSUB_TOPIC_SUFFIX="${PUBSUB_TOPIC_SUFFIX:-$PUBSUB_TOPIC_SUFFIX_VAL}"
-    export LIVEKIT_URL="${LIVEKIT_URL:-ws://localhost:7880}"
-    export LIVEKIT_API_KEY="${LIVEKIT_API_KEY:-devkey}"
-    export LIVEKIT_API_SECRET="${LIVEKIT_API_SECRET:-secret}"
     export SELF_HOST_DESKTOP_URL="${SELF_HOST_DESKTOP_URL:-http://127.0.0.1:8090}"
     CHAT_ADAPTERS_URL="${CHAT_ADAPTERS_URL:-${LOCAL_ADAPTERS_URL:-${UNITY_ADAPTERS_URL:-http://127.0.0.1:${UNITY_GATEWAY_PORT:-8001}}}}"
     export CHAT_ADAPTERS_URL
