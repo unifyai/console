@@ -246,10 +246,10 @@ const SortableTab = React.memo(function SortableTab({
         {...listeners}
         onClick={() => onTabClick(tab)}
         className={cn(
-          'text-body-sm flex min-w-0 flex-1 cursor-pointer items-center gap-2 overflow-hidden rounded-md py-1.5 transition-all',
+          'text-body-sm flex min-w-0 flex-1 cursor-pointer items-center gap-2 overflow-hidden rounded-lg py-2 transition-all',
           isCollapsed ? 'justify-center px-0' : 'justify-start px-3 pr-10',
           isActive
-            ? 'text-strong text-primary hover:bg-[var(--surface-hover)]'
+            ? 'bg-accent-soft text-accent-soft-foreground shadow-sm'
             : 'text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-foreground',
           isDragging && 'cursor-grabbing'
         )}
@@ -287,16 +287,19 @@ const SortableTab = React.memo(function SortableTab({
         ) : (
           <div className="flex w-full min-w-0 flex-1 items-center gap-2 overflow-hidden">
             <div
-              className="flex h-4 w-4 flex-shrink-0 items-center justify-center"
+              className={cn(
+                'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg',
+                isActive ? 'bg-card text-accent-soft-foreground' : 'bg-muted text-muted-foreground'
+              )}
               onDoubleClick={(e) => {
                 e.stopPropagation();
                 onChangeTabIcon(tab);
               }}
             >
-              {renderSidebarIcon(tab.icon, 'h-3 w-3', 'tab')}
+              {renderSidebarIcon(tab.icon, 'h-3.5 w-3.5', 'tab')}
             </div>
             <span
-              className="text-body-sm block w-0 min-w-0 max-w-full flex-1 select-none overflow-hidden truncate text-left"
+              className="text-body-sm block w-0 min-w-0 max-w-full flex-1 select-none overflow-hidden truncate text-left font-medium"
               title={tab.name}
               onDoubleClick={(e) => {
                 e.stopPropagation();
@@ -2095,7 +2098,7 @@ export default function InterfaceNav({
                 onClick={() => {
                   toggleSidebar();
                 }}
-                className="bg-card/95 h-8 w-8 border shadow-sm backdrop-blur-sm"
+                className="bg-card/95 h-8 w-8 border border-border shadow-pop backdrop-blur-sm"
               >
                 <PanelLeft className="h-4 w-4" />
               </Button>
@@ -2109,7 +2112,7 @@ export default function InterfaceNav({
       <div
         data-interface-color
         className={cn(
-          'bg-card/85 fixed left-0 top-10 z-20 flex h-[calc(100vh-2.5rem)] flex-col overflow-hidden border-r border-[color:var(--border)] backdrop-blur-sm',
+          'bg-card/95 fixed left-0 top-10 z-20 flex h-[calc(100vh-2.5rem)] flex-col overflow-hidden border-r border-border shadow-pop backdrop-blur-sm',
           isCollapsed ? 'w-12' : '',
           isDraggingSidebar ? '' : 'transition-all duration-300 ease-in-out',
           isCompletelyHidden && 'pointer-events-none !w-0 border-0 opacity-0'
@@ -2129,19 +2132,21 @@ export default function InterfaceNav({
             ref={dragRef}
             onMouseDown={handleMouseDown}
             className={cn(
-              'hover:bg-[color:var(--primary)]/50 absolute bottom-0 right-0 top-0 z-10 w-1 cursor-ew-resize bg-transparent transition-colors',
+              'hover:bg-primary/40 absolute bottom-0 right-0 top-0 z-10 w-1 cursor-ew-resize bg-transparent transition-colors',
               "after:absolute after:bottom-0 after:top-0 after:content-['']",
               isCollapsed
                 ? 'after:left-[-2px] after:right-[-6px]'
                 : 'after:left-[-2px] after:right-[-2px]',
-              isDraggingSidebar && 'bg-[color:var(--primary)]/50'
+              isDraggingSidebar && 'bg-primary/40'
             )}
           />
         )}
 
         {/* Header with Breadcrumb Navigation and Toggle */}
         {!isCompletelyHidden && isCollapsed && (
-          <div className={cn('flex items-center justify-center border-b p-2')}>
+          <div
+            className={cn('flex items-center justify-center border-b border-border bg-card p-2')}
+          >
             <Button size="icon" variant="ghost" onClick={toggleSidebar} className="h-7 w-7">
               <PanelLeft className="h-4 w-4" />
             </Button>
@@ -2150,11 +2155,19 @@ export default function InterfaceNav({
 
         {/* Projects and Interfaces Section */}
         {!isCompletelyHidden && !isCollapsed && (
-          <div className="space-y-2.5 overflow-x-hidden p-3 duration-300 animate-in fade-in slide-in-from-left-2">
+          <div className="bg-card/80 space-y-3 overflow-x-hidden border-b border-border p-3 duration-300 animate-in fade-in slide-in-from-left-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-label uppercase tracking-[0.16em] text-muted-foreground">
+                  Interfaces
+                </p>
+                <p className="text-caption text-muted-foreground">Projects, dashboards and tabs</p>
+              </div>
+            </div>
             {/* Projects */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-body-sm select-none text-muted-foreground">Project:</label>
+                <label className="text-label select-none text-muted-foreground">Project</label>
                 <Button
                   size="icon"
                   variant="ghost"
@@ -2352,7 +2365,7 @@ export default function InterfaceNav({
             {/* Interfaces */}
             {currentInterfaces.length > 0 && (
               <div className="space-y-1.5">
-                <label className="text-body-sm select-none text-muted-foreground">Interface:</label>
+                <label className="text-label select-none text-muted-foreground">Interface</label>
                 <div className="flex w-full min-w-0 items-center gap-1">
                   <InterfacePicker
                     interfaces={currentInterfaces}
@@ -2503,18 +2516,18 @@ export default function InterfaceNav({
 
         {/* Show separator and tabs only when both project and interface are selected */}
         {!isCompletelyHidden && !isCollapsed && projectId && interfaceId && (
-          <Separator className="delay-150 duration-300 animate-in fade-in" />
+          <Separator className="bg-border delay-150 duration-300 animate-in fade-in" />
         )}
 
         {/* Tabs List - Only show when both project and interface are selected */}
         {!isCompletelyHidden && projectId && interfaceId && (
-          <div className="flex flex-1 flex-col overflow-hidden delay-200 duration-500 animate-in fade-in slide-in-from-bottom-2">
+          <div className="bg-background/35 flex flex-1 flex-col overflow-hidden delay-200 duration-500 animate-in fade-in slide-in-from-bottom-2">
             {/* Tabs label and Add button - pinned at top for expanded mode */}
             {!isCollapsed && (
-              <div className="flex-shrink-0 px-2 pb-1 pt-1.5">
+              <div className="flex-shrink-0 px-3 pb-2 pt-3">
                 <div className="flex items-center justify-between duration-200 animate-in fade-in slide-in-from-top-1">
-                  <label className="text-body-sm flex flex-shrink-0 select-none items-center leading-none text-muted-foreground">
-                    Tabs:
+                  <label className="text-label flex flex-shrink-0 select-none items-center uppercase leading-none tracking-[0.14em] text-muted-foreground">
+                    Tabs
                   </label>
                   {interfaceId && permissions.hasWrite && (
                     <Tooltip>
@@ -2539,14 +2552,14 @@ export default function InterfaceNav({
                 <div
                   className={cn(
                     'relative min-w-0 space-y-1',
-                    isCollapsed ? 'px-1 py-1 pb-4' : 'px-2 pb-2 pt-0.5'
+                    isCollapsed ? 'px-1 py-1 pb-4' : 'px-3 pb-3 pt-0.5'
                   )}
                 >
                   {tabsError ? (
                     // Error state
                     <div
                       className={cn(
-                        'text-body text-center text-destructive duration-300 animate-in fade-in',
+                        'bg-card/80 rounded-lg border border-border text-center text-destructive duration-300 animate-in fade-in',
                         isCollapsed ? 'px-2 py-4' : 'px-3 py-6'
                       )}
                     >
@@ -2589,7 +2602,7 @@ export default function InterfaceNav({
                         <div
                           key={i}
                           className={cn(
-                            'flex items-center gap-2 py-2 duration-200 animate-in fade-in',
+                            'bg-card/60 flex items-center gap-2 rounded-lg border border-border py-2 duration-200 animate-in fade-in',
                             isCollapsed ? 'justify-center px-0' : 'px-3'
                           )}
                           style={{ animationDelay: `${i * 50}ms` }}
@@ -2611,7 +2624,7 @@ export default function InterfaceNav({
                   ) : currentTabs.length === 0 ? (
                     <div
                       className={cn(
-                        'text-body text-center text-muted-foreground duration-300 animate-in fade-in',
+                        'bg-card/70 rounded-lg border border-dashed border-border text-center text-muted-foreground duration-300 animate-in fade-in',
                         isCollapsed ? 'py-4' : 'px-2 py-6'
                       )}
                     >
@@ -2710,7 +2723,7 @@ export default function InterfaceNav({
                               if (!activeTab) return null;
 
                               return (
-                                <div className="pointer-events-none cursor-grabbing rounded-md border bg-card shadow-lg">
+                                <div className="pointer-events-none cursor-grabbing rounded-lg border border-border bg-card shadow-pop">
                                   <div
                                     className={cn(
                                       'flex items-center gap-2 py-2',
@@ -2771,14 +2784,14 @@ export default function InterfaceNav({
 
         {/* Separator before mode controls */}
         {!isCompletelyHidden && !isCollapsed && showModeControls && (
-          <Separator className="duration-200 animate-in fade-in" />
+          <Separator className="bg-border duration-200 animate-in fade-in" />
         )}
 
         {/* Mode Controls */}
         {!isCollapsed && !isCompletelyHidden && showModeControls && (
-          <div className="flex-shrink-0 space-y-1.5 overflow-x-hidden bg-[color:var(--background)] px-2 py-1.5 duration-300 animate-in fade-in slide-in-from-bottom-2">
+          <div className="bg-card/90 flex-shrink-0 space-y-2 overflow-x-hidden px-3 py-3 duration-300 animate-in fade-in slide-in-from-bottom-2">
             {permissions.hasWrite && (
-              <div className="flex items-center justify-between gap-1.5">
+              <div className="bg-background/60 flex items-center justify-between gap-1.5 rounded-lg border border-border px-2 py-1.5">
                 <label className="text-body-sm flex min-w-0 select-none items-center gap-1">
                   <Hammer
                     className={cn('h-3.5 w-3.5 flex-shrink-0', isEditMode && 'text-primary')}
@@ -2793,7 +2806,7 @@ export default function InterfaceNav({
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-1.5">
+            <div className="bg-background/60 flex items-center justify-between gap-1.5 rounded-lg border border-border px-2 py-1.5">
               <label className="text-body-sm flex min-w-0 select-none items-center gap-1">
                 <SquareMousePointer
                   className={cn('h-3.5 w-3.5 flex-shrink-0', isCommandMode && 'text-primary')}

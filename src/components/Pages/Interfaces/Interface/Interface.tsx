@@ -1499,13 +1499,13 @@ const Interface = ({
           {isBootstrapError && projectQueryParam ? (
             /* Bootstrap Error Screen - Critical data failed to load */
             <div
-              className="bg-background/95 absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center transition-all duration-300"
+              className="brand-chat-bg absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center px-6 transition-all duration-300"
               style={{ left: 'var(--interface-nav-width, 256px)' }}
             >
-              <div className="w-full max-w-md p-6">
+              <div className="bg-card/95 w-full max-w-xl rounded-xl border border-border p-6 shadow-pop backdrop-blur-sm">
                 <div className="text-center">
                   <div className="mb-4">
-                    <div className="bg-destructive/10 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-[color:var(--status-danger-bg)]">
                       <svg
                         className="h-8 w-8 text-destructive"
                         fill="none"
@@ -1520,7 +1520,10 @@ const Interface = ({
                         />
                       </svg>
                     </div>
-                    <h1 className="text-h3 mb-2">Failed to Load Project</h1>
+                    <p className="text-label mb-2 uppercase tracking-[0.16em] text-muted-foreground">
+                      Interfaces
+                    </p>
+                    <h1 className="text-h3 mb-2 font-display">Failed to Load Project</h1>
                     <p className="text-body mb-2 text-muted-foreground">
                       Unable to load project data for{' '}
                       <span className="font-semibold">{projectQueryParam}</span>.
@@ -1567,13 +1570,13 @@ const Interface = ({
           ) : isErrorInterfaces && shouldAutoSelectInterface && !showInterfaceSelection ? (
             /* Interface Error Screen - Show when interface fetch fails */
             <div
-              className="bg-background/95 absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center transition-all duration-300"
+              className="brand-chat-bg absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center px-6 transition-all duration-300"
               style={{ left: 'var(--interface-nav-width, 256px)' }}
             >
-              <div className="w-full max-w-md p-6">
+              <div className="bg-card/95 w-full max-w-xl rounded-xl border border-border p-6 shadow-pop backdrop-blur-sm">
                 <div className="text-center">
                   <div className="mb-4">
-                    <div className="bg-destructive/10 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-[color:var(--status-danger-bg)]">
                       <svg
                         className="h-8 w-8 text-destructive"
                         fill="none"
@@ -1588,7 +1591,10 @@ const Interface = ({
                         />
                       </svg>
                     </div>
-                    <h1 className="text-h3 mb-2">Connection Error</h1>
+                    <p className="text-label mb-2 uppercase tracking-[0.16em] text-muted-foreground">
+                      Interfaces
+                    </p>
+                    <h1 className="text-h3 mb-2 font-display">Connection Error</h1>
                     <p className="text-body mb-6 text-muted-foreground">
                       Unable to communicate with the server. The request timed out or the server is
                       unavailable.
@@ -1638,16 +1644,21 @@ const Interface = ({
           ) : effectiveShowProjectSelection ? (
             /* Project Selection Screen - Full viewport, left-aligned */
             <div
-              className="bg-background/95 absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center transition-all duration-300"
+              className="brand-chat-bg absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center px-6 transition-all duration-300"
               style={{ left: 'var(--interface-nav-width, 256px)' }}
             >
-              <div className="w-full max-w-sm p-4">
+              <div className="bg-card/95 w-full max-w-lg rounded-xl border border-border p-5 shadow-pop backdrop-blur-sm">
                 <div className="mb-6 text-center">
-                  <h1 className="text-h3">Select a project</h1>
-                  <p className="text-subtitle">Choose a project from the list below</p>
+                  <p className="text-label mb-2 uppercase tracking-[0.16em] text-muted-foreground">
+                    Interfaces
+                  </p>
+                  <h1 className="text-h3 font-display">Select a project</h1>
+                  <p className="text-subtitle text-muted-foreground">
+                    Choose the project whose dashboards you want to inspect.
+                  </p>
                 </div>
                 <ScrollArea className="flex-1 pr-4">
-                  <div className="max-h-[250px] space-y-1 pb-6">
+                  <div className="max-h-[360px] space-y-2 pb-6">
                     {projects?.map((project) => {
                       const projectData = safeProjectTree.find((p) => p.projectName === project);
                       const icon = projectData?.icon;
@@ -1664,28 +1675,33 @@ const Interface = ({
                           }}
                           disabled={isLoading || loadingProjectName !== null}
                           className={cn(
-                            'group flex w-full items-center gap-2 rounded-md p-2 text-left transition-colors duration-200',
+                            'bg-background/60 group flex w-full items-center gap-3 rounded-lg border border-border p-3 text-left shadow-sm transition-colors duration-200',
                             isLoading
                               ? 'cursor-not-allowed opacity-50'
-                              : 'hover:bg-primary hover:text-primary-foreground'
+                              : 'hover:border-primary/50 hover:bg-accent-soft'
                           )}
                         >
                           {isLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                           ) : (
-                            <span className="text-muted-foreground group-hover:text-primary-foreground">
+                            <span className="grid h-8 w-8 place-items-center rounded-lg bg-muted text-muted-foreground group-hover:bg-card group-hover:text-accent-soft-foreground">
                               {renderIcon(icon, 'h-4 w-4', 'folder')}
                             </span>
                           )}
-                          <span className={cn('text-body', isLoading && 'text-muted-foreground')}>
+                          <span
+                            className={cn(
+                              'text-body font-medium',
+                              isLoading && 'text-muted-foreground'
+                            )}
+                          >
                             {project}
                           </span>
                         </button>
                       );
                     }) || (
-                      <div className="text-body py-8 text-center text-muted-foreground">
+                      <div className="bg-background/60 rounded-lg border border-dashed border-border py-8 text-center text-muted-foreground">
                         <Loader size={24} className="mx-auto mb-2" />
-                        <p>Loading projects...</p>
+                        <p className="text-body">Loading projects...</p>
                       </div>
                     )}
                   </div>
@@ -1695,20 +1711,25 @@ const Interface = ({
           ) : showInterfaceSelection ? (
             /* Interface Selection Screen - Full viewport, left-aligned */
             <div
-              className="bg-background/95 absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center transition-all duration-300"
+              className="brand-chat-bg absolute bottom-0 right-0 top-0 z-10 flex items-center justify-center px-6 transition-all duration-300"
               style={{ left: 'var(--interface-nav-width, 256px)' }}
             >
-              <div className="w-full max-w-sm p-4">
+              <div className="bg-card/95 w-full max-w-lg rounded-xl border border-border p-5 shadow-pop backdrop-blur-sm">
                 <div className="mb-6 text-center">
-                  <h1 className="text-h3">Select an Interface</h1>
-                  <p className="text-subtitle">Choose an interface for the selected project.</p>
+                  <p className="text-label mb-2 uppercase tracking-[0.16em] text-muted-foreground">
+                    Interfaces
+                  </p>
+                  <h1 className="text-h3 font-display">Select an Interface</h1>
+                  <p className="text-subtitle text-muted-foreground">
+                    Choose an interface for the selected project.
+                  </p>
                 </div>
                 <ScrollArea className="flex-1 pr-4">
-                  <div className="max-h-[250px] space-y-1 pb-6">
+                  <div className="max-h-[360px] space-y-2 pb-6">
                     {isLoadingInterfacesForSelection ? (
-                      <div className="text-body py-8 text-center text-muted-foreground">
+                      <div className="bg-background/60 rounded-lg border border-dashed border-border py-8 text-center text-muted-foreground">
                         <Loader size={24} className="mx-auto mb-2" />
-                        <p>Loading interfaces...</p>
+                        <p className="text-body">Loading interfaces...</p>
                       </div>
                     ) : interfacesForSelection.length > 0 ? (
                       interfacesForSelection.map((iface) => {
@@ -1746,29 +1767,34 @@ const Interface = ({
                             }}
                             disabled={isDisabled}
                             className={cn(
-                              'group flex w-full items-center gap-2 rounded-md p-2 text-left transition-colors duration-200',
+                              'bg-background/60 group flex w-full items-center gap-3 rounded-lg border border-border p-3 text-left shadow-sm transition-colors duration-200',
                               isDisabled
                                 ? 'cursor-not-allowed opacity-50'
-                                : 'hover:bg-primary hover:text-primary-foreground'
+                                : 'hover:border-primary/50 hover:bg-accent-soft'
                             )}
                           >
                             {isLoading ? (
                               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                             ) : (
-                              <span className="text-muted-foreground group-hover:text-primary-foreground">
+                              <span className="grid h-8 w-8 place-items-center rounded-lg bg-muted text-muted-foreground group-hover:bg-card group-hover:text-accent-soft-foreground">
                                 {renderIcon(icon, 'h-4 w-4', 'layout-grid')}
                               </span>
                             )}
-                            <span className={cn('text-body', isLoading && 'text-muted-foreground')}>
+                            <span
+                              className={cn(
+                                'text-body font-medium',
+                                isLoading && 'text-muted-foreground'
+                              )}
+                            >
                               {iface.name}
                             </span>
                           </button>
                         );
                       })
                     ) : (
-                      <div className="py-8 text-center">
+                      <div className="bg-background/60 rounded-lg border border-dashed border-border px-4 py-8 text-center">
                         <div className="mb-6">
-                          <div className="bg-muted/50 mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full">
+                          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-card">
                             <Icon name="layout-grid" className="h-6 w-6 text-muted-foreground" />
                           </div>
                           <p className="text-body text-muted-foreground">
@@ -2058,7 +2084,9 @@ const Interface = ({
                       <div className="bg-background/80 fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-sm">
                         <div className="w-[min(520px,92vw)] rounded-xl border bg-card p-5 shadow-lg">
                           <div className="flex items-start gap-3">
-                            <div className="mt-0.5 text-destructive">⚠️</div>
+                            <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border bg-[color:var(--status-danger-bg)] text-destructive">
+                              !
+                            </div>
                             <div className="flex-1">
                               <div className="mb-1 font-medium">Failed to load projects</div>
                               <div className="text-body-muted mb-3 break-words">

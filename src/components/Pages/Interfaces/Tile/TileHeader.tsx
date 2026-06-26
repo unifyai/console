@@ -169,7 +169,7 @@ const TileHeader = ({
     <header
       ref={headerRef}
       className={
-        'group/header command-scrollbar relative flex h-12 min-h-[3rem] w-full items-center overflow-x-auto border-b bg-card px-2 py-1'
+        'group/header command-scrollbar bg-card/95 relative flex h-12 min-h-[3rem] w-full items-center overflow-x-auto border-b border-border px-2 py-1 backdrop-blur-sm'
       }
     >
       {/* Left part: Name, context, etc. */}

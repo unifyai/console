@@ -95,20 +95,20 @@ const SaveResetOverlay: React.FC<SaveResetOverlayProps> = ({
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop with blur */}
-      <div className="bg-background/80 absolute inset-0 backdrop-blur-sm" />
+      <div className="brand-chat-bg bg-background/85 absolute inset-0 backdrop-blur-sm" />
 
-      {/* Content */}
-      <div className="relative z-10 mx-4 w-full max-w-md rounded-lg border border-border bg-background p-8 shadow-lg">
+      <div className="bg-card/95 relative z-10 mx-4 w-full max-w-md rounded-xl border border-border p-8 shadow-pop backdrop-blur-sm">
         <div className="flex flex-col items-center space-y-4 text-center">
-          {/* Icon */}
-          <div className="flex items-center justify-center">{icon}</div>
+          <div className="bg-background/70 flex h-16 w-16 items-center justify-center rounded-xl border border-border">
+            {icon}
+          </div>
 
-          {/* Main message */}
           <div className="space-y-2">
-            <h3 className="text-title text-foreground">{getStatusText()}</h3>
+            <p className="text-label uppercase tracking-[0.16em] text-muted-foreground">
+              Interfaces
+            </p>
+            <h3 className="text-title font-display text-foreground">{getStatusText()}</h3>
 
-            {/* Sub message */}
             <p className="text-body text-muted-foreground">{getSubText()}</p>
           </div>
         </div>
