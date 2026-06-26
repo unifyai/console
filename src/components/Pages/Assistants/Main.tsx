@@ -10,7 +10,6 @@ import {
 } from '@/components/Pages/Assistants/RightPaneContainer';
 import { AssistantRail, RAIL_COLLAPSED_STORAGE_KEY } from './Rail/AssistantRail';
 import { SectionHost } from './Rail/SectionHost';
-import { BrainPane } from './Brain';
 import { SectionBodySkeleton } from '@/components/Common/Loaders/Skeletons';
 import { SECTION_BY_ID, DEFAULT_SECTION_ID, type SectionDef } from './Rail/sectionConfig';
 import {
@@ -103,8 +102,7 @@ import {
 
 // Net-new Brain panes are code-split: their JS loads only when the tab is
 // opened, so the assistants shell paints without their weight in the main
-// bundle. (BrainPane stays static — it's already in the bundle via
-// RightPaneContainer.)
+// bundle.
 const FunctionsPane = React.lazy(() =>
   import('./Functions/FunctionsPane').then((m) => ({ default: m.FunctionsPane }))
 );
@@ -2421,11 +2419,10 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                 section={activeSectionDef}
                 renderView={() => {
                   // Brain sections with a dedicated component render it directly;
-                  // everything else flows through the right-pane container.
-                  // Transcripts/Knowledge reuse the Brain pane pinned to a single
-                  // context (Knowledge has a dynamic per-assistant schema, so a
-                  // table is its honest representation); Contacts/Guidance/Functions
-                  // have their own design views over the pydantic-shaped data.
+                  // everything else flows through the right-pane container. Each
+                  // brain-view section has its own design view: Contacts, Data,
+                  // Transcripts, Functions, and the shared DocLibrary pane that
+                  // backs both Guidance and Knowledge.
                   if (activeSectionDef.kind === 'brain-view' && profileAssistant) {
                     const brainProps = {
                       assistant: profileAssistant,
@@ -2443,16 +2440,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                     } else if (activeSectionDef.id === 'functions') {
                       brainPane = <FunctionsPane {...brainProps} />;
                     } else if (activeSectionDef.id === 'guidance') {
-                      brainPane = <DocLibraryPane {...brainProps} />;
+                      brainPane = <DocLibraryPane {...brainProps} kind="guidance" />;
+                    } else if (activeSectionDef.id === 'knowledge') {
+                      brainPane = <DocLibraryPane {...brainProps} kind="knowledge" />;
                     } else if (activeSectionDef.id === 'data') {
                       brainPane = <DataPane {...brainProps} />;
-                    } else if (activeSectionDef.id === 'transcripts') {
-                      brainPane = <TranscriptsPane {...brainProps} />;
                     } else {
-                      // Knowledge reuses the (statically bundled) BrainPane pinned
-                      // to a single context (its per-assistant schema is dynamic, so
-                      // a table is its honest representation).
-                      brainPane = <BrainPane {...brainProps} subTab="Knowledge" hideSubTabs />;
+                      brainPane = <TranscriptsPane {...brainProps} />;
                     }
                     // Suspense covers the code-split chunk load for the net-new
                     // panes; each pane then shows its own data skeleton.
@@ -2464,7 +2458,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                   }
                   return (
                     <RightPaneContainer
-                      hideTabStrip
                       assistant={profileAssistant}
                       actions={assistantActions.actions || null}
                       dashboardActions={assistantActions.dashboards || null}
@@ -2508,15 +2501,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
                       // its presence). Withholding it for non-owners cleanly
                       // hides the Onboarding tab without bespoke prop drilling.
                       onOpenUserSettings={isAssistantOwner ? handleOpenUserSettings : undefined}
-                      // Drives the dot on the chat header's "Assistant info"
-                      // button. Pulled from the same cross-assistant summary
-                      // map we used for the (now-removed) list-item dot, so
-                      // the source of truth doesn't fork.
-                      unreadChatCount={
-                        profileAssistant
-                          ? (chatStreamUnreadCounts[profileAssistant.agentId] ?? 0)
-                          : 0
-                      }
                       hasIncompleteOnboarding={
                         isAssistantOwner && profileAssistant
                           ? profileAssistant.agentId === canonicalCoordinatorId
