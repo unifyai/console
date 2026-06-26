@@ -87,9 +87,9 @@ test('Workspace and Brain section nav switches the active view', async ({ authed
   await openRailSection(page, 'tasks');
   await expect(page.getByTestId('rail-section-tasks')).toHaveAttribute('aria-current', 'page');
 
-  // A net-new Brain section renders the "coming soon" placeholder.
-  await openRailSection(page, 'knowledge');
-  await expect(page.getByTestId('rail-section-knowledge')).toHaveAttribute('aria-current', 'page');
+  // The Data Brain section is still a placeholder and renders "coming soon".
+  await openRailSection(page, 'data');
+  await expect(page.getByTestId('rail-section-data')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByText('Coming soon')).toBeVisible({ timeout: 5_000 });
 });
 
