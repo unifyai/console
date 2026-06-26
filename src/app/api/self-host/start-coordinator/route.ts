@@ -17,6 +17,14 @@ const RUNTIME_FILE =
   process.env.SELF_HOST_COORDINATOR_RUNTIME_FILE ??
   path.join(os.homedir(), '.unity', 'coordinator-runtime.json');
 
+function resolveDeployRepoPath(): string {
+  return (
+    process.env.UNITY_DEPLOY_REPO_PATH ??
+    process.env.DEPLOY_REPO_PATH ??
+    path.resolve(process.cwd(), '..', 'unity-deploy')
+  );
+}
+
 function parseAssistantList(raw: unknown): Assistant[] {
   if (!raw || typeof raw !== 'object') return [];
   const record = raw as Record<string, unknown>;
@@ -38,6 +46,19 @@ async function persistCoordinatorRuntime(agentId: string, apiKey: string): Promi
   );
   // writeFile only applies mode on creation; fix up pre-existing files.
   await fs.chmod(RUNTIME_FILE, mode);
+}
+
+async function seedBuiltinsForSelfHost(): Promise<void> {
+  const script = path.join(resolveDeployRepoPath(), 'selfhost', 'stack.sh');
+  await execFileAsync('bash', [script, 'seed-builtins'], {
+    env: {
+      ...process.env,
+      SELF_HOST: '1',
+      SELF_HOST_COORDINATOR_RUNTIME_FILE: RUNTIME_FILE,
+    },
+    timeout: 180_000,
+    maxBuffer: 1024 * 1024,
+  });
 }
 
 /**
@@ -71,6 +92,7 @@ export async function POST() {
   }
 
   await persistCoordinatorRuntime(coordinator.agentId, user.apiKey);
+  await seedBuiltinsForSelfHost();
 
   if (isComposeSelfHostRuntime()) {
     return NextResponse.json({
