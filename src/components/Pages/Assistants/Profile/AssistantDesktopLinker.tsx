@@ -59,6 +59,23 @@ const osIcons: Record<string, React.ReactNode> = {
   ubuntu: <FaUbuntu className="h-4 w-4" />,
 };
 
+type SetupOs = 'macos' | 'windows' | 'ubuntu';
+
+// Best-effort guess of the visitor's platform so the setup guide opens on the
+// OS they're most likely installing on. Anything that isn't clearly Mac or
+// Windows falls back to the Linux (.deb) instructions.
+function detectBrowserOs(): SetupOs {
+  if (typeof navigator === 'undefined') return 'ubuntu';
+  const ua = navigator.userAgent;
+  if (/Mac|iPhone|iPad|iPod/i.test(ua)) return 'macos';
+  if (/Win/i.test(ua)) return 'windows';
+  return 'ubuntu';
+}
+
+function isSetupOs(os: string): os is SetupOs {
+  return os === 'macos' || os === 'windows' || os === 'ubuntu';
+}
+
 export function AssistantDesktopLinker({
   isOpen,
   onClose,
@@ -71,7 +88,7 @@ export function AssistantDesktopLinker({
   const [isLoading, setIsLoading] = React.useState(true);
   const [assigningId, setAssigningId] = React.useState<number | null>(null);
   const [setupOs, setSetupOs] = React.useState<string | null>(null);
-  const [selectedOs, setSelectedOs] = React.useState<'macos' | 'windows' | 'ubuntu' | null>(null);
+  const [selectedOs, setSelectedOs] = React.useState<SetupOs | null>(null);
   const [keyCopied, setKeyCopied] = React.useState(false);
   const [isCopyingKey, setIsCopyingKey] = React.useState(false);
   const [passwordOpen, setPasswordOpen] = React.useState(false);
@@ -106,6 +123,29 @@ export function AssistantDesktopLinker({
   }, [isOpen, assistantActions.desktop]);
 
   const assistantIdNum = Number(assistant.agentId);
+
+  // The current user's desktop linked to *this* assistant: the one whose
+  // assigned-assistant list includes this assistant. The desktop list is
+  // already scoped to the requesting user, so at most one will match.
+  const currentDesktop = desktops.find((d) =>
+    (d.assignedToAssistantIds ?? []).includes(assistantIdNum)
+  );
+  const currentDesktopId = currentDesktop?.id ?? null;
+  const currentDesktopOs =
+    currentDesktop && isSetupOs(currentDesktop.os) ? currentDesktop.os : null;
+
+  // Default the setup-guide OS once the link state is known: a linked machine
+  // points the guide at its own OS, otherwise we guess from the browser. Only
+  // fills an unset selection so manual changes are never clobbered; clears on
+  // close so the next open re-defaults.
+  React.useEffect(() => {
+    if (!isOpen) {
+      setSelectedOs(null);
+      return;
+    }
+    if (isLoading) return;
+    setSelectedOs((prev) => prev ?? currentDesktopOs ?? detectBrowserOs());
+  }, [isOpen, isLoading, currentDesktopOs]);
 
   const handleAssign = async (desktopId: number) => {
     setAssigningId(desktopId);
@@ -232,14 +272,9 @@ export function AssistantDesktopLinker({
     toast.success('Desktop deleted');
   };
 
-  // The current user's desktop linked to *this* assistant: the one whose
-  // assigned-assistant list includes this assistant. The desktop list is
-  // already scoped to the requesting user, so at most one will match.
-  const currentDesktop = desktops.find((d) =>
-    (d.assignedToAssistantIds ?? []).includes(assistantIdNum)
-  );
-  const currentDesktopId = currentDesktop?.id ?? null;
-  const currentDesktopLabel = currentDesktop?.name ?? `#${currentDesktopId}`;
+  // A linked Mac needs the login password to grant control; when nothing is
+  // linked yet the action follows the OS the user is setting up.
+  const showSavePassword = currentDesktopId ? currentDesktopOs === 'macos' : selectedOs === 'macos';
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -257,183 +292,250 @@ export function AssistantDesktopLinker({
           </p>
         </div>
 
-        {currentDesktopId && (
+        {currentDesktop && (
           <div className="space-y-2">
-            <div className="bg-muted/50 flex items-center justify-between rounded-md border border-border px-3 py-2">
-              <span className="text-caption text-muted-foreground">
-                Currently linked to {currentDesktopLabel}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1 text-destructive hover:text-destructive"
-                onClick={handleUnlink}
-                disabled={assigningId !== null}
-              >
-                {assigningId === -1 ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Unlink className="h-3.5 w-3.5" />
-                )}
-                Unlink
-              </Button>
-            </div>
+            <p className="text-title leading-none tracking-tight">Linked desktop</p>
 
-            <div className="bg-muted/50 rounded-md border border-border px-3 py-2">
+            <div className="bg-muted/50 rounded-md border border-border px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <HardDrive className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                  <span className="text-title">Filesystem access</span>
-                  {isTogglingFilesys && (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                  )}
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex-shrink-0 text-muted-foreground">
+                    {osIcons[currentDesktop.os] ?? <Monitor className="h-4 w-4" />}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-title truncate">{currentDesktop.name}</p>
+                    <p className="text-caption truncate">
+                      {osLabels[currentDesktop.os] ?? currentDesktop.os}
+                    </p>
+                  </div>
                 </div>
-                <Switch
-                  checked={filesysSync}
-                  onCheckedChange={handleToggleFilesys}
-                  disabled={isTogglingFilesys || assigningId !== null}
-                  aria-label="Filesystem access"
-                />
+
+                <div className="flex flex-shrink-0 items-center gap-0.5">
+                  <Popover
+                    open={renameOpenId === currentDesktop.id}
+                    onOpenChange={(open) => {
+                      if (open) openRename(currentDesktop);
+                      else setRenameOpenId(null);
+                    }}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                        aria-label={`Rename ${currentDesktop.name}`}
+                        data-testid={`desktop-rename-${currentDesktop.id}`}
+                        disabled={mutatingId === currentDesktop.id || assigningId !== null}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-64">
+                      <form onSubmit={handleRename} className="space-y-2">
+                        <p className="text-title leading-none">Rename desktop</p>
+                        <Input
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          placeholder="Desktop name"
+                          data-testid="desktop-rename-input"
+                          autoFocus
+                          maxLength={120}
+                        />
+                        <Button
+                          type="submit"
+                          size="sm"
+                          className="w-full gap-1.5"
+                          data-testid="desktop-rename-save"
+                          disabled={
+                            !renameValue.trim() ||
+                            renameValue.trim() === currentDesktop.name ||
+                            mutatingId === currentDesktop.id
+                          }
+                        >
+                          {mutatingId === currentDesktop.id && (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          )}
+                          Save
+                        </Button>
+                      </form>
+                    </PopoverContent>
+                  </Popover>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1 text-destructive hover:text-destructive"
+                    onClick={handleUnlink}
+                    disabled={assigningId !== null}
+                  >
+                    {assigningId === -1 ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Unlink className="h-3.5 w-3.5" />
+                    )}
+                    Unlink
+                  </Button>
+                </div>
               </div>
-              <p className="text-caption mt-1.5 text-muted-foreground">
-                Lets this assistant read files from your home folder on request and save edited
-                copies back — your originals are never overwritten. This exposes your entire home
-                directory over a secure connection; turn it off any time to revoke access.
-              </p>
+
+              <div className="mt-3 border-t border-border pt-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <HardDrive className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                    <span className="text-title">Filesystem access</span>
+                    {isTogglingFilesys && (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                  <Switch
+                    checked={filesysSync}
+                    onCheckedChange={handleToggleFilesys}
+                    disabled={isTogglingFilesys || assigningId !== null}
+                    aria-label="Filesystem access"
+                  />
+                </div>
+                <p className="text-caption mt-1.5 text-muted-foreground">
+                  Lets this assistant read files from your home folder on request and save edited
+                  copies back — your originals are never overwritten. This exposes your entire home
+                  directory over a secure connection; turn it off any time to revoke access.
+                </p>
+              </div>
             </div>
           </div>
         )}
 
-        <ScrollArea className="max-h-[320px]">
-          {isLoading ? (
-            <div className="space-y-2 p-1">
-              {[...Array(3)].map((_, i) => (
-                <Skeleton key={i} className="h-14 w-full bg-muted" />
-              ))}
-            </div>
-          ) : desktops.length === 0 ? (
-            <p className="text-body-muted py-8 text-center">
-              No registered desktops found. Register a desktop using the Unify desktop app first.
-            </p>
-          ) : (
-            <div className="space-y-1 p-1">
-              {desktops.map((desktop) => {
-                const assignedIds = desktop.assignedToAssistantIds ?? [];
-                const isCurrentlyLinked = assignedIds.includes(assistantIdNum);
-                // One machine may serve several of the user's assistants, so a
-                // desktop linked elsewhere is still selectable here.
-                const otherLinkCount = assignedIds.filter((id) => id !== assistantIdNum).length;
+        {!currentDesktopId && (
+          <ScrollArea className="max-h-[320px]">
+            {isLoading ? (
+              <div className="space-y-2 p-1">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} className="h-14 w-full bg-muted" />
+                ))}
+              </div>
+            ) : desktops.length === 0 ? (
+              <p className="text-body-muted py-8 text-center">
+                No registered desktops found. Register a desktop using the Unify desktop app first.
+              </p>
+            ) : (
+              <div className="space-y-1 p-1">
+                {desktops.map((desktop) => {
+                  const assignedIds = desktop.assignedToAssistantIds ?? [];
+                  const isCurrentlyLinked = assignedIds.includes(assistantIdNum);
+                  // One machine may serve several of the user's assistants, so a
+                  // desktop linked elsewhere is still selectable here.
+                  const otherLinkCount = assignedIds.filter((id) => id !== assistantIdNum).length;
 
-                const isMutating = mutatingId === desktop.id;
+                  const isMutating = mutatingId === desktop.id;
 
-                return (
-                  <div
-                    key={desktop.id}
-                    className={cn(
-                      'flex w-full items-center gap-3 rounded-md border px-3 py-2.5 transition-colors',
-                      isCurrentlyLinked
-                        ? 'border-primary/40 bg-primary/5'
-                        : 'hover:border-primary/30 border-border hover:bg-accent'
-                    )}
-                  >
-                    <button
-                      type="button"
-                      disabled={isCurrentlyLinked || assigningId !== null || isMutating}
-                      onClick={() => handleAssign(desktop.id)}
-                      className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-default"
+                  return (
+                    <div
+                      key={desktop.id}
+                      className={cn(
+                        'flex w-full items-center gap-3 rounded-md border px-3 py-2.5 transition-colors',
+                        isCurrentlyLinked
+                          ? 'border-primary/40 bg-primary/5'
+                          : 'hover:border-primary/30 border-border hover:bg-accent'
+                      )}
                     >
-                      <Monitor className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-title truncate">{desktop.name}</p>
-                        <p className="text-caption truncate">
-                          {osLabels[desktop.os] ?? desktop.os}
-                          {!isCurrentlyLinked &&
-                            otherLinkCount > 0 &&
-                            ` · Also linked to ${otherLinkCount} other assistant${
-                              otherLinkCount === 1 ? '' : 's'
-                            }`}
-                        </p>
-                      </div>
-                      <div className="flex-shrink-0">
-                        {assigningId === desktop.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                        ) : isCurrentlyLinked ? (
-                          <Link2 className="h-4 w-4 text-primary" />
-                        ) : null}
-                      </div>
-                    </button>
-
-                    <div className="flex flex-shrink-0 items-center gap-0.5">
-                      <Popover
-                        open={renameOpenId === desktop.id}
-                        onOpenChange={(open) => {
-                          if (open) openRename(desktop);
-                          else setRenameOpenId(null);
-                        }}
+                      <button
+                        type="button"
+                        disabled={isCurrentlyLinked || assigningId !== null || isMutating}
+                        onClick={() => handleAssign(desktop.id)}
+                        className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-default"
                       >
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                            aria-label={`Rename ${desktop.name}`}
-                            data-testid={`desktop-rename-${desktop.id}`}
-                            disabled={isMutating || assigningId !== null}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent align="end" className="w-64">
-                          <form onSubmit={handleRename} className="space-y-2">
-                            <p className="text-title leading-none">Rename desktop</p>
-                            <Input
-                              value={renameValue}
-                              onChange={(e) => setRenameValue(e.target.value)}
-                              placeholder="Desktop name"
-                              data-testid="desktop-rename-input"
-                              autoFocus
-                              maxLength={120}
-                            />
+                        <Monitor className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-title truncate">{desktop.name}</p>
+                          <p className="text-caption truncate">
+                            {osLabels[desktop.os] ?? desktop.os}
+                            {!isCurrentlyLinked &&
+                              otherLinkCount > 0 &&
+                              ` · Also linked to ${otherLinkCount} other assistant${
+                                otherLinkCount === 1 ? '' : 's'
+                              }`}
+                          </p>
+                        </div>
+                        <div className="flex-shrink-0">
+                          {assigningId === desktop.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          ) : isCurrentlyLinked ? (
+                            <Link2 className="h-4 w-4 text-primary" />
+                          ) : null}
+                        </div>
+                      </button>
+
+                      <div className="flex flex-shrink-0 items-center gap-0.5">
+                        <Popover
+                          open={renameOpenId === desktop.id}
+                          onOpenChange={(open) => {
+                            if (open) openRename(desktop);
+                            else setRenameOpenId(null);
+                          }}
+                        >
+                          <PopoverTrigger asChild>
                             <Button
-                              type="submit"
-                              size="sm"
-                              className="w-full gap-1.5"
-                              data-testid="desktop-rename-save"
-                              disabled={
-                                !renameValue.trim() ||
-                                renameValue.trim() === desktop.name ||
-                                isMutating
-                              }
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                              aria-label={`Rename ${desktop.name}`}
+                              data-testid={`desktop-rename-${desktop.id}`}
+                              disabled={isMutating || assigningId !== null}
                             >
-                              {isMutating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                              Save
+                              <Pencil className="h-3.5 w-3.5" />
                             </Button>
-                          </form>
-                        </PopoverContent>
-                      </Popover>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" className="w-64">
+                            <form onSubmit={handleRename} className="space-y-2">
+                              <p className="text-title leading-none">Rename desktop</p>
+                              <Input
+                                value={renameValue}
+                                onChange={(e) => setRenameValue(e.target.value)}
+                                placeholder="Desktop name"
+                                data-testid="desktop-rename-input"
+                                autoFocus
+                                maxLength={120}
+                              />
+                              <Button
+                                type="submit"
+                                size="sm"
+                                className="w-full gap-1.5"
+                                data-testid="desktop-rename-save"
+                                disabled={
+                                  !renameValue.trim() ||
+                                  renameValue.trim() === desktop.name ||
+                                  isMutating
+                                }
+                              >
+                                {isMutating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                                Save
+                              </Button>
+                            </form>
+                          </PopoverContent>
+                        </Popover>
 
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        aria-label={`Delete ${desktop.name}`}
-                        data-testid={`desktop-delete-${desktop.id}`}
-                        onClick={() => setDeleteTarget(desktop)}
-                        disabled={isMutating || assigningId !== null}
-                      >
-                        {isMutating ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          aria-label={`Delete ${desktop.name}`}
+                          data-testid={`desktop-delete-${desktop.id}`}
+                          onClick={() => setDeleteTarget(desktop)}
+                          disabled={isMutating || assigningId !== null}
+                        >
+                          {isMutating ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </ScrollArea>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+        )}
 
         <div className="border-t border-border pt-3">
           <p className="text-title leading-none tracking-tight">Local Setup Instructions</p>
@@ -488,7 +590,7 @@ export function AssistantDesktopLinker({
               </Button>
             )}
 
-            {selectedOs === 'macos' && (
+            {showSavePassword && (
               <div className="flex items-center gap-0.5">
                 <Popover open={passwordOpen} onOpenChange={setPasswordOpen}>
                   <PopoverTrigger asChild>

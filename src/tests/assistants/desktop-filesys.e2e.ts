@@ -81,7 +81,8 @@ test('toggling filesystem access drives consent flag and per-link SFTP key', asy
   await openDesktopLinker(page, ada.agentId);
 
   const dialog = page.getByRole('dialog');
-  await expect(dialog).toContainText(/Currently linked to Owner's MacBook/i);
+  await expect(dialog).toContainText(/Linked desktop/i);
+  await expect(dialog).toContainText("Owner's MacBook");
 
   // The consent toggle is present, off, and carries its full disclosure copy.
   const toggle = dialog.getByRole('switch', { name: /filesystem access/i });

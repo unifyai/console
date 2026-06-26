@@ -115,7 +115,8 @@ test('shows the currently-linked machine and unlinks only that assistant', async
   await openDesktopLinker(page, ada.agentId);
 
   const dialog = page.getByRole('dialog');
-  await expect(dialog).toContainText(/Currently linked to Owner's MacBook/i);
+  await expect(dialog).toContainText(/Linked desktop/i);
+  await expect(dialog).toContainText("Owner's MacBook");
 
   await dialog.getByRole('button', { name: /unlink/i }).click();
 
