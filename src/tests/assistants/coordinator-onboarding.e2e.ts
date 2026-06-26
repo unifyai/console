@@ -141,14 +141,19 @@ async function expectComingSoonVisible(page: Page) {
  * Restore the fresh picker on the shared workspace coordinator.
  *
  * Resolving the picker latches ``intro_watched`` on the latest
- * Coordinator/State row (one-way sticky through the API). These serial
- * tests reuse a single coordinator, so picker-expecting tests clear the
- * flag on that row directly — mode stays ``onboarding`` so the next
- * visit shows the picker exactly like a first-time user.
+ * Coordinator/State row (one-way sticky through the API). The shared test
+ * fixture also defers onboarding up front (``onboarding_deferred: true``) so
+ * legacy flows get the standard shell; the picker gate in ``Main.tsx`` stays
+ * suppressed while that flag is set. Picker-expecting tests therefore reuse a
+ * single coordinator and restore the genuine first-time state on the latest
+ * row directly — both ``intro_watched`` and ``onboarding_deferred`` back to
+ * false, mode left ``onboarding`` — so the next visit shows the picker exactly
+ * like a first-time user.
  */
 function resetCoordinatorIntroWatched() {
   dbExec(
-    `UPDATE log_event SET data = jsonb_set(data, '{intro_watched}', 'false') ` +
+    `UPDATE log_event SET data = ` +
+      `jsonb_set(jsonb_set(data, '{intro_watched}', 'false'), '{onboarding_deferred}', 'false') ` +
       `WHERE id = (SELECT le.id FROM log_event le ` +
       `JOIN log_event_context lec ON le.id = lec.log_event_id ` +
       `JOIN context c ON c.id = lec.context_id ` +

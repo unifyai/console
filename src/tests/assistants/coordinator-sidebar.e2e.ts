@@ -16,6 +16,7 @@ import {
   createOrg,
   createTestUser,
   dbExec,
+  deferCoordinatorOnboarding,
   deleteAllAssistantsForUser,
   deleteOrg,
   ensureProjectSync,
@@ -291,6 +292,18 @@ const test = base.extend<{
 
 test.setTimeout(120_000);
 test.describe.configure({ mode: 'serial' });
+
+// A freshly provisioned Coordinator resolves to ``mode: onboarding`` with
+// ``intro_watched: false``, which renders the full-screen onboarding overlay
+// (``data-testid="coordinator-onboarding"``, ``absolute inset-0 z-50``) that
+// intercepts every pointer event. This suite drives the regular two-pane shell
+// (rail switcher, list groups), so defer onboarding for the canonical
+// coordinators it views up front — exactly as ``createAssistantTest`` does for
+// the standard flows.
+test.beforeAll(async () => {
+  await deferCoordinatorOnboarding(org.ownerOrgApiKey, coordinator.agentId);
+  await deferCoordinatorOnboarding(personalUser.apiKey, personalCoordinator.agentId);
+});
 
 test.afterAll(() => {
   const cleanupSteps: Array<() => void> = [
