@@ -16,7 +16,6 @@ import ActionButton from '../../../Common/Buttons/Action';
 import { Button } from '../../../UI/button';
 import { Icon } from '../../../UI/icon-picker';
 // InterfaceButtons is loaded lazily to reduce initial JS
-// import InterfaceTabs from "./InterfaceTabs"; // HIDDEN: Using sidebar navigation for tabs instead
 import ProjectButtons from './Buttons/ProjectButtons';
 import { useQueryState } from 'nuqs';
 import {
@@ -2043,40 +2042,6 @@ const Interface = ({
                           {/* Bottom spacer to allow dragging tiles downward without touching screen bottom */}
                           <div className="h-40 w-full" />
                         </div>
-
-                        {/* Floating Bottom Tab Bar - HIDDEN: Using sidebar navigation for tabs instead */}
-                        {/* {projectQueryParam && interfaceQueryParam && (
-              <div 
-                className={cn(
-                  "fixed bottom-0 z-40 pointer-events-none transform transition-all duration-500 ease-out",
-                  tabBarReady && !isSwitchingInterface && !isRefreshingInterface
-                    ? "translate-y-0 opacity-100"
-                    : "translate-y-12 opacity-0"
-                )}
-                style={{ 
-                  left: 'var(--interface-nav-width, 256px)',
-                  right: 0,
-                }}
-              >
-                <div className="px-4 py-1 w-fit flex justify-start pointer-events-auto">
-                  <InterfaceTabs
-                    tabIdOrName={activeTabId}
-                    interfaceId={interfaceId}
-                    projectsActions={projectsActions}
-                    contextActions={contextActions}
-                    interfaceActions={interfaceActions}
-                    tabActions={tabActions}
-                    tileActions={tileActions}
-                    fieldsActions={fieldsActions}
-                    logsActions={logsActions}
-                    setTabQueryParam={setTabQueryParamFromSync}
-                    pendingTabChange={pendingTabChange}
-                    setSaveInterfaceOpen={setSaveInterfaceOpen}
-                    resetInterfaceCommand={resetInterfaceCommand}
-                  />
-                </div>
-              </div>
-            )} */}
                       </Tabs>
 
                       {/* Save/Reset Overlay */}
