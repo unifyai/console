@@ -65,7 +65,7 @@ import {
   getRotatingBotViewBox,
 } from '@unity/brand/components';
 
-const staticSkillsText = `The bio doesn't influence the unity's abilities. All unitys come with the same foundational skills and can specialize in whichever area you want them to.`;
+const staticSkillsText = `The bio doesn't influence the droid's abilities. All droids come with the same foundational skills and can specialize in whichever area you want them to.`;
 const UNITY_PREVIEW_SIZE = 120;
 const UNITY_PREVIEW_REST_SIZE = 152;
 const UNITY_PREVIEW_REST_SCALE = UNITY_PREVIEW_REST_SIZE / UNITY_PREVIEW_SIZE;
@@ -437,7 +437,7 @@ export function HireForm({
     ];
   const nextOutfit = appearanceOutfitOptions[(outfitIndex + 1) % appearanceOutfitOptions.length];
   const workspaceAssistantName =
-    typeof firstName === 'string' && firstName.trim().length > 0 ? firstName.trim() : 'this unity';
+    typeof firstName === 'string' && firstName.trim().length > 0 ? firstName.trim() : 'this droid';
   const isWorkspaceWarning = mode === 'hire' && showWorkspaceWarning;
   const unityControlTop = React.useMemo(() => {
     const form = getUnityBodyForm(selectedUnityBody);
@@ -541,7 +541,7 @@ export function HireForm({
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
-                              aria-label="Randomize unity profile"
+                              aria-label="Randomize droid profile"
                               type="button"
                               variant="outline"
                               size="sm"
@@ -626,9 +626,9 @@ export function HireForm({
                                   className="text-caption max-w-xs"
                                 >
                                   <p>
-                                    Optional short label to remember what this unity is for (e.g.
+                                    Optional short label to remember what this droid is for (e.g.
                                     &quot;Growth marketing&quot;, &quot;QA engineer&quot;). Shown in
-                                    the unitys list hover card.
+                                    the droids list hover card.
                                   </p>
                                 </TooltipContent>
                               </Tooltip>
@@ -760,7 +760,7 @@ export function HireForm({
 
                                 <AppearanceControlTooltip label="Outfit" side="left">
                                   <Button
-                                    aria-label="Previous unity outfit"
+                                    aria-label="Previous droid outfit"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -782,7 +782,7 @@ export function HireForm({
                                 </AppearanceControlTooltip>
                                 <AppearanceControlTooltip label="Outfit" side="right">
                                   <Button
-                                    aria-label="Next unity outfit"
+                                    aria-label="Next droid outfit"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -892,7 +892,7 @@ export function HireForm({
                                     color={selectedUnityColor}
                                     baseEyes={selectedUnityEyes}
                                     outfit={selectedUnityOutfit}
-                                    label="Unity avatar"
+                                    label="Droid avatar"
                                   />
                                 </span>
                               </button>
@@ -911,7 +911,7 @@ export function HireForm({
                               <div className="flex items-center gap-2">
                                 <AppearanceControlTooltip label="Color" side="left">
                                   <Button
-                                    aria-label="Previous unity color"
+                                    aria-label="Previous droid color"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -927,7 +927,7 @@ export function HireForm({
                                   </Button>
                                 </AppearanceControlTooltip>
                                 <div
-                                  aria-label={`Current unity color: ${selectedUnityColor}`}
+                                  aria-label={`Current droid color: ${selectedUnityColor}`}
                                   className="flex items-center gap-1.5 px-1 py-1"
                                   role="img"
                                 >
@@ -957,7 +957,7 @@ export function HireForm({
                                 </div>
                                 <AppearanceControlTooltip label="Color" side="right">
                                   <Button
-                                    aria-label="Next unity color"
+                                    aria-label="Next droid color"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -976,7 +976,7 @@ export function HireForm({
 
                               <div className="flex items-center justify-center">
                                 <Button
-                                  aria-label="Randomize unity appearance"
+                                  aria-label="Randomize droid appearance"
                                   type="button"
                                   variant="outline"
                                   size="sm"

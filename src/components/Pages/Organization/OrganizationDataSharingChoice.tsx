@@ -13,9 +13,9 @@ interface OrganizationDataSharingChoiceProps {
 }
 
 const sharingCopy = [
-  "By default, all skills acquired and knowledge retained are personal to each user's own private unity, with no ability for each unity to share knowledge, skills, or know-how. Each user's unity learns in isolation, based on that user alone. If you'd like the unitys to also have the option to read/write from a shared pool across the org where appropriate, select shared below.",
-  'If you want more granular control, then it is best to set up dedicated teams. Users and unitys can then be assigned to teams to enable controlled sharing within specific teams, rather than blanket org-wide sharing. Selecting shared below effectively creates a new Org team and adds every person and unity to this team automatically.',
-  'Even in shared mode, each unity will still carefully decide what is useful to share and what is best to keep personal. Transcripts, emails, and files are never shared. Only knowledge, skills, and general know-how are optionally shared to create a faster hive-mind approach to learning across the team.',
+  "By default, all skills acquired and knowledge retained are personal to each user's own private droid, with no ability for each droid to share knowledge, skills, or know-how. Each user's droid learns in isolation, based on that user alone. If you'd like the droids to also have the option to read/write from a shared pool across the org where appropriate, select shared below.",
+  'If you want more granular control, then it is best to set up dedicated teams. Users and droids can then be assigned to teams to enable controlled sharing within specific teams, rather than blanket org-wide sharing. Selecting shared below effectively creates a new Org team and adds every person and droid to this team automatically.',
+  'Even in shared mode, each droid will still carefully decide what is useful to share and what is best to keep personal. Transcripts, emails, and files are never shared. Only knowledge, skills, and general know-how are optionally shared to create a faster hive-mind approach to learning across the team.',
 ];
 
 const options: Array<{
@@ -26,7 +26,7 @@ const options: Array<{
   {
     value: 'private',
     title: 'Private',
-    description: "Each user's unity learns from that user alone.",
+    description: "Each user's droid learns from that user alone.",
   },
   {
     value: 'shared',
