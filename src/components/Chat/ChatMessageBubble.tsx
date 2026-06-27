@@ -153,7 +153,7 @@ function ChatMessageBubbleImpl({
     >
       <CreatureAvatar
         appearance={assistantPhoto as string}
-        className="h-full w-full rounded-full border"
+        className="h-full w-full"
         label={assistantName}
       />
       <AnimatePresence>

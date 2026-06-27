@@ -484,16 +484,12 @@ function IdentityHeader({
   const metadataRowClass =
     'text-caption grid min-w-0 grid-cols-[10ch_minmax(0,1fr)] items-center gap-x-1 text-muted-foreground';
   const creatureAppearance = parseCreatureSentinel(photoSrc);
-  const creatureAvatarClassName = cn(
-    'w-14 flex-shrink-0 rounded-md',
-    creatureAppearance?.body === 'tall' ? 'h-16' : 'h-14'
-  );
   const renderedAvatar =
     avatarNode ??
     (creatureAppearance ? (
       <CreatureAvatar
         appearance={creatureAppearance}
-        className={creatureAvatarClassName}
+        className="h-20 w-20 flex-shrink-0"
         label={name}
       />
     ) : (

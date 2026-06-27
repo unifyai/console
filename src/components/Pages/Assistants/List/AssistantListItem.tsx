@@ -122,13 +122,9 @@ export function AssistantListItem({
 
   const renderPhotoAvatar = (className: string) =>
     creatureAppearance ? (
-      <CreatureAvatar
-        appearance={creatureAppearance}
-        className={cn('rounded-control', className)}
-        label={displayName}
-      />
+      <CreatureAvatar appearance={creatureAppearance} className={className} label={displayName} />
     ) : (
-      <Avatar className={className}>
+      <Avatar className={cn('rounded-control', className)}>
         <AvatarImage src={photoSrc ?? undefined} alt={displayName} />
         <AvatarFallback className="rounded-control">{assistantInitials(assistant)}</AvatarFallback>
       </Avatar>
@@ -164,7 +160,7 @@ export function AssistantListItem({
         {isCoordinator ? (
           <CoordinatorLogoAvatar className="h-9 w-9" />
         ) : (
-          renderPhotoAvatar('rounded-control h-9 w-9')
+          renderPhotoAvatar('h-9 w-9')
         )}
         {status !== null && (
           <span
@@ -213,7 +209,7 @@ export function AssistantListItem({
           {isCoordinator ? (
             <CoordinatorLogoAvatar className="h-9 w-9 flex-shrink-0" />
           ) : (
-            renderPhotoAvatar('rounded-control h-9 w-9 flex-shrink-0')
+            renderPhotoAvatar('h-9 w-9 flex-shrink-0')
           )}
           {status !== null && (
             <span
