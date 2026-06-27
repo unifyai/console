@@ -93,8 +93,9 @@ export const approvedCharacterVoiceMetadata: Record<string, ApprovedVoiceMetadat
 };
 
 export const defaultCharacterVoiceId = 'cgSgspJ2msm6clMCkdW9';
-// The Coordinator uses this voice by default when seeded or created.
-export const coordinatorFixedVoiceId = 'iP95p4xoKVk53GoZ742B';
+// The Coordinator uses this voice by default when seeded or created; it is
+// fully selectable afterwards like every other droid's voice.
+export const coordinatorDefaultVoiceId = 'iP95p4xoKVk53GoZ742B';
 
 export const approvedCharacterVoiceIds = new Set(Object.keys(approvedCharacterVoiceMetadata));
 

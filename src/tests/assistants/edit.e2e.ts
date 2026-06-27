@@ -21,7 +21,7 @@ import {
 } from './helpers';
 import {
   approvedCharacterVoiceMetadata,
-  coordinatorFixedVoiceId,
+  coordinatorDefaultVoiceId,
 } from '../../constants/assistants/approved_character_voices';
 
 const user = createTestUser({ name: 'EditE2E', lastName: 'Tester', credits: 50_000 });
@@ -181,7 +181,7 @@ test('changing T-W1N voice via the edit dialog persists to DB', async ({ authedP
     const option = voiceOptions.nth(index);
     const testId = await option.getAttribute('data-testid');
     const voiceId = testId?.replace('voice-option-', '') ?? null;
-    if (voiceId && voiceId !== coordinatorFixedVoiceId) {
+    if (voiceId && voiceId !== coordinatorDefaultVoiceId) {
       selectedVoiceId = voiceId;
       await option.click();
       await expect(option).toHaveAttribute('aria-selected', 'true');
