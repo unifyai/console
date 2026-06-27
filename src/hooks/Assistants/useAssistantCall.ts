@@ -18,6 +18,15 @@ const ASSISTANT_JOIN_SLOW_THRESHOLD = 90000; // 90 seconds — soft warning, not
 const ASSISTANT_REJOIN_TIMEOUT = 30000; // 30 seconds for rejoin
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000;
+// Abort a connection-details/dispatch request that never settles (e.g. a request
+// stalled behind a dev-server rebuild) so the retry loop can recover instead of
+// the whole call hanging forever.
+const CALL_DISPATCH_TIMEOUT = 12000;
+// If the assistant never makes its first appearance in the room, re-dispatch it
+// once, then fail the attempt cleanly. Without this an interrupted/dropped initial
+// dispatch leaves the caller waiting on an assistant that was never summoned.
+const ASSISTANT_INITIAL_REDISPATCH_DELAY = 12000;
+const ASSISTANT_INITIAL_JOIN_TIMEOUT = 60000;
 const CALL_AUDIO_CAPTURE_OPTIONS: AudioCaptureOptions = {
   echoCancellation: true,
   noiseSuppression: true,
@@ -45,6 +54,25 @@ function createCallSessionId(assistantId: string) {
       ? crypto.randomUUID()
       : Math.random().toString(36).slice(2);
   return `meet-${assistantId}-${Date.now()}-${random}`;
+}
+
+// Races a promise against a timeout. The underlying request is not cancelled
+// (server actions are not abortable here); we simply stop awaiting it so a hung
+// request becomes a recoverable rejection rather than an indefinite wait.
+function promiseWithTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
 }
 
 async function publishMicrophoneForCallStartup(room: Room, options?: AssistantCallConnectOptions) {
@@ -85,6 +113,13 @@ export function useAssistantCall(
   const [callPhase, setCallPhaseState] = React.useState<CallPhase>('idle');
   const assistantJoinTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const assistantRejoinTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  // Initial-join recovery timers: re-dispatch the assistant if it never shows up
+  // on a fresh call, then give up cleanly so the caller isn't stuck on a spinner.
+  const assistantInitialRedispatchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const assistantInitialJoinTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  // ``redispatchAssistant`` is defined further down; connect() reaches it through
+  // this ref to avoid a declaration-order/circular-dependency cycle.
+  const redispatchAssistantRef = React.useRef<(() => void) | null>(null);
   const isCancelledRef = React.useRef(false);
   const isRedispatchingRef = React.useRef(false);
   const redispatchPromiseRef = React.useRef<Promise<void> | null>(null);
@@ -138,6 +173,14 @@ export function useAssistantCall(
     if (assistantRejoinTimeoutRef.current) {
       clearTimeout(assistantRejoinTimeoutRef.current);
       assistantRejoinTimeoutRef.current = null;
+    }
+    if (assistantInitialRedispatchTimeoutRef.current) {
+      clearTimeout(assistantInitialRedispatchTimeoutRef.current);
+      assistantInitialRedispatchTimeoutRef.current = null;
+    }
+    if (assistantInitialJoinTimeoutRef.current) {
+      clearTimeout(assistantInitialJoinTimeoutRef.current);
+      assistantInitialJoinTimeoutRef.current = null;
     }
   }, []);
 
@@ -277,15 +320,27 @@ export function useAssistantCall(
             // Run getConnectionDetails and dispatchToCall in parallel.
             // The room name is deterministic (unity_{id}_meet), so dispatch
             // doesn't need to wait for connection details.
-            const [details, dispatchResult] = await Promise.all([
-              assistantActions.call.getConnectionDetails(assistant.agentId, assistantName),
-              assistantActions.call.dispatchToCall(
-                assistant.agentId,
-                expectedRoomName,
-                optionsWithSession.openingConfig,
-                callSessionId
-              ),
-            ]);
+            //
+            // Time-box the pair: if either request stalls without settling (seen
+            // when a dev-server rebuild interrupts an in-flight server action),
+            // the timeout turns it into a retryable rejection instead of hanging
+            // the entire call setup.
+            const dispatchTimeout =
+              (typeof window !== 'undefined' && (window as any)._TEST_CALL_DISPATCH_TIMEOUT) ||
+              CALL_DISPATCH_TIMEOUT;
+            const [details, dispatchResult] = await promiseWithTimeout(
+              Promise.all([
+                assistantActions.call.getConnectionDetails(assistant.agentId, assistantName),
+                assistantActions.call.dispatchToCall(
+                  assistant.agentId,
+                  expectedRoomName,
+                  optionsWithSession.openingConfig,
+                  callSessionId
+                ),
+              ]),
+              dispatchTimeout,
+              'Timed out preparing the call. Retrying…'
+            );
             if (isStaleAttempt()) return;
 
             if ('detail' in details) {
@@ -357,6 +412,39 @@ export function useAssistantCall(
                 `${assistantDisplayName(assistant)} is taking a bit longer than expected…`
               );
             }, timeoutDuration);
+
+            // When the caller blocks on the assistant being ready (the onboarding
+            // intro call), guard the *first* join: if the assistant never appears
+            // — e.g. an initial dispatch that was dropped or never issued — try a
+            // single re-dispatch, then fail the attempt so the UI can recover
+            // (retry / fall back to chat) instead of spinning indefinitely. All
+            // timers are cleared the moment the participant connects.
+            if (shouldWaitForAssistantReady) {
+              const redispatchDelay =
+                (typeof window !== 'undefined' &&
+                  (window as any)._TEST_ASSISTANT_INITIAL_REDISPATCH_DELAY) ||
+                ASSISTANT_INITIAL_REDISPATCH_DELAY;
+              assistantInitialRedispatchTimeoutRef.current = setTimeout(() => {
+                if (isStaleAttempt()) return;
+                if (room.remoteParticipants.size < 1) {
+                  redispatchAssistantRef.current?.();
+                }
+              }, redispatchDelay);
+
+              const joinTimeout =
+                (typeof window !== 'undefined' &&
+                  (window as any)._TEST_ASSISTANT_INITIAL_JOIN_TIMEOUT) ||
+                ASSISTANT_INITIAL_JOIN_TIMEOUT;
+              assistantInitialJoinTimeoutRef.current = setTimeout(() => {
+                if (isStaleAttempt()) return;
+                if (room.remoteParticipants.size < 1) {
+                  rejectAssistantReadyWaiter(
+                    `${assistantDisplayName(assistant)} didn't join the call in time.`,
+                    thisAttemptId
+                  );
+                }
+              }, joinTimeout);
+            }
           } else {
             setIsWaitingForAssistant(false);
             setIsAssistantPreparing(expectsReadyToSpeakRef.current);
@@ -392,6 +480,7 @@ export function useAssistantCall(
       startRinging,
       stopRinging,
       resolveAssistantReadyWaiter,
+      rejectAssistantReadyWaiter,
       setCallPhase,
     ]
   );
@@ -674,6 +763,12 @@ export function useAssistantCall(
       }
     }
   }, [assistantActions.call, isCurrentGeneration, setCallPhase]);
+
+  // Expose ``redispatchAssistant`` to connect()'s initial-join recovery timer,
+  // which is created before this callback in source order.
+  React.useEffect(() => {
+    redispatchAssistantRef.current = redispatchAssistant;
+  }, [redispatchAssistant]);
 
   // Store refs to current state for event handlers to avoid stale closures
   const isConnectedRef = React.useRef(isConnected);
