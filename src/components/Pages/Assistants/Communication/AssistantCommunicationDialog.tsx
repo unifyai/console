@@ -44,10 +44,16 @@ export type CallDialogActions = Pick<AssistantActions, 'chat' | 'desktop' | 'act
 // droid to face the camera; everything else only ever turns it to the laptop.
 const SILENCE_TO_LAPTOP_MS = 20_000;
 
+// Minimum time the droid must hold a pose before it's allowed to turn the other
+// way. Stops it swivelling to the laptop and immediately back (or vice-versa)
+// when work and speech land within a moment of each other.
+const MIN_POSE_DWELL_MS = 5_000;
+
 /**
- * Drives the call-window droid's "working on a laptop" pose. Returns `true` while
- * the droid should be turned to its laptop (the default), `false` only while it
- * faces the camera.
+ * Computes the call-window droid's *desired* "working on a laptop" pose. Returns
+ * `true` while the droid should be turned to its laptop (the default), `false`
+ * only while it faces the camera. (The actual displayed pose is this value passed
+ * through `useMinPoseDwell`, which enforces a minimum dwell between turns.)
  *
  * The asymmetry is deliberate: turning to face the camera is jarring mid-call, so
  *  - a new speaking turn is the *only* thing that faces the camera, and it holds
@@ -93,6 +99,38 @@ function useWorkingPose(
   }, [lastCommsActivityAt, hasActiveAction, isSpeaking]);
 
   return onLaptop;
+}
+
+/**
+ * Rate-limits a boolean pose so it can't reverse direction until it has been held
+ * for at least `minMs`. The first change is applied immediately; after that, any
+ * change requested within the dwell window is deferred until the window elapses,
+ * and the *latest* desired value wins when it does — so a quick there-and-back
+ * (e.g. turn to the laptop, then a speaking turn a beat later) collapses to no
+ * visible turn at all instead of a jittery double swivel.
+ */
+function useMinPoseDwell(desired: boolean, minMs: number): boolean {
+  const [shown, setShown] = React.useState(desired);
+  const lastTurnAtRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    if (desired === shown) return;
+
+    const elapsed = lastTurnAtRef.current == null ? Infinity : Date.now() - lastTurnAtRef.current;
+    if (elapsed >= minMs) {
+      lastTurnAtRef.current = Date.now();
+      setShown(desired);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      lastTurnAtRef.current = Date.now();
+      setShown(desired);
+    }, minMs - elapsed);
+    return () => window.clearTimeout(timer);
+  }, [desired, shown, minMs]);
+
+  return shown;
 }
 
 interface AssistantCommunicationDialogContentProps {
@@ -321,7 +359,8 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     assistantActions.actions ?? { getManagerMethodEvents: async () => ({ logs: [], count: 0 }) },
     { enabled: isCallConnected }
   );
-  const isActing = useWorkingPose(isAssistantSpeaking, lastCommsActivityAt, hasActiveAction);
+  const desiredOnLaptop = useWorkingPose(isAssistantSpeaking, lastCommsActivityAt, hasActiveAction);
+  const isActing = useMinPoseDwell(desiredOnLaptop, MIN_POSE_DWELL_MS);
 
   React.useEffect(() => {
     if (!isCallConnected) return;
