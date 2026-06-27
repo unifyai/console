@@ -11,6 +11,7 @@ import { UnityCallAvatar } from '@/components/Pages/Assistants/Communication/Uni
 import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
 import { useUnityEyeExpression } from '@/hooks/Assistants/useUnityEyeExpression';
 import { useUnityAudioLipsync } from '@/hooks/Assistants/useUnityAudioLipsync';
+import { useHeldFlag } from '@/hooks/Assistants/useHeldFlag';
 import type {
   CreatureEyes,
   CreatureMood,
@@ -179,8 +180,16 @@ export function AssistantCommunicationMainView({
   const [introAudioMouthShape, setIntroAudioMouthShape] =
     React.useState<CreatureMouthShape>('closed');
   const liveLipsyncFrame = useUnityAudioLipsync(audioTrack, !isLoading && !connectionError);
-  const isImageAvatarSpeaking =
-    liveLipsyncFrame.isActive || (isSpeaking && !isLoading && !connectionError);
+  // The speaking turn is driven by Unity's real TTS playout state (LiveKit
+  // `agentState === 'speaking'`, surfaced here as `isSpeaking`), not by audio
+  // amplitude. The held flag bridges the brief speaking->thinking->speaking dips
+  // that occur between sentences within one turn, so the face doesn't flicker.
+  // `liveLipsyncFrame.speechLevel` is still used purely for mouth-open amplitude.
+  const agentSpeaking = isSpeaking && !isLoading && !connectionError;
+  const isImageAvatarSpeaking = useHeldFlag(agentSpeaking);
+  // The coordinator can also speak via the precomputed onboarding intro audio,
+  // which plays outside the LiveKit agent, so that counts as a speaking turn too.
+  const isCoordinatorSpeaking = useHeldFlag(isIntroAudioPlaying || agentSpeaking);
   const imageAvatarEyes = useUnityEyeExpression({
     isCallActive,
     isSpeaking: isImageAvatarSpeaking,
@@ -320,10 +329,6 @@ export function AssistantCommunicationMainView({
   const coordinatorMouthShape = isIntroAudioPlaying
     ? introAudioMouthShape
     : liveLipsyncFrame.mouthShape;
-  const isCoordinatorSpeaking =
-    isIntroAudioPlaying ||
-    liveLipsyncFrame.isActive ||
-    (isSpeaking && !isLoading && !connectionError);
   const imageAvatarSpeechLevel = liveLipsyncFrame.speechLevel;
   const imageAvatarMouthShape = liveLipsyncFrame.mouthShape;
   const imageAvatarVisualStyle = {
