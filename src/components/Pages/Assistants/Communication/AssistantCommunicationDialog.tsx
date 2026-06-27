@@ -470,7 +470,6 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 onRetry={onRetry}
                 isRingMuted={isSpeakerMuted}
                 onToggleRingMute={onToggleSpeaker}
-                isCallActive={isCallConnected}
                 isActing={isActing}
                 coordinatorAvatarVisible={coordinatorAvatarVisible}
                 coordinatorTeleportIn={coordinatorTeleportIn}

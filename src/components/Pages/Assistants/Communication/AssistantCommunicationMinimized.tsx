@@ -185,7 +185,6 @@ export const MinimizedContent: React.FC<MinimizedContentProps> = ({
         loadingMessage={loadingMessage}
         isRingMuted={isSpeakerMuted}
         onToggleRingMute={onToggleSpeaker}
-        isCallActive={isCallConnected}
         isUserSpeaking={isUserSpeaking}
         mood={avatarMood}
       />
