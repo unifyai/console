@@ -23,9 +23,11 @@ import { UnityTeleportFizzle } from '@/components/Pages/Assistants/Communication
 interface UnityCallAvatarProps {
   isSpeaking: boolean;
   isCallActive?: boolean;
-  /** Whether the assistant has an in-flight `act`. Rotates the droid into its
-   *  "working on a laptop" pose (laptop unfolds, keys flicker) while the body
-   *  keeps lipsyncing, then turns back to face the screen when it ends. */
+  /** Whether the droid should be turned into its "working on a laptop" pose
+   *  (laptop unfolds, keys flicker) rather than facing the camera. The body keeps
+   *  lipsyncing in either pose. Driven by the call window's pose state machine:
+   *  a new speaking turn faces the camera, while work or silence turns it to the
+   *  laptop. */
   isActing?: boolean;
   isUserSpeaking?: boolean;
   animateBodyMotion?: boolean;
