@@ -75,7 +75,7 @@ export const maxDuration = 300;
 const encoder = new TextEncoder();
 
 const CHAT_FILTER =
-  'attributes.thread = "unify_message_outbound" OR attributes.thread = "assistant_desktop_ready"';
+  'attributes.thread = "unify_message_outbound" OR attributes.thread = "assistant_desktop_ready" OR attributes.thread = "unify_meet_incoming"';
 
 const MAX_PAIRS = 50;
 
@@ -319,7 +319,11 @@ export async function GET(request: NextRequest) {
             // Pub/Sub emulator subscriptions may deliver non-outbound frames despite
             // the filter. Drop them here so inbound unify_message payloads are not
             // rendered as assistant chat bubbles on the client.
-            if (thread !== 'unify_message_outbound' && thread !== 'assistant_desktop_ready') {
+            if (
+              thread !== 'unify_message_outbound' &&
+              thread !== 'assistant_desktop_ready' &&
+              thread !== 'unify_meet_incoming'
+            ) {
               log('MSG_SKIP', { msgId: message.id, assistantId, thread });
               message.ack();
               return;

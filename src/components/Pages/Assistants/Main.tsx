@@ -24,6 +24,8 @@ import { AssistantHire } from './Hire/AssistantHire';
 import { AssistantEdit } from './Edit/AssistantEdit';
 import { HireForm } from '@/components/Pages/Assistants/Hire/AssistantHireForm';
 import { PresetsPanel } from './Hire/Presets/AssistantHirePresetsList';
+import { IncomingMeetCallCard } from '@/components/Pages/Assistants/Communication/IncomingMeetCallCard';
+import { assistantDisplayName } from '@/lib/assistants/displayName';
 import { useAssistants } from '@/hooks/Assistants/useAssistants';
 import { useAssistantPresets } from '@/hooks/Assistants/useAssistantPresets';
 import { useAssistantForm } from '@/hooks/Assistants/useAssistantForm';
@@ -1172,6 +1174,29 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     []
   );
 
+  // The assistant rang the owner on Unify Meet. We show a pinned incoming-call
+  // card; answering runs the normal connect flow. State only here - the Answer
+  // button (rendered below) calls handleStartCall, which is defined further down.
+  const [incomingMeetCall, setIncomingMeetCall] = React.useState<{
+    assistant: Assistant;
+    reason: string;
+    callSessionId: string;
+  } | null>(null);
+
+  const handleUnifyMeetIncoming = React.useCallback(
+    (assistantId: string, eventData: Record<string, unknown>) => {
+      const assistant = assistants.find((a) => a.agentId === assistantId);
+      if (!assistant) return;
+      setIncomingMeetCall({
+        assistant,
+        reason: typeof eventData.reason === 'string' ? eventData.reason : '',
+        callSessionId:
+          typeof eventData.call_session_id === 'string' ? eventData.call_session_id : '',
+      });
+    },
+    [assistants]
+  );
+
   const {
     connectionStatusByAssistant: chatStreamConnectionStatusByAssistant,
     reconnect: reconnectChatStream,
@@ -1184,6 +1209,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
     {
       onChatMessage: handleChatStreamMessage,
       onDesktopReady: handleChatStreamDesktopReady,
+      onUnifyMeetIncoming: handleUnifyMeetIncoming,
       onMessageActivity: handleChatActivity,
     },
     {
@@ -1359,6 +1385,40 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   const handleHangUp = React.useCallback(async () => {
     await hangUpCall();
   }, [hangUpCall]);
+
+  const handleAnswerIncomingMeet = React.useCallback(() => {
+    if (!incomingMeetCall) return;
+    const { assistant, reason, callSessionId } = incomingMeetCall;
+    setIncomingMeetCall(null);
+    handleShowProfile(assistant.agentId);
+    const openingConfig: CallOpeningConfig = {
+      mode: 'briefed',
+      systemContext: reason || 'Continuing our conversation on the live call.',
+      source: 'unify_meet_ring',
+    };
+    void handleStartCall(assistant, 'audio', {
+      openingConfig,
+      callSessionId: callSessionId || undefined,
+      waitForAssistantReady: true,
+    });
+  }, [incomingMeetCall, handleShowProfile, handleStartCall]);
+
+  const handleDeclineIncomingMeet = React.useCallback(() => {
+    setIncomingMeetCall(null);
+  }, []);
+
+  // Dismiss the incoming-call card once a call is actually active (the owner
+  // answered, or another call started), and time it out (~30s) if ignored - the
+  // runtime falls the conversation back to text on its own no-answer timeout.
+  React.useEffect(() => {
+    if (!incomingMeetCall) return;
+    if (activeCallAssistant) {
+      setIncomingMeetCall(null);
+      return;
+    }
+    const timer = setTimeout(() => setIncomingMeetCall(null), 30000);
+    return () => clearTimeout(timer);
+  }, [incomingMeetCall, activeCallAssistant]);
 
   const {
     displayedPresets,
@@ -2530,6 +2590,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
         )}
 
         {/* Dialogs and Overlays */}
+        {incomingMeetCall && !activeCallAssistant && (
+          <IncomingMeetCallCard
+            assistantName={assistantDisplayName(incomingMeetCall.assistant)}
+            onAnswer={handleAnswerIncomingMeet}
+            onDecline={handleDeclineIncomingMeet}
+          />
+        )}
         <FormProvider {...formMethods}>
           <AssistantHire
             formMethods={formMethods}

@@ -73,6 +73,12 @@ export interface UseAssistantChatStreamCallbacks {
   /** Fires when an `assistant_desktop_ready` frame arrives. */
   onDesktopReady?: (assistantId: string, eventData: Record<string, unknown>) => void;
   /**
+   * Fires when a `unify_meet_incoming` frame arrives — the assistant is ringing
+   * the owner on Unify Meet. The caller shows a pinned incoming-call window;
+   * `eventData` carries `opening_config` and `call_session_id`.
+   */
+  onUnifyMeetIncoming?: (assistantId: string, eventData: Record<string, unknown>) => void;
+  /**
    * Fires on every inbound SSE message before any filtering. Drives any
    * "activity" indicators (e.g. clearing typing bubbles) that should react
    * to all frames for a given assistant, not just the post-filter ones.
@@ -737,6 +743,13 @@ export function useAssistantChatStream(
             // Ack immediately: desktop-ready events are idempotent
             // BroadcastChannel signals; repeated delivery would just
             // re-write the same sessionStorage entry.
+            if (frame.ackId) ackMessage(assistantId, myContactId, pair.rootKey, frame.ackId);
+            return;
+          }
+          case 'meet-incoming': {
+            callbacksRef.current.onUnifyMeetIncoming?.(assistantId, frame.eventData);
+            // Ack immediately: the ring is an idempotent lifecycle signal; the
+            // no-answer fallback is owned by the runtime, not by redelivery.
             if (frame.ackId) ackMessage(assistantId, myContactId, pair.rootKey, frame.ackId);
             return;
           }

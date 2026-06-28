@@ -50,6 +50,11 @@ export type ParsedChatFrame =
       ackId?: string;
     }
   | {
+      kind: 'meet-incoming';
+      eventData: Record<string, unknown>;
+      ackId?: string;
+    }
+  | {
       kind: 'filtered';
       reason: 'contact' | 'root' | 'cutoff';
       ackId?: string;
@@ -159,6 +164,17 @@ export function parseChatSseFrame(
   if (thread === 'assistant_desktop_ready') {
     return {
       kind: 'desktop-ready',
+      ackId,
+      eventData: (eventObj ?? {}) as Record<string, unknown>,
+    };
+  }
+
+  // The assistant is ringing the owner on Unify Meet. Like desktop-ready this
+  // is an idempotent lifecycle signal, not chat history, so it never applies the
+  // transcript cutoff.
+  if (thread === 'unify_meet_incoming') {
+    return {
+      kind: 'meet-incoming',
       ackId,
       eventData: (eventObj ?? {}) as Record<string, unknown>,
     };
