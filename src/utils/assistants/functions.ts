@@ -78,11 +78,22 @@ export function mapFunctionRow(row: FunctionRow): FunctionSkill {
   };
 }
 
-/** Short, signature-style summary for a function card. */
+/** The function's bare (unqualified) name — last dotted segment. */
+export function bareFunctionName(skill: FunctionSkill): string {
+  return skill.name.includes('.') ? (skill.name.split('.').pop() ?? skill.name) : skill.name;
+}
+
+/**
+ * Short, signature-style summary for a function card.
+ *
+ * `argspec` may already begin with the function name (e.g.
+ * `update(task_id: int, ...)`) or be a bare parameter list (e.g.
+ * `(self, task_id: int)`). Only prepend the name in the latter case — prefixing
+ * an already-named argspec is what produced the `updateupdate(...)` duplication.
+ */
 export function shortSignature(skill: FunctionSkill): string {
-  const bare = skill.name.includes('.') ? (skill.name.split('.').pop() ?? skill.name) : skill.name;
-  const args = skill.argspec.replace(/^\(self, ?/, '(');
-  return `${bare}${args}`;
+  const args = skill.argspec.replace(/^\(self,\s*/, '(').replace(/^\(self\)/, '()');
+  return args.trimStart().startsWith('(') ? `${bareFunctionName(skill)}${args}` : args;
 }
 
 export function filterFunctions(

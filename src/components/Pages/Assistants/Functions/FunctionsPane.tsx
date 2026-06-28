@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { RefreshCw, Search, X, Code2 } from 'lucide-react';
+import { Code2, Play, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/UI/button';
 import {
   Sheet,
@@ -9,12 +10,16 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
+  SheetFooter,
 } from '@/components/UI/sheet';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { cn } from '@/lib/utils';
 import { useBrainData } from '@/hooks/Assistants/useBrainData';
+import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { AssistantMarkdown, fencedCode } from '../Common/AssistantMarkdown';
+import { TabToolbar } from '../Common/TabToolbar';
+import { TabFooter } from '../Common/TabFooter';
 import {
   mapFunctionRow,
   filterFunctions,
@@ -42,7 +47,7 @@ function KindBadge({ isPrimitive }: { isPrimitive: boolean }) {
   return (
     <span
       className={cn(
-        'rounded-full px-2 py-0.5 text-[10px] font-medium',
+        'rounded-full px-1.5 py-0.5 text-[8.5px] font-semibold uppercase tracking-wide',
         isPrimitive ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'
       )}
     >
@@ -54,15 +59,31 @@ function KindBadge({ isPrimitive }: { isPrimitive: boolean }) {
 function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
         {label}
       </div>
-      <div className="text-sm text-foreground">{children}</div>
+      <div className="text-[12.5px] leading-relaxed text-foreground">{children}</div>
     </div>
   );
 }
 
-function FunctionDetail({ skill }: { skill: FunctionSkill }) {
+function FunctionBadges({ skill }: { skill: FunctionSkill }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2" data-testid="function-badges">
+      <KindBadge isPrimitive={skill.isPrimitive} />
+      <span className="text-code-sm rounded-full border bg-muted px-2 py-0.5 text-muted-foreground">
+        {skill.language}
+      </span>
+      {skill.verify && (
+        <span className="bg-primary/10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium text-primary">
+          <Check className="h-3 w-3" /> verified
+        </span>
+      )}
+    </div>
+  );
+}
+
+function FunctionAbout({ skill }: { skill: FunctionSkill }) {
   return (
     <div className="space-y-4 pr-4" data-testid="function-detail-body">
       <DetailField label="Signature">
@@ -121,6 +142,37 @@ function FunctionDetail({ skill }: { skill: FunctionSkill }) {
   );
 }
 
+function CopySignatureButton({ skill }: { skill: FunctionSkill }) {
+  const { isCopied, handleCopy } = useCopyToClipboard({
+    text: skill.implementation || shortSignature(skill),
+    copyMessage: 'Copied',
+    showSuccessNotification: false,
+  });
+  return (
+    <Button variant="outline" size="sm" onClick={handleCopy} data-testid="function-copy">
+      {isCopied ? <Check className="mr-1 h-3.5 w-3.5" /> : <Code2 className="mr-1 h-3.5 w-3.5" />}
+      {isCopied ? 'Copied' : 'Copy'}
+    </Button>
+  );
+}
+
+function FunctionRun({ skill }: { skill: FunctionSkill }) {
+  return (
+    <div className="space-y-4 pr-4" data-testid="function-run-body">
+      <DetailField label="Signature">
+        <AssistantMarkdown>{fencedCode(shortSignature(skill), skill.language)}</AssistantMarkdown>
+      </DetailField>
+      <div className="text-body-muted bg-muted/40 flex items-start gap-2 rounded-lg border p-3 text-sm">
+        <Play className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+        <span>
+          Running functions directly from this view isn&apos;t available yet. Ask your digital twin
+          in chat to run <span className="font-mono">{skill.name}</span> for you.
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPaneProps) {
   const { functions, isLoading, error, refetch } = useBrainData({
     assistant,
@@ -134,6 +186,7 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<FunctionKindFilter>('All');
   const [selected, setSelected] = useState<FunctionSkill | null>(null);
+  const [drawerTab, setDrawerTab] = useState<'about' | 'run'>('about');
 
   const skills = useMemo(() => functions.rows.map(mapFunctionRow), [functions.rows]);
   const filtered = useMemo(() => filterFunctions(skills, query, kind), [skills, query, kind]);
@@ -160,58 +213,33 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
 
   return (
     <div className="flex h-full flex-col" data-testid="functions-pane">
-      <div
-        className="flex shrink-0 items-center gap-2 border-b px-3 py-2"
-        data-testid="functions-header"
-      >
-        <div className="flex items-center gap-1" data-testid="functions-kind-seg">
-          {KINDS.map((k) => (
-            <button
-              key={k}
-              className={SEG_CLASS}
-              data-active={kind === k}
-              data-testid={`functions-kind-${k.toLowerCase()}`}
-              onClick={() => setKind(k)}
-            >
-              {k}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative max-w-xs flex-1">
-          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            className="h-7 w-full rounded-md border bg-transparent pl-7 pr-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            placeholder="Search skills…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            data-testid="functions-search"
-          />
-          {query && (
-            <button
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
-              onClick={() => setQuery('')}
-              data-testid="functions-search-clear"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-
-        <div className="flex-1" />
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 shrink-0"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          data-testid="functions-refresh"
-        >
-          <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
-        </Button>
-      </div>
+      <TabToolbar
+        testId="functions-header"
+        leading={
+          <div className="flex items-center gap-1" data-testid="functions-kind-seg">
+            {KINDS.map((k) => (
+              <button
+                key={k}
+                className={SEG_CLASS}
+                data-active={kind === k}
+                data-testid={`functions-kind-${k.toLowerCase()}`}
+                onClick={() => setKind(k)}
+              >
+                {k}
+              </button>
+            ))}
+          </div>
+        }
+        searchValue={query}
+        onSearchChange={setQuery}
+        searchPlaceholder="Search skills…"
+        searchTestId="functions-search"
+        searchClearTestId="functions-search-clear"
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+        refreshTitle="Refresh functions"
+        refreshTestId="functions-refresh"
+      />
 
       <div className="min-h-0 flex-1" data-testid="functions-body">
         {isLoading && skills.length === 0 ? (
@@ -233,32 +261,38 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
               {filtered.map((skill) => (
                 <button
                   key={`${skill.functionId ?? skill.name}`}
-                  className="hover:border-primary/40 hover:bg-muted/40 flex flex-col gap-2 rounded-lg border bg-card p-3 text-left transition-colors"
-                  onClick={() => setSelected(skill)}
+                  className="hover:border-primary/40 hover:bg-muted/40 flex flex-col gap-1.5 rounded-lg border bg-card p-2.5 text-left transition-colors"
+                  onClick={() => {
+                    setDrawerTab('about');
+                    setSelected(skill);
+                  }}
                   data-testid={`function-card-${skill.name}`}
                 >
-                  <div className="flex items-center gap-2">
-                    <Code2 className="h-4 w-4 shrink-0 text-primary" />
-                    <span className="text-code truncate font-medium text-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <Code2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                    <span className="truncate font-mono text-[11.5px] font-medium text-foreground">
                       {skill.name}
                     </span>
                     <span className="ml-auto">
                       <KindBadge isPrimitive={skill.isPrimitive} />
                     </span>
                   </div>
-                  <div className="text-code-sm truncate text-muted-foreground">
+                  <div className="truncate font-mono text-[10.5px] text-muted-foreground">
                     {shortSignature(skill)}
                   </div>
-                  <div className="text-caption line-clamp-2">
+                  <div className="line-clamp-2 text-[11px] leading-snug text-muted-foreground">
                     {skill.docstring || 'No description.'}
                   </div>
-                  <div className="mt-auto flex items-center gap-2 text-[11px] text-muted-foreground">
+                  <div className="mt-auto flex items-center gap-1.5 border-t pt-1.5 text-[10px] text-muted-foreground">
                     <span className="font-mono">{skill.language}</span>
                     {skill.dependsOn.length > 0 && (
                       <span>
                         · {skill.dependsOn.length} dep{skill.dependsOn.length > 1 ? 's' : ''}
                       </span>
                     )}
+                    <span className="ml-auto inline-flex items-center gap-1 font-medium text-primary">
+                      <Play className="h-2.5 w-2.5" /> Run
+                    </span>
                   </div>
                 </button>
               ))}
@@ -267,14 +301,13 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
         )}
       </div>
 
-      <div
-        className="flex h-10 shrink-0 items-center justify-end border-t px-2"
-        data-testid="functions-footer"
-      >
-        <span className="text-caption hidden shrink-0 px-3 py-1.5 sm:inline">
-          {filtered.length} of {skills.length} {skills.length === 1 ? 'function' : 'functions'}
-        </span>
-      </div>
+      <TabFooter
+        testId="functions-footer"
+        count={filtered.length}
+        total={skills.length}
+        singular="function"
+        plural="functions"
+      />
 
       <Sheet
         open={!!selected}
@@ -287,15 +320,58 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
           className="flex w-full flex-col sm:!max-w-2xl"
           data-testid="function-detail"
         >
-          <SheetHeader className="shrink-0">
-            <SheetTitle className="break-all font-mono">{selected?.name}</SheetTitle>
-            <SheetDescription>
-              {selected?.isPrimitive ? 'Primitive' : 'Learned'} · {selected?.language}
-            </SheetDescription>
+          <SheetHeader className="shrink-0 space-y-2">
+            <div>
+              <SheetTitle className="break-all font-mono text-[15px]">{selected?.name}</SheetTitle>
+              <SheetDescription className="text-[11px]">
+                {selected?.isPrimitive ? 'Primitive' : 'Learned'} · {selected?.language}
+              </SheetDescription>
+            </div>
+            {selected && <FunctionBadges skill={selected} />}
+            <div className="flex items-center gap-1" data-testid="function-detail-tabs">
+              {(['about', 'run'] as const).map((t) => (
+                <button
+                  key={t}
+                  className={SEG_CLASS}
+                  data-active={drawerTab === t}
+                  onClick={() => setDrawerTab(t)}
+                  data-testid={`function-detail-tab-${t}`}
+                >
+                  {t === 'about' ? 'About' : 'Run'}
+                </button>
+              ))}
+            </div>
           </SheetHeader>
           <ScrollArea className="mt-4 min-h-0 flex-1">
-            {selected && <FunctionDetail skill={selected} />}
+            {selected &&
+              (drawerTab === 'about' ? (
+                <FunctionAbout skill={selected} />
+              ) : (
+                <FunctionRun skill={selected} />
+              ))}
           </ScrollArea>
+          {selected && (
+            <SheetFooter className="mt-0 shrink-0 flex-row justify-end gap-2 border-t pt-3">
+              <CopySignatureButton skill={selected} />
+              {drawerTab === 'about' ? (
+                <Button size="sm" onClick={() => setDrawerTab('run')} data-testid="function-run">
+                  <Play className="mr-1 h-3.5 w-3.5" /> Run
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    toast('Running functions isn’t available from this view yet.', {
+                      description: 'Ask your digital twin in chat to run this function.',
+                    })
+                  }
+                  data-testid="function-run"
+                >
+                  <Play className="mr-1 h-3.5 w-3.5" /> Run
+                </Button>
+              )}
+            </SheetFooter>
+          )}
         </SheetContent>
       </Sheet>
     </div>
