@@ -134,6 +134,10 @@ export function useAssistantCall(
   const callPhaseRef = React.useRef<CallPhase>('idle');
   // Unique ID for each connection attempt - used to detect stale operations
   const connectionAttemptIdRef = React.useRef(0);
+  // Lets room event handlers (defined in an effect below) reach the latest
+  // ``disconnect`` without re-subscribing on every render. Used to react to the
+  // assistant ending the meet (``call_ended``) by leaving gracefully ourselves.
+  const disconnectRef = React.useRef<(() => Promise<void>) | null>(null);
 
   // --- Remote Control State ---
   const [isRemoteControlActive, setIsRemoteControlActive] = React.useState(false);
@@ -526,6 +530,10 @@ export function useAssistantCall(
     setCallPhase,
   ]);
 
+  React.useEffect(() => {
+    disconnectRef.current = disconnect;
+  }, [disconnect]);
+
   const retryConnection = React.useCallback(async () => {
     const assistantToRetry = activeCallAssistant;
     const callTypeToRetry = callType;
@@ -826,6 +834,15 @@ export function useAssistantCall(
           clearPreparingState();
           setCallPhase('active');
           resolveAssistantReadyWaiter();
+          return;
+        }
+        if (data.type === 'call_ended') {
+          // The assistant ended the meet. Leave the room ourselves so our
+          // WebRTC peer connection closes cleanly, instead of waiting to be
+          // force-evicted by the imminent server-side room deletion (which logs
+          // benign "Unknown DataChannel error" noise in the console). Routing
+          // through disconnect() also suppresses the rejoin/redispatch logic.
+          disconnectRef.current?.();
           return;
         }
         const moodMessage = parseMoodClassificationMessage(data, moodTurnIndexRef.current);
