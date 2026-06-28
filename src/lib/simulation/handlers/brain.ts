@@ -58,6 +58,23 @@ function applyFilter(rows: IdRow[], tablePath: string, filterExpr: string | null
     return rows.filter((r) => (r.entries.hierarchy as unknown[])?.length === 1);
   }
 
+  // ToolLoop steps are fetched per action node via
+  // `hierarchy_label.startswith('<calling-id path>')`. The hosted backend keys
+  // this on the calling-id hierarchy, so we match on the unambiguous
+  // `hierarchy` array (e.g. ['act-002']) to avoid cross-contaminating one
+  // action's steps onto another's expanded card.
+  if (tablePath.endsWith('ToolLoop')) {
+    const prefixMatch = filterExpr.match(/hierarchy_label\.startswith\(\s*["']([^"']+)["']\s*\)/);
+    if (prefixMatch) {
+      const prefix = prefixMatch[1];
+      return rows.filter((r) => {
+        const hierarchy = r.entries.hierarchy as unknown[] | undefined;
+        const joined = Array.isArray(hierarchy) ? hierarchy.join('->') : '';
+        return joined === prefix || joined.startsWith(`${prefix}->`);
+      });
+    }
+  }
+
   return rows;
 }
 

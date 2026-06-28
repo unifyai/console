@@ -157,6 +157,12 @@ export function resolveFeatures(
   const ttsConfigured = has(env, 'CARTESIA_API_KEY', 'ELEVEN_API_KEY', 'ELEVENLABS_API_KEY');
   // STT: Deepgram (same key that powers the `transcription` feature).
   const sttConfigured = has(env, 'DEEPGRAM_API_KEY');
+  // Mock simulation has no provider credentials, but the design/QA build must
+  // still surface the credential-driven affordances (mic dictation, TTS
+  // playback, call entry point). The flag is build-time inlined and the whole
+  // simulation is gated on it, so enabling these capabilities here is reachable
+  // only under mock mode.
+  const mockSim = env.NEXT_PUBLIC_MOCK_SIM === 'true';
 
   // Manual-top-up mode is a deployment policy owned by Orchestra (staging).
   // In this mode billing is enforced without Stripe, so the billing UI must
@@ -175,9 +181,12 @@ export function resolveFeatures(
       (stripeConfigured || manualTopup) && !environment.isSelfHost && (authority.billing ?? true),
     manualTopup,
     voiceCalls:
-      localOrchestra || devCallsEnabled || (livekitConfigured && ttsConfigured && sttConfigured),
-    voiceSynthesis: ttsConfigured,
-    transcription: sttConfigured,
+      mockSim ||
+      localOrchestra ||
+      devCallsEnabled ||
+      (livekitConfigured && ttsConfigured && sttConfigured),
+    voiceSynthesis: mockSim || ttsConfigured,
+    transcription: mockSim || sttConfigured,
     support: localOrchestra || has(env, 'DISCORD_SUPPORT_WEBHOOK_URL'),
     // Workspace BYOD connect: Orchestra owns the OAuth client IDs, so its
     // authority signal is the source of truth. The local env read is only a

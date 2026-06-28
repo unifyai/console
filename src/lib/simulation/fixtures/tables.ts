@@ -25,15 +25,26 @@ function isoInMinutes(minutes: number): string {
   return new Date(Date.now() + minutes * 60_000).toISOString();
 }
 
-// Contact ids referenced across Contacts + Transcripts so sender/receiver names resolve.
-const MARTY = 1;
-const HARIS = 2;
+// Contact ids referenced across Contacts + Transcripts so sender/receiver names
+// resolve. MARTY is the personal Coordinator's *self* contact and HARIS is the
+// owner's *boss* contact, so these must match the assistant identity the chat
+// resolves: `selfContactId = agentId * 10 + 1`, `bossContactId = agentId * 10 + 2`
+// for the personal coordinator (agentId 1001). Aligning them makes the chat
+// role mapping (`senderId === selfContactId ? 'assistant' : 'user'`) render the
+// assistant's turns as no-bubble assistant messages instead of user bubbles.
+const MARTY = 10011;
+const HARIS = 10012;
 const OLIVIA = 3;
 const MEI = 4;
 const TOMAS = 5;
 const AISHA = 6;
 const DANIEL = 7;
 const PRIYA = 8;
+const SOFIA = 9;
+const LIAM = 10;
+const YUKI = 11;
+const FATIMA = 12;
+const MARCUS = 13;
 
 const contacts: MockRow[] = [
   {
@@ -180,6 +191,96 @@ const contacts: MockRow[] = [
     timezone: 'Europe/London',
     isSystem: false,
   },
+  {
+    contactId: SOFIA,
+    firstName: 'Sofia',
+    surname: 'Alvarez',
+    emailAddress: 'sofia@studioalvarez.design',
+    phoneNumber: '+34 600 123 456',
+    whatsappNumber: '+34 600 123 456',
+    discordId: null,
+    jobTitle: 'Brand Designer',
+    company: 'Studio Alvarez',
+    bio: 'Freelance brand designer refreshing the pilot dashboard visuals.',
+    rollingSummary: 'Delivering the dashboard restyle; prefers async Figma reviews.',
+    tags: ['partner', 'design'],
+    responsePolicy: 'business_hours',
+    shouldRespond: true,
+    timezone: 'Europe/Madrid',
+    isSystem: false,
+  },
+  {
+    contactId: LIAM,
+    firstName: 'Liam',
+    surname: "O'Connor",
+    emailAddress: 'liam@meridian.vc',
+    phoneNumber: '+353 1 555 0199',
+    whatsappNumber: null,
+    discordId: null,
+    jobTitle: 'Partner',
+    company: 'Meridian Ventures',
+    bio: 'Investor tracking the agentic-research traction metrics.',
+    rollingSummary: 'Wants the monthly growth digest; warm but data-driven.',
+    tags: ['investor', 'vip'],
+    responsePolicy: 'manual',
+    shouldRespond: false,
+    timezone: 'Europe/Dublin',
+    isSystem: false,
+  },
+  {
+    contactId: YUKI,
+    firstName: 'Yuki',
+    surname: 'Tanaka',
+    emailAddress: 'yuki.tanaka@clientbeta.app',
+    phoneNumber: null,
+    whatsappNumber: null,
+    discordId: 'yuki#0042',
+    jobTitle: 'Staff Engineer',
+    company: 'ClientBeta',
+    bio: 'Builds the ClientBeta data feed; pairs with Daniel on the integration.',
+    rollingSummary: 'Owns the jobs webhook schema; responsive on Discord.',
+    tags: ['partner', 'engineering'],
+    responsePolicy: 'business_hours',
+    shouldRespond: true,
+    timezone: 'Asia/Tokyo',
+    isSystem: false,
+  },
+  {
+    contactId: FATIMA,
+    firstName: 'Fatima',
+    surname: 'Al-Sayed',
+    emailAddress: 'f.alsayed@thegridpost.com',
+    phoneNumber: '+44 7700 900233',
+    whatsappNumber: null,
+    discordId: null,
+    jobTitle: 'Technology Reporter',
+    company: 'The Grid Post',
+    bio: 'Journalist covering public-sector AI deployments.',
+    rollingSummary: 'Requested a briefing on the Riverside pilot outcomes.',
+    tags: ['press'],
+    responsePolicy: 'manual',
+    shouldRespond: false,
+    timezone: 'Europe/London',
+    isSystem: false,
+  },
+  {
+    contactId: MARCUS,
+    firstName: 'Marcus',
+    surname: 'Bauer',
+    emailAddress: 'marcus.bauer@payflow.de',
+    phoneNumber: '+49 30 5550 1234',
+    whatsappNumber: null,
+    discordId: null,
+    jobTitle: 'Finance Lead',
+    company: 'Payflow',
+    bio: 'Finance contact for payout settlement timelines.',
+    rollingSummary: 'Coordinates payout windows; escalation peer to Mei.',
+    tags: ['vendor', 'finance'],
+    responsePolicy: 'manual',
+    shouldRespond: false,
+    timezone: 'Europe/Berlin',
+    isSystem: false,
+  },
 ];
 
 // Transcripts grouped by exchangeId, varied mediums so the channel rail populates.
@@ -312,6 +413,129 @@ const transcripts: MockRow[] = [
     content: 'EU (Frankfurt). I will send the data-residency one-pager by email.',
     exchangeId: 5,
   },
+  // Exchange 2 (chat) continuation — rich markdown so the no-bubble renderer
+  // shows a table, list, inline code, and a link.
+  {
+    messageId: 1014,
+    medium: 'unify_message',
+    senderId: HARIS,
+    receiverIds: [MARTY],
+    authoringAssistantId: null,
+    timestamp: isoMinutesAgo(40),
+    content: 'Can you give me the morning digest as a quick table?',
+    exchangeId: 2,
+  },
+  {
+    messageId: 1015,
+    medium: 'unify_message',
+    senderId: MARTY,
+    receiverIds: [HARIS],
+    authoringAssistantId: 1001,
+    timestamp: isoMinutesAgo(39),
+    content: [
+      "Here's your **morning digest** — 12 unread, top items below:",
+      '',
+      '| Source | Subject | Priority |',
+      '| --- | --- | --- |',
+      '| Stripe | Payout `$4,210` cleared | Normal |',
+      '| Linear | 3 issues assigned to you | High |',
+      '| Notion | Doc shared by Olivia | Normal |',
+      '| GitHub | CI passed on `main` | Low |',
+      '',
+      'Suggested next steps:',
+      '',
+      '1. Triage the **Linear** issues (high priority)',
+      '2. Skim Olivia’s shared doc before the 2pm sync',
+      '',
+      'Full inbox: [open Gmail](https://mail.google.com/).',
+    ].join('\n'),
+    exchangeId: 2,
+  },
+  {
+    messageId: 1016,
+    medium: 'unify_message',
+    senderId: HARIS,
+    receiverIds: [MARTY],
+    authoringAssistantId: null,
+    timestamp: isoMinutesAgo(37),
+    content: 'Perfect, thanks. Draft a reply to the Linear thread for me.',
+    exchangeId: 2,
+  },
+  {
+    messageId: 1017,
+    medium: 'unify_message',
+    senderId: MARTY,
+    receiverIds: [HARIS],
+    authoringAssistantId: 1001,
+    timestamp: isoMinutesAgo(36),
+    content: [
+      'Drafted. Here is the proposed reply:',
+      '',
+      '> Picking these up now — I’ll close the auth one today and split the other two into follow-ups.',
+      '',
+      'Want me to send it, or tweak the tone first?',
+    ].join('\n'),
+    exchangeId: 2,
+  },
+  // Exchange 6 — Discord with Yuki about the jobs webhook schema (code block).
+  {
+    messageId: 1050,
+    medium: 'discord',
+    senderId: YUKI,
+    receiverIds: [MARTY, DANIEL],
+    authoringAssistantId: null,
+    timestamp: isoMinutesAgo(220),
+    content: [
+      'Heads up — the jobs webhook now includes a `reworked` flag. Shape:',
+      '',
+      '```json',
+      '{ "job_id": "j_5002", "crew": "Bravo", "reworked": true }',
+      '```',
+      '',
+      'Dashboard rework-rate tile should read straight off it.',
+    ].join('\n'),
+    exchangeId: 6,
+  },
+  {
+    messageId: 1051,
+    medium: 'discord',
+    senderId: MARTY,
+    receiverIds: [YUKI],
+    authoringAssistantId: 1001,
+    timestamp: isoMinutesAgo(218),
+    content: 'Got it — wired the tile to the `reworked` flag and backfilled today’s jobs.',
+    exchangeId: 6,
+  },
+  // Exchange 7 — investor email digest (markdown list).
+  {
+    messageId: 1060,
+    medium: 'email',
+    senderId: LIAM,
+    receiverIds: [HARIS, MARTY],
+    authoringAssistantId: null,
+    timestamp: isoDaysAgo(1),
+    content:
+      'Subject: Monthly traction\n\nHi Haris — can your assistant send the usual monthly growth snapshot?',
+    exchangeId: 7,
+  },
+  {
+    messageId: 1061,
+    medium: 'email',
+    senderId: MARTY,
+    receiverIds: [LIAM, HARIS],
+    authoringAssistantId: 1001,
+    timestamp: isoDaysAgo(1),
+    content: [
+      'Hi Liam — here is the **monthly snapshot**:',
+      '',
+      '- Warm leads surfaced: **37** (+18% MoM)',
+      '- Pilot throughput: **428 jobs/day** (+6% WoW)',
+      '- Rework rate: **3.2%** (−0.4pt)',
+      '',
+      'Happy to walk through the detail on a call.',
+    ].join('\n'),
+    exchangeId: 7,
+  },
 ];
 
 const knowledgeProducts: MockRow[] = [
@@ -329,6 +553,13 @@ const knowledgeProducts: MockRow[] = [
     scope: 'personal',
     updatedAt: isoDaysAgo(8),
   },
+  {
+    title: 'lead_scoring',
+    body: 'Leads are scored 0–1 from funding, hiring, and product signals. Anything above 0.6 is surfaced as a warm lead; above 0.8 triggers a tailored intro draft.',
+    tags: ['Research', 'Sales'],
+    scope: 'personal',
+    updatedAt: isoDaysAgo(2),
+  },
 ];
 
 const knowledgeFaq: MockRow[] = [
@@ -345,6 +576,13 @@ const knowledgeFaq: MockRow[] = [
     tags: ['Compliance', 'Housing'],
     scope: 'personal',
     updatedAt: isoDaysAgo(1),
+  },
+  {
+    title: 'reauth_flow',
+    body: 'When an integration returns HTTP 401 mid-run, pause the task, notify the owner to re-authenticate, then retry the run automatically once the token is refreshed.',
+    tags: ['Integrations', 'Reliability'],
+    scope: 'personal',
+    updatedAt: isoMinutesAgo(80),
   },
 ];
 
@@ -394,6 +632,41 @@ const functionsPrimitives: MockRow[] = [
     dependsOn: [],
     guidanceIds: [],
   },
+  {
+    functionId: 9005,
+    name: 'primitives.contacts.upsert',
+    language: 'python',
+    argspec: 'upsert(*, email: str, fields: dict) -> Contact',
+    docstring:
+      'Create or update a contact by email, merging the provided fields. Dedupes on email then full name.',
+    implementation: null,
+    isPrimitive: true,
+    dependsOn: [],
+    guidanceIds: [107],
+  },
+  {
+    functionId: 9006,
+    name: 'primitives.guidance.search',
+    language: 'python',
+    argspec: 'search(query: str, *, k: int = 5) -> list[Guidance]',
+    docstring: 'Retrieve the most relevant guidance entries for a query before acting.',
+    implementation: null,
+    isPrimitive: true,
+    dependsOn: [],
+    guidanceIds: [],
+  },
+  {
+    functionId: 9007,
+    name: 'primitives.integrations.gmail.fetch_emails',
+    language: 'python',
+    argspec:
+      'fetch_emails(*, query: str | None = None, label_ids: list[str] | None = None, max_results: int = 10) -> list[Email]',
+    docstring: 'Fetch emails from Gmail by query or label. Read-only; respects connected scopes.',
+    implementation: null,
+    isPrimitive: true,
+    dependsOn: [],
+    guidanceIds: [],
+  },
 ];
 
 const functionsCompositional: MockRow[] = [
@@ -420,6 +693,32 @@ const functionsCompositional: MockRow[] = [
     isPrimitive: false,
     dependsOn: ['primitives.data.update_rows'],
     guidanceIds: [],
+  },
+  {
+    functionId: 9103,
+    name: 'weekly_competitor_brief',
+    language: 'python',
+    argspec: 'weekly_competitor_brief(*, vertical: str, lookback_days: int = 7) -> str',
+    docstring:
+      'Compile competitor product, pricing, and hiring changes for a vertical into a weekly brief.',
+    implementation:
+      'def weekly_competitor_brief(*, vertical, lookback_days=7):\n    leads = data.search("research.agentic.ai/leads", vertical, limit=50)\n    fresh = [l for l in leads if recent(l, lookback_days)]\n    return render_brief(fresh)',
+    isPrimitive: false,
+    dependsOn: ['primitives.data.search'],
+    guidanceIds: [],
+  },
+  {
+    functionId: 9104,
+    name: 'format_lead_intro',
+    language: 'typescript',
+    argspec: 'formatLeadIntro(lead: Lead, opts?: { tone?: "warm" | "formal" }): string',
+    docstring:
+      'Render a tailored intro message for a surfaced lead. Used by the research task before drafting outreach.',
+    implementation:
+      'export function formatLeadIntro(lead: Lead, opts = {}) {\n  const tone = opts.tone ?? "warm";\n  return template(tone)({ company: lead.company, signal: lead.signal });\n}',
+    isPrimitive: false,
+    dependsOn: [],
+    guidanceIds: [108],
   },
 ];
 
@@ -747,56 +1046,543 @@ const eventsManagerMethod: MockRow[] = [
     hierarchy: ['act-002'],
     hierarchyLabel: 'CodeActActor.act',
     status: 'ok',
-    answer: 'You have 12 unread emails. Top 3 digested and posted to chat.',
+    answer:
+      '12 unread in your inbox. Top 5: (1) Stripe — payout $4,210 cleared; (2) Linear — 3 issues assigned to you; (3) Notion — doc shared by Olivia; (4) GitHub — CI passed on main; (5) Calendly — new booking Thu 3pm.',
     displayLabel: 'Handling request',
     eventId: 'evt-act-002-out',
     eventTimestamp: isoMinutesAgo(59),
   },
+  // act-003 — a failed run (token expired mid-run) so the timeline shows the
+  // error tone + a red "Failed" status and the error step renders.
+  {
+    manager: 'CodeActActor',
+    method: 'act',
+    phase: 'incoming',
+    callingId: 'act-003',
+    hierarchy: ['act-003'],
+    hierarchyLabel: 'CodeActActor.act',
+    status: 'ok',
+    request:
+      'Call list_labels with include_details=True for the inbox unread count; call fetch_emails with max_results=5 and label_ids=[INBOX].',
+    displayLabel: 'Handling request',
+    eventId: 'evt-act-003-in',
+    eventTimestamp: isoMinutesAgo(90),
+  },
+  {
+    manager: 'CodeActActor',
+    method: 'act',
+    phase: 'outgoing',
+    callingId: 'act-003',
+    hierarchy: ['act-003'],
+    hierarchyLabel: 'CodeActActor.act',
+    status: 'error',
+    answer:
+      'Failed — the integration token expired mid-run (401). Re-auth required, then I can retry automatically.',
+    error: 'HTTP 401 — token expired',
+    displayLabel: 'Handling request',
+    eventId: 'evt-act-003-out',
+    eventTimestamp: isoMinutesAgo(89),
+  },
+  // act-005 — completed research sweep with a rich markdown final response.
+  {
+    manager: 'CodeActActor',
+    method: 'act',
+    phase: 'incoming',
+    callingId: 'act-005',
+    hierarchy: ['act-005'],
+    hierarchyLabel: 'CodeActActor.act',
+    status: 'ok',
+    request: 'Run the agentic vertical research sweep and surface this window’s warm leads.',
+    displayLabel: 'Handling request',
+    eventId: 'evt-act-005-in',
+    eventTimestamp: isoMinutesAgo(28),
+  },
+  {
+    manager: 'CodeActActor',
+    method: 'act',
+    phase: 'outgoing',
+    callingId: 'act-005',
+    hierarchy: ['act-005'],
+    hierarchyLabel: 'CodeActActor.act',
+    status: 'ok',
+    answer:
+      'Surfaced 3 warm leads this window. Top: Brightfin (Fintech, Series A). Full ranked list posted to Data/research.agentic.ai/leads.',
+    displayLabel: 'Handling request',
+    eventId: 'evt-act-005-out',
+    eventTimestamp: isoMinutesAgo(27),
+  },
+  // act-004 — currently RUNNING (incoming only, no outgoing). Newest event, so
+  // it renders as the "Latest" card with a pulsing dot and drives the footer's
+  // "working" status. No final response yet.
+  {
+    manager: 'CodeActActor',
+    method: 'act',
+    phase: 'incoming',
+    callingId: 'act-004',
+    hierarchy: ['act-004'],
+    hierarchyLabel: 'CodeActActor.act',
+    status: 'ok',
+    request: 'Compile the weekly competitor brief for the fintech vertical and post it to chat.',
+    displayLabel: 'Handling request',
+    eventId: 'evt-act-004-in',
+    eventTimestamp: isoMinutesAgo(4),
+  },
 ];
 
 const eventsToolLoop: MockRow[] = [
+  // ── act-001 — fetch 5 most recent Brightfin emails (done) ──────────────
   {
-    kind: 'toolloop',
+    kind: 'thought',
     method: 'act',
-    hierarchy: ['act-002'],
+    hierarchy: ['act-001'],
     hierarchyLabel: 'CodeActActor.act',
-    eventId: 'tl-001',
-    eventTimestamp: isoMinutesAgo(60),
+    eventId: 'tl-101',
+    eventTimestamp: isoMinutesAgo(180),
     message: {
       role: 'assistant',
-      content: 'I will search for a Gmail digest skill, then run it on the latest unread emails.',
+      content:
+        'The user wants the 5 most recent emails from the Brightfin thread. I will query the inbox by sender and print the subjects to confirm before summarising.',
     },
   },
   {
-    kind: 'toolloop',
+    kind: 'tool_call',
+    method: 'act',
+    hierarchy: ['act-001'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-102',
+    eventTimestamp: isoMinutesAgo(180),
+    message: {
+      role: 'assistant',
+      content: null,
+      toolCalls: [
+        {
+          id: 'call-101',
+          function: {
+            name: 'execute_code',
+            arguments: JSON.stringify({
+              language: 'python',
+              code: 'emails = primitives.integrations.gmail.fetch_emails(\n    query="from:brightfin", max_results=5\n)\nfor e in emails:\n    print(e.subject)',
+            }),
+          },
+        },
+      ],
+    },
+  },
+  {
+    kind: 'tool_result',
+    method: 'act',
+    hierarchy: ['act-001'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-103',
+    eventTimestamp: isoMinutesAgo(180),
+    message: {
+      role: 'tool',
+      toolCallId: 'call-101',
+      name: 'execute_code',
+      content: [
+        {
+          type: 'text',
+          text: 'Q3 reconciliation summary\nPayout schedule — week 26\nUpdated MSA for signature\nThu sync notes\nDashboard access request',
+        },
+      ],
+    },
+  },
+  {
+    kind: 'response',
+    method: 'act',
+    hierarchy: ['act-001'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-104',
+    eventTimestamp: isoMinutesAgo(179),
+    message: {
+      role: 'assistant',
+      content:
+        'Fetched the 5 most recent Brightfin emails and posted the summary to chat. Latest is the Q3 reconciliation summary.',
+    },
+  },
+
+  // ── act-002 — unread count + digest top 5 (done, multi-step) ───────────
+  {
+    kind: 'thought',
     method: 'act',
     hierarchy: ['act-002'],
     hierarchyLabel: 'CodeActActor.act',
-    eventId: 'tl-002',
+    eventId: 'tl-201',
+    eventTimestamp: isoMinutesAgo(60),
+    message: {
+      role: 'assistant',
+      content:
+        'The user wants the unread count plus the 5 most recent emails. Following the Discovery-First policy — I will search skills and guidance before acting.',
+    },
+  },
+  {
+    kind: 'tool_call',
+    method: 'act',
+    hierarchy: ['act-002'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-202',
     eventTimestamp: isoMinutesAgo(60),
     message: {
       role: 'assistant',
       content: null,
       toolCalls: [
         {
-          id: 'call-1',
-          function: { name: 'FunctionManager.search', arguments: '{"query": "gmail digest"}' },
+          id: 'call-201',
+          function: {
+            name: 'FunctionManager.search',
+            arguments: '{"query": "gmail unread count recent emails", "k": 5}',
+          },
         },
       ],
     },
   },
   {
-    kind: 'toolloop',
+    kind: 'tool_result',
     method: 'act',
     hierarchy: ['act-002'],
     hierarchyLabel: 'CodeActActor.act',
-    eventId: 'tl-003',
+    eventId: 'tl-203',
     eventTimestamp: isoMinutesAgo(60),
     message: {
       role: 'tool',
-      toolCallId: 'call-1',
+      toolCallId: 'call-201',
       name: 'FunctionManager.search',
       content: [{ type: 'text', text: 'gmail_inbox_digest(since, max_items=10) -> str' }],
+    },
+  },
+  {
+    kind: 'tool_call',
+    method: 'act',
+    hierarchy: ['act-002'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-204',
+    eventTimestamp: isoMinutesAgo(60),
+    message: {
+      role: 'assistant',
+      content: null,
+      toolCalls: [
+        {
+          id: 'call-202',
+          function: {
+            name: 'GuidanceManager.search',
+            arguments: '{"query": "Gmail inbox read unread", "k": 5}',
+          },
+        },
+      ],
+    },
+  },
+  {
+    kind: 'tool_result',
+    method: 'act',
+    hierarchy: ['act-002'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-205',
+    eventTimestamp: isoMinutesAgo(60),
+    message: {
+      role: 'tool',
+      toolCallId: 'call-202',
+      name: 'GuidanceManager.search',
+      content: [
+        {
+          type: 'text',
+          text: 'Discovery-First: read the unread count, then fetch recent messages in a single batch.',
+        },
+      ],
+    },
+  },
+  {
+    kind: 'tool_call',
+    method: 'act',
+    hierarchy: ['act-002'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-206',
+    eventTimestamp: isoMinutesAgo(60),
+    message: {
+      role: 'assistant',
+      content: null,
+      toolCalls: [
+        {
+          id: 'call-203',
+          function: {
+            name: 'execute_code',
+            arguments: JSON.stringify({
+              language: 'python',
+              code: 'result = primitives.integrations.gmail.fetch_emails(\n    query="is:unread in:inbox", max_results=1\n)\nprint(result.resultSizeEstimate)',
+            }),
+          },
+        },
+      ],
+    },
+  },
+  {
+    kind: 'tool_result',
+    method: 'act',
+    hierarchy: ['act-002'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-207',
+    eventTimestamp: isoMinutesAgo(60),
+    message: {
+      role: 'tool',
+      toolCallId: 'call-203',
+      name: 'execute_code',
+      content: [{ type: 'text', text: '12' }],
+    },
+  },
+  {
+    kind: 'thought',
+    method: 'act',
+    hierarchy: ['act-002'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-208',
+    eventTimestamp: isoMinutesAgo(60),
+    message: {
+      role: 'assistant',
+      content:
+        'Unread = 12 from resultSizeEstimate. Now fetching the 5 most recent regardless of read state.',
+    },
+  },
+  {
+    kind: 'tool_call',
+    method: 'act',
+    hierarchy: ['act-002'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-209',
+    eventTimestamp: isoMinutesAgo(60),
+    message: {
+      role: 'assistant',
+      content: null,
+      toolCalls: [
+        {
+          id: 'call-204',
+          function: {
+            name: 'execute_code',
+            arguments: JSON.stringify({
+              language: 'python',
+              code: 'emails = primitives.integrations.gmail.fetch_emails(\n    label_ids=["INBOX"], max_results=5\n)\nfor e in emails:\n    print(e.subject, "—", e.sender)',
+            }),
+          },
+        },
+      ],
+    },
+  },
+  {
+    kind: 'tool_result',
+    method: 'act',
+    hierarchy: ['act-002'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-210',
+    eventTimestamp: isoMinutesAgo(60),
+    message: {
+      role: 'tool',
+      toolCallId: 'call-204',
+      name: 'execute_code',
+      content: [
+        {
+          type: 'text',
+          text: 'Payout cleared — Stripe\n3 issues assigned — Linear\nDoc shared — Notion\nCI passed — GitHub\nNew booking — Calendly',
+        },
+      ],
+    },
+  },
+  {
+    kind: 'response',
+    method: 'act',
+    hierarchy: ['act-002'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-211',
+    eventTimestamp: isoMinutesAgo(59),
+    message: {
+      role: 'assistant',
+      content:
+        '12 unread in your inbox. Top 5: (1) Stripe — payout $4,210 cleared; (2) Linear — 3 issues assigned to you; (3) Notion — doc shared by Olivia; (4) GitHub — CI passed on main; (5) Calendly — new booking Thu 3pm.',
+    },
+  },
+
+  // ── act-003 — token expired mid-run (failed) ───────────────────────────
+  {
+    kind: 'tool_call',
+    method: 'act',
+    hierarchy: ['act-003'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-301',
+    eventTimestamp: isoMinutesAgo(90),
+    message: {
+      role: 'assistant',
+      content: null,
+      toolCalls: [
+        {
+          id: 'call-301',
+          function: {
+            name: 'execute_code',
+            arguments: JSON.stringify({
+              language: 'python',
+              code: 'labels = primitives.integrations.gmail.list_labels(include_details=True)',
+            }),
+          },
+        },
+      ],
+    },
+  },
+  {
+    kind: 'tool_result',
+    method: 'act',
+    hierarchy: ['act-003'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-302',
+    eventTimestamp: isoMinutesAgo(90),
+    message: {
+      role: 'tool',
+      toolCallId: 'call-301',
+      name: 'execute_code',
+      content: [
+        { type: 'text', text: 'HTTP 401 — token expired. Aborting and flagging for re-auth.' },
+      ],
+    },
+  },
+  {
+    kind: 'response',
+    method: 'act',
+    hierarchy: ['act-003'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-303',
+    eventTimestamp: isoMinutesAgo(89),
+    message: {
+      role: 'assistant',
+      content:
+        'Failed — the integration token expired mid-run (401). Re-auth required, then I can retry automatically.',
+    },
+  },
+
+  // ── act-005 — research sweep (done) — markdown thought + code/stdout ────
+  {
+    kind: 'thought',
+    method: 'act',
+    hierarchy: ['act-005'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-501',
+    eventTimestamp: isoMinutesAgo(28),
+    message: {
+      role: 'assistant',
+      content:
+        'Plan:\n1. Pull fresh signals for the **fintech** vertical\n2. Score each lead\n3. Keep anything scoring above `0.6`',
+    },
+  },
+  {
+    kind: 'tool_call',
+    method: 'act',
+    hierarchy: ['act-005'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-502',
+    eventTimestamp: isoMinutesAgo(28),
+    message: {
+      role: 'assistant',
+      content: null,
+      toolCalls: [
+        {
+          id: 'call-501',
+          function: {
+            name: 'execute_code',
+            arguments: JSON.stringify({
+              language: 'python',
+              code: 'leads = weekly_competitor_brief(vertical="fintech")\nfor l in ranked(leads)[:3]:\n    print(l.company, round(l.score, 2))',
+            }),
+          },
+        },
+      ],
+    },
+  },
+  {
+    kind: 'tool_result',
+    method: 'act',
+    hierarchy: ['act-005'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-503',
+    eventTimestamp: isoMinutesAgo(28),
+    message: {
+      role: 'tool',
+      toolCallId: 'call-501',
+      name: 'execute_code',
+      content: [
+        { type: 'text', text: 'Brightfin 0.82\nCobalt Health 0.74\nMistwell Logistics 0.61' },
+      ],
+    },
+  },
+  {
+    kind: 'response',
+    method: 'act',
+    hierarchy: ['act-005'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-504',
+    eventTimestamp: isoMinutesAgo(27),
+    message: {
+      role: 'assistant',
+      content:
+        'Surfaced **3 warm leads** this window:\n\n- **Brightfin** — Fintech · Series A raised (score 0.82)\n- **Cobalt Health** — Healthtech · hiring AI lead (0.74)\n- **Mistwell Logistics** — Supply chain · product launch (0.61)\n\nFull ranked list written to `Data/research.agentic.ai/leads`.',
+    },
+  },
+
+  // ── act-004 — weekly competitor brief (RUNNING, no final response) ──────
+  {
+    kind: 'thought',
+    method: 'act',
+    hierarchy: ['act-004'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-401',
+    eventTimestamp: isoMinutesAgo(4),
+    message: {
+      role: 'assistant',
+      content:
+        'Starting the weekly competitor brief. I’ll gather fintech signals, then summarise pricing and hiring changes.',
+    },
+  },
+  {
+    kind: 'tool_call',
+    method: 'act',
+    hierarchy: ['act-004'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-402',
+    eventTimestamp: isoMinutesAgo(4),
+    message: {
+      role: 'assistant',
+      content: null,
+      toolCalls: [
+        {
+          id: 'call-401',
+          function: {
+            name: 'execute_code',
+            arguments: JSON.stringify({
+              language: 'python',
+              code: 'signals = data.search("research.agentic.ai/leads", "fintech", limit=50)\nprint(len(signals), "signals")',
+            }),
+          },
+        },
+      ],
+    },
+  },
+  {
+    kind: 'tool_result',
+    method: 'act',
+    hierarchy: ['act-004'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-403',
+    eventTimestamp: isoMinutesAgo(4),
+    message: {
+      role: 'tool',
+      toolCallId: 'call-401',
+      name: 'execute_code',
+      content: [{ type: 'text', text: '37 signals' }],
+    },
+  },
+  {
+    kind: 'thought',
+    method: 'act',
+    hierarchy: ['act-004'],
+    hierarchyLabel: 'CodeActActor.act',
+    eventId: 'tl-404',
+    eventTimestamp: isoMinutesAgo(3),
+    message: {
+      role: 'assistant',
+      content: 'Got 37 signals — clustering by theme and drafting the brief now…',
     },
   },
 ];
@@ -845,6 +1631,14 @@ const secrets: MockRow[] = [
   { name: 'OPENAI_API_KEY', description: 'Inference for digests and research summaries.' },
   { name: 'STRIPE_API_KEY', description: 'Payout reconciliation for the Stripe watcher task.' },
   { name: 'CLIENTBETA_FEED_TOKEN', description: 'Read token for the ClientBeta Riverside data feed.' },
+  {
+    name: 'ANTHROPIC_API_KEY',
+    description: 'Fallback inference provider for long-context drafts.',
+  },
+  { name: 'aws/prod/PAYOUTS_KEY', description: 'Production payout-settlement signing key.' },
+  { name: 'aws/staging/PAYOUTS_KEY', description: 'Staging payout-settlement signing key.' },
+  { name: 'github/CI_TOKEN', description: 'Token for the issue-triage and repo-lookup playbooks.' },
+  { name: 'github/WEBHOOK_SECRET', description: 'Validates inbound GitHub webhook signatures.' },
 ];
 
 // Data-layer browser contexts (nested folders in the Data view).
@@ -1004,6 +1798,22 @@ const dataResearchLeads: MockRow[] = [
     signal: 'Product launch',
     score: 0.61,
     surfacedAt: isoMinutesAgo(118),
+  },
+  {
+    leadId: 'l_9004',
+    company: 'Northstar Mobility',
+    vertical: 'Mobility',
+    signal: 'New CTO hire',
+    score: 0.58,
+    surfacedAt: isoMinutesAgo(150),
+  },
+  {
+    leadId: 'l_9005',
+    company: 'Vellum Legal',
+    vertical: 'Legaltech',
+    signal: 'Seed extension',
+    score: 0.69,
+    surfacedAt: isoMinutesAgo(175),
   },
 ];
 
