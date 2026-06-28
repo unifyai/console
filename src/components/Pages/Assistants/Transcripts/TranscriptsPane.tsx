@@ -2,16 +2,22 @@
 
 import * as React from 'react';
 import {
+  Check,
+  Copy,
+  Hash,
   Mail,
   MessageCircle,
   MessageSquare,
   Phone,
-  RefreshCw,
-  Rows3,
   Smartphone,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
+import { ChatMarkdown } from '@/components/Chat/ChatMarkdown';
+import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
+import { TabToolbar } from '../Common/TabToolbar';
+import { TabFooter } from '../Common/TabFooter';
 import type { Assistant } from '@/types/assistants/assistant';
 import type { ContactRow, TranscriptRow } from '@/types/assistants/brain';
 
@@ -21,27 +27,87 @@ interface TranscriptsPaneProps {
   assistantId: string;
 }
 
-type ViewMode = 'threads' | 'feed' | 'table';
-
 interface ChannelDef {
   id: string;
   label: string;
   Icon: React.ElementType;
   /** Orchestra `medium` values mapped onto this channel. */
   mediums: string[];
+  /** Brand accent token used as the per-channel highlight color. */
+  cssVar: string;
 }
 
 const CHANNELS: ChannelDef[] = [
-  { id: 'chat', label: 'Chat', Icon: MessageSquare, mediums: ['unify_message'] },
-  { id: 'email', label: 'Email', Icon: Mail, mediums: ['email'] },
-  { id: 'call', label: 'Call', Icon: Phone, mediums: ['unify_meet'] },
-  { id: 'sms', label: 'SMS', Icon: Smartphone, mediums: ['sms'] },
-  { id: 'whatsapp', label: 'WhatsApp', Icon: MessageCircle, mediums: ['whatsapp'] },
+  {
+    id: 'chat',
+    label: 'Chat',
+    Icon: MessageSquare,
+    mediums: ['unify_message'],
+    cssVar: 'var(--role-green)',
+  },
+  { id: 'email', label: 'Email', Icon: Mail, mediums: ['email'], cssVar: 'var(--role-cyan)' },
+  { id: 'call', label: 'Call', Icon: Phone, mediums: ['unify_meet'], cssVar: 'var(--role-purple)' },
+  { id: 'sms', label: 'SMS', Icon: Smartphone, mediums: ['sms'], cssVar: 'var(--role-orange)' },
+  {
+    id: 'whatsapp',
+    label: 'WhatsApp',
+    Icon: MessageCircle,
+    mediums: ['whatsapp'],
+    cssVar: 'var(--role-teal)',
+  },
+  {
+    id: 'discord',
+    label: 'Discord',
+    Icon: Hash,
+    mediums: ['discord'],
+    cssVar: 'var(--role-purple)',
+  },
+];
+
+/** Deterministic avatar tints drawn from the brand role palette. */
+const AVATAR_TONES = [
+  'var(--role-green)',
+  'var(--role-cyan)',
+  'var(--role-purple)',
+  'var(--role-orange)',
+  'var(--role-teal)',
+  'var(--role-pink)',
+  'var(--role-blue)',
 ];
 
 function channelForMedium(medium: string | null): ChannelDef | null {
   if (!medium) return null;
   return CHANNELS.find((channel) => channel.mediums.includes(medium)) ?? null;
+}
+
+function toneFor(id: number): string {
+  return AVATAR_TONES[((id % AVATAR_TONES.length) + AVATAR_TONES.length) % AVATAR_TONES.length];
+}
+
+function initialsFor(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+/** Pull a thread subject from the first message: the `Subject:` line of an
+ *  email, otherwise a trimmed snippet of the opening message. */
+function deriveSubject(messages: TranscriptRow[]): string {
+  const first = messages[0]?.content ?? '';
+  const subjectMatch = first.match(/^\s*Subject:\s*(.+)$/im);
+  if (subjectMatch) return subjectMatch[1].trim();
+  const callMatch = first.match(/^\s*Call:\s*(.+?)(?:\s—|\.|$)/im);
+  if (callMatch) return callMatch[1].trim();
+  const snippet = first.replace(/\s+/g, ' ').trim();
+  return snippet.length > 64 ? `${snippet.slice(0, 64)}…` : snippet || 'Conversation';
+}
+
+/** Strip a leading `Subject:` block so the reader body shows the message, not
+ *  the subject we already render in the header. */
+function messageBody(content: string | null): string {
+  if (!content) return '';
+  return content.replace(/^\s*Subject:\s*.+\n+/i, '').trim();
 }
 
 function formatTime(ts: string | null): string {
@@ -54,6 +120,13 @@ function formatTime(ts: string | null): string {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+function formatDay(ts: string | null): string {
+  if (!ts) return '';
+  const date = new Date(ts);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 async function fetchRows<T>(context: string): Promise<T[]> {
@@ -69,8 +142,8 @@ async function fetchRows<T>(context: string): Promise<T[]> {
 }
 
 export function TranscriptsPane({ assistant, ownerId, assistantId }: TranscriptsPaneProps) {
-  const [view, setView] = React.useState<ViewMode>('threads');
   const [channel, setChannel] = React.useState<string>('all');
+  const [search, setSearch] = React.useState('');
   const [transcripts, setTranscripts] = React.useState<TranscriptRow[]>([]);
   const [contacts, setContacts] = React.useState<ContactRow[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -123,9 +196,7 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
 
   const filtered = React.useMemo(() => {
     if (channel === 'all') return transcripts;
-    const channelDef = CHANNELS.find((c) => c.id === channel);
-    if (!channelDef) return transcripts;
-    return transcripts.filter((row) => channelForMedium(row.medium)?.id === channelDef.id);
+    return transcripts.filter((row) => channelForMedium(row.medium)?.id === channel);
   }, [transcripts, channel]);
 
   const sortedAsc = React.useMemo(
@@ -143,274 +214,352 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
       if (!byExchange.has(key)) byExchange.set(key, []);
       byExchange.get(key)!.push(row);
     }
-    return Array.from(byExchange.entries())
-      .map(([exchangeId, messages]) => {
-        const last = messages[messages.length - 1];
-        const participants = new Set<number>();
-        messages.forEach((m) => {
-          if (m.senderId !== null) participants.add(m.senderId);
-          (m.receiverIds ?? []).forEach((id) => participants.add(id));
-        });
-        return {
-          exchangeId,
-          messages,
-          last,
-          channel: channelForMedium(last.medium),
-          participantNames: Array.from(participants).map(nameFor),
-        };
-      })
-      .sort(
-        (a, b) =>
-          new Date(b.last.timestamp ?? 0).getTime() - new Date(a.last.timestamp ?? 0).getTime()
-      );
-  }, [sortedAsc, nameFor]);
+    const built = Array.from(byExchange.entries()).map(([exchangeId, messages]) => {
+      const last = messages[messages.length - 1];
+      const participants = new Set<number>();
+      messages.forEach((m) => {
+        if (m.senderId !== null) participants.add(m.senderId);
+        (m.receiverIds ?? []).forEach((id) => participants.add(id));
+      });
+      return {
+        exchangeId,
+        messages,
+        last,
+        channel: channelForMedium(last.medium),
+        subject: deriveSubject(messages),
+        participantIds: Array.from(participants),
+      };
+    });
+    built.sort(
+      (a, b) =>
+        new Date(b.last.timestamp ?? 0).getTime() - new Date(a.last.timestamp ?? 0).getTime()
+    );
+    if (!search.trim()) return built;
+    const needle = search.trim().toLowerCase();
+    return built.filter((thread) => {
+      if (thread.subject.toLowerCase().includes(needle)) return true;
+      if (thread.participantIds.some((id) => nameFor(id).toLowerCase().includes(needle)))
+        return true;
+      return thread.messages.some((m) => (m.content ?? '').toLowerCase().includes(needle));
+    });
+  }, [sortedAsc, search, nameFor]);
 
-  const isAssistant = React.useCallback(
-    (senderId: number | null) => senderId !== null && senderId === assistant.selfContactId,
-    [assistant.selfContactId]
-  );
+  // Keep a valid selection as filters/search change.
+  React.useEffect(() => {
+    if (threads.length === 0) {
+      if (openExchangeId !== null) setOpenExchangeId(null);
+      return;
+    }
+    if (!threads.some((t) => t.exchangeId === openExchangeId)) {
+      setOpenExchangeId(threads[0].exchangeId);
+    }
+  }, [threads, openExchangeId]);
+
+  const activeThread = threads.find((t) => t.exchangeId === openExchangeId) ?? threads[0] ?? null;
 
   return (
     <div
-      className="flex h-full w-full overflow-hidden bg-background"
+      className="flex h-full w-full flex-col overflow-hidden bg-background"
       data-testid="transcripts-pane"
     >
-      {/* Channel rail */}
-      <div className="flex w-48 shrink-0 flex-col border-r border-border bg-card">
-        <div className="text-label-muted border-b border-border px-3 py-2 uppercase tracking-wide">
-          Channels
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="transcripts-channel-rail">
-          <ChannelButton
-            label="All"
-            Icon={Rows3}
-            count={channelCounts.all}
-            active={channel === 'all'}
-            onClick={() => setChannel('all')}
-          />
-          {CHANNELS.map((channelDef) => (
-            <ChannelButton
-              key={channelDef.id}
-              label={channelDef.label}
-              Icon={channelDef.Icon}
-              count={channelCounts[channelDef.id] ?? 0}
-              active={channel === channelDef.id}
-              onClick={() => setChannel(channelDef.id)}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Main */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
-          <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
-            {(['threads', 'feed', 'table'] as ViewMode[]).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setView(mode)}
-                data-active={view === mode}
-                data-testid={`transcripts-view-${mode}`}
-                className={cn(
-                  'rounded px-2.5 py-1 text-xs font-medium capitalize transition-colors',
-                  view === mode
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                )}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
-          <div className="flex-1" />
-          <button
-            type="button"
-            onClick={() => void handleRefresh()}
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Refresh transcripts"
+      {/* Toolbar: channel segments + search + refresh */}
+      <TabToolbar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search across all channels…"
+        searchTestId="transcripts-search"
+        onRefresh={() => void handleRefresh()}
+        isRefreshing={isRefreshing}
+        refreshTitle="Refresh transcripts"
+        leading={
+          <div
+            className="inline-flex items-center gap-0.5 rounded-[10px] border border-border bg-muted p-[3px]"
+            data-testid="transcripts-channel-seg"
           >
-            <RefreshCw
-              className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')}
-              aria-hidden="true"
+            <SegButton
+              label="All"
+              active={channel === 'all'}
+              onClick={() => setChannel('all')}
+              count={channelCounts.all}
             />
-          </button>
-        </div>
+            {CHANNELS.map((channelDef) => {
+              const active = channel === channelDef.id;
+              const ChannelIcon = channelDef.Icon;
+              return (
+                <button
+                  key={channelDef.id}
+                  type="button"
+                  onClick={() => setChannel(channelDef.id)}
+                  title={`${channelDef.label}${channelCounts[channelDef.id] ? ` · ${channelCounts[channelDef.id]}` : ''}`}
+                  data-testid={`transcripts-channel-${channelDef.id}`}
+                  aria-pressed={active}
+                  style={active ? { color: channelDef.cssVar } : undefined}
+                  className={cn(
+                    'text-caption inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 transition-colors',
+                    active ? 'bg-accent-soft' : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <ChannelIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              );
+            })}
+          </div>
+        }
+      />
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {isLoading ? (
-            <div className="space-y-2 p-4">
-              <SkeletonCard />
-              <SkeletonCard />
-              <SkeletonCard />
-            </div>
-          ) : sortedAsc.length === 0 ? (
-            <p className="text-body-muted p-8 text-center">No conversations yet.</p>
-          ) : view === 'threads' ? (
-            <div className="divide-y divide-border" data-testid="transcripts-threads">
-              {threads.map((thread) => {
-                const Icon = thread.channel?.Icon ?? MessageSquare;
-                const isOpen = openExchangeId === thread.exchangeId;
-                return (
-                  <div key={thread.exchangeId}>
-                    <button
-                      type="button"
-                      onClick={() => setOpenExchangeId(isOpen ? null : thread.exchangeId)}
-                      className="hover:bg-muted/50 flex w-full items-start gap-3 px-4 py-3 text-left transition-colors"
-                    >
-                      <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-                        <Icon className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-title truncate text-foreground">
-                            {thread.participantNames.join(', ') || 'Conversation'}
-                          </span>
-                          <span className="text-caption shrink-0">
-                            {formatTime(thread.last.timestamp)}
-                          </span>
-                        </div>
-                        <p className="text-body-muted mt-0.5 truncate">
-                          {thread.last.content ?? ''}
-                        </p>
-                        <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent-soft-foreground">
-                          {thread.channel?.label ?? 'Other'} · {thread.messages.length}
-                        </span>
-                      </div>
-                    </button>
-                    {isOpen && (
-                      <div className="bg-muted/30 space-y-2 px-4 py-3">
-                        {thread.messages.map((message) => (
-                          <MessageBubble
-                            key={message.messageId}
-                            message={message}
-                            name={nameFor(message.senderId)}
-                            isAssistant={isAssistant(message.senderId)}
-                          />
-                        ))}
-                      </div>
-                    )}
+      {/* Threads split: list + reader */}
+      {isLoading ? (
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      ) : threads.length === 0 ? (
+        <p className="text-body-muted p-8 text-center">No conversations yet.</p>
+      ) : (
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          {/* Thread list */}
+          <div
+            className="flex w-[320px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-border p-3"
+            data-testid="transcripts-threads"
+          >
+            {threads.map((thread) => {
+              const channelDef = thread.channel;
+              const Icon = channelDef?.Icon ?? MessageSquare;
+              const ch = channelDef?.cssVar ?? 'var(--muted-ink)';
+              const active = activeThread?.exchangeId === thread.exchangeId;
+              return (
+                <button
+                  key={thread.exchangeId}
+                  type="button"
+                  onClick={() => setOpenExchangeId(thread.exchangeId)}
+                  data-testid={`transcripts-thread-${thread.exchangeId}`}
+                  style={
+                    {
+                      '--ch': ch,
+                      ...(active
+                        ? { backgroundColor: 'color-mix(in srgb, var(--ch) 12%, transparent)' }
+                        : {}),
+                    } as React.CSSProperties
+                  }
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-colors',
+                    !active && 'hover:bg-muted'
+                  )}
+                >
+                  <span
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px]"
+                    style={{
+                      color: ch,
+                      backgroundColor: 'color-mix(in srgb, var(--ch) 16%, var(--surface))',
+                    }}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-title truncate">{thread.subject}</div>
+                    <div className="text-caption mt-0.5 truncate">
+                      <span style={{ color: ch }}>{channelDef?.label ?? 'Other'}</span> ·{' '}
+                      {thread.messages.length} msg · {thread.participantIds.length} people
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-          ) : view === 'feed' ? (
-            <div className="space-y-2 p-4" data-testid="transcripts-feed">
-              {sortedAsc.map((message) => (
-                <MessageBubble
-                  key={message.messageId}
-                  message={message}
-                  name={nameFor(message.senderId)}
-                  isAssistant={isAssistant(message.senderId)}
-                  showChannel
-                />
-              ))}
-            </div>
-          ) : (
-            <table className="w-full border-collapse text-sm" data-testid="transcripts-table">
-              <thead className="sticky top-0 bg-card">
-                <tr>
-                  {['Channel', 'From', 'Content', 'Time'].map((col) => (
-                    <th
-                      key={col}
-                      className="border-b border-border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                  <span className="shrink-0 font-mono text-[10.5px] text-muted-foreground">
+                    {formatDay(thread.last.timestamp)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Exchange reader */}
+          {activeThread && (
+            <div
+              className="flex min-w-0 flex-1 flex-col overflow-y-auto"
+              data-testid="transcripts-reader"
+              style={
+                {
+                  '--ch': activeThread.channel?.cssVar ?? 'var(--muted-ink)',
+                } as React.CSSProperties
+              }
+            >
+              <div className="sticky top-0 z-[1] border-b border-border bg-background px-6 py-4">
+                <div className="mb-3 flex items-center gap-3">
+                  <span
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px]"
+                    style={{
+                      color: 'var(--ch)',
+                      backgroundColor: 'color-mix(in srgb, var(--ch) 16%, var(--surface))',
+                    }}
+                  >
+                    {React.createElement(activeThread.channel?.Icon ?? MessageSquare, {
+                      className: 'h-[18px] w-[18px]',
+                      'aria-hidden': true,
+                    })}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-h2 truncate">{activeThread.subject}</div>
+                    <div className="text-caption mt-0.5">
+                      {activeThread.channel?.label ?? 'Other'} · exchange #{activeThread.exchangeId}{' '}
+                      · {activeThread.messages.length} messages
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="mr-0.5 inline-flex items-center gap-1 font-mono text-[9.5px] uppercase tracking-[0.1em] text-muted-foreground">
+                    <Users className="h-3 w-3" aria-hidden="true" /> Participants
+                  </span>
+                  {activeThread.participantIds.map((id) => (
+                    <span
+                      key={id}
+                      className="text-caption inline-flex items-center gap-1.5 rounded-full border border-border bg-card-2 py-[3px] pl-[3px] pr-2.5 text-foreground"
                     >
-                      {col}
-                    </th>
+                      <span
+                        className="grid h-5 w-5 place-items-center rounded-full font-display text-[9px] font-semibold text-primary-foreground"
+                        style={{ backgroundColor: toneFor(id) }}
+                      >
+                        {initialsFor(nameFor(id))}
+                      </span>
+                      {nameFor(id)}
+                    </span>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedAsc
-                  .slice()
-                  .reverse()
-                  .map((message) => (
-                    <tr key={message.messageId} className="hover:bg-muted/50">
-                      <td className="border-b border-border px-3 py-2 text-muted-foreground">
-                        {channelForMedium(message.medium)?.label ?? 'Other'}
-                      </td>
-                      <td className="border-b border-border px-3 py-2 text-foreground">
-                        {nameFor(message.senderId)}
-                      </td>
-                      <td className="max-w-[420px] truncate border-b border-border px-3 py-2 text-foreground">
-                        {message.content ?? ''}
-                      </td>
-                      <td className="whitespace-nowrap border-b border-border px-3 py-2 text-muted-foreground">
-                        {formatTime(message.timestamp)}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3.5 px-6 py-5">
+                {activeThread.messages.map((message) => {
+                  const out =
+                    message.senderId !== null && message.senderId === assistant.selfContactId;
+                  const senderName = out
+                    ? assistant.firstName || 'Assistant'
+                    : nameFor(message.senderId);
+                  const receivers = message.receiverIds ?? [];
+                  return (
+                    <TranscriptMessageRow
+                      key={message.messageId}
+                      out={out}
+                      senderName={senderName}
+                      senderTone={out ? 'var(--primary)' : toneFor(message.senderId ?? 0)}
+                      receiverSummary={
+                        receivers.length > 0
+                          ? `to ${receivers.map((id) => nameFor(id)).join(', ')}`
+                          : null
+                      }
+                      timeLabel={formatTime(message.timestamp)}
+                      body={messageBody(message.content)}
+                    />
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
+      )}
+
+      <TabFooter
+        testId="transcripts-footer"
+        right={
+          <span className="text-caption">
+            {threads.length} {threads.length === 1 ? 'exchange' : 'exchanges'} ·{' '}
+            {threads.reduce((sum, t) => sum + t.messages.length, 0)} messages
+          </span>
+        }
+      />
+    </div>
+  );
+}
+
+function TranscriptMessageRow({
+  out,
+  senderName,
+  senderTone,
+  receiverSummary,
+  timeLabel,
+  body,
+}: {
+  out: boolean;
+  senderName: string;
+  senderTone: string;
+  receiverSummary: string | null;
+  timeLabel: string;
+  body: string;
+}) {
+  const { isCopied, handleCopy } = useCopyToClipboard({
+    text: body,
+    copyMessage: 'Message copied',
+    showSuccessNotification: false,
+  });
+
+  return (
+    <div className="group flex w-full gap-3">
+      <span
+        className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] font-display text-[11px] font-semibold text-primary-foreground"
+        style={{ backgroundColor: senderTone }}
+      >
+        {initialsFor(senderName)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex flex-wrap items-baseline gap-2">
+          <b className="text-[12px] font-semibold text-foreground">{senderName}</b>
+          {receiverSummary && (
+            <span className="text-[11px] text-muted-foreground">{receiverSummary}</span>
+          )}
+          <span className="font-mono text-[10px] text-muted-foreground">{timeLabel}</span>
+          <button
+            type="button"
+            onClick={handleCopy}
+            aria-label={isCopied ? 'Message copied' : 'Copy message'}
+            data-testid="transcript-copy-button"
+            className={cn(
+              'ml-auto flex h-4 w-4 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100',
+              isCopied
+                ? 'text-primary opacity-100'
+                : 'text-muted-foreground/60 hover:text-foreground'
+            )}
+          >
+            {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+          </button>
+        </div>
+        {/* Assistant ("out") replies render as plain no-bubble markdown to match
+            Chat; inbound human messages keep a subtle bubble. */}
+        {out ? (
+          <div className="text-[13px] leading-relaxed text-foreground">
+            <ChatMarkdown content={body} />
+          </div>
+        ) : (
+          <div className="min-w-0 rounded-[13px] border border-border bg-card-2 px-3.5 py-2.5 text-[13px] leading-relaxed text-foreground">
+            <ChatMarkdown content={body} />
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function ChannelButton({
+function SegButton({
   label,
-  Icon,
-  count,
   active,
   onClick,
+  count,
 }: {
   label: string;
-  Icon: React.ElementType;
-  count: number;
   active: boolean;
   onClick: () => void;
+  count?: number;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
-        'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
-        active ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted'
+        'text-caption inline-flex h-7 items-center gap-1.5 rounded-[7px] px-3 transition-colors',
+        active
+          ? 'bg-accent-soft text-accent-soft-foreground'
+          : 'text-muted-foreground hover:text-foreground'
       )}
     >
-      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-      <span className="flex-1 truncate">{label}</span>
-      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{count || ''}</span>
+      {label}
+      {count ? <span className="font-mono text-[10px] opacity-70">{count}</span> : null}
     </button>
-  );
-}
-
-function MessageBubble({
-  message,
-  name,
-  isAssistant,
-  showChannel = false,
-}: {
-  message: TranscriptRow;
-  name: string;
-  isAssistant: boolean;
-  showChannel?: boolean;
-}) {
-  return (
-    <div className={cn('flex', isAssistant ? 'justify-end' : 'justify-start')}>
-      <div
-        className={cn(
-          'max-w-[80%] rounded-2xl px-3 py-2 text-sm',
-          isAssistant
-            ? 'bg-primary text-primary-foreground'
-            : 'border border-border bg-card text-foreground'
-        )}
-      >
-        <div
-          className={cn(
-            'mb-0.5 flex items-center gap-2 text-[11px]',
-            isAssistant ? 'text-primary-foreground/70' : 'text-muted-foreground'
-          )}
-        >
-          <span className="font-medium">{name}</span>
-          {showChannel && <span>· {channelForMedium(message.medium)?.label ?? 'Other'}</span>}
-          <span>· {formatTime(message.timestamp)}</span>
-        </div>
-        <p className="whitespace-pre-wrap leading-relaxed">{message.content ?? ''}</p>
-      </div>
-    </div>
   );
 }

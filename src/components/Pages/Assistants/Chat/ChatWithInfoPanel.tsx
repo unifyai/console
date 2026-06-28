@@ -38,7 +38,7 @@ import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
  */
 const INFO_PANEL_OPEN_KEY = 'console:assistants:info-panel-open';
 const INFO_PANEL_WIDTH_KEY = 'console:assistants:info-panel-width';
-const INFO_PANEL_DEFAULT_WIDTH = 380;
+const INFO_PANEL_DEFAULT_WIDTH = 360;
 const INFO_PANEL_MIN_WIDTH = 320;
 const INFO_PANEL_MIN_CHAT_WIDTH = 320;
 const MOBILE_INFO_PANEL_MEDIA_QUERY = '(max-width: 639px)';
@@ -464,38 +464,17 @@ export function ChatWithInfoPanel({
       return;
     }
 
-    // Open transiently for the onboarding focus layout. We deliberately
-    // don't persist here: this is a request-driven override of the global
-    // preference, not the user choosing to open the panel, so it must not
-    // flip the shared open/closed state for every other assistant.
+    // Open transiently for the onboarding focus layout at the default
+    // inspector width — the chat stays the dominant column beside it (per
+    // the redesign, the profile is a fixed-width side panel, not a takeover).
+    // We deliberately don't persist here: this is a request-driven override
+    // of the global preference, not the user choosing to open the panel, so
+    // it must not flip the shared open/closed state for every other assistant.
     setIsInfoOpen(true);
-
-    const maximizeInfoPanel = () => {
-      const maxWidth = getInfoPanelMaxWidth();
-      if (!Number.isFinite(maxWidth)) return false;
-      setInfoPanelWidthWithinBounds(maxWidth);
-      return true;
-    };
-
-    if (maximizeInfoPanel()) {
-      seededInfoFocusLayoutRequestRef.current = infoPanelFocusLayoutRequest;
-      return;
-    }
-
-    const container = infoPanelContainerRef.current;
-    if (!container || typeof ResizeObserver === 'undefined') return;
-
-    const resizeObserver = new ResizeObserver(() => {
-      if (maximizeInfoPanel()) {
-        seededInfoFocusLayoutRequestRef.current = infoPanelFocusLayoutRequest;
-        resizeObserver.disconnect();
-      }
-    });
-    resizeObserver.observe(container);
-    return () => resizeObserver.disconnect();
+    setInfoPanelWidthWithinBounds(INFO_PANEL_DEFAULT_WIDTH);
+    seededInfoFocusLayoutRequestRef.current = infoPanelFocusLayoutRequest;
   }, [
     assistant.isCoordinator,
-    getInfoPanelMaxWidth,
     hasIncompleteOnboarding,
     infoPanelFocusLayoutRequest,
     setInfoPanelWidthWithinBounds,
@@ -563,100 +542,96 @@ export function ChatWithInfoPanel({
 
   return (
     <div className="flex h-full w-full flex-col">
-      {/* Toolbar: chat search + voice call + profile toggle, attached
-          directly under the section header. */}
-      <div className="flex items-center justify-between gap-2 border-b bg-card px-3 py-2">
-        <div className="relative max-w-xs flex-1">
-          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            readOnly
-            className="h-7 w-full cursor-text rounded-md border bg-transparent pl-7 pr-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            placeholder={`Search chat with ${searchDisplayName}…`}
-            onFocus={(e) => {
-              e.currentTarget.blur();
-              setSearchOpen(true);
-            }}
-            onClick={() => setSearchOpen(true)}
-            data-testid="chat-search-trigger"
-            aria-label="Search conversation"
-          />
-        </div>
-        <div className="flex items-center gap-0.5">
-          {/* The call button stays visible even when voice calls aren't configured
+      {/* Chat pane + optional contained info side panel. The chat-scoped toolbar
+          (search + call + profile toggle) lives inside the chat column so the
+          search spans to the call icon and the controls sit at the chat/profile
+          boundary rather than over the profile panel. */}
+      <div ref={infoPanelContainerRef} className="flex min-h-0 flex-1">
+        <div className={cn('flex min-w-0 flex-1 flex-col', isInfoOpen && 'hidden sm:flex')}>
+          <div className="flex items-center justify-between gap-2 border-b bg-card px-3 py-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                readOnly
+                className="h-7 w-full cursor-text rounded-md border bg-transparent pl-7 pr-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                placeholder={`Search chat with ${searchDisplayName}…`}
+                onFocus={(e) => {
+                  e.currentTarget.blur();
+                  setSearchOpen(true);
+                }}
+                onClick={() => setSearchOpen(true)}
+                data-testid="chat-search-trigger"
+                aria-label="Search conversation"
+              />
+            </div>
+            <div className="flex items-center gap-0.5">
+              {/* The call button stays visible even when voice calls aren't configured
               on the deployment — they're disabled with an explanatory tooltip
               instead of hidden. The span wrapper is load-bearing: a disabled
               Button has `pointer-events-none`, so the tooltip has to trigger
               off the span rather than the button. */}
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={startAudioCall}
-                    disabled={isCallButtonDisabled}
-                    data-testid="call-audio-button"
-                  >
-                    {isInThisCall && isConnectingCall ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Phone className="h-4 w-4" />
-                    )}
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>{callButtonTooltip()}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="relative">
-                  <Button
-                    type="button"
-                    variant={isInfoOpen ? 'primary' : 'ghost'}
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={toggleInfo}
-                    data-testid="assistant-info-button"
-                    aria-label={isInfoOpen ? 'Hide profile' : 'Show profile'}
-                    aria-pressed={isInfoOpen}
-                  >
-                    <PanelRight className="h-4 w-4" />
-                  </Button>
-                  {showOnboardingDot && (
-                    <span
-                      data-testid="assistant-info-button-onboarding-dot"
-                      aria-hidden="true"
-                      // Pinned to the corner of the trigger; ring uses the
-                      // chat header's bg so the dot reads as a notch on
-                      // the icon rather than floating in space.
-                      className="pointer-events-none absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background"
-                    />
-                  )}
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>{isInfoOpen ? 'Hide profile' : 'Show profile'}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
-
-      {/* Middle area: chat panel + optional contained info side panel.
-          Same flex-row pattern we use elsewhere — desktop puts the panel
-          beside chat (chat shrinks but stays interactive); mobile lets
-          the panel claim the full width and the chat is hidden so the
-          textarea doesn't peek through. */}
-      <div ref={infoPanelContainerRef} className="flex min-h-0 flex-1">
-        <div className={cn('flex min-w-0 flex-1 flex-col', isInfoOpen && 'hidden sm:flex')}>
+              <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={startAudioCall}
+                        disabled={isCallButtonDisabled}
+                        data-testid="call-audio-button"
+                      >
+                        {isInThisCall && isConnectingCall ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Phone className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p>{callButtonTooltip()}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="relative">
+                      <Button
+                        type="button"
+                        variant={isInfoOpen ? 'primary' : 'ghost'}
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={toggleInfo}
+                        data-testid="assistant-info-button"
+                        aria-label={isInfoOpen ? 'Hide profile' : 'Show profile'}
+                        aria-pressed={isInfoOpen}
+                      >
+                        <PanelRight className="h-4 w-4" />
+                      </Button>
+                      {showOnboardingDot && (
+                        <span
+                          data-testid="assistant-info-button-onboarding-dot"
+                          aria-hidden="true"
+                          // Pinned to the corner of the trigger; ring uses the
+                          // chat header's bg so the dot reads as a notch on
+                          // the icon rather than floating in space.
+                          className="pointer-events-none absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background"
+                        />
+                      )}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p>{isInfoOpen ? 'Hide profile' : 'Show profile'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </div>
           {renderDockedCall ? (
             <>
               <div className="min-h-0 flex-1 border-b" data-testid="assistant-call-docked-region">

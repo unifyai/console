@@ -29,11 +29,11 @@ export function CallPillBubble({ pill, timezone, onClick }: CallPillProps) {
   const timeStr = formatPillTime(pill.timestamp, timezone);
 
   return (
-    <div className="flex items-center justify-center py-2" data-testid="call-pill">
+    <div className="flex items-center justify-center py-1.5" data-testid="call-pill">
       <button
         type="button"
         onClick={() => onClick(pill)}
-        className="text-caption hover:border-primary/50 flex items-center gap-2 rounded-full border border-border bg-accent-soft px-4 py-1.5 font-medium text-accent-soft-foreground shadow-sm transition-colors hover:bg-card hover:text-foreground"
+        className="bg-muted/60 flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         data-testid="call-pill-button"
         data-exchange-key={`${pill.sourceContext ?? ''}:${pill.exchangeId ?? ''}`}
         data-exchange-id={pill.exchangeId}
