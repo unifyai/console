@@ -1,21 +1,10 @@
 'use client';
 
 import React, { useMemo, useState, useCallback } from 'react';
-import {
-  RefreshCw,
-  Search,
-  X,
-  Compass,
-  BookText,
-  Link2,
-  Plus,
-  ListFilter,
-  Check,
-} from 'lucide-react';
+import { Compass, BookText, Link2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { CopyButton } from '@/components/Common/Buttons/Copy';
 import { cn } from '@/lib/utils';
 import { useBrainData } from '@/hooks/Assistants/useBrainData';
@@ -23,6 +12,9 @@ import { formatTimestamp } from '@/utils/assistants/brain';
 import { SkeletonText } from '@/components/Common/Loaders/Skeletons';
 import { Skeleton } from '@/components/UI/skeleton';
 import { AssistantMarkdown } from '../Common/AssistantMarkdown';
+import { TabToolbar } from '../Common/TabToolbar';
+import { TabFilterDropdown } from '../Common/TabFilterDropdown';
+import { TabFooter } from '../Common/TabFooter';
 import { DocAddDrawer } from './DocAddDrawer';
 import type { DocLibraryKind } from './docLibraryKind';
 import type { GuidanceRow, KnowledgeRow } from '@/types/assistants/brain';
@@ -170,8 +162,7 @@ export function DocLibraryPane({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedScopes, setSelectedScopes] = useState<Set<string>>(new Set());
-  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [isAdding, setIsAdding] = useState(false);
 
   const docs = useMemo(() => {
@@ -190,6 +181,25 @@ export function DocLibraryPane({
     docs.forEach((doc) => doc.tags.forEach((tag) => set.add(tag)));
     return Array.from(set).sort();
   }, [docs]);
+
+  const selectedScopes = useMemo(
+    () =>
+      new Set(
+        Array.from(selectedKeys)
+          .filter((k) => k.startsWith('scope:'))
+          .map((k) => k.slice('scope:'.length))
+      ),
+    [selectedKeys]
+  );
+  const selectedTags = useMemo(
+    () =>
+      new Set(
+        Array.from(selectedKeys)
+          .filter((k) => k.startsWith('tag:'))
+          .map((k) => k.slice('tag:'.length))
+      ),
+    [selectedKeys]
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -216,19 +226,14 @@ export function DocLibraryPane({
     }
   }, [refetch]);
 
-  const toggleSetValue = useCallback(
-    (setter: React.Dispatch<React.SetStateAction<Set<string>>>, value: string) => {
-      setter((prev) => {
-        const next = new Set(prev);
-        if (next.has(value)) next.delete(value);
-        else next.add(value);
-        return next;
-      });
-    },
-    []
-  );
-
-  const filterCount = selectedScopes.size + selectedTags.size;
+  const toggleKey = useCallback((key: string) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
 
   if (error) {
     return (
@@ -243,114 +248,42 @@ export function DocLibraryPane({
 
   return (
     <div className="flex h-full flex-col" data-testid="doc-library-pane" data-kind={kind}>
-      <div className="flex shrink-0 items-center gap-2 border-b px-3 py-2" data-testid="doc-header">
-        <div className="relative max-w-xs flex-1">
-          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            className="h-7 w-full rounded-md border bg-transparent pl-7 pr-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            placeholder={meta.searchPlaceholder}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            data-testid="doc-search"
+      <TabToolbar
+        testId="doc-header"
+        searchValue={query}
+        onSearchChange={setQuery}
+        searchPlaceholder={meta.searchPlaceholder}
+        searchTestId="doc-search"
+        searchClearTestId="doc-search-clear"
+        filter={
+          <TabFilterDropdown
+            groups={[
+              { id: 'scope', label: 'Scope', values: allScopes },
+              { id: 'tag', label: 'Tags', values: allTags },
+            ]}
+            selected={selectedKeys}
+            onToggle={toggleKey}
+            onClear={() => setSelectedKeys(new Set())}
+            triggerTestId="doc-filter-trigger"
+            clearTestId="doc-filter-clear"
           />
-          {query && (
-            <button
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
-              onClick={() => setQuery('')}
-              data-testid="doc-search-clear"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-
-        {(allScopes.length > 0 || allTags.length > 0) && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 gap-1.5"
-                data-testid="doc-filter-trigger"
-              >
-                <ListFilter className="h-3.5 w-3.5" />
-                Filter
-                {filterCount > 0 && (
-                  <span className="bg-primary/15 ml-0.5 rounded-full px-1.5 text-[10px] font-semibold text-primary">
-                    {filterCount}
-                  </span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-56 p-2">
-              {allScopes.length > 0 && (
-                <div className="mb-2">
-                  <div className="px-1 pb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                    Scope
-                  </div>
-                  {allScopes.map((scope) => (
-                    <FilterOption
-                      key={scope}
-                      label={scope}
-                      checked={selectedScopes.has(scope)}
-                      onToggle={() => toggleSetValue(setSelectedScopes, scope)}
-                    />
-                  ))}
-                </div>
-              )}
-              {allTags.length > 0 && (
-                <div>
-                  <div className="px-1 pb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-                    Tags
-                  </div>
-                  {allTags.map((tag) => (
-                    <FilterOption
-                      key={tag}
-                      label={tag}
-                      checked={selectedTags.has(tag)}
-                      onToggle={() => toggleSetValue(setSelectedTags, tag)}
-                    />
-                  ))}
-                </div>
-              )}
-              {filterCount > 0 && (
-                <button
-                  className="text-caption mt-2 w-full rounded-md border px-2 py-1 hover:text-foreground"
-                  onClick={() => {
-                    setSelectedScopes(new Set());
-                    setSelectedTags(new Set());
-                  }}
-                  data-testid="doc-filter-clear"
-                >
-                  Clear filters
-                </button>
-              )}
-            </PopoverContent>
-          </Popover>
-        )}
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 shrink-0"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          data-testid="doc-refresh"
-        >
-          <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
-        </Button>
-
-        <Button
-          size="sm"
-          className="h-7 shrink-0"
-          onClick={() => setIsAdding(true)}
-          data-testid="doc-add"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          {meta.addLabel}
-        </Button>
-      </div>
+        }
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+        refreshTitle="Refresh"
+        refreshTestId="doc-refresh"
+        addAction={
+          <Button
+            size="sm"
+            className="h-7 shrink-0"
+            onClick={() => setIsAdding(true)}
+            data-testid="doc-add"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {meta.addLabel}
+          </Button>
+        }
+      />
 
       <div className="flex min-h-0 flex-1">
         {/* List */}
@@ -372,7 +305,7 @@ export function DocLibraryPane({
                     className={cn(
                       'flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
                       active?.id === doc.id
-                        ? 'bg-accent-soft text-foreground'
+                        ? 'bg-accent-soft text-accent-soft-foreground'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     )}
                     onClick={() => setSelectedId(doc.id)}
@@ -382,8 +315,8 @@ export function DocLibraryPane({
                     <span className="min-w-0 flex-1">
                       <span
                         className={cn(
-                          'text-title block truncate',
-                          kind === 'knowledge' && 'font-mono font-medium'
+                          'line-clamp-2 block text-[12px] font-semibold leading-snug',
+                          kind === 'knowledge' && 'font-mono'
                         )}
                       >
                         {doc.title}
@@ -487,15 +420,13 @@ export function DocLibraryPane({
         </div>
       </div>
 
-      <div
-        className="flex h-10 shrink-0 items-center justify-end border-t px-2"
-        data-testid="doc-footer"
-      >
-        <span className="text-caption hidden shrink-0 px-3 py-1.5 sm:inline">
-          {filtered.length} of {docs.length}{' '}
-          {docs.length === 1 ? meta.footerSingular : meta.footerPlural}
-        </span>
-      </div>
+      <TabFooter
+        testId="doc-footer"
+        count={filtered.length}
+        total={docs.length}
+        singular={meta.footerSingular}
+        plural={meta.footerPlural}
+      />
 
       <DocAddDrawer
         open={isAdding}
@@ -508,24 +439,5 @@ export function DocLibraryPane({
         }
       />
     </div>
-  );
-}
-
-interface FilterOptionProps {
-  label: string;
-  checked: boolean;
-  onToggle: () => void;
-}
-
-function FilterOption({ label, checked, onToggle }: FilterOptionProps) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs capitalize transition-colors hover:bg-muted"
-    >
-      <span className="truncate">{label}</span>
-      {checked && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
-    </button>
   );
 }

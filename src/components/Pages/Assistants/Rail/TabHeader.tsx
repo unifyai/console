@@ -95,7 +95,7 @@ export function TabHeader({ section, right }: TabHeaderProps) {
   return (
     <div className="relative flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 py-2.5">
       <div className="flex min-w-0 items-center gap-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-muted text-foreground">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-accent-soft text-accent-soft-foreground">
           <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
         </span>
         <div className="min-w-0">
