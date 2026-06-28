@@ -927,32 +927,59 @@ export function HireForm({
                                   </Button>
                                 </AppearanceControlTooltip>
                                 <div
-                                  aria-label={`Current droid color: ${selectedUnityColor}`}
+                                  aria-label="Droid color"
                                   className="flex items-center gap-1.5 px-1 py-1"
-                                  role="img"
+                                  role="group"
                                 >
                                   <AnimatePresence initial={false} mode="popLayout">
-                                    {[previousColor, selectedUnityColor, nextColor].map((color) => (
-                                      <motion.span
-                                        aria-hidden="true"
-                                        className={cn(
-                                          'rounded-control block border border-border',
-                                          color === selectedUnityColor
-                                            ? 'h-5 w-5'
-                                            : 'h-3.5 w-3.5 opacity-65'
-                                        )}
-                                        exit={{ opacity: 0, scale: 0.8 }}
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{
-                                          opacity: color === selectedUnityColor ? 1 : 0.65,
-                                          scale: 1,
-                                        }}
-                                        key={color}
-                                        layout
-                                        style={{ backgroundColor: roleColorVars[color] }}
-                                        transition={COLOR_SWATCH_TRANSITION}
-                                      />
-                                    ))}
+                                    {[previousColor, selectedUnityColor, nextColor].map(
+                                      (color, index) => {
+                                        const isSelected = color === selectedUnityColor;
+                                        // Clicking a side swatch rotates the wheel by one step
+                                        // in that direction, exactly like the matching arrow.
+                                        const direction = index === 0 ? -1 : 1;
+                                        return (
+                                          <motion.button
+                                            aria-current={isSelected ? 'true' : undefined}
+                                            aria-label={
+                                              isSelected
+                                                ? `Current droid color: ${color}`
+                                                : `Select ${color}`
+                                            }
+                                            className={cn(
+                                              'rounded-control block border border-border p-0',
+                                              isSelected
+                                                ? 'h-5 w-5 cursor-default'
+                                                : 'h-3.5 w-3.5 cursor-pointer opacity-65'
+                                            )}
+                                            disabled={isSubmitting || isSelected}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{
+                                              opacity: isSelected ? 1 : 0.65,
+                                              scale: 1,
+                                            }}
+                                            key={color}
+                                            layout
+                                            onClick={
+                                              isSelected
+                                                ? undefined
+                                                : () =>
+                                                    setUnityColor((current) =>
+                                                      cycleOption(
+                                                        appearanceColorOptions,
+                                                        current,
+                                                        direction
+                                                      )
+                                                    )
+                                            }
+                                            style={{ backgroundColor: roleColorVars[color] }}
+                                            transition={COLOR_SWATCH_TRANSITION}
+                                            type="button"
+                                          />
+                                        );
+                                      }
+                                    )}
                                   </AnimatePresence>
                                 </div>
                                 <AppearanceControlTooltip label="Color" side="right">
