@@ -2564,6 +2564,32 @@ function LiveToolLoopTimeline({
 }
 
 /**
+ * Status pill shown on the right of a root action row (Done / Failed /
+ * Running), matching the design's per-request status chips.
+ */
+function RootStatusPill({ status }: { status: ActionNode['status'] }) {
+  const cfg =
+    status === 'running'
+      ? { label: 'Running', cls: 'border border-primary/50 text-primary' }
+      : status === 'error'
+        ? {
+            label: 'Failed',
+            cls: 'bg-[color:var(--status-danger-bg)] text-[color:var(--status-danger)]',
+          }
+        : { label: 'Done', cls: 'bg-muted text-muted-foreground' };
+  return (
+    <span
+      className={cn(
+        'ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.05em]',
+        cfg.cls
+      )}
+    >
+      {cfg.label}
+    </span>
+  );
+}
+
+/**
  * Prominent display for request/response content pulled out of the collapsed
  * step sections. Matches the faded/scrollable style of ContentArea.
  */
@@ -2576,6 +2602,7 @@ function PromotedContent({
   defaultOpen = false,
   timestamp,
   searchTerm,
+  calloutTone,
 }: {
   icon?: LucideIcon;
   label: string;
@@ -2585,12 +2612,16 @@ function PromotedContent({
   defaultOpen?: boolean;
   timestamp?: string;
   searchTerm?: string;
+  /** When set, render as a tinted "callout" box (e.g. the final response). */
+  calloutTone?: 'success' | 'error';
 }) {
   const [isOpen, setIsOpen] = React.useState(defaultOpen);
   const [isTruncated, setIsTruncated] = React.useState(false);
   const inlineRef = React.useRef<HTMLSpanElement>(null);
   const rowRef = React.useRef<HTMLDivElement>(null);
-  const pad = `${20 + depth * 8}px`;
+  const pad = calloutTone ? `${10 + depth * 8}px` : `${20 + depth * 8}px`;
+  const toneSolid = calloutTone === 'error' ? 'var(--status-danger)' : 'var(--status-success)';
+  const toneBg = calloutTone === 'error' ? 'var(--status-danger-bg)' : 'var(--status-success-bg)';
 
   const trimmedContent = content.replace(/^\s+/, '');
   const hasMoreLines = trimmedContent.includes('\n');
@@ -2626,27 +2657,48 @@ function PromotedContent({
 
   return (
     <div
-      className="group min-w-0 rounded-sm transition-colors duration-150"
-      style={{ paddingLeft: pad }}
+      className={cn(
+        'group min-w-0 transition-colors duration-150',
+        calloutTone ? 'mb-1 mt-1.5 rounded-lg border py-1.5 pr-2.5' : 'rounded-sm'
+      )}
+      style={{
+        paddingLeft: pad,
+        ...(calloutTone ? { backgroundColor: toneBg, borderColor: toneSolid } : {}),
+      }}
     >
       <div
         ref={rowRef}
-        className="hover:bg-muted/40 flex cursor-pointer items-start gap-1 rounded-sm py-0.5 pr-1 text-[11px]"
+        className={cn(
+          'flex cursor-pointer items-start gap-1 rounded-sm py-0.5 pr-1 text-[11px]',
+          !calloutTone && 'hover:bg-muted/40'
+        )}
         onClick={handleClick}
       >
-        {Icon && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className={cn('mt-[3px] shrink-0', labelColor)}>
-                <Icon className="h-2.5 w-2.5" />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
-              {label}
-            </TooltipContent>
-          </Tooltip>
+        {calloutTone ? (
+          <span
+            className="mt-[1px] inline-flex shrink-0 items-center gap-1 text-[9px] font-bold uppercase tracking-[0.06em]"
+            style={{ color: toneSolid }}
+          >
+            {Icon && <Icon className="h-2.5 w-2.5" />}
+            {label}
+          </span>
+        ) : (
+          Icon && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className={cn('mt-[3px] shrink-0', labelColor)}>
+                  <Icon className="h-2.5 w-2.5" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" size="sm" className="px-2 py-1 text-xs">
+                {label}
+              </TooltipContent>
+            </Tooltip>
+          )
         )}
-        {!Icon && <span className={cn('shrink-0 font-medium', labelColor)}>{label}</span>}
+        {!calloutTone && !Icon && (
+          <span className={cn('shrink-0 font-medium', labelColor)}>{label}</span>
+        )}
         {!isOpen && (
           <span ref={inlineRef} className="min-w-0 truncate text-muted-foreground">
             {searchTerm ? (
@@ -2771,8 +2823,8 @@ function CollapsibleToolLoopSection({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'group flex w-full items-center gap-1 py-0.5 text-[11px]',
-          'text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors duration-150'
+          'group flex w-full items-center gap-1 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em]',
+          'text-muted-foreground/60 hover:text-muted-foreground/90 transition-colors duration-150'
         )}
         style={{ paddingLeft: pad }}
         title={!isOpen ? 'Click to expand' : undefined}
@@ -2780,7 +2832,7 @@ function CollapsibleToolLoopSection({
         <span>
           {stepCount} {stepCount === 1 ? 'step' : 'steps'}
           {sectionDuration && (
-            <span className="text-muted-foreground/25 ml-1">· {sectionDuration}</span>
+            <span className="text-muted-foreground/40 ml-1">· {sectionDuration}</span>
           )}
         </span>
         <ChevronRight
@@ -3302,9 +3354,15 @@ export function ActionNodeItem({
           />
         )}
 
-        {/* Right-aligned start time */}
+        {/* Root status pill + right-aligned start time */}
+        {depth === 0 && <RootStatusPill status={node.status} />}
         {node.startTime && (
-          <span className="text-muted-foreground/30 ml-auto shrink-0 pl-2 text-[10px] tabular-nums">
+          <span
+            className={cn(
+              'text-muted-foreground/30 shrink-0 pl-2 text-[10px] tabular-nums',
+              depth !== 0 && 'ml-auto'
+            )}
+          >
             {depth === 0 ? formatEventDateTime(node.startTime) : formatEventTime(node.startTime)}
           </span>
         )}
@@ -3325,12 +3383,14 @@ export function ActionNodeItem({
       {isExpanded && contentReady && promoted.response && (
         <PromotedContent
           icon={ArrowUp}
-          label="response"
+          label="final response"
           labelColor="text-[color:var(--status-success)]"
           content={promoted.response.content}
           depth={depth}
+          defaultOpen
           timestamp={promoted.response.time}
           searchTerm={searchTerm}
+          calloutTone={node.status === 'error' ? 'error' : 'success'}
         />
       )}
 

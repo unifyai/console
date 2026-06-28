@@ -11,6 +11,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/utils/assistants/assistant-actions';
+import { TabFooter } from '../Common/TabFooter';
 import type { ActionConnectionStatus } from '@/hooks/Assistants/useAssistantActions';
 
 export interface LiveActionsFooterProps {
@@ -79,62 +80,56 @@ export function LiveActionsFooter({
   const connectionIndicator = getConnectionIndicator(connectionStatus);
 
   return (
-    <div
-      className={cn(
-        // h-10 aligns this bar with the chat input, brain/tasks footers, and
-        // the assistant-list toggle — see AssistantList's footer for details.
-        'flex h-10 items-center justify-between border-t bg-background px-3 text-xs text-muted-foreground',
-        className
-      )}
-      data-testid="live-actions-footer"
-    >
-      {/* Left side: Status and counts */}
-      <div className="flex items-center gap-2">
-        {/* Status indicator */}
-        <div className="flex items-center gap-1.5" data-testid="assistant-status">
-          <span
-            className={cn(
-              'h-2 w-2 rounded-full',
-              isWorking
-                ? 'animate-pulse bg-[color:var(--status-success)]'
-                : 'bg-muted-foreground/50'
-            )}
-            aria-hidden="true"
-          />
-          <span>
-            {assistantName} is {isWorking ? 'working' : 'idle'}
-          </span>
-        </div>
-
-        {/* Separator */}
-        <span className="text-muted-foreground/50">·</span>
-
-        {/* Event counts */}
-        <span data-testid="event-counts">
-          {isMockData && (
-            <span className="font-medium text-[color:var(--status-warning)]">(mock) </span>
-          )}
-          {runningText}, {completedText}
-        </span>
-      </div>
-
-      {/* Right side: Connection status + Last updated */}
-      <div className="flex items-center gap-2">
-        {connectionIndicator.label && (
-          <div
-            className="flex items-center gap-1"
-            data-testid="connection-status"
-            title={`Connection: ${connectionIndicator.label}`}
-          >
+    <TabFooter
+      testId="live-actions-footer"
+      className={className}
+      status={
+        <>
+          {/* Status indicator */}
+          <div className="flex items-center gap-1.5" data-testid="assistant-status">
             <span
-              className={cn('h-1.5 w-1.5 rounded-full', connectionIndicator.color)}
+              className={cn(
+                'h-2 w-2 rounded-full',
+                isWorking
+                  ? 'animate-pulse bg-[color:var(--status-success)]'
+                  : 'bg-muted-foreground/50'
+              )}
               aria-hidden="true"
             />
-            <span className="text-muted-foreground/70">{connectionIndicator.label}</span>
+            <span>
+              {assistantName} is {isWorking ? 'working' : 'idle'}
+            </span>
           </div>
-        )}
-        <span data-testid="last-updated">{lastUpdatedText}</span>
-      </div>
-    </div>
+
+          <span className="text-muted-foreground/50">·</span>
+
+          {/* Event counts */}
+          <span data-testid="event-counts">
+            {isMockData && (
+              <span className="font-medium text-[color:var(--status-warning)]">(mock) </span>
+            )}
+            {runningText}, {completedText}
+          </span>
+        </>
+      }
+      right={
+        <div className="flex items-center gap-2">
+          {connectionIndicator.label && (
+            <div
+              className="flex items-center gap-1"
+              data-testid="connection-status"
+              title={`Connection: ${connectionIndicator.label}`}
+            >
+              <span
+                className={cn('h-1.5 w-1.5 rounded-full', connectionIndicator.color)}
+                aria-hidden="true"
+              />
+              <span className="text-muted-foreground/70">{connectionIndicator.label}</span>
+            </div>
+          )}
+          <span data-testid="last-updated">{lastUpdatedText}</span>
+        </div>
+      }
+    />
   );
 }

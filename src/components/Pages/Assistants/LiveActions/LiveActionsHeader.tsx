@@ -9,19 +9,10 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { Input } from '@/components/UI/input';
 import { Button } from '@/components/UI/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
-import {
-  Search,
-  X,
-  ChevronsUpDown,
-  ChevronsDownUp,
-  Clock,
-  Check,
-  RefreshCw,
-  ArrowDown,
-} from 'lucide-react';
+import { ChevronsUpDown, ChevronsDownUp, Clock, Check, ArrowDown } from 'lucide-react';
+import { TabToolbar } from '../Common/TabToolbar';
 
 // ─── Time Window Presets ─────────────────────────────────────────────────────
 
@@ -128,142 +119,104 @@ export function LiveActionsHeader({
     }
   };
 
-  return (
-    <div
-      className={cn('flex flex-wrap items-center gap-1.5 border-b bg-card px-3 py-2', className)}
-      data-testid="live-actions-header"
-    >
-      {/* Time Window Picker */}
-      <Popover open={timeWindowOpen} onOpenChange={setTimeWindowOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isLoading}
-            className={cn('h-7 gap-1.5 whitespace-nowrap', isLoading && 'opacity-50')}
-            title="History time window"
-            data-testid="live-actions-time-window"
-          >
-            <Clock className="h-3.5 w-3.5" />
-            <span>{activePreset?.shortLabel ?? timeWindowKey}</span>
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-48 p-1">
-          <div className="flex flex-col">
-            {TIME_WINDOW_PRESETS.map((preset) => (
-              <button
-                key={preset.key}
-                type="button"
-                onClick={() => {
-                  onTimeWindowChange(preset.key);
-                  setTimeWindowOpen(false);
-                }}
-                className={cn(
-                  'flex items-center justify-between rounded-sm px-2 py-1.5 text-xs transition-colors',
-                  'hover:bg-accent hover:text-accent-foreground',
-                  preset.key === timeWindowKey
-                    ? 'bg-accent/50 font-medium text-foreground'
-                    : 'text-muted-foreground'
-                )}
-              >
-                <span>{preset.label}</span>
-                {preset.key === timeWindowKey && <Check className="h-3.5 w-3.5" />}
-              </button>
-            ))}
-          </div>
-        </PopoverContent>
-      </Popover>
+  const searchResultHint =
+    searchTerm && searchMatchCount !== undefined
+      ? searchMatchCount > 0
+        ? `${searchMatchCount} result${searchMatchCount !== 1 ? 's' : ''}`
+        : '0 results'
+      : null;
 
-      {/* Manual Refresh Button */}
-      {onRefresh && (
+  return (
+    <TabToolbar
+      testId="live-actions-header"
+      className={className}
+      leading={
+        <Popover open={timeWindowOpen} onOpenChange={setTimeWindowOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isLoading}
+              className={cn('h-7 gap-1.5 whitespace-nowrap', isLoading && 'opacity-50')}
+              title="History time window"
+              data-testid="live-actions-time-window"
+            >
+              <Clock className="h-3.5 w-3.5" />
+              <span>{activePreset?.shortLabel ?? timeWindowKey}</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-48 p-1">
+            <div className="flex flex-col">
+              {TIME_WINDOW_PRESETS.map((preset) => (
+                <button
+                  key={preset.key}
+                  type="button"
+                  onClick={() => {
+                    onTimeWindowChange(preset.key);
+                    setTimeWindowOpen(false);
+                  }}
+                  className={cn(
+                    'flex items-center justify-between rounded-sm px-2 py-1.5 text-xs transition-colors',
+                    'hover:bg-accent hover:text-accent-foreground',
+                    preset.key === timeWindowKey
+                      ? 'bg-accent/50 font-medium text-foreground'
+                      : 'text-muted-foreground'
+                  )}
+                >
+                  <span>{preset.label}</span>
+                  {preset.key === timeWindowKey && <Check className="h-3.5 w-3.5" />}
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      }
+      searchValue={localSearch}
+      onSearchChange={setLocalSearch}
+      searchPlaceholder="Search... (Enter to filter)"
+      onSearchSubmit={() => {
+        if (localSearch !== searchTerm) commitSearch();
+      }}
+      onSearchClear={handleClearSearch}
+      searchResultHint={searchResultHint}
+      searchTestId="live-actions-search"
+      searchClearTestId="live-actions-search-clear"
+      onRefresh={onRefresh}
+      isRefreshing={isRefreshing}
+      refreshTitle="Poll recent events"
+      refreshTestId="live-actions-refresh"
+      trailing={
+        <span
+          className="hidden h-7 items-center gap-1.5 whitespace-nowrap rounded-full border bg-card px-2.5 text-[11.5px] font-medium text-muted-foreground lg:inline-flex"
+          title="Actions are ordered oldest at the top, newest at the bottom"
+          data-testid="live-actions-order-hint"
+        >
+          <ArrowDown className="h-3 w-3 text-accent-soft-foreground" />
+          Oldest → Newest
+        </span>
+      }
+      addAction={
         <Button
           variant="outline"
           size="sm"
-          onClick={onRefresh}
-          disabled={isRefreshing}
+          onClick={handleExpandCollapseClick}
+          disabled={expandCollapseDisabled}
           className="h-7 gap-1.5 whitespace-nowrap"
-          title="Poll recent events"
-          data-testid="live-actions-refresh"
+          data-testid="live-actions-expand-collapse"
         >
-          <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
+          {allExpanded ? (
+            <>
+              <ChevronsDownUp className="h-4 w-4" />
+              <span className="hidden sm:inline">Collapse All</span>
+            </>
+          ) : (
+            <>
+              <ChevronsUpDown className="h-4 w-4" />
+              <span className="hidden sm:inline">Expand All</span>
+            </>
+          )}
         </Button>
-      )}
-
-      {/* Search Input */}
-      <div className="relative min-w-0 flex-1">
-        <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="Search... (Enter to filter)"
-          value={localSearch}
-          onChange={(e) => setLocalSearch(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              handleClearSearch();
-              (e.target as HTMLInputElement).blur();
-            } else if (e.key === 'Enter') {
-              e.preventDefault();
-              if (localSearch !== searchTerm) {
-                commitSearch();
-              }
-            }
-          }}
-          className={cn('h-7 pl-7 text-xs', localSearch || searchTerm ? 'pr-20' : 'pr-7')}
-          data-testid="live-actions-search"
-        />
-        {(localSearch || searchTerm) && (
-          <span className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
-            {searchTerm && searchMatchCount !== undefined && (
-              <span className="text-muted-foreground/50 mr-0.5 text-[10px] tabular-nums">
-                {searchMatchCount > 0
-                  ? `${searchMatchCount} result${searchMatchCount !== 1 ? 's' : ''}`
-                  : '0 results'}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={handleClearSearch}
-              className="text-muted-foreground/50 rounded-sm p-0.5 hover:text-foreground"
-              aria-label="Clear search"
-              data-testid="live-actions-search-clear"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </span>
-        )}
-      </div>
-
-      {/* Order hint: actions run oldest -> newest (newest at the bottom) */}
-      <span
-        className="hidden h-7 items-center gap-1.5 whitespace-nowrap rounded-full border bg-card px-2.5 text-[11.5px] font-medium text-muted-foreground lg:inline-flex"
-        title="Actions are ordered oldest at the top, newest at the bottom"
-        data-testid="live-actions-order-hint"
-      >
-        <ArrowDown className="h-3 w-3 text-accent-soft-foreground" />
-        Oldest → Newest
-      </span>
-
-      {/* Expand/Collapse All Button */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleExpandCollapseClick}
-        disabled={expandCollapseDisabled}
-        className="h-7 gap-1.5 whitespace-nowrap"
-        data-testid="live-actions-expand-collapse"
-      >
-        {allExpanded ? (
-          <>
-            <ChevronsDownUp className="h-4 w-4" />
-            <span className="hidden sm:inline">Collapse All</span>
-          </>
-        ) : (
-          <>
-            <ChevronsUpDown className="h-4 w-4" />
-            <span className="hidden sm:inline">Expand All</span>
-          </>
-        )}
-      </Button>
-    </div>
+      }
+    />
   );
 }

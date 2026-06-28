@@ -91,25 +91,27 @@ export function ActionTree({
           const prev = idx > 0 ? roots[idx - 1] : undefined;
           const showDate = !prev || !isSameDay(prev.startTime, node.startTime);
           const isNewest = idx === lastIndex;
+          const isOpen = expandedNodeIds?.has(node.id) ?? false;
 
           return (
             <React.Fragment key={node.id}>
               {showDate && <TimelineDateSeparator timestamp={node.startTime} />}
-              <div className="relative flex gap-3">
+              <div className="relative flex gap-3 pb-2.5">
                 {/* Timeline gutter: continuous spine + status-colored node dot.
-                    The newest item carries a "Latest" badge row above its header,
-                    so its dot sits lower to stay aligned with the header line. */}
+                    The dot aligns with the card header line; the newest item
+                    carries a "Latest" badge row above its header, so its dot
+                    sits lower to stay aligned. */}
                 <div className="relative w-3 shrink-0" aria-hidden="true">
                   <span
                     className={cn(
                       'absolute left-1/2 w-0.5 -translate-x-1/2 bg-border',
-                      isNewest ? '-top-1.5 h-[2.125rem]' : '-bottom-1.5 -top-1.5'
+                      isNewest ? '-top-1.5 h-[2.625rem]' : '-bottom-1.5 -top-1.5'
                     )}
                   />
                   <span
                     className={cn(
                       'absolute left-1/2 h-2.5 w-2.5 -translate-x-1/2 rounded-full border-2 bg-card',
-                      isNewest ? 'top-7' : 'top-2',
+                      isNewest ? 'top-9' : 'top-[0.875rem]',
                       dotToneClass(node.status),
                       node.status === 'running' && 'ring-primary/20 animate-pulse ring-4'
                     )}
@@ -124,20 +126,35 @@ export function ActionTree({
                       </span>
                     </div>
                   )}
-                  <ActionNodeItem
-                    node={node}
-                    ownerId={ownerId}
-                    depth={0}
-                    defaultExpanded={defaultExpanded}
-                    expandedNodeIds={expandedNodeIds}
-                    onExpandedChange={onExpandedChange}
-                    assistantId={assistantId}
-                    getToolLoopEvents={getToolLoopEvents}
-                    loadChildren={loadChildren}
-                    sectionToggleSignal={sectionToggleSignal}
-                    matchedIds={matchedIds}
-                    searchTerm={searchTerm}
-                  />
+                  <div
+                    className={cn(
+                      'transition-colors',
+                      // Collapsed rows read as a flat list; expanding promotes
+                      // the row into a framed card so the timeline + final
+                      // response read as a contained unit.
+                      isOpen
+                        ? 'rounded-xl border bg-card px-3 py-2.5 shadow-sm'
+                        : 'hover:bg-muted/40 rounded-lg px-2 py-1',
+                      isOpen && node.status === 'running' && 'border-primary/40',
+                      isOpen && node.status === 'error' && 'border-destructive/40'
+                    )}
+                    data-testid="action-card"
+                  >
+                    <ActionNodeItem
+                      node={node}
+                      ownerId={ownerId}
+                      depth={0}
+                      defaultExpanded={defaultExpanded}
+                      expandedNodeIds={expandedNodeIds}
+                      onExpandedChange={onExpandedChange}
+                      assistantId={assistantId}
+                      getToolLoopEvents={getToolLoopEvents}
+                      loadChildren={loadChildren}
+                      sectionToggleSignal={sectionToggleSignal}
+                      matchedIds={matchedIds}
+                      searchTerm={searchTerm}
+                    />
+                  </div>
                 </div>
               </div>
             </React.Fragment>
