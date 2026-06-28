@@ -4,6 +4,7 @@ import * as React from 'react';
 import { ChevronRight, Database, Folder, RefreshCw, Table2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
+import { TabFooter } from '../Common/TabFooter';
 import type { Assistant } from '@/types/assistants/assistant';
 
 interface DataPaneProps {
@@ -217,113 +218,130 @@ export function DataPane({ ownerId, assistantId }: DataPaneProps) {
     : [];
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-background">
-      <div className="flex w-72 shrink-0 flex-col border-r border-border bg-card">
-        <div className="flex items-center justify-between border-b border-border px-3 py-2">
-          <div className="text-title flex items-center gap-2 text-foreground">
-            <Database className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            Data layer
-          </div>
-          <button
-            type="button"
-            onClick={() => void loadTree()}
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Refresh data contexts"
-          >
-            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="data-tree">
-          {isLoadingTree ? (
-            <div className="space-y-2 p-2">
-              <SkeletonCard />
-              <SkeletonCard />
+    <div
+      className="flex h-full w-full flex-col overflow-hidden bg-background"
+      data-testid="data-pane"
+    >
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="flex w-72 shrink-0 flex-col border-r border-border bg-card">
+          <div className="flex items-center justify-between border-b border-border px-3 py-2">
+            <div className="text-title flex items-center gap-2 text-foreground">
+              <Database className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              Data layer
             </div>
-          ) : topNodes.length === 0 ? (
-            <p className="text-caption px-2 py-6 text-center">No ingested data yet.</p>
+            <button
+              type="button"
+              onClick={() => void loadTree()}
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Refresh data contexts"
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="data-tree">
+            {isLoadingTree ? (
+              <div className="space-y-2 p-2">
+                <SkeletonCard />
+                <SkeletonCard />
+              </div>
+            ) : topNodes.length === 0 ? (
+              <p className="text-caption px-2 py-6 text-center">No ingested data yet.</p>
+            ) : (
+              topNodes.map((node) => (
+                <TreeRow
+                  key={node.name}
+                  node={node}
+                  depth={0}
+                  expanded={expanded}
+                  toggle={toggle}
+                  selected={selected}
+                  onSelect={(context) => void loadLeaf(context)}
+                />
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          {!selected ? (
+            <div className="flex h-full items-center justify-center p-8 text-center">
+              <div className="max-w-sm">
+                <Table2 className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" />
+                <p className="text-body-muted">
+                  Select a table from the directory to browse its rows.
+                </p>
+              </div>
+            </div>
           ) : (
-            topNodes.map((node) => (
-              <TreeRow
-                key={node.name}
-                node={node}
-                depth={0}
-                expanded={expanded}
-                toggle={toggle}
-                selected={selected}
-                onSelect={(context) => void loadLeaf(context)}
-              />
-            ))
+            <>
+              <div className="border-b border-border px-4 py-3">
+                <div className="text-code truncate text-foreground">
+                  {selected.slice(prefix.length)}
+                </div>
+                {leaf && (
+                  <div className="text-caption mt-0.5">
+                    {leaf.count} {leaf.count === 1 ? 'row' : 'rows'} · {leaf.columns.length}{' '}
+                    {leaf.columns.length === 1 ? 'column' : 'columns'}
+                  </div>
+                )}
+              </div>
+              <div className="min-h-0 flex-1 overflow-auto" data-testid="data-leaf-table">
+                {isLoadingLeaf ? (
+                  <div className="space-y-2 p-4">
+                    <SkeletonCard />
+                    <SkeletonCard />
+                    <SkeletonCard />
+                  </div>
+                ) : !leaf || leaf.rows.length === 0 ? (
+                  <p className="text-body-muted p-8 text-center">This table has no rows.</p>
+                ) : (
+                  <table className="w-full border-collapse text-sm">
+                    <thead className="sticky top-0 bg-card">
+                      <tr>
+                        {leaf.columns.map((col) => (
+                          <th
+                            key={col}
+                            className="border-b border-border px-3 py-2 text-left font-mono text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                          >
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leaf.rows.map((row, index) => (
+                        <tr key={index} className="hover:bg-muted/50">
+                          {leaf.columns.map((col) => (
+                            <td
+                              key={col}
+                              className="max-w-[280px] truncate border-b border-border px-3 py-2 text-foreground"
+                              title={displayValue(row[col])}
+                            >
+                              {displayValue(row[col])}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {!selected ? (
-          <div className="flex h-full items-center justify-center p-8 text-center">
-            <div className="max-w-sm">
-              <Table2 className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" />
-              <p className="text-body-muted">
-                Select a table from the directory to browse its rows.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="border-b border-border px-4 py-3">
-              <div className="text-code truncate text-foreground">
-                {selected.slice(prefix.length)}
-              </div>
-              {leaf && (
-                <div className="text-caption mt-0.5">
-                  {leaf.count} {leaf.count === 1 ? 'row' : 'rows'} · {leaf.columns.length}{' '}
-                  {leaf.columns.length === 1 ? 'column' : 'columns'}
-                </div>
-              )}
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto" data-testid="data-leaf-table">
-              {isLoadingLeaf ? (
-                <div className="space-y-2 p-4">
-                  <SkeletonCard />
-                  <SkeletonCard />
-                  <SkeletonCard />
-                </div>
-              ) : !leaf || leaf.rows.length === 0 ? (
-                <p className="text-body-muted p-8 text-center">This table has no rows.</p>
-              ) : (
-                <table className="w-full border-collapse text-sm">
-                  <thead className="sticky top-0 bg-card">
-                    <tr>
-                      {leaf.columns.map((col) => (
-                        <th
-                          key={col}
-                          className="border-b border-border px-3 py-2 text-left font-mono text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
-                        >
-                          {col}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaf.rows.map((row, index) => (
-                      <tr key={index} className="hover:bg-muted/50">
-                        {leaf.columns.map((col) => (
-                          <td
-                            key={col}
-                            className="max-w-[280px] truncate border-b border-border px-3 py-2 text-foreground"
-                            title={displayValue(row[col])}
-                          >
-                            {displayValue(row[col])}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </>
-        )}
-      </div>
+      <TabFooter
+        testId="data-footer"
+        right={
+          <span className="text-caption inline-flex items-center gap-1.5">
+            <Database className="h-3 w-3" aria-hidden="true" />
+            {selected && leaf
+              ? `${selected.slice(prefix.length)} · ${leaf.count} ${leaf.count === 1 ? 'row' : 'rows'}`
+              : `${topNodes.length} ${topNodes.length === 1 ? 'group' : 'groups'} at this level`}
+          </span>
+        }
+      />
     </div>
   );
 }

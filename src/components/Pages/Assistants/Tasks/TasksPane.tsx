@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { RefreshCw, Search, X, Plus, ChevronRight, Clock, Play, Pause, Pencil } from 'lucide-react';
+import { Plus, ChevronRight, Clock, Play, Pause, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/UI/button';
-import { Loader } from '@/components/Common/Loader';
+import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { cn } from '@/lib/utils';
+import { TabToolbar } from '../Common/TabToolbar';
+import { TabFooter } from '../Common/TabFooter';
 import { useTasksData } from '@/hooks/Assistants/useTasksData';
 import {
   taskStatusBadge,
@@ -82,17 +84,6 @@ export function TasksPane({ assistant, ownerId, assistantId, onTasksCountChange 
     }
   }, [refetch]);
 
-  const handleSearchSubmit = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') {
-        const val = searchValue.trim();
-        if (val) search(val);
-        else clearSearch();
-      }
-    },
-    [searchValue, search, clearSearch]
-  );
-
   const handleClearSearch = useCallback(() => {
     setSearchValue('');
     clearSearch();
@@ -113,7 +104,7 @@ export function TasksPane({ assistant, ownerId, assistantId, onTasksCountChange 
   if (error) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
-        <span className="text-body-muted text-sm">{error}</span>
+        <span className="text-body-muted">{error}</span>
         <Button variant="outline" size="sm" onClick={handleRefresh}>
           Retry
         </Button>
@@ -124,101 +115,84 @@ export function TasksPane({ assistant, ownerId, assistantId, onTasksCountChange 
   return (
     <div className="flex h-full flex-col" data-testid="tasks-pane">
       {/* Toolbar — segmented filter + search + New task */}
-      <div
-        className="flex shrink-0 items-center gap-2 border-b px-3 py-2"
-        data-testid="tasks-header"
-      >
-        <div className="bg-muted/40 inline-flex gap-0.5 rounded-lg border p-0.5" role="tablist">
-          {TASK_FILTERS.map((f) => (
-            <button
-              key={f}
-              type="button"
-              role="tab"
-              aria-selected={filter === f}
-              onClick={() => setFilter(f)}
-              className={cn(
-                'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-                filter === f
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-              data-testid={`tasks-filter-${f.toLowerCase()}`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative min-w-0 max-w-xs flex-1">
-          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            ref={inputRef}
-            type="text"
-            className="h-7 w-full rounded-md border bg-transparent pl-7 pr-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            placeholder="Search tasks…"
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onKeyDown={handleSearchSubmit}
-            data-testid="tasks-search"
-          />
-          {isFiltered && (
-            <button
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
-              onClick={handleClearSearch}
-              data-testid="tasks-search-clear"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-
-        <div className="flex-1" />
-
-        {hasRunningTaskRun && (
-          <span
-            className="text-caption inline-flex shrink-0 items-center gap-1.5 text-muted-foreground"
-            data-testid="tasks-snapshot-status"
-          >
+      <TabToolbar
+        testId="tasks-header"
+        leading={
+          <div className="bg-muted/40 inline-flex gap-0.5 rounded-lg border p-0.5" role="tablist">
+            {TASK_FILTERS.map((f) => (
+              <button
+                key={f}
+                type="button"
+                role="tab"
+                aria-selected={filter === f}
+                onClick={() => setFilter(f)}
+                className={cn(
+                  'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                  filter === f
+                    ? 'bg-accent-soft text-accent-soft-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+                data-testid={`tasks-filter-${f.toLowerCase()}`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        }
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+        searchPlaceholder="Search tasks…"
+        onSearchSubmit={() => {
+          const val = searchValue.trim();
+          if (val) search(val);
+          else clearSearch();
+        }}
+        onSearchClear={handleClearSearch}
+        searchInputRef={inputRef}
+        searchTestId="tasks-search"
+        searchClearTestId="tasks-search-clear"
+        trailing={
+          hasRunningTaskRun && (
             <span
-              className={cn('h-1.5 w-1.5 rounded-full', TASK_LIVE_DOT_CLASS)}
-              data-testid="tasks-snapshot-working-indicator"
-            />
-            <span>Working</span>
-          </span>
-        )}
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 shrink-0"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          data-testid="tasks-refresh"
-        >
-          <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
-        </Button>
-
-        <Button
-          size="sm"
-          className="h-7 shrink-0"
-          onClick={() => setIsCreating(true)}
-          data-testid="tasks-new"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          New task
-        </Button>
-      </div>
+              className="text-caption inline-flex shrink-0 items-center gap-1.5 text-muted-foreground"
+              data-testid="tasks-snapshot-status"
+            >
+              <span
+                className={cn('h-1.5 w-1.5 rounded-full', TASK_LIVE_DOT_CLASS)}
+                data-testid="tasks-snapshot-working-indicator"
+              />
+              <span>Working</span>
+            </span>
+          )
+        }
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+        refreshTitle="Refresh tasks"
+        refreshTestId="tasks-refresh"
+        addAction={
+          <Button
+            size="sm"
+            className="h-7 shrink-0"
+            onClick={() => setIsCreating(true)}
+            data-testid="tasks-new"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New task
+          </Button>
+        }
+      />
 
       {/* Body — expandable task cards */}
       <div className="min-h-0 flex-1 overflow-y-auto p-3" data-testid="tasks-body">
         {isLoading && tasks.rows.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
-            <Loader size={20} className="mr-2" />
-            <span className="text-sm">Loading tasks...</span>
+          <div className="flex flex-col gap-2" data-testid="tasks-skeleton">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonCard key={i} lines={1} />
+            ))}
           </div>
         ) : filteredTasks.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
-            <p className="text-sm">
+          <div className="flex h-full items-center justify-center">
+            <p className="text-body-muted">
               {isFiltered ? 'No results match your search' : 'No tasks found'}
             </p>
           </div>
@@ -239,17 +213,15 @@ export function TasksPane({ assistant, ownerId, assistantId, onTasksCountChange 
       </div>
 
       {/* Footer — task + run counts */}
-      {filteredTasks.length > 0 && (
-        <div
-          className="flex h-10 shrink-0 items-center justify-end border-t px-4"
-          data-testid="tasks-footer"
-        >
+      <TabFooter
+        testId="tasks-footer"
+        right={
           <span className="text-caption" data-testid="tasks-table-footer">
             {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'} ·{' '}
             {totalRunsLogged} {totalRunsLogged === 1 ? 'run' : 'runs'} logged
           </span>
-        </div>
-      )}
+        }
+      />
 
       <NewTaskDrawer
         open={isCreating}

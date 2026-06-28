@@ -65,6 +65,7 @@ import {
 import { ApiKeyIntegrationDialog } from './ApiKeyIntegrationDialog';
 import { OAuthIntegrationDialog, type OAuthSubmitPayload } from './OAuthIntegrationDialog';
 import { getIntegrationProvider } from '@/constants/assistants/integrations';
+import { TabFooter } from '../Common/TabFooter';
 
 interface IntegrationsPaneProps {
   ownerId: string;
@@ -822,6 +823,16 @@ export function IntegrationsPane({
           />
         </div>
       </ScrollArea>
+
+      <TabFooter
+        testId="integrations-footer"
+        right={
+          <span className="text-caption">
+            {activeIntegrationCount} connected · {galleryItems.length} of{' '}
+            {providerCatalogTotal + filteredStaticDefinitions.length} apps
+          </span>
+        }
+      />
 
       {/* Custom secret create/edit dialog */}
       <SecretFormDialog
