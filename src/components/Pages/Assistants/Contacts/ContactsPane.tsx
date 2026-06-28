@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { RefreshCw, Search, X, Plus, Shield, Mail, Clock, Pencil } from 'lucide-react';
+import { Plus, Shield, Mail, Clock, Pencil, MessageCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/UI/button';
 import {
   Sheet,
@@ -9,16 +10,20 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
+  SheetFooter,
 } from '@/components/UI/sheet';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { cn } from '@/lib/utils';
 import { useBrainData } from '@/hooks/Assistants/useBrainData';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
+import { TabToolbar } from '../Common/TabToolbar';
+import { TabFilterDropdown } from '../Common/TabFilterDropdown';
+import { TabFooter } from '../Common/TabFooter';
 import {
   mapContactRow,
   filterContacts,
   collectContactTags,
-  contactAvatarClass,
+  contactAvatarTone,
   type ContactCard,
 } from '@/utils/assistants/contacts';
 import type { Assistant } from '@/types/assistants/assistant';
@@ -44,10 +49,10 @@ function Avatar({ card, size = 'sm' }: { card: ContactCard; size?: 'sm' | 'lg' }
   return (
     <span
       className={cn(
-        'grid shrink-0 place-items-center rounded-[9px] font-display font-semibold',
-        size === 'lg' ? 'h-12 w-12 text-base' : 'h-9 w-9 text-[13px]',
-        contactAvatarClass(card.contactId, card.fullName)
+        'grid shrink-0 place-items-center rounded-[9px] font-display font-semibold text-primary-foreground',
+        size === 'lg' ? 'h-12 w-12 text-base' : 'h-9 w-9 text-[13px]'
       )}
+      style={{ backgroundColor: contactAvatarTone(card.contactId, card.fullName) }}
     >
       {card.initials}
     </span>
@@ -152,20 +157,27 @@ export function ContactsPane({
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [query, setQuery] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<ContactCard | null>(null);
 
   const cards = useMemo(() => contacts.rows.map(mapContactRow), [contacts.rows]);
   const allTags = useMemo(() => collectContactTags(cards), [cards]);
+  const selectedTags = useMemo(
+    () => Array.from(selectedKeys).map((k) => k.slice(k.indexOf(':') + 1)),
+    [selectedKeys]
+  );
   const filtered = useMemo(
     () => filterContacts(cards, query, selectedTags),
     [cards, query, selectedTags]
   );
 
-  const toggleTag = useCallback((tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
+  const toggleKey = useCallback((key: string) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   }, []);
 
   const handleRefresh = useCallback(async () => {
@@ -176,6 +188,12 @@ export function ContactsPane({
       setIsRefreshing(false);
     }
   }, [refetch]);
+
+  const notifyChatOnly = useCallback((label: string) => {
+    toast(`${label} isn’t available from this view yet.`, {
+      description: 'Ask your digital twin in chat to reach out to this contact.',
+    });
+  }, []);
 
   if (error) {
     return (
@@ -190,70 +208,40 @@ export function ContactsPane({
 
   return (
     <div className="flex h-full flex-col" data-testid="contacts-pane">
-      <div
-        className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2"
-        data-testid="contacts-header"
-      >
-        <div className="relative max-w-xs flex-1">
-          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            className="h-7 w-full rounded-md border bg-transparent pl-7 pr-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            placeholder="Search contacts…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            data-testid="contacts-search"
+      <TabToolbar
+        testId="contacts-header"
+        searchValue={query}
+        onSearchChange={setQuery}
+        searchPlaceholder="Search contacts…"
+        searchTestId="contacts-search"
+        searchClearTestId="contacts-search-clear"
+        filter={
+          <TabFilterDropdown
+            groups={[{ id: 'tag', label: 'Tags', values: allTags }]}
+            selected={selectedKeys}
+            onToggle={toggleKey}
+            onClear={() => setSelectedKeys(new Set())}
+            triggerTestId="contacts-filter-trigger"
+            clearTestId="contacts-filter-clear"
           />
-          {query && (
-            <button
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
-              onClick={() => setQuery('')}
-              data-testid="contacts-search-clear"
+        }
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+        refreshTitle="Refresh contacts"
+        refreshTestId="contacts-refresh"
+        addAction={
+          onManageContacts && (
+            <Button
+              size="sm"
+              className="h-7 shrink-0"
+              onClick={onManageContacts}
+              data-testid="contacts-add"
             >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-
-        {allTags.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1" data-testid="contacts-tag-filter">
-            {allTags.map((tag) => (
-              <button
-                key={tag}
-                data-active={selectedTags.includes(tag)}
-                onClick={() => toggleTag(tag)}
-                className="rounded-md border px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="flex-1" />
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 shrink-0"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          data-testid="contacts-refresh"
-        >
-          <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
-        </Button>
-
-        {onManageContacts && (
-          <Button
-            size="sm"
-            className="h-7 shrink-0"
-            onClick={onManageContacts}
-            data-testid="contacts-add"
-          >
-            <Plus className="mr-1 h-3.5 w-3.5" /> Add contact
-          </Button>
-        )}
-      </div>
+              <Plus className="mr-1 h-3.5 w-3.5" /> Add contact
+            </Button>
+          )
+        }
+      />
 
       <div className="min-h-0 flex-1" data-testid="contacts-body">
         {isLoading && cards.length === 0 ? (
@@ -328,14 +316,13 @@ export function ContactsPane({
         )}
       </div>
 
-      <div
-        className="flex h-10 shrink-0 items-center justify-end border-t px-2"
-        data-testid="contacts-footer"
-      >
-        <span className="text-caption hidden shrink-0 px-3 py-1.5 sm:inline">
-          {filtered.length} of {cards.length} {cards.length === 1 ? 'contact' : 'contacts'}
-        </span>
-      </div>
+      <TabFooter
+        testId="contacts-footer"
+        count={filtered.length}
+        total={cards.length}
+        singular="contact"
+        plural="contacts"
+      />
 
       <Sheet
         open={!!selected}
@@ -359,17 +346,37 @@ export function ContactsPane({
                 </SheetDescription>
               </div>
             </div>
-            {onManageContacts && (
-              <div className="flex justify-end pt-2">
-                <Button variant="outline" size="sm" onClick={onManageContacts}>
-                  <Pencil className="mr-1 h-3.5 w-3.5" /> Manage in contact manager
-                </Button>
-              </div>
-            )}
           </SheetHeader>
           <ScrollArea className="mt-4 min-h-0 flex-1">
             {selected && <ContactDetail card={selected} />}
           </ScrollArea>
+          <SheetFooter className="mt-0 shrink-0 flex-row justify-end gap-2 border-t pt-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => notifyChatOnly('Messaging a contact')}
+              data-testid="contact-message"
+            >
+              <MessageCircle className="mr-1 h-3.5 w-3.5" /> Message
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!selected?.email}
+              onClick={() => notifyChatOnly('Emailing a contact')}
+              data-testid="contact-email"
+            >
+              <Mail className="mr-1 h-3.5 w-3.5" /> Email
+            </Button>
+            <Button
+              size="sm"
+              onClick={onManageContacts}
+              disabled={!onManageContacts}
+              data-testid="contact-edit"
+            >
+              <Pencil className="mr-1 h-3.5 w-3.5" /> Edit
+            </Button>
+          </SheetFooter>
         </SheetContent>
       </Sheet>
     </div>

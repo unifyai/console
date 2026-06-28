@@ -57,24 +57,28 @@ export function contactInitials(firstName: string, surname: string, email: strin
 }
 
 /**
- * Token-only avatar classes (no hex/rgb — see styling rules). Deterministically
- * rotated by contact id so the directory reads with a little variety while
- * staying brand-token compliant.
+ * Deterministic avatar tints drawn from the brand role palette (token-only and
+ * theme-aware — see styling rules). Rotated by contact id so the directory
+ * reads with colour variety while staying brand-token compliant. Applied as an
+ * inline `backgroundColor` with `text-primary-foreground`, matching the
+ * Transcripts participant avatars.
  */
-const AVATAR_CLASSES = [
-  'bg-primary/10 text-primary',
-  'bg-foreground text-background',
-  'bg-accent text-accent-foreground',
-  'bg-muted text-foreground',
-  'bg-secondary text-secondary-foreground',
+const AVATAR_TONES = [
+  'var(--role-green)',
+  'var(--role-cyan)',
+  'var(--role-purple)',
+  'var(--role-orange)',
+  'var(--role-teal)',
+  'var(--role-pink)',
+  'var(--role-blue)',
 ] as const;
 
-export function contactAvatarClass(contactId: number | null, seed: string): string {
+export function contactAvatarTone(contactId: number | null, seed: string): string {
   const basis =
     contactId !== null && Number.isFinite(contactId)
       ? Math.abs(contactId)
       : Array.from(seed).reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-  return AVATAR_CLASSES[basis % AVATAR_CLASSES.length];
+  return AVATAR_TONES[basis % AVATAR_TONES.length];
 }
 
 export function mapContactRow(row: ContactRow): ContactCard {
