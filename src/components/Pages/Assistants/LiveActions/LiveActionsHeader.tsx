@@ -129,7 +129,6 @@ export function LiveActionsHeader({
   return (
     <TabToolbar
       testId="live-actions-header"
-      searchScopeId="actions"
       className={className}
       leading={
         <Popover open={timeWindowOpen} onOpenChange={setTimeWindowOpen}>

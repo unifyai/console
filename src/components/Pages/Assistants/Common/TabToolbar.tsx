@@ -4,7 +4,6 @@ import * as React from 'react';
 import { RefreshCw, Search, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
-import { useTabSearchRegistration } from './TabSearchContext';
 
 /**
  * Standardized second-row toolbar shared by every assistant tab.
@@ -41,8 +40,6 @@ export interface TabToolbarProps {
   refreshTestId?: string;
   /** Primary add action — render a `Button` (keeps per-tab labels/icons). */
   addAction?: React.ReactNode;
-  /** When set, registers this toolbar's search field for the global search icon. */
-  searchScopeId?: string;
   testId?: string;
   className?: string;
 }
@@ -67,12 +64,10 @@ export function TabToolbar({
   addAction,
   testId,
   className,
-  searchScopeId,
 }: TabToolbarProps) {
   const showSearch = searchValue !== undefined && onSearchChange !== undefined;
   const internalSearchRef = React.useRef<HTMLInputElement>(null);
   const searchRef = (searchInputRef ?? internalSearchRef) as React.RefObject<HTMLInputElement>;
-  useTabSearchRegistration(searchRef, searchScopeId ?? testId ?? 'tab-search');
 
   const handleClear = () => {
     if (onSearchClear) onSearchClear();

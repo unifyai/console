@@ -315,7 +315,6 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
     >
       {/* Toolbar: channel segments + search + refresh */}
       <TabToolbar
-        searchScopeId="transcripts"
         searchValue={search}
         onSearchChange={setSearch}
         searchPlaceholder="Search across all channels…"

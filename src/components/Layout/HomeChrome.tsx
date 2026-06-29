@@ -6,7 +6,6 @@ import { Loader2 } from 'lucide-react';
 import TopNav from '@/components/Layout/TopBar/TopNav';
 import { HomeShell } from '@/components/Layout/Shell/HomeShell';
 import { MockModeIndicator } from '@/components/Simulation/MockModeIndicator';
-import { TabSearchProvider } from '@/components/Pages/Assistants/Common/TabSearchContext';
 
 /** Home routes hosted inside the shared rail shell (migrated off `TopNav`). */
 const SHELL_ROUTE_PREFIXES = [
@@ -41,27 +40,27 @@ export function HomeChrome({ children }: { children: React.ReactNode }) {
 
   if (assistantsShell) {
     return (
-      <TabSearchProvider>
+      <>
         <Suspense fallback={shellFallback}>
           <main className="brand-page-stencil-bg relative h-screen overflow-hidden bg-background">
             {children}
           </main>
         </Suspense>
         <MockModeIndicator />
-      </TabSearchProvider>
+      </>
     );
   }
 
   if (homeShell) {
     return (
-      <TabSearchProvider>
+      <>
         <Suspense fallback={shellFallback}>
           <main className="brand-page-stencil-bg relative h-screen overflow-hidden bg-background">
             <HomeShell>{children}</HomeShell>
           </main>
         </Suspense>
         <MockModeIndicator />
-      </TabSearchProvider>
+      </>
     );
   }
 

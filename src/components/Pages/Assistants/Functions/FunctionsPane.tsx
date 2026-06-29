@@ -218,10 +218,9 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
   }
 
   return (
-    <div className="flex h-full flex-col" data-testid="functions-pane">
+    <div className="flex h-full min-w-0 flex-col" data-testid="functions-pane">
       <TabToolbar
         testId="functions-header"
-        searchScopeId="functions"
         leading={
           <div className="flex items-center gap-1" data-testid="functions-kind-seg">
             {KINDS.map((k) => (
@@ -248,10 +247,10 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
         refreshTestId="functions-refresh"
       />
 
-      <div className="min-h-0 flex-1" data-testid="functions-body">
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden" data-testid="functions-body">
         {isLoading && skills.length === 0 ? (
           <div
-            className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 p-4"
+            className="box-border grid w-full min-w-0 max-w-full grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-4 p-4"
             data-testid="functions-skeleton"
           >
             {Array.from({ length: 6 }).map((_, i) => (
@@ -263,12 +262,12 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
             No functions found.
           </div>
         ) : (
-          <ScrollArea className="h-full">
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 p-4">
+          <ScrollArea className="h-full w-full min-w-0" viewportClassName="min-w-0 max-w-full">
+            <div className="box-border grid w-full min-w-0 max-w-full grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-4 p-4">
               {filtered.map((skill) => (
                 <button
                   key={`${skill.functionId ?? skill.name}`}
-                  className="hover:border-primary/40 hover:bg-muted/40 flex min-h-[168px] flex-col gap-2 rounded-[13px] border bg-card p-3.5 text-left transition-colors"
+                  className="hover:border-primary/40 hover:bg-muted/40 flex min-h-[168px] w-full min-w-0 max-w-full flex-col gap-2 rounded-[13px] border bg-card p-3.5 text-left transition-colors"
                   onClick={() => {
                     setSelected(skill);
                   }}

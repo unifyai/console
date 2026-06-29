@@ -216,7 +216,6 @@ export function ContactsPane({
     <div className="flex h-full flex-col" data-testid="contacts-pane">
       <TabToolbar
         testId="contacts-header"
-        searchScopeId="contacts"
         searchValue={query}
         onSearchChange={setQuery}
         searchPlaceholder="Search contacts…"

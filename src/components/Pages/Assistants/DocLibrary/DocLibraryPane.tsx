@@ -297,7 +297,6 @@ export function DocLibraryPane({
     <div className="flex h-full flex-col" data-testid="doc-library-pane" data-kind={kind}>
       <TabToolbar
         testId="doc-header"
-        searchScopeId={kind}
         searchValue={query}
         onSearchChange={setQuery}
         searchPlaceholder={meta.searchPlaceholder}

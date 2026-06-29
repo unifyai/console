@@ -125,7 +125,6 @@ export function TasksPane({ assistant, ownerId, assistantId, onTasksCountChange 
       {/* Toolbar — segmented filter + search + New task */}
       <TabToolbar
         testId="tasks-header"
-        searchScopeId="tasks"
         leading={
           <div className="bg-muted/40 inline-flex gap-0.5 rounded-lg border p-0.5" role="tablist">
             {TASK_FILTERS.map((f) => (

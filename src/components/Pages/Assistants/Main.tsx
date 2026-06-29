@@ -10,7 +10,6 @@ import {
 } from '@/components/Pages/Assistants/RightPaneContainer';
 import { AssistantRail, RAIL_COLLAPSED_STORAGE_KEY } from './Rail/AssistantRail';
 import { SectionHost } from './Rail/SectionHost';
-import { TabSearchScopeSync } from './Common/TabSearchScopeSync';
 import { BrainSectionsHost } from './Rail/BrainSectionsHost';
 import { SECTION_BY_ID, DEFAULT_SECTION_ID, type SectionDef } from './Rail/sectionConfig';
 import {
@@ -2372,7 +2371,6 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   return (
     <CoordinatorOnboardingProvider value={coordinatorOnboardingCtxValue}>
       <div className="flex h-full flex-col overflow-hidden">
-        <TabSearchScopeSync scopeId={activeSectionId} />
         <AssistantsBanners
           credits={credits}
           isBillingLoading={isBillingLoading}
