@@ -10,6 +10,7 @@ import { generateTimezoneOptions } from '@/utils/assistants/timezone-utils';
 import ProfilePhoto from './ProfilePhoto';
 import { useAutoSave } from '@/hooks/Account/useAutoSave';
 import { SaveStatus } from './SaveStatus';
+import { ProfileNewsletterSection } from './ProfileNewsletterSection';
 
 const MemoizedProfilePhoto = memo(ProfilePhoto);
 
@@ -123,7 +124,7 @@ const ProfileForm = ({ user, externalIdentity }: { user: User; externalIdentity:
   );
 
   return (
-    <div className="mt-10 w-full sm:mt-0">
+    <div className="w-full sm:mt-0">
       <div className="mb-4 flex justify-end">
         <SaveStatus status={status} />
       </div>
@@ -182,6 +183,7 @@ const ProfileForm = ({ user, externalIdentity }: { user: User; externalIdentity:
         handleBlur={handleBlur}
         externalIdentity={externalIdentity}
       />
+      <ProfileNewsletterSection />
     </div>
   );
 };

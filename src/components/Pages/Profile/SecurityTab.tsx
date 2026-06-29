@@ -26,6 +26,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/UI/alert-dialog';
+import { ApiKeyField } from './ApiKeyField';
+
 import { toast } from 'sonner';
 
 interface EmailCredentials {
@@ -35,7 +37,7 @@ interface EmailCredentials {
   passwordChangedAt?: string;
 }
 
-const SecurityTab = ({ user }: { user: User }) => {
+const SecurityTab = ({ user, apiKey }: { user: User; apiKey: string }) => {
   const router = useRouter();
   const [credentials, setCredentials] = useState<EmailCredentials | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -155,6 +157,16 @@ const SecurityTab = ({ user }: { user: User }) => {
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="rounded-lg border p-4">
+        <div className="mb-3 flex flex-col gap-1">
+          <h3 className="text-title">API access</h3>
+          <p className="text-caption">
+            Your personal API key for programmatic access to the Unify platform.
+          </p>
+        </div>
+        <ApiKeyField apiKey={apiKey} />
+      </div>
+
       {/* Password Card */}
       <div className="rounded-lg border p-4">
         <div className="flex items-start justify-between gap-4">

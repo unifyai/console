@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Info, Eye, EyeOff, Check } from 'lucide-react';
 import * as React from 'react';
 
-const ApiKeyField: React.FC<{ apiKey: string }> = ({ apiKey }) => {
+export function ApiKeyField({ apiKey }: { apiKey: string }) {
   const [isVisible, setIsVisible] = React.useState(false);
   const [isCopied, setIsCopied] = React.useState(false);
 
@@ -76,14 +76,4 @@ const ApiKeyField: React.FC<{ apiKey: string }> = ({ apiKey }) => {
       </div>
     </div>
   );
-};
-
-const AdvancedTab = ({ apiKey }: { apiKey: string }) => {
-  return (
-    <div className="mt-10 w-full sm:mt-0">
-      <ApiKeyField apiKey={apiKey} />
-    </div>
-  );
-};
-
-export default AdvancedTab;
+}

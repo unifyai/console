@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import NewsletterPreferences, { type Newsletter } from './Newsletter';
-import { Loader } from '@/components/Common/Loader';
+import { SectionBodySkeleton } from '@/components/Common/Loaders/Skeletons';
 import { useAutoSave } from '@/hooks/Account/useAutoSave';
 import { SaveStatus } from './SaveStatus';
 
-const PreferencesTab = () => {
+export function ProfileNewsletterSection() {
   const [newsletters, setNewsletters] = useState<Newsletter[]>([]);
   const [subscriptions, setSubscriptions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,16 +52,22 @@ const PreferencesTab = () => {
   );
 
   if (isLoading) {
-    return (
-      <div className="mt-10 flex items-center justify-center sm:mt-0">
-        <Loader size={24} />
-      </div>
-    );
+    return <SectionBodySkeleton className="max-w-2xl" />;
+  }
+
+  if (newsletters.length === 0) {
+    return null;
   }
 
   return (
-    <div className="mt-10 w-full sm:mt-0">
-      <div className="flex justify-end">
+    <div className="mt-8 border-t border-border pt-6">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-title">Email updates</h3>
+          <p className="text-caption text-muted-foreground">
+            Choose which product and release emails you receive.
+          </p>
+        </div>
         <SaveStatus status={status} />
       </div>
       <NewsletterPreferences
@@ -71,6 +77,4 @@ const PreferencesTab = () => {
       />
     </div>
   );
-};
-
-export default PreferencesTab;
+}

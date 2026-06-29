@@ -1,17 +1,16 @@
 'use client';
 
 import * as React from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   SettingsShell,
   SETTINGS_ACCOUNT_IDS,
+  LEGACY_ACCOUNT_TAB_REDIRECTS,
   type SettingsAccountId,
 } from '@/components/Layout/Shell/SettingsShell';
 import type { User } from '@/types/user';
 import ProfileForm from './Form';
 import ContactInfoTab from './ContactInfoTab';
-import PreferencesTab from './PreferencesTab';
-import AdvancedTab from './AdvancedTab';
 import SecurityTab from './SecurityTab';
 
 /**
@@ -26,20 +25,32 @@ export function SettingsView({
   user: User;
   externalIdentity: boolean;
 }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const active: SettingsAccountId = (
-    tabParam && SETTINGS_ACCOUNT_IDS.includes(tabParam) ? tabParam : 'profile'
-  ) as SettingsAccountId;
+
+  React.useEffect(() => {
+    if (!tabParam) return;
+    const redirect = LEGACY_ACCOUNT_TAB_REDIRECTS[tabParam];
+    if (redirect) {
+      router.replace(`/account?tab=${redirect}`);
+    }
+  }, [tabParam, router]);
+
+  const active: SettingsAccountId = (() => {
+    if (!tabParam) return 'profile';
+    const legacy = LEGACY_ACCOUNT_TAB_REDIRECTS[tabParam];
+    if (legacy) return legacy;
+    if (SETTINGS_ACCOUNT_IDS.includes(tabParam)) return tabParam as SettingsAccountId;
+    return 'profile';
+  })();
 
   return (
     <SettingsShell sectionId="settings">
       <div className="w-full max-w-[900px] px-6 py-5">
         {active === 'profile' && <ProfileForm externalIdentity={externalIdentity} user={user} />}
         {active === 'contact-info' && <ContactInfoTab user={user} />}
-        {active === 'preferences' && <PreferencesTab />}
-        {active === 'advanced' && <AdvancedTab apiKey={user.apiKey} />}
-        {active === 'security' && <SecurityTab user={user} />}
+        {active === 'security' && <SecurityTab user={user} apiKey={user.apiKey} />}
       </div>
     </SettingsShell>
   );
