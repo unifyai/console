@@ -4,6 +4,8 @@ import * as React from 'react';
 import { ChevronRight, Database, Folder, RefreshCw, Table2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
+import { Button } from '@/components/UI/button';
+import { roots } from '@/lib/assistants/scope';
 import { TabFooter } from '../Common/TabFooter';
 import type { Assistant } from '@/types/assistants/assistant';
 
@@ -11,6 +13,20 @@ interface DataPaneProps {
   assistant: Assistant;
   ownerId: string;
   assistantId: string;
+}
+
+/** Rows fetched per page; the leaf view appends pages via "Load more". */
+const PAGE_SIZE = 100;
+
+/**
+ * A readable context root the Data browser draws from. Personal data lives
+ * under ``{ownerId}/{assistantId}/``; each team the assistant belongs to
+ * contributes a ``Teams/{teamId}/`` root, surfaced under its own group node
+ * so identically-named tables across roots never collide.
+ */
+interface DataRoot {
+  prefix: string;
+  group: string | null;
 }
 
 /**
@@ -46,16 +62,20 @@ function newNode(name: string): TreeNode {
   return { name, context: null, children: new Map() };
 }
 
-function buildTree(contextNames: string[], prefix: string): TreeNode {
+function buildTree(contextNames: string[], dataRoots: DataRoot[]): TreeNode {
   const root = newNode('root');
   for (const fullName of contextNames) {
-    if (!fullName.startsWith(prefix)) continue;
-    const relative = fullName.slice(prefix.length);
+    const match = dataRoots.find((r) => fullName.startsWith(r.prefix));
+    if (!match) continue;
+    const relative = fullName.slice(match.prefix.length);
     let segments = relative.split('/').filter(Boolean);
     if (segments.length === 0 || RESERVED_ROOTS.has(segments[0])) continue;
     // The data layer lives under a top-level `Data/` context group; surface its
     // children (CRM, Finance, …) directly as the directory roots.
     if (segments[0] === 'Data' && segments.length > 1) segments = segments.slice(1);
+    // Team roots are nested under a group node so identically-named tables in
+    // different roots stay distinct.
+    if (match.group) segments = [match.group, ...segments];
     let cursor = root;
     segments.forEach((segment, index) => {
       if (!cursor.children.has(segment)) cursor.children.set(segment, newNode(segment));
@@ -142,14 +162,34 @@ function TreeRow({
   );
 }
 
-export function DataPane({ ownerId, assistantId }: DataPaneProps) {
-  const prefix = `${ownerId}/${assistantId}/`;
+export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
+  const dataRoots = React.useMemo<DataRoot[]>(
+    () =>
+      roots(assistant).map((r) =>
+        r.kind === 'personal'
+          ? { prefix: `${ownerId}/${assistantId}/`, group: null }
+          : { prefix: `Teams/${r.teamId}/`, group: `Team ${r.teamId}` }
+      ),
+    [assistant, ownerId, assistantId]
+  );
+
+  const stripRootPrefix = React.useCallback(
+    (full: string): string => {
+      const match = dataRoots.find((r) => full.startsWith(r.prefix));
+      if (!match) return full;
+      const rel = full.slice(match.prefix.length);
+      return match.group ? `${match.group} / ${rel}` : rel;
+    },
+    [dataRoots]
+  );
+
   const [tree, setTree] = React.useState<TreeNode | null>(null);
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
   const [selected, setSelected] = React.useState<string | null>(null);
   const [leaf, setLeaf] = React.useState<LeafData | null>(null);
   const [isLoadingTree, setIsLoadingTree] = React.useState(true);
   const [isLoadingLeaf, setIsLoadingLeaf] = React.useState(false);
+  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
 
   const loadTree = React.useCallback(async () => {
     setIsLoadingTree(true);
@@ -161,7 +201,7 @@ export function DataPane({ ownerId, assistantId }: DataPaneProps) {
             .map((c) => (typeof c === 'string' ? c : (c as { name?: string })?.name))
             .filter((name): name is string => Boolean(name))
         : [];
-      const built = buildTree(names, prefix);
+      const built = buildTree(names, dataRoots);
       setTree(built);
       // Expand the first level so the directory reads as a populated tree.
       setExpanded(new Set(Array.from(built.children.values()).map((n) => n.context ?? n.name + 1)));
@@ -170,39 +210,71 @@ export function DataPane({ ownerId, assistantId }: DataPaneProps) {
     } finally {
       setIsLoadingTree(false);
     }
-  }, [prefix]);
+  }, [dataRoots]);
 
   React.useEffect(() => {
     void loadTree();
   }, [loadTree]);
 
-  const loadLeaf = React.useCallback(async (context: string) => {
-    setSelected(context);
-    setIsLoadingLeaf(true);
-    try {
+  const fetchLeafPage = React.useCallback(
+    async (
+      context: string,
+      offset: number
+    ): Promise<{ rows: Record<string, unknown>[]; count: number }> => {
       const params = new URLSearchParams({
         projectName: 'Assistants',
         context,
-        limit: '100',
+        limit: String(PAGE_SIZE),
+        offset: String(offset),
       });
       const res = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
       const data = res.ok ? await res.json() : { logs: [], count: 0 };
       const rows: Array<Record<string, unknown>> = (data.logs ?? []).map(
         (log: { entries?: Record<string, unknown> }) => log.entries ?? {}
       );
-      const columns = new Set<string>();
-      rows.forEach((row) =>
-        Object.keys(row).forEach((key) => {
-          if (!key.startsWith('_')) columns.add(key);
-        })
-      );
-      setLeaf({ rows, count: data.count ?? rows.length, columns: Array.from(columns) });
-    } catch {
-      setLeaf({ rows: [], count: 0, columns: [] });
-    } finally {
-      setIsLoadingLeaf(false);
-    }
+      return { rows, count: data.count ?? rows.length };
+    },
+    []
+  );
+
+  const columnsFor = React.useCallback((rows: Record<string, unknown>[]): string[] => {
+    const columns = new Set<string>();
+    rows.forEach((row) =>
+      Object.keys(row).forEach((key) => {
+        if (!key.startsWith('_')) columns.add(key);
+      })
+    );
+    return Array.from(columns);
   }, []);
+
+  const loadLeaf = React.useCallback(
+    async (context: string) => {
+      setSelected(context);
+      setLeaf(null);
+      setIsLoadingLeaf(true);
+      try {
+        const { rows, count } = await fetchLeafPage(context, 0);
+        setLeaf({ rows, count, columns: columnsFor(rows) });
+      } catch {
+        setLeaf({ rows: [], count: 0, columns: [] });
+      } finally {
+        setIsLoadingLeaf(false);
+      }
+    },
+    [fetchLeafPage, columnsFor]
+  );
+
+  const loadMore = React.useCallback(async () => {
+    if (!selected || !leaf) return;
+    setIsLoadingMore(true);
+    try {
+      const { rows, count } = await fetchLeafPage(selected, leaf.rows.length);
+      const merged = [...leaf.rows, ...rows];
+      setLeaf({ rows: merged, count, columns: columnsFor(merged) });
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [selected, leaf, fetchLeafPage, columnsFor]);
 
   const toggle = React.useCallback((key: string) => {
     setExpanded((prev) => {
@@ -276,12 +348,12 @@ export function DataPane({ ownerId, assistantId }: DataPaneProps) {
             <>
               <div className="border-b border-border px-4 py-3">
                 <div className="text-code truncate text-foreground">
-                  {selected.slice(prefix.length)}
+                  {stripRootPrefix(selected)}
                 </div>
                 {leaf && (
                   <div className="text-caption mt-0.5">
-                    {leaf.count} {leaf.count === 1 ? 'row' : 'rows'} · {leaf.columns.length}{' '}
-                    {leaf.columns.length === 1 ? 'column' : 'columns'}
+                    Showing {leaf.rows.length} of {leaf.count} {leaf.count === 1 ? 'row' : 'rows'} ·{' '}
+                    {leaf.columns.length} {leaf.columns.length === 1 ? 'column' : 'columns'}
                   </div>
                 )}
               </div>
@@ -325,6 +397,21 @@ export function DataPane({ ownerId, assistantId }: DataPaneProps) {
                     </tbody>
                   </table>
                 )}
+                {leaf && leaf.rows.length < leaf.count && (
+                  <div className="flex justify-center p-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void loadMore()}
+                      disabled={isLoadingMore}
+                      data-testid="data-load-more"
+                    >
+                      {isLoadingMore
+                        ? 'Loading…'
+                        : `Load more (${leaf.count - leaf.rows.length} remaining)`}
+                    </Button>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -337,7 +424,7 @@ export function DataPane({ ownerId, assistantId }: DataPaneProps) {
           <span className="text-caption inline-flex items-center gap-1.5">
             <Database className="h-3 w-3" aria-hidden="true" />
             {selected && leaf
-              ? `${selected.slice(prefix.length)} · ${leaf.count} ${leaf.count === 1 ? 'row' : 'rows'}`
+              ? `${stripRootPrefix(selected)} · ${leaf.count} ${leaf.count === 1 ? 'row' : 'rows'}`
               : `${topNodes.length} ${topNodes.length === 1 ? 'group' : 'groups'} at this level`}
           </span>
         }

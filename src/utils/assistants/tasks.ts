@@ -668,6 +668,11 @@ export function buildTaskDetailSections(row: Record<string, unknown>): DetailSec
       ['name', 'Task', row.name],
       ['description', 'Description', row.description],
       ['status', 'Status', isPresent(row.status) ? humanizeTaskLabel(row.status) : undefined],
+      [
+        'priority',
+        'Priority',
+        isPresent(row.priority) ? humanizeTaskLabel(row.priority) : undefined,
+      ],
     ]);
     addSection('Type', [
       ['taskStartMode', 'Type', formatTaskStartLabel(taskRow)],
@@ -675,13 +680,27 @@ export function buildTaskDetailSections(row: Record<string, unknown>): DetailSec
       ['taskCadence', 'Cadence', formatTaskRecurrenceCadence(taskRow)],
       ['taskStartDetail', 'Behavior', formatTaskStartDetail(taskRow)],
       ['triggerMedium', 'Channel', triggerMedium ? humanizeTaskLabel(triggerMedium) : undefined],
-      ['offline', 'Execution', isOfflineTask(taskRow) ? 'Runs in the background' : undefined],
-      ['nextDueAt', 'Next due', readTaskDueAt(taskRow)],
+      [
+        'offline',
+        'Execution',
+        isOfflineTask(taskRow)
+          ? 'Runs in the background'
+          : isPresent(row.entrypoint)
+            ? 'Runs a saved function'
+            : undefined,
+      ],
+      ['nextDue', 'Next due', readTaskDueAt(taskRow)],
     ]);
     addSection('Timing', [
+      [
+        'deadline',
+        'Deadline',
+        isPresent(row.deadline) ? formatTimestamp(String(row.deadline)) : undefined,
+      ],
       ['createdAt', 'Created at', row.createdAt],
       ['updatedAt', 'Updated at', row.updatedAt],
     ]);
+    addSection('Outcome', [['info', 'Summary', row.info]]);
   }
 
   return sections;
@@ -718,18 +737,14 @@ export function getTaskCardFields(row: TaskRow): TaskCardField[] {
       ? 'On event'
       : '—';
 
-  const cadenceRaw = readFirstPresentValue(record, ['cadence']);
-  const cadence =
-    typeof cadenceRaw === 'string' && cadenceRaw.trim().length > 0
-      ? cadenceRaw
-      : (formatTaskRecurrenceCadence(row) ?? '—');
+  // Cadence is always derived from the task's repeat patterns / recurring
+  // trigger — the scheduler model has no flat cadence column.
+  const cadence = formatTaskRecurrenceCadence(row) ?? '—';
 
   const startCandidate =
-    readFirstPresentValue(record, ['startAt', 'start_at']) ??
-    readFirstPresentValue(readTaskSchedule(row), ['startAt', 'start_at']) ??
-    row.createdAt;
+    readFirstPresentValue(readTaskSchedule(row), ['startAt', 'start_at']) ?? row.createdAt;
   const nextDue = readTaskDueAt(row);
-  const ownerValue = readFirstPresentValue(record, ['owner']);
+  const priorityValue = readFirstPresentValue(record, ['priority']);
 
   return [
     { label: 'Type', value: getTaskTypeLabel(row) },
@@ -742,8 +757,8 @@ export function getTaskCardFields(row: TaskRow): TaskCardField[] {
     },
     { label: 'Next run', value: nextDue ? formatTimestamp(nextDue) : '—', mono: true },
     {
-      label: 'Owner',
-      value: isPresent(ownerValue) ? String(ownerValue) : '—',
+      label: 'Priority',
+      value: isPresent(priorityValue) ? humanizeTaskLabel(priorityValue) : '—',
     },
   ];
 }
