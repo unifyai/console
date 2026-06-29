@@ -68,6 +68,7 @@ import {
   PERSISTENT_EXPIRATION_TTL,
   MESSAGE_RETENTION_DURATION,
 } from '@/lib/pubsub/ephemeral-subscription';
+import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -206,6 +207,8 @@ export async function GET(request: NextRequest) {
     retentionSec: MESSAGE_RETENTION_DURATION,
   });
 
+  const { lifecycle, cancel } = createSseLifecycle(request);
+
   const stream = new ReadableStream({
     start(controller) {
       const startTime = Date.now();
@@ -244,18 +247,15 @@ export async function GET(request: NextRequest) {
       }
 
       const keepAliveInterval = setInterval(() => {
-        if (request.signal.aborted) {
-          clearInterval(keepAliveInterval);
-          return;
-        }
         keepAliveCount++;
         try {
           controller.enqueue(encoder.encode(': keep-alive\n\n'));
         } catch {
           log('KEEPALIVE_WRITE_FAIL', { keepAliveCount, elapsed: Date.now() - startTime });
-          clearInterval(keepAliveInterval);
+          lifecycle.close();
         }
       }, 15000);
+      lifecycle.add(() => clearInterval(keepAliveInterval));
 
       const { pubsub } = getPubSubClient();
 
@@ -411,11 +411,10 @@ export async function GET(request: NextRequest) {
         attached.push({ assistantId, subscription, messageHandler, errorHandler });
       }
 
-      request.signal.addEventListener('abort', () => {
+      lifecycle.add(() => {
         const elapsed = Date.now() - startTime;
         log('STREAM_END', { elapsed, messageCount, keepAliveCount, errorCount });
 
-        clearInterval(keepAliveInterval);
         for (const { subscription, messageHandler, errorHandler } of attached) {
           subscription.removeListener('message', messageHandler);
           subscription.removeListener('error', errorHandler);
@@ -427,6 +426,9 @@ export async function GET(request: NextRequest) {
           // Already closed
         }
       });
+    },
+    cancel() {
+      cancel();
     },
   });
 

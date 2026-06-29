@@ -26,6 +26,7 @@ import {
   MESSAGE_RETENTION_DURATION,
 } from '@/lib/pubsub/ephemeral-subscription';
 import { hasCredentials, subscribe } from '@/lib/pubsub/local-event-bus';
+import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,24 +53,23 @@ function createLocalStream(request: NextRequest, assistantId: string): Response 
       `[SystemErrors SSE] Local mode for assistant=${assistantId} (no Pub/Sub credentials)`
     );
 
+  const { lifecycle, cancel } = createSseLifecycle(request);
+
   const stream = new ReadableStream({
     start(controller) {
       controller.enqueue(encoder.encode(': connected\n\n'));
 
       const keepAliveInterval = setInterval(() => {
-        if (request.signal.aborted) {
-          clearInterval(keepAliveInterval);
-          return;
-        }
         try {
           controller.enqueue(encoder.encode(': keep-alive\n\n'));
         } catch {
-          clearInterval(keepAliveInterval);
+          lifecycle.close();
         }
       }, 15000);
+      lifecycle.add(() => clearInterval(keepAliveInterval));
 
       const unsubscribe = subscribe(assistantId, (rawEvent) => {
-        if (request.signal.aborted) return;
+        if (lifecycle.closed) return;
         if ((rawEvent as Record<string, unknown>).thread !== 'system_error') return;
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(rawEvent)}\n\n`));
@@ -77,16 +77,17 @@ function createLocalStream(request: NextRequest, assistantId: string): Response 
           /* stream closed */
         }
       });
-
-      request.signal.addEventListener('abort', () => {
-        clearInterval(keepAliveInterval);
-        unsubscribe();
+      lifecycle.add(unsubscribe);
+      lifecycle.add(() => {
         try {
           controller.close();
         } catch {
           /* already closed */
         }
       });
+    },
+    cancel() {
+      cancel();
     },
   });
 
@@ -103,6 +104,8 @@ function createPubSubStream(
   subscriptionName: string,
   deleteOnClose: () => void
 ): Response {
+  const { lifecycle, cancel } = createSseLifecycle(request);
+
   const stream = new ReadableStream({
     start(controller) {
       if (__DEV__) console.log(`[SystemErrors SSE] Stream started for assistant=${assistantId}`);
@@ -110,16 +113,13 @@ function createPubSubStream(
       controller.enqueue(encoder.encode(': connected\n\n'));
 
       const keepAliveInterval = setInterval(() => {
-        if (request.signal.aborted) {
-          clearInterval(keepAliveInterval);
-          return;
-        }
         try {
           controller.enqueue(encoder.encode(': keep-alive\n\n'));
         } catch {
-          clearInterval(keepAliveInterval);
+          lifecycle.close();
         }
       }, 15000);
+      lifecycle.add(() => clearInterval(keepAliveInterval));
 
       const { pubsub } = getPubSubClient();
       const subscription = pubsub.subscription(subscriptionName);
@@ -165,8 +165,7 @@ function createPubSubStream(
       subscription.on('message', messageHandler);
       subscription.on('error', errorHandler);
 
-      request.signal.addEventListener('abort', () => {
-        clearInterval(keepAliveInterval);
+      lifecycle.add(() => {
         subscription.removeListener('message', messageHandler);
         subscription.removeListener('error', errorHandler);
         subscription.close();
@@ -178,6 +177,9 @@ function createPubSubStream(
           /* already closed */
         }
       });
+    },
+    cancel() {
+      cancel();
     },
   });
 
@@ -247,10 +249,6 @@ export async function GET(
       .delete()
       .catch(() => {});
   };
-
-  request.signal.addEventListener('abort', () => {
-    deleteOnClose();
-  });
 
   return createPubSubStream(request, assistantId, subscriptionName, deleteOnClose);
 }
