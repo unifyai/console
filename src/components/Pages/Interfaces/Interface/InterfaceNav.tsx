@@ -2087,368 +2087,149 @@ export default function InterfaceNav({
 
   return (
     <TooltipProvider>
-      {/* Toggle Button for completely hidden state */}
-      {isCompletelyHidden && (
-        <div className="fixed left-2 top-[3.125rem] z-[200] duration-300 animate-in fade-in">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => {
-                  toggleSidebar();
-                }}
-                className="bg-card/95 h-8 w-8 border border-border shadow-pop backdrop-blur-sm"
-              >
-                <PanelLeft className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Show sidebar</TooltipContent>
-          </Tooltip>
-        </div>
-      )}
-
-      {/* Sidebar Container */}
-      <div
-        data-interface-color
-        className={cn(
-          'bg-card/95 fixed left-0 top-10 z-20 flex h-[calc(100vh-2.5rem)] flex-col overflow-hidden border-r border-border shadow-pop backdrop-blur-sm',
-          isCollapsed ? 'w-12' : '',
-          isDraggingSidebar ? '' : 'transition-all duration-300 ease-in-out',
-          isCompletelyHidden && 'pointer-events-none !w-0 border-0 opacity-0'
-        )}
-        style={
-          {
-            ...sidebarStyle,
-            width: isCompletelyHidden ? '0' : isCollapsed ? '3rem' : sidebarWidth,
-            '--sidebar-width': isCompletelyHidden ? '0' : isCollapsed ? '3rem' : sidebarWidth,
-            transform: isCompletelyHidden ? 'translateX(-100%)' : 'translateX(0)',
-          } as CSSProperties
-        }
-      >
-        {/* Resize Handle */}
-        {!isCompletelyHidden && (
-          <div
-            ref={dragRef}
-            onMouseDown={handleMouseDown}
-            className={cn(
-              'hover:bg-primary/40 absolute bottom-0 right-0 top-0 z-10 w-1 cursor-ew-resize bg-transparent transition-colors',
-              "after:absolute after:bottom-0 after:top-0 after:content-['']",
-              isCollapsed
-                ? 'after:left-[-2px] after:right-[-6px]'
-                : 'after:left-[-2px] after:right-[-2px]',
-              isDraggingSidebar && 'bg-primary/40'
-            )}
-          />
-        )}
-
-        {/* Header with Breadcrumb Navigation and Toggle */}
-        {!isCompletelyHidden && isCollapsed && (
-          <div
-            className={cn('flex items-center justify-center border-b border-border bg-card p-2')}
-          >
-            <Button size="icon" variant="ghost" onClick={toggleSidebar} className="h-7 w-7">
-              <PanelLeft className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-
-        {/* Projects and Interfaces Section */}
-        {!isCompletelyHidden && !isCollapsed && (
-          <div className="bg-card/80 space-y-3 overflow-x-hidden border-b border-border p-3 duration-300 animate-in fade-in slide-in-from-left-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-label uppercase tracking-[0.16em] text-muted-foreground">
-                  Interfaces
-                </p>
-                <p className="text-caption text-muted-foreground">Projects, dashboards and tabs</p>
-              </div>
-            </div>
-            {/* Projects */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-label select-none text-muted-foreground">Project</label>
+      <div className="relative flex h-full">
+        {/* Toggle Button for completely hidden state */}
+        {isCompletelyHidden && (
+          <div className="absolute left-2 top-2 z-[200] duration-300 animate-in fade-in">
+            <Tooltip>
+              <TooltipTrigger asChild>
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={toggleSidebar}
-                  className="h-7 w-7 flex-shrink-0"
+                  onClick={() => {
+                    toggleSidebar();
+                  }}
+                  className="bg-card/95 h-8 w-8 border border-border shadow-pop backdrop-blur-sm"
                 >
-                  <PanelLeftClose className="h-4 w-4" />
+                  <PanelLeft className="h-4 w-4" />
                 </Button>
-              </div>
-              <div className="flex w-full min-w-0 items-center gap-1">
-                <ProjectPicker
-                  projects={projectTree}
-                  selectedProject={projectId}
-                  selectedProjectIcon={currentProjectData?.icon}
-                  isLoading={projectTreeLoading}
-                  isFetching={projectTreeFetching}
-                  isError={!!projectTreeError}
-                  transitioningToProject={transitioningToProject}
-                  isChangingProject={isChangingProject}
-                  onSelect={handleProjectChange}
-                  onRefresh={refetchProjectTree}
-                  open={projectPopoverOpen}
-                  onOpenChange={setProjectPopoverOpen}
-                />
-                {/* Project Context Menu */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent side="right" align="start" className="max-w-[200px]">
-                    <DropdownMenuItem
-                      onSelect={() => setCreateProjectOpen(true)}
-                      className="text-body-sm"
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create Project
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {permissions.hasWrite && (
-                      <>
-                        <DropdownMenuItem
-                          disabled={!selectedProject}
-                          onSelect={() => {
-                            setActiveProject(selectedProject);
-                            setRenameProjectOpen(true);
-                          }}
-                          className="text-body-sm"
-                        >
-                          <Edit3 className="mr-2 h-4 w-4" />
-                          Rename Project
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={!selectedProject}
-                          onSelect={() => {
-                            setActiveProject(selectedProject);
-                            setNewProjectIconEdit(currentProjectData?.icon || 'folder');
-                            setProjectIconOpen(true);
-                          }}
-                          className="text-body-sm"
-                        >
-                          <Settings className="mr-2 h-4 w-4" />
-                          Change Icon
-                        </DropdownMenuItem>
-                        {interfaceId && (
-                          <ColorPicker
-                            value={pickerColor}
-                            onChange={handleThemeChange}
-                            useDialog={true}
-                            showReset={true}
-                            onReset={handleThemeReset}
-                          >
-                            <DropdownMenuItem className="text-body-sm">
-                              <Palette className="mr-2 h-4 w-4" />
-                              Set Project Color
-                            </DropdownMenuItem>
-                          </ColorPicker>
-                        )}
-                        <DropdownMenuItem
-                          disabled={!selectedProject}
-                          onSelect={() => setProjectContextOpen(true)}
-                          className="text-body-sm"
-                        >
-                          <FolderTree className="mr-2 h-4 w-4" />
-                          Set Project Context
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={!selectedProject}
-                          onSelect={() => {
-                            setImportProjectName(selectedProject);
-                            setImportInterfaceOpen(true);
-                          }}
-                          className="text-body-sm"
-                        >
-                          <Upload className="mr-2 h-4 w-4" />
-                          Import Interface
-                        </DropdownMenuItem>
-                        {selectedProject !== 'Usage' && (
-                          <DropdownMenuItem
-                            disabled={!selectedProject}
-                            onSelect={() => {
-                              setFileUploadOpen(true);
-                            }}
-                            className="text-body-sm"
-                          >
-                            <FileInput className="mr-2 h-4 w-4" />
-                            Upload Logs
-                          </DropdownMenuItem>
-                        )}
-                      </>
-                    )}
-                    <DropdownMenuItem
-                      disabled={!selectedProject}
-                      onSelect={() => handleToggleFavourite()}
-                      className="text-body-sm"
-                    >
-                      <Star
-                        className={cn(
-                          'mr-2 h-4 w-4',
-                          currentProjectData?.favorite && 'fill-current'
-                        )}
-                      />
-                      {currentProjectData?.favorite ? 'Remove from Favorites' : 'Add to Favorites'}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onSelect={async () => {
-                        setProjectsRefreshing(true);
-                        await refetchProjectTree();
-                        setProjectsRefreshing(false);
-                      }}
-                      className="text-body-sm"
-                    >
-                      <RefreshCw
-                        className={cn('mr-2 h-4 w-4', projectsRefreshing && 'animate-spin')}
-                      />
-                      {projectsRefreshing ? 'Refreshing...' : 'Refresh All'}
-                    </DropdownMenuItem>
-                    {selectedProject !== 'Usage' && (
-                      <>
-                        {(permissions.hasWrite || permissions.isOwner) &&
-                          permissions.isOrgProject && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                disabled={!selectedProject}
-                                onSelect={() => {
-                                  setActiveProject(selectedProject);
-                                  setShareProjectOpen(true);
-                                }}
-                                className="text-body-sm"
-                              >
-                                <Share2 className="mr-2 h-4 w-4" />
-                                Share Project
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                        {permissions.isOwner && (
-                          <DropdownMenuItem
-                            disabled={!selectedProject}
-                            onSelect={() => {
-                              setActiveProject(selectedProject);
-                              setTransferProjectOpen(true);
-                            }}
-                            className="text-body-sm"
-                          >
-                            <ArrowRightLeft className="mr-2 h-4 w-4" />
-                            Transfer Project
-                          </DropdownMenuItem>
-                        )}
-                        {permissions.hasDelete && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              disabled={!selectedProject}
-                              onSelect={() => {
-                                setActiveProject(selectedProject);
-                                setDeleteProjectOpen(true);
-                              }}
-                              className="text-body-sm text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete Project
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
+              </TooltipTrigger>
+              <TooltipContent side="right">Show sidebar</TooltipContent>
+            </Tooltip>
+          </div>
+        )}
 
-            {/* Interfaces */}
-            {currentInterfaces.length > 0 && (
+        {/* Sidebar Container */}
+        <div
+          data-interface-color
+          className={cn(
+            'bg-card/95 relative z-20 flex h-full shrink-0 flex-col overflow-hidden border-r border-border shadow-pop backdrop-blur-sm',
+            isCollapsed ? 'w-12' : '',
+            isDraggingSidebar ? '' : 'transition-all duration-300 ease-in-out',
+            isCompletelyHidden && 'pointer-events-none !w-0 border-0 opacity-0'
+          )}
+          style={
+            {
+              ...sidebarStyle,
+              width: isCompletelyHidden ? '0' : isCollapsed ? '3rem' : sidebarWidth,
+              '--sidebar-width': isCompletelyHidden ? '0' : isCollapsed ? '3rem' : sidebarWidth,
+              transform: isCompletelyHidden ? 'translateX(-100%)' : 'translateX(0)',
+            } as CSSProperties
+          }
+        >
+          {/* Resize Handle */}
+          {!isCompletelyHidden && (
+            <div
+              ref={dragRef}
+              onMouseDown={handleMouseDown}
+              className={cn(
+                'hover:bg-primary/40 absolute bottom-0 right-0 top-0 z-10 w-1 cursor-ew-resize bg-transparent transition-colors',
+                "after:absolute after:bottom-0 after:top-0 after:content-['']",
+                isCollapsed
+                  ? 'after:left-[-2px] after:right-[-6px]'
+                  : 'after:left-[-2px] after:right-[-2px]',
+                isDraggingSidebar && 'bg-primary/40'
+              )}
+            />
+          )}
+
+          {/* Header with Breadcrumb Navigation and Toggle */}
+          {!isCompletelyHidden && isCollapsed && (
+            <div
+              className={cn('flex items-center justify-center border-b border-border bg-card p-2')}
+            >
+              <Button size="icon" variant="ghost" onClick={toggleSidebar} className="h-7 w-7">
+                <PanelLeft className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
+          {/* Projects and Interfaces Section */}
+          {!isCompletelyHidden && !isCollapsed && (
+            <div className="bg-card/80 space-y-3 overflow-x-hidden border-b border-border p-3 duration-300 animate-in fade-in slide-in-from-left-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-label uppercase tracking-[0.16em] text-muted-foreground">
+                    Interfaces
+                  </p>
+                  <p className="text-caption text-muted-foreground">
+                    Projects, dashboards and tabs
+                  </p>
+                </div>
+              </div>
+              {/* Projects */}
               <div className="space-y-1.5">
-                <label className="text-label select-none text-muted-foreground">Interface</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-label select-none text-muted-foreground">Project</label>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={toggleSidebar}
+                    className="h-7 w-7 flex-shrink-0"
+                  >
+                    <PanelLeftClose className="h-4 w-4" />
+                  </Button>
+                </div>
                 <div className="flex w-full min-w-0 items-center gap-1">
-                  <InterfacePicker
-                    interfaces={currentInterfaces}
-                    selectedInterface={currentInterface ?? null}
+                  <ProjectPicker
+                    projects={projectTree}
+                    selectedProject={projectId}
+                    selectedProjectIcon={currentProjectData?.icon}
                     isLoading={projectTreeLoading}
                     isFetching={projectTreeFetching}
-                    transitioningToInterface={transitioningToInterface}
-                    isChangingInterface={isChangingInterface}
-                    onSelect={handleInterfaceChange}
-                    open={interfacePopoverOpen}
-                    onOpenChange={setInterfacePopoverOpen}
+                    isError={!!projectTreeError}
+                    transitioningToProject={transitioningToProject}
+                    isChangingProject={isChangingProject}
+                    onSelect={handleProjectChange}
+                    onRefresh={refetchProjectTree}
+                    open={projectPopoverOpen}
+                    onOpenChange={setProjectPopoverOpen}
                   />
-                  {/* Interface Context Menu */}
-                  {permissions.hasWrite && (
-                    <>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent side="right" align="start" className="max-w-[200px]">
-                          <DropdownMenuItem
-                            disabled={!currentInterface}
-                            onSelect={() => {
-                              if (currentInterface) {
-                                setSaveInterfaceOpen(true);
-                              }
-                            }}
-                            className="text-body-sm"
-                          >
-                            <Save className="mr-2 h-4 w-4" />
-                            Save Interface
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            disabled={!currentInterface}
-                            onSelect={() => {
-                              if (currentInterface) {
-                                setSelectedInterfaceForAction(currentInterface);
-                                setSaveAsNewInterfaceOpen(true);
-                              }
-                            }}
-                            className="text-body-sm"
-                          >
-                            <div className="relative mr-2 h-4 w-4">
-                              <Save className="h-4 w-4" />
-                              <Plus className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-background text-foreground" />
-                            </div>
-                            Save as New Int...
-                          </DropdownMenuItem>
+                  {/* Project Context Menu */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent side="right" align="start" className="max-w-[200px]">
+                      <DropdownMenuItem
+                        onSelect={() => setCreateProjectOpen(true)}
+                        className="text-body-sm"
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create Project
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {permissions.hasWrite && (
+                        <>
                           <DropdownMenuItem
                             disabled={!selectedProject}
                             onSelect={() => {
                               setActiveProject(selectedProject);
-                              setCreateInterfaceOpen(true);
-                            }}
-                            className="text-body-sm"
-                          >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Create Interface
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            disabled={!currentInterface}
-                            onSelect={() => {
-                              if (currentInterface) {
-                                setSelectedInterfaceForAction(currentInterface);
-                                setRenameInterfaceOpen(true);
-                              }
+                              setRenameProjectOpen(true);
                             }}
                             className="text-body-sm"
                           >
                             <Edit3 className="mr-2 h-4 w-4" />
-                            Rename Interface
+                            Rename Project
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            disabled={!currentInterface}
+                            disabled={!selectedProject}
                             onSelect={() => {
-                              if (currentInterface) {
-                                setSelectedInterfaceForAction(currentInterface);
-                                setNewInterfaceIcon(currentInterface.icon || 'layout-grid');
-                                setInterfaceIconOpen(true);
-                              }
+                              setActiveProject(selectedProject);
+                              setNewProjectIconEdit(currentProjectData?.icon || 'folder');
+                              setProjectIconOpen(true);
                             }}
                             className="text-body-sm"
                           >
@@ -2465,1062 +2246,1291 @@ export default function InterfaceNav({
                             >
                               <DropdownMenuItem className="text-body-sm">
                                 <Palette className="mr-2 h-4 w-4" />
-                                Set Interface Color
+                                Set Project Color
                               </DropdownMenuItem>
                             </ColorPicker>
                           )}
                           <DropdownMenuItem
-                            disabled={!currentInterface}
-                            onSelect={() => {
-                              if (currentInterface) {
-                                setSelectedInterfaceForAction(currentInterface);
-                                handleExportTemplate();
-                              }
-                            }}
-                            className="text-body-sm"
-                          >
-                            <Download className="mr-2 h-4 w-4" />
-                            Export as Template
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            disabled={!currentInterface}
-                            onSelect={() => setInterfaceContextOpen(true)}
+                            disabled={!selectedProject}
+                            onSelect={() => setProjectContextOpen(true)}
                             className="text-body-sm"
                           >
                             <FolderTree className="mr-2 h-4 w-4" />
-                            Set Interface Context
+                            Set Project Context
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
                           <DropdownMenuItem
-                            disabled={!currentInterface}
+                            disabled={!selectedProject}
                             onSelect={() => {
-                              if (currentInterface) {
-                                setSelectedInterfaceForAction(currentInterface);
-                                setDeleteInterfaceOpen(true);
-                              }
+                              setImportProjectName(selectedProject);
+                              setImportInterfaceOpen(true);
                             }}
-                            className="text-body-sm text-destructive"
+                            className="text-body-sm"
                           >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete Interface
+                            <Upload className="mr-2 h-4 w-4" />
+                            Import Interface
                           </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Show separator and tabs only when both project and interface are selected */}
-        {!isCompletelyHidden && !isCollapsed && projectId && interfaceId && (
-          <Separator className="bg-border delay-150 duration-300 animate-in fade-in" />
-        )}
-
-        {/* Tabs List - Only show when both project and interface are selected */}
-        {!isCompletelyHidden && projectId && interfaceId && (
-          <div className="bg-background/35 flex flex-1 flex-col overflow-hidden delay-200 duration-500 animate-in fade-in slide-in-from-bottom-2">
-            {/* Tabs label and Add button - pinned at top for expanded mode */}
-            {!isCollapsed && (
-              <div className="flex-shrink-0 px-3 pb-2 pt-3">
-                <div className="flex items-center justify-between duration-200 animate-in fade-in slide-in-from-top-1">
-                  <label className="text-label flex flex-shrink-0 select-none items-center uppercase leading-none tracking-[0.14em] text-muted-foreground">
-                    Tabs
-                  </label>
-                  {interfaceId && permissions.hasWrite && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setCreateTabOpen(true)}
-                          className="h-6 w-6 flex-shrink-0"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Add new tab</TooltipContent>
-                    </Tooltip>
-                  )}
-                </div>
-              </div>
-            )}
-            <div className="relative min-h-0 flex-1 overflow-hidden">
-              <ScrollArea className="h-full w-full">
-                <div
-                  className={cn(
-                    'relative min-w-0 space-y-1',
-                    isCollapsed ? 'px-1 py-1 pb-4' : 'px-3 pb-3 pt-0.5'
-                  )}
-                >
-                  {tabsError ? (
-                    // Error state
-                    <div
-                      className={cn(
-                        'bg-card/80 rounded-lg border border-border text-center text-destructive duration-300 animate-in fade-in',
-                        isCollapsed ? 'px-2 py-4' : 'px-3 py-6'
-                      )}
-                    >
-                      <div className="mb-2">
-                        <svg
-                          className="text-destructive/50 mx-auto h-8 w-8"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1.5}
-                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                      </div>
-                      <span className="mb-2 block select-none break-words">
-                        {tabsErrorDetails instanceof Error
-                          ? tabsErrorDetails.message
-                          : 'Failed to load tabs'}
-                      </span>
-                      {!isCollapsed && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => refetchTabs()}
-                          className="mt-2"
-                        >
-                          <RefreshCw className="mr-1 h-3 w-3" />
-                          Retry
-                        </Button>
-                      )}
-                    </div>
-                  ) : loadingTabs ? (
-                    <div className="space-y-1 duration-200 animate-in fade-in">
-                      {/* Show skeleton loaders that match tab items */}
-                      {[1, 2, 3].map((i) => (
-                        <div
-                          key={i}
-                          className={cn(
-                            'bg-card/60 flex items-center gap-2 rounded-lg border border-border py-2 duration-200 animate-in fade-in',
-                            isCollapsed ? 'justify-center px-0' : 'px-3'
+                          {selectedProject !== 'Usage' && (
+                            <DropdownMenuItem
+                              disabled={!selectedProject}
+                              onSelect={() => {
+                                setFileUploadOpen(true);
+                              }}
+                              className="text-body-sm"
+                            >
+                              <FileInput className="mr-2 h-4 w-4" />
+                              Upload Logs
+                            </DropdownMenuItem>
                           )}
-                          style={{ animationDelay: `${i * 50}ms` }}
-                        >
-                          {isCollapsed ? (
-                            <div className="h-8 w-8 animate-pulse rounded bg-muted" />
-                          ) : (
+                        </>
+                      )}
+                      <DropdownMenuItem
+                        disabled={!selectedProject}
+                        onSelect={() => handleToggleFavourite()}
+                        className="text-body-sm"
+                      >
+                        <Star
+                          className={cn(
+                            'mr-2 h-4 w-4',
+                            currentProjectData?.favorite && 'fill-current'
+                          )}
+                        />
+                        {currentProjectData?.favorite
+                          ? 'Remove from Favorites'
+                          : 'Add to Favorites'}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onSelect={async () => {
+                          setProjectsRefreshing(true);
+                          await refetchProjectTree();
+                          setProjectsRefreshing(false);
+                        }}
+                        className="text-body-sm"
+                      >
+                        <RefreshCw
+                          className={cn('mr-2 h-4 w-4', projectsRefreshing && 'animate-spin')}
+                        />
+                        {projectsRefreshing ? 'Refreshing...' : 'Refresh All'}
+                      </DropdownMenuItem>
+                      {selectedProject !== 'Usage' && (
+                        <>
+                          {(permissions.hasWrite || permissions.isOwner) &&
+                            permissions.isOrgProject && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  disabled={!selectedProject}
+                                  onSelect={() => {
+                                    setActiveProject(selectedProject);
+                                    setShareProjectOpen(true);
+                                  }}
+                                  className="text-body-sm"
+                                >
+                                  <Share2 className="mr-2 h-4 w-4" />
+                                  Share Project
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          {permissions.isOwner && (
+                            <DropdownMenuItem
+                              disabled={!selectedProject}
+                              onSelect={() => {
+                                setActiveProject(selectedProject);
+                                setTransferProjectOpen(true);
+                              }}
+                              className="text-body-sm"
+                            >
+                              <ArrowRightLeft className="mr-2 h-4 w-4" />
+                              Transfer Project
+                            </DropdownMenuItem>
+                          )}
+                          {permissions.hasDelete && (
                             <>
-                              <div className="h-4 w-4 animate-pulse rounded bg-muted" />
-                              <div
-                                className="h-4 flex-1 animate-pulse rounded bg-muted"
-                                style={{ width: `${60 + i * 20}%` }}
-                              />
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                disabled={!selectedProject}
+                                onSelect={() => {
+                                  setActiveProject(selectedProject);
+                                  setDeleteProjectOpen(true);
+                                }}
+                                className="text-body-sm text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Project
+                              </DropdownMenuItem>
                             </>
                           )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : currentTabs.length === 0 ? (
-                    <div
-                      className={cn(
-                        'bg-card/70 rounded-lg border border-dashed border-border text-center text-muted-foreground duration-300 animate-in fade-in',
-                        isCollapsed ? 'py-4' : 'px-2 py-6'
+                        </>
                       )}
-                    >
-                      <div className="mb-2">
-                        <svg
-                          className="text-muted-foreground/50 mx-auto h-8 w-8"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1.5}
-                            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                          />
-                        </svg>
-                      </div>
-                      <span className="block select-none break-words">No tabs yet</span>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Tab drag and drop functionality */}
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleTabDragEnd}
-                        onDragStart={(event) => {
-                          setActiveTabId(event.active.id as string);
-
-                          // Calculate offset to maintain cursor position on dragged element
-                          if (event.active.rect.current?.initial && event.activatorEvent) {
-                            const rect = event.active.rect.current.initial;
-                            const mouseEvent = event.activatorEvent as MouseEvent;
-
-                            if ('clientX' in mouseEvent && 'clientY' in mouseEvent) {
-                              // Calculate offset from element center to click position
-                              const offsetX = mouseEvent.clientX - rect.left - rect.width / 2;
-                              const offsetY = mouseEvent.clientY - rect.top - rect.height / 2;
-
-                              setInitialOffset({ x: offsetX, y: offsetY });
-                            }
-                          }
-                        }}
-                        onDragCancel={() => {
-                          setActiveTabId(null);
-                          setInitialOffset({ x: 0, y: 0 });
-                        }}
-                      >
-                        <SortableContext
-                          items={currentTabs.map((tab) => tab.id || tab.name)}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          <div className="w-full space-y-1">
-                            {currentTabs.map((tab) => (
-                              <SortableTab
-                                key={tab.id || tab.name}
-                                tab={tab}
-                                isActive={activeTabName === tab.name}
-                                isCollapsed={isCollapsed}
-                                isTabLoading={
-                                  queryClient.getQueryState([
-                                    'tabCompleteData',
-                                    interfaceId,
-                                    tab.name,
-                                    selectedProject,
-                                  ])?.fetchStatus === 'fetching'
-                                }
-                                onTabClick={handleTabClick}
-                                onSaveTab={onSaveTab}
-                                onResetTab={onResetTab}
-                                onRenameTab={onRenameTab}
-                                onChangeTabIcon={onChangeTabIcon}
-                                onChangeTabColor={onChangeTabColor}
-                                onSetTabContext={onSetTabContext}
-                                onDeleteTab={onDeleteTab}
-                              />
-                            ))}
-                          </div>
-                        </SortableContext>
-                        <DragOverlay
-                          dropAnimation={null}
-                          modifiers={[
-                            ({ transform }) => ({
-                              ...transform,
-                              x: transform.x + initialOffset.x,
-                              y: transform.y + initialOffset.y - 40, // Adjust Y to position element at cursor
-                            }),
-                          ]}
-                        >
-                          {activeTabId &&
-                            (() => {
-                              const activeTab = currentTabs.find(
-                                (tab) => (tab.id || tab.name) === activeTabId
-                              );
-                              if (!activeTab) return null;
-
-                              return (
-                                <div className="pointer-events-none cursor-grabbing rounded-lg border border-border bg-card shadow-pop">
-                                  <div
-                                    className={cn(
-                                      'flex items-center gap-2 py-2',
-                                      isCollapsed ? 'justify-center px-2' : 'px-3'
-                                    )}
-                                  >
-                                    {renderSidebarIcon(activeTab.icon, 'h-3 w-3', 'tab')}
-                                    {!isCollapsed && (
-                                      <span className="text-body text-strong select-none">
-                                        {activeTab.name}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })()}
-                        </DragOverlay>
-                      </DndContext>
-                    </>
-                  )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              </ScrollArea>
-              {/* Fade gradients for smooth scroll effect */}
-              <div
-                className={cn(
-                  'via-background/80 pointer-events-none absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-background to-transparent',
-                  isCollapsed ? 'mx-1 h-8' : 'mx-2 h-2'
-                )}
-              />
-              <div
-                className={cn(
-                  'via-background/60 pointer-events-none absolute left-0 right-0 top-0 z-10 bg-gradient-to-b from-background to-transparent',
-                  isCollapsed ? 'mx-1 h-3' : 'mx-2 h-2'
-                )}
-              />
+              </div>
+
+              {/* Interfaces */}
+              {currentInterfaces.length > 0 && (
+                <div className="space-y-1.5">
+                  <label className="text-label select-none text-muted-foreground">Interface</label>
+                  <div className="flex w-full min-w-0 items-center gap-1">
+                    <InterfacePicker
+                      interfaces={currentInterfaces}
+                      selectedInterface={currentInterface ?? null}
+                      isLoading={projectTreeLoading}
+                      isFetching={projectTreeFetching}
+                      transitioningToInterface={transitioningToInterface}
+                      isChangingInterface={isChangingInterface}
+                      onSelect={handleInterfaceChange}
+                      open={interfacePopoverOpen}
+                      onOpenChange={setInterfacePopoverOpen}
+                    />
+                    {/* Interface Context Menu */}
+                    {permissions.hasWrite && (
+                      <>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent side="right" align="start" className="max-w-[200px]">
+                            <DropdownMenuItem
+                              disabled={!currentInterface}
+                              onSelect={() => {
+                                if (currentInterface) {
+                                  setSaveInterfaceOpen(true);
+                                }
+                              }}
+                              className="text-body-sm"
+                            >
+                              <Save className="mr-2 h-4 w-4" />
+                              Save Interface
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={!currentInterface}
+                              onSelect={() => {
+                                if (currentInterface) {
+                                  setSelectedInterfaceForAction(currentInterface);
+                                  setSaveAsNewInterfaceOpen(true);
+                                }
+                              }}
+                              className="text-body-sm"
+                            >
+                              <div className="relative mr-2 h-4 w-4">
+                                <Save className="h-4 w-4" />
+                                <Plus className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-background text-foreground" />
+                              </div>
+                              Save as New Int...
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={!selectedProject}
+                              onSelect={() => {
+                                setActiveProject(selectedProject);
+                                setCreateInterfaceOpen(true);
+                              }}
+                              className="text-body-sm"
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Create Interface
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              disabled={!currentInterface}
+                              onSelect={() => {
+                                if (currentInterface) {
+                                  setSelectedInterfaceForAction(currentInterface);
+                                  setRenameInterfaceOpen(true);
+                                }
+                              }}
+                              className="text-body-sm"
+                            >
+                              <Edit3 className="mr-2 h-4 w-4" />
+                              Rename Interface
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={!currentInterface}
+                              onSelect={() => {
+                                if (currentInterface) {
+                                  setSelectedInterfaceForAction(currentInterface);
+                                  setNewInterfaceIcon(currentInterface.icon || 'layout-grid');
+                                  setInterfaceIconOpen(true);
+                                }
+                              }}
+                              className="text-body-sm"
+                            >
+                              <Settings className="mr-2 h-4 w-4" />
+                              Change Icon
+                            </DropdownMenuItem>
+                            {interfaceId && (
+                              <ColorPicker
+                                value={pickerColor}
+                                onChange={handleThemeChange}
+                                useDialog={true}
+                                showReset={true}
+                                onReset={handleThemeReset}
+                              >
+                                <DropdownMenuItem className="text-body-sm">
+                                  <Palette className="mr-2 h-4 w-4" />
+                                  Set Interface Color
+                                </DropdownMenuItem>
+                              </ColorPicker>
+                            )}
+                            <DropdownMenuItem
+                              disabled={!currentInterface}
+                              onSelect={() => {
+                                if (currentInterface) {
+                                  setSelectedInterfaceForAction(currentInterface);
+                                  handleExportTemplate();
+                                }
+                              }}
+                              className="text-body-sm"
+                            >
+                              <Download className="mr-2 h-4 w-4" />
+                              Export as Template
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={!currentInterface}
+                              onSelect={() => setInterfaceContextOpen(true)}
+                              className="text-body-sm"
+                            >
+                              <FolderTree className="mr-2 h-4 w-4" />
+                              Set Interface Context
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              disabled={!currentInterface}
+                              onSelect={() => {
+                                if (currentInterface) {
+                                  setSelectedInterfaceForAction(currentInterface);
+                                  setDeleteInterfaceOpen(true);
+                                }
+                              }}
+                              className="text-body-sm text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete Interface
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Add tab button for collapsed mode - placed at bottom */}
-        {!isCompletelyHidden && isCollapsed && projectId && interfaceId && (
-          <div className="p-1 duration-300 animate-in fade-in slide-in-from-bottom-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setCreateTabOpen(true)}
-                  className="h-7 w-7 w-full"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Add Tab</TooltipContent>
-            </Tooltip>
-          </div>
-        )}
+          {/* Show separator and tabs only when both project and interface are selected */}
+          {!isCompletelyHidden && !isCollapsed && projectId && interfaceId && (
+            <Separator className="bg-border delay-150 duration-300 animate-in fade-in" />
+          )}
 
-        {/* Separator before mode controls */}
-        {!isCompletelyHidden && !isCollapsed && showModeControls && (
-          <Separator className="bg-border duration-200 animate-in fade-in" />
-        )}
+          {/* Tabs List - Only show when both project and interface are selected */}
+          {!isCompletelyHidden && projectId && interfaceId && (
+            <div className="bg-background/35 flex flex-1 flex-col overflow-hidden delay-200 duration-500 animate-in fade-in slide-in-from-bottom-2">
+              {/* Tabs label and Add button - pinned at top for expanded mode */}
+              {!isCollapsed && (
+                <div className="flex-shrink-0 px-3 pb-2 pt-3">
+                  <div className="flex items-center justify-between duration-200 animate-in fade-in slide-in-from-top-1">
+                    <label className="text-label flex flex-shrink-0 select-none items-center uppercase leading-none tracking-[0.14em] text-muted-foreground">
+                      Tabs
+                    </label>
+                    {interfaceId && permissions.hasWrite && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setCreateTabOpen(true)}
+                            className="h-6 w-6 flex-shrink-0"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Add new tab</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div className="relative min-h-0 flex-1 overflow-hidden">
+                <ScrollArea className="h-full w-full">
+                  <div
+                    className={cn(
+                      'relative min-w-0 space-y-1',
+                      isCollapsed ? 'px-1 py-1 pb-4' : 'px-3 pb-3 pt-0.5'
+                    )}
+                  >
+                    {tabsError ? (
+                      // Error state
+                      <div
+                        className={cn(
+                          'bg-card/80 rounded-lg border border-border text-center text-destructive duration-300 animate-in fade-in',
+                          isCollapsed ? 'px-2 py-4' : 'px-3 py-6'
+                        )}
+                      >
+                        <div className="mb-2">
+                          <svg
+                            className="text-destructive/50 mx-auto h-8 w-8"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={1.5}
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                        </div>
+                        <span className="mb-2 block select-none break-words">
+                          {tabsErrorDetails instanceof Error
+                            ? tabsErrorDetails.message
+                            : 'Failed to load tabs'}
+                        </span>
+                        {!isCollapsed && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => refetchTabs()}
+                            className="mt-2"
+                          >
+                            <RefreshCw className="mr-1 h-3 w-3" />
+                            Retry
+                          </Button>
+                        )}
+                      </div>
+                    ) : loadingTabs ? (
+                      <div className="space-y-1 duration-200 animate-in fade-in">
+                        {/* Show skeleton loaders that match tab items */}
+                        {[1, 2, 3].map((i) => (
+                          <div
+                            key={i}
+                            className={cn(
+                              'bg-card/60 flex items-center gap-2 rounded-lg border border-border py-2 duration-200 animate-in fade-in',
+                              isCollapsed ? 'justify-center px-0' : 'px-3'
+                            )}
+                            style={{ animationDelay: `${i * 50}ms` }}
+                          >
+                            {isCollapsed ? (
+                              <div className="h-8 w-8 animate-pulse rounded bg-muted" />
+                            ) : (
+                              <>
+                                <div className="h-4 w-4 animate-pulse rounded bg-muted" />
+                                <div
+                                  className="h-4 flex-1 animate-pulse rounded bg-muted"
+                                  style={{ width: `${60 + i * 20}%` }}
+                                />
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : currentTabs.length === 0 ? (
+                      <div
+                        className={cn(
+                          'bg-card/70 rounded-lg border border-dashed border-border text-center text-muted-foreground duration-300 animate-in fade-in',
+                          isCollapsed ? 'py-4' : 'px-2 py-6'
+                        )}
+                      >
+                        <div className="mb-2">
+                          <svg
+                            className="text-muted-foreground/50 mx-auto h-8 w-8"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={1.5}
+                              d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                            />
+                          </svg>
+                        </div>
+                        <span className="block select-none break-words">No tabs yet</span>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Tab drag and drop functionality */}
+                        <DndContext
+                          sensors={sensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={handleTabDragEnd}
+                          onDragStart={(event) => {
+                            setActiveTabId(event.active.id as string);
 
-        {/* Mode Controls */}
-        {!isCollapsed && !isCompletelyHidden && showModeControls && (
-          <div className="bg-card/90 flex-shrink-0 space-y-2 overflow-x-hidden px-3 py-3 duration-300 animate-in fade-in slide-in-from-bottom-2">
-            {permissions.hasWrite && (
+                            // Calculate offset to maintain cursor position on dragged element
+                            if (event.active.rect.current?.initial && event.activatorEvent) {
+                              const rect = event.active.rect.current.initial;
+                              const mouseEvent = event.activatorEvent as MouseEvent;
+
+                              if ('clientX' in mouseEvent && 'clientY' in mouseEvent) {
+                                // Calculate offset from element center to click position
+                                const offsetX = mouseEvent.clientX - rect.left - rect.width / 2;
+                                const offsetY = mouseEvent.clientY - rect.top - rect.height / 2;
+
+                                setInitialOffset({ x: offsetX, y: offsetY });
+                              }
+                            }
+                          }}
+                          onDragCancel={() => {
+                            setActiveTabId(null);
+                            setInitialOffset({ x: 0, y: 0 });
+                          }}
+                        >
+                          <SortableContext
+                            items={currentTabs.map((tab) => tab.id || tab.name)}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            <div className="w-full space-y-1">
+                              {currentTabs.map((tab) => (
+                                <SortableTab
+                                  key={tab.id || tab.name}
+                                  tab={tab}
+                                  isActive={activeTabName === tab.name}
+                                  isCollapsed={isCollapsed}
+                                  isTabLoading={
+                                    queryClient.getQueryState([
+                                      'tabCompleteData',
+                                      interfaceId,
+                                      tab.name,
+                                      selectedProject,
+                                    ])?.fetchStatus === 'fetching'
+                                  }
+                                  onTabClick={handleTabClick}
+                                  onSaveTab={onSaveTab}
+                                  onResetTab={onResetTab}
+                                  onRenameTab={onRenameTab}
+                                  onChangeTabIcon={onChangeTabIcon}
+                                  onChangeTabColor={onChangeTabColor}
+                                  onSetTabContext={onSetTabContext}
+                                  onDeleteTab={onDeleteTab}
+                                />
+                              ))}
+                            </div>
+                          </SortableContext>
+                          <DragOverlay
+                            dropAnimation={null}
+                            modifiers={[
+                              ({ transform }) => ({
+                                ...transform,
+                                x: transform.x + initialOffset.x,
+                                y: transform.y + initialOffset.y - 40, // Adjust Y to position element at cursor
+                              }),
+                            ]}
+                          >
+                            {activeTabId &&
+                              (() => {
+                                const activeTab = currentTabs.find(
+                                  (tab) => (tab.id || tab.name) === activeTabId
+                                );
+                                if (!activeTab) return null;
+
+                                return (
+                                  <div className="pointer-events-none cursor-grabbing rounded-lg border border-border bg-card shadow-pop">
+                                    <div
+                                      className={cn(
+                                        'flex items-center gap-2 py-2',
+                                        isCollapsed ? 'justify-center px-2' : 'px-3'
+                                      )}
+                                    >
+                                      {renderSidebarIcon(activeTab.icon, 'h-3 w-3', 'tab')}
+                                      {!isCollapsed && (
+                                        <span className="text-body text-strong select-none">
+                                          {activeTab.name}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                          </DragOverlay>
+                        </DndContext>
+                      </>
+                    )}
+                  </div>
+                </ScrollArea>
+                {/* Fade gradients for smooth scroll effect */}
+                <div
+                  className={cn(
+                    'via-background/80 pointer-events-none absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-background to-transparent',
+                    isCollapsed ? 'mx-1 h-8' : 'mx-2 h-2'
+                  )}
+                />
+                <div
+                  className={cn(
+                    'via-background/60 pointer-events-none absolute left-0 right-0 top-0 z-10 bg-gradient-to-b from-background to-transparent',
+                    isCollapsed ? 'mx-1 h-3' : 'mx-2 h-2'
+                  )}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Add tab button for collapsed mode - placed at bottom */}
+          {!isCompletelyHidden && isCollapsed && projectId && interfaceId && (
+            <div className="p-1 duration-300 animate-in fade-in slide-in-from-bottom-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setCreateTabOpen(true)}
+                    className="h-7 w-7 w-full"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Add Tab</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
+
+          {/* Separator before mode controls */}
+          {!isCompletelyHidden && !isCollapsed && showModeControls && (
+            <Separator className="bg-border duration-200 animate-in fade-in" />
+          )}
+
+          {/* Mode Controls */}
+          {!isCollapsed && !isCompletelyHidden && showModeControls && (
+            <div className="bg-card/90 flex-shrink-0 space-y-2 overflow-x-hidden px-3 py-3 duration-300 animate-in fade-in slide-in-from-bottom-2">
+              {permissions.hasWrite && (
+                <div className="bg-background/60 flex items-center justify-between gap-1.5 rounded-lg border border-border px-2 py-1.5">
+                  <label className="text-body-sm flex min-w-0 select-none items-center gap-1">
+                    <Hammer
+                      className={cn('h-3.5 w-3.5 flex-shrink-0', isEditMode && 'text-primary')}
+                    />
+                    <span className="truncate">Edit Mode</span>
+                  </label>
+                  <Switch
+                    checked={isEditMode}
+                    onCheckedChange={onEditModeToggle}
+                    className="flex-shrink-0 scale-75 hover:!bg-transparent data-[state=checked]:!bg-primary data-[state=unchecked]:!bg-input"
+                  />
+                </div>
+              )}
+
               <div className="bg-background/60 flex items-center justify-between gap-1.5 rounded-lg border border-border px-2 py-1.5">
                 <label className="text-body-sm flex min-w-0 select-none items-center gap-1">
-                  <Hammer
-                    className={cn('h-3.5 w-3.5 flex-shrink-0', isEditMode && 'text-primary')}
+                  <SquareMousePointer
+                    className={cn('h-3.5 w-3.5 flex-shrink-0', isCommandMode && 'text-primary')}
                   />
-                  <span className="truncate">Edit Mode</span>
+                  <span className="truncate">Dashboard Mode</span>
                 </label>
                 <Switch
-                  checked={isEditMode}
-                  onCheckedChange={onEditModeToggle}
+                  checked={isCommandMode}
+                  onCheckedChange={onCommandModeToggle}
                   className="flex-shrink-0 scale-75 hover:!bg-transparent data-[state=checked]:!bg-primary data-[state=unchecked]:!bg-input"
                 />
               </div>
-            )}
+            </div>
+          )}
 
-            <div className="bg-background/60 flex items-center justify-between gap-1.5 rounded-lg border border-border px-2 py-1.5">
-              <label className="text-body-sm flex min-w-0 select-none items-center gap-1">
-                <SquareMousePointer
-                  className={cn('h-3.5 w-3.5 flex-shrink-0', isCommandMode && 'text-primary')}
-                />
-                <span className="truncate">Dashboard Mode</span>
-              </label>
-              <Switch
-                checked={isCommandMode}
-                onCheckedChange={onCommandModeToggle}
-                className="flex-shrink-0 scale-75 hover:!bg-transparent data-[state=checked]:!bg-primary data-[state=unchecked]:!bg-input"
+          {/* Separator before collapsed mode controls */}
+          {isCollapsed && !isCompletelyHidden && showModeControls && (
+            <div className="mt-auto duration-200 animate-in fade-in">
+              <Separator />
+            </div>
+          )}
+
+          {/* Collapsed Mode Controls */}
+          {isCollapsed && !isCompletelyHidden && showModeControls && (
+            <div className="flex flex-col items-center space-y-1 p-1 duration-300 animate-in fade-in">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={onEditModeToggle}
+                    className={cn('h-7 w-7', isEditMode && 'text-primary')}
+                  >
+                    <Hammer className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {isEditMode ? 'Disable Edit Mode' : 'Enable Edit Mode'}
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={onCommandModeToggle}
+                    className={cn('h-7 w-7', isCommandMode && 'text-primary')}
+                  >
+                    <SquareMousePointer className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {isCommandMode ? 'Disable Dashboard Mode' : 'Enable Dashboard Mode'}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          )}
+        </div>
+
+        {/* Dialogs */}
+        <CreateProjectDialog
+          open={createProjectOpen}
+          onOpenChange={setCreateProjectOpen}
+          onSubmit={handleCreateProject}
+        />
+
+        <CreateTabDialog
+          open={createTabOpen}
+          onOpenChange={setCreateTabOpen}
+          onSubmit={handleCreateTab}
+        />
+
+        {typeof window !== 'undefined' &&
+          renameTabOpen &&
+          selectedTab &&
+          createPortal(
+            <BaseDialog
+              button={null as any}
+              open={renameTabOpen}
+              setOpen={setRenameTabOpen}
+              title="Rename Tab"
+              body={
+                <div className="space-y-2 pt-4">
+                  <Label htmlFor="tab-rename" className="text-body-sm">
+                    New Tab Name
+                  </Label>
+                  <Input
+                    id="tab-rename"
+                    value={newTabName}
+                    onChange={(e) => setNewTabName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleRenameTab()}
+                    autoFocus
+                  />
+                </div>
+              }
+              footer={
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setRenameTabOpen(false)} className="h-8">
+                    Cancel
+                  </Button>
+                  <SubmitButton
+                    text="Rename"
+                    onClick={handleRenameTab}
+                    loading={isRenamingTab}
+                    className="h-8"
+                  />
+                </div>
+              }
+            />,
+            document.body
+          )}
+
+        {typeof window !== 'undefined' &&
+          deleteTabOpen &&
+          selectedTab &&
+          createPortal(
+            <BaseDialog
+              button={null as any}
+              open={deleteTabOpen}
+              setOpen={setDeleteTabOpen}
+              title="Delete Tab"
+              body={
+                <p className="pt-4">
+                  Are you sure you want to delete the tab &quot;{selectedTab.name}&quot;? This
+                  action cannot be undone.
+                </p>
+              }
+              footer={
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setDeleteTabOpen(false)} className="h-8">
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDeleteTab}
+                    disabled={isDeletingTab}
+                    className="h-8"
+                  >
+                    {isDeletingTab && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Delete
+                  </Button>
+                </div>
+              }
+            />,
+            document.body
+          )}
+
+        {typeof window !== 'undefined' &&
+          tabColorOpen &&
+          selectedTab &&
+          createPortal(
+            <BaseDialog
+              button={null as any}
+              open={tabColorOpen}
+              setOpen={setTabColorOpen}
+              title={`Tab Color for "${selectedTab.name}"`}
+              body={
+                <div className="space-y-4 pt-4">
+                  <div className="flex justify-center">
+                    <HexColorPicker
+                      color={newTabColor || 'var(--role-green-deep)'}
+                      onChange={setNewTabColor}
+                    />
+                  </div>
+                  <div className="flex justify-center">
+                    <Button variant="outline" size="sm" onClick={() => setNewTabColor('')}>
+                      Reset to Default
+                    </Button>
+                  </div>
+                </div>
+              }
+              footer={
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setTabColorOpen(false)} className="h-8">
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSaveTabColor} disabled={isSavingTabColor} className="h-8">
+                    {isSavingTabColor && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save
+                  </Button>
+                </div>
+              }
+            />,
+            document.body
+          )}
+
+        {/* Icon Edit Dialogs */}
+        {typeof window !== 'undefined' &&
+          projectIconOpen &&
+          activeProject &&
+          createPortal(
+            <BaseDialog
+              button={null as any}
+              open={projectIconOpen}
+              setOpen={setProjectIconOpen}
+              title={`Change Icon for "${activeProject}"`}
+              body={
+                <div className="space-y-4 pt-4">
+                  <IconSelector
+                    value={newProjectIconEdit as any}
+                    onValueChange={setNewProjectIconEdit}
+                  />
+                </div>
+              }
+              footer={
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setProjectIconOpen(false)}
+                    className="h-8"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSaveProjectIcon}
+                    disabled={isSavingProjectIcon}
+                    className="h-8"
+                  >
+                    {isSavingProjectIcon && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save
+                  </Button>
+                </div>
+              }
+            />,
+            document.body
+          )}
+
+        {typeof window !== 'undefined' &&
+          interfaceIconOpen &&
+          selectedInterfaceForAction &&
+          createPortal(
+            <BaseDialog
+              button={null as any}
+              open={interfaceIconOpen}
+              setOpen={setInterfaceIconOpen}
+              title={`Change Icon for "${selectedInterfaceForAction.name}"`}
+              body={
+                <div className="space-y-4 pt-4">
+                  <IconSelector
+                    value={newInterfaceIcon as any}
+                    onValueChange={setNewInterfaceIcon}
+                  />
+                </div>
+              }
+              footer={
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setInterfaceIconOpen(false)}
+                    className="h-8"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSaveInterfaceIcon}
+                    disabled={isSavingInterfaceIcon}
+                    className="h-8"
+                  >
+                    {isSavingInterfaceIcon && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save
+                  </Button>
+                </div>
+              }
+            />,
+            document.body
+          )}
+
+        {typeof window !== 'undefined' &&
+          tabIconOpen &&
+          selectedTab &&
+          createPortal(
+            <BaseDialog
+              button={null as any}
+              open={tabIconOpen}
+              setOpen={setTabIconOpen}
+              title={`Change Icon for "${selectedTab.name}"`}
+              body={
+                <div className="space-y-4 pt-4">
+                  <IconSelector value={newTabIcon as any} onValueChange={setNewTabIcon} />
+                </div>
+              }
+              footer={
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setTabIconOpen(false)} className="h-8">
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSaveTabIcon} disabled={isSavingTabIcon} className="h-8">
+                    {isSavingTabIcon && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save
+                  </Button>
+                </div>
+              }
+            />,
+            document.body
+          )}
+
+        {/* Project Dialogs */}
+        <RenameProjectDialog
+          open={renameProjectOpen}
+          onOpenChange={setRenameProjectOpen}
+          onSubmit={handleRenameProject}
+          currentName={activeProject || ''}
+        />
+
+        {typeof window !== 'undefined' &&
+          deleteProjectOpen &&
+          activeProject &&
+          createPortal(
+            <BaseDialog
+              button={null as any}
+              open={deleteProjectOpen}
+              setOpen={setDeleteProjectOpen}
+              title={`Delete Project "${activeProject}"`}
+              body={
+                <p className="pt-4">
+                  Are you sure you want to delete the project &quot;{activeProject}&quot;? This
+                  action cannot be undone.
+                </p>
+              }
+              footer={
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setDeleteProjectOpen(false)}
+                    className="h-8"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDeleteProject}
+                    disabled={isDeletingProject}
+                    className="h-8"
+                  >
+                    {isDeletingProject && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Delete
+                  </Button>
+                </div>
+              }
+            />,
+            document.body
+          )}
+
+        {/* Share Project Dialog */}
+        {selectedProject && permissions.projectId && (
+          <ShareProjectDialog
+            open={shareProjectOpen}
+            onOpenChange={setShareProjectOpen}
+            projectId={permissions.projectId}
+            projectName={selectedProject}
+            resourcesActions={resourcesActions}
+            accessEntries={permissions.accessEntries}
+            availableRoles={permissions.availableRoles}
+            availableTeams={permissions.availableTeams}
+            availableMembers={permissions.availableMembers}
+            onAccessUpdated={() => {
+              permissions.refetch();
+            }}
+          />
+        )}
+
+        {/* Transfer Project Dialog */}
+        {selectedProject && permissions.projectId && (
+          <TransferProjectDialog
+            open={transferProjectOpen}
+            onOpenChange={setTransferProjectOpen}
+            projectId={permissions.projectId}
+            projectName={selectedProject}
+            projectActions={projectActions}
+            isOrgProject={permissions.isOrgProject}
+            currentOrganizationId={permissions.organizationId}
+            availableOrganizations={userMeta.organizations || []}
+            onTransferComplete={() => {
+              permissions.refetch();
+              refetchProjectTree();
+            }}
+          />
+        )}
+
+        {/* Interface Dialogs */}
+        <CreateInterfaceDialog
+          open={createInterfaceOpen}
+          onOpenChange={setCreateInterfaceOpen}
+          onSubmit={handleCreateInterface}
+          projectName={activeProject || ''}
+        />
+
+        {typeof window !== 'undefined' &&
+          renameInterfaceOpen &&
+          selectedInterfaceForAction &&
+          createPortal(
+            <BaseDialog
+              button={null as any}
+              open={renameInterfaceOpen}
+              setOpen={setRenameInterfaceOpen}
+              title="Rename Interface"
+              body={
+                <div className="space-y-2 pt-4">
+                  <Label htmlFor="interface-rename" className="text-body-sm">
+                    New Interface Name
+                  </Label>
+                  <Input
+                    id="interface-rename"
+                    value={newInterfaceName}
+                    onChange={(e) => setNewInterfaceName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleRenameInterface()}
+                    autoFocus
+                  />
+                </div>
+              }
+              footer={
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setRenameInterfaceOpen(false)}
+                    className="h-8"
+                  >
+                    Cancel
+                  </Button>
+                  <SubmitButton
+                    text="Rename"
+                    onClick={handleRenameInterface}
+                    loading={isRenamingInterface}
+                    className="h-8"
+                  />
+                </div>
+              }
+            />,
+            document.body
+          )}
+
+        {typeof window !== 'undefined' &&
+          deleteInterfaceOpen &&
+          selectedInterfaceForAction &&
+          createPortal(
+            <BaseDialog
+              button={null as any}
+              open={deleteInterfaceOpen}
+              setOpen={setDeleteInterfaceOpen}
+              title="Delete Interface"
+              body={
+                <p className="pt-4">
+                  Are you sure you want to delete the interface &quot;
+                  {selectedInterfaceForAction.name}&quot;? This action cannot be undone.
+                </p>
+              }
+              footer={
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setDeleteInterfaceOpen(false)}
+                    className="h-8"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDeleteInterface}
+                    disabled={isDeletingInterface}
+                    className="h-8"
+                  >
+                    {isDeletingInterface && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Delete
+                  </Button>
+                </div>
+              }
+            />,
+            document.body
+          )}
+
+        {typeof window !== 'undefined' &&
+          saveAsNewInterfaceOpen &&
+          selectedInterfaceForAction &&
+          createPortal(
+            <BaseDialog
+              button={null as any}
+              open={saveAsNewInterfaceOpen}
+              setOpen={setSaveAsNewInterfaceOpen}
+              title="Save as New Interface"
+              body={
+                <div className="space-y-2 pt-4">
+                  <Label htmlFor="new-interface-name" className="text-body-sm">
+                    New Interface Name
+                  </Label>
+                  <Input
+                    id="new-interface-name"
+                    value={saveAsNewInterfaceName}
+                    onChange={(e) => setSaveAsNewInterfaceName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSaveAsNewInterface()}
+                    autoFocus
+                  />
+                  <p className="text-body text-muted-foreground">
+                    This will create a copy of &quot;{selectedInterfaceForAction.name}&quot; with
+                    all its tabs and tiles.
+                  </p>
+                </div>
+              }
+              footer={
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setSaveAsNewInterfaceOpen(false)}
+                    className="h-8"
+                  >
+                    Cancel
+                  </Button>
+                  <SubmitButton
+                    text="Create Copy"
+                    onClick={handleSaveAsNewInterface}
+                    loading={isSavingAsNewInterface}
+                    className="h-8"
+                  />
+                </div>
+              }
+            />,
+            document.body
+          )}
+
+        {/* File Upload Dialog */}
+        {fileUploadOpen && (
+          <FileUpload
+            project={selectedProject}
+            contexts={contexts}
+            logsActions={logsActions}
+            customOpen={fileUploadOpen}
+            setCustomOpen={setFileUploadOpen}
+          />
+        )}
+
+        {/* Import Interface Dialog */}
+        {typeof window !== 'undefined' &&
+          importInterfaceOpen &&
+          createPortal(
+            <BaseDialog
+              button={null as any}
+              open={importInterfaceOpen}
+              setOpen={setImportInterfaceOpen}
+              title={`Import Interface to "${importProjectName}"`}
+              body={
+                <div className="space-y-4 pt-4">
+                  <p>Select a JSON template file to import:</p>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        try {
+                          const text = await file.text();
+                          const templateData = JSON.parse(
+                            text
+                          ) as TemplateExportResponse<InterfaceTemplateSchema>;
+                          await handleImportTemplate(templateData);
+                        } catch (error) {
+                          showErrorToast('Invalid template file');
+                        }
+                      }
+                    }}
+                    className="text-body file:text-label hover:file:bg-primary/90 block w-full text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:font-semibold file:text-primary-foreground"
+                  />
+                </div>
+              }
+              footer={
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setImportInterfaceOpen(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              }
+            />,
+            document.body
+          )}
+
+        {/* Floating Add Tile button when Edit Mode is ON and there's an active tab */}
+        {isEditMode && projectId && interfaceId && hasActiveTabs && (
+          <div className="pointer-events-none absolute bottom-4 left-full z-40 ml-4 animate-in fade-in slide-in-from-bottom-2">
+            <div className="bg-card/90 pointer-events-auto rounded-lg border border-border p-1 shadow-md backdrop-blur-sm">
+              <ActionButton
+                className="text-caption h-7 px-1.5"
+                size="sm"
+                variant="ghost"
+                onClick={onAddTile}
+                tooltip="Add new tile"
+                icon={<Plus size={12} />}
+                text="Add tile"
               />
             </div>
           </div>
         )}
 
-        {/* Separator before collapsed mode controls */}
-        {isCollapsed && !isCompletelyHidden && showModeControls && (
-          <div className="mt-auto duration-200 animate-in fade-in">
-            <Separator />
-          </div>
-        )}
-
-        {/* Collapsed Mode Controls */}
-        {isCollapsed && !isCompletelyHidden && showModeControls && (
-          <div className="flex flex-col items-center space-y-1 p-1 duration-300 animate-in fade-in">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={onEditModeToggle}
-                  className={cn('h-7 w-7', isEditMode && 'text-primary')}
-                >
-                  <Hammer className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {isEditMode ? 'Disable Edit Mode' : 'Enable Edit Mode'}
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={onCommandModeToggle}
-                  className={cn('h-7 w-7', isCommandMode && 'text-primary')}
-                >
-                  <SquareMousePointer className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {isCommandMode ? 'Disable Dashboard Mode' : 'Enable Dashboard Mode'}
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        )}
-      </div>
-
-      {/* Dialogs */}
-      <CreateProjectDialog
-        open={createProjectOpen}
-        onOpenChange={setCreateProjectOpen}
-        onSubmit={handleCreateProject}
-      />
-
-      <CreateTabDialog
-        open={createTabOpen}
-        onOpenChange={setCreateTabOpen}
-        onSubmit={handleCreateTab}
-      />
-
-      {typeof window !== 'undefined' &&
-        renameTabOpen &&
-        selectedTab &&
-        createPortal(
-          <BaseDialog
-            button={null as any}
-            open={renameTabOpen}
-            setOpen={setRenameTabOpen}
-            title="Rename Tab"
-            body={
-              <div className="space-y-2 pt-4">
-                <Label htmlFor="tab-rename" className="text-body-sm">
-                  New Tab Name
-                </Label>
-                <Input
-                  id="tab-rename"
-                  value={newTabName}
-                  onChange={(e) => setNewTabName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleRenameTab()}
-                  autoFocus
+        {/* Set Project Context Dialog */}
+        {typeof window !== 'undefined' &&
+          projectContextOpen &&
+          createPortal(
+            <BaseDialog
+              button={null as any}
+              open={projectContextOpen}
+              setOpen={setProjectContextOpen}
+              title={`Set Context for "${selectedProject}"`}
+              body={
+                <ContextTreePicker
+                  contexts={allContextNames}
+                  current={projectDefaultCtx || null}
+                  basePrefix={projectDefaultCtx || undefined}
+                  inherited={null}
+                  onPick={(ctx) => applyProjectContextCascade(ctx)}
+                  projectId={selectedProject || undefined}
+                  contextActions={contextActions}
+                  hideClear
                 />
-              </div>
-            }
-            footer={
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setRenameTabOpen(false)} className="h-8">
-                  Cancel
-                </Button>
-                <SubmitButton
-                  text="Rename"
-                  onClick={handleRenameTab}
-                  loading={isRenamingTab}
-                  className="h-8"
-                />
-              </div>
-            }
-          />,
-          document.body
-        )}
-
-      {typeof window !== 'undefined' &&
-        deleteTabOpen &&
-        selectedTab &&
-        createPortal(
-          <BaseDialog
-            button={null as any}
-            open={deleteTabOpen}
-            setOpen={setDeleteTabOpen}
-            title="Delete Tab"
-            body={
-              <p className="pt-4">
-                Are you sure you want to delete the tab &quot;{selectedTab.name}&quot;? This action
-                cannot be undone.
-              </p>
-            }
-            footer={
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setDeleteTabOpen(false)} className="h-8">
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleDeleteTab}
-                  disabled={isDeletingTab}
-                  className="h-8"
-                >
-                  {isDeletingTab && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Delete
-                </Button>
-              </div>
-            }
-          />,
-          document.body
-        )}
-
-      {typeof window !== 'undefined' &&
-        tabColorOpen &&
-        selectedTab &&
-        createPortal(
-          <BaseDialog
-            button={null as any}
-            open={tabColorOpen}
-            setOpen={setTabColorOpen}
-            title={`Tab Color for "${selectedTab.name}"`}
-            body={
-              <div className="space-y-4 pt-4">
-                <div className="flex justify-center">
-                  <HexColorPicker
-                    color={newTabColor || 'var(--role-green-deep)'}
-                    onChange={setNewTabColor}
-                  />
-                </div>
-                <div className="flex justify-center">
-                  <Button variant="outline" size="sm" onClick={() => setNewTabColor('')}>
-                    Reset to Default
+              }
+              footer={
+                <div className="flex w-full items-center justify-between">
+                  <Button variant="outline" onClick={() => applyProjectContextCascade('')}>
+                    Clear selection
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="ml-auto"
+                    onClick={() => setProjectContextOpen(false)}
+                    disabled={isSettingContext}
+                  >
+                    Cancel
                   </Button>
                 </div>
-              </div>
-            }
-            footer={
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setTabColorOpen(false)} className="h-8">
-                  Cancel
-                </Button>
-                <Button onClick={handleSaveTabColor} disabled={isSavingTabColor} className="h-8">
-                  {isSavingTabColor && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save
-                </Button>
-              </div>
-            }
-          />,
-          document.body
-        )}
+              }
+            />,
+            document.body
+          )}
 
-      {/* Icon Edit Dialogs */}
-      {typeof window !== 'undefined' &&
-        projectIconOpen &&
-        activeProject &&
-        createPortal(
-          <BaseDialog
-            button={null as any}
-            open={projectIconOpen}
-            setOpen={setProjectIconOpen}
-            title={`Change Icon for "${activeProject}"`}
-            body={
-              <div className="space-y-4 pt-4">
-                <IconSelector
-                  value={newProjectIconEdit as any}
-                  onValueChange={setNewProjectIconEdit}
+        {/* Set Interface Context Dialog */}
+        {typeof window !== 'undefined' &&
+          interfaceContextOpen &&
+          createPortal(
+            <BaseDialog
+              button={null as any}
+              open={interfaceContextOpen}
+              setOpen={setInterfaceContextOpen}
+              title={`Set Context for Interface`}
+              body={
+                <ContextTreePicker
+                  contexts={filterByPrefix(allContextNames, interfaceContextBase || undefined)}
+                  current={interfaceContextBase}
+                  basePrefix={interfaceContextBase || undefined}
+                  inherited={interfaceInheritedBase}
+                  onPick={(ctx) => applyInterfaceContextCascade(ctx)}
+                  projectId={selectedProject || undefined}
+                  contextActions={contextActions}
+                  hideClear
                 />
-              </div>
-            }
-            footer={
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setProjectIconOpen(false)} className="h-8">
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSaveProjectIcon}
-                  disabled={isSavingProjectIcon}
-                  className="h-8"
-                >
-                  {isSavingProjectIcon && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save
-                </Button>
-              </div>
-            }
-          />,
-          document.body
-        )}
+              }
+              footer={
+                <div className="flex w-full items-center justify-between">
+                  <Button variant="outline" onClick={() => applyInterfaceContextCascade('')}>
+                    Clear selection
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="ml-auto"
+                    onClick={() => setInterfaceContextOpen(false)}
+                    disabled={isSettingContext}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              }
+            />,
+            document.body
+          )}
 
-      {typeof window !== 'undefined' &&
-        interfaceIconOpen &&
-        selectedInterfaceForAction &&
-        createPortal(
-          <BaseDialog
-            button={null as any}
-            open={interfaceIconOpen}
-            setOpen={setInterfaceIconOpen}
-            title={`Change Icon for "${selectedInterfaceForAction.name}"`}
-            body={
-              <div className="space-y-4 pt-4">
-                <IconSelector value={newInterfaceIcon as any} onValueChange={setNewInterfaceIcon} />
-              </div>
-            }
-            footer={
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setInterfaceIconOpen(false)}
-                  className="h-8"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSaveInterfaceIcon}
-                  disabled={isSavingInterfaceIcon}
-                  className="h-8"
-                >
-                  {isSavingInterfaceIcon && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save
-                </Button>
-              </div>
-            }
-          />,
-          document.body
-        )}
-
-      {typeof window !== 'undefined' &&
-        tabIconOpen &&
-        selectedTab &&
-        createPortal(
-          <BaseDialog
-            button={null as any}
-            open={tabIconOpen}
-            setOpen={setTabIconOpen}
-            title={`Change Icon for "${selectedTab.name}"`}
-            body={
-              <div className="space-y-4 pt-4">
-                <IconSelector value={newTabIcon as any} onValueChange={setNewTabIcon} />
-              </div>
-            }
-            footer={
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setTabIconOpen(false)} className="h-8">
-                  Cancel
-                </Button>
-                <Button onClick={handleSaveTabIcon} disabled={isSavingTabIcon} className="h-8">
-                  {isSavingTabIcon && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save
-                </Button>
-              </div>
-            }
-          />,
-          document.body
-        )}
-
-      {/* Project Dialogs */}
-      <RenameProjectDialog
-        open={renameProjectOpen}
-        onOpenChange={setRenameProjectOpen}
-        onSubmit={handleRenameProject}
-        currentName={activeProject || ''}
-      />
-
-      {typeof window !== 'undefined' &&
-        deleteProjectOpen &&
-        activeProject &&
-        createPortal(
-          <BaseDialog
-            button={null as any}
-            open={deleteProjectOpen}
-            setOpen={setDeleteProjectOpen}
-            title={`Delete Project "${activeProject}"`}
-            body={
-              <p className="pt-4">
-                Are you sure you want to delete the project &quot;{activeProject}&quot;? This action
-                cannot be undone.
-              </p>
-            }
-            footer={
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setDeleteProjectOpen(false)}
-                  className="h-8"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleDeleteProject}
-                  disabled={isDeletingProject}
-                  className="h-8"
-                >
-                  {isDeletingProject && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Delete
-                </Button>
-              </div>
-            }
-          />,
-          document.body
-        )}
-
-      {/* Share Project Dialog */}
-      {selectedProject && permissions.projectId && (
-        <ShareProjectDialog
-          open={shareProjectOpen}
-          onOpenChange={setShareProjectOpen}
-          projectId={permissions.projectId}
-          projectName={selectedProject}
-          resourcesActions={resourcesActions}
-          accessEntries={permissions.accessEntries}
-          availableRoles={permissions.availableRoles}
-          availableTeams={permissions.availableTeams}
-          availableMembers={permissions.availableMembers}
-          onAccessUpdated={() => {
-            permissions.refetch();
-          }}
-        />
-      )}
-
-      {/* Transfer Project Dialog */}
-      {selectedProject && permissions.projectId && (
-        <TransferProjectDialog
-          open={transferProjectOpen}
-          onOpenChange={setTransferProjectOpen}
-          projectId={permissions.projectId}
-          projectName={selectedProject}
-          projectActions={projectActions}
-          isOrgProject={permissions.isOrgProject}
-          currentOrganizationId={permissions.organizationId}
-          availableOrganizations={userMeta.organizations || []}
-          onTransferComplete={() => {
-            permissions.refetch();
-            refetchProjectTree();
-          }}
-        />
-      )}
-
-      {/* Interface Dialogs */}
-      <CreateInterfaceDialog
-        open={createInterfaceOpen}
-        onOpenChange={setCreateInterfaceOpen}
-        onSubmit={handleCreateInterface}
-        projectName={activeProject || ''}
-      />
-
-      {typeof window !== 'undefined' &&
-        renameInterfaceOpen &&
-        selectedInterfaceForAction &&
-        createPortal(
-          <BaseDialog
-            button={null as any}
-            open={renameInterfaceOpen}
-            setOpen={setRenameInterfaceOpen}
-            title="Rename Interface"
-            body={
-              <div className="space-y-2 pt-4">
-                <Label htmlFor="interface-rename" className="text-body-sm">
-                  New Interface Name
-                </Label>
-                <Input
-                  id="interface-rename"
-                  value={newInterfaceName}
-                  onChange={(e) => setNewInterfaceName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleRenameInterface()}
-                  autoFocus
-                />
-              </div>
-            }
-            footer={
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setRenameInterfaceOpen(false)}
-                  className="h-8"
-                >
-                  Cancel
-                </Button>
-                <SubmitButton
-                  text="Rename"
-                  onClick={handleRenameInterface}
-                  loading={isRenamingInterface}
-                  className="h-8"
-                />
-              </div>
-            }
-          />,
-          document.body
-        )}
-
-      {typeof window !== 'undefined' &&
-        deleteInterfaceOpen &&
-        selectedInterfaceForAction &&
-        createPortal(
-          <BaseDialog
-            button={null as any}
-            open={deleteInterfaceOpen}
-            setOpen={setDeleteInterfaceOpen}
-            title="Delete Interface"
-            body={
-              <p className="pt-4">
-                Are you sure you want to delete the interface &quot;
-                {selectedInterfaceForAction.name}&quot;? This action cannot be undone.
-              </p>
-            }
-            footer={
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setDeleteInterfaceOpen(false)}
-                  className="h-8"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleDeleteInterface}
-                  disabled={isDeletingInterface}
-                  className="h-8"
-                >
-                  {isDeletingInterface && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Delete
-                </Button>
-              </div>
-            }
-          />,
-          document.body
-        )}
-
-      {typeof window !== 'undefined' &&
-        saveAsNewInterfaceOpen &&
-        selectedInterfaceForAction &&
-        createPortal(
-          <BaseDialog
-            button={null as any}
-            open={saveAsNewInterfaceOpen}
-            setOpen={setSaveAsNewInterfaceOpen}
-            title="Save as New Interface"
-            body={
-              <div className="space-y-2 pt-4">
-                <Label htmlFor="new-interface-name" className="text-body-sm">
-                  New Interface Name
-                </Label>
-                <Input
-                  id="new-interface-name"
-                  value={saveAsNewInterfaceName}
-                  onChange={(e) => setSaveAsNewInterfaceName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSaveAsNewInterface()}
-                  autoFocus
-                />
-                <p className="text-body text-muted-foreground">
-                  This will create a copy of &quot;{selectedInterfaceForAction.name}&quot; with all
-                  its tabs and tiles.
-                </p>
-              </div>
-            }
-            footer={
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setSaveAsNewInterfaceOpen(false)}
-                  className="h-8"
-                >
-                  Cancel
-                </Button>
-                <SubmitButton
-                  text="Create Copy"
-                  onClick={handleSaveAsNewInterface}
-                  loading={isSavingAsNewInterface}
-                  className="h-8"
-                />
-              </div>
-            }
-          />,
-          document.body
-        )}
-
-      {/* File Upload Dialog */}
-      {fileUploadOpen && (
-        <FileUpload
-          project={selectedProject}
-          contexts={contexts}
-          logsActions={logsActions}
-          customOpen={fileUploadOpen}
-          setCustomOpen={setFileUploadOpen}
-        />
-      )}
-
-      {/* Import Interface Dialog */}
-      {typeof window !== 'undefined' &&
-        importInterfaceOpen &&
-        createPortal(
-          <BaseDialog
-            button={null as any}
-            open={importInterfaceOpen}
-            setOpen={setImportInterfaceOpen}
-            title={`Import Interface to "${importProjectName}"`}
-            body={
-              <div className="space-y-4 pt-4">
-                <p>Select a JSON template file to import:</p>
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      try {
-                        const text = await file.text();
-                        const templateData = JSON.parse(
-                          text
-                        ) as TemplateExportResponse<InterfaceTemplateSchema>;
-                        await handleImportTemplate(templateData);
-                      } catch (error) {
-                        showErrorToast('Invalid template file');
-                      }
-                    }
+        {/* Set Tab Context Dialog */}
+        {typeof window !== 'undefined' &&
+          tabContextOpen &&
+          selectedTab != null &&
+          createPortal(
+            <BaseDialog
+              button={null as any}
+              open={tabContextOpen}
+              setOpen={setTabContextOpen}
+              title={'Set Tab Context'}
+              body={
+                <ContextTreePicker
+                  contexts={filterByPrefix(allContextNames, interfaceContextBase || undefined)}
+                  current={tabExplicitContext}
+                  basePrefix={interfaceContextBase || undefined}
+                  inherited={!tabExplicitContext ? interfaceContextBase || null : null}
+                  onPick={(ctx) => {
+                    applyTabContextCascade(ctx);
                   }}
-                  className="text-body file:text-label hover:file:bg-primary/90 block w-full text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:font-semibold file:text-primary-foreground"
+                  projectId={selectedProject || undefined}
+                  contextActions={contextActions}
+                  hideClear
                 />
-              </div>
-            }
-            footer={
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setImportInterfaceOpen(false)}>
-                  Cancel
-                </Button>
-              </div>
-            }
-          />,
-          document.body
-        )}
-
-      {/* Floating Add Tile button when Edit Mode is ON and there's an active tab */}
-      {isEditMode && projectId && interfaceId && hasActiveTabs && (
-        <div
-          className="pointer-events-none fixed z-40 transition-all duration-300 ease-linear animate-in fade-in slide-in-from-bottom-2"
-          style={{ left: 'calc(var(--interface-nav-width) + 1rem)', bottom: '1rem' }}
-        >
-          <div className="bg-card/90 pointer-events-auto rounded-lg border border-border p-1 shadow-md backdrop-blur-sm">
-            <ActionButton
-              className="text-caption h-7 px-1.5"
-              size="sm"
-              variant="ghost"
-              onClick={onAddTile}
-              tooltip="Add new tile"
-              icon={<Plus size={12} />}
-              text="Add tile"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Set Project Context Dialog */}
-      {typeof window !== 'undefined' &&
-        projectContextOpen &&
-        createPortal(
-          <BaseDialog
-            button={null as any}
-            open={projectContextOpen}
-            setOpen={setProjectContextOpen}
-            title={`Set Context for "${selectedProject}"`}
-            body={
-              <ContextTreePicker
-                contexts={allContextNames}
-                current={projectDefaultCtx || null}
-                basePrefix={projectDefaultCtx || undefined}
-                inherited={null}
-                onPick={(ctx) => applyProjectContextCascade(ctx)}
-                projectId={selectedProject || undefined}
-                contextActions={contextActions}
-                hideClear
-              />
-            }
-            footer={
-              <div className="flex w-full items-center justify-between">
-                <Button variant="outline" onClick={() => applyProjectContextCascade('')}>
-                  Clear selection
-                </Button>
-                <Button
-                  variant="outline"
-                  className="ml-auto"
-                  onClick={() => setProjectContextOpen(false)}
-                  disabled={isSettingContext}
-                >
-                  Cancel
-                </Button>
-              </div>
-            }
-          />,
-          document.body
-        )}
-
-      {/* Set Interface Context Dialog */}
-      {typeof window !== 'undefined' &&
-        interfaceContextOpen &&
-        createPortal(
-          <BaseDialog
-            button={null as any}
-            open={interfaceContextOpen}
-            setOpen={setInterfaceContextOpen}
-            title={`Set Context for Interface`}
-            body={
-              <ContextTreePicker
-                contexts={filterByPrefix(allContextNames, interfaceContextBase || undefined)}
-                current={interfaceContextBase}
-                basePrefix={interfaceContextBase || undefined}
-                inherited={interfaceInheritedBase}
-                onPick={(ctx) => applyInterfaceContextCascade(ctx)}
-                projectId={selectedProject || undefined}
-                contextActions={contextActions}
-                hideClear
-              />
-            }
-            footer={
-              <div className="flex w-full items-center justify-between">
-                <Button variant="outline" onClick={() => applyInterfaceContextCascade('')}>
-                  Clear selection
-                </Button>
-                <Button
-                  variant="outline"
-                  className="ml-auto"
-                  onClick={() => setInterfaceContextOpen(false)}
-                  disabled={isSettingContext}
-                >
-                  Cancel
-                </Button>
-              </div>
-            }
-          />,
-          document.body
-        )}
-
-      {/* Set Tab Context Dialog */}
-      {typeof window !== 'undefined' &&
-        tabContextOpen &&
-        selectedTab != null &&
-        createPortal(
-          <BaseDialog
-            button={null as any}
-            open={tabContextOpen}
-            setOpen={setTabContextOpen}
-            title={'Set Tab Context'}
-            body={
-              <ContextTreePicker
-                contexts={filterByPrefix(allContextNames, interfaceContextBase || undefined)}
-                current={tabExplicitContext}
-                basePrefix={interfaceContextBase || undefined}
-                inherited={!tabExplicitContext ? interfaceContextBase || null : null}
-                onPick={(ctx) => {
-                  applyTabContextCascade(ctx);
-                }}
-                projectId={selectedProject || undefined}
-                contextActions={contextActions}
-                hideClear
-              />
-            }
-            footer={
-              <div className="flex w-full items-center justify-between">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    applyTabContextCascade('');
-                  }}
-                >
-                  Clear selection
-                </Button>
-                <Button
-                  variant="outline"
-                  className="ml-auto"
-                  onClick={() => setTabContextOpen(false)}
-                  disabled={isSettingContext}
-                >
-                  Cancel
-                </Button>
-              </div>
-            }
-          />,
-          document.body
-        )}
+              }
+              footer={
+                <div className="flex w-full items-center justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      applyTabContextCascade('');
+                    }}
+                  >
+                    Clear selection
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="ml-auto"
+                    onClick={() => setTabContextOpen(false)}
+                    disabled={isSettingContext}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              }
+            />,
+            document.body
+          )}
+      </div>
     </TooltipProvider>
   );
 }
