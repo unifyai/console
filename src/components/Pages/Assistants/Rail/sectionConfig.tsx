@@ -47,11 +47,14 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: MessageSquare,
     kind: 'view',
     tab: 'chat',
-    desc: 'Talk to your digital twin — voice notes, files and screen share, all in one thread.',
+    desc: 'Talk to your digital twin — messages, voice notes, files, and screen share in one thread.',
     steps: [
-      ['Send a message or voice note', 'Type below, or hold the mic to record and send audio.'],
-      ['Share your screen', 'Your digital twin can watch live and guide you step by step.'],
-      ['Attach files', 'Drop in docs, images or screenshots to give context.'],
+      ['Send a message', 'Type below and press Enter, or hold the mic to record a voice note.'],
+      [
+        'Attach files',
+        'Drop documents, images, or screenshots into the composer for extra context.',
+      ],
+      ['Share your screen', 'Start screen share so your digital twin can follow along live.'],
     ],
   },
   {
@@ -62,9 +65,15 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     tab: 'actions',
     desc: 'Every request your digital twin worked on in a time window — expand any one to see how it thought.',
     steps: [
-      ['Pick a time window', 'Use the dropdown to scope to the last 3h, 6h, 24h…'],
-      ['Expand a request', 'See the final response plus the full step timeline.'],
-      ['Open the nitty-gritty', 'Each step shows thoughts, tool calls and code with output.'],
+      [
+        'Pick a time window',
+        'Use the clock control to scope history to the last few hours or days.',
+      ],
+      ['Search the timeline', 'Filter by text to jump to a specific request or step.'],
+      [
+        'Expand a request',
+        'Open a row to read the final response and the full step-by-step timeline.',
+      ],
     ],
   },
   {
@@ -75,9 +84,12 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     tab: 'dashboards',
     desc: 'Live tiles and reports your digital twin builds for you, on request.',
     steps: [
-      ['Switch dashboard', 'Use the picker to jump between dashboards and search tiles.'],
-      ['Open a tile', 'View it inline, or pop it out into its own tab.'],
-      ['Download', 'Export any tile or the whole dashboard.'],
+      [
+        'Switch dashboard',
+        'Use the picker to jump between dashboards saved for this digital twin.',
+      ],
+      ['Search tiles', 'Find a tile by title when a dashboard grows large.'],
+      ['Open or pop out a tile', 'View a tile inline, or open it in its own tab for more space.'],
     ],
   },
   {
@@ -86,11 +98,11 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: ListTodo,
     kind: 'view',
     tab: 'tasks',
-    desc: 'Scheduled, recurring, triggered and continuous workflows — definition and run history together.',
+    desc: 'Scheduled, recurring, triggered, and continuous workflows — definition and run history together.',
     steps: [
-      ['Create a task', 'Describe the workflow and how often it should run.'],
-      ['Expand a task', 'See its definition and full run history in one place.'],
-      ['Control a run', 'Run now, pause, or open a past run to inspect it.'],
+      ['Filter the list', 'Switch between All, Active, and Paused to narrow what you see.'],
+      ['Search tasks', 'Find a workflow by name or description.'],
+      ['Expand a task', 'Open a card to read its definition and past run history in one place.'],
     ],
   },
   {
@@ -99,11 +111,11 @@ export const WORKSPACE_SECTIONS: ReadonlyArray<SectionDef> = [
     Icon: Plug2,
     kind: 'view',
     tab: 'integrations',
-    desc: 'Connect the apps and tools your digital twin can act through — mail, calendar, CRM and more.',
+    desc: 'Connect the apps and tools your digital twin can act through — mail, calendar, CRM, and more.',
     steps: [
-      ['Find an app', 'Search the catalog or filter by category.'],
-      ['Review access', 'Open details to see exactly what the digital twin can do.'],
-      ['Connect securely', 'Authorize via OAuth or paste an API key.'],
+      ['Browse the catalog', 'Search or filter by category to find an app.'],
+      ['Review permissions', 'Open a card to see exactly what the digital twin can access.'],
+      ['Connect an app', 'Authorize with OAuth or paste an API key where supported.'],
     ],
   },
 ];
@@ -116,9 +128,9 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     kind: 'brain-view',
     desc: 'People your digital twin remembers, with the context it keeps on each.',
     steps: [
-      ['Open a contact', 'Click any card to see full details in a drawer.'],
-      ['Filter by tag', 'Use the tag chips to narrow the directory.'],
-      ['Add a contact', 'Capture someone new for your digital twin to remember.'],
+      ['Browse the directory', 'Scroll the card grid or search by name, email, or tag.'],
+      ['Open a contact', 'Click any card to read full details in the drawer.'],
+      ['Add or edit', 'Use Add contact or Edit in the drawer to open the contact manager.'],
     ],
   },
   {
@@ -126,10 +138,13 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Transcripts',
     Icon: MessagesSquare,
     kind: 'brain-view',
-    desc: 'Every conversation across chat, email, call, SMS and WhatsApp, in one consolidated thread.',
+    desc: 'Every conversation across chat, email, call, SMS, and WhatsApp in one consolidated thread.',
     steps: [
-      ['Pick a channel', 'The channel rail re-themes the thread per medium.'],
-      ['Open a message', 'Click any line to read it in full in a drawer.'],
+      ['Pick a channel', 'Use the channel rail to focus on chat, email, calls, or messaging.'],
+      [
+        'Switch layout',
+        'Toggle between Threads and Feed depending on how you want to scan history.',
+      ],
       ['Search content', 'Find a phrase across every channel at once.'],
     ],
   },
@@ -138,11 +153,11 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Knowledge',
     Icon: BookOpen,
     kind: 'brain-view',
-    desc: 'Durable facts and rules your digital twin relies on — rich documents, rendered on the right.',
+    desc: 'Durable facts and rules your digital twin relies on — rich documents rendered on the right.',
     steps: [
-      ['Open a rule', 'Select from the list to read the rendered document.'],
-      ['Filter by scope', 'Group knowledge by the area it governs.'],
-      ['Add knowledge', 'Write a new rule in Markdown for your digital twin.'],
+      ['Open a rule', 'Select an entry from the list to read the rendered document.'],
+      ['Filter by scope or tag', 'Use the filter menu to group related knowledge.'],
+      ['Resize the panes', 'Drag the divider to give the list or document more room.'],
     ],
   },
   {
@@ -150,11 +165,14 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Functions',
     Icon: Braces,
     kind: 'brain-view',
-    desc: 'Learned Python skills, with signatures, source and a way to run them.',
+    desc: 'Learned Python skills and platform primitives — signatures, docstrings, and source in one place.',
     steps: [
-      ['Open a function', 'Inspect its signature, docstring and source.'],
-      ['Fill inputs', 'Provide argument values in the run panel.'],
-      ['Run & read output', 'Execute and see the returned value inline.'],
+      ['Filter by kind', 'Switch between All, Learned, and Primitives.'],
+      [
+        'Open a function',
+        'Click a card to inspect signature, parameters, returns, and implementation.',
+      ],
+      ['Copy source', 'Use Copy in the drawer when you need the implementation elsewhere.'],
     ],
   },
   {
@@ -162,11 +180,11 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Guidance',
     Icon: Compass,
     kind: 'brain-view',
-    desc: 'Playbooks that shape how your digital twin behaves — rich documents, rendered on the right.',
+    desc: 'Playbooks that shape how your digital twin behaves — rich documents rendered on the right.',
     steps: [
-      ['Open a playbook', 'Select from the list to read the rendered document.'],
-      ['Filter by scope', 'Group guidance by the area it applies to.'],
-      ['Add guidance', 'Write a new playbook in Markdown.'],
+      ['Open a playbook', 'Select an entry from the list to read the rendered document.'],
+      ['Filter by scope or tag', 'Use the filter menu to group related playbooks.'],
+      ['Resize the panes', 'Drag the divider to give the list or document more room.'],
     ],
   },
   {
@@ -174,11 +192,11 @@ export const BRAIN_SECTIONS: ReadonlyArray<SectionDef> = [
     label: 'Data',
     Icon: Database,
     kind: 'brain-view',
-    desc: 'Everything your digital twin has ingested — browse nested tables like a directory, open any to view rows.',
+    desc: 'Everything your digital twin has ingested — browse nested tables like a directory and open any to view rows.',
     steps: [
       ['Open a folder', 'Drill into nested tables like a file directory.'],
-      ['Open a table', 'View its dynamic schema and rows at the leaf.'],
-      ['Trace the source', 'Each table shows where the data came from.'],
+      ['Open a table', 'View its schema and rows at the leaf.'],
+      ['Trace the source', 'Each table shows where the underlying data came from.'],
     ],
   },
 ];

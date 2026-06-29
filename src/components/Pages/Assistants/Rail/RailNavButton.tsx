@@ -3,6 +3,9 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import type { LucideIcon } from 'lucide-react';
 
+/** Rail nav icons — thinner stroke matches the design prototype. */
+const RAIL_ICON_STROKE = 1.75;
+
 interface RailNavButtonProps {
   Icon: LucideIcon;
   label: string;
@@ -34,21 +37,19 @@ export function RailNavButton({
       data-testid={testId}
       className={cn(
         'group/nav relative flex w-full items-center gap-3 rounded-[10px] font-medium transition-colors',
-        collapsed ? 'justify-center px-0 py-2.5' : 'px-2.5 py-2',
+        collapsed ? 'justify-center px-0 py-[11px]' : 'px-[11px] py-[9px]',
         active ? 'bg-accent-soft text-accent-soft-foreground' : 'text-foreground hover:bg-muted'
       )}
     >
       <span
         className={cn(
           'grid shrink-0 place-items-center transition-colors',
-          active
-            ? 'text-accent-soft-foreground'
-            : 'text-muted-foreground group-hover/nav:text-foreground'
+          active ? 'text-accent-soft-foreground' : 'text-foreground'
         )}
       >
-        <Icon className="h-5 w-5" aria-hidden="true" />
+        <Icon className="h-4 w-4" strokeWidth={RAIL_ICON_STROKE} aria-hidden="true" />
       </span>
-      {!collapsed && <span className="text-sm">{label}</span>}
+      {!collapsed && <span className="text-[13px] font-normal">{label}</span>}
       {!collapsed && active && (
         <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
       )}

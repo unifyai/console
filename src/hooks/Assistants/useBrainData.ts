@@ -30,6 +30,12 @@ import {
   buildSearchFilterExpr,
 } from '@/lib/client/brain';
 import type { ContextRoot } from '@/lib/assistants/scope';
+import {
+  brainRootCacheKey,
+  invalidateTabDataCache,
+  readTabDataCache,
+  writeTabDataCache,
+} from '@/lib/assistants/tabDataCache';
 
 const PAGE_SIZE = 50;
 
@@ -170,6 +176,15 @@ function fetchForKey(
   });
 }
 
+function brainCacheKey(
+  ownerId: string,
+  assistantId: string,
+  contextsKey: string,
+  root: ContextRoot | null
+): string {
+  return `${ownerId}:${assistantId}:brain:${contextsKey}:${brainRootCacheKey(root)}`;
+}
+
 export function useBrainData({
   assistant,
   ownerId,
@@ -198,6 +213,7 @@ export function useBrainData({
   const [error, setError] = React.useState<string | null>(null);
   const [activeContext, setActiveContext] = React.useState<BrainTabContext>(defaultContext);
   const identityKey = `${ownerId}:${assistantId}`;
+  const cacheKey = brainCacheKey(ownerId, assistantId, contextsKey, root);
   const previousIdentityKey = React.useRef(identityKey);
   const requestSequence = React.useRef(0);
   const pageRequestSequence = React.useRef(0);
@@ -252,6 +268,7 @@ export function useBrainData({
         requestedContexts.forEach((ctx, i) => {
           next[ctx] = contextStateFromData(results[i] as any, null, null, '', loadedAt) as any;
         });
+        writeTabDataCache(cacheKey, next);
         return next;
       });
     } catch (err) {
@@ -263,24 +280,38 @@ export function useBrainData({
         setIsLoading(false);
       }
     }
-  }, [ownerId, assistantId, assistant, root, requestedContexts, nextRequestId, isLatestRequest]);
+  }, [
+    ownerId,
+    assistantId,
+    assistant,
+    root,
+    requestedContexts,
+    nextRequestId,
+    isLatestRequest,
+    cacheKey,
+  ]);
+
+  const fetchAllRef = React.useRef(fetchAll);
+  fetchAllRef.current = fetchAll;
 
   React.useEffect(() => {
-    setStates({
-      Contacts: emptyState(),
-      Transcripts: emptyState(),
-      Knowledge: emptyState(),
-      Guidance: emptyState(),
-      Functions: emptyState(),
-    });
     if (previousIdentityKey.current !== identityKey) {
       setActiveContext(defaultContext);
       previousIdentityKey.current = identityKey;
     }
     invalidatePageRequests();
     setIsLoadingMore(false);
-    fetchAll();
-  }, [fetchAll, identityKey, defaultContext, invalidatePageRequests]);
+
+    const cached = readTabDataCache<ContextStates>(cacheKey);
+    if (cached) {
+      setStates(cached);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
+    void fetchAllRef.current();
+  }, [identityKey, defaultContext, invalidatePageRequests, cacheKey]);
 
   const sort = React.useCallback(
     async (field: string, direction: 'asc' | 'desc' | null) => {
@@ -487,49 +518,9 @@ export function useBrainData({
 
   const refetch = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    const requestId = nextRequestId();
-    try {
-      const current = states[activeContext];
-      const data = await fetchForKey(assistant, activeContext, {
-        sorting: current.sorting,
-        filterExpr: current.filterExpr,
-        searchQuery: current.searchQuery,
-        root,
-      });
-      if (!isLatestRequest(requestId)) return;
-
-      setStates((prev) => ({
-        ...prev,
-        [activeContext]: contextStateFromData(
-          data as any,
-          current.sorting,
-          current.filterExpr,
-          current.searchQuery
-        ),
-      }));
-    } catch (err) {
-      if (isLatestRequest(requestId)) {
-        setError(err instanceof Error ? err.message : 'Failed to refresh data');
-      }
-    } finally {
-      if (isLatestRequest(requestId)) {
-        setIsLoading(false);
-      }
-    }
-  }, [
-    ownerId,
-    assistantId,
-    activeContext,
-    states,
-    assistant,
-    root,
-    nextRequestId,
-    isLatestRequest,
-  ]);
+    invalidateTabDataCache(cacheKey);
+    await fetchAllRef.current();
+  }, [ownerId, assistantId, cacheKey]);
 
   return {
     contacts: states.Contacts,

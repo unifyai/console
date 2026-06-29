@@ -10,7 +10,8 @@ import {
 } from '@/components/Pages/Assistants/RightPaneContainer';
 import { AssistantRail, RAIL_COLLAPSED_STORAGE_KEY } from './Rail/AssistantRail';
 import { SectionHost } from './Rail/SectionHost';
-import { SectionBodySkeleton } from '@/components/Common/Loaders/Skeletons';
+import { TabSearchScopeSync } from './Common/TabSearchScopeSync';
+import { BrainSectionsHost } from './Rail/BrainSectionsHost';
 import { SECTION_BY_ID, DEFAULT_SECTION_ID, type SectionDef } from './Rail/sectionConfig';
 import {
   Assistant,
@@ -99,23 +100,6 @@ import {
   dispatchCoordinatorOnboardingStepEvent,
   replyStepForCoordinatorTriggerStep,
 } from '@/utils/assistants/coordinator-reference-quiz';
-
-// Net-new Brain panes are code-split: their JS loads only when the tab is
-// opened, so the assistants shell paints without their weight in the main
-// bundle.
-const FunctionsPane = React.lazy(() =>
-  import('./Functions/FunctionsPane').then((m) => ({ default: m.FunctionsPane }))
-);
-const DocLibraryPane = React.lazy(() =>
-  import('./DocLibrary/DocLibraryPane').then((m) => ({ default: m.DocLibraryPane }))
-);
-const ContactsPane = React.lazy(() =>
-  import('./Contacts/ContactsPane').then((m) => ({ default: m.ContactsPane }))
-);
-const DataPane = React.lazy(() => import('./Data/DataPane').then((m) => ({ default: m.DataPane })));
-const TranscriptsPane = React.lazy(() =>
-  import('./Transcripts/TranscriptsPane').then((m) => ({ default: m.TranscriptsPane }))
-);
 
 const ENABLE_COORDINATOR_ONBOARDING = true;
 const COORDINATOR_ONBOARDING_ACCESSIBLE_POLL_MS = 8_000;
@@ -2388,6 +2372,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
   return (
     <CoordinatorOnboardingProvider value={coordinatorOnboardingCtxValue}>
       <div className="flex h-full flex-col overflow-hidden">
+        <TabSearchScopeSync scopeId={activeSectionId} />
         <AssistantsBanners
           credits={credits}
           isBillingLoading={isBillingLoading}
@@ -2418,42 +2403,13 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
               <SectionHost
                 section={activeSectionDef}
                 renderView={() => {
-                  // Brain sections with a dedicated component render it directly;
-                  // everything else flows through the right-pane container. Each
-                  // brain-view section has its own design view: Contacts, Data,
-                  // Transcripts, Functions, and the shared DocLibrary pane that
-                  // backs both Guidance and Knowledge.
                   if (activeSectionDef.kind === 'brain-view' && profileAssistant) {
-                    const brainProps = {
-                      assistant: profileAssistant,
-                      ownerId: profileAssistant.userId,
-                      assistantId: profileAssistant.agentId,
-                    };
-                    let brainPane: React.ReactNode;
-                    if (activeSectionDef.id === 'contacts') {
-                      brainPane = (
-                        <ContactsPane
-                          {...brainProps}
-                          onManageContacts={() => handleOpenContactManager(profileAssistant)}
-                        />
-                      );
-                    } else if (activeSectionDef.id === 'functions') {
-                      brainPane = <FunctionsPane {...brainProps} />;
-                    } else if (activeSectionDef.id === 'guidance') {
-                      brainPane = <DocLibraryPane {...brainProps} kind="guidance" />;
-                    } else if (activeSectionDef.id === 'knowledge') {
-                      brainPane = <DocLibraryPane {...brainProps} kind="knowledge" />;
-                    } else if (activeSectionDef.id === 'data') {
-                      brainPane = <DataPane {...brainProps} />;
-                    } else {
-                      brainPane = <TranscriptsPane {...brainProps} />;
-                    }
-                    // Suspense covers the code-split chunk load for the net-new
-                    // panes; each pane then shows its own data skeleton.
                     return (
-                      <React.Suspense fallback={<SectionBodySkeleton className="h-full" />}>
-                        {brainPane}
-                      </React.Suspense>
+                      <BrainSectionsHost
+                        assistant={profileAssistant}
+                        activeSectionId={activeSectionDef.id}
+                        onManageContacts={() => handleOpenContactManager(profileAssistant)}
+                      />
                     );
                   }
                   return (

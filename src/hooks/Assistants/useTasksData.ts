@@ -16,6 +16,11 @@ import type {
 } from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
 import { fetchBrainContext, buildSortingParam, buildSearchFilterExpr } from '@/lib/client/brain';
+import {
+  invalidateTabDataCache,
+  readTabDataCache,
+  writeTabDataCache,
+} from '@/lib/assistants/tabDataCache';
 
 const PAGE_SIZE = 50;
 const RUNNING_TASK_RUN_FILTER_EXPR = 'state == "running"';
@@ -151,6 +156,7 @@ export function useTasksData({
   const [hasRunningTaskRun, setHasRunningTaskRun] = React.useState(false);
 
   const activeKey = VIEW_TO_STATE_KEY[taskView];
+  const cacheKey = `${ownerId}:${assistantId}:tasks`;
 
   const fetchAll = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
@@ -165,8 +171,7 @@ export function useTasksData({
         fetchHasRunningSnapshot(assistant),
       ]);
       const loadedAt = Date.now();
-
-      setStates({
+      const nextStates = {
         tasks: contextStateFromData(td as BrainContextData<TaskRow>, null, null, '', loadedAt),
         taskRuns: contextStateFromData(
           tr as BrainContextData<TaskRunRow>,
@@ -175,24 +180,41 @@ export function useTasksData({
           '',
           loadedAt
         ),
-      });
+      };
+      writeTabDataCache(cacheKey, { ...nextStates, hasRunningTaskRun: hasRunning });
+      setStates(nextStates);
       setHasRunningTaskRun(hasRunning);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load task data');
     } finally {
       setIsLoading(false);
     }
-  }, [ownerId, assistantId, assistant]);
+  }, [ownerId, assistantId, assistant, cacheKey]);
+
+  const fetchAllRef = React.useRef(fetchAll);
+  fetchAllRef.current = fetchAll;
 
   React.useEffect(() => {
-    setStates({
-      tasks: emptyState(),
-      taskRuns: emptyState(),
-    });
+    if (!ownerId || !assistantId) return;
+
+    const cached = readTabDataCache<{
+      tasks: TaskStates['tasks'];
+      taskRuns: TaskStates['taskRuns'];
+      hasRunningTaskRun: boolean;
+    }>(cacheKey);
+
+    if (cached) {
+      setStates({ tasks: cached.tasks, taskRuns: cached.taskRuns });
+      setHasRunningTaskRun(cached.hasRunningTaskRun);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
     setTaskView('Tasks');
     setHasRunningTaskRun(false);
-    fetchAll();
-  }, [fetchAll]);
+    void fetchAllRef.current();
+  }, [ownerId, assistantId, cacheKey]);
 
   const sort = React.useCallback(
     async (field: string, direction: 'asc' | 'desc' | null) => {
@@ -323,44 +345,9 @@ export function useTasksData({
 
   const refetch = React.useCallback(async () => {
     if (!ownerId || !assistantId) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const taskState = states.tasks;
-      const taskRunsState = states.taskRuns;
-
-      const [tasksData, taskRunsData, hasRunning] = await Promise.all([
-        fetchForKey(assistant, 'tasks', taskState.sorting, 0, taskState.filterExpr),
-        fetchForKey(assistant, 'taskRuns', taskRunsState.sorting, 0, taskRunsState.filterExpr),
-        fetchHasRunningSnapshot(assistant),
-      ]);
-
-      const loadedAt = Date.now();
-      setStates({
-        tasks: contextStateFromData(
-          tasksData as BrainContextData<TaskRow>,
-          taskState.sorting,
-          taskState.filterExpr,
-          taskState.searchQuery,
-          loadedAt
-        ),
-        taskRuns: contextStateFromData(
-          taskRunsData as BrainContextData<TaskRunRow>,
-          taskRunsState.sorting,
-          taskRunsState.filterExpr,
-          taskRunsState.searchQuery,
-          loadedAt
-        ),
-      });
-      setHasRunningTaskRun(hasRunning);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh data');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [ownerId, assistantId, states, assistant]);
+    invalidateTabDataCache(cacheKey);
+    await fetchAllRef.current();
+  }, [ownerId, assistantId, cacheKey]);
 
   return {
     tasks: states.tasks,

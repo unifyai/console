@@ -4,6 +4,7 @@ import * as React from 'react';
 import { RefreshCw, Search, X } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 import { cn } from '@/lib/utils';
+import { useTabSearchRegistration } from './TabSearchContext';
 
 /**
  * Standardized second-row toolbar shared by every assistant tab.
@@ -40,6 +41,8 @@ export interface TabToolbarProps {
   refreshTestId?: string;
   /** Primary add action — render a `Button` (keeps per-tab labels/icons). */
   addAction?: React.ReactNode;
+  /** When set, registers this toolbar's search field for the global search icon. */
+  searchScopeId?: string;
   testId?: string;
   className?: string;
 }
@@ -64,8 +67,12 @@ export function TabToolbar({
   addAction,
   testId,
   className,
+  searchScopeId,
 }: TabToolbarProps) {
   const showSearch = searchValue !== undefined && onSearchChange !== undefined;
+  const internalSearchRef = React.useRef<HTMLInputElement>(null);
+  const searchRef = (searchInputRef ?? internalSearchRef) as React.RefObject<HTMLInputElement>;
+  useTabSearchRegistration(searchRef, searchScopeId ?? testId ?? 'tab-search');
 
   const handleClear = () => {
     if (onSearchClear) onSearchClear();
@@ -86,7 +93,7 @@ export function TabToolbar({
         <div className="relative min-w-[180px] flex-1">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
-            ref={searchInputRef}
+            ref={searchRef}
             type="text"
             className={cn(
               'h-7 w-full rounded-md border bg-transparent pl-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring',

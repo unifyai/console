@@ -1,66 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { Search, Sun, Moon, Info } from 'lucide-react';
-import { useTheme } from 'next-themes';
+import { Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/UI/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
-import SupportTicketDialog from '@/components/Layout/TopBar/SupportTicketDialog';
-import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
+import { GlobalPlatformActions } from '@/components/Layout/GlobalPlatformActions';
 import type { SectionDef } from './sectionConfig';
-
-/** Workspace-level quick actions shared across section headers. */
-function GlobalActions() {
-  const { support: supportEnabled } = useFeatures();
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
-  React.useEffect(() => setMounted(true), []);
-  const isDark = theme === 'dark';
-
-  return (
-    <TooltipProvider delayDuration={150}>
-      <div className="flex items-center gap-0.5">
-        {supportEnabled && <SupportTicketDialog />}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground"
-              aria-label="Search this workspace"
-            >
-              <Search className="h-[18px] w-[18px]" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            <p>Search this workspace</p>
-          </TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground"
-              onClick={() => setTheme(isDark ? 'light' : 'dark')}
-              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {mounted && isDark ? (
-                <Sun className="h-[18px] w-[18px]" />
-              ) : (
-                <Moon className="h-[18px] w-[18px]" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            <p>{isDark ? 'Switch to light' : 'Switch to dark'}</p>
-          </TooltipContent>
-        </Tooltip>
-      </div>
-    </TooltipProvider>
-  );
-}
 
 interface TabHeaderProps {
   section: SectionDef;
@@ -78,10 +22,10 @@ export function TabHeader({ section, right }: TabHeaderProps) {
   const { Icon } = section;
 
   return (
-    <div className="relative flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 py-2.5">
+    <div className="relative flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-[22px] py-3">
       <div className="flex min-w-0 items-center gap-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-accent-soft text-accent-soft-foreground">
-          <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+        <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[10px] bg-accent-soft text-accent-soft-foreground">
+          <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
         </span>
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
@@ -104,7 +48,7 @@ export function TabHeader({ section, right }: TabHeaderProps) {
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {right}
-        <GlobalActions />
+        <GlobalPlatformActions />
       </div>
 
       {info && (

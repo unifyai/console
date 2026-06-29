@@ -216,6 +216,7 @@ export function ContactsPane({
     <div className="flex h-full flex-col" data-testid="contacts-pane">
       <TabToolbar
         testId="contacts-header"
+        searchScopeId="contacts"
         searchValue={query}
         onSearchChange={setQuery}
         searchPlaceholder="Search contacts…"
@@ -336,11 +337,7 @@ export function ContactsPane({
           if (!open) setSelected(null);
         }}
       >
-        <SheetContent
-          side="right"
-          className="flex w-full flex-col sm:!max-w-xl"
-          data-testid="contact-detail"
-        >
+        <SheetContent side="right" className="flex w-full flex-col" data-testid="contact-detail">
           <SheetHeader className="shrink-0">
             <div className="flex items-center gap-3">
               {selected && <Avatar card={selected} size="lg" />}
