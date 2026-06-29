@@ -813,50 +813,41 @@ const guidance: MockRow[] = [
 const tasks: MockRow[] = [
   {
     taskId: 2001,
+    instanceId: 0,
     name: 'Agentic AI Vertical Sector Research',
     description:
       'Scan funding announcements, product launches, and hiring signals across target verticals; surface warm leads with a tailored intro draft.',
     status: 'active',
-    triggerType: 'recurring',
-    cadence: 'Every 30 minutes',
-    startAt: isoDaysAgo(25),
-    nextDueAt: isoInMinutes(18),
-    owner: 'Haris Mahmood',
+    priority: 'high',
     offline: false,
     entrypoint: 9101,
     createdAt: isoDaysAgo(25),
     updatedAt: isoMinutesAgo(30),
-    schedule: { startAt: isoDaysAgo(25) },
+    schedule: { startAt: isoInMinutes(18) },
     repeat: [{ frequency: 'minutely', interval: 30 }],
   },
   {
     taskId: 2002,
+    instanceId: 0,
     name: 'Morning inbox digest',
     description: 'Summarise unread email into a single morning digest and post it to chat.',
-    status: 'active',
-    triggerType: 'scheduled',
-    cadence: 'Daily at 08:00',
-    startAt: isoDaysAgo(40),
-    nextDueAt: isoInMinutes(600),
-    owner: 'Haris Mahmood',
+    status: 'scheduled',
+    priority: 'normal',
     offline: false,
     entrypoint: 9101,
     createdAt: isoDaysAgo(40),
     updatedAt: isoDaysAgo(1),
-    schedule: { startAt: isoDaysAgo(40) },
+    schedule: { startAt: isoInMinutes(600) },
     repeat: [{ frequency: 'daily', interval: 1, timeOfDay: '08:00' }],
   },
   {
     taskId: 2003,
+    instanceId: 0,
     name: 'Stripe payout watcher',
     description:
       'On each Stripe payout event, reconcile against expected invoices and flag discrepancies.',
-    status: 'active',
-    triggerType: 'triggered',
-    cadence: 'On event',
-    startAt: isoDaysAgo(12),
-    nextDueAt: null,
-    owner: 'Haris Mahmood',
+    status: 'triggerable',
+    priority: 'urgent',
     offline: false,
     entrypoint: 9102,
     createdAt: isoDaysAgo(12),
@@ -865,19 +856,17 @@ const tasks: MockRow[] = [
   },
   {
     taskId: 2004,
+    instanceId: 0,
     name: 'Weekly competitor digest',
     description:
-      'Compile competitor product and pricing changes into a weekly brief. Paused while the source list is being revised.',
-    status: 'paused',
-    triggerType: 'scheduled',
-    cadence: 'Every Monday at 09:00',
-    startAt: isoDaysAgo(60),
-    nextDueAt: null,
-    owner: 'Haris Mahmood',
+      'Compile competitor product and pricing changes into a weekly brief. Cancelled while the source list is being revised.',
+    status: 'cancelled',
+    priority: 'low',
     offline: false,
     entrypoint: 9101,
     createdAt: isoDaysAgo(60),
     updatedAt: isoDaysAgo(7),
+    info: 'Last run produced a 6-item brief; cancelled pending a source-list refresh.',
     schedule: { startAt: isoDaysAgo(60) },
     repeat: [{ frequency: 'weekly', interval: 1, weekdays: ['MO'], timeOfDay: '09:00' }],
   },
@@ -888,10 +877,10 @@ const taskRuns: MockRow[] = [
     taskId: 2001,
     taskName: 'Agentic AI Vertical Sector Research',
     taskDescription: 'Recurring vertical research sweep.',
-    sourceType: 'schedule',
+    sourceType: 'scheduled',
     state: 'completed',
     scheduledFor: isoMinutesAgo(30),
-    sourceMedium: 'On schedule',
+    sourceMedium: null,
     sourceContactDisplayName: null,
     startedAt: isoMinutesAgo(30),
     completedAt: isoMinutesAgo(28),
@@ -900,10 +889,10 @@ const taskRuns: MockRow[] = [
     taskId: 2001,
     taskName: 'Agentic AI Vertical Sector Research',
     taskDescription: 'Recurring vertical research sweep.',
-    sourceType: 'schedule',
+    sourceType: 'scheduled',
     state: 'completed',
     scheduledFor: isoMinutesAgo(60),
-    sourceMedium: 'On schedule',
+    sourceMedium: null,
     sourceContactDisplayName: null,
     startedAt: isoMinutesAgo(60),
     completedAt: isoMinutesAgo(58),
@@ -912,10 +901,10 @@ const taskRuns: MockRow[] = [
     taskId: 2001,
     taskName: 'Agentic AI Vertical Sector Research',
     taskDescription: 'Recurring vertical research sweep.',
-    sourceType: 'schedule',
+    sourceType: 'scheduled',
     state: 'failed',
     scheduledFor: isoMinutesAgo(90),
-    sourceMedium: 'On schedule',
+    sourceMedium: null,
     sourceContactDisplayName: null,
     startedAt: isoMinutesAgo(90),
     completedAt: isoMinutesAgo(89),
@@ -924,10 +913,10 @@ const taskRuns: MockRow[] = [
     taskId: 2001,
     taskName: 'Agentic AI Vertical Sector Research',
     taskDescription: 'Recurring vertical research sweep.',
-    sourceType: 'manual',
+    sourceType: 'explicit',
     state: 'completed',
     scheduledFor: isoMinutesAgo(120),
-    sourceMedium: 'Manual run',
+    sourceMedium: null,
     sourceContactDisplayName: 'Haris Mahmood',
     startedAt: isoMinutesAgo(120),
     completedAt: isoMinutesAgo(118),
@@ -936,10 +925,10 @@ const taskRuns: MockRow[] = [
     taskId: 2001,
     taskName: 'Agentic AI Vertical Sector Research',
     taskDescription: 'Recurring vertical research sweep.',
-    sourceType: 'schedule',
+    sourceType: 'explicit',
     state: 'cancelled',
     scheduledFor: isoMinutesAgo(150),
-    sourceMedium: 'Manual stop',
+    sourceMedium: null,
     sourceContactDisplayName: 'Haris Mahmood',
     startedAt: isoMinutesAgo(150),
     completedAt: isoMinutesAgo(150),
@@ -948,10 +937,10 @@ const taskRuns: MockRow[] = [
     taskId: 2002,
     taskName: 'Morning inbox digest',
     taskDescription: 'Daily unread-email summary.',
-    sourceType: 'schedule',
+    sourceType: 'scheduled',
     state: 'completed',
     scheduledFor: isoDaysAgo(1),
-    sourceMedium: 'On schedule',
+    sourceMedium: null,
     sourceContactDisplayName: null,
     startedAt: isoDaysAgo(1),
     completedAt: isoDaysAgo(1),
@@ -1593,12 +1582,61 @@ const dashboardsLayouts: MockRow[] = [
     token: 'riverside-operative-supervisor',
     title: 'ClientBeta Riverside — Operative Supervisor',
     description: 'Live throughput and rework rate for the Q3 housing pilot.',
-    layout: 'grid',
-    tileCount: 2,
+    // 12-column grid; rows are ~120px tall. Three KPI strips across the top,
+    // then a bar chart + a crew table on the second row.
+    layout: JSON.stringify([
+      { tileToken: 'throughput', x: 0, y: 0, w: 4, h: 2 },
+      { tileToken: 'rework-rate', x: 4, y: 0, w: 4, h: 2 },
+      { tileToken: 'sla-compliance', x: 8, y: 0, w: 4, h: 2 },
+      { tileToken: 'jobs-by-day', x: 0, y: 2, w: 7, h: 4 },
+      { tileToken: 'top-crews', x: 7, y: 2, w: 5, h: 4 },
+    ]),
+    tileCount: 5,
     createdAt: isoDaysAgo(6),
     updatedAt: isoMinutesAgo(58),
   },
 ];
+
+const KPI_TILE = (label: string, value: string, delta: string, up: boolean) =>
+  `<div style="font-family:system-ui;box-sizing:border-box;height:100%;padding:16px;background:rgb(245,241,234)">` +
+  `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:rgb(107,106,100)">${label}</div>` +
+  `<div style="font-size:32px;font-weight:800;color:rgb(10,20,16);margin-top:6px">${value}</div>` +
+  `<div style="font-size:12px;margin-top:4px;color:${up ? 'rgb(10,138,53)' : 'rgb(217,74,61)'}">${delta}</div>` +
+  `</div>`;
+
+const BAR = (h: number) =>
+  `<div style="flex:1;background:rgb(20,160,140);height:${h}%;border-radius:4px 4px 0 0"></div>`;
+
+const JOBS_BY_DAY_TILE =
+  `<div style="font-family:system-ui;box-sizing:border-box;height:100%;padding:16px;background:rgb(245,241,234)">` +
+  `<div style="font-size:13px;font-weight:700;color:rgb(10,20,16);margin-bottom:12px">Jobs completed per day</div>` +
+  `<div style="display:flex;align-items:flex-end;gap:8px;height:calc(100% - 48px)">` +
+  [55, 68, 60, 74, 66, 82, 90].map(BAR).join('') +
+  `</div>` +
+  `<div style="display:flex;gap:8px;margin-top:6px;font-size:10px;color:rgb(107,106,100)">` +
+  ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    .map((d) => `<div style="flex:1;text-align:center">${d}</div>`)
+    .join('') +
+  `</div></div>`;
+
+const TOP_CREWS_TILE =
+  `<div style="font-family:system-ui;box-sizing:border-box;height:100%;padding:16px;background:rgb(245,241,234)">` +
+  `<div style="font-size:13px;font-weight:700;color:rgb(10,20,16);margin-bottom:10px">Top crews this week</div>` +
+  `<table style="width:100%;border-collapse:collapse;font-size:12px;color:rgb(26,42,35)">` +
+  `<thead><tr style="text-align:left;color:rgb(107,106,100)"><th style="padding:6px 8px">Crew</th><th>Closed</th><th>Rework</th></tr></thead>` +
+  `<tbody>` +
+  [
+    ['Alpha', '62', '1.6%'],
+    ['Bravo', '58', '2.1%'],
+    ['Charlie', '51', '0.9%'],
+    ['Delta', '47', '3.0%'],
+  ]
+    .map(
+      ([c, closed, rw]) =>
+        `<tr style="border-top:1px solid rgb(217,210,196)"><td style="padding:6px 8px">${c}</td><td>${closed}</td><td>${rw}</td></tr>`
+    )
+    .join('') +
+  `</tbody></table></div>`;
 
 const dashboardsTiles: MockRow[] = [
   {
@@ -1606,8 +1644,7 @@ const dashboardsTiles: MockRow[] = [
     token: 'throughput',
     title: 'Daily throughput',
     description: 'Jobs completed per day across all crews.',
-    htmlContent:
-      '<div style="font:600 28px system-ui">428 jobs</div><div style="opacity:.7">+6% vs last week</div>',
+    htmlContent: KPI_TILE('Daily throughput', '428', '▲ 6% vs last week', true),
     hasDataBindings: true,
     dataBindingContexts: 'Data/Housing — Riverside/jobs',
     createdAt: isoDaysAgo(6),
@@ -1618,10 +1655,42 @@ const dashboardsTiles: MockRow[] = [
     token: 'rework-rate',
     title: 'Rework rate',
     description: 'Share of jobs requiring a return visit.',
-    htmlContent:
-      '<div style="font:600 28px system-ui">3.2%</div><div style="opacity:.7">-0.4pt vs last week</div>',
+    htmlContent: KPI_TILE('Rework rate', '3.2%', '▼ 0.4pt vs last week', true),
     hasDataBindings: true,
     dataBindingContexts: 'Data/Housing — Riverside/jobs',
+    createdAt: isoDaysAgo(6),
+    updatedAt: isoMinutesAgo(58),
+  },
+  {
+    tileId: 4003,
+    token: 'sla-compliance',
+    title: 'SLA compliance',
+    description: 'Share of jobs closed within the target window.',
+    htmlContent: KPI_TILE('SLA compliance', '91%', '▲ 1pt vs last week', true),
+    hasDataBindings: true,
+    dataBindingContexts: 'Data/Housing — Riverside/jobs',
+    createdAt: isoDaysAgo(6),
+    updatedAt: isoMinutesAgo(58),
+  },
+  {
+    tileId: 4004,
+    token: 'jobs-by-day',
+    title: 'Jobs completed per day',
+    description: 'Last 7 days, all crews.',
+    htmlContent: JOBS_BY_DAY_TILE,
+    hasDataBindings: true,
+    dataBindingContexts: 'Data/Housing — Riverside/jobs',
+    createdAt: isoDaysAgo(6),
+    updatedAt: isoMinutesAgo(58),
+  },
+  {
+    tileId: 4005,
+    token: 'top-crews',
+    title: 'Top crews this week',
+    description: 'Crews ranked by jobs closed and rework rate.',
+    htmlContent: TOP_CREWS_TILE,
+    hasDataBindings: false,
+    dataBindingContexts: null,
     createdAt: isoDaysAgo(6),
     updatedAt: isoMinutesAgo(58),
   },

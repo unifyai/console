@@ -9,6 +9,8 @@
  */
 
 import { snakeToCamelObject } from '@/utils/casing';
+import { mockSimulationEnabled } from '@/lib/simulation/config';
+import { findMockTileData } from '@/lib/simulation/public-tile';
 
 const ORCHESTRA_URL = process.env.ORCHESTRA_URL || 'http://localhost:8000';
 const ORCHESTRA_ADMIN_KEY = process.env.ORCHESTRA_ADMIN_KEY;
@@ -66,6 +68,13 @@ async function fetchWithTimeout(
 }
 
 export async function fetchTileData(token: string): Promise<FetchTileDataResult> {
+  if (mockSimulationEnabled()) {
+    const data = findMockTileData(token);
+    return data
+      ? { success: true, data }
+      : { success: false, error: { error: 'Tile not found', status: 404 } };
+  }
+
   if (!ORCHESTRA_ADMIN_KEY) {
     return { success: false, error: { error: 'ORCHESTRA_ADMIN_KEY not configured', status: 500 } };
   }

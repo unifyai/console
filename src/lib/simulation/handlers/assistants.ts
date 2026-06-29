@@ -28,8 +28,10 @@ function buildAssistant(mock: MockAssistant, scenarioUser: { name: string; lastN
     about: mock.bio ?? null,
     phoneCountry: null,
     timezone: null,
-    voiceId: null,
-    voiceProvider: null,
+    // A voice is configured so the chat surfaces the Play-audio (TTS) control;
+    // mock mode has no provider key, so playback itself no-ops gracefully.
+    voiceId: 'mock-voice',
+    voiceProvider: 'cartesia',
     email: null,
     emailProvider: null,
     emailProvisionedBy: null,
