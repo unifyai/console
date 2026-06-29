@@ -9,8 +9,12 @@ import oneLight from '@/components/Pages/Interfaces/Blocks/Selection/Views/Markd
 import oneDark from '@/components/Pages/Interfaces/Blocks/Selection/Views/Markdown/Themes/one-dark';
 
 const DEFAULT_PROSE =
-  'prose-xs prose max-w-none dark:prose-invert prose-headings:text-sm prose-p:text-sm ' +
-  'prose-li:text-sm prose-a:text-primary prose-code:text-xs prose-pre:my-2 prose-pre:bg-transparent ' +
+  'prose-xs prose max-w-none dark:prose-invert ' +
+  'prose-headings:font-display prose-headings:font-semibold prose-headings:tracking-tight ' +
+  'prose-h1:text-lg prose-h2:text-base prose-h3:text-sm prose-h4:text-sm ' +
+  'prose-p:text-[13.5px] prose-p:leading-relaxed prose-p:text-ink-2 ' +
+  'prose-li:text-[13.5px] prose-li:leading-relaxed prose-li:text-ink-2 ' +
+  'prose-a:text-primary prose-code:text-xs prose-pre:my-2 prose-pre:bg-transparent ' +
   'prose-pre:p-0 prose-pre:text-xs';
 
 /**

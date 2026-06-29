@@ -21,6 +21,7 @@ import {
   TASK_LIVE_DOT_CLASS,
 } from '@/utils/assistants/tasks';
 import { BrainRowDetail } from '../Brain/BrainRowDetail';
+import { ClampedAssistantMarkdown } from '../Common/ClampedAssistantMarkdown';
 // TODO(wire-backend): restore once task creation is wired to a backend
 // (Orchestra task-create endpoint or a Droid system-event).
 // import { NewTaskDrawer } from './NewTaskDrawer';
@@ -124,6 +125,7 @@ export function TasksPane({ assistant, ownerId, assistantId, onTasksCountChange 
       {/* Toolbar — segmented filter + search + New task */}
       <TabToolbar
         testId="tasks-header"
+        searchScopeId="tasks"
         leading={
           <div className="bg-muted/40 inline-flex gap-0.5 rounded-lg border p-0.5" role="tablist">
             {TASK_FILTERS.map((f) => (
@@ -327,9 +329,9 @@ function TaskCard({ task, runs, isOpen, onToggle, onRunClick }: TaskCardProps) {
           {/* Left — description, fields, actions */}
           <div className="border-b p-4 lg:border-b-0 lg:border-r">
             {task.description && (
-              <p className="text-foreground/90 mb-3 text-[12.5px] leading-relaxed">
+              <ClampedAssistantMarkdown maxHeight={140}>
                 {task.description}
-              </p>
+              </ClampedAssistantMarkdown>
             )}
             <dl className="mb-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
               {fields.map((field) => (

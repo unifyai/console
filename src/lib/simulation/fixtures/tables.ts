@@ -729,10 +729,11 @@ const guidance: MockRow[] = [
     content:
       'If a recurring task misfires, cancel it directly via primitives.tasks.update(status="cancelled") rather than deleting the row, so run history is preserved.',
     linkedImages: [],
-    tags: ['Tasks'],
+    tags: ['Tasks', 'Cancellation', 'Recurring', 'Emergency', 'Scheduler'],
     scope: 'personal',
     isBuiltin: false,
     functionIds: [9001],
+    updatedAt: '2025-06-06T14:30:00Z',
   },
   {
     guidanceId: 102,
@@ -744,6 +745,7 @@ const guidance: MockRow[] = [
     scope: 'builtin',
     isBuiltin: true,
     functionIds: [],
+    updatedAt: '2025-06-05T10:00:00Z',
   },
   {
     guidanceId: 103,

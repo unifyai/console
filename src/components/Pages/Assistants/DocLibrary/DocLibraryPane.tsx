@@ -15,9 +15,11 @@ import { formatTimestamp } from '@/utils/assistants/brain';
 import { SkeletonText } from '@/components/Common/Loaders/Skeletons';
 import { Skeleton } from '@/components/UI/skeleton';
 import { AssistantMarkdown } from '../Common/AssistantMarkdown';
+import { groupByCalendarDay, TimelineDateSeparator } from '../Common/TimelineDateSeparator';
 import { TabToolbar } from '../Common/TabToolbar';
 import { TabFilterDropdown } from '../Common/TabFilterDropdown';
 import { TabFooter } from '../Common/TabFooter';
+import { SplitPaneLayout } from '../Common/SplitPaneLayout';
 // TODO(wire-backend): restore once guidance/knowledge creation is wired.
 // import { DocAddDrawer } from './DocAddDrawer';
 import type { DocLibraryKind } from './docLibraryKind';
@@ -32,7 +34,10 @@ interface DocLibraryDoc {
   functionIds: number[];
   tags: string[];
   scope: string | null;
+  /** ISO timestamp for sorting / date grouping (updated_at ?? created_at). */
+  sortTimestamp: string | null;
   updated: string | null;
+  created: string | null;
 }
 
 interface DocLibraryPaneProps {
@@ -103,6 +108,31 @@ function readUpdated(raw: Record<string, unknown>): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? formatTimestamp(value) : null;
 }
 
+function readCreated(raw: Record<string, unknown>): string | null {
+  const value = readField(raw, 'created_at', 'createdAt') ?? raw.created;
+  return typeof value === 'string' && value.trim().length > 0 ? formatTimestamp(value) : null;
+}
+
+function readSortTimestamp(raw: Record<string, unknown>): string | null {
+  const value =
+    readField(raw, 'updated_at', 'updatedAt') ??
+    readField(raw, 'created_at', 'createdAt') ??
+    raw.updated ??
+    raw.created;
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function stripLeadingTitleFromBody(body: string, title: string): string {
+  const lines = body.split('\n');
+  const first = lines[0]?.trim() ?? '';
+  const normalizedTitle = title.trim().toLowerCase();
+  const headingMatch = first.match(/^#+\s*(.+)$/);
+  if (headingMatch && headingMatch[1]!.trim().toLowerCase() === normalizedTitle) {
+    return lines.slice(1).join('\n').trimStart();
+  }
+  return body;
+}
+
 function mapGuidanceRow(row: GuidanceRow, index: number): DocLibraryDoc {
   const raw = row as Record<string, unknown>;
   const idValue = readField(raw, 'guidance_id', 'guidanceId');
@@ -116,7 +146,9 @@ function mapGuidanceRow(row: GuidanceRow, index: number): DocLibraryDoc {
     functionIds: asNumberArray(readField(raw, 'function_ids', 'functionIds')),
     tags: asStringArray(raw.tags),
     scope: readScope(raw),
+    sortTimestamp: readSortTimestamp(raw),
     updated: readUpdated(raw),
+    created: readCreated(raw),
   };
 }
 
@@ -141,8 +173,16 @@ function mapKnowledgeRow(row: KnowledgeRow, index: number): DocLibraryDoc {
     functionIds: asNumberArray(readField(raw, 'function_ids', 'functionIds')),
     tags: asStringArray(raw.tags),
     scope: readScope(raw),
+    sortTimestamp: readSortTimestamp(raw),
     updated: readUpdated(raw),
+    created: readCreated(raw),
   };
+}
+
+function docListDateLabel(doc: DocLibraryDoc): string | null {
+  if (doc.updated) return doc.updated;
+  if (doc.created) return doc.created;
+  return null;
 }
 
 export function DocLibraryPane({
@@ -217,6 +257,8 @@ export function DocLibraryPane({
     });
   }, [docs, query, selectedScopes, selectedTags]);
 
+  const filteredGroups = useMemo(() => groupByCalendarDay(filtered), [filtered]);
+
   const active = useMemo(() => {
     if (filtered.length === 0) return null;
     return filtered.find((doc) => doc.id === selectedId) ?? filtered[0];
@@ -255,6 +297,7 @@ export function DocLibraryPane({
     <div className="flex h-full flex-col" data-testid="doc-library-pane" data-kind={kind}>
       <TabToolbar
         testId="doc-header"
+        searchScopeId={kind}
         searchValue={query}
         onSearchChange={setQuery}
         searchPlaceholder={meta.searchPlaceholder}
@@ -293,140 +336,181 @@ export function DocLibraryPane({
         // }
       />
 
-      <div className="flex min-h-0 flex-1">
-        {/* List */}
-        <div className="w-72 shrink-0 border-r" data-testid="doc-list">
-          {isLoading && docs.length === 0 ? (
-            <div className="flex flex-col gap-1.5 p-2" data-testid="doc-list-skeleton">
-              {Array.from({ length: 7 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full rounded-md" />
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-caption p-3">{meta.emptyMatch}</div>
-          ) : (
-            <ScrollArea className="h-full">
-              <div className="flex flex-col gap-0.5 p-2">
-                {filtered.map((doc) => (
-                  <button
-                    key={doc.id}
-                    className={cn(
-                      'flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
-                      active?.id === doc.id
-                        ? 'bg-accent-soft text-accent-soft-foreground'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    )}
-                    onClick={() => setSelectedId(doc.id)}
-                    data-testid={`doc-item-${doc.id}`}
-                  >
-                    <LibraryIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1">
-                      <span
-                        className={cn(
-                          'line-clamp-2 block text-[12px] font-semibold leading-snug',
-                          kind === 'knowledge' && 'font-mono'
-                        )}
-                      >
-                        {doc.title}
-                      </span>
-                      <span className="mt-1 flex flex-wrap items-center gap-1.5">
-                        {doc.scope && (
-                          <span className="rounded-full bg-[color:var(--status-info-bg)] px-1.5 py-0.5 text-[9.5px] font-semibold text-[color:var(--status-info)]">
-                            {doc.scope}
-                          </span>
-                        )}
-                        {doc.isBuiltin && (
-                          <span className="text-[9.5px] uppercase tracking-wide text-muted-foreground">
-                            built-in
-                          </span>
-                        )}
-                        {doc.updated && (
-                          <span className="font-mono text-[10px] text-muted-foreground">
-                            {doc.updated}
-                          </span>
-                        )}
-                      </span>
-                    </span>
-                  </button>
+      <SplitPaneLayout
+        paneId={`doc-library-${kind}`}
+        defaultWidth={288}
+        left={
+          <div className="flex h-full flex-col" data-testid="doc-list">
+            {isLoading && docs.length === 0 ? (
+              <div className="flex flex-col gap-1.5 p-2" data-testid="doc-list-skeleton">
+                {Array.from({ length: 7 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full rounded-md" />
                 ))}
               </div>
-            </ScrollArea>
-          )}
-        </div>
-
-        {/* Reader */}
-        <div className="min-w-0 flex-1" data-testid="doc-reader">
-          {active ? (
-            <ScrollArea className="h-full">
-              <div className="max-w-[680px] px-7 py-5">
-                <div className="mb-4 flex flex-wrap items-center gap-2">
-                  {active.scope && (
-                    <span className="rounded-full bg-[color:var(--status-info-bg)] px-2 py-0.5 text-[10.5px] font-semibold text-[color:var(--status-info)]">
-                      {active.scope}
-                    </span>
-                  )}
-                  {active.isBuiltin && (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                      built-in · read-only
-                    </span>
-                  )}
-                  {active.functionIds.length > 0 && (
-                    <span className="bg-primary/10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium text-primary">
-                      <Link2 className="h-3 w-3" />
-                      {active.functionIds.length} linked function
-                      {active.functionIds.length > 1 ? 's' : ''}
-                    </span>
-                  )}
-                  {active.updated && (
-                    <span className="font-mono text-[11px] text-muted-foreground">
-                      Updated {active.updated}
-                    </span>
-                  )}
-                  <div className="ml-auto">
-                    <CopyButton
-                      content={active.body}
-                      tooltipContent={`Copy ${kind}`}
-                      className="h-6 w-6"
-                    />
-                  </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-caption p-3">{meta.emptyMatch}</div>
+            ) : (
+              <ScrollArea className="h-full">
+                <div className="flex flex-col gap-0.5 p-2">
+                  {filteredGroups.map((group) => (
+                    <React.Fragment key={group.sortKey}>
+                      {group.sortKey === '__undated' ? (
+                        <div className="mb-1 mt-2.5 flex items-center gap-2.5 px-1 first:mt-0">
+                          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                            Undated
+                          </span>
+                          <span className="h-px flex-1 bg-border" />
+                        </div>
+                      ) : (
+                        <TimelineDateSeparator
+                          timestamp={group.items[0]!.sortTimestamp!}
+                          className="px-1"
+                        />
+                      )}
+                      {group.items.map((doc) => (
+                        <button
+                          key={doc.id}
+                          className={cn(
+                            'flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
+                            active?.id === doc.id
+                              ? 'bg-accent-soft text-accent-soft-foreground'
+                              : 'text-ink-2 hover:bg-muted hover:text-foreground'
+                          )}
+                          onClick={() => setSelectedId(doc.id)}
+                          data-testid={`doc-item-${doc.id}`}
+                        >
+                          <LibraryIcon
+                            className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                            strokeWidth={1.75}
+                            aria-hidden="true"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span
+                              className={cn(
+                                'text-body-dense line-clamp-2 block font-semibold leading-snug',
+                                kind === 'knowledge' && 'font-mono'
+                              )}
+                            >
+                              {doc.title}
+                            </span>
+                            <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                              {doc.tags.slice(0, 2).map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[9.5px] font-medium text-accent-soft-foreground"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              {doc.scope && (
+                                <span className="rounded-full bg-[color:var(--status-info-bg)] px-1.5 py-0.5 text-[9.5px] font-semibold text-[color:var(--status-info)]">
+                                  {doc.scope}
+                                </span>
+                              )}
+                              {doc.isBuiltin && (
+                                <span className="text-[9.5px] uppercase tracking-wide text-muted-foreground">
+                                  built-in
+                                </span>
+                              )}
+                              {docListDateLabel(doc) && (
+                                <span className="font-mono text-[10px] text-muted-foreground">
+                                  {docListDateLabel(doc)}
+                                </span>
+                              )}
+                            </span>
+                          </span>
+                        </button>
+                      ))}
+                    </React.Fragment>
+                  ))}
                 </div>
-                <h2
-                  className={cn(
-                    'text-h2 mb-3 text-foreground',
-                    kind === 'knowledge' && 'font-mono'
-                  )}
-                >
-                  {active.title}
-                </h2>
-                {active.tags.length > 0 && (
-                  <div className="mb-4 flex flex-wrap items-center gap-1.5">
-                    {active.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-medium text-accent-soft-foreground"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="break-words">
-                  <AssistantMarkdown>{active.body || '_No content._'}</AssistantMarkdown>
-                </div>
+              </ScrollArea>
+            )}
+          </div>
+        }
+        right={
+          <div className="h-full min-w-0" data-testid="doc-reader">
+            {isLoading && docs.length === 0 ? (
+              <div className="w-full px-6 pb-5 pt-3" data-testid="doc-reader-skeleton">
+                <Skeleton className="mb-4 h-7 w-1/2" />
+                <SkeletonText lines={6} />
               </div>
-            </ScrollArea>
-          ) : isLoading && docs.length === 0 ? (
-            <div className="max-w-[680px] px-7 py-5" data-testid="doc-reader-skeleton">
-              <Skeleton className="mb-4 h-7 w-1/2" />
-              <SkeletonText lines={6} />
-            </div>
-          ) : (
-            <div className="text-body-muted flex h-full items-center justify-center">
-              {meta.readerEmpty}
-            </div>
-          )}
-        </div>
-      </div>
+            ) : active ? (
+              <ScrollArea className="h-full">
+                <div className="w-full px-6 pb-5 pt-3">
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    {active.scope && (
+                      <span className="rounded-full bg-[color:var(--status-info-bg)] px-2 py-0.5 text-[10.5px] font-semibold text-[color:var(--status-info)]">
+                        {active.scope}
+                      </span>
+                    )}
+                    {active.isBuiltin && (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        built-in · read-only
+                      </span>
+                    )}
+                    {active.functionIds.length > 0 && (
+                      <span className="bg-primary/10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium text-primary">
+                        <Link2 className="h-3 w-3" />
+                        {active.functionIds.length} linked function
+                        {active.functionIds.length > 1 ? 's' : ''}
+                      </span>
+                    )}
+                    {active.updated ? (
+                      <span className="font-mono text-[11px] text-muted-foreground">
+                        Updated {active.updated}
+                      </span>
+                    ) : active.created ? (
+                      <span className="font-mono text-[11px] text-muted-foreground">
+                        Created {active.created}
+                      </span>
+                    ) : null}
+                    {/*
+                    TODO(wire-backend): if guidance/knowledge rows gain a reliable
+                    created_at / updated_at in the Orchestra log schema, surface both
+                    when present instead of preferring updated only.
+                  */}
+                    <div className="ml-auto">
+                      <CopyButton
+                        content={active.body}
+                        tooltipContent={`Copy ${kind}`}
+                        className="h-6 w-6"
+                      />
+                    </div>
+                  </div>
+                  {active.tags.length > 0 && (
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                        Tags
+                      </span>
+                      {active.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-accent-soft px-2 py-0.5 text-[10.5px] font-medium text-accent-soft-foreground"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <h2 className={cn('text-doc-title mb-3', kind === 'knowledge' && 'font-mono')}>
+                    {active.title}
+                  </h2>
+                  <div className="break-words">
+                    <AssistantMarkdown>
+                      {stripLeadingTitleFromBody(active.body || '_No content._', active.title)}
+                    </AssistantMarkdown>
+                  </div>
+                </div>
+              </ScrollArea>
+            ) : (
+              <div className="text-body-muted flex h-full items-center justify-center">
+                {meta.readerEmpty}
+              </div>
+            )}
+          </div>
+        }
+      />
 
       <TabFooter
         testId="doc-footer"
