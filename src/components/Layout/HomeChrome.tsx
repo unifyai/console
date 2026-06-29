@@ -4,9 +4,9 @@ import React, { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import TopNav from '@/components/Layout/TopBar/TopNav';
-import LoadingScreen from '@/components/Layout/LoadingScreen';
 import { HomeShell } from '@/components/Layout/Shell/HomeShell';
 import { MockModeIndicator } from '@/components/Simulation/MockModeIndicator';
+import { TabSearchProvider } from '@/components/Pages/Assistants/Common/TabSearchContext';
 
 /** Home routes hosted inside the shared rail shell (migrated off `TopNav`). */
 const SHELL_ROUTE_PREFIXES = [
@@ -19,16 +19,18 @@ const SHELL_ROUTE_PREFIXES = [
   '/interfaces',
 ];
 
+const shellFallback = (
+  <div className="flex h-full min-h-0 w-full items-center justify-center bg-background">
+    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+  </div>
+);
+
 /**
  * Decides the home chrome per route. The rail shell owns global navigation, so
  * the top nav is suppressed and the main area fills the viewport. `/assistants`
  * renders its own rail (the route body owns it); the `SHELL_ROUTE_PREFIXES`
  * routes are hosted inside the shared `HomeShell`. Every other home route keeps
  * the legacy top nav until it is migrated into the rail.
- *
- * `children` arrives already wrapped by the async server-side MFA gate (and the
- * nuqs adapter) from the server layout, so this client component only owns the
- * chrome decision and the loading fallbacks.
  */
 export function HomeChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -37,34 +39,35 @@ export function HomeChrome({ children }: { children: React.ReactNode }) {
     (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`)
   );
 
-  const body = children;
-
   if (assistantsShell) {
     return (
-      <Suspense fallback={<LoadingScreen />}>
-        <main className="brand-page-stencil-bg relative h-screen overflow-hidden bg-background">
-          {body}
-        </main>
+      <TabSearchProvider>
+        <Suspense fallback={shellFallback}>
+          <main className="brand-page-stencil-bg relative h-screen overflow-hidden bg-background">
+            {children}
+          </main>
+        </Suspense>
         <MockModeIndicator />
-      </Suspense>
+      </TabSearchProvider>
     );
   }
 
   if (homeShell) {
     return (
-      <Suspense fallback={<LoadingScreen />}>
-        <main className="brand-page-stencil-bg relative h-screen overflow-hidden bg-background">
-          <HomeShell>{body}</HomeShell>
-        </main>
+      <TabSearchProvider>
+        <Suspense fallback={shellFallback}>
+          <main className="brand-page-stencil-bg relative h-screen overflow-hidden bg-background">
+            <HomeShell>{children}</HomeShell>
+          </main>
+        </Suspense>
         <MockModeIndicator />
-      </Suspense>
+      </TabSearchProvider>
     );
   }
 
   return (
     <>
       <MockModeIndicator />
-      {/* Static skeleton bar to avoid brief blank before navbar hydration */}
       <div
         className="fixed left-0 right-0 top-0 z-40 h-10 border-b border-border bg-card"
         aria-hidden="true"
@@ -79,9 +82,9 @@ export function HomeChrome({ children }: { children: React.ReactNode }) {
       >
         <TopNav />
       </Suspense>
-      <Suspense fallback={<LoadingScreen />}>
+      <Suspense fallback={shellFallback}>
         <main className="brand-page-stencil-bg relative top-10 h-[calc(100vh-2.5rem)] overflow-hidden bg-background">
-          {body}
+          {children}
         </main>
       </Suspense>
     </>

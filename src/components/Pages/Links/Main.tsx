@@ -33,7 +33,7 @@ export default function Main({ adminCreditGrantActions }: MainProps) {
       {/* Credit Grant Links */}
       <section className="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
         <div className="flex flex-shrink-0 items-center justify-between border-b p-4">
-          <h2 className="text-h1 text-semibold">Credit Grant Links</h2>
+          <h2 className="text-title text-semibold">Credit Grant Links</h2>
           <div className="flex gap-2">
             <GenerateOneTimeLinkButton
               onGenerateLink={generateNewLink}

@@ -60,7 +60,7 @@ export function GlobalUnitySwitcher({ collapsed }: GlobalUnitySwitcherProps) {
         'flex items-center gap-3 transition-colors',
         collapsed
           ? 'mx-auto mb-2 rounded-xl p-1.5 hover:bg-muted'
-          : 'mx-3.5 mb-2 rounded-xl border border-border bg-muted px-3 py-2 hover:bg-accent'
+          : 'hover:bg-muted/80 mx-3.5 mb-2 rounded-xl border border-border bg-muted px-3 py-2'
       )}
     >
       <CoordinatorLogoAvatar

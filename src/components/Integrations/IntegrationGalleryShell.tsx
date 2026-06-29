@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { RefreshCw, Search, X } from 'lucide-react';
-import { Loader } from '@/components/Common/Loader';
+import { IntegrationGridSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { Input } from '@/components/UI/input';
 import {
   Select,
@@ -80,17 +80,7 @@ function matchesFilters(item: IntegrationGalleryItem, filters: IntegrationGaller
 }
 
 function GallerySkeleton() {
-  return (
-    <div
-      className="bg-muted/20 flex min-h-[260px] items-center justify-center rounded-xl border border-dashed"
-      data-testid="integration-gallery-skeleton"
-    >
-      <div className="flex items-center justify-center text-muted-foreground">
-        <Loader size={20} className="mr-2" />
-        <span className="text-body-muted">Loading available integrations...</span>
-      </div>
-    </div>
-  );
+  return <IntegrationGridSkeleton />;
 }
 
 export function IntegrationGalleryShell({

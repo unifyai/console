@@ -5,19 +5,19 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   User as UserIcon,
   Contact,
-  SlidersHorizontal,
-  Code2,
   ShieldCheck,
   Building,
   BarChart3,
   CreditCard,
+  Settings,
   type LucideIcon,
 } from 'lucide-react';
 import { TabHeader } from '@/components/Pages/Assistants/Rail/TabHeader';
 import { RailNavButton } from '@/components/Pages/Assistants/Rail/RailNavButton';
 import { SHELL_SECTIONS, type ShellSectionId } from './shellSections';
+import { ADMIN_NAV_ITEMS, isAdminNavActive } from './adminNav';
 import { useFeatures, useEnvironment } from '@/components/Pages/Providers/EnvironmentProvider';
-import { getCurrentUser } from '@/lib/user/user';
+import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 
 /**
  * Account sub-rail entries. Each maps to an in-page panel on `/account`, driven
@@ -27,14 +27,18 @@ import { getCurrentUser } from '@/lib/user/user';
 export const SETTINGS_ACCOUNT_ITEMS = [
   { id: 'profile', label: 'Profile', Icon: UserIcon },
   { id: 'contact-info', label: 'Contact info', Icon: Contact },
-  { id: 'preferences', label: 'Preferences', Icon: SlidersHorizontal },
-  { id: 'advanced', label: 'Advanced', Icon: Code2 },
   { id: 'security', label: 'Security', Icon: ShieldCheck },
 ] as const;
 
 export type SettingsAccountId = (typeof SETTINGS_ACCOUNT_ITEMS)[number]['id'];
 
 export const SETTINGS_ACCOUNT_IDS = SETTINGS_ACCOUNT_ITEMS.map((i) => i.id) as readonly string[];
+
+/** Legacy account tabs merged into profile/security — redirect on load. */
+export const LEGACY_ACCOUNT_TAB_REDIRECTS: Readonly<Record<string, SettingsAccountId>> = {
+  preferences: 'profile',
+  advanced: 'security',
+};
 
 interface WorkspaceLink {
   id: string;
@@ -56,10 +60,9 @@ interface SettingsShellProps {
 
 /**
  * The shared settings two-pane shell: a brand section header above a persistent
- * vertical sub-rail (Account + Workspace groups) beside the active surface. All
- * settings-family routes (`/account`, `/organizations`, `/usage`, `/billing`)
- * render their body inside this shell so the sub-rail stays visible and the
- * active item is highlighted, with content left-justified.
+ * vertical sub-rail beside the active surface. Settings-family routes
+ * (`/account`, `/organizations`, `/usage`, `/billing`) and admin routes
+ * (`/admin/*`) render inside this shell so navigation stays consistent.
  */
 export function SettingsShell({
   sectionId,
@@ -72,23 +75,13 @@ export function SettingsShell({
   const searchParams = useSearchParams();
   const { billing: billingEnabled } = useFeatures();
   const { isSelfHost } = useEnvironment();
+  const { isUnifyAdmin } = useWorkspace();
 
-  const [isUnifyAdmin, setIsUnifyAdmin] = React.useState(false);
-  React.useEffect(() => {
-    (async () => {
-      const current = await getCurrentUser();
-      const orgs = current?.organizations ?? [];
-      setIsUnifyAdmin(
-        orgs.some(
-          (o) => o.name === 'Unify' && ['owner', 'admin'].includes(o.roleName?.toLowerCase() ?? '')
-        )
-      );
-    })();
-  }, []);
-
-  const section = SHELL_SECTIONS[sectionId];
+  const onAdmin = pathname === '/admin' || pathname.startsWith('/admin/');
   const onAccount = pathname === '/account';
   const accountTab = onAccount ? (searchParams.get('tab') ?? 'profile') : null;
+
+  const section = onAdmin ? SHELL_SECTIONS.admin : SHELL_SECTIONS[sectionId];
 
   const workspaceLinks: WorkspaceLink[] = [
     {
@@ -103,8 +96,10 @@ export function SettingsShell({
     { id: 'admin', label: 'Admin', Icon: ShieldCheck, href: '/admin', show: isUnifyAdmin },
   ];
 
-  const isWorkspaceActive = (href: string) =>
-    !onAccount && (pathname === href || pathname.startsWith(`${href}/`));
+  const isWorkspaceActive = (href: string) => {
+    if (href === '/admin') return onAdmin;
+    return !onAccount && (pathname === href || pathname.startsWith(`${href}/`));
+  };
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-background">
@@ -114,19 +109,50 @@ export function SettingsShell({
           className="flex w-[230px] shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-border px-2.5 py-3"
           data-testid="settings-subrail"
         >
-          <div className="px-3 pb-1.5 pt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-            Account
-          </div>
-          {SETTINGS_ACCOUNT_ITEMS.map((item) => (
-            <RailNavButton
-              key={item.id}
-              Icon={item.Icon}
-              label={item.label}
-              active={onAccount && accountTab === item.id}
-              onClick={() => router.push(`/account?tab=${item.id}`)}
-              testId={`settings-nav-${item.id}`}
-            />
-          ))}
+          {onAdmin ? (
+            <>
+              <div className="px-3 pb-1.5 pt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                Account
+              </div>
+              <RailNavButton
+                Icon={Settings}
+                label="Settings"
+                active={false}
+                onClick={() => router.push('/account')}
+                testId="settings-back-account"
+              />
+              <div className="px-3 pb-1.5 pt-4 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                Admin
+              </div>
+              {ADMIN_NAV_ITEMS.map((item) => (
+                <RailNavButton
+                  key={item.href}
+                  Icon={item.Icon}
+                  label={item.label}
+                  active={isAdminNavActive(pathname, item.href)}
+                  onClick={() => router.push(item.href)}
+                  testId={`admin-nav-${item.id}`}
+                />
+              ))}
+            </>
+          ) : (
+            <>
+              <div className="px-3 pb-1.5 pt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                Account
+              </div>
+              {SETTINGS_ACCOUNT_ITEMS.map((item) => (
+                <RailNavButton
+                  key={item.id}
+                  Icon={item.Icon}
+                  label={item.label}
+                  active={onAccount && accountTab === item.id}
+                  onClick={() => router.push(`/account?tab=${item.id}`)}
+                  testId={`settings-nav-${item.id}`}
+                />
+              ))}
+            </>
+          )}
+
           <div className="px-3 pb-1.5 pt-4 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
             Workspace
           </div>

@@ -1,4 +1,4 @@
-import { Settings, CreditCard, BarChart3, Building, Star } from 'lucide-react';
+import { Settings, CreditCard, BarChart3, Building, Star, ShieldCheck } from 'lucide-react';
 import type { SectionDef } from '@/components/Pages/Assistants/Rail/sectionConfig';
 
 /** The Settings surface descriptor, used for the `/account` section header. */
@@ -57,6 +57,20 @@ export const ORGANIZATIONS_SECTION: SectionDef = {
   ],
 };
 
+/** The Admin surface descriptor, used for `/admin` and sub-routes. */
+export const ADMIN_SECTION: SectionDef = {
+  id: 'admin',
+  label: 'Admin',
+  Icon: ShieldCheck,
+  kind: 'view',
+  desc: 'Internal tools for Unify operators — organizations, billing, invoices, and demos.',
+  steps: [
+    ['Browse organizations', 'Search orgs, manage trials, credits, and plan assignments.'],
+    ['Manage billing catalog', 'Create plan templates and curated self-serve groups.'],
+    ['Review invoices', 'Filter historical and projected invoices across accounts.'],
+  ],
+};
+
 /** The Favourites surface descriptor, used for the `/favourites` header. */
 export const FAVOURITES_SECTION: SectionDef = {
   id: 'favourites',
@@ -82,6 +96,7 @@ export const SHELL_SECTIONS = {
   billing: BILLING_SECTION,
   usage: USAGE_SECTION,
   organizations: ORGANIZATIONS_SECTION,
+  admin: ADMIN_SECTION,
   favourites: FAVOURITES_SECTION,
 } as const;
 

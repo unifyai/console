@@ -17,6 +17,10 @@ interface WorkspaceContextType {
   activeWorkspace: UserWorkspace | null;
   activeOrganization: UserOrganization | null;
   currentUserId: string | null;
+  /** Whether the signed-in user is Owner/Admin of the Unify org. */
+  isUnifyAdmin: boolean;
+  /** Whether the user belongs to the Unify organization. */
+  isUnifyMember: boolean;
   /** Whether the user can switch between workspaces (false for non-Unify org members). */
   isWorkspaceSwitchable: boolean;
   isSwitchingWorkspace: boolean;
@@ -66,6 +70,19 @@ export function WorkspaceProvider({
   // 2c. Current User ID
   const currentUserId = user?.id || null;
 
+  const isUnifyMember = useMemo(
+    () => user?.organizations?.some((o) => o.name === 'Unify') ?? false,
+    [user]
+  );
+
+  const isUnifyAdmin = useMemo(
+    () =>
+      user?.organizations?.some(
+        (o) => o.name === 'Unify' && ['owner', 'admin'].includes(o.roleName?.toLowerCase() ?? '')
+      ) ?? false,
+    [user]
+  );
+
   // 3. Switcher Logic
   const [isSwitchingWorkspace, setIsSwitchingWorkspace] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -107,6 +124,8 @@ export function WorkspaceProvider({
         activeWorkspace,
         activeOrganization,
         currentUserId,
+        isUnifyAdmin,
+        isUnifyMember,
         isWorkspaceSwitchable,
         isSwitchingWorkspace,
         switchWorkspace,

@@ -30,7 +30,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { getCurrentUser } from '@/lib/user/user';
-import type { UserOrganization } from '@/types/user';
 import { RailNavButton } from './RailNavButton';
 
 const getInitials = (name: string) =>
@@ -60,13 +59,15 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
   const {
     workspaces,
     activeWorkspace,
+    activeOrganization,
     switchWorkspace,
     isWorkspaceSwitchable,
     isSwitchingWorkspace,
+    isUnifyAdmin,
+    isUnifyMember,
   } = useWorkspace();
 
   const [profileName, setProfileName] = React.useState('Account');
-  const [userOrgs, setUserOrgs] = React.useState<UserOrganization[]>([]);
 
   React.useEffect(() => {
     (async () => {
@@ -74,7 +75,6 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
         const user = await getCurrentUser();
         if (user) {
           setProfileName(user.name || 'Account');
-          setUserOrgs(user.organizations || []);
         }
       } catch (err) {
         console.error('Failed to fetch user info', err);
@@ -82,19 +82,11 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
     })();
   }, []);
 
-  const currentOrg =
-    activeWorkspace?.type === 'organization'
-      ? userOrgs.find((o) => o.id.toString() === activeWorkspace.id)
-      : null;
-  const isUnifyMember = userOrgs.some((o) => o.name === 'Unify');
   const canManageBilling =
-    !currentOrg ||
+    !activeOrganization ||
     isUnifyMember ||
-    ['owner', 'admin'].includes(currentOrg.roleName?.toLowerCase() ?? '');
-  const isOrgInFreeTrial = !!currentOrg?.freeTrial && !isUnifyMember;
-  const isUnifyAdmin = userOrgs.some(
-    (o) => o.name === 'Unify' && ['owner', 'admin'].includes(o.roleName?.toLowerCase() ?? '')
-  );
+    ['owner', 'admin'].includes(activeOrganization.roleName?.toLowerCase() ?? '');
+  const isOrgInFreeTrial = !!activeOrganization?.freeTrial && !isUnifyMember;
 
   const accountSub =
     activeWorkspace?.type === 'organization' ? 'Organization' : activeWorkspace?.name || 'Personal';
@@ -254,9 +246,9 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
               )}
             >
               {collapsed ? (
-                <PanelLeftOpen className="h-[18px] w-[18px]" />
+                <PanelLeftOpen className="h-[18px] w-[18px]" strokeWidth={1.75} />
               ) : (
-                <PanelLeftClose className="h-[18px] w-[18px]" />
+                <PanelLeftClose className="h-[18px] w-[18px]" strokeWidth={1.75} />
               )}
               {!collapsed && <span>Collapse</span>}
             </button>
