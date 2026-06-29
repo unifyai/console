@@ -14,6 +14,7 @@ import {
   createBillingTest,
   setMeteredPlan,
   clearMeteredPlan,
+  waitForAssistantsReady,
   type TestUser,
 } from './helpers';
 
@@ -33,7 +34,7 @@ noCreditTest.afterAll(() => {
 
 noCreditTest('disabled buttons appear when user has no credits', async ({ authedPage: page }) => {
   await page.goto('/assistants');
-  await page.waitForSelector('text=/assistant/i', { timeout: 15_000 });
+  await waitForAssistantsReady(page);
 
   const disabledBtns = page.locator('button[disabled]');
   const count = await disabledBtns.count();
@@ -51,7 +52,7 @@ withCreditTest.afterAll(() => cleanupUser(withCreditUser.id));
 
 withCreditTest('buttons are enabled when user has credits', async ({ authedPage: page }) => {
   await page.goto('/assistants');
-  await page.waitForSelector('text=/assistant/i', { timeout: 15_000 });
+  await waitForAssistantsReady(page);
 
   const newBtn = page.locator('button', { hasText: 'New' });
   await expect(newBtn).toBeEnabled({ timeout: 10_000 });
@@ -75,11 +76,11 @@ restoreTest(
   async ({ authedPage: page }) => {
     setUserCredits(restoreUser.id, -1);
     await page.goto('/assistants');
-    await page.waitForSelector('text=/assistant/i', { timeout: 15_000 });
+    await waitForAssistantsReady(page);
 
     setUserCredits(restoreUser.id, 5_000);
     await page.reload();
-    await page.waitForSelector('text=/assistant/i', { timeout: 15_000 });
+    await waitForAssistantsReady(page);
 
     const newBtn = page.locator('button', { hasText: 'New' });
     await expect(newBtn).toBeEnabled({ timeout: 10_000 });
@@ -117,7 +118,7 @@ meteredTest(
   'METERED account with $0 wallet keeps billable actions enabled',
   async ({ authedPage: page }) => {
     await page.goto('/assistants');
-    await page.waitForSelector('text=/assistant/i', { timeout: 15_000 });
+    await waitForAssistantsReady(page);
 
     // The "New" button is the canonical billable action on /assistants
     // — same locator as the CREDITS-mode "with credits" test above.

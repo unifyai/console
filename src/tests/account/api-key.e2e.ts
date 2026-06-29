@@ -16,12 +16,8 @@ test('Security tab shows a masked API key', async ({ authedPage: page }) => {
   await page.goto('/account?tab=security');
   await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
 
-  const keyLabel = page.locator('text=API Key');
-  await expect(keyLabel).toBeVisible({ timeout: 15_000 });
-
-  // The key section should be present
   const keyContainer = page.locator('label:has-text("API Key")').first();
-  await expect(keyContainer).toBeVisible({ timeout: 5_000 });
+  await expect(keyContainer).toBeVisible({ timeout: 15_000 });
 });
 
 test('regenerating API key via API produces a new key in the database', async ({

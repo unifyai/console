@@ -14,6 +14,7 @@ import {
   createBillingTest,
   setMeteredPlan,
   clearMeteredPlan,
+  waitForAssistantsReady,
   type TestUser,
 } from './helpers';
 
@@ -45,7 +46,7 @@ oocTest('shows out-of-credits banner when balance is negative', async ({ authedP
 oocTest('does not show banner when balance is positive', async ({ authedPage: page }) => {
   setUserCredits(oocUser.id, 500);
   await page.goto('/assistants');
-  await page.waitForSelector('text=/assistant/i', { timeout: 15_000 });
+  await waitForAssistantsReady(page);
 
   const banner = page.getByTestId('out-of-credits-banner');
   await expect(banner).not.toBeVisible({ timeout: 5_000 });
@@ -84,7 +85,7 @@ meteredZeroTest(
   'does not show out-of-credits banner for zero-balance metered account',
   async ({ authedPage: page }) => {
     await page.goto('/assistants');
-    await page.waitForSelector('text=/assistant/i', { timeout: 15_000 });
+    await waitForAssistantsReady(page);
 
     const banner = page.getByTestId('out-of-credits-banner');
     await expect(banner).not.toBeVisible({ timeout: 5_000 });
@@ -104,7 +105,7 @@ activeTest(
   'does not show account status banner for active account',
   async ({ authedPage: page }) => {
     await page.goto('/assistants');
-    await page.waitForSelector('text=/assistant/i', { timeout: 15_000 });
+    await waitForAssistantsReady(page);
 
     const banner = page.getByTestId('account-status-banner');
     await expect(banner).not.toBeVisible({ timeout: 5_000 });
@@ -126,7 +127,7 @@ suspendedTest.afterAll(() => {
 suspendedTest('shows account status banner for suspended account', async ({ authedPage: page }) => {
   setAccountStatus(suspendedUser.id, 'SUSPENDED');
   await page.goto('/assistants');
-  await page.waitForSelector('text=/assistant/i', { timeout: 15_000 });
+  await waitForAssistantsReady(page);
 
   const banner = page.getByTestId('account-status-banner');
   await expect(banner).toBeVisible({ timeout: 15_000 });
@@ -150,7 +151,7 @@ closedTest.afterAll(() => {
 closedTest('shows account status banner for closed account', async ({ authedPage: page }) => {
   setAccountStatus(closedUser.id, 'CLOSED');
   await page.goto('/assistants');
-  await page.waitForSelector('text=/assistant/i', { timeout: 15_000 });
+  await waitForAssistantsReady(page);
 
   const banner = page.getByTestId('account-status-banner');
   await expect(banner).toBeVisible({ timeout: 15_000 });

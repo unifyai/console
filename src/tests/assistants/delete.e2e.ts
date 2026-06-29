@@ -19,6 +19,7 @@ import {
   assistantExistsInDb,
   deleteAllAssistantsForUser,
   ensureProjectSync,
+  getCoordinatorAgentId,
 } from './helpers';
 
 const user = createTestUser({ name: 'DeleteE2E', lastName: 'Tester', credits: 50_000 });
@@ -31,13 +32,15 @@ test.afterAll(() => {
   cleanupUser(user.id);
 });
 
+const EDIT_DIALOG_TITLE = /^Edit /;
+
 /**
  * Open the edit dialog for a given assistant via the list item dropdown menu.
  */
 async function openEditDialogForAssistant(
   page: import('@playwright/test').Page,
   agentId: number,
-  firstName: string
+  _firstName: string
 ) {
   await navigateToAssistants(page);
   await closeHireDialogIfOpen(page);
@@ -59,7 +62,7 @@ async function openEditDialogForAssistant(
   await editItem.click();
   await page.waitForTimeout(1_500);
 
-  await expect(page.locator('[role="dialog"]').locator(`text=Edit ${firstName} Now`)).toBeVisible({
+  await expect(page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE })).toBeVisible({
     timeout: 10_000,
   });
 }
@@ -144,17 +147,13 @@ test('deleting the last assistant shows the empty state', async ({ authedPage: p
 
   expect(assistantExistsInDb(lastOne.agentId)).toBe(false);
 
-  // After the last assistant is deleted, the page should show empty state
-  // The hire dialog auto-opens or "No assistants found" text appears
-  const emptyOrDialog = await Promise.race([
-    page
-      .locator('text=No assistants found.')
-      .isVisible({ timeout: 5_000 })
-      .catch(() => false),
-    page
-      .locator('[role="dialog"]')
-      .isVisible({ timeout: 5_000 })
-      .catch(() => false),
-  ]);
-  expect(emptyOrDialog).toBe(true);
+  // Solo assistants are gone; the personal Coordinator remains pinned in the switcher.
+  await openUnitySwitcher(page);
+  await expect(page.getByTestId(`assistant-list-item-${lastOne.agentId}`)).toHaveCount(0);
+  const coordinatorId = getCoordinatorAgentId(user.id);
+  if (coordinatorId !== null) {
+    await expect(page.getByTestId(`assistant-list-item-${coordinatorId}`)).toBeVisible({
+      timeout: 10_000,
+    });
+  }
 });

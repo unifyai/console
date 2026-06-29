@@ -35,8 +35,14 @@ test.afterAll(() => cleanupUser(user.id));
 test('billing page shows all main sections', async ({ authedPage: page }) => {
   await page.goto('/billing');
   await expect(page.getByTestId('credits-balance-section')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('tier-select-trigger')).toBeVisible({ timeout: 10_000 });
   await expect(page.locator('text=Billing Profile')).toBeVisible({ timeout: 10_000 });
+  // Local Orchestra runs in manualTopup mode — tier picker is subscription-only.
+  const tierSelect = page.getByTestId('tier-select-trigger');
+  if (await tierSelect.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await expect(tierSelect).toBeVisible();
+  } else {
+    await expect(page.getByRole('button', { name: /Top up/i })).toBeVisible({ timeout: 10_000 });
+  }
 });
 
 test('usage page loads for authenticated users', async ({ authedPage: page }) => {

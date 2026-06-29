@@ -42,6 +42,7 @@ import {
   getTierTemplateId,
   insertMeteredInvoice,
   dbExec,
+  waitForAssistantsReady,
 } from './helpers';
 
 // ---------------------------------------------------------------------------
@@ -480,7 +481,7 @@ subTest.describe('subscribed account — lifecycle', () => {
     // Recovery (invoice.paid / subscription active) clears the banner.
     setAccountStatus(subUser.id, 'ACTIVE');
     await page.goto('/assistants');
-    await page.waitForSelector('text=/assistant/i', { timeout: 15_000 });
+    await waitForAssistantsReady(page);
     await expect(page.getByTestId('account-status-banner')).not.toBeVisible({ timeout: 5_000 });
   });
 

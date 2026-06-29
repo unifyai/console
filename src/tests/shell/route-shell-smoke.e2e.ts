@@ -41,8 +41,8 @@ test('/favourites renders inside the rail shell with its section header', async 
 
   await expect(page).toHaveURL(/\/favourites/);
   await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 15_000 });
-  // Section header provided by ShellSectionPage.
-  await expect(page.getByText('Favourites', { exact: true })).toBeVisible();
+  // Page body heading (TabHeader also shows the section label in the rail chrome).
+  await expect(page.getByRole('heading', { name: 'Favourites' })).toBeVisible();
   // Favourites body streamed in.
   await expect(page.getByText('Available Projects')).toBeVisible({ timeout: 15_000 });
 

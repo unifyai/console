@@ -14,7 +14,7 @@
  * ```
  */
 
-import { test as base, type Page, type Browser } from '@playwright/test';
+import { test as base, expect, type Page, type Browser } from '@playwright/test';
 import path from 'path';
 import os from 'os';
 
@@ -47,6 +47,13 @@ export type { SeededOrg } from '../helpers/seeds/types';
 
 import { login, loginAndWaitForRedirect, switchToEmailTab } from '../auth/helpers';
 export { login, switchToEmailTab };
+
+/** Wait until the assistants shell is interactive (replaces legacy text=/assistant/i waits). */
+export async function waitForAssistantsReady(page: Page) {
+  await page.goto('/assistants');
+  await expect(page.getByTestId('assistant-rail')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('rail-unity-switcher')).toBeVisible({ timeout: 10_000 });
+}
 
 // =============================================================================
 // Shared Auth — storageState
