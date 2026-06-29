@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Search, HelpCircle, Sun, Moon, Info } from 'lucide-react';
+import { Search, Sun, Moon, Info } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/UI/button';
@@ -35,21 +35,6 @@ function GlobalActions() {
           </TooltipTrigger>
           <TooltipContent side="bottom">
             <p>Search this workspace</p>
-          </TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground"
-              aria-label="Help and shortcuts"
-            >
-              <HelpCircle className="h-[18px] w-[18px]" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            <p>Help &amp; shortcuts</p>
           </TooltipContent>
         </Tooltip>
         <Tooltip>

@@ -803,7 +803,7 @@ export function IntegrationsPane({
   return (
     <div className="flex h-full flex-col" data-testid="integrations-pane">
       <ScrollArea className="min-h-0 flex-1">
-        <div className="to-muted/20 border-b bg-gradient-to-b from-background px-3 py-4">
+        <div className="px-3 py-3">
           <IntegrationGalleryShell
             items={shouldShowGallerySkeleton ? [] : galleryItems}
             isLoading={shouldShowGallerySkeleton || isProviderCatalogLoading}

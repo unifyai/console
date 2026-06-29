@@ -187,7 +187,7 @@ export function resolveFeatures(
       (livekitConfigured && ttsConfigured && sttConfigured),
     voiceSynthesis: mockSim || ttsConfigured,
     transcription: mockSim || sttConfigured,
-    support: localOrchestra || has(env, 'DISCORD_SUPPORT_WEBHOOK_URL'),
+    support: mockSim || localOrchestra || has(env, 'DISCORD_SUPPORT_WEBHOOK_URL'),
     // Workspace BYOD connect: Orchestra owns the OAuth client IDs, so its
     // authority signal is the source of truth. The local env read is only a
     // fallback for when Orchestra hasn't been consulted (e.g. login pages,

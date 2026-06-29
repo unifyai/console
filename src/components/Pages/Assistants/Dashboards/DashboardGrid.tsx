@@ -5,6 +5,7 @@ import { DashboardTileCard } from './DashboardTileCard';
 import type { DashboardTilePosition, TileRecord } from '@/types/assistants/dashboard';
 
 const ROW_HEIGHT = 120;
+const GRID_COLS = 12;
 
 interface DashboardGridProps {
   positions: DashboardTilePosition[];
@@ -27,35 +28,62 @@ export function DashboardGrid({
     return m;
   }, [tiles]);
 
-  const orderedPositions = useMemo(
-    () => [...positions].sort((a, b) => a.y - b.y || a.x - b.x),
-    [positions]
-  );
+  // Render tiles in their stored grid positions. When a dashboard has no
+  // parseable layout, fall back to a two-up flow so its tiles are still shown.
+  const effectivePositions = useMemo<DashboardTilePosition[]>(() => {
+    if (positions.length > 0) return [...positions].sort((a, b) => a.y - b.y || a.x - b.x);
+    return tiles.map((t, i) => ({
+      tileToken: t.token,
+      x: (i % 2) * 6,
+      y: Math.floor(i / 2) * 4,
+      w: 6,
+      h: 4,
+    }));
+  }, [positions, tiles]);
 
-  if (positions.length === 0) {
+  if (effectivePositions.length === 0) {
     return (
       <p className="text-body-muted px-4 py-6 text-center">This dashboard has no tiles yet.</p>
     );
   }
 
+  // When everything is collapsed the fixed grid rows would leave large gaps, so
+  // switch to an auto-flow grid that lets the collapsed headers stack tightly.
+  const collapsed = defaultCollapsed === true;
+
   return (
-    <div className="flex flex-col gap-3">
-      {orderedPositions.map((pos) => {
+    <div
+      className="grid gap-3"
+      style={{
+        gridTemplateColumns: `repeat(${GRID_COLS}, minmax(0, 1fr))`,
+        gridAutoRows: collapsed ? 'min-content' : `${ROW_HEIGHT}px`,
+      }}
+    >
+      {effectivePositions.map((pos) => {
         const tile = tileMap.get(pos.tileToken);
+        const span = Math.max(1, Math.min(pos.w, GRID_COLS));
         return (
-          <DashboardTileCard
+          <div
             key={pos.tileToken}
-            token={pos.tileToken}
-            title={tile?.title ?? pos.tileToken}
-            htmlContent={tile?.htmlContent}
-            description={tile?.description}
-            createdAt={tile?.createdAt}
-            updatedAt={tile?.updatedAt}
-            hasDataBindings={tile?.hasDataBindings}
-            contentHeight={pos.h * ROW_HEIGHT}
-            onRefresh={tile?.hasDataBindings ? onTileRefresh : undefined}
-            defaultCollapsed={defaultCollapsed}
-          />
+            className="flex min-w-0"
+            style={{
+              gridColumn: `span ${span}`,
+              gridRow: collapsed ? undefined : `span ${Math.max(1, pos.h)}`,
+            }}
+          >
+            <DashboardTileCard
+              token={pos.tileToken}
+              title={tile?.title ?? pos.tileToken}
+              htmlContent={tile?.htmlContent}
+              description={tile?.description}
+              createdAt={tile?.createdAt}
+              updatedAt={tile?.updatedAt}
+              hasDataBindings={tile?.hasDataBindings}
+              fillHeight={!collapsed}
+              onRefresh={tile?.hasDataBindings ? onTileRefresh : undefined}
+              defaultCollapsed={defaultCollapsed}
+            />
+          </div>
         );
       })}
     </div>

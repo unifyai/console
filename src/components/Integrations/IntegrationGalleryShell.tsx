@@ -96,7 +96,6 @@ function GallerySkeleton() {
 export function IntegrationGalleryShell({
   items,
   isLoading,
-  isMock,
   busySlug,
   onOpen,
   onPrimaryAction,
@@ -186,286 +185,253 @@ export function IntegrationGalleryShell({
   );
 
   return (
-    <section className="space-y-4" data-testid="integration-gallery">
-      <div className="overflow-hidden rounded-2xl border bg-card">
-        <div className="bg-muted/20 border-b p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-title text-lg">Integration apps</h2>
-                {isMock && (
-                  <Badge variant="outline" className="rounded-full text-muted-foreground">
-                    mock
-                  </Badge>
-                )}
-              </div>
-              <p className="text-caption mt-1 max-w-2xl">
-                Choose an app, review what access it needs, and connect it securely.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {onRefresh && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1.5"
-                  disabled={isRefreshing}
-                  onClick={() => void onRefresh()}
-                  data-testid="integration-gallery-refresh"
-                >
-                  <RefreshCw
-                    className={isRefreshing ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'}
-                  />
-                  Refresh
-                </Button>
-              )}
-              {addCustomControl}
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-3 p-4">
-          <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_180px_auto]">
-            <form
-              className="relative"
-              onSubmit={(event) => {
-                event.preventDefault();
-                setFilters((current) => ({ ...current, query: draftQuery.trim() }));
+    <section className="space-y-3" data-testid="integration-gallery">
+      {/* Standard tab toolbar: full-width search + collapsed filters + refresh.
+          The redundant "Integration apps" heading lives in the tab header. */}
+      <div className="grid items-center gap-2 xl:grid-cols-[minmax(0,1fr)_180px_auto_auto]">
+        <form
+          className="relative"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setFilters((current) => ({ ...current, query: draftQuery.trim() }));
+          }}
+        >
+          <button
+            type="submit"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
+            aria-label="Search integrations"
+            data-testid="integration-gallery-search-submit"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+          <Input
+            value={draftQuery}
+            placeholder="Search apps and tools..."
+            className="pl-8 pr-8"
+            onChange={(event) => setDraftQuery(event.target.value)}
+            data-testid="integration-gallery-search"
+          />
+          {draftQuery && (
+            <button
+              type="button"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground hover:text-foreground"
+              aria-label="Clear integration search"
+              onClick={() => {
+                setDraftQuery('');
+                setFilters((current) => ({ ...current, query: '' }));
               }}
             >
-              <button
-                type="submit"
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
-                aria-label="Search integrations"
-                data-testid="integration-gallery-search-submit"
-              >
-                <Search className="h-4 w-4" />
-              </button>
-              <Input
-                value={draftQuery}
-                placeholder="Search apps and tools..."
-                className="pl-8 pr-8"
-                onChange={(event) => setDraftQuery(event.target.value)}
-                data-testid="integration-gallery-search"
-              />
-              {draftQuery && (
-                <button
-                  type="button"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-muted-foreground hover:text-foreground"
-                  aria-label="Clear integration search"
-                  onClick={() => {
-                    setDraftQuery('');
-                    setFilters((current) => ({ ...current, query: '' }));
-                  }}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </form>
-            <Select
-              value={filters.category}
-              onValueChange={(category) => setFilters((current) => ({ ...current, category }))}
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </form>
+        <Select
+          value={filters.category}
+          onValueChange={(category) => setFilters((current) => ({ ...current, category }))}
+        >
+          <SelectTrigger data-testid="integration-category-filter">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            <SelectItem value="native">Native</SelectItem>
+            <SelectItem value="third_party">Third-party</SelectItem>
+          </SelectContent>
+        </Select>
+        <div
+          className="inline-flex justify-self-end overflow-hidden rounded-full border bg-background p-0.5"
+          data-testid="integration-status-filter"
+        >
+          {(
+            [
+              ['all', 'All'],
+              ['connected', 'Connected'],
+              ['needs_attention', 'Needs attention'],
+              ['not_connected', 'Not connected'],
+            ] as const
+          ).map(([value, label]) => (
+            <Button
+              key={value}
+              type="button"
+              variant={filters.status === value ? 'default' : 'ghost'}
+              size="sm"
+              className="h-8 rounded-full px-3 text-xs"
+              onClick={() =>
+                setFilters((current) => ({
+                  ...current,
+                  status: value as IntegrationGalleryFilters['status'],
+                }))
+              }
             >
-              <SelectTrigger data-testid="integration-category-filter">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
-                <SelectItem value="native">Native</SelectItem>
-                <SelectItem value="third_party">Third-party</SelectItem>
-              </SelectContent>
-            </Select>
-            <div
-              className="inline-flex justify-self-end overflow-hidden rounded-full border bg-background p-0.5"
-              data-testid="integration-status-filter"
-            >
-              {(
-                [
-                  ['all', 'All'],
-                  ['connected', 'Connected'],
-                  ['needs_attention', 'Needs attention'],
-                  ['not_connected', 'Not connected'],
-                ] as const
-              ).map(([value, label]) => (
-                <Button
-                  key={value}
-                  type="button"
-                  variant={filters.status === value ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-8 rounded-full px-3 text-xs"
-                  onClick={() =>
-                    setFilters((current) => ({
-                      ...current,
-                      status: value as IntegrationGalleryFilters['status'],
-                    }))
-                  }
-                >
-                  {label}
-                </Button>
-              ))}
-            </div>
-          </div>
+              {label}
+            </Button>
+          ))}
+        </div>
+        {onRefresh && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 justify-self-end"
+            disabled={isRefreshing}
+            onClick={() => void onRefresh()}
+            data-testid="integration-gallery-refresh"
+          >
+            <RefreshCw className={isRefreshing ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />
+            Refresh
+          </Button>
+        )}
+        {addCustomControl}
+      </div>
 
-          {isInitialLoading ? (
-            <GallerySkeleton />
-          ) : filteredItems.length === 0 ? (
-            <div className="bg-muted/20 rounded-xl border border-dashed p-6 text-center">
-              <p className="text-title text-sm">No integrations match these filters</p>
-              <p className="text-caption mt-1">
-                Try a broader search or clear filters to browse connectable apps.
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-3"
-                onClick={() => setFilters(DEFAULT_FILTERS)}
-              >
-                Clear filters
-              </Button>
-            </div>
+      {isInitialLoading ? (
+        <GallerySkeleton />
+      ) : filteredItems.length === 0 ? (
+        <div className="bg-muted/20 rounded-xl border border-dashed p-6 text-center">
+          <p className="text-title text-sm">No integrations match these filters</p>
+          <p className="text-caption mt-1">
+            Try a broader search or clear filters to browse connectable apps.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => setFilters(DEFAULT_FILTERS)}
+          >
+            Clear filters
+          </Button>
+        </div>
+      ) : (
+        <>
+          {showCombinedPinned ? (
+            pinnedItems.length > 0 && (
+              <section className="space-y-3" data-testid="connected-integrations-section">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-title text-base">Connected apps</h3>
+                    <p className="text-caption">
+                      Apps connected or needing attention, ready for your assistant.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {hasConnectedSection && (
+                      <Badge variant="outline" className="text-success rounded-full bg-background">
+                        {connectedItems.length} connected
+                      </Badge>
+                    )}
+                    {hasNeedsAttentionSection && (
+                      <Badge
+                        variant="outline"
+                        className="rounded-full bg-background text-[color:var(--status-warning)]"
+                      >
+                        {needsAttentionItems.length} need attention
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                  {pinnedItems.map((item) => (
+                    <ProviderIntegrationCard
+                      key={`${item.source}:${item.id}`}
+                      item={item}
+                      busy={busySlug === item.canonicalSlug}
+                      onOpen={onOpen}
+                      onPrimaryAction={onPrimaryAction}
+                    />
+                  ))}
+                </div>
+              </section>
+            )
           ) : (
             <>
-              {showCombinedPinned ? (
-                pinnedItems.length > 0 && (
-                  <section className="space-y-3" data-testid="connected-integrations-section">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-title text-base">Connected apps</h3>
-                        <p className="text-caption">
-                          Apps connected or needing attention, ready for your assistant.
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {hasConnectedSection && (
-                          <Badge
-                            variant="outline"
-                            className="text-success rounded-full bg-background"
-                          >
-                            {connectedItems.length} connected
-                          </Badge>
-                        )}
-                        {hasNeedsAttentionSection && (
-                          <Badge
-                            variant="outline"
-                            className="rounded-full bg-background text-[color:var(--status-warning)]"
-                          >
-                            {needsAttentionItems.length} need attention
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                      {pinnedItems.map((item) => (
-                        <ProviderIntegrationCard
-                          key={`${item.source}:${item.id}`}
-                          item={item}
-                          busy={busySlug === item.canonicalSlug}
-                          onOpen={onOpen}
-                          onPrimaryAction={onPrimaryAction}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                )
-              ) : (
-                <>
-                  {hasConnectedSection && (
-                    <section className="space-y-3" data-testid="connected-integrations-section">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <h3 className="text-title text-base">Connected apps</h3>
-                          <p className="text-caption">Apps ready for your assistant to use.</p>
-                        </div>
-                        <Badge
-                          variant="outline"
-                          className="text-success rounded-full bg-background"
-                        >
-                          {connectedItems.length} connected
-                        </Badge>
-                      </div>
-                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                        {connectedItems.map((item) => (
-                          <ProviderIntegrationCard
-                            key={`${item.source}:${item.id}`}
-                            item={item}
-                            busy={busySlug === item.canonicalSlug}
-                            onOpen={onOpen}
-                            onPrimaryAction={onPrimaryAction}
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  )}
-
-                  {hasNeedsAttentionSection && (
-                    <section
-                      className="space-y-3"
-                      data-testid="needs-attention-integrations-section"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <h3 className="text-title text-base">Needs attention</h3>
-                          <p className="text-caption">
-                            Apps that need a reconnect or configuration update.
-                          </p>
-                        </div>
-                        <Badge
-                          variant="outline"
-                          className="rounded-full bg-background text-[color:var(--status-warning)]"
-                        >
-                          {needsAttentionItems.length} need attention
-                        </Badge>
-                      </div>
-                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                        {needsAttentionItems.map((item) => (
-                          <ProviderIntegrationCard
-                            key={`${item.source}:${item.id}`}
-                            item={item}
-                            busy={busySlug === item.canonicalSlug}
-                            onOpen={onOpen}
-                            onPrimaryAction={onPrimaryAction}
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  )}
-                </>
-              )}
-
-              {hasBrowsableSection && (
-                <section className="space-y-3" data-testid="available-integrations-section">
+              {hasConnectedSection && (
+                <section className="space-y-3" data-testid="connected-integrations-section">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <h3 className="text-title text-base">Available apps</h3>
+                      <h3 className="text-title text-base">Connected apps</h3>
+                      <p className="text-caption">Apps ready for your assistant to use.</p>
+                    </div>
+                    <Badge variant="outline" className="text-success rounded-full bg-background">
+                      {connectedItems.length} connected
+                    </Badge>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                    {connectedItems.map((item) => (
+                      <ProviderIntegrationCard
+                        key={`${item.source}:${item.id}`}
+                        item={item}
+                        busy={busySlug === item.canonicalSlug}
+                        onOpen={onOpen}
+                        onPrimaryAction={onPrimaryAction}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {hasNeedsAttentionSection && (
+                <section className="space-y-3" data-testid="needs-attention-integrations-section">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-title text-base">Needs attention</h3>
                       <p className="text-caption">
-                        Showing {loadedAvailableCount} of {totalAvailableCount} available apps.
-                        Scroll to browse the full catalog.
+                        Apps that need a reconnect or configuration update.
                       </p>
                     </div>
                     <Badge
                       variant="outline"
-                      className="rounded-full bg-background text-muted-foreground"
+                      className="rounded-full bg-background text-[color:var(--status-warning)]"
                     >
-                      {totalAvailableCount} available
+                      {needsAttentionItems.length} need attention
                     </Badge>
                   </div>
-                  <IntegrationGalleryVirtualGrid
-                    items={browsableItems}
-                    busySlug={busySlug}
-                    hasMore={hasMore}
-                    isLoadingMore={isLoadingMore}
-                    onEndReached={onLoadMore}
-                    onOpen={onOpen}
-                    onPrimaryAction={onPrimaryAction}
-                  />
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                    {needsAttentionItems.map((item) => (
+                      <ProviderIntegrationCard
+                        key={`${item.source}:${item.id}`}
+                        item={item}
+                        busy={busySlug === item.canonicalSlug}
+                        onOpen={onOpen}
+                        onPrimaryAction={onPrimaryAction}
+                      />
+                    ))}
+                  </div>
                 </section>
               )}
             </>
           )}
-        </div>
-      </div>
+
+          {hasBrowsableSection && (
+            <section className="space-y-3" data-testid="available-integrations-section">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-title text-base">Available apps</h3>
+                  <p className="text-caption">
+                    Showing {loadedAvailableCount} of {totalAvailableCount} available apps. Scroll
+                    to browse the full catalog.
+                  </p>
+                </div>
+                <Badge
+                  variant="outline"
+                  className="rounded-full bg-background text-muted-foreground"
+                >
+                  {totalAvailableCount} available
+                </Badge>
+              </div>
+              <IntegrationGalleryVirtualGrid
+                items={browsableItems}
+                busySlug={busySlug}
+                hasMore={hasMore}
+                isLoadingMore={isLoadingMore}
+                onEndReached={onLoadMore}
+                onOpen={onOpen}
+                onPrimaryAction={onPrimaryAction}
+              />
+            </section>
+          )}
+        </>
+      )}
     </section>
   );
 }

@@ -79,8 +79,6 @@ export function ActionTree({
     return null;
   }
 
-  const lastIndex = roots.length - 1;
-
   return (
     <TooltipProvider delayDuration={300}>
       <div
@@ -90,72 +88,40 @@ export function ActionTree({
         {roots.map((node, idx) => {
           const prev = idx > 0 ? roots[idx - 1] : undefined;
           const showDate = !prev || !isSameDay(prev.startTime, node.startTime);
-          const isNewest = idx === lastIndex;
           const isOpen = expandedNodeIds?.has(node.id) ?? false;
 
           return (
             <React.Fragment key={node.id}>
               {showDate && <TimelineDateSeparator timestamp={node.startTime} />}
-              <div className="relative flex gap-3 pb-2.5">
-                {/* Timeline gutter: continuous spine + status-colored node dot.
-                    The dot aligns with the card header line; the newest item
-                    carries a "Latest" badge row above its header, so its dot
-                    sits lower to stay aligned. */}
-                <div className="relative w-3 shrink-0" aria-hidden="true">
-                  <span
-                    className={cn(
-                      'absolute left-1/2 w-0.5 -translate-x-1/2 bg-border',
-                      isNewest ? '-top-1.5 h-[2.625rem]' : '-bottom-1.5 -top-1.5'
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      'absolute left-1/2 h-2.5 w-2.5 -translate-x-1/2 rounded-full border-2 bg-card',
-                      isNewest ? 'top-9' : 'top-[0.875rem]',
-                      dotToneClass(node.status),
-                      node.status === 'running' && 'ring-primary/20 animate-pulse ring-4'
-                    )}
-                  />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  {isNewest && (
-                    <div className="mb-1 flex justify-end">
-                      <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.05em] text-primary-foreground">
-                        Latest
-                      </span>
-                    </div>
-                  )}
-                  <div
-                    className={cn(
-                      'transition-colors',
-                      // Collapsed rows read as a flat list; expanding promotes
-                      // the row into a framed card so the timeline + final
-                      // response read as a contained unit.
-                      isOpen
-                        ? 'rounded-xl border bg-card px-3 py-2.5 shadow-sm'
-                        : 'hover:bg-muted/40 rounded-lg px-2 py-1',
-                      isOpen && node.status === 'running' && 'border-primary/40',
-                      isOpen && node.status === 'error' && 'border-destructive/40'
-                    )}
-                    data-testid="action-card"
-                  >
-                    <ActionNodeItem
-                      node={node}
-                      ownerId={ownerId}
-                      depth={0}
-                      defaultExpanded={defaultExpanded}
-                      expandedNodeIds={expandedNodeIds}
-                      onExpandedChange={onExpandedChange}
-                      assistantId={assistantId}
-                      getToolLoopEvents={getToolLoopEvents}
-                      loadChildren={loadChildren}
-                      sectionToggleSignal={sectionToggleSignal}
-                      matchedIds={matchedIds}
-                      searchTerm={searchTerm}
-                    />
-                  </div>
-                </div>
+              {/* Flat list of independent action cards — no timeline spine
+                  between cards. Collapsed rows read as a flat list; expanding
+                  promotes the row into a framed card so the steps + final
+                  response read as a contained unit. */}
+              <div
+                className={cn(
+                  'transition-colors',
+                  isOpen
+                    ? 'mb-1.5 rounded-xl border bg-card px-3 py-2.5 shadow-sm'
+                    : 'hover:bg-muted/40 mb-0.5 rounded-lg px-2 py-1.5',
+                  isOpen && node.status === 'running' && 'border-primary/40',
+                  isOpen && node.status === 'error' && 'border-destructive/40'
+                )}
+                data-testid="action-card"
+              >
+                <ActionNodeItem
+                  node={node}
+                  ownerId={ownerId}
+                  depth={0}
+                  defaultExpanded={defaultExpanded}
+                  expandedNodeIds={expandedNodeIds}
+                  onExpandedChange={onExpandedChange}
+                  assistantId={assistantId}
+                  getToolLoopEvents={getToolLoopEvents}
+                  loadChildren={loadChildren}
+                  sectionToggleSignal={sectionToggleSignal}
+                  matchedIds={matchedIds}
+                  searchTerm={searchTerm}
+                />
               </div>
             </React.Fragment>
           );
@@ -163,18 +129,6 @@ export function ActionTree({
       </div>
     </TooltipProvider>
   );
-}
-
-/** Status-driven border color for the timeline node dot. */
-function dotToneClass(status: ActionNode['status']): string {
-  switch (status) {
-    case 'running':
-      return 'border-primary';
-    case 'error':
-      return 'border-destructive';
-    default:
-      return 'border-[color:var(--status-success)]';
-  }
 }
 
 /** True when two ISO timestamps fall on the same calendar day (local time). */

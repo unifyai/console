@@ -469,9 +469,9 @@ export interface ActionNodeItemProps {
  * Get label styling based on node status.
  */
 function getLabelStyles(status: ActionNodeStatus): string {
-  if (status === 'error') return 'text-error font-normal';
-  if (status === 'running') return 'text-muted-foreground font-normal animate-shimmer';
-  return 'text-muted-foreground font-normal';
+  if (status === 'error') return 'text-error font-medium';
+  if (status === 'running') return 'text-foreground font-medium animate-shimmer';
+  return 'text-foreground font-medium';
 }
 
 /**
@@ -1081,7 +1081,7 @@ function ContentArea({
       <div
         ref={contentRef}
         className={cn(
-          'overflow-y-auto text-[11px] leading-relaxed text-muted-foreground',
+          'overflow-y-auto text-[12px] leading-relaxed text-muted-foreground',
           'scrollbar-none hover:scrollbar-thin hover:scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/20'
         )}
         style={{
@@ -1526,7 +1526,7 @@ function InlineContentRow({
       </div>
       {isOpen && rest && (
         <div
-          className="hover:bg-muted/40 cursor-pointer rounded-sm pl-[18px] text-[11px] leading-relaxed text-muted-foreground"
+          className="hover:bg-muted/40 cursor-pointer rounded-sm pl-[18px] text-[12px] leading-relaxed text-muted-foreground"
           onClick={() => setIsOpen(false)}
         >
           <RichContent content={rest} />
@@ -2281,7 +2281,7 @@ function ToolLoopMessage({
             if (!rest) return null;
             return (
               <div
-                className="hover:bg-muted/40 cursor-pointer rounded-sm pl-[18px] text-[11px] leading-relaxed text-muted-foreground"
+                className="hover:bg-muted/40 cursor-pointer rounded-sm pl-[18px] text-[12px] leading-relaxed text-muted-foreground"
                 onClick={() => {
                   setIsOpen(false);
                   onLayoutChange?.();
@@ -2580,7 +2580,7 @@ function RootStatusPill({ status }: { status: ActionNode['status'] }) {
   return (
     <span
       className={cn(
-        'ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.05em]',
+        'ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.05em]',
         cfg.cls
       )}
     >
@@ -2669,14 +2669,17 @@ function PromotedContent({
       <div
         ref={rowRef}
         className={cn(
-          'flex cursor-pointer items-start gap-1 rounded-sm py-0.5 pr-1 text-[11px]',
+          'flex cursor-pointer items-start gap-1 rounded-sm py-0.5 pr-1 text-[12px]',
+          // Callout (e.g. final response): label sits on its own line with the
+          // response body wrapping on the next line.
+          calloutTone ? 'flex-col gap-1' : '',
           !calloutTone && 'hover:bg-muted/40'
         )}
         onClick={handleClick}
       >
         {calloutTone ? (
           <span
-            className="mt-[1px] inline-flex shrink-0 items-center gap-1 text-[9px] font-bold uppercase tracking-[0.06em]"
+            className="inline-flex shrink-0 items-center gap-1 text-[9.5px] font-bold uppercase tracking-[0.06em]"
             style={{ color: toneSolid }}
           >
             {Icon && <Icon className="h-2.5 w-2.5" />}
@@ -3322,13 +3325,13 @@ export function ActionNodeItem({
                   node.status === 'error'
                     ? 'text-error'
                     : node.status === 'running'
-                      ? 'text-muted-foreground/50 animate-shimmer'
-                      : 'text-muted-foreground/40'
+                      ? 'animate-shimmer text-muted-foreground'
+                      : 'text-muted-foreground'
                 )}
               />
               <span
                 className={cn(
-                  'flex min-w-0 items-baseline gap-0 text-xs',
+                  'flex min-w-0 items-baseline gap-0 text-[13px]',
                   getLabelStyles(node.status)
                 )}
               >
@@ -3359,7 +3362,7 @@ export function ActionNodeItem({
         {node.startTime && (
           <span
             className={cn(
-              'text-muted-foreground/30 shrink-0 pl-2 text-[10px] tabular-nums',
+              'text-muted-foreground/70 shrink-0 pl-2 text-[11px] tabular-nums',
               depth !== 0 && 'ml-auto'
             )}
           >
