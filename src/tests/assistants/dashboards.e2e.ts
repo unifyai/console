@@ -24,6 +24,7 @@ import {
   selectAssistantInList,
   openRailSection,
 } from './helpers';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 
 const user = createTestUser({ name: 'DashPaneE2E', lastName: 'Tester', credits: 50_000 });
 ensureProjectSync(user.apiKey);
@@ -349,7 +350,9 @@ test('renders searchable combobox selector when dashboards exist', async ({ auth
   await selector.click();
   await page.waitForTimeout(500);
 
-  await expect(page.locator('input[placeholder="Search dashboards & tiles…"]')).toBeVisible({
+  await expect(
+    page.locator(`input[placeholder="${tabSearchPlaceholder('dashboards')}"]`)
+  ).toBeVisible({
     timeout: 5_000,
   });
 });

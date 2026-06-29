@@ -18,6 +18,7 @@ export interface TabToolbarProps {
   /** Controlled search value. Omit `search` entirely to hide the field. */
   searchValue?: string;
   onSearchChange?: (value: string) => void;
+  /** Use `tabSearchPlaceholder()` from `@/constants/assistants/tabSearchPlaceholders`. */
   searchPlaceholder?: string;
   /** Fired on Enter when the tab filters server-side rather than live. */
   onSearchSubmit?: () => void;

@@ -24,6 +24,7 @@ import {
 } from './DestinationDropdown';
 import type { CoordinatorWorkspaceScope } from '@/lib/assistants/coordinatorIdentity';
 import { currentTeamIds } from '@/lib/assistants/scope';
+import { tabSearchPlaceholderForBrainContext } from '@/constants/assistants/tabSearchPlaceholders';
 
 interface BrainPaneProps {
   assistant: Assistant;
@@ -452,7 +453,7 @@ export function BrainPane({
             ref={inputRef}
             type="text"
             className="h-7 w-full rounded-md border bg-transparent pl-7 pr-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            placeholder="Search…"
+            placeholder={tabSearchPlaceholderForBrainContext(activeContext)}
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             onKeyDown={handleSearchSubmit}

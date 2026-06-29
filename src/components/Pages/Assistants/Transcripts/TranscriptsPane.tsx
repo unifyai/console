@@ -17,7 +17,9 @@ import { TabSplitSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { ChatMarkdown } from '@/components/Chat/ChatMarkdown';
 import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { TabToolbar } from '../Common/TabToolbar';
+import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { TabFooter } from '../Common/TabFooter';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import { SplitPaneLayout } from '../Common/SplitPaneLayout';
 import {
   invalidateTabDataCache,
@@ -307,45 +309,31 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
       <TabToolbar
         searchValue={search}
         onSearchChange={setSearch}
-        searchPlaceholder="Search across all channels…"
+        searchPlaceholder={tabSearchPlaceholder('transcripts')}
         searchTestId="transcripts-search"
         onRefresh={() => void handleRefresh()}
         isRefreshing={isRefreshing}
         refreshTitle="Refresh transcripts"
         leading={
           <div className="flex flex-wrap items-center gap-2">
-            <div
-              className="inline-flex items-center gap-0.5 rounded-[10px] border border-border bg-muted p-[3px]"
-              data-testid="transcripts-view-mode"
-            >
+            <TabSegmentGroup testId="transcripts-view-mode">
               {(
                 [
                   ['threads', 'Threads'],
                   ['feed', 'Feed'],
                 ] as const
               ).map(([mode, label]) => (
-                <button
+                <TabSegment
                   key={mode}
-                  type="button"
+                  label={label}
+                  active={viewMode === mode}
                   onClick={() => setViewMode(mode)}
-                  aria-pressed={viewMode === mode}
-                  data-testid={`transcripts-mode-${mode}`}
-                  className={cn(
-                    'text-caption inline-flex h-7 items-center rounded-[7px] px-3 transition-colors',
-                    viewMode === mode
-                      ? 'bg-accent-soft text-accent-soft-foreground'
-                      : 'text-foreground hover:bg-muted'
-                  )}
-                >
-                  {label}
-                </button>
+                  testId={`transcripts-mode-${mode}`}
+                />
               ))}
-            </div>
-            <div
-              className="inline-flex items-center gap-0.5 rounded-[10px] border border-border bg-muted p-[3px]"
-              data-testid="transcripts-channel-seg"
-            >
-              <SegButton
+            </TabSegmentGroup>
+            <TabSegmentGroup testId="transcripts-channel-seg">
+              <TabSegment
                 label="All"
                 active={channel === 'all'}
                 onClick={() => setChannel('all')}
@@ -353,26 +341,21 @@ export function TranscriptsPane({ assistant, ownerId, assistantId }: Transcripts
               />
               {CHANNELS.map((channelDef) => {
                 const active = channel === channelDef.id;
-                const ChannelIcon = channelDef.Icon;
                 return (
-                  <button
+                  <TabSegment
                     key={channelDef.id}
-                    type="button"
+                    label={channelDef.label}
+                    active={active}
                     onClick={() => setChannel(channelDef.id)}
+                    icon={channelDef.Icon}
+                    iconOnly
+                    activeStyle={active ? { color: channelDef.cssVar } : undefined}
                     title={`${channelDef.label}${channelCounts[channelDef.id] ? ` · ${channelCounts[channelDef.id]}` : ''}`}
-                    data-testid={`transcripts-channel-${channelDef.id}`}
-                    aria-pressed={active}
-                    style={active ? { color: channelDef.cssVar } : undefined}
-                    className={cn(
-                      'text-caption inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 transition-colors',
-                      active ? 'bg-accent-soft' : 'text-foreground hover:bg-muted'
-                    )}
-                  >
-                    <ChannelIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
+                    testId={`transcripts-channel-${channelDef.id}`}
+                  />
                 );
               })}
-            </div>
+            </TabSegmentGroup>
           </div>
         }
       />
@@ -661,34 +644,5 @@ function TranscriptMessageRow({
         </div>
       </div>
     </div>
-  );
-}
-
-function SegButton({
-  label,
-  active,
-  onClick,
-  count,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  count?: number;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        'text-caption inline-flex h-7 items-center gap-1.5 rounded-[7px] px-3 transition-colors',
-        active
-          ? 'bg-accent-soft text-accent-soft-foreground'
-          : 'text-muted-foreground hover:text-foreground'
-      )}
-    >
-      {label}
-      {count ? <span className="font-mono text-[10px] opacity-70">{count}</span> : null}
-    </button>
   );
 }

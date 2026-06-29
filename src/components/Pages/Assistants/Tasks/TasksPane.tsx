@@ -11,7 +11,9 @@ import { Button } from '@/components/UI/button';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { cn } from '@/lib/utils';
 import { TabToolbar } from '../Common/TabToolbar';
+import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { TabFooter } from '../Common/TabFooter';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import { useTasksData } from '@/hooks/Assistants/useTasksData';
 import {
   taskStatusBadge,
@@ -126,30 +128,21 @@ export function TasksPane({ assistant, ownerId, assistantId, onTasksCountChange 
       <TabToolbar
         testId="tasks-header"
         leading={
-          <div className="bg-muted/40 inline-flex gap-0.5 rounded-lg border p-0.5" role="tablist">
+          <TabSegmentGroup testId="tasks-filter-seg">
             {TASK_FILTERS.map((f) => (
-              <button
+              <TabSegment
                 key={f}
-                type="button"
-                role="tab"
-                aria-selected={filter === f}
+                label={f}
+                active={filter === f}
                 onClick={() => setFilter(f)}
-                className={cn(
-                  'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-                  filter === f
-                    ? 'bg-accent-soft text-accent-soft-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-                data-testid={`tasks-filter-${f.toLowerCase()}`}
-              >
-                {f}
-              </button>
+                testId={`tasks-filter-${f.toLowerCase()}`}
+              />
             ))}
-          </div>
+          </TabSegmentGroup>
         }
         searchValue={searchValue}
         onSearchChange={setSearchValue}
-        searchPlaceholder="Search tasks…"
+        searchPlaceholder={tabSearchPlaceholder('tasks')}
         onSearchSubmit={() => {
           const val = searchValue.trim();
           if (val) search(val);

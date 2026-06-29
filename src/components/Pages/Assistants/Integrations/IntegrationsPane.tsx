@@ -4,7 +4,6 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/UI/button';
 import { Input } from '@/components/UI/input';
-import { ScrollArea } from '@/components/UI/scroll-area';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -802,27 +801,25 @@ export function IntegrationsPane({
 
   return (
     <div className="flex h-full flex-col" data-testid="integrations-pane">
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="px-3 py-3">
-          <IntegrationGalleryShell
-            items={shouldShowGallerySkeleton ? [] : galleryItems}
-            isLoading={shouldShowGallerySkeleton || isProviderCatalogLoading}
-            isMock={isProviderCatalogMock}
-            busySlug={providerConnectingSlug}
-            isRefreshing={isProviderCatalogLoading}
-            filters={galleryFilters}
-            onFiltersChange={setGalleryFilters}
-            total={providerCatalogTotal + filteredStaticDefinitions.length}
-            facets={providerCatalogFacets}
-            hasMore={hasMoreProviderIntegrations}
-            isLoadingMore={isProviderCatalogLoadingMore}
-            onLoadMore={loadMoreProviderIntegrations}
-            onOpen={setSelectedIntegration}
-            onPrimaryAction={handleGalleryPrimaryAction}
-            onRefresh={refreshProviderCatalog}
-          />
-        </div>
-      </ScrollArea>
+      <div className="min-h-0 flex-1">
+        <IntegrationGalleryShell
+          items={shouldShowGallerySkeleton ? [] : galleryItems}
+          isLoading={shouldShowGallerySkeleton || isProviderCatalogLoading}
+          isMock={isProviderCatalogMock}
+          busySlug={providerConnectingSlug}
+          isRefreshing={isProviderCatalogLoading}
+          filters={galleryFilters}
+          onFiltersChange={setGalleryFilters}
+          total={providerCatalogTotal + filteredStaticDefinitions.length}
+          facets={providerCatalogFacets}
+          hasMore={hasMoreProviderIntegrations}
+          isLoadingMore={isProviderCatalogLoadingMore}
+          onLoadMore={loadMoreProviderIntegrations}
+          onOpen={setSelectedIntegration}
+          onPrimaryAction={handleGalleryPrimaryAction}
+          onRefresh={refreshProviderCatalog}
+        />
+      </div>
 
       <TabFooter
         testId="integrations-footer"

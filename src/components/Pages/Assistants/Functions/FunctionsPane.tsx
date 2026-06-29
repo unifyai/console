@@ -23,7 +23,9 @@ import { useCopyToClipboard } from '@/hooks/Common/useCopyToClipboard';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { AssistantMarkdown, fencedCode } from '../Common/AssistantMarkdown';
 import { TabToolbar } from '../Common/TabToolbar';
+import { TabSegmentGroup, TabSegment } from '../Common/TabSegmentGroup';
 import { TabFooter } from '../Common/TabFooter';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import { FunctionSignatureDocs } from './FunctionSignatureDocs';
 import {
   filterFunctions,
@@ -46,12 +48,6 @@ const KINDS: FunctionKindFilter[] = ['All', 'Learned', 'Primitives'];
 /** Responsive grid: up to four fixed-width cards per row (no shrinking below card min). */
 const FUNCTIONS_GRID_CLASS =
   'box-border grid w-full min-w-0 max-w-full grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
-
-const SEG_CLASS = [
-  'inline-flex shrink-0 items-center rounded-md px-2.5 py-1 text-xs font-medium',
-  'text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-  'data-[active=true]:bg-primary data-[active=true]:text-primary-foreground',
-].join(' ');
 
 function KindBadge({ isPrimitive }: { isPrimitive: boolean }) {
   return (
@@ -226,23 +222,21 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
       <TabToolbar
         testId="functions-header"
         leading={
-          <div className="flex items-center gap-1" data-testid="functions-kind-seg">
+          <TabSegmentGroup testId="functions-kind-seg">
             {KINDS.map((k) => (
-              <button
+              <TabSegment
                 key={k}
-                className={SEG_CLASS}
-                data-active={kind === k}
-                data-testid={`functions-kind-${k.toLowerCase()}`}
+                label={k}
+                active={kind === k}
                 onClick={() => setKind(k)}
-              >
-                {k}
-              </button>
+                testId={`functions-kind-${k.toLowerCase()}`}
+              />
             ))}
-          </div>
+          </TabSegmentGroup>
         }
         searchValue={query}
         onSearchChange={setQuery}
-        searchPlaceholder="Search skills…"
+        searchPlaceholder={tabSearchPlaceholder('functions')}
         searchTestId="functions-search"
         searchClearTestId="functions-search-clear"
         onRefresh={handleRefresh}

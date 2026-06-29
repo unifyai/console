@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { UnifyBlockMark } from '@/components/Brand';
+import { ScrollArea } from '@/components/UI/scroll-area';
 import { RailNavButton } from '@/components/Pages/Assistants/Rail/RailNavButton';
 import { RailFoot } from '@/components/Pages/Assistants/Rail/RailFoot';
 import {
@@ -73,22 +74,24 @@ export function AppRail({
       {switcher}
 
       {/* Section nav */}
-      <div className="min-h-0 flex-1 overflow-y-auto px-2.5">
-        {!collapsed && (
-          <div className="px-3 pb-1.5 pt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-            Workspace
-          </div>
-        )}
-        {WORKSPACE_SECTIONS.map(renderSection)}
-        {collapsed ? (
-          <div className="mx-1.5 my-2 h-px bg-border" />
-        ) : (
-          <div className="px-3 pb-1.5 pt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-            Brain
-          </div>
-        )}
-        {BRAIN_SECTIONS.map(renderSection)}
-      </div>
+      <ScrollArea className="min-h-0 flex-1" viewportClassName="overflow-x-hidden [&>div]:!block">
+        <div className="px-2.5 pb-2">
+          {!collapsed && (
+            <div className="px-3 pb-1.5 pt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+              Workspace
+            </div>
+          )}
+          {WORKSPACE_SECTIONS.map(renderSection)}
+          {collapsed ? (
+            <div className="mx-1.5 my-2 h-px bg-border" />
+          ) : (
+            <div className="px-3 pb-1.5 pt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+              Brain
+            </div>
+          )}
+          {BRAIN_SECTIONS.map(renderSection)}
+        </div>
+      </ScrollArea>
 
       <RailFoot collapsed={collapsed} onToggleCollapse={() => onCollapsedChange(!collapsed)} />
     </aside>

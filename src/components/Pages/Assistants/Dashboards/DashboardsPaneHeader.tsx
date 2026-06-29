@@ -21,6 +21,7 @@ import {
 } from '@/components/UI/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import type { DashboardRecord, TileRecord } from '@/types/assistants/dashboard';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 
 interface DashboardsPaneHeaderProps {
   dashboards: DashboardRecord[];
@@ -101,7 +102,7 @@ export function DashboardsPaneHeader({
           <Command className="min-h-0 flex-1">
             <CommandInput
               className="h-8 shrink-0 text-xs"
-              placeholder="Search dashboards & tiles…"
+              placeholder={tabSearchPlaceholder('dashboards')}
               onKeyDown={(e) => {
                 e.stopPropagation();
                 e.nativeEvent.stopImmediatePropagation();

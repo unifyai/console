@@ -22,6 +22,7 @@ import {
 } from '@/lib/assistants/coordinatorIdentity';
 import type { SharedTeamSummary } from '@/types/teams/sharedTeam';
 import { AssistantListGroupHeader } from './AssistantListGroupHeader';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import {
   groupAssistantsByTeam,
   type AssistantListEntry,
@@ -488,7 +489,7 @@ export function AssistantList({
               <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search"
+                placeholder={tabSearchPlaceholder('assistants')}
                 className="h-7 w-full pl-7 text-xs"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}

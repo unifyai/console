@@ -13,6 +13,7 @@ import { Button } from '@/components/UI/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/UI/popover';
 import { ChevronsUpDown, ChevronsDownUp, Clock, Check, ArrowDown } from 'lucide-react';
 import { TabToolbar } from '../Common/TabToolbar';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 
 // ─── Time Window Presets ─────────────────────────────────────────────────────
 
@@ -173,7 +174,7 @@ export function LiveActionsHeader({
       }
       searchValue={localSearch}
       onSearchChange={setLocalSearch}
-      searchPlaceholder="Search... (Enter to filter)"
+      searchPlaceholder={tabSearchPlaceholder('actions')}
       onSearchSubmit={() => {
         if (localSearch !== searchTerm) commitSearch();
       }}

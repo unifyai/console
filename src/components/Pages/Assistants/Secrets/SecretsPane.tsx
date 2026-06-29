@@ -6,6 +6,7 @@ import { Button } from '@/components/UI/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { TabToolbar } from '../Common/TabToolbar';
 import { TabFooter } from '../Common/TabFooter';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -162,7 +163,7 @@ export function SecretsPane({
         testId="secrets-header"
         searchValue={searchValue}
         onSearchChange={setSearchValue}
-        searchPlaceholder="Search…"
+        searchPlaceholder={tabSearchPlaceholder('secrets')}
         onSearchSubmit={submitSearch}
         onSearchClear={handleClearSearch}
         searchTestId="secrets-search"

@@ -19,6 +19,7 @@ import { groupByCalendarDay, TimelineDateSeparator } from '../Common/TimelineDat
 import { TabToolbar } from '../Common/TabToolbar';
 import { TabFilterDropdown } from '../Common/TabFilterDropdown';
 import { TabFooter } from '../Common/TabFooter';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import { SplitPaneLayout } from '../Common/SplitPaneLayout';
 // TODO(wire-backend): restore once guidance/knowledge creation is wired.
 // import { DocAddDrawer } from './DocAddDrawer';
@@ -52,7 +53,6 @@ const KIND_META: Record<
   DocLibraryKind,
   {
     icon: typeof Compass;
-    searchPlaceholder: string;
     addLabel: string;
     emptyMatch: string;
     readerEmpty: string;
@@ -62,7 +62,6 @@ const KIND_META: Record<
 > = {
   guidance: {
     icon: Compass,
-    searchPlaceholder: 'Search guidance…',
     addLabel: 'Add guidance',
     emptyMatch: 'No guidance matches these filters.',
     readerEmpty: 'Select a playbook to read it.',
@@ -71,7 +70,6 @@ const KIND_META: Record<
   },
   knowledge: {
     icon: BookText,
-    searchPlaceholder: 'Search knowledge…',
     addLabel: 'Add knowledge',
     emptyMatch: 'No knowledge matches these filters.',
     readerEmpty: 'Select an entry to read it.',
@@ -299,7 +297,7 @@ export function DocLibraryPane({
         testId="doc-header"
         searchValue={query}
         onSearchChange={setQuery}
-        searchPlaceholder={meta.searchPlaceholder}
+        searchPlaceholder={tabSearchPlaceholder(kind)}
         searchTestId="doc-search"
         searchClearTestId="doc-search-clear"
         filter={

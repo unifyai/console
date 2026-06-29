@@ -22,6 +22,7 @@ import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { TabToolbar } from '../Common/TabToolbar';
 import { TabFilterDropdown } from '../Common/TabFilterDropdown';
 import { TabFooter } from '../Common/TabFooter';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import {
   mapContactRow,
   filterContacts,
@@ -218,7 +219,7 @@ export function ContactsPane({
         testId="contacts-header"
         searchValue={query}
         onSearchChange={setQuery}
-        searchPlaceholder="Search contacts…"
+        searchPlaceholder={tabSearchPlaceholder('contacts')}
         searchTestId="contacts-search"
         searchClearTestId="contacts-search-clear"
         filter={

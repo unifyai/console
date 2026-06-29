@@ -13,7 +13,7 @@ import type { ContactType } from '@/types/assistants/contact';
 import type { ChatMessage, CallPill } from '@/types/assistants/chat';
 import type { SpendingGateStatus } from '@/types/assistants/spendingGate';
 import type { ChatStreamConnectionStatus } from '@/hooks/Assistants/useAssistantChatStream';
-import { assistantDisplayName } from '@/lib/assistants/displayName';
+import { tabSearchPlaceholder } from '@/constants/assistants/tabSearchPlaceholders';
 import { useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 
 // ---------------------------------------------------------------------------
@@ -240,9 +240,6 @@ export function ChatWithInfoPanel({
   // on. The same prop pair also gates the roadmap memo below, so this
   // check keeps both surfaces in lockstep.
   const showOnboardingDot = hasIncompleteOnboarding && !!onOpenUserSettings;
-  const searchDisplayName = assistant.isCoordinator
-    ? assistantDisplayName(assistant)
-    : assistant.firstName || assistantDisplayName(assistant);
   const [searchOpen, setSearchOpen] = React.useState(false);
   // Default-closed; the assistant-id init effect below flips it open
   // for any assistant the user hasn't explicitly dismissed the panel
@@ -555,7 +552,7 @@ export function ChatWithInfoPanel({
                 type="text"
                 readOnly
                 className="h-7 w-full cursor-text rounded-md border bg-transparent pl-7 pr-7 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                placeholder={`Search chat with ${searchDisplayName}…`}
+                placeholder={tabSearchPlaceholder('chat')}
                 onFocus={(e) => {
                   e.currentTarget.blur();
                   setSearchOpen(true);
