@@ -99,12 +99,10 @@ export function ActionTree({
                   response read as a contained unit. */}
               <div
                 className={cn(
-                  'transition-colors',
-                  isOpen
-                    ? 'mb-1.5 rounded-xl border bg-card px-3 py-2.5 shadow-sm'
-                    : 'hover:bg-muted/40 mb-0.5 rounded-lg px-2 py-1.5',
+                  'mb-1.5 rounded-xl border bg-card px-3 py-2.5 shadow-sm transition-colors',
                   isOpen && node.status === 'running' && 'border-primary/40',
-                  isOpen && node.status === 'error' && 'border-destructive/40'
+                  isOpen && node.status === 'error' && 'border-destructive/40',
+                  !isOpen && 'hover:border-border/80'
                 )}
                 data-testid="action-card"
               >

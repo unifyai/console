@@ -12,7 +12,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Loader2, AlertCircle, RefreshCw, Eye } from 'lucide-react';
-import { Skeleton } from '@/components/UI/skeleton';
+import { ActionCardSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { Button } from '@/components/UI/button';
 import { ActionTree } from './ActionTree';
 import type { SectionToggleSignal } from './ActionNodeItem';
@@ -184,10 +184,7 @@ export function LiveActionsBody({
         data-testid="live-actions-loading"
       >
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex items-start gap-3">
-            <Skeleton className="mt-3 h-2.5 w-2.5 shrink-0 rounded-full" />
-            <Skeleton className="h-12 flex-1 rounded-xl" />
-          </div>
+          <ActionCardSkeleton key={i} />
         ))}
       </div>
     );
