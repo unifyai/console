@@ -1,9 +1,11 @@
 /**
  * Tasks Tab E2E Tests — browser-based user flows verifying the dedicated
- * Tasks tab on the assistant right pane, including task/activity views,
- * empty states, seeded data rendering, status badges, snapshot refresh,
- * running-task indicators, search, sorting, and detail panel — all
- * driven by real data seeded via the Orchestra API.
+ * Tasks tab on the assistant right pane. The tab renders expandable task
+ * cards (collapsed by default); expanding a card reveals its description,
+ * the labelled field grid, and its run-history table. Covers empty states,
+ * seeded data rendering, status badges, the All/Active/Paused filter,
+ * snapshot refresh, running-task indicators, search, and the run-detail
+ * drawer — all driven by real data seeded via the Orchestra API.
  *
  * Run: npx playwright test src/tests/assistants/tasks.e2e.ts
  */
@@ -231,142 +233,101 @@ async function selectAssistantAndOpenTasks(page: import('@playwright/test').Page
   await closeHireDialogIfOpen(page);
   await page.waitForTimeout(1_500);
 
-  // Tasks is a rail section now; selecting it activates the Tasks view in
-  // the section host (defaulting to the Tasks sub-tab). The in-pane sub-tab
-  // dropdown (`right-pane-tab-tasks`) only renders once Tasks is active.
+  // Tasks is a rail section; selecting it mounts the Tasks pane (a list of
+  // expandable task cards) in the section host.
   await openRailSection(page, 'tasks');
   await page.waitForTimeout(1_500);
 }
 
-/**
- * Switch the active Tasks sub-tab via the right-pane tab strip
- * dropdown. The in-pane footer Tasks/Activity row was removed once the
- * dropdown became the single source of truth for sub-tab navigation,
- * so existing test logic that used to click `tasks-view-{view}` directly
- * routes through this helper instead.
- */
-async function switchTasksView(page: import('@playwright/test').Page, view: 'tasks' | 'activity') {
-  await page.getByTestId('right-pane-tab-tasks').click();
-  await page.getByTestId(`right-pane-tab-tasks-menu-${view}`).click();
+/** Locate a task card by the task name it renders in its header. */
+function taskCard(page: import('@playwright/test').Page, name: string) {
+  return page.getByTestId('task-card').filter({ hasText: name });
+}
+
+/** Expand a task card (cards are collapsed by default) and return it. */
+async function expandTaskCard(page: import('@playwright/test').Page, name: string) {
+  const card = taskCard(page, name);
+  await expect(card).toBeVisible({ timeout: 10_000 });
+  if ((await card.getAttribute('data-open')) === null) {
+    await card.getByTestId('task-card-head').click();
+    await expect(card.getByTestId('task-card-body')).toBeVisible({ timeout: 5_000 });
+  }
+  return card;
 }
 
 // ===========================================================================
 // Tab Visibility
 // ===========================================================================
 
-test('Tasks tab is visible when an assistant is selected', async ({ authedPage: page }) => {
+test('Tasks pane is visible when an assistant is selected', async ({ authedPage: page }) => {
   await selectAssistantAndOpenTasks(page, emptyAssistant.agentId);
 
-  const tasksTab = page.getByTestId('right-pane-tab-tasks');
-  await expect(tasksTab).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('tasks-pane')).toBeVisible({ timeout: 5_000 });
 });
 
-test('Tasks tab exposes Tasks and Activity sub-tabs in the dropdown', async ({
-  authedPage: page,
-}) => {
+test('Tasks pane exposes the All / Active / Paused filter', async ({ authedPage: page }) => {
   await selectAssistantAndOpenTasks(page, emptyAssistant.agentId);
 
-  const tasksTab = page.getByTestId('right-pane-tab-tasks');
-  await expect(tasksTab).toHaveAttribute('data-state', 'active');
-
-  // Sub-tab navigation lives in the tab strip dropdown now; open it
-  // and assert the expected sub-tabs are present.
-  await tasksTab.click();
-  await expect(page.getByTestId('right-pane-tab-tasks-menu-tasks')).toBeVisible({ timeout: 3_000 });
-  await expect(page.getByTestId('right-pane-tab-tasks-menu-activity')).toBeVisible({
-    timeout: 3_000,
-  });
+  await expect(page.getByTestId('tasks-filter-all')).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByTestId('tasks-filter-active')).toBeVisible({ timeout: 3_000 });
+  await expect(page.getByTestId('tasks-filter-paused')).toBeVisible({ timeout: 3_000 });
 });
 
 // ===========================================================================
 // Empty States
 // ===========================================================================
 
-test('Tasks tab shows empty state when assistant has no tasks', async ({ authedPage: page }) => {
+test('Tasks pane shows empty state when assistant has no tasks', async ({ authedPage: page }) => {
   await selectAssistantAndOpenTasks(page, emptyAssistant.agentId);
 
   await expect(page.getByText('No tasks found')).toBeVisible({ timeout: 10_000 });
 });
 
-test('Activity view shows empty placeholder when no activity', async ({ authedPage: page }) => {
-  await selectAssistantAndOpenTasks(page, emptyAssistant.agentId);
-
-  await switchTasksView(page, 'activity');
-  await page.waitForTimeout(500);
-
-  await expect(page.getByText('No activity found')).toBeVisible({ timeout: 5_000 });
-});
-
 // ===========================================================================
-// Seeded Data — Tasks View
+// Seeded Data — Task Cards
 // ===========================================================================
 
-test('displays seeded tasks with correct status badges and descriptions', async ({
-  authedPage: page,
-}) => {
+test('displays seeded tasks with status badges and descriptions', async ({ authedPage: page }) => {
   await ensureSeeded();
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
-  // The Tasks tab chip now in-place displays the active sub-tab name,
-  // so the previous `data-active` assertion on the footer button is
-  // expressed here as a label check on the main tab.
-  await expect(page.getByTestId('right-pane-tab-tasks')).toContainText('Tasks');
-  const table = page.getByTestId('tasks-table-tasks');
-  await expect(table).toBeVisible({ timeout: 10_000 });
+  const scheduledCard = taskCard(page, 'Send report');
+  const triggeredCard = taskCard(page, 'Escalate security emails');
+  const offlineCard = taskCard(page, 'Follow up with Alice');
 
-  const scheduledRow = table.locator('[data-testid="brain-table-row"]', {
-    hasText: 'Send report',
-  });
-  const triggeredRow = table.locator('[data-testid="brain-table-row"]', {
-    hasText: 'Escalate security emails',
-  });
-  const offlineRow = table.locator('[data-testid="brain-table-row"]', {
-    hasText: 'Follow up with Alice',
-  });
+  await expect(scheduledCard).toBeVisible({ timeout: 10_000 });
+  await expect(triggeredCard).toBeVisible({ timeout: 5_000 });
+  await expect(offlineCard).toBeVisible({ timeout: 5_000 });
 
-  await expect(scheduledRow).toBeVisible({ timeout: 5_000 });
-  await expect(triggeredRow).toBeVisible({ timeout: 5_000 });
-  await expect(offlineRow).toBeVisible({ timeout: 5_000 });
+  // Collapsed header shows the human status label.
+  await expect(scheduledCard).toContainText('Scheduled');
+  await expect(triggeredCard).toContainText('Ready');
 
-  await expect(scheduledRow).toContainText('Scheduled');
-  await expect(scheduledRow).toContainText('Recurring');
-  await expect(triggeredRow).toContainText('Triggered');
-  await expect(triggeredRow).toContainText('Recurring');
-  await expect(offlineRow).toContainText('Offline');
-  await expect(offlineRow).toContainText('One-time');
-  await expect(triggeredRow).toContainText('Ready');
+  // Expanding reveals the description and the labelled field grid.
+  await expandTaskCard(page, 'Send report');
+  await expect(scheduledCard).toContainText('Compile and send the weekly report to Alice.');
+  await expect(scheduledCard).toContainText('Type');
+  await expect(scheduledCard).toContainText('Cadence');
+  await expect(scheduledCard).toContainText('Priority');
 
-  await expect(table.locator('text=Compile and send the weekly report to Alice.')).toBeVisible({
-    timeout: 5_000,
-  });
-  await expect(table.getByText(/^Manual$/)).not.toBeVisible();
-  await expect(table.locator('text=/Task #|Entrypoint|Priority/')).not.toBeVisible();
+  await expandTaskCard(page, 'Follow up with Alice');
+  await expect(offlineCard).toContainText('Offline');
 });
 
 // ===========================================================================
-// Seeded Data — Activity View
+// Run History (inside expanded card)
 // ===========================================================================
 
-test('Activity view shows task runs with correct state and sources', async ({
-  authedPage: page,
-}) => {
+test('expanded card shows run history with state and source', async ({ authedPage: page }) => {
   await ensureSeeded();
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
-  await switchTasksView(page, 'activity');
-  await page.waitForTimeout(500);
+  const card = await expandTaskCard(page, 'Follow up with Alice');
 
-  const activityTable = page.getByTestId('tasks-table-activity');
-  await expect(activityTable).toBeVisible({ timeout: 10_000 });
-
-  await expect(activityTable.locator('text=Follow up with Alice')).toBeVisible({ timeout: 5_000 });
-  await expect(activityTable.locator('text=Triggered by Email')).toBeVisible({ timeout: 5_000 });
-  await expect(activityTable.locator('text=Alice Owner')).toBeVisible({ timeout: 5_000 });
-  await expect(activityTable.locator('text=On schedule')).toBeVisible({ timeout: 5_000 });
-  await expect(activityTable.locator('text=Calendar')).toBeVisible({ timeout: 5_000 });
-  await expect(activityTable.getByText(/^Running$/)).toBeVisible({ timeout: 5_000 });
-  await expect(activityTable.getByText(/^Completed$/)).toBeVisible({ timeout: 5_000 });
-  await expect(activityTable.locator('text=/Run #|Job /')).not.toBeVisible();
+  const runRow = card.getByTestId('task-run-row').first();
+  await expect(runRow).toBeVisible({ timeout: 5_000 });
+  await expect(runRow).toContainText('Running');
+  await expect(runRow).toContainText('Triggered by Email');
 });
 
 // ===========================================================================
@@ -377,10 +338,10 @@ test('status badges show descriptive tooltips on hover', async ({ authedPage: pa
   await ensureSeeded();
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
-  const tasksTable = page.getByTestId('tasks-table-tasks');
-  await expect(tasksTable).toBeVisible({ timeout: 10_000 });
+  const triggeredCard = taskCard(page, 'Escalate security emails');
+  await expect(triggeredCard).toBeVisible({ timeout: 10_000 });
 
-  await tasksTable
+  await triggeredCard
     .getByText(/^Ready$/)
     .first()
     .hover();
@@ -389,25 +350,13 @@ test('status badges show descriptive tooltips on hover', async ({ authedPage: pa
   );
 });
 
-test('activity Running badge shows tooltip', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
-
-  await switchTasksView(page, 'activity');
-  await page.waitForTimeout(500);
-
-  const activityTable = page.getByTestId('tasks-table-activity');
-  await expect(activityTable).toBeVisible({ timeout: 10_000 });
-
-  await activityTable.getByText(/^Running$/).hover();
-  await expect(page.getByRole('tooltip')).toContainText('Is actively executing right now.');
-});
-
 // ===========================================================================
 // Running Task Indicators
 // ===========================================================================
 
-test('Working indicator appears in header when tasks are running', async ({ authedPage: page }) => {
+test('Working indicator appears in header when a run is in progress', async ({
+  authedPage: page,
+}) => {
   await ensureSeeded();
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
@@ -419,40 +368,18 @@ test('Working indicator appears in header when tasks are running', async ({ auth
   });
 });
 
-test('running activity rows have visual emphasis', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
-
-  await switchTasksView(page, 'activity');
-  await page.waitForTimeout(500);
-
-  const activityTable = page.getByTestId('tasks-table-activity');
-  await expect(activityTable).toBeVisible({ timeout: 10_000 });
-
-  await expect(activityTable.getByTestId('brain-running-state-indicator')).toBeVisible({
-    timeout: 5_000,
-  });
-  await expect(
-    activityTable.locator('[data-testid="brain-table-row"][data-row-emphasis="running"]')
-  ).toBeVisible({ timeout: 5_000 });
-  await expect(activityTable.getByTestId('brain-running-row-accent')).toBeVisible({
-    timeout: 5_000,
-  });
-});
-
 // ===========================================================================
 // Refresh
 // ===========================================================================
 
-test('refresh updates tasks and activity together', async ({ authedPage: page }) => {
+test('refresh picks up newly seeded tasks', async ({ authedPage: page }) => {
   await ensureSeeded();
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
-  await switchTasksView(page, 'activity');
-  await page.waitForTimeout(500);
+  const footer = page.getByTestId('tasks-table-footer');
+  await expect(footer).toContainText('3 tasks', { timeout: 10_000 });
 
   const taskId = Date.now();
-
   await seedTasks(user.apiKey, user.id, dataAssistant.agentId, [
     {
       task_id: taskId,
@@ -465,145 +392,39 @@ test('refresh updates tasks and activity together', async ({ authedPage: page })
       updated_at: '2025-06-04T12:05:00Z',
     },
   ]);
-  await seedTaskRuns(user.apiKey, user.id, dataAssistant.agentId, [
-    {
-      run_id: taskId,
-      run_key: `live:scheduled:run-${taskId}`,
-      assistant_id: String(dataAssistant.agentId),
-      task_id: taskId,
-      task_name: `Follow up customer ${taskId}`,
-      task_description: 'Reach out to the customer with the updated delivery timeline.',
-      source_type: 'scheduled',
-      execution_mode: 'live',
-      state: 'completed',
-      scheduled_for: '2025-06-04T12:30:00Z',
-      started_at: '2025-06-04T12:30:05Z',
-      completed_at: '2025-06-04T12:31:00Z',
-      source_medium: 'calendar',
-      job_name: `unity-live-${taskId}`,
-    },
-  ]);
 
   await page.getByTestId('tasks-refresh').click();
 
-  // Sub-tab count badges were removed when the dropdown took over
-  // sub-tab navigation; verify the refresh picked up the new rows via
-  // the active table's footer row-count chip + the new activity row
-  // becoming visible in the table.
-  const tasksFooter = page.getByTestId('tasks-table-footer');
-  await expect(tasksFooter).toContainText('4 of 4', { timeout: 10_000 });
-
-  await switchTasksView(page, 'activity');
-  await expect(tasksFooter).toContainText('3 of 3', { timeout: 5_000 });
-  await expect(
-    page.getByTestId('tasks-table-activity').getByText(`Follow up customer ${taskId}`)
-  ).toBeVisible({ timeout: 5_000 });
-});
-
-test('refresh preserves Working indicator when activity is filtered', async ({
-  authedPage: page,
-}) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
-
-  await switchTasksView(page, 'activity');
-  await page.waitForTimeout(500);
-
-  const searchInput = page.getByTestId('tasks-search');
-  const footer = page.getByTestId('tasks-table-footer');
-  const activityTable = page.getByTestId('tasks-table-activity');
-  const snapshotStatus = page.getByTestId('tasks-snapshot-status');
-
-  await expect(snapshotStatus).toContainText('Working');
-  await expect(page.getByTestId('tasks-snapshot-working-indicator')).toBeVisible({
-    timeout: 5_000,
-  });
-
-  await searchInput.fill('Send report');
-  await searchInput.press('Enter');
-
-  await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
-  await expect(activityTable.getByText('Send report')).toBeVisible({ timeout: 5_000 });
-
-  await page.getByTestId('tasks-refresh').click();
-
-  await expect(snapshotStatus).toContainText('Working', { timeout: 10_000 });
-  await expect(page.getByTestId('tasks-snapshot-working-indicator')).toBeVisible({
-    timeout: 5_000,
-  });
+  await expect(footer).toContainText('4 tasks', { timeout: 10_000 });
+  await expect(taskCard(page, `Follow up customer ${taskId}`)).toBeVisible({ timeout: 5_000 });
 });
 
 // ===========================================================================
-// Detail Panel
+// Run-detail drawer (opened from a run-history row)
 // ===========================================================================
 
-test('task detail panel groups human-first task information', async ({ authedPage: page }) => {
+test('clicking a run row opens the run-detail drawer', async ({ authedPage: page }) => {
   await ensureSeeded();
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
-  await switchTasksView(page, 'activity');
-  await page.waitForTimeout(500);
-
-  const table = page.getByTestId('tasks-table-activity');
-  await expect(table).toBeVisible({ timeout: 10_000 });
-
-  const runRow = table.locator('[data-testid="brain-table-row"]', {
-    hasText: 'Follow up with Alice',
-  });
-  await expect(runRow).toBeVisible({ timeout: 5_000 });
-  await runRow.click();
+  const card = await expandTaskCard(page, 'Follow up with Alice');
+  await card.getByTestId('task-run-row').first().click();
   await page.waitForTimeout(500);
 
   const detail = page.getByTestId('brain-row-detail');
   await expect(detail).toBeVisible({ timeout: 5_000 });
-  await expect(detail.getByText('What happened, why it started, and when it ran.')).toBeVisible({
-    timeout: 3_000,
-  });
 
   const fields = page.getByTestId('brain-row-detail-fields');
-  await expect(fields.getByRole('heading', { name: 'Started by' })).toBeVisible({
-    timeout: 3_000,
-  });
-  await expect(fields.getByRole('heading', { name: 'Timing' })).toBeVisible({ timeout: 3_000 });
+  await expect(fields.getByRole('heading', { name: 'Started by' })).toBeVisible({ timeout: 3_000 });
   await expect(fields.getByText('Alice Owner')).toBeVisible({ timeout: 3_000 });
-  await expect(fields.getByText('Reply when Alice emails about the project status.')).toBeVisible({
-    timeout: 3_000,
-  });
-  await expect(detail.getByText('Identifiers & Debug')).not.toBeVisible();
-  await expect(detail.getByText('Additional metadata')).not.toBeVisible();
 });
 
-test('task detail panel shows recurrence for recurring tasks', async ({ authedPage: page }) => {
+test('run-detail drawer closes when clicking the close button', async ({ authedPage: page }) => {
   await ensureSeeded();
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
-  const table = page.getByTestId('tasks-table-tasks');
-  await expect(table).toBeVisible({ timeout: 10_000 });
-
-  const scheduledRow = table.locator('[data-testid="brain-table-row"]', {
-    hasText: 'Send report',
-  });
-  await expect(scheduledRow).toBeVisible({ timeout: 5_000 });
-  await scheduledRow.click();
-  await page.waitForTimeout(500);
-
-  const detail = page.getByTestId('brain-row-detail');
-  await expect(detail).toBeVisible({ timeout: 5_000 });
-
-  const fields = page.getByTestId('brain-row-detail-fields');
-  await expect(fields.getByText('Recurring')).toBeVisible({ timeout: 3_000 });
-  await expect(fields.getByText('Every week on Mon')).toBeVisible({ timeout: 3_000 });
-});
-
-test('detail panel closes when clicking the close button', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
-
-  const table = page.getByTestId('tasks-table-tasks');
-  await expect(table).toBeVisible({ timeout: 10_000 });
-
-  const row = table.locator('[data-testid="brain-table-row"]').first();
-  await row.click();
+  const card = await expandTaskCard(page, 'Follow up with Alice');
+  await card.getByTestId('task-run-row').first().click();
   await page.waitForTimeout(500);
 
   const detail = page.getByTestId('brain-row-detail');
@@ -611,9 +432,19 @@ test('detail panel closes when clicking the close button', async ({ authedPage: 
 
   const closeBtn = detail.locator('button:has(svg)').first();
   await closeBtn.click();
-  await page.waitForTimeout(500);
-
   await expect(detail).not.toBeVisible({ timeout: 3_000 });
+});
+
+// ===========================================================================
+// Cadence rendering (recurring tasks)
+// ===========================================================================
+
+test('recurring task card surfaces its derived cadence', async ({ authedPage: page }) => {
+  await ensureSeeded();
+  await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
+
+  const card = await expandTaskCard(page, 'Send report');
+  await expect(card).toContainText('Every week on Mon');
 });
 
 // ===========================================================================
@@ -633,10 +464,9 @@ test('searching tasks filters results server-side', async ({ authedPage: page })
   await searchInput.fill('Escalate');
   await searchInput.press('Enter');
 
-  await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
-  const rows = page.getByTestId('brain-table-row');
-  await expect(rows).toHaveCount(1);
-  await expect(rows.first()).toContainText('Escalate');
+  await expect(footer).toContainText('1 task', { timeout: 10_000 });
+  await expect(page.getByTestId('task-card')).toHaveCount(1);
+  await expect(taskCard(page, 'Escalate security emails')).toBeVisible({ timeout: 5_000 });
 });
 
 test('clear button removes search filter', async ({ authedPage: page }) => {
@@ -649,13 +479,13 @@ test('clear button removes search filter', async ({ authedPage: page }) => {
 
   await searchInput.fill('Escalate');
   await searchInput.press('Enter');
-  await expect(footer).toContainText('1 of 1', { timeout: 10_000 });
+  await expect(footer).toContainText('1 task', { timeout: 10_000 });
 
   const clearBtn = page.getByTestId('tasks-search-clear');
   await expect(clearBtn).toBeVisible({ timeout: 3_000 });
 
   await clearBtn.click();
-  await expect(footer).toContainText(/3 of 3/, { timeout: 10_000 });
+  await expect(footer).toContainText('3 tasks', { timeout: 10_000 });
   await expect(clearBtn).not.toBeVisible();
 });
 
@@ -671,79 +501,10 @@ test('search with no results shows empty message', async ({ authedPage: page }) 
 });
 
 // ===========================================================================
-// Sorting
-// ===========================================================================
-
-test('clicking a column header sorts data server-side', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
-
-  const table = page.getByTestId('tasks-table-tasks');
-  await expect(table).toBeVisible({ timeout: 10_000 });
-
-  const statusHeader = table.locator('th', { hasText: 'Status' });
-  await expect(statusHeader).toBeVisible({ timeout: 5_000 });
-
-  await statusHeader.click();
-  await page.waitForTimeout(2_000);
-  const rows = table.locator('[data-testid="brain-table-row"]');
-  await expect(rows.first()).toBeVisible({ timeout: 5_000 });
-
-  await statusHeader.click();
-  await page.waitForTimeout(2_000);
-  await expect(rows.first()).toBeVisible({ timeout: 5_000 });
-
-  await statusHeader.click();
-  await page.waitForTimeout(2_000);
-  await expect(rows.first()).toBeVisible({ timeout: 5_000 });
-});
-
-// ===========================================================================
-// View Switching
-// ===========================================================================
-
-test('switching between Tasks and Activity views preserves data', async ({ authedPage: page }) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
-
-  const tasksTable = page.getByTestId('tasks-table-tasks');
-  await expect(tasksTable).toBeVisible({ timeout: 10_000 });
-  await expect(tasksTable.locator('text=Send report')).toBeVisible({ timeout: 5_000 });
-
-  await switchTasksView(page, 'activity');
-  await page.waitForTimeout(500);
-  const activityTable = page.getByTestId('tasks-table-activity');
-  await expect(activityTable).toBeVisible({ timeout: 5_000 });
-  await expect(activityTable.locator('text=Follow up with Alice')).toBeVisible({ timeout: 5_000 });
-
-  await switchTasksView(page, 'tasks');
-  await page.waitForTimeout(500);
-  await expect(tasksTable).toBeVisible({ timeout: 5_000 });
-  await expect(tasksTable.locator('text=Send report')).toBeVisible({ timeout: 3_000 });
-});
-
-test('active sub-tab is visually indicated by the Tasks tab chip label', async ({
-  authedPage: page,
-}) => {
-  await ensureSeeded();
-  await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
-
-  // The Tasks tab chip in-place displays the active sub-tab name now
-  // that the footer Tasks/Activity row was removed.
-  const tasksTabChip = page.getByTestId('right-pane-tab-tasks');
-  await expect(tasksTabChip).toContainText('Tasks');
-
-  await switchTasksView(page, 'activity');
-  await page.waitForTimeout(500);
-
-  await expect(tasksTabChip).toContainText('Activity');
-});
-
-// ===========================================================================
 // Backend Data Verification
 // ===========================================================================
 
-test('Tasks tab data matches what was seeded via Orchestra API', async ({ authedPage: page }) => {
+test('Tasks pane data matches what was seeded via Orchestra API', async ({ authedPage: page }) => {
   await ensureSeeded();
 
   const tasksRes = await orchestraFetch(
@@ -768,12 +529,8 @@ test('Tasks tab data matches what was seeded via Orchestra API', async ({ authed
 
   await selectAssistantAndOpenTasks(page, dataAssistant.agentId);
 
-  // The sub-tab count badges were removed when the dropdown took over
-  // sub-tab navigation, so we verify the seeded counts via each
-  // sub-tab's table footer row-count chip instead.
+  // The footer summarises both counts: "N tasks · M runs logged".
   const tasksFooter = page.getByTestId('tasks-table-footer');
-  await expect(tasksFooter).toContainText(`${taskCount} of ${taskCount}`, { timeout: 10_000 });
-
-  await switchTasksView(page, 'activity');
-  await expect(tasksFooter).toContainText(`${runCount} of ${runCount}`, { timeout: 5_000 });
+  await expect(tasksFooter).toContainText(`${taskCount} tasks`, { timeout: 10_000 });
+  await expect(tasksFooter).toContainText(`${runCount} runs logged`, { timeout: 5_000 });
 });
