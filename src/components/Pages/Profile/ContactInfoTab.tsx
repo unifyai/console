@@ -114,11 +114,12 @@ const VerificationField = ({
             type="button"
             variant="outline"
             className="h-9"
-            onClick={() => onVerify(false)}
-            disabled={state.isVerifying || !isValidFormat}
+            onClick={() => (state.isVerifying ? onCancel() : onVerify(false))}
+            disabled={
+              state.isVerifying ? state.isSaving || state.verificationConfirmed : !isValidFormat
+            }
           >
-            {state.isVerifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {state.isVerifying ? 'Verifying...' : 'Verify'}
+            Verify
           </Button>
         )}
       </div>
