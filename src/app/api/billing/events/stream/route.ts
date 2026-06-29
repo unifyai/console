@@ -26,6 +26,7 @@ import {
   MESSAGE_RETENTION_DURATION,
 } from '@/lib/pubsub/ephemeral-subscription';
 import { hasCredentials, subscribe } from '@/lib/pubsub/local-event-bus';
+import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
 import { topicSuffix } from '@/lib/environment/comms-env';
 
 export const dynamic = 'force-dynamic';
@@ -66,40 +67,40 @@ function createLocalStream(request: NextRequest, billingAccountId: number): Resp
     console.log(`[BillingEvents SSE] Local mode for billing_account=${billingAccountId}`);
 
   const busKey = `billing-${billingAccountId}`;
+  const { lifecycle, cancel } = createSseLifecycle(request);
+
   const stream = new ReadableStream({
     start(controller) {
       controller.enqueue(encoder.encode(': connected\n\n'));
 
       const keepAliveInterval = setInterval(() => {
-        if (request.signal.aborted) {
-          clearInterval(keepAliveInterval);
-          return;
-        }
         try {
           controller.enqueue(encoder.encode(': keep-alive\n\n'));
         } catch {
-          clearInterval(keepAliveInterval);
+          lifecycle.close();
         }
       }, 15000);
+      lifecycle.add(() => clearInterval(keepAliveInterval));
 
       const unsubscribe = subscribe(busKey, (rawEvent) => {
-        if (request.signal.aborted) return;
+        if (lifecycle.closed) return;
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(rawEvent)}\n\n`));
         } catch {
           /* stream closed */
         }
       });
-
-      request.signal.addEventListener('abort', () => {
-        clearInterval(keepAliveInterval);
-        unsubscribe();
+      lifecycle.add(unsubscribe);
+      lifecycle.add(() => {
         try {
           controller.close();
         } catch {
           /* already closed */
         }
       });
+    },
+    cancel() {
+      cancel();
     },
   });
 
@@ -116,6 +117,8 @@ function createPubSubStream(
   subscriptionName: string,
   deleteOnClose: () => void
 ): Response {
+  const { lifecycle, cancel } = createSseLifecycle(request);
+
   const stream = new ReadableStream({
     start(controller) {
       if (__DEV__)
@@ -124,16 +127,13 @@ function createPubSubStream(
       controller.enqueue(encoder.encode(': connected\n\n'));
 
       const keepAliveInterval = setInterval(() => {
-        if (request.signal.aborted) {
-          clearInterval(keepAliveInterval);
-          return;
-        }
         try {
           controller.enqueue(encoder.encode(': keep-alive\n\n'));
         } catch {
-          clearInterval(keepAliveInterval);
+          lifecycle.close();
         }
       }, 15000);
+      lifecycle.add(() => clearInterval(keepAliveInterval));
 
       const { pubsub } = getPubSubClient();
       const subscription = pubsub.subscription(subscriptionName);
@@ -179,8 +179,7 @@ function createPubSubStream(
       subscription.on('message', messageHandler);
       subscription.on('error', errorHandler);
 
-      request.signal.addEventListener('abort', () => {
-        clearInterval(keepAliveInterval);
+      lifecycle.add(() => {
         subscription.removeListener('message', messageHandler);
         subscription.removeListener('error', errorHandler);
         subscription.close();
@@ -193,6 +192,9 @@ function createPubSubStream(
           /* already closed */
         }
       });
+    },
+    cancel() {
+      cancel();
     },
   });
 
@@ -266,10 +268,6 @@ export async function GET(request: NextRequest) {
       .delete()
       .catch(() => {});
   };
-
-  request.signal.addEventListener('abort', () => {
-    deleteOnClose();
-  });
 
   return createPubSubStream(request, billingAccountId, subscriptionName, deleteOnClose);
 }

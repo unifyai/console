@@ -35,6 +35,7 @@ import {
 } from '@/lib/pubsub/ephemeral-subscription';
 import { isManagerExcluded } from '@/lib/assistants/event-filters';
 import { hasCredentials, subscribe } from '@/lib/pubsub/local-event-bus';
+import { createSseLifecycle } from '@/lib/pubsub/sse-lifecycle';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,24 +66,23 @@ function createLocalStream(request: NextRequest, assistantId: string): Response 
   if (__DEV__)
     console.log(`[Actions SSE] Local mode for assistant=${assistantId} (no Pub/Sub credentials)`);
 
+  const { lifecycle, cancel } = createSseLifecycle(request);
+
   const stream = new ReadableStream({
     start(controller) {
       controller.enqueue(encoder.encode(': connected\n\n'));
 
       const keepAliveInterval = setInterval(() => {
-        if (request.signal.aborted) {
-          clearInterval(keepAliveInterval);
-          return;
-        }
         try {
           controller.enqueue(encoder.encode(': keep-alive\n\n'));
         } catch {
-          clearInterval(keepAliveInterval);
+          lifecycle.close();
         }
       }, 15000);
+      lifecycle.add(() => clearInterval(keepAliveInterval));
 
       const unsubscribe = subscribe(assistantId, (rawEvent) => {
-        if (request.signal.aborted) return;
+        if (lifecycle.closed) return;
         try {
           const event = snakeToCamelObject<Record<string, unknown>>(rawEvent);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
@@ -90,16 +90,17 @@ function createLocalStream(request: NextRequest, assistantId: string): Response 
           // Stream closed
         }
       });
-
-      request.signal.addEventListener('abort', () => {
-        clearInterval(keepAliveInterval);
-        unsubscribe();
+      lifecycle.add(unsubscribe);
+      lifecycle.add(() => {
         try {
           controller.close();
         } catch {
           // Already closed
         }
       });
+    },
+    cancel() {
+      cancel();
     },
   });
 
@@ -116,6 +117,8 @@ function createPubSubStream(
   subscriptionName: string,
   deleteOnClose: () => void
 ): Response {
+  const { lifecycle, cancel } = createSseLifecycle(request);
+
   const stream = new ReadableStream({
     start(controller) {
       if (__DEV__) console.log(`[Actions SSE] Stream started for assistant=${assistantId}`);
@@ -123,16 +126,13 @@ function createPubSubStream(
       controller.enqueue(encoder.encode(': connected\n\n'));
 
       const keepAliveInterval = setInterval(() => {
-        if (request.signal.aborted) {
-          clearInterval(keepAliveInterval);
-          return;
-        }
         try {
           controller.enqueue(encoder.encode(': keep-alive\n\n'));
         } catch {
-          clearInterval(keepAliveInterval);
+          lifecycle.close();
         }
       }, 15000);
+      lifecycle.add(() => clearInterval(keepAliveInterval));
 
       const { pubsub } = getPubSubClient();
       const subscription = pubsub.subscription(subscriptionName);
@@ -213,8 +213,7 @@ function createPubSubStream(
       subscription.on('message', messageHandler);
       subscription.on('error', errorHandler);
 
-      request.signal.addEventListener('abort', () => {
-        clearInterval(keepAliveInterval);
+      lifecycle.add(() => {
         subscription.removeListener('message', messageHandler);
         subscription.removeListener('error', errorHandler);
         subscription.close();
@@ -226,6 +225,9 @@ function createPubSubStream(
           // Already closed
         }
       });
+    },
+    cancel() {
+      cancel();
     },
   });
 
@@ -273,6 +275,17 @@ export async function GET(
         `[Actions SSE] Ephemeral subscription: ${subscriptionName} on topic: ${topicName}`
       );
   } catch (error: any) {
+    // 5 = NOT_FOUND — the assistant's Pub/Sub topic doesn't exist yet (e.g. an
+    // assistant provisioned before action streaming, or dev/test data). Return
+    // 404 so the client treats it as terminal instead of retrying a transient
+    // 500 every health-check cycle.
+    if (error.code === 5) {
+      if (__DEV__)
+        console.log(`[Actions SSE] Topic not found for assistant=${assistantId} — skipping`);
+      return new NextResponse(JSON.stringify({ detail: 'Assistant topic not found.' }), {
+        status: 404,
+      });
+    }
     console.error('[Actions SSE] Setup error:', error.message);
     return new NextResponse(JSON.stringify({ detail: 'Server configuration error.' }), {
       status: 500,
@@ -286,10 +299,6 @@ export async function GET(
       .delete()
       .catch(() => {});
   };
-
-  request.signal.addEventListener('abort', () => {
-    deleteOnClose();
-  });
 
   return createPubSubStream(request, assistantId, subscriptionName, deleteOnClose);
 }
