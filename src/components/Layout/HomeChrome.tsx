@@ -2,10 +2,10 @@
 
 import React, { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
 import TopNav from '@/components/Layout/TopBar/TopNav';
 import { HomeShell } from '@/components/Layout/Shell/HomeShell';
 import { MockModeIndicator } from '@/components/Simulation/MockModeIndicator';
+import { Loader } from '@/components/Common/Loader';
 
 /** Home routes hosted inside the shared rail shell (migrated off `TopNav`). */
 const SHELL_ROUTE_PREFIXES = [
@@ -20,7 +20,7 @@ const SHELL_ROUTE_PREFIXES = [
 
 const shellFallback = (
   <div className="flex h-full min-h-0 w-full items-center justify-center bg-background">
-    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+    <Loader size={64} />
   </div>
 );
 
@@ -33,7 +33,8 @@ const shellFallback = (
  */
 export function HomeChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const assistantsShell = pathname === '/assistants' || pathname?.startsWith('/assistants/');
+  const assistantsShell =
+    pathname === '/' || pathname === '/assistants' || pathname?.startsWith('/assistants/');
   const homeShell = SHELL_ROUTE_PREFIXES.some(
     (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`)
   );
@@ -72,7 +73,7 @@ export function HomeChrome({ children }: { children: React.ReactNode }) {
       <Suspense
         fallback={
           <div className="fixed left-0 right-0 top-0 z-50 flex h-10 items-center border-b border-border bg-card px-3.5">
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <Loader size={24} />
             <span className="text-caption ml-2 text-muted-foreground">Loading…</span>
           </div>
         }

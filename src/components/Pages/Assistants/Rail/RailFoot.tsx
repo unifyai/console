@@ -7,10 +7,6 @@ import {
   ShieldCheck,
   ChevronsUpDown,
   Check,
-  Building2,
-  CreditCard,
-  BarChart3,
-  Building,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -28,9 +24,13 @@ import {
 } from '@/components/UI/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/UI/tooltip';
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
-import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
-import { getCurrentUser } from '@/lib/user/user';
-import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
+import {
+  profileAvatarTone,
+  profileInitials,
+  userFullName,
+  userInitials,
+} from '@/utils/user/profileDisplay';
+import { getAnySessionContactIdForUser } from '@/hooks/Assistants/useContactIdPrefetch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { ReferralPromoNavButton } from '@/components/Layout/TopBar/ReferralPromoButton';
 import { RailNavButton } from './RailNavButton';
@@ -48,6 +48,28 @@ async function resolveStorageUrl(gsUrl: string): Promise<string> {
   return data.signed_url ?? '';
 }
 
+function WorkspaceInitialBadge({
+  name,
+  contactId,
+  className,
+}: {
+  name: string;
+  contactId?: number | null;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        'grid h-4 w-4 shrink-0 place-items-center rounded-md font-display text-[9px] font-semibold text-primary-foreground',
+        className
+      )}
+      style={{ backgroundColor: profileAvatarTone(name, contactId) }}
+    >
+      {profileInitials(name)}
+    </span>
+  );
+}
+
 interface RailFootProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -55,15 +77,13 @@ interface RailFootProps {
 
 /**
  * The rail's foot: quick Settings/Admin nav, an account row that opens the
- * workspace switcher plus account/usage/billing/organizations links and sign
- * out (relocated from the legacy `TopNav`), and the collapse-to-dock control.
+ * workspace switcher and sign out, and the collapse-to-dock control.
  */
 export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { billing: billingEnabled } = useFeatures();
-  const { isSelfHost } = useEnvironment();
   const {
+    user,
     workspaces,
     activeWorkspace,
     activeOrganization,
@@ -71,39 +91,62 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
     isWorkspaceSwitchable,
     isSwitchingWorkspace,
     isUnifyAdmin,
-    isUnifyMember,
   } = useWorkspace();
 
-  const [profileName, setProfileName] = React.useState('Account');
-  const [profilePhotoUrl, setProfilePhotoUrl] = React.useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
+  const [ownerContactId, setOwnerContactId] = React.useState<number | null>(null);
+
+  const personalDisplayName = user ? userFullName(user) || 'Personal' : 'Personal';
+  const displayName =
+    activeWorkspace?.type === 'organization'
+      ? (activeWorkspace.name ?? 'Organization')
+      : personalDisplayName;
+  const subtitle = activeWorkspace?.type === 'organization' ? 'Organization' : 'Personal';
+  const initials =
+    activeWorkspace?.type === 'organization'
+      ? profileInitials(displayName)
+      : user
+        ? userInitials(user)
+        : profileInitials(displayName);
+  const avatarTone = profileAvatarTone(
+    displayName,
+    activeWorkspace?.type === 'personal' ? ownerContactId : null
+  );
 
   React.useEffect(() => {
+    if (!user?.email || activeWorkspace?.type !== 'personal') {
+      setOwnerContactId(null);
+      return;
+    }
+    const syncContactId = () => {
+      const cached = getAnySessionContactIdForUser(user.email);
+      setOwnerContactId(cached ?? null);
+    };
+    syncContactId();
+    const onContactIdUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ email?: string }>).detail;
+      if (!detail?.email || detail.email === user.email) syncContactId();
+    };
+    window.addEventListener('owner-contact-id-updated', onContactIdUpdated);
+    return () => window.removeEventListener('owner-contact-id-updated', onContactIdUpdated);
+  }, [user?.email, activeWorkspace?.type]);
+
+  React.useEffect(() => {
+    let cancelled = false;
     (async () => {
-      try {
-        const user = await getCurrentUser();
-        if (user) {
-          setProfileName(user.name || 'Account');
-          if (user.image) {
-            const url = await resolveStorageUrl(user.image).catch(() => '');
-            if (url) setProfilePhotoUrl(url);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch user info', err);
+      const image =
+        activeWorkspace?.type === 'organization' ? activeOrganization?.image : user?.image;
+      if (!image) {
+        if (!cancelled) setAvatarUrl(null);
+        return;
       }
+      const url = await resolveStorageUrl(image).catch(() => '');
+      if (!cancelled) setAvatarUrl(url || null);
     })();
-  }, []);
-
-  const canManageBilling =
-    !activeOrganization ||
-    isUnifyMember ||
-    ['owner', 'admin'].includes(activeOrganization.roleName?.toLowerCase() ?? '');
-  const isOrgInFreeTrial = !!activeOrganization?.freeTrial && !isUnifyMember;
-
-  const workspaceLabel =
-    activeWorkspace?.type === 'organization' ? activeWorkspace.name || 'Organization' : 'Personal';
-  const initials = profileInitials(profileName);
-  const avatarTone = profileAvatarTone(profileName || 'account');
+    return () => {
+      cancelled = true;
+    };
+  }, [activeWorkspace?.type, activeOrganization?.image, user?.image]);
 
   const handleSignOut = async () => {
     await signOut({ redirect: false });
@@ -146,14 +189,14 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
           <button
             type="button"
             data-testid="rail-account-trigger"
-            title={collapsed ? profileName : undefined}
+            title={collapsed ? displayName : undefined}
             className={cn(
               'flex items-center gap-3 rounded-[10px] transition-colors hover:bg-muted',
               collapsed ? 'justify-center px-0 py-1.5' : 'px-2.5 py-1.5'
             )}
           >
             <Avatar className="h-[30px] w-[30px] shrink-0 rounded-[9px]">
-              <AvatarImage src={profilePhotoUrl ?? undefined} alt={profileName} />
+              <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
               <AvatarFallback
                 className="rounded-[9px] font-display text-[11px] font-semibold text-primary-foreground"
                 style={{ backgroundColor: avatarTone }}
@@ -164,9 +207,9 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
             {!collapsed && (
               <div className="min-w-0 text-left">
                 <div className="truncate text-[13px] font-semibold text-foreground">
-                  {profileName}
+                  {displayName}
                 </div>
-                <div className="truncate text-[11.5px] text-muted-foreground">{workspaceLabel}</div>
+                <div className="truncate text-[11.5px] text-muted-foreground">{subtitle}</div>
               </div>
             )}
             {!collapsed &&
@@ -192,7 +235,10 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
                   onSelect={() => switchWorkspace(w.id)}
                   className="cursor-pointer items-center gap-2"
                 >
-                  <Building2 className="h-4 w-4" />
+                  <WorkspaceInitialBadge
+                    name={w.name}
+                    contactId={w.type === 'personal' ? ownerContactId : null}
+                  />
                   <span className="truncate">{w.name}</span>
                   {activeWorkspace?.id === w.id && <Check className="ml-auto h-4 w-4" />}
                 </DropdownMenuItem>
@@ -209,7 +255,10 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
                   onSelect={() => switchWorkspace(w.id)}
                   className="cursor-pointer items-center gap-2"
                 >
-                  <Building2 className="h-4 w-4" />
+                  <WorkspaceInitialBadge
+                    name={w.name}
+                    contactId={w.type === 'personal' ? ownerContactId : null}
+                  />
                   <span className="truncate">{w.name}</span>
                   {activeWorkspace?.id === w.id && <Check className="ml-auto h-4 w-4" />}
                 </DropdownMenuItem>
@@ -218,28 +267,6 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
             </>
           )}
 
-          {billingEnabled && !isOrgInFreeTrial && (
-            <DropdownMenuItem onSelect={() => router.push('/usage')} className="cursor-pointer">
-              <BarChart3 className="mr-2 h-4 w-4" />
-              <span>Usage</span>
-            </DropdownMenuItem>
-          )}
-          {billingEnabled && canManageBilling && !isOrgInFreeTrial && (
-            <DropdownMenuItem onSelect={() => router.push('/billing')} className="cursor-pointer">
-              <CreditCard className="mr-2 h-4 w-4" />
-              <span>Billing</span>
-            </DropdownMenuItem>
-          )}
-          {!isSelfHost && (
-            <DropdownMenuItem
-              onSelect={() => router.push('/organizations')}
-              className="cursor-pointer"
-            >
-              <Building className="mr-2 h-4 w-4" />
-              <span>Organizations</span>
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuSeparator />
           <DropdownMenuItem
             onSelect={(e) => {
               e.preventDefault();

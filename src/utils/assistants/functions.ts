@@ -103,9 +103,32 @@ export function filterFunctions(
 ): FunctionSkill[] {
   const q = query.trim().toLowerCase();
   return skills.filter((skill) => {
+    if (!skill.name.trim()) return false;
     if (kind === 'Learned' && skill.isPrimitive) return false;
     if (kind === 'Primitives' && !skill.isPrimitive) return false;
     if (!q) return true;
     return (skill.name + ' ' + skill.docstring).toLowerCase().includes(q);
   });
+}
+
+function functionSkillKey(skill: FunctionSkill, table?: string): string {
+  return `${table ?? 'unknown'}:${skill.functionId ?? skill.name}`;
+}
+
+/** Maps log rows to view-model skills, dropping blank names and duplicate keys. */
+export function normalizeFunctionSkills(rows: FunctionRow[]): FunctionSkill[] {
+  const seen = new Set<string>();
+  const skills: FunctionSkill[] = [];
+
+  for (const row of rows) {
+    const skill = mapFunctionRow(row);
+    if (!skill.name.trim()) continue;
+    const table = asString((row as Record<string, unknown>)._table);
+    const key = functionSkillKey(skill, table);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    skills.push(skill);
+  }
+
+  return skills;
 }

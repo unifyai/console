@@ -26,6 +26,7 @@ function setOrganizationWorkspace({
     Viewer: 4,
   } as const;
   mockUseWorkspace.mockReturnValue({
+    user: null,
     workspaces: [],
     activeWorkspace: {
       id: String(organizationId),

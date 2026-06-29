@@ -473,21 +473,32 @@ export function useBrainData({
       setStates((prev) => {
         const prevCtx = prev[activeContext];
         const merged = [...prevCtx.rows, ...data.rows];
+        const deduped: typeof merged = [];
+        const seen = new Set<string>();
+        for (const row of merged) {
+          const raw = row as Record<string, unknown>;
+          const table = String(raw._table ?? '');
+          const id = raw.functionId ?? raw.function_id ?? raw.name ?? '';
+          const key = `${table}:${String(id)}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          deduped.push(row);
+        }
         const fields = new Set([...prevCtx.fields, ...data.fields]);
-        const hasMore = data.hasMore ?? merged.length < data.count;
+        const hasMore = data.hasMore ?? deduped.length < data.count;
         const nextCount =
           activeContext === 'Transcripts'
             ? hasMore
-              ? Math.max(prevCtx.count, merged.length + 1)
-              : merged.length
+              ? Math.max(prevCtx.count, deduped.length + 1)
+              : deduped.length
             : activeContext === 'Functions'
-              ? merged.length + (hasMore ? 1 : 0)
+              ? deduped.length + (hasMore ? 1 : 0)
               : data.count;
         return {
           ...prev,
           [activeContext]: {
             ...prevCtx,
-            rows: merged,
+            rows: deduped,
             fields: Array.from(fields),
             count: nextCount,
             hasMore,

@@ -26,8 +26,8 @@ import { TabToolbar } from '../Common/TabToolbar';
 import { TabFooter } from '../Common/TabFooter';
 import { FunctionSignatureDocs } from './FunctionSignatureDocs';
 import {
-  mapFunctionRow,
   filterFunctions,
+  normalizeFunctionSkills,
   shortSignature,
   type FunctionSkill,
   type FunctionKindFilter,
@@ -42,6 +42,10 @@ interface FunctionsPaneProps {
 }
 
 const KINDS: FunctionKindFilter[] = ['All', 'Learned', 'Primitives'];
+
+/** Responsive grid: up to four fixed-width cards per row (no shrinking below card min). */
+const FUNCTIONS_GRID_CLASS =
+  'box-border grid w-full min-w-0 max-w-full grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
 
 const SEG_CLASS = [
   'inline-flex shrink-0 items-center rounded-md px-2.5 py-1 text-xs font-medium',
@@ -194,7 +198,7 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
   // TODO(wire-backend): restore when the function "Run" tab is wired.
   // const [drawerTab, setDrawerTab] = useState<'about' | 'run'>('about');
 
-  const skills = useMemo(() => functions.rows.map(mapFunctionRow), [functions.rows]);
+  const skills = useMemo(() => normalizeFunctionSkills(functions.rows), [functions.rows]);
   const filtered = useMemo(() => filterFunctions(skills, query, kind), [skills, query, kind]);
 
   const handleRefresh = useCallback(async () => {
@@ -249,11 +253,8 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
 
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden" data-testid="functions-body">
         {isLoading && skills.length === 0 ? (
-          <div
-            className="box-border grid w-full min-w-0 max-w-full grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-4 p-4"
-            data-testid="functions-skeleton"
-          >
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className={FUNCTIONS_GRID_CLASS} data-testid="functions-skeleton">
+            {Array.from({ length: 8 }).map((_, i) => (
               <SkeletonCard key={i} lines={2} />
             ))}
           </div>
@@ -263,11 +264,11 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
           </div>
         ) : (
           <ScrollArea className="h-full w-full min-w-0" viewportClassName="min-w-0 max-w-full">
-            <div className="box-border grid w-full min-w-0 max-w-full grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-4 p-4">
+            <div key={kind} className={FUNCTIONS_GRID_CLASS}>
               {filtered.map((skill) => (
                 <button
-                  key={`${skill.functionId ?? skill.name}`}
-                  className="hover:border-primary/40 hover:bg-muted/40 flex min-h-[168px] w-full min-w-0 max-w-full flex-col gap-2 rounded-[13px] border bg-card p-3.5 text-left transition-colors"
+                  key={`${skill.isPrimitive ? 'p' : 'l'}-${skill.functionId ?? skill.name}`}
+                  className="hover:border-primary/40 hover:bg-muted/40 flex min-h-[168px] w-full min-w-[16rem] flex-col gap-2 rounded-[13px] border bg-card p-3.5 text-left transition-colors"
                   onClick={() => {
                     setSelected(skill);
                   }}

@@ -124,10 +124,8 @@ const ProfileForm = ({ user, externalIdentity }: { user: User; externalIdentity:
   );
 
   return (
-    <div className="w-full sm:mt-0">
-      <div className="mb-4 flex justify-end">
-        <SaveStatus status={status} />
-      </div>
+    <div className="relative w-full">
+      <SaveStatus status={status} className="absolute right-0 top-0 z-10" />
       <div className="mb-6 flex items-center gap-5">
         <MemoizedProfilePhoto user={user} />
         <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-4 gap-y-3">

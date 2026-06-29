@@ -46,6 +46,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { FormProvider } from 'react-hook-form';
 import { cn } from '@/lib/utils';
+import { Loader } from '@/components/Common/Loader';
 import { useVoiceOptions } from '@/hooks/Assistants/useVoiceOptions';
 import {
   type CoordinatorWorkspaceScope,
@@ -2384,7 +2385,7 @@ export default function Main({ assistantActions, userMeta }: MainProps) {
 
         {isCoordinatorOnboardingResolvePending ? (
           <div className="flex min-h-0 flex-1 items-center justify-center bg-background">
-            <span className="sr-only">Loading workspace…</span>
+            <Loader size={64} label="Loading workspace" />
           </div>
         ) : (
           <div className="relative flex min-h-0 flex-1 overflow-hidden">

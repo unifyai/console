@@ -11,8 +11,10 @@ import React, {
 import { useRouter } from 'next/navigation';
 import { User, UserOrganization, UserWorkspace } from '@/types/user';
 import { resolveWorkspaceContext } from '@/lib/user/workspace';
+import { userFullName } from '@/utils/user/profileDisplay';
 
 interface WorkspaceContextType {
+  user: User | null;
   workspaces: UserWorkspace[];
   activeWorkspace: UserWorkspace | null;
   activeOrganization: UserOrganization | null;
@@ -43,7 +45,7 @@ export function WorkspaceProvider({
     if (!user) return [];
 
     const list: UserWorkspace[] = [
-      { id: 'personal', name: user.name ?? 'Personal', type: 'personal' },
+      { id: 'personal', name: userFullName(user) || 'Personal', type: 'personal' },
     ];
 
     if (user.organizations && user.organizations.length > 0) {
@@ -120,6 +122,7 @@ export function WorkspaceProvider({
   return (
     <WorkspaceContext.Provider
       value={{
+        user,
         workspaces,
         activeWorkspace,
         activeOrganization,

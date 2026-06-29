@@ -269,16 +269,26 @@ async function fetchSubContextTables<T extends BrainRow>(
     const allRows: T[] = [];
     const allFields = new Set<string>();
     allFields.add('_table');
-    let totalCount = 0;
 
     for (const result of results) {
       if (!result) continue;
       allRows.push(...result.rows);
-      totalCount += result.count;
       result.fields.forEach((f) => allFields.add(f));
     }
 
-    return { rows: allRows, count: totalCount, fields: Array.from(allFields) };
+    const dedupedRows: T[] = [];
+    const seen = new Set<string>();
+    for (const row of allRows) {
+      const raw = row as Record<string, unknown>;
+      const table = String(raw._table ?? '');
+      const id = raw.functionId ?? raw.function_id ?? raw.name ?? '';
+      const key = `${table}:${String(id)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      dedupedRows.push(row);
+    }
+
+    return { rows: dedupedRows, count: dedupedRows.length, fields: Array.from(allFields) };
   } catch {
     return empty;
   }
