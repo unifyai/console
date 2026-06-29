@@ -65,7 +65,7 @@ import {
   getRotatingBotViewBox,
 } from '@unity/brand/components';
 
-const staticSkillsText = `The bio doesn't influence the unity's abilities. All unitys come with the same foundational skills and can specialize in whichever area you want them to.`;
+const staticSkillsText = `The bio doesn't influence the droid's abilities. All droids come with the same foundational skills and can specialize in whichever area you want them to.`;
 const UNITY_PREVIEW_SIZE = 120;
 const UNITY_PREVIEW_REST_SIZE = 152;
 const UNITY_PREVIEW_REST_SCALE = UNITY_PREVIEW_REST_SIZE / UNITY_PREVIEW_SIZE;
@@ -437,7 +437,7 @@ export function HireForm({
     ];
   const nextOutfit = appearanceOutfitOptions[(outfitIndex + 1) % appearanceOutfitOptions.length];
   const workspaceAssistantName =
-    typeof firstName === 'string' && firstName.trim().length > 0 ? firstName.trim() : 'this unity';
+    typeof firstName === 'string' && firstName.trim().length > 0 ? firstName.trim() : 'this droid';
   const isWorkspaceWarning = mode === 'hire' && showWorkspaceWarning;
   const unityControlTop = React.useMemo(() => {
     const form = getUnityBodyForm(selectedUnityBody);
@@ -541,7 +541,7 @@ export function HireForm({
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
-                              aria-label="Randomize unity profile"
+                              aria-label="Randomize droid profile"
                               type="button"
                               variant="outline"
                               size="sm"
@@ -626,9 +626,9 @@ export function HireForm({
                                   className="text-caption max-w-xs"
                                 >
                                   <p>
-                                    Optional short label to remember what this unity is for (e.g.
+                                    Optional short label to remember what this droid is for (e.g.
                                     &quot;Growth marketing&quot;, &quot;QA engineer&quot;). Shown in
-                                    the unitys list hover card.
+                                    the droids list hover card.
                                   </p>
                                 </TooltipContent>
                               </Tooltip>
@@ -760,7 +760,7 @@ export function HireForm({
 
                                 <AppearanceControlTooltip label="Outfit" side="left">
                                   <Button
-                                    aria-label="Previous unity outfit"
+                                    aria-label="Previous droid outfit"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -782,7 +782,7 @@ export function HireForm({
                                 </AppearanceControlTooltip>
                                 <AppearanceControlTooltip label="Outfit" side="right">
                                   <Button
-                                    aria-label="Next unity outfit"
+                                    aria-label="Next droid outfit"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -892,7 +892,7 @@ export function HireForm({
                                     color={selectedUnityColor}
                                     baseEyes={selectedUnityEyes}
                                     outfit={selectedUnityOutfit}
-                                    label="Unity avatar"
+                                    label="Droid avatar"
                                   />
                                 </span>
                               </button>
@@ -911,7 +911,7 @@ export function HireForm({
                               <div className="flex items-center gap-2">
                                 <AppearanceControlTooltip label="Color" side="left">
                                   <Button
-                                    aria-label="Previous unity color"
+                                    aria-label="Previous droid color"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -927,37 +927,64 @@ export function HireForm({
                                   </Button>
                                 </AppearanceControlTooltip>
                                 <div
-                                  aria-label={`Current unity color: ${selectedUnityColor}`}
+                                  aria-label="Droid color"
                                   className="flex items-center gap-1.5 px-1 py-1"
-                                  role="img"
+                                  role="group"
                                 >
                                   <AnimatePresence initial={false} mode="popLayout">
-                                    {[previousColor, selectedUnityColor, nextColor].map((color) => (
-                                      <motion.span
-                                        aria-hidden="true"
-                                        className={cn(
-                                          'rounded-control block border border-border',
-                                          color === selectedUnityColor
-                                            ? 'h-5 w-5'
-                                            : 'h-3.5 w-3.5 opacity-65'
-                                        )}
-                                        exit={{ opacity: 0, scale: 0.8 }}
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{
-                                          opacity: color === selectedUnityColor ? 1 : 0.65,
-                                          scale: 1,
-                                        }}
-                                        key={color}
-                                        layout
-                                        style={{ backgroundColor: roleColorVars[color] }}
-                                        transition={COLOR_SWATCH_TRANSITION}
-                                      />
-                                    ))}
+                                    {[previousColor, selectedUnityColor, nextColor].map(
+                                      (color, index) => {
+                                        const isSelected = color === selectedUnityColor;
+                                        // Clicking a side swatch rotates the wheel by one step
+                                        // in that direction, exactly like the matching arrow.
+                                        const direction = index === 0 ? -1 : 1;
+                                        return (
+                                          <motion.button
+                                            aria-current={isSelected ? 'true' : undefined}
+                                            aria-label={
+                                              isSelected
+                                                ? `Current droid color: ${color}`
+                                                : `Select ${color}`
+                                            }
+                                            className={cn(
+                                              'rounded-control block border border-border p-0',
+                                              isSelected
+                                                ? 'h-5 w-5 cursor-default'
+                                                : 'h-3.5 w-3.5 cursor-pointer opacity-65'
+                                            )}
+                                            disabled={isSubmitting || isSelected}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{
+                                              opacity: isSelected ? 1 : 0.65,
+                                              scale: 1,
+                                            }}
+                                            key={color}
+                                            layout
+                                            onClick={
+                                              isSelected
+                                                ? undefined
+                                                : () =>
+                                                    setUnityColor((current) =>
+                                                      cycleOption(
+                                                        appearanceColorOptions,
+                                                        current,
+                                                        direction
+                                                      )
+                                                    )
+                                            }
+                                            style={{ backgroundColor: roleColorVars[color] }}
+                                            transition={COLOR_SWATCH_TRANSITION}
+                                            type="button"
+                                          />
+                                        );
+                                      }
+                                    )}
                                   </AnimatePresence>
                                 </div>
                                 <AppearanceControlTooltip label="Color" side="right">
                                   <Button
-                                    aria-label="Next unity color"
+                                    aria-label="Next droid color"
                                     type="button"
                                     variant="ghost"
                                     size="icon"
@@ -976,7 +1003,7 @@ export function HireForm({
 
                               <div className="flex items-center justify-center">
                                 <Button
-                                  aria-label="Randomize unity appearance"
+                                  aria-label="Randomize droid appearance"
                                   type="button"
                                   variant="outline"
                                   size="sm"

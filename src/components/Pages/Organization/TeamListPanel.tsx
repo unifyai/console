@@ -158,8 +158,8 @@ const TeamListPanel = ({
               <p className="text-body font-medium text-foreground">Org-wide sharing</p>
               <p className="text-caption max-w-3xl text-muted-foreground">
                 {sharingEnabled
-                  ? 'All current and future org members and unitys are included in the managed Org team for optional shared knowledge, skills, and know-how.'
-                  : 'Unitys learn privately unless you enable a managed Org team for optional shared knowledge, skills, and know-how.'}
+                  ? 'All current and future org members and droids are included in the managed Org team for optional shared knowledge, skills, and know-how.'
+                  : 'Droids learn privately unless you enable a managed Org team for optional shared knowledge, skills, and know-how.'}
               </p>
             </div>
             <Switch

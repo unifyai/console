@@ -12,17 +12,17 @@ import { clampUnitySpeechLevel } from '@/utils/assistants/unity-animation';
 import type { CoordinatorOnboardingIntroUnityAppearance } from '@/utils/assistants/coordinator-onboarding-intro';
 
 /**
- * Target render width (px) of an onboarding-intro unity. Held constant across
- * shapes — like the landing-page hero conveyor — so unitys vary only in height
+ * Target render width (px) of an onboarding-intro droid. Held constant across
+ * shapes — like the landing-page hero conveyor — so droids vary only in height
  * as they slide past, and constant across aspect ratios so T-W1N reads at the
  * same (larger) size whether the window is full or half width.
  */
 export const COORDINATOR_ONBOARDING_UNITY_WIDTH_PX = 176;
 
-// Each unity sits in a square frame a bit wider than the unity itself; the gap
-// is the spacing seen between unitys as the wardrobe selector slides.
+// Each droid sits in a square frame a bit wider than the droid itself; the gap
+// is the spacing seen between droids as the wardrobe selector slides.
 const UNITY_FRAME_TO_WIDTH_RATIO = 4 / 3;
-// Only shrink below the target on viewports too narrow to fit it, so the unity
+// Only shrink below the target on viewports too narrow to fit it, so the droid
 // never overflows a small window.
 const UNITY_MAX_VIEWPORT_FRACTION = 0.46;
 const COORDINATOR_INTRO_SPEECH_EYE_CONFIG = {
@@ -36,10 +36,10 @@ function computeUnityWidth(viewportWidth: number) {
 }
 
 /**
- * Viewport-responsive sizing for the onboarding unitys. Returns the unity
+ * Viewport-responsive sizing for the onboarding droids. Returns the droid
  * render ``width`` plus the square ``frame`` size used for the selector cells,
  * slide pitch, and avatar boxes — keep them in lockstep so the slide math and
- * the per-unity baseline stay correct as the size changes.
+ * the per-droid baseline stay correct as the size changes.
  */
 export function useCoordinatorUnityLayout() {
   const [unityWidth, setUnityWidth] = React.useState(COORDINATOR_ONBOARDING_UNITY_WIDTH_PX);

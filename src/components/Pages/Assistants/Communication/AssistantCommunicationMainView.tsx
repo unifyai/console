@@ -1,117 +1,22 @@
 'use client';
 
 import * as React from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
 import { VideoTrack, TrackReference } from '@livekit/components-react';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, Volume2, VolumeX } from 'lucide-react';
 import { Loader } from '@/components/Common/Loader';
 import { Button } from '@/components/UI/button';
 import { UnityCallAvatar } from '@/components/Pages/Assistants/Communication/UnityCallAvatar';
-import { CreatureAvatar, parseCreatureSentinel } from '@/components/Brand';
-import { useUnityEyeExpression } from '@/hooks/Assistants/useUnityEyeExpression';
+import { parseCreatureSentinel } from '@/components/Brand';
 import { useUnityAudioLipsync } from '@/hooks/Assistants/useUnityAudioLipsync';
-import type {
-  CreatureEyes,
-  CreatureMood,
-  CreatureMouthShape,
-} from '@/components/Brand/TeammateCreature';
-import { getUnitySpeechTransform } from '@/utils/assistants/unity-animation';
+import { useHeldFlag } from '@/hooks/Assistants/useHeldFlag';
+import type { CreatureMood, CreatureMouthShape } from '@/components/Brand/TeammateCreature';
 
 type BrowserWindowWithCoordinatorIntroAudio = Window & {
   __coordinatorOnboardingIntroAudio?: HTMLAudioElement;
   __coordinatorOnboardingIntroSpeechLevel?: number;
   __coordinatorOnboardingIntroMouthShape?: CreatureMouthShape;
 };
-
-const IMAGE_AVATAR_MOUTH: Record<
-  CreatureMouthShape,
-  { width: number; topDip: number; bottomDip: number }
-> = {
-  closed: { width: 24, topDip: 2, bottomDip: 8 },
-  pinched: { width: 22, topDip: 2, bottomDip: 15 },
-  narrow: { width: 26, topDip: 3, bottomDip: 17 },
-  round: { width: 24, topDip: 3, bottomDip: 19 },
-  wide: { width: 34, topDip: 3, bottomDip: 16 },
-  open: { width: 30, topDip: 4, bottomDip: 22 },
-  flat: { width: 24, topDip: 0, bottomDip: 3 },
-  cat: { width: 19, topDip: 0, bottomDip: 20 },
-  unsure: { width: 24, topDip: 0, bottomDip: 6 },
-};
-
-function ImageAvatarMouth({
-  mouthShape,
-  speechLevel,
-}: {
-  mouthShape: CreatureMouthShape;
-  speechLevel: number;
-}) {
-  const mouth = IMAGE_AVATAR_MOUTH[mouthShape];
-  const cx = 22;
-  const topY = 4;
-  const leftX = cx - mouth.width / 2;
-  const rightX = cx + mouth.width / 2;
-
-  return (
-    <svg
-      aria-hidden="true"
-      className="pointer-events-none absolute left-1/2 top-[58%] h-[24%] w-[42%] -translate-x-1/2 text-primary"
-      viewBox="0 0 44 28"
-    >
-      <path
-        d={`M ${leftX} ${topY} Q ${cx} ${topY + mouth.topDip} ${rightX} ${topY} Q ${cx} ${
-          topY + mouth.bottomDip
-        } ${leftX} ${topY} Z`}
-        fill="currentColor"
-        style={{
-          opacity: 0.78 + speechLevel * 0.22,
-          transform: `scaleY(${0.9 + speechLevel * 0.12})`,
-          transformBox: 'fill-box',
-          transformOrigin: 'center top',
-        }}
-      />
-    </svg>
-  );
-}
-
-function ImageAvatarEye({ cx, cy, eyes }: { cx: number; cy: number; eyes: CreatureEyes }) {
-  if (eyes === 'blink') {
-    return <rect fill="currentColor" height={4} rx={2} width={15} x={cx - 7.5} y={cy - 2} />;
-  }
-
-  if (eyes === 'square') {
-    return <rect fill="currentColor" height={9} rx={2} width={9} x={cx - 4.5} y={cy - 4.5} />;
-  }
-
-  const d =
-    eyes === 'down'
-      ? `M ${cx - 6} ${cy - 4} L ${cx} ${cy + 4} L ${cx + 6} ${cy - 4}`
-      : `M ${cx - 6} ${cy + 4} L ${cx} ${cy - 4} L ${cx + 6} ${cy + 4}`;
-
-  return (
-    <path
-      d={d}
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={4.5}
-    />
-  );
-}
-
-function ImageAvatarEyes({ eyes }: { eyes: CreatureEyes }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className="pointer-events-none absolute left-1/2 top-[34%] h-[22%] w-[54%] -translate-x-1/2 text-primary"
-      viewBox="0 0 64 32"
-    >
-      <ImageAvatarEye cx={22} cy={15} eyes={eyes} />
-      <ImageAvatarEye cx={42} cy={15} eyes={eyes} />
-    </svg>
-  );
-}
 
 interface AssistantCommunicationMainViewProps {
   assistantName: string;
@@ -131,7 +36,6 @@ interface AssistantCommunicationMainViewProps {
   isInteractive?: boolean;
   isRingMuted?: boolean;
   onToggleRingMute?: () => void;
-  isCallActive?: boolean;
   /** Whether the assistant has an in-flight `act`; drives the droid's
    *  "working on a laptop" pose. */
   isActing?: boolean;
@@ -161,32 +65,31 @@ export function AssistantCommunicationMainView({
   isInteractive = false,
   isRingMuted = false,
   onToggleRingMute,
-  isCallActive = false,
   isActing = false,
   isUserSpeaking = false,
   mood = 'happy',
   coordinatorAvatarVisible = true,
   coordinatorTeleportIn = false,
 }: AssistantCommunicationMainViewProps) {
-  const fallback = assistantName
-    ? `${assistantName.split(' ')?.[0]?.[0] ?? ''}${assistantName.split(' ')?.[1]?.[0] ?? ''}`.toUpperCase()
-    : 'A';
-  // A `appearance://` photo means this assistant is a unity — render the
-  // animated SVG instead of a (broken) <img> + overlaid eyes/mouth.
+  // Every droid carries an `appearance://` sentinel that reconstructs its
+  // animated creature; the call window always renders that creature through the
+  // shared `UnityCallAvatar`, identical to the coordinator (T-W1N) treatment.
   const creatureAppearance = parseCreatureSentinel(imageUrl);
   const [isIntroAudioPlaying, setIsIntroAudioPlaying] = React.useState(false);
   const [introAudioSpeechLevel, setIntroAudioSpeechLevel] = React.useState(0);
   const [introAudioMouthShape, setIntroAudioMouthShape] =
     React.useState<CreatureMouthShape>('closed');
   const liveLipsyncFrame = useUnityAudioLipsync(audioTrack, !isLoading && !connectionError);
-  const isImageAvatarSpeaking =
-    liveLipsyncFrame.isActive || (isSpeaking && !isLoading && !connectionError);
-  const imageAvatarEyes = useUnityEyeExpression({
-    isCallActive,
-    isSpeaking: isImageAvatarSpeaking,
-    isUserSpeaking,
-    speechLevel: liveLipsyncFrame.speechLevel,
-  });
+  // The speaking turn is driven by Unity's real TTS playout state (LiveKit
+  // `agentState === 'speaking'`, surfaced here as `isSpeaking`), not by audio
+  // amplitude. The held flag bridges the brief speaking->thinking->speaking dips
+  // that occur between sentences within one turn, so the face doesn't flicker.
+  // `liveLipsyncFrame.speechLevel` is still used purely for mouth-open amplitude.
+  const agentSpeaking = isSpeaking && !isLoading && !connectionError;
+  const isDroidSpeaking = useHeldFlag(agentSpeaking);
+  // The coordinator can also speak via the precomputed onboarding intro audio,
+  // which plays outside the LiveKit agent, so that counts as a speaking turn too.
+  const isCoordinatorSpeaking = useHeldFlag(isIntroAudioPlaying || agentSpeaking);
 
   React.useEffect(() => {
     if (!isCoordinator) return;
@@ -203,70 +106,6 @@ export function AssistantCommunicationMainView({
     const interval = window.setInterval(updateIntroAudioState, 100);
     return () => window.clearInterval(interval);
   }, [isCoordinator]);
-
-  if (isLoading && !isCoordinator) {
-    const spinnerSize = avatarContainerClassName || 'h-32 w-32';
-    return (
-      <div className={cn('flex flex-col items-center justify-center p-4 text-center', className)}>
-        <div className="relative flex items-center justify-center">
-          <svg
-            className={cn('absolute text-primary', spinnerSize, 'scale-[1.15]')}
-            viewBox="0 0 100 100"
-          >
-            <circle
-              cx="50"
-              cy="50"
-              r="46"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="4"
-              strokeLinecap="round"
-              strokeDasharray="72 217"
-            >
-              <animateTransform
-                attributeName="transform"
-                type="rotate"
-                values="0 50 50;360 50 50"
-                dur="1.5s"
-                repeatCount="indefinite"
-              />
-            </circle>
-          </svg>
-          <div
-            className={cn(
-              'z-10 flex items-center justify-center overflow-hidden rounded-full border-4 border-background',
-              spinnerSize
-            )}
-          >
-            {creatureAppearance ? (
-              <CreatureAvatar
-                appearance={creatureAppearance}
-                className="rounded-full"
-                label={assistantName}
-              />
-            ) : (
-              <Avatar className="h-full w-full">
-                <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
-                <AvatarFallback className="bg-muted text-4xl text-muted-foreground">
-                  {fallback}
-                </AvatarFallback>
-              </Avatar>
-            )}
-          </div>
-        </div>
-        <p className="text-body-muted mt-4">{loadingMessage}</p>
-        {onToggleRingMute && (
-          <button
-            onClick={onToggleRingMute}
-            className="mt-3 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label={isRingMuted ? 'Unmute ring tone' : 'Mute ring tone'}
-          >
-            {isRingMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-          </button>
-        )}
-      </div>
-    );
-  }
 
   if (connectionError) {
     return (
@@ -320,16 +159,6 @@ export function AssistantCommunicationMainView({
   const coordinatorMouthShape = isIntroAudioPlaying
     ? introAudioMouthShape
     : liveLipsyncFrame.mouthShape;
-  const isCoordinatorSpeaking =
-    isIntroAudioPlaying ||
-    liveLipsyncFrame.isActive ||
-    (isSpeaking && !isLoading && !connectionError);
-  const imageAvatarSpeechLevel = liveLipsyncFrame.speechLevel;
-  const imageAvatarMouthShape = liveLipsyncFrame.mouthShape;
-  const imageAvatarVisualStyle = {
-    '--unity-speech-level': imageAvatarSpeechLevel.toFixed(3),
-    transform: getUnitySpeechTransform(imageAvatarSpeechLevel * 0.45),
-  } as React.CSSProperties;
 
   return (
     <div
@@ -338,7 +167,7 @@ export function AssistantCommunicationMainView({
         className || 'h-48 w-48'
       )}
     >
-      {isCoordinator && isLoading && (
+      {isLoading && (
         <div className="pointer-events-none absolute top-[calc(50%+4.75rem)] flex flex-col items-center">
           <p className="text-body-muted whitespace-nowrap">{loadingMessage}</p>
           {onToggleRingMute && (
@@ -353,7 +182,7 @@ export function AssistantCommunicationMainView({
         </div>
       )}
       <div className="relative flex items-center justify-center">
-        {/* Video or Avatar */}
+        {/* Video or animated droid avatar */}
         <div
           className={cn(
             'z-10 flex items-center justify-center overflow-visible transition-transform duration-75',
@@ -365,50 +194,33 @@ export function AssistantCommunicationMainView({
           videoTrack.publication.isSubscribed &&
           videoTrack.publication.track?.kind === 'video' ? (
             <VideoTrack trackRef={videoTrack} className="h-full w-full object-cover" />
+          ) : isCoordinator && !coordinatorAvatarVisible ? (
+            <div className="h-full w-full" aria-hidden="true" />
+          ) : isCoordinator ? (
+            <UnityCallAvatar
+              isSpeaking={isCoordinatorSpeaking}
+              isActing={isActing}
+              isUserSpeaking={isUserSpeaking}
+              teleportInOnMount={coordinatorTeleportIn}
+              mood={mood}
+              mouthShape={coordinatorMouthShape}
+              speechLevel={coordinatorSpeechLevel}
+            />
           ) : (
-            <>
-              {isCoordinator && !coordinatorAvatarVisible ? (
-                <div className="h-full w-full" aria-hidden="true" />
-              ) : isCoordinator ? (
-                <UnityCallAvatar
-                  isSpeaking={isCoordinatorSpeaking}
-                  isActing={isActing}
-                  isUserSpeaking={isUserSpeaking}
-                  teleportInOnMount={coordinatorTeleportIn}
-                  mood={mood}
-                  mouthShape={coordinatorMouthShape}
-                  speechLevel={coordinatorSpeechLevel}
-                />
-              ) : creatureAppearance ? (
-                <UnityCallAvatar
-                  isSpeaking={isImageAvatarSpeaking}
-                  isActing={isActing}
-                  isUserSpeaking={isUserSpeaking}
-                  mouthShape={imageAvatarMouthShape}
-                  speechLevel={imageAvatarSpeechLevel}
-                  antenna={creatureAppearance.antenna}
-                  body={creatureAppearance.body}
-                  color={creatureAppearance.color}
-                  baseEyes={creatureAppearance.eyes}
-                  outfit={creatureAppearance.outfit}
-                  label={assistantName}
-                />
-              ) : (
-                <div className="relative h-full w-full" style={imageAvatarVisualStyle}>
-                  <Avatar className="h-full w-full">
-                    <AvatarImage src={imageUrl ?? undefined} alt={assistantName} />
-                    <AvatarFallback className="bg-muted text-4xl text-muted-foreground">
-                      {fallback}
-                    </AvatarFallback>
-                  </Avatar>
-                  <ImageAvatarEyes eyes={imageAvatarEyes} />
-                  <ImageAvatarMouth
-                    mouthShape={imageAvatarMouthShape}
-                    speechLevel={imageAvatarSpeechLevel}
-                  />
-                </div>
-              )}
-            </>
+            <UnityCallAvatar
+              isSpeaking={isDroidSpeaking}
+              isActing={isActing}
+              isUserSpeaking={isUserSpeaking}
+              mood={mood}
+              mouthShape={liveLipsyncFrame.mouthShape}
+              speechLevel={liveLipsyncFrame.speechLevel}
+              antenna={creatureAppearance?.antenna}
+              body={creatureAppearance?.body}
+              color={creatureAppearance?.color}
+              baseEyes={creatureAppearance?.eyes}
+              outfit={creatureAppearance?.outfit}
+              label={assistantName}
+            />
           )}
         </div>
       </div>

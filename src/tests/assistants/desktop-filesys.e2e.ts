@@ -100,6 +100,14 @@ test('toggling filesystem access drives consent flag and per-link SFTP key', asy
     .poll(() => getLinkFilesysState(ada.agentId, macbook.id), { timeout: 10_000 })
     .toEqual({ filesysSync: true, hasKey: true });
 
+  // Re-opening must reflect the persisted consent: the toggle is initialized
+  // from the assistant snapshot, so a stale snapshot would show it back OFF.
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden({ timeout: 5_000 });
+  await openDesktopLinker(page, ada.agentId);
+  const reopenedDialog = page.getByRole('dialog');
+  await expect(reopenedDialog.getByRole('switch', { name: /filesystem access/i })).toBeChecked();
+
   // Disable: clears the flag and the key (revocation).
   await toggle.click();
   await expect(page.getByText('Filesystem access disabled')).toBeVisible({ timeout: 10_000 });

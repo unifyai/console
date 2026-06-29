@@ -106,6 +106,9 @@ describe('useAssistantCall', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    delete (window as any)._TEST_CALL_DISPATCH_TIMEOUT;
+    delete (window as any)._TEST_ASSISTANT_INITIAL_REDISPATCH_DELAY;
+    delete (window as any)._TEST_ASSISTANT_INITIAL_JOIN_TIMEOUT;
   });
 
   it('dispatches with a stable call session id and does not delete the room on connect', async () => {
@@ -191,6 +194,43 @@ describe('useAssistantCall', () => {
     expect(actions.call.deleteRoom).not.toHaveBeenCalled();
     expect(room.disconnectCalls).toBe(0);
     expect(result.current.connectionError).toContain('had trouble rejoining');
+  });
+
+  it('retries the connection when the dispatch request stalls past the timeout', async () => {
+    const room = new FakeRoom();
+    const actions = makeActions();
+    (window as any)._TEST_CALL_DISPATCH_TIMEOUT = 5_000;
+
+    let calls = 0;
+    vi.mocked(actions.call.getConnectionDetails).mockImplementation((() => {
+      calls += 1;
+      // First attempt never settles (simulates a request stalled behind a
+      // dev-server rebuild); later attempts resolve normally.
+      if (calls === 1) return new Promise(() => {});
+      return Promise.resolve({
+        serverUrl: 'wss://livekit.example',
+        token: 'token',
+        roomName: 'unity_1_meet',
+      });
+    }) as any);
+
+    const { result } = renderHook(() => useAssistantCall(room as any, actions));
+
+    let connectPromise!: Promise<void>;
+    await act(async () => {
+      connectPromise = result.current.connect(assistant, 'audio');
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      // Timeout fires -> rejection -> backoff (INITIAL_RETRY_DELAY) -> retry succeeds.
+      await vi.advanceTimersByTimeAsync(5_000);
+      await vi.advanceTimersByTimeAsync(1_000);
+      await connectPromise;
+    });
+
+    expect(actions.call.getConnectionDetails).toHaveBeenCalledTimes(2);
+    expect(result.current.isWaitingForAssistant).toBe(true);
   });
 
   it('deletes the room only after explicit hangup disconnects the browser room', async () => {

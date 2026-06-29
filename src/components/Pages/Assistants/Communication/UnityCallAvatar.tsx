@@ -23,9 +23,11 @@ import { UnityTeleportFizzle } from '@/components/Pages/Assistants/Communication
 interface UnityCallAvatarProps {
   isSpeaking: boolean;
   isCallActive?: boolean;
-  /** Whether the assistant has an in-flight `act`. Rotates the droid into its
-   *  "working on a laptop" pose (laptop unfolds, keys flicker) while the body
-   *  keeps lipsyncing, then turns back to face the screen when it ends. */
+  /** Whether the droid should be turned into its "working on a laptop" pose
+   *  (laptop unfolds, keys flicker) rather than facing the camera. The body keeps
+   *  lipsyncing in either pose. Driven by the call window's pose state machine:
+   *  a new speaking turn faces the camera, while work or silence turns it to the
+   *  laptop. */
   isActing?: boolean;
   isUserSpeaking?: boolean;
   animateBodyMotion?: boolean;
@@ -65,8 +67,8 @@ const LAPTOP_FADE = 'opacity 0.5s ease';
 // is meant to be prominent (overflow is visible on the avatar).
 const LAPTOP_STYLE: React.CSSProperties = {
   position: 'absolute',
-  left: '80%',
-  top: '88%',
+  left: '85%',
+  top: '91%',
   width: '90%',
   transform: 'translate(-50%, -50%)',
   pointerEvents: 'none',
@@ -164,6 +166,11 @@ export function UnityCallAvatar({
     '--unity-speech-level': displayedSpeechLevel.toFixed(3),
   } as React.CSSProperties;
 
+  // Turning to the laptop drops the droid's gaze to its work; turning back lifts
+  // it to meet the camera. Shifting the eyes with the body makes the swivel read
+  // as a deliberate "getting to work" gesture rather than a blank rotation.
+  const poseRestingEyes: CreatureEyes = isActing ? 'down' : baseEyes;
+
   // Speech + eyes stay live for the whole call via the bare `active` prop; the
   // body pose is driven by our own animated `progress` through `fixed` (0 =
   // restView/head-on, 1 = activeView/isometric). `fixed` only affects the pose,
@@ -181,7 +188,7 @@ export function UnityCallAvatar({
       emotion={mood}
       isSpeaking={isSpeaking}
       isUserSpeaking={isUserSpeaking}
-      restingEyes={isHovered ? 'square' : baseEyes}
+      restingEyes={isHovered ? 'square' : poseRestingEyes}
       stableBox
       speechLevel={displayedSpeechLevel}
       mouthShape={displayedMouthShape}

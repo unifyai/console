@@ -141,7 +141,7 @@ export function AssistantEdit({
     if (isProcessingVoice) return 'Processing Voice...';
     if (isProcessingPhoto) return 'Processing Photo...';
     if (assistant.isCoordinator) return 'Update T-W1N';
-    return 'Update Unity';
+    return 'Update Droid';
   };
 
   const displayName = assistantDisplayName(assistant);

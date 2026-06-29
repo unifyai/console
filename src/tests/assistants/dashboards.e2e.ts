@@ -344,7 +344,7 @@ test('no tabs visible and shows placeholder when no assistant is selected', asyn
   await expect(page.getByTestId('right-pane-tab-dashboards')).not.toBeVisible({ timeout: 3_000 });
   await expect(page.getByTestId('right-pane-tab-memory')).not.toBeVisible({ timeout: 3_000 });
   await expect(page.getByTestId('right-pane-tab-actions')).not.toBeVisible({ timeout: 3_000 });
-  await expect(page.locator('text=Select a unity to watch live actions.')).toBeVisible({
+  await expect(page.locator('text=Select a droid to watch live actions.')).toBeVisible({
     timeout: 5_000,
   });
 });

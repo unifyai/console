@@ -24,7 +24,7 @@ import type {
 } from './types';
 import {
   approvedCharacterVoiceMetadata,
-  coordinatorFixedVoiceId,
+  coordinatorDefaultVoiceId,
 } from '../../../constants/assistants/approved_character_voices';
 import {
   COORDINATOR_DEFAULT_ABOUT,
@@ -729,7 +729,7 @@ END
  * Ensure at least one voice preset exists (required FK for assistants).
  */
 export function ensureVoicePreset(userId: string): void {
-  const coordinatorVoice = approvedCharacterVoiceMetadata[coordinatorFixedVoiceId];
+  const coordinatorVoice = approvedCharacterVoiceMetadata[coordinatorDefaultVoiceId];
   dbExecBlock(`
 INSERT INTO voices (voice_id, user_id, name, description, gender, language, is_preset, provider)
 VALUES (
@@ -743,7 +743,7 @@ VALUES (
   'elevenlabs'
 ),
 (
-  ${sqlLiteral(coordinatorFixedVoiceId)},
+  ${sqlLiteral(coordinatorDefaultVoiceId)},
   ${sqlLiteral(userId)},
   ${sqlLiteral(coordinatorVoice.name)},
   ${sqlLiteral(coordinatorVoice.description)},
@@ -1017,8 +1017,10 @@ export function createPersonalCoordinator(
     const parsed = parseInt(existingId, 10);
     if (Number.isFinite(parsed)) {
       ensureVoicePreset(userId);
+      // Fill the default voice only when absent so a selected Coordinator voice
+      // survives a re-seed/heal (the voice is selectable like any other droid).
       dbExec(
-        `UPDATE assistants SET first_name = 'T-W1N', surname = NULL, voice_id = ${sqlLiteral(coordinatorFixedVoiceId)}, voice_provider = ${sqlLiteral(approvedCharacterVoiceMetadata[coordinatorFixedVoiceId].provider)}, job_title = ${sqlLiteral(COORDINATOR_DEFAULT_JOB_TITLE)}, about = CASE WHEN about IS NULL OR about = ${sqlLiteral(COORDINATOR_LEGACY_ABOUT)} THEN ${sqlLiteral(COORDINATOR_DEFAULT_ABOUT)} ELSE about END WHERE agent_id = ${parsed};`
+        `UPDATE assistants SET first_name = 'T-W1N', surname = NULL, voice_id = COALESCE(voice_id, ${sqlLiteral(coordinatorDefaultVoiceId)}), voice_provider = COALESCE(voice_provider, ${sqlLiteral(approvedCharacterVoiceMetadata[coordinatorDefaultVoiceId].provider)}), job_title = ${sqlLiteral(COORDINATOR_DEFAULT_JOB_TITLE)}, about = CASE WHEN about IS NULL OR about = ${sqlLiteral(COORDINATOR_LEGACY_ABOUT)} THEN ${sqlLiteral(COORDINATOR_DEFAULT_ABOUT)} ELSE about END WHERE agent_id = ${parsed};`
       );
       return {
         agentId: parsed,
@@ -1048,8 +1050,8 @@ export function createPersonalCoordinator(
     desktopMode: opts.desktopMode ?? 'ubuntu',
     isLocal: false,
     profilePhoto: opts.profilePhoto,
-    voiceId: coordinatorFixedVoiceId,
-    voiceProvider: approvedCharacterVoiceMetadata[coordinatorFixedVoiceId].provider,
+    voiceId: coordinatorDefaultVoiceId,
+    voiceProvider: approvedCharacterVoiceMetadata[coordinatorDefaultVoiceId].provider,
     selfContactId: COORDINATOR_SELF_CONTACT_ID,
     bossContactId: COORDINATOR_BOSS_CONTACT_ID,
     bossResponsePolicy: null, // Coordinator uses an empty response policy

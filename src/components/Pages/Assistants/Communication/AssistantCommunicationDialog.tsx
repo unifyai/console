@@ -39,32 +39,83 @@ import { useAssistantActions } from '@/hooks/Assistants/useAssistantActions';
 export type CallDialogActions = Pick<AssistantActions, 'chat' | 'desktop' | 'actions'> &
   Partial<Pick<AssistantActions, 'voice'>>;
 
-// Keep the call-window droid in its "working on a laptop" pose for this long
-// after the latest non-unify comms event; cascading events keep resetting it.
-const COMMS_ACTIVITY_COOLOFF_MS = 10_000;
+// Once the droid stops speaking, it holds eye contact for this long before it
+// drifts back to working on its laptop. Speech is the ONLY thing that turns the
+// droid to face the camera; everything else only ever turns it to the laptop.
+const SILENCE_TO_LAPTOP_MS = 5_000;
+
+// How long the droid must have been heads-down on the laptop before the start of
+// a speaking turn is allowed to turn it to face the camera. A turn that begins
+// sooner is ignored — the droid keeps working and speaks from the laptop.
+const MIN_LAPTOP_DWELL_BEFORE_FACING_MS = 5_000;
 
 /**
- * True for `windowMs` after `lastActivityAt`, then flips back to false. Each new
- * `lastActivityAt` resets the timer, so a burst of comms events holds the pose
- * until 10s after the last one.
+ * Computes the call-window droid's "working on a laptop" pose. Returns `true`
+ * while it is turned to its laptop (the default, resting pose) and `false` only
+ * while it faces the camera.
+ *
+ * Facing the camera is strictly edge-triggered and never deferred:
+ *  - the ONLY thing that turns the droid to the camera is the *start* of a
+ *    speaking turn, and only if it has already been on the laptop for at least
+ *    `MIN_LAPTOP_DWELL_BEFORE_FACING_MS` at that instant. A turn that starts too
+ *    soon is ignored outright — the droid keeps working and speaks from the
+ *    laptop until a *later* turn begins under valid conditions. So it is never
+ *    seen swivelling to the camera mid-speech or during a silence.
+ *  - while facing the camera it holds that pose for as long as speech continues;
+ *  - once it falls silent it returns to the laptop after `SILENCE_TO_LAPTOP_MS`;
+ *  - picking up other work (a fresh comms event or a newly in-flight `act`) turns
+ *    it back to the laptop immediately, but never interrupts a live speaking turn.
  */
-function useCommsCooloff(lastActivityAt: number | null, windowMs: number): boolean {
-  const [active, setActive] = React.useState(false);
+function useWorkingPose(
+  isSpeaking: boolean,
+  lastCommsActivityAt: number | null,
+  hasActiveAction: boolean
+): boolean {
+  const [onLaptop, setOnLaptop] = React.useState(false);
+
+  // Stamp when the droid arrives on (or leaves) the laptop, so a later speaking
+  // turn can measure how long it has been heads-down.
+  const laptopSinceRef = React.useRef<number | null>(null);
   React.useEffect(() => {
-    if (lastActivityAt == null) {
-      setActive(false);
-      return;
-    }
-    const remaining = windowMs - (Date.now() - lastActivityAt);
-    if (remaining <= 0) {
-      setActive(false);
-      return;
-    }
-    setActive(true);
-    const timer = window.setTimeout(() => setActive(false), remaining);
+    laptopSinceRef.current = onLaptop ? Date.now() : null;
+  }, [onLaptop]);
+
+  // The start of a speaking turn faces the camera — but only once the droid has
+  // been on the laptop long enough. Edge-triggered on the rising edge of speech
+  // (never mid-turn), and gated by dwell, so a too-soon turn is ignored and the
+  // droid keeps working until a later turn starts under valid conditions.
+  const wasSpeakingRef = React.useRef(isSpeaking);
+  React.useEffect(() => {
+    const speechStarted = isSpeaking && !wasSpeakingRef.current;
+    wasSpeakingRef.current = isSpeaking;
+    if (!speechStarted || !onLaptop) return;
+    const onLaptopFor =
+      laptopSinceRef.current == null ? Infinity : Date.now() - laptopSinceRef.current;
+    if (onLaptopFor >= MIN_LAPTOP_DWELL_BEFORE_FACING_MS) setOnLaptop(false);
+  }, [isSpeaking, onLaptop]);
+
+  // Silence after facing the camera → drift back to the laptop.
+  React.useEffect(() => {
+    if (isSpeaking || onLaptop) return;
+    const timer = window.setTimeout(() => setOnLaptop(true), SILENCE_TO_LAPTOP_MS);
     return () => window.clearTimeout(timer);
-  }, [lastActivityAt, windowMs]);
-  return active;
+  }, [isSpeaking, onLaptop]);
+
+  // A fresh comms event or a newly in-flight action → turn to the laptop now,
+  // unless mid speaking turn (eye contact wins). Refs gate this to the work
+  // signals themselves, so it stays inert when the speaking flag merely flips.
+  const prevCommsAtRef = React.useRef(lastCommsActivityAt);
+  const prevActiveRef = React.useRef(hasActiveAction);
+  React.useEffect(() => {
+    const commsArrived =
+      lastCommsActivityAt != null && lastCommsActivityAt !== prevCommsAtRef.current;
+    const actionStarted = hasActiveAction && !prevActiveRef.current;
+    prevCommsAtRef.current = lastCommsActivityAt;
+    prevActiveRef.current = hasActiveAction;
+    if (!isSpeaking && (commsArrived || actionStarted)) setOnLaptop(true);
+  }, [lastCommsActivityAt, hasActiveAction, isSpeaking]);
+
+  return onLaptop;
 }
 
 interface AssistantCommunicationDialogContentProps {
@@ -172,6 +223,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     audioTrack: agentAudioTrack,
     videoTrack: agentVideoTrack,
   } = useVoiceAssistant();
+  const isAssistantSpeaking = agentState === 'speaking';
   const { localParticipant } = useLocalParticipant();
   const isUserSpeaking = useIsSpeaking(localParticipant);
   const micToggle = useTrackToggle({ source: Track.Source.Microphone });
@@ -281,18 +333,18 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
     deviceId: activeAudioInputDeviceId,
   });
 
-  // Mirror the Actions pane's in-flight detection so the call avatar can adopt
-  // its "working on a laptop" pose while the assistant has a running `act`, and
-  // also while a non-unify comms event (email/SMS/WhatsApp/…) is fresh. Same
-  // SSE stream; only `hasActiveAction` + `lastCommsActivityAt` are consumed.
+  // Drive the call avatar's "working on a laptop" pose. The same SSE stream the
+  // Actions pane consumes surfaces in-flight `act`s (`hasActiveAction`) and fresh
+  // non-unify comms events (email/SMS/WhatsApp/…, via `lastCommsActivityAt`);
+  // both turn the droid to its laptop, while only a new speaking turn faces it
+  // back to the camera.
   const { hasActiveAction, lastCommsActivityAt } = useAssistantActions(
     assistant.userId,
     assistant.agentId,
     assistantActions.actions ?? { getManagerMethodEvents: async () => ({ logs: [], count: 0 }) },
     { enabled: isCallConnected }
   );
-  const isCommsActive = useCommsCooloff(lastCommsActivityAt, COMMS_ACTIVITY_COOLOFF_MS);
-  const isActing = hasActiveAction || isCommsActive;
+  const isActing = useWorkingPose(isAssistantSpeaking, lastCommsActivityAt, hasActiveAction);
 
   React.useEffect(() => {
     if (!isCallConnected) return;
@@ -389,7 +441,7 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
               <AssistantCommunicationMainView
                 assistantName={displayName}
                 isCoordinator={isCoordinator}
-                isSpeaking={agentState === 'speaking'}
+                isSpeaking={isAssistantSpeaking}
                 imageUrl={assistantPhoto}
                 audioTrack={agentAudioTrack}
                 videoTrack={agentVideoTrack}
@@ -402,7 +454,6 @@ const AssistantCommunicationDialogContent: React.FC<AssistantCommunicationDialog
                 onRetry={onRetry}
                 isRingMuted={isSpeakerMuted}
                 onToggleRingMute={onToggleSpeaker}
-                isCallActive={isCallConnected}
                 isActing={isActing}
                 coordinatorAvatarVisible={coordinatorAvatarVisible}
                 coordinatorTeleportIn={coordinatorTeleportIn}

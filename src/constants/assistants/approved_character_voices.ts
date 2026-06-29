@@ -8,7 +8,7 @@ type ApprovedVoiceMetadata = Pick<
 export const approvedCharacterVoiceMetadata: Record<string, ApprovedVoiceMetadata> = {
   cgSgspJ2msm6clMCkdW9: {
     name: 'Nova Guide',
-    description: 'Bright, polished, and upbeat for cheerful customer-facing unitys.',
+    description: 'Bright, polished, and upbeat for cheerful customer-facing droids.',
     gender: 'female',
     language: 'en',
     provider: 'elevenlabs',
@@ -36,7 +36,7 @@ export const approvedCharacterVoiceMetadata: Record<string, ApprovedVoiceMetadat
   },
   AZnzlk1XvdvUeBnXmlld: {
     name: 'Vector Pilot',
-    description: 'Lively, animated, and clear for high-presence operational unitys.',
+    description: 'Lively, animated, and clear for high-presence operational droids.',
     gender: 'female',
     language: 'en',
     provider: 'elevenlabs',
@@ -64,7 +64,7 @@ export const approvedCharacterVoiceMetadata: Record<string, ApprovedVoiceMetadat
   },
   TX3LPaxmHKxFdv7VOQHJ: {
     name: 'Beacon Operator',
-    description: 'Warm, friendly, and upbeat for approachable support unitys.',
+    description: 'Warm, friendly, and upbeat for approachable support droids.',
     gender: 'male',
     language: 'en',
     provider: 'elevenlabs',
@@ -93,8 +93,9 @@ export const approvedCharacterVoiceMetadata: Record<string, ApprovedVoiceMetadat
 };
 
 export const defaultCharacterVoiceId = 'cgSgspJ2msm6clMCkdW9';
-// The Coordinator uses this voice by default when seeded or created.
-export const coordinatorFixedVoiceId = 'iP95p4xoKVk53GoZ742B';
+// The Coordinator uses this voice by default when seeded or created; it is
+// fully selectable afterwards like every other droid's voice.
+export const coordinatorDefaultVoiceId = 'iP95p4xoKVk53GoZ742B';
 
 export const approvedCharacterVoiceIds = new Set(Object.keys(approvedCharacterVoiceMetadata));
 

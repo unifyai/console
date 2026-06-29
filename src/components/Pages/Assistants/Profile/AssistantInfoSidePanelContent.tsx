@@ -484,16 +484,12 @@ function IdentityHeader({
   const metadataRowClass =
     'text-caption grid min-w-0 grid-cols-[10ch_minmax(0,1fr)] items-center gap-x-1 text-muted-foreground';
   const creatureAppearance = parseCreatureSentinel(photoSrc);
-  const creatureAvatarClassName = cn(
-    'w-14 flex-shrink-0 rounded-md',
-    creatureAppearance?.body === 'tall' ? 'h-16' : 'h-14'
-  );
   const renderedAvatar =
     avatarNode ??
     (creatureAppearance ? (
       <CreatureAvatar
         appearance={creatureAppearance}
-        className={creatureAvatarClassName}
+        className="h-20 w-20 flex-shrink-0"
         label={name}
       />
     ) : (
@@ -543,9 +539,9 @@ function IdentityHeader({
           onClick={onCopyId}
           className={cn(metadataRowClass, 'group/id w-full cursor-pointer text-left')}
           data-testid="assistant-info-copy-id"
-          aria-label="Copy unity ID"
+          aria-label="Copy droid ID"
         >
-          <span className="opacity-70">Unity ID:</span>
+          <span className="opacity-70">Droid ID:</span>
           <span className="flex min-w-0 items-center">
             {isIdCopied ? (
               <Check className="h-3 w-3 flex-shrink-0 text-[color:var(--status-success)]" />

@@ -193,6 +193,11 @@ export function AssistantDesktopLinker({
       return;
     }
     toast.success(next ? 'Filesystem access enabled' : 'Filesystem access disabled');
+    // Re-pull the assistant data so the persisted consent flows back into the
+    // prop the toggle initializes from; otherwise the next open re-snapshots a
+    // stale value and the toggle reverts. The same desktop stays linked, so we
+    // pass its id (this never closes the dialog).
+    onLinked?.(currentDesktopId);
   };
 
   const handleSavePassword = async (e: React.FormEvent) => {

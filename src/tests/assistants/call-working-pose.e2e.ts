@@ -1,15 +1,17 @@
 /**
- * Call Working-Pose E2E — verifies the call-window droid adopts its
- * "working on a laptop" pose while the assistant has an in-flight `act`,
- * then turns back to face the screen once the act completes.
+ * Call Working-Pose E2E — verifies the call-window droid's pose state machine.
  *
- * Flow:
- *  - Start a call with a droid (appearance-sentinel) assistant so the call
- *    surface renders the animated `UnityCallAvatar` (not a photo).
- *  - Push a live incoming `CodeActActor.act` ManagerMethod event via the local
- *    push endpoint — the same SSE stream the Actions pane consumes — and assert
- *    the laptop appears on the call avatar.
- *  - Push the matching outgoing event and assert the laptop is removed.
+ * Behaviour under test (see `useWorkingPose` in AssistantCommunicationDialog):
+ *  - A new speaking turn is the ONLY thing that faces the camera. There is no
+ *    real agent audio in local mode, so this spec exercises the laptop side: the
+ *    droid turns to its laptop for work / silence and never turns back without
+ *    speech.
+ *  - An in-flight `act` turns the droid to its laptop, and it STAYS there after
+ *    the act completes (no revert without speech).
+ *  - A non-unify comms event turns the droid to its laptop, and it STAYS there
+ *    (no cooloff revert).
+ *  - With no speech and no events, the droid drifts to its laptop after the
+ *    silence window.
  *
  * Local mode: LiveKit creds are absent so the call hook reports connected
  * immediately; Pub/Sub creds are absent so actions flow through the in-memory
@@ -105,12 +107,17 @@ async function startCall(page: import('@playwright/test').Page) {
   await expect(page.getByTestId('unity-call-avatar')).toBeVisible({ timeout: 15_000 });
 }
 
-test('droid adopts the working pose while an act is in flight and reverts when it ends', async ({
+async function endCall(page: import('@playwright/test').Page) {
+  await page.getByRole('button', { name: 'End call' }).click();
+  await expect(page.locator('text=Talk to Worker TestBot')).not.toBeVisible({ timeout: 10_000 });
+}
+
+test('an in-flight act turns the droid to the laptop and it stays there after the act ends', async ({
   authedPage: page,
 }) => {
   await startCall(page);
 
-  // Idle: facing the screen, no laptop.
+  // Facing the camera at first (within the silence window), no laptop.
   await expect(page.getByTestId('unity-call-avatar')).toHaveAttribute('data-acting', 'false');
   await expect(page.getByTestId('unity-call-laptop')).toHaveCount(0);
 
@@ -123,21 +130,18 @@ test('droid adopts the working pose while an act is in flight and reverts when i
   });
   await expect(page.getByTestId('unity-call-laptop')).toBeVisible({ timeout: 15_000 });
 
-  // The act completes → the droid turns back to face the screen and the laptop
-  // is removed once the close animation settles.
+  // The act completes — but with no new speech the droid keeps working on the
+  // laptop rather than turning back to the camera.
   await pushEvent(assistant.agentId, makeActEvent(callingId, 'outgoing'));
+  await page.waitForTimeout(3_000);
 
-  await expect(page.getByTestId('unity-call-avatar')).toHaveAttribute('data-acting', 'false', {
-    timeout: 15_000,
-  });
-  await expect(page.getByTestId('unity-call-laptop')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByTestId('unity-call-avatar')).toHaveAttribute('data-acting', 'true');
+  await expect(page.getByTestId('unity-call-laptop')).toBeVisible();
 
-  const endCallBtn = page.getByRole('button', { name: 'End call' });
-  await endCallBtn.click();
-  await expect(page.locator('text=Talk to Worker TestBot')).not.toBeVisible({ timeout: 10_000 });
+  await endCall(page);
 });
 
-test('a non-unify comms event rotates the droid, resets on cascade, and reverts after the cooloff', async ({
+test('a comms event turns the droid to the laptop and it stays there (no cooloff revert)', async ({
   authedPage: page,
 }) => {
   await startCall(page);
@@ -150,24 +154,29 @@ test('a non-unify comms event rotates the droid, resets on cascade, and reverts 
   });
   await expect(page.getByTestId('unity-call-laptop')).toBeVisible({ timeout: 15_000 });
 
-  // Cascade: a second event ~7s later (within the 10s cooloff) resets the timer.
-  await page.waitForTimeout(7_000);
-  await pushEvent(assistant.agentId, makeCommsEvent('whatsapp_message', 'inbound'));
-
-  // ~7s after the second event (14s after the first) it is still rotated —
-  // proving the cooloff tracks the latest event, not the first.
-  await page.waitForTimeout(7_000);
-  await expect(page.getByTestId('unity-call-laptop')).toBeVisible();
+  // No further events: well past the old 10s comms cooloff, the droid is still
+  // on the laptop — only new speech turns it back to the camera.
+  await page.waitForTimeout(13_000);
   await expect(page.getByTestId('unity-call-avatar')).toHaveAttribute('data-acting', 'true');
+  await expect(page.getByTestId('unity-call-laptop')).toBeVisible();
 
-  // No further events: ~12s after the last one, it turns back to the screen.
-  await page.waitForTimeout(12_000);
-  await expect(page.getByTestId('unity-call-avatar')).toHaveAttribute('data-acting', 'false', {
-    timeout: 15_000,
+  await endCall(page);
+});
+
+test('the droid drifts to the laptop after a spell of silence with no events', async ({
+  authedPage: page,
+}) => {
+  await startCall(page);
+
+  // Facing the camera at first, no laptop, with no act or comms activity.
+  await expect(page.getByTestId('unity-call-avatar')).toHaveAttribute('data-acting', 'false');
+  await expect(page.getByTestId('unity-call-laptop')).toHaveCount(0);
+
+  // After the silence window elapses it turns to the laptop on its own.
+  await expect(page.getByTestId('unity-call-avatar')).toHaveAttribute('data-acting', 'true', {
+    timeout: 30_000,
   });
-  await expect(page.getByTestId('unity-call-laptop')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByTestId('unity-call-laptop')).toBeVisible({ timeout: 15_000 });
 
-  const endCallBtn = page.getByRole('button', { name: 'End call' });
-  await endCallBtn.click();
-  await expect(page.locator('text=Talk to Worker TestBot')).not.toBeVisible({ timeout: 10_000 });
+  await endCall(page);
 });

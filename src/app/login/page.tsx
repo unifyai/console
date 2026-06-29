@@ -72,11 +72,11 @@ const Login = () => {
   const [tab, setTab] = useState<'login' | 'loading' | 'check'>('login');
   const [error, setError] = useState<string | undefined>(searchErrorMessage);
 
-  // Self-host single-owner auto-login: once an account exists locally, sign the
-  // owner in automatically (no password, no click). Start in the
-  // "signing in" state on self-host so the create/sign-in form never flashes
-  // before we know whether an account exists.
-  const [selfHostAutoLoggingIn, setSelfHostAutoLoggingIn] = useState(isSelfHost && !shouldSignOut);
+  // Self-host single-owner auto-login: once a manually-created account exists
+  // locally, sign the owner in automatically (no password, no click). Before the
+  // first signup there is no owner pointer, so the create-account screen should
+  // be visible immediately.
+  const [selfHostAutoLoggingIn, setSelfHostAutoLoggingIn] = useState(false);
   const selfHostAutoLoginAttempted = useRef(false);
 
   // Persist the referral code as soon as we see it so it isn't lost across
@@ -129,7 +129,6 @@ const Login = () => {
   useEffect(() => {
     if (!isSelfHost) return;
     if (shouldSignOut) {
-      setSelfHostAutoLoggingIn(false);
       return;
     }
     if (session.status === 'loading') return; // wait for session resolution
@@ -137,12 +136,10 @@ const Login = () => {
     if (selfHostAutoLoginAttempted.current) return;
 
     if (typeof window !== 'undefined' && sessionStorage.getItem('sh_suppress_autologin') === '1') {
-      setSelfHostAutoLoggingIn(false);
       return;
     }
 
     selfHostAutoLoginAttempted.current = true;
-    setSelfHostAutoLoggingIn(true);
     (async () => {
       const result = await selfHostAutoLogin();
       if (result.ok) {

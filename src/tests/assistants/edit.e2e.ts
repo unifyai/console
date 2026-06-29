@@ -21,7 +21,7 @@ import {
 } from './helpers';
 import {
   approvedCharacterVoiceMetadata,
-  coordinatorFixedVoiceId,
+  coordinatorDefaultVoiceId,
 } from '../../constants/assistants/approved_character_voices';
 
 const user = createTestUser({ name: 'EditE2E', lastName: 'Tester', credits: 50_000 });
@@ -92,8 +92,8 @@ test('updating the first name and surname via the edit dialog persists to DB', a
   const surnameInput = page.locator('#surname');
   await surnameInput.fill(newLast);
 
-  // Click "Update Unity" button and wait for the dialog to close
-  const updateBtn = page.getByRole('button', { name: /Update Unity/i });
+  // Click "Update Droid" button and wait for the dialog to close
+  const updateBtn = page.getByRole('button', { name: /Update Droid/i });
   await updateBtn.scrollIntoViewIfNeeded();
   await updateBtn.click();
 
@@ -126,7 +126,7 @@ test('clearing the surname via the edit dialog persists an empty string', async 
   await expect(surnameInput).toBeVisible({ timeout: 5_000 });
   await surnameInput.fill('   ');
 
-  const updateBtn = page.getByRole('button', { name: /Update Unity/i });
+  const updateBtn = page.getByRole('button', { name: /Update Droid/i });
   await updateBtn.scrollIntoViewIfNeeded();
   await updateBtn.click();
 
@@ -151,7 +151,7 @@ test('updating the about field via the edit dialog persists to DB', async ({
   await expect(aboutInput).toBeVisible({ timeout: 5_000 });
   await aboutInput.fill(newAbout);
 
-  const updateBtn = page.getByRole('button', { name: /Update Unity/i });
+  const updateBtn = page.getByRole('button', { name: /Update Droid/i });
   await updateBtn.scrollIntoViewIfNeeded();
   await updateBtn.click();
 
@@ -181,7 +181,7 @@ test('changing T-W1N voice via the edit dialog persists to DB', async ({ authedP
     const option = voiceOptions.nth(index);
     const testId = await option.getAttribute('data-testid');
     const voiceId = testId?.replace('voice-option-', '') ?? null;
-    if (voiceId && voiceId !== coordinatorFixedVoiceId) {
+    if (voiceId && voiceId !== coordinatorDefaultVoiceId) {
       selectedVoiceId = voiceId;
       await option.click();
       await expect(option).toHaveAttribute('aria-selected', 'true');
@@ -215,7 +215,7 @@ test('setting a job title via the edit dialog persists job_title to DB', async (
   await expect(jobTitleInput).toBeVisible({ timeout: 5_000 });
   await jobTitleInput.fill(newJobTitle);
 
-  const updateBtn = page.getByRole('button', { name: /Update Unity/i });
+  const updateBtn = page.getByRole('button', { name: /Update Droid/i });
   await updateBtn.scrollIntoViewIfNeeded();
   await updateBtn.click();
 
@@ -237,7 +237,7 @@ test('clearing the job title via the edit dialog sets job_title to NULL', async 
     await openEditDialog(page);
     await openAccordionSection(page, 'profile');
     await page.locator('#jobTitle').fill('Temporary Title');
-    await page.getByRole('button', { name: /Update Unity/i }).click();
+    await page.getByRole('button', { name: /Update Droid/i }).click();
     await expect(
       page.locator('[role="dialog"]').filter({ hasText: EDIT_DIALOG_TITLE })
     ).not.toBeVisible({
@@ -254,7 +254,7 @@ test('clearing the job title via the edit dialog sets job_title to NULL', async 
   // Clear the field — backend should normalize empty / whitespace to NULL.
   await jobTitleInput.fill('   ');
 
-  const updateBtn = page.getByRole('button', { name: /Update Unity/i });
+  const updateBtn = page.getByRole('button', { name: /Update Droid/i });
   await updateBtn.scrollIntoViewIfNeeded();
   await updateBtn.click();
 
