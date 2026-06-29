@@ -6,9 +6,9 @@
 <path d="M63.3443 7.53108H60.5237V16.0018H57.4918V7.53108H55.5488V5.05872H57.5085V4.05411C57.5085 1.93084 58.7111 0.571289 61.0673 0.571289H63.3233V2.93172H61.6751C60.8766 2.93172 60.4439 3.3389 60.4439 4.12873V5.05872H63.3438V7.53108H63.3443Z" fill="#0A0C13"/>
 <path d="M76.2496 4.90894L71.3615 15.8541C70.0172 18.8605 68.8356 19.9999 66.3188 19.9999H65.0688V17.3032H66.1184C67.5802 17.3032 67.9595 16.9184 68.6481 15.2418L68.6907 15.1517L63.9395 4.90894H67.2397L70.2311 11.7328L73.0243 4.90894H76.2491H76.2496Z" fill="#0A0C13"/>
 <g transform="translate(9.8 9) scale(0.118)">
-<polygon points="-70.4,-35.2 0,0 0,70.4 -70.4,35.2" fill="#2f9d97" stroke="#241a2b" stroke-width="2.6" stroke-linejoin="round"/>
-<polygon points="70.4,-35.2 0,0 0,70.4 70.4,35.2" fill="#c15b56" stroke="#241a2b" stroke-width="2.6" stroke-linejoin="round"/>
-<polygon points="0,-70.4 70.4,-35.2 0,0 -70.4,-35.2" fill="#d7aa5d" stroke="#241a2b" stroke-width="2.6" stroke-linejoin="round"/>
+<polygon points="-60.97,-35.2 0,0 0,70.4 -60.97,35.2" fill="#2f9d97" stroke="#241a2b" stroke-width="2.6" stroke-linejoin="round"/>
+<polygon points="60.97,-35.2 0,0 0,70.4 60.97,35.2" fill="#c15b56" stroke="#241a2b" stroke-width="2.6" stroke-linejoin="round"/>
+<polygon points="0,-70.4 60.97,-35.2 0,0 -60.97,-35.2" fill="#d7aa5d" stroke="#241a2b" stroke-width="2.6" stroke-linejoin="round"/>
 </g>
 </g>
 <defs>
