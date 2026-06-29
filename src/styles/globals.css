@@ -826,13 +826,13 @@
     transition: transform 0.42s cubic-bezier(0.4, 0.05, 0.2, 1);
   }
   .unify-block-mark:hover .glyph .lg-green {
-    transform: translate(-4px, -4px);
+    transform: translate(-16%, 11%);
   }
   .unify-block-mark:hover .glyph .lg-blue {
-    transform: translate(4.4px, -2.6px);
+    transform: translate(16%, 11%);
   }
   .unify-block-mark:hover .glyph .lg-orange {
-    transform: translate(0.4px, 5px);
+    transform: translate(0, -22%);
   }
   @media (prefers-reduced-motion: reduce) {
     .unify-block-mark .glyph .lg {
