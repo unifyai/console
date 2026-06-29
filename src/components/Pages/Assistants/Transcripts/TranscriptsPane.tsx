@@ -26,6 +26,7 @@ import {
 } from '@/lib/assistants/tabDataCache';
 import type { ContactRow, TranscriptRow } from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
+import { brandAvatarToneFromId } from '@/utils/brand/avatarPalette';
 
 type TranscriptViewMode = 'threads' | 'feed';
 
@@ -78,24 +79,13 @@ const CHANNELS: ChannelDef[] = [
   },
 ];
 
-/** Deterministic avatar tints drawn from the brand role palette. */
-const AVATAR_TONES = [
-  'var(--role-green)',
-  'var(--role-cyan)',
-  'var(--role-purple)',
-  'var(--role-orange)',
-  'var(--role-teal)',
-  'var(--role-pink)',
-  'var(--role-blue)',
-];
-
 function channelForMedium(medium: string | null): ChannelDef | null {
   if (!medium) return null;
   return CHANNELS.find((channel) => channel.mediums.includes(medium)) ?? null;
 }
 
 function toneFor(id: number): string {
-  return AVATAR_TONES[((id % AVATAR_TONES.length) + AVATAR_TONES.length) % AVATAR_TONES.length];
+  return brandAvatarToneFromId(id);
 }
 
 function initialsFor(name: string): string {

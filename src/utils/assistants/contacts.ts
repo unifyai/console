@@ -9,6 +9,7 @@
  */
 
 import type { ContactRow } from '@/types/assistants/brain';
+import { brandAvatarToneFromId, brandAvatarToneFromSeed } from '@/utils/brand/avatarPalette';
 
 export interface ContactCard {
   contactId: number | null;
@@ -57,28 +58,15 @@ export function contactInitials(firstName: string, surname: string, email: strin
 }
 
 /**
- * Deterministic avatar tints drawn from the brand role palette (token-only and
- * theme-aware — see styling rules). Rotated by contact id so the directory
- * reads with colour variety while staying brand-token compliant. Applied as an
- * inline `backgroundColor` with `text-primary-foreground`, matching the
- * Transcripts participant avatars.
+ * Deterministic avatar tint from the shared brand initials palette (see
+ * `utils/brand/avatarPalette.ts`). Prefer numeric contact ids when present so
+ * the directory matches the platform design's `colorFor(id)` behaviour.
  */
-const AVATAR_TONES = [
-  'var(--role-green)',
-  'var(--role-cyan)',
-  'var(--role-purple)',
-  'var(--role-orange)',
-  'var(--role-teal)',
-  'var(--role-pink)',
-  'var(--role-blue)',
-] as const;
-
 export function contactAvatarTone(contactId: number | null, seed: string): string {
-  const basis =
-    contactId !== null && Number.isFinite(contactId)
-      ? Math.abs(contactId)
-      : Array.from(seed).reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-  return AVATAR_TONES[basis % AVATAR_TONES.length];
+  if (contactId !== null && Number.isFinite(contactId)) {
+    return brandAvatarToneFromId(contactId);
+  }
+  return brandAvatarToneFromSeed(seed);
 }
 
 export function mapContactRow(row: ContactRow): ContactCard {
