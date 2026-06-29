@@ -1,12 +1,25 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronRight, Database, Folder, RefreshCw, Table2 } from 'lucide-react';
+import {
+  ChevronRight,
+  Database,
+  Folder,
+  PanelLeftClose,
+  PanelLeftOpen,
+  RefreshCw,
+  Table2,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
-import { Button } from '@/components/UI/button';
+import { TabSplitSkeleton } from '@/components/Common/Loaders/Skeletons';
 import { roots } from '@/lib/assistants/scope';
+import {
+  invalidateTabDataCache,
+  readTabDataCache,
+  writeTabDataCache,
+} from '@/lib/assistants/tabDataCache';
 import { TabFooter } from '../Common/TabFooter';
+import { DataLeafTable } from './DataLeafTable';
 import type { Assistant } from '@/types/assistants/assistant';
 
 interface DataPaneProps {
@@ -16,7 +29,24 @@ interface DataPaneProps {
 }
 
 /** Rows fetched per page; the leaf view appends pages via "Load more". */
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 50;
+
+/** Strip Orchestra private/metadata fields (leading underscore) from row payloads. */
+function stripPrivateFields(row: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (!key.startsWith('_')) out[key] = value;
+  }
+  return out;
+}
+
+/** Parse `/api/logs/fields` response into public column names. */
+function publicColumnsFromFields(data: unknown): string[] {
+  if (!data || typeof data !== 'object') return [];
+  return Object.keys(data as Record<string, unknown>)
+    .filter((key) => key !== '__contextNotFound' && !key.startsWith('_'))
+    .sort((a, b) => a.localeCompare(b));
+}
 
 /**
  * A readable context root the Data browser draws from. Personal data lives
@@ -69,10 +99,11 @@ function buildTree(contextNames: string[], dataRoots: DataRoot[]): TreeNode {
     if (!match) continue;
     const relative = fullName.slice(match.prefix.length);
     let segments = relative.split('/').filter(Boolean);
+    // Only ingest contexts under the assistant's `Data/` tree — not sibling
+    // roots like Contacts, Exchanges, FileRecords, etc.
+    if (segments[0] !== 'Data' || segments.length < 2) continue;
+    segments = segments.slice(1);
     if (segments.length === 0 || RESERVED_ROOTS.has(segments[0])) continue;
-    // The data layer lives under a top-level `Data/` context group; surface its
-    // children (CRM, Finance, …) directly as the directory roots.
-    if (segments[0] === 'Data' && segments.length > 1) segments = segments.slice(1);
     // Team roots are nested under a group node so identically-named tables in
     // different roots stay distinct.
     if (match.group) segments = [match.group, ...segments];
@@ -84,12 +115,6 @@ function buildTree(contextNames: string[], dataRoots: DataRoot[]): TreeNode {
     });
   }
   return root;
-}
-
-function displayValue(value: unknown): string {
-  if (value === null || value === undefined) return '—';
-  if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
 }
 
 function TreeRow({
@@ -190,6 +215,20 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
   const [isLoadingTree, setIsLoadingTree] = React.useState(true);
   const [isLoadingLeaf, setIsLoadingLeaf] = React.useState(false);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+  const [sidebarOpen, setSidebarOpen] = React.useState(true);
+
+  const fetchFieldColumns = React.useCallback(async (context: string): Promise<string[]> => {
+    const params = new URLSearchParams({
+      projectName: 'Assistants',
+      context,
+    });
+    const res = await fetch(`/api/logs/fields?${params.toString()}`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const data: unknown = await res.json();
+    return publicColumnsFromFields(data);
+  }, []);
+
+  const treeCacheKey = `${ownerId}:${assistantId}:data-tree`;
 
   const loadTree = React.useCallback(async () => {
     setIsLoadingTree(true);
@@ -202,6 +241,7 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
             .filter((name): name is string => Boolean(name))
         : [];
       const built = buildTree(names, dataRoots);
+      writeTabDataCache(treeCacheKey, built);
       setTree(built);
       // Expand the first level so the directory reads as a populated tree.
       setExpanded(new Set(Array.from(built.children.values()).map((n) => n.context ?? n.name + 1)));
@@ -210,11 +250,20 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
     } finally {
       setIsLoadingTree(false);
     }
-  }, [dataRoots]);
+  }, [dataRoots, treeCacheKey]);
 
   React.useEffect(() => {
+    const cached = readTabDataCache<TreeNode>(treeCacheKey);
+    if (cached) {
+      setTree(cached);
+      setExpanded(
+        new Set(Array.from(cached.children.values()).map((n) => n.context ?? n.name + 1))
+      );
+      setIsLoadingTree(false);
+      return;
+    }
     void loadTree();
-  }, [loadTree]);
+  }, [loadTree, treeCacheKey]);
 
   const fetchLeafPage = React.useCallback(
     async (
@@ -230,22 +279,31 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
       const res = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
       const data = res.ok ? await res.json() : { logs: [], count: 0 };
       const rows: Array<Record<string, unknown>> = (data.logs ?? []).map(
-        (log: { entries?: Record<string, unknown> }) => log.entries ?? {}
+        (log: { entries?: Record<string, unknown> }) => stripPrivateFields(log.entries ?? {})
       );
       return { rows, count: data.count ?? rows.length };
     },
     []
   );
 
-  const columnsFor = React.useCallback((rows: Record<string, unknown>[]): string[] => {
-    const columns = new Set<string>();
-    rows.forEach((row) =>
-      Object.keys(row).forEach((key) => {
-        if (!key.startsWith('_')) columns.add(key);
-      })
-    );
-    return Array.from(columns);
-  }, []);
+  const mergeColumns = React.useCallback(
+    (fieldColumns: string[], rows: Record<string, unknown>[]): string[] => {
+      const columns = new Set(fieldColumns);
+      rows.forEach((row) =>
+        Object.keys(row).forEach((key) => {
+          if (!key.startsWith('_')) columns.add(key);
+        })
+      );
+      return Array.from(columns).sort((a, b) => a.localeCompare(b));
+    },
+    []
+  );
+
+  const columnsFor = React.useCallback(
+    (fieldColumns: string[], rows: Record<string, unknown>[]): string[] =>
+      mergeColumns(fieldColumns, rows),
+    [mergeColumns]
+  );
 
   const loadLeaf = React.useCallback(
     async (context: string) => {
@@ -253,15 +311,19 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
       setLeaf(null);
       setIsLoadingLeaf(true);
       try {
-        const { rows, count } = await fetchLeafPage(context, 0);
-        setLeaf({ rows, count, columns: columnsFor(rows) });
+        const [fieldColumns, page] = await Promise.all([
+          fetchFieldColumns(context),
+          fetchLeafPage(context, 0),
+        ]);
+        const { rows, count } = page;
+        setLeaf({ rows, count, columns: columnsFor(fieldColumns, rows) });
       } catch {
         setLeaf({ rows: [], count: 0, columns: [] });
       } finally {
         setIsLoadingLeaf(false);
       }
     },
-    [fetchLeafPage, columnsFor]
+    [fetchFieldColumns, fetchLeafPage, columnsFor]
   );
 
   const loadMore = React.useCallback(async () => {
@@ -270,11 +332,15 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
     try {
       const { rows, count } = await fetchLeafPage(selected, leaf.rows.length);
       const merged = [...leaf.rows, ...rows];
-      setLeaf({ rows: merged, count, columns: columnsFor(merged) });
+      setLeaf({
+        rows: merged,
+        count,
+        columns: mergeColumns(leaf.columns, rows),
+      });
     } finally {
       setIsLoadingMore(false);
     }
-  }, [selected, leaf, fetchLeafPage, columnsFor]);
+  }, [selected, leaf, fetchLeafPage, mergeColumns]);
 
   const toggle = React.useCallback((key: string) => {
     setExpanded((prev) => {
@@ -289,146 +355,177 @@ export function DataPane({ assistant, ownerId, assistantId }: DataPaneProps) {
     ? Array.from(tree.children.values()).sort((a, b) => a.name.localeCompare(b.name))
     : [];
 
+  const selectedDisplayPath = selected ? stripRootPrefix(selected) : null;
+  const selectedTableName = selectedDisplayPath
+    ? (selectedDisplayPath.split('/').pop() ?? selectedDisplayPath)
+    : null;
+  const selectedPathPrefix =
+    selectedDisplayPath && selectedTableName
+      ? selectedDisplayPath
+          .slice(0, selectedDisplayPath.length - selectedTableName.length)
+          .replace(/\/$/, '')
+      : null;
+
   return (
     <div
       className="flex h-full w-full flex-col overflow-hidden bg-background"
       data-testid="data-pane"
     >
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="flex w-72 shrink-0 flex-col border-r border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-3 py-2">
-            <div className="text-title flex items-center gap-2 text-foreground">
-              <Database className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-              Data layer
-            </div>
-            <button
-              type="button"
-              onClick={() => void loadTree()}
-              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Refresh data contexts"
-            >
-              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-            </button>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="data-tree">
-            {isLoadingTree ? (
-              <div className="space-y-2 p-2">
-                <SkeletonCard />
-                <SkeletonCard />
-              </div>
-            ) : topNodes.length === 0 ? (
-              <p className="text-caption px-2 py-6 text-center">No ingested data yet.</p>
-            ) : (
-              topNodes.map((node) => (
-                <TreeRow
-                  key={node.name}
-                  node={node}
-                  depth={0}
-                  expanded={expanded}
-                  toggle={toggle}
-                  selected={selected}
-                  onSelect={(context) => void loadLeaf(context)}
-                />
-              ))
-            )}
-          </div>
-        </div>
-
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          {!selected ? (
-            <div className="flex h-full items-center justify-center p-8 text-center">
-              <div className="max-w-sm">
-                <Table2 className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" />
-                <p className="text-body-muted">
-                  Select a table from the directory to browse its rows.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="border-b border-border px-4 py-3">
-                <div className="text-code truncate text-foreground">
-                  {stripRootPrefix(selected)}
-                </div>
-                {leaf && (
-                  <div className="text-caption mt-0.5">
-                    Showing {leaf.rows.length} of {leaf.count} {leaf.count === 1 ? 'row' : 'rows'} ·{' '}
-                    {leaf.columns.length} {leaf.columns.length === 1 ? 'column' : 'columns'}
+      {isLoadingTree ? (
+        <TabSplitSkeleton className="min-h-0 flex-1" listRows={8} />
+      ) : (
+        <>
+          <div className="flex min-h-0 flex-1 overflow-hidden">
+            {sidebarOpen && (
+              <div className="flex w-72 shrink-0 flex-col border-r border-border bg-card">
+                <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                  <div className="text-title flex items-center gap-2 text-foreground">
+                    <Database className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    Data layer
                   </div>
-                )}
-              </div>
-              <div className="min-h-0 flex-1 overflow-auto" data-testid="data-leaf-table">
-                {isLoadingLeaf ? (
-                  <div className="space-y-2 p-4">
-                    <SkeletonCard />
-                    <SkeletonCard />
-                    <SkeletonCard />
-                  </div>
-                ) : !leaf || leaf.rows.length === 0 ? (
-                  <p className="text-body-muted p-8 text-center">This table has no rows.</p>
-                ) : (
-                  <table className="w-full border-collapse text-sm">
-                    <thead className="sticky top-0 bg-card">
-                      <tr>
-                        {leaf.columns.map((col) => (
-                          <th
-                            key={col}
-                            className="border-b border-border px-3 py-2 text-left font-mono text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
-                          >
-                            {col}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {leaf.rows.map((row, index) => (
-                        <tr key={index} className="hover:bg-muted/50">
-                          {leaf.columns.map((col) => (
-                            <td
-                              key={col}
-                              className="max-w-[280px] truncate border-b border-border px-3 py-2 text-foreground"
-                              title={displayValue(row[col])}
-                            >
-                              {displayValue(row[col])}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-                {leaf && leaf.rows.length < leaf.count && (
-                  <div className="flex justify-center p-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void loadMore()}
-                      disabled={isLoadingMore}
-                      data-testid="data-load-more"
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        invalidateTabDataCache(treeCacheKey);
+                        void loadTree();
+                      }}
+                      className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      aria-label="Refresh data contexts"
                     >
-                      {isLoadingMore
-                        ? 'Loading…'
-                        : `Load more (${leaf.count - leaf.rows.length} remaining)`}
-                    </Button>
+                      <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSidebarOpen(false)}
+                      className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      aria-label="Collapse data layer sidebar"
+                      data-testid="data-sidebar-collapse"
+                    >
+                      <PanelLeftClose className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
                   </div>
-                )}
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto p-2" data-testid="data-tree">
+                  {topNodes.length === 0 ? (
+                    <p className="text-caption px-2 py-6 text-center">No ingested data yet.</p>
+                  ) : (
+                    topNodes.map((node) => (
+                      <TreeRow
+                        key={node.name}
+                        node={node}
+                        depth={0}
+                        expanded={expanded}
+                        toggle={toggle}
+                        selected={selected}
+                        onSelect={(context) => void loadLeaf(context)}
+                      />
+                    ))
+                  )}
+                </div>
               </div>
-            </>
-          )}
-        </div>
-      </div>
+            )}
 
-      <TabFooter
-        testId="data-footer"
-        right={
-          <span className="text-caption inline-flex items-center gap-1.5">
-            <Database className="h-3 w-3" aria-hidden="true" />
-            {selected && leaf
-              ? `${stripRootPrefix(selected)} · ${leaf.count} ${leaf.count === 1 ? 'row' : 'rows'}`
-              : `${topNodes.length} ${topNodes.length === 1 ? 'group' : 'groups'} at this level`}
-          </span>
-        }
-      />
+            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+              {!sidebarOpen && (
+                <div className="flex shrink-0 items-center border-b border-border px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => setSidebarOpen(true)}
+                    className="text-body-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
+                    data-testid="data-sidebar-expand"
+                  >
+                    <PanelLeftOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                    Data layer
+                  </button>
+                </div>
+              )}
+              {!selected ? (
+                <div className="flex h-full items-center justify-center p-8 text-center">
+                  <div className="max-w-sm">
+                    <Table2
+                      className="mx-auto mb-3 h-8 w-8 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                    <p className="text-body-muted">
+                      Select a table from the directory to browse its rows.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Table2
+                          className="h-4 w-4 shrink-0 text-muted-foreground"
+                          aria-hidden="true"
+                        />
+                        <h3 className="text-title truncate text-foreground">
+                          {selectedTableName ?? selectedDisplayPath}
+                        </h3>
+                      </div>
+                      {selectedPathPrefix && (
+                        <p className="text-caption mt-0.5 truncate text-muted-foreground">
+                          {selectedPathPrefix}
+                        </p>
+                      )}
+                    </div>
+                    {leaf && (
+                      <dl className="flex shrink-0 flex-wrap gap-x-4 gap-y-1">
+                        <div className="flex flex-col">
+                          <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+                            Rows
+                          </dt>
+                          <dd className="text-code font-semibold text-foreground">
+                            {leaf.count.toLocaleString()}
+                          </dd>
+                        </div>
+                        <div className="flex flex-col">
+                          <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+                            Loaded
+                          </dt>
+                          <dd className="text-code font-semibold text-foreground">
+                            {leaf.rows.length.toLocaleString()}
+                          </dd>
+                        </div>
+                        <div className="flex flex-col">
+                          <dt className="text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+                            Columns
+                          </dt>
+                          <dd className="text-code font-semibold text-foreground">
+                            {leaf.columns.length}
+                          </dd>
+                        </div>
+                      </dl>
+                    )}
+                  </div>
+                  <DataLeafTable
+                    rows={leaf?.rows ?? []}
+                    columns={leaf?.columns ?? []}
+                    totalCount={leaf?.count ?? 0}
+                    isLoading={isLoadingLeaf}
+                    isLoadingMore={isLoadingMore}
+                    onLoadMore={() => void loadMore()}
+                  />
+                </>
+              )}
+            </div>
+          </div>
+
+          <TabFooter
+            testId="data-footer"
+            right={
+              <span className="text-caption inline-flex items-center gap-1.5">
+                <Database className="h-3 w-3" aria-hidden="true" />
+                {selected && leaf
+                  ? `${stripRootPrefix(selected)} · ${leaf.count} ${leaf.count === 1 ? 'row' : 'rows'}`
+                  : `${topNodes.length} ${topNodes.length === 1 ? 'group' : 'groups'} at this level`}
+              </span>
+            }
+          />
+        </>
+      )}
     </div>
   );
 }
