@@ -66,7 +66,7 @@ export const BillingProfileSection = ({
     </div>
 
     <Sheet open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
-      <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-xl">
+      <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Edit Billing Profile</SheetTitle>
           <SheetDescription>

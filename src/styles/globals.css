@@ -20,7 +20,7 @@
     --accent-soft: #e7efe9;
     --accent-soft-ink: var(--role-green-deep);
     --shadow-pop: rgba(10, 20, 16, 0.3);
-    --radius-lg: 16px;
+    --radius-lg: 12px;
     --radius-pill: 999px;
 
     /* Font family aliases → brand font variables (set on <html> by @unity/brand/fonts) */
@@ -100,8 +100,8 @@
     --code-border: rgba(10, 20, 16, 0.1);
     --code-fg: var(--role-green-deep);
 
-    --radius: 0.75rem;
-    --radius-control: calc(var(--radius) - 9px);
+    --radius: 0.625rem;
+    --radius-control: calc(var(--radius) - 7px);
 
     --chart-1: var(--role-green-deep);
     --chart-2: var(--role-blue);
@@ -138,6 +138,7 @@
     /* Dark theme variables */
     --background: #0d0f12;
     --foreground: #eef0ea;
+    --ink-2: rgba(238, 240, 234, 0.84);
 
     /* Genuine dark overrides of brand primitives (others inherit tokens.css) */
     --unity-outline: #79c9bf;
@@ -184,8 +185,8 @@
     --code-border: rgba(255, 255, 255, 0.08);
     --code-fg: var(--role-green);
 
-    --radius: 0.75rem;
-    --radius-control: calc(var(--radius) - 9px);
+    --radius: 0.625rem;
+    --radius-control: calc(var(--radius) - 7px);
 
     --chart-1: var(--role-green);
     --chart-2: #7aa7ff;
@@ -856,16 +857,16 @@
     @apply font-display text-xl font-semibold leading-tight tracking-tight md:text-2xl lg:text-3xl;
   }
   .text-h1 {
-    @apply font-display text-lg font-semibold leading-tight md:text-xl;
+    @apply font-display text-base font-semibold leading-tight md:text-lg;
   }
   .text-h2 {
-    @apply font-display text-base font-semibold md:text-lg;
+    @apply font-display text-base font-semibold leading-tight tracking-tight;
   }
   .text-h3 {
-    @apply font-display text-sm font-semibold md:text-base;
+    @apply font-display text-sm font-semibold;
   }
   .text-title {
-    @apply font-display text-sm font-semibold;
+    @apply font-display text-sm font-medium;
   }
   .text-subtitle {
     @apply font-sans text-xs text-muted-foreground;
@@ -874,13 +875,13 @@
     @apply font-sans text-sm leading-snug;
   }
   .text-body-dense {
-    @apply font-sans text-xs leading-snug;
+    @apply font-sans text-[13px] leading-snug;
   }
   .text-body-sm {
     @apply font-sans text-xs leading-tight;
   }
   .text-caption {
-    @apply font-sans text-xs text-muted-foreground;
+    @apply font-sans text-[12.5px] text-muted-foreground;
   }
   .text-mono {
     @apply font-mono;
@@ -898,7 +899,7 @@
     @apply tabular-nums;
   }
   .text-label {
-    @apply font-sans text-xs font-medium;
+    @apply font-sans text-xs font-normal;
   }
   .text-data {
     @apply font-sans text-xs leading-snug;
@@ -926,7 +927,17 @@
     @apply font-sans text-base leading-normal text-muted-foreground;
   }
   .text-label-muted {
-    @apply font-sans text-xs font-medium text-muted-foreground;
+    @apply font-sans text-xs font-normal text-muted-foreground;
+  }
+
+  /* Secondary body ink — softer than full foreground (nav labels, markdown body). */
+  .text-ink-2 {
+    color: var(--ink-2);
+  }
+
+  /* Document reader title (Guidance/Knowledge). */
+  .text-doc-title {
+    @apply font-display text-[19px] font-semibold leading-tight tracking-tight text-foreground;
   }
 
   /* Bold heading variants */
@@ -1037,6 +1048,26 @@
     -webkit-mask-size: 200% 100%;
     animation: shimmer 1s linear infinite reverse;
   }
+
+  @keyframes skeleton-shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--foreground) 7%, transparent) 0%,
+      color-mix(in srgb, var(--foreground) 14%, transparent) 50%,
+      color-mix(in srgb, var(--foreground) 7%, transparent) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+
   @keyframes nudge {
     0%,
     100% {

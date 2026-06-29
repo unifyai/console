@@ -395,10 +395,7 @@ export const PaymentMethodsSection = ({
       </div>
 
       <Sheet open={open} onOpenChange={handleOpenChange}>
-        <SheetContent
-          side="right"
-          className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md"
-        >
+        <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Payment methods</SheetTitle>
             <SheetDescription>
