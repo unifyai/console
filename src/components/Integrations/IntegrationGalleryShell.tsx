@@ -222,7 +222,7 @@ export function IntegrationGalleryShell({
       />
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="px-3 py-3">
+        <div className="space-y-6 px-3 py-3">
           {isInitialLoading ? (
             <GallerySkeleton />
           ) : filteredItems.length === 0 ? (
