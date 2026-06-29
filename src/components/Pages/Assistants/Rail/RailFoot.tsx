@@ -30,16 +30,23 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useWorkspace } from '@/components/Pages/Providers/WorkspaceProvider';
 import { useEnvironment, useFeatures } from '@/components/Pages/Providers/EnvironmentProvider';
 import { getCurrentUser } from '@/lib/user/user';
+import { profileAvatarTone, profileInitials } from '@/utils/user/profileDisplay';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/UI/avatar';
+import { ReferralPromoNavButton } from '@/components/Layout/TopBar/ReferralPromoButton';
 import { RailNavButton } from './RailNavButton';
 
-const getInitials = (name: string) =>
-  name
-    .trim()
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2) || '?';
+async function resolveStorageUrl(gsUrl: string): Promise<string> {
+  if (!gsUrl.startsWith('gs://')) return gsUrl;
+  const response = await fetch('/api/storage/signed-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    body: JSON.stringify({ gs_url: gsUrl }),
+  });
+  if (!response.ok) return '';
+  const data = await response.json();
+  return data.signed_url ?? '';
+}
 
 interface RailFootProps {
   collapsed: boolean;
@@ -68,6 +75,7 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
   } = useWorkspace();
 
   const [profileName, setProfileName] = React.useState('Account');
+  const [profilePhotoUrl, setProfilePhotoUrl] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     (async () => {
@@ -75,6 +83,10 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
         const user = await getCurrentUser();
         if (user) {
           setProfileName(user.name || 'Account');
+          if (user.image) {
+            const url = await resolveStorageUrl(user.image).catch(() => '');
+            if (url) setProfilePhotoUrl(url);
+          }
         }
       } catch (err) {
         console.error('Failed to fetch user info', err);
@@ -88,9 +100,10 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
     ['owner', 'admin'].includes(activeOrganization.roleName?.toLowerCase() ?? '');
   const isOrgInFreeTrial = !!activeOrganization?.freeTrial && !isUnifyMember;
 
-  const accountSub =
-    activeWorkspace?.type === 'organization' ? 'Organization' : activeWorkspace?.name || 'Personal';
-  const accountName = activeWorkspace?.name || profileName;
+  const workspaceLabel =
+    activeWorkspace?.type === 'organization' ? activeWorkspace.name || 'Organization' : 'Personal';
+  const initials = profileInitials(profileName);
+  const avatarTone = profileAvatarTone(profileName || 'account');
 
   const handleSignOut = async () => {
     await signOut({ redirect: false });
@@ -126,26 +139,34 @@ export function RailFoot({ collapsed, onToggleCollapse }: RailFootProps) {
         testId="rail-nav-settings"
       />
 
+      <ReferralPromoNavButton collapsed={collapsed} />
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
             data-testid="rail-account-trigger"
-            title={collapsed ? accountName : undefined}
+            title={collapsed ? profileName : undefined}
             className={cn(
               'flex items-center gap-3 rounded-[10px] transition-colors hover:bg-muted',
               collapsed ? 'justify-center px-0 py-1.5' : 'px-2.5 py-1.5'
             )}
           >
-            <span className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] bg-foreground font-display text-[13px] font-semibold text-background">
-              {getInitials(accountName)}
-            </span>
+            <Avatar className="h-[30px] w-[30px] shrink-0 rounded-[9px]">
+              <AvatarImage src={profilePhotoUrl ?? undefined} alt={profileName} />
+              <AvatarFallback
+                className="rounded-[9px] font-display text-[11px] font-semibold text-primary-foreground"
+                style={{ backgroundColor: avatarTone }}
+              >
+                {initials}
+              </AvatarFallback>
+            </Avatar>
             {!collapsed && (
               <div className="min-w-0 text-left">
                 <div className="truncate text-[13px] font-semibold text-foreground">
-                  {accountName}
+                  {profileName}
                 </div>
-                <div className="truncate text-[11.5px] text-muted-foreground">{accountSub}</div>
+                <div className="truncate text-[11.5px] text-muted-foreground">{workspaceLabel}</div>
               </div>
             )}
             {!collapsed &&

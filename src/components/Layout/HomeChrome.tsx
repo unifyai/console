@@ -42,9 +42,7 @@ export function HomeChrome({ children }: { children: React.ReactNode }) {
     return (
       <>
         <Suspense fallback={shellFallback}>
-          <main className="brand-page-stencil-bg relative h-screen overflow-hidden bg-background">
-            {children}
-          </main>
+          <main className="relative h-screen overflow-hidden bg-background">{children}</main>
         </Suspense>
         <MockModeIndicator />
       </>
@@ -55,7 +53,7 @@ export function HomeChrome({ children }: { children: React.ReactNode }) {
     return (
       <>
         <Suspense fallback={shellFallback}>
-          <main className="brand-page-stencil-bg relative h-screen overflow-hidden bg-background">
+          <main className="relative h-screen overflow-hidden bg-background">
             <HomeShell>{children}</HomeShell>
           </main>
         </Suspense>
@@ -82,7 +80,7 @@ export function HomeChrome({ children }: { children: React.ReactNode }) {
         <TopNav />
       </Suspense>
       <Suspense fallback={shellFallback}>
-        <main className="brand-page-stencil-bg relative top-10 h-[calc(100vh-2.5rem)] overflow-hidden bg-background">
+        <main className="relative top-10 h-[calc(100vh-2.5rem)] overflow-hidden bg-background">
           {children}
         </main>
       </Suspense>
