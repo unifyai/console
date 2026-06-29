@@ -99,37 +99,39 @@ export default function SupportTicketDialog() {
 
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <DialogContent
-          className="bg-card/95 max-w-2xl overflow-hidden p-0 shadow-pop-lg backdrop-blur-sm"
+          className="max-w-2xl overflow-hidden border-border bg-card p-0 shadow-pop-lg"
           data-testid="support-ticket-dialog"
         >
-          <div className="brand-chat-bg border-b border-border px-6 py-5">
+          <div className="bg-muted/30 border-b border-border px-6 py-5">
             <div className="flex items-start gap-3">
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-border bg-card text-primary">
                 <HelpSquareIcon className="h-5 w-5" />
               </div>
-              <DialogHeader className="text-left">
-                <p className="text-label uppercase tracking-[0.16em] text-muted-foreground">
-                  Support
-                </p>
-                <DialogTitle>Report an Issue</DialogTitle>
-                <DialogDescription>
+              <DialogHeader className="space-y-1.5 text-left">
+                <p className="text-label-muted uppercase tracking-[0.16em]">Support</p>
+                <DialogTitle className="text-foreground">Report an Issue</DialogTitle>
+                <DialogDescription className="text-body-muted text-foreground/80">
                   Describe the problem you&apos;re experiencing. When available, a screenshot of
                   your current view is attached automatically.
                 </DialogDescription>
               </DialogHeader>
             </div>
           </div>
-          <div className="space-y-4 p-6">
-            {screenshotDataUrl && (
-              <div className="bg-background/60 overflow-hidden rounded-lg border border-border">
+          <div className="space-y-4 bg-card p-6">
+            {screenshotDataUrl ? (
+              <div className="overflow-hidden rounded-lg border border-border bg-background">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={screenshotDataUrl}
                   alt="Screenshot preview"
-                  className="max-h-80 w-full object-contain"
+                  className="max-h-80 w-full object-contain object-left-top"
                   data-testid="support-ticket-screenshot"
                 />
               </div>
+            ) : (
+              <p className="text-caption bg-muted/20 rounded-lg border border-dashed border-border px-3 py-2 text-muted-foreground">
+                Screenshot unavailable for this view — you can still submit your report.
+              </p>
             )}
 
             <Textarea
@@ -137,7 +139,7 @@ export default function SupportTicketDialog() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               maxLength={MAX_DESCRIPTION_LENGTH}
-              className="bg-background/60 min-h-[120px] resize-none"
+              className="min-h-[120px] resize-none bg-background"
               data-testid="support-ticket-description"
             />
 

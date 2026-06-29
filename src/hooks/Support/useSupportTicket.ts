@@ -13,6 +13,7 @@
  */
 
 import { useState, useRef, useCallback } from 'react';
+import { capturePageScreenshot } from '@/utils/support/capturePageScreenshot';
 import type { SupportTicketPayload, SupportTicketResult } from '@/types/support';
 
 // =============================================================================
@@ -51,14 +52,7 @@ export function useSupportTicket(submitFn: SubmitFn): UseSupportTicketReturn {
     setIsCapturing(true);
 
     try {
-      const { default: html2canvas } = await import('html2canvas');
-      const canvas = await html2canvas(document.body, {
-        logging: false,
-        useCORS: true,
-        // Half device-pixel-ratio keeps the payload small while still readable
-        scale: Math.max(1, window.devicePixelRatio * 0.5),
-      });
-      setScreenshotDataUrl(canvas.toDataURL('image/png'));
+      setScreenshotDataUrl(await capturePageScreenshot());
     } catch {
       setScreenshotDataUrl(null);
     } finally {
