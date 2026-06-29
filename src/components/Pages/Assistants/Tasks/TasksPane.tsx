@@ -1,8 +1,12 @@
 'use client';
 
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { Plus, ChevronRight, Clock, Play, Pause, Pencil } from 'lucide-react';
-import { toast } from 'sonner';
+import { ChevronRight, Clock } from 'lucide-react';
+// TODO(wire-backend): Task mutations (create / run-now / pause / edit) are not
+// wired to any backend yet. The icons + toast below are only used by those
+// currently-disabled controls; restore them together with the controls.
+// import { Plus, Play, Pause, Pencil } from 'lucide-react';
+// import { toast } from 'sonner';
 import { Button } from '@/components/UI/button';
 import { SkeletonCard } from '@/components/Common/Loaders/Skeletons';
 import { cn } from '@/lib/utils';
@@ -17,7 +21,9 @@ import {
   TASK_LIVE_DOT_CLASS,
 } from '@/utils/assistants/tasks';
 import { BrainRowDetail } from '../Brain/BrainRowDetail';
-import { NewTaskDrawer } from './NewTaskDrawer';
+// TODO(wire-backend): restore once task creation is wired to a backend
+// (Orchestra task-create endpoint or a Droid system-event).
+// import { NewTaskDrawer } from './NewTaskDrawer';
 import type { TaskRow, TaskRunRow } from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
 
@@ -51,7 +57,8 @@ export function TasksPane({ assistant, ownerId, assistantId, onTasksCountChange 
   const [filter, setFilter] = useState<TaskFilter>('All');
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<number>>(new Set());
   const [selectedRun, setSelectedRun] = useState<Record<string, unknown> | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
+  // TODO(wire-backend): restore when the "New task" create flow is wired.
+  // const [isCreating, setIsCreating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Group runs under their owning task so each card can show its own
@@ -169,17 +176,20 @@ export function TasksPane({ assistant, ownerId, assistantId, onTasksCountChange 
         isRefreshing={isRefreshing}
         refreshTitle="Refresh tasks"
         refreshTestId="tasks-refresh"
-        addAction={
-          <Button
-            size="sm"
-            className="h-7 shrink-0"
-            onClick={() => setIsCreating(true)}
-            data-testid="tasks-new"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            New task
-          </Button>
-        }
+        // TODO(wire-backend): "New task" creation is not wired to any backend
+        // yet. Restore this addAction (and the NewTaskDrawer below) once an
+        // Orchestra task-create endpoint / Droid system-event exists.
+        // addAction={
+        //   <Button
+        //     size="sm"
+        //     className="h-7 shrink-0"
+        //     onClick={() => setIsCreating(true)}
+        //     data-testid="tasks-new"
+        //   >
+        //     <Plus className="h-3.5 w-3.5" />
+        //     New task
+        //   </Button>
+        // }
       />
 
       {/* Body — expandable task cards */}
@@ -223,15 +233,20 @@ export function TasksPane({ assistant, ownerId, assistantId, onTasksCountChange 
         }
       />
 
-      <NewTaskDrawer
-        open={isCreating}
-        onClose={() => setIsCreating(false)}
-        onCreate={() =>
-          toast('Task creation isn’t available from this view yet.', {
-            description: 'Ask your digital twin in chat to set up a new task.',
-          })
-        }
-      />
+      {/*
+        TODO(wire-backend): "New task" creation drawer — not wired to a backend
+        yet (onCreate only toasts). Restore once an Orchestra task-create
+        endpoint / Droid system-event is available.
+        <NewTaskDrawer
+          open={isCreating}
+          onClose={() => setIsCreating(false)}
+          onCreate={() =>
+            toast('Task creation isn’t available from this view yet.', {
+              description: 'Ask your digital twin in chat to set up a new task.',
+            })
+          }
+        />
+      */}
 
       <BrainRowDetail
         row={selectedRun}
@@ -256,13 +271,16 @@ function TaskCard({ task, runs, isOpen, onToggle, onRunClick }: TaskCardProps) {
   const fields = useMemo(() => getTaskCardFields(task), [task]);
   const cadence = fields.find((f) => f.label === 'Cadence')?.value ?? '—';
   const nextRun = fields.find((f) => f.label === 'Next run')?.value ?? '—';
-  const owner = fields.find((f) => f.label === 'Owner')?.value ?? '—';
+  const priority = fields.find((f) => f.label === 'Priority')?.value ?? '—';
 
-  const handleAction = (label: string) => {
-    toast(`${label} isn’t available from this view yet.`, {
-      description: 'Manage this task by asking your digital twin in chat.',
-    });
-  };
+  // TODO(wire-backend): Run-now / Pause / Edit are not wired to any backend
+  // (this handler only toasts). Restore the handler and the button row below
+  // once task lifecycle mutation endpoints exist.
+  // const handleAction = (label: string) => {
+  //   toast(`${label} isn’t available from this view yet.`, {
+  //     description: 'Manage this task by asking your digital twin in chat.',
+  //   });
+  // };
 
   return (
     <div
@@ -294,7 +312,7 @@ function TaskCard({ task, runs, isOpen, onToggle, onRunClick }: TaskCardProps) {
           <div className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
             <Clock className="h-3 w-3 shrink-0" />
             <span className="truncate">
-              {cadence} · next {nextRun} · {owner}
+              {cadence} · next {nextRun} · {priority} priority
             </span>
           </div>
         </div>
@@ -330,20 +348,25 @@ function TaskCard({ task, runs, isOpen, onToggle, onRunClick }: TaskCardProps) {
                 </div>
               ))}
             </dl>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => handleAction('Run now')}>
-                <Play className="h-3.5 w-3.5" />
-                Run now
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleAction('Pause')}>
-                <Pause className="h-3.5 w-3.5" />
-                Pause
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => handleAction('Edit')}>
-                <Pencil className="h-3.5 w-3.5" />
-                Edit
-              </Button>
-            </div>
+            {/*
+              TODO(wire-backend): Task lifecycle actions (Run now / Pause / Edit)
+              are not wired to any backend (handleAction only toasts). Restore
+              this row once task mutation endpoints / system-events exist.
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => handleAction('Run now')}>
+                  <Play className="h-3.5 w-3.5" />
+                  Run now
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => handleAction('Pause')}>
+                  <Pause className="h-3.5 w-3.5" />
+                  Pause
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => handleAction('Edit')}>
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit
+                </Button>
+              </div>
+            */}
           </div>
 
           {/* Right — run history */}

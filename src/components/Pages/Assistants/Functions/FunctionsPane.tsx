@@ -1,8 +1,12 @@
 'use client';
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { Code2, Play, Check } from 'lucide-react';
-import { toast } from 'sonner';
+import { Code2, Check } from 'lucide-react';
+// TODO(wire-backend): Running a function from this view is not wired to any
+// backend (it only toasts). Play + toast are only used by the disabled Run
+// controls below; restore them with a real function-invocation endpoint.
+// import { Play } from 'lucide-react';
+// import { toast } from 'sonner';
 import { Button } from '@/components/UI/button';
 import {
   Sheet,
@@ -156,22 +160,26 @@ function CopySignatureButton({ skill }: { skill: FunctionSkill }) {
   );
 }
 
-function FunctionRun({ skill }: { skill: FunctionSkill }) {
-  return (
-    <div className="space-y-4 pr-4" data-testid="function-run-body">
-      <DetailField label="Signature">
-        <AssistantMarkdown>{fencedCode(shortSignature(skill), skill.language)}</AssistantMarkdown>
-      </DetailField>
-      <div className="text-body-muted bg-muted/40 flex items-start gap-2 rounded-lg border p-3 text-sm">
-        <Play className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-        <span>
-          Running functions directly from this view isn&apos;t available yet. Ask your digital twin
-          in chat to run <span className="font-mono">{skill.name}</span> for you.
-        </span>
-      </div>
-    </div>
-  );
-}
+// TODO(wire-backend): the "Run" drawer tab is not wired to a backend — running
+// a function from this view isn't available yet. Restore this panel (and the
+// About/Run tab switcher + footer Run button) once a function-invocation
+// endpoint exists.
+// function FunctionRun({ skill }: { skill: FunctionSkill }) {
+//   return (
+//     <div className="space-y-4 pr-4" data-testid="function-run-body">
+//       <DetailField label="Signature">
+//         <AssistantMarkdown>{fencedCode(shortSignature(skill), skill.language)}</AssistantMarkdown>
+//       </DetailField>
+//       <div className="text-body-muted bg-muted/40 flex items-start gap-2 rounded-lg border p-3 text-sm">
+//         <Play className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+//         <span>
+//           Running functions directly from this view isn&apos;t available yet. Ask your digital twin
+//           in chat to run <span className="font-mono">{skill.name}</span> for you.
+//         </span>
+//       </div>
+//     </div>
+//   );
+// }
 
 export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPaneProps) {
   const { functions, isLoading, error, refetch } = useBrainData({
@@ -186,7 +194,8 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<FunctionKindFilter>('All');
   const [selected, setSelected] = useState<FunctionSkill | null>(null);
-  const [drawerTab, setDrawerTab] = useState<'about' | 'run'>('about');
+  // TODO(wire-backend): restore when the function "Run" tab is wired.
+  // const [drawerTab, setDrawerTab] = useState<'about' | 'run'>('about');
 
   const skills = useMemo(() => functions.rows.map(mapFunctionRow), [functions.rows]);
   const filtered = useMemo(() => filterFunctions(skills, query, kind), [skills, query, kind]);
@@ -263,7 +272,7 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
                   key={`${skill.functionId ?? skill.name}`}
                   className="hover:border-primary/40 hover:bg-muted/40 flex flex-col gap-1.5 rounded-lg border bg-card p-2.5 text-left transition-colors"
                   onClick={() => {
-                    setDrawerTab('about');
+                    // TODO(wire-backend): setDrawerTab('about') — restore with the Run tab.
                     setSelected(skill);
                   }}
                   data-testid={`function-card-${skill.name}`}
@@ -290,9 +299,13 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
                         · {skill.dependsOn.length} dep{skill.dependsOn.length > 1 ? 's' : ''}
                       </span>
                     )}
-                    <span className="ml-auto inline-flex items-center gap-1 font-medium text-primary">
-                      <Play className="h-2.5 w-2.5" /> Run
-                    </span>
+                    {/*
+                      TODO(wire-backend): card "Run" affordance — function
+                      invocation isn't wired to a backend yet.
+                      <span className="ml-auto inline-flex items-center gap-1 font-medium text-primary">
+                        <Play className="h-2.5 w-2.5" /> Run
+                      </span>
+                    */}
                   </div>
                 </button>
               ))}
@@ -328,48 +341,52 @@ export function FunctionsPane({ assistant, ownerId, assistantId }: FunctionsPane
               </SheetDescription>
             </div>
             {selected && <FunctionBadges skill={selected} />}
-            <div className="flex items-center gap-1" data-testid="function-detail-tabs">
-              {(['about', 'run'] as const).map((t) => (
-                <button
-                  key={t}
-                  className={SEG_CLASS}
-                  data-active={drawerTab === t}
-                  onClick={() => setDrawerTab(t)}
-                  data-testid={`function-detail-tab-${t}`}
-                >
-                  {t === 'about' ? 'About' : 'Run'}
-                </button>
-              ))}
-            </div>
+            {/*
+              TODO(wire-backend): About/Run tab switcher — the "Run" tab is not
+              wired to a backend yet. Restore once function invocation exists.
+              <div className="flex items-center gap-1" data-testid="function-detail-tabs">
+                {(['about', 'run'] as const).map((t) => (
+                  <button
+                    key={t}
+                    className={SEG_CLASS}
+                    data-active={drawerTab === t}
+                    onClick={() => setDrawerTab(t)}
+                    data-testid={`function-detail-tab-${t}`}
+                  >
+                    {t === 'about' ? 'About' : 'Run'}
+                  </button>
+                ))}
+              </div>
+            */}
           </SheetHeader>
           <ScrollArea className="mt-4 min-h-0 flex-1">
-            {selected &&
-              (drawerTab === 'about' ? (
-                <FunctionAbout skill={selected} />
-              ) : (
-                <FunctionRun skill={selected} />
-              ))}
+            {selected && <FunctionAbout skill={selected} />}
           </ScrollArea>
           {selected && (
             <SheetFooter className="mt-0 shrink-0 flex-row justify-end gap-2 border-t pt-3">
               <CopySignatureButton skill={selected} />
-              {drawerTab === 'about' ? (
-                <Button size="sm" onClick={() => setDrawerTab('run')} data-testid="function-run">
-                  <Play className="mr-1 h-3.5 w-3.5" /> Run
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    toast('Running functions isn’t available from this view yet.', {
-                      description: 'Ask your digital twin in chat to run this function.',
-                    })
-                  }
-                  data-testid="function-run"
-                >
-                  <Play className="mr-1 h-3.5 w-3.5" /> Run
-                </Button>
-              )}
+              {/*
+                TODO(wire-backend): "Run" function button — not wired to a
+                backend (only toasts / toggles a tab). Restore once a
+                function-invocation endpoint exists.
+                {drawerTab === 'about' ? (
+                  <Button size="sm" onClick={() => setDrawerTab('run')} data-testid="function-run">
+                    <Play className="mr-1 h-3.5 w-3.5" /> Run
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      toast('Running functions isn’t available from this view yet.', {
+                        description: 'Ask your digital twin in chat to run this function.',
+                      })
+                    }
+                    data-testid="function-run"
+                  >
+                    <Play className="mr-1 h-3.5 w-3.5" /> Run
+                  </Button>
+                )}
+              */}
             </SheetFooter>
           )}
         </SheetContent>

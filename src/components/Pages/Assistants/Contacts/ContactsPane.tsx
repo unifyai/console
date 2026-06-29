@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { Plus, Shield, Mail, Clock, Pencil, MessageCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { Plus, Shield, Mail, Clock, Pencil } from 'lucide-react';
+// TODO(wire-backend): MessageCircle + toast are only used by the unwired
+// "Message" contact action below; restore with it.
+// import { MessageCircle } from 'lucide-react';
+// import { toast } from 'sonner';
 import { Button } from '@/components/UI/button';
 import {
   Sheet,
@@ -189,11 +192,14 @@ export function ContactsPane({
     }
   }, [refetch]);
 
-  const notifyChatOnly = useCallback((label: string) => {
-    toast(`${label} isn’t available from this view yet.`, {
-      description: 'Ask your digital twin in chat to reach out to this contact.',
-    });
-  }, []);
+  // TODO(wire-backend): Message / Email contact actions are not wired to any
+  // backend (this only toasts). Restore once outbound messaging/email
+  // dispatch endpoints are available.
+  // const notifyChatOnly = useCallback((label: string) => {
+  //   toast(`${label} isn’t available from this view yet.`, {
+  //     description: 'Ask your digital twin in chat to reach out to this contact.',
+  //   });
+  // }, []);
 
   if (error) {
     return (
@@ -351,23 +357,28 @@ export function ContactsPane({
             {selected && <ContactDetail card={selected} />}
           </ScrollArea>
           <SheetFooter className="mt-0 shrink-0 flex-row justify-end gap-2 border-t pt-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => notifyChatOnly('Messaging a contact')}
-              data-testid="contact-message"
-            >
-              <MessageCircle className="mr-1 h-3.5 w-3.5" /> Message
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!selected?.email}
-              onClick={() => notifyChatOnly('Emailing a contact')}
-              data-testid="contact-email"
-            >
-              <Mail className="mr-1 h-3.5 w-3.5" /> Email
-            </Button>
+            {/*
+              TODO(wire-backend): Message / Email contact actions are not wired
+              to a backend (notifyChatOnly only toasts). Restore once outbound
+              messaging/email dispatch endpoints exist.
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => notifyChatOnly('Messaging a contact')}
+                data-testid="contact-message"
+              >
+                <MessageCircle className="mr-1 h-3.5 w-3.5" /> Message
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!selected?.email}
+                onClick={() => notifyChatOnly('Emailing a contact')}
+                data-testid="contact-email"
+              >
+                <Mail className="mr-1 h-3.5 w-3.5" /> Email
+              </Button>
+            */}
             <Button
               size="sm"
               onClick={onManageContacts}

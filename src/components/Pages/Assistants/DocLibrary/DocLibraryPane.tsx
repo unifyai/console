@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { Compass, BookText, Link2, Plus } from 'lucide-react';
-import { toast } from 'sonner';
+import { Compass, BookText, Link2 } from 'lucide-react';
+// TODO(wire-backend): Plus + toast are only used by the unwired guidance/
+// knowledge "Add" control; restore them with a doc-create endpoint.
+// import { Plus } from 'lucide-react';
+// import { toast } from 'sonner';
 import { Button } from '@/components/UI/button';
 import { ScrollArea } from '@/components/UI/scroll-area';
 import { CopyButton } from '@/components/Common/Buttons/Copy';
@@ -15,7 +18,8 @@ import { AssistantMarkdown } from '../Common/AssistantMarkdown';
 import { TabToolbar } from '../Common/TabToolbar';
 import { TabFilterDropdown } from '../Common/TabFilterDropdown';
 import { TabFooter } from '../Common/TabFooter';
-import { DocAddDrawer } from './DocAddDrawer';
+// TODO(wire-backend): restore once guidance/knowledge creation is wired.
+// import { DocAddDrawer } from './DocAddDrawer';
 import type { DocLibraryKind } from './docLibraryKind';
 import type { GuidanceRow, KnowledgeRow } from '@/types/assistants/brain';
 import type { Assistant } from '@/types/assistants/assistant';
@@ -163,7 +167,8 @@ export function DocLibraryPane({
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
-  const [isAdding, setIsAdding] = useState(false);
+  // TODO(wire-backend): restore when guidance/knowledge creation is wired.
+  // const [isAdding, setIsAdding] = useState(false);
 
   const docs = useMemo(() => {
     if (kind === 'knowledge') return knowledge.rows.map(mapKnowledgeRow);
@@ -272,17 +277,20 @@ export function DocLibraryPane({
         isRefreshing={isRefreshing}
         refreshTitle="Refresh"
         refreshTestId="doc-refresh"
-        addAction={
-          <Button
-            size="sm"
-            className="h-7 shrink-0"
-            onClick={() => setIsAdding(true)}
-            data-testid="doc-add"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {meta.addLabel}
-          </Button>
-        }
+        // TODO(wire-backend): guidance/knowledge creation is not wired to any
+        // backend (DocAddDrawer.onSave only toasts). Restore this addAction +
+        // the DocAddDrawer below once a doc-create endpoint exists.
+        // addAction={
+        //   <Button
+        //     size="sm"
+        //     className="h-7 shrink-0"
+        //     onClick={() => setIsAdding(true)}
+        //     data-testid="doc-add"
+        //   >
+        //     <Plus className="h-3.5 w-3.5" />
+        //     {meta.addLabel}
+        //   </Button>
+        // }
       />
 
       <div className="flex min-h-0 flex-1">
@@ -428,16 +436,21 @@ export function DocLibraryPane({
         plural={meta.footerPlural}
       />
 
-      <DocAddDrawer
-        open={isAdding}
-        kind={kind}
-        onClose={() => setIsAdding(false)}
-        onSave={() =>
-          toast(`Saving ${kind} isn’t available from this view yet.`, {
-            description: `Ask your digital twin in chat to add ${kind}.`,
-          })
-        }
-      />
+      {/*
+        TODO(wire-backend): guidance/knowledge creation drawer — onSave only
+        toasts; not wired to a backend. Restore once a doc-create endpoint /
+        system-event exists.
+        <DocAddDrawer
+          open={isAdding}
+          kind={kind}
+          onClose={() => setIsAdding(false)}
+          onSave={() =>
+            toast(`Saving ${kind} isn’t available from this view yet.`, {
+              description: `Ask your digital twin in chat to add ${kind}.`,
+            })
+          }
+        />
+      */}
     </div>
   );
 }
