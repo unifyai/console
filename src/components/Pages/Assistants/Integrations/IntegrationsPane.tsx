@@ -197,7 +197,7 @@ export function IntegrationsPane({
     cancelUploadJson,
     onSubmit,
     fetchSecrets,
-  } = useAssistantSecrets(assistantId, ownerId, secretActions, { enabled: isVisible });
+  } = useAssistantSecrets(assistantId, ownerId, secretActions);
   const [galleryFilters, setGalleryFilters] =
     React.useState<IntegrationGalleryFilters>(DEFAULT_GALLERY_FILTERS);
   const catalogSourceType =

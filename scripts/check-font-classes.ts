@@ -40,6 +40,9 @@ const STANDARD_CLASSES = new Set([
   'text-label',
   'text-label-muted',
   'text-caption',
+  'text-ink-2',
+  'text-doc-title',
+  'text-body-dense',
   // Code
   'text-code',
   'text-code-sm',
